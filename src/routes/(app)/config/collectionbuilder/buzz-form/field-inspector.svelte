@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/collectionbuilder/BuzzForm/FieldInspector.svelte
 @component
 **Field Inspector**
@@ -17,7 +17,7 @@
 -->
 
 <script lang="ts">
-import { Tabs } from "@skeletonlabs/skeleton-svelte";
+import Tabs from "@components/ui/tabs";
 import InputSwitch from "@src/components/system/builder/input-switch.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
@@ -117,7 +117,7 @@ function handleUpdate(detail: { value: any }, property: string) {
 
 		<!-- Quick Info Strip -->
 		<div class="flex items-center justify-between border-b border-surface-200-800 bg-surface-50 dark:bg-surface-900 px-4 py-2 text-[10px] font-mono text-surface-500">
-			<span class="truncate max-w-[150px]">{target.db_fieldName || 'no_name'}</span>
+			<span class="truncate max-w-37.5">{target.db_fieldName || 'no_name'}</span>
 			<div class="flex gap-2">
 				{#if target.required}<span class="text-error-500">Required</span>{/if}
 				{#if target.translated}<span class="text-primary-500">i18n</span>{/if}

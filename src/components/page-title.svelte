@@ -106,7 +106,7 @@
 	}
 </script>
 
-<div class="my-1.5 flex w-full min-w-0 items-center justify-between gap-4">
+<div class="flex w-full min-w-0 items-center justify-between gap-4">
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
 			<button
@@ -151,7 +151,7 @@
 					<a
 						href={backUrl}
 						aria-label="Go back"
-						class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
+						class="flex h-10 w-10 items-center justify-center rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 transition-colors shrink-0"
 						data-cms-action="back"
 						data-sveltekit-preload-data="hover"
 						onclick={(e) => handleBackClick(e)}
@@ -164,7 +164,7 @@
 					onclick={(e) => handleBackClick(e)}
 					aria-label="Go back"
 					tabindex="0"
-					class="btn-icon rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 shrink-0"
+					class="flex h-10 w-10 items-center justify-center rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 transition-colors shrink-0"
 					data-cms-action="back"
 				>
 					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>

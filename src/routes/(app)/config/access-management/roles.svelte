@@ -13,7 +13,7 @@ It provides the following functionality:
 - Load and display roles and their associated permissions.
 - Allow users to create, edit, and delete roles through a modal interface.
 - Allow bulk deletion of selected roles.
-- Display a skeleton.dev modal for creating or editing roles with an intuitive UI for selecting associated permissions.
+- Display a native modal for creating or editing roles with an intuitive UI for selecting associated permissions.
 -->
 
 <script lang="ts">
@@ -22,7 +22,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 // Auth
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
-// Skeleton
+// Native UI Components
 import { modalState } from "@utils/modal.svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { dndzone } from "svelte-dnd-action";
@@ -238,7 +238,7 @@ function handleFinalize(e: CustomEvent) {
 			</div>
 		</div>
 
-		<div class="role mt-4 flex-1 overflow-auto">
+		<div class="role mt-4 flex-1">
 			{#if roles.length === 0}
 				<p>No roles defined yet.</p>
 			{:else}
@@ -313,9 +313,7 @@ function handleFinalize(e: CustomEvent) {
 {/if}
 
 <style>
-	.role {
-		height: calc(100vh - 350px);
-	}
+	/* No fixed height, let parent page container handle vertical scrolling */
 	:global([data-is-dnd-shadow-item='true']) {
 		opacity: 0.75 !important;
 		background: var(--color-surface-400) !important;

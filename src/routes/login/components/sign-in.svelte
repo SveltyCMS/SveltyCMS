@@ -29,7 +29,8 @@ import SiteName from "@src/components/site-name.svelte";
 import FloatingPaths from "@src/components/system/floating-paths.svelte";
 import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
 import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
-import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
+import FloatingInput from "@components/ui/floating-input.svelte";
+import Button from "@components/ui/button.svelte";
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 // ParaglideJS
 import {
@@ -448,8 +449,8 @@ $effect(() => {
 				class:hide={active !== 0}
 			>
 				<a href="#signin-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-in form</a>
-				<div class="flex flex-row gap-2">
-					<SveltyCMSLogo className="w-14" fill="red" />
+				<div class="flex flex-row gap-3 items-center">
+					<SveltyCMSLogo size={68} className="w-14" fill="red" />
 					<h1 class="text-3xl font-bold text-black lg:text-4xl">
 						<div class="text-xs text-surface-300">
 							<SiteName {siteName} highlight="CMS" textClass="text-black" />
@@ -470,13 +471,15 @@ $effect(() => {
 					{form_required()}
 					<div class="absolute right-0">
 						<SystemTooltip title="Go Back">
-							<button
+							<Button
 								onclick={handleBack}
 								aria-label="Go back"
-								class="btn-icon preset-outlined-secondary-500 rounded-full"
+								variant="outline"
+								rounded={true}
+								class="w-10 h-10 p-0 flex items-center justify-center text-black border-surface-300! hover:bg-surface-100"
 							>
 								<iconify-icon icon="ri:arrow-left-line" width={24}></iconify-icon>
-							</button>
+							</Button>
 						</SystemTooltip>
 					</div>
 				</div>
@@ -539,33 +542,33 @@ $effect(() => {
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<div class="flex w-full justify-between gap-2 sm:w-auto">
-								<button
+								<Button
 									type="submit"
 									form="signin-form"
-									class="preset-filled-surface-500 btn w-full text-white sm:w-auto"
+									variant="surface"
+									class="w-full text-white sm:w-auto"
 									aria-label={form_signin()}
 									data-testid="signin-submit"
+									loading={isSubmitting || isAuthenticating}
 								>
 									{form_signin()}
-									{#if isSubmitting || isAuthenticating}
-										<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
-									{/if}
-								</button>
+								</Button>
 
 								<OauthLogin showGoogleOAuth={pageData.showGoogleOAuth} showGithubOAuth={pageData.showGithubOAuth} {firstCollectionPath} />
 							</div>
 
 							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
-								<button
+								<Button
 									type="button"
-									class="btn preset-outlined-surface-500 w-full text-black sm:w-auto"
+									variant="outline"
+									class="w-full text-black sm:w-auto hover:bg-surface-100"
 									aria-label={signin_forgottenpassword()}
 									tabindex={forgotPasswordTabIndex}
 									onclick={handleForgotPassword}
 									data-testid="signin-forgot-password"
 								>
 									{signin_forgottenpassword()}
-								</button>
+								</Button>
 							</div>
 						</div>
 					</div>

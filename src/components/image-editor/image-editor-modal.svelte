@@ -208,7 +208,7 @@ A reusable modal that wraps the main Image Editor.
 						</div>
 						<button
 							onclick={() => (error = null)}
-							class="text-error-400 hover:text-error-600 dark:text-error-200 hover:dark:text-error-50"
+							class="text-error-500 hover:text-error-600 dark:text-error-200 hover:dark:text-error-50"
 							aria-label="Dismiss error"
 						>
 							<iconify-icon icon="mdi:close" width="20"></iconify-icon>

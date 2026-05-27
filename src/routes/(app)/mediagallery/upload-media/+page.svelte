@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/routes/(app)/mediagallery/uploadMedia/+page.svelte
 @component
 **This page is used to upload media to the media gallery**
@@ -20,7 +20,7 @@
 -->
 
 <script lang="ts">
-import { Tabs } from "@skeletonlabs/skeleton-svelte";
+import Tabs from "@components/ui/tabs";
 import PageTitle from "@src/components/page-title.svelte";
 import { uploadMedia_title } from "@src/paraglide/messages";
 import { goto } from "$app/navigation";

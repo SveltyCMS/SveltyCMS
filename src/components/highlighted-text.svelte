@@ -193,7 +193,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 	<!-- Match count indicator (if searching) -->
 	{#if term && matchCount > 0}
 		<span
-			class="ml-2 inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-600 dark:text-primary-400"
+			class="ml-2 inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-600 dark:text-primary-500"
 			title="Number of matches found"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>

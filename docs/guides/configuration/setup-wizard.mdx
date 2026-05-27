@@ -548,7 +548,7 @@ SveltyCMS includes a robust Playwright-based E2E test suite to verify the setup 
 
 ### Setup Wizard Test Example
 
-The following test (`tests/e2e/setup-wizard.spec.ts`) demonstrates how to automate the multi-step configuration, including handling Skeleton v4's modal portals and cookie consent banners:
+The following test (`tests/e2e/setup-wizard.spec.ts`) demonstrates how to automate the multi-step configuration, including handling modal portals and cookie consent banners:
 
 ```typescript
 import { expect, test, type Page } from "@playwright/test";
@@ -577,7 +577,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
     await cookieAcceptBtn.click();
   }
 
-  // Handle "Welcome" popup (Skeleton v4 portal detection)
+  // Handle "Welcome" popup
   const welcomeModal = page.locator("#welcome-heading").first();
   if (await welcomeModal.isVisible({ timeout: 3000 }).catch(() => false)) {
     const getStartedBtn = page

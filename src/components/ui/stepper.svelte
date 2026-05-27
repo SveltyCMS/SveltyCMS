@@ -79,7 +79,7 @@ function isClickable(index: number) {
 				<!-- Step Text -->
 				{#if !compact}
 					<div class="min-w-0">
-						<p class="font-bold text-sm {i === currentStep ? 'text-primary-600 dark:text-primary-400' : 'text-surface-900 dark:text-surface-100'}">
+						<p class="font-bold text-sm {i === currentStep ? 'text-primary-600 dark:text-primary-500' : 'text-surface-900 dark:text-surface-100'}">
 							{step.label}
 						</p>
 						{#if step.description && orientation === 'vertical'}

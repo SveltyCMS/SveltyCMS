@@ -65,7 +65,7 @@ export const widgetMeta = {
 			</div>
 			<div class="flex items-center justify-between">
 				<span class="opacity-70">Provider</span>
-				<span class="font-mono text-primary-600 dark:text-primary-400 text-[10px]">{provider}</span>
+				<span class="font-mono text-primary-600 dark:text-primary-500 text-[10px]">{provider}</span>
 			</div>
 		</div>
 

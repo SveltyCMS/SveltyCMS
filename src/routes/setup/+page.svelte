@@ -6,7 +6,7 @@
 <script lang="ts">
 	// Stores
 
-	// Skeleton v4
+	// Native UI Components v4
 	import DialogManager from '@src/components/system/dialog-manager.svelte';
 	// ParaglideJS
 	import {

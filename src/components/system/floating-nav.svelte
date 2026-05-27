@@ -94,7 +94,7 @@
 		},
 		{
 			tooltip: 'Access Management',
-			url: { external: false, path: '/config/accessManagement' },
+			url: { external: false, path: '/config/access-management' },
 			icon: 'mdi:shield-account',
 			color: 'bg-purple-500'
 		},

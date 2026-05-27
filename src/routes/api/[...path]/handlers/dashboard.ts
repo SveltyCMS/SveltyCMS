@@ -33,8 +33,14 @@ export async function handleDashboardRoutes(
       case "dashboard-stats": {
         // Mock or real stats for dashboard
         const collections = await (cms.db.crud as any).listCollections(tenantId as DatabaseId);
-        const users = await cms.auth.listUsers({ tenantId: tenantId as DatabaseId, limit: 1 });
-        const media = await cms.media.find({ tenantId: tenantId as DatabaseId, limit: 1 });
+        const users = await cms.auth.listUsers({
+          tenantId: tenantId as DatabaseId,
+          limit: 1,
+        });
+        const media = await cms.media.find({
+          tenantId: tenantId as DatabaseId,
+          limit: 1,
+        });
 
         return rawResponse(event, {
           contentCount: collections.success ? collections.data.length : 0,
@@ -131,12 +137,18 @@ export async function handleDashboardRoutes(
       }
 
       case "last5media": {
-        const result = await cms.media.find({ tenantId: tenantId as DatabaseId, limit: 5 });
+        const result = await cms.media.find({
+          tenantId: tenantId as DatabaseId,
+          limit: 5,
+        });
         return rawResponse(event, result.success ? result.data.items : []);
       }
 
       case "online-user": {
-        const users = await cms.auth.listUsers({ tenantId: tenantId as DatabaseId, limit: 10 });
+        const users = await cms.auth.listUsers({
+          tenantId: tenantId as DatabaseId,
+          limit: 10,
+        });
         const onlineUsers = (users.data || [])
           .map((u) => ({
             id: u._id,
@@ -151,7 +163,10 @@ export async function handleDashboardRoutes(
 
       case "system-messages": {
         const limit = Number(url.searchParams.get("limit")) || 10;
-        const result = await auditLogService.queryLogs({ limit, tenantId: tenantId || undefined });
+        const result = await auditLogService.queryLogs({
+          limit,
+          tenantId: tenantId || undefined,
+        });
         const messages = result.success
           ? result.data.map((l) => ({
               id: l._id,
@@ -210,6 +225,21 @@ export async function handleDashboardRoutes(
           byTenant: (stats as any).byTenant || {},
           timestamp: Date.now(),
           recentMisses: [],
+        });
+      }
+
+      case "audit": {
+        const auditLimit = Math.min(Number(url.searchParams.get("limit")) || 50, 100);
+        const result = await auditLogService.queryLogs({
+          limit: auditLimit,
+          tenantId: tenantId || undefined,
+        });
+
+        if (!result.success) throw new AppError(result.message, 500);
+
+        return rawResponse(event, {
+          data: result.data || [],
+          total: result.data?.length || 0,
         });
       }
 

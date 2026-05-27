@@ -171,7 +171,7 @@
 					{/each}
 				</h3>
 			{:else}
-				<h3 class="text-lg font-medium leading-tight text-primary-500 hover:underline dark:text-primary-400">{title || 'Page Title'}</h3>
+				<h3 class="text-lg font-medium leading-tight text-primary-500 hover:underline dark:text-primary-500">{title || 'Page Title'}</h3>
 			{/if}
 		</div>
 

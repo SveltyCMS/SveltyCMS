@@ -55,7 +55,9 @@ test.describe("Universal Accessibility Audits", () => {
   test("RTL Audit - Verify LTR to RTL Mirroring Stability", async ({ page }) => {
     // 1. Login first
     await loginAsAdmin(page);
-    await page.waitForURL(/\/(Collections|admin|dashboard|collectionbuilder)/, { timeout: 15_000 });
+    await page.waitForURL(/\/(Collections|admin|dashboard|collectionbuilder)/, {
+      timeout: 15_000,
+    });
 
     // 2. Set HTML dir="rtl" to simulate RTL layout (Arabic/Hebrew locale flow)
     await page.evaluate(() => {
@@ -97,7 +99,7 @@ test.describe("Universal Accessibility Audits", () => {
       return style.outlineStyle || style.boxShadow;
     });
 
-    // In Tailwind v4/Skeleton UI, focus is styled via ring/boxShadow or outline
+    // In Tailwind v4/Native UI, focus is styled via ring/boxShadow or outline
     expect(outlineStyle).not.toBe("none");
   });
 });

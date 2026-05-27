@@ -57,7 +57,7 @@ export default defineConfig({
     pool: "forks",
     server: {
       deps: {
-        inline: [/@sveltejs\/kit/, /sveltekit-rate-limiter/, /@skeletonlabs\/skeleton-svelte/],
+        inline: [/@sveltejs\/kit/, /sveltekit-rate-limiter/],
       },
     },
   },

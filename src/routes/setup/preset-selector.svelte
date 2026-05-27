@@ -173,10 +173,10 @@ Default value is 'blank'.
 							<div
 								class="absolute top-1 right-1 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
 								'simple'
-									? 'text-primary-600 dark:text-primary-400 bg-primary-600/10 dark:bg-primary-400/10 border-primary-600/30 dark:border-primary-400/40'
+									? 'text-primary-600 dark:text-primary-500 bg-primary-600/10 dark:bg-primary-400/10 border-primary-600/30 dark:border-primary-400/40'
 									: preset.complexity === 'moderate'
 										? 'text-warning-600 dark:text-warning-400 bg-warning-600/10 dark:bg-warning-400/10 border-warning-600/30 dark:border-warning-400/40'
-										: 'text-error-600 dark:text-error-400 bg-error-600/10 dark:bg-error-400/10 border-error-600/30 dark:border-error-400/40'}"
+										: 'text-error-600 dark:text-error-500 bg-error-600/10 dark:bg-error-400/10 border-error-600/30 dark:border-error-400/40'}"
 							>
 								{preset.complexity}
 							</div>

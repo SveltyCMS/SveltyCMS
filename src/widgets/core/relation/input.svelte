@@ -16,7 +16,7 @@ Interactive selector with "Select" button and clear functionality
 - `error?: string | null` - Validation error message for display
 
 ### Features
-- **Modal Selection**: Skeleton Labs modal integration for entry browsing
+- **Modal Selection**: Native modal integration for entry browsing
 - **Single/Multi Relations**: Handles both single and array-based relations
 - **Async Entry Loading**: Fetches full entry data for display preview
 - **Clear Functionality**: Easy removal of selected relations with × button

@@ -109,7 +109,7 @@ export const widgetMeta = {
 							class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs transition-colors hover:bg-surface-200 dark:bg-surface-700/60 dark:hover:bg-surface-700"
 						>
 							<div class="flex min-w-0 items-center gap-2">
-								<iconify-icon icon={getFileIcon(file.type)} width="18" class="shrink-0 text-primary-400" aria-label={file.type + ' file icon'}
+								<iconify-icon icon={getFileIcon(file.type)} width="18" class="shrink-0 text-primary-500" aria-label={file.type + ' file icon'}
 								></iconify-icon>
 								<div class="flex min-w-0 flex-col">
 									<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}> {file.name} </span>

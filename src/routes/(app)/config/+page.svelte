@@ -183,7 +183,7 @@ const configItems = [
 	// END: System Monitor
 	{
 		id: "accessManagement",
-		href: "/config/accessManagement",
+		href: "/config/access-management",
 		label: "Access Management",
 		icon: "mdi:account-group",
 		iconColor: "text-error-500",
@@ -270,7 +270,7 @@ const configItems = [
 							class={`text-3xl lg:text-4xl ${item.iconColor || ''} transition-transform duration-300 group-hover:scale-110`}
 						></iconify-icon>
 						<p
-							class="w-full truncate text-xs font-medium uppercase tracking-wide group-hover:text-primary-600 dark:group-hover:text-primary-400 lg:text-sm"
+							class="w-full truncate text-xs font-medium uppercase tracking-wide group-hover:text-primary-600 dark:group-hover:text-primary-500 lg:text-sm"
 						>
 							{item.label}
 						</p>
@@ -293,7 +293,7 @@ const configItems = [
 						class={`text-3xl lg:text-4xl ${item.iconColor || ''} transition-transform duration-300 group-hover:scale-110`}
 					></iconify-icon>
 					<p
-						class="w-full truncate text-xs font-medium uppercase tracking-wide text-surface-600 dark:text-surface-300 group-hover:text-primary-600 dark:group-hover:text-primary-400 lg:text-sm"
+						class="w-full truncate text-xs font-medium uppercase tracking-wide text-surface-600 dark:text-surface-300 group-hover:text-primary-600 dark:group-hover:text-primary-500 lg:text-sm"
 					>
 						{item.label}
 					</p>

@@ -682,7 +682,7 @@ Features:
 
 		<!-- System Infrastructure / Mode -->
 		<section id="infrastructure-section" class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
-			<h4 class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 mb-4">
+			<h4 class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-500 mb-4">
 				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
 				{setup_system_infrastructure_mode?.() || 'System Infrastructure / Mode'}
 			</h4>
@@ -800,7 +800,7 @@ Features:
 								<span>{setup_db_test_redis_success?.() || 'Connected successfully!'}</span>
 							</div>
 						{:else if setupStore.wizard.errorMessage && !setupStore.wizard.redisTestPassed}
-							<div class="flex items-center gap-2 text-error-600 dark:text-error-400 text-sm font-medium animate-in fade-in slide-in-from-left-2 duration-300">
+							<div class="flex items-center gap-2 text-error-600 dark:text-error-500 text-sm font-medium animate-in fade-in slide-in-from-left-2 duration-300">
 								<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
 								<span>{setupStore.wizard.errorMessage}</span>
 							</div>
@@ -814,7 +814,7 @@ Features:
 		<div class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
 			<button
 				type="button"
-				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 hover:text-tertiary-500 transition-colors"
+				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-500 hover:text-tertiary-500 transition-colors"
 				onclick={() => (showScaling = !showScaling)}
 			>
 				<iconify-icon icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'} width="18"></iconify-icon>

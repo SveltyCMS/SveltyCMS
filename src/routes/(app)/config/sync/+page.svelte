@@ -6,7 +6,6 @@ Allows synchronization between filesystem and database, and full system backup/r
 -->
 <script lang="ts">
 import ImportExportManager from "@src/components/admin/import-export-manager.svelte";
-import PageTitle from "@src/components/page-title.svelte";
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
@@ -42,7 +41,7 @@ async function loadStatus() {
 			throw new Error(`HTTP ${res.status}`);
 		}
 		status = await res.json();
-		console.debug("[Config Sync] Received status:", status);
+		console.debug("[Config Sync] Received status:", $state.snapshot(status));
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : String(err);
 		toast.error(`Failed to fetch status: ${errorMsg}`);
@@ -94,157 +93,168 @@ onMount(() => {
 });
 </script>
 
-<!-- Page Title and Back Button -->
-<PageTitle
-	name="Config Sync & Backup"
-	icon="mdi:sync-circle"
-	showBackButton={true}
-	backUrl="/config"
-
-/>
-
-<div class="wrapper">
-	<!-- Description -->
-	<div class="preset-tonal-surface mb-4 p-4">
-		<p class="text-surface-600 dark:text-surface-300">
-			Manage your system configuration. Use <strong>Sync</strong> to deploy code changes to the database, and <strong>Backups</strong> to import/export
-			full system data.
-		</p>
-	</div>
-
-	<!-- Tabs -->
-	<div
-		class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70"
-		role="tablist"
-		aria-label="Sync Options"
-	>
-		{#each ['sync', 'backups', 'debug'] as tab (tab)}
-			<SystemTooltip
-				title={tab === 'sync' ? 'Deploy changes' : tab === 'backups' ? 'Import/Export Data' : 'Debug Info'}
-				positioning={{ placement: 'top' }}
-			>
-				<button
-					class="flex-1 py-3 text-center text-sm font-medium transition-all duration-200 px-6"
-					class:!bg-tertiary-500={activeTab === tab}
-					class:!text-white={activeTab === tab}
-					class:!dark:bg-primary-500={activeTab === tab}
-					class:!dark:text-surface-900={activeTab === tab}
-					class:dark:text-surface-200={activeTab !== tab}
-					class:text-surface-700={activeTab !== tab}
-					onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
-					role="tab"
-					aria-selected={activeTab === tab}
-					aria-controls="{tab}-panel"
-					id="{tab}-tab"
-				>
-					{tab.charAt(0).toUpperCase() + tab.slice(1)}
-				</button>
-			</SystemTooltip>
-		{/each}
+<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+	<!-- Header -->
+	<div class="flex items-center justify-between" in:fade>
+		<div>
+			<h1 class="text-3xl font-bold flex items-center gap-3">
+				<iconify-icon icon="mdi:sync" class="text-primary-500"></iconify-icon>
+				Config Sync & Backup
+			</h1>
+			<p class="text-sm opacity-50 font-medium">Synchronize configuration between filesystem and database</p>
+		</div>
+		<div class="flex items-center gap-2">
+			<a href="/config" class="btn preset-ghost-surface-500 btn-sm" data-sveltekit-preload-data="hover">
+				<iconify-icon icon="ri:arrow-left-line" width="18"></iconify-icon>
+				<span class="hidden sm:inline">Back</span>
+			</a>
+		</div>
 	</div>
 
 	<!-- Content -->
-	<section transition:fade|local>
-		{#if activeTab === 'sync'}
-			{#if status?.unmetRequirements && status.unmetRequirements.length > 0}
-				<div class="alert preset-filled-error-500 my-4 p-4" transition:slide>
-					<h4 class="font-bold">Sync Blocked: Unmet Requirements</h4>
-					<p class="text-sm">The following requirements must be met before you can import configuration:</p>
-					<ul class="mt-2 list-disc pl-5 text-sm">
-						{#each status.unmetRequirements as req (req.name + req.type)}
-							<li><strong>{req.name}</strong> ({req.type}): {req.requirement}</li>
-						{/each}
-					</ul>
-				</div>
-			{/if}
+	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
+		<!-- Description -->
+		<div class="preset-tonal-surface mb-4 p-4">
+			<p class="text-surface-600 dark:text-surface-300">
+				Manage your system configuration. Use <strong>Sync</strong> to deploy code changes to the database, and <strong>Backups</strong> to import/export
+				full system data.
+			</p>
+		</div>
 
-			<div class="my-4">
-				<button
-					class="preset-filled-tertiary-500 btn w-full dark:preset-filled-primary-500 sm:w-auto"
-					disabled={isProcessing || !status || status.status === 'in_sync' || status.unmetRequirements.length > 0}
-					onclick={syncAllChanges}
+		<!-- Tabs -->
+		<div
+			class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70"
+			role="tablist"
+			aria-label="Sync Options"
+		>
+			{#each ['sync', 'backups', 'debug'] as tab (tab)}
+				<SystemTooltip
+					title={tab === 'sync' ? 'Deploy changes' : tab === 'backups' ? 'Import/Export Data' : 'Debug Info'}
+					positioning={{ placement: 'top' }}
 				>
-					<iconify-icon icon="mdi:sync" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>
-					{isProcessing ? 'Syncing...' : 'Sync All Changes'}
-				</button>
-			</div>
-
-			{#if isLoading}
-				<div class="flex animate-pulse flex-col items-center py-12 text-surface-500">
-					<iconify-icon icon="mdi:sync" class="mb-3 animate-spin text-5xl"></iconify-icon>
-					Checking synchronization status...
 					<button
-						onclick={loadStatus}
-						class="preset-filled-tertiary-500 btn mt-6 flex items-center gap-2 dark:preset-filled-primary-500"
-						disabled={isLoading}
+						class="flex-1 py-3 text-center text-sm font-medium transition-all duration-200 px-6"
+						class:!bg-tertiary-500={activeTab === tab}
+						class:!text-white={activeTab === tab}
+						class:!dark:bg-primary-500={activeTab === tab}
+						class:!dark:text-surface-900={activeTab === tab}
+						class:dark:text-surface-200={activeTab !== tab}
+						class:text-surface-700={activeTab !== tab}
+						onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
+						role="tab"
+						aria-selected={activeTab === tab}
+						aria-controls="{tab}-panel"
+						id="{tab}-tab"
 					>
-						<iconify-icon icon="mdi:refresh" class={isLoading ? 'animate-spin' : ''}></iconify-icon>
-						{isLoading ? 'Checking...' : 'Refresh'}
+						{tab.charAt(0).toUpperCase() + tab.slice(1)}
+					</button>
+				</SystemTooltip>
+			{/each}
+		</div>
+
+		<!-- Content -->
+		<section transition:fade|local>
+			{#if activeTab === 'sync'}
+				{#if status?.unmetRequirements && status.unmetRequirements.length > 0}
+					<div class="alert preset-filled-error-500 my-4 p-4" transition:slide>
+						<h4 class="font-bold">Sync Blocked: Unmet Requirements</h4>
+						<p class="text-sm">The following requirements must be met before you can import configuration:</p>
+						<ul class="mt-2 list-disc pl-5 text-sm">
+							{#each status.unmetRequirements as req (req.name + req.type)}
+								<li><strong>{req.name}</strong> ({req.type}): {req.requirement}</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+
+				<div class="my-4">
+					<button
+						class="preset-filled-tertiary-500 btn w-full dark:preset-filled-primary-500 sm:w-auto"
+						disabled={isProcessing || !status || status.status === 'in_sync' || status.unmetRequirements.length > 0}
+						onclick={syncAllChanges}
+					>
+						<iconify-icon icon="mdi:sync" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>
+						{isProcessing ? 'Syncing...' : 'Sync All Changes'}
 					</button>
 				</div>
-			{:else if status?.status === 'in_sync'}
-				<div class="space-y-3 py-12 text-center">
-					<iconify-icon icon="mdi:check-circle" class="mx-auto text-6xl text-success-500"></iconify-icon>
-					<h2 class="text-xl font-semibold">System is in Sync</h2>
-					<p class="text-surface-500">Your database and filesystem configurations match perfectly.</p>
-				</div>
-			{:else}
-				<div class="space-y-4">
-					<h3 class="flex items-center gap-2 text-lg font-semibold">
-						<iconify-icon icon="mdi:alert" class="text-warning-500"></iconify-icon>
-						Changes Detected
-					</h3>
-					<p class="">{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary().deleted} deleted.</p>
-					<div class="overflow-hidden border border-surface-200 dark:text-surface-50">
-						<table class="table w-full text-sm">
-							<thead class="bg-surface-100 dark:bg-surface-800">
-								<tr>
-									<th>Name</th>
-									<th>Type</th>
-									<th>Change</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
-									{#each items as item (item.uuid || item.name)}
-										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:text-surface-50 dark:hover:bg-surface-800/50">
-											<td>{item.name}</td>
-											<td><span class="preset-tonal-surface-500 badge capitalize">{item.type}</span></td>
-											<td>
-												{#if changeType === 'new'}
-													<span class="preset-filled-primary-500 badge">New</span>
-												{/if}
-												{#if changeType === 'updated'}
-													<span class="variant-filled-warning badge">Updated</span>
-												{/if}
-												{#if changeType === 'deleted'}
-													<span class="preset-filled-error-500 badge">Deleted</span>
-												{/if}
-											</td>
-										</tr>
-									{/each}
-								{/each}
-							</tbody>
-						</table>
+
+				{#if isLoading}
+					<div class="flex animate-pulse flex-col items-center py-12 text-surface-500">
+						<iconify-icon icon="mdi:sync" class="mb-3 animate-spin text-5xl"></iconify-icon>
+						Checking synchronization status...
+						<button
+							onclick={loadStatus}
+							class="preset-filled-tertiary-500 btn mt-6 flex items-center gap-2 dark:preset-filled-primary-500"
+							disabled={isLoading}
+						>
+							<iconify-icon icon="mdi:refresh" class={isLoading ? 'animate-spin' : ''}></iconify-icon>
+							{isLoading ? 'Checking...' : 'Refresh'}
+						</button>
 					</div>
+				{:else if status?.status === 'in_sync'}
+					<div class="space-y-3 py-12 text-center">
+						<iconify-icon icon="mdi:check-circle" class="mx-auto text-6xl text-success-500"></iconify-icon>
+						<h2 class="text-xl font-semibold">System is in Sync</h2>
+						<p class="text-surface-500">Your database and filesystem configurations match perfectly.</p>
+					</div>
+				{:else}
+					<div class="space-y-4">
+						<h3 class="flex items-center gap-2 text-lg font-semibold">
+							<iconify-icon icon="mdi:alert" class="text-warning-500"></iconify-icon>
+							Changes Detected
+						</h3>
+						<p class="">{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary().deleted} deleted.</p>
+						<div class="overflow-hidden border border-surface-200 dark:text-surface-50">
+							<table class="table w-full text-sm">
+								<thead class="bg-surface-100 dark:bg-surface-800">
+									<tr>
+										<th>Name</th>
+										<th>Type</th>
+										<th>Change</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
+										{#each items as item (item.uuid || item.name)}
+											<tr class="border-t border-surface-200 hover:bg-surface-50 dark:text-surface-50 dark:hover:bg-surface-800/50">
+												<td>{item.name}</td>
+												<td><span class="preset-tonal-surface-500 badge capitalize">{item.type}</span></td>
+												<td>
+													{#if changeType === 'new'}
+														<span class="preset-filled-primary-500 badge">New</span>
+													{/if}
+													{#if changeType === 'updated'}
+														<span class="preset-filled-warning-500 badge">Updated</span>
+													{/if}
+													{#if changeType === 'deleted'}
+														<span class="preset-filled-error-500 badge">Deleted</span>
+													{/if}
+												</td>
+											</tr>
+										{/each}
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
+			{/if}
+
+			{#if activeTab === 'backups'}
+				<div transition:slide|local class="space-y-4"><ImportExportManager /></div>
+			{/if}
+
+			{#if activeTab === 'debug'}
+				<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
+					<h3 class="mb-3 flex items-center gap-2 font-semibold"><iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response</h3>
+					<pre
+						class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800">{JSON.stringify(
+							status,
+							null,
+							2
+						)}</pre>
 				</div>
 			{/if}
-		{/if}
-
-		{#if activeTab === 'backups'}
-			<div transition:slide|local class="space-y-4"><ImportExportManager /></div>
-		{/if}
-
-		{#if activeTab === 'debug'}
-			<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
-				<h3 class="mb-3 flex items-center gap-2 font-semibold"><iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response</h3>
-				<pre
-					class="whitespace-pre-wrap text-xs max-h-[500px] overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800">{JSON.stringify(
-						status,
-						null,
-						2
-					)}</pre>
-			</div>
-		{/if}
-	</section>
+		</section>
+	</div>
 </div>

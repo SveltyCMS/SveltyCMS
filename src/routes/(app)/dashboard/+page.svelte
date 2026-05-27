@@ -721,8 +721,8 @@ onMount(() => {
 								use:setupWidgetObserver={[item.id, item.component]}
 							>
 								{#if !WidgetComponent}
-									<!-- Loading skeleton -->
-									<div class="widget-skeleton h-full animate-pulse">
+									<!-- Loading placeholder -->
+									<div class="widget-placeholder h-full animate-pulse">
 										<div class="mb-2 h-12 rounded-t bg-surface-300 dark:bg-surface-700"></div>
 										<div class="h-full rounded-b bg-surface-200 p-4 dark:bg-surface-800">
 											<div class="mb-3 h-8 rounded bg-surface-300 dark:bg-surface-700"></div>

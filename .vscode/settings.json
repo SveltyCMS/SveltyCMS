@@ -29,5 +29,10 @@
   "svelte.enable-ts-plugin": true,
   "tailwindCSS.includeLanguages": {
     "svelte": "html"
-  }
+  },
+  // Tailwind v4 uses CSS-first at-rules (@theme, @utility, @custom-variant).
+  // VS Code's built-in CSS validator doesn't recognize them.
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false
 }

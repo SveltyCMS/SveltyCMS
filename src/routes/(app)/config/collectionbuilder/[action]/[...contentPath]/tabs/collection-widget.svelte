@@ -17,7 +17,7 @@ import { get } from "svelte/store";
 // Stores
 import { page } from "$app/state";
 
-// Skeleton
+// Native UI Components
 
 import VerticalList from "@src/components/vertical-list.svelte";
 import {

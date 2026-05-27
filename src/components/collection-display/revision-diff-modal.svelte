@@ -99,7 +99,7 @@ function onKeydown(e: KeyboardEvent) {
                         <div class="px-4 py-2 bg-surface-50 dark:bg-surface-950 flex items-center justify-between border-b border-surface-200 dark:border-surface-800">
                             <div class="flex flex-col">
                                 <span class="text-xs font-bold opacity-40 uppercase tracking-tighter">{diff.fieldName}</span>
-                                <span class="font-mono text-sm font-bold text-primary-600 dark:text-primary-400">{diff.label}</span>
+                                <span class="font-mono text-sm font-bold text-primary-600 dark:text-primary-500">{diff.label}</span>
                             </div>
                             <span class="badge 
                                 {diff.type === 'added' ? 'preset-filled-success-500' : 
@@ -116,7 +116,7 @@ function onKeydown(e: KeyboardEvent) {
                             <div class="p-4 bg-surface-50/30 dark:bg-surface-900/30">
                                 <p class="text-[10px] uppercase font-bold opacity-30 mb-2">{oldLabel}</p>
                                 <pre class="text-xs font-mono whitespace-pre-wrap break-all 
-                                    {diff.type === 'removed' || diff.type === 'modified' ? 'text-error-600 dark:text-error-400' : 'opacity-40'}">
+                                    {diff.type === 'removed' || diff.type === 'modified' ? 'text-error-600 dark:text-error-500' : 'opacity-40'}">
                                     {formatValue(diff.oldValue)}
                                 </pre>
                             </div>

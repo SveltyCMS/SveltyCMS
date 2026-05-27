@@ -382,7 +382,7 @@
 				<!-- Token Info -->
 				<div class="card variant-soft-primary border border-primary-500/30 p-4">
 					<div class="mb-2 flex items-center justify-between">
-						<div class="text-lg font-bold text-primary-700 dark:text-primary-400">{selectedToken.name}</div>
+						<div class="text-lg font-bold text-primary-700 dark:text-primary-500">{selectedToken.name}</div>
 						<span class="badge preset-filled-primary-500">{selectedToken.type}</span>
 					</div>
 					<code class="code mb-2 block">{selectedToken.token}</code>

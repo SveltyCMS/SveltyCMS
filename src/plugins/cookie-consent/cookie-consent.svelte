@@ -5,7 +5,8 @@
 -->
 
 <script lang="ts">
-  import Toggles from "@src/components/system/inputs/toggles.svelte";
+  import Button from "@components/ui/button.svelte";
+  import Toggle from "@components/ui/toggle.svelte";
   import {
     cookie_analytics_desc,
     cookie_analytics_title,
@@ -67,9 +68,7 @@
     showBanner = false;
   }
 
-  /**
-   * Allows re-opening the banner from an external component (like a footer link)
-   */
+  // Allows re-opening the banner from an external component (like a footer link)
   export function openConsentBanner() {
     showDetails = false;
     showBanner = true;
@@ -86,18 +85,19 @@
     aria-describedby="cookie-description"
   >
     <div
-      class="rounded-2xl border border-surface-200 bg-white p-6 shadow-2xl dark:border-surface-700 dark:bg-surface-900"
+      class="rounded-xl border border-surface-200 bg-white p-3 shadow-2xl dark:border-surface-700 dark:bg-surface-900"
     >
       <!-- Header -->
-      <div class="flex items-start gap-4">
-        <div class="text-4xl" aria-hidden="true">🍪</div>
-        <div class="flex-1">
+      <div class="flex items-start gap-3">
+        <div class="text-5xl" aria-hidden="true">🍪</div>
+        <div class="flex-1 text-center">
           <h2
             id="cookie-heading"
             class="text-xl font-bold text-gray-900 dark:text-white"
           >
             {cookie_heading()}
           </h2>
+          
           <p
             id="cookie-description"
             class="mt-2 text-sm text-gray-600 dark:text-gray-300"
@@ -110,7 +110,7 @@
       {#if showDetails}
         <div
           transition:slide
-          class="mt-6 space-y-5 border-t border-surface-200 py-5 dark:border-surface-700"
+          class="mt-4 space-y-5 border-t border-surface-200 py-5 dark:border-surface-700"
         >
           <!-- Necessary (always on) -->
           <div class="flex items-center justify-between">
@@ -120,7 +120,7 @@
               </div>
               <div class="text-xs text-gray-500">{cookie_necessary_desc()}</div>
             </div>
-            <Toggles value={true} disabled />
+            <Toggle value={true} disabled />
           </div>
 
           <!-- Analytics -->
@@ -131,7 +131,7 @@
               </div>
               <div class="text-xs text-gray-500">{cookie_analytics_desc()}</div>
             </div>
-            <Toggles bind:value={preferences.analytics} />
+            <Toggle bind:value={preferences.analytics} />
           </div>
 
           <!-- Marketing -->
@@ -142,7 +142,7 @@
               </div>
               <div class="text-xs text-gray-500">{cookie_marketing_desc()}</div>
             </div>
-            <Toggles bind:value={preferences.marketing} />
+            <Toggle bind:value={preferences.marketing} />
           </div>
         </div>
       {/if}
@@ -150,36 +150,40 @@
       <!-- Actions -->
       <div class="mt-6 flex flex-col gap-3 sm:flex-row">
         {#if showDetails}
-          <button
+          <Button
             onclick={handleSavePreferences}
-            class="btn preset-filled-primary flex-1"
+            variant="primary"
+            class="flex-1"
           >
             {cookie_button_save()}
-          </button>
+          </Button>
         {:else}
-          <button
+          <Button
             onclick={() => (showDetails = true)}
-            class="btn preset-tonal-secondary flex-1"
+            variant="secondary"
+            class="flex-1"
           >
             {cookie_button_customize()}
-          </button>
-          <button
+          </Button>
+          <Button
             onclick={handleRejectAll}
-            class="btn preset-tonal-secondary flex-1"
+            variant="secondary"
+            class="flex-1"
           >
             {cookie_button_reject()}
-          </button>
-          <button
+          </Button>
+          <Button
             onclick={handleAcceptAll}
-            class="btn preset-filled-primary flex-1"
+            variant="primary"
+            class="flex-1"
           >
             {cookie_button_accept()}
-          </button>
+          </Button>
         {/if}
       </div>
 
       <!-- Privacy Link -->
-      <p class="mt-4 text-center text-xs text-gray-500">
+      <p class="mt-2 text-center text-xs text-surface-500">
         <a href="/privacy-policy" class="hover:underline hover:text-primary-500"
           >Privacy Policy</a
         >

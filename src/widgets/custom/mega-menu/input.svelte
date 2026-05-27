@@ -25,7 +25,7 @@ Interactive menu builder with add/edit/reorder capabilities
 ### Features
 - **Hierarchical Menu Builder**: Create nested menu structures with unlimited depth
 - **Drag & Drop Reordering**: Visual reordering of menu items with advanced positioning
-- **Modal Editing**: Skeleton Labs modal integration for item editing
+- **Modal Editing**: Native modal integration for item editing
 - **UUID Generation**: Automatic unique ID assignment for new menu items
 - **Empty State Handling**: User-friendly message when no items exist
 - **Real-time Updates**: Immediate UI updates with proper reactivity

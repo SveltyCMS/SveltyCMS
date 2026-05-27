@@ -94,7 +94,7 @@ function handleKeydown(e: KeyboardEvent) {
 		<div class="space-y-4 p-4">
 			{#if dataLossChanges.length > 0}
 				<div class="rounded-lg border-2 border-error-500/30 bg-error-500/10 p-3">
-					<p class="mb-2 flex items-center gap-2 font-semibold text-error-600 dark:text-error-400">
+					<p class="mb-2 flex items-center gap-2 font-semibold text-error-600 dark:text-error-500">
 						<iconify-icon icon="mdi:database-alert" width={24}></iconify-icon>
 						{dataLossChanges.length}
 						change{dataLossChanges.length > 1 ? 's' : ''}

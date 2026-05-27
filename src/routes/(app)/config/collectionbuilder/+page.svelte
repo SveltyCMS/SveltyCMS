@@ -38,7 +38,6 @@ import { SvelteSet } from "svelte/reactivity";
 import type { ISODateString } from "@root/src/content/types";
 import type { ContentNode, DatabaseId } from "@root/src/databases/db-interface";
 import { hasDuplicateSiblingName } from "@src/content";
-import PageTitle from "@src/components/page-title.svelte";
 import {
 	button_save,
 	collection_add,
@@ -54,9 +53,11 @@ import {
 	setMode,
 } from "@src/stores/collection-store.svelte";
 import { useContent } from "@src/content";
-// Skeleton
+// Native UI Components
 import { toast } from "@src/stores/toast.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
+import Button from "@components/ui/button.svelte";
+import PageTitle from "@src/components/page-title.svelte";
 // Logger
 import { logger } from "@utils/logger";
 import { modalState } from "@utils/modal.svelte";
@@ -131,9 +132,9 @@ $effect(() => {
 		skipNextSyncFromData = false;
 		return;
 	}
-	
+
 	const structure = data.contentStructure as unknown as ContentNode[];
-	
+
 	// Prevent unnecessary state updates if data hasn't actually changed (shallow check)
 	const currentHash = JSON.stringify(structure);
 	const existingHash = JSON.stringify(currentConfig);
@@ -141,7 +142,7 @@ $effect(() => {
 
 	allowSyncFromData = false;
 	currentConfig = structure;
-	
+
 	// Keep sidebar in sync: it reads from contentStructure store, so update it when we load fresh data from DB
 	// Use untrack to ensure this doesn't create a circular dependency if setContentStructure triggers a re-render
 	untrack(() => {
@@ -711,39 +712,37 @@ $effect(() => {
 	</button>
 {/snippet}
 
-<PageTitle
-	name={collection_pagetitle()}
-	icon="fluent-mdl2:build-definition"
-	showBackButton={true}
-	backUrl="/config"
+<div class="absolute inset-0 pt-3 px-6 pb-6 space-y-6 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+	<!-- Header -->
+	<PageTitle name={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
+		{@render saveButton(false)}
+	</PageTitle>
 
->
-	{@render saveButton(true)}
-</PageTitle>
-
-{#if currentConfig.length > 0}
-	<div class="mb-4 flex flex-wrap justify-center gap-2 px-4" in:fade={{ duration: 300 }}>
-		<button onclick={() => modalAddCategory()} class="group btn-lg rounded-full preset-filled-tertiary-500" disabled={isLoading}>
+	{#if currentConfig.length > 0}
+		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
+		<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
+		<Button onclick={() => modalAddCategory()} variant="tertiary" rounded={true} size="lg" class="group" disabled={isLoading}>
 			<iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
 			<span>{collection_addcategory()}</span>
-		</button>
+		</Button>
 
-		<a href="/config/collectionbuilder/new" class="group btn-lg rounded-full preset-filled-primary-500" data-sveltekit-preload-data="hover">
+		<Button href="/config/collectionbuilder/new" variant="primary" rounded={true} size="lg" class="group">
 			<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
 			<span>{collection_add()}</span>
-		</a>
+		</Button>
 
 		{#if selectedCategoryId}
-			<button
+			<Button
 				type="button"
 				onclick={handleClearCategorySelection}
-				class="preset-ghost-surface-500 btn flex items-center gap-1 rounded"
+				variant="ghost"
+				class="flex items-center gap-1 text-surface-700 dark:text-surface-200"
 				disabled={isLoading}
 				aria-label="Clear category selection"
 			>
 				<iconify-icon icon="mdi:close-circle-outline" width="24"></iconify-icon>
 				<span class="hidden sm:inline">Clear selection</span>
-			</button>
+			</Button>
 		{/if}
 	</div>
 
@@ -772,6 +771,8 @@ $effect(() => {
 			/>
 		</div>
 	</div>
+	</div>
 {:else}
 	<EmptyState onAddCollection={handleAddCollectionClick} onAddCategory={() => modalAddCategory()} onLoadPreset={modalLoadPreset} />
 {/if}
+</div>

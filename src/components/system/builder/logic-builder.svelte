@@ -161,7 +161,7 @@
 							/>
 
 							<button
-								class="btn-icon btn-icon-sm text-error-600 hover:bg-error-500/10 dark:text-error-400"
+								class="btn-icon btn-icon-sm text-error-600 hover:bg-error-500/10 dark:text-error-500"
 								onclick={() => removeItem(value!, i)}
 								aria-label="Remove condition"
 							>

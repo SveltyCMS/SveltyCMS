@@ -29,7 +29,7 @@
 
 <script lang="ts">
 	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
-	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import Toggle from '@components/ui/toggle.svelte';
 	import type { CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
@@ -330,7 +330,7 @@
 		<div class="flex justify-center gap-6">
 			<!-- Status Toggle -->
 			<div class="flex flex-col items-center">
-				<Toggles value={publishToggle} disabled={disableStatusToggle} onChange={toggleStatus} />
+				<Toggle value={publishToggle} disabled={disableStatusToggle} onToggle={toggleStatus} />
 				<span class="mt-1 text-xs" class:text-primary-500={publishToggle} class:text-error-500={!publishToggle}>
 					{publishToggle ? status_publish() : status_unpublish()}
 				</span>
@@ -366,10 +366,10 @@
 		<div class="space-y-1 text-xs">
 			<p>Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span></p>
 			{#if currentEntry?.updatedBy}
-				<p class="text-tertiary-500 dark:text-primary-400">Last updated by: {getDisplayName(currentEntry?.updatedBy)}</p>
+				<p class="text-tertiary-500 dark:text-primary-500">Last updated by: {getDisplayName(currentEntry?.updatedBy)}</p>
 			{/if}
 			{#if scheduleTimestamp}
-				<p class="text-tertiary-500 dark:text-primary-400">Will publish on: {new Date(scheduleTimestamp).toLocaleString()}</p>
+				<p class="text-tertiary-500 dark:text-primary-500">Will publish on: {new Date(scheduleTimestamp).toLocaleString()}</p>
 			{/if}
 		</div>
 	</div>

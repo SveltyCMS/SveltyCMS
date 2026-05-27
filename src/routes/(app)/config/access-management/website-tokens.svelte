@@ -10,7 +10,7 @@
 - Load and display website tokens and their associated permissions.
 - Allow users to create, edit, and delete website tokens through a modal interface.
 - Allow bulk deletion of selected website tokens.
-- Display a skeleton.dev modal for creating or editing website tokens with an intuitive UI for selecting associated permissions.
+- Display a native modal for creating or editing website tokens with an intuitive UI for selecting associated permissions.
 -->
 
 <script lang="ts">

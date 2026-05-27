@@ -12,7 +12,7 @@
 	// Utils
 
 	// Components
-	import Button from '@src/components/system/buttons/button.svelte';
+	import Button from '@components/ui/button.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -68,7 +68,7 @@
 			description: 'Invite team members and manage user permissions to collaborate on your content.',
 			icon: 'mdi:account-group',
 			action: 'Manage Users',
-			actionUrl: '/config/accessManagement',
+			actionUrl: '/config/access-management',
 			completed: false
 		},
 		{

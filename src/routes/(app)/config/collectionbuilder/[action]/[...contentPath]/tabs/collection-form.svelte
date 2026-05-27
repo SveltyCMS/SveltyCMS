@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionForm.svelte
 @component
 **This component displays the collection form**
@@ -35,7 +35,7 @@ import { collection, setCollection } from "@src/stores/collection-store.svelte";
 // Components
 import IconifyIconsPicker from "@src/components/iconify-icons-picker.svelte";
 
-// UI Components
+// Native UI Components
 import Input from "@src/components/ui/input.svelte";
 import Button from "@src/components/ui/button.svelte";
 import Card from "@src/components/ui/card.svelte";
@@ -163,7 +163,7 @@ const statuses = Object.values(StatusTypes);
 				<iconify-icon icon="mdi:information-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Basic Information
 			</h3>
-			
+
 			<Input
 				bind:value={name}
 				oninput={handleNameInput}
@@ -182,17 +182,17 @@ const statuses = Object.values(StatusTypes);
 				<div class="flex gap-2">
 					<div class="relative flex-1">
 						<iconify-icon icon="mdi:link" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" width="18"></iconify-icon>
-						<input 
-							type="text" 
-							id="slug" 
-							bind:value={slug} 
-							placeholder={collection_slug_input()} 
+						<input
+							type="text"
+							id="slug"
+							bind:value={slug}
+							placeholder={collection_slug_input()}
 							class="flex h-10 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 pl-10 pr-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 						/>
 					</div>
-					<Button 
-						variant={autoUpdateSlug ? 'primary' : 'outline'} 
-						size="sm" 
+					<Button
+						variant={autoUpdateSlug ? 'primary' : 'outline'}
+						size="sm"
 						onclick={() => (autoUpdateSlug = !autoUpdateSlug)}
 						title="Toggle Auto-update"
 					>
@@ -203,9 +203,9 @@ const statuses = Object.values(StatusTypes);
 
 			<div class="space-y-2">
 				<label for="status" class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50">{collection_status()}</label>
-				<select 
-					id="status" 
-					bind:value={status} 
+				<select
+					id="status"
+					bind:value={status}
 					class="flex h-10 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 appearance-none cursor-pointer"
 				>
 					{#each statuses as statusOption}
@@ -214,7 +214,7 @@ const statuses = Object.values(StatusTypes);
 				</select>
 			</div>
 		</Card>
-	
+
 	<!-- Right Side: Style & Metadata -->
 	 <Card class="wrapper">
 			<h3 class="text-lg font-bold flex items-center gap-2 border-b border-surface-200 dark:border-surface-700 pb-2">
@@ -237,5 +237,5 @@ const statuses = Object.values(StatusTypes);
 				></textarea>
 			</div>
 		</Card>
-	
+
 </div>

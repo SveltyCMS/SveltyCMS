@@ -242,6 +242,34 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       return resolve(event);
     }
 
+    // 🛡️ SELF-HEALING: If IDLE but setup is complete, trigger boot and wait briefly.
+    // This prevents both 503 loops and the "Database connection error" modal on login.
+    if (activeSystemState.overallState === "IDLE" && setupComplete) {
+      if (initializationState === "pending") {
+        initializationState = "in-progress";
+        logger.info("[handleSystemState] Starting system initialization flow...");
+        waitForInitialization()
+          .then(() => {
+            initializationState = "complete";
+          })
+          .catch((err) => {
+            initializationState = "failed";
+            logger.error("[handleSystemState] Initialization sequence failed", err);
+          });
+      }
+      // Wait up to 10s for boot to complete, then serve regardless
+      try {
+        await Promise.race([
+          waitForInitialization(10_000),
+          new Promise((r) => setTimeout(r, 10_000)),
+        ]);
+      } catch {
+        /* timeout — serve anyway */
+      }
+      logger.warn("[handleSystemState] System IDLE — served after waiting for boot.");
+      return resolve(event);
+    }
+
     // Block non-bootstrap routes if system is not in a 'Ready' state
     const restricted: SystemState[] = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];
     if (restricted.includes(activeSystemState.overallState as any)) {

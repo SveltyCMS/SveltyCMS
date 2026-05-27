@@ -29,8 +29,8 @@ import {
 } from "valibot";
 
 // Import components needed for the GuiSchema
-// import Input from '@components/system/inputs/input.svelte';
-// import Toggles from '@components/system/inputs/toggles.svelte';
+// import Input from '@components/ui/input.svelte';
+// import Toggle from '@components/ui/toggle.svelte';
 
 // SECURITY: Escape HTML entities to prevent meta tag injection
 const escapeHtml = (str: string): string => {

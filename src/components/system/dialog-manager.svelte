@@ -1,56 +1,35 @@
-<!-- @file src/components/system/dialog-manager.svelte @description DialogManager for handling modals features: [modal lifecycle management, backdrop/escape close support, skeleton v4 integration, fullscreen mode support] -->
+<!-- @file src/components/system/dialog-manager.svelte @description DialogManager for handling modals features: [modal lifecycle management, backdrop/escape close support, fullscreen mode support] -->
 
 <script lang="ts">
-	// Skeleton V4
-	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
+	import Modal from '@components/ui/modal.svelte';
 	import { modalState } from '@utils/modal.svelte';
-	import { tick } from 'svelte';
 
-	// Handle closing via the Store
-	function onClose() {
-		modalState.close();
-	}
+	// Bind open state to modalState
+	let open = $state(false);
 
-	// Handle open change from the Dialog (e.g. clicking backdrop or pressing Escape)
-	async function onOpenChange(details: { open: boolean }) {
-		if (!details.open) {
-			await tick();
-			onClose();
+	$effect(() => {
+		open = modalState.isOpen;
+	});
+
+	$effect(() => {
+		// When Modal closes internally (backdrop/escape/close button), sync to store
+		if (!open && modalState.isOpen) {
+			modalState.close();
 		}
-	}
-	/* Derived state for fullscreen mode */
-	const isFullscreen = $derived(modalState.active?.props?.size === 'fullscreen');
+	});
+
+	/* Derived state */
+	const title = $derived(modalState.active?.props?.title);
+	const size = $derived(modalState.active?.props?.size || 'md');
+	const modalClasses = $derived(modalState.active?.props?.modalClasses ?? '');
+	const ActiveComponent = $derived(modalState.active?.component);
+	const props = $derived(modalState.active?.props || {});
 </script>
 
-<Dialog open={modalState.isOpen} {onOpenChange}>
-	<Portal>
-		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-900/40 backdrop-blur-sm transition-opacity" />
-
-		<Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center {isFullscreen ? 'p-0' : 'p-4'}">
-			<Dialog.Content
-				class="card w-full shadow-xl bg-surface-100-900 border border-surface-300 dark:border-surface-50 
-				{isFullscreen ? 'h-full rounded-none border-0 flex flex-col' : 'space-y-4 p-4'} 
-				{modalState.active?.props?.modalClasses?.includes('max-w-') ? '' : 'max-w-lg'}
-				{modalState.active?.props?.modalClasses ?? ''}"
-			>
-				{#if modalState.active}
-					{#if modalState.active.props?.title}
-						<div class="flex items-center justify-between {isFullscreen ? 'p-4 border-b border-surface-200 dark:border-surface-700' : ''}">
-							<Dialog.Title class="h3 font-bold">{modalState.active.props.title}</Dialog.Title>
-							<Dialog.CloseTrigger class="btn-icon btn-sm preset-tonal hover:variant-filled" aria-label="Close dialog">
-								<iconify-icon icon="mingcute:close-fill"></iconify-icon>
-							</Dialog.CloseTrigger>
-						</div>
-					{/if}
-
-					{#if modalState.active.component}
-						{@const ActiveComponent = modalState.active.component}
-						<div class="modal-body {isFullscreen ? 'flex-1 overflow-hidden flex flex-col' : ''}">
-							<ActiveComponent {...modalState.active.props || {}} close={modalState.close.bind(modalState)} />
-						</div>
-					{/if}
-				{/if}
-			</Dialog.Content>
-		</Dialog.Positioner>
-	</Portal>
-</Dialog>
+<Modal bind:open {title} {size} class={modalClasses}>
+	{#if ActiveComponent}
+		<div class="modal-body {size === 'fullscreen' ? 'flex-1 overflow-hidden flex flex-col' : ''}">
+			<ActiveComponent {...props} close={modalState.close.bind(modalState)} />
+		</div>
+	{/if}
+</Modal>

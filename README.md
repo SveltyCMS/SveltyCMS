@@ -231,7 +231,7 @@ SveltyCMS features a **native Svelte 5 component library** (42+ primitives) buil
 - **Accessibility-First** — All components verified for WCAG 2.2 AA compliance in the Kitchen Sink validation lab.
 - **Zero Runtime Overhead** — Components use Svelte 5 Runes (`$state`, `$props`) with Svelte `use:action` patterns instead of heavy state machines.
 
-📖 **[UI Migration Roadmap](./docs/project/ui_migration_roadmap.mdx)**
+📖 **[UI Style Guide](./docs/contributing/style-guide-gui.mdx)**
 
 ## 🌍 Great System Localization i18n infrastructure
 

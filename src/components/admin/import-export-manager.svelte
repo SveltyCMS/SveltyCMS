@@ -13,14 +13,14 @@
 <script lang="ts">
 	// Types
 
-	import { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
-	import Input from '@src/components/system/inputs/input.svelte';
-	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import Progress from '@components/ui/progress.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Toggle from '@components/ui/toggle.svelte';
 	import type { Schema } from '@src/content/types';
 	// Utils
 	import { getCollections } from '@utils/api';
 	import { logger } from '@utils/logger';
-	// Skeleton components
+	// Native UI Components
 	import { toast } from '@src/stores/toast.svelte.ts';
 
 	interface ExportOptions {
@@ -400,7 +400,7 @@
 				<span>{exportProgress > 0 ? 'Exporting...' : 'Importing...'}</span>
 				<span>{Math.round(exportProgress || importProgress)}%</span>
 			</div>
-			<ProgressBar value={exportProgress || importProgress} />
+			<Progress value={exportProgress || importProgress} />
 		</div>
 	{/if}
 
@@ -476,7 +476,7 @@
 				</div>
 
 				<div class="space-y-4">
-					<Toggles bind:value={exportOptions.includeMetadata} label="Include Metadata" />
+					<Toggle bind:value={exportOptions.includeMetadata} label="Include Metadata" />
 					<div>
 						<label for="export-limit" class="mb-2 block text-sm font-medium">Limit (optional)</label>
 						<Input type="text" bind:value={exportLimitString} placeholder="Leave empty for all records" />
@@ -534,9 +534,9 @@
 				</div>
 
 				<div class="space-y-4">
-					<Toggles bind:value={importOptions.overwrite} label="Overwrite Existing" />
-					<Toggles bind:value={importOptions.validate} label="Validate Data" />
-					<Toggles bind:value={importOptions.skipInvalid} label="Skip Invalid Entries" />
+					<Toggle bind:value={importOptions.overwrite} label="Overwrite Existing" />
+					<Toggle bind:value={importOptions.validate} label="Validate Data" />
+					<Toggle bind:value={importOptions.skipInvalid} label="Skip Invalid Entries" />
 					<div>
 						<label for="import-batch-size" class="mb-2 block text-sm font-medium">Batch Size</label>
 						<Input type="text" bind:value={importBatchSizeString} placeholder="100" />

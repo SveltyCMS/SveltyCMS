@@ -41,9 +41,9 @@
 	}
 
 	// Components
-	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+	import Avatar from "@components/ui/avatar.svelte";
 
-	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	import FloatingInput from "@components/ui/floating-input.svelte";
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import Boolean from '@src/components/system/table/boolean.svelte';
 	import Role from '@src/components/system/table/role.svelte';
@@ -766,7 +766,7 @@
 			{/if}
 
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
-				<table class="table table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
+				<table class="table w-full table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 					<thead
 						class="divide-x divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
 					>
@@ -887,17 +887,16 @@
 												</button>
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
-											<Avatar class="size-10 overflow-hidden rounded-full border border-surface-200/50 dark:text-surface-50/50">
-												<Avatar.Image
-													src={currentUser && isUser(row) && row._id === currentUser._id
-														? normalizeAvatarUrl(avatarSrc.value)
-														: isUser(row) && header.key === 'avatar'
-															? normalizeAvatarUrl(row.avatar)
-															: '/Default_User.svg'}
-													class="h-full w-full object-cover"
-												/>
-												<Avatar.Fallback>User</Avatar.Fallback>
-											</Avatar>
+											<Avatar
+												src={currentUser && isUser(row) && row._id === currentUser._id
+													? normalizeAvatarUrl(avatarSrc.value)
+													: isUser(row) && header.key === 'avatar'
+														? normalizeAvatarUrl(row.avatar)
+														: '/Default_User.svg'}
+												initials="Usr"
+												size="size-10"
+												class="rounded-full border border-surface-200/50"
+											/>
 										{:else if header.key === 'role'}
 											<Role
 												value={isUser(row) && header.key === 'role' ? row.role : isToken(row) && header.key === 'role' ? (row.role ?? '') : ''}

@@ -135,7 +135,7 @@ and full ARIA accessibility. Premium gradient overlay on hover.
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-surface-500 dark:focus-visible:ring-surface-300',
     variantClass,
     sizeClass,
-    rounded ? 'rounded-full' : 'rounded-xs',
+    rounded ? 'rounded-full' : 'rounded-sm',
     isDisabled && 'opacity-60 cursor-not-allowed',
     className
   )}

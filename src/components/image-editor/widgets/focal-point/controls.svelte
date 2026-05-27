@@ -31,7 +31,7 @@ Toolbar controls for the FocalPoint widget
 	<!-- Focal Point Coordinates -->
 	<div class="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 p-2 px-3 backdrop-blur-md">
 		<div class="flex items-center gap-2">
-			<iconify-icon icon="mdi:target" width="18" class="text-primary-400"></iconify-icon>
+			<iconify-icon icon="mdi:target" width="18" class="text-primary-500"></iconify-icon>
 			<span class="text-xs font-semibold uppercase tracking-wider text-white/70">Focal Point</span>
 		</div>
 		

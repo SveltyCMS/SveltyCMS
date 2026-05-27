@@ -78,8 +78,8 @@ test.describe("Role-Based Access Control", () => {
     await expect(emailTokenButton).toBeVisible({ timeout: 10_000 });
 
     // Access Management (admin only)
-    await page.goto("/config/accessManagement");
-    await expect(page).toHaveURL(/accessManagement/i, { timeout: 10_000 });
+    await page.goto("/config/access-management");
+    await expect(page).toHaveURL(/access-management/i, { timeout: 10_000 });
 
     await logout(page);
   });
@@ -162,14 +162,14 @@ test.describe("Role-Based Access Control", () => {
     expect(isBlockedFromUsers).toBeTruthy();
 
     // Editor CANNOT access access management
-    await page.goto("/config/accessManagement");
+    await page.goto("/config/access-management");
 
     await page.waitForLoadState("networkidle");
     const accessUrl = page.url();
     const accessBody = await page.textContent("body");
 
     const isBlockedFromAccess =
-      !accessUrl.includes("/config/accessManagement") ||
+      !accessUrl.includes("/config/access-management") ||
       accessBody?.toLowerCase().includes("forbidden") ||
       accessBody?.toLowerCase().includes("unauthorized") ||
       accessBody?.toLowerCase().includes("access denied");

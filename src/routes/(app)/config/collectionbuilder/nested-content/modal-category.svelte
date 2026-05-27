@@ -223,7 +223,7 @@ async function deleteCategory(): Promise<void> {
 	}
 }
 
-// Base Classes for Skeleton modal
+// Base Classes for native modal
 const cForm = "border border-surface-500 p-4 space-y-4 rounded-xl";
 </script>
 

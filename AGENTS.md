@@ -27,15 +27,15 @@ This file provides comprehensive guidance to **AI Coding Assistants (Agents)** (
 
 ## Project Overview
 
-SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS v4, and Skeleton.dev v4. It features a database-agnostic architecture (MongoDB, MariaDB/MySQL, PostgreSQL, and SQLite — all production-ready), GraphQL/REST APIs, multi-language support via Paraglide JS (compile-time, zero-runtime), and a modular widget-based content modeling system. Designed for edge compatibility, zero-runtime overhead, and enterprise readiness.
+SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS v4. It features a database-agnostic architecture (MongoDB, MariaDB/MySQL, PostgreSQL, and SQLite — all production-ready), GraphQL/REST APIs, multi-language support via Paraglide JS (compile-time, zero-runtime), and a modular widget-based content modeling system. Designed for edge compatibility, zero-runtime overhead, and enterprise readiness.
 
 ## Core Philosophy & Focus
 
 - **Data Security & Ownership**: Security is paramount—users always own their data. Implement strict protocols (e.g., no direct DB access outside adapters, secure headers).
 - **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-10ms persistence and outperforming traditional enterprise platforms.**
 
-- **Universal Accessibility**: WCAG 2.2 AA and ATAG 2.0 compliant (full keyboard support, ARIA-live regions); **striving for WCAG 3.0 Functional Performance standards.**
-- **Premium Design**: Modern UX with Skeleton.dev v4 for white-labeling and deep theming.
+- **Universal Accessibility**: WCAG 2.2 AA and ATAG 2.0 compliant (full keyboard support, ARIA-live regions); **built for WCAG 3.0 Functional Performance standards with native Svelte 5 components.**
+- **Premium Design**: Modern UX with native Svelte 5 components and Tailwind v4 for white-labeling and deep theming.
 - **Maximum Flexibility**: Hybrid code/GUI schemas with bi-directional sync.
 - **Developer First**: Support contributors with clear docs, tools, and Svelte 5 runes for efficient reactivity.
 
@@ -289,7 +289,7 @@ From the 2026 roadmap (target A++ grade), prioritize these for parity/leadership
 - [x] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
 - [x] **Collection Builder Enhancement**: UX improvements and ergonomic field management in progress.
 - [x] **CI Pipeline Restoration**: Playwright E2E suite stabilized across MongoDB, MariaDB, and PostgreSQL.
-- [x] **Svelte 5 / Skeleton v4 Migration**: Ongoing hardening of UI components using the latest runes and design tokens.
+- [x] **Native Svelte 5 Component Library**: 37 native UI components replacing all third-party dependencies with Tailwind v4 theming.
 - [x] **Automated Upgrade CLI**: Integrated `scripts/upgrade.ts` for safe, automated core updates.
 - [x] **Enterprise SEO Suite**: High-performance multi-tenant Redirect Manager and Dynamic Sitemap.xml with i18n/hreflang support.
 - [x] **Negative Caching Engine**: Implemented Bloom-filter style missing-key cache achieving a verified **2392x speedup** for repeated misses.
@@ -363,7 +363,6 @@ All `bun run` commands (dev, check, test, etc.) work normally after `npm install
 - `bun install` dies with `gyp ERR! find Python` at `better-sqlite3`
 - After recovery, `bun install` says "no changes" but packages are missing
 - `bun run check` fails with "Module has no exported member" from `drizzle-orm`
-- `@zag-js/tabs` and other skeleton transitive deps not installed
 
 **Fix — NEVER do this**:
 

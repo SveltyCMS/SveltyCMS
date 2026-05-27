@@ -40,7 +40,7 @@ export interface ToastAction {
 export interface ToastOptions {
   type: ToastType;
   message: string;
-  description?: string; // Backward compatibility with old Skeleton API
+  description?: string; // Backward compatibility with legacy API
   title?: string;
   duration?: number | typeof Infinity;
   action?: ToastAction;

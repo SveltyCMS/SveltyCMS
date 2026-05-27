@@ -80,7 +80,7 @@ menu item at a specific level. Uses the standard widget loading system.
 							{/await}
 						{:else}
 							<div
-								class="p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg text-error-700 dark:text-error-400 flex items-center gap-3"
+								class="p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg text-error-700 dark:text-error-500 flex items-center gap-3"
 							>
 								<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
 								<div>

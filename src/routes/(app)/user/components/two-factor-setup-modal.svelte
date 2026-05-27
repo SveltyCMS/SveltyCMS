@@ -9,7 +9,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 <TwoFactorSetupModal qrCodeUrl="..." secret="..." backupCodes={[]} />
 
 ### Props
-- `parent` {ModalComponent} - Modal parent component with skeleton modal properties
+- `parent` {ModalComponent} - Modal parent component with modal properties
 - `qrCodeUrl` {string} - QR code URL for authenticator app
 - `secret` {string} - Secret key for manual entry
 - `backupCodes` {string[]} - Backup codes for recovery
@@ -27,7 +27,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	// Utils
 	import { logger } from '@utils/logger';
 
-	// Skeleton
+	// Native UI Components
 	// getModalStore deprecated - use modalState from @utils/modal-state.svelte;
 
 	// ParaglideJS

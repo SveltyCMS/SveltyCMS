@@ -17,8 +17,8 @@
 -->
 
 <script lang="ts">
-// Skeleton V4
-import { Menu, Portal } from "@skeletonlabs/skeleton-svelte";
+// Native UI
+import Dropdown from "@components/ui/dropdown.svelte";
 import Seasons from "@src/components/system/icons/seasons.svelte";
 import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
 import VersionCheck from "@src/components/version-check.svelte";
@@ -414,66 +414,72 @@ function handleSignUpPointerEnter() {
 			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			<Menu positioning={{ placement: 'top', gutter: 10 }}>
-				<Menu.Trigger
-					class="flex w-30 items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
-					aria-label="Select language"
+			<Dropdown position="top" closeOnSelect={false} class="p-2! w-64 bg-surface-900! border-surface-700! dark:bg-surface-900! dark:border-surface-700! backdrop-blur-none!">
+				{#snippet trigger()}
+					<span class="flex items-center justify-between gap-2 text-white/80 hover:text-white transition-colors cursor-pointer">
+						<span>{getLanguageName(currentLanguage)}</span>
+						<iconify-icon icon="mdi:chevron-up" width={20}></iconify-icon>
+					</span>
+				{/snippet}
+				<!-- Header to inform user about System Language context -->
+				<div
+					class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
 				>
-					<span>{getLanguageName(currentLanguage)}</span>
-					<iconify-icon icon="mdi:chevron-up" width={20}></iconify-icon>
-				</Menu.Trigger>
+					{applayout_systemlanguage()}
+				</div>
 
-				<Portal>
-					<Menu.Positioner>
-						<Menu.Content class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-64 border border-surface-200 dark:border-surface-500">
-							<!-- Header to inform user about System Language context -->
-							<div
-								class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
+				{#if Array.isArray(getPublicSetting('LOCALES')) && (getPublicSetting('LOCALES') as any[]).length > 5}
+					<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
+						<input
+							type="text"
+							bind:this={searchInput}
+							bind:value={searchQuery}
+							placeholder="Search language..."
+							class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
+							aria-label="Search languages"
+							onclick={(e) => e.stopPropagation()}
+						/>
+					</div>
+
+					<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
+						{#each filteredLanguages as lang (lang)}
+							{@const selected = lang === currentLanguage}
+							<button
+								type="button"
+								onclick={() => handleLanguageSelection(lang)}
+								class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-primary-500/10 text-primary-500' : ''}"
 							>
-								{applayout_systemlanguage()}
-							</div>
-
-							{#if Array.isArray(getPublicSetting('LOCALES')) && (getPublicSetting('LOCALES') as any[]).length > 5}
-								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
-									<input
-										type="text"
-										bind:this={searchInput}
-										bind:value={searchQuery}
-										placeholder="Search language..."
-										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
-										aria-label="Search languages"
-										onclick={(e) => e.stopPropagation()}
-									/>
-								</div>
-
-								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
-									{#each filteredLanguages as lang (lang)}
-										<Menu.Item
-											value={lang}
-											onclick={() => handleLanguageSelection(lang)}
-											class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-										>
-											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-										</Menu.Item>
-									{/each}
-								</div>
-							{:else}
-								{#each availableLanguages.filter((l) => l !== currentLanguage) as lang (lang)}
-									<Menu.Item
-										value={lang}
-										onclick={() => handleLanguageSelection(lang)}
-										class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-									>
-										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-									</Menu.Item>
-								{/each}
-							{/if}
-						</Menu.Content>
-					</Menu.Positioner>
-				</Portal>
-			</Menu>
+								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
+									{getLanguageName(lang)}
+									{#if selected}
+										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
+									{/if}
+								</span>
+								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+							</button>
+						{/each}
+					</div>
+				{:else}
+					<div class="flex flex-col gap-1">
+						{#each availableLanguages as lang (lang)}
+							{@const selected = lang === currentLanguage}
+							<button
+								type="button"
+								onclick={() => handleLanguageSelection(lang)}
+								class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-primary-500/10 text-primary-500' : ''}"
+							>
+								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
+									{getLanguageName(lang)}
+									{#if selected}
+										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
+									{/if}
+								</span>
+								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</Dropdown>
 		</div>
 		<!-- CMS Version -->
 		<div class="absolute bottom-5 left-1/2 -translate-x-1/2"><VersionCheck transparent={true} /></div>

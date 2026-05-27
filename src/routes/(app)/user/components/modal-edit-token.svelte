@@ -17,7 +17,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 -->
 
 <script lang="ts">
-	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
 	// ParaglideJS
 	import {
 		button_cancel,
@@ -29,7 +29,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		role as m_role
 	} from '@src/paraglide/messages';
 
-	// Skeleton & Stores
+	// Native UI Components & Stores
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { Form } from '@utils/form.svelte.ts';
 	import { addUserTokenSchema } from '@utils/schemas';

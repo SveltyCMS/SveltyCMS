@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+	import { fade, fly } from "svelte/transition";
 	import { toast } from '@src/stores/toast.svelte';
 	import { button_save } from '@src/paraglide/messages';
 	import { enhance } from '$app/forms';
@@ -13,8 +14,8 @@
 
 	let searchQuery = $state('');
 	let filteredRedirects = $derived(
-		redirects.filter((r: any) => 
-			r.from.toLowerCase().includes(searchQuery.toLowerCase()) || 
+		redirects.filter((r: any) =>
+			r.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			r.to.toLowerCase().includes(searchQuery.toLowerCase())
 		)
 	);
@@ -33,26 +34,31 @@
 	}
 </script>
 
-<div class="container mx-auto p-4 space-y-6">
-	<header class="flex justify-between items-center">
+<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+	<!-- Header -->
+	<div class="flex items-center justify-between" in:fade>
 		<div>
-			<h1 class="h1 text-primary-500">Redirect Manager</h1>
-			<p class="text-surface-600-300-token">Manage your site redirects globally.</p>
+			<h1 class="text-3xl font-bold flex items-center gap-3">
+				<iconify-icon icon="mdi:arrow-decision" class="text-primary-500"></iconify-icon>
+				Redirect Manager
+			</h1>
+			<p class="text-sm opacity-50 font-medium">Manage your site redirects globally</p>
 		</div>
 		<button class="btn preset-filled-primary-500" onclick={() => openModal()}>
 			<iconify-icon icon="mdi:plus" class="mr-2"></iconify-icon>
 			Add Redirect
 		</button>
-	</header>
+	</div>
 
-	<div class="card p-4 space-y-4">
+	<!-- Content Card -->
+	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fly={{ y: 20, delay: 100 }}>
 		<div class="flex items-center gap-4">
 			<iconify-icon icon="mdi:magnify" class="text-2xl opacity-50"></iconify-icon>
-			<input 
-				type="search" 
-				bind:value={searchQuery} 
-				placeholder="Search by path..." 
-				class="input" 
+			<input
+				type="search"
+				bind:value={searchQuery}
+				placeholder="Search by path..."
+				class="input"
 			/>
 		</div>
 
@@ -111,9 +117,9 @@
 
 {#if isModalOpen}
 	<div class="modal-backdrop fixed inset-0 z-50 bg-surface-900/50 backdrop-blur flex items-center justify-center p-4">
-		<div class="card p-6 w-full max-w-lg space-y-4 shadow-xl">
+		<div class="card p-6 w-full max-w-lg space-y-4 shadow-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md">
 			<h3 class="h3">{selectedRedirect._id ? 'Edit' : 'Add'} Redirect</h3>
-			
+
 			<form method="POST" action="?/save" use:enhance={() => {
 				return async ({ result }) => {
 					if (result.type === 'success') {
@@ -123,7 +129,7 @@
 				};
 			}} class="space-y-4">
 				<input type="hidden" name="id" value={selectedRedirect._id || ''} />
-				
+
 				<label class="label">
 					<span>From Path (e.g. /old-blog)</span>
 					<input type="text" name="from" bind:value={selectedRedirect.from} class="input" required />

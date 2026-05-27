@@ -33,7 +33,7 @@ Features:
 		if (score >= 50) {
 			return 'text-warning-600 dark:text-warning-400';
 		}
-		return 'text-error-600 dark:text-error-400';
+		return 'text-error-600 dark:text-error-500';
 	});
 
 	const scoreBg = $derived.by(() => {

@@ -37,12 +37,21 @@ type Props = HTMLAttributes<HTMLDivElement> & {
 	class?: string;
 };
 
-let props: Props = $props();
+let {
+	src,
+	alt = '',
+	initials,
+	fallback,
+	size = 'size-10',
+	rounded = 'rounded-full',
+	class: className,
+	...restProps
+}: Props = $props();
 
 let status = $state<'loading' | 'loaded' | 'error'>('loading');
 
 $effect(() => {
-	const currentSrc = props.src;
+	const currentSrc = src;
 	if (currentSrc) {
 		status = 'loading';
 		const img = new Image();
@@ -56,22 +65,22 @@ $effect(() => {
 
 const classes = $derived(cn(
 	'relative flex shrink-0 overflow-hidden',
-	props.size || 'size-10',
-	props.rounded || 'rounded-full',
-	props.class
+	size,
+	rounded,
+	className
 ));
 </script>
 
-<div class={classes} role="img" aria-label={props.alt || props.initials || 'Avatar'} {...props}>
-	{#if status === 'loaded' && props.src}
-		<img src={props.src} alt={props.alt || ''} class="aspect-square h-full w-full object-cover" />
-	{:else if props.fallback}
+<div class={classes} role="img" aria-label={alt || initials || 'Avatar'} {...restProps}>
+	{#if status === 'loaded' && src}
+		<img src={src} alt={alt} class="aspect-square h-full w-full object-cover" />
+	{:else if fallback}
 		<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium">
-			{@render props.fallback()}
+			{@render fallback()}
 		</div>
-	{:else if props.initials}
+	{:else if initials}
 		<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium uppercase">
-			{props.initials}
+			{initials}
 		</div>
 	{:else}
 		<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800">

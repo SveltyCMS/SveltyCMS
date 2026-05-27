@@ -26,7 +26,7 @@ functionality for image editing and basic file information display.
 
 	import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
 	// Components
-	import FileInput from '@src/components/system/inputs/file-input.svelte';
+	import FileUpload from '@components/ui/file-upload.svelte';
 	import type { ISODateString } from '@src/content/types';
 	// Paraglide Messages
 	import {
@@ -252,7 +252,7 @@ functionality for image editing and basic file information display.
 	{#if !value}
 		<!-- File Input -->
 		<div class="rounded-lg border-2 border-dashed border-transparent" class:!border-error-500={!!validationError}>
-			<FileInput bind:value bind:multiple={field.multiupload} onChange={validateInput} />
+			<FileUpload multiple={field.multiupload} onchange={validateInput} />
 		</div>
 	{:else}
 		<div
@@ -280,7 +280,7 @@ functionality for image editing and basic file information display.
 							<img
 								src={value instanceof File ? URL.createObjectURL(value) : value.thumbnails?.sm?.url || value.url}
 								alt="Preview"
-								class="max-h-[200px] max-w-[500px] rounded"
+								class="max-h-50 max-w-125 rounded"
 							/>
 							{#if value && !(value instanceof File)}
 								<div

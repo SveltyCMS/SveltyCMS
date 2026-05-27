@@ -642,7 +642,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		<div class="mb-4">
 			<button
 				type="button"
-				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 hover:text-tertiary-500 transition-colors"
+				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-500 hover:text-tertiary-500 transition-colors"
 				onclick={() => (showAdvanced = !showAdvanced)}
 			>
 				<iconify-icon icon={showAdvanced ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"></iconify-icon>

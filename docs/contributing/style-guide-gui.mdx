@@ -1,54 +1,106 @@
 ---
 path: "docs/contributing/style-guide-gui.mdx"
 title: "GUI Styling & UX Guide"
-description: "The official style guide for SveltyCMS components, ensuring a consistent and high-quality user experience."
+description: "The official style guide for SveltyCMS native components, ensuring a consistent, accessible, and high-quality user experience."
 order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-03-27"
+updated: "2026-05-27"
 tags:
   - "style-guide"
   - "gui"
   - "ux"
   - "tailwind"
   - "contributing"
+  - "wcag3"
 ---
 
 # GUI Styling & UX Guide
 
 This document is the single source of truth for all GUI, styling, and UX patterns within SveltyCMS. Adhering to this guide is mandatory for all contributions to ensure a cohesive, accessible, and performant user interface.
 
-## 🏗️ Foundation: Skeleton + Tailwind
+## 🏗️ Foundation: Native Components + Tailwind
 
 Our UI is built on a robust and flexible foundation:
 
-- **Skeleton.dev**: We use Skeleton for core UI components (Buttons, Inputs, Modals, Toasts, Tabs, etc.) and its theming system.
-- **Tailwind CSS**: We use Tailwind for all utility-first styling and layout.
-- **Custom Theme**: We use a custom `sveltycms` theme (defined in `sveltycms.css`) that provides all our semantic color palettes, including `primary`, `secondary`, `tertiary`, `surface`, `error`, `warning`, `success`, and pre-defined `gradient-` classes.
-
-All development must use these provided semantic definitions. This allows for global theme changes and user-customization without refactoring component code.
+- **`src/components/ui/`**: Our native Svelte 5 component library — 37 reusable, WCAG 3.0-ready primitives. Always prefer these over building new components from scratch.
+- **Tailwind CSS v4**: Utility-first styling for all layout and custom one-off styles.
+- **Design Tokens**: Pure Tailwind v4 `@theme` block in `app.css` provides all semantic color palettes including `primary`, `secondary`, `tertiary`, `surface`, `error`, `warning`, `success`. Preset classes (`preset-filled-*`, `preset-tonal-*`, `preset-outlined-*`) are defined as Tailwind `@utility` classes.
+- **Base Classes**: `card`, `badge`, `btn`, `input`, `btn-icon` are defined as Tailwind `@utility` classes in `app.css`.
 
 ## 🎨 Core Principles
 
-Our GUI is built on a few unbreakable principles.
+### Use Semantic Theme Colors
 
-### Use Semantic Theme Colors: This is the most important rule.
+- **ALWAYS** use the preset classes defined in `app.css` (e.g., `preset-filled-primary-500`, `preset-tonal-success`, `preset-outlined-surface-500`).
+- **ALWAYS** use CSS custom properties for one-off colors (e.g., `var(--color-primary-500)`, `var(--color-error-500)`).
+- **NEVER** use hardcoded Tailwind colors (e.g., `text-red-500`, `bg-blue-500`).
 
-- **ALWAYS** use the semantic theme classes provided by Skeleton and our custom theme (e.g., `bg-primary-500`, `text-error-500`, `border-surface-300`).
-- **NEVER** use hardcoded colors (e.g., `text-red-500`, `bg-blue-500`, `text-[#eee]`). If you find yourself needing a color that isn't in the theme, it's a sign we need to update the theme, not bypass it.
+### Use Native UI Components
 
-### 100% Utility-Driven: All styling must be achieved using Tailwind utility classes or pre-defined Skeleton components/variants. No custom `<style>` blocks are permitted in Svelte components. Component-level styles (like gradients) are defined in the central theme file.
+- **ALWAYS** check `src/components/ui/` first before building any UI element. The library covers buttons, inputs, modals, drawers, popovers, tabs, tables, tree-views, and more.
+- **NEVER** re-implement a primitive that already exists as a native component. If a native component doesn't meet your needs, extend it via `$props()` and snippets rather than rebuilding.
 
-### Svelte 5 Runes: All state management must use Svelte 5 Runes (`$state`, `$derived`, `$effect`). This ensures optimal performance and readability.
+### Svelte 5 Runes Only
 
-### Dark Mode First: All components must include `dark:` variants for all styles. The UI must be perfectly usable in both light and dark modes.
+All state management must use Svelte 5 Runes (`$state`, `$derived`, `$effect`, `$props`, `$bindable`). Svelte 4 legacy syntax (`export let`, `$:`, stores) is prohibited.
 
-### Accessibility (A11y): Proper semantic HTML (`<fieldset>`, `<legend>`), ARIA attributes (`aria-invalid`, `aria-describedby`), and keyboard navigation support are required.
+### Dark Mode First
 
-### Performance: Avoid expensive calculations. Use `$derived` for computed values and memoization.
+All components must include `dark:` variants for every color, background, and border class. The UI must be perfectly usable in both modes.
 
-### Consistency: Re-use the patterns defined in this guide. Do not invent new styling patterns for components that already have a defined style.
+### WCAG 3.0 Accessibility
+
+- Proper semantic HTML (`<fieldset>`, `<legend>`, `<dialog>`, `<nav>`)
+- ARIA attributes (`aria-invalid`, `aria-describedby`, `aria-selected`, `aria-expanded`)
+- `role="alert"` on error messages, `role="status"` on live regions
+- Minimum 24px touch targets on interactive elements
+- `prefers-reduced-motion` support on all animations
+- All interactive elements must have accessible names (`aria-label` or associated `<label>`)
+
+### Performance
+
+Avoid expensive calculations. Use `$derived` and `$derived.by` for computed values. Use snippets (`{@render}`) for content customization instead of slot-based patterns.
+
+## 📦 Native Component Library Quick Reference
+
+Always import from `@components/ui/`. Key components:
+
+| Category        | Components                                                                                                                                                                   |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Actions**     | `Button`, `Dropdown`, `Tooltip`                                                                                                                                              |
+| **Forms**       | `Input`, `FloatingInput`, `Checkbox`, `RadioGroup` + `RadioItem`, `Select`, `Combobox`, `DatePicker`, `FileUpload`, `Rating`, `SegmentedControl`, `Slider`, `Tags`, `Toggle` |
+| **Layout**      | `Modal`, `Drawer`, `Popover`, `Portal`, `Card`                                                                                                                               |
+| **Navigation**  | `Breadcrumb`, `Stepper`, `Tabs` (compound), `TreeView`                                                                                                                       |
+| **Data**        | `Table` + `Table.Filter` + `Table.Pagination` + `Table.Status`                                                                                                               |
+| **Feedback**    | `Alert`, `Loader`, `Progress`, `Toast`                                                                                                                                       |
+| **Display**     | `Avatar`, `Badge`, `StatusBadge`                                                                                                                                             |
+| **Interactive** | `Accordion` + `AccordionItem`, `Collapsible`                                                                                                                                 |
+
+### Usage Pattern
+
+All native components follow the same Svelte 5 pattern:
+
+```svelte
+<script>
+  import Button from '@components/ui/button.svelte';
+  import Modal from '@components/ui/modal.svelte';
+  import Input from '@components/ui/input.svelte';
+
+  let open = $state(false);
+  let name = $state('');
+</script>
+
+<Button variant="primary" onclick={() => open = true}>Open Modal</Button>
+
+<Modal bind:open title="Edit Profile">
+  <Input bind:value={name} label="Name" />
+  {#snippet footer()}
+    <Button variant="primary" onclick={() => open = false}>Save</Button>
+  {/snippet}
+</Modal>
+```
 
 ## Layout & Spacing
 
@@ -57,183 +109,373 @@ Our GUI is built on a few unbreakable principles.
 All form input widgets (Text, Relation, RichText, etc.) follow a standard layout.
 
 - **Wrapper**: `relative mb-4 w-full`
-- **Error Spacing**: Add `pb-6` to the wrapper if (and only if) you are using the Pattern 1 (Absolute) Error Message. This padding provides the necessary space for the error text to appear without shifting layout.
+- **Error Spacing**: Add `pb-6` to the wrapper if using Pattern 1 (Absolute) error messages. This provides space for error text without shifting layout.
 
 ```svelte
 <div class="relative mb-4 w-full pb-6">
-	{#if error}
-		<p class="absolute -bottom-4 ...">
-			{error}
-		</p>
-	{/if}
+  <Input bind:value={field} label="Title" error={fieldError} />
 </div>
 ```
 
 ## ⌨️ Form Inputs
 
-We use two main styles for form inputs.
+### Standard Inputs (Text, Select)
 
-### 1. Standard Inputs (Text, Relation)
-
-For simple inputs, we use a `btn-group` structure, often from Skeleton UI. This wraps the input and any related buttons (prefix, suffix, select) into a single, cohesive block.
-
-- **Container**: `variant-filled-surface btn-group flex w-full items-center rounded`
-- **Input Element**: `class="input w-full flex-1 rounded-none ..."`
-
-The `rounded-none` is critical to make it blend seamlessly with the group's rounded container.
+Use native `Input`, `Select`, or `FloatingInput` components. They handle labels, error states, and ARIA automatically.
 
 ```svelte
-<div class="variant-filled-surface btn-group flex w-full items-center rounded">
-	<span class="min-w-0 flex-1 truncate p-2 text-left">
-		{displayText}
-	</span>
-
-	<div class="flex items-center">
-		<button type="button" class="btn variant-ghost-primary rounded-none! px-3!"> Select </button>
-	</div>
-</div>
+<Input bind:value={title} label="Page Title" error={errors.title} required />
+<Select bind:value={status} label="Status" options={statusOptions} />
+<FloatingInput bind:value={email} label="Email" type="email" icon="mdi:email" />
 ```
 
-### 2. Large Inputs (RichText, MediaUpload)
+### Complex Inputs (RichText, MediaUpload)
 
-For complex inputs that are their own self-contained "app" (like an editor or a dropzone), we use a single bordered container built with theme-aware surface colors.
+For complex inputs that are their own self-contained "app," use a bordered container with surface colors:
 
-- **Container**: `relative w-full rounded-lg border border-surface-300 bg-surface-100 shadow-sm dark:border-surface-700 dark:bg-surface-800`
-- **Internal Structure**: Use `border-b dark:border-surface-700` to separate internal parts like toolbars and title inputs.
+- **Container**: `relative w-full rounded-xl border border-surface-200 bg-surface-50 shadow-sm dark:border-surface-700 dark:bg-surface-900`
+- **Internal Structure**: Use `border-b border-surface-200 dark:border-surface-700` to separate toolbars and content areas.
 
 ```svelte
-<div class="relative w-full rounded-lg border border-surface-300 dark:border-surface-700 ... pb-6 ...">
-	<input type="text" class="w-full border-b border-surface-300 dark:border-surface-700 ..." />
-
-	<div class="toolbar flex flex-wrap ... border-b border-surface-300 dark:border-surface-700 ..."></div>
-
-	<div bind:this={element} class="editor-content prose ..."></div>
+<div class="relative w-full rounded-xl border border-surface-200 bg-surface-50 shadow-sm dark:border-surface-700 dark:bg-surface-900">
+  <div class="toolbar flex flex-wrap border-b border-surface-200 dark:border-surface-700 p-2 gap-1">
+    <!-- toolbar buttons -->
+  </div>
+  <div class="editor-content p-4">
+    <!-- editor area -->
+  </div>
 </div>
 ```
 
 ## Validation & Error Handling
 
-This is one of the most important aspects of our GUI. We use three distinct patterns for error messaging. Choose the correct one for your component's context.
+Three distinct error patterns. Choose the correct one for your context.
 
 ### Pattern 1: Absolute Error Text (Default)
 
-This is the preferred method for most inputs. The error text appears below the input without affecting document flow.
+For most inputs. Error appears below without shifting layout. All native form components (`Input`, `Select`, `FloatingInput`, `Combobox`) handle this automatically via their `error` prop.
 
-- **When to Use**: Text, Relation, RichText, and any input that is a single, contained block.
-- **Container Class**: The input wrapper must have `pb-6`.
-- **Error Classes**: `absolute -bottom-4 left-0 w-full text-center text-xs text-error-500`
-- **Input Error State**: `class:!border-error-500={!!error}` and/or `class:!ring-1={!!error} class:!ring-error-500={!!error}`. The `!` prefix is required to override Skeleton's specificity.
+- **When to Use**: Text, Select, Combobox, DatePicker, FileUpload.
+- **How**: Pass `error="message"` to the component. No manual positioning needed.
 
 ```svelte
-<div class="relative ... pb-6">
-	<input class="input" class:!border-error-500={!!error} ... />
-
-	{#if error}
-		<p class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">
-			{error}
-		</p>
-	{/if}
-</div>
+<Input bind:value={title} label="Title" error="Title is required" />
 ```
 
 ### Pattern 2: Static Error Text
 
-This method is for components where an absolute position is awkward, such as radio groups or empty dropzones. The error text pushes content down.
+For components where absolute positioning is awkward (radio groups, checkboxes).
 
-- **When to Use**: Radio groups, Checkbox groups, empty mediaUpload inputs.
-- **Container Class**: No `pb-6` needed.
-- **Error Classes**: `mt-2 text-center text-xs text-error-500` (or `text-left`).
-- **Input Error State**: Apply the error state to the most logical element (e.g., the `<legend>` or the container border).
+- **When to Use**: RadioGroup, Checkbox group.
+- **How**: Display error below the component group.
 
 ```svelte
-<fieldset>
-	<legend class="..." class:!text-error-500={!!error}> Select an Option </legend>
-</fieldset>
+<RadioGroup bind:value={plan} label="Select Plan">
+  <RadioItem value="free" label="Free" />
+  <RadioItem value="pro" label="Pro" />
+</RadioGroup>
 
-{#if error}
-	<p class="mt-2 text-center text-xs text-error-500" role="alert">
-		{error}
-	</p>
+{#if errors.plan}
+  <p class="mt-2 text-xs text-error-500" role="alert">{errors.plan}</p>
 {/if}
 ```
 
 ### Pattern 3: Error Banner
 
-This method is for complex, multi-part components where a single line of text is insufficient or would look out of place.
+For complex, multi-part components where a single line is insufficient.
 
-- **When to Use**: megaMenu builder, Guifields builder, complex list inputs.
-- **Error Classes**: `flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300`
+- **When to Use**: Mega menu builder, complex list inputs.
+- **Classes**: `flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300`
 
 ```svelte
-{#if error}
-	<div
-		class="flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300"
-		role="alert"
-	>
-		<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
-		{error}
-	</div>
+{#if errors.form}
+  <div class="flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300" role="alert">
+    <iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
+    {errors.form}
+  </div>
 {/if}
 ```
 
 ## 🔘 Buttons & Actions
 
-- **Primary Action**: `class="... btn variant-filled-primary"` (e.g., "Save").
-- **Secondary Action**: `class="... btn variant-filled-secondary"` (e.g., "YouTube").
-- **Tertiary/Brand Action**: `class="... btn variant-filled-tertiary"` (e.g., "Add New").
-- **Ghost Action**: `class="... btn variant-ghost-surface"` (e.g., toolbar buttons).
-- **Destructive Action**: `class="... btn variant-ghost-error"` or a hover effect `class="... hover:text-error-500 dark:hover:text-error-400"`.
-- **Gradient Buttons**: For special CTAs, use the pre-defined gradient classes (e.g., `gradient-primary`, `gradient-tertiary`). These are defined in the main theme file and include hover/focus states.
-
-## 🌫️ Overlays (Modals & Dropdowns)
-
-Overlays use a consistent "frosted glass" effect.
-
-### Modals
-
-- **Overlay**: A fixed backdrop with `bg-black/30 backdrop-blur-sm`.
-- **Panel**: A fixed `z-50 ... rounded-lg bg-white dark:bg-surface-800 p-6 shadow-xl`.
+Use the native `Button` component. It handles variants, sizes, loading state, and icons automatically.
 
 ```svelte
-{#if show}
-	<div class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onclick={close}></div>
+<!-- Primary action (Save, Submit) -->
+<Button variant="primary">Save</Button>
 
-	<div class="fixed left-1/2 top-1/2 z-50 ... rounded-lg bg-white p-6 shadow-xl dark:bg-surface-800"></div>
-{/if}
+<!-- Secondary action -->
+<Button variant="secondary">Cancel</Button>
+
+<!-- Tertiary/brand action -->
+<Button variant="tertiary">Add New</Button>
+
+<!-- Ghost action (toolbar buttons) -->
+<Button variant="ghost" leadingIcon="mdi:cog">Settings</Button>
+
+<!-- Destructive action -->
+<Button variant="error" leadingIcon="mdi:delete">Delete</Button>
+
+<!-- Outline action -->
+<Button variant="outline">Back</Button>
+
+<!-- With loading state -->
+<Button variant="primary" loading>Submitting...</Button>
+
+<!-- Icon-only -->
+<Button variant="ghost" leadingIcon="mdi:plus" aria-label="Add item" />
 ```
 
-### Dropdowns & Pop-ups
+**Available variants**: `primary`, `secondary`, `tertiary`, `surface`, `success`, `warning`, `error`, `ghost`, `outline`
+**Available sizes**: `sm`, `md` (default), `lg`, `xl`
 
-Dropdowns use a semi-transparent, blurred background to hint at the content underneath.
+## 🌫️ Overlays (Modals, Drawers, Popovers)
 
-- **Container**: `relative`.
-- **Panel**: `absolute z-20 mt-1 ... rounded-md border border-surface-400/30 bg-surface-50/95 shadow-lg backdrop-blur-sm focus:outline-none dark:border-surface-300/20 dark:bg-surface-800/90`
+Use native overlay components — they handle backdrop, blur, focus trapping, and accessibility automatically.
 
-The key classes are `bg-surface-50/95 dark:bg-surface-800/90` and `backdrop-blur-sm`.
+### Modal
+
+```svelte
+<Modal bind:open title="Edit Settings" size="lg">
+  <!-- body content -->
+  {#snippet footer()}
+    <Button variant="primary" onclick={() => open = false}>Save</Button>
+    <Button variant="ghost" onclick={() => open = false}>Cancel</Button>
+  {/snippet}
+</Modal>
+```
+
+### Drawer
+
+```svelte
+<Drawer bind:open position="right" title="Details">
+  <!-- drawer content -->
+  {#snippet footer()}
+    <Button variant="primary">Confirm</Button>
+  {/snippet}
+</Drawer>
+```
+
+### Popover / Dropdown
+
+```svelte
+<Dropdown bind:value={selected} {options} position="bottom">
+  {#snippet trigger()}
+    <Button variant="outline" trailingIcon="mdi:chevron-down">
+      {selectedLabel || 'Select...'}
+    </Button>
+  {/snippet}
+</Dropdown>
+```
+
+## 💬 Feedback Components
+
+### Toast Notifications
+
+Use the toast store for transient notifications:
+
+```typescript
+import { toastStore } from "@src/stores/toast.svelte.ts";
+
+toastStore.success("Settings saved successfully");
+toastStore.error("Failed to save settings");
+toastStore.warning("Your session will expire soon");
+toastStore.info("New update available");
+```
+
+### Alerts
+
+For persistent in-page messages:
+
+```svelte
+<Alert variant="success" title="Success">Your changes have been saved.</Alert>
+<Alert variant="error" title="Error">Something went wrong. Please try again.</Alert>
+```
+
+### Progress & Loaders
+
+```svelte
+<Progress value={75} color="primary" />
+<Progress indeterminate color="success" />
+<Loader variant="card" />  <!-- Loading placeholder -->
+<Loader variant="text" lines={3} lastLineWidth="60%" />
+```
 
 ## 🌙 Dark Mode
 
-Dark mode is not optional. Every class that sets a color, background, or border must have a corresponding `dark:` variant, and these must use the theme's semantic colors.
+Every class that sets a color, background, or border must have a `dark:` variant using theme colors. Our native components handle this automatically.
 
-- **Borders**: `border-surface-300 dark:border-surface-700`
-- **Backgrounds**: `bg-surface-100 dark:bg-surface-800`
+When writing custom styles:
+
+- **Borders**: `border-surface-200 dark:border-surface-700`
+- **Backgrounds**: `bg-surface-50 dark:bg-surface-900`
 - **Text**: `text-surface-700 dark:text-surface-200`
-- **Prose**: `prose dark:prose-invert`
+
+## 📄 CMS Page Layout Standard
+
+Every CMS configuration page MUST follow this structure, modeled after `/config/monitor`.
+
+### Page Shell (Outer Container)
+
+```svelte
+<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+```
+
+This provides the unified full-height scrollable container with theme-aware background.
+
+### Page Header
+
+Every page header uses this exact pattern:
+
+```svelte
+<div class="flex items-center justify-between" in:fade>
+  <div>
+    <h1 class="text-3xl font-bold flex items-center gap-3">
+      <iconify-icon icon="mdi:icon-name" class="text-primary-500"></iconify-icon>
+      Page Title
+    </h1>
+    <p class="text-sm opacity-50 font-medium">Descriptive subtitle</p>
+  </div>
+  <!-- Optional: status badge, action button group -->
+</div>
+```
+
+**Rules**:
+
+- `<h1>` always uses `text-3xl font-bold flex items-center gap-3`
+- Always include a leading icon with `class="text-primary-500"`
+- Subtitle uses `text-sm opacity-50 font-medium`
+- Action buttons go in the right side of the flex container
+
+### Content Cards
+
+All content sections use the unified card class:
+
+```
+card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm
+```
+
+**Rules**:
+
+- Always wrap content blocks in cards, never bare `<div>` sections
+- Use `space-y-4` or `space-y-6` inside cards for internal spacing
+- For tables inside cards, use `overflow-x-auto` wrapper
+
+### Stats Grid (When Applicable)
+
+```svelte
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  <!-- stat cards -->
+</div>
+```
+
+### Data Tables
+
+```svelte
+<div class="overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-surface-200 dark:border-surface-700 text-left">
+        <th class="pb-2 font-bold opacity-50 uppercase text-xs">Column</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="border-b border-surface-100 dark:border-surface-800">
+        <td class="py-2 font-medium">Data</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+```
+
+### Status Badges
+
+```svelte
+<span class="badge text-[10px] preset-filled-success-500">Active</span>
+<span class="badge text-[10px] preset-tonal-primary-500">In Progress</span>
+```
+
+### Quick Action Links
+
+```svelte
+<a href="/config/target" class="btn btn-sm preset-tonal-surface-500 w-full justify-between">
+  <span>Label</span>
+  <iconify-icon icon="mdi:arrow-right"></iconify-icon>
+</a>
+```
+
+### Full Page Template
+
+```svelte
+<script lang="ts">
+  import { fade, fly } from "svelte/transition";
+  import { onMount } from "svelte";
+
+  let { data } = $props();
+  let isLoading = $state(true);
+  let items = $state([]);
+
+  onMount(async () => {
+    // fetch data
+    isLoading = false;
+  });
+</script>
+
+<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+  <!-- Header -->
+  <div class="flex items-center justify-between" in:fade>
+    <div>
+      <h1 class="text-3xl font-bold flex items-center gap-3">
+        <iconify-icon icon="mdi:icon-name" class="text-primary-500"></iconify-icon>
+        Page Title
+      </h1>
+      <p class="text-sm opacity-50 font-medium">Page description</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="btn btn-sm preset-filled-primary-500" onclick={handleCreate}>
+        <iconify-icon icon="mdi:plus" class="mr-1"></iconify-icon>
+        Create New
+      </button>
+    </div>
+  </div>
+
+  <!-- Content Card -->
+  <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fly={{ y: 20, delay: 200 }}>
+    {#if isLoading}
+      <Loader variant="text" lines={3} />
+    {:else if items.length === 0}
+      <div class="py-12 text-center opacity-30 italic">
+        <iconify-icon icon="mdi:inbox-outline" width="48" class="mb-2"></iconify-icon>
+        <p>No items found.</p>
+      </div>
+    {:else}
+      <!-- Render items -->
+    {/if}
+  </div>
+</div>
+```
+
+### Anti-Patterns (DO NOT USE)
+
+- ❌ `container mx-auto p-4` — use `absolute inset-0 p-6`
+- ❌ `<PageTitle>` component — use inline header per the standard above
+- ❌ `h1 text-primary-500` — never hardcode colors on headings
+- ❌ Bare `<div>` content sections — always wrap in a card
+- ❌ `table-container` / `table-hover` classes — use the native table pattern
+- ❌ `$app/stores` (`$page`) — use `$app/state` (`page`)
+- ❌ `variant-ghost-surface` / `variant-filled-primary` — use `preset-*` classes or native `<Button>`
+
+---
 
 ## ✅ Style Checklist
 
-Before submitting a PR, check for:
+Before submitting a PR:
 
-[ ] **Semantic Colors**: Component uses theme colors (e.g., `bg-primary-500`, `text-error-500`) and not hardcoded Tailwind colors (e.g., `bg-blue-500`, `text-red-500`).
-
-[ ] **No `<style>` blocks**: All styles are 100% Tailwind utility classes.
-
-[ ] **Dark Mode**: All components are tested and look correct in dark mode.
-
-[ ] **Error Handling**: The correct error pattern (Absolute, Static, or Banner) is used.
-
-[ ] **Responsiveness**: The component is mobile-first and responsive.
-
-[ ] **Accessibility**: All buttons and inputs have labels, and ARIA roles are used where needed.
-
-[ ] **Svelte 5 Runes**: No Svelte 4 syntax is used (`export let`, `onMount`, etc., unless truly necessary).
+- [ ] **Use Native Components**: Prefer `src/components/ui/` over building from scratch.
+- [ ] **Semantic Colors**: Use preset classes (`preset-filled-primary-500`) or CSS variables (`var(--color-primary-500)`). No hardcoded hex/Tailwind colors.
+- [ ] **Dark Mode**: All custom styles have `dark:` variants.
+- [ ] **Error Handling**: Correct error pattern used (Absolute via component `error` prop, Static, or Banner).
+- [ ] **WCAG 3.0**: `aria-label` on icon-only buttons, `role="alert"` on errors, `role="status"` on live regions, 24px touch targets.
+- [ ] **`prefers-reduced-motion`**: Any custom animation checks the media query.
+- [ ] **Svelte 5 Runes**: `$state`, `$derived`, `$props`, `$bindable` used. No Svelte 4 legacy syntax.
+- [ ] **Responsiveness**: Mobile-first, tested at 320px width.

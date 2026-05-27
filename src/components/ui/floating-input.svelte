@@ -143,14 +143,19 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 			{onkeydown}
 			type={effectiveType}
 			class={cn(
-				'peer block h-12 w-full appearance-none border-0 border-b-2 bg-transparent pl-8 pr-6 pb-1 pt-5 text-base focus:outline-none focus:ring-0 disabled:opacity-50 transition-all duration-200',
+				'peer block h-12 w-full appearance-none border-0 border-b-2 pl-8 pr-6 pb-1 pt-4 text-base focus:outline-none focus:ring-0 disabled:opacity-50 transition-all duration-200',
 				bgTransparent
-					? 'border-white/50 text-white focus:border-white'
-					: 'border-surface-300 focus:border-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 text-surface-900 dark:text-white',
+					? 'border-white/50 text-white focus:border-white bg-transparent'
+					: cn(
+							'border-surface-300 focus:border-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 text-surface-900',
+							textColor === 'black' ? 'bg-white text-black' : 'bg-[#242728] text-white'
+					  ),
 				invalid && 'border-error-500! dark:border-error-500!',
 				type === 'security' && 'pr-10',
+				textColor === 'black' ? 'autofill-light' : 'autofill-dark',
 				inputClass
 			)}
+			style={textColor ? `color: ${textColor}` : undefined}
 			placeholder=" "
 			id={currentId}
 			{...rest}
@@ -162,8 +167,13 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 				width="18"
 				class={cn(
 					"absolute left-0 top-3",
-					bgTransparent ? "text-white" : "text-surface-500 dark:text-surface-50"
+					bgTransparent
+						? "text-white"
+						: iconColor
+							? ""
+							: "text-surface-500 dark:text-surface-50"
 				)}
+				style={iconColor ? `color: ${iconColor}` : undefined}
 				aria-hidden="true"
 			></iconify-icon>
 		{/if}
@@ -177,8 +187,13 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 				aria-pressed={showPassword}
 				class={cn(
 					"absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none",
-					bgTransparent ? "text-white" : "text-surface-500 dark:text-surface-50"
+					bgTransparent
+						? "text-white"
+						: passwordIconColor
+							? ""
+							: "text-surface-500 dark:text-surface-50"
 				)}
+				style={passwordIconColor ? `color: ${passwordIconColor}` : undefined}
 				width="24"
 				onkeydown={handleIconKeyDown}
 				onclick={togglePasswordVisibility}
@@ -189,13 +204,13 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 			<label
 				for={currentId}
 				class={cn(
-					"pointer-events-none absolute left-8 top-1.5 origin-left -translate-y-3 scale-75 transform text-base transition-all duration-200 ease-in-out",
+					"pointer-events-none absolute left-8 top-2.5 origin-left -translate-y-2 scale-75 transform text-base transition-all duration-200 ease-in-out",
 					"peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base",
-					"peer-focus:-translate-y-3 peer-focus:scale-75",
+					"peer-focus:-translate-y-2 peer-focus:scale-75",
 					bgTransparent
 						? "text-white/80 peer-focus:text-white"
 						: "text-surface-500 peer-focus:text-tertiary-500",
-					value && "-translate-y-3 scale-75",
+					value && "-translate-y-2 scale-75",
 					value && !bgTransparent && "text-tertiary-500",
 					value && bgTransparent && "text-white",
 					invalid && "text-error-500!",
@@ -214,3 +229,15 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 		<p id={errorId} class="mt-1 text-xs text-error-500" role="alert">{errorMessage}</p>
 	{/if}
 </div>
+
+<style>
+	/* Scoped autofill styles to prevent dark/light background clashes on autofill */
+	:global(.autofill-light:-webkit-autofill) {
+		-webkit-box-shadow: 0 0 0 100px white inset !important;
+		-webkit-text-fill-color: black !important;
+	}
+	:global(.autofill-dark:-webkit-autofill) {
+		-webkit-box-shadow: 0 0 0 100px #242728 inset !important;
+		-webkit-text-fill-color: white !important;
+	}
+</style>

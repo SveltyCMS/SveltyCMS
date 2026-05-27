@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/Widget.svelte
 @component
 **The Widget component is used to display the widget form used in the CollectionWidget component**
@@ -20,7 +20,7 @@ import {
 } from "@src/stores/collection-store.svelte";
 import { tabSet } from "@src/stores/store.svelte.ts";
 import { widgetFunctions } from "@src/stores/widget-store.svelte.ts";
-// Skeleton
+// Native UI Components
 import { modalState } from "@utils/modal.svelte";
 // Using iconify-icon web component
 import { getGuiFields } from "@utils/utils";

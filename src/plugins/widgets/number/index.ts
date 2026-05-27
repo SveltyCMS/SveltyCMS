@@ -13,8 +13,8 @@
 
 // Import components needed for the GuiSchema
 // Import components needed for the GuiSchema
-// import Input from '@components/system/inputs/input.svelte';
-// import Toggles from '@components/system/inputs/toggles.svelte';
+// import Input from '@components/ui/input.svelte';
+// import Toggle from '@components/ui/toggle.svelte';
 
 import type { FieldInstance } from "@src/content/types";
 import { widget_number_description } from "@src/paraglide/messages";

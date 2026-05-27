@@ -13,10 +13,10 @@ FIXES:
 -->
 
 <script lang="ts">
-	// Skeleton V4
-	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	// Native UI Components
+	import Dropdown from "@components/ui/dropdown.svelte";
 	// Components
-	import ProgressBar from '@src/components/system/progress-bar.svelte';
+	import Progress from '@components/ui/progress.svelte';
 	// Paraglide Messages
 	import { applayout_contentlanguage, translationsstatus_completed } from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
@@ -308,7 +308,7 @@ FIXES:
 		completionTotals = { total, translated };
 	}
 
-	// Dropdown positioning handled by Skeleton Menu
+	// Dropdown positioning handled by UI Menu
 
 	function handleLanguageChange(selectedLanguage: Locale): void {
 		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
@@ -410,88 +410,75 @@ FIXES:
 </script>
 
 <div class="translation-status-container relative mt-1 inline-block text-left">
-	<Menu>
-		<Menu.Trigger
-			class="btn preset-outlined-surface-500 rounded-full flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
-			aria-label="Toggle language menu"
-		>
-			<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
-			<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
-			<iconify-icon icon="mdi:chevron-down" class="h-5 w-5 transition-transform duration-200" aria-hidden="true"></iconify-icon>
-		</Menu.Trigger>
+	<Dropdown position="bottom-start" class={showProgress && !isViewMode ? 'w-72' : 'w-56'}>
+		{#snippet trigger()}
+			<button
+				class="btn preset-outlined-surface-500 rounded-full flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
+				aria-label="Toggle language menu"
+			>
+				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
+				<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
+				<iconify-icon icon="mdi:chevron-down" class="h-5 w-5 transition-transform duration-200" aria-hidden="true"></iconify-icon>
+			</button>
+		{/snippet}
 
-		<Portal>
-			<Menu.Positioner>
-				<Menu.Content
-					class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 border border-surface-200 dark:border-surface-500 {showProgress &&
-					!isViewMode
-						? 'w-72'
-						: 'w-56'}"
-				>
-					<div
-						class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
-					>
-						{applayout_contentlanguage()}
-					</div>
+		<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
+			{applayout_contentlanguage()}
+		</div>
 
-					{#each dropdownLanguages as lang (lang)}
-						{@const percentage = languageProgress[lang] || 0}
-						{@const isActive = currentLanguage === lang}
+		{#each dropdownLanguages as lang (lang)}
+			{@const percentage = languageProgress[lang] || 0}
+			{@const isActive = currentLanguage === lang}
 
-						<Menu.Item value={lang} onclick={() => handleLanguageChange(lang as Locale)} class={isActive ? 'bg-primary-500/20' : ''}>
-							<div class="flex w-full items-center justify-between gap-2">
-								<!-- Left: Language Name (Desktop) / Short Code (Mobile) -->
-								<span class="font-medium transition-colors duration-200 {isActive ? 'text-primary-700 dark:text-primary-300' : ''}">
-									<span class="md:hidden">{lang.toUpperCase()}</span>
-									<span class="hidden md:inline">{getLanguageName(lang)}</span>
-								</span>
+			<button
+				class="w-full text-left px-3 py-2 flex items-center gap-3 rounded-lg transition-colors {isActive ? 'bg-primary-500/10 text-primary-500 font-bold' : 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300'}"
+				onclick={() => handleLanguageChange(lang as Locale)}
+			>
+				<div class="flex w-full items-center justify-between gap-2">
+					<span class="font-medium transition-colors duration-200 {isActive ? 'text-primary-700 dark:text-primary-300' : ''}">
+						<span class="md:hidden">{lang.toUpperCase()}</span>
+						<span class="hidden md:inline">{getLanguageName(lang)}</span>
+					</span>
 
-								<!-- Right: Code, Status, Progress -->
-								<div class="flex items-center gap-2">
-									{#if !isViewMode && showProgress && translationProgress.value?.[lang as Locale]}
-										<div class="flex w-32 items-center gap-2">
-											<div class="flex-1">
-												<ProgressBar value={percentage} color={getProgressVariant(percentage)} size="sm" showPercentage={false} animated={false} />
-											</div>
-											<span class="min-w-8 text-right text-sm font-semibold"> {percentage}% </span>
-										</div>
-									{:else}
-										<!-- View Mode: Show Code on Right -->
-										<span class="hidden text-xs font-normal text-tertiary-500 dark:text-primary-500 md:inline">{lang.toUpperCase()}</span>
-									{/if}
-
-									{#if isActive}
-										<span class="text-xs" aria-label="Current language">●</span>
-									{/if}
+					<div class="flex items-center gap-2">
+						{#if !isViewMode && showProgress && translationProgress.value?.[lang as Locale]}
+							<div class="flex w-32 items-center gap-2">
+								<div class="flex-1">
+									<Progress value={percentage} color={getProgressVariant(percentage)} />
 								</div>
+								<span class="min-w-8 text-right text-sm font-semibold"> {percentage}% </span>
 							</div>
-						</Menu.Item>
-					{/each}
+						{:else}
+							<span class="hidden text-xs font-normal text-tertiary-500 dark:text-primary-500 md:inline">{lang.toUpperCase()}</span>
+						{/if}
 
-					{#if !isViewMode && showProgress}
-						<Menu.Separator />
-						<div class="px-4 py-2">
-							<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">{translationsstatus_completed()}</div>
-							<div class="flex items-center justify-between gap-3">
-								{#if overallPercentage}
-									<div class="flex-1">
-										<ProgressBar
-											value={overallPercentage}
-											color={getProgressVariant(overallPercentage)}
-											size="sm"
-											showPercentage={false}
-											animated={false}
-										/>
-									</div>
-								{/if}
-								<span class="min-w-10 text-right text-sm font-bold {getTextColor(overallPercentage)}"> {overallPercentage}% </span>
-							</div>
+						{#if isActive}
+							<span class="text-xs" aria-label="Current language">●</span>
+						{/if}
+					</div>
+				</div>
+			</button>
+		{/each}
+
+		{#if !isViewMode && showProgress}
+			<div class="border-t border-surface-200 dark:border-surface-50 my-1"></div>
+			<div class="px-4 py-2">
+				<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">{translationsstatus_completed()}</div>
+				<div class="flex items-center justify-between gap-3">
+					{#if overallPercentage}
+						<div class="flex-1">
+							<Progress
+								value={overallPercentage}
+								color={getProgressVariant(overallPercentage)}
+								height="h-1.5"
+							/>
 						</div>
 					{/if}
-				</Menu.Content>
-			</Menu.Positioner>
-		</Portal>
-	</Menu>
+					<span class="min-w-10 text-right text-sm font-bold {getTextColor(overallPercentage)}"> {overallPercentage}% </span>
+				</div>
+			</div>
+		{/if}
+	</Dropdown>
 
 	<div class="mt-0.5 transition-all duration-300"><!-- External progress bar removed to prevent header overflow --></div>
 </div>

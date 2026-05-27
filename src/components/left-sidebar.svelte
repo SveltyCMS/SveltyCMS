@@ -19,8 +19,8 @@
 -->
 
 <script lang="ts">
-	// Skeleton V4
-	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	// Native UI Components
+	import Dropdown from "@components/ui/dropdown.svelte";
 	import Collections from '@src/components/collections.svelte';
 	import SettingsMenu from '@src/components/settings-menu.svelte';
 	import MediaFolders from '@src/components/media-folders.svelte';
@@ -414,7 +414,7 @@
 	<div class="mb-2 mt-auto w-full px-1">
 		<div class="mx-1 mb-2 border-0 border-t border-surface-500"></div>
 
-		<div class="grid w-full items-center justify-center gap-2 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
+		<div class="grid w-full items-center justify-center gap-2 text-surface-700 dark:text-surface-200 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
 			<!-- Avatar -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
@@ -454,68 +454,58 @@
 			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
 					<div class="language-selector relative">
-						<Menu positioning={{ placement: 'right-start', gutter: 10 }}>
-							<Menu.Trigger
-								class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
-									? 'mb-3 w-6.5 h-6.5 text-xs'
-									: 'w-6 h-6 text-xs'}"
-								aria-label="Select language"
-							>
-								{languageTag}
-							</Menu.Trigger>
+						<Dropdown position="right-start" class="w-56">
+							{#snippet trigger()}
+								<button
+									class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
+										? 'mb-3 w-6.5 h-6.5 text-xs'
+										: 'w-6 h-6 text-xs'}"
+									aria-label="Select language"
+								>
+									{languageTag}
+								</button>
+							{/snippet}
 
-							<Portal>
-								<Menu.Positioner>
-									<Menu.Content
-										class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-56 border border-surface-200 dark:border-surface-500"
-									>
-										<!-- Header to inform user about System Language context -->
-										<div
-											class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
+							<!-- Header to inform user about System Language context -->
+							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
+								{applayout_systemlanguage()}
+							</div>
+
+							{#if showLanguageDropdown}
+								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
+									<input
+										type="text"
+										bind:value={searchQuery}
+										placeholder="Search language..."
+										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
+										aria-label="Search languages"
+										onclick={(e) => e.stopPropagation()}
+									/>
+								</div>
+
+								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
+									{#each filteredLanguages as lang (lang)}
+										<button
+											class="w-full text-left px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
+											onclick={() => handleLanguageSelection(lang)}
 										>
-											{applayout_systemlanguage()}
-										</div>
-
-										{#if showLanguageDropdown}
-											<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
-												<input
-													type="text"
-													bind:value={searchQuery}
-													placeholder="Search language..."
-													class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
-													aria-label="Search languages"
-													onclick={(e) => e.stopPropagation()}
-												/>
-											</div>
-
-											<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
-												{#each filteredLanguages as lang (lang)}
-													<Menu.Item
-														value={lang}
-														onclick={() => handleLanguageSelection(lang)}
-														class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-													>
-														<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-														<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-													</Menu.Item>
-												{/each}
-											</div>
-										{:else}
-											{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
-												<Menu.Item
-													value={lang}
-													onclick={() => handleLanguageSelection(lang)}
-													class="flex w-full items-center justify-between px-3 py-2 text-left  rounded-sm cursor-pointer"
-												>
-													<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-													<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-												</Menu.Item>
-											{/each}
-										{/if}
-									</Menu.Content>
-								</Menu.Positioner>
-							</Portal>
-						</Menu>
+											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+										</button>
+									{/each}
+								</div>
+							{:else}
+								{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
+									<button
+										class="w-full text-left px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
+										onclick={() => handleLanguageSelection(lang)}
+									>
+										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+									</button>
+								{/each}
+							{/if}
+						</Dropdown>
 					</div>
 				</SystemTooltip>
 			</div>

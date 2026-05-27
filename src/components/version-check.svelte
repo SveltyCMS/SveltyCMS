@@ -278,32 +278,38 @@ latest version available on GitHub with comprehensive status reporting.
 	<!-- Headless mode - render custom UI via snippet -->
 	{@render children(versionStatus)}
 {:else}
-	<!-- Default UI -->
-	<SystemTooltip title={versionStatusMessage}>
+	{#if effectiveTransparent}
 		<a
 			href={GITHUB_RELEASES_URL}
 			target="_blank"
 			rel="noopener noreferrer"
-			class={effectiveTransparent
-				? `absolute bottom-5 left-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full ${transparentClasses} px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`
-				: compact
-					? `inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500`
-					: `inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500`}
+			class={`absolute bottom-5 left-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full ${transparentClasses} px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`}
 			aria-label={statusAriaLabel}
 			aria-live="polite"
 		>
-			{#if effectiveTransparent}
-				<!-- Transparent mode -->
-				<span class="text-black">Ver.</span>
-				<span class="text-white">{pkg}</span>
+			<!-- Transparent mode -->
+			<span class="text-black">Ver.</span>
+			<span class="text-white">{pkg}</span>
 
-				{#if !isLoading && statusSeverity === 'critical'}
-					<span class="flex h-2 w-2">
-						<span class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-error-400 opacity-75"></span>
-						<span class="relative inline-flex h-2 w-2 rounded-full bg-error-500"></span>
-					</span>
-				{/if}
-			{:else}
+			{#if !isLoading && statusSeverity === 'critical'}
+				<span class="flex h-2 w-2">
+					<span class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-error-400 opacity-75"></span>
+					<span class="relative inline-flex h-2 w-2 rounded-full bg-error-500"></span>
+				</span>
+			{/if}
+		</a>
+	{:else}
+		<SystemTooltip title={versionStatusMessage}>
+			<a
+				href={GITHUB_RELEASES_URL}
+				target="_blank"
+				rel="noopener noreferrer"
+				class={compact
+					? `inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500`
+					: `inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500`}
+				aria-label={statusAriaLabel}
+				aria-live="polite"
+			>
 				<!-- Standard/Compact mode -->
 				<span>
 					{#if compact}
@@ -329,9 +335,9 @@ latest version available on GitHub with comprehensive status reporting.
 						aria-hidden="true"
 					></span>
 				{/if}
-			{/if}
-		</a>
-	</SystemTooltip>
+			</a>
+		</SystemTooltip>
+	{/if}
 
 	<!-- Error toast/message (optional - only shown if critical) -->
 	{#if error && statusSeverity === 'critical' && !compact && !transparent}

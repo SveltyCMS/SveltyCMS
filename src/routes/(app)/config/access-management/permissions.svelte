@@ -252,64 +252,85 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 	setRoleData(updatedRoles);
 	updateModifiedCount(modifiedPermissions.size);
 };
+
+function getActionBadgeClass(action: string) {
+	switch (action.toLowerCase()) {
+		case 'read':
+			return 'bg-blue-500/15 text-blue-600 dark:text-blue-400';
+		case 'create':
+		case 'write':
+			return 'bg-success-500/15 text-primary-600 dark:text-primary-500';
+		case 'delete':
+			return 'bg-error-500/15 text-error-600 dark:text-error-500';
+		case 'manage':
+			return 'bg-tertiary-500/15 text-tertiary-600 dark:text-tertiary-400';
+		default:
+			return 'bg-surface-500/15 text-surface-600 dark:text-surface-400';
+	}
+}
 </script>
 
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<h3 class="mb-2 text-center text-xl font-bold">Permission Management:</h3>
-	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<h3 class="mb-2 text-center text-xl font-bold text-surface-900 dark:text-surface-50">Permission Management</h3>
+	<p class="mb-6 text-center text-sm text-surface-500 dark:text-surface-400">
 		Select the roles for each permission and click 'Save' to apply your changes.
 	</p>
 
-	<div class="sticky top-0 z-10 mb-4 flex items-center justify-between">
-		<input
-			type="text"
-			bind:value={searchTerm}
-			placeholder="Search Permissions..."
-			class="input mr-4 grow dark:text-surface-50"
-			aria-label="Search permissions"
-		/>
+	<div class="sticky top-0 z-10 mb-6 flex items-center justify-between">
+		<div class="relative w-full">
+			<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-surface-400">
+				<iconify-icon icon="material-symbols:search-rounded" width="20"></iconify-icon>
+			</div>
+			<input
+				type="text"
+				bind:value={searchTerm}
+				placeholder="Search Permissions..."
+				class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-800/80 bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
+				aria-label="Search permissions"
+			/>
+		</div>
 	</div>
 
 	{#if filteredPermissions.length === 0}
-		<p class="text-tertiary-500 dark:text-primary-500">{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}</p>
+		<div class="text-center py-8 border border-dashed border-surface-200 dark:border-surface-800 rounded-xl bg-surface-50/50 dark:bg-surface-900/25">
+			<iconify-icon icon="material-symbols:search-off-rounded" width="32" class="text-surface-400 mb-2"></iconify-icon>
+			<p class="text-surface-500 dark:text-surface-400 text-sm">{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}</p>
+		</div>
 	{:else}
 		<!-- Admin Notice -->
 		{#if adminRole}
-			<p class="mb-2 w-full overflow-auto text-nowrap text-center">
-				<span class="font-bold text-error-500">*</span>
-				<span class="text-tertiary-500 dark:text-primary-500">{adminRole.name}</span>
-				Role has all permissions
-			</p>
+			<div class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-50 dark:bg-surface-900/30 border border-surface-200/60 dark:border-surface-800/55 py-2 px-4 rounded-lg w-max mx-auto shadow-xs">
+				<span class="font-extrabold text-error-500">*</span>
+				<span><span class="font-semibold text-primary-600 dark:text-primary-500">{adminRole.name}</span> Role has all permissions by default.</span>
+			</div>
 		{/if}
-		<div class="permission overflow-auto">
-			<table class="compact w-full table-auto border">
+		<div class="permission overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-800/80 shadow-sm bg-white dark:bg-surface-900">
+			<table class="w-full text-left border-collapse table-auto">
 				<!-- Header -->
-				<thead class="sticky top-0 border bg-surface-800">
-					<tr class="divide-x text-tertiary-500 dark:text-primary-500">
-						<th class="py-2" aria-sort={sortBy === 'name' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
+				<thead class="bg-surface-50 dark:bg-surface-950 border-b border-surface-200 dark:border-surface-800/80">
+					<tr>
+						<th class="px-5 py-4 font-semibold text-surface-700 dark:text-surface-300 w-2/5" aria-sort={sortBy === 'name' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
 							<button
-								class="flex w-full items-center justify-center font-bold inherit {sortBy === 'name' ? 'text-primary-500' : 'dark:text-primary-500'}"
+								class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 dark:text-surface-400 hover:text-primary-500 dark:hover:text-primary-500 transition-colors"
 								onclick={() => handleSort('name')}
 								title="Click to sort by permission name"
 							>
-								Type
+								Permission Name
 								{#if sortBy === 'name' && sortOrder !== 0}
 									<iconify-icon
 										icon={sortOrder === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
-										width="16"
-										class="ml-1"
+										width="14"
+										class="text-primary-500"
 										aria-hidden="true"
 									></iconify-icon>
 								{/if}
 							</button>
 						</th>
-						<th class="py-2" aria-sort={sortBy === 'action' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
+						<th class="px-5 py-4 font-semibold text-center w-1/5" aria-sort={sortBy === 'action' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
 							<button
-								class="flex w-full items-center justify-center font-bold inherit {sortBy === 'action'
-									? 'text-primary-500 dark:text-secondary-400'
-									: ''}"
+								class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 dark:text-surface-400 hover:text-primary-500 dark:hover:text-primary-500 transition-colors mx-auto"
 								onclick={() => handleSort('action')}
 								title="Click to sort by action"
 							>
@@ -317,8 +338,8 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 								{#if sortBy === 'action' && sortOrder !== 0}
 									<iconify-icon
 										icon={sortOrder === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
-										width="16"
-										class="ml-1"
+										width="14"
+										class="text-primary-500"
 										aria-hidden="true"
 									></iconify-icon>
 								{/if}
@@ -328,13 +349,13 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 						<!-- List only non-admin roles -->
 						{#each roles as role (role._id)}
 							{#if !role.isAdmin}
-								<th class="py-2 dark:text-surface-50 text-center" scope="col">
-									<div class="flex flex-col items-center gap-1">
-										<span class="text-xs font-bold">{role.name}</span>
-										<div class="flex gap-1 mt-1">
+								<th class="px-5 py-4 dark:text-surface-50 text-center" scope="col">
+									<div class="flex flex-col items-center gap-1.5">
+										<span class="text-xs font-semibold tracking-wider uppercase text-surface-600 dark:text-surface-400">{role.name}</span>
+										<div class="flex items-center gap-1.5 mt-0.5">
 											<input
 												type="checkbox"
-												class="checkbox checkbox-sm"
+												class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
 												checked={filteredPermissions.length > 0 && filteredPermissions.every((p) => role.permissions.includes(p._id))}
 												indeterminate={filteredPermissions.length > 0 &&
 													filteredPermissions.some((p) => role.permissions.includes(p._id)) &&
@@ -344,12 +365,12 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 												aria-label={`Select all for ${role.name}`}
 											/>
 											<button
-												class="btn btn-xs variant-ghost-surface p-0.5"
+												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-200 dark:border-surface-700/60 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 dark:text-surface-400 hover:text-primary-500 dark:hover:text-primary-500 transition-colors"
 												onclick={() => toggleAllForRole(role._id, true)}
 												title="Assign role to all filtered permissions"
 												aria-label={`Assign ${role.name} to all filtered permissions`}
 											>
-												<iconify-icon icon="mdi:check-all" width="14"></iconify-icon>
+												<iconify-icon icon="mdi:check-all" width="12"></iconify-icon>
 											</button>
 										</div>
 									</div>
@@ -358,35 +379,39 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 						{/each}
 					</tr>
 				</thead>
-				<tbody>
+				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 					<!-- Permission Groups -->
 					{#each groups as group (group)}
 						{#if filterGroups(filteredPermissions, group).length > 0}
 							<!-- Group Name -->
-							<tr>
+							<tr class="bg-surface-50/70 dark:bg-surface-900/40">
 								<td
 									colspan={nonAdminRolesCount + 2}
-									class="border-b bg-surface-500 px-1 py-2 font-semibold text-tertiary-500 dark:text-surface-50 lg:text-left"
+									class="px-5 py-2.5 font-bold text-xs tracking-wider uppercase text-surface-500 dark:text-surface-400 border-y border-surface-200/60 dark:border-surface-800/60"
 								>
-									{group}:
+									{group}
 								</td>
 							</tr>
 							<!-- Permissions within the Group -->
 							{#each filterGroups(filteredPermissions, group) as permission (permission._id)}
-								<tr class="divide-x border-b text-center hover:bg-surface-50 dark:hover:bg-surface-600">
+								<tr class="hover:bg-surface-50/40 dark:hover:bg-surface-850/40 transition-colors">
 									<!-- Type -->
-									<td class="px-1 py-1 md:text-left">{permission.name}</td>
+									<td class="px-5 py-3 text-sm text-surface-700 dark:text-surface-300 font-medium">{permission.name}</td>
 									<!-- Action -->
-									<td class="px-1 py-1">{permission.action}</td>
+									<td class="px-5 py-3 text-center">
+										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider {getActionBadgeClass(permission.action)}">
+											{permission.action}
+										</span>
+									</td>
 									<!-- Roles -->
 									{#each roles as role (role._id)}
 										{#if !role.isAdmin}
-											<td class="">
+											<td class="px-5 py-3 text-center">
 												<input
 													type="checkbox"
 													checked={role.permissions.includes(permission._id)}
 													onchange={() => toggleRole(permission._id, role._id)}
-													class="form-checkbox h-5 w-5 cursor-pointer"
+													class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
 													aria-label={`Assign ${permission.name} (${permission.action}) to ${role.name}`}
 												/>
 											</td>
@@ -403,7 +428,5 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 {/if}
 
 <style>
-	.permission {
-		height: calc(100vh - 400px);
-	}
+	/* No fixed height, let parent page container handle vertical scrolling */
 </style>

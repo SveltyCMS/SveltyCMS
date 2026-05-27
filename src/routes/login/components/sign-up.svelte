@@ -29,7 +29,8 @@ import SiteName from "@src/components/site-name.svelte";
 import FloatingPaths from "@src/components/system/floating-paths.svelte";
 import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
 import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
-import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
+import FloatingInput from "@components/ui/floating-input.svelte";
+import Button from "@components/ui/button.svelte";
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 // ParaglideJS
 import {
@@ -287,8 +288,8 @@ $effect(() => {
 			<div class="absolute left-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
 				<a href="#signup-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-up form</a>
-				<div class="-mb-4 flex flex-row gap-2">
-					<SveltyCMSLogo className="w-14" fill="red" />
+				<div class="flex flex-row gap-3 items-center">
+					<SveltyCMSLogo size={68} className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-white lg:text-4xl">
 						<div class="text-xs text-surface-200"><SiteName {siteName} highlight="CMS" /></div>
@@ -310,14 +311,19 @@ $effect(() => {
 
 					<div class="absolute right-0">
 						<SystemTooltip title="Go Back">
-							<button onclick={handleBack} aria-label="Back" class="btn-icon rounded-full preset-outlined-secondary-500">
+							<Button
+								onclick={handleBack}
+								aria-label="Go back"
+								variant="outline"
+								rounded={true}
+								class="w-10 h-10 p-0 flex items-center justify-center text-white border-surface-600! hover:bg-surface-800"
+							>
 								<iconify-icon icon="ri:arrow-left-line" width={24}></iconify-icon>
-							</button>
+							</Button>
 						</SystemTooltip>
 					</div>
 				</div>
 
-				<!-- <SuperDebug data={$form} display={dev} /> -->
 				<form
 					id="signup-form"
 					onsubmit={handleSignUpSubmit}
@@ -369,7 +375,7 @@ $effect(() => {
 						errorMessage={signUpForm.errors.email?.[0] || ''}
 					/>
 					{#if isInviteFlow}
-						<span class="text-xs text-primary-400">? Email pre-filled from invitation</span>
+						<span class="text-xs text-primary-500">? Email pre-filled from invitation</span>
 					{/if}
 
 					<!-- Hidden email input to ensure form submission when disabled -->
@@ -454,7 +460,7 @@ $effect(() => {
 					{:else if isInviteFlow}
 						<!-- Hidden token field for invite flow -->
 						<input type="hidden" name="token" value={token} />
-						<span class="text-xs text-primary-400">Using invitation token</span>
+						<span class="text-xs text-primary-500">Using invitation token</span>
 					{/if}
 
 					{#if inviteError && !signUpForm.data.token}
@@ -463,38 +469,59 @@ $effect(() => {
 
 					{#if !showGoogleOAuth && !showGithubOAuth}
 						<!-- Email SignIn only -->
-						<button type="submit" class="btn bg-white text-black mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}>
-							{isInviteFlow ? 'Accept Invitation & Create Account' : form_signup()}
-							{#if isSubmitting || isRedirecting}
-								<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />
-							{/if}
-						</button>
+						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+							<Button
+								type="submit"
+								form="signup-form"
+								variant="surface"
+								class="w-full text-white sm:w-auto"
+								aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}
+								loading={isSubmitting || isRedirecting}
+							>
+								{isInviteFlow ? 'Accept Invitation & Create Account' : form_signup()}
+							</Button>
+						</div>
 						<!-- Email + OAuth signin  -->
 					{:else}
-						<div class="btn-group mt-4 flex border border-secondary-500 text-white [&>*+*]:border-secondary-500">
-							<button
-								type="submit"
-								class="btn flex-1 rounded-none bg-surface-200 text-black hover:text-white"
-								aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}
-							>
-								<span class="w-full text-black hover:text-white"> {isInviteFlow ? 'Accept Invitation' : form_signup()} </span>
-								<!-- Loading indicators -->
-								{#if isSubmitting || isRedirecting}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />
+						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+							<div class="flex w-full justify-between gap-2 sm:w-auto">
+								<Button
+									type="submit"
+									form="signup-form"
+									variant="surface"
+									class="w-full text-white sm:w-auto"
+									aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}
+									loading={isSubmitting || isRedirecting}
+								>
+									{isInviteFlow ? 'Accept Invitation' : form_signup()}
+								</Button>
+
+								{#if showGoogleOAuth}
+									<Button
+										type="button"
+										variant="outline"
+										onclick={() => handleOAuth("google")}
+										aria-label="Google OAuth"
+										rounded={true}
+										class="w-10 h-10 p-0 flex items-center justify-center border-surface-600! hover:bg-surface-800"
+									>
+										<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
+									</Button>
 								{/if}
-							</button>
 
-							{#if showGoogleOAuth}
-								<button type="button" onclick={() => handleOAuth("google")} aria-label="Google OAuth" class="btn flex flex-none items-center justify-center px-4 py-2">
-									<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
-								</button>
-							{/if}
-
-							{#if showGithubOAuth}
-								<button type="button" onclick={() => handleOAuth("github")} aria-label="GitHub OAuth" class="btn flex flex-none items-center justify-center px-4 py-2">
-									<iconify-icon icon="mdi:github" width={24}></iconify-icon>
-								</button>
-							{/if}
+								{#if showGithubOAuth}
+									<Button
+										type="button"
+										variant="outline"
+										onclick={() => handleOAuth("github")}
+										aria-label="GitHub OAuth"
+										rounded={true}
+										class="w-10 h-10 p-0 flex items-center justify-center border-surface-600! hover:bg-surface-800 text-white"
+									>
+										<iconify-icon icon="mdi:github" width={24}></iconify-icon>
+									</Button>
+								{/if}
+							</div>
 						</div>
 
 						{#if !isInviteFlow && firstUserExists && !hasExistingOAuthUsers}

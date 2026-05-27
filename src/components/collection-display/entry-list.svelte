@@ -2,7 +2,7 @@
 @file src/components/collection-display/entry-list.svelte
 @description
 High-performance data table for managing collection entries.
-This component provides a robust interface for content orchestration, including search, 
+This component provides a robust interface for content orchestration, including search,
 bulk actions, and predictive preloading.
 
 @component
@@ -45,7 +45,7 @@ bulk actions, and predictive preloading.
 
 <script lang="ts">
 	// Components
-	import FloatingInput from '@components/system/inputs/floating-input.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
 	import SystemTooltip from '@components/system/system-tooltip.svelte';
 	import Status from '@components/system/table/status.svelte';
 	// import SystemTooltip from '@components/system/system-tooltip.svelte';
@@ -83,7 +83,7 @@ bulk actions, and predictive preloading.
 	import { cloneEntries, setEntriesStatus } from '@utils/entry-actions';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
-	// Skeleton
+	// Native UI Components
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -856,8 +856,8 @@ bulk actions, and predictive preloading.
 				d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 			/>
 		</svg>
-		<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-400">Collection Not Found</h3>
-		<p class="text-center text-error-600 dark:text-error-400">
+		<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-500">Collection Not Found</h3>
+		<p class="text-center text-error-600 dark:text-error-500">
 			The requested collection could not be loaded. Please check the collection name and try again.
 		</p>
 	</div>
@@ -889,7 +889,7 @@ bulk actions, and predictive preloading.
 						<span> <iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon> </span>
 					{/if}
 					{#if currentCollection?.name}
-						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
+						<div class="flex max-w-21.25 whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
 							{#if collectionStats}
 								<span class="ml-2 text-xs font-normal text-surface-500">({collectionStats.count})</span>
@@ -1154,15 +1154,15 @@ bulk actions, and predictive preloading.
 														// 1. Check cache & load if needed
 														// Navigate to edit mode - this triggers SSR to load full multilingual data
 														// List view has language-projected data, edit mode needs all languages
-														
+
 														// 2. Update stores INSTANTLY (no waiting)
 														// The URL pattern document mandates GUI-First: state first, URL second
 														setMode("edit");
 														setCollectionValue(originalEntry);
-														
+
 														// 3. Reflect in URL (passive, no reload if we use replaceState, but we want history so we use reflectModeInURL)
 														reflectModeInURL("edit", originalEntry._id as string);
-														
+
 														logger.debug(`[Edit] Loading full data for entry ${originalEntry._id}`);
 													}
 												}

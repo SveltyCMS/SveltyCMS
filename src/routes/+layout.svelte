@@ -7,7 +7,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 
 ### Responsibilities:
 - Paraglide i18n initialization and language bridging.
-- Skeleton v4 global UI components (Toasts, Modals).
+- Native UI components (Toasts, Modals).
 - WebMCP Support for peripheral tool registration.
 - Zero-latency content system hydration and SSE start.
 
@@ -48,7 +48,7 @@ import {
 	globalLoadingStore,
 	loadingOperations,
 } from "@src/stores/loading-store.svelte";
-// Skeleton v4
+// Native UI Components v4
 import { app } from "@src/stores/store.svelte.ts";
 import { toast } from "@src/stores/toast.svelte.ts";
 // Theme management
@@ -102,7 +102,7 @@ function resetSessionTimer() {
 // Global window event listener to track user activity and focus coordinate changes
 function handleUserActivity(e: Event) {
 	resetSessionTimer();
-	
+
 	// Track the selector of the active element to restore it on mount/navigation boundaries
 	const target = e.target as HTMLElement;
 	if (target) {
@@ -121,7 +121,7 @@ function handleUserActivity(e: Event) {
 beforeNavigate(() => toast.handleBeforeNavigate());
 afterNavigate(() => {
 	toast.handleAfterNavigate();
-	
+
 	// State-Bound Focus Restoration
 	setTimeout(() => {
 		if (lastFocusedSelector) {
@@ -384,7 +384,7 @@ onMount(() => {
 			}
 
 			window.addEventListener("keydown", handleGlobalKeydown);
-			
+
 			if (browser) {
 				window.addEventListener("click", handleUserActivity, { passive: true });
 				window.addEventListener("keydown", handleUserActivity, { passive: true });
@@ -422,9 +422,9 @@ onMount(() => {
 					An unexpected runtime error occurred. Our self-healing systems are investigating.
 				</p>
 			</div>
-			
+
 			<div class="max-w-md rounded-lg border border-surface-200 bg-surface-100 p-4 text-left text-sm font-mono dark:border-surface-800 dark:bg-surface-800">
-				<p class="text-error-600 dark:text-error-400">{error.message}</p>
+				<p class="text-error-600 dark:text-error-500">{error.message}</p>
 			</div>
 
 			<div class="flex space-x-4">
@@ -447,7 +447,7 @@ onMount(() => {
 
 <!-- Progressive Session Timeout Warning Overlay/Banners -->
 {#if sessionPhase === 'warning'}
-	<div 
+	<div
 		class="fixed bottom-4 right-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-warning-500/30 bg-surface-100/80 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
 		role="status"
 		aria-live="polite"
@@ -461,7 +461,7 @@ onMount(() => {
 				<p class="text-xs text-surface-600 dark:text-surface-400">Session expires in {Math.floor(sessionRemainingTime / 60)}m {sessionRemainingTime % 60}s</p>
 			</div>
 		</div>
-		<button 
+		<button
 			class="btn btn-sm variant-filled-warning"
 			onclick={resetSessionTimer}
 		>
@@ -469,7 +469,7 @@ onMount(() => {
 		</button>
 	</div>
 {:else if sessionPhase === 'critical'}
-	<div 
+	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-lg"
 		role="alertdialog"
 		aria-modal="true"
@@ -481,7 +481,7 @@ onMount(() => {
 				<span class="flex h-16 w-16 items-center justify-center rounded-full bg-error-500/20 text-error-500">
 					<iconify-icon icon="mdi:clock-alert-outline" width="36"></iconify-icon>
 				</span>
-				
+
 				<div class="space-y-1">
 					<h2 id="critical-timeout-title" class="text-xl font-bold text-error-500">Critical Session Timeout</h2>
 					<p id="critical-timeout-desc" class="text-sm text-surface-600 dark:text-surface-400">
@@ -494,7 +494,7 @@ onMount(() => {
 				</div>
 
 				<div class="flex gap-4 w-full">
-					<button 
+					<button
 						id="extend-session-btn"
 						class="btn variant-filled-error w-full py-3 text-base font-bold shadow-lg"
 						onclick={resetSessionTimer}

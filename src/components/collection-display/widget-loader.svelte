@@ -77,8 +77,8 @@ rather than bundling all widgets upfront.
 </script>
 
 {#if loading}
-	<!-- Loading skeleton -->
-	<div class="widget-loader-skeleton animate-pulse">
+	<!-- Loading placeholder -->
+	<div class="widget-loader-placeholder animate-pulse">
 		<div class="mb-2 h-4 w-1/3 rounded bg-surface-300 dark:bg-surface-600"></div>
 		<div class="h-10 w-full rounded bg-surface-200 dark:bg-surface-700"></div>
 	</div>
@@ -87,10 +87,10 @@ rather than bundling all widgets upfront.
 	<div class="widget-loader-error rounded-lg border border-error-500 bg-error-50 p-4 dark:bg-error-900/20">
 		<div class="mb-2 flex items-center gap-2">
 			<iconify-icon icon="mdi:alert-circle" class="text-error-500" width="20"></iconify-icon>
-			<span class="font-semibold text-error-700 dark:text-error-400">Widget Load Error</span>
+			<span class="font-semibold text-error-700 dark:text-error-500">Widget Load Error</span>
 		</div>
 		<p class="text-sm text-error-600 dark:text-error-300">Failed to load widget: <strong>{field.widget?.Name || 'Unknown'}</strong></p>
-		<p class="mt-1 text-xs text-error-500 dark:text-error-400">{error.message}</p>
+		<p class="mt-1 text-xs text-error-500 dark:text-error-500">{error.message}</p>
 		<button class="preset-outlined-error-500 btn-sm mt-3" onclick={() => loadComponent()}>
 			<iconify-icon icon="mdi:refresh" width="16" class="mr-1"></iconify-icon>
 			Retry
@@ -108,7 +108,7 @@ rather than bundling all widgets upfront.
 {/if}
 
 <style>
-	.widget-loader-skeleton {
+	.widget-loader-placeholder {
 		min-height: 60px;
 	}
 

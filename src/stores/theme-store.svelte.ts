@@ -2,7 +2,7 @@
  * @file src/stores/theme-store.svelte.ts
  * @description Centralized, rune-based theme management store.
  * Supports explicit theme preferences: 'system', 'light', 'dark'
- * Pure Tailwind CSS implementation - no Skeleton Labs dependencies
+ * Pure Tailwind CSS implementation - no third-party UI dependencies
  */
 
 import type { ISODateString } from "@src/content/types";
@@ -101,7 +101,7 @@ function resolveDarkMode(preference: ThemePreference): boolean {
 }
 
 /**
- * Initializes the dark mode state from cookie/DOM and syncs Skeleton.
+ * Initializes the dark mode state from cookie/DOM.
  * The DOM state is set pre-render by the script in app.html.
  * This MUST be called from a component's onMount lifecycle hook.
  */
@@ -177,7 +177,7 @@ function applyThemeToDom(isDark: boolean) {
     logger.debug("[Theme] Applied light/removed dark from DOM");
   }
 
-  // Ensure the base theme attribute is always present for Skeleton v4
+  // Ensure the base theme attribute is always present
   if (document.body.getAttribute("data-theme") !== "sveltycms") {
     document.body.setAttribute("data-theme", "sveltycms");
   }

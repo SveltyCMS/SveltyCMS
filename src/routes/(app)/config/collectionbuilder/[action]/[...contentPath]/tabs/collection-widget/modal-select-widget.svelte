@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/ModalSelectWidget.svelte
 @component
 **This component displays a modal for selecting a widget**
@@ -9,7 +9,7 @@
 // Modern widget system
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";
-// Skeleton Stores
+// Native UI Components Stores
 import { modalState } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 
@@ -100,7 +100,7 @@ const cHeader =
 										</div>
 
 										<div>
-											<h3 class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-400">
+											<h3 class="text-lg font-bold text-surface-900 group-hover:text-primary-500 dark:text-white dark:group-hover:text-primary-500">
 												{item}
 											</h3>
 											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-50">

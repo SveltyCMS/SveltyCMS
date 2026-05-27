@@ -62,6 +62,24 @@ export function applyAllSecurityHeaders(
       }
     }
   }
+
+  // 5. GraphQL playground needs relaxed CSP for inline scripts and external CDN resources
+  if (pathname.startsWith("/api/graphql")) {
+    headers.set(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com",
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+        "img-src 'self' data: blob: https://cdn.jsdelivr.net",
+        "connect-src 'self' https://cdn.jsdelivr.net",
+        "frame-src 'none'",
+      ].join("; "),
+    );
+    // Relax COEP for GraphQL playground to allow external resource loading
+    headers.set("Cross-Origin-Embedder-Policy", "unsafe-none");
+  }
 }
 
 export const handleSecurityHeaders: Handle = async ({ event, resolve }) => {

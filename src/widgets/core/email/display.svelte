@@ -32,7 +32,7 @@ Renders: <a href="mailto:user@example.com">user@example.com</a>
 		<iconify-icon icon="mdi:email-outline" width="16" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 		<a 
 			href="mailto:{value}" 
-			class="text-primary-600 dark:text-primary-400 hover:underline font-medium transition-colors"
+			class="text-primary-600 dark:text-primary-500 hover:underline font-medium transition-colors"
 			title="Email: {value}"
 		>
 			{value}

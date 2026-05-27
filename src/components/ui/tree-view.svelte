@@ -535,7 +535,7 @@ search filtering, and RTL support.
                 'truncate transition-colors',
                 densityTokens.font,
                 isSelected
-                    ? 'font-bold text-primary-600 dark:text-primary-400'
+                    ? 'font-bold text-primary-600 dark:text-primary-500'
                     : 'font-medium text-surface-900 dark:text-surface-100'
             )}>
                 {nodeLabel}

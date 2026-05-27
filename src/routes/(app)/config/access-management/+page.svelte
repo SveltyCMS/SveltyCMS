@@ -1,6 +1,6 @@
 <!--
 @file src/routes/(app)/config/AccessManagement/+page.svelte
-@component 
+@component
 **This page manages the Access Management system, including roles and permissions**
 
 @example
@@ -16,8 +16,8 @@
 -->
 
 <script lang="ts">
-import Tabs from "@components/ui/tabs";
 import PageTitle from "@src/components/page-title.svelte";
+import Tabs from "@components/ui/tabs";
 import { system_permission, system_roles } from "@src/paraglide/messages";
 import {
 	globalLoadingStore,
@@ -109,8 +109,6 @@ beforeNavigate(({ cancel }) => {
 			body: "You have unsaved changes in the Access Management configuration. Are you sure you want to leave this page?",
 			onConfirm: () => {
 				hasModifiedChanges = false; // Bypass next check
-				// We can't easily "resume" navigation in SvelteKit without re-triggering or manual URL change
-				// but setting flag and letting user click again is a safe standard pattern
 				toast.info("Changes discarded. You can now navigate away.");
 			},
 		});
@@ -118,20 +116,13 @@ beforeNavigate(({ cancel }) => {
 });
 </script>
 
-<div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-	<PageTitle
-		name="Access Management"
-		icon="mdi:account-key"
-		showBackButton={true}
-		backUrl="/config"
-
-	/>
-
-	<div class="mt-2 flex items-center justify-center gap-4 lg:mt-0 lg:justify-end">
+<div class="absolute inset-0 p-2 space-y-5 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+	<!-- Header -->
+	<PageTitle name="Access Management" icon="mdi:shield-account-outline" showBackButton={true} backUrl="/config">
 		<button
 			onclick={saveAllChanges}
 			aria-label="Save all changes"
-			class="preset-filled-tertiary-500 btn"
+			class="preset-filled-primary-500 btn font-semibold shadow-xs"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 		>
 			{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
@@ -144,55 +135,56 @@ beforeNavigate(({ cancel }) => {
 		<button
 			onclick={resetChanges}
 			aria-label="Reset changes"
-			class="preset-filled-secondary-500 btn"
+			class="preset-ghost-surface-500 btn font-semibold shadow-xs"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 		>
 			Reset
 		</button>
+	</PageTitle>
+
+	<!-- Content -->
+	<div class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
+		<div class="mb-4">
+			<p class="text-tertiary-500 dark:text-primary-500 text-sm">
+				Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
+				can perform in the system.
+			</p>
+		</div>
+
+		<Tabs value={currentTab} onValueChange={(e) => (currentTab = e.value)} class="grow">
+			<Tabs.List class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800">
+				<Tabs.Trigger value="0" class="flex-1" aria-current={currentTab === '0' ? 'page' : undefined}>
+					<div class="flex items-center justify-center gap-1 py-4">
+						<iconify-icon icon="mdi:shield-lock-outline" width={24}></iconify-icon>
+						<span class={currentTab === '0' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>{system_permission()}</span>
+					</div>
+				</Tabs.Trigger>
+				<Tabs.Trigger value="1" class="flex-1" aria-current={currentTab === '1' ? 'page' : undefined}>
+					<div class="flex items-center justify-center gap-1 py-4">
+						<iconify-icon icon="mdi:account-group" width={24}></iconify-icon>
+						<span class={currentTab === '1' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>{system_roles()}</span>
+					</div>
+				</Tabs.Trigger>
+				<Tabs.Trigger value="2" class="flex-1" aria-current={currentTab === '2' ? 'page' : undefined}>
+					<div class="flex items-center justify-center gap-1 py-4">
+						<iconify-icon icon="mdi:account-cog" width={24}></iconify-icon>
+						<span class={currentTab === '2' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Admin</span>
+					</div>
+				</Tabs.Trigger>
+				<Tabs.Trigger value="3" class="flex-1" aria-current={currentTab === '3' ? 'page' : undefined}>
+					<div class="flex items-center justify-center gap-1 py-4">
+						<iconify-icon icon="mdi:web" width={24}></iconify-icon>
+						<span class={currentTab === '3' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Website Tokens</span>
+					</div>
+				</Tabs.Trigger>
+			</Tabs.List>
+
+			<Tabs.Content value="0"><div class="p-2"><Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} /></div></Tabs.Content>
+			<Tabs.Content value="1"
+				><div class="p-2"><Roles roleData={rolesData} {setRoleData} {updateModifiedCount} permissions={page.data.permissions} /></div></Tabs.Content
+			>
+			<Tabs.Content value="2"><div class="p-2"><AdminRole roleData={rolesData} {setRoleData} /></div></Tabs.Content>
+			<Tabs.Content value="3"><div class="p-2"><WebsiteTokens permissions={page.data.permissions} /></div></Tabs.Content>
+		</Tabs>
 	</div>
-</div>
-
-<div class="mb-6 text-center sm:text-left">
-	<p class="text-center text-tertiary-500 dark:text-primary-500">
-		Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
-		can perform in the system.
-	</p>
-</div>
-
-<div class="flex flex-col">
-	<Tabs value={currentTab} onValueChange={(e) => (currentTab = e.value)} class="grow">
-		<Tabs.List class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800">
-			<Tabs.Trigger value="0" class="flex-1" aria-current={currentTab === '0' ? 'page' : undefined}>
-				<div class="flex items-center justify-center gap-1 py-4">
-					<iconify-icon icon="mdi:shield-lock-outline" width={24}></iconify-icon>
-					<span class={currentTab === '0' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>{system_permission()}</span>
-				</div>
-			</Tabs.Trigger>
-			<Tabs.Trigger value="1" class="flex-1" aria-current={currentTab === '1' ? 'page' : undefined}>
-				<div class="flex items-center justify-center gap-1 py-4">
-					<iconify-icon icon="mdi:account-group" width={24}></iconify-icon>
-					<span class={currentTab === '1' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>{system_roles()}</span>
-				</div>
-			</Tabs.Trigger>
-			<Tabs.Trigger value="2" class="flex-1" aria-current={currentTab === '2' ? 'page' : undefined}>
-				<div class="flex items-center justify-center gap-1 py-4">
-					<iconify-icon icon="mdi:account-cog" width={24}></iconify-icon>
-					<span class={currentTab === '2' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Admin</span>
-				</div>
-			</Tabs.Trigger>
-			<Tabs.Trigger value="3" class="flex-1" aria-current={currentTab === '3' ? 'page' : undefined}>
-				<div class="flex items-center justify-center gap-1 py-4">
-					<iconify-icon icon="mdi:web" width={24}></iconify-icon>
-					<span class={currentTab === '3' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Website Tokens</span>
-				</div>
-			</Tabs.Trigger>
-		</Tabs.List>
-
-		<Tabs.Content value="0"><div class="p-4"><Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} /></div></Tabs.Content>
-		<Tabs.Content value="1"
-			><div class="p-4"><Roles roleData={rolesData} {setRoleData} {updateModifiedCount} permissions={page.data.permissions} /></div></Tabs.Content
-		>
-		<Tabs.Content value="2"><div class="p-4"><AdminRole roleData={rolesData} {setRoleData} /></div></Tabs.Content>
-		<Tabs.Content value="3"><div class="p-4"><WebsiteTokens permissions={page.data.permissions} /></div></Tabs.Content>
-	</Tabs>
 </div>

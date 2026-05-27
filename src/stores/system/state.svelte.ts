@@ -27,14 +27,16 @@ export type { ServiceName };
 import { initialState, initialServiceMetrics } from "./config";
 import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from "./metrics";
 
+import { getGlobal, setGlobal } from "@src/utils/native-utils";
+
 // 🚀 MODULE-LEVEL STATE MIRROR: overallState stored as a primitive string.
 // Eliminates getSystemState().overallState property chain on every gatekeeper check.
 // Synchronized on setSystemState() and updateService() calls.
-let _overallState: SystemState = "IDLE";
+const OVERALL_STATE_KEY = "__SYSTEM_OVERALL_STATE__";
 
 /** Returns the module-level overall state — zero overhead, no object access */
 export function getOverallState(): SystemState {
-  return _overallState;
+  return getGlobal(OVERALL_STATE_KEY, "IDLE");
 }
 
 /** Returns readiness — single string comparison, no function calls */
@@ -42,13 +44,13 @@ export function isSystemReady(): boolean {
   if (process.env.TEST_MODE === "true" && process.env.SKIP_GATEKEEPER === "true") {
     return true;
   }
-  const s = _overallState;
+  const s = getOverallState();
   return s === "READY" || s === "WARMED" || s === "WARMING" || s === "DEGRADED";
 }
 
 /** Synchronize module-level mirror after state changes */
 function syncOverallState(newState: SystemState) {
-  _overallState = newState;
+  setGlobal(OVERALL_STATE_KEY, newState);
 }
 
 // Svelte 5 Reactive Class for Enterprise Performance
@@ -115,10 +117,19 @@ class SystemStateContainer {
   }
 }
 
-export const system = new SystemStateContainer();
+const SYSTEM_CONTAINER_KEY = "__SYSTEM_STATE_CONTAINER__";
+const SYSTEM_STORE_KEY = "__SYSTEM_STATE_STORE__";
 
+if (!getGlobal(SYSTEM_CONTAINER_KEY)) {
+  setGlobal(SYSTEM_CONTAINER_KEY, new SystemStateContainer());
+}
+export const system: SystemStateContainer = getGlobal(SYSTEM_CONTAINER_KEY);
+
+if (!getGlobal(SYSTEM_STORE_KEY)) {
+  setGlobal(SYSTEM_STORE_KEY, writable(initialState));
+}
 // Keep the legacy store for compatibility with old components
-export const systemStateStore: Writable<SystemStateStore> = writable(initialState);
+export const systemStateStore: Writable<SystemStateStore> = getGlobal(SYSTEM_STORE_KEY);
 
 /**
  * Centralized helper for transitioning a service's state and updating metrics.

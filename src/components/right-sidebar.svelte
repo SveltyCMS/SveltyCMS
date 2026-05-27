@@ -13,7 +13,7 @@
 
 <script lang="ts">
 	// Components
-	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import Toggle from '@components/ui/toggle.svelte';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJs
 	import {
@@ -252,14 +252,14 @@
 				</button>
 
 				<div class="btn gradient-secondary w-full gap-2 shadow-md">
-					<Toggles
+					<Toggle
 						value={statusStore.isPublish}
 						label={statusStore.isPublish ? status_publish() : status_unpublish()}
 						labelColor={statusStore.isPublish ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
 						disabled={shouldDisableStatusToggle}
-						onChange={toggleStatus}
+						onToggle={toggleStatus}
 					/>
 				</div>
 

@@ -24,7 +24,6 @@ const originalTestMode = process.env.TEST_MODE;
 process.env.TEST_MODE = undefined;
 
 import { handleSystemState } from "@src/hooks/handle-system-state";
-import { invalidateSetupCache } from "@utils/setup-check";
 
 /**
  * Helper to create a minimal RequestEvent for testing
@@ -99,14 +98,12 @@ describe("handleSystemState - State Machine Logic", () => {
   beforeEach(() => {
     // Reset mock state between tests
     mockResolve.mockClear();
-    // Handled by setMockState now
-    (globalThis as any).__mockIsSetupComplete = true;
     // Ensure TEST_MODE is disabled so state machine runs
     process.env.TEST_MODE = undefined;
-    (globalThis as any).__mockIsSetupComplete = true; // Still useful for some mocks
 
-    // Invalidate setup cache to ensure re-check
-    invalidateSetupCache(false, true); // Force true
+    // Default: setup is complete (for READY state tests)
+    const mck = (globalThis as any).mockSetupCheck;
+    mck.setSetupComplete(true);
 
     setMockState({ overallState: "READY" });
   });
@@ -189,8 +186,9 @@ describe("handleSystemState - State Machine Logic", () => {
   describe("IDLE state", () => {
     beforeEach(() => {
       setMockState({ overallState: "IDLE" });
-      // Handled by setMockState now
-      (globalThis as any).__mockIsSetupComplete = false;
+      // Setup NOT complete → redirect to setup, do not trigger self-healing boot
+      const mck = (globalThis as any).mockSetupCheck;
+      mck.setSetupComplete(false);
     });
 
     it("should allow /setup routes during IDLE state", async () => {
@@ -380,8 +378,8 @@ describe("handleSystemState - State Machine Logic", () => {
   describe("Route pattern matching", () => {
     beforeEach(() => {
       setMockState({ overallState: "IDLE" });
-      // Handled by setMockState now
-      (globalThis as any).__mockIsSetupComplete = false;
+      const mck = (globalThis as any).mockSetupCheck;
+      mck.setSetupComplete(false);
     });
 
     it("should allow /login during IDLE state", async () => {

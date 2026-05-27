@@ -4,7 +4,7 @@
 **SveltyCMS Table — WCAG 3.0 Ready**
 
 Full-featured data table with sorting, selection (checkboxes), row expansion,
-pagination, density control, loading skeletons, and empty state.
+pagination, density control, loading placeholders, and empty state.
 
 ### Props
 - `data` (any[]): Row data array.
@@ -12,7 +12,7 @@ pagination, density control, loading skeletons, and empty state.
 - `sortKey` / `sortOrder` (string, 'asc'|'desc'): Bindable sort state.
 - `selectable` (boolean): Enable row checkboxes with select all.
 - `selectedIds` (Set<any>): Bindable selected row IDs.
-- `loading` (boolean): Show skeleton loading rows.
+- `loading` (boolean): Show placeholder loading rows.
 - `density` ('compact' | 'normal' | 'comfortable'): Row density.
 - `totalItems` / `currentPage` / `rowsPerPage`: Pagination state.
 - `header` / `footer` / `cell` / `row` / `expand` (Snippet): Custom render slots.
@@ -23,7 +23,7 @@ pagination, density control, loading skeletons, and empty state.
 - multi-select with select-all indeterminate state
 - row expansion with expand snippet
 - pagination integration via Pagination subcomponent
-- loading skeleton rows (5 placeholders)
+- loading placeholder rows (5 shimmer placeholders)
 - WCAG 3.0 ready with semantic `<table>`, `<thead>`, `<tbody>`
 - full Svelte 5 runes: $props, $bindable, $derived, $state
 -->

@@ -1,11 +1,11 @@
-<!-- 
+<!--
 @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget/widget-editor.svelte
 @component Widget Editor Component with Stepper
  -->
 <script lang="ts">
 import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount } from "svelte";
-import Stepper from "@src/components/system/stepper.svelte";
+import Stepper from "@components/ui/stepper.svelte";
 import * as m from "@src/paraglide/messages";
 import {
 	button_cancel,
@@ -119,11 +119,7 @@ function handleDelete() {
 </script>
 
 <div class="flex h-full w-full gap-6">
-	<Stepper {steps} bind:currentStep stepCompleted={steps.map((_, i) => i < currentStep)} stepClickable={steps.map((_, i) => i <= currentStep + 1)}>
-		{#snippet header()}
-			<h3 class="text-lg font-bold">Steps</h3>
-		{/snippet}
-	</Stepper>
+	<Stepper {steps} {currentStep} completedSteps={new Set(steps.map((_, i) => i).filter(i => i < currentStep))} onStepClick={(i) => currentStep = i} />
 
 	<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-sm dark:text-surface-50 dark:bg-surface-800 overflow-hidden">
 		<div class="border-b border-surface-200 p-6">

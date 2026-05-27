@@ -62,7 +62,7 @@ This component provides a user interface for managing 2FA settings:
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { invalidateAll } from '$app/navigation';
-	// Skeleton & Stores
+	// Native UI Components & Stores
 	// getModalStore deprecated - use modalState from @utils/modal-state.svelte;
 	import TwoFactorVerifyModal from './two-factor-verify-modal.svelte';
 

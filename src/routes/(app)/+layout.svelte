@@ -39,7 +39,7 @@ import { app } from "@src/stores/store.svelte";
 import { initializeDarkMode } from "@src/stores/theme-store.svelte.ts";
 import { ui } from "@src/stores/ui-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { Portal } from "@skeletonlabs/skeleton-svelte";
+import Portal from "@components/ui/portal.svelte";
 // Utils
 import { isSearchVisible } from "@utils/global-search-index";
 import { getTextDirection } from "@utils/utils";
@@ -240,7 +240,7 @@ afterNavigate(() => {
 	<div class="flex h-screen w-screen items-center justify-center bg-error-50 dark:bg-error-900">
 		<div class="text-center">
 			<h1 class="text-2xl font-bold text-error-600 dark:text-error-300">Application Error</h1>
-			<p class="mt-2 text-error-500 dark:text-error-400">{loadError.message}</p>
+			<p class="mt-2 text-error-500 dark:text-error-500">{loadError.message}</p>
 		</div>
 	</div>
 {:else}

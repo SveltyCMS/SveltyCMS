@@ -76,13 +76,23 @@ async function checkDatabaseHealth(): Promise<{
   reason?: string;
 }> {
   const now = Date.now();
-  if (_dbHealthCache && now - _dbHealthCache.timestamp < DB_HEALTH_CACHE_TTL_MS) {
-    return { healthy: _dbHealthCache.healthy, reason: _dbHealthCache.reason };
+  // Only cache positive results. Negative results are retried to avoid
+  // showing the error modal when the boot engine hasn't reported in yet.
+  if (_dbHealthCache?.healthy && now - _dbHealthCache.timestamp < DB_HEALTH_CACHE_TTL_MS) {
+    return { healthy: true };
   }
 
   try {
-    if (!isServiceHealthy("database")) {
-      const reason = "Database service is unavailable";
+    // Retry service health check — boot engine may not have reported yet
+    let serviceHealthy = isServiceHealthy("database");
+    if (!serviceHealthy) {
+      // Wait briefly for boot engine to report (SQLite connects instantly)
+      await new Promise((r) => setTimeout(r, 500));
+      serviceHealthy = isServiceHealthy("database");
+    }
+
+    if (!serviceHealthy) {
+      const reason = "Database service is initializing — please wait a moment and refresh";
       _dbHealthCache = { healthy: false, reason, timestamp: now };
       return { healthy: false, reason };
     }

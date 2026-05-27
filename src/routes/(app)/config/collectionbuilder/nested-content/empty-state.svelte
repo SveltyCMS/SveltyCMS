@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+import Button from "@components/ui/button.svelte";
 import {
 	collection_add,
 	collection_addcategory,
@@ -34,7 +35,7 @@ let { onAddCollection, onAddCategory, onLoadPreset }: Props = $props();
 		<div
 			class="relative flex h-32 w-32 items-center justify-center rounded-3xl border border-white/20 bg-white/40 shadow-2xl backdrop-blur-md dark:bg-surface-800/40"
 		>
-			<iconify-icon icon="fluent-mdl2:build-definition" width="64" class="text-primary-600 dark:text-primary-400"></iconify-icon>
+			<iconify-icon icon="fluent-mdl2:build-definition" width="64" class="text-primary-600 dark:text-primary-500"></iconify-icon>
 
 			<!-- Small Floating Plus -->
 			<div
@@ -59,21 +60,21 @@ let { onAddCollection, onAddCategory, onLoadPreset }: Props = $props();
 	<!-- Call to Action -->
 	<div class="mt-10 flex flex-col items-center" in:fade={{ duration: 400, delay: 600 }}>
 		<div class="flex gap-4">
-			<button type="button" onclick={onAddCategory} class="group btn-lg rounded-full preset-filled-tertiary-500">
+			<Button onclick={onAddCategory} variant="tertiary" rounded={true} size="lg" class="group">
 				<iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
 				<span>{collection_addcategory()}</span>
-			</button>
+			</Button>
 
-			<button type="button" onclick={onAddCollection} class="group btn-lg rounded-full preset-filled-primary-500">
+			<Button onclick={onAddCollection} variant="primary" rounded={true} size="lg" class="group">
 				<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
 				<span>{collection_add()}</span>
-			</button>
+			</Button>
 
 			{#if onLoadPreset}
-				<button type="button" onclick={onLoadPreset} class="group btn-lg rounded-full preset-filled-warning-500">
+				<Button onclick={onLoadPreset} variant="warning" rounded={true} size="lg" class="group">
 					<iconify-icon icon="mdi:magic-staff" width="24" class="text-white transition-transform group-hover:rotate-12"></iconify-icon>
 					<span class="text-white">Load Preset</span>
-				</button>
+				</Button>
 			{/if}
 		</div>
 

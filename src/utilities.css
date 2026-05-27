@@ -242,7 +242,7 @@
   outline-color: var(--color-primary-500);
 }
 
-/* Specific Focus logic for Skeleton & Standard Inputs */
+/* Specific Focus logic for Inputs */
 .input:focus,
 input:focus,
 textarea:focus,

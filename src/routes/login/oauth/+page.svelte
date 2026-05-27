@@ -6,7 +6,7 @@
 <script lang="ts">
 // Components
 import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
-import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
+import FloatingInput from "@components/ui/floating-input.svelte";
 // ParaglideJS
 import {
 	button_cancel,

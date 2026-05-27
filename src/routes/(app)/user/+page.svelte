@@ -15,7 +15,7 @@
 -->
 
 <script lang="ts">
-	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+	import Avatar from "@components/ui/avatar.svelte";
 	import PageTitle from '@src/components/page-title.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
 	// ParaglideJS
@@ -150,7 +150,8 @@
 			ModalEditAvatar,
 			{
 				title: usermodaluser_settingtitle(),
-				body: usermodaluser_settingbody()
+				body: usermodaluser_settingbody(),
+				size: 'lg'
 			},
 			async (r: any) => {
 				if (r) {
@@ -197,10 +198,7 @@
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1" in:fly={{ y: 20, delay: 100, duration: 300 }}>
 				<div class="relative group">
-					<Avatar class="w-32 h-32 rounded-full border border-white shadow-lg dark:border-surface-800">
-						<Avatar.Image src={normalizeAvatarUrl(avatarSrc.value)} class="object-cover" />
-						<Avatar.Fallback>AV</Avatar.Fallback>
-					</Avatar>
+					<Avatar src={normalizeAvatarUrl(avatarSrc.value)} initials="AV" size="size-32" class="rounded-full border border-white shadow-lg dark:border-surface-800" />
 
 					<!-- Edit button - icon overlay -->
 					<button

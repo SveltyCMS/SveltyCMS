@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Check if user is admin (admins have access to all config pages)
     const userRole = (tenantRoles || []).find((role) => role._id === user.role);
-    const isAdmin = userRole?.isAdmin === true;
+    const isAdmin = userRole?.isAdmin === true || user.role === "admin";
 
     if (!isAdmin) {
       // For non-admins, check specific permission

@@ -661,7 +661,7 @@
 												{#each btn.items as item (item.label)}
 													<button
 														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
-															? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'
+															? 'text-primary-600 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
 															: 'text-surface-700 dark:text-white'}"
 														onclick={(e) => {
 															e.stopPropagation();

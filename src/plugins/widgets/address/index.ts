@@ -13,8 +13,8 @@
  */
 
 // Import components needed for the GuiSchema
-// import Input from '@components/system/inputs/input.svelte'; // Removed for optimization
-// import Toggles from '@components/system/inputs/toggles.svelte'; // Removed for optimization
+// import Input from '@components/ui/input.svelte'; // Removed for optimization
+// import Toggle from '@components/ui/toggle.svelte'; // Removed for optimization
 
 import type { FieldInstance } from "@src/content/types";
 import { widget_address_description } from "@src/paraglide/messages";

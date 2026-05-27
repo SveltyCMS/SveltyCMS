@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/collection-display/schedule-modal.svelte
 @component
 **ScheduleModal component for scheduling future actions (publish/unpublish/delete) on entries.**
@@ -28,7 +28,7 @@
 		entrylist_multibutton_unpublish
 	} from '@src/paraglide/messages';
 
-	// Skeleton
+	// Native UI Components
 	import { modalState } from '@utils/modal.svelte';
 
 	// No Props needed

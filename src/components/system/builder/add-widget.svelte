@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/system/builder/add-widget.svelte
 @description Add widget component for the system builder
 -->
@@ -6,7 +6,7 @@
 <script lang="ts">
 	import PageTitle from '@src/components/page-title.svelte';
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
-	import DropDown from '@src/components/system/drop-down/drop-down.svelte';
+	import Dropdown from '@components/ui/dropdown.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import type { WidgetFactory } from '@src/widgets/types';
 
@@ -68,8 +68,12 @@
 
 	{#if !selected_widget && !editField}
 		<div class="flex items-center justify-center">
-			<button type="button" onclick={handleCancel} aria-label="Cancel" class="mb-[20px] ml-auto mr-[40px]">X</button>
-			<DropDown items={widget_keys} selected={selected_widget} label="Select Widget" />
+			<button type="button" onclick={handleCancel} aria-label="Cancel" class="mb-5 ml-auto mr-10">X</button>
+			<Dropdown options={widget_keys.map(k => ({ label: k, value: k }))} value={selected_widget}>
+				{#snippet trigger()}
+					<button class="btn preset-outlined-surface-500">Select Widget</button>
+				{/snippet}
+			</Dropdown>
 		</div>
 	{:else}
 		<div class="flex-col items-center justify-center overflow-auto">

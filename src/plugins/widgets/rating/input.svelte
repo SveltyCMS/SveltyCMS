@@ -3,7 +3,7 @@
 @component
 **Rating Widget Input Component**
 
-Provides interactive star rating input using Skeleton Labs Ratings component.
+Provides interactive star rating input using the native Rating component.
 Part of the Three Pillars Architecture for widget system.
 
 @example
@@ -16,7 +16,7 @@ Interactive star rating with hover states and click selection
 - `error?: string | null` - Validation error message for display
 
 ### Features
-- **Skeleton Labs Integration**: Professional Ratings component with built-in interactions
+- **Native Rating Component**: Professional Ratings component with built-in interactions
 - **Interactive Stars**: Click and hover states for intuitive rating selection
 - **Customizable Icons**: Configurable full/empty star icons via Iconify
 - **Flexible Rating Scale**: Supports any maximum rating value with step="1"
@@ -28,7 +28,7 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
+	import Rating from "@components/ui/rating.svelte";
 	import type { FieldType } from './';
 
 	let {
@@ -45,27 +45,26 @@ Interactive star rating with hover states and click selection
 	const max = $derived(Math.max(1, Number(field.max) || 5));
 	const step = $derived(Number(field.step) || 1);
 	const showValue = $derived(field.showValue !== false);
-	
-	// Direct binding with proper null handling
-	const ratingValue = $derived(typeof value === 'number' ? value : 0);
 
-	function handleChange(e: { value: number }) {
-		// Allow clearing if not required and clicking the same value (or 0)
-		if (e.value === 0 && !field.required) {
-			value = null;
-		} else {
-			value = e.value;
-		}
-	}
+	// Icon handling - support full names or legacy material-symbols stripping
+	const iconFull = $derived((field.iconFull as string) || 'material-symbols:star');
+	const iconEmpty = $derived((field.iconEmpty as string) || 'material-symbols:star-outline');
+
+	// Local bindable rating synced with prop value
+	let localRating = $state(typeof value === 'number' ? value : 0);
+
+	$effect(() => {
+		const propVal = typeof value === 'number' ? value : 0;
+		localRating = propVal;
+	});
+
+	$effect(() => {
+		value = localRating === 0 && !field.required ? null : localRating;
+	});
 
 	function handleClear() {
 		value = field.required ? 1 : null;
 	}
-
-	// Icon handling - support full names or legacy material-symbols stripping
-	const iconFull = $derived((field.iconFull as string) || 'material-symbols:star');
-	const iconHalf = $derived((field.iconHalf as string) || 'material-symbols:star-half');
-	const iconEmpty = $derived((field.iconEmpty as string) || 'material-symbols:star-outline');
 </script>
 
 <div
@@ -76,28 +75,14 @@ Interactive star rating with hover states and click selection
 >
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-3">
-			<RatingGroup 
-				value={ratingValue} 
-				onValueChange={handleChange} 
+		<Rating
+				bind:value={localRating}
+				count={max}
+				icon={iconFull}
+				iconEmpty={iconEmpty}
+				color={error ? 'text-error-500' : 'text-warning-500'}
 				aria-label={field.label}
-				class={error ? 'text-error-500' : ''}
-			>
-				<RatingGroup.Control class="flex gap-0.5">
-					{#each { length: max } as _, i}
-						<RatingGroup.Item index={i + 1}>
-							{#snippet empty()}
-								<iconify-icon icon={iconEmpty} width="28" class="text-surface-300 dark:text-surface-600"></iconify-icon>
-							{/snippet}
-							{#snippet half()}
-								<iconify-icon icon={iconHalf} width="28" class="text-warning-500"></iconify-icon>
-							{/snippet}
-							{#snippet full()}
-								<iconify-icon icon={iconFull} width="28" class={error ? 'text-error-500' : 'text-warning-500'}></iconify-icon>
-							{/snippet}
-						</RatingGroup.Item>
-					{/each}
-				</RatingGroup.Control>
-			</RatingGroup>
+			/>
 
 			{#if showValue}
 				<span class="text-lg font-bold text-surface-900 dark:text-surface-50 min-w-8 text-center">
@@ -107,8 +92,8 @@ Interactive star rating with hover states and click selection
 		</div>
 
 		{#if !field.required || (value !== null && value !== undefined)}
-			<button 
-				type="button" 
+			<button
+				type="button"
 				class="btn btn-sm variant-soft-surface p-1 opacity-60 hover:opacity-100 transition-opacity"
 				onclick={handleClear}
 				title="Reset Rating"

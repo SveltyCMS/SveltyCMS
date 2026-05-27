@@ -550,8 +550,8 @@ beforeNavigate(async ({ cancel }) => {
 					d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 				/>
 			</svg>
-			<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-400">Collection Not Loaded</h3>
-			<p class="text-center text-error-600 dark:text-error-400">Unable to load collection schema. Please refresh the page.</p>
+			<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-500">Collection Not Loaded</h3>
+			<p class="text-center text-error-600 dark:text-error-500">Unable to load collection schema. Please refresh the page.</p>
 		</div>
 	{:else if collections.mode === 'view' || collections.mode === 'modify'}
 		<!-- Key block forces EntryList to remount when collection changes -->

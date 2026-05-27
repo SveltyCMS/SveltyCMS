@@ -1,77 +1,21 @@
 /**
  * @file src/app.css
- * @description Main stylesheet for SveltyCMS (TailwindCSS v4 + Skeleton v4)
+ * @description Main stylesheet for SveltyCMS — Pure TailwindCSS v4
  */
 
-/* TailwindCSS v4 - CSS-first configuration */
 @import "tailwindcss";
 
-/* Skeleton v4 - Import the theme and components */
-@import "@skeletonlabs/skeleton";
-@import "@skeletonlabs/skeleton-svelte";
-
-/* Tailwind v4: Enable class-based dark mode with .dark class on <html> */
-/* @tailwind v4 custom-variant - standard syntax but may trigger IDE warnings */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ========================================================================
-   ✂️  THEME COPY-PASTE ZONE
-   Generate a custom theme at https://themes.skeleton.dev/themes/create
-   and paste the entire [data-theme='sveltycms'] block below.
-   Keep the selector name as [data-theme="sveltycms"] so the CMS picks it up.
+   🎨 DESIGN TOKENS
    ======================================================================== */
-/* =~= SveltyCMS Theme (Skeleton v4 format) =~= */
-[data-theme="sveltycms"] {
-  /* =~= Theme Properties =~= */
-  --text-scaling: 1;
-
-  /* Base Typography */
-  --base-font-color: oklch(0 0 0 / 1);
-  --base-font-color-dark: oklch(1 0 0 / 1);
-  --base-font-family: system-ui, sans-serif;
-  --base-font-size: inherit;
-  --base-line-height: inherit;
-  --base-font-weight: normal;
-  --base-font-style: normal;
-  --base-letter-spacing: 0em;
-
-  /* Headings */
-  --heading-font-color: oklch(0 0 0 / 1);
-  --heading-font-color-dark: oklch(1 0 0 / 1);
-  --heading-font-family: inherit;
-  --heading-font-weight: bold;
-  --heading-font-style: normal;
-  --heading-letter-spacing: inherit;
-
-  /* Anchors/Links */
-  --anchor-font-color: var(--color-tertiary-500);
-  --anchor-font-color-dark: var(--color-primary-500);
-  --anchor-font-family: inherit;
-  --anchor-font-size: inherit;
-  --anchor-line-height: inherit;
-  --anchor-font-weight: inherit;
-  --anchor-font-style: inherit;
-  --anchor-letter-spacing: inherit;
-  --anchor-text-decoration: none;
-  --anchor-text-decoration-hover: underline;
-  --anchor-text-decoration-active: none;
-  --anchor-text-decoration-focus: none;
-
-  /* Container & Spacing */
-  --spacing: 0.22rem;
+@theme {
+  --font-sans: system-ui, sans-serif;
   --radius-base: 0.25rem;
   --radius-container: 0.75rem;
-  --default-border-width: 1px;
-  --default-divide-width: 1px;
-  --default-ring-width: 1px;
 
-  /* Root Background */
-  --body-background-color: var(--color-secondary-50);
-  --body-background-color-dark: var(--color-surface-950);
-
-  /* =~= Theme Colors (OKLCH) =~= */
-
-  /* Primary | #5fd317 (Green - Trust & Professionalism) */
+  /* Primary | Green */
   --color-primary-50: oklch(96.25% 0.12 120.09deg);
   --color-primary-100: oklch(92.01% 0.15 125.75deg);
   --color-primary-200: oklch(87.85% 0.17 129.95deg);
@@ -83,21 +27,8 @@
   --color-primary-800: oklch(55.46% 0.18 140.59deg);
   --color-primary-900: oklch(47.8% 0.16 141.65deg);
   --color-primary-950: oklch(40.2% 0.14 142.5deg);
-  --color-primary-contrast-dark: oklch(0 0 0 / 1);
-  --color-primary-contrast-light: oklch(1 0 0 / 1);
-  --color-primary-contrast-50: var(--color-primary-contrast-dark);
-  --color-primary-contrast-100: var(--color-primary-contrast-dark);
-  --color-primary-contrast-200: var(--color-primary-contrast-dark);
-  --color-primary-contrast-300: var(--color-primary-contrast-dark);
-  --color-primary-contrast-400: var(--color-primary-contrast-dark);
-  --color-primary-contrast-500: var(--color-primary-contrast-light);
-  --color-primary-contrast-600: var(--color-primary-contrast-light);
-  --color-primary-contrast-700: var(--color-primary-contrast-light);
-  --color-primary-contrast-800: var(--color-primary-contrast-light);
-  --color-primary-contrast-900: var(--color-primary-contrast-light);
-  --color-primary-contrast-950: var(--color-primary-contrast-light);
 
-  /* Secondary | #757575 (Neutral Gray) */
+  /* Secondary | Neutral Gray */
   --color-secondary-50: oklch(94.91% 0 none);
   --color-secondary-100: oklch(87.61% 0 none);
   --color-secondary-200: oklch(80.15% 0 none);
@@ -109,21 +40,8 @@
   --color-secondary-800: oklch(34.07% 0 none);
   --color-secondary-900: oklch(25.62% 0 none);
   --color-secondary-950: oklch(16.84% 0 none);
-  --color-secondary-contrast-dark: oklch(0 0 0 / 1);
-  --color-secondary-contrast-light: oklch(1 0 0 / 1);
-  --color-secondary-contrast-50: var(--color-secondary-contrast-dark);
-  --color-secondary-contrast-100: var(--color-secondary-contrast-dark);
-  --color-secondary-contrast-200: var(--color-secondary-contrast-dark);
-  --color-secondary-contrast-300: var(--color-secondary-contrast-dark);
-  --color-secondary-contrast-400: var(--color-secondary-contrast-light);
-  --color-secondary-contrast-500: var(--color-secondary-contrast-light);
-  --color-secondary-contrast-600: var(--color-secondary-contrast-light);
-  --color-secondary-contrast-700: var(--color-secondary-contrast-light);
-  --color-secondary-contrast-800: var(--color-secondary-contrast-light);
-  --color-secondary-contrast-900: var(--color-secondary-contrast-light);
-  --color-secondary-contrast-950: var(--color-secondary-contrast-light);
 
-  /* Tertiary | #0078f0 (Blue - Accent & CTA) */
+  /* Tertiary | Blue */
   --color-tertiary-50: oklch(92.74% 0.06 216.34deg);
   --color-tertiary-100: oklch(85.39% 0.08 232.5deg);
   --color-tertiary-200: oklch(78.19% 0.11 241.06deg);
@@ -135,21 +53,8 @@
   --color-tertiary-800: oklch(40.53% 0.18 261.13deg);
   --color-tertiary-900: oklch(34.3% 0.17 262.64deg);
   --color-tertiary-950: oklch(28.06% 0.16 263.8deg);
-  --color-tertiary-contrast-dark: oklch(0 0 0 / 1);
-  --color-tertiary-contrast-light: oklch(1 0 0 / 1);
-  --color-tertiary-contrast-50: var(--color-tertiary-contrast-dark);
-  --color-tertiary-contrast-100: var(--color-tertiary-contrast-dark);
-  --color-tertiary-contrast-200: var(--color-tertiary-contrast-dark);
-  --color-tertiary-contrast-300: var(--color-tertiary-contrast-dark);
-  --color-tertiary-contrast-400: var(--color-tertiary-contrast-light);
-  --color-tertiary-contrast-500: var(--color-tertiary-contrast-light);
-  --color-tertiary-contrast-600: var(--color-tertiary-contrast-light);
-  --color-tertiary-contrast-700: var(--color-tertiary-contrast-light);
-  --color-tertiary-contrast-800: var(--color-tertiary-contrast-light);
-  --color-tertiary-contrast-900: var(--color-tertiary-contrast-light);
-  --color-tertiary-contrast-950: var(--color-tertiary-contrast-light);
 
-  /* Success | #10b981 (Modern Green - Emerald) */
+  /* Success | Emerald */
   --color-success-50: oklch(94.85% 0.08 193.9deg);
   --color-success-100: oklch(89.46% 0.09 184.74deg);
   --color-success-200: oklch(84.18% 0.11 177.94deg);
@@ -161,21 +66,8 @@
   --color-success-800: oklch(48.61% 0.12 155.86deg);
   --color-success-900: oklch(41.34% 0.11 152.48deg);
   --color-success-950: oklch(33.42% 0.09 148.88deg);
-  --color-success-contrast-dark: oklch(0 0 0 / 1);
-  --color-success-contrast-light: oklch(1 0 0 / 1);
-  --color-success-contrast-50: var(--color-success-contrast-dark);
-  --color-success-contrast-100: var(--color-success-contrast-dark);
-  --color-success-contrast-200: var(--color-success-contrast-dark);
-  --color-success-contrast-300: var(--color-success-contrast-dark);
-  --color-success-contrast-400: var(--color-success-contrast-dark);
-  --color-success-contrast-500: var(--color-success-contrast-dark);
-  --color-success-contrast-600: var(--color-success-contrast-light);
-  --color-success-contrast-700: var(--color-success-contrast-light);
-  --color-success-contrast-800: var(--color-success-contrast-light);
-  --color-success-contrast-900: var(--color-success-contrast-light);
-  --color-success-contrast-950: var(--color-success-contrast-light);
 
-  /* Warning | #f59e0b (Amber - Modern, Less Harsh) */
+  /* Warning | Amber */
   --color-warning-50: oklch(97.81% 0.13 108.52deg);
   --color-warning-100: oklch(93.43% 0.14 100.86deg);
   --color-warning-200: oklch(88.95% 0.14 93.1deg);
@@ -187,21 +79,8 @@
   --color-warning-800: oklch(54.5% 0.13 60.03deg);
   --color-warning-900: oklch(46.69% 0.11 55.14deg);
   --color-warning-950: oklch(38.63% 0.1 49.13deg);
-  --color-warning-contrast-dark: oklch(0 0 0 / 1);
-  --color-warning-contrast-light: oklch(1 0 0 / 1);
-  --color-warning-contrast-50: var(--color-warning-contrast-dark);
-  --color-warning-contrast-100: var(--color-warning-contrast-dark);
-  --color-warning-contrast-200: var(--color-warning-contrast-dark);
-  --color-warning-contrast-300: var(--color-warning-contrast-dark);
-  --color-warning-contrast-400: var(--color-warning-contrast-dark);
-  --color-warning-contrast-500: var(--color-warning-contrast-dark);
-  --color-warning-contrast-600: var(--color-warning-contrast-light);
-  --color-warning-contrast-700: var(--color-warning-contrast-light);
-  --color-warning-contrast-800: var(--color-warning-contrast-light);
-  --color-warning-contrast-900: var(--color-warning-contrast-light);
-  --color-warning-contrast-950: var(--color-warning-contrast-light);
 
-  /* Error | #eb0000 (Red) */
+  /* Error | Red */
   --color-error-50: oklch(80.71% 0.12 49.3deg);
   --color-error-100: oklch(74.25% 0.15 38.64deg);
   --color-error-200: oklch(68.68% 0.19 33.06deg);
@@ -213,21 +92,8 @@
   --color-error-800: oklch(42.68% 0.18 29.23deg);
   --color-error-900: oklch(36.82% 0.15 29.23deg);
   --color-error-950: oklch(30.71% 0.13 29.23deg);
-  --color-error-contrast-dark: oklch(0 0 0 / 1);
-  --color-error-contrast-light: oklch(1 0 0 / 1);
-  --color-error-contrast-50: var(--color-error-contrast-dark);
-  --color-error-contrast-100: var(--color-error-contrast-dark);
-  --color-error-contrast-200: var(--color-error-contrast-dark);
-  --color-error-contrast-300: var(--color-error-contrast-light);
-  --color-error-contrast-400: var(--color-error-contrast-light);
-  --color-error-contrast-500: var(--color-error-contrast-light);
-  --color-error-contrast-600: var(--color-error-contrast-light);
-  --color-error-contrast-700: var(--color-error-contrast-light);
-  --color-error-contrast-800: var(--color-error-contrast-light);
-  --color-error-contrast-900: var(--color-error-contrast-light);
-  --color-error-contrast-950: var(--color-error-contrast-light);
 
-  /* Surface | Silver Palette (Optimized for contrast while preserving a neutral look) */
+  /* Surface | Silver */
   --color-surface-50: oklch(97% 0 219deg);
   --color-surface-100: oklch(92% 0 219deg);
   --color-surface-200: oklch(85% 0 219deg);
@@ -239,21 +105,167 @@
   --color-surface-800: oklch(25% 0 196deg);
   --color-surface-900: oklch(19% 0 196deg);
   --color-surface-950: oklch(16% 0 none);
-  --color-surface-contrast-dark: oklch(0 0 0 / 1);
-  --color-surface-contrast-light: oklch(1 0 0 / 1);
-  --color-surface-contrast-50: var(--color-surface-contrast-dark);
-  --color-surface-contrast-100: var(--color-surface-contrast-dark);
-  --color-surface-contrast-200: var(--color-surface-contrast-dark);
-  --color-surface-contrast-300: var(--color-surface-contrast-dark);
-  --color-surface-contrast-400: var(--color-surface-contrast-light);
-  --color-surface-contrast-500: var(--color-surface-contrast-light);
-  --color-surface-contrast-600: var(--color-surface-contrast-light);
-  --color-surface-contrast-700: var(--color-surface-contrast-light);
-  --color-surface-contrast-800: var(--color-surface-contrast-light);
-  --color-surface-contrast-900: var(--color-surface-contrast-light);
-  --color-surface-contrast-950: var(--color-surface-contrast-light);
 }
-/* ✂️  END THEME COPY-PASTE ZONE — everything above can be replaced */
 
-/* SveltyCMS utilities: gradients, wrappers, accessibility, focus rings */
+/* ========================================================================
+   🧩 PRESET UTILITIES — filled, tonal, outlined, ghost
+   ======================================================================== */
+@utility preset-filled-primary-500 {
+  @apply bg-primary-500 text-white shadow-sm;
+}
+@utility preset-filled-primary-600 {
+  @apply bg-primary-600 text-white;
+}
+@utility preset-filled-secondary-500 {
+  @apply bg-secondary-500 text-white;
+}
+@utility preset-filled-tertiary-500 {
+  @apply bg-tertiary-500 text-white;
+}
+@utility preset-filled-tertiary-600 {
+  @apply bg-tertiary-600 text-white;
+}
+@utility preset-filled-success-500 {
+  @apply bg-success-500 text-white;
+}
+@utility preset-filled-warning-500 {
+  @apply bg-warning-500 text-white;
+}
+@utility preset-filled-error-500 {
+  @apply bg-error-500 text-white;
+}
+@utility preset-filled-info-500 {
+  @apply bg-primary-500 text-white;
+}
+@utility preset-filled-surface-500 {
+  @apply bg-surface-500 text-white;
+}
+@utility preset-filled-surface-200 {
+  @apply bg-surface-200 text-surface-900;
+}
+
+@utility preset-tonal-primary {
+  @apply bg-primary-500/10 text-primary-700;
+}
+@utility preset-tonal-primary-500 {
+  @apply bg-primary-500/10 text-primary-600;
+}
+@utility preset-tonal-secondary {
+  @apply bg-secondary-500/10 text-secondary-700;
+}
+@utility preset-tonal-tertiary {
+  @apply bg-tertiary-500/10 text-tertiary-700;
+}
+@utility preset-tonal-success {
+  @apply bg-success-500/10 text-success-700;
+}
+@utility preset-tonal-warning {
+  @apply bg-warning-500/10 text-warning-700;
+}
+@utility preset-tonal-error {
+  @apply bg-error-500/10 text-error-700;
+}
+@utility preset-tonal-surface {
+  @apply bg-surface-500/10 text-surface-700;
+}
+@utility preset-tonal-surface-500 {
+  @apply bg-surface-500/10 text-surface-600;
+}
+
+@utility preset-outlined-primary-500 {
+  @apply border border-primary-500 text-primary-500 bg-transparent;
+}
+@utility preset-outlined-secondary-500 {
+  @apply border border-secondary-500 text-secondary-500 bg-transparent;
+}
+@utility preset-outlined-tertiary-500 {
+  @apply border border-tertiary-500 text-tertiary-500 bg-transparent;
+}
+@utility preset-outlined-surface-500 {
+  @apply border border-surface-500 text-surface-500 bg-transparent;
+}
+@utility preset-outlined-error-500 {
+  @apply border border-error-500 text-error-500 bg-transparent;
+}
+@utility preset-outlined-warning-500 {
+  @apply border border-warning-500 text-warning-500 bg-transparent;
+}
+
+@utility preset-ghost-primary-500 {
+  @apply bg-transparent text-primary-500 hover:bg-primary-500/10;
+}
+@utility preset-ghost-secondary-500 {
+  @apply bg-transparent text-secondary-500 hover:bg-secondary-500/10;
+}
+@utility preset-ghost-tertiary-500 {
+  @apply bg-transparent text-tertiary-500 hover:bg-tertiary-500/10;
+}
+@utility preset-ghost-surface-500 {
+  @apply bg-transparent text-surface-500 hover:bg-surface-500/10;
+}
+@utility preset-ghost-success-500 {
+  @apply bg-transparent text-success-500 hover:bg-success-500/10;
+}
+@utility preset-ghost-warning-500 {
+  @apply bg-transparent text-warning-500 hover:bg-warning-500/10;
+}
+@utility preset-ghost-error-500 {
+  @apply bg-transparent text-error-500 hover:bg-error-500/10;
+}
+
+@utility preset-soft-surface {
+  @apply bg-surface-200/30 text-surface-700;
+}
+
+/* ========================================================================
+   🧱 COMPONENT CLASSES — card, badge, btn, input
+   ======================================================================== */
+@layer components {
+  .card {
+    @apply rounded-xl border border-surface-200 bg-white text-surface-900 shadow-sm;
+    @apply dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50;
+  }
+
+  .badge {
+    @apply inline-flex items-center font-bold uppercase tracking-wider rounded-full
+           px-2.5 py-0.5 text-[10px] transition-colors duration-200;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center font-bold tracking-tight rounded
+           transition-colors duration-200 cursor-pointer gap-2;
+    @apply active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-xs;
+  }
+
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded-full transition-colors
+           duration-200 cursor-pointer border-none bg-transparent p-2;
+  }
+  .btn-icon-sm {
+    @apply p-1;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-surface-300 bg-surface-50 px-3 py-2 text-sm
+           transition-colors duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500;
+    @apply dark:border-surface-600 dark:bg-surface-900;
+  }
+}
+
+/* ========================================================================
+   🎯 BASE
+   ======================================================================== */
+@layer base {
+  html {
+    @apply bg-secondary-50 text-surface-900;
+  }
+  html.dark {
+    @apply bg-surface-950 text-surface-100;
+  }
+}
+
 @import "./utilities.css";

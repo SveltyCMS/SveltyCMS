@@ -198,7 +198,7 @@
 	<div class="border-t border-surface-200 pt-4 dark:border-surface-700">
 		<a
 			href="/accessibility-statement"
-			class="text-sm text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 underline-offset-4 hover:underline"
+			class="text-sm text-primary-600 hover:text-primary-800 dark:text-primary-500 dark:hover:text-primary-300 underline-offset-4 hover:underline"
 			onclick={() => {
 				// Let default navigation happen, but close dialog if needed
 				if (close) close();

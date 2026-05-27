@@ -421,7 +421,7 @@
             
             <div class="flex flex-wrap gap-1.5 mb-3">
               {#each file.metadata?.tags || [] as tag}
-                <span class="tag-badge bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20 px-2 py-0.5 rounded-md text-xs flex items-center gap-1">
+                <span class="tag-badge bg-primary-500/10 text-primary-600 dark:text-primary-500 border border-primary-500/20 px-2 py-0.5 rounded-md text-xs flex items-center gap-1">
                   <span>{tag}</span>
                   <button 
                     onclick={() => handleRemoveTag(tag)} 

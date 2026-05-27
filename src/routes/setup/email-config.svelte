@@ -844,7 +844,7 @@
 				<iconify-icon icon="mdi:close-circle" class="text-2xl text-error-500"></iconify-icon>
 				<div class="flex-1">
 					<p class="font-semibold text-error-700 dark:text-error-300">{setup_email_connection_failed()}</p>
-					<p class="mt-1 text-sm text-error-600 dark:text-error-400">{testError}</p>
+					<p class="mt-1 text-sm text-error-600 dark:text-error-500">{testError}</p>
 				</div>
 			</div>
 		{/if}

@@ -12,7 +12,7 @@
 -->
 
 <script lang="ts">
-	import TreeView from '@src/components/system/tree-view.svelte';
+	import TreeView from '@components/ui/tree-view.svelte';
 	import { media_root_title } from '@src/paraglide/messages';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';

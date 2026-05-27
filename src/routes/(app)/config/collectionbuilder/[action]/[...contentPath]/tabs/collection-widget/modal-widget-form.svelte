@@ -1,9 +1,9 @@
-<!-- 
+<!--
  @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget/modal-widget-form.svelte
  @component Modal form for configuring a single widget/field
  -->
 <script lang="ts">
-import { Tabs } from "@skeletonlabs/skeleton-svelte";
+import Tabs from "@components/ui/tabs";
 import {
 	button_cancel,
 	button_delete,

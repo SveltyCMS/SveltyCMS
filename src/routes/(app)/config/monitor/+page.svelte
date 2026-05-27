@@ -3,6 +3,7 @@
 @component Unified Enterprise Monitor & System Health Dashboard
  -->
 <script lang="ts">
+import PageTitle from "@src/components/page-title.svelte";
 import { fade, fly } from "svelte/transition";
 import { onMount } from "svelte";
 import { invalidate } from "$app/navigation";
@@ -39,25 +40,16 @@ function formatUptime(seconds: number): string {
 }
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+<div class="absolute inset-0 p-4 space-y-5 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
     <!-- Header -->
-    <div class="flex items-center justify-between" in:fade>
-        <div>
-            <h1 class="text-3xl font-bold flex items-center gap-3">
-                <iconify-icon icon="mdi:shield-check-outline" class="text-primary-500"></iconify-icon>
-                Enterprise Monitor
-            </h1>
-            <p class="text-sm opacity-50 font-medium">Unified Security, Health & Operations Dashboard</p>
-        </div>
-        <div class="flex items-center gap-2">
-            {#if isPolling}
-                <div class="badge preset-tonal-primary text-[10px] animate-pulse">Syncing...</div>
-            {/if}
-            <span class="badge preset-tonal-{systemState?.overallState === 'READY' ? 'success' : 'warning'}-500 text-[10px]">
-                {systemState?.overallState || 'Unknown'}
-            </span>
-        </div>
-    </div>
+    <PageTitle name="Enterprise Monitor" icon="mdi:shield-check-outline" showBackButton={true} backUrl="/config">
+        {#if isPolling}
+            <div class="badge preset-tonal-primary text-[10px] animate-pulse">Syncing...</div>
+        {/if}
+        <span class="badge preset-tonal-{systemState?.overallState === 'READY' ? 'success' : 'warning'}-500 text-[10px]">
+            {systemState?.overallState || 'Unknown'}
+        </span>
+    </PageTitle>
 
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

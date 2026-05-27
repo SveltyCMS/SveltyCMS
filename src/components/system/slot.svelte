@@ -41,7 +41,7 @@
 					<Component {...props} {...slot.props} />
 				{/if}
 			{:catch error}
-				<div class="rounded border border-error-500/50 bg-error-50 p-2 text-xs text-error-600 dark:bg-error-900/10 dark:text-error-400">
+				<div class="rounded border border-error-500/50 bg-error-50 p-2 text-xs text-error-600 dark:bg-error-900/10 dark:text-error-500">
 					<strong>Slot Error ({slot.id}):</strong>
 					{error.message}
 				</div>

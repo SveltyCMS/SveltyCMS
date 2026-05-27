@@ -7,9 +7,9 @@
 import { enhance } from "$app/forms";
 import { invalidateAll } from "$app/navigation";
 import { page } from "$app/stores";
-import PageTitle from "@src/components/page-title.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { formatDistanceToNow } from "date-fns";
+import { fade, fly } from "svelte/transition";
 
 let { data } = $props();
 
@@ -20,7 +20,7 @@ let isClearing = $state(false);
 const statusColors: Record<string, string> = {
 	pending: "preset-tonal-surface",
 	running: "preset-filled-primary-500",
-	completed: "preset-filled-success-500",
+	completed: "preset-filled-primary-500",
 	failed: "preset-filled-error-500",
 };
 
@@ -59,12 +59,27 @@ function getFilterUrl(status?: string) {
 }
 </script>
 
-<PageTitle name="Background Queue" icon="mdi:queue-play-next" showBackButton={true} backUrl="/config" />
+<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+	<!-- Header -->
+	<div class="flex items-center justify-between" in:fade>
+		<div>
+			<h1 class="text-3xl font-bold flex items-center gap-3">
+				<iconify-icon icon="mdi:tray-full" class="text-primary-500"></iconify-icon>
+				Background Queue
+			</h1>
+			<p class="text-sm opacity-50 font-medium">Monitor and manage background job processing</p>
+		</div>
+		<div class="flex items-center gap-2">
+			<button class="btn btn-sm preset-ghost-primary-500" onclick={() => invalidateAll()}>
+				<iconify-icon icon="mdi:refresh"></iconify-icon>
+				<span>Refresh</span>
+			</button>
+		</div>
+	</div>
 
-<div class="wrapper mx-auto max-w-[1200px] p-4 space-y-6">
 	<!-- Statistics Cards -->
-	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-		<a href={getFilterUrl()} class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-primary-500 transition-colors">
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }}>
+		<a href={getFilterUrl()} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-primary-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg bg-surface-200 dark:bg-surface-700">
 					<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
@@ -76,7 +91,7 @@ function getFilterUrl(status?: string) {
 			</div>
 		</a>
 
-		<a href={getFilterUrl('pending')} class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-surface-500 transition-colors">
+		<a href={getFilterUrl('pending')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-surface-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg preset-tonal-surface">
 					<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
@@ -88,7 +103,7 @@ function getFilterUrl(status?: string) {
 			</div>
 		</a>
 
-		<a href={getFilterUrl('running')} class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-primary-500 transition-colors">
+		<a href={getFilterUrl('running')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-primary-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg preset-tonal-primary">
 					<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
@@ -100,7 +115,7 @@ function getFilterUrl(status?: string) {
 			</div>
 		</a>
 
-		<a href={getFilterUrl('completed')} class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-success-500 transition-colors">
+		<a href={getFilterUrl('completed')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-success-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg preset-tonal-success">
 					<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
@@ -112,7 +127,7 @@ function getFilterUrl(status?: string) {
 			</div>
 		</a>
 
-		<a href={getFilterUrl('failed')} class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-error-500 transition-colors">
+		<a href={getFilterUrl('failed')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-error-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg preset-tonal-error">
 					<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
@@ -128,12 +143,12 @@ function getFilterUrl(status?: string) {
 	<!-- Actions Bar -->
 	<div class="flex flex-wrap items-center justify-between gap-4">
 		<div class="flex items-center gap-2">
-			<h2 class="h3 font-bold">Recent Jobs</h2>
+			<h2 class="text-lg font-bold">Recent Jobs</h2>
 			{#if $page.url.searchParams.has('status')}
 				<span class="badge preset-filled-primary-500 uppercase text-[10px]">
 					Filter: {$page.url.searchParams.get('status')}
 				</span>
-				<a href={getFilterUrl()} class="btn btn-sm variant-ghost-surface">Clear Filter</a>
+				<a href={getFilterUrl()} class="btn btn-sm preset-ghost-surface-500">Clear Filter</a>
 			{/if}
 		</div>
 
@@ -148,21 +163,16 @@ function getFilterUrl(status?: string) {
 					}
 				};
 			}}>
-				<button class="btn btn-sm variant-ghost-surface" disabled={isClearing}>
+				<button class="btn btn-sm preset-ghost-surface-500" disabled={isClearing}>
 					<iconify-icon icon="mdi:broom"></iconify-icon>
 					<span>Clear Completed</span>
 				</button>
 			</form>
-
-			<button class="btn btn-sm variant-ghost-primary" onclick={() => invalidateAll()}>
-				<iconify-icon icon="mdi:refresh"></iconify-icon>
-				<span>Refresh</span>
-			</button>
 		</div>
 	</div>
 
 	<!-- Jobs Table -->
-	<div class="card bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 overflow-hidden">
+	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm overflow-hidden" in:fade>
 		<div class="overflow-x-auto">
 			<table class="table table-hover w-full whitespace-nowrap">
 				<thead>
@@ -223,7 +233,7 @@ function getFilterUrl(status?: string) {
 											};
 										}}>
 											<input type="hidden" name="jobId" value={job._id} />
-											<button class="btn btn-sm variant-soft-primary" title="Retry Job" disabled={isRetrying}>
+											<button class="btn btn-sm preset-tonal-primary-500" title="Retry Job" disabled={isRetrying}>
 												<iconify-icon icon="mdi:replay"></iconify-icon>
 											</button>
 										</form>
@@ -241,7 +251,7 @@ function getFilterUrl(status?: string) {
 										};
 									}}>
 										<input type="hidden" name="jobId" value={job._id} />
-										<button class="btn btn-sm variant-soft-error" title="Delete Job" disabled={isDeleting}>
+										<button class="btn btn-sm preset-tonal-error-500" title="Delete Job" disabled={isDeleting}>
 											<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 										</button>
 									</form>
@@ -269,14 +279,14 @@ function getFilterUrl(status?: string) {
 				<div class="flex gap-2">
 					<a
 						href={getPaginationUrl(Math.max(0, data.pagination.offset - data.pagination.limit))}
-						class="btn btn-sm variant-ghost-surface"
+						class="btn btn-sm preset-ghost-surface-500"
 						class:disabled={data.pagination.offset === 0}
 					>
 						Previous
 					</a>
 					<a
 						href={getPaginationUrl(data.pagination.offset + data.pagination.limit)}
-						class="btn btn-sm variant-ghost-surface"
+						class="btn btn-sm preset-ghost-surface-500"
 						class:disabled={data.pagination.offset + data.pagination.limit >= data.totalCount}
 					>
 						Next
@@ -288,7 +298,6 @@ function getFilterUrl(status?: string) {
 </div>
 
 <style>
-
 	.disabled {
 		pointer-events: none;
 		opacity: 0.5;

@@ -250,7 +250,7 @@ Features:
 				<!-- AI/Pending Tags -->
 				<section class="p-3 border border-primary-500/30 rounded bg-primary-50/50 dark:bg-primary-900/10">
 					<div class="flex justify-between items-center mb-2">
-						<span class="text-sm font-bold flex items-center gap-1 text-primary-600 dark:text-primary-400">
+						<span class="text-sm font-bold flex items-center gap-1 text-primary-600 dark:text-primary-500">
 							<iconify-icon icon="mdi:robot-excited-outline"></iconify-icon>
 							AI / Pending Tags
 						</span>

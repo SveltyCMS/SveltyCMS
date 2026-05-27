@@ -44,7 +44,7 @@ SveltyCMS uses a "Hard Reset" strategy in `TEST_MODE`.
 ## 3. UI Selectors & Brittle CSS
 
 > [!TIP]
-> **Best Practice**: We are currently migrating from Skeleton.dev to Native Svelte 5 components. Avoid using brittle CSS classes (e.g., `.btn-filled-primary`).
+> **Best Practice**: Avoid using brittle CSS classes for selectors (e.g., `.btn-filled-primary`, `.variant-ghost`). Prefer `data-testid` or ARIA labels.
 
 **The Solution**:
 

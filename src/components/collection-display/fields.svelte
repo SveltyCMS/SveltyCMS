@@ -29,7 +29,7 @@
   const user = $derived(page.data?.user);
   const tenantId = $derived(page.data?.tenantId);
 
-  import { Tabs } from "@skeletonlabs/skeleton-svelte";
+  	import Tabs from "@components/ui/tabs";
   import SystemTooltip from "@src/components/system/system-tooltip.svelte";
   import {
     applayout_version,
@@ -59,7 +59,7 @@
   import { showConfirm } from "@utils/modal.svelte";
   import WidgetLoader from "./widget-loader.svelte";
 
-  import { Portal } from "@skeletonlabs/skeleton-svelte";
+  	import Portal from "@components/ui/portal.svelte";
   import RevisionDiffModal from "./revision-diff-modal.svelte";
 
   let isDiffModalOpen = $state(false);
@@ -857,7 +857,7 @@
         {:catch error}
           <div class="p-4">
             <div
-              class="rounded border border-error-500/50 bg-error-50 p-4 text-error-600 dark:bg-error-900/10 dark:text-error-400"
+              class="rounded border border-error-500/50 bg-error-50 p-4 text-error-600 dark:bg-error-900/10 dark:text-error-500"
             >
               <h3 class="mb-2 font-bold">Plugin Error ({slot.id})</h3>
               <p>{error.message}</p>

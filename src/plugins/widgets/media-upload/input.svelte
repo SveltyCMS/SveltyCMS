@@ -24,7 +24,7 @@
 	import { logger } from '@utils/logger';
 	import { getFieldName } from '@utils/utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
-	import { Portal } from '@skeletonlabs/skeleton-svelte';
+	import Portal from "@components/ui/portal.svelte";
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
@@ -259,7 +259,7 @@
 	}
 </script>
 
-<div class="min-h-[120px] rounded-lg border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
+<div class="min-h-30 rounded-lg border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
 		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4" use:dndzone={{ items: dndItems }} onconsider={(e) => syncDndItems(e.detail.items)}>
 			{#each selectedFiles as file (file._id)}
@@ -271,9 +271,9 @@
 						aria-label={`Change media for ${file.name}`}
 					>
 						{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
-							<img src={file.thumbnailUrl} alt={file.name} class="h-[120px] w-full object-cover" />
+							<img src={file.thumbnailUrl} alt={file.name} class="h-30 w-full object-cover" />
 						{:else}
-							<div class="flex h-[120px] w-full items-center justify-center bg-surface-100 dark:bg-surface-800">
+							<div class="flex h-30 w-full items-center justify-center bg-surface-100 dark:bg-surface-800">
 								<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>
 							</div>
 						{/if}
@@ -322,7 +322,7 @@
 
 {#if showMediaLibrary}
 	<Portal>
-		<div class="fixed inset-0 z-[99999] bg-black/70 p-4 backdrop-blur-sm">
+		<div class="fixed inset-0 z-99999 bg-black/70 p-4 backdrop-blur-sm">
 			<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-100 shadow-2xl dark:bg-surface-900">
 				<MediaLibraryModal
 					standalone={true}

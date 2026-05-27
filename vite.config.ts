@@ -838,7 +838,6 @@ export default defineConfig((): any => {
     },
     ssr: {
       noExternal: [
-        "@skeletonlabs/skeleton-svelte",
         "@iconify/svelte",
         "svelte-canvas",
         "svelte-dnd-action",
@@ -933,17 +932,36 @@ export default defineConfig((): any => {
         output: {
           manualChunks: (id: string) => {
             // Group Svelte internal modules to avoid circular dependencies between chunks.
-            // Server-only packages (mongoose, @aws-sdk, googleapis, etc.) are now
-            // stubbed by stubServerModulesPlugin and should never reach the client.
             if (id.includes("node_modules/svelte")) {
               return "vendor-svelte";
             }
             if (id.includes("node_modules/@tiptap") || id.includes("node_modules/prosemirror")) {
               return "vendor-editor";
             }
-            // Force AWS SDK + Smithy into one chunk to avoid re-export chunk-split warnings
             if (id.includes("node_modules/@aws-sdk") || id.includes("node_modules/@smithy")) {
               return "vendor-aws";
+            }
+            // Performance: group large charting/mapping deps (lazy-loaded but benefit from dedup)
+            if (
+              id.includes("node_modules/chart.js") ||
+              id.includes("node_modules/chartjs-adapter")
+            ) {
+              return "vendor-chart";
+            }
+            if (id.includes("node_modules/maplibre-gl")) {
+              return "vendor-map";
+            }
+            // Group collaboration engine (Yjs)
+            if (
+              id.includes("node_modules/yjs") ||
+              id.includes("node_modules/y-protocols") ||
+              id.includes("node_modules/lib0")
+            ) {
+              return "vendor-collab";
+            }
+            // Group validation library
+            if (id.includes("node_modules/valibot")) {
+              return "vendor-validate";
             }
           },
         },
@@ -1028,7 +1046,6 @@ export default defineConfig((): any => {
         "@src/databases/cache/cache-service",
       ],
       include: [
-        "@skeletonlabs/skeleton-svelte",
         "@iconify/svelte",
         "svelte-canvas",
         "svelte-dnd-action",

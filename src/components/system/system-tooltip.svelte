@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/system/SystemTooltip.svelte
 @component
 **SystemTooltip component**
@@ -52,39 +52,38 @@ This component provides a tooltip for any element.
 
 	let {
 		title = '',
-		content,
+		content: contentProp,
 		contentClass = '',
 		triggerClass = '',
 		triggerStyle = '',
 		wFull = false,
-		children,
+		children: childrenProp,
 		positioning = { placement: 'top', gutter: 10 }
 	}: Props = $props();
 
 	const TOOLTIP_CLASS = 'rounded-lg bg-surface-900 dark:bg-white px-3 py-1.5 text-[11px] font-medium shadow-2xl text-white dark:text-surface-900 border border-white/10 dark:border-black/5';
-	const ARROW_CLASS = '[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-900)] dark:[--arrow-background:var(--color-white)]';
 
-	// Skeleton V4
-	import { Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
+	// Native UI Tooltip
+	import Tooltip from "@components/ui/tooltip.svelte";
+
+	const resolvedTriggerClass = $derived(`p-0 m-0 border-none ${!triggerClass ? 'bg-transparent' : ''} ${wFull ? 'block w-full' : 'inline-block'} ${triggerClass}`);
 </script>
 
-<Tooltip {positioning}>
-	<Tooltip.Trigger
-		class={`p-0 m-0 border-none ${triggerClass ? '' : 'bg-transparent'} ${wFull ? 'block w-full' : 'inline-block'} ${triggerClass}`}
-		style={triggerStyle}
-	>
-		{@render children?.()}
-	</Tooltip.Trigger>
-	<Portal>
-		<Tooltip.Positioner class="z-100">
-			<Tooltip.Content class={`${TOOLTIP_CLASS} ${contentClass} z-100`}>
-				{#if content}
-					{@render content()}
-				{:else}
-					<span>{title}</span>
-				{/if}
-				<Tooltip.Arrow class={ARROW_CLASS}><Tooltip.ArrowTip /></Tooltip.Arrow>
-			</Tooltip.Content>
-		</Tooltip.Positioner>
-	</Portal>
+<Tooltip
+	{title}
+	{positioning}
+	class={`${TOOLTIP_CLASS} ${contentClass}`}
+	triggerClass={resolvedTriggerClass}
+	style={triggerStyle}
+>
+	{#snippet children()}
+		{@render childrenProp?.()}
+	{/snippet}
+	{#snippet content()}
+		{#if contentProp}
+			{@render contentProp()}
+		{:else}
+			{title}
+		{/if}
+	{/snippet}
 </Tooltip>
