@@ -100,7 +100,7 @@ let inputElement = $state<HTMLInputElement | null>(null);
 const generatedId = $derived(label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId');
 const currentId = $derived(id || generatedId);
 const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
-const effectiveType = $derived(showPassword && type === 'security' ? 'text' : type);
+const effectiveType = $derived(showPassword && type === 'security' ? 'text' : type === 'security' ? 'password' : type);
 
 $effect(() => {
 	if (autofocus && inputElement) {

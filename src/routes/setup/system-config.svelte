@@ -833,7 +833,7 @@ Features:
 							<input
 								id="cf-token"
 								bind:value={systemSettings.cfApiToken}
-								type="security"
+								type="password"
 								placeholder="Enter API Token"
 								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
 							/>

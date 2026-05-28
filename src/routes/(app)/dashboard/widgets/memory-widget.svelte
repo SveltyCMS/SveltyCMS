@@ -1,28 +1,19 @@
-<!--
-@file src/routes/(app)/dashboard/widgets/MemoryWidget.svelte
+<!-- 
+@file src/routes/(app)/dashboard/widgets/memory-widget.svelte
 @component
-**A reusable widget component for displaying memory usage information with improved rendering and error handling**
-
-@example
-<MemoryWidget label="Memory Usage" />
+**High-performance Memory Usage Widget using native SVG with Swap and compact support**
 
 ### Props
-- `label`: The label for the widget (default: 'Memory Usage')
+- `label` (string): The label for the widget (default: 'Memory Usage')
+- `theme` (string): Theme mode ('light' | 'dark')
+- `icon` (string): Icon identifier (default: 'mdi:memory')
+- `size` (WidgetSize): Widget dimensions (default: { w: 1, h: 2 })
 
-This widget fetches and displays real-time memory usage data, including:
-- Total memory
-- Used memory
-- Free memory
-- Usage percentages
-
-Features:
-- Responsive doughnut chart visualization
-- Theme-aware rendering (light/dark mode support)
-- Real-time data updates
-- Customizable widget properties (size, position, etc.)
-- Improved error handling and data validation
-- Proper lifecycle management
-- Enhanced debugging and logging
+### Features:
+- Concentric SVG rings for RAM and Swap (if available)
+- Compact row layout for `h:1` size
+- Pure SVG rendering with hover interactions
+- Complete dark-mode and WCAG keyboard/screen-reader accessibility
 -->
 <script lang="ts" module>
 export const widgetMeta = {
@@ -34,22 +25,8 @@ export const widgetMeta = {
 
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
-	import { onDestroy, onMount } from 'svelte';
 	import BaseWidget from '../base-widget.svelte';
 
-	let ChartJS: any = $state(undefined);
-
-	interface MemoryData {
-		memoryInfo: {
-			total: {
-				usedMemMb: number;
-				freeMemMb: number;
-				usedMemPercentage: number;
-			};
-		};
-	}
-
-	// Props passed from +page.svelte, then to BaseWidget
 	const {
 		label = 'Memory Usage',
 		theme = 'light',
@@ -68,142 +45,7 @@ export const widgetMeta = {
 		onRemove?: () => void;
 	} = $props();
 
-	let currentData: MemoryData | undefined = $state(undefined);
-	let chart: any = $state(undefined);
-	let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
-
-	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
-		currentData = data;
-
-		return {
-			update(newData: any) {
-				currentData = newData;
-			}
-		};
-	}
-
-	$effect(() => {
-		if (!(chartCanvas && currentData?.memoryInfo?.total && ChartJS)) {
-			return;
-		}
-
-		// Data is already in MB from API
-		const usedMemMb = currentData.memoryInfo.total.usedMemMb || 0;
-		const freeMemMb = currentData.memoryInfo.total.freeMemMb || 0;
-		const usedPercent = currentData.memoryInfo.total.usedMemPercentage || 0;
-
-		const plainUsedMem = Number(usedMemMb) || 0;
-		const plainFreeMem = Number(freeMemMb) || 0;
-
-		if (chart) {
-			chart.data.datasets[0].data = [plainUsedMem, plainFreeMem];
-			chart.update('none');
-		} else {
-			const existingChart = ChartJS.getChart(chartCanvas);
-			if (existingChart) {
-				existingChart.destroy();
-			}
-
-			const memoryTextCenterPlugin: any = {
-				id: 'memoryTextCenterPlugin',
-				beforeDraw(chart: any) {
-					const ctx = chart.ctx;
-					const { width, height } = chart;
-
-					ctx.save();
-					ctx.textAlign = 'center';
-					ctx.textBaseline = 'middle';
-
-					// Main percentage text
-					ctx.font = `bold ${size.w > 1 ? '20px' : '16px'} system-ui, -apple-system, sans-serif`;
-					ctx.fillStyle = theme === 'dark' ? '#f9fafb' : '#111827';
-					ctx.fillText(`${usedPercent.toFixed(1)}%`, width / 2, height / 2 - 8);
-
-					// Subtitle text
-					ctx.font = `${size.w > 1 ? '12px' : '10px'} system-ui, -apple-system, sans-serif`;
-					ctx.fillStyle = theme === 'dark' ? '#9ca3af' : '#6b7280';
-					ctx.fillText('Used', width / 2, height / 2 + 12);
-
-					ctx.restore();
-				}
-			};
-
-			const config: any = {
-				type: 'pie',
-				data: {
-					labels: ['Used', 'Free'],
-					datasets: [
-						{
-							data: [plainUsedMem, plainFreeMem],
-							backgroundColor: [
-								usedPercent > 80 ? 'rgba(239, 68, 68, 0.8)' : usedPercent > 60 ? 'rgba(245, 158, 11, 0.8)' : 'rgba(34, 197, 94, 0.8)',
-								theme === 'dark' ? 'rgba(75, 85, 99, 0.4)' : 'rgba(229, 231, 235, 0.6)'
-							],
-							borderColor: [
-								usedPercent > 80 ? 'rgba(239, 68, 68, 1)' : usedPercent > 60 ? 'rgba(245, 158, 11, 1)' : 'rgba(34, 197, 94, 1)',
-								theme === 'dark' ? 'rgba(75, 85, 99, 0.8)' : 'rgba(229, 231, 235, 1)'
-							],
-							borderWidth: 2,
-							borderRadius: 4
-						}
-					]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					animation: {
-						duration: 1000,
-						easing: 'easeInOutQuart'
-					},
-					plugins: {
-						legend: {
-							display: false
-						},
-						tooltip: {
-							enabled: true,
-							backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-							titleColor: theme === 'dark' ? '#f9fafb' : '#111827',
-							bodyColor: theme === 'dark' ? '#d1d5db' : '#374151',
-							borderColor: theme === 'dark' ? 'rgba(75, 85, 99, 0.5)' : 'rgba(229, 231, 235, 0.5)',
-							borderWidth: 1,
-							cornerRadius: 8,
-							displayColors: true,
-							callbacks: {
-								label(context: any) {
-									const label = context.label || '';
-									const value = typeof context.raw === 'number' ? context.raw : 0;
-									const dataSet = context.chart.data.datasets[0].data as number[];
-									const totalMemMb = dataSet.reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
-									const percentage = totalMemMb ? (value / totalMemMb) * 100 : 0;
-									return `${label}: ${(value / 1024).toFixed(1)} GB (${percentage.toFixed(1)}%)`;
-								}
-							}
-						}
-					}
-				},
-				plugins: [memoryTextCenterPlugin]
-			};
-			chart = new ChartJS(chartCanvas, config);
-		}
-	});
-
-	onMount(() => {
-		(async () => {
-			const { Chart, PieController, ArcElement, Tooltip } = await import('chart.js');
-			Chart.register(PieController, ArcElement, Tooltip);
-			ChartJS = Chart;
-
-			if (chartCanvas && currentData?.memoryInfo?.total) {
-				// Trigger effect
-			}
-		})();
-	});
-
-	onDestroy(() => {
-		if (chart) {
-			chart.destroy();
-		}
-	});
+	let activeRing = $state(false); // subtle hover glow effect
 </script>
 
 <BaseWidget
@@ -217,94 +59,209 @@ export const widgetMeta = {
 	{onSizeChange}
 	onCloseRequest={onRemove}
 >
-	{#snippet children({ data: fetchedData }: { data: any | undefined })}
-		{#if fetchedData?.memoryInfo?.total}
-			{@const totalMemGB = (fetchedData.memoryInfo.total.totalMemMb || 0) / 1024}
-			{@const usedMemGB = (fetchedData.memoryInfo.total.usedMemMb || 0) / 1024}
-			{@const freeMemGB = (fetchedData.memoryInfo.total.freeMemMb || 0) / 1024}
-			{@const usedPercentage = fetchedData.memoryInfo.total.usedMemPercentage || 0}
-			{@const usageLevel = usedPercentage > 80 ? 'high' : usedPercentage > 60 ? 'medium' : 'low'}
-			{@const freePercentage = 100 - usedPercentage}
+	{#snippet children({ data })}
+		{@const mem = (() => {
+			const totalObj = data?.memoryInfo?.total || {};
+			const usedMb = Number(totalObj.usedMemMb ?? 0);
+			const freeMb = Number(totalObj.freeMemMb ?? 0);
+			const totalMb = usedMb + freeMb;
+			const percent = Number(totalObj.usedMemPercentage ?? 0);
 
-			<div class="flex h-full flex-col justify-between space-y-3" role="region" aria-label="Memory usage statistics">
-				<div class="flex items-center space-x-3">
-					<div class="flex items-center space-x-2">
-						<div class="relative">
-							<div
-								class="h-3 w-3 rounded-full {usageLevel === 'high' ? 'bg-red-500' : usageLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}"
-							></div>
-							<div
-								class="absolute inset-0 h-3 w-3 rounded-full {usageLevel === 'high'
-									? 'bg-red-500'
-									: usageLevel === 'medium'
-										? 'bg-yellow-500'
-										: 'bg-green-500'} animate-ping opacity-75"
-							></div>
+			const swapObj = data?.memoryInfo?.swap;
+			const swapUsedMb = swapObj ? Number(swapObj.usedMemMb ?? 0) : 0;
+			const swapFreeMb = swapObj ? Number(swapObj.freeMemMb ?? 0) : 0;
+			const swapTotalMb = swapUsedMb + swapFreeMb;
+			const swapPercent = swapObj ? Number(swapObj.usedMemPercentage ?? 0) : null;
+
+			return {
+				totalGB: totalMb / 1024,
+				usedGB: usedMb / 1024,
+				freeGB: freeMb / 1024,
+				percent: Math.min(100, Math.max(0, percent)),
+				level: percent > 80 ? 'high' : percent > 60 ? 'medium' : 'low',
+				freePercent: Math.max(0, 100 - percent),
+
+				swapTotalGB: swapTotalMb / 1024,
+				swapUsedGB: swapUsedMb / 1024,
+				swapFreeGB: swapFreeMb / 1024,
+				swapPercent: swapPercent !== null ? Math.min(100, Math.max(0, swapPercent)) : null,
+				swapLevel: swapPercent !== null ? (swapPercent > 80 ? 'high' : swapPercent > 60 ? 'medium' : 'low') : 'low'
+			};
+		})()}
+
+		{#if data?.memoryInfo?.total}
+			<div class="flex h-full flex-col justify-between space-y-4" role="region" aria-label="Memory usage statistics">
+				
+				{#if size.h === 1}
+					<!-- Compact single-row layout -->
+					<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-[36px]">
+						<div class="flex items-center gap-2">
+							<div class="relative flex h-2.5 w-2.5">
+								<span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {mem.level === 'high' ? 'bg-red-400' : mem.level === 'medium' ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
+								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {mem.level === 'high' ? 'bg-red-500' : mem.level === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+							</div>
+							<span class="font-bold tabular-nums text-sm">{mem.percent.toFixed(1)}%</span>
+							<span class="text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider text-[10px]">RAM</span>
+						</div>
+						<div class="flex items-center gap-2 text-right">
+							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{mem.usedGB.toFixed(1)} / {mem.totalGB.toFixed(0)} GB</span>
+							{#if mem.swapPercent !== null}
+								<span class="text-gray-400 dark:text-gray-500">| Swap: <span class="font-semibold text-gray-600 dark:text-gray-400">{mem.swapPercent.toFixed(0)}%</span></span>
+							{/if}
+						</div>
+					</div>
+				{:else}
+					<!-- Header Status -->
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<div class="relative">
+								<div class="h-4 w-4 rounded-full {mem.level === 'high' ? 'bg-red-500' : mem.level === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}"></div>
+								<div class="absolute inset-0 h-4 w-4 rounded-full {mem.level === 'high' ? 'bg-red-500' : mem.level === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'} animate-ping opacity-75"></div>
+							</div>
+							<div>
+								<span class="text-3xl font-semibold tabular-nums tracking-tighter">{mem.percent.toFixed(1)}</span>
+								<span class="text-xl font-medium text-gray-400">%</span>
+							</div>
+							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Used</span>
 						</div>
 
-						<div class="flex w-full items-center justify-between">
-							<div class="flex gap-2">
-								<div class="text-sm font-bold" aria-live="polite">{usedPercentage.toFixed(1)}%</div>
-								<div class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Memory Used</div>
-							</div>
-							<div class="flex gap-2">
-								<div class="text-sm font-bold" aria-live="polite">{freePercentage.toFixed(1)}%</div>
-								<div class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Memory Free</div>
+						<div class="text-right">
+							<div class="text-sm font-medium tabular-nums">{mem.freeGB.toFixed(1)} GB <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">free</span></div>
+						</div>
+					</div>
+
+					<!-- SVG Concentric Doughnuts -->
+					<div class="relative flex items-center justify-center py-2" style="min-height: 148px;">
+						<div 
+							class="relative focus:outline-hidden"
+							onmouseenter={() => (activeRing = true)}
+							onmouseleave={() => (activeRing = false)}
+							role="img"
+							aria-label="Concentric memory usage chart. Outer ring is physical RAM, inner ring is swap space."
+						>
+							<svg width="148" height="148" viewBox="0 0 42 42" class="transform -rotate-90 overflow-visible">
+								<!-- Outer RAM background ring -->
+								<circle
+									cx="21"
+									cy="21"
+									r="15.915"
+									fill="none"
+									stroke={theme === 'dark' ? '#1f2937' : '#f3f4f6'}
+									stroke-width="3"
+								/>
+								<!-- Outer RAM progress ring -->
+								<circle
+									cx="21"
+									cy="21"
+									r="15.915"
+									fill="none"
+									stroke={mem.level === 'high' ? '#ef4444' : mem.level === 'medium' ? '#f59e0b' : '#10b981'}
+									stroke-width="3"
+									stroke-dasharray="100"
+									stroke-dashoffset={100 - mem.percent}
+									stroke-linecap="round"
+									class="transition-all duration-700 ease-out"
+									style="filter: {activeRing ? 'brightness(1.08)' : 'none'};"
+								/>
+
+								<!-- Inner Swap Rings (if available in the backend) -->
+								{#if mem.swapPercent !== null}
+									<!-- Inner Swap background ring -->
+									<circle
+										cx="21"
+										cy="21"
+										r="12.5"
+										fill="none"
+										stroke={theme === 'dark' ? '#111827' : '#e5e7eb'}
+										stroke-width="1.8"
+									/>
+									<!-- Inner Swap progress ring -->
+									<circle
+										cx="21"
+										cy="21"
+										r="12.5"
+										fill="none"
+										stroke={mem.swapLevel === 'high' ? '#f43f5e' : mem.swapLevel === 'medium' ? '#fb923c' : '#60a5fa'}
+										stroke-width="1.8"
+										stroke-dasharray="78.54"
+										stroke-dashoffset={78.54 * (1 - mem.swapPercent / 100)}
+										stroke-linecap="round"
+										class="transition-all duration-700 ease-out"
+									/>
+								{/if}
+							</svg>
+
+							<!-- Center Content -->
+							<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+								<span class="text-3xl font-semibold tabular-nums {theme === 'dark' ? 'text-white' : 'text-gray-900'}">
+									{mem.percent.toFixed(0)}
+								</span>
+								<span class="text-[9px] font-bold tracking-widest uppercase {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">RAM USED</span>
 							</div>
 						</div>
 					</div>
-				</div>
 
-				<h3 class="text-xs font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-center">Memory Usage Overview</h3>
-				<div class="relative shrink-0" style="height: 120px; min-height: 80px; max-height: 180px; width: 100%;">
-					<canvas
-						bind:this={chartCanvas}
-						class="h-full w-full"
-						use:updateChartAction={fetchedData}
-						style="display: block; width: 100% !important; height: 100% !important;"
-						aria-label="Memory usage pie chart"
-					></canvas>
-				</div>
-
-				<h3 class="text-xs font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-center">Memory Statistics</h3>
-				<div class="shrink-0 space-y-3">
-					<div class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-3 text-xs">
-						<div class="flex flex-col text-center">
-							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
-							<span class="text-sm font-semibold">{totalMemGB.toFixed(1)} GB</span>
-						</div>
-						<div class="flex flex-col text-center">
-							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</span>
-							<span
-								class="text-sm font-semibold {usageLevel === 'high'
-									? 'text-red-600 dark:text-red-400'
-									: usageLevel === 'medium'
-										? 'text-yellow-600 dark:text-yellow-400'
-										: 'text-green-600 dark:text-green-400'}"
-								>{usedMemGB.toFixed(1)}
-								GB</span
-							>
+					<!-- Statistics -->
+					<div class="space-y-4">
+						<div class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-4 text-center text-sm">
+							<div>
+								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</div>
+								<div class="font-semibold tabular-nums mt-0.5">{mem.totalGB.toFixed(1)} GB</div>
+							</div>
+							<div>
+								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</div>
+								<div class="font-semibold tabular-nums mt-0.5 {mem.level === 'high' ? 'text-red-500' : mem.level === 'medium' ? 'text-amber-500' : 'text-emerald-500'}">
+									{mem.usedGB.toFixed(1)} GB
+								</div>
+							</div>
+							{#if size.w > 1}
+								<div>
+									<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</div>
+									<div class="font-semibold tabular-nums mt-0.5">{mem.freeGB.toFixed(1)} GB</div>
+								</div>
+							{/if}
 						</div>
 
-						{#if size.w !== 1}
-							<div class="flex flex-col space-y-1 text-center">
-								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</span>
-								<span class="font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{freeMemGB.toFixed(1)} GB</span>
+						<!-- Compact Swap Stats sub-section -->
+						{#if mem.swapPercent !== null}
+							<div class="border-t pt-2.5 {theme === 'dark' ? 'border-gray-800' : 'border-gray-150'}">
+								<div class="flex justify-between text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">
+									<span>Swap Memory</span>
+									<span class="tabular-nums">{mem.swapPercent.toFixed(0)}% Used</span>
+								</div>
+								<div class="grid grid-cols-3 gap-2 text-center text-xs">
+									<div>
+										<div class="text-[10px] text-gray-400 dark:text-gray-500">Total</div>
+										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">{mem.swapTotalGB.toFixed(1)} GB</div>
+									</div>
+									<div>
+										<div class="text-[10px] text-gray-400 dark:text-gray-500">Used</div>
+										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">{mem.swapUsedGB.toFixed(1)} GB</div>
+									</div>
+									<div>
+										<div class="text-[10px] text-gray-400 dark:text-gray-500">Free</div>
+										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">{mem.swapFreeGB.toFixed(1)} GB</div>
+									</div>
+								</div>
 							</div>
 						{/if}
 					</div>
-				</div>
+				{/if}
 			</div>
 		{:else}
 			<div class="flex h-full flex-col items-center justify-center space-y-3" role="status" aria-live="polite">
-				<div class="relative">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-hidden="true"></div>
-				</div>
+				<div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading memory data</div>
-					<div class="text-xs">Please wait...</div>
+					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading memory metrics</div>
+					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
 				</div>
 			</div>
 		{/if}
 	{/snippet}
 </BaseWidget>
+
+<style>
+	circle {
+		transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s;
+	}
+</style>

@@ -440,7 +440,7 @@ $effect(() => {
 		</div>
 	</header>
 	<section
-		class="widget-body relative min-h-[50px] flex-1 bg-white px-3 pb-2 dark:bg-surface-800"
+		class="widget-body relative min-h-12.5 flex-1 bg-white px-3 pb-2 dark:bg-surface-800"
 		style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
 	>
 		<div aria-live="polite" class="contents">

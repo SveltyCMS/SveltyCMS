@@ -1,18 +1,20 @@
 /**
- * @file src/content/content-watcher.ts
+ * @file src/content/content-watcher.server.ts
  * @description File system watcher for live schema updates in development.
  */
 
-import chokidar from "chokidar";
+import { watch, existsSync, type FSWatcher } from "node:fs";
 import path from "node:path";
 import { logger } from "@utils/logger";
 import { contentService } from "./content-service.server";
 
+let watcher: FSWatcher | null = null;
 let debounceTimer: NodeJS.Timeout | null = null;
 let isReloading = false;
 
 /**
  * Initializes the file system watcher for the compiled collections directory.
+ * Optimized for SveltyCMS: flat directory, native fs.watch, zero dependencies.
  */
 export function startContentWatcher() {
   const targetDir = path.resolve(process.cwd(), ".compiledCollections");
@@ -21,55 +23,68 @@ export function startContentWatcher() {
     logger.info(`[Watcher] Monitoring collections at: ${targetDir}`);
   }
 
-  const watcher = chokidar.watch(targetDir, {
-    persistent: true,
-    ignoreInitial: true,
-    awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
-  });
+  // Defensive check: prevent crashing if directory doesn't exist yet on fresh boot
+  if (!existsSync(targetDir)) {
+    logger.warn(`[Watcher] Target directory does not exist: ${targetDir}`);
+    return () => {};
+  }
 
-  watcher.on("all", (event, filePath) => {
-    if (!["add", "change", "unlink"].includes(event)) return;
-    if (!filePath.endsWith(".js")) return;
+  // Use native watch which uses Bun's optimized native OS watcher under Bun, and native Node under Node.
+  watcher = watch(targetDir, (eventType, filename) => {
+    if (!filename || !filename.endsWith(".js")) return;
 
-    if (debounceTimer) clearTimeout(debounceTimer);
+    const filePath = path.join(targetDir, filename);
+
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
 
     debounceTimer = setTimeout(async () => {
       if (isReloading) return;
 
       try {
         isReloading = true;
-        logger.debug(
-          `[Watcher] Schema ${event} detected: ${path.basename(filePath)}. Reloading...`,
-        );
+        const exists = existsSync(filePath);
+        const isDelete = eventType === "rename" && !exists;
+        const event = isDelete ? "unlink" : "change";
 
+        logger.debug(`[Watcher] Schema ${event} detected: ${filename}`);
+
+        // Mark dirty + full reload
         const { markFileDirty } = await import("./content-service.server");
-        markFileDirty(event === "unlink" ? filePath : null);
+        markFileDirty(isDelete ? filePath : null);
 
         await contentService.fullReload(
           null,
           false,
           undefined,
-          event === "unlink" ? null : filePath,
+          isDelete ? null : filePath,
         );
 
-        logger.info("[Watcher] Content system re-synchronized successfully.");
+        logger.info(`[Watcher] Content system re-synchronized: ${filename}`);
       } catch (err) {
-        if (err instanceof Error) {
-          logger.error("[Watcher] Failed to reload content system", {
-            message: err.message,
-            stack: err.stack,
-            name: err.name,
-          });
-        } else {
-          logger.error("[Watcher] Failed to reload content system (unknown error type)", {
-            error: String(err),
-          });
-        }
+        const error = err instanceof Error ? err : new Error(String(err));
+        logger.error("[Watcher] Failed to reload content system", {
+          filename,
+          message: error.message,
+          stack: error.stack,
+        });
       } finally {
         isReloading = false;
       }
     }, 400);
   });
 
-  return () => watcher.close();
+  return () => {
+    if (watcher) {
+      watcher.close();
+      watcher = null;
+    }
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+  };
 }
+
+

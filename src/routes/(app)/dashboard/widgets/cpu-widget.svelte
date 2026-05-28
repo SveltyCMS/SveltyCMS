@@ -26,10 +26,7 @@ export const widgetMeta = {
 
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
-	import { onDestroy, onMount } from 'svelte';
 	import BaseWidget from '../base-widget.svelte';
-
-	let ChartJS: any = $state(undefined);
 
 	const {
 		label = 'CPU Usage',
@@ -49,221 +46,7 @@ export const widgetMeta = {
 		onRemove?: () => void;
 	} = $props();
 
-	let currentData: any = $state(undefined);
-	let chartInstance: any = $state(undefined);
-	let chartCanvasElement: HTMLCanvasElement | undefined = $state(undefined);
-
-	function updateChart(fetchedData: any) {
-		if (!(chartCanvasElement && ChartJS)) {
-			return;
-		}
-		const cpuInfo = fetchedData?.cpuInfo;
-		const historicalLoad = cpuInfo?.historicalLoad;
-		if (!(historicalLoad && Array.isArray(historicalLoad.usage) && Array.isArray(historicalLoad.timestamps))) {
-			if (chartInstance) {
-				chartInstance.data.labels = [];
-				chartInstance.data.datasets[0].data = [];
-				chartInstance.update('none');
-			}
-			return;
-		}
-
-		const { usage: cpuUsageHistory = [], timestamps: timeStampHistory = [] } = historicalLoad;
-		const plainCpuUsageHistory = [...cpuUsageHistory];
-		const plainTimeStampHistory = [...timeStampHistory];
-
-		const formattedLabels = plainTimeStampHistory.map((ts: string) => {
-			try {
-				return new Date(ts).toLocaleTimeString();
-			} catch {
-				return 'Invalid Time';
-			}
-		});
-
-		const fontSize = size.w >= 3 || size.h >= 2 ? 12 : 10;
-		const maxTicks = size.w >= 3 ? 8 : 6;
-
-		if (chartInstance) {
-			chartInstance.data.labels = formattedLabels;
-			chartInstance.data.datasets[0].data = plainCpuUsageHistory;
-			chartInstance.data.datasets[0].borderColor = theme === 'dark' ? 'rgba(99, 102, 241, 1)' : 'rgba(59, 130, 246, 1)';
-			chartInstance.data.datasets[0].backgroundColor = theme === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(59, 130, 246, 0.1)';
-
-			// Safely update chart options with null checks
-			if (chartInstance.options.scales?.x?.ticks) {
-				chartInstance.options.scales.x.ticks.color = theme === 'dark' ? '#9ca3af' : '#6b7280';
-				chartInstance.options.scales.x.ticks.font = { size: fontSize };
-				chartInstance.options.scales.x.ticks.maxTicksLimit = maxTicks;
-			}
-			if (chartInstance.options.scales?.y?.ticks) {
-				chartInstance.options.scales.y.ticks.color = theme === 'dark' ? '#9ca3af' : '#6b7280';
-				chartInstance.options.scales.y.ticks.font = { size: fontSize };
-			}
-			if (chartInstance.options.scales?.x?.grid) {
-				chartInstance.options.scales.x.grid.color = theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)';
-			}
-			if (chartInstance.options.scales?.y?.grid) {
-				chartInstance.options.scales.y.grid.color = theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)';
-			}
-
-			chartInstance.update('none');
-		} else if (ChartJS) {
-			const existingChart = ChartJS.getChart(chartCanvasElement);
-			if (existingChart) {
-				existingChart.destroy();
-			}
-
-			chartInstance = new ChartJS(chartCanvasElement, {
-				type: 'line',
-				data: {
-					labels: formattedLabels,
-					datasets: [
-						{
-							label: 'CPU Usage (%)',
-							data: plainCpuUsageHistory,
-							borderColor: theme === 'dark' ? 'rgba(99, 102, 241, 1)' : 'rgba(59, 130, 246, 1)',
-							backgroundColor: theme === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-							fill: true,
-							tension: 0.4,
-							borderWidth: 2,
-							pointRadius: 0,
-							pointHoverRadius: 5,
-							pointBackgroundColor: theme === 'dark' ? 'rgba(99, 102, 241, 1)' : 'rgba(59, 130, 246, 1)',
-							pointBorderColor: theme === 'dark' ? '#1f2937' : '#ffffff',
-							pointBorderWidth: 2
-						}
-					]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					layout: {
-						padding: { top: 10, right: 10, bottom: 10, left: 10 }
-					},
-					scales: {
-						x: {
-							display: true,
-							ticks: {
-								color: theme === 'dark' ? '#9ca3af' : '#6b7280',
-								maxTicksLimit: maxTicks,
-								autoSkip: true,
-								font: { size: fontSize }
-							},
-							grid: {
-								display: true,
-								color: theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-								lineWidth: 1
-							},
-							border: { display: false }
-						},
-						y: {
-							display: true,
-							beginAtZero: true,
-							max: 100,
-							ticks: {
-								color: theme === 'dark' ? '#9ca3af' : '#6b7280',
-								stepSize: 25,
-								callback: (value: any) => `${value}%`,
-								font: { size: fontSize }
-							},
-							grid: {
-								display: true,
-								color: theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-								lineWidth: 1
-							},
-							border: { display: false }
-						}
-					},
-					plugins: {
-						legend: { display: false },
-						tooltip: {
-							enabled: true,
-							backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-							titleColor: theme === 'dark' ? '#f9fafb' : '#111827',
-							bodyColor: theme === 'dark' ? '#d1d5db' : '#374151',
-							borderColor: theme === 'dark' ? 'rgba(99, 102, 241, 0.5)' : 'rgba(59, 130, 246, 0.5)',
-							borderWidth: 1,
-							cornerRadius: 8,
-							displayColors: false,
-							callbacks: {
-								title: (context: any) => context[0].label,
-								label: (context: any) => `CPU: ${Number.parseFloat(context.raw as string).toFixed(1)}%`
-							}
-						}
-					},
-					interaction: {
-						mode: 'nearest',
-						axis: 'x',
-						intersect: false
-					},
-					animation: {
-						duration: 750,
-						easing: 'easeInOutQuart'
-					}
-				}
-			});
-		}
-	}
-
-	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
-		currentData = data;
-		return {
-			update(newData: any) {
-				currentData = newData;
-			}
-		};
-	}
-
-	$effect(() => {
-		if (chartCanvasElement && currentData?.cpuInfo) {
-			updateChart(currentData);
-		}
-	});
-
-	let resizeObserver: ResizeObserver | undefined;
-
-	onMount(() => {
-		(async () => {
-			// Lazy-load Chart.js
-			const { Chart: LoadedChart, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler, LineController } = await import('chart.js');
-			// @ts-expect-error - allow dynamic import of date adapter which might lack types in this context
-			await import('chartjs-adapter-date-fns');
-
-			LoadedChart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
-			ChartJS = LoadedChart;
-
-			// Initialize value if completely missing
-			if (chartCanvasElement && currentData?.cpuInfo) {
-				updateChart(currentData);
-			}
-
-			if (chartCanvasElement && chartInstance) {
-				chartInstance.resize();
-			}
-		})();
-
-		const parent = chartCanvasElement?.parentElement?.parentElement;
-		if (parent && typeof ResizeObserver !== 'undefined') {
-			resizeObserver = new ResizeObserver(() => {
-				if (chartInstance) {
-					chartInstance.resize();
-				}
-			});
-			resizeObserver.observe(parent);
-		}
-		return () => {
-			if (resizeObserver && parent) {
-				resizeObserver.disconnect();
-			}
-		};
-	});
-
-	onDestroy(() => {
-		if (chartInstance) {
-			chartInstance.destroy();
-			chartInstance = undefined;
-		}
-	});
+	let activeIndex = $state<number | null>(null);
 </script>
 
 <BaseWidget
@@ -277,86 +60,164 @@ export const widgetMeta = {
 	{onSizeChange}
 	onCloseRequest={onRemove}
 >
-	{#snippet children({ data: fetchedData })}
-		{#if fetchedData?.cpuInfo}
-			{@const currentUsage = Number(fetchedData?.cpuInfo?.historicalLoad?.usage?.slice(-1)[0] || 0)}
-			{@const usageArray = fetchedData?.cpuInfo?.historicalLoad?.usage || []}
-			{@const averageUsage = usageArray.length > 0 ? Number(usageArray.reduce((a: number, b: number) => a + b, 0) / usageArray.length) : 0}
-			{@const usageLevel = currentUsage > 80 ? 'high' : currentUsage > 50 ? 'medium' : 'low'}
-			<div class="flex h-full flex-col space-y-3">
-				<div class="flex items-center justify-between">
-					<div class="flex flex-col space-y-1">
+	{#snippet children({ data })}
+		{@const cpu = {
+			current: Number(data?.cpuInfo?.historicalLoad?.usage?.at(-1) ?? 0),
+			average: data?.cpuInfo?.historicalLoad?.usage?.length
+				? Number(data.cpuInfo.historicalLoad.usage.reduce((a: number, b: number) => a + b, 0) / data.cpuInfo.historicalLoad.usage.length)
+				: 0,
+			level: Number(data?.cpuInfo?.historicalLoad?.usage?.at(-1) ?? 0) > 80 ? 'high' : Number(data?.cpuInfo?.historicalLoad?.usage?.at(-1) ?? 0) > 50 ? 'medium' : 'low',
+			usage: (data?.cpuInfo?.historicalLoad?.usage ?? []) as number[],
+			timestamps: (data?.cpuInfo?.historicalLoad?.timestamps ?? []) as string[]
+		}}
+
+		{#if data?.cpuInfo}
+			<!-- SVG Chart / Sparkline Calculations -->
+			{@const chartHeight = size.h === 1 ? 40 : 150}
+			{@const points = cpu.usage.map((val: number, i: number) => ({
+				x: (i / Math.max(1, cpu.usage.length - 1)) * 300,
+				y: chartHeight - (val / 100) * (chartHeight - (size.h === 1 ? 4 : 20)) - (size.h === 1 ? 2 : 10)
+			}))}
+			{@const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+			{@const areaPath = points.length ? `${linePath} L ${points.at(-1)!.x.toFixed(2)} ${chartHeight} L 0 ${chartHeight} Z` : ''}
+
+			<div class="flex h-full flex-col justify-between {size.h === 1 ? 'space-y-1' : 'space-y-3'}">
+				{#if size.h === 1}
+					<!-- Compact single-row layout -->
+					<div class="flex items-center justify-between text-xs px-1">
+						<div class="flex items-center space-x-1.5">
+							<div class="h-2 w-2 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'}"></div>
+							<span class="font-bold tabular-nums">{cpu.current.toFixed(1)}%</span>
+						</div>
+						<span class="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">avg: {cpu.average.toFixed(1)}%</span>
+					</div>
+				{:else}
+					<!-- Header Stats -->
+					<div class="flex items-center justify-between">
 						<div class="flex items-center space-x-2">
 							<div class="relative">
-								<div
-									class="h-3 w-3 rounded-full {usageLevel === 'high' ? 'bg-red-500' : usageLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}"
-								></div>
-								<div
-									class="absolute inset-0 h-3 w-3 rounded-full {usageLevel === 'high'
-										? 'bg-red-500'
-										: usageLevel === 'medium'
-											? 'bg-yellow-500'
-											: 'bg-green-500'} animate-ping opacity-75"
-								></div>
+								<div class="h-3 w-3 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'}"></div>
+								<div class="absolute inset-0 h-3 w-3 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'} animate-ping opacity-75"></div>
 							</div>
-							<span class="text-sm font-bold">{currentUsage.toFixed(1)}%</span>
-							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Current Usage</span>
+							<span class="text-xl font-semibold tabular-nums">{cpu.current.toFixed(1)}%</span>
+							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">now</span>
+						</div>
+
+						<div class="text-right">
+							<div class="text-sm font-medium tabular-nums">{cpu.average.toFixed(1)}% <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">avg</span></div>
 						</div>
 					</div>
-					<div class="flex items-center gap-2 text-right">
-						<div class="text-sm font-semibold">{averageUsage.toFixed(1)}%</div>
-						<div class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Average</div>
-					</div>
-				</div>
-				<div class="space-y-2">
-					<div class="relative h-2 overflow-hidden rounded-full {theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}">
+
+					<!-- Progress Bar -->
+					<div class="relative h-2 overflow-hidden rounded-full {theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}">
 						<div
-							class="h-full rounded-full transition-all duration-700 ease-out {usageLevel === 'high'
-								? 'bg-linear-to-r from-red-500 to-red-600'
-								: usageLevel === 'medium'
-									? 'bg-linear-to-r from-yellow-500 to-orange-500'
-									: 'bg-linear-to-r from-blue-500 to-blue-600'}"
-							style="width: {currentUsage}%"
+							class="h-full rounded-full transition-all duration-700 ease-out"
+							class:bg-red-500={cpu.level === 'high'}
+							class:bg-yellow-500={cpu.level === 'medium'}
+							class:bg-blue-500={cpu.level === 'low'}
+							style="width: {Math.max(4, cpu.current)}%"
 						></div>
-						<div class="absolute inset-0 h-full w-full animate-pulse bg-linear-to-r from-transparent via-white to-transparent opacity-20"></div>
 					</div>
+				{/if}
+
+				<div class="relative grow" style="min-height: {size.h === 1 ? '40px' : size.h >= 2 ? '160px' : '130px'}">
+					<svg
+						viewBox="0 0 300 {chartHeight}"
+						class="w-full h-full overflow-visible"
+						preserveAspectRatio="none"
+						aria-label="CPU usage over time"
+					>
+						{#if size.h !== 1}
+							<!-- Grid -->
+							<g class="stroke-gray-200/60 dark:stroke-gray-800/60">
+								<line x1="0" y1="37.5" x2="300" y2="37.5" stroke-dasharray="3 2"/>
+								<line x1="0" y1="75" x2="300" y2="75" stroke-dasharray="3 2"/>
+								<line x1="0" y1="112.5" x2="300" y2="112.5" stroke-dasharray="3 2"/>
+							</g>
+						{/if}
+
+						<!-- Area -->
+						{#if areaPath}
+							<path d={areaPath} fill={theme === 'dark' ? '#6366f120' : '#3b82f620'} />
+						{/if}
+
+						<!-- Line -->
+						{#if linePath}
+							<path
+								d={linePath}
+								fill="none"
+								stroke={theme === 'dark' ? '#6366f1' : '#3b82f6'}
+								stroke-width={size.h === 1 ? '1.8' : '2.5'}
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						{/if}
+
+						<!-- Data Points (Only in rich layout) -->
+						{#if size.h !== 1}
+							{#each points as p, i}
+								<circle
+									cx={p.x}
+									cy={p.y}
+									r="12"
+									fill="transparent"
+									role="img"
+									aria-label="Data point"
+									onmouseenter={() => (activeIndex = i)}
+									onmouseleave={() => (activeIndex = null)}
+									class="cursor-crosshair animate-duration-100"
+								/>
+								{#if activeIndex === i}
+									<circle cx={p.x} cy={p.y} r="3.5" fill={theme === 'dark' ? '#a5b4fc' : '#60a5fa'} />
+									<circle cx={p.x} cy={p.y} r="7" stroke={theme === 'dark' ? '#6366f1' : '#3b82f6'} stroke-width="1.5" fill="none" class="animate-ping" />
+								{/if}
+							{/each}
+						{/if}
+					</svg>
+
+					<!-- Tooltip (Only in rich layout) -->
+					{#if size.h !== 1 && activeIndex !== null && points[activeIndex]}
+						{@const val = cpu.usage[activeIndex]}
+						{@const time = new Date(cpu.timestamps[activeIndex]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+						<div
+							class="absolute pointer-events-none z-20 px-3 py-2 text-xs rounded-xl border shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700"
+							style="left: {Math.max(20, Math.min(points[activeIndex].x - 45, 220))}px; top: {points[activeIndex].y - 58}px;"
+						>
+							<div class="font-mono font-semibold text-lg leading-none tabular-nums text-gray-900 dark:text-white">
+								{val.toFixed(1)}%
+							</div>
+							<div class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{time}</div>
+						</div>
+					{/if}
 				</div>
-				<div class="relative grow rounded-lg" style="min-height: {size.h >= 2 ? '150px' : '120px'}; height: 100%;">
-					<div class="relative h-full w-full">
-						<canvas
-							bind:this={chartCanvasElement}
-							aria-label="CPU Usage Chart"
-							use:updateChartAction={fetchedData}
-							class="h-full w-full"
-							style="display: block; width: 100% !important; height: 100% !important;"
-						></canvas>
-					</div>
-				</div>
-				{#if size.w >= 2 || size.h >= 2}
-					<div class="flex justify-between px-2 text-xs {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">
-						<span>
-							Cores:
-							<span class="font-bold {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{fetchedData?.cpuInfo?.cores?.count || 'N/A'}</span>
-						</span>
-						<span>
-							Model:
-							<span class="font-bold {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
-								>{fetchedData?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span
-							>
+
+				<!-- Footer Info -->
+				{#if size.h !== 1 && (size.w >= 2 || size.h >= 2)}
+					<div class="flex justify-between text-xs pt-1 {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} border-t border-gray-100/50 dark:border-gray-800/50">
+						<span>Cores: <span class="font-medium text-gray-700 dark:text-gray-300">{data?.cpuInfo?.cores?.count ?? '—'}</span></span>
+						<span class="text-right truncate max-w-85">
+							{data?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 3).join(' ') ?? 'Unknown'}
 						</span>
 					</div>
 				{/if}
 			</div>
 		{:else}
-			<div class="flex h-full flex-col items-center justify-center space-y-3">
-				<div class="relative">
+			<!-- Loading State -->
+			<div class="flex h-full items-center justify-center">
+				<div class="flex flex-col items-center gap-3">
 					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
-				</div>
-				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading CPU data</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<p class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Fetching CPU metrics...</p>
 				</div>
 			</div>
 		{/if}
 	{/snippet}
 </BaseWidget>
+
+<style>
+	path {
+		transition: d 0.5s ease-in-out, stroke 0.3s, fill 0.3s;
+	}
+	circle {
+		transition: cy 0.5s ease-in-out, cx 0.5s ease-in-out;
+	}
+</style>

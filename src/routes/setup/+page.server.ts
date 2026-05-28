@@ -73,7 +73,12 @@ export const actions: Actions = {
   completeSetup: async ({ request, cookies, url }) => {
     const fd = await request.formData();
     const payload = JSON.parse(fd.get("data") as string);
-    const result = await completeSetup(payload.database, payload.admin, payload.system || {});
+    const result = await completeSetup(
+      payload.database,
+      payload.admin,
+      payload.system || {},
+      payload.emailSettings || {}
+    );
     if (result.sessionCookie) {
       const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
       const cookieName = isSecure

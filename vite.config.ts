@@ -941,13 +941,6 @@ export default defineConfig((): any => {
             if (id.includes("node_modules/@aws-sdk") || id.includes("node_modules/@smithy")) {
               return "vendor-aws";
             }
-            // Performance: group large charting/mapping deps (lazy-loaded but benefit from dedup)
-            if (
-              id.includes("node_modules/chart.js") ||
-              id.includes("node_modules/chartjs-adapter")
-            ) {
-              return "vendor-chart";
-            }
             if (id.includes("node_modules/maplibre-gl")) {
               return "vendor-map";
             }

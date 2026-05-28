@@ -120,23 +120,9 @@
 
 	let showPassword = $state(false);
 
-	// Derived values for auto-detection
-	let detectedPort = $derived(() => {
-		if (!useCustomPort && wizard.emailSettings.host) {
-			const provider = detectProviderFromHost(wizard.emailSettings.host);
-			return provider?.port;
-		}
-		return null;
-	});
-
-	let detectedSecure = $derived(() => {
-		const port = detectedPort() ?? Number(wizard.emailSettings.port);
-		return autoDetectSecure(port);
-	});
-
-	// Effective values (use detected values when available)
-	let effectivePort = $derived(() => detectedPort() ?? Number(wizard.emailSettings.port));
-	let effectiveSecure = $derived(() => detectedSecure());
+	// Effective values
+	let effectivePort = $derived(() => Number(wizard.emailSettings.port) || 587);
+	let effectiveSecure = $derived(() => autoDetectSecure(effectivePort()));
 
 	// Common SMTP ports with descriptions
 	const commonPorts = $derived([
@@ -268,12 +254,7 @@
 		}
 	}
 
-	// Automatically update security setting when port changes
-	$effect(() => {
-		if (!detectedPort()) {
-			// Security is now computed by effectiveSecure()
-		}
-	});
+
 
 	// Watch for host changes and auto-detect provider
 	let lastDetectedHost = '';
@@ -744,7 +725,7 @@
 			</div>
 			<div class="relative">
 				<input
-					type={showPassword ? 'text' : 'security'}
+					type={showPassword ? 'text' : 'password'}
 					class="input w-full rounded border border-slate-300 dark:border-surface-600   pr-10"
 					class:input-error={displayErrors.password}
 					bind:value={wizard.emailSettings.password}
@@ -756,7 +737,7 @@
 						if (trimmed !== wizard.emailSettings.password) {
 							wizard.emailSettings.password = trimmed;
 						}
-						handleBlur('security');
+						handleBlur('password');
 					}}
 					onchange={() => {
 						testSuccess = false;

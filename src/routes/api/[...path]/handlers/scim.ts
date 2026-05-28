@@ -1,6 +1,13 @@
 /**
  * @file src/routes/api/[...path]/handlers/scim.ts
- * @description SCIM 2.0 (RFC 7644) modular handler for the dispatcher.
+ * @description SCIM 2.0 (RFC 7644) compliant identity management — Users, Groups, Bulk, Schemas, ServiceProviderConfig.
+ *
+ * Responsibilities:
+ * - Bearer token authentication for SCIM endpoints
+ * - User CRUD with SCIM filter/patch support (eq, co, sw, pr)
+ * - Group management with membership operations
+ * - Bulk operations with bulkId cross-reference resolution
+ * - Schema and ServiceProviderConfig discovery endpoints
  */
 
 import { AppError } from "@utils/error-handling";
@@ -19,7 +26,8 @@ import {
   matchesScimFilter,
 } from "@src/utils/scim-utils";
 import { auth as dbAuth } from "@src/databases/db";
-// Removed unused logger import
+
+// ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleScimRoutes(
   event: RequestEvent,
@@ -30,33 +38,57 @@ export async function handleScimRoutes(
   const { request, url, locals } = event;
   const baseUrl = url.origin;
 
-  // 1. SCIM Auth (Bearer Token validation)
-  const authResult = await validateScimAuth(request, locals);
-  if (!authResult.authenticated) {
-    return scimError(401, authResult.error || "SCIM authentication failed");
+  try {
+    // ── SCIM Bearer Token Authentication ──
+    const authResult = await validateScimAuth(request, locals);
+    if (!authResult.authenticated) {
+      return scimError(401, authResult.error || "SCIM authentication failed");
+    }
+
+    const activeTenantId = (authResult.tenantId as DatabaseId) || tenantId;
+
+    if (segments[1] !== "v2") {
+      throw new AppError("Only SCIM v2.0 is supported", 400);
+    }
+
+    // ── Route by resource type ──
+    const resourceType = segments[2];
+    const resourceId = segments[3];
+
+    switch (resourceType) {
+      case "Users":
+        return handleScimUsers(event, cms, activeTenantId, resourceId, baseUrl);
+      case "Groups":
+        return handleScimGroups(
+          event,
+          cms,
+          activeTenantId,
+          resourceId,
+          baseUrl,
+        );
+      case "Bulk":
+        return handleScimBulk(event, cms, activeTenantId, baseUrl);
+      case "Schemas":
+        return handleScimSchemas(baseUrl);
+      case "ServiceProviderConfig":
+        return handleScimConfig(baseUrl);
+      default:
+        throw new AppError(
+          `SCIM resource type '${resourceType}' not supported`,
+          404,
+        );
+    }
+  } catch (err: any) {
+    console.error(`[SCIM Route Error] ${segments.join("/")}:`, err);
+    if (err instanceof AppError) throw err;
+    throw new AppError(err.message || "SCIM operation failed", 500);
   }
-
-  // Use tenantId from token if available, otherwise from locals
-  const activeTenantId = (authResult.tenantId as DatabaseId) || tenantId;
-
-  // segments: ["scim", "v2", "Users", ...] or ["scim", "v2", "Groups", ...]
-  if (segments[1] !== "v2") throw new AppError("Only SCIM v2.0 is supported", 400);
-
-  const resourceType = segments[2]; // "Users", "Groups", "Schemas", "ServiceProviderConfig", "Bulk"
-  const resourceId = segments[3];
-
-  if (resourceType === "Users")
-    return handleScimUsers(event, cms, activeTenantId, resourceId, baseUrl);
-  if (resourceType === "Groups")
-    return handleScimGroups(event, cms, activeTenantId, resourceId, baseUrl);
-  if (resourceType === "Bulk") return handleScimBulk(event, cms, activeTenantId, baseUrl);
-  if (resourceType === "Schemas") return handleScimSchemas(event, baseUrl);
-  if (resourceType === "ServiceProviderConfig") return handleScimConfig(event, baseUrl);
-
-  throw new AppError(`SCIM Resource ${resourceType} not implemented`, 404);
 }
 
-async function handleScimSchemas(_event: RequestEvent, _baseUrl: string) {
+// ─── Discovery Endpoints ─────────────────────────────────────────────────────
+
+/** Returns available SCIM schemas (User, Group). */
+async function handleScimSchemas(_baseUrl: string) {
   const { SCIM_SCHEMAS } = await import("@src/types/scim");
   return json(
     buildScimListResponse(
@@ -69,7 +101,8 @@ async function handleScimSchemas(_event: RequestEvent, _baseUrl: string) {
   );
 }
 
-async function handleScimConfig(_event: RequestEvent, _baseUrl: string) {
+/** Returns ServiceProviderConfig per RFC 7644 §5. */
+async function handleScimConfig(_baseUrl: string) {
   return json({
     schemas: ["urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"],
     patch: { supported: true },
@@ -81,7 +114,7 @@ async function handleScimConfig(_event: RequestEvent, _baseUrl: string) {
     authenticationSchemes: [
       {
         name: "OAuth Bearer Token",
-        description: "Authentication scheme using the OAuth Bearer Token standard.",
+        description: "Authentication using OAuth Bearer Token",
         specUri: "http://tools.ietf.org/html/rfc6750",
         type: "oauthbearertoken",
         primary: true,
@@ -90,6 +123,12 @@ async function handleScimConfig(_event: RequestEvent, _baseUrl: string) {
   });
 }
 
+// ─── Users Resource Handler ──────────────────────────────────────────────────
+
+/**
+ * SCIM /Users endpoint — full CRUD with filter and patch support.
+ * RFC 7644 §3.2 (query), §3.3 (create), §3.5.2 (modify with PATCH).
+ */
 async function handleScimUsers(
   event: RequestEvent,
   _cms: LocalCMS,
@@ -100,23 +139,32 @@ async function handleScimUsers(
   const { request, url } = event;
   if (!dbAuth) throw new AppError("Auth module not available", 503);
 
-  // --- GET /Users ---
+  // GET /Users — list with optional SCIM filter
   if (request.method === "GET" && !resourceId) {
     const filter = parseScimFilter(url.searchParams.get("filter"));
-    const users = await dbAuth.getAllUsers({ filter: { tenantId } }, { tenantId });
+    const users = await dbAuth.getAllUsers(
+      { filter: { tenantId } },
+      { tenantId },
+    );
     const filtered = users.filter((u: any) => matchesScimFilter(u, filter));
-    const resources = filtered.map((u: any) => buildScimUser(u, baseUrl));
-    return json(buildScimListResponse(resources, filtered.length));
+    return json(
+      buildScimListResponse(
+        filtered.map((u: any) => buildScimUser(u, baseUrl)),
+        filtered.length,
+      ),
+    );
   }
 
-  // --- GET /Users/[id] ---
+  // GET /Users/{id} — single user
   if (request.method === "GET" && resourceId) {
-    const user = await dbAuth.getUserById(resourceId as DatabaseId, { tenantId });
+    const user = await dbAuth.getUserById(resourceId as DatabaseId, {
+      tenantId,
+    });
     if (!user) return scimError(404, "User not found");
     return json(buildScimUser(user, baseUrl));
   }
 
-  // --- POST /Users (Create) ---
+  // POST /Users — create
   if (request.method === "POST" && !resourceId) {
     const body = await request.json();
     const existing = await dbAuth.checkUser({ email: body.userName, tenantId });
@@ -124,45 +172,66 @@ async function handleScimUsers(
 
     const newUser = await dbAuth.createUser({
       email: body.userName,
-      username: body.displayName || body.name?.givenName || body.userName.split("@")[0],
+      username:
+        body.displayName || body.name?.givenName || body.userName.split("@")[0],
       lastName: body.name?.familyName || "",
       tenantId,
     });
     return json(buildScimUser(newUser, baseUrl), { status: 201 });
   }
 
-  // --- PATCH /Users/[id] ---
+  // PATCH /Users/{id} — partial update (RFC 7644 §3.5.2)
   if (request.method === "PATCH" && resourceId) {
-    const user = await dbAuth.getUserById(resourceId as DatabaseId, { tenantId });
+    const user = await dbAuth.getUserById(resourceId as DatabaseId, {
+      tenantId,
+    });
     if (!user) return scimError(404, "User not found");
+
     const body = await request.json();
     const updates = applyScimPatchOps(user, body.Operations);
     await dbAuth.updateUser(resourceId as DatabaseId, updates, { tenantId });
-    const updated = await dbAuth.getUserById(resourceId as DatabaseId, { tenantId });
+    const updated = await dbAuth.getUserById(resourceId as DatabaseId, {
+      tenantId,
+    });
     return json(buildScimUser(updated!, baseUrl));
   }
 
-  // --- PUT /Users/[id] ---
+  // PUT /Users/{id} — full replace
   if (request.method === "PUT" && resourceId) {
     const body = await request.json();
-    const updates = {
-      username: body.displayName || body.name?.givenName,
-      lastName: body.name?.familyName,
-    };
-    await dbAuth.updateUser(resourceId as DatabaseId, updates, { tenantId });
-    const updated = await dbAuth.getUserById(resourceId as DatabaseId, { tenantId });
+    await dbAuth.updateUser(
+      resourceId as DatabaseId,
+      {
+        username: body.displayName || body.name?.givenName,
+        lastName: body.name?.familyName,
+      },
+      { tenantId },
+    );
+    const updated = await dbAuth.getUserById(resourceId as DatabaseId, {
+      tenantId,
+    });
     return json(buildScimUser(updated!, baseUrl));
   }
 
-  // --- DELETE /Users/[id] (Deactivate) ---
+  // DELETE /Users/{id} — soft-delete (deactivate per SCIM best practice)
   if (request.method === "DELETE" && resourceId) {
-    await dbAuth.updateUser(resourceId as DatabaseId, { blocked: true }, { tenantId });
+    await dbAuth.updateUser(
+      resourceId as DatabaseId,
+      { blocked: true },
+      { tenantId },
+    );
     return new Response(null, { status: 204 });
   }
 
   throw new AppError("Method Not Allowed", 405);
 }
 
+// ─── Groups Resource Handler ─────────────────────────────────────────────────
+
+/**
+ * SCIM /Groups endpoint — maps SveltyCMS roles to SCIM groups.
+ * Supports listing, fetching, and membership PATCH operations.
+ */
 async function handleScimGroups(
   event: RequestEvent,
   cms: LocalCMS,
@@ -173,27 +242,34 @@ async function handleScimGroups(
   const { request } = event;
   if (!dbAuth) throw new AppError("Auth module not available", 503);
 
-  // --- GET /Groups ---
+  // GET /Groups — list all roles as SCIM groups
   if (request.method === "GET" && !resourceId) {
     const roles = await dbAuth.getAllRoles({ tenantId });
-    const resources = roles.map((r: any) => buildScimGroup(r, baseUrl));
-    return json(buildScimListResponse(resources, roles.length));
+    return json(
+      buildScimListResponse(
+        roles.map((r: any) => buildScimGroup(r, baseUrl)),
+        roles.length,
+      ),
+    );
   }
 
-  // --- GET /Groups/[id] ---
+  // GET /Groups/{id} — single group
   if (request.method === "GET" && resourceId) {
-    const role = await cms.db.auth!.getRoleById(resourceId as DatabaseId, { tenantId });
+    const role = await cms.db.auth!.getRoleById(resourceId as DatabaseId, {
+      tenantId,
+    });
     if (!role.success || !role.data) return scimError(404, "Group not found");
-    // Optionally fetch members here if SveltyCMS supports it natively
     return json(buildScimGroup(role.data, baseUrl));
   }
 
-  // --- PATCH /Groups/[id] (Membership) ---
+  // PATCH /Groups/{id} — membership management
   if (request.method === "PATCH" && resourceId) {
-    const role = await cms.db.auth!.getRoleById(resourceId as DatabaseId, { tenantId });
+    const role = await cms.db.auth!.getRoleById(resourceId as DatabaseId, {
+      tenantId,
+    });
     if (!role.success || !role.data) return scimError(404, "Group not found");
-    const body = await request.json();
 
+    const body = await request.json();
     for (const op of body.Operations) {
       if (op.op.toLowerCase() === "add" && op.path === "members") {
         const userIds = op.value.map((v: any) => v.value);
@@ -205,16 +281,25 @@ async function handleScimGroups(
         );
       }
     }
-    const updated = await cms.db.auth!.getRoleById(resourceId as DatabaseId, { tenantId });
-    if (!updated.success || !updated.data) return scimError(500, "Failed to fetch updated role");
+    const updated = await cms.db.auth!.getRoleById(resourceId as DatabaseId, {
+      tenantId,
+    });
+    if (!updated.success || !updated.data)
+      return scimError(500, "Failed to fetch updated role");
     return json(buildScimGroup(updated.data, baseUrl));
   }
 
   throw new AppError("Method Not Allowed", 405);
 }
 
+// ─── Bulk Operations Handler ─────────────────────────────────────────────────
+
 /**
- * Handle SCIM Bulk operations (RFC 7644 §3.7)
+ * SCIM Bulk endpoint (RFC 7644 §3.7).
+ * Processes multiple operations in a single request with bulkId cross-reference
+ * resolution for dependent creates.
+ *
+ * Supports failOnErrors threshold — stops processing after N failures.
  */
 async function handleScimBulk(
   event: RequestEvent,
@@ -223,9 +308,7 @@ async function handleScimBulk(
   baseUrl: string,
 ) {
   const { request } = event;
-  if (request.method !== "POST") {
-    throw new AppError("Method Not Allowed", 405);
-  }
+  if (request.method !== "POST") throw new AppError("Method Not Allowed", 405);
 
   const body = await request.json();
   const operations = body.Operations || [];
@@ -239,10 +322,10 @@ async function handleScimBulk(
       const resourceType = pathSegments[0];
       const resourceId = pathSegments[1];
 
-      // Resolve bulkId references in data
+      // Resolve bulkId references in operation data
       const resolvedData = resolveBulkIdReferences(op.data || {}, bulkIdMap);
 
-      // Construct simulated request event
+      // Construct simulated request for the target handler
       const simulatedRequest = {
         method: op.method,
         json: async () => resolvedData,
@@ -257,13 +340,29 @@ async function handleScimBulk(
         url: simulatedUrl,
       } as unknown as RequestEvent;
 
+      // Dispatch to the appropriate resource handler
       let response: Response;
       if (resourceType === "Users") {
-        response = await handleScimUsers(simulatedEvent, cms, tenantId, resourceId, baseUrl);
+        response = await handleScimUsers(
+          simulatedEvent,
+          cms,
+          tenantId,
+          resourceId,
+          baseUrl,
+        );
       } else if (resourceType === "Groups") {
-        response = await handleScimGroups(simulatedEvent, cms, tenantId, resourceId, baseUrl);
+        response = await handleScimGroups(
+          simulatedEvent,
+          cms,
+          tenantId,
+          resourceId,
+          baseUrl,
+        );
       } else {
-        throw new AppError(`Unsupported bulk resource type: ${resourceType}`, 400);
+        throw new AppError(
+          `Unsupported bulk resource type: ${resourceType}`,
+          400,
+        );
       }
 
       const status = response.status;
@@ -274,41 +373,35 @@ async function handleScimBulk(
         status: { code: String(status) },
       };
 
+      // Track bulkId → real ID mapping for cross-references
       if (op.bulkId) {
         opResult.bulkId = op.bulkId;
-        if (resJson && resJson.id && op.method === "POST") {
+        if (resJson?.id && op.method === "POST") {
           bulkIdMap.set(op.bulkId, resJson.id);
         }
       }
 
-      if (resJson && resJson.id) {
+      if (resJson?.id) {
         opResult.location = `${baseUrl}/api/scim/v2/${resourceType}/${resJson.id}`;
       }
-
-      if (resJson) {
-        opResult.response = resJson;
-      }
+      if (resJson) opResult.response = resJson;
 
       results.push(opResult);
     } catch (err: any) {
-      const status = err.status || 500;
-      const opResult: any = {
+      const statusCode = err.status || 500;
+      results.push({
         method: op.method,
-        status: { code: String(status) },
+        bulkId: op.bulkId || undefined,
+        status: { code: String(statusCode) },
         response: {
           schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
-          status: String(status),
+          status: String(statusCode),
           detail: err.message || "Bulk operation failed",
         },
-      };
-      if (op.bulkId) {
-        opResult.bulkId = op.bulkId;
-      }
-      results.push(opResult);
+      });
 
-      if (body.failOnErrors && results.length >= body.failOnErrors) {
-        break;
-      }
+      // Honor failOnErrors threshold
+      if (body.failOnErrors && results.length >= body.failOnErrors) break;
     }
   }
 
@@ -319,13 +412,17 @@ async function handleScimBulk(
 }
 
 /**
- * Recursively resolves bulkId:<id> references in object/array hierarchies.
+ * Recursively resolves `bulkId:<id>` references in object/array hierarchies.
+ * Used during bulk operations where one operation creates a resource and
+ * subsequent operations reference it by its temporary bulkId.
  */
-function resolveBulkIdReferences(data: any, bulkIdMap: Map<string, string>): any {
+function resolveBulkIdReferences(
+  data: any,
+  bulkIdMap: Map<string, string>,
+): any {
   if (typeof data !== "object" || data === null) {
     if (typeof data === "string" && data.startsWith("bulkId:")) {
-      const bulkId = data.slice(7);
-      return bulkIdMap.get(bulkId) || data;
+      return bulkIdMap.get(data.slice(7)) || data;
     }
     return data;
   }

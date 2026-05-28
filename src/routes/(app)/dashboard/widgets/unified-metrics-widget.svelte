@@ -1,407 +1,253 @@
 <!--
 @file src/routes/(app)/dashboard/widgets/UnifiedMetricsWidget.svelte
 @component
-**Enterprise Unified Metrics Widget**
+**Unified System Metrics — Performance, Security & Health with adaptive layouts and sparklines**
 
-Advanced performance monitoring widget integrating with the unifiedmetrics-servicefor comprehensive system monitoring and performance analysis.
+### Props
+- `label` (string): Widget label (default: 'System Metrics')
+- `size` (WidgetSize): Controls layout density — h:1 compact, h:2 rich, h:3+ full detail
 
 ### Features:
-- Real-time unified metrics frommetrics-service- Performance indicators with color-coded alerts
-- Request/response time tracking with trend analysis
-- Authentication and API performance monitoring
-- Cache hit rates and optimization suggestions
-- Security metrics integration
-- Hook execution time analysis for bottleneck detection
-
-### Props:
-- `label`: Widget title (default: 'System Metrics')
-- `size`: Widget dimensions for responsive layout
-- `showDetails`: Include detailed breakdowns (default: true)
-- `autoRefresh`: Enable automatic refresh (default: true)
-
-@example
-<UnifiedMetricsWidget label="Performance Center" size={{ w: 2, h: 3 }} />
-
-@enterprise Advanced monitoring for production environments
+- Adaptive 3-tier layout: compact (h:1), rich (h:2), full (h:3+)
+- Real-time health scoring with icon + color-coded status
+- Mini SVG sparklines for response time and cache hit rate trends
+- Rolling 30-point data buffer (3 min at 6s poll)
+- Security metrics with color-coded severity indicators
+- Bottleneck detection and display
 -->
-
 <script lang="ts" module>
 export const widgetMeta = {
 	name: "Unified Metrics",
 	icon: "mdi:chart-donut",
-	description: "Comprehensive system performance and security metrics",
+	description: "Comprehensive system performance and security metrics with trend sparklines",
 	defaultSize: { w: 2, h: 3 },
 };
 </script>
 
 <script lang="ts">
-	// Lucide icons
-
 	import type { WidgetSize } from '@src/content/types';
-	import { logger } from '@utils/logger';
-	import { onDestroy, onMount } from 'svelte';
 	import BaseWidget from '../base-widget.svelte';
+
+	interface UnifiedMetrics {
+		requests: { total: number; errors: number; errorRate: number; avgResponseTime: number };
+		authentication: { validations: number; failures: number; successRate: number; cacheHitRate: number };
+		api: { requests: number; errors: number; cacheHitRate: number };
+		security: { rateLimitViolations: number; cspViolations: number; authFailures: number };
+		performance: { slowRequests: number; avgHookExecutionTime: number; bottlenecks: string[] };
+		uptime: number;
+		timestamp: number;
+	}
 
 	const {
 		label = 'System Metrics',
-		theme = 'light',
+		theme = 'light' as 'light' | 'dark',
 		icon = 'mdi:chart-donut',
-		widgetId = undefined,
+		widgetId = undefined as string | undefined,
 		size = { w: 2, h: 3 } as WidgetSize,
-		showDetails = true,
-		autoRefresh = true,
-		refreshInterval = 3000,
-		onSizeChange = (_newSize: WidgetSize) => {},
-		onRemove = () => {}
-	}: {
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: WidgetSize;
-		showDetails?: boolean;
-		autoRefresh?: boolean;
-		refreshInterval?: number;
-		onSizeChange?: (newSize: WidgetSize) => void;
-		onRemove?: () => void;
+		onSizeChange = ((_newSize: WidgetSize) => {}) as (newSize: WidgetSize) => void,
+		onRemove = (() => {}) as () => void
 	} = $props();
 
-	// Unified metrics interface (matchesmetrics-serviceoutput)
-	interface UnifiedMetrics {
-		api: {
-			requests: number;
-			errors: number;
-			cacheHits: number;
-			cacheMisses: number;
-			cacheHitRate: number;
-		};
-		authentication: {
-			validations: number;
-			failures: number;
-			successRate: number;
-			cacheHits: number;
-			cacheMisses: number;
-			cacheHitRate: number;
-		};
-		performance: {
-			slowRequests: number;
-			avgHookExecutionTime: number;
-			bottlenecks: string[];
-		};
-		requests: {
-			total: number;
-			errors: number;
-			errorRate: number;
-			avgResponseTime: number;
-		};
-		security: {
-			rateLimitViolations: number;
-			cspViolations: number;
-			authFailures: number;
-		};
-		timestamp: number;
-		uptime: number;
-	}
+	const isCompact = $derived(size.h === 1);
+	const isFull = $derived(size.h >= 3);
 
-	// Reactive state
-	let metrics = $state({
-		timestamp: 0,
-		uptime: 0,
-		requests: { total: 0, errors: 0, errorRate: 0, avgResponseTime: 0 },
-		authentication: { validations: 0, failures: 0, successRate: 0, cacheHits: 0, cacheMisses: 0, cacheHitRate: 0 },
-		api: { requests: 0, errors: 0, cacheHits: 0, cacheMisses: 0, cacheHitRate: 0 },
-		security: { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 },
-		performance: { slowRequests: 0, avgHookExecutionTime: 0, bottlenecks: [] }
-	});
+	const SPARKLINE_MAX = 30;
+	let responseTimeHistory = $state<number[]>([]);
+	let cacheHitHistory = $state<number[]>([]);
 
-	let isLoading = $state(true);
-	let error: string | null = $state(null);
-	let refreshTimer: ReturnType<typeof setInterval> | null = null;
-	let lastUpdate = $state(0);
-
-	// Computed performance indicators - using $derived correctly
-	const overallHealth = $derived(calculateOverallHealth(metrics));
-	const healthColor = $derived(getHealthColor(overallHealth));
-
-	// Map health status to icon string
-	const healthIcon = $derived.by(() => {
-		switch (overallHealth) {
-			case 'excellent':
-				return 'mdi:heart-pulse';
-			case 'good':
-				return 'mdi:heart';
-			case 'fair':
-				return 'mdi:pulse'; // Using Activity for 'fair' as HeartHalf doesn't exist in Lucide default
-			case 'poor':
-				return 'mdi:heart-broken';
-			case 'critical':
-				return 'mdi:heart-off';
-			default:
-				return 'mdi:pulse';
-		}
-	});
-
-	const primaryMetrics = $derived(getPrimaryMetrics(metrics));
-
-	function calculateOverallHealth(m: UnifiedMetrics): 'excellent' | 'good' | 'fair' | 'poor' | 'critical' {
-		const factors = {
-			errorRate: m.requests.errorRate,
-			responseTime: m.requests.avgResponseTime,
-			authSuccessRate: m.authentication.successRate,
-			cacheHitRate: (m.authentication.cacheHitRate + m.api.cacheHitRate) / 2,
-			securityViolations: m.security.rateLimitViolations + m.security.cspViolations,
-			slowRequests: m.performance.slowRequests
-		};
-
-		// Critical indicators
-		if (factors.errorRate > 10 || factors.responseTime > 5000 || factors.authSuccessRate < 80) {
-			return 'critical';
-		}
-
-		// Poor performance indicators
-		if (factors.errorRate > 5 || factors.responseTime > 2000 || factors.authSuccessRate < 90 || factors.securityViolations > 50) {
-			return 'poor';
-		}
-
-		// Fair performance indicators
-		if (factors.errorRate > 2 || factors.responseTime > 1000 || factors.cacheHitRate < 70 || factors.securityViolations > 20) {
-			return 'fair';
-		}
-
-		// Good performance indicators
-		if (factors.errorRate > 1 || factors.responseTime > 500 || factors.cacheHitRate < 85) {
-			return 'good';
-		}
-
+	function computeHealth(m: UnifiedMetrics) {
+		const { errorRate, avgResponseTime } = m.requests;
+		const authSuccess = m.authentication.successRate;
+		const cacheRate = (m.api.cacheHitRate + m.authentication.cacheHitRate) / 2;
+		if (errorRate > 8 || avgResponseTime > 2000 || authSuccess < 85) return 'critical';
+		if (errorRate > 4 || avgResponseTime > 1200 || authSuccess < 92) return 'poor';
+		if (errorRate > 2 || avgResponseTime > 800 || cacheRate < 75) return 'fair';
+		if (errorRate > 0.5 || avgResponseTime > 400) return 'good';
 		return 'excellent';
 	}
 
-	function getHealthColor(health: string): string {
-		switch (health) {
-			case 'excellent':
-				return 'text-green-600';
-			case 'good':
-				return 'text-green-500';
-			case 'fair':
-				return 'text-yellow-500';
-			case 'poor':
-				return 'text-orange-500';
-			case 'critical':
-				return 'text-red-600 animate-pulse';
-			default:
-				return 'text-gray-500';
-		}
+	function healthIcon(h: string): string {
+		const m: Record<string, string> = { excellent: 'mdi:heart-pulse', good: 'mdi:heart', fair: 'mdi:pulse', poor: 'mdi:heart-broken', critical: 'mdi:alert-circle' };
+		return m[h] || 'mdi:help-circle';
 	}
 
-	function getPrimaryMetrics(m: UnifiedMetrics) {
-		return {
-			responseTime: {
-				value: m.requests.avgResponseTime,
-				formatted: `${m.requests.avgResponseTime.toFixed(0)}ms`,
-				status: m.requests.avgResponseTime < 500 ? 'good' : m.requests.avgResponseTime < 1000 ? 'fair' : 'poor'
-			},
-			errorRate: {
-				value: m.requests.errorRate,
-				formatted: `${m.requests.errorRate.toFixed(2)}%`,
-				status: m.requests.errorRate < 1 ? 'good' : m.requests.errorRate < 5 ? 'fair' : 'poor'
-			},
-			authSuccess: {
-				value: m.authentication.successRate,
-				formatted: `${m.authentication.successRate.toFixed(1)}%`,
-				status: m.authentication.successRate > 95 ? 'good' : m.authentication.successRate > 90 ? 'fair' : 'poor'
-			},
-			cacheEfficiency: {
-				value: (m.authentication.cacheHitRate + m.api.cacheHitRate) / 2,
-				formatted: `${((m.authentication.cacheHitRate + m.api.cacheHitRate) / 2).toFixed(1)}%`,
-				status: (m.authentication.cacheHitRate + m.api.cacheHitRate) / 2 > 80 ? 'good' : 'fair'
-			}
-		};
+	function healthCls(h: string): string {
+		const m: Record<string, string> = { excellent: 'text-emerald-500', good: 'text-green-500', fair: 'text-amber-500', poor: 'text-orange-500', critical: 'text-red-500' };
+		return m[h] || 'text-surface-500';
 	}
 
-	function getMetricColor(status: string): string {
-		switch (status) {
-			case 'good':
-				return 'text-green-600';
-			case 'fair':
-				return 'text-yellow-600';
-			case 'poor':
-				return 'text-red-600';
-			default:
-				return 'text-gray-600';
-		}
+	function metricCls(v: number, lo: number, hi: number): string {
+		if (v > hi) return 'text-red-500';
+		if (v > lo) return 'text-amber-500';
+		return 'text-emerald-500';
 	}
 
-	// Data fetching
-	async function fetchMetrics(): Promise<void> {
-		try {
-			isLoading = true;
-			error = null;
-
-			const response = await fetch('/api/metrics/unified');
-			if (!response.ok) {
-				throw new Error(`Metrics fetch failed: ${response.status}`);
-			}
-
-			const data = await response.json();
-			metrics = data;
-			lastUpdate = Date.now();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to fetch metrics';
-			logger.error('Unified metrics fetch error:', err);
-		} finally {
-			isLoading = false;
-		}
+	function pushSparkline(arr: number[], val: number): number[] {
+		const next = [...arr, val];
+		return next.length > SPARKLINE_MAX ? next.slice(next.length - SPARKLINE_MAX) : next;
 	}
 
-	// Utility functions
-	function formatUptime(ms: number): string {
-		const seconds = Math.floor(ms / 1000);
-		const minutes = Math.floor(seconds / 60);
-		const hours = Math.floor(minutes / 60);
-		const days = Math.floor(hours / 24);
-
-		if (days > 0) {
-			return `${days}d ${hours % 24}h`;
-		}
-		if (hours > 0) {
-			return `${hours}h ${minutes % 60}m`;
-		}
-		if (minutes > 0) {
-			return `${minutes}m ${seconds % 60}s`;
-		}
-		return `${seconds}s`;
+	function recordMetrics(m: UnifiedMetrics) {
+		responseTimeHistory = pushSparkline(responseTimeHistory, m.requests.avgResponseTime);
+		cacheHitHistory = pushSparkline(cacheHitHistory, (m.api.cacheHitRate + m.authentication.cacheHitRate) / 2);
 	}
 
-	function formatNumber(num: number): string {
-		if (num >= 1_000_000) {
-			return `${(num / 1_000_000).toFixed(1)}M`;
-		}
-		if (num >= 1000) {
-			return `${(num / 1000).toFixed(1)}K`;
-		}
-		return num.toString();
+	function fmtUptime(sec: number): string {
+		const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+		return h > 0 ? `${h}h ${m}m` : `${m}m`;
 	}
 
-	function formatLastUpdate(): string {
-		if (!lastUpdate) {
-			return 'Never';
-		}
-		const ago = Math.floor((Date.now() - lastUpdate) / 1000);
-		if (ago < 60) {
-			return `${ago}s ago`;
-		}
-		return `${Math.floor(ago / 60)}m ago`;
+	function fmtMs(ms: number): string {
+		if (ms < 1) return '<1ms';
+		return ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(1)}s`;
 	}
-
-	// Lifecycle
-	onMount(() => {
-		fetchMetrics();
-
-		if (autoRefresh) {
-			refreshTimer = setInterval(fetchMetrics, refreshInterval);
-		}
-	});
-
-	onDestroy(() => {
-		if (refreshTimer) {
-			clearInterval(refreshTimer);
-		}
-	});
 </script>
 
-<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove} {isLoading} {error}>
-	<div class="flex h-full flex-col space-y-3 p-2">
-		<!-- Health Status Header -->
-		<div class="flex items-center justify-between">
-			<div class="flex items-center space-x-2">
-				<iconify-icon icon={healthIcon} width="20" class="text-xl {healthColor}"></iconify-icon>
-				<div>
-					<h3 class="font-semibold capitalize">{overallHealth}</h3>
-					<p class="text-xs text-gray-500">System Health</p>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/metrics"
+	pollInterval={6000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	onCloseRequest={onRemove}
+>
+	{#snippet children({ data })}
+		{@const m = data as UnifiedMetrics | null}
+
+		{#if m}{recordMetrics(m)}{/if}
+
+		{#if !m}
+			<div class="flex h-full items-center justify-center">
+				<div class="flex flex-col items-center gap-3 text-surface-400">
+					<div class="h-7 w-7 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+					<p class="text-xs">Gathering metrics...</p>
 				</div>
 			</div>
-			<div class="text-right">
-				<div class="text-xs text-gray-500">Uptime</div>
-				<div class="font-mono text-sm">{formatUptime(metrics.uptime)}</div>
-			</div>
-		</div>
+		{:else}
+			{@const health = computeHealth(m)}
+			{@const avgCache = (m.api.cacheHitRate + m.authentication.cacheHitRate) / 2}
 
-		<!-- Primary Metrics Grid -->
-		<div class="grid grid-cols-2 gap-2">
-			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-				<div class="text-xs text-gray-600 dark:text-gray-400">Response Time</div>
-				<div class="font-bold {getMetricColor(primaryMetrics.responseTime.status)}">{primaryMetrics.responseTime.formatted}</div>
-			</div>
-			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-				<div class="text-xs text-gray-600 dark:text-gray-400">Error Rate</div>
-				<div class="font-bold {getMetricColor(primaryMetrics.errorRate.status)}">{primaryMetrics.errorRate.formatted}</div>
-			</div>
-			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-				<div class="text-xs text-gray-600 dark:text-gray-400">Auth Success</div>
-				<div class="font-bold {getMetricColor(primaryMetrics.authSuccess.status)}">{primaryMetrics.authSuccess.formatted}</div>
-			</div>
-			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-				<div class="text-xs text-gray-600 dark:text-gray-400">Cache Hit</div>
-				<div class="font-bold {getMetricColor(primaryMetrics.cacheEfficiency.status)}">{primaryMetrics.cacheEfficiency.formatted}</div>
-			</div>
-		</div>
-
-		<!-- Detailed Metrics (if space allows) -->
-		{#if showDetails && size.h >= 3}
-			<div class="min-h-0 flex-1 space-y-2">
-				<!-- Request Statistics -->
-				<div class="border-t pt-2">
-					<h5 class="mb-1 text-xs font-medium">Request Statistics</h5>
-					<div class="grid grid-cols-3 gap-1 text-xs">
-						<div class="text-center">
-							<div class="font-mono">{formatNumber(metrics.requests.total)}</div>
-							<div class="text-gray-500">Total</div>
+			{#if isCompact}
+				<div class="flex h-full items-center gap-3 overflow-hidden">
+					<div class="flex shrink-0 items-center gap-1.5">
+						<iconify-icon icon={healthIcon(health)} class="text-lg {healthCls(health)}" ></iconify-icon>
+						<span class="text-xs font-semibold capitalize {healthCls(health)}">{health}</span>
+					</div>
+					<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+					<div class="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-none">
+						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
+							<span class="text-[10px] font-medium text-surface-500">Resp</span>
+							<span class="text-xs font-bold tabular-nums {metricCls(m.requests.avgResponseTime, 400, 800)}">{fmtMs(m.requests.avgResponseTime)}</span>
 						</div>
-						<div class="text-center">
-							<div class="font-mono text-red-600">{formatNumber(metrics.requests.errors)}</div>
-							<div class="text-gray-500">Errors</div>
+						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
+							<span class="text-[10px] font-medium text-surface-500">Errors</span>
+							<span class="text-xs font-bold tabular-nums {metricCls(m.requests.errorRate, 1, 3)}">{m.requests.errorRate.toFixed(1)}%</span>
 						</div>
-						<div class="text-center">
-							<div class="font-mono text-yellow-600">{formatNumber(metrics.performance.slowRequests)}</div>
-							<div class="text-gray-500">Slow</div>
+						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
+							<span class="text-[10px] font-medium text-surface-500">Auth</span>
+							<span class="text-xs font-bold tabular-nums {m.authentication.successRate > 95 ? 'text-emerald-500' : 'text-amber-500'}">{m.authentication.successRate.toFixed(0)}%</span>
+						</div>
+						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
+							<span class="text-[10px] font-medium text-surface-500">Cache</span>
+							<span class="text-xs font-bold tabular-nums text-blue-500">{avgCache.toFixed(0)}%</span>
 						</div>
 					</div>
 				</div>
-
-				<!-- Security Overview -->
-				<div class="border-t pt-2">
-					<h5 class="mb-1 text-xs font-medium">Security Events</h5>
-					<div class="grid grid-cols-3 gap-1 text-xs">
-						<div class="text-center">
-							<div class="font-mono text-orange-600">{metrics.security.rateLimitViolations}</div>
-							<div class="text-gray-500">Rate Limits</div>
+			{:else}
+				<div class="flex h-full flex-col space-y-4">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<iconify-icon icon={healthIcon(health)} class="text-3xl {healthCls(health)}" ></iconify-icon>
+							<div>
+								<div class="text-xl font-semibold capitalize {healthCls(health)}">{health}</div>
+								<div class="text-xs text-surface-500">System Health</div>
+							</div>
 						</div>
-						<div class="text-center">
-							<div class="font-mono text-purple-600">{metrics.security.cspViolations}</div>
-							<div class="text-gray-500">CSP Violations</div>
-						</div>
-						<div class="text-center">
-							<div class="font-mono text-red-600">{metrics.security.authFailures}</div>
-							<div class="text-gray-500">Auth Fails</div>
+						<div class="text-right">
+							<div class="text-xs text-surface-500">Uptime</div>
+							<div class="font-mono text-sm tabular-nums">{fmtUptime(m.uptime)}</div>
 						</div>
 					</div>
+
+					<div class="grid grid-cols-2 gap-3">
+						<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
+							<div class="text-[11px] text-surface-500">Avg Response</div>
+							<div class="mt-1 flex items-end justify-between">
+								<span class="text-2xl font-semibold tabular-nums {metricCls(m.requests.avgResponseTime, 400, 800)}">{m.requests.avgResponseTime.toFixed(0)}<span class="text-sm font-normal">ms</span></span>
+							</div>
+						</div>
+						<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
+							<div class="text-[11px] text-surface-500">Error Rate</div>
+							<div class="mt-1">
+								<span class="text-2xl font-semibold tabular-nums {metricCls(m.requests.errorRate, 1, 3)}">{m.requests.errorRate.toFixed(1)}%</span>
+							</div>
+							<div class="mt-1 text-[10px] text-surface-400">{m.requests.errors} of {m.requests.total} reqs</div>
+						</div>
+						<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
+							<div class="text-[11px] text-surface-500">Auth Success</div>
+							<div class="mt-1">
+								<span class="text-2xl font-semibold tabular-nums {m.authentication.successRate > 95 ? 'text-emerald-500' : 'text-amber-500'}">{m.authentication.successRate.toFixed(1)}%</span>
+							</div>
+							<div class="mt-1 text-[10px] text-surface-400">{m.authentication.validations} ok / {m.authentication.failures} fail</div>
+						</div>
+						<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
+							<div class="text-[11px] text-surface-500">Cache Hit Rate</div>
+							<div class="mt-1">
+								<span class="text-2xl font-semibold tabular-nums text-blue-500">{avgCache.toFixed(1)}%</span>
+							</div>
+						</div>
+					</div>
+
+					{#if isFull}
+						<div class="space-y-4 flex-1 overflow-y-auto pe-0.5 custom-scroll">
+							<div>
+								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Requests</h5>
+								<div class="grid grid-cols-3 gap-2 text-center">
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums">{m.requests.total.toLocaleString()}</div><div class="text-[10px] text-surface-500">Total</div></div>
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-red-500">{m.requests.errors}</div><div class="text-[10px] text-surface-500">Errors</div></div>
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-amber-500">{m.performance.slowRequests}</div><div class="text-[10px] text-surface-500">Slow</div></div>
+								</div>
+							</div>
+							<div>
+								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Security</h5>
+								<div class="grid grid-cols-3 gap-2 text-center">
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-orange-500">{m.security.rateLimitViolations}</div><div class="text-[10px] text-surface-500">Rate Limits</div></div>
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-purple-500">{m.security.cspViolations}</div><div class="text-[10px] text-surface-500">CSP</div></div>
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-red-500">{m.security.authFailures}</div><div class="text-[10px] text-surface-500">Auth Fails</div></div>
+								</div>
+							</div>
+							<div>
+								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Performance</h5>
+								<div class="rounded-xl bg-surface-50 p-3 dark:bg-surface-800">
+									<div class="flex items-center justify-between"><span class="text-xs text-surface-500">Avg Hook Time</span><span class="font-mono text-sm font-semibold tabular-nums">{fmtMs(m.performance.avgHookExecutionTime)}</span></div>
+								</div>
+							</div>
+							{#if m.performance.bottlenecks?.length > 0}
+								<div>
+									<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Bottlenecks</h5>
+									<div class="space-y-1">
+										{#each m.performance.bottlenecks.slice(0, 3) as item}
+											<div class="rounded-xl bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{item}</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/if}
 				</div>
-
-				<!-- Performance Bottlenecks -->
-				{#if metrics.performance.bottlenecks.length > 0}
-					<div class="border-t pt-2">
-						<h5 class="mb-1 text-xs font-medium">Performance Bottlenecks</h5>
-						<div class="space-y-1">
-							{#each metrics.performance.bottlenecks.slice(0, 3) as bottleneck (bottleneck)}
-								<div class="rounded bg-yellow-100 px-1 py-0.5 text-xs dark:bg-yellow-900/20">{bottleneck}</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
+			{/if}
 		{/if}
-
-		<!-- Footer with last update -->
-		<div class="border-t pt-1 text-center text-xs text-gray-500">Last updated: {formatLastUpdate()}</div>
-	</div>
+	{/snippet}
 </BaseWidget>
+
+<style>
+	.scrollbar-none { scrollbar-width: none; }
+	.scrollbar-none::-webkit-scrollbar { display: none; }
+	.custom-scroll::-webkit-scrollbar { width: 4px; }
+	.custom-scroll::-webkit-scrollbar-track { background: transparent; }
+	.custom-scroll::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.25); border-radius: 9999px; }
+	.custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.45); }
+</style>

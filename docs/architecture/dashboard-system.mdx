@@ -137,11 +137,11 @@ export const widgetMeta = {
 
 ### 1. System Monitoring Widgets
 
-Real-time system performance and health monitoring:
+Real-time system performance and health monitoring with adaptive h:1 compact / h:2+ rich layouts:
 
 #### **cpu-widget.svelte**
 
-- **Purpose**: Live CPU usage monitoring with historical trends
+- **Purpose**: Live CPU usage monitoring with SVG sparklines and h:1 compact mode
 - **Features**: Multi-core visualization, load average, temperature alerts
 - **Refresh**: 2-second intervals for real-time monitoring
 - **Size**: 2x2 grid units (default)
@@ -163,9 +163,14 @@ Real-time system performance and health monitoring:
 #### **cache-monitor-widget.svelte**
 
 - **Purpose**: Application cache performance monitoring
-- **Features**: Hit/miss ratios, cache size, eviction statistics
+- **Features**: Hit/miss ratios, MB/GB size display, per-category breakdown, h:1 compact summary
 - **Refresh**: 10-second intervals
 - **Size**: 2x1 grid units
+
+#### **unified-metrics-widget.svelte** ⭐ _New_
+- **Purpose**: Comprehensive system performance and security overview
+- **Features**: 3-tier layout (h:1 compact, h:2 rich, h:3+ full), health scoring, SVG sparklines
+- **Size**: 2x3 grid units (default, pollInterval: 6s)
 
 #### **system-health-widget.svelte**
 
@@ -235,25 +240,23 @@ Content and media monitoring for editorial workflows:
 
 Operational insights and system communication:
 
-#### **logs-widget.svelte**
+#### **logs-widget.svelte** ⭐ _Enhanced_
+- **Purpose**: Filterable system log viewer
+- **Features**: Expandable cards, level filter, date range, text search, h:1 compact chips
 
-- **Purpose**: Application log monitoring and debugging
-- **Features**: Log level filtering, real-time log streaming
-- **Refresh**: 5-second intervals
-- **Size**: 3x2 grid units
 
-#### **system-messages-widget.svelte**
 
-- **Purpose**: Important system announcements and notifications
-- **Features**: Administrative messages, maintenance notifications
-- **Refresh**: 60-second intervals
-- **Size**: 3x1 grid units
+#### **system-messages-widget.svelte** ⭐ _Enhanced_
+- **Purpose**: System notifications with severity indicators
+- **Features**: Severity-colored accents (critical/error/warning/info), auto-detected links, clickable expand, h:1 compact chips
 
-#### **user-online-widget.svelte**
 
-- **Purpose**: Active user sessions and concurrent usage
-- **Features**: Online user count, session duration statistics
-- **Refresh**: 30-second intervals
+
+#### **user-online-widget.svelte** ⭐ _Enhanced_
+- **Purpose**: Real-time online user presence
+- **Features**: Role badges (admin/editor/viewer), green presence dots, Gravatar support, h:1 compact avatar chips
+
+
 - **Size**: 2x1 grid units
 
 #### **performance-widget.svelte**

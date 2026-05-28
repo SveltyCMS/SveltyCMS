@@ -213,7 +213,11 @@ When generating/modifying code:
    - In classes: `class Todo { done = $state(false); constructor(text) { this.text = $state(text); } }`.
    - Use `$state.raw` for non-mutable data; `$state.snapshot` for static copies; `$state.eager` for immediate feedback.
    - Avoid legacy stores or reactive declarations; declare at top-level for components.
-3. **Leverage Modern SvelteKit Patterns**:
+3. **Tailwind CSS v4 Behaviors**:
+   - **Configuration**: We use Tailwind v4 with CSS-based config (`@import "tailwindcss"` in CSS, **NO** `tailwind.config.js`). Do not create or modify `tailwind.config.js` or `tailwind.config.ts`.
+   - **@apply directive**: Never use `@apply` except for base layer component abstractions. Always write utility classes inline.
+   - **Arbitrary Values**: Prefer v4 CSS custom property syntax for design tokens over arbitrary values (e.g. `[... ]` syntax) when appropriate.
+4. **Leverage Modern SvelteKit Patterns**:
    - **SSR-First**: Prioritize Server-Side Rendering for critical paths (e.g., Setup, Collection Loading) to ensure fast FCP.
    - **Server Functions (Remote Functions)**: Prefer SvelteKit 5 Server Functions in `+page.server.ts` over standalone API routes for type safety and reduced network complexity.
    - **Middleware Security**: Respect the sequential middleware pipeline in `hooks.server.ts`. All requests are gated by `handleSystemState` for self-healing and security.

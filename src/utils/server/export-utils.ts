@@ -8,7 +8,7 @@ import { dbAdapter } from "@src/databases/db";
 import { getAllSettings } from "@src/services/core/settings-service";
 import { encryptData, decryptData } from "@utils/security";
 import { logger } from "@utils/logger";
-import { nanoid } from "nanoid";
+import { generateUUID } from "@utils/native-utils";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
 // Sensitive field patterns
@@ -153,6 +153,6 @@ export function createExportMetadata(userId: string): ExportMetadata {
     cms_version: process.env.npm_package_version || "unknown",
     environment: process.env.NODE_ENV || "development",
     exported_by: userId,
-    export_id: nanoid(),
+    export_id: generateUUID(),
   };
 }

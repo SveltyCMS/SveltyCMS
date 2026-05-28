@@ -9,7 +9,13 @@ import mysql from "mysql2/promise";
 import type { DatabaseCapabilities, DatabaseResult } from "../db-interface";
 import { BaseSqlAdapter } from "../core/base-sql-adapter";
 import * as schema from "./schema";
-import { mysqlTable, varchar, json, datetime, boolean } from "drizzle-orm/mysql-core";
+import {
+  mysqlTable,
+  varchar,
+  json,
+  datetime,
+  boolean,
+} from "drizzle-orm/mysql-core";
 import { sql } from "drizzle-orm";
 
 export abstract class AdapterCore extends BaseSqlAdapter {
@@ -60,7 +66,12 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       let poolConfig: any;
 
       if (typeof finalConnection === "string") {
-        poolConfig = { uri: finalConnection, connectionLimit: 100, connectTimeout: 30000 };
+        poolConfig = {
+          uri: finalConnection,
+          connectionLimit: 100,
+          connectTimeout: 30000,
+          
+        };
       } else {
         const c = (finalConnection || {}) as any;
         poolConfig = {
@@ -77,13 +88,16 @@ export abstract class AdapterCore extends BaseSqlAdapter {
           queueLimit: 0,
           enableKeepAlive: true,
           keepAliveInitialDelay: 0,
+          
         };
       }
 
       this.pool = mysql.createPool(poolConfig);
       this.activeDatabaseName =
         poolConfig.database ||
-        (poolConfig.uri ? new URL(poolConfig.uri).pathname.slice(1) : "unknown");
+        (poolConfig.uri
+          ? new URL(poolConfig.uri).pathname.slice(1)
+          : "unknown");
 
       // Verification with Auto-Creation Support
       try {
@@ -97,7 +111,9 @@ export abstract class AdapterCore extends BaseSqlAdapter {
         if (isMissingDb) {
           const dbName = this.activeDatabaseName;
           if (dbName && dbName !== "unknown") {
-            logger.info(`[mariadb] Database "${dbName}" not found. Attempting auto-creation...`);
+            logger.info(
+              `[mariadb] Database "${dbName}" not found. Attempting auto-creation...`,
+            );
             // Create admin connection without database specified
             const adminConfig = { ...poolConfig };
             delete adminConfig.database;
@@ -109,7 +125,9 @@ export abstract class AdapterCore extends BaseSqlAdapter {
 
             const adminConn = await mysql.createConnection(adminConfig);
             try {
-              await adminConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+              await adminConn.query(
+                `CREATE DATABASE IF NOT EXISTS \`${dbName}\``,
+              );
               await adminConn.end();
               // Re-verify the primary pool
               await this.pool.query("SELECT 1");
@@ -126,7 +144,9 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       }
 
       this._db = drizzle(this.pool, { schema, mode: "default" });
-      await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+      await this.pool.query(
+        "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED",
+      );
 
       this.connected = true;
       logger.info("Connected to MariaDB");
@@ -286,10 +306,16 @@ export abstract class AdapterCore extends BaseSqlAdapter {
   }
 
   public transaction = async <T>(
-    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
+    fn: (
+      transaction: import("../db-interface").DatabaseTransaction,
+    ) => Promise<DatabaseResult<T>>,
     options?: {
       timeout?: number;
-      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
+      isolationLevel?:
+        | "read uncommitted"
+        | "read committed"
+        | "repeatable read"
+        | "serializable";
     },
   ): Promise<DatabaseResult<T>> => {
     if (!this._transactionModule) {

@@ -21,8 +21,16 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { flip } from 'svelte/animate';
 	import { fade, fly } from 'svelte/transition';
-	import { sanitize } from 'isomorphic-dompurify';
+	import { onMount } from 'svelte';
 	import type { ToastPosition } from '@src/stores/toast.svelte.ts';
+
+	let sanitize = $state<(str: string) => string>((str) => str);
+
+	onMount(async () => {
+		const { default: DOMPurify } = await import('dompurify');
+		const domSanitize = DOMPurify.sanitize;
+		sanitize = domSanitize;
+	});
 
 	interface Props {
 		/** Default position - 'responsive' adapts to screen size */

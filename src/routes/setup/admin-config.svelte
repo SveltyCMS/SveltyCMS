@@ -1,14 +1,12 @@
 <!--
 @file src/routes/setup/AdminConfig.svelte
 @component
-**Administrator account setup step**
+@description Administrator account setup step
 
 ### Props
 - `adminUser`
 - `validationErrors`
 - `passwordRequirements`
-- `showAdminPassword`
-- `showConfirmPassword`
 - `checkPasswordRequirements`
 
 ### Features
@@ -49,10 +47,12 @@
 		adminUser = $bindable(),
 		validationErrors,
 		passwordRequirements,
-		showAdminPassword = $bindable(),
-		showConfirmPassword = $bindable(),
 		checkPasswordRequirements // This is still called by oninput
 	} = $props(); // Now uses imported type
+
+	// Local states for password show/hide visibility toggles
+	let showAdminPassword = $state(false);
+	let showConfirmPassword = $state(false);
 
 	import { SvelteSet } from 'svelte/reactivity';
 

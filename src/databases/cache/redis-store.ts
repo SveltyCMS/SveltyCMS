@@ -153,7 +153,7 @@ export class RedisStore implements CacheStore {
   async disconnect(): Promise<void> {
     if (this.client?.isOpen) {
       try {
-        await this.client.quit();
+        await this.client.destroy();
       } catch (e) {
         logger.warn("Error during Redis disconnect:", e);
       }

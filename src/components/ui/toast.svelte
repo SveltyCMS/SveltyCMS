@@ -24,7 +24,7 @@ dismiss button, action button, shrink timer bar, and pause-on-hover.
 <script lang="ts">
 import { cn } from '@utils/cn';
 import { fade, fly } from 'svelte/transition';
-import { sanitize } from 'isomorphic-dompurify';
+import { onMount } from 'svelte';
 import type { Toast } from '@src/stores/toast.svelte.ts';
 
 interface Props {
@@ -35,6 +35,14 @@ interface Props {
 }
 
 let { toast: t, onClose, onPause, onResume }: Props = $props();
+
+let sanitize = $state<(str: string) => string>((str) => str);
+
+onMount(async () => {
+	const { default: DOMPurify } = await import('dompurify');
+	const domSanitize = DOMPurify.sanitize;
+	sanitize = domSanitize;
+});
 
 const styles = {
 	success: 'preset-filled-success-500 text-white shadow-success-500/20',

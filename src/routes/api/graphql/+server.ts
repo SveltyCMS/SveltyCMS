@@ -6,7 +6,6 @@
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
-import { useGraphQlJit } from "@envelop/graphql-jit";
 import { pubSub } from "@src/services/background/pub-sub";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
@@ -134,15 +133,18 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
         const schema = createSchema({ typeDefs, resolvers });
 
+        const plugins = [];
+        if (process.env.USE_GRAPHQL_JIT === "true" || process.env.BENCHMARK === "true") {
+          const { useGraphQlJit } = await import("@envelop/graphql-jit");
+          plugins.push(useGraphQlJit());
+        }
+
         const app = createYoga({
           schema: schema as any,
           graphqlEndpoint: "/api/graphql",
           landingPage: true,
           cors: false,
-          plugins:
-            process.env.USE_GRAPHQL_JIT === "true" || process.env.BENCHMARK === "true"
-              ? [useGraphQlJit()]
-              : [],
+          plugins,
           context: async (serverContext: any) => ({
             user: serverContext.user,
             tenantId: serverContext.tenantId,

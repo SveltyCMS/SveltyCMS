@@ -262,7 +262,7 @@ export async function checkRedis(): Promise<boolean> {
   try {
     await client.connect();
     await client.ping();
-    await client.quit();
+    await client.destroy();
     logger.info("🚀 Local Redis detected during setup probe");
     return true;
   } catch {

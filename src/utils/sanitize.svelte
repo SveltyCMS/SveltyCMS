@@ -142,9 +142,9 @@ const PROFILES: Record<SanitizeProfile, any> = {
 
 onMount(async () => {
 	// Dynamically import DOMPurify (client-side only)
-	const module = await import("isomorphic-dompurify");
-	sanitize = module.sanitize;
-	addHook = module.addHook;
+	const { default: DOMPurify } = await import('dompurify');
+	sanitize = DOMPurify.sanitize;
+	addHook = DOMPurify.addHook;
 
 	// Sanitize HTML
 	sanitizeHtml();

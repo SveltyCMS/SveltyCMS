@@ -1,6 +1,14 @@
 /**
  * @file src/routes/api/[...path]/handlers/collections.ts
- * @description Collections management handlers for the dispatcher.
+ * @description Enterprise collections CRUD, search, bulk operations, revision history, streaming, and atomic increments.
+ *
+ * Responsibilities:
+ * - Full CRUD (list, find, create, update, delete) with filter/sort/pagination
+ * - Bulk operations (create, update, delete) for batch workflows
+ * - Atomic increment for counter fields (views, likes, etc.)
+ * - Cross-collection search with pagination
+ * - Revision history retrieval
+ * - Streaming JSON responses for large datasets (>500 items)
  */
 
 import { AppError } from "@utils/error-handling";
@@ -9,6 +17,8 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 import { streamingJsonResponse } from "./streaming";
+
+// ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleCollectionsRoutes(
   event: RequestEvent,
@@ -22,164 +32,180 @@ export async function handleCollectionsRoutes(
   const entryId = segments[2];
   const subAction = segments[3];
 
-  // --- Collection Search ---
-  if (collectionId === "search" && request.method === "GET") {
-    return handleCollectionSearch(event, cms, tenantId, user, url, locals);
-  }
-
-  // --- Revisions ---
-  // Matches: /api/collections/:id/revisions OR /api/collections/:id/:entryId/revisions
-  if (
-    request.method === "GET" &&
-    collectionId &&
-    (entryId === "revisions" || subAction === "revisions")
-  ) {
-    const targetEntryId = subAction === "revisions" ? entryId : null;
-    return successResponse(
-      event,
-      await cms.collections.getRevisions(collectionId, targetEntryId as string, { tenantId }),
-    );
-  }
-
-  // --- Standard CRUD ---
-  if (request.method === "GET") {
-    if (!collectionId || collectionId === "list")
-      return handleCollectionList(event, cms, tenantId, url);
-    if (entryId) return handleCollectionEntry(event, cms, tenantId, collectionId, entryId);
-
-    const limit = Number(url.searchParams.get("limit")) || 50;
-    const offset = Number(url.searchParams.get("offset")) || 0;
-    const sortField =
-      url.searchParams.get("sortField") || url.searchParams.get("sort") || undefined;
-    const sortDirection =
-      url.searchParams.get("sortDirection") ||
-      (url.searchParams.get("order") as "asc" | "desc") ||
-      "desc";
-    const publicationFilter =
-      (url.searchParams.get("publicationFilter") as "published" | "draft" | "all" | null) ||
-      undefined;
-
-    // Parse filters: support both filter[field]=value and filter={"field":"value"}
-    const filter: Record<string, any> = {};
-    for (const [key, value] of url.searchParams.entries()) {
-      if (key.startsWith("filter[")) {
-        const field = key.slice(7, -1);
-        filter[field] = value;
-      }
-    }
-    const filterJson = url.searchParams.get("filter");
-    if (filterJson) {
-      try {
-        Object.assign(filter, JSON.parse(filterJson));
-      } catch {
-        // If not valid JSON, ignore
-      }
+  try {
+    // ── Cross-collection search ──
+    if (collectionId === "search" && request.method === "GET") {
+      return handleCollectionSearch(event, cms, tenantId, user, url, locals);
     }
 
-    // 🚀 Performance: Use Streaming for large datasets (>500 items) or if explicitly requested
-    const isLargeRequest = limit > 500;
-    if (url.searchParams.get("stream") === "true" || isLargeRequest) {
-      const iterator = await cms.collections.findStreaming(collectionId, {
-        tenantId,
-        user,
-        limit,
-        offset,
-        sortField,
-        sortDirection: sortDirection as "desc" | "asc" | undefined,
-        filter,
-        publicationFilter,
-      });
-
-      // Get total count for metadata if requested
-      let totalCount: number | undefined;
-      if (url.searchParams.get("includeCount") === "true") {
-        const countRes = await cms.collections.count(collectionId, {
+    // ── Revision history ──
+    // GET /api/collections/:id/revisions  or  GET /api/collections/:id/:entryId/revisions
+    if (
+      request.method === "GET" &&
+      collectionId &&
+      (entryId === "revisions" || subAction === "revisions")
+    ) {
+      const targetId = subAction === "revisions" ? entryId : null;
+      return successResponse(
+        event,
+        await cms.collections.getRevisions(collectionId, targetId as string, {
           tenantId,
-        });
-        if (countRes.success) totalCount = countRes.data;
-      }
-
-      return streamingJsonResponse(iterator, totalCount);
+        }),
+      );
     }
 
-    return successResponse(
-      event,
-      await cms.collections.find(collectionId, {
-        tenantId,
-        limit,
-        offset,
-        sortField,
-        sortDirection: sortDirection as "desc" | "asc" | undefined,
-        filter,
-        publicationFilter,
-      }),
+    // ── CRUD routing ──
+    switch (request.method) {
+      case "GET":
+        return handleGetRoutes(
+          event,
+          cms,
+          tenantId,
+          user,
+          collectionId,
+          entryId,
+          url,
+        );
+
+      case "POST":
+        return handlePostRoutes(
+          event,
+          cms,
+          tenantId,
+          user,
+          collectionId,
+          entryId,
+          subAction,
+        );
+
+      case "PATCH":
+        return handlePatchRoutes(
+          event,
+          cms,
+          tenantId,
+          user,
+          collectionId,
+          entryId,
+        );
+
+      case "DELETE":
+        return handleDeleteRoutes(
+          event,
+          cms,
+          tenantId,
+          user,
+          collectionId,
+          entryId,
+          url,
+        );
+    }
+
+    throw new AppError(
+      `Collections endpoint /api/collections/${segments.join("/")} not implemented`,
+      404,
     );
+  } catch (err: any) {
+    console.error(`[CollectionsRoute Error] ${segments.join("/")}:`, err);
+    if (err instanceof AppError) throw err;
+    throw new AppError(err.message || "Collection operation failed", 500);
   }
-
-  if (request.method === "POST" && entryId === "bulk")
-    return handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
-  if (request.method === "PATCH" && entryId === "bulk")
-    return handleCollectionBulkUpdate(event, cms, tenantId, user, collectionId);
-  if (request.method === "DELETE" && entryId === "bulk")
-    return handleCollectionBulkDelete(event, cms, tenantId, user, collectionId);
-
-  if (request.method === "POST" && subAction === "increment")
-    return handleCollectionIncrement(event, cms, tenantId, user, collectionId, entryId);
-  if (request.method === "POST")
-    return handleCollectionCreate(event, cms, tenantId, user, collectionId);
-  if (request.method === "PATCH" && entryId)
-    return handleCollectionUpdate(event, cms, tenantId, user, collectionId, entryId);
-  if (request.method === "DELETE" && entryId)
-    return handleCollectionDelete(event, cms, tenantId, user, url, collectionId, entryId);
-
-  throw new AppError(
-    `Collections endpoint /api/collections/${segments.join("/")} not implemented`,
-    404,
-  );
 }
 
-export async function handleCollectionSearch(
+// ─── HTTP Method Routers ─────────────────────────────────────────────────────
+
+async function handleGetRoutes(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
   user: any,
+  collectionId: string | undefined,
+  entryId: string | undefined,
   url: URL,
-  locals: any,
 ) {
-  const query = url.searchParams.get("q") || "";
-  const collectionsParam = url.searchParams.get("collections");
-  const collections = collectionsParam
-    ? collectionsParam.split(",").map((c: string) => c.trim())
-    : undefined;
-  const page = Number(url.searchParams.get("page") ?? 1);
-  const limit = Number(url.searchParams.get("limit") ?? 25);
-  const sortField = url.searchParams.get("sortField") || "updatedAt";
-  const sortDirection = (url.searchParams.get("sortDirection") as "asc" | "desc") || "desc";
-  const status = url.searchParams.get("status") || undefined;
-  const filterParam = url.searchParams.get("filter");
-  let filter = {};
-  if (filterParam) {
-    try {
-      filter = JSON.parse(filterParam);
-    } catch {
-      /* ignore */
-    }
+  // List all collections
+  if (!collectionId || collectionId === "list") {
+    return handleCollectionList(event, cms, tenantId, url);
   }
 
-  const result = await cms.collections.search(query, {
-    collections,
-    tenantId,
-    user,
-    page,
-    limit,
-    sortField,
-    sortDirection,
-    filter,
-    status,
-    isAdmin: (locals as any).isAdmin,
-  });
-  return successResponse(event, result);
+  // Get single entry
+  if (entryId) {
+    return handleCollectionEntry(event, cms, tenantId, collectionId, entryId);
+  }
+
+  // Find entries with filter/sort/pagination/streaming
+  return handleCollectionFind(event, cms, tenantId, user, collectionId, url);
 }
+
+async function handlePostRoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string | undefined,
+  subAction: string | undefined,
+) {
+  if (entryId === "bulk")
+    return handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
+  if (subAction === "increment")
+    return handleCollectionIncrement(
+      event,
+      cms,
+      tenantId,
+      user,
+      collectionId,
+      entryId!,
+    );
+  return handleCollectionCreate(event, cms, tenantId, user, collectionId);
+}
+
+async function handlePatchRoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string | undefined,
+) {
+  if (entryId === "bulk")
+    return handleCollectionBulkUpdate(event, cms, tenantId, user, collectionId);
+  if (entryId)
+    return handleCollectionUpdate(
+      event,
+      cms,
+      tenantId,
+      user,
+      collectionId,
+      entryId,
+    );
+  throw new AppError("Entry ID required for update", 400);
+}
+
+async function handleDeleteRoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string | undefined,
+  url: URL,
+) {
+  if (entryId === "bulk")
+    return handleCollectionBulkDelete(event, cms, tenantId, user, collectionId);
+  if (entryId)
+    return handleCollectionDelete(
+      event,
+      cms,
+      tenantId,
+      user,
+      url,
+      collectionId,
+      entryId,
+    );
+  throw new AppError("Entry ID required for delete", 400);
+}
+
+// ─── Read Handlers ───────────────────────────────────────────────────────────
 
 export async function handleCollectionList(
   event: RequestEvent,
@@ -199,6 +225,81 @@ export async function handleCollectionList(
     : successResponse(event, result);
 }
 
+export async function handleCollectionFind(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  url: URL,
+) {
+  const limit = Number(url.searchParams.get("limit")) || 50;
+  const offset = Number(url.searchParams.get("offset")) || 0;
+  const sortField =
+    url.searchParams.get("sortField") ||
+    url.searchParams.get("sort") ||
+    undefined;
+  const sortDirection = (url.searchParams.get("sortDirection") ||
+    url.searchParams.get("order") ||
+    "desc") as "asc" | "desc";
+  const publicationFilter = url.searchParams.get("publicationFilter") as
+    | "published"
+    | "draft"
+    | "all"
+    | undefined;
+
+  // Parse filters from both query string formats
+  const filter: Record<string, any> = {};
+  for (const [key, value] of url.searchParams.entries()) {
+    if (key.startsWith("filter[")) {
+      filter[key.slice(7, -1)] = value;
+    }
+  }
+  const filterJson = url.searchParams.get("filter");
+  if (filterJson) {
+    try {
+      Object.assign(filter, JSON.parse(filterJson));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Streaming for large datasets or explicit stream requests
+  const isLargeRequest = limit > 500;
+  if (url.searchParams.get("stream") === "true" || isLargeRequest) {
+    const iterator = await cms.collections.findStreaming(collectionId, {
+      tenantId,
+      user,
+      limit,
+      offset,
+      sortField,
+      sortDirection,
+      filter,
+      publicationFilter,
+    });
+
+    let totalCount: number | undefined;
+    if (url.searchParams.get("includeCount") === "true") {
+      const countRes = await cms.collections.count(collectionId, { tenantId });
+      if (countRes.success) totalCount = countRes.data;
+    }
+    return streamingJsonResponse(iterator, totalCount);
+  }
+
+  return successResponse(
+    event,
+    await cms.collections.find(collectionId, {
+      tenantId,
+      limit,
+      offset,
+      sortField,
+      sortDirection,
+      filter,
+      publicationFilter,
+    }),
+  );
+}
+
 export async function handleCollectionEntry(
   event: RequestEvent,
   cms: LocalCMS,
@@ -212,6 +313,8 @@ export async function handleCollectionEntry(
   );
 }
 
+// ─── Write Handlers ──────────────────────────────────────────────────────────
+
 export async function handleCollectionCreate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -219,10 +322,14 @@ export async function handleCollectionCreate(
   user: any,
   collectionId: string,
 ) {
-  const result = await cms.collections.create(collectionId, await event.request.json(), {
-    user: user!,
-    tenantId,
-  });
+  const result = await cms.collections.create(
+    collectionId,
+    await event.request.json(),
+    {
+      user: user!,
+      tenantId,
+    },
+  );
   return successResponse(event, result, 201);
 }
 
@@ -234,11 +341,18 @@ export async function handleCollectionUpdate(
   collectionId: string,
   entryId: string,
 ) {
-  const result = await cms.collections.update(collectionId, entryId, await event.request.json(), {
-    user: user!,
-    tenantId,
-  });
-  return successResponse(event, result);
+  return successResponse(
+    event,
+    await cms.collections.update(
+      collectionId,
+      entryId,
+      await event.request.json(),
+      {
+        user: user!,
+        tenantId,
+      },
+    ),
+  );
 }
 
 export async function handleCollectionDelete(
@@ -251,13 +365,17 @@ export async function handleCollectionDelete(
   entryId: string,
 ) {
   const permanent = url.searchParams.get("permanent") === "true";
-  const result = await cms.collections.delete(collectionId, entryId, {
-    user: user!,
-    tenantId,
-    permanent,
-  });
-  return successResponse(event, result);
+  return successResponse(
+    event,
+    await cms.collections.delete(collectionId, entryId, {
+      user: user!,
+      tenantId,
+      permanent,
+    }),
+  );
 }
+
+// ─── Bulk Operation Handlers ─────────────────────────────────────────────────
 
 export async function handleCollectionBulkCreate(
   event: RequestEvent,
@@ -266,11 +384,14 @@ export async function handleCollectionBulkCreate(
   user: any,
   collectionId: string,
 ) {
-  const result = await cms.collections.bulkCreate(collectionId, await event.request.json(), {
-    user: user!,
-    tenantId,
-  });
-  return successResponse(event, result, 201);
+  return successResponse(
+    event,
+    await cms.collections.bulkCreate(collectionId, await event.request.json(), {
+      user: user!,
+      tenantId,
+    }),
+    201,
+  );
 }
 
 export async function handleCollectionBulkUpdate(
@@ -280,11 +401,13 @@ export async function handleCollectionBulkUpdate(
   user: any,
   collectionId: string,
 ) {
-  const result = await cms.collections.bulkUpdate(collectionId, await event.request.json(), {
-    user: user!,
-    tenantId,
-  });
-  return successResponse(event, result);
+  return successResponse(
+    event,
+    await cms.collections.bulkUpdate(collectionId, await event.request.json(), {
+      user: user!,
+      tenantId,
+    }),
+  );
 }
 
 export async function handleCollectionBulkDelete(
@@ -294,13 +417,24 @@ export async function handleCollectionBulkDelete(
   user: any,
   collectionId: string,
 ) {
-  const result = await cms.collections.bulkDelete(collectionId, await event.request.json(), {
-    user: user!,
-    tenantId,
-  });
-  return successResponse(event, result);
+  return successResponse(
+    event,
+    await cms.collections.bulkDelete(collectionId, await event.request.json(), {
+      user: user!,
+      tenantId,
+    }),
+  );
 }
 
+// ─── Atomic Increment Handler ────────────────────────────────────────────────
+
+/**
+ * Atomically increments a numeric field on a collection entry.
+ * Uses native adapter support ($inc for MongoDB, json_set UPDATE for SQL)
+ * to prevent lost-update races under concurrent writes.
+ *
+ * Expects body: { field: string, amount: number }
+ */
 export async function handleCollectionIncrement(
   event: RequestEvent,
   cms: LocalCMS,
@@ -311,30 +445,34 @@ export async function handleCollectionIncrement(
 ) {
   const body = await event.request.json();
   const { field, amount } = body;
+
   if (!field || typeof amount !== "number") {
     throw new AppError(
-      "Invalid increment payload. Expected { field: string, amount: number }",
+      "Invalid payload. Expected { field: string, amount: number }",
       400,
     );
   }
 
-  // 🚀 ATOMIC INCREMENT: Resolve collection name from schema, then call the
-  // adapter's native atomic increment. This uses $inc (MongoDB) or a single
-  // json_set UPDATE (SQL) — no read-modify-write, no lost updates under concurrency.
-  const schema = await (cms.collections as any).getSchema(collectionId, tenantId);
+  // Resolve physical collection name from schema
+  const schema = await (cms.collections as any).getSchema(
+    collectionId,
+    tenantId,
+  );
   const collectionName = `collection_${(schema._id as string).replace(/-/g, "")}`;
 
   let result: any;
 
   if (typeof (cms.db.crud as any).atomicIncrement === "function") {
-    // Fast path: native atomic increment via the adapter
-    result = await (cms.db.crud as any).atomicIncrement(collectionName, entryId, field, amount, {
-      tenantId,
-      bypassSafeQuery: true,
-    });
+    // Fast path: native atomic increment via adapter
+    result = await (cms.db.crud as any).atomicIncrement(
+      collectionName,
+      entryId,
+      field,
+      amount,
+      { tenantId, bypassSafeQuery: true },
+    );
   } else {
-    // Fallback for adapters that haven't implemented atomicIncrement yet:
-    // use a serialized findById + update with cache bypass.
+    // Fallback: serialized findById + update with cache bypass
     const currentRes = await cms.collections.findById(collectionId, entryId, {
       tenantId,
       bypassCache: true,
@@ -343,20 +481,19 @@ export async function handleCollectionIncrement(
       throw new AppError(`Entry not found: ${entryId}`, 404);
     }
     const currentVal =
-      typeof (currentRes as any).data[field] === "number" ? (currentRes as any).data[field] : 0;
+      typeof (currentRes as any).data[field] === "number"
+        ? (currentRes as any).data[field]
+        : 0;
     result = await cms.collections.update(
       collectionId,
       entryId,
       { [field]: currentVal + amount },
-      {
-        user: _user || { _id: "system", role: "admin" },
-        tenantId,
-      },
+      { user: _user || { _id: "system", role: "admin" }, tenantId },
     );
   }
 
   if (!result.success) {
-    console.error(`[Increment] failed`, result);
+    console.error("[Increment] failed:", result);
     throw new AppError(result.message || "Failed to increment field", 500);
   }
 
@@ -364,8 +501,70 @@ export async function handleCollectionIncrement(
   try {
     await cms.db.monitoring.cache.invalidateCollection(collectionId, tenantId);
   } catch {
-    // ignore
+    /* ignore */
   }
 
   return successResponse(event, result);
+}
+
+// ─── Cross-Collection Search Handler ─────────────────────────────────────────
+
+/**
+ * Searches across one or more collections with full-text query, pagination,
+ * status filtering, and sort support.
+ *
+ * Query params:
+ * - q: search query string
+ * - collections: comma-separated collection IDs (optional, searches all if omitted)
+ * - page, limit: pagination (default 1, 25)
+ * - sortField, sortDirection: ordering (default updatedAt desc)
+ * - status: filter by entry status
+ * - filter: JSON string of additional field filters
+ */
+export async function handleCollectionSearch(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  url: URL,
+  locals: any,
+) {
+  const query = url.searchParams.get("q") || "";
+  const collectionsParam = url.searchParams.get("collections");
+  const collections = collectionsParam
+    ? collectionsParam.split(",").map((c: string) => c.trim())
+    : undefined;
+
+  const page = Number(url.searchParams.get("page") ?? 1);
+  const limit = Number(url.searchParams.get("limit") ?? 25);
+  const sortField = url.searchParams.get("sortField") || "updatedAt";
+  const sortDirection =
+    (url.searchParams.get("sortDirection") as "asc" | "desc") || "desc";
+  const status = url.searchParams.get("status") || undefined;
+
+  let filter = {};
+  const filterParam = url.searchParams.get("filter");
+  if (filterParam) {
+    try {
+      filter = JSON.parse(filterParam);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return successResponse(
+    event,
+    await cms.collections.search(query, {
+      collections,
+      tenantId,
+      user,
+      page,
+      limit,
+      sortField,
+      sortDirection,
+      filter,
+      status,
+      isAdmin: (locals as any).isAdmin,
+    }),
+  );
 }

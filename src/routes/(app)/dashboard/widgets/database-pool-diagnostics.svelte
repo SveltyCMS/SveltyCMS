@@ -1,3 +1,11 @@
+<!--
+@file src\routes\(app)\dashboard\widgets\database-pool-diagnostics.svelte
+@component
+**Database Pool Diagnostics Widget**
+* Displays real-time connection pool statistics and health recommendations.
+	 * Shows metrics from DatabaseResilience system.
+-->
+
 <script lang="ts" module>
 export const widgetMeta = {
 	name: "Database Pool",
@@ -10,12 +18,7 @@ export const widgetMeta = {
 
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
-	/**
-	 * @file Database Pool Diagnostics Widget
-	 *
-	 * Displays real-time connection pool statistics and health recommendations.
-	 * Shows metrics from DatabaseResilience system.
-	 */
+
 	import BaseWidget from '../base-widget.svelte';
 
 	const {

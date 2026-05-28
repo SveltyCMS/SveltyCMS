@@ -1,30 +1,7 @@
 <!--
-@file src/routes/(app)/dashboard/widgets/SecurityWidget.svelte
+@file src/routes/(app)/dashboard/widgets/security-widget.svelte
 @component
-**Advanced Security Monitoring Widget**
-
-Real-time security monitoring with threat detection, incident tracking,
-and automated response visualization for enterprise security operations.
-
-### Features:
-- Live threat level monitoring with color-coded indicators
-- Active security incidents list with threat classification
-- Blocked/throttled IP tracking with manual override controls
-- Security event timeline with pattern analysis
-- Automated response status with policy enforcement
-- CSP violation monitoring with XSS attempt detection
-- Integration withsecurity-response-servicefor real-time data
-
-### Props:
-- `label`: Widget title (default: 'Security Monitor')
-- `size`: Widget dimensions in grid units
-- `autoRefresh`: Enable automatic data refresh (default: true)
-- `refreshInterval`: Refresh interval in milliseconds (default: 5000)
-
-@example
-<SecurityWidget label="Security Center" size={{ w: 3, h: 2 }} />
-
-@enterprise Advanced security monitoring for production environments
+**Advanced Security Monitor Widget - Real-time threat visibility using native SVG sparkline**
 -->
 
 <script lang="ts" module>
@@ -32,15 +9,12 @@ export const widgetMeta = {
 	name: "Security Monitor",
 	icon: "mdi:shield-alert",
 	description: "Advanced security threat monitoring and incident response",
-	defaultSize: { w: 3, h: 3 },
+	defaultSize: { w: 2, h: 3 },
 };
 </script>
 
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
-	import { logger } from '@utils/logger';
-	import { toast } from '@src/stores/toast.svelte.ts';
-	import { onDestroy, onMount } from 'svelte';
 	import BaseWidget from '../base-widget.svelte';
 
 	const {
@@ -48,9 +22,7 @@ export const widgetMeta = {
 		theme = 'light',
 		icon = 'mdi:shield-alert',
 		widgetId = undefined,
-		size = { w: 3, h: 3 } as WidgetSize,
-		autoRefresh = true,
-		refreshInterval = 5000,
+		size = { w: 2, h: 3 } as WidgetSize,
 		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {}
 	}: {
@@ -59,341 +31,252 @@ export const widgetMeta = {
 		icon?: string;
 		widgetId?: string;
 		size?: WidgetSize;
-		autoRefresh?: boolean;
-		refreshInterval?: number;
 		onSizeChange?: (newSize: WidgetSize) => void;
 		onRemove?: () => void;
 	} = $props();
 
-	// Security data interfaces
 	interface SecurityStats {
 		activeIncidents: number;
 		blockedIPs: number;
+		throttledIPs: number;
 		cspViolations: number;
 		rateLimitHits: number;
-		recentEvents: SecurityEvent[];
-		threatLevelDistribution: {
-			none: number;
-			low: number;
-			medium: number;
-			high: number;
-			critical: number;
-		};
-		throttledIPs: number;
 		totalIncidents: number;
+		threatLevelDistribution: {
+			critical: number;
+			high: number;
+			medium: number;
+			low: number;
+		};
 	}
 
-	interface SecurityEvent {
-		details?: Record<string, any>;
-		id: string;
-		ip?: string;
-		message: string;
-		severity: 'low' | 'medium' | 'high' | 'critical';
-		timestamp: number;
-		type: 'rate_limit' | 'auth_failure' | 'csp_violation' | 'threat_detected' | 'ip_blocked';
-	}
+	// Local state loaded from endpoint
+	let fetchedData: any = $state(null);
+	let threatHistory = $state<number[]>([]);
+	const HISTORY_MAX_POINTS = 15;
 
-	interface SecurityIncident {
-		clientIp: string;
-		id: string;
-		indicatorCount: number;
-		resolved: boolean;
-		responseActions: string[];
-		threatLevel: 'none' | 'low' | 'medium' | 'high' | 'critical';
-		timestamp: number;
-	}
+	// Derived values for reactivity
+	const stats = $derived(fetchedData?.stats as SecurityStats | null);
 
-	// Reactive state
-	let securityStats = $state({
-		activeIncidents: 0,
-		blockedIPs: 0,
-		throttledIPs: 0,
-		totalIncidents: 0,
-		threatLevelDistribution: { none: 0, low: 0, medium: 0, high: 0, critical: 0 },
-		recentEvents: [],
-		cspViolations: 0,
-		rateLimitHits: 0
+	const overallThreatLevel = $derived.by(() => {
+		if (!stats) return 'safe';
+		if (stats.threatLevelDistribution.critical > 0 || stats.activeIncidents > 8) return 'critical';
+		if (stats.threatLevelDistribution.high > 0 || stats.activeIncidents > 4) return 'high';
+		if (stats.threatLevelDistribution.medium > 0 || stats.activeIncidents > 1) return 'medium';
+		return stats.activeIncidents > 0 ? 'low' : 'safe';
 	});
 
-	let incidents: SecurityIncident[] = $state([]);
-	let isLoading = $state(true);
-	let error: string | null = $state(null);
-	let refreshTimer: ReturnType<typeof setInterval> | null = null;
-
-	// Security status calculation - using $derived correctly
-	const overallThreatLevel = $derived(calculateOverallThreatLevel(securityStats));
-	const threatColor = $derived(getThreatColor(overallThreatLevel));
-	const statusIcon = $derived(getThreatIcon(overallThreatLevel));
-
-	function calculateOverallThreatLevel(stats: SecurityStats): 'safe' | 'low' | 'medium' | 'high' | 'critical' {
-		const { threatLevelDistribution, activeIncidents } = stats;
-
-		if (threatLevelDistribution.critical > 0 || activeIncidents > 10) {
-			return 'critical';
-		}
-		if (threatLevelDistribution.high > 0 || activeIncidents > 5) {
-			return 'high';
-		}
-		if (threatLevelDistribution.medium > 0 || activeIncidents > 2) {
-			return 'medium';
-		}
-		if (threatLevelDistribution.low > 0 || activeIncidents > 0) {
-			return 'low';
-		}
-		return 'safe';
-	}
-
-	function getThreatColor(level: string): string {
-		switch (level) {
-			case 'safe':
-				return 'text-green-500';
-			case 'low':
-				return 'text-yellow-500';
-			case 'medium':
-				return 'text-orange-500';
-			case 'high':
-				return 'text-red-500';
-			case 'critical':
-				return 'text-red-700 animate-pulse';
-			default:
-				return 'text-gray-500';
-		}
-	}
-
-	function getThreatIcon(level: string): string {
-		switch (level) {
-			case 'safe':
-				return 'mdi:shield-check';
-			case 'low':
-				return 'mdi:shield-alert-outline';
-			case 'medium':
-				return 'mdi:shield-alert';
-			case 'high':
-				return 'mdi:shield-remove';
-			case 'critical':
-				return 'mdi:shield-off';
-			default:
-				return 'mdi:shield-outline';
-		}
-	}
-
-	// Data fetching
-	async function fetchSecurityData(): Promise<void> {
-		try {
-			isLoading = true;
-			error = null;
-
-			// Fetch security statistics
-			const statsResponse = await fetch('/api/security/stats');
-			if (!statsResponse.ok) {
-				throw new Error(`Security stats fetch failed: ${statsResponse.status}`);
-			}
-			const stats = await statsResponse.json();
-
-			// Fetch active incidents
-			const incidentsResponse = await fetch('/api/security/incidents');
-			if (!incidentsResponse.ok) {
-				throw new Error(`Incidents fetch failed: ${incidentsResponse.status}`);
-			}
-			const incidentsData = await incidentsResponse.json();
-
-			securityStats = stats;
-			incidents = incidentsData.incidents || [];
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to fetch security data';
-			logger.error('Security data fetch error:', err);
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	// Incident management
-	async function resolveIncident(incidentId: string): Promise<void> {
-		try {
-			const response = await fetch(`/api/security/incidents/${incidentId}/resolve`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' }
-			});
-
-			if (response.ok) {
-				toast.success('Incident resolved successfully');
-				await fetchSecurityData(); // Refresh data
-			} else {
-				throw new Error('Failed to resolve incident');
-			}
-		} catch (err) {
-			toast.error(`Failed to resolve incident: ${err instanceof Error ? err.message : 'Unknown error'}`);
-		}
-	}
-
-	async function unblockIP(ip: string): Promise<void> {
-		try {
-			const response = await fetch('/api/security/unblock', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ip })
-			});
-
-			if (response.ok) {
-				toast.success(`IP ${ip} unblocked successfully`);
-				await fetchSecurityData(); // Refresh data
-			} else {
-				throw new Error('Failed to unblock IP');
-			}
-		} catch (err) {
-			toast.error(`Failed to unblock IP: ${err instanceof Error ? err.message : 'Unknown error'}`);
-		}
-	}
-
-	// Utility functions
-	function formatTimestamp(timestamp: number): string {
-		return new Date(timestamp).toLocaleString();
-	}
-
-	function getIncidentPriorityClass(threatLevel: string): string {
-		switch (threatLevel) {
-			case 'critical':
-				return 'border-l-4 border-red-600 bg-red-50 dark:bg-red-900/20';
-			case 'high':
-				return 'border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-900/20';
-			case 'medium':
-				return 'border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20';
-			case 'low':
-				return 'border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20';
-			default:
-				return 'border-l-4 border-gray-400 bg-gray-50 dark:bg-gray-800';
-		}
-	}
-
-	// Lifecycle
-	onMount(() => {
-		fetchSecurityData();
-
-		if (autoRefresh) {
-			refreshTimer = setInterval(fetchSecurityData, refreshInterval);
+	const threatColor = $derived.by(() => {
+		switch (overallThreatLevel) {
+			case 'critical': return 'text-red-600 dark:text-red-400';
+			case 'high': return 'text-orange-600 dark:text-orange-400';
+			case 'medium': return 'text-amber-600 dark:text-amber-400';
+			case 'low': return 'text-yellow-600 dark:text-yellow-400';
+			default: return 'text-emerald-600 dark:text-emerald-400';
 		}
 	});
 
-	onDestroy(() => {
-		if (refreshTimer) {
-			clearInterval(refreshTimer);
+	const sparklineStyle = $derived.by(() => {
+		switch (overallThreatLevel) {
+			case 'critical':
+			case 'high':
+				return { stroke: 'rgb(239, 68, 68)', stopColor: 'rgb(239, 68, 68)' };
+			case 'medium':
+				return { stroke: 'rgb(245, 158, 11)', stopColor: 'rgb(245, 158, 11)' };
+			case 'low':
+				return { stroke: 'rgb(234, 179, 8)', stopColor: 'rgb(234, 179, 8)' };
+			default:
+				return { stroke: 'rgb(16, 185, 129)', stopColor: 'rgb(16, 185, 129)' };
 		}
 	});
+
+	function handleDataLoaded(newData: any) {
+		fetchedData = newData;
+		if (newData?.stats) {
+			threatHistory.push(newData.stats.activeIncidents);
+			if (threatHistory.length > HISTORY_MAX_POINTS) {
+				threatHistory.shift();
+			}
+		}
+	}
 </script>
 
-<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove} {isLoading} {error}>
-	<div class="flex h-full flex-col space-y-4 p-2">
-		<!-- Security Status Header -->
-		<div class="flex items-center justify-between">
-			<div class="flex items-center space-x-3">
-				<iconify-icon icon={statusIcon} class="text-2xl {threatColor}"></iconify-icon>
-				<div>
-					<h3 class="text-lg font-semibold capitalize">{overallThreatLevel} Status</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400">{securityStats.activeIncidents} active incidents</p>
-				</div>
-			</div>
-			<button
-				class="preset-outlined-surface-500btn btn-sm"
-				onclick={() => fetchSecurityData()}
-				disabled={isLoading}
-				aria-label="Refresh security data"
-			>
-				<iconify-icon icon="mdi:refresh" class="text-sm"></iconify-icon>
-			</button>
-		</div>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/security"
+	pollInterval={8000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	onCloseRequest={onRemove}
+	onDataLoaded={handleDataLoaded}
+>
+	{#snippet children({ data })}
+		{@const statsData = data?.stats as SecurityStats | null}
+		{@const activeIncidents = data?.incidents || []}
 
-		<!-- Security Metrics Grid -->
-		<div class="grid grid-cols-2 gap-2 text-sm">
-			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-				<div class="font-medium text-red-600">Blocked IPs</div>
-				<div class="text-xl font-bold">{securityStats.blockedIPs}</div>
-			</div>
-			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-				<div class="font-medium text-orange-600">Throttled IPs</div>
-				<div class="text-xl font-bold">{securityStats.throttledIPs}</div>
-			</div>
-			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-				<div class="font-medium text-purple-600">CSP Violations</div>
-				<div class="text-xl font-bold">{securityStats.cspViolations}</div>
-			</div>
-			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
-				<div class="font-medium text-blue-600">Rate Limits</div>
-				<div class="text-xl font-bold">{securityStats.rateLimitHits}</div>
-			</div>
-		</div>
-
-		<!-- Active Incidents -->
-		{#if incidents.length > 0}
-			<div class="min-h-0 flex-1">
-				<h4 class="mb-2 flex items-center font-medium">
-					<iconify-icon icon="mdi:alert-circle" class="mr-2 text-orange-500"></iconify-icon>
-					Active Incidents ({incidents.length})
-				</h4>
-				<div class="max-h-32 space-y-1 overflow-y-auto">
-					{#each incidents as incident (incident.id)}
-						<div class="rounded p-2 text-xs {getIncidentPriorityClass(incident.threatLevel)}">
-							<div class="flex items-start justify-between">
-								<div class="flex-1">
-									<div class="font-medium">
-										{incident.clientIp}
-										<span class="ml-1 rounded bg-gray-200 px-1 text-xs dark:bg-gray-700"> {incident.threatLevel} </span>
-									</div>
-									<div class="text-gray-600 dark:text-gray-400">{incident.indicatorCount} indicators • {formatTimestamp(incident.timestamp)}</div>
-									{#if incident.responseActions.length > 0}
-										<div class="mt-1">
-											{#each incident.responseActions as action (action)}
-												<span class="mr-1 inline-block rounded bg-gray-300 px-1 py-0.5 text-xs dark:bg-gray-600"> {action} </span>
-											{/each}
-										</div>
-									{/if}
-								</div>
-								<div class="flex space-x-1">
-									<button class="btn-xs preset-outlined-surface-500btn" onclick={() => resolveIncident(incident.id)} title="Resolve incident">
-										<iconify-icon icon="mdi:check" class="text-xs"></iconify-icon>
-									</button>
-									{#if incident.responseActions.includes('block') || incident.responseActions.includes('blacklist')}
-										<button class="btn-xs preset-outlined-surface-500btn" onclick={() => unblockIP(incident.clientIp)} title="Unblock IP">
-											<iconify-icon icon="mdi:lock-open" class="text-xs"></iconify-icon>
-										</button>
-									{/if}
-								</div>
-							</div>
-						</div>
-					{/each}
+		{#if !statsData}
+			<div class="flex h-full items-center justify-center">
+				<div class="flex flex-col items-center gap-3 text-surface-500">
+					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+					<p class="text-sm">Loading security metrics...</p>
 				</div>
 			</div>
 		{:else}
-			<div class="flex flex-1 items-center justify-center text-gray-500">
-				<div class="text-center">
-					<iconify-icon icon="mdi:shield-check" class="mb-2 text-4xl text-green-500"></iconify-icon>
-					<p class="text-sm">No active security incidents</p>
-				</div>
-			</div>
-		{/if}
+			<div class="flex h-full flex-col justify-between" role="region" aria-label="Security Metrics Summary">
+				{#if size.h === 1}
+					<!-- Compact mode -->
+					<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-9">
+						<div class="flex items-center gap-2">
+							<div class="relative flex h-2.5 w-2.5">
+								<span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {overallThreatLevel === 'critical' || overallThreatLevel === 'high' ? 'bg-red-400' : overallThreatLevel === 'medium' ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
+								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {overallThreatLevel === 'critical' || overallThreatLevel === 'high' ? 'bg-red-500' : overallThreatLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+							</div>
+							<div>
+								<span class="font-semibold capitalize {threatColor}">{overallThreatLevel}</span>
+								<span class="text-surface-500 dark:text-surface-400 ml-1">({statsData.activeIncidents} active)</span>
+							</div>
+						</div>
 
-		<!-- Threat Level Distribution (if space allows) -->
-		{#if size.h >= 3}
-			<div class="border-t pt-2">
-				<h5 class="mb-1 text-xs font-medium">Threat Distribution</h5>
-				<div class="flex space-x-1 text-xs">
-					<div class="flex-1 text-center">
-						<div class="font-bold text-red-600">{securityStats.threatLevelDistribution.critical}</div>
-						<div class="text-gray-500">Critical</div>
+						<!-- Mini Sparkline inside compact mode -->
+						{#if threatHistory.length > 1}
+							{@const maxVal = Math.max(...threatHistory, 3)}
+							{@const points = threatHistory.map((val, i) => ({
+								x: (i / Math.max(1, threatHistory.length - 1)) * 60,
+								y: 18 - (val / maxVal) * 14 - 2
+							}))}
+							{@const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+							<div class="w-16 h-5 opacity-80" aria-hidden="true">
+								<svg viewBox="0 0 60 18" class="w-full h-full overflow-visible">
+									<path d={linePath} fill="none" stroke={sparklineStyle.stroke} stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+								</svg>
+							</div>
+						{/if}
+
+						<div class="flex items-center gap-3 font-medium text-surface-600 dark:text-surface-300">
+							<div class="flex items-center gap-1">
+								<iconify-icon icon="mdi:shield-remove" class="text-red-500"></iconify-icon>
+								<span>{statsData.blockedIPs}</span>
+							</div>
+							<div class="flex items-center gap-1">
+								<iconify-icon icon="mdi:alert-decagram" class="text-purple-500"></iconify-icon>
+								<span>{statsData.cspViolations}</span>
+							</div>
+						</div>
 					</div>
-					<div class="flex-1 text-center">
-						<div class="font-bold text-orange-600">{securityStats.threatLevelDistribution.high}</div>
-						<div class="text-gray-500">High</div>
+				{:else}
+					<!-- Full UI Mode -->
+					<div class="flex h-full flex-col gap-4">
+						<!-- Threat Header -->
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-3">
+								<div class="relative shrink-0">
+									<div class="h-6 w-6 rounded-full flex items-center justify-center {overallThreatLevel === 'critical' ? 'bg-red-500' : overallThreatLevel === 'high' ? 'bg-orange-500' : overallThreatLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}">
+										<iconify-icon icon={overallThreatLevel === 'safe' ? 'mdi:shield-check' : 'mdi:shield-alert'} class="text-white text-sm"></iconify-icon>
+									</div>
+									<div class="absolute inset-0 h-6 w-6 rounded-full {overallThreatLevel === 'critical' ? 'bg-red-500' : overallThreatLevel === 'high' ? 'bg-orange-500' : overallThreatLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'} animate-ping opacity-40"></div>
+								</div>
+								<div>
+									<div class="text-lg font-bold capitalize {threatColor} leading-tight">
+										{overallThreatLevel} Threat Level
+									</div>
+									<div class="text-xs text-surface-500 dark:text-surface-400">
+										{statsData.activeIncidents} active security incident{statsData.activeIncidents !== 1 ? 's' : ''}
+									</div>
+								</div>
+							</div>
+
+							<!-- Sparkline Trend Chart -->
+							{#if threatHistory.length > 1}
+								{@const maxVal = Math.max(...threatHistory, 5)}
+								{@const points = threatHistory.map((val, i) => ({
+									x: (i / Math.max(1, threatHistory.length - 1)) * 100,
+									y: 28 - (val / maxVal) * 22 - 2
+								}))}
+								{@const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+								{@const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} 28 L ${points[0].x.toFixed(2)} 28 Z`}
+
+								<div class="w-24 h-8" aria-hidden="true" title="Incident volume trend">
+									<svg viewBox="0 0 100 28" class="w-full h-full overflow-visible">
+										<defs>
+											<linearGradient id="secThreatGrad" x1="0" y1="0" x2="0" y2="1">
+												<stop offset="0%" stop-color={sparklineStyle.stopColor} stop-opacity="0.2"/>
+												<stop offset="100%" stop-color={sparklineStyle.stopColor} stop-opacity="0"/>
+											</linearGradient>
+										</defs>
+										<path d={areaPath} fill="url(#secThreatGrad)" />
+										<path d={linePath} fill="none" stroke={sparklineStyle.stroke} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+									</svg>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Key Metrics Grid -->
+						<div class="grid grid-cols-2 gap-2">
+							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between">
+								<div class="text-xs text-surface-500 dark:text-surface-400">Blocked IPs</div>
+								<div class="text-2xl font-bold tabular-nums mt-1 text-red-500">{statsData.blockedIPs}</div>
+							</div>
+							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between">
+								<div class="text-xs text-surface-500 dark:text-surface-400">Throttled</div>
+								<div class="text-2xl font-bold tabular-nums mt-1 text-orange-500">{statsData.throttledIPs}</div>
+							</div>
+							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between">
+								<div class="text-xs text-surface-500 dark:text-surface-400">CSP Violations</div>
+								<div class="text-2xl font-bold tabular-nums mt-1 text-purple-600 dark:text-purple-400">{statsData.cspViolations}</div>
+							</div>
+							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between">
+								<div class="text-xs text-surface-500 dark:text-surface-400">Rate Limits</div>
+								<div class="text-2xl font-bold tabular-nums mt-1 text-blue-600 dark:text-blue-400">{statsData.rateLimitHits}</div>
+							</div>
+						</div>
+
+						<!-- Active Incidents Feed (if height allows) -->
+						{#if size.h >= 3}
+							<div class="flex-1 flex flex-col min-h-0">
+								<h4 class="mb-2 text-xs font-semibold text-surface-500 dark:text-surface-400 flex items-center gap-1.5 tracking-wider">
+									<iconify-icon icon="mdi:alert-circle" class="text-orange-500" ></iconify-icon>
+									ACTIVE INCIDENTS ({activeIncidents.length})
+								</h4>
+
+								{#if activeIncidents.length > 0}
+									<div class="space-y-2 overflow-y-auto pr-1 flex-1 custom-scroll max-h-40">
+										{#each activeIncidents as incident (incident.id)}
+											<div class="rounded-xl border-l-4 p-2.5 text-xs bg-surface-50 dark:bg-surface-800/40 border-surface-200 dark:border-surface-700
+												{incident.threatLevel === 'critical' ? 'border-l-red-500' :
+												  incident.threatLevel === 'high' ? 'border-l-orange-500' :
+												  incident.threatLevel === 'medium' ? 'border-l-amber-500' : 'border-l-blue-500'}">
+												<div class="flex justify-between items-center">
+													<div class="font-mono font-medium text-surface-700 dark:text-surface-200">{incident.clientIp}</div>
+													<div class="capitalize font-semibold text-[10px] px-1.5 py-0.5 rounded-full
+														{incident.threatLevel === 'critical' ? 'bg-red-500/10 text-red-500' :
+														  incident.threatLevel === 'high' ? 'bg-orange-500/10 text-orange-500' :
+														  incident.threatLevel === 'medium' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}">
+														{incident.threatLevel}
+													</div>
+												</div>
+												<div class="text-[10px] text-surface-500 dark:text-surface-400 mt-1 flex justify-between">
+													<span>{incident.indicatorCount} indicators</span>
+													<span>{new Date(incident.timestamp).toLocaleTimeString()}</span>
+												</div>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<div class="flex flex-1 items-center justify-center rounded-2xl bg-surface-50 dark:bg-surface-800/30 border border-dashed border-surface-200 dark:border-surface-700/80 text-center py-6">
+										<div>
+											<iconify-icon icon="mdi:shield-check" class="text-4xl text-primary-500/80 animate-pulse" ></iconify-icon>
+											<p class="text-xs text-surface-500 dark:text-surface-400 mt-2 font-medium">All systems secure</p>
+										</div>
+									</div>
+								{/if}
+							</div>
+						{/if}
 					</div>
-					<div class="flex-1 text-center">
-						<div class="font-bold text-yellow-600">{securityStats.threatLevelDistribution.medium}</div>
-						<div class="text-gray-500">Medium</div>
-					</div>
-					<div class="flex-1 text-center">
-						<div class="font-bold text-blue-600">{securityStats.threatLevelDistribution.low}</div>
-						<div class="text-gray-500">Low</div>
-					</div>
-				</div>
+				{/if}
 			</div>
 		{/if}
-	</div>
+	{/snippet}
 </BaseWidget>

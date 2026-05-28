@@ -110,9 +110,37 @@ cd SveltyCMS
 
 ### Install all dependencies
 
+> [!TIP]
+> **Bun is preferred for best results.**
+> While SveltyCMS is fully compatible with Node.js (>=24), running the application under the **Bun** runtime unlocks native Zig-based cryptographic performance (like native Argon2id hashing) and optimized OS-level file watching with zero binding overhead.
+
 Install LATEST STABLE [Node.js (>=24)](https://nodejs.org/en) to get started. We recommend using [Bun](https://bun.sh) for the best experience (3-4x faster than npm/pnpm). Then choose your preferred package manager:
 
 <details open>
+<summary><b>bun</b></summary>
+
+```bash
+# Install bun if you haven't already
+curl -fsSL https://bun.sh/install | bash
+
+# Install all dependencies
+bun install
+
+# Development (CLI installer launches automatically if needed)
+bun run dev
+
+# Build for production
+bun run build
+
+# Preview production build
+bun run preview
+```
+
+**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (null bytes in package.json files), use `npm install` instead. `bun run dev` and other commands work normally after `npm install`. This is an upstream bun bug affecting Windows only.
+
+</details>
+
+<details>
 <summary><b>npm</b></summary>
 
 ```bash
@@ -150,30 +178,6 @@ pnpm run build
 # Preview production build
 pnpm run preview
 ```
-
-</details>
-
-<details>
-<summary><b>bun</b></summary>
-
-```bash
-# Install bun if you haven't already
-curl -fsSL https://bun.sh/install | bash
-
-# Install all dependencies
-bun install
-
-# Development (CLI installer launches automatically if needed)
-bun run dev
-
-# Build for production
-bun run build
-
-# Preview production build
-bun run preview
-```
-
-**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (null bytes in package.json files), use `npm install` instead. `bun run dev` and other commands work normally after `npm install`. This is an upstream bun bug affecting Windows only.
 
 </details>
 

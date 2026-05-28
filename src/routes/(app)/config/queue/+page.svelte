@@ -8,7 +8,7 @@ import { enhance } from "$app/forms";
 import { invalidateAll } from "$app/navigation";
 import { page } from "$app/stores";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeDate } from "@utils/date";
 import { fade, fly } from "svelte/transition";
 
 let { data } = $props();
@@ -35,7 +35,7 @@ function formatDate(date: string | Date | undefined) {
 	if (!date) return "N/A";
 	try {
 		const d = typeof date === "string" ? new Date(date) : date;
-		return formatDistanceToNow(d, { addSuffix: true });
+		return formatRelativeDate(d);
 	} catch (_e) {
 		return "Invalid Date";
 	}

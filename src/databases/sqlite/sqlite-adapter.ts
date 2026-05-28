@@ -1,6 +1,15 @@
 /**
  * @file src/databases/sqlite/sqlite-adapter.ts
- * @description Standard SQLite database adapter for SveltyCMS.
+ * @description
+ * Standard SQLite database adapter for SveltyCMS.
+ *
+ * Responsibilities include:
+ * - Connecting to SQLite database via native/shimmed drivers.
+ * - Clearing collections and system database tables resiliently.
+ *
+ * ### Features:
+ * - support for Bun native and better-sqlite3 drivers
+ * - system and collection table cleanups
  */
 
 import type { IDBAdapter, DatabaseResult } from "../db-interface";
@@ -73,6 +82,8 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
 
           if ((isCollection || isBenchmark || isMock) && !systemTables.has(name)) {
             this.sqlite.exec(`DROP TABLE IF EXISTS "${table.name}"`);
+          } else if (systemTables.has(name)) {
+            this.sqlite.exec(`DELETE FROM "${table.name}"`);
           }
         }
         this.sqlite.exec("PRAGMA foreign_keys = ON;");
@@ -81,7 +92,7 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
         this._provisioned = false;
         this._provisionPromise = null;
 
-        logger.info("[SQLite Adapter] Database tables dropped (resilient clear)");
+        logger.info("[SQLite Adapter] Database tables cleared/dropped (resilient clear)");
       }, "CLEAR_DATABASE_FAILED"),
     );
   }

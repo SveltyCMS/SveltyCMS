@@ -1,27 +1,26 @@
 <!--
 @file src/routes/(app)/dashboard/widgets/UserOnlineWidget.svelte
 @component
-**Dashboard widget for displaying online users with online time tracking**
-
-@example
-<UserOnlineWidget label="Online Users" />
+**Online Users widget with real-time presence, role indicators, and compact/rich layouts**
 
 ### Props
-- `label`: The label for the widget (default: 'Online Users')
+- `label` (string): Widget label (default: 'Online Users')
+- `size` (WidgetSize): Widget dimensions; `h:1` renders a compact horizontal layout
 
-Features:
-- Display currently logged-in users
-- Show online duration for each user
-- Sorted by longest online time first
-- Real-time avatar display with fallback placeholders
-- Responsive layout with hover effects
-- Theme-aware rendering (light/dark mode support)
-- Real-time data updates
+### Features:
+- Adaptive layout: compact (h:1) horizontal chip scroll vs. rich (h:2+) card list
+- Role badge indicators (admin/editor/viewer) with color coding
+- Live green presence dot on user avatars
+- Search filtering (only when >3 users in rich layout)
+- Gravatars for users with emails, initials fallback
+- Keyboard-navigable user list with ARIA compliance
+- Modern card-style rows with hover micro-animations
 -->
 <script lang="ts" module>
 export const widgetMeta = {
 	name: "Online Users",
 	icon: "mdi:account-multiple-outline",
+	description: "Currently active users with role indicators",
 	defaultSize: { w: 1, h: 2 },
 };
 </script>
@@ -31,51 +30,71 @@ export const widgetMeta = {
 	import BaseWidget from '../base-widget.svelte';
 
 	interface OnlineUser {
-		avatarUrl?: string;
 		id: string;
 		name: string;
+		email: string;
+		role: string;
+		avatarUrl?: string | null;
 		onlineMinutes: number;
 		onlineTime: string;
 	}
-
-	type FetchedData = { onlineUsers: OnlineUser[] } | undefined;
-
-	let searchTerm = $state('');
 
 	const {
 		label = 'Online Users',
 		theme = 'light' as 'light' | 'dark',
 		icon = 'mdi:account-multiple-outline',
-		widgetId = undefined,
-		size = { w: 1, h: 1 },
-		onSizeChange = (_newSize: WidgetSize) => {},
-		onRemove = () => {}
-	}: {
-		label?: string;
-		theme?: 'light' | 'dark';
-		icon?: string;
-		widgetId?: string;
-		size?: WidgetSize;
-		onSizeChange?: (newSize: WidgetSize) => void;
-		onRemove?: () => void;
+		widgetId = undefined as string | undefined,
+		size = { w: 1, h: 2 } as WidgetSize,
+		onSizeChange = ((_newSize: WidgetSize) => {}) as (newSize: WidgetSize) => void,
+		onRemove = (() => {}) as () => void
 	} = $props();
 
-	function getPlaceholderAvatar(name: string) {
-		const initials = name
+	let searchTerm = $state('');
+
+	const isCompact = $derived(size.h === 1);
+
+	function getInitials(name: string): string {
+		return name
 			.split(' ')
 			.map((n) => n[0])
 			.join('')
-			.substring(0, 2)
-			.toUpperCase();
-		return `https://placehold.co/40x40/6366f1/e0e7ff?text=${initials}`;
+			.toUpperCase()
+			.slice(0, 2);
 	}
 
-	function filterUsers(users: OnlineUser[], search: string): OnlineUser[] {
-		if (!search.trim()) {
-			return users;
+	function getAvatarUrl(user: OnlineUser): string {
+		if (user.avatarUrl) return user.avatarUrl;
+		if (user.email) {
+			const hash = btoa(user.email.trim().toLowerCase()).slice(0, 16);
+			return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=80`;
 		}
-		const searchLower = search.toLowerCase();
-		return users.filter((user) => user.name.toLowerCase().includes(searchLower));
+		return `https://placehold.co/40x40/6366f1/ffffff?text=${getInitials(user.name)}`;
+	}
+
+	function getRoleLabel(role: string): string {
+		switch (role) {
+			case 'admin': return 'Admin';
+			case 'editor': return 'Editor';
+			case 'viewer': return 'Viewer';
+			default: return role.charAt(0).toUpperCase() + role.slice(1);
+		}
+	}
+
+	function getRoleColor(role: string): string {
+		switch (role) {
+			case 'admin': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
+			case 'editor': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+			case 'viewer': return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
+			default: return 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400';
+		}
+	}
+
+	function formatOnlineTime(minutes: number): string {
+		if (minutes < 1) return 'Just now';
+		if (minutes < 60) return `${minutes}m`;
+		const h = Math.floor(minutes / 60);
+		const m = minutes % 60;
+		return m > 0 ? `${h}h ${m}m` : `${h}h`;
 	}
 </script>
 
@@ -83,62 +102,179 @@ export const widgetMeta = {
 	{label}
 	{theme}
 	endpoint="/api/dashboard/online-user"
-	pollInterval={60000}
+	pollInterval={45000}
 	{icon}
 	{widgetId}
 	{size}
 	{onSizeChange}
 	onCloseRequest={onRemove}
 >
-	{#snippet children({ data: fetchedData }: { data: FetchedData })}
-		{#if fetchedData?.onlineUsers}
-			{@const filteredUsers = filterUsers(fetchedData.onlineUsers, searchTerm)}
-			<div class="flex h-full flex-col space-y-2">
-				<!-- Header with count -->
-				<div class="text-center text-sm">
-					<span class="font-bold text-primary-500">{fetchedData.onlineUsers.length}</span>
-					User(s) currently online.
+	{#snippet children({ data })}
+		{@const onlineUsers = (data?.onlineUsers || []) as OnlineUser[]}
+		{@const totalOnline = onlineUsers.length}
+		{@const filteredUsers = searchTerm.trim()
+			? onlineUsers.filter((u: OnlineUser) =>
+				u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				u.email.toLowerCase().includes(searchTerm.toLowerCase())
+			)
+			: onlineUsers}
+
+		{#if totalOnline === 0}
+			<!-- ===== Empty State ===== -->
+			<div class="flex h-full flex-col items-center justify-center text-center px-3">
+				<div class="text-4xl opacity-30 mb-3">👥</div>
+				<div class="text-sm font-medium text-surface-500 dark:text-surface-400">
+					No users online
+				</div>
+				<div class="text-xs text-surface-400 dark:text-surface-500 mt-1">
+					They'll appear here when active
+				</div>
+			</div>
+		{:else if isCompact}
+			<!-- ===== Compact Layout (h:1) ===== -->
+			<div class="flex h-full items-center gap-3 overflow-hidden">
+				<!-- Count badge -->
+				<div class="flex shrink-0 items-center gap-1.5">
+					<span class="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+						{totalOnline}
+					</span>
+					<span class="text-xs text-surface-500 dark:text-surface-400">online</span>
 				</div>
 
-				<!-- Search input (always show if there are users) -->
-				{#if fetchedData.onlineUsers.length > 0}
-					<div class="relative">
+				<!-- Divider -->
+				<div class="h-6 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+
+				<!-- Horizontal avatar scroll -->
+				<div class="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-none">
+					{#each onlineUsers as user (user.id)}
+						<div
+							class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-100 px-2 py-1 dark:bg-surface-800"
+							title="{user.name} — {getRoleLabel(user.role)} · {formatOnlineTime(user.onlineMinutes)} online"
+						>
+							<div class="relative shrink-0">
+								<img
+									src={getAvatarUrl(user)}
+									alt={user.name}
+									class="h-6 w-6 rounded-full object-cover"
+								/>
+								<div class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-100 bg-emerald-500 dark:border-surface-800"></div>
+							</div>
+							<span class="max-w-20 truncate text-xs font-medium text-surface-700 dark:text-surface-300">
+								{user.name}
+							</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{:else}
+			<!-- ===== Rich Layout (h:2+) ===== -->
+			<div class="flex h-full flex-col">
+
+				<!-- Header -->
+				<div class="flex items-center justify-between pb-3">
+					<div class="flex items-baseline gap-1.5">
+						<span class="text-2xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+							{totalOnline}
+						</span>
+						<span class="text-sm text-surface-500 dark:text-surface-400">online now</span>
+					</div>
+
+					{#if totalOnline > 1}
+						<div class="rounded-full bg-surface-100 px-2.5 py-0.5 text-xs text-surface-600 dark:bg-surface-800 dark:text-surface-400">
+							{totalOnline} active
+						</div>
+					{/if}
+				</div>
+
+				<!-- Search (only when >3 users) -->
+				{#if totalOnline > 3}
+					<div class="relative mb-3">
 						<input
 							type="text"
-							placeholder="Search users..."
 							bind:value={searchTerm}
-							class="w-full rounded-md border border-surface-300 bg-surface-50 px-3 py-1.5 text-xs placeholder-surface-400 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:placeholder-surface-500"
+							placeholder="Filter users..."
+							class="w-full rounded-xl border border-surface-200 bg-surface-50 py-1.5 pe-9 ps-3 text-sm text-surface-800 placeholder-surface-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:placeholder-surface-500"
+							aria-label="Filter online users"
 						/>
-						<iconify-icon icon="mdi:magnify" width="14" class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 dark:text-surface-500"
+						<iconify-icon
+							icon="mdi:magnify"
+							width="16"
+							class="absolute inset-e-3 top-1/2 -translate-y-1/2 text-surface-400 dark:text-surface-500"
 						></iconify-icon>
 					</div>
 				{/if}
 
-				<!-- User list -->
-				<div class="grow space-y-1 overflow-y-auto" style="max-height: 180px;">
-					{#if filteredUsers.length > 0}
-						{#each filteredUsers as user (user.id)}
-							<div class="flex items-center justify-between gap-2 rounded-lg p-2 hover:bg-surface-50 dark:hover:bg-surface-700">
-								<div class="flex min-w-0 flex-1 items-center gap-2">
-									<img
-										src={user.avatarUrl || getPlaceholderAvatar(user.name)}
-										alt="{user.name}'s avatar"
-										class="h-7 w-7 shrink-0 rounded-full bg-surface-200 dark:bg-surface-700"
-									/>
-									<span class="truncate text-sm font-medium text-surface-800 dark:text-surface-200">{user.name}</span>
-								</div>
-								<span class="shrink-0 text-xs text-surface-500 dark:text-surface-50"> {user.onlineTime || 'N/A'} </span>
+				<!-- User List -->
+				<div class="flex-1 overflow-y-auto space-y-1 pe-0.5 custom-scroll" role="list" aria-label="Online users">
+					{#each filteredUsers as user (user.id)}
+						<div
+							class="group flex items-center gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+							role="listitem"
+						>
+							<!-- Avatar with presence dot -->
+							<div class="relative shrink-0">
+								<img
+									src={getAvatarUrl(user)}
+									alt={user.name}
+									class="h-9 w-9 rounded-full object-cover ring-2 ring-white dark:ring-surface-800"
+									loading="lazy"
+								/>
+								<div class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-surface-800"></div>
 							</div>
-						{/each}
-					{:else if searchTerm}
-						<div class="flex h-full items-center justify-center text-sm text-surface-500">No users found matching "{searchTerm}".</div>
-					{:else}
-						<div class="flex h-full items-center justify-center text-sm text-surface-500">No users are currently active.</div>
+
+							<!-- Name and role -->
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center gap-2">
+									<span class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+										{user.name}
+									</span>
+									<span class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none {getRoleColor(user.role)}">
+										{getRoleLabel(user.role)}
+									</span>
+								</div>
+								<div class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+									{formatOnlineTime(user.onlineMinutes)} online
+								</div>
+							</div>
+
+							<!-- Time -->
+							<div class="shrink-0 text-right text-[11px] font-medium text-surface-400 dark:text-surface-500">
+								{user.onlineTime
+									? new Date(user.onlineTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+									: '—'}
+							</div>
+						</div>
+					{/each}
+
+					{#if filteredUsers.length === 0 && searchTerm}
+						<div class="flex h-24 items-center justify-center text-sm text-surface-400 dark:text-surface-500">
+							No users match "{searchTerm}"
+						</div>
 					{/if}
 				</div>
 			</div>
-		{:else}
-			<div class="flex h-full items-center justify-center text-sm text-surface-500">Loading online users...</div>
 		{/if}
 	{/snippet}
 </BaseWidget>
+
+<style>
+	.scrollbar-none {
+		scrollbar-width: none;
+	}
+	.scrollbar-none::-webkit-scrollbar {
+		display: none;
+	}
+	.custom-scroll::-webkit-scrollbar {
+		width: 4px;
+	}
+	.custom-scroll::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.custom-scroll::-webkit-scrollbar-thumb {
+		background: rgba(156, 163, 175, 0.25);
+		border-radius: 9999px;
+	}
+	.custom-scroll::-webkit-scrollbar-thumb:hover {
+		background: rgba(156, 163, 175, 0.45);
+	}
+</style>

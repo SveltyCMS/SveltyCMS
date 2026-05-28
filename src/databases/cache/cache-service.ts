@@ -70,7 +70,9 @@ export class CacheService {
     this.negativeInvalidated = new Set<string>();
     this.startNegativeCacheRotation();
 
-    this.nodeId = globalThis.crypto ? globalThis.crypto.randomUUID() : Math.random().toString(36);
+    this.nodeId = globalThis.crypto
+      ? globalThis.crypto.randomUUID()
+      : Math.random().toString(36);
   }
 
   private startNegativeCacheRotation() {
@@ -95,7 +97,8 @@ export class CacheService {
   private async getMetrics() {
     if (this._metrics) return this._metrics;
     try {
-      const { metricsService } = await import("@src/services/observability/metrics-service");
+      const { metricsService } =
+        await import("@src/services/observability/metrics-service");
       this._metrics = metricsService;
     } catch {
       this._metrics = { recordMetric: () => {} };
@@ -163,14 +166,18 @@ export class CacheService {
         disableOfflineQueue: true,
       };
 
-      if (this.l2) await this.l2.quit().catch(() => {});
+      if (this.l2) await this.l2.destroy().catch(() => {});
       this.l2 = createClient(redisOptions);
-      this.l2.on("error", (err: any) => logger.error("Redis L2 Error:", err.message));
+      this.l2.on("error", (err: any) =>
+        logger.error("Redis L2 Error:", err.message),
+      );
       await this.l2
         .connect()
-        .catch((err: any) => logger.error("❌ L2 Cache Initial Connection Failed", err.message));
+        .catch((err: any) =>
+          logger.error("❌ L2 Cache Initial Connection Failed", err.message),
+        );
 
-      if (this.subscriber) await this.subscriber.quit().catch(() => {});
+      if (this.subscriber) await this.subscriber.destroy().catch(() => {});
       this.subscriber = createClient(redisOptions);
       this.subscriber.on("error", (err: any) =>
         logger.error("Redis Subscriber Error:", err.message),
@@ -178,7 +185,10 @@ export class CacheService {
       await this.subscriber
         .connect()
         .catch((err: any) =>
-          logger.error("❌ Redis Subscriber Initial Connection Failed", err.message),
+          logger.error(
+            "❌ Redis Subscriber Initial Connection Failed",
+            err.message,
+          ),
         );
 
       await this.subscribeToInvalidations();
@@ -193,22 +203,31 @@ export class CacheService {
     if (!this.subscriber || !this.subscriber.isOpen) return;
 
     try {
-      await this.subscriber.subscribe(this.INVALIDATION_CHANNEL, (message: string) => {
-        try {
-          const { pattern, tags, tenantId, nodeId } = JSON.parse(message);
-          if (nodeId === this.nodeId) return;
+      await this.subscriber.subscribe(
+        this.INVALIDATION_CHANNEL,
+        (message: string) => {
+          try {
+            const { pattern, tags, tenantId, nodeId } = JSON.parse(message);
+            if (nodeId === this.nodeId) return;
 
-          if (tags && tags.length > 0) {
-            this.clearLocalL1ByTags(tags, tenantId);
-          } else if (pattern) {
-            this.clearLocalL1ByPattern(pattern, tenantId);
+            if (tags && tags.length > 0) {
+              this.clearLocalL1ByTags(tags, tenantId);
+            } else if (pattern) {
+              this.clearLocalL1ByPattern(pattern, tenantId);
+            }
+          } catch (err) {
+            logger.error(
+              "[CacheSync] Failed to process invalidation message:",
+              err,
+            );
           }
-        } catch (err) {
-          logger.error("[CacheSync] Failed to process invalidation message:", err);
-        }
-      });
+        },
+      );
     } catch (err) {
-      logger.error("[CacheSync] Failed to subscribe to invalidation channel:", err);
+      logger.error(
+        "[CacheSync] Failed to subscribe to invalidation channel:",
+        err,
+      );
     }
   }
 
@@ -259,7 +278,10 @@ export class CacheService {
    * @param ttlMs Lock time-to-live in milliseconds.
    * @returns The owner ID if lock acquired, or null if lock is already held or L2 unavailable.
    */
-  private async acquireLock(key: string, ttlMs: number): Promise<string | null> {
+  private async acquireLock(
+    key: string,
+    ttlMs: number,
+  ): Promise<string | null> {
     if (!this.isL2Ready()) return null;
 
     const lockKey = `lock:${key}`;
@@ -323,7 +345,8 @@ export class CacheService {
 
   setBootstrapping(_val: boolean) {
     this.bootstrapping = _val;
-    if (process.env.NODE_ENV === "development") logger.debug(`CacheService bootstrapping: ${_val}`);
+    if (process.env.NODE_ENV === "development")
+      logger.debug(`CacheService bootstrapping: ${_val}`);
   }
 
   isBootstrapping(): boolean {
@@ -347,7 +370,10 @@ export class CacheService {
     }
 
     // 0. Check Negative Cache (Bloom)
-    if (!this.negativeInvalidated.has(fullKey) && this.negativeBloom.has(fullKey)) {
+    if (
+      !this.negativeInvalidated.has(fullKey) &&
+      this.negativeBloom.has(fullKey)
+    ) {
       this.stats.hits++;
       return null;
     }
@@ -367,7 +393,8 @@ export class CacheService {
             const start = performance.now();
             const l2Value = await this.l2.get(fullKey);
             if (l2Value) {
-              const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+              const parsed =
+                typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
 
               this.recordLatency(performance.now() - start);
               this.l1.set(fullKey, parsed);
@@ -407,7 +434,10 @@ export class CacheService {
         // the lock will naturally expire after TTL.
         // Mark the lock as pending release via the promise's completion.
         if (lockOwner) {
-          this.pendingRequests.set(`lockrelease:${fullKey}`, Promise.resolve(lockOwner));
+          this.pendingRequests.set(
+            `lockrelease:${fullKey}`,
+            Promise.resolve(lockOwner),
+          );
         }
       }
     })();
@@ -433,10 +463,16 @@ export class CacheService {
     return null;
   }
 
-  async getMany<T>(keys: string[], tenantId?: string | null): Promise<(T | null)[]> {
+  async getMany<T>(
+    keys: string[],
+    tenantId?: string | null,
+  ): Promise<(T | null)[]> {
     if (keys.length === 0) return [];
     const fullKeys = keys.map((k) => this.generateKey(k, tenantId));
-    const results: (T | null)[] = Array.from({ length: keys.length }, () => null);
+    const results: (T | null)[] = Array.from(
+      { length: keys.length },
+      () => null,
+    );
     const missingIndices: number[] = [];
     const missingKeys: string[] = [];
 
@@ -576,7 +612,9 @@ export class CacheService {
   registerPrefetchPattern(_trigger: string, _dependencies: string[]) {
     // Logic for predictive pre-warming will be fully implemented in v1.2
     if (process.env.NODE_ENV === "development") {
-      logger.debug(`[PredictiveCache] Registered prefetch trigger: ${_trigger}`);
+      logger.debug(
+        `[PredictiveCache] Registered prefetch trigger: ${_trigger}`,
+      );
     }
   }
 
@@ -586,7 +624,9 @@ export class CacheService {
     return cached || 1;
   }
 
-  async incrementGlobalVersion(tenantId: string | null = "global"): Promise<number> {
+  async incrementGlobalVersion(
+    tenantId: string | null = "global",
+  ): Promise<number> {
     const key = `cms:${tenantId || "global"}:version`;
     const current = await this.getGlobalVersion(tenantId);
     const next = current + 1;
@@ -595,7 +635,10 @@ export class CacheService {
     return next;
   }
 
-  async delete(key: string | string[], tenantId?: string | null): Promise<void> {
+  async delete(
+    key: string | string[],
+    tenantId?: string | null,
+  ): Promise<void> {
     const keys = Array.isArray(key) ? key : [key];
     for (const k of keys) {
       const fullKey = this.generateKey(k, tenantId);
@@ -612,7 +655,10 @@ export class CacheService {
     await this.publishInvalidation(null, tenantId, keys);
   }
 
-  async clearByTags(tags: string[], tenantId: string | null = "*"): Promise<void> {
+  async clearByTags(
+    tags: string[],
+    tenantId: string | null = "*",
+  ): Promise<void> {
     this.clearLocalL1ByTags(tags, tenantId);
     if (this.isL2Ready()) {
       try {
@@ -672,11 +718,17 @@ export class CacheService {
     }
   }
 
-  async invalidateByCategory(category: CacheCategory, tenantId: string | null = "*") {
+  async invalidateByCategory(
+    category: CacheCategory,
+    tenantId: string | null = "*",
+  ) {
     await this.clearByPattern(`*:${category}:`, tenantId);
   }
 
-  async invalidateCollection(collection: string, tenantId: string | null = "*") {
+  async invalidateCollection(
+    collection: string,
+    tenantId: string | null = "*",
+  ) {
     await this.clearByPattern(`collection:${collection}:`, tenantId);
   }
 
@@ -837,7 +889,8 @@ export class CacheService {
 
   private recordLatency(ms: number) {
     this.latencyBuffer.push(ms);
-    if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES) this.latencyBuffer.shift();
+    if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES)
+      this.latencyBuffer.shift();
   }
 
   async cleanup() {
@@ -845,8 +898,8 @@ export class CacheService {
       clearInterval(this.negativeRotationTimer);
       this.negativeRotationTimer = null;
     }
-    if (this.l2) await this.l2.quit().catch(() => {});
-    if (this.subscriber) await this.subscriber.quit().catch(() => {});
+    if (this.l2) await this.l2.destroy().catch(() => {});
+    if (this.subscriber) await this.subscriber.destroy().catch(() => {});
     this.l2 = null;
     this.subscriber = null;
     this.l1.clear();
@@ -862,7 +915,8 @@ export class CacheService {
   getStats() {
     const avgLatency =
       this.latencyBuffer.length > 0
-        ? this.latencyBuffer.reduce((a, b) => a + b, 0) / this.latencyBuffer.length
+        ? this.latencyBuffer.reduce((a, b) => a + b, 0) /
+          this.latencyBuffer.length
         : 0;
     return {
       ...this.stats,

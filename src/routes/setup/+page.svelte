@@ -64,8 +64,6 @@
 
 	// --- 1. COMPONENT IMPORTS ---
 	let showDbPassword = $state(false);
-	let showAdminPassword = $state(false);
-	let showConfirmPassword = $state(false);
 	let initialDataSnapshot = $state('');
 	let currentLanguageTag = $state(getLocale());
 
@@ -327,8 +325,6 @@
 								bind:adminUser={wizard.adminUser}
 								validationErrors={wizard.validationErrors}
 								passwordRequirements={setupStore.passwordRequirements}
-								bind:showAdminPassword
-								bind:showConfirmPassword
 								checkPasswordRequirements={() => {
 									/* now handled by derived rune */
 								}}

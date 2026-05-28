@@ -607,7 +607,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<div class="relative">
 						<input
 							id="db-password"
-							name="security"
+							name="password"
 							bind:value={dbConfig.password}
 							onchange={clearDbTestError}
 							onblur={() => {
@@ -615,9 +615,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								if (trimmed !== dbConfig.password) {
 									dbConfig.password = trimmed;
 								}
-								handleBlur('security');
+								handleBlur('password');
 							}}
-							type={showDbPassword ? 'text' : 'security'}
+							type={showDbPassword ? 'text' : 'password'}
 							autocomplete="current-password"
 							placeholder={setup_database_password_placeholder?.() || 'Leave blank if none'}
 							class="input w-full rounded border border-slate-300 dark:border-surface-600 dark:bg-surface-900 {displayErrors.password ? 'border-error-500' : ''}"

@@ -1,244 +1,255 @@
 <!--
 @file src/routes/(app)/dashboard/widgets/LogsWidget.svelte
 @component
-**Logs widget component to display system logs with filtering, searching, and pagination.**
+**Modern System Logs Widget — Filterable log viewer with adaptive layouts**
 
 ### Props
-- Inherits all props from BaseWidget.svelte
-- `data`: Fetched log data from the server.
+- `label` (string): Widget label (default: 'System Logs')
+- `size` (WidgetSize): Controls layout — h:1 compact chips, h:2+ rich cards
 
 ### Features:
-- Displays paginated log entries.
-- Allows filtering logs by level (fatal, error, warn, info, debug, trace).
-- Provides a search input to filter log messages by text.
-- Includes date range filtering for logs.
-- Integrates with BaseWidget for common widget functionalities.
+- Adaptive dual layout: compact (h:1) horizontal log chips, rich (h:2+) expandable cards
+- Level filter dropdown (all, fatal, error, warn, info, debug)
+- Text search with real-time filtering
+- Date range filtering (start → end)
+- Clickable logs expand inline to show full message and metadata
+- Color-coded severity icons and text
 -->
 <script lang="ts" module>
 export const widgetMeta = {
-	name: "Logs",
+	name: "System Logs",
 	icon: "mdi:text-box-outline",
+	description: "Recent system activity with filtering and search",
 	defaultSize: { w: 2, h: 2 },
 };
 </script>
 
 <script lang="ts">
-	import TablePagination from '@src/components/system/table/table-pagination.svelte';
-	import type { TablePaginationProps, WidgetSize } from '@src/content/types';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../base-widget.svelte';
 
-	interface LogEntryDisplay {
-		args: unknown[];
+	interface LogEntry {
+		timestamp: string;
 		level: string;
 		message: string;
 		messageHtml?: string;
-		timestamp: string;
-	}
-
-	interface FetchedData {
-		hasMore?: boolean;
-		logs: LogEntryDisplay[];
-		page: number;
-		total: number;
-		totalPages?: number;
+		actor?: string;
+		args?: unknown[];
 	}
 
 	const {
 		label = 'System Logs',
-		icon = 'mdi:file-document-outline',
-		widgetId = undefined,
+		theme = 'light' as 'light' | 'dark',
+		icon = 'mdi:text-box-outline',
+		widgetId = undefined as string | undefined,
 		size = { w: 2, h: 2 } as WidgetSize,
-		onSizeChange = (_newSize: WidgetSize) => {},
-		onRemove = () => {},
-		endpoint = '/api/dashboard/logs',
-		pollInterval = 15_000
-	}: {
-		label?: string;
-		icon?: string;
-		widgetId?: string;
-		size?: WidgetSize;
-		onSizeChange?: (newSize: WidgetSize) => void;
-		onRemove?: () => void;
-		endpoint?: string;
-		pollInterval?: number;
+		onSizeChange = ((_newSize: WidgetSize) => {}) as (newSize: WidgetSize) => void,
+		onRemove = (() => {}) as () => void
 	} = $props();
 
-	// Internal state for logs data
-	let currentPage = $state(1);
-	let logsPerPage = $state(20); // Default logs per page
+	const isCompact = $derived(size.h === 1);
 
-	// Filter states
+	let searchTerm = $state('');
 	let filterLevel = $state('all');
-	let searchText = $state('');
-	let startDate: string = $state(''); // YYYY-MM-DD
-	let endDate: string = $state(''); // YYYY-MM-DD
+	let startDate = $state('');
+	let endDate = $state('');
+	let expandedId = $state<string | null>(null);
 
-	// Debounce search/filter inputs
-	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
-	let triggerFetchFlag = $state(0); // Dummy state to explicitly trigger fetch via $effect
-
-	// Function to construct query parameters for the endpoint
-	const getQueryParams = () => {
-		const params = new SvelteURLSearchParams();
-		if (filterLevel !== 'all') {
-			params.append('level', filterLevel);
-		}
-		if (searchText) {
-			params.append('search', searchText);
-		}
-		if (startDate) {
-			params.append('startDate', startDate);
-		}
-		if (endDate) {
-			params.append('endDate', endDate);
-		}
-		params.append('page', currentPage.toString());
-		params.append('limit', logsPerPage.toString());
-		return params.toString();
-	};
-
-	// Effect to re-trigger fetch when filters or pagination change
-	$effect(() => {
-		if (searchTimeout) {
-			clearTimeout(searchTimeout);
-		}
-		searchTimeout = setTimeout(() => {
-			const isFilterChange = filterLevel !== 'all' || searchText !== '' || startDate !== '' || endDate !== '';
-			if (isFilterChange && currentPage !== 1) {
-				currentPage = 1;
-			}
-			triggerFetchFlag++;
-		}, 300); // 300ms debounce
-	});
-
-	// Handle pagination changes
-	const onUpdatePage = (page: number) => {
-		currentPage = page;
-		triggerFetchFlag++;
-	};
-
-	const onUpdateRowsPerPage = (rows: number) => {
-		logsPerPage = rows;
-		currentPage = 1;
-		triggerFetchFlag++;
-	};
-
-	const handleFilterLevelChange = (newLevel: typeof filterLevel) => {
-		filterLevel = newLevel;
-		currentPage = 1;
-		triggerFetchFlag++;
-	};
-
-	const dynamicEndpoint = $derived(`${endpoint}?${getQueryParams()}&_t=${triggerFetchFlag}`);
-
-	const logLevelOptions = [
-		{ value: 'all', label: 'All Levels' },
+	const levels = [
+		{ value: 'all', label: 'All' },
 		{ value: 'fatal', label: 'Fatal' },
 		{ value: 'error', label: 'Error' },
 		{ value: 'warn', label: 'Warn' },
 		{ value: 'info', label: 'Info' },
 		{ value: 'debug', label: 'Debug' },
-		{ value: 'trace', label: 'Trace' }
 	];
 
-	const getLogLevelColor = (level: string) => {
-		switch (level.toLowerCase()) {
-			case 'fatal':
-				return 'text-purple-500 dark:text-purple-400';
-			case 'error':
-				return 'text-red-500 dark:text-red-400';
-			case 'warn':
-				return 'text-yellow-500 dark:text-yellow-400';
-			case 'info':
-				return 'text-green-500 dark:text-green-400';
-			case 'debug':
-				return 'text-blue-500 dark:text-blue-400';
-			case 'trace':
-				return 'text-cyan-500 dark:text-cyan-400';
-			default:
-				return 'text-gray-700 dark:text-gray-300';
-		}
-	};
+	function toggleExpand(id: string) {
+		expandedId = expandedId === id ? null : id;
+	}
+
+	function levelCls(level: string): string {
+		const m: Record<string, string> = {
+			fatal: 'text-purple-500', error: 'text-red-500', warn: 'text-amber-500',
+			info: 'text-emerald-500', debug: 'text-blue-500',
+		};
+		return m[level?.toLowerCase()] || 'text-surface-500';
+	}
+
+	function levelBg(level: string): string {
+		const m: Record<string, string> = {
+			fatal: 'bg-purple-100 dark:bg-purple-900/30', error: 'bg-red-100 dark:bg-red-900/30',
+			warn: 'bg-amber-100 dark:bg-amber-900/30', info: 'bg-emerald-100 dark:bg-emerald-900/30',
+			debug: 'bg-blue-100 dark:bg-blue-900/30',
+		};
+		return m[level?.toLowerCase()] || '';
+	}
+
+	function levelIcon(level: string): string {
+		const m: Record<string, string> = {
+			fatal: 'mdi:alert-octagon', error: 'mdi:alert-circle', warn: 'mdi:alert',
+			info: 'mdi:information-outline', debug: 'mdi:bug-outline',
+		};
+		return m[level?.toLowerCase()] || 'mdi:circle-small';
+	}
+
+	function fmtTime(iso: string): string {
+		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+	}
+
+	function filterLogs(logs: LogEntry[]): LogEntry[] {
+		return logs.filter((log) => {
+			if (filterLevel !== 'all' && log.level?.toLowerCase() !== filterLevel) return false;
+			if (searchTerm && !log.message?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+			if (startDate) {
+				const logDate = new Date(log.timestamp);
+				const start = new Date(startDate);
+				start.setHours(0, 0, 0, 0);
+				if (logDate < start) return false;
+			}
+			if (endDate) {
+				const logDate = new Date(log.timestamp);
+				const end = new Date(endDate);
+				end.setHours(23, 59, 59, 999);
+				if (logDate > end) return false;
+			}
+			return true;
+		});
+	}
 </script>
 
-<BaseWidget {label} endpoint={dynamicEndpoint} {pollInterval} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
-	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
-		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label="Log controls">
-			<div class="flex flex-1 gap-2">
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/logs"
+	pollInterval={20000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	onCloseRequest={onRemove}
+>
+	{#snippet children({ data })}
+		{@const allLogs = (data?.logs || []) as LogEntry[]}
+		{@const filtered = filterLogs(allLogs)}
+
+		{#if !isCompact}
+			<!-- Controls (rich layout only) -->
+			<div class="mb-3 flex flex-wrap items-center gap-2">
 				<select
 					bind:value={filterLevel}
-					onchange={(e) => handleFilterLevelChange((e.target as HTMLSelectElement).value as typeof filterLevel)}
-					class="rounded border border-surface-300 bg-white px-8 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
-					aria-label="Filter log level"
+					class="rounded-xl border border-surface-200 bg-surface-50 px-3 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label="Filter by log level"
 				>
-					{#each logLevelOptions as { value, label } (value)}
-						<option {value}>{label}</option>
+					{#each levels as opt}
+						<option value={opt.value}>{opt.label}</option>
 					{/each}
 				</select>
-				<input
-					type="text"
-					placeholder="Search logs..."
-					bind:value={searchText}
-					class="rounded border border-surface-300 bg-white px-3 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
-					aria-label="Search logs"
-				/>
-			</div>
-			<div class="flex items-center gap-2">
+
+				<div class="relative flex-1 min-w-30">
+					<input
+						type="text"
+						bind:value={searchTerm}
+						placeholder="Search..."
+						class="w-full rounded-xl border border-surface-200 bg-surface-50 py-1.5 ps-8 pe-3 text-xs text-surface-700 placeholder-surface-400 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+						aria-label="Search log messages"
+					/>
+					<iconify-icon icon="mdi:magnify" width="14" class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-surface-400"  ></iconify-icon>
+				</div>
+
 				<input
 					type="date"
 					bind:value={startDate}
-					class="rounded border border-surface-300 bg-white px-2 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
+					class="rounded-xl border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 					aria-label="Start date"
 				/>
+				<span class="text-xs text-surface-400">–</span>
 				<input
 					type="date"
 					bind:value={endDate}
-					class="rounded border border-surface-300 bg-white px-2 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
+					class="rounded-xl border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 					aria-label="End date"
 				/>
 			</div>
-		</div>
-		{#if fetchedData && fetchedData.logs && fetchedData.logs.length > 0}
-			<div
-				class="flex flex-col gap-1 overflow-y-auto"
-				style="max-height: calc({size.h} * 120px - 120px);"
-				role="list"
-				aria-label="System log entries"
-			>
-				{#each fetchedData.logs as log (log.timestamp + log.message)}
-					<div
-						class="flex items-center gap-1 rounded border border-surface-200 bg-surface-50/50 px-1 py-1 text-xs dark:text-surface-50 dark:bg-surface-800/30"
-						role="listitem"
-					>
-						<iconify-icon icon="mdi:circle" width={24}></iconify-icon>
-						<span class="w-8 shrink-0 text-xs text-surface-500 dark:text-surface-50">
-							{new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
-						</span>
-						<span class="w-14 shrink-0 text-xs font-medium {getLogLevelColor(log.level)}"> {log.level.toUpperCase()} </span>
-						<span class="text-text-900 dark:text-text-100 flex-1 select-text truncate text-xs" style="user-select: text;" title={log.message}>
-							{log.message}
-						</span>
-					</div>
-				{/each}
-			</div>
+		{/if}
 
-			<div class="mt-auto flex items-center justify-between pt-2">
-				<TablePagination
-					currentPage={(fetchedData.page || 1) as TablePaginationProps['currentPage']}
-					rowsPerPage={logsPerPage as TablePaginationProps['rowsPerPage']}
-					rowsPerPageOptions={[10, 20, 50, 100] as TablePaginationProps['rowsPerPageOptions']}
-					totalItems={(fetchedData.total || 0) as TablePaginationProps['totalItems']}
-					pagesCount={(fetchedData.hasMore ? (fetchedData.page || 1) + 1 : fetchedData.page || 1) as TablePaginationProps['pagesCount']}
-					onUpdatePage={onUpdatePage as TablePaginationProps['onUpdatePage']}
-					onUpdateRowsPerPage={onUpdateRowsPerPage as TablePaginationProps['onUpdateRowsPerPage']}
-				/>
+		{#if filtered.length === 0}
+			<div class="flex h-full flex-col items-center justify-center text-center">
+				<iconify-icon icon="mdi:text-box-remove-outline" class="text-4xl opacity-20 mb-3"  ></iconify-icon>
+				<div class="text-sm font-medium text-surface-500">
+					{#if searchTerm || filterLevel !== 'all' || startDate || endDate}
+						No logs match your filters
+					{:else}
+						No logs recorded yet
+					{/if}
+				</div>
+			</div>
+		{:else if isCompact}
+			<!-- Compact (h:1): horizontal scroll of log chips -->
+			<div class="flex h-full items-center gap-2 overflow-hidden">
+				<span class="shrink-0 text-xs font-semibold text-surface-500">{filtered.length} logs</span>
+				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
+					{#each filtered.slice(0, 12) as log (log.timestamp + log.message)}
+						<button
+							onclick={() => toggleExpand(log.timestamp + log.message)}
+							class="flex shrink-0 items-center gap-1 rounded-full {levelBg(log.level)} px-2 py-0.5 hover:opacity-80 transition-opacity"
+							title="{log.level.toUpperCase()}: {log.message}"
+						>
+							<iconify-icon icon={levelIcon(log.level)} class="text-xs {levelCls(log.level)}" ></iconify-icon>
+							<span class="max-w-20 truncate text-[10px] font-medium text-surface-700 dark:text-surface-300">
+								{log.message}
+							</span>
+						</button>
+					{/each}
+				</div>
 			</div>
 		{:else}
-			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
-				<iconify-icon icon="mdi:file-remove-outline" width={24}></iconify-icon>
-				<span>No logs found</span>
+			<!-- Rich (h:2+): expandable cards -->
+			<div class="flex-1 overflow-y-auto space-y-1 pe-0.5 custom-scroll">
+				{#each filtered as log (log.timestamp + log.message)}
+					{@const logId = log.timestamp + log.message}
+					{@const isOpen = expandedId === logId}
+					<button
+						onclick={() => toggleExpand(logId)}
+						class="w-full text-left group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+					>
+						<iconify-icon
+							icon={levelIcon(log.level)}
+							class="mt-0.5 shrink-0 text-lg {levelCls(log.level)}"
+						></iconify-icon>
+						<div class="min-w-0 flex-1">
+							<div class="flex items-baseline gap-2">
+								<span class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
+									{fmtTime(log.timestamp)}
+								</span>
+								<span class="text-xs font-semibold uppercase tracking-wider {levelCls(log.level)}">
+									{log.level}
+								</span>
+							</div>
+							<p class="mt-1 text-sm leading-snug text-surface-700 dark:text-surface-200 {isOpen ? '' : 'line-clamp-2'}">
+								{log.message}
+							</p>
+							{#if isOpen && log.args && log.args.length > 0}
+								<pre class="mt-2 overflow-x-auto rounded-lg bg-surface-100 p-2 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(log.args, null, 2)}</pre>
+							{/if}
+						</div>
+						<iconify-icon
+							icon={isOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+							class="mt-1 shrink-0 text-sm text-surface-400 opacity-0 group-hover:opacity-100 transition-opacity"
+						></iconify-icon>
+					</button>
+				{/each}
 			</div>
 		{/if}
 	{/snippet}
 </BaseWidget>
+
+<style>
+	.scrollbar-none { scrollbar-width: none; }
+	.scrollbar-none::-webkit-scrollbar { display: none; }
+	.custom-scroll::-webkit-scrollbar { width: 4px; }
+	.custom-scroll::-webkit-scrollbar-track { background: transparent; }
+	.custom-scroll::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.25); border-radius: 9999px; }
+	.custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.45); }
+</style>
