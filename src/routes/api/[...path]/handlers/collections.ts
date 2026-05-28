@@ -57,47 +57,16 @@ export async function handleCollectionsRoutes(
     // ── CRUD routing ──
     switch (request.method) {
       case "GET":
-        return handleGetRoutes(
-          event,
-          cms,
-          tenantId,
-          user,
-          collectionId,
-          entryId,
-          url,
-        );
+        return handleGetRoutes(event, cms, tenantId, user, collectionId, entryId, url);
 
       case "POST":
-        return handlePostRoutes(
-          event,
-          cms,
-          tenantId,
-          user,
-          collectionId,
-          entryId,
-          subAction,
-        );
+        return handlePostRoutes(event, cms, tenantId, user, collectionId, entryId, subAction);
 
       case "PATCH":
-        return handlePatchRoutes(
-          event,
-          cms,
-          tenantId,
-          user,
-          collectionId,
-          entryId,
-        );
+        return handlePatchRoutes(event, cms, tenantId, user, collectionId, entryId);
 
       case "DELETE":
-        return handleDeleteRoutes(
-          event,
-          cms,
-          tenantId,
-          user,
-          collectionId,
-          entryId,
-          url,
-        );
+        return handleDeleteRoutes(event, cms, tenantId, user, collectionId, entryId, url);
     }
 
     throw new AppError(
@@ -148,14 +117,7 @@ async function handlePostRoutes(
   if (entryId === "bulk")
     return handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
   if (subAction === "increment")
-    return handleCollectionIncrement(
-      event,
-      cms,
-      tenantId,
-      user,
-      collectionId,
-      entryId!,
-    );
+    return handleCollectionIncrement(event, cms, tenantId, user, collectionId, entryId!);
   return handleCollectionCreate(event, cms, tenantId, user, collectionId);
 }
 
@@ -169,15 +131,7 @@ async function handlePatchRoutes(
 ) {
   if (entryId === "bulk")
     return handleCollectionBulkUpdate(event, cms, tenantId, user, collectionId);
-  if (entryId)
-    return handleCollectionUpdate(
-      event,
-      cms,
-      tenantId,
-      user,
-      collectionId,
-      entryId,
-    );
+  if (entryId) return handleCollectionUpdate(event, cms, tenantId, user, collectionId, entryId);
   throw new AppError("Entry ID required for update", 400);
 }
 
@@ -193,15 +147,7 @@ async function handleDeleteRoutes(
   if (entryId === "bulk")
     return handleCollectionBulkDelete(event, cms, tenantId, user, collectionId);
   if (entryId)
-    return handleCollectionDelete(
-      event,
-      cms,
-      tenantId,
-      user,
-      url,
-      collectionId,
-      entryId,
-    );
+    return handleCollectionDelete(event, cms, tenantId, user, url, collectionId, entryId);
   throw new AppError("Entry ID required for delete", 400);
 }
 
@@ -235,10 +181,7 @@ export async function handleCollectionFind(
 ) {
   const limit = Number(url.searchParams.get("limit")) || 50;
   const offset = Number(url.searchParams.get("offset")) || 0;
-  const sortField =
-    url.searchParams.get("sortField") ||
-    url.searchParams.get("sort") ||
-    undefined;
+  const sortField = url.searchParams.get("sortField") || url.searchParams.get("sort") || undefined;
   const sortDirection = (url.searchParams.get("sortDirection") ||
     url.searchParams.get("order") ||
     "desc") as "asc" | "desc";
@@ -322,14 +265,10 @@ export async function handleCollectionCreate(
   user: any,
   collectionId: string,
 ) {
-  const result = await cms.collections.create(
-    collectionId,
-    await event.request.json(),
-    {
-      user: user!,
-      tenantId,
-    },
-  );
+  const result = await cms.collections.create(collectionId, await event.request.json(), {
+    user: user!,
+    tenantId,
+  });
   return successResponse(event, result, 201);
 }
 
@@ -343,15 +282,10 @@ export async function handleCollectionUpdate(
 ) {
   return successResponse(
     event,
-    await cms.collections.update(
-      collectionId,
-      entryId,
-      await event.request.json(),
-      {
-        user: user!,
-        tenantId,
-      },
-    ),
+    await cms.collections.update(collectionId, entryId, await event.request.json(), {
+      user: user!,
+      tenantId,
+    }),
   );
 }
 
@@ -447,30 +381,21 @@ export async function handleCollectionIncrement(
   const { field, amount } = body;
 
   if (!field || typeof amount !== "number") {
-    throw new AppError(
-      "Invalid payload. Expected { field: string, amount: number }",
-      400,
-    );
+    throw new AppError("Invalid payload. Expected { field: string, amount: number }", 400);
   }
 
   // Resolve physical collection name from schema
-  const schema = await (cms.collections as any).getSchema(
-    collectionId,
-    tenantId,
-  );
+  const schema = await (cms.collections as any).getSchema(collectionId, tenantId);
   const collectionName = `collection_${(schema._id as string).replace(/-/g, "")}`;
 
   let result: any;
 
   if (typeof (cms.db.crud as any).atomicIncrement === "function") {
     // Fast path: native atomic increment via adapter
-    result = await (cms.db.crud as any).atomicIncrement(
-      collectionName,
-      entryId,
-      field,
-      amount,
-      { tenantId, bypassSafeQuery: true },
-    );
+    result = await (cms.db.crud as any).atomicIncrement(collectionName, entryId, field, amount, {
+      tenantId,
+      bypassSafeQuery: true,
+    });
   } else {
     // Fallback: serialized findById + update with cache bypass
     const currentRes = await cms.collections.findById(collectionId, entryId, {
@@ -481,9 +406,7 @@ export async function handleCollectionIncrement(
       throw new AppError(`Entry not found: ${entryId}`, 404);
     }
     const currentVal =
-      typeof (currentRes as any).data[field] === "number"
-        ? (currentRes as any).data[field]
-        : 0;
+      typeof (currentRes as any).data[field] === "number" ? (currentRes as any).data[field] : 0;
     result = await cms.collections.update(
       collectionId,
       entryId,
@@ -538,8 +461,7 @@ export async function handleCollectionSearch(
   const page = Number(url.searchParams.get("page") ?? 1);
   const limit = Number(url.searchParams.get("limit") ?? 25);
   const sortField = url.searchParams.get("sortField") || "updatedAt";
-  const sortDirection =
-    (url.searchParams.get("sortDirection") as "asc" | "desc") || "desc";
+  const sortDirection = (url.searchParams.get("sortDirection") as "asc" | "desc") || "desc";
   const status = url.searchParams.get("status") || undefined;
 
   let filter = {};

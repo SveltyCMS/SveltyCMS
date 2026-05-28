@@ -225,32 +225,62 @@ export async function completeSetup(
       const p = dbAdapter.system.preferences;
       const opts = { scope: "system" as const };
 
-      if (system.siteName) await p.set("SITE_NAME", system.siteName, { ...opts, category: "public" });
-      if (system.timezone) await p.set("TIMEZONE", system.timezone, { ...opts, category: "public" });
-      if (system.defaultSystemLanguage) await p.set("BASE_LOCALE", system.defaultSystemLanguage, { ...opts, category: "public" });
-      if (system.systemLanguages) await p.set("LOCALES", system.systemLanguages, { ...opts, category: "public" });
-      if (system.defaultContentLanguage) await p.set("DEFAULT_CONTENT_LANGUAGE", system.defaultContentLanguage, { ...opts, category: "public" });
-      if (system.contentLanguages) await p.set("AVAILABLE_CONTENT_LANGUAGES", system.contentLanguages, { ...opts, category: "public" });
-      if (system.mediaStorageType) await p.set("MEDIA_STORAGE_TYPE", system.mediaStorageType, { ...opts, category: "public" });
-      if (system.mediaFolder) await p.set("MEDIA_FOLDER", system.mediaFolder, { ...opts, category: "public" });
+      if (system.siteName)
+        await p.set("SITE_NAME", system.siteName, { ...opts, category: "public" });
+      if (system.timezone)
+        await p.set("TIMEZONE", system.timezone, { ...opts, category: "public" });
+      if (system.defaultSystemLanguage)
+        await p.set("BASE_LOCALE", system.defaultSystemLanguage, { ...opts, category: "public" });
+      if (system.systemLanguages)
+        await p.set("LOCALES", system.systemLanguages, { ...opts, category: "public" });
+      if (system.defaultContentLanguage)
+        await p.set("DEFAULT_CONTENT_LANGUAGE", system.defaultContentLanguage, {
+          ...opts,
+          category: "public",
+        });
+      if (system.contentLanguages)
+        await p.set("AVAILABLE_CONTENT_LANGUAGES", system.contentLanguages, {
+          ...opts,
+          category: "public",
+        });
+      if (system.mediaStorageType)
+        await p.set("MEDIA_STORAGE_TYPE", system.mediaStorageType, { ...opts, category: "public" });
+      if (system.mediaFolder)
+        await p.set("MEDIA_FOLDER", system.mediaFolder, { ...opts, category: "public" });
 
-      if (system.useRedis !== undefined) await p.set("USE_REDIS", system.useRedis, { ...opts, category: "private" });
-      if (system.redisHost) await p.set("REDIS_HOST", system.redisHost, { ...opts, category: "private" });
-      if (system.redisPort) await p.set("REDIS_PORT", Number(system.redisPort) || 6379, { ...opts, category: "private" });
-      if (system.redisPassword !== undefined) await p.set("REDIS_PASSWORD", system.redisPassword, { ...opts, category: "private" });
+      if (system.useRedis !== undefined)
+        await p.set("USE_REDIS", system.useRedis, { ...opts, category: "private" });
+      if (system.redisHost)
+        await p.set("REDIS_HOST", system.redisHost, { ...opts, category: "private" });
+      if (system.redisPort)
+        await p.set("REDIS_PORT", Number(system.redisPort) || 6379, {
+          ...opts,
+          category: "private",
+        });
+      if (system.redisPassword !== undefined)
+        await p.set("REDIS_PASSWORD", system.redisPassword, { ...opts, category: "private" });
 
-      if (system.cfApiToken !== undefined) await p.set("CF_API_TOKEN", system.cfApiToken, { ...opts, category: "private" });
-      if (system.cfZoneId !== undefined) await p.set("CF_ZONE_ID", system.cfZoneId, { ...opts, category: "private" });
-      if (system.cfPurgeMode) await p.set("CF_PURGE_MODE", system.cfPurgeMode, { ...opts, category: "private" });
+      if (system.cfApiToken !== undefined)
+        await p.set("CF_API_TOKEN", system.cfApiToken, { ...opts, category: "private" });
+      if (system.cfZoneId !== undefined)
+        await p.set("CF_ZONE_ID", system.cfZoneId, { ...opts, category: "private" });
+      if (system.cfPurgeMode)
+        await p.set("CF_PURGE_MODE", system.cfPurgeMode, { ...opts, category: "private" });
 
       if (emailSettings && emailSettings.smtpConfigured) {
         await p.set("SMTP_HOST", emailSettings.host, { ...opts, category: "private" });
-        await p.set("SMTP_PORT", Number(emailSettings.port) || 587, { ...opts, category: "private" });
+        await p.set("SMTP_PORT", Number(emailSettings.port) || 587, {
+          ...opts,
+          category: "private",
+        });
         await p.set("SMTP_EMAIL", emailSettings.user, { ...opts, category: "private" });
         await p.set("SMTP_PASSWORD", emailSettings.password, { ...opts, category: "private" });
-        await p.set("SMTP_MAIL_FROM", emailSettings.from || emailSettings.user, { ...opts, category: "private" });
+        await p.set("SMTP_MAIL_FROM", emailSettings.from || emailSettings.user, {
+          ...opts,
+          category: "private",
+        });
       }
-      
+
       // Invalidate the cache to ensure the new settings are picked up instantly
       const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
       invalidateSettingsCache();
@@ -377,7 +407,7 @@ export async function testRedisConnection(host = "localhost", port = 6379, passw
   try {
     const { createClient } = await import("redis");
     const c = createClient({
-      url: 'redis://' + host + ':' + port,
+      url: "redis://" + host + ":" + port,
       password: password || undefined,
       socket: { connectTimeout: 5000 },
     });

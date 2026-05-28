@@ -77,7 +77,7 @@ export const actions: Actions = {
       payload.database,
       payload.admin,
       payload.system || {},
-      payload.emailSettings || {}
+      payload.emailSettings || {},
     );
     if (result.sessionCookie) {
       const isSecure = url.protocol === "https:" || url.hostname !== "localhost";

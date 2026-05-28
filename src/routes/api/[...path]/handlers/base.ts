@@ -19,11 +19,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  * Automatically detects and unwraps DatabaseResult objects to prevent
  * nested `{ success: true, data: { success: true, data: ... } }` patterns.
  */
-export function successResponse(
-  event: RequestEvent,
-  result: any,
-  status = 200,
-) {
+export function successResponse(event: RequestEvent, result: any, status = 200) {
   if (isDatabaseResult(result)) {
     if (!result.success) {
       return json(result, { status: result.error?.status || 400 });
@@ -59,12 +55,7 @@ export function createdResponse(event: RequestEvent, data: any) {
 /**
  * Standardized error response with optional error code.
  */
-export function errorResponse(
-  event: RequestEvent,
-  message: string,
-  status = 400,
-  code?: string,
-) {
+export function errorResponse(event: RequestEvent, message: string, status = 400, code?: string) {
   const body: Record<string, any> = { success: false, message };
   if (code) body.error = { code, status };
   stashInLocals(event, body);
@@ -95,9 +86,7 @@ export function isDatabaseResult(obj: any): obj is {
   meta?: any;
   error?: { status: number };
 } {
-  return (
-    obj && typeof obj === "object" && typeof (obj as any).success === "boolean"
-  );
+  return obj && typeof obj === "object" && typeof (obj as any).success === "boolean";
 }
 
 /**

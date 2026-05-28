@@ -30,9 +30,7 @@ export async function handleDashboardRoutes(
   const method = segments[1] || segments[0];
 
   if (typeof process !== "undefined" && process.env.NODE_ENV === "production") {
-    console.log(
-      `[DashboardRoute] method=${method}, segments=${segments.join(",")}`,
-    );
+    console.log(`[DashboardRoute] method=${method}, segments=${segments.join(",")}`);
   }
 
   try {
@@ -55,8 +53,7 @@ export async function handleDashboardRoutes(
 
         return rawResponse(event, {
           contentCount: collectionsRes.success ? collectionsRes.data.length : 0,
-          userCount:
-            usersRes && Array.isArray(usersRes.data) ? usersRes.data.length : 0,
+          userCount: usersRes && Array.isArray(usersRes.data) ? usersRes.data.length : 0,
           mediaCount: mediaRes.success ? (mediaRes.data?.total ?? 0) : 0,
           storageUsed: "0 MB", // TODO: Implement real storage calculation
           healthStatus: "healthy",
@@ -66,10 +63,7 @@ export async function handleDashboardRoutes(
       }
 
       case "health":
-        return rawResponse(
-          event,
-          (await cms.system.getHealth()) || { status: "healthy" },
-        );
+        return rawResponse(event, (await cms.system.getHealth()) || { status: "healthy" });
 
       case "metrics":
       case "unified": {
@@ -133,14 +127,10 @@ export async function handleDashboardRoutes(
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            syncedToday = users.filter(
-              (u) => u.createdAt && new Date(u.createdAt) >= today,
-            ).length;
+            syncedToday = users.filter((u) => u.createdAt && new Date(u.createdAt) >= today).length;
 
             const sortedUsers = [...users].sort(
-              (a, b) =>
-                new Date(b.createdAt || 0).getTime() -
-                new Date(a.createdAt || 0).getTime(),
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
             );
             const lastUser = sortedUsers[0];
             if (lastUser && lastUser.createdAt) {
@@ -149,9 +139,7 @@ export async function handleDashboardRoutes(
 
             const firstScimUser = users.find((u) => (u as any).externalId);
             if (firstScimUser) {
-              provider = firstScimUser.email?.includes("okta")
-                ? "Okta"
-                : "Azure AD";
+              provider = firstScimUser.email?.includes("okta") ? "Okta" : "Azure AD";
             }
           }
         } catch {
@@ -171,15 +159,11 @@ export async function handleDashboardRoutes(
 
       case "last5-content":
       case "last5content": {
-        const result = await cms.db.crud.findMany(
-          "auditLogs",
-          { action: "create" } as any,
-          {
-            limit: query.limit,
-            sort: { timestamp: -1 } as any,
-            tenantId,
-          },
-        );
+        const result = await cms.db.crud.findMany("auditLogs", { action: "create" } as any, {
+          limit: query.limit,
+          sort: { timestamp: -1 } as any,
+          tenantId,
+        });
 
         const mapped = result.success
           ? (result.data || []).map((l: any) => ({
@@ -200,16 +184,12 @@ export async function handleDashboardRoutes(
           tenantId,
           limit: query.limit,
         });
-        return rawResponse(
-          event,
-          result.success ? result.data.items || [] : [],
-        );
+        return rawResponse(event, result.success ? result.data.items || [] : []);
       }
 
       case "logs": {
         const limitParam = Number(url.searchParams.get("limit"));
-        if (limitParam > 100)
-          throw new AppError("Limit exceeds maximum of 100", 400);
+        if (limitParam > 100) throw new AppError("Limit exceeds maximum of 100", 400);
 
         const limit = Math.min(limitParam || 100, 100);
         const page = Number(url.searchParams.get("page")) || 1;
@@ -244,10 +224,7 @@ export async function handleDashboardRoutes(
       }
 
       case "audit": {
-        const auditLimit = Math.min(
-          Number(url.searchParams.get("limit")) || 50,
-          100,
-        );
+        const auditLimit = Math.min(Number(url.searchParams.get("limit")) || 50, 100);
         const result = await auditLogService.queryLogs({
           limit: auditLimit,
           tenantId: tenantId || undefined,
@@ -261,8 +238,7 @@ export async function handleDashboardRoutes(
       case "online-users":
       case "online-user": {
         const usersRes = await cms.auth.listUsers({ tenantId, limit: 10 });
-        const users =
-          usersRes && Array.isArray(usersRes.data) ? usersRes.data : [];
+        const users = usersRes && Array.isArray(usersRes.data) ? usersRes.data : [];
 
         const onlineUsers = users
           .map((u) => ({
@@ -322,8 +298,7 @@ export async function handleDashboardRoutes(
         const stats = await cacheService.getStats();
 
         const total = (Number(stats?.hits) || 0) + (Number(stats?.misses) || 0);
-        const hitRate =
-          total > 0 ? ((Number(stats?.hits) || 0) / total) * 100 : 0;
+        const hitRate = total > 0 ? ((Number(stats?.hits) || 0) / total) * 100 : 0;
 
         return rawResponse(event, {
           overall: {
@@ -343,8 +318,7 @@ export async function handleDashboardRoutes(
       }
 
       case "security": {
-        const { securityResponseService } =
-          await import("@src/services/security/response-service");
+        const { securityResponseService } = await import("@src/services/security/response-service");
         const [statsRes, activeIncidents] = await Promise.all([
           securityResponseService.getSecurityStats(tenantId || undefined),
           securityResponseService.getActiveIncidents(tenantId || undefined),
@@ -377,10 +351,7 @@ export async function handleDashboardRoutes(
       }
 
       default:
-        throw new AppError(
-          `Dashboard action '${query.method}' not implemented`,
-          404,
-        );
+        throw new AppError(`Dashboard action '${query.method}' not implemented`, 404);
     }
   } catch (err: any) {
     console.error(`[DashboardRoute Error] ${segments.join("/")}:`, err);

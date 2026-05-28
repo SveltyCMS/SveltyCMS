@@ -106,7 +106,8 @@ export async function handleTestingRoutes(
       try {
         const { cacheService } = await import("@src/databases/cache/cache-service");
         await cacheService.invalidateAll();
-        const { invalidateUserCountCache, invalidateRolesCache } = await import("@src/hooks/handle-authorization");
+        const { invalidateUserCountCache, invalidateRolesCache } =
+          await import("@src/hooks/handle-authorization");
         await invalidateUserCountCache(tenantId);
         await invalidateRolesCache(tenantId);
       } catch (err) {

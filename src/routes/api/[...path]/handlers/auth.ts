@@ -55,13 +55,9 @@ export async function handleAuthUserRoutes(
     if (!method) {
       switch (namespace) {
         case "auth":
-          return request.method === "GET"
-            ? successResponse(event, user)
-            : notAllowed();
+          return request.method === "GET" ? successResponse(event, user) : notAllowed();
         case "user":
-          return request.method === "GET"
-            ? handleListUsers(event, cms, tenantId)
-            : notAllowed();
+          return request.method === "GET" ? handleListUsers(event, cms, tenantId) : notAllowed();
         case "get-tokens-provided":
           return request.method === "GET"
             ? rawResponse(event, {
@@ -88,13 +84,9 @@ export async function handleAuthUserRoutes(
 
       // User Management
       case "create-user":
-        return request.method === "POST"
-          ? handleCreateUser(event, cms, tenantId)
-          : notAllowed();
+        return request.method === "POST" ? handleCreateUser(event, cms, tenantId) : notAllowed();
       case "update-user-attributes":
-        return request.method === "POST" ||
-          request.method === "PUT" ||
-          request.method === "PATCH"
+        return request.method === "POST" || request.method === "PUT" || request.method === "PATCH"
           ? handleUpdateUserAttributesRoute(event, cms, tenantId)
           : notAllowed();
       case "save-avatar":
@@ -102,9 +94,7 @@ export async function handleAuthUserRoutes(
           ? handleSaveAvatarRoute(event, cms, tenantId)
           : notAllowed();
       case "me":
-        return request.method === "GET"
-          ? successResponse(event, user)
-          : notAllowed();
+        return request.method === "GET" ? successResponse(event, user) : notAllowed();
       case "update-roles":
         return request.method === "POST"
           ? handleUpdateRoles(event, cms, tenantId, user)
@@ -116,22 +106,12 @@ export async function handleAuthUserRoutes(
       case "saml":
         return handleSAMLRoutes(event, tenantId, segments);
       case "user":
-        return handleUserSpecificRoutes(
-          event,
-          cms,
-          tenantId,
-          user,
-          method,
-          segments,
-        );
+        return handleUserSpecificRoutes(event, cms, tenantId, user, method, segments);
       case "permission":
         return handlePermissionRoutes(event, cms, tenantId, segments);
 
       default:
-        throw new AppError(
-          `Auth endpoint /api/${segments.join("/")} not implemented`,
-          404,
-        );
+        throw new AppError(`Auth endpoint /api/${segments.join("/")} not implemented`, 404);
     }
   } catch (err: any) {
     console.error(`[AuthRoute Error] ${segments.join("/")}:`, err);
@@ -144,8 +124,7 @@ export async function handleAuthUserRoutes(
 
 /** Determines the session cookie name based on connection security. */
 function getCookieConfig(event: RequestEvent): CookieConfig {
-  const isSecure =
-    event.url.protocol === "https:" || event.url.hostname !== "localhost";
+  const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
   return {
     name: isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME,
     isSecure,
@@ -177,11 +156,7 @@ function clearSessionCookies(event: RequestEvent) {
 /**
  * Lists all users with pagination, search, and sorting.
  */
-export async function handleListUsers(
-  event: RequestEvent,
-  cms: LocalCMS,
-  tenantId: DatabaseId,
-) {
+export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const { url } = event;
   const raw = url.searchParams.get("raw") === "true";
 
@@ -194,9 +169,7 @@ export async function handleListUsers(
     order: (url.searchParams.get("order") as "asc" | "desc") || "desc",
   });
 
-  return raw
-    ? rawResponse(event, result.data)
-    : rawResponse(event, { success: true, ...result });
+  return raw ? rawResponse(event, result.data) : rawResponse(event, { success: true, ...result });
 }
 
 /**
@@ -215,11 +188,7 @@ export async function handleLogin(
   let result: { user: any; session: any };
 
   if ((event.locals as any).__testBypass) {
-    result = await handleTestLoginBypass(
-      cms,
-      email || "admin@example.com",
-      tenantId,
-    );
+    result = await handleTestLoginBypass(cms, email || "admin@example.com", tenantId);
   } else {
     result = await cms.auth.login({ email, password }, { tenantId });
   }
@@ -234,11 +203,7 @@ export async function handleLogin(
 }
 
 /** Test-mode login bypass — grants sessions without password verification. */
-async function handleTestLoginBypass(
-  cms: LocalCMS,
-  requestedEmail: string,
-  tenantId: DatabaseId,
-) {
+async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tenantId: DatabaseId) {
   let userResult;
   try {
     userResult = await cms.auth.getUserByEmail(requestedEmail, { tenantId });
@@ -250,8 +215,7 @@ async function handleTestLoginBypass(
 
   if (userResult && (userResult as any)._id) {
     const { Auth } = await import("@src/databases/auth");
-    const { getDefaultSessionStore } =
-      await import("@src/databases/auth/session-manager");
+    const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
     const highLevelAuth = new Auth(cms.db, getDefaultSessionStore());
     const session = await highLevelAuth.createSession({
       user_id: (userResult as any)._id as DatabaseId,
@@ -298,15 +262,10 @@ export async function handleLogout(
 /**
  * Creates a new user.
  */
-export async function handleCreateUser(
-  event: RequestEvent,
-  cms: LocalCMS,
-  tenantId: DatabaseId,
-) {
+export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const body = await event.request.json();
   const result = await cms.auth.createUser(body, { tenantId });
-  if (!result.success)
-    throw new AppError(result.message || "Failed to create user", 400);
+  if (!result.success) throw new AppError(result.message || "Failed to create user", 400);
   return successResponse(event, result.data, 201);
 }
 
@@ -329,8 +288,7 @@ export async function handleUpdateUserAttributesRoute(
     Object.keys(newUserData).length > 0 ? newUserData : body,
     { tenantId },
   );
-  if (!result.success)
-    throw new AppError(result.message || "Update failed", 400);
+  if (!result.success) throw new AppError(result.message || "Update failed", 400);
   return successResponse(event, result.data);
 }
 
@@ -377,8 +335,7 @@ export async function handleSaveAvatarRoute(
     userId: targetId,
     tenantId,
   });
-  if (!result.success)
-    throw new AppError(result.message || "Failed to save avatar", 400);
+  if (!result.success) throw new AppError(result.message || "Failed to save avatar", 400);
 
   return rawResponse(event, {
     success: true,
@@ -435,8 +392,7 @@ export async function handle2FARoutes(
     case "enable":
     case "verify-setup": {
       if (event.request.method !== "POST") throw notAllowed();
-      const { code, verificationCode, secret, backupCodes } =
-        await event.request.json();
+      const { code, verificationCode, secret, backupCodes } = await event.request.json();
       const result = await twoFactorService.complete2FASetup(
         user._id,
         secret,
@@ -456,8 +412,7 @@ export async function handle2FARoutes(
         throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
       }
       const result = await twoFactorService.verify2FA(user._id, code, tenantId);
-      if (!result.success)
-        throw new AppError(result.message || "Invalid code", 400);
+      if (!result.success) throw new AppError(result.message || "Invalid code", 400);
       return successResponse(event, result);
     }
 
@@ -476,18 +431,12 @@ export async function handle2FARoutes(
 
     case "status":
       if (event.request.method !== "GET") throw notAllowed();
-      return successResponse(
-        event,
-        await twoFactorService.get2FAStatus(user._id, tenantId),
-      );
+      return successResponse(event, await twoFactorService.get2FAStatus(user._id, tenantId));
 
     case "backup-codes":
     case "regenerate-backup-codes": {
       if (event.request.method === "GET") {
-        return successResponse(
-          event,
-          await twoFactorService.get2FAStatus(user._id, tenantId),
-        );
+        return successResponse(event, await twoFactorService.get2FAStatus(user._id, tenantId));
       }
       if (event.request.method === "POST") {
         try {
@@ -532,8 +481,7 @@ export async function handleSAMLRoutes(
         throw notAllowed();
       }
       {
-        const tenant =
-          event.url.searchParams.get("tenant") || (tenantId as string);
+        const tenant = event.url.searchParams.get("tenant") || (tenantId as string);
         const product = event.url.searchParams.get("product") || "sveltycms";
         const state = generateSecureToken(16);
         const { isSecure } = getCookieConfig(event);
@@ -619,25 +567,16 @@ export async function handleUserSpecificRoutes(
     switch (request.method) {
       case "POST": {
         const { avatar } = await request.json();
-        return successResponse(
-          event,
-          await cms.auth.saveAvatar(avatar, { userId, tenantId }),
-        );
+        return successResponse(event, await cms.auth.saveAvatar(avatar, { userId, tenantId }));
       }
       case "DELETE":
-        return successResponse(
-          event,
-          await cms.auth.deleteAvatar({ userId, tenantId }),
-        );
+        return successResponse(event, await cms.auth.deleteAvatar({ userId, tenantId }));
       default:
         throw notAllowed();
     }
   }
 
-  throw new AppError(
-    `User route /api/user/${segments.slice(1).join("/")} not implemented`,
-    404,
-  );
+  throw new AppError(`User route /api/user/${segments.slice(1).join("/")} not implemented`, 404);
 }
 
 // ─── Permission Management ───────────────────────────────────────────────────
@@ -676,10 +615,7 @@ export async function handlePermissionRoutes(
       }
 
     default:
-      throw new AppError(
-        `Permission route /api/permission/${method || ""} not implemented`,
-        404,
-      );
+      throw new AppError(`Permission route /api/permission/${method || ""} not implemented`, 404);
   }
 }
 

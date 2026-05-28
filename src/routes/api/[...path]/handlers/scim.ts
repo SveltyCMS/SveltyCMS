@@ -59,13 +59,7 @@ export async function handleScimRoutes(
       case "Users":
         return handleScimUsers(event, cms, activeTenantId, resourceId, baseUrl);
       case "Groups":
-        return handleScimGroups(
-          event,
-          cms,
-          activeTenantId,
-          resourceId,
-          baseUrl,
-        );
+        return handleScimGroups(event, cms, activeTenantId, resourceId, baseUrl);
       case "Bulk":
         return handleScimBulk(event, cms, activeTenantId, baseUrl);
       case "Schemas":
@@ -73,10 +67,7 @@ export async function handleScimRoutes(
       case "ServiceProviderConfig":
         return handleScimConfig(baseUrl);
       default:
-        throw new AppError(
-          `SCIM resource type '${resourceType}' not supported`,
-          404,
-        );
+        throw new AppError(`SCIM resource type '${resourceType}' not supported`, 404);
     }
   } catch (err: any) {
     console.error(`[SCIM Route Error] ${segments.join("/")}:`, err);
@@ -142,10 +133,7 @@ async function handleScimUsers(
   // GET /Users — list with optional SCIM filter
   if (request.method === "GET" && !resourceId) {
     const filter = parseScimFilter(url.searchParams.get("filter"));
-    const users = await dbAuth.getAllUsers(
-      { filter: { tenantId } },
-      { tenantId },
-    );
+    const users = await dbAuth.getAllUsers({ filter: { tenantId } }, { tenantId });
     const filtered = users.filter((u: any) => matchesScimFilter(u, filter));
     return json(
       buildScimListResponse(
@@ -172,8 +160,7 @@ async function handleScimUsers(
 
     const newUser = await dbAuth.createUser({
       email: body.userName,
-      username:
-        body.displayName || body.name?.givenName || body.userName.split("@")[0],
+      username: body.displayName || body.name?.givenName || body.userName.split("@")[0],
       lastName: body.name?.familyName || "",
       tenantId,
     });
@@ -215,11 +202,7 @@ async function handleScimUsers(
 
   // DELETE /Users/{id} — soft-delete (deactivate per SCIM best practice)
   if (request.method === "DELETE" && resourceId) {
-    await dbAuth.updateUser(
-      resourceId as DatabaseId,
-      { blocked: true },
-      { tenantId },
-    );
+    await dbAuth.updateUser(resourceId as DatabaseId, { blocked: true }, { tenantId });
     return new Response(null, { status: 204 });
   }
 
@@ -284,8 +267,7 @@ async function handleScimGroups(
     const updated = await cms.db.auth!.getRoleById(resourceId as DatabaseId, {
       tenantId,
     });
-    if (!updated.success || !updated.data)
-      return scimError(500, "Failed to fetch updated role");
+    if (!updated.success || !updated.data) return scimError(500, "Failed to fetch updated role");
     return json(buildScimGroup(updated.data, baseUrl));
   }
 
@@ -343,26 +325,11 @@ async function handleScimBulk(
       // Dispatch to the appropriate resource handler
       let response: Response;
       if (resourceType === "Users") {
-        response = await handleScimUsers(
-          simulatedEvent,
-          cms,
-          tenantId,
-          resourceId,
-          baseUrl,
-        );
+        response = await handleScimUsers(simulatedEvent, cms, tenantId, resourceId, baseUrl);
       } else if (resourceType === "Groups") {
-        response = await handleScimGroups(
-          simulatedEvent,
-          cms,
-          tenantId,
-          resourceId,
-          baseUrl,
-        );
+        response = await handleScimGroups(simulatedEvent, cms, tenantId, resourceId, baseUrl);
       } else {
-        throw new AppError(
-          `Unsupported bulk resource type: ${resourceType}`,
-          400,
-        );
+        throw new AppError(`Unsupported bulk resource type: ${resourceType}`, 400);
       }
 
       const status = response.status;
@@ -416,10 +383,7 @@ async function handleScimBulk(
  * Used during bulk operations where one operation creates a resource and
  * subsequent operations reference it by its temporary bulkId.
  */
-function resolveBulkIdReferences(
-  data: any,
-  bulkIdMap: Map<string, string>,
-): any {
+function resolveBulkIdReferences(data: any, bulkIdMap: Map<string, string>): any {
   if (typeof data !== "object" || data === null) {
     if (typeof data === "string" && data.startsWith("bulkId:")) {
       return bulkIdMap.get(data.slice(7)) || data;

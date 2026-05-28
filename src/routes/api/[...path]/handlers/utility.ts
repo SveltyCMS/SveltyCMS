@@ -25,25 +25,22 @@ let versionCheckService: any;
 
 async function getApiSpecService() {
   if (!apiSpecService) {
-    apiSpecService = (await import("@services/system/api-spec-service"))
-      .apiSpecService;
+    apiSpecService = (await import("@services/system/api-spec-service")).apiSpecService;
   }
   return apiSpecService;
 }
 
 async function getCacheService() {
   if (!cacheService) {
-    cacheService = (await import("@src/databases/cache/cache-service"))
-      .cacheService;
+    cacheService = (await import("@src/databases/cache/cache-service")).cacheService;
   }
   return cacheService;
 }
 
 async function getVersionCheckService() {
   if (!versionCheckService) {
-    versionCheckService = (
-      await import("@src/services/observability/version-check-service")
-    ).versionCheckService;
+    versionCheckService = (await import("@src/services/observability/version-check-service"))
+      .versionCheckService;
   }
   return versionCheckService;
 }
@@ -63,10 +60,7 @@ export async function handleUtilityRoutes(
 
   try {
     // ── OpenAPI 3.1.0 Specification ──
-    if (
-      namespace === "openapi.json" &&
-      (request.method === "GET" || request.method === "HEAD")
-    ) {
+    if (namespace === "openapi.json" && (request.method === "GET" || request.method === "HEAD")) {
       return handleOpenApiSpec(event, tenantId, url);
     }
 
@@ -134,11 +128,7 @@ export async function handleUtilityRoutes(
 // ─── OpenAPI Handler ─────────────────────────────────────────────────────────
 
 /** Generates and serves the OpenAPI 3.1.0 specification (admin-gated). */
-async function handleOpenApiSpec(
-  event: RequestEvent,
-  tenantId: DatabaseId,
-  url: URL,
-) {
+async function handleOpenApiSpec(event: RequestEvent, tenantId: DatabaseId, url: URL) {
   const service = await getApiSpecService();
 
   // AI Reconnaissance Blinding: only authenticated admins can view the full spec
@@ -159,12 +149,7 @@ async function handleOpenApiSpec(
   // Seed dispatcher L1 cache for future hits
   const cache = await getCacheService();
   if (cache?.set) {
-    await cache.set(
-      url.pathname + url.search,
-      bodyStr,
-      300,
-      tenantId as string,
-    );
+    await cache.set(url.pathname + url.search, bodyStr, 300, tenantId as string);
   }
 
   return new Response(bodyStr, {
@@ -215,19 +200,12 @@ async function handleSendMail(event: RequestEvent) {
     throw new AppError("Invalid email address", 400);
   }
   // TODO: Integrate real email provider when configured
-  throw new AppError(
-    "Email service is not configured in this environment",
-    400,
-  );
+  throw new AppError("Email service is not configured in this environment", 400);
 }
 
 // ─── Debug Handler ───────────────────────────────────────────────────────────
 
-async function handleDebug(
-  event: RequestEvent,
-  tenantId: DatabaseId,
-  user: any,
-) {
+async function handleDebug(event: RequestEvent, tenantId: DatabaseId, user: any) {
   if (!event.locals.isAdmin) throw new AppError("Access denied", 403);
 
   return successResponse(event, {
@@ -254,10 +232,7 @@ async function handleTrashRoutes(
   // List deleted items across all collections
   if (request.method === "GET") {
     const { contentSystem } = await import("@src/content/index.server");
-    const limit = Math.min(
-      parseInt(url.searchParams.get("limit") || "50", 10),
-      200,
-    );
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
     const schemas = await contentSystem.getCollections(tenantId);
     const allDeleted: any[] = [];
 
@@ -285,9 +260,7 @@ async function handleTrashRoutes(
     }
 
     allDeleted.sort(
-      (a, b) =>
-        new Date(b.deletedAt || 0).getTime() -
-        new Date(a.deletedAt || 0).getTime(),
+      (a, b) => new Date(b.deletedAt || 0).getTime() - new Date(a.deletedAt || 0).getTime(),
     );
     return successResponse(event, allDeleted.slice(0, limit));
   }
@@ -299,15 +272,10 @@ async function handleTrashRoutes(
       throw new AppError("Missing collectionId or entryId", 400);
     }
     const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
-    const result = await cms.db.crud.restore(
-      collectionName,
-      entryId as DatabaseId,
-      {
-        tenantId: tenantId as DatabaseId,
-      },
-    );
-    if (!result.success)
-      throw new AppError(result.message || "Failed to restore item", 500);
+    const result = await cms.db.crud.restore(collectionName, entryId as DatabaseId, {
+      tenantId: tenantId as DatabaseId,
+    });
+    if (!result.success) throw new AppError(result.message || "Failed to restore item", 500);
     return successResponse(event, { success: true, restored: true });
   }
 

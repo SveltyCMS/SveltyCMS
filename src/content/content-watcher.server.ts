@@ -54,12 +54,7 @@ export function startContentWatcher() {
         const { markFileDirty } = await import("./content-service.server");
         markFileDirty(isDelete ? filePath : null);
 
-        await contentService.fullReload(
-          null,
-          false,
-          undefined,
-          isDelete ? null : filePath,
-        );
+        await contentService.fullReload(null, false, undefined, isDelete ? null : filePath);
 
         logger.info(`[Watcher] Content system re-synchronized: ${filename}`);
       } catch (err) {
@@ -86,5 +81,3 @@ export function startContentWatcher() {
     }
   };
 }
-
-

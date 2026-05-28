@@ -222,18 +222,18 @@ When generating/modifying code:
    - **Server Functions (Remote Functions)**: Prefer SvelteKit 5 Server Functions in `+page.server.ts` over standalone API routes for type safety and reduced network complexity.
    - **Middleware Security**: Respect the sequential middleware pipeline in `hooks.server.ts`. All requests are gated by `handleSystemState` for self-healing and security.
    - **Self-Healing State**: Use the `@stores/system` state machine (`IDLE` → `READY`) for resilient startup. reference `docs/architecture/state-management.mdx`.
-4. **Strict Type Safety**: No `any`; use discriminated unions and Valibot for E2E validation.
-5. **Accessibility**: Ensure keyboard-navigable, ARIA-compliant components with live regions. Reference `docs/tests/accessibility-audit.mdx` for WCAG 3.0 & ATAG 2.0 compliance testing. All interactive elements MUST have accessible names (`aria-label`, `aria-labelledby`, or matching `id`+`label`). Use Tailwind v4 logical properties (`ps-4`, `pe-2`) instead of directional ones (`pl-4`, `pr-2`) for RTL compatibility.
-6. **Database Agnosticism**: Confine logic to adapters; scope by `tenantId`.
-7. **File Headers**: Always include as defined.
-8. **Roadmap Alignment**: Prioritize gaps like full SAML/SCIM hardening; optimize for enterprise (e.g., lighter SAML deps).
-9. **MCP Knowledge Base (CRITICAL)**: Always query the hosted MCP server at `https://mcp.sveltycms.com/mcp` when in doubt about SveltyCMS architecture, schema conventions, or widget syntax, as it holds the verified source of truth. Utilize MCP connections for dynamic generation flows.
-10. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
-11. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
+5. **Strict Type Safety**: No `any`; use discriminated unions and Valibot for E2E validation.
+6. **Accessibility**: Ensure keyboard-navigable, ARIA-compliant components with live regions. Reference `docs/tests/accessibility-audit.mdx` for WCAG 3.0 & ATAG 2.0 compliance testing. All interactive elements MUST have accessible names (`aria-label`, `aria-labelledby`, or matching `id`+`label`). Use Tailwind v4 logical properties (`ps-4`, `pe-2`) instead of directional ones (`pl-4`, `pr-2`) for RTL compatibility.
+7. **Database Agnosticism**: Confine logic to adapters; scope by `tenantId`.
+8. **File Headers**: Always include as defined.
+9. **Roadmap Alignment**: Prioritize gaps like full SAML/SCIM hardening; optimize for enterprise (e.g., lighter SAML deps).
+10. **MCP Knowledge Base (CRITICAL)**: Always query the hosted MCP server at `https://mcp.sveltycms.com/mcp` when in doubt about SveltyCMS architecture, schema conventions, or widget syntax, as it holds the verified source of truth. Utilize MCP connections for dynamic generation flows.
+11. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
+12. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
     - **Baseline**: Run the relevant benchmark (e.g., `bun run scripts/benchmark-matrix/index.ts --only=REST`) BEFORE applying changes.
     - **Verification**: Run the same benchmark AFTER implementation.
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
-12. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
+13. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
     ```bash
     bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
     ```

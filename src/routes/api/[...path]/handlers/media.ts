@@ -38,15 +38,7 @@ export async function handleMediaRoutes(
     switch (request.method) {
       // ── Read ──
       case "GET":
-        return handleGetRoutes(
-          event,
-          cms,
-          tenantId,
-          user,
-          method,
-          url,
-          segments,
-        );
+        return handleGetRoutes(event, cms, tenantId, user, method, url, segments);
 
       // ── Create / Upload / Process ──
       case "POST":
@@ -68,10 +60,7 @@ export async function handleMediaRoutes(
         return handleDeleteRoutes(event, cms, tenantId, user, method, segments);
     }
 
-    throw new AppError(
-      `Media endpoint /api/media/${segments.join("/")} not implemented`,
-      404,
-    );
+    throw new AppError(`Media endpoint /api/media/${segments.join("/")} not implemented`, 404);
   } catch (err: any) {
     console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
@@ -91,8 +80,7 @@ async function handleGetRoutes(
   segments: string[],
 ) {
   if (method === "exists") return handleMediaExists(event, cms, tenantId);
-  if (method === "references")
-    return handleMediaReferences(event, cms, tenantId, segments);
+  if (method === "references") return handleMediaReferences(event, cms, tenantId, segments);
   if (method === "share") return handleMediaShareDownload(event, cms, tenantId);
 
   // List all or find by ID
@@ -136,8 +124,7 @@ async function handlePostRoutes(
   }
 
   // Processing & ingestion
-  if (method === "process")
-    return handleMediaProcess(event, cms, tenantId, user);
+  if (method === "process") return handleMediaProcess(event, cms, tenantId, user);
   if (method === "remote") return handleMediaRemote(event, cms, tenantId, user);
 
   // Delete via POST body (legacy support)
@@ -173,15 +160,8 @@ async function handleDeleteRoutes(
 
   // Delete by media ID in URL
   if (method) {
-    if (
-      !user ||
-      !hasPermissionWithRoles(user, "media:delete", event.locals.roles || [])
-    ) {
-      throw new AppError(
-        "Insufficient permissions for media deletion",
-        403,
-        "FORBIDDEN",
-      );
+    if (!user || !hasPermissionWithRoles(user, "media:delete", event.locals.roles || [])) {
+      throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
     }
     return rawResponse(event, await cms.media.delete(method, { tenantId }));
   }
@@ -192,11 +172,7 @@ async function handleDeleteRoutes(
 // ─── Read Handlers ───────────────────────────────────────────────────────────
 
 /** Check if a media file exists by URL. */
-export async function handleMediaExists(
-  event: RequestEvent,
-  cms: LocalCMS,
-  tenantId: DatabaseId,
-) {
+export async function handleMediaExists(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const urlParam = event.url.searchParams.get("url");
   if (!urlParam) throw new AppError("URL parameter is required", 400);
   return rawResponse(event, {
@@ -235,10 +211,7 @@ export async function handleMediaReferences(
 
   const result = await cms.media.references(mediaId, { tenantId });
   if (!result.success) {
-    throw (
-      result.error ||
-      new AppError(result.message || "Failed to scan references", 500)
-    );
+    throw result.error || new AppError(result.message || "Failed to scan references", 500);
   }
   return successResponse(event, result.data);
 }
@@ -257,23 +230,13 @@ export async function handleMediaUpload(
   user: any,
 ) {
   // 🛡️ Defense-in-depth permission check
-  if (
-    !user ||
-    !hasPermissionWithRoles(user, "media:write", event.locals.roles || [])
-  ) {
-    throw new AppError(
-      "Insufficient permissions for media upload",
-      403,
-      "FORBIDDEN",
-    );
+  if (!user || !hasPermissionWithRoles(user, "media:write", event.locals.roles || [])) {
+    throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
   }
 
   const contentType = event.request.headers.get("content-type");
   if (!contentType?.includes("multipart/form-data")) {
-    throw new AppError(
-      "Invalid content type. Expected multipart/form-data",
-      400,
-    );
+    throw new AppError("Invalid content type. Expected multipart/form-data", 400);
   }
 
   const formData = await event.request.formData();
@@ -337,8 +300,7 @@ export async function handleMediaProcess(
   switch (processType) {
     case "metadata": {
       const file = formData.get("file") as File;
-      if (!file)
-        throw new AppError("File is required for metadata processing", 400);
+      if (!file) throw new AppError("File is required for metadata processing", 400);
       return successResponse(event, await cms.media.getMetadata(file));
     }
 
@@ -393,10 +355,7 @@ export async function handleMediaRemote(
   });
 
   if (!result.success) {
-    throw (
-      result.error ||
-      new AppError(result.message || "Remote upload failed", 500)
-    );
+    throw result.error || new AppError(result.message || "Remote upload failed", 500);
   }
   return successResponse(event, result.data);
 }
@@ -415,17 +374,9 @@ export async function handleMediaPostDelete(
   // 🛡️ Defense-in-depth permission check
   if (
     !event.locals.user ||
-    !hasPermissionWithRoles(
-      event.locals.user,
-      "media:delete",
-      event.locals.roles || [],
-    )
+    !hasPermissionWithRoles(event.locals.user, "media:delete", event.locals.roles || [])
   ) {
-    throw new AppError(
-      "Insufficient permissions for media deletion",
-      403,
-      "FORBIDDEN",
-    );
+    throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
   }
 
   const body = await event.request.json().catch(() => ({}));
@@ -434,9 +385,7 @@ export async function handleMediaPostDelete(
 
   const result = await cms.media.delete(id, { tenantId });
   if (!result.success) {
-    throw (
-      result.error || new AppError(result.message || "Deletion failed", 500)
-    );
+    throw result.error || new AppError(result.message || "Deletion failed", 500);
   }
   return successResponse(event, { success: true });
 }
@@ -510,16 +459,12 @@ export async function handleMediaVersionUpload(
 
   const contentType = event.request.headers.get("content-type");
   if (!contentType?.includes("multipart/form-data")) {
-    throw new AppError(
-      "Invalid content type. Expected multipart/form-data",
-      400,
-    );
+    throw new AppError("Invalid content type. Expected multipart/form-data", 400);
   }
 
   const formData = await event.request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File))
-    throw new AppError("A valid File object is required", 400);
+  if (!(file instanceof File)) throw new AppError("A valid File object is required", 400);
 
   const result = await cms.media.uploadVersion(mediaId, file, {
     userId: user?._id || "system",
@@ -527,10 +472,7 @@ export async function handleMediaVersionUpload(
   });
 
   if (!result.success) {
-    throw (
-      result.error ||
-      new AppError(result.message || "Version upload failed", 500)
-    );
+    throw result.error || new AppError(result.message || "Version upload failed", 500);
   }
   return successResponse(event, result.data);
 }
@@ -550,20 +492,13 @@ export async function handleMediaVersionRestore(
   const { versionNumber } = body;
   if (!versionNumber) throw new AppError("Version number is required", 400);
 
-  const result = await cms.media.restoreVersion(
-    mediaId,
-    Number(versionNumber),
-    {
-      userId: user?._id || "system",
-      tenantId,
-    },
-  );
+  const result = await cms.media.restoreVersion(mediaId, Number(versionNumber), {
+    userId: user?._id || "system",
+    tenantId,
+  });
 
   if (!result.success) {
-    throw (
-      result.error ||
-      new AppError(result.message || "Version restore failed", 500)
-    );
+    throw result.error || new AppError(result.message || "Version restore failed", 500);
   }
   return successResponse(event, result.data);
 }
@@ -642,8 +577,7 @@ export async function handleMediaShareDelete(
 ) {
   const mediaId = segments[2];
   const token = segments[3];
-  if (!mediaId || !token)
-    throw new AppError("Media ID and Token are required", 400);
+  if (!mediaId || !token) throw new AppError("Media ID and Token are required", 400);
 
   const mediaRes = await cms.media.findById(mediaId, { tenantId });
   if (!mediaRes.success || !mediaRes.data) {
@@ -651,9 +585,7 @@ export async function handleMediaShareDelete(
   }
 
   const mediaItem = mediaRes.data as any;
-  const filtered = (mediaItem.metadata?.sharedLinks || []).filter(
-    (l: any) => l.token !== token,
-  );
+  const filtered = (mediaItem.metadata?.sharedLinks || []).filter((l: any) => l.token !== token);
 
   const updateRes = await cms.media.update(
     mediaId,
@@ -661,8 +593,7 @@ export async function handleMediaShareDelete(
     { tenantId },
   );
 
-  if (!updateRes.success)
-    throw new AppError("Failed to revoke share link", 500);
+  if (!updateRes.success) throw new AppError("Failed to revoke share link", 500);
   return successResponse(event, { success: true });
 }
 
@@ -689,9 +620,7 @@ export async function handleMediaShareDownload(
   }
 
   const mediaItem = mediaRes.data as any;
-  const link = (mediaItem.metadata?.sharedLinks || []).find(
-    (l: any) => l.token === token,
-  );
+  const link = (mediaItem.metadata?.sharedLinks || []).find((l: any) => l.token === token);
 
   if (!link) throw new AppError("Invalid or expired share link", 404);
   if (link.expiry && new Date() > new Date(link.expiry)) {
@@ -716,16 +645,13 @@ export async function handleMediaShareDownload(
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
   const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "static/media";
   const cloudUrl =
-    getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") ||
-    getPublicSettingSync("MEDIASERVER_URL");
+    getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 
   // Cloud storage → redirect
   if (storageType !== "local" && cloudUrl) {
     const base = cloudUrl.replace(/\/+$/, "");
     const folder = mediaFolder.replace(/^\.\//, "").replace(/^\/+|\/+$/g, "");
-    const fullUrl = folder
-      ? `${base}/${folder}/${filePath}`
-      : `${base}/${filePath}`;
+    const fullUrl = folder ? `${base}/${folder}/${filePath}` : `${base}/${filePath}`;
     return new Response(null, { status: 302, headers: { Location: fullUrl } });
   }
 
@@ -735,8 +661,7 @@ export async function handleMediaShareDownload(
   const normalized = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
   const fullPath = pathMod.join(process.cwd(), normalized, filePath);
 
-  if (!fs.existsSync(fullPath))
-    throw new AppError("File not found on disk", 404);
+  if (!fs.existsSync(fullPath)) throw new AppError("File not found on disk", 404);
 
   const stats = fs.statSync(fullPath);
   const mimeMod = await import("mime-types");

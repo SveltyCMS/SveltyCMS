@@ -144,12 +144,7 @@ export function sseStreamingResponse(
   signal?: AbortSignal,
   options: SSEOptions = {},
 ) {
-  const {
-    event = "message",
-    retry = 3000,
-    keepAliveMs = 30000,
-    headers = {},
-  } = options;
+  const { event = "message", retry = 3000, keepAliveMs = 30000, headers = {} } = options;
 
   let isClosed = false;
 
@@ -198,8 +193,7 @@ export function sseStreamingResponse(
         for await (const data of iterator) {
           if (isClosed) break;
 
-          const payload =
-            `event: ${event}\n` + `data: ${JSON.stringify(data)}\n\n`;
+          const payload = `event: ${event}\n` + `data: ${JSON.stringify(data)}\n\n`;
 
           controller.enqueue(encoder.encode(payload));
         }

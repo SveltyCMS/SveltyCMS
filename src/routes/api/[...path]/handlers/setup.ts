@@ -49,29 +49,19 @@ export async function handleSetupRoutes(
     // ── Route by action ──
     switch (action) {
       case "status":
-        return request.method === "GET"
-          ? handleSetupStatus(event)
-          : notAllowed();
+        return request.method === "GET" ? handleSetupStatus(event) : notAllowed();
 
       case "test-db":
-        return request.method === "POST"
-          ? handleTestDatabase(event)
-          : notAllowed();
+        return request.method === "POST" ? handleTestDatabase(event) : notAllowed();
 
       case "seed-db":
-        return request.method === "POST"
-          ? handleSeedDatabase(event)
-          : notAllowed();
+        return request.method === "POST" ? handleSeedDatabase(event) : notAllowed();
 
       case "complete":
-        return request.method === "POST"
-          ? handleCompleteSetup(event, cms, url)
-          : notAllowed();
+        return request.method === "POST" ? handleCompleteSetup(event, cms, url) : notAllowed();
 
       case "reinitialize":
-        return request.method === "POST"
-          ? handleReinitialize(event, cms)
-          : notAllowed();
+        return request.method === "POST" ? handleReinitialize(event, cms) : notAllowed();
 
       default:
         throw new AppError(`Setup action '${action}' not implemented`, 404);
@@ -108,24 +98,13 @@ async function handleTestDatabase(event: RequestEvent) {
     configData.port = Number(configData.port);
   }
 
-  const {
-    success,
-    issues,
-    output: dbConfig,
-  } = safeParse(databaseConfigSchema, configData);
+  const { success, issues, output: dbConfig } = safeParse(databaseConfigSchema, configData);
   if (!success || !dbConfig) {
-    throw new AppError(
-      "Invalid database configuration",
-      400,
-      "VALIDATION_ERROR",
-      issues,
-    );
+    throw new AppError("Invalid database configuration", 400, "VALIDATION_ERROR", issues);
   }
 
   const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
-  let adapterWrapper:
-    | Awaited<ReturnType<typeof getSetupDatabaseAdapter>>
-    | undefined;
+  let adapterWrapper: Awaited<ReturnType<typeof getSetupDatabaseAdapter>> | undefined;
 
   try {
     adapterWrapper = await getSetupDatabaseAdapter(dbConfig, {
@@ -135,11 +114,7 @@ async function handleTestDatabase(event: RequestEvent) {
 
     const healthCheck = await dbAdapter.getConnectionHealth();
     if (!healthCheck.success) {
-      throw new AppError(
-        `Connection failed: ${healthCheck.message}`,
-        400,
-        "DB_CONNECT_FAILED",
-      );
+      throw new AppError(`Connection failed: ${healthCheck.message}`, 400, "DB_CONNECT_FAILED");
     }
   } catch (e) {
     console.error("Database setup test error:", e);
@@ -169,8 +144,7 @@ async function handleSeedDatabase(event: RequestEvent) {
   const { config: dbConfig } = await event.request.json();
 
   // Write private config and invalidate cache
-  const { writePrivateConfig } =
-    await import("@src/routes/setup/write-private-config");
+  const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
   await writePrivateConfig(dbConfig);
 
   const { invalidateSetupCache } = await import("@src/utils/setup-check");
@@ -204,11 +178,7 @@ async function handleSeedDatabase(event: RequestEvent) {
  * 3. Sets the secure session cookie
  * 4. Initializes the system with the final configuration
  */
-async function handleCompleteSetup(
-  event: RequestEvent,
-  _cms: LocalCMS,
-  url: URL,
-) {
+async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL) {
   const { database, admin, system = {} } = await event.request.json();
 
   // Wait for critical seeding to finish
@@ -225,17 +195,12 @@ async function handleCompleteSetup(
   const adminValidation = safeParse(setupAdminSchema, admin);
   if (!adminValidation.success) {
     await dbAdapter.disconnect();
-    throw new AppError(
-      "Invalid administrator data provided",
-      400,
-      "ADMIN_VALIDATION_FAILED",
-    );
+    throw new AppError("Invalid administrator data provided", 400, "ADMIN_VALIDATION_FAILED");
   }
 
   // Create admin user and session
   const { Auth } = await import("@src/databases/auth");
-  const { getDefaultSessionStore } =
-    await import("@src/databases/auth/session-manager");
+  const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
   const setupAuth = new Auth(dbAdapter, getDefaultSessionStore());
 
   const authResult = await setupAuth.createUserAndSession(
@@ -248,28 +213,19 @@ async function handleCompleteSetup(
       isRegistered: true,
     },
     {
-      expires: new Date(
-        Date.now() + 24 * 60 * 60 * 1000,
-      ).toISOString() as ISODateString,
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
     },
     { bypassTenantCheck: true },
   );
 
   if (!authResult.success || !authResult.data) {
-    throw new AppError(
-      "Failed to create admin user during setup",
-      500,
-      "ADMIN_CREATION_FAILED",
-    );
+    throw new AppError("Failed to create admin user during setup", 500, "ADMIN_CREATION_FAILED");
   }
 
   // Set secure session cookie
   const session = authResult.data.session;
-  const isSecure =
-    url.protocol === "https:" || (url.hostname !== "localhost" && !dev);
-  const cookieName = isSecure
-    ? `__Host-${SESSION_COOKIE_NAME}`
-    : SESSION_COOKIE_NAME;
+  const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && !dev);
+  const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
   event.cookies.set(cookieName, session._id as string, {
     path: "/",
@@ -302,10 +258,7 @@ async function handleCompleteSetup(
 /** Reinitializes the system (allowed after setup is complete — recovery tool). */
 async function handleReinitialize(event: RequestEvent, cms: LocalCMS) {
   const body = await event.request.json().catch(() => ({}));
-  return successResponse(
-    event,
-    await cms.system.reinitialize(body.force ?? true),
-  );
+  return successResponse(event, await cms.system.reinitialize(body.force ?? true));
 }
 
 // ─── Internal ────────────────────────────────────────────────────────────────
