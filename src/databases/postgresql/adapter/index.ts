@@ -36,7 +36,7 @@ import { CrudModule } from '../crud/crud-module';
 import { runMigrations } from '../migrations';
 import { AuthModule } from '../modules/auth/auth-module';
 import { ContentModule } from '../modules/content/content-module';
-import { MediaModule } from '../modules/media/media-module';
+import { MediaModule } from '../media-module';
 import { PreferencesModule } from '../modules/system/preferences-module';
 import { VirtualFoldersModule } from '../modules/system/virtual-folders-module';
 import { ThemesModule } from '../modules/themes/themes-module';
