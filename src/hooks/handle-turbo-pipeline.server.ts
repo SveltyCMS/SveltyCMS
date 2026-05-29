@@ -170,17 +170,15 @@ async function getCorsHeadersInline(
 }
 
 // ✨ PERFORMANCE: Cache environment lookups to avoid process.env overhead on every request
+const IS_BENCHMARK =
+  typeof process !== "undefined" && process.env.BENCHMARK === "true";
+
 const IS_TEST_MODE =
   typeof process !== "undefined" &&
+  !IS_BENCHMARK && // 🚀 Benchmarks run real middleware, not test bypass
   (String(process.env.TEST_MODE) === "true" ||
     String(process.env.VITE_TEST_MODE) === "true" ||
     process.env.NODE_ENV === "test");
-// 🚀 NOTE: BENCHMARK mode does NOT get the terminal bypass.
-// Benchmarks authenticate via real session cookies (obtained during warmup)
-// to measure actual CMS performance, not a stripped-down skeleton.
-
-const IS_BENCHMARK =
-  typeof process !== "undefined" && process.env.BENCHMARK === "true";
 const DB_TYPE =
   typeof process !== "undefined" ? process.env.DB_TYPE : "unknown";
 
@@ -316,6 +314,40 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       // However, since we can't easily call the dispatcher here without circular imports,
       // we'll let it continue but FLAG it so other hooks skip their logic.
       return await resolve(event);
+    }
+  }
+
+  // ── 0a2. BENCHMARK AUTH (no bypass) ───────────────────────────────────
+  // Benchmarks authenticate via x-test-secret but run the FULL middleware chain.
+  // This gives honest performance measurements of real CMS infrastructure.
+  if (IS_BENCHMARK) {
+    const benchSecret =
+      event.request.headers.get("x-test-secret") ||
+      event.request.headers.get("X-Test-Secret");
+    if (benchSecret) {
+      const expected = process.env.TEST_API_SECRET || getTestSecret();
+      if (expected && benchSecret === expected) {
+        (event.locals as any).user = {
+          _id: "system",
+          role: "admin",
+          isAdmin: true,
+          email: "system@sveltycms",
+        };
+        (event.locals as any).tenantId =
+          event.request.headers.get("x-tenant-id") || null;
+        // 🚀 NO __testBypass — downstream hooks (RBAC, rate limit, audit) run normally
+        if (!cachedDbAdapter) {
+          try {
+            const { getDbInitPromise, getDb } =
+              await import("@src/databases/db");
+            await getDbInitPromise(false, "CORE");
+            cachedDbAdapter = getDb();
+          } catch {
+            /* ignore */
+          }
+        }
+        (event.locals as any).dbAdapter = cachedDbAdapter;
+      }
     }
   }
 
