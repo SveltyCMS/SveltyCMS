@@ -53,7 +53,7 @@ export async function handleDashboardRoutes(
 
         return rawResponse(event, {
           contentCount: collectionsRes.success ? collectionsRes.data.length : 0,
-          userCount: usersRes && Array.isArray(usersRes.data) ? usersRes.data.length : 0,
+          userCount: usersRes && usersRes.pagination ? (usersRes.pagination.totalItems ?? 0) : 0,
           mediaCount: mediaRes.success ? (mediaRes.data?.total ?? 0) : 0,
           storageUsed: "0 MB", // TODO: Implement real storage calculation
           healthStatus: "healthy",
@@ -74,7 +74,10 @@ export async function handleDashboardRoutes(
           return rawResponse(event, {
             ...report,
             system: {
-              memory: (sysInfo as any).memory,
+              memory: {
+                used: (sysInfo as any).memory?.usedBytes || 0,
+                total: (sysInfo as any).memory?.totalBytes || 0,
+              },
               uptime: (sysInfo as any).os?.uptime,
               nodeVersion: process.version,
             },

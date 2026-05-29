@@ -394,6 +394,50 @@ export async function handleAiRoutes(
     return successResponse(event, await aiService.generateLayoutSpec(body.prompt, body.context));
   }
 
+  if (action === "score" && request.method === "POST") {
+    const { content, collectionName } = body;
+    if (!content) throw new AppError("Content payload is required", 400);
+    const scoreResult = await aiService.scoreContent(content, collectionName || "unknown");
+    return successResponse(event, scoreResult);
+  }
+
+  if (action === "suggest-fields" && request.method === "POST") {
+    const { collectionName, description, availableWidgets } = body;
+    if (!collectionName) throw new AppError("collectionName is required", 400);
+    const fields = await aiService.suggestFields(
+      collectionName,
+      description || "",
+      availableWidgets || [],
+    );
+    return successResponse(event, fields);
+  }
+
+  if (action === "translate-collection" && request.method === "POST") {
+    const { user } = locals;
+    if (!user || (!user.isAdmin && user.role !== "admin")) {
+      throw new AppError("Admin access required for bulk translation", 403, "FORBIDDEN");
+    }
+    const { collectionName, targetLanguages, sourceLanguage } = body;
+    if (!collectionName || !targetLanguages?.length) {
+      throw new AppError("collectionName and targetLanguages[] are required", 400);
+    }
+    const { jobQueue } = await import("@src/services/background/jobs/job-queue-service");
+    const jobId = await jobQueue.dispatch(
+      "bulk-translate",
+      { collectionName, targetLanguages, sourceLanguage, tenantId: tenantId as string },
+      tenantId as string,
+    );
+    return successResponse(
+      event,
+      {
+        success: true,
+        jobId,
+        message: `Bulk translation dispatched for ${collectionName} → [${targetLanguages.join(", ")}]`,
+      },
+      202,
+    );
+  }
+
   throw new AppError(`AI action ${action} not found`, 404);
 }
 
