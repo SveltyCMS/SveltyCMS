@@ -20,8 +20,14 @@ export async function writePrivateConfig(
   const path = await import("node:path");
 
   // Support TEST_MODE for isolated testing
-  const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
-  const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
+  const configFileName = process.env.TEST_MODE
+    ? "private.test.ts"
+    : "private.ts";
+  const privateConfigPath = path.resolve(
+    process.cwd(),
+    "config",
+    configFileName,
+  );
 
   // Generate random keys
   const jwtSecret = generateSecureToken(32);
@@ -106,16 +112,40 @@ export const privateEnv = {
 
     // Robust validation using Regex to ignore quoting styles and whitespace
     const checks = [
-      { name: "JWT_SECRET_KEY", regex: /\bJWT_SECRET_KEY\s*:\s*['"][^'"]{32,}['"]/ },
-      { name: "ENCRYPTION_KEY", regex: /\bENCRYPTION_KEY\s*:\s*['"][^'"]{32,}['"]/ },
+      {
+        name: "JWT_SECRET_KEY",
+        regex: /\bJWT_SECRET_KEY\s*:\s*['"][^'"]{32,}['"]/,
+      },
+      {
+        name: "ENCRYPTION_KEY",
+        regex: /\bENCRYPTION_KEY\s*:\s*['"][^'"]{32,}['"]/,
+      },
       {
         name: "SAML_CLIENT_SECRET_VERIFIER",
         regex: /\bSAML_CLIENT_SECRET_VERIFIER\s*:\s*['"][^'"]{32,}['"]/,
       },
-      { name: "SAML_ENCRYPTION_KEY", regex: /\bSAML_ENCRYPTION_KEY\s*:\s*['"][^'"]{32,}['"]/ },
-      { name: "DB_HOST", regex: new RegExp(`\\bDB_HOST\\s*:\\s*['"]${escape(dbConfig.host)}['"]`) },
-      { name: "DB_NAME", regex: new RegExp(`\\bDB_NAME\\s*:\\s*['"]${escape(dbConfig.name)}['"]`) },
-      { name: "DB_TYPE", regex: new RegExp(`\\bDB_TYPE\\s*:\\s*['"]${escape(dbConfig.type)}['"]`) },
+      {
+        name: "SAML_ENCRYPTION_KEY",
+        regex: /\bSAML_ENCRYPTION_KEY\s*:\s*['"][^'"]{32,}['"]/,
+      },
+      {
+        name: "DB_HOST",
+        regex: dbConfig.host
+          ? new RegExp(`\\bDB_HOST\\s*:\\s*['"]${escape(dbConfig.host)}['"]`)
+          : /\\bDB_HOST\\s*:\\s*['"]['"]/,
+      },
+      {
+        name: "DB_NAME",
+        regex: dbConfig.name
+          ? new RegExp(`\\bDB_NAME\\s*:\\s*['"]${escape(dbConfig.name)}['"]`)
+          : /\\bDB_NAME\\s*:\\s*['"][^'"]*['"]/,
+      },
+      {
+        name: "DB_TYPE",
+        regex: new RegExp(
+          `\\bDB_TYPE\\s*:\\s*['"]${escape(dbConfig.type || "")}['"]`,
+        ),
+      },
     ];
 
     const missingFields = checks
@@ -131,7 +161,9 @@ export const privateEnv = {
       );
     }
 
-    logger.info("Private configuration file written and validated successfully");
+    logger.info(
+      "Private configuration file written and validated successfully",
+    );
   } catch (error) {
     logger.error("Failed to write private config:", error);
     throw new Error(
@@ -152,13 +184,25 @@ export async function updatePrivateConfigMode(modes: {
   const path = await import("node:path");
 
   // Support TEST_MODE for isolated testing
-  const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
-  const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
+  const configFileName = process.env.TEST_MODE
+    ? "private.test.ts"
+    : "private.ts";
+  const privateConfigPath = path.resolve(
+    process.cwd(),
+    "config",
+    configFileName,
+  );
 
   try {
-    logger.debug("DEBUG: [updatePrivateConfigMode] CALLED with:", JSON.stringify(modes));
+    logger.debug(
+      "DEBUG: [updatePrivateConfigMode] CALLED with:",
+      JSON.stringify(modes),
+    );
     let content = await fs.readFile(privateConfigPath, "utf-8");
-    logger.debug("DEBUG: [updatePrivateConfigMode] READ content length:", content.length);
+    logger.debug(
+      "DEBUG: [updatePrivateConfigMode] READ content length:",
+      content.length,
+    );
     let modified = false;
 
     // Helper to properly stringify boolean
@@ -180,9 +224,14 @@ export async function updatePrivateConfigMode(modes: {
         // If not found, try to insert after the marker
         const insertMarker = "// --- Fundamental Architectural Mode ---";
         if (content.includes(insertMarker)) {
-          content = content.replace(insertMarker, `${insertMarker}\n\t${newValue}`);
+          content = content.replace(
+            insertMarker,
+            `${insertMarker}\n\t${newValue}`,
+          );
           modified = true;
-          logger.debug("DEBUG: [updatePrivateConfigMode] Inserted MULTI_TENANT after marker");
+          logger.debug(
+            "DEBUG: [updatePrivateConfigMode] Inserted MULTI_TENANT after marker",
+          );
         } else {
           // Fallback: insert at end of object, ensuring previous line has a comma
           const lastBraceIndex = content.lastIndexOf("};");
@@ -194,7 +243,9 @@ export async function updatePrivateConfigMode(modes: {
             }
             content = `${prefix}\t${newValue}\n${content.slice(lastBraceIndex)}`;
             modified = true;
-            logger.debug("DEBUG: [updatePrivateConfigMode] Inserted MULTI_TENANT at end");
+            logger.debug(
+              "DEBUG: [updatePrivateConfigMode] Inserted MULTI_TENANT at end",
+            );
           }
         }
       }
@@ -225,7 +276,9 @@ export async function updatePrivateConfigMode(modes: {
             : `${mtLine},\n\t${newValue}`;
           content = content.replace(multiTenantMatch, replacement);
           modified = true;
-          logger.debug("DEBUG: [updatePrivateConfigMode] Inserted DEMO after MULTI_TENANT");
+          logger.debug(
+            "DEBUG: [updatePrivateConfigMode] Inserted DEMO after MULTI_TENANT",
+          );
         } else {
           // Fallback: insert at end of object
           const lastBraceIndex = content.lastIndexOf("};");
@@ -236,7 +289,9 @@ export async function updatePrivateConfigMode(modes: {
             }
             content = `${prefix}\t${newValue}\n${content.slice(lastBraceIndex)}`;
             modified = true;
-            logger.debug("DEBUG: [updatePrivateConfigMode] Inserted DEMO at end");
+            logger.debug(
+              "DEBUG: [updatePrivateConfigMode] Inserted DEMO at end",
+            );
           }
         }
       }
@@ -246,7 +301,9 @@ export async function updatePrivateConfigMode(modes: {
       await fs.writeFile(privateConfigPath, content, "utf-8");
       logger.info("Updated private.ts with architectural modes:", modes);
     } else {
-      logger.warn("No changes made to private.ts (values might be identical or regex failed)");
+      logger.warn(
+        "No changes made to private.ts (values might be identical or regex failed)",
+      );
     }
   } catch (error) {
     logger.error("Failed to update private config modes:", error);
