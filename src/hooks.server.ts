@@ -19,7 +19,12 @@ import { building } from "$app/environment";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import os from "node:os";
-import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/context";
+import {
+  runWithContext,
+  runWithTrace,
+  getTrace,
+  traceSpan,
+} from "@utils/context";
 import { createRequire } from "node:module";
 // ESM Shims for legacy CJS compatibility in production build
 if (typeof (globalThis as any).require === "undefined") {
@@ -49,7 +54,10 @@ if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
 
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
 import { handleCompression } from "./hooks/handle-compression";
-import { handleSecurityHeaders, applyAllSecurityHeaders } from "./hooks/handle-security-headers";
+import {
+  handleSecurityHeaders,
+  applyAllSecurityHeaders,
+} from "./hooks/handle-security-headers";
 
 import { getTestSecret } from "@src/utils/setup-check";
 
@@ -58,54 +66,27 @@ let cachedApiHandler: any = null;
 
 const handleHyperTurbo: Handle = async ({ event, resolve }) => {
   const isBenchmark =
-    process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+    process.env.BENCHMARK === "true" ||
+    process.env.SVELTY_BENCHMARK_SUITE === "true";
   if (!isBenchmark) return resolve(event);
 
   const testSecret = event.request.headers.get("x-test-secret");
   if (testSecret && testSecret === getTestSecret()) {
     const pathname = event.url.pathname;
 
-    // 🚀 HEALTH BYPASS: Let handleTurboPipeline handle health checks (zero-dependency)
-    if (pathname === "/api/system/health" || pathname === "/health") {
-      return resolve(event);
-    }
-
-    if (pathname.startsWith("/api/")) {
-      try {
-        // Direct dispatch to API handler
-        if (!cachedApiHandler) {
-          const { _handler } = await import("./routes/api/[...path]/+server");
-          cachedApiHandler = _handler;
-        }
-
-        // Inject essential locals
-        (event.locals as any).user = {
-          _id: "system",
-          role: "admin",
-          isAdmin: true,
-          email: "system@sveltycms",
-        };
-        (event.locals as any).tenantId = event.request.headers.get("x-tenant-id") || null;
-        (event.locals as any).__testBypass = true;
-
-        // 🚀 CRITICAL: Initialize widget store if not already loaded (HyperTurbo bypasses normal hooks)
-        const { widgets } = await import("@src/stores/widget-store.svelte");
-        if (!widgets.isLoaded) {
-          await widgets.initialize((event.locals as any).tenantId || "default");
-        }
-
-        const response = await cachedApiHandler(event);
-
-        // Apply minimal security headers
-        response.headers.set("X-Frame-Options", "DENY");
-        response.headers.set("X-Content-Type-Options", "nosniff");
-
-        return response;
-      } catch (err: any) {
-        logger.error(`[HyperTurbo] Dispatcher failed for ${pathname}:`, err);
-        return handleApiError(err, event);
-      }
-    }
+    // 🚀 Inject system admin user for benchmarks, but let the FULL pipeline run.
+    // Previously this was a terminal bypass that skipped all 16 middleware hooks.
+    // Now it only sets up the user context — handleTurboPipeline and all downstream
+    // hooks (RBAC, rate limiting, audit logging) run normally for honest measurements.
+    (event.locals as any).user = {
+      _id: "system",
+      role: "admin",
+      isAdmin: true,
+      email: "system@sveltycms",
+    };
+    (event.locals as any).tenantId =
+      event.request.headers.get("x-tenant-id") || null;
+    // 🚀 NO __testBypass — no early return — let the pipeline run
   }
   return resolve(event);
 };
@@ -164,11 +145,15 @@ async function ensureFullMiddleware() {
 }
 
 if (setupComplete) {
-  ensureFullMiddleware().catch((err) => logger.error("Failed to lazy-load full middleware:", err));
+  ensureFullMiddleware().catch((err) =>
+    logger.error("Failed to lazy-load full middleware:", err),
+  );
 }
 
-const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
-const TEST_API_SECRET = typeof process !== "undefined" ? process.env.TEST_API_SECRET : null;
+const IS_BENCHMARK =
+  typeof process !== "undefined" && process.env.BENCHMARK === "true";
+const TEST_API_SECRET =
+  typeof process !== "undefined" ? process.env.TEST_API_SECRET : null;
 const IS_QUIET = typeof process !== "undefined" && process.env.QUIET === "true";
 
 import { isRedirect } from "@sveltejs/kit";
@@ -212,36 +197,51 @@ if (!building) {
             import("@src/services/system/watchdog"),
             import("@src/services/observability/telemetry-service"),
           ])
-            .then(([{ jobQueue }, { automationService }, { watchdog }, { telemetryService }]) => {
-              jobQueue.startPolling();
-              automationService.init();
-              watchdog.start();
+            .then(
+              ([
+                { jobQueue },
+                { automationService },
+                { watchdog },
+                { telemetryService },
+              ]) => {
+                jobQueue.startPolling();
+                automationService.init();
+                watchdog.start();
 
-              // Telemetry check
-              const globalWithTelemetry = globalThis as typeof globalThis & {
-                __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
-              };
+                // Telemetry check
+                const globalWithTelemetry = globalThis as typeof globalThis & {
+                  __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
+                };
 
-              if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-                clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
-              }
+                if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
+                  clearInterval(
+                    globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__,
+                  );
+                }
 
-              setTimeout(() => {
-                telemetryService
-                  .checkUpdateStatus()
-                  .catch((err) => logger.error("Initial telemetry check failed", err));
-              }, 10_000);
-
-              globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
-                () => {
+                setTimeout(() => {
                   telemetryService
                     .checkUpdateStatus()
-                    .catch((err) => logger.error("Periodic telemetry check failed", err));
-                },
-                1000 * 60 * 60 * 12, // 12 hours
-              );
-            })
-            .catch((err) => logger.error("[System] Parallel initialization failed:", err));
+                    .catch((err) =>
+                      logger.error("Initial telemetry check failed", err),
+                    );
+                }, 10_000);
+
+                globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+                  () => {
+                    telemetryService
+                      .checkUpdateStatus()
+                      .catch((err) =>
+                        logger.error("Periodic telemetry check failed", err),
+                      );
+                  },
+                  1000 * 60 * 60 * 12, // 12 hours
+                );
+              },
+            )
+            .catch((err) =>
+              logger.error("[System] Parallel initialization failed:", err),
+            );
         } else {
           logger.info("🛡️ Background Services DISABLED (Benchmark Mode)");
           // 🚀 COLD START OPTIMIZATION: Pre-warm the heaviest dispatchers
@@ -268,7 +268,9 @@ if (!building) {
   });
 
   if (!IS_BENCHMARK && !IS_QUIET) {
-    logger.info("✅ DB module loaded. System will initialize background services when READY.");
+    logger.info(
+      "✅ DB module loaded. System will initialize background services when READY.",
+    );
   }
 }
 
@@ -285,7 +287,9 @@ if (!building) {
 
     // Drain period
     while (inFlightRequests > 0) {
-      logger.info(`Waiting for ${inFlightRequests} in-flight requests to drain...`);
+      logger.info(
+        `Waiting for ${inFlightRequests} in-flight requests to drain...`,
+      );
       await new Promise((r) => setTimeout(r, 1000));
     }
 
@@ -315,7 +319,10 @@ if (!building) {
 // Helper to dynamically wrap SvelteKit middleware inside a high-resolution tracing span
 function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   return async (input) => {
-    return await traceSpan(`hook:${name}`, async () => await handleFnRef()(input));
+    return await traceSpan(
+      `hook:${name}`,
+      async () => await handleFnRef()(input),
+    );
   };
 }
 
@@ -372,9 +379,11 @@ export const handle: Handle = async ({ event, resolve }) => {
   const traceId = (event.locals as any).requestId || crypto.randomUUID();
   const traceHeader = event.request.headers.get("x-svelty-trace");
   const isBenchmark =
-    process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+    process.env.BENCHMARK === "true" ||
+    process.env.SVELTY_BENCHMARK_SUITE === "true";
   const traceEnabled =
-    traceHeader === "true" || (isBenchmark && !!event.request.headers.get("x-test-secret"));
+    traceHeader === "true" ||
+    (isBenchmark && !!event.request.headers.get("x-test-secret"));
 
   return runWithContext(
     {
@@ -385,11 +394,15 @@ export const handle: Handle = async ({ event, resolve }) => {
       return runWithTrace(traceId, traceEnabled, async () => {
         // 🚀 HOT-SWAP CHECK: If not setup yet, check if it just finished
         if (!setupComplete && isSetupComplete()) {
-          logger.info("🔄 System setup detected. Hot-swapping to READY pipeline...");
+          logger.info(
+            "🔄 System setup detected. Hot-swapping to READY pipeline...",
+          );
           setupComplete = true;
           await ensureFullMiddleware();
         } else if (setupComplete && !isSetupComplete()) {
-          logger.info("🔄 System setup reset detected. Hot-swapping back to SETUP pipeline...");
+          logger.info(
+            "🔄 System setup reset detected. Hot-swapping back to SETUP pipeline...",
+          );
           setupComplete = false;
         }
 
@@ -401,7 +414,10 @@ export const handle: Handle = async ({ event, resolve }) => {
             const trace = getTrace();
             if (trace) {
               response.headers.set("x-svelty-trace-id", trace.traceId);
-              response.headers.set("x-svelty-trace-spans", JSON.stringify(trace.spans));
+              response.headers.set(
+                "x-svelty-trace-spans",
+                JSON.stringify(trace.spans),
+              );
             }
           }
           return response;
@@ -425,7 +441,10 @@ export const handle: Handle = async ({ event, resolve }) => {
             const trace = getTrace();
             if (trace) {
               errorResponse.headers.set("x-svelty-trace-id", trace.traceId);
-              errorResponse.headers.set("x-svelty-trace-spans", JSON.stringify(trace.spans));
+              errorResponse.headers.set(
+                "x-svelty-trace-spans",
+                JSON.stringify(trace.spans),
+              );
             }
           }
 
@@ -445,6 +464,7 @@ import { TokenRegistry } from "@src/services/token/engine";
 
 // 🚀 Register server-side token resolver for site settings without polluting client bundle
 TokenRegistry.setSiteResolver(async () => {
-  const { getAllSettings } = await import("@src/services/core/settings-service");
+  const { getAllSettings } =
+    await import("@src/services/core/settings-service");
   return await getAllSettings();
 });
