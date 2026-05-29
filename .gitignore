@@ -53,6 +53,7 @@ yarn-error.log*
 # build
 /test-results/
 /playwright-report/
+tests/test-results/
 tests/playwright-report/
 /playwright/.cache/
 /error-screenshot.png

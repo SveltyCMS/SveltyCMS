@@ -53,6 +53,8 @@ export default defineConfig({
    * (e.g. cms_worker1.db) triggered by the x-test-worker-index header.
    */
   workers: process.env.CI ? 4 : undefined,
+  /* Keep Playwright artifacts under tests/ so root stays clean */
+  outputDir: "tests/test-results",
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ["html", { outputFolder: "tests/playwright-report", open: "never" }],
