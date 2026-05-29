@@ -1680,6 +1680,11 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
 
         const now = new Date();
 
+        const tenantFilter =
+          options?.bypassTenantCheck || !options?.tenantId
+            ? ""
+            : ` AND "tenantId" = '${options.tenantId}'`;
+
         if (this.type === "sqlite") {
           // SQLite stores extra fields in the `data` TEXT (JSON) column.
           // First try the `data` column path; fall back to a top-level numeric column.
@@ -1687,14 +1692,14 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
           if (dataCol) {
             await this.getDrizzleInstance(options).run(
               sql.raw(
-                `UPDATE "${tableName}" SET "data" = json_set("data", '$.${field}', coalesce(json_extract("data", '$.${field}'), 0) + ${amount}), "updatedAt" = ${now.getTime()} WHERE "_id" = '${String(id)}'`,
+                `UPDATE "${tableName}" SET "data" = json_set("data", '$.${field}', coalesce(json_extract("data", '$.${field}'), 0) + ${amount}), "updatedAt" = ${now.getTime()} WHERE "_id" = '${String(id)}'${tenantFilter}`,
               ),
             );
           } else {
             // Top-level column
             await this.getDrizzleInstance(options).run(
               sql.raw(
-                `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = ${now.getTime()} WHERE "_id" = '${String(id)}'`,
+                `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = ${now.getTime()} WHERE "_id" = '${String(id)}'${tenantFilter}`,
               ),
             );
           }
@@ -1703,28 +1708,32 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
           if (dataCol) {
             await this.getDrizzleInstance(options).execute(
               sql.raw(
-                `UPDATE "${tableName}" SET "data" = jsonb_set("data", '{${field}}', (coalesce(("data"->>'${field}')::numeric, 0) + ${amount})::text::jsonb), "updatedAt" = now() WHERE "_id" = '${String(id)}'`,
+                `UPDATE "${tableName}" SET "data" = jsonb_set("data", '{${field}}', (coalesce(("data"->>'${field}')::numeric, 0) + ${amount})::text::jsonb), "updatedAt" = now() WHERE "_id" = '${String(id)}'${tenantFilter}`,
               ),
             );
           } else {
             await this.getDrizzleInstance(options).execute(
               sql.raw(
-                `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = now() WHERE "_id" = '${String(id)}'`,
+                `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = now() WHERE "_id" = '${String(id)}'${tenantFilter}`,
               ),
             );
           }
         } else if (this.type === "mariadb" || this.type === "mysql") {
           const dataCol = this.getColumn(table, "data");
+          const mariaTenantFilter = options?.bypassTenantCheck || !options?.tenantId 
+            ? "" 
+            : ` AND \`tenantId\` = '${options.tenantId}'`;
+
           if (dataCol) {
             await this.getDrizzleInstance(options).execute(
               sql.raw(
-                `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(\`data\`, '$.${field}', COALESCE(JSON_EXTRACT(\`data\`, '$.${field}'), 0) + ${amount}), \`updatedAt\` = NOW() WHERE \`_id\` = '${String(id)}'`,
+                `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(\`data\`, '$.${field}', COALESCE(JSON_EXTRACT(\`data\`, '$.${field}'), 0) + ${amount}), \`updatedAt\` = NOW() WHERE \`_id\` = '${String(id)}'${mariaTenantFilter}`,
               ),
             );
           } else {
             await this.getDrizzleInstance(options).execute(
               sql.raw(
-                `UPDATE \`${tableName}\` SET \`${field}\` = COALESCE(\`${field}\`, 0) + ${amount}, \`updatedAt\` = NOW() WHERE \`_id\` = '${String(id)}'`,
+                `UPDATE \`${tableName}\` SET \`${field}\` = COALESCE(\`${field}\`, 0) + ${amount}, \`updatedAt\` = NOW() WHERE \`_id\` = '${String(id)}'${mariaTenantFilter}`,
               ),
             );
           }

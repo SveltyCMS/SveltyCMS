@@ -24,14 +24,14 @@ tags:
 
 > [!WARNING]
 > **Performance Regressions Detected (Statistical Deviation > 15%)**:
-> - **mariadb** → **REST/Collections p95**: 1.097ms (was 1.097ms, delta: 0.0%) - *Statistical regression detected*
+> - **sqlite** → **DB Raw p95**: 0.093ms (was 0.079ms, delta: +17.4%) - *Delta exceeds 15% threshold (baseline-building)*
 >
 > *Please review recent changes or environmental noise to preserve sub-millisecond execution times.*
 
 | Database | Status | Cold Start | REST p95 | GQL Avg | CPU | Memory |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| [🗄️  **SQLITE**](./benchmark_sqlite.mdx) | 🟢 PASS | 275ms | 2.023ms | 1.067ms | 0.0% | 0.0MB |
-| [⚡ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx) | 🟢 PASS | 264ms | 1.984ms | 1.046ms | 0.0% | 0.0MB |
+| [🗄️  **SQLITE**](./benchmark_sqlite.mdx) | 🟢 PASS | 426ms | 0.638ms | 3.420ms | 0.0% | 0.0MB |
+| [⚡ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx) | 🟢 PASS | 349ms | 0.806ms | 3.422ms | 0.0% | 29.5MB |
 | [🍃 **MONGODB**](./benchmark_mongodb.mdx) | 🟢 PASS | 0ms | 1.543ms | 0.000ms | 0.0% | 0.0MB |
 | [🔥 **MONGODB+REDIS**](./benchmark_mongodb_redis.mdx) | ⚪ N/A | - | - | - | - | - |
 | [🐘 **POSTGRESQL**](./benchmark_postgresql.mdx) | 🟢 PASS | 0ms | 0.468ms | 0.000ms | 0.0% | 0.0MB |

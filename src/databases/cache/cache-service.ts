@@ -845,8 +845,14 @@ export class CacheService {
       clearInterval(this.negativeRotationTimer);
       this.negativeRotationTimer = null;
     }
-    if (this.l2) await this.l2.destroy().catch(() => {});
-    if (this.subscriber) await this.subscriber.destroy().catch(() => {});
+    if (this.l2) {
+      if (typeof this.l2.disconnect === "function") await this.l2.disconnect().catch(() => {});
+      else if (typeof this.l2.destroy === "function") await this.l2.destroy().catch(() => {});
+    }
+    if (this.subscriber) {
+      if (typeof this.subscriber.disconnect === "function") await this.subscriber.disconnect().catch(() => {});
+      else if (typeof this.subscriber.destroy === "function") await this.subscriber.destroy().catch(() => {});
+    }
     this.l2 = null;
     this.subscriber = null;
     this.l1.clear();

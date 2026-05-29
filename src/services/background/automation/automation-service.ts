@@ -16,6 +16,7 @@ import { logger } from "@utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import { eventBus } from "./event-bus";
 import type {
+  AgenticTaskOperationConfig,
   AutomationEventPayload,
   AutomationFlow,
   AutomationOperation,
@@ -360,6 +361,13 @@ export class AutomationService {
           payload,
         );
 
+      case "agentic_task":
+        await this.executeAgenticTask(
+          resolvedConfig as unknown as AgenticTaskOperationConfig,
+          payload,
+        );
+        return true;
+
       default:
         logger.warn(`Unknown operation type: ${operation.type}`);
         return true;
@@ -491,6 +499,77 @@ export class AutomationService {
         return fieldValue === undefined || fieldValue === null || fieldValue === "";
       default:
         return true;
+    }
+  }
+
+  /** Execute an agentic task operation via local AIService (privacy-first) */
+  private async executeAgenticTask(
+    config: AgenticTaskOperationConfig,
+    payload: AutomationEventPayload,
+  ): Promise<void> {
+    const { aiService } = await import("@src/services/core/ai-service");
+
+    const sourceText =
+      config.prompt ||
+      (payload.data
+        ? Object.values(payload.data)
+            .filter((v) => typeof v === "string")
+            .join("\n")
+        : "");
+
+    if (!sourceText) {
+      logger.warn("Agentic task: No source text available to process");
+      return;
+    }
+
+    let result: string;
+
+    switch (config.taskType) {
+      case "summarize":
+        result = await aiService.process("Summarize this content concisely.", sourceText);
+        break;
+
+      case "translate":
+        result = await aiService.translate(sourceText, "auto", config.targetLanguage || "en");
+        break;
+
+      case "enrich":
+        result = await aiService.enrichText(sourceText, "rewrite");
+        break;
+
+      case "classify":
+        result = await aiService.process(
+          "Classify this content into one of these categories: news, tutorial, reference, opinion, announcement. Return only the category name.",
+          sourceText,
+        );
+        break;
+
+      case "generate_tags":
+        result = await aiService.process(
+          "Generate 5 descriptive, comma-separated tags for this content. Return only the tags.",
+          sourceText,
+        );
+        break;
+
+      default:
+        logger.warn(`Agentic task: Unknown task type: ${config.taskType}`);
+        return;
+    }
+
+    logger.info(`Agentic task (${config.taskType}) completed for tenant ${payload.tenantId}`);
+
+    // Optionally write result back to the entry
+    if (config.targetField && payload.entryId && payload.collection) {
+      const db = await getDbAdapter();
+      if (db) {
+        await db.crud.update(
+          payload.collection,
+          payload.entryId as any,
+          { [config.targetField]: result },
+          payload.tenantId as any,
+        );
+        logger.debug(`Agentic task: Wrote result to ${config.targetField} on ${payload.entryId}`);
+      }
     }
   }
 

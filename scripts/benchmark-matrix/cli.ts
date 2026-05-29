@@ -88,9 +88,24 @@ export function parseArgs(): RunConfig {
 
   const sqlFlag = hasFlag(argv, "--sql") || hasFlag(argv, "--sqlite") || hasFlag(argv, "--sqllite");
 
+  let skipBuild = hasFlag(argv, "--no-build");
+  if (skipBuild) {
+    try {
+      const buildTime = Bun.file("build/index.js").lastModified;
+      const srcTime = Bun.file("src/databases/db.ts").lastModified;
+      
+      if (srcTime > buildTime || buildTime === 0) {
+        console.warn(`\n${color("⚠️  [WARNING] '--no-build' ignored: Source code is newer than the build cache (or build is missing). Forcing a fresh build...", "yellow")}\n`);
+        skipBuild = false;
+      }
+    } catch {
+      skipBuild = false;
+    }
+  }
+
   const cfg: RunConfig = {
     parallelMode,
-    skipBuild: hasFlag(argv, "--no-build"),
+    skipBuild,
     dbFilter:
       (dbRaw || (sqlFlag ? "sqlite" : ""))
         .split(",")

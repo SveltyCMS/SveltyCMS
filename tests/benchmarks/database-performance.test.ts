@@ -37,8 +37,8 @@ export async function runDatabaseBenchmark() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { getDb, getDbInitPromise } = await import("@src/databases/db");
-    await getDbInitPromise(false, "CORE").catch(() => {});
+    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+    await ensureFullInitialization();
     const db = getDb();
     if (!db) throw new Error("Database not initialized");
 

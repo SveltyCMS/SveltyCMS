@@ -17,12 +17,9 @@ import { eventBus, SystemEvents } from "@utils/event-bus";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { generateSchemaHash, loadSchemaNative } from "./module-processor.server";
 
-/**
- * 🛡️ SECURITY: Validates that a schema file is within the allowed .compiledCollections directory.
- */
 function isSafeCollectionPath(fullPath: string): boolean {
-  const resolved = path.resolve(fullPath);
-  const allowedBase = path.resolve(process.cwd(), ".compiledCollections");
+  const resolved = path.resolve(fullPath).toLowerCase();
+  const allowedBase = path.resolve(process.cwd(), ".compiledCollections").toLowerCase();
   return resolved.startsWith(allowedBase) && resolved.endsWith(".js");
 }
 

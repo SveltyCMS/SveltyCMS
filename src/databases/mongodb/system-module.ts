@@ -239,4 +239,17 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
     getByToken: async (token: string) => (await this._getMethods()).websiteTokens.getByToken(token),
     delete: async (id: DatabaseId) => (await this._getMethods()).websiteTokens.delete(id),
   };
+
+  public readonly health = {
+    getUpdateStatus: async (): Promise<
+      DatabaseResult<{ updateAvailable: boolean; latestVersion?: string }>
+    > => {
+      return {
+        success: true,
+        data: {
+          updateAvailable: false,
+        },
+      };
+    },
+  };
 }

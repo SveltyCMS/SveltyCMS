@@ -145,7 +145,8 @@ async function runRevisionAudit() {
 }
 
 async function prepareCollection() {
-  const { getDb } = await import("@src/databases/db");
+  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+  await ensureFullInitialization();
   const db = getDb();
 
   const schema = {

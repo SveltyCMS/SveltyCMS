@@ -45,9 +45,10 @@ async function runMediaAudit() {
     // Generate test image once
     testImageBuffer = await generateTestImage();
 
-    const { getDb } = await import("@src/databases/db");
+    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
     const { LocalCMS } = await import("@src/services/sdk");
     const { settingsService } = await import("@src/services/core/settings-service");
+    await ensureFullInitialization();
     const db = getDb();
     await settingsService.loadSettingsCache();
     const cms = new LocalCMS(db!);

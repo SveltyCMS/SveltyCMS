@@ -1124,4 +1124,17 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.virtualFolder.create(folder, tenantId);
     },
   };
+
+  public readonly health = {
+    getUpdateStatus: async (): Promise<
+      DatabaseResult<{ updateAvailable: boolean; latestVersion?: string }>
+    > => {
+      return {
+        success: true,
+        data: {
+          updateAvailable: false,
+        },
+      };
+    },
+  };
 }

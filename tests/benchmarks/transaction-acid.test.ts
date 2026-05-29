@@ -31,7 +31,8 @@ async function runAcidAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { getDb } = await import("@src/databases/db");
+    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+    await ensureFullInitialization();
     const db = getDb();
     if (!db) throw new Error("Database not initialized");
 

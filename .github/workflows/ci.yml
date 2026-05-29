@@ -89,6 +89,34 @@ jobs:
   # ------------------------------------------------
   # 2. Quality gates
   # ------------------------------------------------
+  security-audit:
+    name: 🔒 Dependency Audit
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+
+      - name: CVE Audit (npm)
+        run: npm audit --omit=dev --audit-level=critical || true
+
+      - name: CVE Audit Summary
+        run: |
+          echo "## 🔒 Dependency Audit Results" >> $GITHUB_STEP_SUMMARY
+          npm audit --omit=dev --json 2>/dev/null | jq -r '.metadata // empty | "**Total:** \(.totalDependencies) deps | **Vulnerabilities:** \(.vulnerabilities.critical // 0) critical, \(.vulnerabilities.high // 0) high, \(.vulnerabilities.moderate // 0) moderate"' >> $GITHUB_STEP_SUMMARY || echo "Audit completed (no structured output)" >> $GITHUB_STEP_SUMMARY
+
   lint:
     name: 🔎 Lint
     needs: bootstrap
@@ -421,7 +449,7 @@ jobs:
           PASSWORD_MIN_LENGTH=8 \
           TEST_MODE=true \
           TEST_API_SECRET="$TEST_API_SECRET" \
-          node build/index.js > preview.log 2>&1 &
+          bun build/index.js > preview.log 2>&1 &
 
           # Increase timeout and add explicit logging
           echo "Waiting for preview server on port 4173..."
@@ -627,7 +655,7 @@ jobs:
           TEST_MODE=true \
           SKIP_TEST_CLEANUP=true \
           TEST_API_SECRET="$TEST_API_SECRET" \
-          node build/index.js > preview.log 2>&1 &
+          bun build/index.js > preview.log 2>&1 &
 
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}
@@ -653,7 +681,7 @@ jobs:
   # ------------------------------------------------
   benchmarks:
     name: 📊 Benchmarks (${{ matrix.db }})
-    needs: [db-tests]
+    needs: [db-tests, e2e-wizard, e2e-auth, e2e-app]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')

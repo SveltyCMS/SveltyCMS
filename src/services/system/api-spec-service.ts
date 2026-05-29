@@ -100,12 +100,9 @@ export class ApiSpecService {
     this.l1Cache.clear();
   }
 
-  /**
-   * Invalidates the OpenAPI specification cache
-   */
   public async invalidateCache(tenantId?: string | null): Promise<void> {
     const cacheKey = `openapi:spec:${tenantId || "global"}`;
-    this.l1Cache.delete(tenantId || "global");
+    this.l1Cache.clear(); // Clear all keys to guarantee freshness across all tenant contexts
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");
       await cacheService.delete(cacheKey, tenantId);

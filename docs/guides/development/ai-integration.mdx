@@ -1,23 +1,25 @@
 ---
 path: "docs/guides/development/ai-integration.mdx"
 title: "AI Integration & Local Knowledge Core"
-description: "Guide to the high-performance local MPC Server and RAG pipeline."
+description: "Guide to the high-performance hosted MCP Server, local RAG pipeline, and agentic content tools."
 order: 50
 icon: "mdi:robot"
 author: "SveltyCMS Team"
 created: "2026-02-07"
-updated: "2026-03-27"
+updated: "2026-05-29"
 tags:
   - "ai"
   - "mcp"
   - "rag"
   - "npu"
   - "lancedb"
+  - "webmcp"
+  - "agentic"
 ---
 
 # AI Integration & Hosted Knowledge Core (MCP)
 
-SveltyCMS 2026 leverages a fully implemented and hosted **Model Context Protocol (MCP)** server to provide AI agents with deep, real-time project knowledge.
+SveltyCMS 2026 leverages a fully implemented and hosted **Model Context Protocol (MCP)** server to provide AI agents with deep, real-time project knowledge — combined with a local **WebMCP** bridge for secure, draft-gated content management.
 
 > [!TIP]
 > **Status:** Fully Implemented. Your AI integration is powered by the **SveltyCMS Hosted Knowledge Core**.
@@ -25,6 +27,30 @@ SveltyCMS 2026 leverages a fully implemented and hosted **Model Context Protocol
 > - **Hosted (Primary):** `https://mcp.sveltycms.com/mcp` (Cloud-native agentic memory)
 > - **Real-time Tools:** SSE-based live access to codebase, docs, and system schemas.
 > - **Local (RAG):** Fallback for local environments using **LanceDB**.
+> - **WebMCP Bridge:** Browser-based AI agent tools for content CRUD, navigation, and quality scoring.
+
+---
+
+## SveltyCMS MCP vs Competitors
+
+SveltyCMS is the **MCP leader** — PayloadCMS, Strapi, and Directus are catching up with basic handlers that SveltyCMS already has.
+
+| Capability                   | SveltyCMS                                          | PayloadCMS (new)                       | Strapi (new)              | Directus (new) |
+| :--------------------------- | :------------------------------------------------- | :------------------------------------- | :------------------------ | :------------- |
+| **Semantic vector search**   | ✅ `search_knowledge_base`                         | ❌                                     | ❌                        | ❌             |
+| **Source code reading**      | ✅ `read_source_code`                              | ❌                                     | ❌                        | ❌             |
+| **Project file tree**        | ✅ `get_file_tree`, `list_directory`               | ❌                                     | ❌                        | ❌             |
+| **Content CRUD via MCP**     | ✅ WebMCP (7 tools, draft-gated)                   | ✅ `@payloadcms/plugin-mcp` (granular) | ✅ Collection/single-type | ❌             |
+| **Content quality scoring**  | ✅ `score_content` (AI Co-Pilot)                   | ❌                                     | ❌                        | ❌             |
+| **Generative UI layouts**    | ✅ Agentic Dashboard via `json-render-svelte`      | ❌                                     | ❌                        | ❌             |
+| **Enterprise awareness**     | ✅ Trash recovery, DLQ, Yjs presence               | ❌                                     | ❌                        | ❌             |
+| **Bulk AI translation**      | ✅ `/api/ai/translate-collection`                  | ❌                                     | ❌                        | ❌             |
+| **Agentic automation tasks** | ✅ `agentic_task` operation in Automation Builder  | ❌                                     | ❌                        | ❌             |
+| **Security**                 | ✅ Draft airgap + prompt injection shield + tarpit | ✅ API Key + granular opt-in           | ❌ (just permissions)     | ✅ OAuth flow  |
+| **Local inference**          | ✅ Ollama + LanceDB                                | ❌                                     | ❌                        | ❌             |
+| **SSE real-time**            | ✅                                                 | ✅                                     | ✅                        | ✅             |
+
+---
 
 ## 1. Hosted MCP Server (mcp.sveltycms.com)
 
@@ -43,7 +69,29 @@ This service acts as the "Long-term Memory" for SveltyCMS locally:
 - **Deep Implementation Knowledge:** Indexes `src/`, `docs/`, and `package.json` expert patterns.
 - **Expert Discovery:** Automatically syncs with `llms-full.txt` from Svelte 5, Native UI, and Valibot.
 
-## 3. AI-Native Generative Layouts
+## 3. WebMCP Browser Bridge (Content CRUD)
+
+The **WebMCP plugin** (`src/plugins/webmcp/`) enables browser-based AI agents to interact with CMS content through a secure, schema-aware API bridge. All tools enforce the **Draft-by-Default Airgap**.
+
+### Available WebMCP Tools
+
+| Tool                | Type  | Description                                                                     |
+| :------------------ | :---- | :------------------------------------------------------------------------------ |
+| `get_collections`   | Read  | Returns all collections with schemas and field definitions                      |
+| `list_entries`      | Read  | Paginated entry listing with sort, filter, and publication status               |
+| `search_entries`    | Read  | Full-text cross-collection search                                               |
+| `get_entry`         | Read  | Retrieve a single entry by collection and ID                                    |
+| `create_entry`      | Write | Create entry (always forced to `status: "draft"`)                               |
+| `update_entry`      | Write | Update entry (always forced to `status: "draft"`, human review required)        |
+| `delete_entry`      | Write | Soft-delete entry (moves to Trash, recoverable by admin, no permanent deletion) |
+| `score_content`     | AI    | AI-powered content quality scoring (SEO, readability, completeness)             |
+| `navigate_to`       | Nav   | Navigate to a specific admin path                                               |
+| `get_current_route` | Nav   | Returns current admin route and parameters                                      |
+
+> [!IMPORTANT]
+> **Draft-by-Default Airgap**: All mutation tools (`create_entry`, `update_entry`) forcefully set `status: "draft"`. The `delete_entry` tool only performs soft-deletes (never `permanent=true`). This ensures AI agents cannot publish or permanently destroy content without human review.
+
+## 4. AI-Native Generative Layouts
 
 SveltyCMS pushes beyond Chat-based AI into interactive generative layouts powered by [`json-render-svelte`](https://github.com/dummdidumm/json-render/tree/skills/json-render-svelte).
 When a user prompts the MCP Server or the local AI service to build a complex collection form or a custom dashboard view, the LLM outputs a structured JSON spec. This spec is then fed directly into our `<Renderer>` component, instantly generating a fully functional, state-bound Svelte 5 interface utilizing your exact widgets and plugins without touching the codebase.
@@ -66,25 +114,123 @@ SveltyCMS provides a suite of AI-native components registered in the `sveltyRegi
 
 ---
 
-## 4. Enterprise Awareness: Beyond Content
+## 5. AI Co-Pilot Capabilities
 
-In Q1 2026, the SveltyCMS Knowledge Core was updated to understand the CMS's own operational infrastructure. This allows AI agents to assist with high-level administrative and maintenance tasks.
+The `AIService` (`src/services/core/ai-service.ts`) provides schema-aware AI capabilities that no competitor offers:
 
-## 4.1 Trash & Recovery Logic
+### Content Quality Scoring
 
-The MCP server now indexes the Soft Delete "Mangle-on-Delete" patterns.
+Evaluates content for SEO, readability, and completeness, returning actionable suggestions:
+
+```
+POST /api/ai/score
+Content-Type: application/json
+
+{
+  "content": { "title": "...", "body": "..." },
+  "collectionName": "blog-posts"
+}
+```
+
+**Response:**
+
+```json
+{
+  "score": 78,
+  "seoScore": 85,
+  "readabilityScore": 72,
+  "suggestions": ["Add meta description", "Shorten paragraph 3"]
+}
+```
+
+### Schema-Aware Field Suggestions
+
+Given a collection name and description, suggests optimal widget types and field configurations:
+
+```
+POST /api/ai/suggest-fields
+Content-Type: application/json
+
+{
+  "collectionName": "recipes",
+  "description": "Cooking recipes with ingredients and instructions",
+  "availableWidgets": ["InputText", "RichText", "ImageArray", "Tags"]
+}
+```
+
+### Bulk AI Content Localization
+
+SveltyCMS features a dedicated background utility for translating entire collections:
+
+```
+POST /api/ai/translate-collection
+Content-Type: application/json
+
+{
+  "collectionName": "blog-posts",
+  "targetLanguages": ["de", "fr", "es"],
+  "sourceLanguage": "en"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "jobId": "job_abc123",
+  "message": "Bulk translation dispatched for blog-posts → [de, fr, es]"
+}
+```
+
+The job runs in the background via the Job Queue Service, iterating through entries, identifying missing locales, and generating translations while respecting field-level constraints. Track progress via `/api/system/jobs/{jobId}`.
+
+---
+
+## 6. Agentic Automation Tasks
+
+The **Automation Builder** now includes an `Agentic Task` operation type, enabling AI-powered content processing as part of event-driven workflows.
+
+### Supported Task Types
+
+| Task Type       | Description                                                     |
+| :-------------- | :-------------------------------------------------------------- |
+| `summarize`     | Generates a concise summary of the entry content                |
+| `translate`     | Translates content to a target language                         |
+| `enrich`        | Rewrites content for clarity and quality                        |
+| `classify`      | Classifies content into categories (news, tutorial, reference…) |
+| `generate_tags` | Generates descriptive tags for the content                      |
+
+### Example: Auto-Tag on Publish
+
+Create an automation that auto-generates tags whenever content is published:
+
+1. **Trigger**: `entry:publish`
+2. **Operation**: Agentic Task — `generate_tags`, Target Field: `tags`
+
+The AI processes the entry content locally via Ollama (privacy-first) and writes the result back to the entry.
+
+---
+
+## 7. Enterprise Awareness: Beyond Content
+
+The SveltyCMS Knowledge Core understands the CMS's own operational infrastructure, enabling AI agents to assist with high-level administrative and maintenance tasks.
+
+### 7.1 Trash & Recovery Logic
+
+The MCP server indexes the Soft Delete "Mangle-on-Delete" patterns.
 
 - **AI Tooling**: Agents can help locate "lost" content by querying the Trash Bin via semantic search, even if the original slug was mangled (e.g., `my-post_DELETED_1742332800`).
 - **Context**: The AI understands that items in the trash are isolated from production APIs but restorable to their original state.
 
-## 4.2 Durable Webhook & DLQ Monitoring
+### 7.2 Durable Webhook & DLQ Monitoring
 
 The Knowledge Core provides real-time visibility into the system's integration health.
 
 - **Poison Pill Detection**: AI agents can analyze failed webhook payloads in the Dead-Letter Queue (DLQ) and suggest fixes for 4xx errors (e.g., "The destination API rejected this JSON because the 'title' field was too long").
 - **Retry Strategy**: The AI can recommend manual retries for transient 5xx errors based on the high-resolution operation timing bubbled up through the DB adapters.
 
-## 4.3 Collaboration & State Handshaking
+### 7.3 Collaboration & State Handshaking
 
 The AI Assistant is aware of the binary Yjs collaboration state.
 
@@ -93,22 +239,12 @@ The AI Assistant is aware of the binary Yjs collaboration state.
 
 ---
 
-## Why AI Makes SveltyCMS Superior
-
-Most headless CMS platforms boast "AI Integration," but essentially just boast a ChatGPT wrapper onto a rich text field. SveltyCMS is built from the ground up to be **Agentic**.
-
-1.  **Bulk AI Content Localization**: SveltyCMS features a dedicated background utility for translating entire collections. Using the `/api/utils/translate-collection` endpoint, developers can dispatch a job that iterates through thousands of entries, identifying missing locales and autonomously generating high-quality translations while respecting field-level constraints.
-2.  **Zero-Boilerplate Customization**: Need a highly specific dashboard for a niche real estate tenant? You no longer write manual Svelte code. The MCP understands your available widgets and generates the interface instantly via `json-render-svelte`.
-3.  **Plugin Superpowers**: Any [Marketplace Plugin](../../architecture/plugin-architecture.mdx) that registers itself with `jsonRender: true` instantly becomes part of the AI's vocabulary, meaning third-party tools can be effortlessly composed into Generative Layouts.
-4.  **Local Privacy First**: By splitting knowledge (Hosted MCP Server) from inference (Local Ollama via `AIService`), enterprise users get the intelligence of the official docs without sending their private schema or dashboard data to third-party endpoints.
-5.  **Self-Healing & Understanding**: The MCP Server constantly indexes your `src/` and `docs/`, meaning SveltyCMS understands its own architecture.
-6.  **AI-Powered Migration**: The **[Smart Importer](../content/smart-importer.mdx)** uses the Knowledge Core to intelligently map legacy Drupal or WordPress schemas to modern Svelte widgets, drastically reducing the manual labor of content migration.
-
-## 5. Security & Agentic Boundaries (April 2026)
+## 8. Security & Agentic Boundaries
 
 To ensure enterprise stability while maintaining high agency, SveltyCMS implements several autonomous defense layers:
 
 - **Draft-by-Default Airgap**: All content created or modified via the WebMCP tools is forcefully set to `status: "draft"`. This ensures that even if an AI agent is compromised or follows a malformed instruction, it cannot publish directly to the live site without administrative review.
+- **Soft-Delete Only**: The `delete_entry` WebMCP tool only performs soft-deletes. Permanent deletion is not exposed to AI agents — items go to Trash and are recoverable by admins.
 - **Prompt Injection Shielding**: High-sensitivity AI widgets (like `AIEnrichment`) wrap all user-provided data in `<user_data>` tags. The system prompt explicitly commands the LLM to treat this data as passive information and ignore any "Ignore previous instructions" payloads.
 - **Tarpit Trap**: Automated AI crawlers attempting to scrape sensitive system files are identified via honeypot routes and trapped in a high-latency tarpit, effectively slowing down automated reconnaissance attacks.
 
@@ -159,7 +295,7 @@ If running the local core directly:
 "args": ["run", "./mpc-server/index.ts"]
 ```
 
-## Available Tools
+## Available Hosted MCP Tools
 
 Once connected, your AI agent can use these read-only tools to explore the SveltyCMS codebase and documentation:
 
@@ -171,6 +307,19 @@ Once connected, your AI agent can use these read-only tools to explore the Svelt
 | `get_file_tree`         | Get a recursive tree of the project structure up to a specified depth.       | `depth` (number, default: 3)                                                |
 
 All tools are **completely read-only** — your agent can explore and learn, but cannot modify, delete, or create anything. Sensitive paths like `.git`, `node_modules`, and `.env` are automatically blocked.
+
+## AI API Reference
+
+All endpoints require authentication. Admin role required for `translate-collection`.
+
+| Endpoint                       | Method | Description                              |
+| :----------------------------- | :----- | :--------------------------------------- |
+| `/api/ai/chat`                 | POST   | AI chat with RAG context                 |
+| `/api/ai/enrich`               | POST   | Text enrichment (summarize, SEO, tags)   |
+| `/api/ai/score`                | POST   | Content quality scoring                  |
+| `/api/ai/suggest-fields`       | POST   | Schema-aware field suggestions           |
+| `/api/ai/generate-layout`      | POST   | Generative UI layout spec                |
+| `/api/ai/translate-collection` | POST   | Bulk collection translation (background) |
 
 ## Deployment & Updates
 

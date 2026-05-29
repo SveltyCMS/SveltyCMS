@@ -17,6 +17,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 12_000,
     desc: "Measures the base network and HTTP overhead for the simplest possible API calls.",
     strategy: "all",
+    tags: ["network"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/cold-start-phased.test.ts",
@@ -28,6 +30,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 10_000,
     desc: "Measures the time to READY state (serving traffic) vs WARMED state (background tasks).",
     strategy: "all",
+    tags: ["network"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/truth-latency.test.ts",
@@ -39,6 +43,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 15_000,
     desc: "The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).",
     strategy: "all",
+    tags: ["network"],
+    metricCategory: "latency",
   },
 
   // --- INTERNALS (Core System Logic) ---
@@ -52,6 +58,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 8_000,
     desc: "Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.",
     strategy: "once",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/hooks-performance.test.ts",
@@ -78,6 +86,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 5_000,
     desc: "Verifies distributed L1/L2 cache invalidation latency across simulated nodes.",
     strategy: "once",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/telemetry-performance.test.ts",
@@ -89,6 +99,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 8_000,
     desc: "Measures the overhead of telemetry data collection and cryptographic signing.",
     strategy: "once",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/state-machine-transition.test.ts",
@@ -100,6 +112,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 15_000,
     desc: "Validates rapid IDLE -> READY self-healing cycles.",
     strategy: "all",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
 
   // --- ADAPTER (Database Efficiency) ---
@@ -128,6 +142,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 25_000,
     desc: "Measures commit/rollback latency and transaction isolation performance.",
     strategy: "all",
+    tags: ["disk", "cpu"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/cache-performance.test.ts",
@@ -139,6 +155,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 15_000,
     desc: "Audits the performance gain of the 2-layer Hybrid Cache across various system modules.",
     strategy: "sql",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
 
   // --- LOGIC (Widget & Domain Workloads) ---
@@ -152,6 +170,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 25_000,
     desc: "Measures the internal CMS tax for AI enrichment and layout generation.",
     strategy: "once",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/temporal-integrity.test.ts",
@@ -163,6 +183,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 20_000,
     desc: "Verifies timezone normalization and deterministic UTC persistence.",
     strategy: "all",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/widget-performance.test.ts",
@@ -174,6 +196,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 25_000,
     desc: "Audits server-side processing cost of built-in widgets (Input, RichText, Relation).",
     strategy: "once",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/admin-ux-vitality.test.ts",
@@ -185,6 +209,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 30_000,
     desc: "Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.",
     strategy: "once",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/media-performance.test.ts",
@@ -196,6 +222,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 50_000,
     desc: "Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.",
     strategy: "once",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/relational-performance.test.ts",
@@ -207,6 +235,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 35_000,
     desc: "Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).",
     strategy: "all",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
   },
 
   // --- API (Dispatcher Latency) ---
@@ -220,6 +250,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 12_000,
     desc: "Generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification.",
     strategy: "once",
+    tags: ["network", "cpu"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/auth-performance.test.ts",
@@ -245,6 +277,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 20_000,
     desc: "Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.",
     strategy: "once",
+    tags: ["network", "cpu"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/rest-api-performance.test.ts",
@@ -285,6 +319,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 30_000,
     desc: "E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.",
     strategy: "all",
+    tags: ["network", "cpu"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/websocket-broadcast.test.ts",
@@ -296,6 +332,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 20_000,
     desc: "Benchmarks network-layer broadcast latency (SSE vs WebSocket).",
     strategy: "all",
+    tags: ["network", "cpu"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/realtime-performance.test.ts",
@@ -307,6 +345,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 15_000,
     desc: "Benchmarks WebSocket connection/broadcast latency.",
     strategy: "all",
+    tags: ["network", "cpu"],
+    metricCategory: "latency",
   },
 
   // --- SCALE (Throughput & Resilience) ---
@@ -320,6 +360,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 20_000,
     desc: "Benchmarks 404-miss response times and cache lookup speedup.",
     strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/revision-stress.test.ts",
@@ -331,6 +373,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     desc: "Benchmarks performance degradation as document history grows to 100+ versions.",
     strategy: "sql",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/memory-stability.test.ts",
@@ -358,6 +402,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     timeoutMs: 600_000,
     desc: "Stress-tests cross-tenant isolation and security boundary latency.",
     strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/mixed-workload.test.ts",
@@ -384,6 +430,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     timeoutMs: 600_000,
     desc: "High-concurrency GraphQL query stress test for resolver efficiency.",
     strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/migration-scale.test.ts",
@@ -395,6 +443,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 120_000,
     desc: "Measures system ingestion limits and read performance on 10,000+ entries.",
     strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/index-pressure.test.ts",
@@ -421,6 +471,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     desc: "Measures content scan performance on 1,000+ collections across 5 nested levels.",
     strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/client-journey.test.ts",
@@ -432,6 +484,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 60_000,
     desc: "E2E journey: Login -> List -> View -> Edit -> Save -> Realtime. Measures cumulative latency.",
     strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/concurrency-race.test.ts",
@@ -443,6 +497,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 40_000,
     desc: "Verifies atomic consistency and lost-update protection.",
     strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
 
   // --- RESILIENCE & SECURITY (Safety Boundaries) ---
@@ -456,6 +512,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 30_000,
     desc: "Measures system overhead when downstream dependencies (DB/Redis) fail or timeout.",
     strategy: "sql",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/circuit-breaker-failover.test.ts",
@@ -467,6 +525,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 25_000,
     desc: "Measures system graceful degradation when external services fail.",
     strategy: "all",
+    tags: ["network", "cpu"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/chaos-resilience.test.ts",
@@ -478,6 +538,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 60_000,
     desc: "Simulates 500ms database brownouts and measures CMS availability and stability.",
     strategy: "sql",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "scale",
   },
   {
     path: "tests/benchmarks/throttling-backoff-stress.test.ts",
@@ -489,6 +551,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 30_000,
     desc: "Measures rate-limiting consistency under 10x design load.",
     strategy: "all",
+    tags: ["security", "cpu"],
+    metricCategory: "latency",
   },
 
   // --- GOVERNANCE (Compliance Speed) ---
@@ -502,6 +566,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 35_000,
     desc: "Measures performance of deep-deletion across all linked tables.",
     strategy: "all",
+    tags: ["disk", "cpu"],
+    metricCategory: "scale",
   },
 
   // --- TOOLING (DX Baseline) ---
@@ -515,6 +581,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 85_000,
     desc: "Measures production bundle size, chunk count, and build performance.",
     strategy: "once",
+    tags: ["network"],
+    metricCategory: "latency",
   },
   {
     path: "tests/benchmarks/dev-dependency-load.test.ts",
@@ -526,5 +594,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 30_000,
     desc: "Measures overhead of the build, sync, and lint toolchain.",
     strategy: "once",
+    tags: ["network"],
+    metricCategory: "latency",
   },
 ];

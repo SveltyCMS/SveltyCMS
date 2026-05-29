@@ -288,7 +288,9 @@ async function startPreviewServer() {
 
   console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
 
-  previewProcess = spawn("node", [entryPoint], {
+  const runtimeCmd = process.platform === "win32" ? "node" : "bun";
+
+  previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,
     stdio: "inherit",
     shell: process.platform === "win32",
@@ -518,6 +520,45 @@ async function runCommand(cmd: string, args: string[], opts: any = {}) {
 async function runSystemSetup() {
   ensurePrivateTestConfig();
 
+  // Create a default test collection so that dynamic endpoints (like OpenAPI and Collections)
+  // are populated with at least one collection during integration testing.
+  const collectionsDir = join(ROOT, "config", "collections");
+  if (!existsSync(collectionsDir)) {
+    mkdirSync(collectionsDir, { recursive: true });
+  }
+  const tsPath = join(collectionsDir, "test_collection.ts");
+  const tsContent = `
+import type { Schema } from '@src/content/types';
+export const schema: Schema = {
+	name: 'test_collection',
+	slug: 'test_collection',
+	fields: [
+		{ name: 'title', label: 'Title', widget: 'text' },
+		{ name: 'content', label: 'Content', widget: 'richtext' }
+	]
+};
+`;
+  writeFileSync(tsPath, tsContent, "utf8");
+  console.log("✅ Created config/collections/test_collection.ts for build-time compilation");
+
+  const compiledDir = join(ROOT, ".compiledCollections");
+  if (!existsSync(compiledDir)) {
+    mkdirSync(compiledDir, { recursive: true });
+  }
+  const jsPath = join(compiledDir, "test_collection.js");
+  const jsContent = `
+export const schema = {
+	name: 'test_collection',
+	slug: 'test_collection',
+	fields: [
+		{ name: 'title', label: 'Title', widget: 'text' },
+		{ name: 'content', label: 'Content', widget: 'richtext' }
+	]
+};
+`;
+  writeFileSync(jsPath, jsContent, "utf8");
+  console.log("✅ Created .compiledCollections/test_collection.js for runtime loading");
+
   console.log("⚙️ Integration test config ready. /api/testing will reset/seed per test file.");
 }
 
@@ -538,6 +579,15 @@ async function teardown() {
   console.log("\n🧹 Tearing down test environment...");
 
   await stopPreviewServer();
+
+  try {
+    const tsPath = join(ROOT, "config", "collections", "test_collection.ts");
+    const jsPath = join(ROOT, ".compiledCollections", "test_collection.js");
+    if (existsSync(tsPath)) unlinkSync(tsPath);
+    if (existsSync(jsPath)) unlinkSync(jsPath);
+  } catch (e) {
+    // Non-fatal
+  }
 
   try {
     const files = readdirSync(ROOT);

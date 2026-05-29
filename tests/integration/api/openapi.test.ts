@@ -15,6 +15,25 @@ describe("OpenAPI Specification Integration", () => {
   beforeAll(async () => {
     await waitForServer();
     adminCookie = await prepareAuthenticatedContext();
+
+    // 🚀 Register a dummy collection to ensure dynamic OpenAPI paths are populated
+    await safeFetch(`${API_BASE_URL}/api/testing`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-test-mode": "true",
+        "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+        "x-tenant-id": "global",
+      },
+      body: JSON.stringify({
+        action: "create-collection",
+        schema: {
+          _id: "OpenApiTarget",
+          name: "OpenApiTarget",
+          fields: [{ db_fieldName: "title", label: "Title", type: "string" }],
+        },
+      }),
+    });
   });
 
   it("should serve a valid OpenAPI 3.1.0 JSON at /api/openapi.json", async () => {
@@ -42,6 +61,10 @@ describe("OpenAPI Specification Integration", () => {
         headers: { Cookie: adminCookie },
       });
       const data = await response.json();
+
+      if (attempt === 1) {
+        console.log("OpenAPI paths:", Object.keys(data.paths || {}));
+      }
 
       collections = Object.keys(data.paths || {})
         .filter((path) => path.startsWith("/collections/"))

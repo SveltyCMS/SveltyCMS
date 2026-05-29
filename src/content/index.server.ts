@@ -128,7 +128,7 @@ export const contentSystem = {
           }
 
           if (!options.skipReconciliation) {
-            void this.generateApiSpec(tenantId || "global");
+            void this.generateApiSpec(tenantId || "global", true);
           }
         } catch (err) {
           logger.error(`[ContentSystem] Init failed for tenant ${tenantId}:`, err);
@@ -170,8 +170,11 @@ export const contentSystem = {
     return this.initialize(tenantId, { skipReconciliation, incremental, force: true }, adapter);
   },
 
-  async generateApiSpec(tenantId: string = "global", _force = false) {
+  async generateApiSpec(tenantId: string = "global", force = false) {
     const apiSpec = await getServerApiSpecService();
+    if (force) {
+      await apiSpec.invalidateCache(tenantId);
+    }
     return apiSpec.generateFullSpec(tenantId);
   },
 

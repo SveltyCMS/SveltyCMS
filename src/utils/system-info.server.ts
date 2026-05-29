@@ -126,6 +126,12 @@ async function getSingleDiskInfo(mountPath: string): Promise<SingleDiskStats | n
  * Gathers system information for the dashboard.
  */
 export async function getSystemInfo() {
+  if (cpuHistory.usage.length === 0) {
+    const load = os.loadavg()[0];
+    const normalized = Math.min(100, Math.max(0, Math.round(load * 25)));
+    cpuHistory.usage.push(normalized);
+    cpuHistory.timestamps.push(new Date().toISOString());
+  }
   const cpus = os.cpus();
   const totalMem = os.totalmem();
   const freeMem = os.freemem();
@@ -190,6 +196,7 @@ export async function getSystemInfo() {
       },
       loadAvg: os.loadavg(),
       historicalLoad: cpuHistory,
+      currentLoad: cpuHistory.usage[cpuHistory.usage.length - 1] || 0,
     },
 
     memory: {

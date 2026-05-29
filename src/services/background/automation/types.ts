@@ -31,7 +31,7 @@ export const AUTOMATION_EVENTS: {
   event: AutomationEvent;
   label: string;
   icon: string;
-  category: "content" | "media";
+  category: "content" | "media" | "system" | "ai";
 }[] = [
   {
     event: "entry:create",
@@ -75,6 +75,30 @@ export const AUTOMATION_EVENTS: {
     icon: "mdi:image-remove",
     category: "media",
   },
+  {
+    event: "webhook:success",
+    label: "Webhook Succeeded",
+    icon: "mdi:webhook",
+    category: "system",
+  },
+  {
+    event: "webhook:failure",
+    label: "Webhook Failed",
+    icon: "mdi:webhook",
+    category: "system",
+  },
+  {
+    event: "ai:response",
+    label: "AI Response Received",
+    icon: "mdi:robot-outline",
+    category: "ai",
+  },
+  {
+    event: "chat:message",
+    label: "Chat Message Sent",
+    icon: "mdi:chat-outline",
+    category: "ai",
+  },
 ];
 
 export type TriggerType = "event" | "schedule" | "manual";
@@ -93,7 +117,13 @@ export interface AutomationTrigger {
 
 // ── Operation Types ────────────────────────────────────────────
 
-export type OperationType = "webhook" | "email" | "log" | "set_field" | "condition";
+export type OperationType =
+  | "webhook"
+  | "email"
+  | "log"
+  | "set_field"
+  | "condition"
+  | "agentic_task";
 
 /** All operation types with metadata for the GUI */
 export const OPERATION_TYPES: {
@@ -131,6 +161,13 @@ export const OPERATION_TYPES: {
     label: "Condition",
     icon: "mdi:source-branch",
     description: "Only continue if a condition is met",
+  },
+  {
+    type: "agentic_task",
+    label: "Agentic Task",
+    icon: "mdi:robot",
+    description:
+      "Trigger an AI-powered background task (summarize, translate, enrich, classify, or tag content)",
   },
 ];
 
@@ -178,12 +215,29 @@ export interface ConditionOperationConfig {
   value?: string;
 }
 
+/** Agentic task operation config — triggers AI-powered background processing */
+export interface AgenticTaskOperationConfig {
+  /** The AI task to perform */
+  taskType: "summarize" | "translate" | "enrich" | "classify" | "generate_tags";
+  /** Token-aware prompt template (resolved at execution) */
+  prompt?: string;
+  /** Target language for translation tasks */
+  targetLanguage?: string;
+  /** Target field to write the AI result back to */
+  targetField?: string;
+  /** Ollama model override (uses default from settings if omitted) */
+  model?: string;
+  /** Timeout in milliseconds (default: 30000) */
+  timeout?: number;
+}
+
 export type OperationConfig =
   | WebhookOperationConfig
   | EmailOperationConfig
   | LogOperationConfig
   | SetFieldOperationConfig
-  | ConditionOperationConfig;
+  | ConditionOperationConfig
+  | AgenticTaskOperationConfig;
 
 export interface AutomationOperation {
   config: OperationConfig;

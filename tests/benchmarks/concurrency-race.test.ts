@@ -49,6 +49,16 @@ async function runConcurrencyAudit() {
       console.log(
         `   → Checked entry: _id=${entry?._id}, count=${entry?.count}, keys=${Object.keys(entry || {}).join(",")}`,
       );
+    } else if (checkRes.status === 404) {
+      console.log(`   → Entry not found. Creating _id=${ENTRY_ID}...`);
+      const createRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ _id: ENTRY_ID, count: 0, title: "Concurrency Target" }),
+      });
+      if (!createRes.ok) throw new Error(`Failed to create target entry: ${await createRes.text()}`);
+    } else {
+      throw new Error(`Failed to check entry state: ${checkRes.status}`);
     }
 
     // Reset the count field to 0 via PATCH
