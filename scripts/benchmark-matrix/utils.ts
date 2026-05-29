@@ -498,9 +498,15 @@ export function checkBudget(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Trend Analysis (from SQLite history)
+// Trend Analysis (Statistical Engine — upgraded from simple avg)
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Drop-in replacement for the old getTrendDetails. Uses linear regression
+ * when enough history exists (MIN_RUNS_FOR_TREND=7), falls back to weighted
+ * average during baseline-building. Upgrades all 6 reporting.ts call sites
+ * automatically with zero changes to reporting.ts.
+ */
 export async function getTrendDetails(
   db: any,
   dbKey: string,
@@ -516,40 +522,103 @@ export async function getTrendDetails(
     return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
 
   try {
-    // 🚀 SURGICAL FIX: Exclude the current run (the latest one) from the average
-    // to get a true delta against history.
-    const row = db
+    const rows = db
       .query(
-        `
-        SELECT AVG(${column}) as avg_val
-        FROM (
-          SELECT ${column} FROM runs
-          WHERE db_key = ? AND status = 'SUCCESS' AND ${column} > 0
-          ORDER BY timestamp DESC LIMIT 10 OFFSET 1
-        )
-      `,
+        `SELECT ${column} FROM runs
+         WHERE db_key = ? AND status = 'SUCCESS' AND ${column} > 0
+         ORDER BY timestamp DESC LIMIT 20`,
       )
-      .get(dbKey) as { avg_val: number | null };
+      .all(dbKey) as { [k: string]: number }[];
 
-    if (!row?.avg_val)
-      return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
+    const values = rows.map((r) => r[column]).reverse(); // oldest first for regression
 
-    const pct = ((currentVal - row.avg_val) / row.avg_val) * 100;
-    const isRegression = pct > 15; // Relaxed regression threshold for dev environments
-    const icon = pct < -5 ? "🟢" : pct > 10 ? "🔴" : "⚪";
+    if (values.length < MIN_RUNS_FOR_TREND) {
+      // Baseline-building: fall back to weighted average
+      const avg = values.length > 0 ? weightedAverage(values) : 0;
+      if (!avg)
+        return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
+      const pct = ((currentVal - avg) / avg) * 100;
+      return {
+        icon: "⚪",
+        pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
+        isRegression: false,
+        previousAvg: avg,
+      };
+    }
+
+    // Full statistical analysis with enough history
+    const { slope } = linearRegression(
+      values.map((v, i) => [i, v] as [number, number]),
+    );
+    const baseline = weightedAverage(values);
+    const sd = stddev(values);
+    const { direction } = classifyTrend(
+      slope,
+      sd,
+      getBudgetForColumn(column),
+      currentVal,
+      values.length,
+    );
+
+    const pct = ((currentVal - baseline) / baseline) * 100;
+    const isRegression = direction === "degrading" || direction === "critical";
+    const icon =
+      direction === "improving"
+        ? "🟢"
+        : direction === "degrading" || direction === "critical"
+          ? "🔴"
+          : "⚪";
 
     return {
       icon,
       pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
       isRegression,
-      previousAvg: row.avg_val,
+      previousAvg: baseline,
     };
   } catch {
     return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
   }
 }
 
-// ─────────────────────────────────────────────────────────────
+/** Map history column names to budget keys for classifyTrend */
+function getBudgetForColumn(column: string): number {
+  const map: Record<string, number> = {
+    cold_start_ms: PERFORMANCE_BUDGET.coldStartMs,
+    collections_p95: PERFORMANCE_BUDGET.collections,
+    graphql_avg: PERFORMANCE_BUDGET.graphqlAvg,
+    middleware_hooks_p95: PERFORMANCE_BUDGET.hooks,
+    index_pressure_p95: PERFORMANCE_BUDGET.indexPressure,
+    adapter_read_avg: PERFORMANCE_BUDGET.dbRaw,
+    mem_growth: PERFORMANCE_BUDGET.memGrowth,
+    mixed_workload_aggregate: PERFORMANCE_BUDGET.indexPressure,
+  };
+  return map[column] ?? 100;
+}
+
+/**
+ * Load raw historical values for a metric (used by regression-detector).
+ * Returns oldest-first array for regression analysis.
+ */
+export function loadMetricHistory(
+  db: any,
+  dbKey: string,
+  column: string,
+  limit = 20,
+): number[] {
+  try {
+    const rows = db
+      .query(
+        `SELECT ${column} FROM runs
+         WHERE db_key = ? AND status = 'SUCCESS' AND ${column} > 0
+         ORDER BY timestamp DESC LIMIT ?`,
+      )
+      .all(dbKey, limit) as { [k: string]: number }[];
+    return rows.map((r) => r[column]).reverse();
+  } catch {
+    return [];
+  }
+}
+
 // Port Management
 // ─────────────────────────────────────────────────────────────
 
@@ -695,19 +764,30 @@ export const OUTLIER_TRIM_FRACTION = 0.1;
  * Simple linear regression: y = slope * x + intercept.
  * Returns slope, intercept, and R² (0=no fit, 1=perfect).
  */
-export function linearRegression(
-  points: [number, number][],
-): { slope: number; intercept: number; r2: number } {
+export function linearRegression(points: [number, number][]): {
+  slope: number;
+  intercept: number;
+  r2: number;
+} {
   const n = points.length;
   if (n < 2) return { slope: 0, intercept: points[0]?.[1] ?? 0, r2: 0 };
-  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+  let sumX = 0,
+    sumY = 0,
+    sumXY = 0,
+    sumX2 = 0,
+    sumY2 = 0;
   for (const [x, y] of points) {
-    sumX += x; sumY += y; sumXY += x * y; sumX2 += x * x; sumY2 += y * y;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumX2 += x * x;
+    sumY2 += y * y;
   }
   const denom = n * sumX2 - sumX * sumX;
   const slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
   const intercept = (sumY - slope * sumX) / n;
-  let ssRes = 0, ssTot = 0;
+  let ssRes = 0,
+    ssTot = 0;
   const yMean = sumY / n;
   for (const [x, y] of points) {
     const predicted = slope * x + intercept;
@@ -735,7 +815,9 @@ export function weightedAverage(
 export function stddev(values: number[]): number {
   if (values.length < 2) return 0;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  return Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length);
+  return Math.sqrt(
+    values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length,
+  );
 }
 
 /** Pearson correlation coefficient (-1 to 1) between two metric series */
@@ -744,10 +826,15 @@ export function pearsonCorrelation(a: number[], b: number[]): number {
   if (n < MIN_RUNS_FOR_CORRELATION) return 0;
   const aMean = a.reduce((s, v) => s + v, 0) / n;
   const bMean = b.reduce((s, v) => s + v, 0) / n;
-  let cov = 0, aVar = 0, bVar = 0;
+  let cov = 0,
+    aVar = 0,
+    bVar = 0;
   for (let i = 0; i < n; i++) {
-    const ad = a[i] - aMean, bd = b[i] - bMean;
-    cov += ad * bd; aVar += ad ** 2; bVar += bd ** 2;
+    const ad = a[i] - aMean,
+      bd = b[i] - bMean;
+    cov += ad * bd;
+    aVar += ad ** 2;
+    bVar += bd ** 2;
   }
   const denom = Math.sqrt(aVar * bVar);
   return denom === 0 ? 0 : cov / denom;
@@ -761,7 +848,11 @@ export function trimOutliers(
   if (values.length < 5) return { trimmed: [...values], lo: 0, hi: 0 };
   const s = [...values].sort((a, b) => a - b);
   const c = Math.floor(s.length * fraction);
-  return { trimmed: s.slice(c, s.length - c), lo: s[c], hi: s[s.length - 1 - c] };
+  return {
+    trimmed: s.slice(c, s.length - c),
+    lo: s[c],
+    hi: s[s.length - 1 - c],
+  };
 }
 
 /**
@@ -775,15 +866,18 @@ export function classifyTrend(
   current: number,
   sampleSize: number,
 ): { direction: string; confidence: number } {
-  if (sampleSize < MIN_RUNS_FOR_TREND) return { direction: "stable", confidence: 0 };
+  if (sampleSize < MIN_RUNS_FOR_TREND)
+    return { direction: "stable", confidence: 0 };
   const se = stddev / Math.sqrt(sampleSize);
   const effectSize = se > 0 ? Math.abs(slope) / se : 0;
   const confidence = Math.min(0.95, effectSize / 3);
   if (effectSize < 1.0) return { direction: "stable", confidence };
   const pct = budget > 0 ? (current / budget) * 100 : 0;
   if (slope > 0 && pct > 80) return { direction: "critical", confidence };
-  if (slope > 0 && effectSize > 2) return { direction: "degrading", confidence };
-  if (slope < 0 && effectSize > 1.5) return { direction: "improving", confidence };
+  if (slope > 0 && effectSize > 2)
+    return { direction: "degrading", confidence };
+  if (slope < 0 && effectSize > 1.5)
+    return { direction: "improving", confidence };
   return { direction: "stable", confidence };
 }
 
@@ -819,17 +913,27 @@ export function forecastBreach(
  */
 export function classifyRootCause(
   degradingMetrics: Set<string>,
-  rules: { name: string; primaryMetric: string; correlatedMetrics: string[]; antiCorrelatedMetrics: string[] }[],
+  rules: {
+    name: string;
+    primaryMetric: string;
+    correlatedMetrics: string[];
+    antiCorrelatedMetrics: string[];
+  }[],
 ): string {
   if (degradingMetrics.size === 0) return "unknown";
   if (rules.length === 0) return "unknown";
-  let best = "unknown", bestScore = 0;
+  let best = "unknown",
+    bestScore = 0;
   for (const r of rules) {
     if (!degradingMetrics.has(r.primaryMetric)) continue;
     let score = 1;
     for (const m of r.correlatedMetrics) if (degradingMetrics.has(m)) score++;
-    for (const m of r.antiCorrelatedMetrics) if (degradingMetrics.has(m)) score -= 2;
-    if (score > bestScore) { bestScore = score; best = r.name; }
+    for (const m of r.antiCorrelatedMetrics)
+      if (degradingMetrics.has(m)) score -= 2;
+    if (score > bestScore) {
+      bestScore = score;
+      best = r.name;
+    }
   }
   return best;
 }
@@ -839,10 +943,7 @@ export function classifyRootCause(
  * If within grace period (MIN_RUNS_FOR_TREND runs), the system is "warming up"
  * and should not fire alerts — baselines are still being established.
  */
-export function isWarmingUp(
-  db: any,
-  adapter: string,
-): boolean {
+export function isWarmingUp(db: any, adapter: string): boolean {
   try {
     const runsSinceReset = db
       .query(

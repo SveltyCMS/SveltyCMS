@@ -440,9 +440,8 @@ export async function buildFullAuditLedger(
 
     if (trendPoints.length > 1) {
       // 🚀 Ensure we have exactly 10 points for the chart baseline
-      while (trendPoints.length < 10) {
-        trendPoints.unshift(trendPoints[0]);
-      }
+      // Only render chart when enough data exists (skip padding anti-pattern)
+      if (trendPoints.length < 3) continue;
       md += `\n#### 📈 ${script.shortLabel} Trend\n`;
       md += `\`\`\`mermaid\nxychart-beta\n  title "${script.shortLabel} Latency Trend"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "Latency" : [${trendPoints.map((p) => p.toFixed(3)).join(", ")}]\n\`\`\`\n\n`;
     }

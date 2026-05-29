@@ -330,3 +330,59 @@ export const DB_NAME_BENCHMARK =
 
 // Re-exported for backward compatibility but imported lazily elsewhere
 export { BENCHMARK_SCRIPTS } from "./benchmark-scripts";
+// ─────────────────────────────────────────────────────────────
+// Per-Adapter Budget Overrides (learned or set per engine)
+// ─────────────────────────────────────────────────────────────
+
+export const ADAPTER_BUDGET_OVERRIDES: Record<
+  string,
+  Partial<Record<string, number>>
+> = {
+  sqlite: { indexPressure: 250, dbRaw: 80 }, // single-writer bottleneck
+  postgresql: { indexPressure: 100, dbRaw: 30 }, // concurrent engine
+  mariadb: { indexPressure: 150, dbRaw: 40 },
+  mongodb: { indexPressure: 150, dbRaw: 40 },
+};
+
+// ─────────────────────────────────────────────────────────────
+// Correlation Rules for Root Cause Classification
+// ─────────────────────────────────────────────────────────────
+
+export const CORRELATION_RULES = [
+  {
+    name: "middleware",
+    primaryMetric: "hooks",
+    correlatedMetrics: ["collections", "authAvg"],
+    antiCorrelatedMetrics: ["dbRaw"], // hooks issue shouldn't affect raw DB
+  },
+  {
+    name: "adapter",
+    primaryMetric: "dbRaw",
+    correlatedMetrics: ["collections", "graphqlAvg", "indexPressure"],
+    antiCorrelatedMetrics: ["hooks"], // DB raw issue shouldn't affect hooks
+  },
+  {
+    name: "scale",
+    primaryMetric: "indexPressure",
+    correlatedMetrics: ["mixedAvg", "tenancyAvg"],
+    antiCorrelatedMetrics: ["dbRaw", "coldStartMs"], // not a startup or DB raw problem
+  },
+  {
+    name: "native",
+    primaryMetric: "memGrowth",
+    correlatedMetrics: ["mediaAvg"], // sharp/native bindings involvement
+    antiCorrelatedMetrics: ["hooks", "dbRaw"], // JS heap stable → not a JS leak
+  },
+  {
+    name: "environment_cpu",
+    primaryMetric: "coldStartMs",
+    correlatedMetrics: ["collections", "hooks", "dbRaw", "graphqlAvg"],
+    antiCorrelatedMetrics: ["memGrowth"], // memory stable → CPU environment shift
+  },
+  {
+    name: "environment_memory",
+    primaryMetric: "memGrowth",
+    correlatedMetrics: ["coldStartMs"],
+    antiCorrelatedMetrics: ["collections", "dbRaw"], // latency stable → memory pressure
+  },
+] as const;
