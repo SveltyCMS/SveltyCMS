@@ -1,5 +1,5 @@
 <!--
-@file src/routes/login/components/icons/SignupIcon.svelte
+@file src/routes/login/components/icons/signup-icon.svelte
 @component
 **SignupIcon component**
 -->
@@ -43,6 +43,7 @@ function handleKeyDown(event: KeyboardEvent) {
 		onkeydown={handleKeyDown}
 		role="button"
 		aria-label="Go to Sign Up"
+		data-testid="signup-icon"
 		tabindex={disabled ? -1 : 0}
 		class="flex cursor-pointer flex-col items-center"
 	>

@@ -513,7 +513,7 @@
 			<!-- Sign Out -->
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
-					<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
+					<button onclick={signOut} type="button" aria-label="Sign Out" data-testid="sign-out-button" class="btn-icon hover:bg-surface-500/20">
 						<iconify-icon icon="uil:signout" width="26" class=""></iconify-icon>
 					</button>
 				</SystemTooltip>
