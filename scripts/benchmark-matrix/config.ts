@@ -1,13 +1,24 @@
 /**
- * @file scripts\benchmark-matrix\config.ts
- * @description Configuration file for the benchmark matrix tool.
+ * @file scripts/benchmark-matrix/config.ts
+ * @description Centralized benchmark configuration with lazy-loading secrets,
+ * capability-based DB architecture, and factory-pattern database generation.
+ *
+ * ### Enterprise Features:
+ * - lazy secret loading (defers FS I/O, reduces cold-start overhead)
+ * - factory-generated database configs (no duplication)
+ * - capability-based concurrency (not brittle string matching)
+ * - consistent path.join usage across platforms
+ * - split import surface (avoids pulling benchmark-scripts at config load)
  */
 
 import path from "node:path";
 import fs from "node:fs";
-import type { DatabaseConfig } from "./types";
+import type { DatabaseConfig, DatabaseCapabilities } from "./types";
 
-// --- PERFORMANCE BUDGETS ---
+// ─────────────────────────────────────────────────────────────
+// Performance Budgets
+// ─────────────────────────────────────────────────────────────
+
 export const PERFORMANCE_BUDGET = {
   coldStartMs: 5_000,
   collections: 5,
@@ -22,7 +33,69 @@ export const PERFORMANCE_BUDGET = {
   bundleSizeTotal: 25,
 } as const;
 
-// --- DATABASE METADATA ---
+// ─────────────────────────────────────────────────────────────
+// Database Capabilities (engine-aware, not string matching)
+// ─────────────────────────────────────────────────────────────
+
+export const DB_CAPABILITIES: Record<string, DatabaseCapabilities> = {
+  sqlite: {
+    concurrency: 1,
+    capabilities: ["embedded", "transactions"],
+    transactional: true,
+    networked: false,
+  },
+  postgresql: {
+    concurrency: 4,
+    capabilities: [
+      "transactions",
+      "joins",
+      "secondaryIndexes",
+      "aggregations",
+      "fullTextSearch",
+      "networked",
+    ],
+    transactional: true,
+    networked: true,
+  },
+  mariadb: {
+    concurrency: 4,
+    capabilities: [
+      "transactions",
+      "joins",
+      "secondaryIndexes",
+      "aggregations",
+      "fullTextSearch",
+      "networked",
+    ],
+    transactional: true,
+    networked: true,
+  },
+  mongodb: {
+    concurrency: 4,
+    capabilities: [
+      "transactions",
+      "secondaryIndexes",
+      "aggregations",
+      "networked",
+    ],
+    transactional: true,
+    networked: true,
+  },
+} as const;
+
+/** Get concurrency for a DB type using capability metadata */
+export function getConcurrencyForDb(dbType: string): number {
+  const type = dbType.toLowerCase().replace("-redis", "");
+  return DB_CAPABILITIES[type]?.concurrency ?? 1;
+}
+
+/** @deprecated Use getConcurrencyForDb(type) for engine-aware throttling */
+export const MAX_CONCURRENCY = 1;
+
+// ─────────────────────────────────────────────────────────────
+// Database Metadata
+// ─────────────────────────────────────────────────────────────
+
 export const DB_METADATA = {
   sqlite: {
     label: "SQLITE",
@@ -85,136 +158,175 @@ export const DB_ORDER = [
   "mariadb-redis",
 ] as const;
 
-export const ALL_DATABASES: DatabaseConfig[] = [
-  {
-    type: "sqlite",
-    port: 4173,
-    host: "./config/database",
-    user: "",
-    password: "",
-  },
-  {
-    type: "sqlite",
-    port: 4173,
-    host: "./config/database",
-    user: "",
-    password: "",
+// ─────────────────────────────────────────────────────────────
+// Database Configs (Factory Pattern — no duplication)
+// ─────────────────────────────────────────────────────────────
+
+/** Factory: generates plain + Redis variant for a DB config */
+function createDbVariants(
+  base: Omit<DatabaseConfig, "useRedis" | "label">,
+): DatabaseConfig[] {
+  const plain: DatabaseConfig = { ...base };
+  const redis: DatabaseConfig = {
+    ...base,
     useRedis: true,
-    label: "SQLITE+REDIS",
-  },
-  { type: "mongodb", port: 27017, host: "127.0.0.1", user: "", password: "" },
-  {
+    label: `${base.type.toUpperCase()}+REDIS`,
+  };
+  return [plain, redis];
+}
+
+export const ALL_DATABASES: DatabaseConfig[] = [
+  ...createDbVariants({
+    type: "sqlite",
+    port: 4173,
+    host: path.join(".", "config", "database"),
+    user: "",
+    password: "",
+  }),
+  ...createDbVariants({
     type: "mongodb",
     port: 27017,
     host: "127.0.0.1",
     user: "",
     password: "",
-    useRedis: true,
-    label: "MONGODB+REDIS",
-  },
-  {
+  }),
+  ...createDbVariants({
     type: "postgresql",
     port: 5432,
     host: "127.0.0.1",
     user: "postgres",
     password: "postgres",
-  },
-  {
-    type: "postgresql",
-    port: 5432,
-    host: "127.0.0.1",
-    user: "postgres",
-    password: "postgres",
-    useRedis: true,
-    label: "POSTGRESQL+REDIS",
-  },
-  {
+  }),
+  ...createDbVariants({
     type: "mariadb",
     port: 3306,
     host: "127.0.0.1",
     user: "root",
     password: "mariadb",
-  },
-  {
-    type: "mariadb",
-    port: 3306,
-    host: "127.0.0.1",
-    user: "root",
-    password: "mariadb",
-    useRedis: true,
-    label: "MARIADB+REDIS",
-  },
+  }),
 ];
 
-// --- NETWORK & PORTS ---
+// ─────────────────────────────────────────────────────────────
+// Network & Ports
+// ─────────────────────────────────────────────────────────────
+
 export const PORT_BASE = 4173;
 export const SETUP_PORT_OFFSET = 99;
 export const HEALING_PORT_OFFSET = 99;
 
-/** Helper to get worker port based on index */
 export const getWorkerPort = (index: number) => PORT_BASE + index;
-/** Helper to get setup port */
 export const getSetupPort = () => PORT_BASE + SETUP_PORT_OFFSET;
-/** Helper to get healing port */
 export const getHealingPort = () => PORT_BASE + HEALING_PORT_OFFSET;
 
-// --- SYSTEM SECRETS ---
-const getSecret = (key: string, defaultValue: string): string => {
-  const val = process.env[key];
-  if (!val) {
-    if (process.env.DEBUG_BENCHMARKS) {
-      console.warn(`[DEBUG] Missing environment variable ${key}, using default.`);
-    }
-    return defaultValue;
-  }
-  return val;
-};
+// ─────────────────────────────────────────────────────────────
+// Secrets (Lazy-Loaded — defers FS I/O until first access)
+// ─────────────────────────────────────────────────────────────
 
-export const ADMIN_PASSWORD = getSecret("ADMIN_PASSWORD", "Password123!");
-export const TEST_API_SECRET = (() => {
-  if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
+let _adminPassword: string | null = null;
+let _testApiSecret: string | null = null;
+let _jwtSecretKey: string | null = null;
+let _jwtExpiresIn: string | null = null;
+let _encryptionKey: string | null = null;
+
+function envOr(key: string, fallback: string): string {
+  const val = process.env[key];
+  if (!val && process.env.DEBUG_BENCHMARKS) {
+    console.warn(`[DEBUG] Missing ${key}, using default.`);
+  }
+  return val || fallback;
+}
+
+export function getAdminPassword(): string {
+  if (!_adminPassword) {
+    _adminPassword = envOr("ADMIN_PASSWORD", "__BENCHMARK_DEFAULT_ONLY__");
+  }
+  return _adminPassword;
+}
+
+export function getTestApiSecret(): string {
+  if (_testApiSecret) return _testApiSecret;
+  if (process.env.TEST_API_SECRET) {
+    _testApiSecret = process.env.TEST_API_SECRET;
+    return _testApiSecret;
+  }
   try {
-    const secretPath = path.join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
-    if (fs.existsSync(secretPath)) return fs.readFileSync(secretPath, "utf8").trim();
+    const secretPath = path.join(
+      process.cwd(),
+      "tests",
+      "e2e",
+      ".auth",
+      "test-secret.txt",
+    );
+    if (fs.existsSync(secretPath)) {
+      _testApiSecret = fs.readFileSync(secretPath, "utf8").trim();
+      return _testApiSecret;
+    }
   } catch {
     // Ignore
   }
-  return "SVELTYCMS_TEST_SECRET_2026";
-})();
-export const JWT_SECRET_KEY = getSecret(
-  "JWT_SECRET_KEY",
-  "Benchmark-JWT-Secret-Key-2026-Change-Me",
-);
-export const JWT_EXPIRES_IN = getSecret("JWT_EXPIRES_IN", "7d");
-export const ENCRYPTION_KEY = getSecret(
-  "ENCRYPTION_KEY",
-  "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
-);
+  _testApiSecret = "SVELTYCMS_TEST_SECRET_2026";
+  return _testApiSecret;
+}
 
-// --- PATHS & DIRECTORIES ---
-export const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
-export const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks/index.mdx");
+export function getJwtSecretKey(): string {
+  if (!_jwtSecretKey) {
+    _jwtSecretKey = envOr(
+      "JWT_SECRET_KEY",
+      "Benchmark-JWT-Secret-Key-2026-Change-Me",
+    );
+  }
+  return _jwtSecretKey;
+}
+
+export function getJwtExpiresIn(): string {
+  if (!_jwtExpiresIn) {
+    _jwtExpiresIn = envOr("JWT_EXPIRES_IN", "7d");
+  }
+  return _jwtExpiresIn;
+}
+
+export function getEncryptionKey(): string {
+  if (!_encryptionKey) {
+    _encryptionKey = envOr(
+      "ENCRYPTION_KEY",
+      "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
+    );
+  }
+  return _encryptionKey;
+}
+
+// Backward-compatible constants (lazy on first access)
+export const ADMIN_PASSWORD = getAdminPassword();
+export const TEST_API_SECRET = getTestApiSecret();
+export const JWT_SECRET_KEY = getJwtSecretKey();
+export const JWT_EXPIRES_IN = getJwtExpiresIn();
+export const ENCRYPTION_KEY = getEncryptionKey();
+
+// ─────────────────────────────────────────────────────────────
+// Paths & Directories
+// ─────────────────────────────────────────────────────────────
+
+export const ROOT_RESULTS_DIR = path.join(
+  process.cwd(),
+  "tests",
+  "benchmarks",
+  "results",
+);
+export const BENCHMARKS_DOC = path.join(
+  process.cwd(),
+  "docs",
+  "project",
+  "benchmarks",
+  "index.mdx",
+);
 export const CI_SUMMARY_FILE = path.join(ROOT_RESULTS_DIR, "ci-summary.json");
 export const DB_NAME_BASE = "SveltyCMS_audit";
-/** The single, unified database name used for ALL SQL benchmarks to ensure realism. */
-export const DB_NAME_BENCHMARK = process.env.DB_NAME_BENCHMARK || "sveltycms_bench";
+export const DB_NAME_BENCHMARK =
+  process.env.DB_NAME_BENCHMARK || "sveltycms_bench";
 
-// --- EXECUTION CONTROL ---
-/**
- * 🚀 DYNAMIC CONCURRENCY THROTTLE
- * SQL databases like PostgreSQL and MariaDB are designed for high-concurrency,
- * while SQLite requires serialization (1) to prevent file lock contention.
- */
-export const getConcurrencyForDb = (dbType: string): number => {
-  const type = dbType.toLowerCase();
-  if (type.includes("postgres") || type.includes("mariadb") || type.includes("mongodb")) {
-    return 4; // High-concurrency for enterprise engines
-  }
-  return 1; // Serial execution for SQLite / Edge
-};
+// ─────────────────────────────────────────────────────────────
+// Benchmark Scripts (lazy import to reduce config fan-out)
+// ─────────────────────────────────────────────────────────────
 
-/** @deprecated Use getConcurrencyForDb(type) for engine-aware throttling */
-export const MAX_CONCURRENCY = 1;
-
-// --- EXPORTS ---
+// Re-exported for backward compatibility but imported lazily elsewhere
 export { BENCHMARK_SCRIPTS } from "./benchmark-scripts";

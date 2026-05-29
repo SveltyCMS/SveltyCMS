@@ -16,7 +16,11 @@ plugin({
   setup(build) {
     build.onResolve({ filter: /^\$/ }, (args) => {
       if (args.path.startsWith("$app/")) {
-        return { path: args.path, external: false, namespace: "svelte-kit-mock" };
+        return {
+          path: args.path,
+          external: false,
+          namespace: "svelte-kit-mock",
+        };
       }
     });
     build.onLoad({ filter: /.*/, namespace: "svelte-kit-mock" }, (_args) => {
@@ -36,7 +40,13 @@ import { execSync } from "node:child_process";
 
 import { version as pkgVersion } from "../../package.json";
 import { log } from "./logger";
-import { parseArgs, printList, filterScripts, filterDatabases, collectHostInfo } from "./cli";
+import {
+  parseArgs,
+  printList,
+  filterScripts,
+  filterDatabases,
+  collectHostInfo,
+} from "./cli";
 import { requiresRebuild } from "./utils";
 import { runAuditForDatabase, runTask } from "./runner";
 import {
@@ -45,7 +55,6 @@ import {
   generateFinalReport,
   scanResultsDirectory,
 } from "./reporting";
-import { detectRegressions } from "./regression-detector";
 import {
   startServer,
   stopServer,
@@ -77,7 +86,10 @@ import { initProgressTracker } from "./progress";
  */
 class ConfigSafeguard {
   private static configPath = path.join(process.cwd(), "config/private.ts");
-  private static backupPath = path.join(process.cwd(), "config/private.ts.backup");
+  private static backupPath = path.join(
+    process.cwd(),
+    "config/private.ts.backup",
+  );
 
   /** Backs up the current config if it exists */
   static async backup() {
@@ -112,8 +124,15 @@ class ConfigSafeguard {
       const compiledDir = path.join(process.cwd(), ".compiledCollections");
       const files = await fs.readdir(compiledDir).catch(() => []);
       for (const file of files) {
-        if (file.includes("bench") || file.includes("mock") || file.startsWith("benchmark_")) {
-          await fs.rm(path.join(compiledDir, file), { recursive: true, force: true });
+        if (
+          file.includes("bench") ||
+          file.includes("mock") ||
+          file.startsWith("benchmark_")
+        ) {
+          await fs.rm(path.join(compiledDir, file), {
+            recursive: true,
+            force: true,
+          });
         }
       }
       // Also purge 'nested' benchmark directory if it exists
@@ -146,7 +165,11 @@ function registerShutdownHandlers() {
  * Smart cleanup: Only wipe when doing full or multi-test runs.
  * Preserve everything in single-test mode.
  */
-async function cleanupResults(activeDatabases: any[], cfg: any, activeScripts?: any[]) {
+async function cleanupResults(
+  activeDatabases: any[],
+  cfg: any,
+  activeScripts?: any[],
+) {
   const isSingleTest = activeScripts && activeScripts.length === 1;
   const isSingleDb = activeDatabases.length === 1;
 
@@ -186,7 +209,11 @@ async function cleanupResults(activeDatabases: any[], cfg: any, activeScripts?: 
 
     const files = await fs.readdir(ROOT_RESULTS_DIR);
     for (const file of files) {
-      if (file === "history.sqlite" || file === "ci-summary.json" || file === "history.jsonl")
+      if (
+        file === "history.sqlite" ||
+        file === "ci-summary.json" ||
+        file === "history.jsonl"
+      )
         continue;
 
       if (activeKeys.has(file)) {
@@ -229,7 +256,9 @@ async function main() {
     for (const f of dbFiles) {
       if (
         f.startsWith("bench_tmp_") &&
-        (f.endsWith(".sqlite") || f.endsWith(".sqlite-shm") || f.endsWith(".sqlite-wal"))
+        (f.endsWith(".sqlite") ||
+          f.endsWith(".sqlite-shm") ||
+          f.endsWith(".sqlite-wal"))
       ) {
         await fs.unlink(path.join(dbDir, f)).catch(() => {});
       }
@@ -254,7 +283,8 @@ async function main() {
   // Clean up existing results only for the databases we are about to audit
   await cleanupResults(activeDatabases, cfg, activeScripts);
 
-  if (cfg.sectionFilter) log.info(`Section filter: ${cfg.sectionFilter.join(", ")}`);
+  if (cfg.sectionFilter)
+    log.info(`Section filter: ${cfg.sectionFilter.join(", ")}`);
   if (cfg.levelFilter !== null) log.info(`Level filter: ≤ ${cfg.levelFilter}`);
   if (cfg.onlyFilter) log.info(`Only: ${cfg.onlyFilter.join(", ")}`);
   if (cfg.dbFilter) log.info(`DB filter: ${cfg.dbFilter.join(", ")}`);
@@ -262,8 +292,12 @@ async function main() {
   if (cfg.ci) log.info("CI mode: enabled");
 
   log.header(`SveltyCMS Enterprise Audit v${pkgVersion}`);
-  log.info(`Scripts to run: ${activeScripts.length} / ${BENCHMARK_SCRIPTS.length}`);
-  log.info(`Databases to test: ${activeDatabases.length} / ${ALL_DATABASES.length}`);
+  log.info(
+    `Scripts to run: ${activeScripts.length} / ${BENCHMARK_SCRIPTS.length}`,
+  );
+  log.info(
+    `Databases to test: ${activeDatabases.length} / ${ALL_DATABASES.length}`,
+  );
   log.info(`Retry attempts per script: ${cfg.retryCount}`);
 
   // 🚀 Initialize Progress Tracker
@@ -275,8 +309,12 @@ async function main() {
     await fs.access(privateTestPath);
     log.success("Isolation Guard: private.test.ts detected.");
   } catch {
-    log.warn("Isolation Guard: private.test.ts missing. Attempting self-healing...");
-    const sqliteConf = ALL_DATABASES.find((d) => d.type === "sqlite" && !d.useRedis);
+    log.warn(
+      "Isolation Guard: private.test.ts missing. Attempting self-healing...",
+    );
+    const sqliteConf = ALL_DATABASES.find(
+      (d) => d.type === "sqlite" && !d.useRedis,
+    );
     if (!sqliteConf) {
       log.error("CRITICAL: No SQLite config found for self-healing.");
       process.exit(1);
@@ -284,7 +322,11 @@ async function main() {
     try {
       const workerDbName_healing = "SveltyCMS_healing_test";
       const healingPort = PORT_BASE + HEALING_PORT_OFFSET;
-      const server = await startServer(sqliteConf, healingPort, workerDbName_healing);
+      const server = await startServer(
+        sqliteConf,
+        healingPort,
+        workerDbName_healing,
+      );
       const ok = await runTask(
         "Baseline Setup",
         "bun run scripts/setup-system.ts",
@@ -303,7 +345,9 @@ async function main() {
       );
       await server.stop();
       if (!ok) {
-        log.error("CRITICAL: Self-healing failed. Run scripts/setup-system.ts manually.");
+        log.error(
+          "CRITICAL: Self-healing failed. Run scripts/setup-system.ts manually.",
+        );
         process.exit(1);
       }
       log.success("Self-healing complete. private.test.ts generated.");
@@ -354,7 +398,9 @@ async function main() {
   }
   log.success("Infrastructure readiness documented.");
 
-  log.info(`Phase 2: Database Audits (Mode: ${cfg.parallelMode.toUpperCase()})`);
+  log.info(
+    `Phase 2: Database Audits (Mode: ${cfg.parallelMode.toUpperCase()})`,
+  );
   const results: BenchmarkResult[] = [];
   await fs.mkdir(ROOT_RESULTS_DIR, { recursive: true });
 
@@ -371,7 +417,9 @@ async function main() {
       if (isShuttingDown()) break;
       const db = sortedDbs[i];
       const dbKey = (db.label || db.type).toLowerCase().replace("+", "-");
-      log.info(`[${i + 1}/${sortedDbs.length}] Starting audit for ${dbKey.toUpperCase()}...`);
+      log.info(
+        `[${i + 1}/${sortedDbs.length}] Starting audit for ${dbKey.toUpperCase()}...`,
+      );
       await runAuditForDatabase(
         db,
         hostInfo,
@@ -413,15 +461,11 @@ async function main() {
     await Promise.all(tasks);
   }
 
-  const regressions = await generateFinalReport(results, cfg);
-  const perfRegressions = await detectRegressions(results);
-  const allRegressions = [
-    ...regressions,
-    ...perfRegressions.map(
-      (r) =>
-        `${r.db} → ${r.metric}: ${r.current.toFixed(2)}ms (${r.changePct > 0 ? "+" : ""}${r.changePct.toFixed(1)}%)`,
-    ),
-  ];
+  const perfRegressions = await generateFinalReport(results, cfg);
+  const allRegressions = perfRegressions.map(
+    (r) =>
+      `${r.db} → ${r.metric}: ${r.current.toFixed(2)}ms (${r.changePct > 0 ? "+" : ""}${r.changePct.toFixed(1)}%)`,
+  );
 
   printSummaryTable(results);
 
@@ -443,26 +487,38 @@ async function main() {
     );
 
     if (failedTests.length > 0) {
-      log.error(`❌ ${failedTests.length} benchmark(s) failed. Check logs above.`);
+      log.error(
+        `❌ ${failedTests.length} benchmark(s) failed. Check logs above.`,
+      );
       for (const failure of failedTests) {
         log.error(`   ✗ ${failure.db}: ${failure.error || "Unknown error"}`);
       }
     }
 
     if (perfRegressions.length > 0) {
-      log.warn(`\n⚠️  Detected ${perfRegressions.length} performance regressions:`);
-      for (const r of perfRegressions) {
-        log.warn(
-          `   ${r.db} → ${r.metric}: ${r.current.toFixed(2)}ms (${r.changePct > 0 ? "+" : ""}${r.changePct.toFixed(1)}%)`,
-        );
-      }
-    }
+      const bannerWidth = 85;
+      const border = "═".repeat(bannerWidth);
+      const title = "⚠️  PERFORMANCE REGRESSION WARNING (DEVIATION > 15%)  ⚠️";
+      const padSize = Math.max(0, Math.floor((bannerWidth - title.length) / 2));
+      const paddedTitle =
+        " ".repeat(padSize) +
+        title +
+        " ".repeat(bannerWidth - title.length - padSize);
 
-    if (regressions.length > 0) {
-      log.error(`❌ ${regressions.length} historical regression(s) detected.`);
-      for (const r of regressions) {
-        log.error(`   ✗ ${r}`);
+      console.log(chalk.red.bold(`\n╔${border}╗`));
+      console.log(chalk.red.bold(`║${paddedTitle}║`));
+      console.log(chalk.red.bold(`╠${border}╣`));
+
+      for (const r of perfRegressions) {
+        const changeStr =
+          r.changePct > 0
+            ? `+${r.changePct.toFixed(1)}%`
+            : `${r.changePct.toFixed(1)}%`;
+        const line = ` ${r.db} → ${r.metric}: ${r.current.toFixed(2)}ms (was ${r.previousAvg.toFixed(2)}ms, delta: ${changeStr})`;
+        const padRight = Math.max(0, bannerWidth - line.length - 2);
+        console.log(chalk.yellow(`║${line}${" ".repeat(padRight)}  ║`));
       }
+      console.log(chalk.red.bold(`╚${border}╝\n`));
     }
 
     // Exit with 1 if there are actual hard failures (crashes), or if in CI with regressions/violations

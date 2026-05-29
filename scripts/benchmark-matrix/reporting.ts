@@ -17,6 +17,7 @@ import {
 } from "./config";
 import { extractMetrics, getTrendDetails } from "./utils";
 import { detectRegressions } from "./regression-detector";
+import type { RegressionResult } from "./regression-detector";
 import type { BenchmarkResult, RunConfig } from "./types";
 import {
   Project,
@@ -480,7 +481,7 @@ async function releaseLock(lockName: string) {
 export async function generateFinalReport(
   resultsIn: BenchmarkResult[] = [],
   _cfg?: RunConfig,
-): Promise<string[]> {
+): Promise<RegressionResult[]> {
   const scanned = await scanResultsDirectory();
   const results = [...resultsIn];
 
@@ -520,17 +521,53 @@ export async function generateFinalReport(
         graphql_avg REAL,
         mem_growth REAL,
         cpu_load REAL,
+        middleware_hooks_p95 REAL DEFAULT 0,
+        index_pressure_p95 REAL DEFAULT 0,
+        adapter_read_avg REAL DEFAULT 0,
+        mixed_workload_aggregate REAL DEFAULT 0,
+        auth_avg REAL DEFAULT 0,
         host_info_json TEXT,
         metrics_json TEXT
       )
     `);
 
-    const regressions: string[] = [];
+    // Schema migration for older tables missing these columns
+    for (const [col, type] of [
+      ["middleware_hooks_p95", "REAL DEFAULT 0"],
+      ["index_pressure_p95", "REAL DEFAULT 0"],
+      ["adapter_read_avg", "REAL DEFAULT 0"],
+      ["mixed_workload_aggregate", "REAL DEFAULT 0"],
+      ["auth_avg", "REAL DEFAULT 0"],
+    ]) {
+      try {
+        db.exec("ALTER TABLE runs ADD COLUMN " + col + " " + type);
+      } catch {
+        /* already exists */
+      }
+    }
+
+    // Metric trends cache (avoids recomputing statistical analysis every run)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS metric_trends (
+        adapter TEXT, metric TEXT, run_count INTEGER,
+        weighted_avg REAL, stddev_val REAL, slope REAL,
+        last_updated TEXT, PRIMARY KEY (adapter, metric)
+      )
+    `);
+
+    // Baseline reset tracking for warming-up grace periods
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS reset_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT, reason TEXT, adapter TEXT
+      )
+    `);
+
     const latestMetrics: Record<string, ReturnType<typeof extractMetrics>> = {};
 
     const insert = db.prepare(`
-      INSERT INTO runs (timestamp, db_key, status, cold_start_ms, collections_p95, graphql_avg, mem_growth, cpu_load, host_info_json, metrics_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO runs (timestamp, db_key, status, cold_start_ms, collections_p95, graphql_avg, mem_growth, cpu_load, middleware_hooks_p95, index_pressure_p95, adapter_read_avg, mixed_workload_aggregate, auth_avg, host_info_json, metrics_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const hostInfo = await collectHostInfo();
@@ -549,6 +586,11 @@ export async function generateFinalReport(
         m.graphqlAvg,
         m.memGrowth,
         m.systemCpu,
+        m.hooks,
+        m.indexPressure,
+        m.dbRaw,
+        m.mixedAvg,
+        m.authAvg,
         JSON.stringify(res.hostInfo || {}),
         JSON.stringify(res.metrics || {}),
       );
@@ -585,7 +627,7 @@ export async function generateFinalReport(
       );
     }
 
-    return regressions;
+    return perfRegressions;
   } finally {
     db.close();
   }
@@ -1126,7 +1168,7 @@ tags:
 
 export async function writeCISummary(
   results: BenchmarkResult[],
-  regressions: string[],
+  regressions: string[] | import("./regression-detector").RegressionResult[],
 ) {
   const passed = results.filter((r) => r.status === "SUCCESS").length;
   const failed = results.filter((r) => r.status === "FAILED").length;
