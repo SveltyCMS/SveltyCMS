@@ -532,17 +532,18 @@ export async function generateFinalReport(
     `);
 
     // Schema migration for older tables missing these columns
-    for (const [col, type] of [
+    const existingCols = db.query("PRAGMA table_info(runs)").all() as { name: string }[];
+    const existingColNames = new Set(existingCols.map((c) => c.name));
+    const newCols: [string, string][] = [
       ["middleware_hooks_p95", "REAL DEFAULT 0"],
       ["index_pressure_p95", "REAL DEFAULT 0"],
       ["adapter_read_avg", "REAL DEFAULT 0"],
       ["mixed_workload_aggregate", "REAL DEFAULT 0"],
       ["auth_avg", "REAL DEFAULT 0"],
-    ]) {
-      try {
-        db.exec("ALTER TABLE runs ADD COLUMN " + col + " " + type);
-      } catch {
-        /* already exists */
+    ];
+    for (const [col, def] of newCols) {
+      if (!existingColNames.has(col)) {
+        db.exec("ALTER TABLE runs ADD COLUMN " + col + " " + def);
       }
     }
 

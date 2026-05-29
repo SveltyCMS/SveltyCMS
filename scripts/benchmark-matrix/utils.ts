@@ -663,3 +663,194 @@ export function isNoisyLine(line: string): boolean {
     NOISY_SERVER_PATTERNS.some((p) => p.test(clean))
   );
 }
+
+// =============================================================
+// Statistical Engine — Smart Per-Adapter Trend Intelligence
+// =============================================================
+
+/**
+ * Minimum runs needed before statistical analysis is reliable.
+ * MIN_RUNS_FOR_TREND=7: Linear regression slope becomes meaningful (~95% CI).
+ * MIN_RUNS_FOR_FORECAST=12: Forecast extrapolation is reliable enough.
+ *   We use 12 rather than 5 because linear extrapolation on 5 points
+ *   produces slopes with enormous error bars, making forecasts junk.
+ * MIN_RUNS_FOR_CORRELATION=8: Pearson r needs at least 8 points for
+ *   statistical significance at p<0.05.
+ */
+export const MIN_RUNS_FOR_TREND = 7;
+export const MIN_RUNS_FOR_FORECAST = 12;
+export const MIN_RUNS_FOR_CORRELATION = 8;
+
+/**
+ * Weight decay for moving averages. Linear [1,2,3,...] is safer for
+ * noisy CI environments than exponential [1,2,4,8,...] which over-reacts
+ * to a single bad run.
+ */
+export let TREND_WEIGHT_DECAY: "linear" | "exponential" = "linear";
+
+/** Fraction of values trimmed from each end before computing baseline/slope */
+export const OUTLIER_TRIM_FRACTION = 0.1;
+
+/**
+ * Simple linear regression: y = slope * x + intercept.
+ * Returns slope, intercept, and R² (0=no fit, 1=perfect).
+ */
+export function linearRegression(
+  points: [number, number][],
+): { slope: number; intercept: number; r2: number } {
+  const n = points.length;
+  if (n < 2) return { slope: 0, intercept: points[0]?.[1] ?? 0, r2: 0 };
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+  for (const [x, y] of points) {
+    sumX += x; sumY += y; sumXY += x * y; sumX2 += x * x; sumY2 += y * y;
+  }
+  const denom = n * sumX2 - sumX * sumX;
+  const slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  let ssRes = 0, ssTot = 0;
+  const yMean = sumY / n;
+  for (const [x, y] of points) {
+    const predicted = slope * x + intercept;
+    ssRes += (y - predicted) ** 2;
+    ssTot += (y - yMean) ** 2;
+  }
+  const r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
+  return { slope, intercept, r2 };
+}
+
+/** Weighted moving average. Recent values have higher weight. */
+export function weightedAverage(
+  values: number[],
+  decay?: "linear" | "exponential",
+): number {
+  if (values.length === 0) return 0;
+  if (values.length === 1) return values[0];
+  const d = decay ?? TREND_WEIGHT_DECAY;
+  const weights = values.map((_, i) => (d === "exponential" ? 2 ** i : i + 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  return values.reduce((sum, v, i) => sum + v * weights[i], 0) / total;
+}
+
+/** Population standard deviation */
+export function stddev(values: number[]): number {
+  if (values.length < 2) return 0;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  return Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length);
+}
+
+/** Pearson correlation coefficient (-1 to 1) between two metric series */
+export function pearsonCorrelation(a: number[], b: number[]): number {
+  const n = Math.min(a.length, b.length);
+  if (n < MIN_RUNS_FOR_CORRELATION) return 0;
+  const aMean = a.reduce((s, v) => s + v, 0) / n;
+  const bMean = b.reduce((s, v) => s + v, 0) / n;
+  let cov = 0, aVar = 0, bVar = 0;
+  for (let i = 0; i < n; i++) {
+    const ad = a[i] - aMean, bd = b[i] - bMean;
+    cov += ad * bd; aVar += ad ** 2; bVar += bd ** 2;
+  }
+  const denom = Math.sqrt(aVar * bVar);
+  return denom === 0 ? 0 : cov / denom;
+}
+
+/** Remove top/bottom outliers, return trimmed array and bounds */
+export function trimOutliers(
+  values: number[],
+  fraction = OUTLIER_TRIM_FRACTION,
+): { trimmed: number[]; lo: number; hi: number } {
+  if (values.length < 5) return { trimmed: [...values], lo: 0, hi: 0 };
+  const s = [...values].sort((a, b) => a - b);
+  const c = Math.floor(s.length * fraction);
+  return { trimmed: s.slice(c, s.length - c), lo: s[c], hi: s[s.length - 1 - c] };
+}
+
+/**
+ * Classify trend direction with confidence, guarding against small samples.
+ * Effect size = |slope| / (stddev / sqrt(n)). Effect > 2 + budget > 80% = critical.
+ */
+export function classifyTrend(
+  slope: number,
+  stddev: number,
+  budget: number,
+  current: number,
+  sampleSize: number,
+): { direction: string; confidence: number } {
+  if (sampleSize < MIN_RUNS_FOR_TREND) return { direction: "stable", confidence: 0 };
+  const se = stddev / Math.sqrt(sampleSize);
+  const effectSize = se > 0 ? Math.abs(slope) / se : 0;
+  const confidence = Math.min(0.95, effectSize / 3);
+  if (effectSize < 1.0) return { direction: "stable", confidence };
+  const pct = budget > 0 ? (current / budget) * 100 : 0;
+  if (slope > 0 && pct > 80) return { direction: "critical", confidence };
+  if (slope > 0 && effectSize > 2) return { direction: "degrading", confidence };
+  if (slope < 0 && effectSize > 1.5) return { direction: "improving", confidence };
+  return { direction: "stable", confidence };
+}
+
+/**
+ * Forecast runs until budget breach.
+ * Uses linear model for latency, exponential for memory (with 0.8x safety factor).
+ * Memory growth is sub-linear early, then accelerates once fragmentation exceeds
+ * a threshold — exponential model with safety multiplier is more conservative.
+ */
+export function forecastBreach(
+  current: number,
+  slope: number,
+  budget: number,
+  sampleSize: number,
+  model: "linear" | "exponential" = "linear",
+): number | null {
+  if (sampleSize < MIN_RUNS_FOR_FORECAST) return null;
+  if (slope <= 0 || budget <= 0 || current >= budget) return null;
+  if (model === "exponential") {
+    const effective = budget * 0.8; // 0.8x safety for accelerating fragmentation
+    if (current >= effective) return 1;
+    const rate = slope / Math.max(current, 1);
+    if (rate <= 0) return null;
+    return Math.ceil(Math.log(effective / current) / Math.log(1 + rate));
+  }
+  return Math.ceil((budget - current) / slope);
+}
+
+/**
+ * Match observed degrading trends against correlation rules to classify root cause.
+ * Rules are injected as parameter (not imported) for testability and configuration.
+ * If rules array is empty, returns "unknown".
+ */
+export function classifyRootCause(
+  degradingMetrics: Set<string>,
+  rules: { name: string; primaryMetric: string; correlatedMetrics: string[]; antiCorrelatedMetrics: string[] }[],
+): string {
+  if (degradingMetrics.size === 0) return "unknown";
+  if (rules.length === 0) return "unknown";
+  let best = "unknown", bestScore = 0;
+  for (const r of rules) {
+    if (!degradingMetrics.has(r.primaryMetric)) continue;
+    let score = 1;
+    for (const m of r.correlatedMetrics) if (degradingMetrics.has(m)) score++;
+    for (const m of r.antiCorrelatedMetrics) if (degradingMetrics.has(m)) score -= 2;
+    if (score > bestScore) { bestScore = score; best = r.name; }
+  }
+  return best;
+}
+
+/**
+ * Check if a baseline reset occurred recently for the given adapter.
+ * If within grace period (MIN_RUNS_FOR_TREND runs), the system is "warming up"
+ * and should not fire alerts — baselines are still being established.
+ */
+export function isWarmingUp(
+  db: any,
+  adapter: string,
+): boolean {
+  try {
+    const runsSinceReset = db
+      .query(
+        "SELECT COUNT(*) as cnt FROM runs WHERE db_key = ? AND timestamp > COALESCE((SELECT MAX(timestamp) FROM reset_events WHERE adapter = ?), '1970-01-01')",
+      )
+      .get(adapter, adapter) as { cnt: number } | null;
+    return (runsSinceReset?.cnt ?? 99) < MIN_RUNS_FOR_TREND;
+  } catch {
+    return false; // If we can't check, don't suppress alerts
+  }
+}
