@@ -531,7 +531,9 @@ export async function generateFinalReport(
     `);
 
     // Schema migration for older tables missing these columns
-    const existingCols = db.query("PRAGMA table_info(runs)").all() as { name: string }[];
+    const existingCols = db.query("PRAGMA table_info(runs)").all() as {
+      name: string;
+    }[];
     const existingColNames = new Set(existingCols.map((c) => c.name));
     const newCols: [string, string][] = [
       ["middleware_hooks_p95", "REAL DEFAULT 0"],
@@ -596,8 +598,10 @@ export async function generateFinalReport(
       );
     }
 
-    // 🚀 Detect performance regressions
-    const perfRegressions = await detectRegressions(results);
+    // 🚀 Detect performance regressions — only on CURRENT run's DBs, not stale disk data
+    const currentDbKeys = new Set(resultsIn.map((r) => r.db));
+    const currentResults = results.filter((r) => currentDbKeys.has(r.db));
+    const perfRegressions = await detectRegressions(currentResults);
 
     // 🚀 Update per-database specific technical ledgers
     const hasLock = await acquireLock("mdx_report");
