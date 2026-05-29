@@ -530,6 +530,7 @@
 				</SystemTooltip>
 			</div>
 			<input
+				id="smtp-host"
 				type="text"
 				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				class:input-error={displayErrors.host || (wizard.emailSettings.host.trim() && !isValidHostname())}
@@ -680,6 +681,7 @@
 				</SystemTooltip>
 			</div>
 			<input
+				id="smtp-user"
 				type="text"
 				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				class:input-error={displayErrors.user}
@@ -725,6 +727,7 @@
 			</div>
 			<div class="relative">
 				<input
+					id="smtp-password"
 					type={showPassword ? 'text' : 'password'}
 					class="input w-full rounded border border-slate-300 dark:border-surface-600   pr-10"
 					class:input-error={displayErrors.password}
@@ -785,7 +788,7 @@
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<button type="submit" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full" disabled={!isFormValid || isTesting}>
+		<button type="submit" aria-label="Test email connection" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full" disabled={!isFormValid || isTesting}>
 			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
 			{isTesting ? setup_email_testing() : setup_email_test_button()}
 		</button>

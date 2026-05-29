@@ -138,10 +138,15 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: `cross-env TEST_MODE=true STRICT_SETUP_CHECK=true TEST_API_SECRET=${TEST_API_SECRET} bun run dev`,
+          command: "bun run dev",
           port: 5173,
           timeout: 300_000,
           reuseExistingServer: true,
+          env: {
+            TEST_MODE: "true",
+            STRICT_SETUP_CHECK: "true",
+            TEST_API_SECRET: TEST_API_SECRET,
+          },
         },
       }),
 });
