@@ -85,7 +85,10 @@ async function runHooksAudit() {
             },
           };
 
-          if (scenario.method === "POST" && typeof scenario.body === "function") {
+          if (
+            scenario.method === "POST" &&
+            typeof scenario.body === "function"
+          ) {
             config.body = JSON.stringify(scenario.body());
           }
 
@@ -131,7 +134,11 @@ async function runHooksAudit() {
     printSummaryTable([
       { key: "Turbo Pipeline", val: turbo.avgMs, unit: "ms" },
       { key: "Full Pipeline", val: full.avgMs, unit: "ms" },
-      { key: "Audit Overhead", val: (audit.avgMs - full.avgMs).toFixed(2), unit: "ms" },
+      {
+        key: "Audit Overhead",
+        val: (audit.avgMs - full.avgMs).toFixed(2),
+        unit: "ms",
+      },
       {
         key: "Peak RPS",
         val: Math.round(Math.max(...results.map((r) => r.rps || 0))),

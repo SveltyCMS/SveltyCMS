@@ -13,7 +13,12 @@
  */
 
 import { dev } from "$app/environment";
-import { getSetupState, SetupState, isSetupComplete, getTestSecret } from "@src/utils/setup-check";
+import {
+  getSetupState,
+  SetupState,
+  isSetupComplete,
+  getTestSecret,
+} from "@src/utils/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte";
 import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
 import {
@@ -46,7 +51,9 @@ const logRequest = (event: any, duration: number, status: number) => {
   const method = event.request.method;
   const path = event.url.pathname;
   const id = event.locals.requestId;
-  logger.debug(`[Turbo] ${method} ${path} (${status}) - ${duration.toFixed(2)}ms [ID:${id}]`);
+  logger.debug(
+    `[Turbo] ${method} ${path} (${status}) - ${duration.toFixed(2)}ms [ID:${id}]`,
+  );
 };
 
 /**
@@ -73,7 +80,8 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     dbType: DB_TYPE || "unknown",
     memory: (() => {
       if (searchParams.has("gc")) {
-        if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
+        if (typeof global !== "undefined" && (global as any).gc)
+          (global as any).gc();
         if (typeof Bun !== "undefined" && Bun.gc) Bun.gc(true);
       }
       return process.memoryUsage();
@@ -103,11 +111,14 @@ async function getCorsHeadersInline(
   origin: string | null,
   isApiRoute: boolean,
 ): Promise<Record<string, string> | null> {
-  const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
+  const { getPrivateSettingSync } =
+    await import("@src/services/core/settings-service");
   const corsEnabled = getPrivateSettingSync("CORS_ENABLED") as boolean;
   if (!corsEnabled || !isApiRoute || !origin) return null;
 
-  const allowedOriginsRaw = getPrivateSettingSync("CORS_ALLOWED_ORIGINS") as any;
+  const allowedOriginsRaw = getPrivateSettingSync(
+    "CORS_ALLOWED_ORIGINS",
+  ) as any;
   const allowedOrigins = Array.isArray(allowedOriginsRaw)
     ? allowedOriginsRaw
     : typeof allowedOriginsRaw === "string"
@@ -141,11 +152,17 @@ async function getCorsHeadersInline(
         "Authorization",
       ]
     ).join(", "),
-    "Access-Control-Max-Age": String((getPrivateSettingSync("CORS_MAX_AGE") as number) || 86400),
-    "Access-Control-Expose-Headers": "Content-Length, Content-Range, X-Total-Count",
+    "Access-Control-Max-Age": String(
+      (getPrivateSettingSync("CORS_MAX_AGE") as number) || 86400,
+    ),
+    "Access-Control-Expose-Headers":
+      "Content-Length, Content-Range, X-Total-Count",
   };
 
-  if ((getPrivateSettingSync("CORS_ALLOW_CREDENTIALS") as boolean) && allowOrigin !== "*") {
+  if (
+    (getPrivateSettingSync("CORS_ALLOW_CREDENTIALS") as boolean) &&
+    allowOrigin !== "*"
+  ) {
     headers["Access-Control-Allow-Credentials"] = "true";
   }
 
@@ -157,11 +174,15 @@ const IS_TEST_MODE =
   typeof process !== "undefined" &&
   (String(process.env.TEST_MODE) === "true" ||
     String(process.env.VITE_TEST_MODE) === "true" ||
-    process.env.NODE_ENV === "test" ||
-    process.env.BENCHMARK === "true");
+    process.env.NODE_ENV === "test");
+// 🚀 NOTE: BENCHMARK mode does NOT get the terminal bypass.
+// Benchmarks authenticate via real session cookies (obtained during warmup)
+// to measure actual CMS performance, not a stripped-down skeleton.
 
-const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
-const DB_TYPE = typeof process !== "undefined" ? process.env.DB_TYPE : "unknown";
+const IS_BENCHMARK =
+  typeof process !== "undefined" && process.env.BENCHMARK === "true";
+const DB_TYPE =
+  typeof process !== "undefined" ? process.env.DB_TYPE : "unknown";
 
 // Main Turbo Pipeline Hook
 export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
@@ -180,7 +201,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const isTest = IS_TEST_MODE;
 
   const testSecret =
-    event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
+    event.request.headers.get("x-test-secret") ||
+    event.request.headers.get("X-Test-Secret");
 
   if (isTest && testSecret) {
     const expected = process.env.TEST_API_SECRET || getTestSecret();
@@ -206,12 +228,15 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       }
 
       if (pathname.includes("/setup") && !IS_BENCHMARK) {
-        logger.debug(`[Turbo] TEST BYPASS for ${pathname} method=${event.request.method}`);
+        logger.debug(
+          `[Turbo] TEST BYPASS for ${pathname} method=${event.request.method}`,
+        );
       }
 
       // 🛡️ HARDENING: Resolve real user from session if possible to maintain test state
       const sessionId =
-        event.cookies.get("auth_sessions") || event.cookies.get("__Host-auth_sessions");
+        event.cookies.get("auth_sessions") ||
+        event.cookies.get("__Host-auth_sessions");
       if (sessionId) {
         // Using globalThis access for the auth service to ensure we don't trigger recursive imports
         const authService = (globalThis as any).__AUTH_INSTANCE__;
@@ -219,12 +244,16 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           try {
             const result = await authService.validateSession(sessionId);
             // 🛡️ HARDENING: Handle both high-level Auth (User|null) and adapter (DatabaseResult<User|null>)
-            const user = (result as any)?.success !== undefined ? (result as any).data : result;
+            const user =
+              (result as any)?.success !== undefined
+                ? (result as any).data
+                : result;
 
             if (user && user._id) {
               (event.locals as any).user = user;
               (event.locals as any).tenantId = user.tenantId || null;
-              if (!IS_BENCHMARK) logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
+              if (!IS_BENCHMARK)
+                logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
             }
           } catch {
             /* ignore session errors in bypass */
@@ -252,7 +281,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
           // 🚀 TENANT SYNC: Extract tenantId from header if provided (critical for benchmarks)
           const headerTenant =
-            event.request.headers.get("x-tenant-id") || event.request.headers.get("X-Tenant-Id");
+            event.request.headers.get("x-tenant-id") ||
+            event.request.headers.get("X-Tenant-Id");
           (event.locals as any).tenantId = headerTenant || null;
 
           if (!IS_BENCHMARK) {
@@ -262,13 +292,20 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           }
         } else {
           if (!IS_BENCHMARK)
-            logger.debug(`[Turbo] No session found and not a management endpoint. Proceeding...`);
+            logger.debug(
+              `[Turbo] No session found and not a management endpoint. Proceeding...`,
+            );
         }
       }
 
       (event.locals as any).isAdmin = !!event.locals.user?.isAdmin;
       (event.locals as any).dbAdapter = db;
-      (event.locals as any).__testBypass = true;
+      // 🚀 HONEST BENCHMARKS: Only set testBypass for non-benchmark test mode.
+      // Benchmarks inject a real user but still run the FULL middleware chain
+      // (rate limiting, RBAC, audit logging) for honest performance measurement.
+      if (!IS_BENCHMARK) {
+        (event.locals as any).__testBypass = true;
+      }
 
       // If it's a health check, return the health response (shared builder)
       if (pathname === "/api/system/health" || pathname === "/health") {
@@ -303,7 +340,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   // We use a high-performance regex check first.
   if (
     pathname.length > 1 &&
-    (pathname[1] === "_" || pathname[1] === "." || STATIC_ASSET_REGEX.test(pathname))
+    (pathname[1] === "_" ||
+      pathname[1] === "." ||
+      STATIC_ASSET_REGEX.test(pathname))
   ) {
     if (isStaticOrInternalRequest(pathname)) {
       return await resolve(event);
@@ -340,20 +379,28 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
       if (!isComplete) {
         const isSetupRoute =
-          pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+          pathname.startsWith("/setup") ||
+          /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 
-        if (!isSetupRoute && !isApiRoute && !STATIC_ASSET_REGEX.test(pathname)) {
+        if (
+          !isSetupRoute &&
+          !isApiRoute &&
+          !STATIC_ASSET_REGEX.test(pathname)
+        ) {
           const returnTo =
             pathname === "/"
               ? ""
               : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
-          logger.info(`[Turbo] Config missing, redirecting to /setup from ${pathname}`);
+          logger.info(
+            `[Turbo] Config missing, redirecting to /setup from ${pathname}`,
+          );
           const response = new Response(null, {
             status: 302,
             headers: {
               ...baseHeaderMap,
               Location: `/setup${returnTo}`,
-              "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+              "Cache-Control":
+                "no-store, no-cache, must-revalidate, proxy-revalidate",
               Pragma: "no-cache",
               Expires: "0",
             },
@@ -374,7 +421,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         // However, if we are specifically ON a setup route, we might want the real state
         // to show the "Admin created" step etc.
         const isSetupRoute =
-          pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+          pathname.startsWith("/setup") ||
+          /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
         if (isSetupRoute || isTestMode) {
           setupState = await getSetupState();
         }
@@ -385,9 +433,11 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     // ── 4. DEPRECATED HEALTH CHECK BYPASS (Now at top) ──────────────────────
 
     // ── 5. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
-    const isLoginDuringSetup = pathname === "/login" && setupState !== SetupState.COMPLETE;
+    const isLoginDuringSetup =
+      pathname === "/login" && setupState !== SetupState.COMPLETE;
     const isSetupRoute =
-      pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+      pathname.startsWith("/setup") ||
+      /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 
     if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
       // Security Gate: Block /setup routes if setup is already complete
@@ -407,7 +457,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
             (event.url.pathname + event.url.search).includes("/completeSetup")
           )
         ) {
-          logger.debug(`Blocked request to ${pathname} - setup already complete and system ready`);
+          logger.debug(
+            `Blocked request to ${pathname} - setup already complete and system ready`,
+          );
           return new Response(null, {
             status: 302,
             headers: { Location: "/", ...baseHeaderMap },
@@ -430,25 +482,36 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         : undefined;
 
       const response = await resolve(event, resolveOptions);
-      if (dev) logRequest(event, performance.now() - requestStart, response.status);
+      if (dev)
+        logRequest(event, performance.now() - requestStart, response.status);
       return response;
     }
 
     // ── 6. SYSTEM STATE GATE ────────────────────────────────────────────────
-    if (systemState.overallState === "INITIALIZING" && !pathname.includes("/health")) {
-      logger.info(`[Turbo] System initializing, waiting for CORE boot... [ID:${requestId}]`);
+    if (
+      systemState.overallState === "INITIALIZING" &&
+      !pathname.includes("/health")
+    ) {
+      logger.info(
+        `[Turbo] System initializing, waiting for CORE boot... [ID:${requestId}]`,
+      );
       const { getDbInitPromise } = await import("@src/databases/db");
       await getDbInitPromise(false, "CORE");
 
       // Verify if it failed during wait
-      const { getSystemState: getNewState } = await import("@src/stores/system/state.svelte");
+      const { getSystemState: getNewState } =
+        await import("@src/stores/system/state.svelte");
       if (getNewState().overallState === "FAILED") {
         return restrictedResponse("FAILED", isApiRoute, baseHeaderMap);
       }
-    } else if (systemState.overallState === "FAILED" && !pathname.includes("/health")) {
+    } else if (
+      systemState.overallState === "FAILED" &&
+      !pathname.includes("/health")
+    ) {
       const response = restrictedResponse("FAILED", isApiRoute, baseHeaderMap);
       response.headers.set("X-Request-ID", requestId.toString());
-      if (dev) logRequest(event, performance.now() - requestStart, response.status);
+      if (dev)
+        logRequest(event, performance.now() - requestStart, response.status);
       return response;
     }
 
@@ -459,7 +522,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         (event.url.pathname + event.url.search).includes("/completeSetup");
       if (isFinalization) return await resolve(event);
 
-      const destination = setupState === SetupState.MISSING_CONFIG ? "/setup" : "/setup/admin";
+      const destination =
+        setupState === SetupState.MISSING_CONFIG ? "/setup" : "/setup/admin";
 
       if (isApiRoute) {
         return new Response(
@@ -485,7 +549,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           headers: {
             ...baseHeaderMap,
             Location: `${destination}${returnTo}`,
-            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Cache-Control":
+              "no-store, no-cache, must-revalidate, proxy-revalidate",
             Pragma: "no-cache",
             Expires: "0",
           },
@@ -506,7 +571,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     // ── 9. FINAL RESOLVE ───────────────────────────────────────────────────
     const response = await resolve(event);
-    if (dev) logRequest(event, performance.now() - requestStart, response.status);
+    if (dev)
+      logRequest(event, performance.now() - requestStart, response.status);
     return response;
   } catch (err: any) {
     if (isRedirect(err) || isHttpError(err)) throw err;
