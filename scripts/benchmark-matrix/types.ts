@@ -103,6 +103,12 @@ export interface BenchmarkScript {
   tags?: BenchmarkTag[];
   /** 🚀 NEW: Dependencies on other benchmarks (by shortLabel) */
   dependsOn?: string[];
+  /** 🚀 NEW: Metric category for correlation engine grouping */
+  metricCategory?: MetricCategory;
+  /** 🚀 NEW: Benchmarks this one correlates with (by shortLabel) */
+  correlatedWith?: string[];
+  /** 🚀 NEW: Benchmarks this one should NOT correlate with */
+  antiCorrelatedWith?: string[];
 }
 
 /** Precomputed display row for zero-allocation rendering */
