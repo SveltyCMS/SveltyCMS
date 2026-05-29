@@ -16,14 +16,23 @@ import {
   PERFORMANCE_BUDGET,
 } from "./config";
 import { extractMetrics, getTrendDetails } from "./utils";
+import { detectRegressions } from "./regression-detector";
 import type { BenchmarkResult, RunConfig } from "./types";
-import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from "ts-morph";
+import {
+  Project,
+  SyntaxKind,
+  type ObjectLiteralExpression,
+  type SourceFile,
+} from "ts-morph";
 import { collectHostInfo } from "./cli";
 
 /**
  * 📂 Robust recursive file discovery helper.
  */
-async function findFilesRecursive(dir: string, pattern: string | RegExp): Promise<string[]> {
+async function findFilesRecursive(
+  dir: string,
+  pattern: string | RegExp,
+): Promise<string[]> {
   const results: string[] = [];
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -33,7 +42,9 @@ async function findFilesRecursive(dir: string, pattern: string | RegExp): Promis
         results.push(...(await findFilesRecursive(fullPath, pattern)));
       } else {
         const matches =
-          typeof pattern === "string" ? entry.name.endsWith(pattern) : pattern.test(entry.name);
+          typeof pattern === "string"
+            ? entry.name.endsWith(pattern)
+            : pattern.test(entry.name);
         if (matches) results.push(fullPath);
       }
     }
@@ -88,11 +99,18 @@ export async function persistScriptMetadataAST(
       if (element.getKind() !== SyntaxKind.ObjectLiteralExpression) continue;
 
       const obj = element as ObjectLiteralExpression;
-      const pathProp = obj.getProperty("path")?.asKind(SyntaxKind.PropertyAssignment);
-      const pathValue = pathProp?.getInitializer()?.getText().replace(/['"]/g, "");
+      const pathProp = obj
+        .getProperty("path")
+        ?.asKind(SyntaxKind.PropertyAssignment);
+      const pathValue = pathProp
+        ?.getInitializer()
+        ?.getText()
+        .replace(/['"]/g, "");
 
       if (pathValue === scriptPath) {
-        let lastRunProp = obj.getProperty("lastRun")?.asKind(SyntaxKind.PropertyAssignment);
+        let lastRunProp = obj
+          .getProperty("lastRun")
+          ?.asKind(SyntaxKind.PropertyAssignment);
 
         if (lastRunProp) {
           lastRunProp.setInitializer(`"${timestamp}"`);
@@ -119,7 +137,9 @@ export async function persistScriptMetadataAST(
         }
 
         updated = true;
-        log.info(`Updated lastRun for ${scriptPath}${dbKey ? ` (${dbKey})` : ""}`);
+        log.info(
+          `Updated lastRun for ${scriptPath}${dbKey ? ` (${dbKey})` : ""}`,
+        );
         break; // Only update the matching script
       }
     }
@@ -149,7 +169,15 @@ export async function updateIncrementalReport(results: BenchmarkResult[]) {
  */
 export function printSummaryTable(results: BenchmarkResult[]) {
   const COL = [22, 12, 12, 10, 10, 8, 7];
-  const hdr = ["Database", "Cold Start", "REST p95", "GQL Avg", "Heap ΔMB", "Budget", "Status"]
+  const hdr = [
+    "Database",
+    "Cold Start",
+    "REST p95",
+    "GQL Avg",
+    "Heap ΔMB",
+    "Budget",
+    "Status",
+  ]
     .map((h, i) => h.padEnd(COL[i]))
     .join("  ");
   console.log(`\x1b[90m${hdr}\x1b[0m`);
@@ -165,14 +193,21 @@ export function printSummaryTable(results: BenchmarkResult[]) {
     const violations = res.budgetViolations ?? [];
 
     const budgetCell =
-      violations.length === 0 ? "\x1b[32m✓ OK\x1b[0m" : `\x1b[31m✗ ${violations.length}\x1b[0m`;
-    const statusCell = res.status === "SUCCESS" ? "\x1b[32m✅\x1b[0m" : "\x1b[31m❌\x1b[0m";
+      violations.length === 0
+        ? "\x1b[32m✓ OK\x1b[0m"
+        : `\x1b[31m✗ ${violations.length}\x1b[0m`;
+    const statusCell =
+      res.status === "SUCCESS" ? "\x1b[32m✅\x1b[0m" : "\x1b[31m❌\x1b[0m";
 
     const row = [
       `${meta.icon} ${meta.label}`.padEnd(COL[0]),
       `${res.coldStartMs ?? "—"}ms`.padEnd(COL[1]),
-      `${m.collections > 0 ? m.collections.toFixed(3) + "ms" : "—"}`.padEnd(COL[2]),
-      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(3) + "ms" : "—"}`.padEnd(COL[3]),
+      `${m.collections > 0 ? m.collections.toFixed(3) + "ms" : "—"}`.padEnd(
+        COL[2],
+      ),
+      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(3) + "ms" : "—"}`.padEnd(
+        COL[3],
+      ),
       `${m.memGrowth !== 0 ? m.memGrowth.toFixed(1) : "—"}`.padEnd(COL[4]),
       budgetCell.padEnd(COL[5] + 10),
       statusCell,
@@ -189,12 +224,17 @@ export function printSummaryTable(results: BenchmarkResult[]) {
 /**
  * 🚀 Reconstructs high-fidelity ASCII tables for MDX.
  */
-function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): string {
+function buildAsciiTable(
+  title: string,
+  subtitle: string,
+  scenarios: any[],
+): string {
   const NAME_W = 30;
   const VAL_W = 12;
   const W = 2 + NAME_W + 3 + VAL_W + 10 + VAL_W + 10 + 10 + 2; // = 91
 
-  const bar = (l: string, _m: string, r: string) => l + "═".repeat(W - 2).replace(/ /g, "═") + r;
+  const bar = (l: string, _m: string, r: string) =>
+    l + "═".repeat(W - 2).replace(/ /g, "═") + r;
   const row = (sc: string, avg: string, p95: string, rps: string) =>
     `║ ${sc.padEnd(NAME_W)} │ ${avg.padStart(VAL_W)} ms │ p95: ${p95.padStart(VAL_W)} ms │ RPS: ${rps.padStart(10)} ║`;
 
@@ -203,18 +243,29 @@ function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): str
 
   // Center Title
   const titlePad = Math.max(0, Math.floor((W - 2 - title.length) / 2));
-  md += "║" + " ".repeat(titlePad) + title + " ".repeat(W - 2 - title.length - titlePad) + "║\n";
+  md +=
+    "║" +
+    " ".repeat(titlePad) +
+    title +
+    " ".repeat(W - 2 - title.length - titlePad) +
+    "║\n";
 
   // Center Subtitle
   const subPad = Math.max(0, Math.floor((W - 2 - subtitle.length) / 2));
-  md += "║" + " ".repeat(subPad) + subtitle + " ".repeat(W - 2 - subtitle.length - subPad) + "║\n";
+  md +=
+    "║" +
+    " ".repeat(subPad) +
+    subtitle +
+    " ".repeat(W - 2 - subtitle.length - subPad) +
+    "║\n";
 
   md += bar("╠", "═", "╣") + "\n";
 
   for (const s of scenarios) {
     const avg = typeof s.avgMs === "number" ? s.avgMs.toFixed(3) : "0.000";
     const p95 = typeof s.p95Ms === "number" ? s.p95Ms.toFixed(3) : avg;
-    const rps = typeof s.rps === "number" ? Math.round(s.rps).toLocaleString() : "0";
+    const rps =
+      typeof s.rps === "number" ? Math.round(s.rps).toLocaleString() : "0";
 
     md += row(s.name, avg, p95, rps) + "\n";
   }
@@ -288,7 +339,12 @@ async function generateTrendBlock(
   title: string,
   unit: string = "ms",
 ) {
-  const trend = await getTrendDetails(db, dbKey, (m as any)[liveKey], historyKey);
+  const trend = await getTrendDetails(
+    db,
+    dbKey,
+    (m as any)[liveKey],
+    historyKey,
+  );
   const budget = (PERFORMANCE_BUDGET as any)[metricKey];
   const budgetText = budget ? ` | **Target:** < ${budget}${unit}` : "";
 
@@ -311,7 +367,9 @@ export async function buildFullAuditLedger(
 
   for (const script of BENCHMARK_SCRIPTS) {
     const isSql =
-      dbKey.includes("sqlite") || dbKey.includes("postgres") || dbKey.includes("mariadb");
+      dbKey.includes("sqlite") ||
+      dbKey.includes("postgres") ||
+      dbKey.includes("mariadb");
     const isApplicable =
       script.strategy === "all" ||
       (script.strategy === "sql" && isSql) ||
@@ -366,9 +424,15 @@ export async function buildFullAuditLedger(
       .map((h) => {
         const m = JSON.parse(h.metrics_json);
         const scriptMetric = Object.values(m).find(
-          (v: any) => v.name === script.shortLabel || v.shortLabel === script.shortLabel,
+          (v: any) =>
+            v.name === script.shortLabel || v.shortLabel === script.shortLabel,
         ) as any;
-        return scriptMetric?.p95Ms || scriptMetric?.avgMs || m[script.shortLabel]?.avgMs || 0;
+        return (
+          scriptMetric?.p95Ms ||
+          scriptMetric?.avgMs ||
+          m[script.shortLabel]?.avgMs ||
+          0
+        );
       })
       .filter((v) => v > 0)
       .reverse();
@@ -429,7 +493,10 @@ export async function generateFinalReport(
       results[existingIdx] = {
         ...s,
         ...results[existingIdx],
-        scriptTimings: { ...s.scriptTimings, ...results[existingIdx].scriptTimings },
+        scriptTimings: {
+          ...s.scriptTimings,
+          ...results[existingIdx].scriptTimings,
+        },
         metrics: { ...s.metrics, ...results[existingIdx].metrics },
         coldStartMs: results[existingIdx].coldStartMs || s.coldStartMs || 0,
       };
@@ -487,18 +554,35 @@ export async function generateFinalReport(
       );
     }
 
+    // 🚀 Detect performance regressions
+    const perfRegressions = await detectRegressions(results);
+
     // 🚀 Update per-database specific technical ledgers
     const hasLock = await acquireLock("mdx_report");
     if (hasLock) {
       try {
-        await updateDatabaseSpecificReports(db, results, latestMetrics, resultsIn);
-        await updateBenchmarkIndexReport(db, results, latestMetrics);
+        await updateDatabaseSpecificReports(
+          db,
+          results,
+          latestMetrics,
+          resultsIn,
+          perfRegressions,
+          now,
+        );
+        await updateBenchmarkIndexReport(
+          db,
+          results,
+          latestMetrics,
+          perfRegressions,
+        );
         log.success("Enterprise Benchmark technical ledgers updated.");
       } finally {
         await releaseLock("mdx_report");
       }
     } else {
-      log.warn("Could not acquire lock for MDX report. Skipping incremental update.");
+      log.warn(
+        "Could not acquire lock for MDX report. Skipping incremental update.",
+      );
     }
 
     return regressions;
@@ -511,8 +595,12 @@ async function updateBenchmarkIndexReport(
   db: any,
   results: BenchmarkResult[],
   latestMetrics: Record<string, any>,
+  perfRegressions: any[] = [],
 ) {
-  const indexFilePath = path.join(process.cwd(), "docs/project/benchmarks/index.mdx");
+  const indexFilePath = path.join(
+    process.cwd(),
+    "docs/project/benchmarks/index.mdx",
+  );
   let doc = await fs.readFile(indexFilePath, "utf8").catch(() => "");
   if (!doc) return;
 
@@ -521,13 +609,29 @@ async function updateBenchmarkIndexReport(
 
   if (!doc.includes(START_TAG) || !doc.includes(END_TAG)) return;
 
-  let tableMd = `\n### ⚡ Executive Summary Matrix\n\n`;
+  let warningBox = "";
+  if (perfRegressions.length > 0) {
+    warningBox = `> [!WARNING]\n> **Performance Regressions Detected (Statistical Deviation > 15%)**:\n`;
+    for (const r of perfRegressions) {
+      const changeStr =
+        r.changePct > 0
+          ? `+${r.changePct.toFixed(1)}%`
+          : `${r.changePct.toFixed(1)}%`;
+      warningBox += `> - **${r.db}** → **${r.metric}**: ${r.current.toFixed(3)}ms (was ${r.previousAvg.toFixed(3)}ms, delta: ${changeStr}) - *${r.reason}*\n`;
+    }
+    warningBox += `>\n> *Please review recent changes or environmental noise to preserve sub-millisecond execution times.*\n\n`;
+  }
+
+  let tableMd = `\n### ⚡ Executive Summary Matrix\n\n${warningBox}`;
   tableMd += `| Database | Status | Cold Start | REST p95 | GQL Avg | CPU | Memory |\n`;
   tableMd += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
 
   for (const dbConf of ALL_DATABASES) {
     const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-    const meta = (DB_METADATA as any)[dbKey] || { label: dbKey.toUpperCase(), icon: "❓" };
+    const meta = (DB_METADATA as any)[dbKey] || {
+      label: dbKey.toUpperCase(),
+      icon: "❓",
+    };
     const label = `${meta.icon} **${meta.label}**`;
 
     let curr = results.find((r) => r.db === dbKey);
@@ -544,12 +648,16 @@ async function updateBenchmarkIndexReport(
         )
         .get(dbKey) as any;
       if (last && curr.status === "FAILED" && m) {
-        const lastM = extractMetrics(JSON.parse(last.metrics_json), dbConf.type);
+        const lastM = extractMetrics(
+          JSON.parse(last.metrics_json),
+          dbConf.type,
+        );
         if (!m.collections) m.collections = lastM.collections;
         if (!m.graphqlAvg) m.graphqlAvg = lastM.graphqlAvg;
         if (!m.memGrowth) m.memGrowth = lastM.memGrowth;
         if (!m.systemCpu) m.systemCpu = lastM.systemCpu;
-        if (!curr.coldStartMs && last.cold_start_ms) curr.coldStartMs = last.cold_start_ms;
+        if (!curr.coldStartMs && last.cold_start_ms)
+          curr.coldStartMs = last.cold_start_ms;
       }
     } else {
       const last = db
@@ -589,6 +697,8 @@ async function updateDatabaseSpecificReports(
   results: BenchmarkResult[],
   latestMetrics: Record<string, any>,
   resultsIn: BenchmarkResult[] = [],
+  perfRegressions: any[] = [],
+  currentRunTimestamp?: string,
 ) {
   const DOCS_DIR = path.join(process.cwd(), "docs/project/benchmarks");
   await fs.mkdir(DOCS_DIR, { recursive: true });
@@ -604,7 +714,10 @@ async function updateDatabaseSpecificReports(
       label: dbKey.toUpperCase(),
       icon: "❓",
     };
-    const filePath = path.join(DOCS_DIR, `benchmark_${dbKey.replace("-", "_")}.mdx`);
+    const filePath = path.join(
+      DOCS_DIR,
+      `benchmark_${dbKey.replace("-", "_")}.mdx`,
+    );
 
     let doc = await fs.readFile(filePath, "utf8").catch(() => "");
     if (!doc) {
@@ -643,11 +756,18 @@ tags:
     let timestamp: string;
     let isHistorical = false;
 
+    // 🚀 CRITICAL: Get the PREVIOUS successful run for metric fallback, NOT the current one.
+    // The current run was just inserted into the history DB with potentially sparse metrics
+    // (e.g., from a --only run). We must exclude it so the surgical recovery copies from
+    // the last COMPLETE run, not from itself.
     const last = db
       .query(
-        `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
+        `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS'${currentRunTimestamp ? " AND timestamp < ?" : ""} ORDER BY timestamp DESC LIMIT 1`,
       )
-      .get(dbKey) as any;
+      .all(
+        ...(currentRunTimestamp ? [dbKey, currentRunTimestamp] : [dbKey]),
+      ) as any[];
+    const previousRun = last?.[0] || null;
 
     if (curr && curr.status !== "PENDING") {
       m = latestMetrics[dbKey];
@@ -656,8 +776,11 @@ tags:
 
       // 🚀 SURGICAL METRICS RECOVERY: If a test crashed, its aggregate metric might be 0.
       // We must patch these zeroes with the last known good historical data to prevent ledger regression.
-      if (last) {
-        const lastM = extractMetrics(JSON.parse(last.metrics_json), dbConf.type);
+      if (previousRun) {
+        const lastM = extractMetrics(
+          JSON.parse(previousRun.metrics_json),
+          dbConf.type,
+        );
         if (!m.collections) m.collections = lastM.collections;
         if (!m.graphqlAvg) m.graphqlAvg = lastM.graphqlAvg;
         if (!m.dbRaw) m.dbRaw = lastM.dbRaw;
@@ -665,29 +788,59 @@ tags:
         if (!m.systemCpu) m.systemCpu = lastM.systemCpu;
         if (!m.hooks) m.hooks = lastM.hooks;
         if (!m.indexPressure) m.indexPressure = lastM.indexPressure;
-        if (!curr.coldStartMs && last.cold_start_ms) curr.coldStartMs = last.cold_start_ms;
+        if (!curr.coldStartMs && previousRun.cold_start_ms)
+          curr.coldStartMs = previousRun.cold_start_ms;
       }
     } else {
-      if (!last) continue;
-      m = extractMetrics(JSON.parse(last.metrics_json), dbConf.type);
-      status = last.status;
-      timestamp = new Date(last.timestamp).toLocaleString();
+      if (!previousRun) continue;
+      m = extractMetrics(JSON.parse(previousRun.metrics_json), dbConf.type);
+      status = previousRun.status;
+      timestamp = new Date(previousRun.timestamp).toLocaleString();
       isHistorical = true;
 
       // 🚀 RESTORE Host Info from History
-      if (last.host_info_json) {
+      if (previousRun.host_info_json) {
         (curr as any) = {
           ...curr,
-          hostInfo: JSON.parse(last.host_info_json),
+          hostInfo: JSON.parse(previousRun.host_info_json),
         };
       }
     }
 
-    const coldTrend = await getTrendDetails(db, dbKey, curr?.coldStartMs || 0, "cold_start_ms");
-    const restTrend = await getTrendDetails(db, dbKey, m.collections, "collections_p95");
-    const gqlTrend = await getTrendDetails(db, dbKey, m.graphqlAvg, "graphql_avg");
+    const coldTrend = await getTrendDetails(
+      db,
+      dbKey,
+      curr?.coldStartMs || 0,
+      "cold_start_ms",
+    );
+    const restTrend = await getTrendDetails(
+      db,
+      dbKey,
+      m.collections,
+      "collections_p95",
+    );
+    const gqlTrend = await getTrendDetails(
+      db,
+      dbKey,
+      m.graphqlAvg,
+      "graphql_avg",
+    );
 
-    let headerMd = `\n## 📊 Latest Performance Audit (${timestamp})\n\n`;
+    const dbRegressions = perfRegressions.filter((r) => r.db === dbKey);
+    let dbWarningBox = "";
+    if (dbRegressions.length > 0) {
+      dbWarningBox = `> [!WARNING]\n> **Performance Regressions Detected for ${meta.label}**:\n`;
+      for (const r of dbRegressions) {
+        const changeStr =
+          r.changePct > 0
+            ? `+${r.changePct.toFixed(1)}%`
+            : `${r.changePct.toFixed(1)}%`;
+        dbWarningBox += `> - **${r.metric}**: ${r.current.toFixed(3)}ms (was ${r.previousAvg.toFixed(3)}ms, delta: ${changeStr}) - *${r.reason}*\n`;
+      }
+      dbWarningBox += `>\n> *Please investigate potential database adapter performance bottlenecks or environment variance.*\n\n`;
+    }
+
+    let headerMd = `\n## 📊 Latest Performance Audit (${timestamp})\n\n${dbWarningBox}`;
     headerMd += `**Status:** ${status === "SUCCESS" ? "✅ PASS" : "❌ FAIL"}${isHistorical ? " *(Historical)*" : ""}\n\n`;
 
     // 🚀 ERROR REPORTING
@@ -700,15 +853,21 @@ tags:
       headerMd += `> [!WARNING]\n> **Environment Shift Detected**: Massive latency delta (${restTrend.pct}). If you recently reformatted or changed hardware, this is normal. Run benchmarks again to establish your new baseline.\n\n`;
     }
 
+    // 🚀 SMART FORMATTING: Show "N/A" for unavailable metrics instead of misleading "0.000ms"
+    const fmtMs = (val: number): string =>
+      val > 0 ? val.toFixed(3) + "ms" : "N/A";
+    const fmtStatus = (val: number, budget: number): string =>
+      val <= 0 ? "⚪ N/A" : val <= budget ? "🟢 PASS" : "🔴 FAIL";
+
     headerMd += `### ⚡ Executive Latency Matrix\n`;
     headerMd += `| Scenario | Avg Latency | Trend | Target Budget | Result |\n`;
     headerMd += `| :--- | :--- | :--- | :--- | :--- |\n`;
     headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms | ${(curr?.coldStartMs || 0) <= 5000 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
-    headerMd += `| **REST (Collections)** | ${(m.collections || m.restAvg).toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms | ${(m.collections || m.restAvg) <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
-    headerMd += `| **Middleware Hooks** | ${m.hooks.toFixed(3)}ms | ⚪ | < ${PERFORMANCE_BUDGET.hooks}ms | ${m.hooks <= PERFORMANCE_BUDGET.hooks ? "🟢 PASS" : "🔴 FAIL"} |\n`;
-    headerMd += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms | ${m.graphqlAvg <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
-    headerMd += `| **Million-Row Index** | ${m.indexPressure === 0 ? "FAILED" : m.indexPressure.toFixed(3) + "ms"} | ⚪ | < 250ms | ${m.indexPressure > 0 && m.indexPressure <= 250 ? "🟢 PASS" : dbKey === "sqlite" ? "🔴 LOCK WALL" : "🔴 FAIL"} |\n`;
-    headerMd += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms | ${m.dbRaw <= 50 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **REST (Collections)** | ${fmtMs(m.collections || m.restAvg)} | ${restTrend.icon} (${restTrend.pct}) | < 5ms | ${fmtStatus(m.collections || m.restAvg, 5)} |\n`;
+    headerMd += `| **Middleware Hooks** | ${fmtMs(m.hooks)} | ⚪ | < ${PERFORMANCE_BUDGET.hooks}ms | ${fmtStatus(m.hooks, PERFORMANCE_BUDGET.hooks)} |\n`;
+    headerMd += `| **GraphQL (Avg)** | ${fmtMs(m.graphqlAvg)} | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms | ${fmtStatus(m.graphqlAvg, 5)} |\n`;
+    headerMd += `| **Million-Row Index** | ${fmtMs(m.indexPressure)} | ⚪ | < 250ms | ${m.indexPressure <= 0 ? "⚪ N/A" : m.indexPressure <= 250 ? "🟢 PASS" : dbKey === "sqlite" ? "🔴 LOCK WALL" : "🔴 FAIL"} |\n`;
+    headerMd += `| **DB Raw (p95)** | ${fmtMs(m.dbRaw)} | ⚪ | < 50ms | ${fmtStatus(m.dbRaw, 50)} |\n`;
     headerMd += `| **Setup Quality** | ${status === "SUCCESS" ? "🟢 HEALTHY" : "🔴 DEGRADED"} | ⚪ | 100% | ${status === "SUCCESS" ? "🟢 PASS" : "🔴 FAIL"} |\n\n`;
 
     /**
@@ -836,7 +995,9 @@ tags:
     // Reconstruct the internal sections surgically
     for (const script of BENCHMARK_SCRIPTS) {
       const isSql =
-        dbKey.includes("sqlite") || dbKey.includes("postgres") || dbKey.includes("mariadb");
+        dbKey.includes("sqlite") ||
+        dbKey.includes("postgres") ||
+        dbKey.includes("mariadb");
       const isApplicable =
         script.strategy === "all" ||
         (script.strategy === "sql" && isSql) ||
@@ -863,7 +1024,9 @@ tags:
 
         const tableFile = allFiles.find((f) => {
           const baseName = path.basename(f).toLowerCase();
-          const targetSlug = script.shortLabel.toLowerCase().replace(/[^a-z0-9]/g, "_");
+          const targetSlug = script.shortLabel
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "_");
           return baseName.includes(targetSlug);
         });
 
@@ -883,7 +1046,10 @@ tags:
         if (doc.includes(START_TAG) && doc.includes(END_TAG)) {
           tableContent = doc.split(START_TAG)[1].split(END_TAG)[0].trim();
         } else if (doc.includes(OLD_START_TAG) && doc.includes(OLD_END_TAG)) {
-          tableContent = doc.split(OLD_START_TAG)[1].split(OLD_END_TAG)[0].trim();
+          tableContent = doc
+            .split(OLD_START_TAG)[1]
+            .split(OLD_END_TAG)[0]
+            .trim();
         }
 
         if (tableContent && tableContent.includes("Pending execution")) {
@@ -911,13 +1077,17 @@ tags:
               (v: any) => v.name === script.shortLabel,
             ) as any;
             if (scriptMetric) {
-              const histDate = new Date(historical.timestamp).toLocaleDateString();
+              const histDate = new Date(
+                historical.timestamp,
+              ).toLocaleDateString();
               const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
               tableContent = `> 🏛️ **Historical Data** (from ${histDate})\n> 🏷️ **${script.label}**: ✅ **${(scriptMetric.avgMs || 0).toFixed(3)}ms**\n> 📂 **Source**: [${script.path}](${relativePath})`;
             }
           }
         } catch (err) {
-          log.warn(`Historical recovery failed for ${script.shortLabel}: ${err}`);
+          log.warn(
+            `Historical recovery failed for ${script.shortLabel}: ${err}`,
+          );
         }
       }
 
@@ -948,11 +1118,16 @@ tags:
     }
 
     await fs.writeFile(filePath, doc);
-    log.info(`Updated technical ledger: benchmark_${dbKey.replace("-", "_")}.mdx`);
+    log.info(
+      `Updated technical ledger: benchmark_${dbKey.replace("-", "_")}.mdx`,
+    );
   }
 }
 
-export async function writeCISummary(results: BenchmarkResult[], regressions: string[]) {
+export async function writeCISummary(
+  results: BenchmarkResult[],
+  regressions: string[],
+) {
   const passed = results.filter((r) => r.status === "SUCCESS").length;
   const failed = results.filter((r) => r.status === "FAILED").length;
   const allViolations = results.flatMap((r) => r.budgetViolations ?? []);
@@ -984,7 +1159,10 @@ export async function writeCISummary(results: BenchmarkResult[], regressions: st
     badge: {
       schemaVersion: 1,
       label: "benchmarks",
-      message: failed === 0 ? `${passed}/${results.length} passed` : `${failed} failed`,
+      message:
+        failed === 0
+          ? `${passed}/${results.length} passed`
+          : `${failed} failed`,
       color: overall === "PASS" ? "brightgreen" : "red",
     },
   };
@@ -1029,14 +1207,16 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
 
           // Handle suite summary results
           if (content.name && content.avgMs !== undefined) {
-            const short = content.shortLabel || content.name.split(":")[0] || "unknown";
+            const short =
+              content.shortLabel || content.name.split(":")[0] || "unknown";
             scriptTimings[short] = content.avgMs;
             if (content.failureCount > 0) status = "FAILED";
 
             // Merge nested metrics if present
             if (content.metrics) Object.assign(metrics, content.metrics);
             // Save scriptPath for reliable matching
-            if (content.scriptPath) (scriptTimings as any).scriptPath = content.scriptPath;
+            if (content.scriptPath)
+              (scriptTimings as any).scriptPath = content.scriptPath;
 
             // Store the full result as a metric for detailed ledger reconstruction
             metrics[short] = content;
@@ -1056,14 +1236,18 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
         }
       }
 
-      if (Object.keys(metrics).length > 0 || Object.keys(scriptTimings).length > 0) {
+      if (
+        Object.keys(metrics).length > 0 ||
+        Object.keys(scriptTimings).length > 0
+      ) {
         results.push({
           db: dbKey,
           status,
           metrics,
           scriptTimings,
           scriptPath: (scriptTimings as any).scriptPath || metrics.scriptPath,
-          coldStartMs: metrics["cold-start"]?.value || metrics["cold-start"] || 0,
+          coldStartMs:
+            metrics["cold-start"]?.value || metrics["cold-start"] || 0,
         } as any);
       }
     }

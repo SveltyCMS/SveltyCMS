@@ -53,9 +53,7 @@ async function runPressureAudit() {
       console.log(`   → Using runner's pre-warmed server at ${runnerBaseUrl}`);
       baseUrl = runnerBaseUrl;
     } else {
-      console.log(
-        "   → No runner detected. Starting isolated benchmark server...",
-      );
+      console.log("   → No runner detected. Starting isolated benchmark server...");
       const server = await setupBenchmarkServer();
       stopServer = server.stop;
       baseUrl = server.baseUrl;
@@ -89,8 +87,7 @@ async function runPressureAudit() {
         }
         await new Promise((r) => setTimeout(r, 1000));
       }
-      if (!adapterReady)
-        throw new Error("Database adapter failed to reach healthy state.");
+      if (!adapterReady) throw new Error("Database adapter failed to reach healthy state.");
     } else {
       // Under runner: quick verify with shorter timeout
       await stabilize(2000);
@@ -164,10 +161,7 @@ async function runPressureAudit() {
       { key: "Filtered Query (p95)", val: filterResult.p95Ms, unit: "ms" },
       {
         key: "Index Health",
-        val:
-          sortResult.p95Ms < 250 && filterResult.p95Ms < 250
-            ? "OPTIMAL"
-            : "NEEDS WORK",
+        val: sortResult.p95Ms < 250 && filterResult.p95Ms < 250 ? "OPTIMAL" : "NEEDS WORK",
         unit: "",
       },
     ]);
@@ -212,12 +206,9 @@ async function prepareCollection(baseUrl: string) {
 
   // 🚀 IDEMPOTENT: Check if collection already exists before provisioning
   try {
-    const checkRes = await fetch(
-      `${baseUrl}/api/collections/${COLLECTION_ID}/schema`,
-      {
-        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
-      },
-    );
+    const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/schema`, {
+      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+    });
     if (checkRes.ok) {
       console.log("   → Collection already exists. Skipping provisioning.");
       return;
@@ -242,28 +233,21 @@ async function prepareCollection(baseUrl: string) {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(
-      `Failed to provision collection via API: ${res.status} ${body}`,
-    );
+    throw new Error(`Failed to provision collection via API: ${res.status} ${body}`);
   }
 }
 
 async function seedLargeDataset(baseUrl: string) {
   // 🚀 SMART SEEDING: Check if data already exists
   try {
-    const checkRes = await fetch(
-      `${baseUrl}/api/collections/${COLLECTION_ID}?limit=1`,
-      {
-        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
-      },
-    );
+    const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}?limit=1`, {
+      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+    });
     if (checkRes.ok) {
       const checkData = await checkRes.json();
       const total = checkData.total || checkData.data?.total || 0;
       if (total >= ENTRY_COUNT) {
-        console.log(
-          `   → Data already present (${total} entries). Skipping seed.`,
-        );
+        console.log(`   → Data already present (${total} entries). Skipping seed.`);
         return;
       }
     }
@@ -271,9 +255,7 @@ async function seedLargeDataset(baseUrl: string) {
     /* proceed */
   }
 
-  console.log(
-    `   → Seeding ${ENTRY_COUNT.toLocaleString()} entries (Batches of ${BATCH_SIZE})...`,
-  );
+  console.log(`   → Seeding ${ENTRY_COUNT.toLocaleString()} entries (Batches of ${BATCH_SIZE})...`);
   const totalBatches = Math.ceil(ENTRY_COUNT / BATCH_SIZE);
 
   for (let i = 0; i < totalBatches; i++) {
@@ -306,9 +288,7 @@ async function seedLargeDataset(baseUrl: string) {
 
       const bodyText = await res.text().catch(() => "");
       const isRetryable =
-        res.status === 503 ||
-        bodyText.includes("BUSY") ||
-        bodyText.includes("Pool Exhausted");
+        res.status === 503 || bodyText.includes("BUSY") || bodyText.includes("Pool Exhausted");
 
       if (isRetryable && retryCount < maxRetries) {
         retryCount++;
