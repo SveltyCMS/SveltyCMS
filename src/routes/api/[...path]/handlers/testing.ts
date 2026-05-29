@@ -71,9 +71,11 @@ export async function handleTestingRoutes(
     );
   }
 
-  process.stderr.write(
-    `🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`,
-  );
+  if (process.env.BENCHMARK_DEBUG === "true") {
+    process.stderr.write(
+      `🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`,
+    );
+  }
   const { request } = event;
   try {
     const params = await request.json().catch(() => ({}));
