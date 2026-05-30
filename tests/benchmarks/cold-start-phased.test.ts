@@ -1,72 +1,80 @@
 /**
  * @file tests/benchmarks/cold-start-phased.test.ts
- * @description Benchmark to measure "Cold Start" latency with Phased Initialization.
+ * @description Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
  */
-
+import {
+  test,
+  runBenchmark,
+  printTruthTable,
+  printSummaryTable,
+  getDbType,
+  exportResult,
+} from "./modules/benchmark-utils";
+import "../unit/bun-preload.ts";
 import { runSystemBoot } from "@src/databases/db-init";
-import { systemStateStore } from "@src/stores/system/state.svelte";
+import { systemStateStore, setSystemState } from "@src/stores/system/state.svelte";
 import { get } from "svelte/store";
-import { describe, it } from "bun:test";
+import { SQLiteAdapter } from "@src/databases/sqlite/sqlite-adapter";
+import { createSchemaProxy } from "@src/databases/core/schema-proxy";
 
-describe("Cold Start Benchmark (Phased)", () => {
-  it("should measure phased boot latency", async () => {
-    console.log("\n🚀 Starting Cold Start Phased Benchmark...");
+async function runColdStartPhasedAudit() {
+  console.log("\n🚀 Starting Phased Cold Start Audit...\n");
 
-    // We assume the adapter is already mocked or we use a real one
-    // In our setup.ts, the adapter is usually mocked.
-    // We need a real-ish adapter to measure actual boot time.
-    const { SQLiteAdapter } = await import("@src/databases/sqlite/sqlite-adapter");
-    const { createSchemaProxy } = await import("@src/databases/core/schema-proxy");
+  let dbAdapter = new SQLiteAdapter() as any;
+  dbAdapter = createSchemaProxy(dbAdapter);
 
-    let dbAdapter = new SQLiteAdapter() as any;
-    dbAdapter = createSchemaProxy(dbAdapter);
+  // RESET STATE: Ensure we start from clean IDLE
+  setSystemState("IDLE", "Resetting for cold start benchmark");
+  await dbAdapter.connect(":memory:");
 
-    // 🚀 RESET STATE: Ensure we are starting from a clean IDLE state
-    const { setSystemState } = await import("@src/stores/system/state.svelte");
-    setSystemState("IDLE", "Resetting for cold start benchmark");
+  const results = await runBenchmark({
+    name: "Cold Start (IDLE → READY → WARMED)",
+    iterations: 5,
+    runs: 1,
+    concurrency: 1,
+    silent: false,
+    onIteration: async (_i: number) => {
+      // Re-reset between iterations
+      setSystemState("IDLE", "Reset for iteration");
+      await dbAdapter.connect(":memory:");
 
-    // 🔌 Ensure adapter is connected before boot
-    await dbAdapter.connect(":memory:");
+      // Trigger boot and poll for WARMED
+      void runSystemBoot(dbAdapter);
 
-    console.log("⏱️  Phase 1: Measuring CORE Boot (READY State)...");
-    const t0 = performance.now();
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Cold start timed out")), 30000);
+        const check = setInterval(() => {
+          const state = get(systemStateStore);
+          if (state.overallState === "WARMED") {
+            clearInterval(check);
+            clearTimeout(timeout);
+            resolve();
+          }
+        }, 10);
+      });
+    },
+  });
 
-    // Trigger boot
-    void runSystemBoot(dbAdapter);
+  printTruthTable({
+    title: "SVELTYCMS — PHASED COLD START AUDIT",
+    shortLabel: "Cold Start",
+    subtitle: `Phased Boot (IDLE → READY → WARMED) • ${getDbType().toUpperCase()}`,
+    results: [{ ...results, name: "Cold Start (IDLE → WARMED)", layer: "Core" }],
+  });
 
-    // Poll for READY state
-    await new Promise<void>((resolve) => {
-      const check = setInterval(() => {
-        const state = get(systemStateStore);
-        // We look for READY or beyond
-        if (
-          state.overallState === "READY" ||
-          state.overallState === "WARMING" ||
-          state.overallState === "WARMED"
-        ) {
-          const d0 = performance.now() - t0;
-          clearInterval(check);
-          console.log(`✅ System reached READY state in ${d0.toFixed(2)}ms`);
+  printSummaryTable([
+    { key: "Avg Cold Start", val: results.avgMs, unit: "ms" },
+    { key: "p95 Cold Start", val: results.p95Ms, unit: "ms" },
+    {
+      key: "Reliability",
+      val: results.errorRate === 0 ? "STABLE" : "DEGRADED",
+      unit: "",
+    },
+  ]);
 
-          console.log("⏱️  Phase 2: Waiting for FULL Boot (WARMED State) in background...");
-          const t1 = performance.now();
+  exportResult(results);
+}
 
-          const checkWarmed = setInterval(() => {
-            const state = get(systemStateStore);
-            if (state.overallState === "WARMED") {
-              const d1 = performance.now() - t1;
-              clearInterval(checkWarmed);
-              console.log(`✨ System reached WARMED state in background after ${d1.toFixed(2)}ms`);
-              console.log("--------------------------------------------------");
-              console.log(`📈 CORE Boot Latency (READY): ${d0.toFixed(2)}ms`);
-              console.log(`📉 Background Warming (WARM): ${d1.toFixed(2)}ms`);
-              console.log(`📊 Total System Warmed: ${(d0 + d1).toFixed(2)}ms`);
-              console.log("--------------------------------------------------");
-              resolve();
-            }
-          }, 50);
-        }
-      }, 5);
-    });
-  }, 30000); // 30s timeout
-});
+test("Cold Start Phased Boot Latency", async () => {
+  await runColdStartPhasedAudit();
+}, 120000);

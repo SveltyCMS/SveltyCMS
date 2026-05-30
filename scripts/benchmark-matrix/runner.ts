@@ -157,6 +157,7 @@ export async function runBenchmarkScript(
       BENCH_FILE: s.path,
       BENCH_PROVES: s.desc,
       BENCHMARK_STABLE: "true",
+      BENCHMARK_MATRIX: "1",
     };
 
     const outcome = await executeWithTimeout(cmd, scriptEnv, scriptTimeout, attempt, t0);
@@ -264,6 +265,7 @@ export function buildWorkerEnv(
   workerDbName: string,
   dbDir: string,
   buildDurationMs?: number,
+  ci = false,
 ): NodeJS.ProcessEnv {
   const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
   const meta = (DB_METADATA as any)[dbKey] ?? {
@@ -313,6 +315,7 @@ export function buildWorkerEnv(
     REDIS_HOST: "127.0.0.1",
     REDIS_PORT: "6379",
     DX_BUILD_DURATION: buildDurationMs?.toString(),
+    CI: ci ? "true" : "false",
   };
 
   delete env.USER;
@@ -417,7 +420,14 @@ export async function runAuditForDatabase(
       )
       .catch(() => {});
 
-    const env = buildWorkerEnv(dbConf, workerPort, workerDbName, dbDir, buildMetrics?.durationMs);
+    const env = buildWorkerEnv(
+      dbConf,
+      workerPort,
+      workerDbName,
+      dbDir,
+      buildMetrics?.durationMs,
+      cfg.ci,
+    );
 
     // System Setup
     if (

@@ -32,7 +32,7 @@ SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScrip
 ## Core Philosophy & Focus
 
 - **Data Security & Ownership**: Security is paramount—users always own their data. Implement strict protocols (e.g., no direct DB access outside adapters, secure headers).
-- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-10ms persistence and outperforming traditional enterprise platforms.**
+- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks/index.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-10ms persistence and outperforming traditional enterprise platforms.**
 
 - **Universal Accessibility**: WCAG 2.2 AA and ATAG 2.0 compliant (full keyboard support, ARIA-live regions); **built for WCAG 3.0 Functional Performance standards with native Svelte 5 components.**
 - **Premium Design**: Modern UX with native Svelte 5 components and Tailwind v4 for white-labeling and deep theming.
@@ -230,8 +230,10 @@ When generating/modifying code:
 10. **MCP Knowledge Base (CRITICAL)**: Always query the hosted MCP server at `https://mcp.sveltycms.com/mcp` when in doubt about SveltyCMS architecture, schema conventions, or widget syntax, as it holds the verified source of truth. Utilize MCP connections for dynamic generation flows.
 11. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
 12. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
-    - **Baseline**: Run the relevant benchmark (e.g., `bun run scripts/benchmark-matrix/index.ts --only=REST`) BEFORE applying changes.
-    - **Verification**: Run the same benchmark AFTER implementation.
+    - **Baseline**: Run the relevant benchmark with recording: `BENCHMARK_RECORD=1 bun test tests/benchmarks/<test>.test.ts`
+    - **Verification**: Run same benchmark after changes; compare trend labels in `docs/project/benchmarks/benchmark_<db>.mdx`
+    - **Full Matrix**: For cross-test correlation, run `bun run scripts/benchmark-matrix/index.ts --sql`
+    - **Reports**: Check MDX reports for trend labels (`🔴 avg +35%`), root cause insights, and code path recommendations
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
 13. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
     ```bash
@@ -528,31 +530,32 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 > [!TIP]
 > Every test suite has corresponding documentation. When modifying tests, update the linked docs.
 
-| Test File                                   | Documentation                                                                        |
-| ------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `tests/unit/hooks/defense-in-depth.test.ts` | `docs/architecture/security/index.mdx`, `docs/tests/security-testing.mdx`            |
-| `tests/unit/hooks/authentication.test.ts`   | `docs/architecture/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx` |
-| `tests/unit/hooks/authorization.test.ts`    | `docs/tests/rbac-testing.mdx`, `docs/architecture/security/index.mdx`                |
-| `tests/unit/hooks/system-state.test.ts`     | `docs/tests/hook-test-coverage.mdx`, `docs/architecture/state-management.mdx`        |
-| `tests/unit/hooks/setup.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`    |
-| `tests/unit/hooks/security-headers.test.ts` | `docs/tests/hook-test-coverage.mdx`, `docs/architecture/security/index.mdx`          |
-| `tests/unit/role-permission-access.test.ts` | `docs/tests/rbac-testing.mdx`                                                        |
-| `tests/unit/api/media-security.test.ts`     | `docs/architecture/security/widget-security.mdx`                                     |
-| `tests/benchmarks/security-audit.test.ts`   | `docs/architecture/security/quantum-security.mdx`, `docs/project/benchmarks.mdx`     |
-| `tests/e2e/accessibility.spec.ts`           | `docs/tests/accessibility-audit.mdx`                                                 |
-| `tests/unit/widgets/core/*.test.ts`         | `docs/tests/widget-test-coverage.mdx`                                                |
+| Test File                                   | Documentation                                                                          |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `tests/unit/hooks/defense-in-depth.test.ts` | `docs/architecture/security/index.mdx`, `docs/tests/security-testing.mdx`              |
+| `tests/unit/hooks/authentication.test.ts`   | `docs/architecture/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`   |
+| `tests/unit/hooks/authorization.test.ts`    | `docs/tests/rbac-testing.mdx`, `docs/architecture/security/index.mdx`                  |
+| `tests/unit/hooks/system-state.test.ts`     | `docs/tests/hook-test-coverage.mdx`, `docs/architecture/state-management.mdx`          |
+| `tests/unit/hooks/setup.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`      |
+| `tests/unit/hooks/security-headers.test.ts` | `docs/tests/hook-test-coverage.mdx`, `docs/architecture/security/index.mdx`            |
+| `tests/unit/role-permission-access.test.ts` | `docs/tests/rbac-testing.mdx`                                                          |
+| `tests/unit/api/media-security.test.ts`     | `docs/architecture/security/widget-security.mdx`                                       |
+| `tests/benchmarks/security-audit.test.ts`   | `docs/architecture/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx` |
+| `tests/e2e/accessibility.spec.ts`           | `docs/tests/accessibility-audit.mdx`                                                   |
+| `tests/unit/widgets/core/*.test.ts`         | `docs/tests/widget-test-coverage.mdx`                                                  |
 
 ## Key Files Reference
 
-| Category      | Key Files                                                                                               |
-| :------------ | :------------------------------------------------------------------------------------------------------ |
-| **DB & Auth** | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                  |
-| **Security**  | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts` |
-| **Content**   | `types.ts`, `collectionScanner.ts`, `config/collections/`                                               |
-| **Widgets**   | `widget-factory.ts`, `widget-store.svelte.ts`                                                           |
-| **API**       | `routes/api/`, `hooks.server.ts`                                                                        |
-| **Services**  | `settingsService.ts`, `scheduler/`, `AuditLogService.ts`,`MetricsService.ts`                            |
-| **Build**     | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                              |
+| Category       | Key Files                                                                                                                                  |
+| :------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| **DB & Auth**  | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                     |
+| **Security**   | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                    |
+| **Content**    | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                  |
+| **Widgets**    | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                              |
+| **API**        | `routes/api/`, `hooks.server.ts`                                                                                                           |
+| **Services**   | `settingsService.ts`, `scheduler/`, `AuditLogService.ts`,`MetricsService.ts`                                                               |
+| **Benchmarks** | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-summary.ts`, `benchmark-meta.ts` |
+| **Build**      | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                 |
 
 ## Path Aliases
 

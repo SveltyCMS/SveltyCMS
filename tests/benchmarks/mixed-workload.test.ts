@@ -15,7 +15,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
@@ -36,7 +36,7 @@ async function runMixedWorkloadAudit() {
     await forceRefreshServer(baseUrl);
     await stabilize(1500);
 
-    const { TEST_API_SECRET } = await import("./benchmark-utils");
+    const { TEST_API_SECRET } = await import("./modules/benchmark-utils");
     const secret = TEST_API_SECRET;
 
     const operations = [
@@ -104,8 +104,16 @@ async function runMixedWorkloadAudit() {
     printSummaryTable([
       { key: "Average Latency", val: result.avgMs, unit: "ms" },
       { key: "p95 Latency", val: result.p95Ms || result.avgMs, unit: "ms" },
-      { key: "Effective Throughput", val: Math.round(result.rps || 0), unit: "req/s" },
-      { key: "Memory Growth", val: (result.rssDelta || 0).toFixed(1), unit: "MB" },
+      {
+        key: "Effective Throughput",
+        val: Math.round(result.rps || 0),
+        unit: "req/s",
+      },
+      {
+        key: "Memory Growth",
+        val: (result.rssDelta || 0).toFixed(1),
+        unit: "MB",
+      },
       { key: "Rating", val: result.avgMs < 8 ? "EXCELLENT" : "GOOD", unit: "" },
     ]);
 

@@ -11,8 +11,8 @@
  * - Telemetry exporting to persistent CSV ledgers.
  */
 
-import { SQLiteAdapter } from "../src/databases/sqlite/sqlite-adapter";
-import { generateUUID } from "../src/utils/native-utils";
+import { SQLiteAdapter } from "../../src/databases/sqlite/sqlite-adapter";
+import { generateUUID } from "../../src/utils/native-utils";
 import { existsSync, mkdirSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 

@@ -93,9 +93,11 @@ export function parseArgs(): RunConfig {
     try {
       const buildTime = Bun.file("build/index.js").lastModified;
       const srcTime = Bun.file("src/databases/db.ts").lastModified;
-      
+
       if (srcTime > buildTime || buildTime === 0) {
-        console.warn(`\n${color("⚠️  [WARNING] '--no-build' ignored: Source code is newer than the build cache (or build is missing). Forcing a fresh build...", "yellow")}\n`);
+        console.warn(
+          `\n${color("⚠️  [WARNING] '--no-build' ignored: Source code is newer than the build cache (or build is missing). Forcing a fresh build...", "yellow")}\n`,
+        );
         skipBuild = false;
       }
     } catch {
@@ -135,6 +137,8 @@ export function parseArgs(): RunConfig {
     failFast: !hasFlag(argv, "--no-fail-fast"),
     forceClean: hasFlag(argv, "--force-clean") || hasFlag(argv, "--clean"),
     list: hasFlag(argv, "--list"),
+    differential: hasFlag(argv, "--differential"),
+    changedFiles: hasFlag(argv, "--differential") ? getGitChangedFiles() : [],
   };
 
   if (process.env.BENCHMARK_DEBUG === "true") {
@@ -297,7 +301,29 @@ export function filterScripts(cfg: RunConfig): BenchmarkScript[] {
       );
     }
     return true;
+  }).filter((script) => {
+    // 🚀 Differential execution: only run tests whose codePaths overlap with changed files
+    if (cfg.differential && cfg.changedFiles.length > 0) {
+      if (!script.codePaths || script.codePaths.length === 0) return true;
+      return script.codePaths.some((p) =>
+        cfg.changedFiles.some((changed) => changed.includes(p) || p.includes(changed)),
+      );
+    }
+    return true;
   });
+}
+
+/** Get files changed in the most recent git commit. */
+function getGitChangedFiles(): string[] {
+  try {
+    const { execSync } = require("node:child_process");
+    const output = execSync("git diff --name-only HEAD~1..HEAD", {
+      encoding: "utf8",
+    }).trim();
+    return output.split("\n").filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 export function filterDatabases(cfg: RunConfig): DatabaseConfig[] {

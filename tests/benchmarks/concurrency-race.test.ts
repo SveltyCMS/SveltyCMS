@@ -13,7 +13,7 @@ import {
   printSummaryTable,
   getDbType,
   TEST_API_SECRET,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
@@ -56,7 +56,8 @@ async function runConcurrencyAudit() {
         headers,
         body: JSON.stringify({ _id: ENTRY_ID, count: 0, title: "Concurrency Target" }),
       });
-      if (!createRes.ok) throw new Error(`Failed to create target entry: ${await createRes.text()}`);
+      if (!createRes.ok)
+        throw new Error(`Failed to create target entry: ${await createRes.text()}`);
     } else {
       throw new Error(`Failed to check entry state: ${checkRes.status}`);
     }

@@ -109,6 +109,8 @@ export interface BenchmarkScript {
   correlatedWith?: string[];
   /** 🚀 NEW: Benchmarks this one should NOT correlate with */
   antiCorrelatedWith?: string[];
+  /** 🚀 NEW: Source files affected by this test (for differential execution) */
+  codePaths?: string[];
 }
 
 /** Precomputed display row for zero-allocation rendering */
@@ -141,6 +143,10 @@ export interface RunConfig {
   failFast: boolean;
   forceClean: boolean;
   list: boolean;
+  /** 🚀 Only run tests affected by recent code changes */
+  differential: boolean;
+  /** Files changed (populated by --differential) */
+  changedFiles: string[];
 }
 
 /** Outcome of running a single benchmark script (with retries) */

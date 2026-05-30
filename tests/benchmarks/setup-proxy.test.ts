@@ -13,7 +13,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 

@@ -21,7 +21,7 @@ import {
   ensureStableTestData,
   TEST_API_SECRET,
   generateRealisticEntry,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 
 // 🚀 SHIM: Accurately detect direct script execution vs test runner
 // bun test automatically sets NODE_ENV to 'test' and BUN_TEST to '1'

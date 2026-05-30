@@ -18,7 +18,7 @@ import {
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
   ensureStableTestData,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
 let stopServer: () => Promise<void>;

@@ -17,7 +17,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbLabel,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
 let stopServer: (() => Promise<void>) | null = null;

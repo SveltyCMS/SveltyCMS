@@ -29,13 +29,20 @@ import {
   TEST_API_SECRET,
   generateRealisticEntry,
   getRecommendedConcurrency,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
-import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "bench_index_pressure";
-const ENTRY_COUNT = 25_000;
-const BATCH_SIZE = 500;
+
+// 🚀 CI MODE: Reduced entry count for faster pipeline runs
+const IS_CI =
+  process.env.CI === "true" ||
+  process.env.BENCHMARK_CI === "true" ||
+  process.env.GITHUB_ACTIONS === "true";
+const ENTRY_COUNT = IS_CI ? 5_000 : 25_000;
+const BATCH_SIZE = IS_CI ? 250 : 500;
+const ITERATIONS = IS_CI ? 100 : 300;
+const WARMUP_ITERS = IS_CI ? 20 : 50;
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -60,7 +67,10 @@ async function runPressureAudit() {
     }
 
     await ensureStableTestData();
-    await prepareCollection(baseUrl);
+    await prepareCollection(baseUrl).catch((err) => {
+      (err as any).phase = "provisioning";
+      throw err;
+    });
 
     // Only deep health-check when running standalone (runner already guarantees health)
     if (!runnerBaseUrl) {
@@ -87,7 +97,11 @@ async function runPressureAudit() {
         }
         await new Promise((r) => setTimeout(r, 1000));
       }
-      if (!adapterReady) throw new Error("Database adapter failed to reach healthy state.");
+      if (!adapterReady) {
+        const err = new Error("Database adapter failed to reach healthy state.");
+        (err as any).phase = "health-check";
+        throw err;
+      }
     } else {
       // Under runner: quick verify with shorter timeout
       await stabilize(2000);
@@ -97,7 +111,10 @@ async function runPressureAudit() {
     await stabilize(3000);
 
     // Seed data efficiently
-    await seedLargeDataset(baseUrl);
+    await seedLargeDataset(baseUrl).catch((err) => {
+      (err as any).phase = "seeding";
+      throw err;
+    });
 
     // === Benchmarks ===
     const scLabel = `${(ENTRY_COUNT / 1000).toFixed(0)}k rows`;
@@ -105,8 +122,8 @@ async function runPressureAudit() {
     console.log(`   → Measuring Sorted Query Performance (${scLabel})...`);
     const sortResult = await runBenchmark({
       name: `Sorted List (${scLabel})`,
-      iterations: 300,
-      warmupIterations: 50,
+      iterations: ITERATIONS,
+      warmupIterations: WARMUP_ITERS,
       runs: 2,
       concurrency: getRecommendedConcurrency(),
       silent: true,
@@ -128,8 +145,8 @@ async function runPressureAudit() {
     console.log(`   → Measuring Filtered Query Performance (${scLabel})...`);
     const filterResult = await runBenchmark({
       name: `Filtered Query (${scLabel})`,
-      iterations: 300,
-      warmupIterations: 50,
+      iterations: ITERATIONS,
+      warmupIterations: WARMUP_ITERS,
       runs: 2,
       concurrency: getRecommendedConcurrency(),
       silent: true,
@@ -172,8 +189,22 @@ async function runPressureAudit() {
     for (const r of allResults) exportResult(r);
     exportMetric("index.pressure.p95", sortResult.p95Ms, "ms");
     exportMetric("index.pressure.filtered.p95", filterResult.p95Ms, "ms");
+    exportMetric("index.pressure.status", 1, "bool"); // 1 = PASS
   } catch (err: any) {
-    logger.error("Index Pressure audit failed:", err.message);
+    // 🚀 ERROR TELEMETRY: Export failure status so the reporting system
+    // can distinguish "not run" (0) from "failed" (-1) from "passed" (1).
+    // This prevents surgical recovery from carrying forward stale historical data.
+    try {
+      exportMetric("index.pressure.status", -1, "bool"); // -1 = FAIL
+      exportMetric("index.pressure.p95", -1, "ms");
+    } catch {
+      // Best-effort; don't mask the original error
+    }
+    console.error(
+      `\n❌ INDEX PRESSURE AUDIT FAILED: ${err.message}\n` +
+        `   DB: ${process.env.DB_TYPE || "unknown"}\n` +
+        `   Phase: ${err.phase || "unknown"}\n`,
+    );
     if (err.stack) console.error(err.stack);
     throw err;
   } finally {

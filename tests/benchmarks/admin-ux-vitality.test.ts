@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/admin-ux-vitality.test.ts
  * @description Simulated Admin UX Vitality benchmark for SveltyCMS.
- * Measures the server-side processing cost of complex Svelte 5 logic for massive forms.
+ * Measures the server-side processing cost of complex Svelte logic for massive forms.
  */
 
 import {
@@ -11,7 +11,7 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
 async function runUXAudit() {
@@ -26,7 +26,12 @@ async function runUXAudit() {
   const cms = new LocalCMS(db as any);
 
   // Mock Admin for Auth context
-  const mockAdmin = { _id: "admin-123", username: "admin", role: "admin", isAdmin: true };
+  const mockAdmin = {
+    _id: "admin-123",
+    username: "admin",
+    role: "admin",
+    isAdmin: true,
+  };
   const apiOptions = { user: mockAdmin, tenantId: "global" as any };
 
   // 🚀 CRITICAL: Initialize widgets for this environment
@@ -94,7 +99,11 @@ async function runUXAudit() {
         val: (100 - formResult.avgMs).toFixed(2),
         unit: "/100",
       },
-      { key: "UX Performance Tier", val: formResult.avgMs < 5 ? "PLATINUM" : "GOLD", unit: "" },
+      {
+        key: "UX Performance Tier",
+        val: formResult.avgMs < 5 ? "PLATINUM" : "GOLD",
+        unit: "",
+      },
     ]);
 
     exportResult(formResult);

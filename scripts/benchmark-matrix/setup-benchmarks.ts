@@ -207,13 +207,31 @@ const COLLECTIONS = {
         indexed: true,
         required: true,
       },
+      { label: "Slug", db_fieldName: "slug", widget: { Name: "Input" } },
+      {
+        label: "Content",
+        db_fieldName: "content",
+        widget: { Name: "RichText" },
+      },
+      {
+        label: "Score",
+        db_fieldName: "score",
+        widget: { Name: "Number" },
+        indexed: true,
+      },
       {
         label: "Category",
         db_fieldName: "category",
         widget: { Name: "Select" },
         indexed: true,
       },
-      { label: "Count", db_fieldName: "count", widget: { Name: "Number" } },
+      { label: "Author", db_fieldName: "author", widget: { Name: "Relation" } },
+      { label: "Tags", db_fieldName: "tags", widget: { Name: "Input" } },
+      {
+        label: "Metadata",
+        db_fieldName: "metadata",
+        widget: { Name: "Group" },
+      },
     ],
   },
   MIGRATION: {

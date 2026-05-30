@@ -19,6 +19,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     strategy: "all",
     tags: ["network"],
     metricCategory: "latency",
+    codePaths: ["src/routes/api/[...path]/+server.ts", "src/hooks.server.ts"],
   },
   {
     path: "tests/benchmarks/cold-start-phased.test.ts",
@@ -462,7 +463,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     antiCorrelatedWith: ["hooks-performance"],
   },
   {
-    path: "tests/benchmarks/content-scale-stress.bench.ts",
+    path: "tests/benchmarks/content-scale-stress.test.ts",
     label: "Content Scale Stress",
     shortLabel: "Content Stress",
     level: 5,
@@ -572,7 +573,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
 
   // --- TOOLING (DX Baseline) ---
   {
-    path: "tests/benchmarks/build-analysis.test.ts",
+    path: "tests/benchmarks/modules/build-analysis.test.ts",
     label: "Production Build Analysis",
     shortLabel: "Build",
     level: 0,
@@ -595,6 +596,77 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     desc: "Measures overhead of the build, sync, and lint toolchain.",
     strategy: "once",
     tags: ["network"],
+    metricCategory: "latency",
+  },
+
+  // --- INTERNALS (Local-Only, No Server Required) ---
+  {
+    path: "tests/benchmarks/cache-service.test.ts",
+    label: "CacheService Micro-Benchmark",
+    shortLabel: "Cache Svc",
+    level: 2,
+    section: "internals",
+    intensity: "low",
+    estimatedMs: 5_000,
+    desc: "CacheService L1 hit latency and pattern invalidation under noise.",
+    strategy: "once",
+    tags: ["cpu", "memory"],
+    metricCategory: "latency",
+  },
+  {
+    path: "tests/benchmarks/local-api-performance.test.ts",
+    label: "LocalCMS SDK Overhead",
+    shortLabel: "Local API",
+    level: 2,
+    section: "internals",
+    intensity: "low",
+    estimatedMs: 5_000,
+    desc: "SDK overhead (LocalCMS) vs direct adapter calls.",
+    strategy: "once",
+    tags: ["cpu"],
+    metricCategory: "latency",
+  },
+
+  // --- SECURITY & GOVERNANCE ---
+  {
+    path: "tests/benchmarks/data-residency-failover.test.ts",
+    label: "Data Residency & Sovereignty",
+    shortLabel: "Sovereignty",
+    level: 4,
+    section: "security",
+    intensity: "medium",
+    estimatedMs: 15_000,
+    desc: "PII blocking and data sovereignty enforcement with cross-region failover.",
+    strategy: "all",
+    tags: ["security", "cpu"],
+    metricCategory: "latency",
+  },
+
+  // --- SCALE (Production Simulation) ---
+  {
+    path: "tests/benchmarks/production-day.test.ts",
+    label: "Production Day Simulation",
+    shortLabel: "Prod Day",
+    level: 5,
+    section: "scale",
+    intensity: "high",
+    estimatedMs: 20_000,
+    desc: "Full production day with mixed workload, 100% reliability.",
+    strategy: "all",
+    tags: ["cpu", "network", "disk"],
+    metricCategory: "scale",
+  },
+  {
+    path: "tests/benchmarks/setup-proxy.test.ts",
+    label: "Setup Proxy & Bootstrap Isolation",
+    shortLabel: "Setup Proxy",
+    level: 3,
+    section: "internals",
+    intensity: "medium",
+    estimatedMs: 55_000,
+    desc: "Setup proxy isolation and bootstrap security gating.",
+    strategy: "once",
+    tags: ["security", "cpu"],
     metricCategory: "latency",
   },
 ];

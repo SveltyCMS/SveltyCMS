@@ -15,7 +15,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
@@ -85,10 +85,7 @@ async function runHooksAudit() {
             },
           };
 
-          if (
-            scenario.method === "POST" &&
-            typeof scenario.body === "function"
-          ) {
+          if (scenario.method === "POST" && typeof scenario.body === "function") {
             config.body = JSON.stringify(scenario.body());
           }
 

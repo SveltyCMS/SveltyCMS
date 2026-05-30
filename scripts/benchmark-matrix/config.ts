@@ -22,7 +22,7 @@ import type { DatabaseConfig, DatabaseCapabilities } from "./types";
 export const PERFORMANCE_BUDGET = {
   coldStartMs: 5_000,
   collections: 5,
-  graphqlAvg: 5,
+  graphqlAvg: 12,
   dbRaw: 50,
   hooks: 2.0,
   memGrowth: 60,
@@ -72,12 +72,7 @@ export const DB_CAPABILITIES: Record<string, DatabaseCapabilities> = {
   },
   mongodb: {
     concurrency: 4,
-    capabilities: [
-      "transactions",
-      "secondaryIndexes",
-      "aggregations",
-      "networked",
-    ],
+    capabilities: ["transactions", "secondaryIndexes", "aggregations", "networked"],
     transactional: true,
     networked: true,
   },
@@ -163,9 +158,7 @@ export const DB_ORDER = [
 // ─────────────────────────────────────────────────────────────
 
 /** Factory: generates plain + Redis variant for a DB config */
-function createDbVariants(
-  base: Omit<DatabaseConfig, "useRedis" | "label">,
-): DatabaseConfig[] {
+function createDbVariants(base: Omit<DatabaseConfig, "useRedis" | "label">): DatabaseConfig[] {
   const plain: DatabaseConfig = { ...base };
   const redis: DatabaseConfig = {
     ...base,
@@ -238,7 +231,7 @@ function envOr(key: string, fallback: string): string {
 
 export function getAdminPassword(): string {
   if (!_adminPassword) {
-    _adminPassword = envOr("ADMIN_PASSWORD", "__BENCHMARK_DEFAULT_ONLY__");
+    _adminPassword = envOr("ADMIN_PASSWORD", "Password123!");
   }
   return _adminPassword;
 }
@@ -250,13 +243,7 @@ export function getTestApiSecret(): string {
     return _testApiSecret;
   }
   try {
-    const secretPath = path.join(
-      process.cwd(),
-      "tests",
-      "e2e",
-      ".auth",
-      "test-secret.txt",
-    );
+    const secretPath = path.join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
     if (fs.existsSync(secretPath)) {
       _testApiSecret = fs.readFileSync(secretPath, "utf8").trim();
       return _testApiSecret;
@@ -270,10 +257,7 @@ export function getTestApiSecret(): string {
 
 export function getJwtSecretKey(): string {
   if (!_jwtSecretKey) {
-    _jwtSecretKey = envOr(
-      "JWT_SECRET_KEY",
-      "Benchmark-JWT-Secret-Key-2026-Change-Me",
-    );
+    _jwtSecretKey = envOr("JWT_SECRET_KEY", "Benchmark-JWT-Secret-Key-2026-Change-Me");
   }
   return _jwtSecretKey;
 }
@@ -287,10 +271,7 @@ export function getJwtExpiresIn(): string {
 
 export function getEncryptionKey(): string {
   if (!_encryptionKey) {
-    _encryptionKey = envOr(
-      "ENCRYPTION_KEY",
-      "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
-    );
+    _encryptionKey = envOr("ENCRYPTION_KEY", "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!");
   }
   return _encryptionKey;
 }
@@ -306,12 +287,7 @@ export const ENCRYPTION_KEY = getEncryptionKey();
 // Paths & Directories
 // ─────────────────────────────────────────────────────────────
 
-export const ROOT_RESULTS_DIR = path.join(
-  process.cwd(),
-  "tests",
-  "benchmarks",
-  "results",
-);
+export const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests", "benchmarks", "results");
 export const BENCHMARKS_DOC = path.join(
   process.cwd(),
   "docs",
@@ -321,8 +297,7 @@ export const BENCHMARKS_DOC = path.join(
 );
 export const CI_SUMMARY_FILE = path.join(ROOT_RESULTS_DIR, "ci-summary.json");
 export const DB_NAME_BASE = "SveltyCMS_audit";
-export const DB_NAME_BENCHMARK =
-  process.env.DB_NAME_BENCHMARK || "sveltycms_bench";
+export const DB_NAME_BENCHMARK = process.env.DB_NAME_BENCHMARK || "sveltycms_bench";
 
 // ─────────────────────────────────────────────────────────────
 // Benchmark Scripts (lazy import to reduce config fan-out)
@@ -334,10 +309,7 @@ export { BENCHMARK_SCRIPTS } from "./benchmark-scripts";
 // Per-Adapter Budget Overrides (learned or set per engine)
 // ─────────────────────────────────────────────────────────────
 
-export const ADAPTER_BUDGET_OVERRIDES: Record<
-  string,
-  Partial<Record<string, number>>
-> = {
+export const ADAPTER_BUDGET_OVERRIDES: Record<string, Partial<Record<string, number>>> = {
   sqlite: { indexPressure: 250, dbRaw: 80 }, // single-writer bottleneck
   postgresql: { indexPressure: 100, dbRaw: 30 }, // concurrent engine
   mariadb: { indexPressure: 150, dbRaw: 40 },

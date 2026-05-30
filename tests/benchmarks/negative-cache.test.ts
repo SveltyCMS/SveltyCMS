@@ -4,7 +4,7 @@
  */
 
 import { LocalCMS } from "@src/services/sdk";
-import { test, expect, runBenchmark, printTruthTable } from "./benchmark-utils";
+import { test, expect, runBenchmark, printTruthTable } from "./modules/benchmark-utils";
 import type { DatabaseId } from "@src/content/types";
 
 test("Negative Cache Performance Audit", async () => {

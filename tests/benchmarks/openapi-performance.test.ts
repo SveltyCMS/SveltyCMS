@@ -15,7 +15,7 @@ import {
   printSummaryTable,
   getDbType,
   TEST_API_SECRET,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { apiSpecService } from "@src/services/system/api-spec-service";
 import { logger } from "@utils/logger";
@@ -105,7 +105,11 @@ async function runOpenApiAudit() {
       { key: "Cold Generation", val: coldResult.avgMs, unit: "ms" },
       { key: "Warm Cached Hit", val: warmResult.avgMs, unit: "ms" },
       { key: "Cache Speedup", val: speedup.toFixed(1), unit: "x" },
-      { key: "Peak Throughput", val: Math.round(warmResult.rps || 0), unit: "req/s" },
+      {
+        key: "Peak Throughput",
+        val: Math.round(warmResult.rps || 0),
+        unit: "req/s",
+      },
       {
         key: "Rating",
         val: speedup > 4 || warmResult.avgMs < 2.0 ? "EXCELLENT" : speedup > 2 ? "GOOD" : "FAIR",
@@ -117,6 +121,7 @@ async function runOpenApiAudit() {
   } catch (err: any) {
     logger.error(`OpenAPI benchmark failed: ${err.message}`);
     console.error(err);
+    throw err; // Re-throw so the test fails on validation errors
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

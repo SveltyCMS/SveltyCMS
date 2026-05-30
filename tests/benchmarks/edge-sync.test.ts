@@ -12,7 +12,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { CacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
@@ -39,7 +39,7 @@ async function createLiveNode(id: string) {
     USE_REDIS: true,
     REDIS_HOST: process.env.REDIS_HOST || "127.0.0.1",
     REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
-    REDIS_PASSWORD: process.env.REDIS_PASSWORD || undefined
+    REDIS_PASSWORD: process.env.REDIS_PASSWORD || undefined,
   });
   console.log(`[${id}] Redis Connected Successfully!`);
 
@@ -96,7 +96,9 @@ async function runEdgeSyncAudit() {
           // Check L1 cache directly to avoid triggering the L2 Distributed Lock Stampede protection
           const val = n.getSync(key, TENANT);
           if (val !== undefined && val !== null) {
-             throw new Error(`Edge sync propagation failed for node ${(n as any).nodeId} (cache was not cleared)`);
+            throw new Error(
+              `Edge sync propagation failed for node ${(n as any).nodeId} (cache was not cleared)`,
+            );
           }
         }
       },

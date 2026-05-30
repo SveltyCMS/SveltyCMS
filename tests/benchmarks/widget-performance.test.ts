@@ -34,7 +34,7 @@ import {
   STABLE_COLLECTION,
   ensureStableTestData,
   getRecommendedConcurrency,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
 async function runWidgetAudit() {

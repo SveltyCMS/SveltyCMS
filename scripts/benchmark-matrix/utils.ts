@@ -43,9 +43,7 @@ export function requiresRebuild(): boolean {
     return false;
   }
   if (checkStubs(buildPath)) {
-    log.info(
-      "Stripped build detected in build/ folder. Forcing full rebuild with all adapters...",
-    );
+    log.info("Stripped build detected in build/ folder. Forcing full rebuild with all adapters...");
     return true;
   }
 
@@ -93,12 +91,9 @@ export function checkServiceHealth(type: string): {
     switch (type) {
       case "mariadb":
       case "mysql":
-        execSync(
-          "docker exec mariadb mariadb-admin ping -h 127.0.0.1 -u root --password=mariadb",
-          {
-            stdio: "ignore",
-          },
-        );
+        execSync("docker exec mariadb mariadb-admin ping -h 127.0.0.1 -u root --password=mariadb", {
+          stdio: "ignore",
+        });
         return { healthy: true };
       case "postgresql":
       case "postgres":
@@ -108,12 +103,9 @@ export function checkServiceHealth(type: string): {
         return { healthy: true };
       case "mongodb":
       case "mongo":
-        execSync(
-          "docker exec mongo mongosh --eval \"db.adminCommand('ping')\" --quiet",
-          {
-            stdio: "ignore",
-          },
-        );
+        execSync("docker exec mongo mongosh --eval \"db.adminCommand('ping')\" --quiet", {
+          stdio: "ignore",
+        });
         return { healthy: true };
       case "redis":
         execSync("docker exec redis redis-cli ping", { stdio: "ignore" });
@@ -179,15 +171,11 @@ function findResult(m: Record<string, unknown>, target: string): unknown {
  * Extracts standardized metrics from benchmark output files.
  * Supports both legacy flat fields and new structured `numeric-metric` format.
  */
-export function extractMetrics(
-  metrics: Record<string, unknown> = {},
-  _dbType: string,
-) {
+export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: string) {
   const m = metrics ?? {};
 
   const getMetric = (pattern: string | RegExp, fallback = 0): number => {
-    const slugify = (s: string) =>
-      s.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+    const slugify = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
     const slugPattern = typeof pattern === "string" ? slugify(pattern) : null;
 
     // 1. Search structured numeric-metric entries (preferred)
@@ -197,8 +185,7 @@ export function extractMetrics(
 
       const isMatch =
         (slugPattern && slugify(cleanKey).includes(slugPattern)) ||
-        (typeof pattern === "string" &&
-          cleanKey.toLowerCase().includes(pattern.toLowerCase()));
+        (typeof pattern === "string" && cleanKey.toLowerCase().includes(pattern.toLowerCase()));
 
       if (isNumericMetric(entry)) {
         if (isMatch) return entry.value;
@@ -209,14 +196,8 @@ export function extractMetrics(
 
       // 🚀 HARDENING: If the key matches and entry is a plain object with metric fields,
       // extract directly (handles exportResult JSON files like Sorted_List_*.json)
-      if (
-        isMatch &&
-        typeof entry === "object" &&
-        entry !== null &&
-        !isNumericMetric(entry)
-      ) {
-        const directVal =
-          (entry as any).p95Ms ?? (entry as any).avgMs ?? (entry as any).value;
+      if (isMatch && typeof entry === "object" && entry !== null && !isNumericMetric(entry)) {
+        const directVal = (entry as any).p95Ms ?? (entry as any).avgMs ?? (entry as any).value;
         if (typeof directVal === "number") return directVal;
       }
 
@@ -238,16 +219,13 @@ export function extractMetrics(
           // Case 2: subKey itself matches the pattern (for matrix_metrics.json structure)
           const subMatch =
             (slugPattern && slugify(subKey).includes(slugPattern)) ||
-            (typeof pattern === "string" &&
-              subKey.toLowerCase().includes(pattern.toLowerCase()));
+            (typeof pattern === "string" && subKey.toLowerCase().includes(pattern.toLowerCase()));
 
           if (subMatch) {
             if (typeof subEntry === "number") return subEntry;
             if (typeof subEntry === "object" && subEntry !== null) {
               const val =
-                (subEntry as any).value ??
-                (subEntry as any).avgMs ??
-                (subEntry as any).p95Ms;
+                (subEntry as any).value ?? (subEntry as any).avgMs ?? (subEntry as any).p95Ms;
               if (typeof val === "number") return val;
             }
           }
@@ -394,8 +372,7 @@ export function extractMetrics(
       (findResult(m, "Production Build") as any)?.avgMs ||
       (findResult(m, "dx-build") as any)?.durationMs ||
       0,
-    bundleSize:
-      getMetric("dx.bundle.size.total") || getMetric("Bundle Size") || 0,
+    bundleSize: getMetric("dx.bundle.size.total") || getMetric("Bundle Size") || 0,
     txCommit:
       getMetric("adapter.transaction.commit.avg") ||
       getMetric("TX Commit Avg") ||
@@ -446,6 +423,8 @@ export function extractMetrics(
       (findResult(m, "Sorted List (100k rows)") as any)?.p95Ms ||
       (findResult(m, "Sorted List (25k rows)") as any)?.p95Ms ||
       0,
+    // 🚀 STATUS TELEMETRY: Distinguishes "not run" (0) from "failed" (-1) from "passed" (1)
+    indexPressureStatus: getMetric("index.pressure.status"),
   };
 }
 
@@ -471,10 +450,7 @@ function matchesPattern(value: string, pattern: string | RegExp): boolean {
 // Budget Checking
 // ─────────────────────────────────────────────────────────────
 
-export function checkBudget(
-  m: ReturnType<typeof extractMetrics>,
-  coldStartMs: number,
-): string[] {
+export function checkBudget(m: ReturnType<typeof extractMetrics>, coldStartMs: number): string[] {
   const violations: string[] = [];
 
   const check = (key: string, value: number) => {
@@ -518,8 +494,7 @@ export async function getTrendDetails(
   isRegression: boolean;
   previousAvg: number;
 }> {
-  if (!currentVal)
-    return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
+  if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
 
   try {
     const rows = db
@@ -535,8 +510,7 @@ export async function getTrendDetails(
     if (values.length < MIN_RUNS_FOR_TREND) {
       // Baseline-building: fall back to weighted average
       const avg = values.length > 0 ? weightedAverage(values) : 0;
-      if (!avg)
-        return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
+      if (!avg) return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
       const pct = ((currentVal - avg) / avg) * 100;
       return {
         icon: "⚪",
@@ -547,9 +521,7 @@ export async function getTrendDetails(
     }
 
     // Full statistical analysis with enough history
-    const { slope } = linearRegression(
-      values.map((v, i) => [i, v] as [number, number]),
-    );
+    const { slope } = linearRegression(values.map((v, i) => [i, v] as [number, number]));
     const baseline = weightedAverage(values);
     const sd = stddev(values);
     const { direction } = classifyTrend(
@@ -599,12 +571,7 @@ function getBudgetForColumn(column: string): number {
  * Load raw historical values for a metric (used by regression-detector).
  * Returns oldest-first array for regression analysis.
  */
-export function loadMetricHistory(
-  db: any,
-  dbKey: string,
-  column: string,
-  limit = 20,
-): number[] {
+export function loadMetricHistory(db: any, dbKey: string, column: string, limit = 20): number[] {
   try {
     const rows = db
       .query(
@@ -622,10 +589,7 @@ export function loadMetricHistory(
 // Port Management
 // ─────────────────────────────────────────────────────────────
 
-export async function waitForPortFree(
-  port: number,
-  timeoutMs = 8000,
-): Promise<void> {
+export async function waitForPortFree(port: number, timeoutMs = 8000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
@@ -639,9 +603,7 @@ export async function waitForPortFree(
     }
   }
 
-  log.warn(
-    `Port ${port} did not become free within ${timeoutMs}ms — proceeding anyway.`,
-  );
+  log.warn(`Port ${port} did not become free within ${timeoutMs}ms — proceeding anyway.`);
 }
 
 export async function freePort(port: number): Promise<void> {
@@ -799,10 +761,7 @@ export function linearRegression(points: [number, number][]): {
 }
 
 /** Weighted moving average. Recent values have higher weight. */
-export function weightedAverage(
-  values: number[],
-  decay?: "linear" | "exponential",
-): number {
+export function weightedAverage(values: number[], decay?: "linear" | "exponential"): number {
   if (values.length === 0) return 0;
   if (values.length === 1) return values[0];
   const d = decay ?? TREND_WEIGHT_DECAY;
@@ -815,9 +774,7 @@ export function weightedAverage(
 export function stddev(values: number[]): number {
   if (values.length < 2) return 0;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  return Math.sqrt(
-    values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length,
-  );
+  return Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length);
 }
 
 /** Pearson correlation coefficient (-1 to 1) between two metric series */
@@ -866,18 +823,15 @@ export function classifyTrend(
   current: number,
   sampleSize: number,
 ): { direction: string; confidence: number } {
-  if (sampleSize < MIN_RUNS_FOR_TREND)
-    return { direction: "stable", confidence: 0 };
+  if (sampleSize < MIN_RUNS_FOR_TREND) return { direction: "stable", confidence: 0 };
   const se = stddev / Math.sqrt(sampleSize);
   const effectSize = se > 0 ? Math.abs(slope) / se : 0;
   const confidence = Math.min(0.95, effectSize / 3);
   if (effectSize < 1.0) return { direction: "stable", confidence };
   const pct = budget > 0 ? (current / budget) * 100 : 0;
   if (slope > 0 && pct > 80) return { direction: "critical", confidence };
-  if (slope > 0 && effectSize > 2)
-    return { direction: "degrading", confidence };
-  if (slope < 0 && effectSize > 1.5)
-    return { direction: "improving", confidence };
+  if (slope > 0 && effectSize > 2) return { direction: "degrading", confidence };
+  if (slope < 0 && effectSize > 1.5) return { direction: "improving", confidence };
   return { direction: "stable", confidence };
 }
 
@@ -928,8 +882,7 @@ export function classifyRootCause(
     if (!degradingMetrics.has(r.primaryMetric)) continue;
     let score = 1;
     for (const m of r.correlatedMetrics) if (degradingMetrics.has(m)) score++;
-    for (const m of r.antiCorrelatedMetrics)
-      if (degradingMetrics.has(m)) score -= 2;
+    for (const m of r.antiCorrelatedMetrics) if (degradingMetrics.has(m)) score -= 2;
     if (score > bestScore) {
       bestScore = score;
       best = r.name;
