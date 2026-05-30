@@ -292,27 +292,47 @@ SveltyCMS is built with modern optimization techniques resulting in a compact bu
 
 ## ⚡ Performance Benchmarks
 
-Verified performance metrics from our CI pipeline. These are factual raw latencies measured in a standard Linux environment.
+SveltyCMS ships with an enterprise-grade benchmark intelligence system — 48 tests across 9 dimensions, 8 database-specific MDX reports, and smart trend analysis.
 
-### Middleware & Hooks
+### Enterprise Benchmark Matrix
 
-| Scenario                    | Avg Latency (µs) | Notes                         |
-| --------------------------- | ---------------- | ----------------------------- |
-| **Static asset early exit** | **1.1 µs**       | Instant return for /\_app/\*  |
-| **API fast path**           | **1.3 µs**       | No locale/theme overhead      |
-| **Dynamic page full path**  | **7.1 µs**       | Full middleware chain (Turbo) |
+| Capability                    | Description                                                                       |
+| ----------------------------- | --------------------------------------------------------------------------------- |
+| **48 tests, 9 dimensions**    | Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance |
+| **4 databases + Redis**       | SQLite, PostgreSQL, MariaDB, MongoDB — each with Redis on/off variants            |
+| **Trend analysis**            | Rolling median baselines, 7 root cause categories, confidence levels              |
+| **Code path recommendations** | Each regression links to specific source files to investigate                     |
+| **Differential execution**    | `--differential` runs only tests affected by recent code changes                  |
+| **8 educational reports**     | `docs/project/benchmarks/benchmark_<db>.mdx` with Measures/Budget/Code/Why        |
 
-### Raw Database Latency (MongoDB)
+### Latest SQLite Results (May 2026)
 
-Measured directly via driver to ensure baseline CMS overhead is sub-millisecond.
-| Operation | SQLite Latency | MongoDB Latency |
-| :--- | :--- | :--- |
-| **Document Insert** | **0.00 ms** | **0.53 ms** |
-| **Primary Key Read** | **0.00 ms** | **0.65 ms** |
-| **Document Update** | **0.00 ms** | **0.67 ms** |
-| **Document Delete** | **0.00 ms** | **1.59 ms** |
+| Metric                           | Value       | Budget  |
+| -------------------------------- | ----------- | ------- |
+| Cold Start                       | **381ms**   | <5000ms |
+| REST API p95                     | **0.59ms**  | <5ms    |
+| DB Raw p95                       | **0.074ms** | <50ms   |
+| Middleware + Auth                | **1.78ms**  | <2ms    |
+| Index Pressure (25K rows)        | **1.89ms**  | <250ms  |
+| Content Scale (1000 collections) | **750ms**   | —       |
 
-_Metrics collected on 2026-04-05. Individual results may vary by hosting provider and DB configuration._
+### How to Run
+
+```bash
+# Console only (safe for normal dev)
+bun test tests/benchmarks/auth-performance.test.ts
+
+# Record to report
+BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
+
+# Full matrix
+bun run scripts/benchmark-matrix/index.ts --sql
+
+# Differential (only affected tests)
+bun run scripts/benchmark-matrix/index.ts --sql --differential
+```
+
+> See `docs/project/benchmarks/index.mdx` for the complete architecture guide.
 
 ## 📚 Documentation
 

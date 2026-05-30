@@ -190,13 +190,25 @@ Verified performance metrics from the SveltyCMS CI pipeline (March 2026). These 
 | **Strapi v5**              | 6–25              | 5–15            | ~150                     | 150–500           | Full stack, ORM overhead       |
 | **SveltyCMS (raw SQLite)** | **0.007**         | **0.1**         | —                        | —                 | Bun Native SQLite, zero-config |
 
-_Note: SveltyCMS metrics derived from high-resolution standalone benchmarks (`tests/benchmarks/`). Database metrics reflect raw MongoDB driver latency. Middleware overhead reflects compiled SvelteKit edge-ready hooks. Media upload time reflects block time (Phase 3 background jobs)._
+_Note: SveltyCMS metrics derived from the enterprise-grade benchmark matrix (`scripts/benchmark-matrix/`) with 48 tests across 9 dimensions. The system includes rolling trend analysis, cross-test correlation, adaptive budgets, and root cause classification. Database metrics reflect raw driver latency. Middleware overhead reflects compiled SvelteKit edge-ready hooks. Media upload time reflects block time (Phase 3 background jobs)._
 
-> **Verification:** You can verify these numbers locally by running the standalone benchmarks:
+> **Reproduce locally:**
 >
-> - `bun run tests/benchmarks/database-performance.test.ts`
-> - `bun run tests/benchmarks/hooks-performance.test.ts`
-> - `bun run tests/benchmarks/media-performance.ts`
+> ```bash
+> # Single test (console only)
+> bun test tests/benchmarks/database-performance.test.ts
+>
+> # Record to report (populates docs/project/benchmarks/)
+> BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts
+>
+> # Full SQLite matrix (all 48 tests)
+> bun run scripts/benchmark-matrix/index.ts --sql
+>
+> # Differential (only tests affected by recent changes)
+> bun run scripts/benchmark-matrix/index.ts --sql --differential
+> ```
+>
+> **8 database reports** available at `docs/project/benchmarks/benchmark_<db>.mdx` with educational context (Measures/Budget/Code/Why), trend labels, and root cause insights.
 
 ## 4. Final Sprint Achievements (March 2026)
 

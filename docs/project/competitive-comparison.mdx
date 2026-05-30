@@ -76,26 +76,39 @@ Yes. **SveltyCMS operates in a different performance league.** Here's the eviden
 
 ## 🔬 Self-Auditing Performance Culture
 
-SveltyCMS's relentless improvement is possible because of a built-in performance culture:
+SveltyCMS's relentless improvement is powered by an enterprise-grade benchmark intelligence system:
 
-- **Automated Benchmark Matrix**: Every change is tested against all four databases (SQLite, MongoDB, MariaDB, PostgreSQL) under consistent load. 40+ benchmarks run per commit. Regressions are caught immediately.
-- **Granular Metrics**: We measure p95/p99 latencies, RPS, and memory leak slopes — not just averages. This exposes hidden bottlenecks that averages hide.
-- **Architectural Refactors**: Instead of tuning SQL queries, we invent and benchmark new patterns:
-  - **Prefix-Map Cache Clearing** — 15× faster pattern invalidation (2.9ms vs 44ms)
-  - **One-Shot Request Classifier** — eliminates 4+ redundant path checks per request
-  - **Negative Caching** — Bloom-filter style miss cache to avoid repeated DB hits
-  - **Zero-HTTP Local SDK** — internal CRUD at DB-adapter speed (<0.05ms)
-  - **Hyper-Turbo Dispatcher** — benchmark-verified fast path bypassing full middleware
+- **48-Test Matrix Across 9 Dimensions**: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance — all four databases (SQLite, MongoDB, MariaDB, PostgreSQL) with Redis variants.
+- **Smart Trend Analysis**: Rolling median baselines, 7 root cause categories, confidence levels (suspected/confirmed/watch), and adaptive budgets that learn from history.
+- **Cross-Test Correlation**: Single test regressions are checked against related tests in history.sqlite — "is this just auth, or is the entire middleware pipeline degraded?"
+- **Code Path Recommendations**: Each regression links to specific source files to investigate (`src/hooks/handle-authentication.ts` · `src/databases/<db>/crud-methods.ts`).
+- **8 Database Reports**: Educational MDX reports with Measures/Budget/Code/Why context, atomic writes, and trend labels.
+- **Differential Execution**: `--differential` flag runs only tests whose codePaths overlap with git diff.
+- **Predictive Forecasting**: `benchmark-intelligence.ts` predicts budget breach in N runs.
+- **Per-Phase Timing**: `exportSubMetric()` API for sub-component breakdown (auth.jwt.verify, auth.session.lookup).
 
-**Latest run (May 2026) shows strong real-world performance** with sub-millisecond full-pipeline latencies and stable memory under sustained load.
+**How to reproduce:**
 
-### Key Improvements
+```bash
+# Record a single test to the report
+BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
 
-- Full-stack numbers (middleware + auth + RBAC + cache + audit): **1.6ms p95** reads, **1.1ms p95** writes
-- Mixed workload: **0.57ms** (production ready)
-- Cache invalidation: **15× faster** via prefix-map O(bucket) clearing
-- Memory: **24 MB heap growth**, leak slope **-19.2 MB/min** (frees memory under load)
-- Sustained throughput: **11,008 RPS** with STABLE rating
+# Full SQLite matrix
+bun run scripts/benchmark-matrix/index.ts --sql
+
+# Differential (only affected tests)
+bun run scripts/benchmark-matrix/index.ts --sql --differential
+```
+
+**Latest SQLite run (May 2026):**
+
+- Full-stack reads: **1.6ms p95** (middleware + auth + RBAC + cache)
+- DB raw: **0.074ms p95** (adapter-level)
+- Mixed workload: **4.4ms p95** (60% reads, 20% writes, 15% GraphQL, 5% media)
+- Cold start: **381ms** (IDLE → READY)
+- Index pressure: **1.9ms p95** (25K rows, sorted + filtered)
+- Content scale: **750ms** (1,000 collections across 5 nested levels)
+- Memory: stable, no leaks detected
 
 ## Performance Evolution (2024–2026)
 
