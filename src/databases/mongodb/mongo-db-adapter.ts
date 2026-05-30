@@ -106,7 +106,11 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
   }
 
   async getConnectionHealth(): Promise<
-    DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>
+    DatabaseResult<{
+      healthy: boolean;
+      latency: number;
+      activeConnections: number;
+    }>
   > {
     return {
       success: true,
@@ -141,6 +145,16 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
   async transaction<T>(
     fn: (transaction: any) => Promise<DatabaseResult<T>>,
   ): Promise<DatabaseResult<T>> {
+    if (!this.capabilities.supportsTransactions) {
+      return {
+        success: false,
+        message: "Transactions disabled — MongoDB requires a replica set",
+        error: {
+          code: "TRANSACTIONS_DISABLED",
+          message: "MongoDB standalone does not support transactions",
+        },
+      };
+    }
     return this.transactionModule.execute(fn);
   }
 
