@@ -16,42 +16,50 @@ tags:
 # 🚀 SveltyCMS Performance Benchmarks
 
 > [!IMPORTANT]
+> **Recorded** benchmark runs update their report section immediately. Normal `bun test` runs print to console only unless `BENCHMARK_RECORD=1` is set.
+>
 > **Intelligence Features**: Cross-test correlation, adaptive budgets, forecasting, fix suggestions, differential execution, sub-component timing, memory trend tracking.
-> Each `bun test` run updates its section immediately. Trend labels show performance changes vs a rolling baseline.
 
-## 🔬 How a Single Benchmark Pushes Data
-
-When you run with `BENCHMARK_RECORD=1`:
+## 🔬 How a Recorded Benchmark Pushes Data
 
 ```bash
 BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
 ```
 
 > [!NOTE]
-> Without `BENCHMARK_RECORD=1`, benchmarks print to console only — no MDX files are modified.
-> The full matrix runner (`scripts/benchmark-matrix/`) always records.
+> Without `BENCHMARK_RECORD=1`, benchmarks are console-only — no files are modified.
+> The full matrix runner (`scripts/benchmark-matrix/index.ts`) always records.
 
-The data flows through this shared intelligence pipeline:
+### Record Modes
+
+| Mode      | Trigger                             | SQLite |        MDX        | Executive Summary |
+| --------- | ----------------------------------- | :----: | :---------------: | :---------------: |
+| `none`    | Normal `bun test`                   |   ❌   |        ❌         |        ❌         |
+| `history` | `BENCHMARK_HISTORY_ONLY=1`          |   ✅   |        ❌         |        ❌         |
+| `partial` | `BENCHMARK_RECORD=1 bun test ...`   |   ✅   | ✅ (section only) | Partial watermark |
+| `full`    | Matrix runner (`--sql`, `--db=...`) |   ✅   | ✅ (all sections) |  Ranked summary   |
+
+### Data Flow
 
 ```mermaid
 flowchart TD
-    A[bun test auth-performance.test.ts] --> B[setupBenchmarkServer]
-    B --> C[runBenchmark × N scenarios]
-    C --> D[exportResult per scenario]
-    D --> E[computeAndApplyTrend]
-    E --> F1[Update ### 🏷️ label with trend]
-    E --> F2[Append root cause insight]
-    E --> F3[Update Executive Summary]
+    A["bun test auth-performance.test.ts"] --> B["setupBenchmarkServer"]
+    B --> C["runBenchmark x N scenarios"]
+    C --> D["exportResult per scenario"]
+    D --> E["reportBenchmark(result, opts)"]
+    E --> F1["Update section label with trend"]
+    E --> F2["Append root cause insight"]
+    E --> F3["Update Executive Summary"]
 
-    C --> G[printTruthTable]
-    G --> H[pushTableToMdx]
-    H --> I[Tag discovery → find correct section]
-    I --> J[Write truth table between TABLE_START/END]
+    C --> G["printTruthTable"]
+    G --> H["pushTableToMdx (bridge)"]
+    H --> I["Tag discovery -> find correct section"]
+    I --> J["Write truth table between tags"]
 
-    G --> K[printSummaryTable]
-    K --> L[appendSummaryToMdx]
+    G --> K["printSummaryTable"]
+    K --> L["appendSummaryToMdx (bridge)"]
 
-    J --> M[docs/project/benchmarks/benchmark_sqlite.mdx]
+    J --> M["benchmark_sqlite.mdx"]
     L --> M
     F1 --> M
     F2 --> M
@@ -60,62 +68,65 @@ flowchart TD
 
 ### Step-by-step
 
-| Step | Function                 | What happens                                                                                 |
-| ---- | ------------------------ | -------------------------------------------------------------------------------------------- |
-| 1    | `setupBenchmarkServer()` | Starts a SvelteKit server on a random port, seeds test data                                  |
-| 2    | `runBenchmark()`         | Runs the test scenario N times, collects timing data                                         |
-| 3    | `exportResult()`         | Saves JSON to `results/sqlite/`, saves to `history.jsonl`, triggers trend analysis           |
-| 4    | `computeAndApplyTrend()` | Reads rolling median from history, computes delta with lower confidence for single-test runs |
-| 5    | `printTruthTable()`      | Builds ASCII table → calls `pushTableToMdx()`                                                |
-| 6    | `pushTableToMdx()`       | Discovers the correct `<!-- TAG_TABLE_START -->` section, writes truth table + placeholders  |
-| 7    | `printSummaryTable()`    | Builds summary table → calls `appendSummaryToMdx()`                                          |
+| Step | Function                        | What happens                                                                                        |
+| ---- | ------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 1    | `setupBenchmarkServer()`        | Starts a SvelteKit server on a random port, seeds test data                                         |
+| 2    | `runBenchmark()`                | Runs the test scenario N times, collects timing data                                                |
+| 3    | `exportResult()`                | Saves JSON to `results/<db>/`, appends to `history.jsonl` (debug log), triggers trend analysis      |
+| 4    | `reportBenchmark(result, opts)` | Persists to `history.sqlite` (canonical), runs trend analysis, updates MDX section                  |
+| 5    | `printTruthTable()`             | Builds ASCII table -> calls `pushTableToMdx()` bridge                                               |
+| 6    | `pushTableToMdx()`              | Compatibility bridge — discovers the correct `<!-- TAG_TABLE_START -->` section, writes truth table |
+| 7    | `printSummaryTable()`           | Builds summary table -> calls `appendSummaryToMdx()` bridge                                         |
 
 ### Guardrails
 
-| Guard                      | Behavior                                                                              |
-| -------------------------- | ------------------------------------------------------------------------------------- |
-| **`BENCHMARK_RECORD=1`**   | Gates all MDX writes. Without it, benchmarks are console-only. Matrix always records. |
-| **Single-test confidence** | Root cause is marked "suspected" without cross-test correlation                       |
-| **Partial-run watermark**  | `📋 Partial update: auth-performance / SQLITE / 2026-05-30` in Executive Summary      |
-| **Stable IDs**             | Each run keyed as `test/db/redis/mode/metric` for durable trend history               |
-| **Per-DB budgets**         | SQLite gets different thresholds than PostgreSQL (`PER_DIMENSION_BUDGETS`)            |
+| Guard                      | Behavior                                                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **`BENCHMARK_RECORD=1`**   | Gates all MDX writes. Without it, benchmarks are console-only. Matrix always records.                       |
+| **Single-test confidence** | Root cause is marked "suspected" — cross-test correlation checks `history.sqlite` for related test patterns |
+| **Partial-run watermark**  | `📋 Partial update: auth-performance / SQLITE / 2026-05-30` in Executive Summary                            |
+| **Stable IDs**             | Each run keyed as `testId/db/redis-on                                                                       | off/phase/metric` for durable trend history |
+| **Per-DB budgets**         | SQLite/PG/MariaDB/MongoDB each have different cold/warm/CRUD/cache/concurrency budgets                      |
 
-### Key functions (in `benchmark-reporting.ts`)
+### Key Functions
 
-| Function                                                 | Purpose                                                                          |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `reportBenchmark(result, opts)`                          | Main entry point — normalizes, persists to SQLite, analyzes trends, updates MDX  |
-| `pushTableToMdx(title, table, shortLabel)`               | Writes truth table between `<!-- TAG_TABLE_START -->` / `<!-- TAG_TABLE_END -->` |
-| `appendSummaryToMdx(content, shortLabel)`                | Appends summary metrics before `<!-- TAG_TABLE_END -->`                          |
-| `computeAndApplyTrend(result, shortLabel, phase)`        | Bridge from benchmark-utils — discovers test file and calls `reportBenchmark`    |
-| `registerTestMeta(testFile, proves, codePaths, impact)`  | Registers educational metadata for a test                                        |
-| `buildAndWriteExecutiveSummary(trackedTests, isPartial)` | Builds ranked executive summary from history.sqlite                              |
+| Function                                                | Location                         | Purpose                                                                                                     |
+| ------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `reportBenchmark(result, opts)`                         | `modules/benchmark-reporting.ts` | **Canonical facade** — persist + analyze + update MDX                                                       |
+| `pushTableToMdx(title, table, shortLabel)`              | `modules/benchmark-reporting.ts` | **Compatibility bridge** — writes truth table between `<!-- TAG_TABLE_START -->` / `<!-- TAG_TABLE_END -->` |
+| `appendSummaryToMdx(content, shortLabel)`               | `modules/benchmark-reporting.ts` | **Compatibility bridge** — appends summary metrics before `<!-- TAG_TABLE_END -->`                          |
+| `computeAndApplyTrend(result, shortLabel, phase)`       | `modules/benchmark-reporting.ts` | **Compatibility bridge** — discovers test file, calls `reportBenchmark()`                                   |
+| `registerTestMeta(testFile, proves, codePaths, impact)` | `modules/benchmark-reporting.ts` | Registers educational metadata for a test                                                                   |
+| `exportSubMetric(key, value, unit, phase)`              | `modules/benchmark-utils.ts`     | Per-phase sub-component timing — pinpoints WHERE time is spent                                              |
 
 ### Module Architecture
 
-| Module                   | Purpose                                                                |
-| ------------------------ | ---------------------------------------------------------------------- |
-| `benchmark-reporting.ts` | Public facade — `reportBenchmark()` with 4 modes                       |
-| `benchmark-history.ts`   | SQLite persistence (WAL, transactions, `INSERT OR IGNORE`, stable IDs) |
-| `benchmark-analysis.ts`  | Trend analysis, root cause classification, budget enforcement          |
-| `benchmark-mdx.ts`       | MDX file I/O — atomic writes (temp→rename), file mutex, tag discovery  |
-| `benchmark-summary.ts`   | Ranked executive summary — top regressions, shared causes, noisy tests |
-| `benchmark-meta.ts`      | Educational metadata for all 48 tests (code paths, impact, proves)     |
+| Module                         | Location                    | Purpose                                                                                                                  |
+| ------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `benchmark-reporting.ts`       | `modules/`                  | Public facade — `reportBenchmark()` with 4 modes                                                                         |
+| `benchmark-history.ts`         | `modules/`                  | SQLite persistence (WAL, transactions, `INSERT OR IGNORE`, stable IDs)                                                   |
+| `benchmark-analysis.ts`        | `modules/`                  | Trend analysis, root cause classification, adaptive budgets, memory tracking                                             |
+| `benchmark-mdx.ts`             | `modules/`                  | MDX file I/O — atomic writes (temp→rename), file mutex, tag discovery                                                    |
+| `benchmark-summary.ts`         | `modules/`                  | Ranked executive summary — top regressions, shared causes, noisy tests **(implemented, matrix integration in progress)** |
+| `benchmark-meta.ts`            | `modules/`                  | Educational metadata for all 48 tests (code paths, impact, proves)                                                       |
+| `benchmark-cross-correlate.ts` | `modules/`                  | Single-test cross-correlation — checks related tests in `history.sqlite`                                                 |
+| `benchmark-intelligence.ts`    | `scripts/benchmark-matrix/` | Forecasting + fix suggestions + severity escalation                                                                      |
+| `benchmark-utils.ts`           | `modules/`                  | Runner utilities — `runBenchmark`, `exportResult`, `exportSubMetric`                                                     |
 
 ## 🧠 Smart Features
 
 | Feature                       | Description                                                                                                              |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Record Mode Gates**         | `BENCHMARK_RECORD=1` enables MDX writes; without it, benchmarks are console-only. Matrix always records.                 |
+| **Record Mode Gates**         | `BENCHMARK_RECORD=1` enables MDX writes; normal `bun test` is console-only. Matrix always records.                       |
 | **Instant MDX Updates**       | Each recorded `bun test` writes truth table + trend + insight directly to its report section                             |
 | **Rolling Trend Baseline**    | Compares current run against median of recent runs from `history.sqlite` (canonical)                                     |
 | **Severity Thresholds**       | ⚪ <5% stable, 🟡 5-10% watch, 🟠 10-20% warning, 🔴 >20% regression                                                     |
 | **Multi-Metric Tracking**     | Label shows `avg`, `p95`, and `rps` deltas: `🔴 avg +35% p95 +22% (12 runs)`                                             |
 | **Root Cause Classification** | 7 categories: normal variance, adapter bottleneck, cold start, GC pause, improvement, throughput drop, severe regression |
-| **Confidence Levels**         | Single-test = "suspected", matrix with correlation = "confirmed", low samples = "watch"                                  |
-| **Code Path Recommendations** | Each regression links to specific source files to investigate (`src/hooks/handle-authentication.ts` · ...)               |
+| **Confidence Levels**         | Single-test = "suspected", cross-correlation match = "confirmed", low samples = "watch"                                  |
+| **Code Path Recommendations** | Each regression links to specific source files to investigate                                                            |
 | **Executive Summary Alerts**  | Regression alerts appear at the top of the report with severity ranking                                                  |
-| **Partial-Run Watermark**     | `📋 Partial update: auth-performance / SQLITE / 2026-05-30` when not all tests ran                                       |
+| **Partial-Run Watermark**     | "Partial update" marker when not all tests ran                                                                           |
 | **Tag Discovery**             | Matches test filename to MDX section via prefix/substring/bidirectional matching                                         |
 | **Atomic MDX Writes**         | Temp file + rename prevents half-written reports                                                                         |
 | **Idempotent SQLite**         | `INSERT OR IGNORE` prevents duplicate rows on retry                                                                      |
@@ -140,37 +151,30 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  // ... other imports as needed
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
 test("My Benchmark Name", async () => {
-  // 1. Setup: start server, seed data
   const server = await setupBenchmarkServer();
   const baseUrl = server.baseUrl;
 
-  // 2. Run benchmark scenarios
   const result = await runBenchmark({
-    name: "Scenario Name", // appears in truth table
+    name: "Scenario Name",
     iterations: 100,
     concurrency: 4,
     onIteration: async (i) => {
-      // Your benchmark logic here
       await fetch(`${baseUrl}/api/...`);
     },
   });
 
-  // 3. Export results (triggers trend computation)
   exportResult(result);
 
-  // 4. Write truth table to MDX
   printTruthTable({
     title: "SVELTYCMS — MY BENCHMARK AUDIT",
-    shortLabel: "MyBench", // used for tag matching
+    shortLabel: "MyBench",
     results: [{ ...result, name: "Scenario Name" }],
   });
 
-  // 5. Write summary to MDX
   printSummaryTable([
     { key: "Latency", val: result.avgMs, unit: "ms" },
     { key: "Throughput", val: result.rps, unit: "req/s" },
@@ -181,7 +185,7 @@ test("My Benchmark Name", async () => {
 ### Required checklist
 
 - [ ] `@file` and `@description` header comments
-- [ ] Import from `./benchmark-utils`
+- [ ] Import from `./modules/benchmark-utils`
 - [ ] Call `setupBenchmarkServer()` (if server needed) or standalone setup
 - [ ] Call `runBenchmark()` with `name`, `iterations`, `concurrency`, `onIteration`
 - [ ] Call `exportResult(result)` for EACH scenario (triggers trend + history)
@@ -192,84 +196,91 @@ test("My Benchmark Name", async () => {
 
 ### Tag matching rules
 
-The `pushTableToMdx` function discovers the correct MDX section by:
+The `pushTableToMdx` bridge discovers the correct MDX section by:
 
-1. Getting the test filename from the call stack (e.g., `my-benchmark.test.ts` → base `my_benchmark`)
+1. Getting the test filename from the call stack (e.g., `my-benchmark.test.ts` -> base `my_benchmark`)
 2. Scanning all `<!-- TAG_TABLE_START -->` tags in the MDX
-3. Matching via: prefix match, substring match, or bidirectional match
-4. Falling back to `shortLabel` from `printTruthTable`
-
-**Important**: The `shortLabel` in `printTruthTable` MUST match the tag slug in the MDX or share a common prefix.
+3. **Preferring tags after `<!-- BENCHMARK_END -->`** (educational sections over matrix duplicates)
+4. Matching via: prefix match, substring match, or bidirectional match
+5. Falling back to `shortLabel` from `printTruthTable`
 
 ## 📊 Report Structure
 
 Each report section follows this layout:
 
-````
-### 🏷️ Test Name 🔴 avg +25%          ← label with trend (outside tags, persists)
-<!-- TAG_TABLE_START -->              ← data starts here (replaced each run)
-
 ```text
-╔══════════════════════════════╗
-║ TITLE + DB TYPE               ║
-║ File: path/to/test            ║
-║ @description text             ║
-╠══════════════════════════════╣
-║ Name │ avg │ p95 │ p99.9 │ RPS║
-╚══════════════════════════════╝
-````
+### 🏷️ Test Name 🔴 avg +25%          <- label with trend (outside tags, persists)
 
-```text
-╔═══ FINAL AUDIT SUMMARY ═══╗
-║ Key │ Value                ║
-╚════════════════════════════╝
+> **Measures**: What this benchmark proves.
+> **Budget**: <5ms p95 | **Code**: src/path/to/file.ts
+> **Why**: Why this metric matters to operations.
+
+<!-- TAG_TABLE_START -->              <- data starts here (replaced each run)
+
+[truth table — ASCII art]
+
+[summary table — key metrics]
+
+> 🔴 Both avg and p95 degraded — likely adapter bottleneck.
+> **Check**: src/hooks/handle-authentication.ts · src/databases/auth/
+
+<!-- TAG_TABLE_END -->                <- data ends here
 ```
-
-> 🔴 Both avg and p95 degraded — likely adapter bottleneck. ← "Why" insight
-
-<!-- TAG_TABLE_END -->                ← data ends here
-
-````
 
 ## ⚡ Executive Summary Matrix
 
-| Database | Status | Report |
-| :--- | :--- | :--- |
-| 🗄️ **SQLITE** | Pending | [benchmark_sqlite.mdx](./benchmark_sqlite.mdx) |
-| ⚡ **SQLITE+REDIS** | Pending | [benchmark_sqlite_redis.mdx](./benchmark_sqlite_redis.mdx) |
-| 🍃 **MONGODB** | Pending | [benchmark_mongodb.mdx](./benchmark_mongodb.mdx) |
-| 🔥 **MONGODB+REDIS** | Pending | [benchmark_mongodb_redis.mdx](./benchmark_mongodb_redis.mdx) |
-| 🐘 **POSTGRESQL** | Pending | [benchmark_postgresql.mdx](./benchmark_postgresql.mdx) |
-| 💎 **POSTGRESQL+REDIS** | Pending | [benchmark_postgresql_redis.mdx](./benchmark_postgresql_redis.mdx) |
-| 🐬 **MARIADB** | Pending | [benchmark_mariadb.mdx](./benchmark_mariadb.mdx) |
-| 🔱 **MARIADB+REDIS** | Pending | [benchmark_mariadb_redis.mdx](./benchmark_mariadb_redis.mdx) |
+| Database                | Status     | Report                                                             |
+| :---------------------- | :--------- | :----------------------------------------------------------------- |
+| 🗄️ **SQLITE**           | ✅ Running | [benchmark_sqlite.mdx](./benchmark_sqlite.mdx)                     |
+| ⚡ **SQLITE+REDIS**     | ✅ Running | [benchmark_sqlite_redis.mdx](./benchmark_sqlite_redis.mdx)         |
+| 🍃 **MONGODB**          | Pending    | [benchmark_mongodb.mdx](./benchmark_mongodb.mdx)                   |
+| 🔥 **MONGODB+REDIS**    | Pending    | [benchmark_mongodb_redis.mdx](./benchmark_mongodb_redis.mdx)       |
+| 🐘 **POSTGRESQL**       | Pending    | [benchmark_postgresql.mdx](./benchmark_postgresql.mdx)             |
+| 💎 **POSTGRESQL+REDIS** | Pending    | [benchmark_postgresql_redis.mdx](./benchmark_postgresql_redis.mdx) |
+| 🐬 **MARIADB**          | Pending    | [benchmark_mariadb.mdx](./benchmark_mariadb.mdx)                   |
+| 🔱 **MARIADB+REDIS**    | Pending    | [benchmark_mariadb_redis.mdx](./benchmark_mariadb_redis.mdx)       |
 
 ## 🔬 How to Run
 
-**Single test:**
+**Console only (safe for normal dev):**
+
 ```bash
 bun test tests/benchmarks/auth-performance.test.ts
-````
+```
 
-**All SQLite benchmarks:**
+**Single test (record to report):**
+
+```bash
+BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
+```
+
+**History only (no MDX mutation, useful in CI):**
+
+```bash
+BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
+```
+
+**Full SQLite matrix:**
 
 ```bash
 bun run scripts/benchmark-matrix/index.ts --sql
 ```
 
-**Filter by section:**
+**Differential (only tests affected by recent changes):**
 
 ```bash
-bun run scripts/benchmark-matrix/index.ts --section=api
+bun run scripts/benchmark-matrix/index.ts --sql --differential
 ```
 
 ## 🖥️ Data Sources
 
-| Source                   | Path                                            |
-| ------------------------ | ----------------------------------------------- |
-| Individual results       | `tests/benchmarks/results/<db>/`                |
-| History (trend baseline) | `tests/benchmarks/results/history.jsonl`        |
-| Report templates         | `docs/project/benchmarks/benchmark_<db>.mdx`    |
-| Benchmark scripts config | `scripts/benchmark-matrix/benchmark-scripts.ts` |
-| Trend + insights         | `tests/benchmarks/benchmark-reporting.ts`       |
-| Test utilities           | `tests/benchmarks/benchmark-utils.ts`           |
+| Source                   | Path                                                         |
+| ------------------------ | ------------------------------------------------------------ |
+| **Canonical history**    | `tests/benchmarks/results/history.sqlite` (SQLite, WAL mode) |
+| Debug/export log         | `tests/benchmarks/results/history.jsonl`                     |
+| Individual results       | `tests/benchmarks/results/<db>/`                             |
+| Report templates         | `docs/project/benchmarks/benchmark_<db>.mdx`                 |
+| Benchmark scripts config | `scripts/benchmark-matrix/benchmark-scripts.ts`              |
+| Trend analysis           | `tests/benchmarks/modules/benchmark-analysis.ts`             |
+| MDX I/O                  | `tests/benchmarks/modules/benchmark-mdx.ts`                  |
+| Intelligence engine      | `scripts/benchmark-matrix/benchmark-intelligence.ts`         |
