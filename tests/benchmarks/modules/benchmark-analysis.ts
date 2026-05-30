@@ -75,6 +75,10 @@ const SEVERITY_THRESHOLDS: Array<{
 function severityFor(deltaPct: number): { severity: Severity; icon: string } {
   const ad = Math.abs(deltaPct);
   const match = SEVERITY_THRESHOLDS.find((t) => ad < t.maxDelta)!;
+  // Improvements never get a warning/regression icon
+  if (deltaPct < -3) {
+    return { severity: "stable", icon: "\u{1F7E2}" };
+  }
   return { severity: match.severity, icon: match.icon };
 }
 
