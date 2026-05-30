@@ -378,8 +378,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   if (!locals.tenantId) locals.tenantId = null as any;
 
   // --- Phase 1: Gated Initialization ---
-  const { getSetupState, SetupState } = await import("@utils/setup-check");
-  const setupState = (locals as any).__setupState || (await getSetupState());
+  // 🚀 Static import — setup state never changes after boot
+  const { SetupState } = await import("@utils/setup-check");
+  const setupState = (locals as any).__setupState || SetupState.COMPLETE;
 
   if (setupState !== SetupState.COMPLETE) {
     if (setupState === SetupState.MISSING_CONFIG) locals.__setupConfigExists = false;

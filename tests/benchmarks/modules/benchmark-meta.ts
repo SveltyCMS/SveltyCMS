@@ -12,6 +12,20 @@
  */
 import { registerTestMeta } from "./benchmark-reporting";
 
+registerTestMeta(
+  "tests/benchmarks/cache-hit-ratio.test.ts",
+  "Redis cache hit/miss ratio and invalidation performance",
+  ["src/databases/cache/redis-adapter.ts", "src/databases/cache/cache-service.ts"],
+  "Cache efficiency directly impacts response latency. Misses trigger expensive DB round-trips.",
+);
+
+registerTestMeta(
+  "tests/benchmarks/media-upload-stress.test.ts",
+  "Large file upload throughput and streaming efficiency",
+  ["src/services/MediaService.ts", "src/databases/media/"],
+  "Media upload speed affects content editor productivity and DAM experience.",
+);
+
 // ─────────────────────────────────────────────────────────────
 // BASELINE — Core system readiness
 // ─────────────────────────────────────────────────────────────
