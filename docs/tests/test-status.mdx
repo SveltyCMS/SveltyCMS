@@ -36,22 +36,23 @@ The testing suite has reached a major milestone with **100% Core Widget Logic Co
 - **SCIM 2.0 (v1.1):** Added native POST /Bulk operation processing with recursive bulkId references resolution.
 - **Integration Tests:** Passing under proper runner isolations across all 4 databases (SQLite, MongoDB, MariaDB, PostgreSQL). Dedicated adapter-level tests now exist for all supported databases.
 - **E2E Tests:** All critical flows verified across all databases with parallel worker support (40 scenarios).
-- **Enterprise Benchmarks**: 30 high-fidelity metrics verified in the Audit Matrix (100% Pass).
+- **Enterprise Benchmarks**: 50 high-fidelity metrics verified across 9 dimensions. SQLite (0.074ms DB raw, 0.59ms REST p95), MongoDB (0.63ms REST p95), PostgreSQL (0.67ms REST p95).
 - **Performance Grade**: **ULTRA ELITE (High-Frequency Grade)**
 - **Truth Model**: 5-Layer Production Reality Audit implemented.
 - **Security Persistence**: Verified stateful DoS protection across restarts.
 
 ### 🚀 Enterprise Performance Matrix (Audit)
 
-| Metric Area                   | Baseline 2025 | Audit                | % Improvement         |
-| :---------------------------- | :------------ | :------------------- | :-------------------- |
-| **SDK Read (0ms resolution)** | ~0.612 ms     | **~0.00 ms**         | **100% Gain**         |
-| **Content Scan (1k)**         | ~14.23 ms     | **~0.05 ms**         | **99.6% Gain**        |
-| **Ingestion (Migration)**     | ~400 ent/s    | **~8,223 ent/s**     | **1,955% Increase**   |
-| **Real-Time Broadcast (SSE)** | ~8.50 ms      | **~1.60 ms**         | **81.1% Gain**        |
-| **Real-Time Latency (WS)**    | ~5.20 ms      | **~0.3 - 1.2 ms**    | **94.2% Gain (uWS)**  |
-| **System Throughput**         | ~305 ops/sec  | **~14,000+ ops/sec** | **4,490% Increase**   |
-| **Revision Degradation**      | 5–15%         | **0.00%**            | **Immunity Achieved** |
+| Metric Area                   | Baseline 2025 | Current (May 2026) | % Improvement        |
+| :---------------------------- | :------------ | :----------------- | :------------------- |
+| **REST p95 (SQLite)**         | ~0.612 ms     | **~0.59 ms**       | **Stable**           |
+| **DB Raw p95 (SQLite)**       | ~0.007 ms     | **~0.074 ms**      | —                    |
+| **Cold Start**                | ~363 ms       | **~381 ms**        | **Stable**           |
+| **Content Scan (1k)**         | ~14.23 ms     | **~0.75 ms**       | **94.7% Gain**       |
+| **Real-Time Broadcast (SSE)** | ~8.50 ms      | **~1.60 ms**       | **81.1% Gain**       |
+| **Real-Time Latency (WS)**    | ~5.20 ms      | **~0.3 - 1.2 ms**  | **94.2% Gain (uWS)** |
+| **REST p95 (MongoDB)**        | —             | **~0.63 ms**       | **Excellent**        |
+| **REST p95 (PostgreSQL)**     | —             | **~0.67 ms**       | **Excellent**        |
 
 ### Test Coverage by Category
 

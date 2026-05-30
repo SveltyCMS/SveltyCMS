@@ -36,16 +36,16 @@ Complete test coverage for all 11 SvelteKit middleware hooks in the SveltyCMS sy
 
 ## Performance Benchmarks (Audit)
 
-In addition to correctness, all hooks are benchmarked for execution overhead using `tests/benchmarks/hooks-performance.ts`. Following the April 2026 optimizations, SveltyCMS achieved **High-Frequency Middleware** status.
+All hooks are benchmarked via `tests/benchmarks/hooks-performance.test.ts` which measures 3 pipeline layers under production load (600+ iterations each):
 
-| Metric                      | Value       | Target (2026) |
-| --------------------------- | ----------- | ------------- |
-| Static Regex Check Latency  | 0.085 µs    | < 0.200 µs    |
-| API Fast-path Skip Latency  | 0.031 µs    | < 0.100 µs    |
-| Compression Guard Latency   | 0.044 µs    | < 0.100 µs    |
-| **Total API Hook Overhead** | **7.16 µs** | < 15.00 µs    |
+| Metric                       | Latest (SQLite) | Budget | What it measures            |
+| ---------------------------- | :-------------: | :----: | --------------------------- |
+| **Turbo Pipeline (Light)**   |   0.81ms avg    |  <2ms  | Health check — fastest path |
+| **Full Security + Auth**     |   1.47ms avg    |  <2ms  | JWT + session + RBAC        |
+| **Mutation + Audit Logging** |   1.28ms avg    |  <2ms  | Write with SHA-256 audit    |
+| **Auth Overhead**            |   **0.66ms**    |   —    | Turbo → Full Auth delta     |
 
-**Note**: Overhead is measured in microseconds (µs). Total overhead is **21x faster** than the original 2026 budget (0.150ms).
+**Note**: Auth overhead (0.66ms) = Full Auth (1.47ms) - Turbo (0.81ms). Optimized May 2026 by eliminating redundant setup-state check on every authenticated request.
 
 ## Middleware Sequence
 

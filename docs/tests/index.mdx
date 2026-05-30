@@ -83,12 +83,12 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 **"Reality simulation with extreme stress and chaos resilience."**
 
 - **Focus:** Performance and System Stability (SRE/Chaos Engineering).
-- **Tools:** Benchmark Matrix (`index.ts`).
-- **What we test:**
-  - **Concurrency:** Lost Update Race Conditions (Atomic Consistency).
-  - **Temporal Integrity:** Timezone normalization and data contracts.
-  - **Chaos:** System stability during simulated DB brownouts.
-  - **Load:** Stress-testing 100,000+ collections (Index Pressure).
+- **Tools:** 50-test Benchmark Matrix (`scripts/benchmark-matrix/`).
+- **Coverage:** 9 dimensions across SQLite, PostgreSQL, MariaDB, MongoDB + Redis variants.
+- **Intelligence:** Rolling trend baselines, 7 root cause categories, cross-test correlation, adaptive budgets.
+- **Reports:** 8 per-database MDX reports with Measures/Budget/Code/Why context.
+- **Latest SQLite:** 0.074ms DB raw, 0.59ms REST p95, 381ms cold start.
+- **Guide:** `docs/project/benchmarks/index.mdx`
 
 ### 4. Accessibility Audit (WCAG 3.0 & ATAG 2.0)
 
