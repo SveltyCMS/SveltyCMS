@@ -68,7 +68,7 @@
     "build:report": "$npm_execpath run build:verbose && du -h .svelte-kit/output/client/_app/immutable/chunks/*.js | sort -rh | head -20",
     "build:stats": "npm run build:verbose && npx tsx scripts/bundle-stats.ts",
     "-- CHECK & TEST ---------------------------------------": "",
-    "check": "svelte-kit sync && npm run check:ts && npm run check:svelte",
+    "check": "npm run paraglide && svelte-kit sync && npm run check:ts && npm run check:svelte",
     "check:ts": "tsc --noEmit",
     "check:svelte": "svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

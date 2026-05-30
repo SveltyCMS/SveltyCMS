@@ -253,6 +253,7 @@ function addOperation(type: OperationType) {
 				taskType: "summarize",
 				prompt: "Summarize: {{ entry.title }}",
 				targetField: "summary",
+				timeout: 30000,
 			} as AgenticTaskOperationConfig,
 		}),
 	};
@@ -751,6 +752,68 @@ const steps = [
 											</label>
 										</div>
 									{/if}
+
+									<!-- Agentic Task Config -->
+									{#if op.type === 'agentic_task'}
+										{@const cfg = op.config as AgenticTaskOperationConfig}
+										<div class="space-y-3">
+											<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+												<label class="label">
+													<span class="text-sm">Task</span>
+													<select class="select" bind:value={cfg.taskType}>
+														<option value="summarize">Summarize</option>
+														<option value="translate">Translate</option>
+														<option value="enrich">Enrich</option>
+														<option value="classify">Classify</option>
+														<option value="generate_tags">Generate Tags</option>
+													</select>
+												</label>
+												<label class="label">
+													<span class="text-sm">Target Field</span>
+													<input type="text" class="input" placeholder="summary" bind:value={cfg.targetField} />
+												</label>
+												<label class="label">
+													<span class="text-sm">Model</span>
+													<input type="text" class="input" placeholder="Default model" bind:value={cfg.model} />
+												</label>
+											</div>
+											<div class="relative">
+												<label class="label">
+													<span class="text-sm">Prompt <span class="text-xs opacity-50">(supports tokens)</span></span>
+													<textarea
+														class="textarea text-xs pr-10"
+														rows="4"
+														placeholder={'Summarize {{ entry.content }}'}
+														bind:value={cfg.prompt}
+													></textarea>
+												</label>
+												<div class="absolute right-2 bottom-2 flex gap-1">
+													<div class="dropdown">
+														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
+															<iconify-icon icon="mdi:code-braces"></iconify-icon>
+														</button>
+														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-[150px]">
+															{#each availableTokens as token}
+																<button
+																	type="button"
+																	class="block w-full text-left p-1 hover:bg-primary-500 hover:text-white rounded"
+																	onclick={() => insertToken(i, 'prompt', token.value)}
+																>
+																	{token.label}
+																</button>
+															{/each}
+														</div>
+													</div>
+												</div>
+											</div>
+											{#if cfg.taskType === 'translate'}
+												<label class="label" transition:slide>
+													<span class="text-sm">Target Language</span>
+													<input type="text" class="input" placeholder="en" bind:value={cfg.targetLanguage} />
+												</label>
+											{/if}
+										</div>
+									{/if}
 								</div>
 							{/each}
 						</div>
@@ -1003,4 +1066,3 @@ const steps = [
 		</div>
 	</div>
 {/if}
-
