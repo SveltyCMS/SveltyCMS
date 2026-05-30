@@ -20,7 +20,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
 
   public capabilities: DatabaseCapabilities = {
     maxBatchSize: 1000,
-    supportsTransactions: true,
+    supportsTransactions: false, // Requires replica set — disabled for standalone compatibility
     supportsAggregation: true,
     maxQueryComplexity: 100,
     supportsFullTextSearch: true,

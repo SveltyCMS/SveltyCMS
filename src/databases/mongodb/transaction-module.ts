@@ -45,13 +45,19 @@ export class MongoTransactionModule {
           this.adapter.crud.insert(collection, data, { ...options, session }),
 
         update: async (collection: string, id: any, data: any, options: any = {}) =>
-          this.adapter.crud.update(collection, id, data, { ...options, session }),
+          this.adapter.crud.update(collection, id, data, {
+            ...options,
+            session,
+          }),
 
         delete: async (collection: string, id: any, options: any = {}) =>
           this.adapter.crud.delete(collection, id, { ...options, session }),
 
         findById: async (collection: string, id: any, options: any = {}) =>
-          this.adapter.crud.findOne(collection, { _id: id } as any, { ...options, session }),
+          this.adapter.crud.findOne(collection, { _id: id } as any, {
+            ...options,
+            session,
+          }),
 
         // 🛡️ Domain Support: Injecting domain modules into the transaction object
         // This allows tx.auth, tx.content, etc. to be used within TransactionManager.runAtomic blocks.
@@ -65,11 +71,15 @@ export class MongoTransactionModule {
 
       const result = await fn(dbTransaction);
 
-      // Handle raw non-result returns from legacy or simplified bench scripts
+      // Handle non-result returns: undefined means rollback by default
       const formalResult =
         result && typeof result === "object" && "success" in result
           ? result
-          : { success: true, data: result };
+          : {
+              success: false,
+              data: result,
+              message: "Transaction function returned no result — rolled back",
+            };
 
       if (formalResult.success) {
         if (session.inTransaction()) {
