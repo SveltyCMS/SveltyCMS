@@ -23,6 +23,15 @@ let stopServer: (() => Promise<void>) | null = null;
 let baseUrl: string;
 
 const middlewareScenarios = [
+  // ── Layer 0: Pure overhead (no middleware) ──
+  {
+    name: "Static Asset (No Middleware)",
+    shortLabel: "Static",
+    path: "/favicon.ico",
+    method: "GET",
+    concurrency: 12,
+  },
+  // ── Layer 1: Turbo Pipeline (system state + compression + security headers) ──
   {
     name: "Turbo Pipeline (Light)",
     shortLabel: "Turbo",
@@ -30,6 +39,7 @@ const middlewareScenarios = [
     method: "GET",
     concurrency: 12,
   },
+  // ── Layer 2: Turbo + Auth + Authorization + Content Init ──
   {
     name: "Full Security + Auth Pipeline",
     shortLabel: "Auth+Security",
@@ -37,6 +47,15 @@ const middlewareScenarios = [
     method: "GET",
     concurrency: 8,
   },
+  // ── Layer 3: Full Auth + API Caching (isolates cache overhead) ──
+  {
+    name: "REST with API Caching",
+    shortLabel: "API+Cache",
+    path: "/api/collections/BenchmarkStable?limit=1",
+    method: "GET",
+    concurrency: 8,
+  },
+  // ── Layer 4: Full Auth + Audit Logging (isolates audit overhead) ──
   {
     name: "Mutation + Audit Logging",
     shortLabel: "Audit",
@@ -114,9 +133,11 @@ async function runHooksAudit() {
       exportResult(enriched);
     }
 
-    const turbo = results[0];
-    const full = results[1];
-    const audit = results[2];
+    const staticAsset = results[0];
+    const turbo = results[1];
+    const full = results[2];
+    const cached = results[3];
+    const audit = results[4];
 
     exportMetric("middleware.hooks.p95", full.p95Ms, "ms");
     exportMetric("middleware.hooks.avg", full.avgMs, "ms");
@@ -124,16 +145,27 @@ async function runHooksAudit() {
     printTruthTable({
       title: "SVELTYCMS — MIDDLEWARE & HOOKS AUDIT",
       shortLabel: "Hooks",
-      subtitle: `Turbo • Security • Auth • Audit • ${getDbType().toUpperCase()}`,
+      subtitle: `Static • Turbo • Auth • API Cache • Audit • ${getDbType().toUpperCase()}`,
       results,
     });
 
     printSummaryTable([
+      { key: "Static Asset (no hooks)", val: staticAsset.avgMs, unit: "ms" },
       { key: "Turbo Pipeline", val: turbo.avgMs, unit: "ms" },
-      { key: "Full Pipeline", val: full.avgMs, unit: "ms" },
+      { key: "Full Auth Pipeline", val: full.avgMs, unit: "ms" },
       {
-        key: "Audit Overhead",
-        val: (audit.avgMs - full.avgMs).toFixed(2),
+        key: "API Cache Overhead",
+        val: (cached.avgMs - full.avgMs).toFixed(3),
+        unit: "ms",
+      },
+      {
+        key: "Auth Overhead (Turbo→Full)",
+        val: (full.avgMs - turbo.avgMs).toFixed(3),
+        unit: "ms",
+      },
+      {
+        key: "Audit Logging Overhead",
+        val: (audit.avgMs - full.avgMs).toFixed(3),
         unit: "ms",
       },
       {
