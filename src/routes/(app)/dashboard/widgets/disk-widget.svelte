@@ -202,12 +202,11 @@ export const widgetMeta = {
 									cy="46"
 									r="38"
 									fill="none"
-									stroke={disk.level === 'high' ? '#ef4444' : disk.level === 'medium' ? '#f59e0b' : '#3b82f6'}
 									stroke-width="11"
 									stroke-dasharray="238.76"
 									stroke-dashoffset={238.76 * (1 - disk.percent / 100)}
 									stroke-linecap="round"
-									class="transition-all duration-700"
+									class="transition-all duration-700 {disk.level === 'high' ? 'stroke-error-500' : disk.level === 'medium' ? 'stroke-warning-500' : 'stroke-tertiary-500'}"
 								/>
 								<text
 									x="46"

@@ -155,12 +155,11 @@ export const widgetMeta = {
 									cy="21"
 									r="15.915"
 									fill="none"
-									stroke={mem.level === 'high' ? '#ef4444' : mem.level === 'medium' ? '#f59e0b' : '#10b981'}
 									stroke-width="3"
 									stroke-dasharray="100"
 									stroke-dashoffset={100 - mem.percent}
 									stroke-linecap="round"
-									class="transition-all duration-700 ease-out"
+									class="transition-all duration-700 ease-out {mem.level === 'high' ? 'stroke-error-500' : mem.level === 'medium' ? 'stroke-warning-500' : 'stroke-success-500'}"
 									style="filter: {activeRing ? 'brightness(1.08)' : 'none'};"
 								/>
 
@@ -181,12 +180,11 @@ export const widgetMeta = {
 										cy="21"
 										r="12.5"
 										fill="none"
-										stroke={mem.swapLevel === 'high' ? '#f43f5e' : mem.swapLevel === 'medium' ? '#fb923c' : '#60a5fa'}
 										stroke-width="1.8"
 										stroke-dasharray="78.54"
 										stroke-dashoffset={78.54 * (1 - mem.swapPercent / 100)}
 										stroke-linecap="round"
-										class="transition-all duration-700 ease-out"
+										class="transition-all duration-700 ease-out {mem.swapLevel === 'high' ? 'stroke-error-500' : mem.swapLevel === 'medium' ? 'stroke-warning-500' : 'stroke-tertiary-500'}"
 									/>
 								{/if}
 							</svg>

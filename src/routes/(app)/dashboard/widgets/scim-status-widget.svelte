@@ -144,7 +144,7 @@ export const widgetMeta = {
 										<path
 											d={linePath}
 											fill="none"
-											stroke={scim.status === 'healthy' ? '#10b981' : '#f59e0b'}
+											class={scim.status === 'healthy' ? 'stroke-success-500' : 'stroke-warning-500'}
 											stroke-width="1.8"
 											stroke-linecap="round"
 											stroke-linejoin="round"
