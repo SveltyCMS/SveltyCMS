@@ -1181,7 +1181,7 @@ onMount(() => {
 											}
 										}}
 									/>
-									<span>{field.label}</span>
+									<!-- label already shown by the field header above (avoids duplicate) -->
 								</label>
 								<!-- Select Input -->
 							{:else if field.type === 'select' && field.options}
