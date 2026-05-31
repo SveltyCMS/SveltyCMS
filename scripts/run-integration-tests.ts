@@ -262,10 +262,13 @@ async function waitForServerReady(maxAttempts = 60) {
   throw new Error("Server failed to reach READY state within timeout");
 }
 
-function getTestEnv(db: any) {
+function getTestEnv(
+  db: ReturnType<typeof getDbDefaults>,
+  nodeEnv: "development" | "production" = "production",
+) {
   return {
     ...process.env,
-    NODE_ENV: "production",
+    NODE_ENV: nodeEnv,
     TEST_MODE: "true",
     SKIP_GATEKEEPER: "true",
     PORT: PORT,
@@ -291,6 +294,22 @@ async function startPreviewServer() {
   const db = getDbDefaults();
 
   console.log(`🚀 Starting preview server on ${HOST}:${PORT}...`);
+
+  // CI integration checks validate the built bundle separately, then use Vite for stable test boot.
+  if (process.env.CI === "true" || process.env.INTEGRATION_SERVER_MODE === "dev") {
+    console.log("Starting preview server with Vite dev server");
+
+    previewProcess = spawn("bun", ["run", "dev", "--", "--host", HOST, "--port", PORT], {
+      cwd: ROOT,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      detached: process.platform !== "win32",
+      env: getTestEnv(db, "development"),
+    });
+
+    await waitForServerReady();
+    return;
+  }
 
   const entryPoint = [
     join(ROOT, "build", "index.js"),
@@ -628,7 +647,7 @@ async function teardown() {
     const jsPath = join(ROOT, ".compiledCollections", "test_collection.js");
     if (existsSync(tsPath)) unlinkSync(tsPath);
     if (existsSync(jsPath)) unlinkSync(jsPath);
-  } catch (_e) {
+  } catch {
     // Non-fatal
   }
 
