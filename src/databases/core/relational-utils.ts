@@ -88,9 +88,14 @@ export function convertDatesToISO(row: any): any {
 
   // 2. EXHAUSTIVE CRAWL: Capture everything the driver returned
   // Drizzle results are sometimes Proxies; crawling helps preserve keys.
+  // 🚀 Track hasJsonField during crawl to skip Set lookups on non-JSON rows
   const keys = Object.getOwnPropertyNames(row).concat(Object.keys(row));
+  let hasJsonField = false;
   for (const key of keys) {
-    if (result[key] === undefined) result[key] = row[key];
+    if (result[key] === undefined) {
+      result[key] = row[key];
+      if (!hasJsonField && JSON_FIELDS.has(key)) hasJsonField = true;
+    }
   }
 
   // 3. TRANSFORMATIONS
@@ -107,6 +112,7 @@ export function convertDatesToISO(row: any): any {
         val instanceof Date ? val : new Date((val as any).getTime()),
       );
     } else if (
+      hasJsonField &&
       JSON_FIELDS.has(key) &&
       typeof val === "string" &&
       (val.startsWith("{") || val.startsWith("["))

@@ -875,22 +875,20 @@ export abstract class BaseSqlAdapter
    * 🚀 SYSTEM SELECTION: Exposes the literal selection set for sub-modules.
    * This is the heart of the "Perfect Storm" hardening.
    */
+  // 🚀 PERFORMANCE: Cache system table selections (immutable at runtime)
+  private _selectionCache = new Map<string, any>();
+
   public getPhysicalSelection(table: any): any {
     const tableName = getTableName(table);
+    const lowerName = tableName.toLowerCase();
     const isDynamic =
-      tableName.toLowerCase().includes("benchmark") ||
-      tableName.toLowerCase().startsWith("collection_") ||
-      tableName.toLowerCase().startsWith("bench_");
+      lowerName.includes("benchmark") ||
+      lowerName.startsWith("collection_") ||
+      lowerName.startsWith("bench_");
 
     // 🚀 HARDENING: Support both the physical name and the system alias
     const systemName = this.resolveSystemTableName(tableName);
     const isSystem = this.isSystemTable(tableName);
-
-    if (process.env.BENCHMARK_DEBUG === "true") {
-      console.log(
-        `[getPhysicalSelection] tableName: ${tableName}, systemName: ${systemName}, isSystem: ${isSystem}, isDynamic: ${isDynamic}`,
-      );
-    }
 
     // 🚀 SELECT STRATEGY:
     // 1. For Known Tables (non-system, non-dynamic): Use Drizzle's native reflection.
@@ -904,42 +902,44 @@ export abstract class BaseSqlAdapter
       } catch {}
     }
 
-    // Fallback for Dynamic Tables or System Tables
-    const selection: any = {};
-
-    // Determine which columns to select
-    let columnsToSelect: Set<string>;
-
-    if (isSystem && SYSTEM_LITERAL_COLUMNS[systemName]) {
-      columnsToSelect = new Set(SYSTEM_LITERAL_COLUMNS[systemName]);
-    } else if (
-      systemName === "contentNodes" ||
-      tableName.toLowerCase().includes("content_nodes")
-    ) {
-      // Emergency fallback for contentNodes
-      columnsToSelect = new Set(SYSTEM_LITERAL_COLUMNS.contentNodes);
-    } else {
-      // Default for dynamic/unknown tables
-      columnsToSelect = new Set([
-        "_id",
-        "data",
-        "status",
-        "tenantId",
-        "createdAt",
-        "updatedAt",
-        "isDeleted",
-      ]);
+    // 🚀 PERFORMANCE: Return cached selection for system tables (immutable at runtime)
+    if (isSystem) {
+      const cached = this._selectionCache.get(systemName);
+      if (cached) return cached;
     }
 
-    for (const k of columnsToSelect) {
+    // Fallback for Dynamic Tables or System Tables (first-time build)
+    const selection: any = {};
+
+    // Determine which columns to select (avoid Set allocation — iterate array directly)
+    let columnNames: readonly string[];
+
+    if (isSystem && SYSTEM_LITERAL_COLUMNS[systemName]) {
+      columnNames = SYSTEM_LITERAL_COLUMNS[systemName];
+    } else if (
+      systemName === "contentNodes" ||
+      lowerName.includes("content_nodes")
+    ) {
+      columnNames = SYSTEM_LITERAL_COLUMNS.contentNodes;
+    } else {
+      columnNames = ["_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
+    }
+
+    for (let i = 0; i < columnNames.length; i++) {
+      const k = columnNames[i];
       const col = this.getColumn(table, k, true);
       if (col) {
         selection[k] = col;
       } else {
-        // Fallback to raw SQL only if we are absolutely sure it exists
         selection[k] = sql.raw(`"${k}"`);
       }
     }
+
+    // 🚀 Cache system table selections (immutable at runtime)
+    if (isSystem) {
+      this._selectionCache.set(systemName, selection);
+    }
+
     return selection;
   }
 
