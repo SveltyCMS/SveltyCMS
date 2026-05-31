@@ -451,7 +451,7 @@ jobs:
           TEST_MODE=true \
           STRICT_SETUP_CHECK=true \
           TEST_API_SECRET="$TEST_API_SECRET" \
-          bun build/index.js > preview.log 2>&1 &
+          node build/index.js > preview.log 2>&1 &
 
           # Increase timeout and add explicit logging
           echo "Waiting for preview server on port 4173..."
@@ -659,7 +659,7 @@ jobs:
           TEST_MODE=true \
           SKIP_TEST_CLEANUP=true \
           TEST_API_SECRET="$TEST_API_SECRET" \
-          bun build/index.js > preview.log 2>&1 &
+          node build/index.js > preview.log 2>&1 &
 
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}

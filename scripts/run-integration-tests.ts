@@ -288,7 +288,7 @@ async function startPreviewServer() {
 
   console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
 
-  const runtimeCmd = process.platform === "win32" ? "node" : "bun";
+  const runtimeCmd = "node";
 
   previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,
