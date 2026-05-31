@@ -4,7 +4,11 @@
  */
 
 import { generateUUID as uuidv4 } from "@utils/native-utils";
-import { toISOString, isoDateStringToDate, nowISODateString } from "@src/utils/date";
+import {
+  toISOString,
+  isoDateStringToDate,
+  nowISODateString,
+} from "@src/utils/date";
 import type {
   DatabaseError,
   DatabaseId,
@@ -15,7 +19,8 @@ import type {
 export { isoDateStringToDate, nowISODateString };
 
 export const generateId = () => uuidv4().replace(/-/g, "") as DatabaseId;
-export const validateId = (id: string) => /^[0-9a-f]{32}$/i.test(id) || /^[0-9a-f-]{36}$/i.test(id);
+export const validateId = (id: string) =>
+  /^[0-9a-f]{32}$/i.test(id) || /^[0-9a-f-]{36}$/i.test(id);
 
 export const createDatabaseError = (
   code: string,
@@ -26,11 +31,13 @@ export const createDatabaseError = (
   code,
   message,
   statusCode,
-  originalCode: originalError?.code || (originalError as any)?.originalError?.code,
+  originalCode:
+    originalError?.code || (originalError as any)?.originalError?.code,
   details: originalError,
 });
 
-export const normalizePath = (p: string) => p.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
+export const normalizePath = (p: string) =>
+  p.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
 
 const JSON_FIELDS = new Set([
   "data",
@@ -92,9 +99,13 @@ export function convertDatesToISO(row: any): any {
 
     if (
       val instanceof Date ||
-      (val && typeof val === "object" && typeof (val as any).getTime === "function")
+      (val &&
+        typeof val === "object" &&
+        typeof (val as any).getTime === "function")
     ) {
-      result[key] = toISOString(val instanceof Date ? val : new Date((val as any).getTime()));
+      result[key] = toISOString(
+        val instanceof Date ? val : new Date((val as any).getTime()),
+      );
     } else if (
       JSON_FIELDS.has(key) &&
       typeof val === "string" &&
@@ -104,7 +115,12 @@ export function convertDatesToISO(row: any): any {
         const parsed = JSON.parse(val);
         result[key] = parsed;
         // HYBRID FLATTENING: Dynamic data to top-level
-        if (key === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        if (
+          key === "data" &&
+          parsed &&
+          typeof parsed === "object" &&
+          !Array.isArray(parsed)
+        ) {
           Object.assign(result, parsed);
         }
       } catch {
@@ -134,12 +150,20 @@ export function convertISOToDates(data: any): any {
     if (DATE_FIELDS.has(key)) {
       if (typeof val === "string" && val.length > 5) {
         result[key] = isoDateStringToDate(val as any);
-      } else if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
+      } else if (
+        val &&
+        typeof val === "object" &&
+        typeof (val as any).getTime === "function"
+      ) {
         // 🚀 CROSS-CONTEXT FIX: Always re-wrap if it looks like a Date.
         // This handles cases where 'instanceof Date' fails due to multiple constructor instances (cross-chunk).
         result[key] = new Date((val as any).getTime());
       }
-    } else if (JSON_FIELDS.has(key) && val !== null && typeof val === "object") {
+    } else if (
+      JSON_FIELDS.has(key) &&
+      val !== null &&
+      typeof val === "object"
+    ) {
       result[key] = JSON.stringify(val);
     }
   }
@@ -174,5 +198,7 @@ export const parseJsonField = <T = any>(v: any, fallback?: T): T => {
       return (fallback !== undefined ? fallback : v) as T;
     }
   }
-  return (v !== undefined && v !== null ? v : fallback !== undefined ? fallback : v) as T;
+  return (
+    v !== undefined && v !== null ? v : fallback !== undefined ? fallback : v
+  ) as T;
 };
