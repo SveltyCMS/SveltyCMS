@@ -11,6 +11,13 @@
 
 import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
+import { SetupState } from "@utils/setup-check";
+
+// 🚀 Module-level cached env flags
+const IS_BUN_TEST = !!process.env.BUN_TEST;
+const IS_TEST_MODE =
+  process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+const IS_BENCHMARK = process.env.BENCHMARK === "true";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import {
@@ -32,15 +39,10 @@ let userCountCache: { count: number; timestamp: number } | null = null;
 const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 
 // 🚀 PRE-CACHED DYNAMIC IMPORTS: Avoid repeated lazy-load overhead
-let cachedSetupCheck: typeof import("@utils/setup-check") | null = null;
 let cachedDefaultRoles:
   | typeof import("@src/databases/auth/default-roles")
   | null = null;
 
-async function getSetupCheck() {
-  if (!cachedSetupCheck) cachedSetupCheck = await import("@utils/setup-check");
-  return cachedSetupCheck;
-}
 async function getDefaultRoles() {
   if (!cachedDefaultRoles)
     cachedDefaultRoles = await import("@src/databases/auth/default-roles");
@@ -64,7 +66,7 @@ async function getCachedUserCount(
 
   // 1. In-memory check
   if (
-    !process.env.BUN_TEST &&
+    !IS_BUN_TEST &&
     userCountCache &&
     now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS
   ) {
@@ -155,17 +157,15 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   }
 
   const pathname = url.pathname;
-  const isTestMode =
-    process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
-  const isBenchmark = process.env.BENCHMARK === "true";
 
   // 1. ULTRA-FAST SHORT-CIRCUIT using pre-computed flags from Turbo Pipeline
   const flags = getRequestFlags(locals as any);
   if (flags.isStatic) return resolve(event);
 
   // --- Phase 1: Gated Initialization ---
-  const { getSetupState, SetupState } = await getSetupCheck();
-  const setupState = (locals as any).__setupState || (await getSetupState());
+  // 🚀 __setupState is always set by handleTurboPipeline before this hook runs.
+  // No dynamic import needed — SetupState is statically imported for zero-runtime cost.
+  const setupState = (locals as any).__setupState || SetupState.COMPLETE;
   locals.__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
 
   if (setupState !== SetupState.COMPLETE) {
@@ -180,8 +180,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const isApi = pathname.startsWith("/api/");
   // 🚀 Only skip auth for test mode, NOT for benchmarks (honest measurements)
   if (
-    isTestMode &&
-    !isBenchmark &&
+    IS_TEST_MODE &&
+    !IS_BENCHMARK &&
     (pathname.startsWith("/api/testing") || isApi)
   ) {
     locals.isAdmin = isAdmin(user);
@@ -192,7 +192,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   // fall back to direct computation for unit tests that bypass the pipeline.
   const isPublic = (locals as any).__flags
     ? flags.isPublic
-    : isPublicRoute(pathname, isTestMode);
+    : isPublicRoute(pathname, IS_TEST_MODE);
 
   // 2. FIRST-USER CHECK (Optimized setup flow)
   const multiTenant = getCachedMultiTenant();

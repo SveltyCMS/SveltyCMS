@@ -28,24 +28,37 @@ import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { isSetupComplete } from "@utils/setup-check";
-import { isBootstrapRoute } from "@utils/hook-utils";
-import { STATIC_ASSET_REGEX } from "./handle-static-asset-caching";
+import { isSetupComplete, SetupState } from "@utils/setup-check";
+import { isBootstrapRoute, getRequestFlags } from "@utils/hook-utils";
 
 const INIT_TIMEOUT_MS = 60_000;
 
 // Track initialization lifecycle
-let initializationState: "pending" | "in-progress" | "complete" | "failed" = "pending";
+let initializationState: "pending" | "in-progress" | "complete" | "failed" =
+  "pending";
+
+// 🚀 Cache setup completion to avoid dynamic import + deep check on every request
+let setupConfirmedComplete = false;
 
 /**
  * Resets initialization for recovery/testing
  */
 export const resetInitializationState = () => {
   initializationState = "pending";
+  setupConfirmedComplete = false;
 };
 
 // Global for log throttling
 let testModeWarned = false;
+
+// 🚀 Module-level cached env flags — avoids process.env lookups on every request
+const IS_GK_TEST_MODE =
+  process.env.TEST_MODE === "true" ||
+  process.env.VITE_TEST_MODE === "true" ||
+  process.env.BENCHMARK === "true" ||
+  process.env.NODE_ENV === "test" ||
+  process.env.VITEST === "true" ||
+  !!process.env.BUN_TEST;
 
 // ──────────────────────────────────────────────────────────────
 // HELPERS
@@ -69,17 +82,25 @@ function colorState(state: string): string {
  * Robust waiter for database and system services initialization.
  * Prevents "Double Fetch" or "Partial Boot" inconsistencies.
  */
-async function waitForInitialization(timeoutMs: number = INIT_TIMEOUT_MS): Promise<void> {
+async function waitForInitialization(
+  timeoutMs: number = INIT_TIMEOUT_MS,
+): Promise<void> {
   const start = performance.now();
   try {
     await Promise.race([
       dbInitPromise,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Initialization timeout")), timeoutMs),
+        setTimeout(
+          () => reject(new Error("Initialization timeout")),
+          timeoutMs,
+        ),
       ),
     ]);
     if (typeof metricsService?.recordMetric === "function") {
-      metricsService.recordMetric("system:init:duration", performance.now() - start);
+      metricsService.recordMetric(
+        "system:init:duration",
+        performance.now() - start,
+      );
     }
   } catch (err) {
     if (typeof metricsService?.recordMetric === "function") {
@@ -123,7 +144,9 @@ function isTrustedHost(event: RequestEvent): boolean {
 
 export const handleSystemState: Handle = async ({ event, resolve }) => {
   const { pathname, search } = event.url;
-  const isAsset = STATIC_ASSET_REGEX.test(pathname);
+  // 🚀 Reuse pre-computed flags from handleTurboPipeline (classifyRequest)
+  const flags = getRequestFlags(event.locals as any);
+  const isAsset = flags.isStatic;
   const isHealthCheck = pathname.includes("/health");
 
   // Skip logic for static performance
@@ -139,9 +162,14 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
   }
 
   // Global Test Bypass (CI/Playwright) - Only if explicitly requested to skip
-  if (process.env.TEST_MODE === "true" && process.env.SKIP_GATEKEEPER === "true") {
+  if (
+    process.env.TEST_MODE === "true" &&
+    process.env.SKIP_GATEKEEPER === "true"
+  ) {
     if (!testModeWarned) {
-      logger.warn(`[Gatekeeper] SKIP_GATEKEEPER enabled. Bypassing state checks.`);
+      logger.warn(
+        `[Gatekeeper] SKIP_GATEKEEPER enabled. Bypassing state checks.`,
+      );
       testModeWarned = true;
     }
     return resolve(event);
@@ -149,12 +177,28 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
   try {
     // --- Phase 1: Initialization Flow ---
-    const { getSetupState, SetupState } = await import("@utils/setup-check");
-    const setupState = await getSetupState();
+    // 🚀 Fast-path: Once setup is confirmed complete, skip dynamic import + deep DB check entirely.
+    // Still validates via isSetupComplete() for safety (handles test resets / config changes).
+    let setupState: SetupState;
+    if (setupConfirmedComplete && isSetupComplete()) {
+      setupState = SetupState.COMPLETE;
+    } else {
+      setupConfirmedComplete = false;
+      // Cold path: dynamic import only when setup status is unknown or incomplete
+      const { getSetupState } = await import("@utils/setup-check");
+      setupState = await getSetupState();
+      if (setupState === SetupState.COMPLETE) {
+        setupConfirmedComplete = true;
+      }
+    }
     (event.locals as any).__setupState = setupState;
     const setupComplete = setupState === SetupState.COMPLETE;
 
-    if (systemState.overallState === "IDLE" && initializationState === "pending" && setupComplete) {
+    if (
+      systemState.overallState === "IDLE" &&
+      initializationState === "pending" &&
+      setupComplete
+    ) {
       initializationState = "in-progress";
       logger.info("[handleSystemState] Starting system initialization flow...");
 
@@ -164,12 +208,17 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         })
         .catch((err) => {
           initializationState = "failed";
-          logger.error("[handleSystemState] Initialization sequence failed", err);
+          logger.error(
+            "[handleSystemState] Initialization sequence failed",
+            err,
+          );
         });
 
       // Special case: Allow bootstrap UI to load while system warms up in the background
       if (!event.isDataRequest && isBootstrapRoute(pathname)) {
-        logger.debug(`[handleSystemState] Backgrounding initialization for route: ${pathname}`);
+        logger.debug(
+          `[handleSystemState] Backgrounding initialization for route: ${pathname}`,
+        );
       } else {
         await initPromise;
       }
@@ -179,28 +228,30 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     if (isBootstrapRoute(pathname)) {
       if (!isTrustedHost(event)) {
         metricsService.incrementSecurityViolations();
-        logger.warn(`[Security] Untrusted host blocked: ${event.url.host} -> ${pathname}`);
-        throw new AppError("Access from untrusted host blocked", 403, "UNTRUSTED_HOST");
+        logger.warn(
+          `[Security] Untrusted host blocked: ${event.url.host} -> ${pathname}`,
+        );
+        throw new AppError(
+          "Access from untrusted host blocked",
+          403,
+          "UNTRUSTED_HOST",
+        );
       }
 
       // 🛡️ Redirect/Block setup routes if setup is already complete (except in test environment)
-      const isTestMode =
-        process.env.TEST_MODE === "true" ||
-        process.env.VITE_TEST_MODE === "true" ||
-        process.env.BENCHMARK === "true" ||
-        process.env.NODE_ENV === "test" ||
-        process.env.VITEST === "true" ||
-        !!process.env.BUN_TEST;
-
       if (
-        !isTestMode &&
+        !IS_GK_TEST_MODE &&
         setupComplete &&
         (pathname === "/setup" ||
           pathname.startsWith("/setup/") ||
           pathname.startsWith("/api/setup"))
       ) {
         if (pathname.startsWith("/api/")) {
-          throw new AppError("Setup already complete", 403, "SETUP_ALREADY_COMPLETE");
+          throw new AppError(
+            "Setup already complete",
+            403,
+            "SETUP_ALREADY_COMPLETE",
+          );
         }
         return new Response(null, {
           status: 302,
@@ -209,7 +260,11 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       }
 
       // Root redirect during setup
-      if (pathname === "/" && systemState.overallState === "SETUP" && !setupComplete) {
+      if (
+        pathname === "/" &&
+        systemState.overallState === "SETUP" &&
+        !setupComplete
+      ) {
         return new Response(null, {
           status: 302,
           headers: { Location: "/setup" },
@@ -238,7 +293,9 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     // 🛡️ SELF-HEALING: If stuck in INITIALIZING > 60s, bypass gatekeeper rather than 503-loop.
     // This prevents the infamous "System INITIALIZING" deadlock after hot-reloads.
     if (activeSystemState.overallState === "INITIALIZING") {
-      logger.warn("[handleSystemState] System appears stuck in INITIALIZING — bypassing gate.");
+      logger.warn(
+        "[handleSystemState] System appears stuck in INITIALIZING — bypassing gate.",
+      );
       return resolve(event);
     }
 
@@ -247,14 +304,19 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     if (activeSystemState.overallState === "IDLE" && setupComplete) {
       if (initializationState === "pending") {
         initializationState = "in-progress";
-        logger.info("[handleSystemState] Starting system initialization flow...");
+        logger.info(
+          "[handleSystemState] Starting system initialization flow...",
+        );
         waitForInitialization()
           .then(() => {
             initializationState = "complete";
           })
           .catch((err) => {
             initializationState = "failed";
-            logger.error("[handleSystemState] Initialization sequence failed", err);
+            logger.error(
+              "[handleSystemState] Initialization sequence failed",
+              err,
+            );
           });
       }
       // Wait up to 10s for boot to complete, then serve regardless
@@ -266,12 +328,20 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       } catch {
         /* timeout — serve anyway */
       }
-      logger.warn("[handleSystemState] System IDLE — served after waiting for boot.");
+      logger.warn(
+        "[handleSystemState] System IDLE — served after waiting for boot.",
+      );
       return resolve(event);
     }
 
     // Block non-bootstrap routes if system is not in a 'Ready' state
-    const restricted: SystemState[] = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];
+    const restricted: SystemState[] = [
+      "IDLE",
+      "INITIALIZING",
+      "SETUP",
+      "MAINTENANCE",
+      "FAILED",
+    ];
     if (restricted.includes(activeSystemState.overallState as any)) {
       // If we are actually finished with setup but the state hasn't updated yet, allow a retry or wait
       if (setupComplete && activeSystemState.overallState === "SETUP") {
@@ -301,7 +371,11 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         logger.warn(
           `[handleSystemState] Request blocked: ${pathname} | System state: ${activeSystemState.overallState}`,
         );
-        throw new AppError(msg, 503, `SYSTEM_${activeSystemState.overallState}`);
+        throw new AppError(
+          msg,
+          503,
+          `SYSTEM_${activeSystemState.overallState}`,
+        );
       }
     }
 

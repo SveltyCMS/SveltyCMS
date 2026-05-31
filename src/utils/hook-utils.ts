@@ -13,6 +13,9 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 import { BASE_HEADERS } from "./security-constants";
 
+// 🚀 Pre-cache to avoid Object.entries allocation on every request
+const BASE_HEADERS_ENTRIES = Object.entries(BASE_HEADERS);
+
 /**
  * Compiled regular expression for all static assets and internal Vite/SvelteKit routes.
  */
@@ -27,8 +30,10 @@ export const ASSET_REGEX = STATIC_ASSET_REGEX;
 /**
  * Pre-compiled regex for localized bootstrap and public routes.
  */
-const LOCALIZED_BOOTSTRAP_REGEX = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/;
-const LOCALIZED_PUBLIC_REGEX = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/;
+const LOCALIZED_BOOTSTRAP_REGEX =
+  /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/;
+const LOCALIZED_PUBLIC_REGEX =
+  /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/;
 
 /**
  * Common public routes that bypass authentication and authorization.
@@ -77,7 +82,10 @@ export interface RequestFlags {
  *
  * @returns The populated flags object (also attached to locals).
  */
-export function classifyRequest(pathname: string, locals: App.Locals): RequestFlags {
+export function classifyRequest(
+  pathname: string,
+  locals: App.Locals,
+): RequestFlags {
   // Re-use if already computed
   const existing = (locals as any).__flags as RequestFlags | undefined;
   if (existing) return existing;
@@ -93,7 +101,10 @@ export function classifyRequest(pathname: string, locals: App.Locals): RequestFl
       process.env.BENCHMARK === "true",
   };
 
-  flags.isPublic = flags.isStatic || flags.isBootstrap || isPublicRoute(pathname, flags.isTestMode);
+  flags.isPublic =
+    flags.isStatic ||
+    flags.isBootstrap ||
+    isPublicRoute(pathname, flags.isTestMode);
 
   (locals as any).__flags = flags;
   return flags;
@@ -132,7 +143,8 @@ export function getRequestFlags(locals: App.Locals): RequestFlags {
 export function isStaticOrInternalRequest(pathname: string): boolean {
   if (pathname.length < 2) return false;
   if (pathname.startsWith("/api/")) return false; // API routes are never static/internal bypass candidates
-  if (pathname.startsWith("/.well-known/") || pathname.startsWith("/_")) return true;
+  if (pathname.startsWith("/.well-known/") || pathname.startsWith("/_"))
+    return true;
   return STATIC_ASSET_REGEX.test(pathname);
 }
 
@@ -149,7 +161,10 @@ export function isApiLike(pathname: string): boolean {
 export function isAdmin(user: any): boolean {
   if (!user) return false;
   // Check common admin flags and roles
-  const result = user.isAdmin === true || user.role === "admin" || user.role === "super-admin";
+  const result =
+    user.isAdmin === true ||
+    user.role === "admin" ||
+    user.role === "super-admin";
   return result;
 }
 
@@ -161,7 +176,9 @@ export function getClientIp(event: RequestEvent): string {
     return event.getClientAddress();
   } catch (err: any) {
     if (process.env.BENCHMARK_DEBUG === "true") {
-      console.log(`[getClientIp] Failed to get client address: ${err.message}. Using fallback.`);
+      console.log(
+        `[getClientIp] Failed to get client address: ${err.message}. Using fallback.`,
+      );
     }
     return (
       event.request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
@@ -177,7 +194,11 @@ export function getClientIp(event: RequestEvent): string {
  */
 export function isBootstrapRoute(pathname: string): boolean {
   // 1. Setup flow (fresh install)
-  if (pathname === "/" || pathname.startsWith("/setup") || pathname.startsWith("/api/setup")) {
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/setup") ||
+    pathname.startsWith("/api/setup")
+  ) {
     return true;
   }
 
@@ -206,12 +227,15 @@ export function isBootstrapRoute(pathname: string): boolean {
 
   // 4. Static assets and Vite internal paths (fast bypass)
   if (
-    pathname.startsWith("/_") ||
-    pathname.startsWith("/static") ||
-    pathname.startsWith("/assets") ||
-    pathname.startsWith("/favicon.ico") ||
-    pathname.startsWith("/.well-known") ||
-    /\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json|ico|pdf|txt|xml)$/i.test(pathname) // Extension check for other assets
+    !pathname.startsWith("/api/") &&
+    (pathname.startsWith("/_") ||
+      pathname.startsWith("/static") ||
+      pathname.startsWith("/assets") ||
+      pathname.startsWith("/favicon.ico") ||
+      pathname.startsWith("/.well-known") ||
+      /\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json|ico|pdf|txt|xml)$/i.test(
+        pathname,
+      )) // Extension check for other assets
   ) {
     return true;
   }
@@ -234,7 +258,8 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
 
   // Security and Auth Public Endpoints
   if (pathname === "/api/security/csp-report") return true;
-  if (pathname === "/api/auth/saml/acs" || pathname === "/api/auth/saml/login") return true;
+  if (pathname === "/api/auth/saml/acs" || pathname === "/api/auth/saml/login")
+    return true;
 
   // Public Token access (GET specific token validation)
   if (pathname.startsWith("/api/token/")) {
@@ -259,12 +284,15 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
  * Applies standard security headers to a Headers object
  */
 export function applySecurityHeaders(headers: Headers, isHttps: boolean) {
-  for (const [key, value] of Object.entries(BASE_HEADERS)) {
+  for (const [key, value] of BASE_HEADERS_ENTRIES) {
     headers.set(key, value);
   }
 
   if (isHttps) {
-    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
   }
 }
 
@@ -277,7 +305,9 @@ export function restrictedResponse(
   baseHeaders: Record<string, string>,
 ): Response {
   const message =
-    state === "INITIALIZING" ? "System is initializing." : "System error or maintenance.";
+    state === "INITIALIZING"
+      ? "System is initializing."
+      : "System error or maintenance.";
   const status = 503;
 
   if (isApi) {
@@ -306,5 +336,8 @@ export function boundaryResponse(error: any, isHttps: boolean): Response {
   const headers = new Headers({ "Content-Type": "application/json" });
   applySecurityHeaders(headers, isHttps);
 
-  return json({ error: message, code: error.code || "INTERNAL_ERROR" }, { status, headers });
+  return json(
+    { error: message, code: error.code || "INTERNAL_ERROR" },
+    { status, headers },
+  );
 }
