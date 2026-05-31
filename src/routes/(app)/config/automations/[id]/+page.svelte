@@ -14,6 +14,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 <script lang="ts">
 import PageTitle from "@src/components/page-title.svelte";
 import type {
+	AgenticTaskOperationConfig,
 	AutomationEvent,
 	AutomationFlow,
 	AutomationOperation,
@@ -244,6 +245,15 @@ function addOperation(type: OperationType) {
 				operator: "equals",
 				value: "publish",
 			} as ConditionOperationConfig,
+		}),
+		agentic_task: () => ({
+			id: uuidv4(),
+			type: "agentic_task",
+			config: {
+				taskType: "summarize",
+				prompt: "Summarize: {{ entry.title }}",
+				targetField: "summary",
+			} as AgenticTaskOperationConfig,
 		}),
 	};
 

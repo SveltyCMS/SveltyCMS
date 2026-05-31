@@ -54,6 +54,10 @@ jobs:
         # This catches misplaced tags or structural errors.
         run: bun tests/lint-docs.ts
 
+      # === STEP 1b: CODEGEN (Required before type-checking) ===
+      - name: Generate Paraglide & SvelteKit types
+        run: bun run paraglide && bunx svelte-kit sync
+
       # === STEP 2: STATIC ANALYSIS (The Deep Code Check) ===
       - name: Run Comprehensive Code & Doc Linting
         # Running the full 'check' suite ensures all type contracts are valid,
