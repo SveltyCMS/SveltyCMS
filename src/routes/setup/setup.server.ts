@@ -342,6 +342,15 @@ export async function completeSetup(
   const { invalidateSetupCache } = await import("@src/utils/setup-check");
   invalidateSetupCache(true);
 
+  // The admin now exists — clear the cached user count (TTL 1h) so the login page
+  // immediately sees a non-empty DB and offers Sign In instead of the first-user Sign Up.
+  try {
+    const { invalidateUserCountCache } = await import("@src/hooks/handle-authorization");
+    await invalidateUserCountCache();
+  } catch {
+    // Non-fatal: cache will self-heal on next authoritative read.
+  }
+
   // Determine redirect target — first collection if seeded, otherwise builder
   let redirectPath = "/config/collectionbuilder";
   try {

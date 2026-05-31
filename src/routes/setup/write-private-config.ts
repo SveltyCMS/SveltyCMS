@@ -133,16 +133,16 @@ export const privateEnv = {
         // SQLite uses file paths not network hosts — skip exact match to avoid
         // Windows/Unix path separator mismatch (backslash vs forward slash).
         regex: dbConfig.type === "sqlite"
-          ? /\bDB_HOST\s*:\\s*['"][^'"]*['"]/
+          ? /\bDB_HOST\s*:\s*['"][^'"]*['"]/
           : dbConfig.host
             ? new RegExp(`\\bDB_HOST\\s*:\\s*['"]${escape(dbConfig.host)}['"]`)
-            : /\bDB_HOST\s*:\\s*['"]['"]/,
+            : /\bDB_HOST\s*:\s*['"]['"]/,
       },
       {
         name: "DB_NAME",
         regex: dbConfig.name
           ? new RegExp(`\\bDB_NAME\\s*:\\s*['"]${escape(dbConfig.name)}['"]`)
-          : /\bDB_NAME\\s*:\\s*['"][^'"]*['"]/,
+          : /\bDB_NAME\s*:\s*['"][^'"]*['"]/,
       },
       {
         name: "DB_TYPE",

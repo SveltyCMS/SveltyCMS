@@ -92,6 +92,12 @@ async function getCachedUserCount(
       ? { bypassTenantCheck: true }
       : { tenantId: tenantId as DatabaseId };
     const count = await auth.getUserCount(filter, bypassOpts);
+    // Never cache a non-authoritative count. A negative value means the read failed or auth
+    // wasn't ready; caching it (TTL = 1h) would pin a false "fresh install" state and break
+    // login until the TTL expires. Return it uncached so the next request re-reads.
+    if (count < 0) {
+      return count;
+    }
     const cacheData = { count, timestamp: now };
     userCountCache = cacheData;
     await cacheService.set(
