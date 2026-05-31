@@ -5,15 +5,14 @@
 
 ### Features:
 - Responsive positioning based on screen size
+- Swipe-to-dismiss on touch devices
+- Rich color mode for vibrant success/error
+- onDismiss/onAutoClose lifecycle callbacks
+- Promise toast auto-transitions (loading→success/error)
 - ARIA alert, high-contrast, RTL support
-- Custom responsive breakpoints
-- Limit the number of visible toasts
-- Per-toast position or fall back to container position
-- Animation directions based on position
-- Toast styling
-- Icons for different toast types
-- Pause and resume toast functionality
-- Dismiss toast functionality
+- Alt+T hotkey to focus toast region
+- Per-toast position override
+- Pause-on-hover, timer bar, flash messages
 -->
 
 <script lang="ts">
