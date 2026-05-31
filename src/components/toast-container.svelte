@@ -22,7 +22,7 @@
 	import { flip } from 'svelte/animate';
 	import { fade, fly } from 'svelte/transition';
 	import { onMount } from 'svelte';
-	import type { ToastPosition } from '@src/stores/toast.svelte.ts';
+	import type { ToastPosition, ToastType } from '@src/stores/toast.svelte.ts';
 
 	let sanitize = $state<(str: string) => string>((str) => str);
 
@@ -42,9 +42,11 @@
 			desktop?: Exclude<ToastPosition, 'responsive'>;
 		};
 		limit?: number;
+		/** Use vibrant colors for error/success (sonner-style) */
+		richColors?: boolean;
 	}
 
-	let { position = 'responsive', responsive = {}, limit = 5 }: Props = $props();
+	let { position = 'responsive', responsive = {}, limit = 5, richColors = false }: Props = $props();
 
 	// Merge custom responsive config with defaults
 	$effect(() => {
@@ -84,15 +86,25 @@
 	});
 
 	// Toast styling
-	const styles = {
-		success: 'bg-primary-500 text-white',
-		error: 'bg-error-500 text-white',
-		warning: 'bg-warning-500 text-white',
-		info: 'bg-info-500 text-white',
-		loading: 'bg-slate-500 text-white'
-	};
+	const styles: Record<ToastType, string> = $derived(
+		richColors
+			? {
+					success: 'bg-emerald-600 text-white border-emerald-400',
+					error: 'bg-red-600 text-white border-red-400',
+					warning: 'bg-amber-500 text-white border-amber-400',
+					info: 'bg-sky-600 text-white border-sky-400',
+					loading: 'bg-slate-600 text-white border-slate-400',
+			  }
+			: {
+					success: 'bg-primary-500 text-white',
+					error: 'bg-error-500 text-white',
+					warning: 'bg-warning-500 text-white',
+					info: 'bg-info-500 text-white',
+					loading: 'bg-slate-500 text-white',
+			  }
+	);
 
-	const icons = {
+	const icons: Record<ToastType, string> = {
 		success: 'mdi:check-circle',
 		error: 'mdi:alert-circle',
 		warning: 'mdi:alert',
@@ -117,10 +129,54 @@
 	function handleMouseLeave(id: string) {
 		toast.resume(id);
 	}
+
+	// Swipe-to-dismiss state
+	let swipingId = $state<string | null>(null);
+	let swipeX = $state(0);
+
+	function handleTouchStart(e: TouchEvent, id: string) {
+		swipingId = id;
+		swipeX = e.touches[0].clientX;
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (!swipingId) return;
+		const delta = e.touches[0].clientX - swipeX;
+		const el = document.querySelector(`[data-toast-id="${swipingId}"]`) as HTMLElement;
+		if (el) {
+			el.style.transform = `translateX(${delta}px)`;
+			el.style.opacity = String(Math.max(0, 1 - Math.abs(delta) / 150));
+		}
+	}
+
+	function handleTouchEnd(e: TouchEvent, id: string) {
+		if (swipingId !== id) return;
+		const delta = (e.changedTouches[0]?.clientX ?? swipeX) - swipeX;
+		const el = document.querySelector(`[data-toast-id="${id}"]`) as HTMLElement;
+		if (el) {
+			el.style.transform = '';
+			el.style.opacity = '';
+		}
+		if (Math.abs(delta) > 80) {
+			toast.close(id);
+		}
+		swipingId = null;
+	}
+
+	// Hotkey: Alt+T to focus toast region
+	function handleGlobalKeydown(e: KeyboardEvent) {
+		if (e.altKey && e.code === 'KeyT') {
+			e.preventDefault();
+			toast.focusFirst();
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 {#if toast.toasts.length > 0}
 	<div
+		data-toast-region
 		class="fixed z-9999 flex flex-col gap-2 {positionClasses[effectivePosition]} pointer-events-none w-full sm:w-auto px-4 sm:px-0"
 		role="region"
 		aria-label="Notifications"
@@ -132,16 +188,21 @@
 			{@const animDir = directions}
 
 			<div
+				data-toast-id={t.id}
 				animate:flip={{ duration: 300 }}
 				in:fly={{ ...animDir, duration: 300 }}
 				out:fade={{ duration: 200 }}
-				class="pointer-events-auto w-full sm:w-80 shadow-lg rounded-lg overflow-hidden {styles[t.type]}"
+				class="pointer-events-auto w-full sm:w-80 shadow-lg rounded-lg overflow-hidden border {styles[t.type]}"
 				class:mt-2={toastPos.includes('top')}
 				class:mb-2={toastPos.includes('bottom')}
 				onmouseenter={() => handleMouseEnter(t.id)}
 				onmouseleave={() => handleMouseLeave(t.id)}
+				ontouchstart={(e) => handleTouchStart(e, t.id)}
+				ontouchmove={handleTouchMove}
+				ontouchend={(e) => handleTouchEnd(e, t.id)}
 				role="alert"
 				aria-atomic="true"
+				style="touch-action: pan-y; transition: transform 0.15s ease-out, opacity 0.15s ease-out;"
 			>
 				<div class="p-3 sm:p-4">
 					<div class="flex items-start gap-3">

@@ -40,12 +40,14 @@ export interface ToastAction {
 export interface ToastOptions {
   type: ToastType;
   message: string;
-  description?: string; // Backward compatibility with legacy API
+  description?: string;
   title?: string;
   duration?: number | typeof Infinity;
   action?: ToastAction;
   persistent?: boolean;
-  position?: ToastPosition; // Per-toast override
+  position?: ToastPosition;
+  onDismiss?: (toast: Toast) => void;
+  onAutoClose?: (toast: Toast) => void;
 }
 
 export interface Toast extends ToastOptions {
@@ -54,6 +56,8 @@ export interface Toast extends ToastOptions {
   position?: ToastPosition;
   remainingTime: number;
   createdAt: number;
+  onDismiss?: (toast: Toast) => void;
+  onAutoClose?: (toast: Toast) => void;
 }
 
 export interface ToastPromiseOptions<T> {
@@ -103,7 +107,9 @@ class ToastStore {
   }
 
   get sortedToasts(): Toast[] {
-    return [...this.toasts].sort((a, b) => this.priority[b.type] - this.priority[a.type]);
+    return [...this.toasts].sort(
+      (a, b) => this.priority[b.type] - this.priority[a.type],
+    );
   }
 
   constructor() {
@@ -132,7 +138,9 @@ class ToastStore {
   // ==========================================
 
   /** Get effective position based on screen size */
-  getEffectivePosition(requested?: ToastPosition): Exclude<ToastPosition, "responsive"> {
+  getEffectivePosition(
+    requested?: ToastPosition,
+  ): Exclude<ToastPosition, "responsive"> {
     const pos = requested ?? this.position;
 
     if (pos !== "responsive") return pos;
@@ -187,26 +195,41 @@ class ToastStore {
     });
   }
 
-  success(msgOrOpts: string | Partial<ToastOptions>, opts?: Partial<ToastOptions>): string {
+  success(
+    msgOrOpts: string | Partial<ToastOptions>,
+    opts?: Partial<ToastOptions>,
+  ): string {
     return this._handleLegacy("success", msgOrOpts, opts);
   }
 
-  error(msgOrOpts: string | Partial<ToastOptions>, opts?: Partial<ToastOptions>): string {
+  error(
+    msgOrOpts: string | Partial<ToastOptions>,
+    opts?: Partial<ToastOptions>,
+  ): string {
     return this._handleLegacy("error", msgOrOpts, {
       duration: opts?.duration ?? 6000,
       ...opts,
     });
   }
 
-  warning(msgOrOpts: string | Partial<ToastOptions>, opts?: Partial<ToastOptions>): string {
+  warning(
+    msgOrOpts: string | Partial<ToastOptions>,
+    opts?: Partial<ToastOptions>,
+  ): string {
     return this._handleLegacy("warning", msgOrOpts, opts);
   }
 
-  info(msgOrOpts: string | Partial<ToastOptions>, opts?: Partial<ToastOptions>): string {
+  info(
+    msgOrOpts: string | Partial<ToastOptions>,
+    opts?: Partial<ToastOptions>,
+  ): string {
     return this._handleLegacy("info", msgOrOpts, opts);
   }
 
-  async promise<T>(promise: Promise<T>, options: ToastPromiseOptions<T>): Promise<T> {
+  async promise<T>(
+    promise: Promise<T>,
+    options: ToastPromiseOptions<T>,
+  ): Promise<T> {
     const id = this.show({
       type: "loading",
       message: options.loading,
@@ -218,7 +241,10 @@ class ToastStore {
 
       this.update(id, {
         type: "success",
-        message: typeof options.success === "function" ? options.success(result) : options.success,
+        message:
+          typeof options.success === "function"
+            ? options.success(result)
+            : options.success,
         duration: 3000,
       });
 
@@ -229,7 +255,9 @@ class ToastStore {
       this.update(id, {
         type: "error",
         message:
-          typeof options.error === "function" ? options.error(err) : options.error || errorMessage,
+          typeof options.error === "function"
+            ? options.error(err)
+            : options.error || errorMessage,
         duration: 5000,
       });
 
@@ -294,9 +322,19 @@ class ToastStore {
   }
 
   close(id: string): void {
+    const toast = this.toasts.find((t) => t.id === id);
     this.clearTimer(id);
     this.toasts = this.toasts.filter((t) => t.id !== id);
     this.persist();
+    // Fire onDismiss for manual closes (not timer-based)
+    toast?.onDismiss?.(toast);
+  }
+
+  /** Focus the first toast for keyboard navigation. Call from hotkey handler. */
+  focusFirst(): void {
+    if (!isBrowser) return;
+    const region = document.querySelector<HTMLElement>("[data-toast-region]");
+    region?.focus();
   }
 
   pause(id: string): void {
@@ -363,7 +401,10 @@ class ToastStore {
   }
 
   // Batch multiple toasts
-  batch(items: Array<{ message: string; type: ToastType }>, opts?: { stagger?: number }): void {
+  batch(
+    items: Array<{ message: string; type: ToastType }>,
+    opts?: { stagger?: number },
+  ): void {
     items.forEach((item, i) => {
       setTimeout(
         () => {
@@ -391,7 +432,9 @@ class ToastStore {
       createdAt: Date.now(),
       action: options.action,
       persistent: options.persistent ?? false,
-      position: options.position, // Store requested position
+      position: options.position,
+      onDismiss: options.onDismiss,
+      onAutoClose: options.onAutoClose,
     };
   }
 
@@ -399,7 +442,9 @@ class ToastStore {
     // Check for duplicate message within last 5 seconds to prevent spam
     const duplicate = this.toasts.find(
       (t) =>
-        t.message === toast.message && t.type === toast.type && Date.now() - t.createdAt < 5000,
+        t.message === toast.message &&
+        t.type === toast.type &&
+        Date.now() - t.createdAt < 5000,
     );
 
     if (duplicate) {
@@ -431,6 +476,8 @@ class ToastStore {
     }
 
     const timer = window.setTimeout(() => {
+      const toast = this.toasts.find((t) => t.id === id);
+      toast?.onAutoClose?.(toast!);
       this.close(id);
     }, ms);
 
