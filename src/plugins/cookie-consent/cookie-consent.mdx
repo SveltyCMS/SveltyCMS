@@ -1,0 +1,79 @@
+---
+path: "src/plugins/cookie-consent/cookie-consent.mdx"
+title: "Cookie Consent Plugin"
+description: "GDPR-compliant cookie consent banner with granular category control."
+order: 3
+icon: "mdi:cookie-outline"
+author: "SveltyCMS Team"
+created: "2026-05-31"
+updated: "2026-05-31"
+tags:
+  - gdpr
+  - cookies
+  - consent
+  - privacy
+  - plugin
+---
+
+# Cookie Consent Plugin
+
+**Status:** ✅ Available
+**Category:** Privacy / Legal
+
+A headless, accessible cookie consent banner that blocks non-essential scripts (Analytics, Marketing) until explicit consent is given, complying with the ePrivacy Directive and GDPR.
+
+---
+
+## Features
+
+- **Granular consent** — Necessary, Analytics, and Marketing categories
+- **Script blocking** — Non-essential `<script>` tags blocked until consent
+- **Accessible** — Full keyboard navigation, ARIA labels, high-contrast support
+- **Headless** — Bring your own styling via CSS custom properties
+- **Persistent** — Consent stored in localStorage, survives page reloads
+- **RTL support** — Auto-detects document direction
+- **GDPR compliant** — Complies with ePrivacy Directive and GDPR cookie requirements
+
+---
+
+## Configuration
+
+| Key | Type | Visibility | Description |
+|-----|------|-----------|-------------|
+| `position` | string | Public | Banner position: `bottom`, `top`, `center` |
+| `theme` | string | Public | Visual theme: `light`, `dark`, `auto` |
+| `showDetails` | boolean | Public | Show category details by default |
+
+---
+
+## Usage
+
+Add the cookie consent component to your layout:
+
+```svelte
+<script>
+  import CookieConsent from '@src/plugins/cookie-consent/cookie-consent.svelte';
+</script>
+
+<CookieConsent />
+```
+
+### Categorize Your Scripts
+
+```html
+<!-- These scripts are blocked until consent -->
+<script type="text/plain" data-category="analytics" src="gtag.js"></script>
+<script type="text/plain" data-category="marketing" src="fb-pixel.js"></script>
+
+<!-- Necessary scripts always run -->
+<script src="app.js"></script>
+```
+
+### Check Consent Programmatically
+
+```typescript
+const consent = JSON.parse(localStorage.getItem('cookie-consent') || '{}');
+if (consent.analytics) {
+  // Initialize analytics
+}
+```

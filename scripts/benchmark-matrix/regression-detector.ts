@@ -64,11 +64,7 @@ interface RegressionCheck {
 /** Get the effective budget for a metric, considering adapter overrides */
 function getEffectiveBudget(dbKey: string, metricKey: string): number {
   const overrides = ADAPTER_BUDGET_OVERRIDES[dbKey.replace("-redis", "")] || {};
-  return (
-    (overrides as any)[metricKey] ??
-    (PERFORMANCE_BUDGET as any)[metricKey] ??
-    999
-  );
+  return (overrides as any)[metricKey] ?? (PERFORMANCE_BUDGET as any)[metricKey] ?? 999;
 }
 
 export async function detectRegressions(
@@ -84,15 +80,11 @@ export async function detectRegressions(
     db = new Database(sqliteHistoryFile);
 
     const tableExists = db
-      .query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='runs'",
-      )
+      .query("SELECT name FROM sqlite_master WHERE type='table' AND name='runs'")
       .get();
 
     if (!tableExists) {
-      console.log(
-        "ℹ No benchmark history yet — skipping regression detection.",
-      );
+      console.log("ℹ No benchmark history yet — skipping regression detection.");
       return regressions;
     }
 
@@ -169,8 +161,7 @@ export async function detectRegressions(
         if (history.length < MIN_RUNS_FOR_TREND) {
           // Baseline-building: use weighted avg only, no slope
           const baseline = history.length > 0 ? weightedAverage(history) : 0;
-          const pct =
-            baseline > 0 ? ((check.value - baseline) / baseline) * 100 : 0;
+          const pct = baseline > 0 ? ((check.value - baseline) / baseline) * 100 : 0;
           if (Math.abs(pct) > 15) {
             regressions.push({
               db: dbKey,
@@ -180,9 +171,7 @@ export async function detectRegressions(
               changePct: pct,
               isRegression: pct > 15,
               reason:
-                pct > 15
-                  ? "Delta exceeds 15% threshold (baseline-building)"
-                  : "Within threshold",
+                pct > 15 ? "Delta exceeds 15% threshold (baseline-building)" : "Within threshold",
               direction: "stable",
               confidence: 0,
               rootCause: "unknown",
@@ -237,16 +226,12 @@ export async function detectRegressions(
 
       // Emit enriched regression results
       for (const trend of adapterTrends) {
-        if (trend.direction !== "degrading" && trend.direction !== "critical")
-          continue;
+        if (trend.direction !== "degrading" && trend.direction !== "critical") continue;
 
         const pct =
-          trend.baseline > 0
-            ? ((trend.current - trend.baseline) / trend.baseline) * 100
-            : 0;
+          trend.baseline > 0 ? ((trend.current - trend.baseline) / trend.baseline) * 100 : 0;
 
-        const severity: "warn" | "critical" =
-          trend.direction === "critical" ? "critical" : "warn";
+        const severity: "warn" | "critical" = trend.direction === "critical" ? "critical" : "warn";
 
         const reason =
           rootCause !== "unknown"
@@ -256,9 +241,8 @@ export async function detectRegressions(
         regressions.push({
           db: dbKey,
           metric:
-            checks.find(
-              (c) => c.trendMetric === trend.metric || c.key === trend.metric,
-            )?.label || trend.metric,
+            checks.find((c) => c.trendMetric === trend.metric || c.key === trend.metric)?.label ||
+            trend.metric,
           current: trend.current,
           previousAvg: trend.baseline,
           changePct: pct,
@@ -278,9 +262,7 @@ export async function detectRegressions(
         if (!check.value || check.value <= 0) continue;
         const budget = getEffectiveBudget(dbKey, check.key);
         if (check.value > budget) {
-          const alreadyListed = regressions.some(
-            (r) => r.db === dbKey && r.metric === check.label,
-          );
+          const alreadyListed = regressions.some((r) => r.db === dbKey && r.metric === check.label);
           if (!alreadyListed) {
             regressions.push({
               db: dbKey,

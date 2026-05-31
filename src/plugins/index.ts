@@ -13,6 +13,7 @@ import { editableWebsitePlugin } from "./editable-website";
 import { pageSpeedPlugin } from "./pagespeed";
 import { redirectManagerPlugin } from "./redirect-manager";
 import { sitemapPlugin } from "./sitemap";
+import { stripePlugin } from "./stripe";
 import type { Plugin } from "./types";
 
 // All available plugins
@@ -21,6 +22,7 @@ export const availablePlugins: Plugin[] = [
   editableWebsitePlugin,
   redirectManagerPlugin,
   sitemapPlugin,
+  stripePlugin,
 ];
 
 /**
@@ -29,7 +31,10 @@ export const availablePlugins: Plugin[] = [
  *
  * Called during server startup from src/databases/db.ts
  */
-export async function initializePlugins(dbAdapter: any, tenantId = "default"): Promise<void> {
+export async function initializePlugins(
+  dbAdapter: any,
+  tenantId = "default",
+): Promise<void> {
   try {
     logger.info("🔌 Initializing plugin system...");
 

@@ -1,0 +1,51 @@
+---
+path: "src/plugins/redirect-manager/redirect-manager.mdx"
+title: "Redirect Manager Plugin"
+description: "Enterprise-grade 301/302 redirect management with pattern matching."
+order: 5
+icon: "mdi:arrow-decision-outline"
+author: "SveltyCMS Team"
+created: "2026-05-31"
+updated: "2026-05-31"
+tags:
+  - seo
+  - redirects
+  - routing
+  - plugin
+---
+
+# Redirect Manager Plugin
+
+**Status:** ✅ Available
+**Category:** SEO
+
+Enterprise-grade redirect management with pattern matching, bulk import/export, and real-time redirect processing. Part of the Enterprise SEO Suite.
+
+---
+
+## Features
+
+- **301/302 redirects** — Permanent and temporary redirect support
+- **Pattern matching** — Wildcard and regex-based redirect rules
+- **Bulk import** — CSV/JSON import for migration from other platforms
+- **Real-time processing** — Redirects applied at the middleware level
+- **Conflict detection** — Warns about overlapping redirect rules
+- **Audit log** — All redirect changes tracked
+
+---
+
+## Usage
+
+Create redirects in **Config → Redirects**:
+
+| From | To | Type |
+|------|----|------|
+| `/old-blog/*` | `/blog/:splat` | 301 |
+| `/products/legacy` | `/shop` | 301 |
+| `/summer-sale` | `/seasonal/summer` | 302 |
+
+### Pattern Syntax
+
+- `*` — Wildcard (matches any path segment)
+- `:param` — Named parameter (captured in destination)
+- `/old/*` → `/new/:splat` — Standard pattern migration

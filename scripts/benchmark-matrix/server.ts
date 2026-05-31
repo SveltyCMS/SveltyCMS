@@ -61,9 +61,7 @@ export const isShuttingDown = () => shuttingDown;
 /**
  * Forcefully stops a process and all its children recursively.
  */
-export async function killProcessTree(
-  proc: ChildProcess | null,
-): Promise<void> {
+export async function killProcessTree(proc: ChildProcess | null): Promise<void> {
   if (!proc?.pid) return;
 
   const pid = proc.pid;
@@ -128,8 +126,7 @@ export function buildServerEnv(
     HOST_HEADER: "host",
     BENCHMARK_DEBUG: process.env.BENCHMARK_DEBUG || "false",
     SVELTY_AUDIT_ACTIVE: process.env.SVELTY_AUDIT_ACTIVE || "false",
-    DISABLE_AUDIT_LOGS:
-      process.env.SVELTY_AUDIT_ACTIVE === "true" ? "false" : "true",
+    DISABLE_AUDIT_LOGS: process.env.SVELTY_AUDIT_ACTIVE === "true" ? "false" : "true",
   };
 
   const dbEnv: Record<string, string> = {
@@ -184,9 +181,7 @@ export function buildServerEnv(
     console.log(
       `[server.ts] buildServerEnv: TEST_API_SECRET resolved to ${env.TEST_API_SECRET?.substring(0, 4)}...`,
     );
-    console.log(
-      `[server.ts] buildServerEnv: BENCHMARK_DEBUG is ${env.BENCHMARK_DEBUG}`,
-    );
+    console.log(`[server.ts] buildServerEnv: BENCHMARK_DEBUG is ${env.BENCHMARK_DEBUG}`);
   }
   return env;
 }
@@ -216,14 +211,9 @@ export async function getServerEntryPoint(): Promise<string> {
   }
 
   console.log(`[getServerEntryPoint] ROOT is: "${ROOT}"`);
-  const paths = [
-    join(ROOT, "build", "index.js"),
-    join(ROOT, "build", "server", "index.js"),
-  ];
+  const paths = [join(ROOT, "build", "index.js"), join(ROOT, "build", "server", "index.js")];
   for (const p of paths) {
-    console.log(
-      `[getServerEntryPoint] Check path: "${p}" -> exists: ${safeExistsSync(p)}`,
-    );
+    console.log(`[getServerEntryPoint] Check path: "${p}" -> exists: ${safeExistsSync(p)}`);
   }
   const entryPoint = paths.find((p) => safeExistsSync(p));
 
@@ -244,9 +234,7 @@ function buildHealthCheckUrl(port: number): string {
   return `http://127.0.0.1:${port}/api/system/health`;
 }
 
-async function tryHealthCheck(
-  port: number,
-): Promise<{ healthy: boolean; version: string }> {
+async function tryHealthCheck(port: number): Promise<{ healthy: boolean; version: string }> {
   const url = buildHealthCheckUrl(port);
   const r = await fetch(url, {
     headers: {
@@ -294,9 +282,7 @@ export async function waitForHealthCheck(
   port: number,
   maxAttempts = 60,
 ): Promise<{ healthy: boolean; version: string }> {
-  log.info(
-    `Waiting for health check via Unified Dispatcher on port ${port}...`,
-  );
+  log.info(`Waiting for health check via Unified Dispatcher on port ${port}...`);
 
   for (let i = 0; i < maxAttempts; i++) {
     if (isShuttingDown()) break;
@@ -359,10 +345,7 @@ export class SveltyServerInstance {
   }
 
   async start(): Promise<{ coldStartMs: number; version: string }> {
-    log.db(
-      this.db.type,
-      `Launching SveltyCMS instance on port ${this.port}...`,
-    );
+    log.db(this.db.type, `Launching SveltyCMS instance on port ${this.port}...`);
 
     const env = buildServerEnv(this.db, this.port, this.dbName);
     const serverPath = await getServerEntryPoint();
@@ -373,16 +356,7 @@ export class SveltyServerInstance {
     // Use Node.js for production execution (Required for uWS native bindings)
     const cmd = isDev ? "bun" : "node";
     const args = isDev
-      ? [
-          "--bun",
-          "x",
-          "vite",
-          "dev",
-          "--port",
-          this.port.toString(),
-          "--host",
-          "127.0.0.1",
-        ]
+      ? ["--bun", "x", "vite", "dev", "--port", this.port.toString(), "--host", "127.0.0.1"]
       : [serverPath];
 
     log.db(
@@ -422,11 +396,7 @@ export class SveltyServerInstance {
           cleanupListeners();
           this.resolved = true;
           await this.stop();
-          reject(
-            new Error(
-              `Server startup timeout after 120s [${this.db.type}:${this.port}]`,
-            ),
-          );
+          reject(new Error(`Server startup timeout after 120s [${this.db.type}:${this.port}]`));
         }
       }, 120_000);
 
@@ -455,10 +425,7 @@ export class SveltyServerInstance {
             this.resolved = true;
             clearTimeout(timeout);
             const coldStartMs = Math.round(performance.now() - start);
-            log.db(
-              this.db.type,
-              `Cold Start: ${coldStartMs}ms (PID: ${workerProcess.pid})`,
-            );
+            log.db(this.db.type, `Cold Start: ${coldStartMs}ms (PID: ${workerProcess.pid})`);
 
             const { healthy, version } = await waitForHealthCheck(this.port);
 
@@ -502,10 +469,7 @@ export class SveltyServerInstance {
           !(process.platform === "win32" && code === 1)
         ) {
           // Log post-resolved crash
-          log.db(
-            this.db.type,
-            `\x1b[91mServer process crashed with code ${code}\x1b[0m`,
-          );
+          log.db(this.db.type, `\x1b[91mServer process crashed with code ${code}\x1b[0m`);
         }
       });
 
@@ -598,13 +562,10 @@ export async function warmupServer(cfg: RunConfig, port: number) {
       }),
       signal: AbortSignal.timeout(5000),
     });
-    if (loginRes.ok)
-      log.success("Auth pipeline warmed up (Admin login successful)");
+    if (loginRes.ok) log.success("Auth pipeline warmed up (Admin login successful)");
     else {
       const body = await loginRes.text();
-      log.warn(
-        `Auth warmup failed (Status ${loginRes.status}): ${body.substring(0, 100)}`,
-      );
+      log.warn(`Auth warmup failed (Status ${loginRes.status}): ${body.substring(0, 100)}`);
     }
   } catch (err: any) {
     log.warn(`Auth warmup skipped: ${err.message}`);
@@ -637,10 +598,7 @@ export async function verifyOpenAPI(port: number): Promise<void> {
 /**
  * Writes a temporary private.test.ts config for the server.
  */
-export async function writeTestConfig(
-  db: DatabaseConfig,
-  dbName: string,
-): Promise<void> {
+export async function writeTestConfig(db: DatabaseConfig, dbName: string): Promise<void> {
   const configDir = path.join(process.cwd(), "config");
   await fs.promises.mkdir(configDir, { recursive: true });
   const dbHost = db.type === "sqlite" ? "config/database" : db.host;
@@ -666,10 +624,7 @@ export async function writeTestConfig(
     `  MULTI_TENANT: false,`,
     `};`,
   ];
-  await fs.promises.writeFile(
-    path.join(configDir, "private.test.ts"),
-    lines.join("\n") + "\n",
-  );
+  await fs.promises.writeFile(path.join(configDir, "private.test.ts"), lines.join("\n") + "\n");
 }
 
 /**
@@ -703,19 +658,14 @@ export async function ensureDatabaseExists(db: DatabaseConfig) {
       let conn: any;
       try {
         conn = await (mysql as any).createConnection({
-          host:
-            db.host === "localhost" || db.host === "127.0.0.1"
-              ? "127.0.0.1"
-              : db.host,
+          host: db.host === "localhost" || db.host === "127.0.0.1" ? "127.0.0.1" : db.host,
           port: db.port,
           user: db.user || "root",
           password: db.password || "mariadb",
         });
       } catch (e: any) {
         if (e.code === "ER_ACCESS_DENIED_ERROR") {
-          log.warn(
-            `MariaDB access denied for ${db.user}. Trying no-password fallback...`,
-          );
+          log.warn(`MariaDB access denied for ${db.user}. Trying no-password fallback...`);
           conn = await (mysql as any).createConnection({
             host: db.host === "localhost" ? "127.0.0.1" : db.host,
             port: db.port,

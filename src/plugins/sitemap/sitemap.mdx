@@ -1,0 +1,68 @@
+---
+path: "src/plugins/sitemap/sitemap.mdx"
+title: "Sitemap Plugin"
+description: "Dynamic XML sitemap with i18n/hreflang support for multilingual SEO."
+order: 6
+icon: "mdi:sitemap-outline"
+author: "SveltyCMS Team"
+created: "2026-05-31"
+updated: "2026-05-31"
+tags:
+  - seo
+  - sitemap
+  - xml
+  - i18n
+  - plugin
+---
+
+# Sitemap Plugin
+
+**Status:** ✅ Available
+**Category:** SEO
+
+Dynamic XML sitemap generation with i18n/hreflang support, automatic collection discovery, and configurable change frequencies. Part of the Enterprise SEO Suite.
+
+---
+
+## Features
+
+- **Dynamic generation** — Automatically includes all published collection entries
+- **i18n support** — Hreflang tags for multilingual content
+- **Configurable** — Per-collection change frequency and priority
+- **Search engine submission** — Auto-pings Google and Bing on content changes
+- **Cached** — Generated once, served fast, invalidated on content change
+
+---
+
+## Usage
+
+The sitemap is automatically available at:
+
+```
+GET /sitemap.xml
+```
+
+### Configure Per-Collection
+
+```typescript
+// In your collection config
+{
+  sitemap: {
+    enabled: true,
+    changefreq: 'weekly',
+    priority: 0.8,
+  }
+}
+```
+
+### Multilingual Hreflang
+
+For collections with translations, the sitemap automatically includes:
+
+```xml
+<url>
+  <loc>https://example.com/en/blog/post-1</loc>
+  <xhtml:link rel="alternate" hreflang="de" href="https://example.com/de/blog/post-1"/>
+  <xhtml:link rel="alternate" hreflang="fr" href="https://example.com/fr/blog/post-1"/>
+</url>
+```

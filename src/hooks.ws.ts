@@ -18,10 +18,7 @@ import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { getDbInitPromise, dbAdapter } from "@src/databases/db";
 import { getTenantIdFromHostname } from "@utils/tenant";
-import {
-  getPrivateSettingSync,
-  loadSettingsCache,
-} from "@src/services/core/settings-service";
+import { getPrivateSettingSync, loadSettingsCache } from "@src/services/core/settings-service";
 import { parseCookies } from "@utils/http/cookie-utils";
 import { LRUCache } from "lru-cache";
 import type { User } from "@src/databases/auth/types";
@@ -41,10 +38,7 @@ export function init({ platform }: { platform: App.Platform }) {
 }
 
 // ==================== CACHE ====================
-const handshakeCache = new LRUCache<
-  string,
-  { profile: User; tenantId: string | null }
->({
+const handshakeCache = new LRUCache<string, { profile: User; tenantId: string | null }>({
   max: 500,
   ttl: 1000 * 30, // 30 seconds
 });
@@ -99,9 +93,7 @@ function normalizeUrl(ctx: WsUpgradeContext): URL {
       (ctx.req?.headers as any)?.["x-forwarded-proto"] ??
       "http";
 
-    return new URL(
-      `${proto}://${host}${raw.startsWith("/") ? raw : `/${raw}`}`,
-    );
+    return new URL(`${proto}://${host}${raw.startsWith("/") ? raw : `/${raw}`}`);
   } catch (err) {
     logger.warn("[WS Upgrade] URL normalization failed, using fallback", err);
     return new URL("http://localhost");
@@ -119,17 +111,13 @@ function getHeader(ctx: WsUpgradeContext, name: string): string {
 
   const headers = ctx.headers || (ctx.req as any)?.headers || {};
   return (
-    (headers as Record<string, string>)[lower] ??
-    (headers as Record<string, string>)[name] ??
-    ""
+    (headers as Record<string, string>)[lower] ?? (headers as Record<string, string>)[name] ?? ""
   );
 }
 
 // ==================== MAIN UPGRADE HOOK ====================
 
-export async function upgrade(
-  ctx: WsUpgradeContext,
-): Promise<WsAuthResult | false> {
+export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | false> {
   const start = Date.now();
 
   try {
@@ -138,29 +126,21 @@ export async function upgrade(
     // Ensure DB + settings are ready
     await Promise.all([
       getDbInitPromise(false, "CORE"),
-      loadSettingsCache("global").catch((e) =>
-        logger.error("Settings cache load failed", e),
-      ),
+      loadSettingsCache("global").catch((e) => logger.error("Settings cache load failed", e)),
     ]);
 
     const cookieHeader = getHeader(ctx, "cookie");
-    const testSecret =
-      getHeader(ctx, "x-test-secret") || url.searchParams.get("secret");
+    const testSecret = getHeader(ctx, "x-test-secret") || url.searchParams.get("secret");
     const tenantIdHeader = getHeader(ctx, "x-tenant-id");
 
     // Cookie name handling (secure prefix)
     const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
-    const cookieName = isSecure
-      ? `__Host-${SESSION_COOKIE_NAME}`
-      : SESSION_COOKIE_NAME;
+    const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     // Extract session ID
     let sessionId: string | null = null;
     if (typeof ctx.cookies?.get === "function") {
-      sessionId =
-        ctx.cookies.get(cookieName) ||
-        ctx.cookies.get(SESSION_COOKIE_NAME) ||
-        null;
+      sessionId = ctx.cookies.get(cookieName) || ctx.cookies.get(SESSION_COOKIE_NAME) || null;
     } else if (cookieHeader) {
       const parsed = parseCookies(cookieHeader);
       sessionId = parsed[cookieName] || parsed[SESSION_COOKIE_NAME] || null;
@@ -171,9 +151,7 @@ export async function upgrade(
     const actualTestSecret =
       getPrivateSettingSync("TEST_API_SECRET") || process.env.TEST_API_SECRET;
 
-    const isAuthorizedTest = Boolean(
-      isTestMode && testSecret && testSecret === actualTestSecret,
-    );
+    const isAuthorizedTest = Boolean(isTestMode && testSecret && testSecret === actualTestSecret);
 
     // ==================== SESSION RESOLUTION ====================
     let profile: User | null = null;
@@ -185,12 +163,9 @@ export async function upgrade(
         profile = cached.profile;
         tenantId = cached.tenantId;
       } else {
-        const result = await dbAdapter.auth.validateSession(
-          sessionId as DatabaseId,
-          {
-            suppressErrorLog: true,
-          },
-        );
+        const result = await dbAdapter.auth.validateSession(sessionId as DatabaseId, {
+          suppressErrorLog: true,
+        });
 
         if (result?.success && result.data) {
           profile = result.data;
@@ -215,27 +190,16 @@ export async function upgrade(
         username: "System",
       } as User;
 
-      tenantId =
-        tenantIdHeader ||
-        url.searchParams.get("tenantId") ||
-        tenantId ||
-        "default";
+      tenantId = tenantIdHeader || url.searchParams.get("tenantId") || tenantId || "default";
     }
 
     // Final security checks
     if (!profile) {
-      logger.info(
-        `[WS Upgrade] Rejected - No profile (session: ${!!sessionId})`,
-      );
+      logger.info(`[WS Upgrade] Rejected - No profile (session: ${!!sessionId})`);
       return false;
     }
 
-    if (
-      isMultiTenant &&
-      profile.tenantId &&
-      tenantId &&
-      profile.tenantId !== tenantId
-    ) {
+    if (isMultiTenant && profile.tenantId && tenantId && profile.tenantId !== tenantId) {
       logger.warn(`[WS Upgrade] Tenant mismatch rejected`, {
         userTenant: profile.tenantId,
         hostTenant: tenantId,
@@ -243,14 +207,11 @@ export async function upgrade(
       return false;
     }
 
-    logger.info(
-      `[WS Upgrade] Successful handshake in ${Date.now() - start}ms`,
-      {
-        tenantId,
-        userId: profile._id,
-        isTest: isAuthorizedTest,
-      },
-    );
+    logger.info(`[WS Upgrade] Successful handshake in ${Date.now() - start}ms`, {
+      tenantId,
+      userId: profile._id,
+      isTest: isAuthorizedTest,
+    });
 
     return {
       profile,

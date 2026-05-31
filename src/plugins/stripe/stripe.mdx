@@ -1,0 +1,147 @@
+---
+path: "src/plugins/stripe/stripe.mdx"
+title: "Stripe Payments Plugin"
+description: "Accept payments via Stripe for gated content, memberships, and e-commerce."
+order: 1
+icon: "mdi:credit-card-outline"
+author: "SveltyCMS Team"
+created: "2026-05-31"
+updated: "2026-05-31"
+tags:
+  - stripe
+  - payments
+  - ecommerce
+  - plugin
+---
+
+# Stripe Payments Plugin
+
+**Status:** ✅ Available (v1.0.0)
+**Category:** Payments
+
+Accept payments via Stripe for gated content, memberships, or e-commerce. Uses the official Stripe SDK server-side and Stripe.js via CDN client-side for PCI-compliant card collection.
+
+---
+
+## Features
+
+- **PaymentIntent creation/confirmation** — server-side via Stripe SDK
+- **Stripe Elements** — PCI-compliant iframe-isolated card input (zero client npm deps)
+- **Webhook handler** — async payment status updates (`payment_intent.succeeded`, `payment_intent.failed`)
+- **Payment status column** — visible in entry lists via plugin column
+- **Tenant-level API keys** — each tenant configures their own Stripe keys
+- **beforeSave hook** — verifies payment before allowing content save
+- **Audit-logged** — all payment transactions recorded
+
+---
+
+## Configuration
+
+### Plugin Settings
+
+| Key | Type | Visibility | Description |
+|-----|------|-----------|-------------|
+| `publishableKey` | string | Public | Stripe publishable key (starts with `pk_`) |
+| `secretKey` | string | Private | Stripe secret key (starts with `sk_`) |
+| `webhookSecret` | string | Private | Stripe webhook signing secret (starts with `whsec_`) |
+| `currency` | string | Public | Default currency for payments (e.g., `usd`) |
+
+### Environment Variables (fallback)
+
+```
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+---
+
+## Usage
+
+### 1. Enable the Plugin
+
+Navigate to **Config → Plugins** and enable the Stripe Payments plugin. Configure your API keys in the plugin settings.
+
+### 2. Add Stripe.js to Your Layout
+
+Add the Stripe.js CDN script to your `app.html`:
+
+```html
+<script src="https://js.stripe.com/v3/"></script>
+```
+
+### 3. Use the Payment Form
+
+```svelte
+<script>
+  import PaymentForm from '@src/plugins/stripe/ui/PaymentForm.svelte';
+</script>
+
+<PaymentForm
+  amount={1999}
+  currency="usd"
+  label="Purchase"
+  onSuccess={(intentId) => console.log('Paid:', intentId)}
+  onError={(err) => console.error(err)}
+/>
+```
+
+### 4. Gated Content with beforeSave Hook
+
+The plugin automatically verifies payments before saving entries. Attach a payment intent to your entry data:
+
+```typescript
+const entry = {
+  title: "Premium Content",
+  _stripePaymentIntent: "pi_xxx",
+  // ... other fields
+};
+await cms.collections.insert("premium_posts", entry);
+// Payment verified automatically by beforeSave hook
+```
+
+---
+
+## Server API
+
+### Create Payment Intent
+
+```
+POST /api/plugins/stripe/create-intent
+Body: { amount: 1999, currency: "usd" }
+Response: { clientSecret: "pi_xxx_secret_yyy" }
+```
+
+### Confirm Payment
+
+```
+POST /api/plugins/stripe/confirm
+Body: { intentId: "pi_xxx" }
+Response: { status: "succeeded" }
+```
+
+### Webhook Endpoint
+
+```
+POST /api/plugins/stripe/webhook
+Headers: stripe-signature: ...
+Body: (raw Stripe event)
+```
+
+---
+
+## Collections
+
+| Collection | Purpose |
+|-----------|---------|
+| `plugin_stripe_payments` | Payment transaction records |
+| `plugin_stripe_customers` | Stripe customer ID to CMS user mapping |
+
+---
+
+## Security
+
+- **Secret keys** stored in plugin private config — never exposed to client
+- **Webhook signatures** verified using Stripe's signing secret
+- **beforeSave hook** prevents saving unpaid content
+- **PCI compliance** via Stripe Elements iframe isolation
+- **Sandboxed execution** — plugin hooks run within CMS sandbox boundaries

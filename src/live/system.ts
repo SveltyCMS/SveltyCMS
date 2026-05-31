@@ -44,10 +44,7 @@ export const events = live.stream(
     merge: "crud",
     access: (ctx: any): boolean => {
       // Allow test-mode / benchmark connections that may bypass full auth
-      if (
-        process.env.TEST_MODE === "true" ||
-        process.env.SVELTY_BENCHMARK_SUITE === "true"
-      ) {
+      if (process.env.TEST_MODE === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true") {
         return !!ctx.user;
       }
       return !!ctx.user?.profile; // Must be authenticated in production

@@ -4,25 +4,17 @@
  */
 
 import { hasApiPermission } from "@src/databases/auth/api-permissions";
-import {
-  API_CACHE_TTL_S,
-  cacheService,
-} from "@src/databases/cache/cache-service";
+import { API_CACHE_TTL_S, cacheService } from "@src/databases/cache/cache-service";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle } from "@sveltejs/kit";
-import {
-  AppError,
-  getErrorMessage,
-  handleApiError,
-} from "@utils/error-handling";
+import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { isAdmin, isPublicRoute } from "@utils/hook-utils";
 import crypto from "node:crypto";
 
 /** Optimized API endpoint extraction: Ultra-fast prefix triage */
 function getApiEndpoint(pathname: string | null): string | null {
-  if (!pathname || pathname.length < 6 || !pathname.startsWith("/api/"))
-    return null;
+  if (!pathname || pathname.length < 6 || !pathname.startsWith("/api/")) return null;
 
   // Skip prefix "/api/" (length 5)
   const path = pathname.substring(5);
@@ -39,11 +31,7 @@ function getApiEndpoint(pathname: string | null): string | null {
 }
 
 /** Generates a cache key for API responses. */
-function generateCacheKey(
-  pathname: string,
-  search: string,
-  userId: string,
-): string {
+function generateCacheKey(pathname: string, search: string, userId: string): string {
   return `api:${userId}:${pathname}${search}`;
 }
 
@@ -66,8 +54,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     metricsService.incrementApiRequests();
 
     const apiEndpoint = getApiEndpoint(url.pathname);
-    if (!apiEndpoint)
-      throw new AppError("Invalid API path", 400, "INVALID_PATH");
+    if (!apiEndpoint) throw new AppError("Invalid API path", 400, "INVALID_PATH");
 
     // --- Authorization ---
     if (url.pathname !== "/api/user/logout") {
@@ -93,10 +80,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           const cached = await cacheService.get<{
             data: unknown;
             headers: Record<string, string>;
-          }>(
-            generateCacheKey(url.pathname, url.search, locals.user._id),
-            locals.tenantId,
-          );
+          }>(generateCacheKey(url.pathname, url.search, locals.user._id), locals.tenantId);
           // ... rest remains same ...
 
           if (cached) {
@@ -136,13 +120,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           // or when benchmark mode (no real browser consuming ETags)
           const ifNoneMatch = request.headers.get("if-none-match");
           const isBenchmark =
-            process.env.BENCHMARK === "true" ||
-            process.env.SVELTY_BENCHMARK_SUITE === "true";
+            process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
           if ((nocache && !ifNoneMatch) || (isBenchmark && !ifNoneMatch)) {
-            response.headers.set(
-              "X-Cache",
-              nocache ? "NOCACHE" : "BYPASS-BENCH",
-            );
+            response.headers.set("X-Cache", nocache ? "NOCACHE" : "BYPASS-BENCH");
             return response;
           }
           const apiData = (locals as any).apiData;
@@ -177,10 +157,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
               return new Response(null, { status: 304, headers: { etag } });
             }
 
-            response.headers.set(
-              "X-Cache",
-              nocache ? "NOCACHE" : refresh ? "REFRESH" : "MISS",
-            );
+            response.headers.set("X-Cache", nocache ? "NOCACHE" : refresh ? "REFRESH" : "MISS");
 
             if (!nocache && responseData) {
               // Background caching
@@ -197,9 +174,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     locals.tenantId,
                   );
                 } catch (e) {
-                  logger.error(
-                    `Background cache failed: ${getErrorMessage(e)}`,
-                  );
+                  logger.error(`Background cache failed: ${getErrorMessage(e)}`);
                 }
               })();
             }
@@ -241,9 +216,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                 Authorization: event.request.headers.get("Authorization") || "",
               },
             }).catch((e) =>
-              logger.debug(
-                `SWR pre-warm failed for ${apiEndpoint}: ${getErrorMessage(e)}`,
-              ),
+              logger.debug(`SWR pre-warm failed for ${apiEndpoint}: ${getErrorMessage(e)}`),
             );
           }
         } catch (e) {
@@ -267,9 +240,7 @@ export async function invalidateApiCache(
   tenantId?: string | null,
   isLocal = false,
 ): Promise<void> {
-  const apiPathPrefix = isLocal
-    ? `/api/local/${apiEndpoint}`
-    : `/api/${apiEndpoint}`;
+  const apiPathPrefix = isLocal ? `/api/local/${apiEndpoint}` : `/api/${apiEndpoint}`;
   const baseKey = `api:${userId}:${apiPathPrefix}`;
   try {
     await cacheService.clearByPattern(`${baseKey}*`, tenantId);

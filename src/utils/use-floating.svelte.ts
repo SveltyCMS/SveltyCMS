@@ -127,12 +127,7 @@ function computeCoords(
   return { x, y };
 }
 
-function isOverflowing(
-  x: number,
-  y: number,
-  float: DOMRect,
-  padding: number,
-): boolean {
+function isOverflowing(x: number, y: number, float: DOMRect, padding: number): boolean {
   return (
     x < padding ||
     y < padding ||
@@ -148,14 +143,8 @@ function clampToViewport(
   padding: number,
 ): { x: number; y: number } {
   return {
-    x: Math.max(
-      padding,
-      Math.min(x, window.innerWidth - float.width - padding),
-    ),
-    y: Math.max(
-      padding,
-      Math.min(y, window.innerHeight - float.height - padding),
-    ),
+    x: Math.max(padding, Math.min(x, window.innerWidth - float.width - padding)),
+    y: Math.max(padding, Math.min(y, window.innerHeight - float.height - padding)),
   };
 }
 
@@ -232,8 +221,7 @@ export function useFloating(options: FloatingOptions) {
     const rawOffset = options.offset ?? 0;
     const rawPadding = options.padding ?? 10;
     const offset = typeof rawOffset === "function" ? rawOffset() : rawOffset;
-    const padding =
-      typeof rawPadding === "function" ? rawPadding() : rawPadding;
+    const padding = typeof rawPadding === "function" ? rawPadding() : rawPadding;
 
     if (!enabled || !ref || !float) {
       positionCalculated = false;
@@ -289,13 +277,7 @@ export function useFloating(options: FloatingOptions) {
       const floatRect = float!.getBoundingClientRect();
 
       // Find best placement with flip logic
-      const best = findBestPlacement(
-        refRect,
-        floatRect,
-        placement,
-        offset,
-        padding,
-      );
+      const best = findBestPlacement(refRect, floatRect, placement, offset, padding);
       x = best.x;
       y = best.y;
       finalPlacement = best.placement;
@@ -304,13 +286,7 @@ export function useFloating(options: FloatingOptions) {
       if (options.showArrow?.() && options.arrow) {
         const arrowEl = options.arrow();
         if (arrowEl) {
-          const arrow = computeArrow(
-            refRect,
-            floatRect,
-            best.placement,
-            best.x,
-            best.y,
-          );
+          const arrow = computeArrow(refRect, floatRect, best.placement, best.x, best.y);
           arrowX = arrow.arrowX;
           arrowY = arrow.arrowY;
           staticSide = arrow.staticSide;

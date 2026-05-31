@@ -37,21 +37,21 @@
 
 ### Hot Path & Middleware
 
-| #   | File                              | Optimization                                | Impact                             |
-| --- | --------------------------------- | ------------------------------------------- | :--------------------------------- |
-| 1   | `hooks.server.ts`                 | Favicon 204 fast-return                     | -96.7% static                      |
-| 2   | `handle-api-requests.ts`          | Skip body clone + ETag on nocache/benchmark | ~-93%                              |
-| 3   | `handle-compression.ts`           | Eager zlib init                             | -100% cold tax                     |
-| 4   | `hook-utils.ts`                   | Cache BASE_HEADERS_ENTRIES                  | -90% alloc                         |
-| 5   | `handle-authentication.ts`        | Cached __setupState                         | -12% auth                          |
-| 8   | `handle-system-state.ts`          | Skip dynamic import after setup             | -5.4% Turbo                        |
-| 9   | `handle-authentication.ts`        | getDb static import                         | -4.3% Auth                         |
-| 10  | `handle-system-state.ts`          | Reuse locals.__flags.isStatic               | regex removed                      |
-| 17  | `cors-utils.ts`                   | Module-level CORS cache (30s TTL)           | -20.9% Health                      |
-| 20  | `cors-utils.ts`                   | Pre-parse origins+credentials               | Zero settings lookups              |
-| 21  | `context.ts`                      | traceSpan not async (.then())               | 17 microtasks eliminated           |
-| 22  | `hook-utils.ts`                   | Module-level cached IS_TEST_MODE            | 3 env lookups→0                    |
-| 25  | `handle-turbo-pipeline.server.ts` | Replace getCorsHeadersInline + IS_TEST_MODE | 50 lines deleted + 6 env lookups→0 |
+| #   | File                              | Optimization                                | Impact                              |
+| --- | --------------------------------- | ------------------------------------------- | :---------------------------------- |
+| 1   | `hooks.server.ts`                 | Favicon 204 fast-return                     | -96.7% static                       |
+| 2   | `handle-api-requests.ts`          | Skip body clone + ETag on nocache/benchmark | ~-93%                               |
+| 3   | `handle-compression.ts`           | Eager zlib init                             | -100% cold tax                      |
+| 4   | `hook-utils.ts`                   | Cache BASE_HEADERS_ENTRIES                  | -90% alloc                          |
+| 5   | `handle-authentication.ts`        | Cached \_\_setupState                       | -12% auth                           |
+| 8   | `handle-system-state.ts`          | Skip dynamic import after setup             | -5.4% Turbo                         |
+| 9   | `handle-authentication.ts`        | getDb static import                         | -4.3% Auth                          |
+| 10  | `handle-system-state.ts`          | Reuse locals.\_\_flags.isStatic             | regex removed                       |
+| 17  | `cors-utils.ts`                   | Module-level CORS cache (30s TTL)           | -20.9% Health                       |
+| 20  | `cors-utils.ts`                   | Pre-parse origins+credentials               | Zero settings lookups               |
+| 21  | `context.ts`                      | traceSpan not async (.then())               | 17 microtasks eliminated            |
+| 22  | `hook-utils.ts`                   | Module-level cached IS_TEST_MODE            | 3 env lookups→0                     |
+| 25  | `handle-turbo-pipeline.server.ts` | Replace getCorsHeadersInline + IS_TEST_MODE | 50 lines deleted + 6 env lookups→0  |
 | 91  | `hooks.server.ts`                 | `wrapHandle` pre-resolution                 | 17 function calls saved per request |
 
 ### Hook-Utils Overhaul (Regex-Free Hot Path)
@@ -152,17 +152,17 @@
 
 ### Database & Transactions
 
-| #   | File                               | Optimization                           | Impact               |
-| --- | ---------------------------------- | -------------------------------------- | :------------------- |
-| 11  | `sqlite/adapter-core.ts`           | Lazy-cached transaction module         | -13% TX              |
-| 12  | `sqlite/transaction-module.ts`     | Pre-allocated txTag + prototype        | 2→0 closures         |
-| 13  | `mongodb/transaction-module.ts`    | Pre-allocated sessionTag               | spread→Object.assign |
-| 26  | `mariadb/transaction-module.ts`    | Pre-allocated txTag                    | spread→Object.assign |
-| 27  | `postgresql/transaction-module.ts` | Pre-allocated txTag                    | spread→Object.assign |
-| 14  | `inmemory-store.ts`                | Cached compiled regex + FIFO cap (200) | No unbounded growth  |
-| 15  | `base-sql-adapter.ts`              | findById fast-path                     | -8.6% FIND ONE       |
-| 16  | `base-sql-adapter.ts`              | exists uses SELECT id LIMIT 1          | index-only scan      |
-| 96  | `base-sql-adapter.ts`              | Cache system table physical selections | 3 allocs/query → 0 |
+| #   | File                               | Optimization                                    | Impact                   |
+| --- | ---------------------------------- | ----------------------------------------------- | :----------------------- |
+| 11  | `sqlite/adapter-core.ts`           | Lazy-cached transaction module                  | -13% TX                  |
+| 12  | `sqlite/transaction-module.ts`     | Pre-allocated txTag + prototype                 | 2→0 closures             |
+| 13  | `mongodb/transaction-module.ts`    | Pre-allocated sessionTag                        | spread→Object.assign     |
+| 26  | `mariadb/transaction-module.ts`    | Pre-allocated txTag                             | spread→Object.assign     |
+| 27  | `postgresql/transaction-module.ts` | Pre-allocated txTag                             | spread→Object.assign     |
+| 14  | `inmemory-store.ts`                | Cached compiled regex + FIFO cap (200)          | No unbounded growth      |
+| 15  | `base-sql-adapter.ts`              | findById fast-path                              | -8.6% FIND ONE           |
+| 16  | `base-sql-adapter.ts`              | exists uses SELECT id LIMIT 1                   | index-only scan          |
+| 96  | `base-sql-adapter.ts`              | Cache system table physical selections          | 3 allocs/query → 0       |
 | 97  | `relational-utils.ts`              | `convertDatesToISO` fast-path for non-JSON rows | Skip Set lookups per row |
 
 ### Bug Fixes
@@ -227,8 +227,8 @@
 | Defense-in-Depth |   51   |    ✅ 0 failures     |
 | Authentication   |   12   |    ✅ 0 failures     |
 | System State     |   26   |    ✅ 0 failures     |
-| Authorization    |    1   |    ✅ 0 failures     |
-| RBAC             |    6   |    ✅ 0 failures     |
+| Authorization    |   1    |    ✅ 0 failures     |
+| RBAC             |   6    |    ✅ 0 failures     |
 | **TypeScript**   | **—**  |   **✅ 0 errors**    |
 | **Total**        | **96** | **✅ 0 regressions** |
 
@@ -251,15 +251,16 @@
 
 ### Round 2 Additions (2026-05-31)
 
-| #   | File                       | Optimization                              | Impact                              |
-| --- | -------------------------- | ----------------------------------------- | :---------------------------------- |
-| 91  | `hooks.server.ts`          | `wrapHandle` pre-resolution               | 17 fn calls/req → 0                 |
-| 92  | `handle-authorization.ts`  | `await getSetupCheck()`→static `SetupState` | Dynamic import + Promise removed    |
-| 93  | `handle-security.ts`       | Module-level `getMasterSecret()` cache     | `getPrivateSettingSync`→0 per req   |
-| 94  | `handle-system-state.ts`   | `IS_GK_TEST_MODE` module constant         | 6 inline `process.env`→0            |
-| 95  | `handle-system-state.ts`   | Consolidated `@utils/setup-check` imports | Cleaner code                        |
+| #   | File                      | Optimization                                | Impact                            |
+| --- | ------------------------- | ------------------------------------------- | :-------------------------------- |
+| 91  | `hooks.server.ts`         | `wrapHandle` pre-resolution                 | 17 fn calls/req → 0               |
+| 92  | `handle-authorization.ts` | `await getSetupCheck()`→static `SetupState` | Dynamic import + Promise removed  |
+| 93  | `handle-security.ts`      | Module-level `getMasterSecret()` cache      | `getPrivateSettingSync`→0 per req |
+| 94  | `handle-system-state.ts`  | `IS_GK_TEST_MODE` module constant           | 6 inline `process.env`→0          |
+| 95  | `handle-system-state.ts`  | Consolidated `@utils/setup-check` imports   | Cleaner code                      |
 
 **Hook Latency (Round 2 verification):**
+
 - Full Pipeline (17 hooks): 0.213ms
 - Auth Pipeline (12 hooks): 0.456ms
 - Mutation Pipeline: 1.043ms
@@ -267,12 +268,13 @@
 
 ### Round 3 Additions (2026-05-31)
 
-| #   | File                       | Optimization                              | Impact                              |
-| --- | -------------------------- | ----------------------------------------- | :---------------------------------- |
-| 96  | `base-sql-adapter.ts`      | Cache system table physical selections    | 3 allocs/query → 0, INSERT -7.8% |
-| 97  | `relational-utils.ts`      | `convertDatesToISO` fast-path for non-JSON | Skip `Set.has()` per row, UPDATE -8.9% |
+| #   | File                  | Optimization                               | Impact                                 |
+| --- | --------------------- | ------------------------------------------ | :------------------------------------- |
+| 96  | `base-sql-adapter.ts` | Cache system table physical selections     | 3 allocs/query → 0, INSERT -7.8%       |
+| 97  | `relational-utils.ts` | `convertDatesToISO` fast-path for non-JSON | Skip `Set.has()` per row, UPDATE -8.9% |
 
 **DB Benchmark (SQLite, Round 3):**
+
 - INSERT: 0.077ms → **0.071ms** (-7.8%)
 - UPDATE: 0.079ms → **0.072ms** (-8.9%)
 - FIND ONE: 0.053ms → 0.056ms (stable, within noise)

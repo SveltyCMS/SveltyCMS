@@ -29,8 +29,7 @@ const IS_TEST_MODE =
   process.env.BENCHMARK === "true" ||
   (globalThis as any).process?.env?.TEST_MODE === "true";
 
-const TEST_API_SECRET =
-  process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET;
+const TEST_API_SECRET = process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET;
 // 🚀 Module-level cached masterSecret fallback — avoids getPrivateSettingSync on every non-public request
 let cachedMasterSecret: string | null = null;
 function getMasterSecret(): string | undefined {
@@ -124,14 +123,7 @@ const MAX_DEPTH = 12;
 /** Max complexity score before rejection */
 const MAX_COMPLEXITY = 1000;
 /** Argument names that indicate list pagination/multiplier */
-const LIST_SIZE_ARGS = new Set([
-  "first",
-  "last",
-  "limit",
-  "pageSize",
-  "take",
-  "count",
-]);
+const LIST_SIZE_ARGS = new Set(["first", "last", "limit", "pageSize", "take", "count"]);
 /** Query length below which we skip expensive AST parsing */
 const FAST_PATH_MAX_LENGTH = 256;
 
@@ -197,22 +189,15 @@ function calculateGraphqlComplexity(query: string): number {
           let fieldMultiplier = 1;
           if (node.arguments && node.arguments.length > 0) {
             for (const arg of node.arguments) {
-              if (
-                LIST_SIZE_ARGS.has(arg.name.value) &&
-                arg.value.kind === Kind.INT
-              ) {
-                fieldMultiplier = Math.max(
-                  fieldMultiplier,
-                  parseInt(arg.value.value, 10),
-                );
+              if (LIST_SIZE_ARGS.has(arg.name.value) && arg.value.kind === Kind.INT) {
+                fieldMultiplier = Math.max(fieldMultiplier, parseInt(arg.value.value, 10));
               }
             }
           }
 
           // If the field has a selection set (sub-fields), it's a resolver
           // that multiplies downstream cost by the list size.
-          const parentMultiplier =
-            multiplierStack[multiplierStack.length - 1] || 1;
+          const parentMultiplier = multiplierStack[multiplierStack.length - 1] || 1;
           const cumulativeMultiplier = parentMultiplier * fieldMultiplier;
 
           // Each field costs 1 × cumulative multiplier from all ancestor list sizes
@@ -257,25 +242,18 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
   // 🚀 Short-circuit BEFORE getClientIp: public/bootstrap/static routes skip all security
   const flags = (event.locals as any).__flags;
-  if (flags?.isPublic || flags?.isBootstrap || flags?.isStatic)
-    return resolve(event);
+  if (flags?.isPublic || flags?.isBootstrap || flags?.isStatic) return resolve(event);
 
   const clientIp = getClientIp(event);
 
   const isLocal =
-    isLocalhost(clientIp) ||
-    url.hostname === "localhost" ||
-    url.hostname === "127.0.0.1";
+    isLocalhost(clientIp) || url.hostname === "localhost" || url.hostname === "127.0.0.1";
 
   const incomingSecret = request.headers.get("x-test-secret");
 
   const masterSecret = getMasterSecret();
 
-  const hasValidTestSecret = !!(
-    incomingSecret &&
-    masterSecret &&
-    incomingSecret === masterSecret
-  );
+  const hasValidTestSecret = !!(incomingSecret && masterSecret && incomingSecret === masterSecret);
 
   if (IS_BENCHMARK_DEBUG) {
     console.log(
@@ -367,14 +345,8 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
         // Reject queries with an excessively high complexity score (e.g. > 1000)
         if (complexity > 1000) {
           metricsService.incrementSecurityViolations(tenantId);
-          logger.warn(
-            `GraphQL Complexity Limit Exceeded: Score ${complexity}`,
-            { ip: clientIp },
-          );
-          return handleApiError(
-            new AppError("GraphQL Query too complex", 400),
-            event,
-          );
+          logger.warn(`GraphQL Complexity Limit Exceeded: Score ${complexity}`, { ip: clientIp });
+          return handleApiError(new AppError("GraphQL Query too complex", 400), event);
         }
       }
     }
@@ -398,12 +370,8 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     }
 
     if (hitHoneypot || (isKnownBot && !isLocal)) {
-      const triggerType = hitHoneypot
-        ? `route:${url.pathname}`
-        : `UA:${userAgent}`;
-      logger.warn(
-        `[Security] AI/Bot Defense triggered [${triggerType}] by IP: ${clientIp}`,
-      );
+      const triggerType = hitHoneypot ? `route:${url.pathname}` : `UA:${userAgent}`;
+      logger.warn(`[Security] AI/Bot Defense triggered [${triggerType}] by IP: ${clientIp}`);
 
       // Auto-ban IP via the security response service
       metricsService.incrementSecurityViolations(tenantId);
@@ -418,10 +386,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       );
 
       // Progressive Tarpit: random delay to waste bot resources
-      const tarpitDelay = Math.min(
-        5000 + Math.floor(Math.random() * 10000),
-        15000,
-      );
+      const tarpitDelay = Math.min(5000 + Math.floor(Math.random() * 10000), 15000);
       await new Promise((resolve) => setTimeout(resolve, tarpitDelay));
 
       // Response poisoning: return fake data to poison scrapers
@@ -469,10 +434,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
       if (url.pathname.startsWith("/api/")) {
         return handleApiError(
-          new AppError(
-            securityStatus.reason || "Security violation",
-            statusCode,
-          ),
+          new AppError(securityStatus.reason || "Security violation", statusCode),
           event,
         );
       }

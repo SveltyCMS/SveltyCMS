@@ -42,11 +42,7 @@ import type {
 } from "../db-interface";
 import { generateUUID } from "@utils/native-utils";
 import * as utils from "../core/relational-utils";
-import {
-  queryTranslator,
-  type LogicalGroup,
-  type QueryCondition,
-} from "../core/query-ir";
+import { queryTranslator, type LogicalGroup, type QueryCondition } from "../core/query-ir";
 import { CollectionModule } from "./collection-module";
 import { RelationalAuthModule } from "./relational-auth";
 import { RelationalContentModule } from "./relational-content";
@@ -196,14 +192,7 @@ const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
-  authSessions: [
-    "_id",
-    "user_id",
-    "expires",
-    "tenantId",
-    "createdAt",
-    "updatedAt",
-  ],
+  authSessions: ["_id", "user_id", "expires", "tenantId", "createdAt", "updatedAt"],
   authTokens: [
     "_id",
     "user_id",
@@ -456,10 +445,7 @@ const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
   ],
 };
 
-export abstract class BaseSqlAdapter
-  extends BaseAdapter
-  implements ICrudAdapter
-{
+export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter {
   public static readonly TABLE_ALIASES = SQL_TABLE_ALIASES;
   public abstract readonly type: string;
   protected abstract readonly schema: any;
@@ -524,10 +510,7 @@ export abstract class BaseSqlAdapter
   // 📦 CONTENT DOMAIN: Nodes, Drafts, and Revisions.
   public get content(): IContentAdapter {
     if (!this._content) {
-      this._content = new RelationalContentModule(
-        this as any,
-        this.schema,
-      ) as IContentAdapter;
+      this._content = new RelationalContentModule(this as any, this.schema) as IContentAdapter;
     }
     return this._content!;
   }
@@ -535,10 +518,7 @@ export abstract class BaseSqlAdapter
   // 🖼️ MEDIA DOMAIN: Files and Folders.
   public get media(): IMediaAdapter {
     if (!this._media) {
-      this._media = new RelationalMediaModule(
-        this as any,
-        this.schema,
-      ) as IMediaAdapter;
+      this._media = new RelationalMediaModule(this as any, this.schema) as IMediaAdapter;
     }
     return this._media!;
   }
@@ -546,10 +526,7 @@ export abstract class BaseSqlAdapter
   // ⚙️ SYSTEM DOMAIN: Preferences, Tenants, Themes, and Jobs.
   public get system(): ISystemAdapter {
     if (!this._system) {
-      this._system = new RelationalSystemModule(
-        this as any,
-        this.schema,
-      ) as ISystemAdapter;
+      this._system = new RelationalSystemModule(this as any, this.schema) as ISystemAdapter;
     }
     return this._system!;
   }
@@ -624,9 +601,7 @@ export abstract class BaseSqlAdapter
 
     // 2. Recursion Guard
     if (this._resolving.has(collection)) {
-      logger.error(
-        `Infinite recursion detected in getTable for: ${collection}`,
-      );
+      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
       return null;
     }
     this._resolving.add(collection);
@@ -651,14 +626,10 @@ export abstract class BaseSqlAdapter
         return null;
       }
       const cleanId = collection.replace(/-/g, "");
-      const tableName = cleanId.startsWith("collection_")
-        ? cleanId
-        : `collection_${cleanId}`;
+      const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
 
       // Final defensive check: if it's actually a system table despite the prefix, resolve properly
-      const cleanName = collection.startsWith("collection_")
-        ? collection.slice(11)
-        : collection;
+      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
       if (this.isSystemTable(cleanName) && cleanName !== collection) {
         return this.getTable(cleanName);
       }
@@ -673,25 +644,15 @@ export abstract class BaseSqlAdapter
 
   public resolveSystemTableName(collection: string): string {
     if (typeof collection !== "string") return "";
-    const cleanName = collection.startsWith("collection_")
-      ? collection.slice(11)
-      : collection;
-    return (
-      SYSTEM_NAME_MAP.get(cleanName) ||
-      SYSTEM_NAME_MAP.get(collection) ||
-      collection
-    );
+    const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+    return SYSTEM_NAME_MAP.get(cleanName) || SYSTEM_NAME_MAP.get(collection) || collection;
   }
 
   // 🚀 AGNOSTIC CORE: Determines if a collection name refers to a system table.
   public isSystemTable(collection: string): boolean {
     if (typeof collection !== "string") return false;
-    const cleanName = collection.startsWith("collection_")
-      ? collection.slice(11)
-      : collection;
-    return (
-      SYSTEM_COLLECTIONS.has(cleanName) || SYSTEM_COLLECTIONS.has(collection)
-    );
+    const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+    return SYSTEM_COLLECTIONS.has(cleanName) || SYSTEM_COLLECTIONS.has(collection);
   }
 
   public abstract getClient(): any;
@@ -715,18 +676,11 @@ export abstract class BaseSqlAdapter
   private _lastTable: any = null;
   private _lastCols: Record<string, Column> | null = null;
 
-  protected getColumn(
-    table: any,
-    name: string,
-    forcePhysical = false,
-  ): Column | undefined {
+  protected getColumn(table: any, name: string, forcePhysical = false): Column | undefined {
     if (!table) return undefined;
 
     // 1. Standard ORM Lookup (Fast Path)
-    let cols =
-      table === this._lastTable
-        ? this._lastCols
-        : this._tableColumnsCache.get(table);
+    let cols = table === this._lastTable ? this._lastCols : this._tableColumnsCache.get(table);
 
     if (!cols) {
       try {
@@ -757,16 +711,9 @@ export abstract class BaseSqlAdapter
     return undefined;
   }
 
-  public prepareValues(
-    table: any,
-    data: any,
-    id: DatabaseId | undefined,
-    now: Date,
-    options: any,
-  ) {
+  public prepareValues(table: any, data: any, id: DatabaseId | undefined, now: Date, options: any) {
     const values: any = {};
-    let schemaCols: Record<string, Column> | undefined =
-      this._tableColumnsCache.get(table);
+    let schemaCols: Record<string, Column> | undefined = this._tableColumnsCache.get(table);
     if (!schemaCols) {
       try {
         const resolvedCols = getTableColumns(table);
@@ -786,8 +733,7 @@ export abstract class BaseSqlAdapter
 
     if (id && (schemaCols?.["createdAt"] || this.getColumn(table, "createdAt")))
       values.createdAt = now;
-    if (schemaCols?.["updatedAt"] || this.getColumn(table, "updatedAt"))
-      values.updatedAt = now;
+    if (schemaCols?.["updatedAt"] || this.getColumn(table, "updatedAt")) values.updatedAt = now;
 
     if (this.getColumn(table, "data")) {
       const dynamicData: any = {};
@@ -820,10 +766,7 @@ export abstract class BaseSqlAdapter
       values.data = JSON.stringify(dynamicData) || "{}";
     } else {
       for (const k in data) {
-        if (
-          Object.hasOwn(data, k) &&
-          (schemaCols?.[k] || this.getColumn(table, k))
-        ) {
+        if (Object.hasOwn(data, k) && (schemaCols?.[k] || this.getColumn(table, k))) {
           if (data[k] !== undefined) {
             let val = data[k];
             if (
@@ -845,19 +788,12 @@ export abstract class BaseSqlAdapter
     // 🚀 CROSS-CONTEXT DATE HARDENING
     for (const k in result) {
       const val = result[k];
-      if (
-        val &&
-        typeof val === "object" &&
-        typeof (val as any).getTime === "function"
-      ) {
+      if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
         result[k] = new Date((val as any).getTime());
       }
     }
 
-    if (
-      process.env.BENCHMARK_DEBUG === "true" ||
-      process.env.BENCHMARK === "true"
-    ) {
+    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
       const mapped = Object.keys(result).filter((k) => k !== "data");
       logger.info(
         `[prepareValues] Table: ${getTableName(table)}, mapped physical cols: ${mapped.join(", ")}`,
@@ -916,10 +852,7 @@ export abstract class BaseSqlAdapter
 
     if (isSystem && SYSTEM_LITERAL_COLUMNS[systemName]) {
       columnNames = SYSTEM_LITERAL_COLUMNS[systemName];
-    } else if (
-      systemName === "contentNodes" ||
-      lowerName.includes("content_nodes")
-    ) {
+    } else if (systemName === "contentNodes" || lowerName.includes("content_nodes")) {
       columnNames = SYSTEM_LITERAL_COLUMNS.contentNodes;
     } else {
       columnNames = ["_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
@@ -977,9 +910,7 @@ export abstract class BaseSqlAdapter
         .where(where)
         .limit(1);
 
-      const data = results.length
-        ? (utils.convertDatesToISO(results[0]) as T)
-        : null;
+      const data = results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
       return this.hooks.length > 0
         ? await this.runHooks("after", "find", collection, data, options)
         : data;
@@ -1021,8 +952,7 @@ export abstract class BaseSqlAdapter
       const isStr = typeof collection === "string";
       const isDynamic =
         isStr &&
-        (collection.toLowerCase().includes("benchmark") ||
-          collection.startsWith("collection_"));
+        (collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_"));
 
       let results;
       if (isDynamic) {
@@ -1032,9 +962,7 @@ export abstract class BaseSqlAdapter
         const colList = columns.map((c) => `"${c}"`).join(", ");
 
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.debug(
-            `[BaseSqlAdapter] Executing raw dynamic findMany for ${tableName}`,
-          );
+          logger.debug(`[BaseSqlAdapter] Executing raw dynamic findMany for ${tableName}`);
         }
 
         // 2. Execute raw query
@@ -1116,9 +1044,7 @@ export abstract class BaseSqlAdapter
         }
 
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.debug(
-            `[BaseSqlAdapter] Dynamic findMany returned ${rawRows.length} rows`,
-          );
+          logger.debug(`[BaseSqlAdapter] Dynamic findMany returned ${rawRows.length} rows`);
         }
 
         // 3. UNIVERSAL MAPPER
@@ -1272,9 +1198,7 @@ export abstract class BaseSqlAdapter
         .where(and(...conditions))
         .limit(1);
 
-      const data = results.length
-        ? (utils.convertDatesToISO(results[0]) as T)
-        : null;
+      const data = results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
       return data;
     }, "FIND_BY_ID_FAILED");
   }
@@ -1321,8 +1245,7 @@ export abstract class BaseSqlAdapter
       } catch (err: any) {
         // If the table doesn't exist (dynamic collection never created), return 0
         const isMissingTable =
-          err?.code === "SQLITE_ERROR" &&
-          err?.message?.includes("no such table");
+          err?.code === "SQLITE_ERROR" && err?.message?.includes("no such table");
         const tableName = getTableName(table);
         const isDynamic =
           tableName.startsWith("collection_") ||
@@ -1365,9 +1288,7 @@ export abstract class BaseSqlAdapter
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);
 
-        const query = this.getDrizzleInstance(options)
-          .insert(table)
-          .values(values);
+        const query = this.getDrizzleInstance(options).insert(table).values(values);
 
         let finalData: T;
         if (this.type === "mariadb" || this.type === "mysql") {
@@ -1379,13 +1300,7 @@ export abstract class BaseSqlAdapter
         }
 
         return this.hooks.length > 0
-          ? await this.runHooks(
-              "after",
-              "insert",
-              collection,
-              finalData,
-              options,
-            )
+          ? await this.runHooks("after", "insert", collection, finalData, options)
           : finalData;
       },
       "INSERT_FAILED",
@@ -1418,15 +1333,11 @@ export abstract class BaseSqlAdapter
           batchValues[i] = this.prepareValues(table, item, id, now, options);
         }
 
-        const query = this.getDrizzleInstance(options)
-          .insert(table)
-          .values(batchValues);
+        const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
 
         if (this.type === "mariadb" || this.type === "mysql") {
           await (query as any);
-          return utils.convertArrayDatesToISO(
-            batchValues as Record<string, any>[],
-          ) as T[];
+          return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
         }
 
         try {
@@ -1437,9 +1348,7 @@ export abstract class BaseSqlAdapter
           // This is safe for high-speed seeding where we know the input IDs.
           if (this.type === "sqlite") {
             await (query as any);
-            return utils.convertArrayDatesToISO(
-              batchValues as Record<string, any>[],
-            ) as T[];
+            return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
           }
           throw err;
         }
@@ -1491,14 +1400,10 @@ export abstract class BaseSqlAdapter
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);
         if (process.env.BENCHMARK_DEBUG === "true") {
-          console.log(
-            `[DEBUG] SQL Update values for ${id}:`,
-            JSON.stringify(values),
-          );
+          console.log(`[DEBUG] SQL Update values for ${id}:`, JSON.stringify(values));
         }
 
-        const idCol =
-          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         const tableName = getTableName(table);
@@ -1538,11 +1443,7 @@ export abstract class BaseSqlAdapter
 
         // Fallback for MariaDB or missing returning
         await query;
-        const updated = await this.findOne<T>(
-          collection,
-          { _id: id } as any,
-          options,
-        );
+        const updated = await this.findOne<T>(collection, { _id: id } as any, options);
         if (!updated.success || !updated.data) {
           return {
             success: false,
@@ -1552,13 +1453,7 @@ export abstract class BaseSqlAdapter
         }
 
         return this.hooks.length > 0
-          ? await this.runHooks(
-              "after",
-              "update",
-              collection,
-              updated.data,
-              options,
-            )
+          ? await this.runHooks("after", "update", collection, updated.data, options)
           : updated.data;
       },
       "UPDATE_FAILED",
@@ -1580,12 +1475,7 @@ export abstract class BaseSqlAdapter
 
         let modifiedCount = 0;
         for (const item of items.data || []) {
-          const res = await this.update(
-            collection,
-            (item as any)._id,
-            data,
-            options,
-          );
+          const res = await this.update(collection, (item as any)._id, data, options);
           if (res.success) modifiedCount++;
         }
         return { modifiedCount };
@@ -1629,19 +1519,12 @@ export abstract class BaseSqlAdapter
     return this.wrap(
       async () => {
         if (this.hooks.length > 0)
-          await this.runHooks(
-            "before",
-            "delete",
-            collection,
-            { _id: id },
-            options,
-          );
+          await this.runHooks("before", "delete", collection, { _id: id }, options);
         const table = this.getTable(collection);
         if (!table) {
           throw new Error(`Collection table not found: ${collection}`);
         }
-        const idCol =
-          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         const hasIsDeleted = !!this.getColumn(table, "isDeleted");
@@ -1657,13 +1540,7 @@ export abstract class BaseSqlAdapter
             .where(eq(idCol, id as any));
         }
         if (this.hooks.length > 0)
-          await this.runHooks(
-            "after",
-            "delete",
-            collection,
-            { _id: id },
-            options,
-          );
+          await this.runHooks("after", "delete", collection, { _id: id }, options);
       },
       "DELETE_FAILED",
       undefined,
@@ -1740,17 +1617,14 @@ export abstract class BaseSqlAdapter
     const existing = await this.findOne(collection, query, options);
     if (existing.success && existing.data) {
       // 🛡️ HARDENING: Ensure we extract a valid ID for the update branch
-      const existingId =
-        (existing.data as any)._id || (existing.data as any).id;
+      const existingId = (existing.data as any)._id || (existing.data as any).id;
       if (existingId) {
         return this.update(collection, existingId, data as any, options);
       }
 
       // If found but ID is missing (should not happen), fallback to insert or error
       if (process.env.BENCHMARK_DEBUG === "true") {
-        logger.warn(
-          `[BaseSqlAdapter] Upsert found record but _id is missing for ${collection}.`,
-        );
+        logger.warn(`[BaseSqlAdapter] Upsert found record but _id is missing for ${collection}.`);
       }
     }
     return this.insert(collection, data, options);
@@ -1792,10 +1666,7 @@ export abstract class BaseSqlAdapter
     const type = this.type;
     const tableName = getTableName(table);
 
-    if (
-      process.env.BENCHMARK_DEBUG === "true" ||
-      process.env.BENCHMARK === "true"
-    ) {
+    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
       logger.info(
         `[upsertNative] Table: ${tableName}, ID: ${values._id}, source: ${values.source}, tenant: ${values.tenantId}`,
       );
@@ -1808,9 +1679,7 @@ export abstract class BaseSqlAdapter
           // 🛡️ SQLITE ON CONFLICT: SQLite does not support table-prefixed columns in conflict targets (e.g. "table"."col").
           // We must map column objects to their raw names to strip the table prefix completely.
           const rawNames = conflictTarget.map((col: any) =>
-            col && typeof col === "object" && "name" in col
-              ? `"${col.name}"`
-              : `"${String(col)}"`,
+            col && typeof col === "object" && "name" in col ? `"${col.name}"` : `"${String(col)}"`,
           );
           const rawTarget = sql.raw(rawNames.join(", "));
           // Use the driver's native onConflictDoUpdate via type casting
@@ -1821,9 +1690,7 @@ export abstract class BaseSqlAdapter
         } else if (type === "postgresql") {
           // 🛡️ POSTGRESQL ON CONFLICT: Postgres also does not support table-prefixed columns in conflict targets.
           const rawNames = conflictTarget.map((col: any) =>
-            col && typeof col === "object" && col.name
-              ? `"${col.name}"`
-              : `"${String(col)}"`,
+            col && typeof col === "object" && col.name ? `"${col.name}"` : `"${String(col)}"`,
           );
           const rawTarget = sql.raw(rawNames.join(", "));
           // Use the driver's native onConflictDoUpdate via type casting
@@ -1838,8 +1705,7 @@ export abstract class BaseSqlAdapter
           });
         } else {
           // Fallback for non-native drivers: manual find-then-update
-          const idCol =
-            this.getColumn(table, "_id") || this.getColumn(table, "id");
+          const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
           if (idCol && values[idCol.name]) {
             const [exists] = await db
               .select()
@@ -1847,10 +1713,7 @@ export abstract class BaseSqlAdapter
               .where(eq(idCol, values[idCol.name]))
               .limit(1);
             if (exists) {
-              await db
-                .update(table)
-                .set(values)
-                .where(eq(idCol, values[idCol.name]));
+              await db.update(table).set(values).where(eq(idCol, values[idCol.name]));
               return;
             }
           }
@@ -1884,11 +1747,9 @@ export abstract class BaseSqlAdapter
     return this.wrap(
       async () => {
         const table = this.getTable(collection);
-        if (!table)
-          throw new Error(`Collection table not found: ${collection}`);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         const tableName = getTableName(table);
-        const idCol =
-          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         const now = new Date();
@@ -1953,33 +1814,23 @@ export abstract class BaseSqlAdapter
           }
         } else {
           // Unknown dialect: fallback to application-level read-modify-write (not ideal but safe)
-          const existing = await this.findOne<any>(
-            collection,
-            { _id: id } as any,
-            options,
-          );
+          const existing = await this.findOne<any>(collection, { _id: id } as any, options);
           if (!existing.success || !existing.data) {
             throw new Error(`Entry not found: ${String(id)}`);
           }
-          const currentVal =
-            typeof existing.data[field] === "number" ? existing.data[field] : 0;
+          const currentVal = typeof existing.data[field] === "number" ? existing.data[field] : 0;
           const res = await this.update(
             collection,
             id,
             { [field]: currentVal + amount } as any,
             options,
           );
-          if (!res.success)
-            throw new Error((res as any).message || "Update failed");
+          if (!res.success) throw new Error((res as any).message || "Update failed");
           return (res as any).data as Record<string, unknown>;
         }
 
         // Re-fetch the updated document to return it
-        const updated = await this.findOne<any>(
-          collection,
-          { _id: id } as any,
-          options,
-        );
+        const updated = await this.findOne<any>(collection, { _id: id } as any, options);
         if (!updated.success || !updated.data) {
           throw new Error(`Entry not found after increment: ${String(id)}`);
         }
@@ -2039,17 +1890,11 @@ export abstract class BaseSqlAdapter
         const columns = [
           {
             name: "isDeleted",
-            type:
-              this.type === "postgresql"
-                ? "BOOLEAN DEFAULT false"
-                : "INTEGER DEFAULT 0",
+            type: this.type === "postgresql" ? "BOOLEAN DEFAULT false" : "INTEGER DEFAULT 0",
           },
           {
             name: "status",
-            type:
-              this.type === "mariadb"
-                ? "VARCHAR(255) DEFAULT 'draft'"
-                : "TEXT DEFAULT 'draft'",
+            type: this.type === "mariadb" ? "VARCHAR(255) DEFAULT 'draft'" : "TEXT DEFAULT 'draft'",
           },
           {
             name: "tenantId",
@@ -2080,9 +1925,7 @@ export abstract class BaseSqlAdapter
             // 🚀 AGNOSTIC SCHEMAS: Use dialect-specific metadata lookups
             let exists = false;
             if (this.type === "sqlite") {
-              const tableInfo = await this.raw.execute(
-                `PRAGMA table_info("${physicalName}")`,
-              );
+              const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
               exists = tableInfo.some((c: any) => c.name === col.name);
             } else {
               // Postgres / MariaDB
@@ -2104,9 +1947,7 @@ export abstract class BaseSqlAdapter
           } catch {}
         }
 
-        logger.info(
-          `[${this.type.toUpperCase()} Adapter] Provisioned table: ${physicalName}`,
-        );
+        logger.info(`[${this.type.toUpperCase()} Adapter] Provisioned table: ${physicalName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,
@@ -2131,11 +1972,7 @@ export abstract class BaseSqlAdapter
       if (idCol) {
         const conditions = [eq(idCol, query._id as any)];
         const tenantCol = this.getColumn(table, "tenantId");
-        if (
-          options.tenantId !== undefined &&
-          options.tenantId !== "global" &&
-          tenantCol
-        ) {
+        if (options.tenantId !== undefined && options.tenantId !== "global" && tenantCol) {
           conditions.push(
             options.tenantId === null
               ? isNull(tenantCol)
@@ -2157,11 +1994,7 @@ export abstract class BaseSqlAdapter
       const tenantId = options.tenantId;
       const tenantCol = this.getColumn(table, "tenantId");
       if (tenantId !== undefined && tenantCol) {
-        conditions.push(
-          tenantId === null
-            ? isNull(tenantCol)
-            : eq(tenantCol, tenantId as string),
-        );
+        conditions.push(tenantId === null ? isNull(tenantCol) : eq(tenantCol, tenantId as string));
       }
     }
 
@@ -2180,16 +2013,12 @@ export abstract class BaseSqlAdapter
       } else {
         const column = this.getColumn(table, cond.field);
         if (column) {
-          conditions.push(
-            this.translateCondition(column, cond as QueryCondition),
-          );
+          conditions.push(this.translateCondition(column, cond as QueryCondition));
         } else {
           const dataCol = this.getColumn(table, "data");
           if (dataCol) {
             const jsonField = this.getJsonField(cond.field);
-            conditions.push(
-              this.translateCondition(jsonField as any, cond as QueryCondition),
-            );
+            conditions.push(this.translateCondition(jsonField as any, cond as QueryCondition));
           }
         }
       }
@@ -2203,11 +2032,7 @@ export abstract class BaseSqlAdapter
 
     // 🚀 ROBUST DATE HYDRATION: Ensure any object with a getTime method is a proper Date instance.
     // This prevents 'TypeError: value.getTime is not a function' in Drizzle's integer-core.js
-    if (
-      val !== null &&
-      typeof val === "object" &&
-      typeof (val as any).getTime === "function"
-    ) {
+    if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
       if (!(val instanceof Date)) {
         val = new Date((val as any).getTime());
       }
@@ -2242,15 +2067,10 @@ export abstract class BaseSqlAdapter
     }
   }
 
-  protected applyOrderBy(
-    builder: any,
-    table: any,
-    options: FindOptions<any>,
-  ): any {
+  protected applyOrderBy(builder: any, table: any, options: FindOptions<any>): any {
     if (options.sort) {
       const sortConditions: any[] = [];
-      const normalizedSorts: { field: string; direction: "asc" | "desc" }[] =
-        [];
+      const normalizedSorts: { field: string; direction: "asc" | "desc" }[] = [];
       if (Array.isArray(options.sort)) {
         for (const item of options.sort) {
           if (Array.isArray(item) && item.length >= 2) {

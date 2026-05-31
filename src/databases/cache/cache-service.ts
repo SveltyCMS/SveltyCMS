@@ -850,8 +850,10 @@ export class CacheService {
       else if (typeof this.l2.destroy === "function") await this.l2.destroy().catch(() => {});
     }
     if (this.subscriber) {
-      if (typeof this.subscriber.disconnect === "function") await this.subscriber.disconnect().catch(() => {});
-      else if (typeof this.subscriber.destroy === "function") await this.subscriber.destroy().catch(() => {});
+      if (typeof this.subscriber.disconnect === "function")
+        await this.subscriber.disconnect().catch(() => {});
+      else if (typeof this.subscriber.destroy === "function")
+        await this.subscriber.destroy().catch(() => {});
     }
     this.l2 = null;
     this.subscriber = null;

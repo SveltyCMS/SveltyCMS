@@ -1,0 +1,41 @@
+---
+path: "src/plugins/editable-website/editable-website.mdx"
+title: "Editable Website Plugin"
+description: "Live preview and inline editing for your SveltyCMS-powered website."
+order: 4
+icon: "mdi:pencil-outline"
+author: "SveltyCMS Team"
+created: "2026-05-31"
+updated: "2026-05-31"
+tags:
+  - editing
+  - preview
+  - live
+  - visual
+  - plugin
+---
+
+# Editable Website Plugin
+
+**Status:** ✅ Available
+**Category:** Editing
+
+Live preview with enterprise handshake for inline content editing. Enables content editors to see changes in real-time on the actual website before publishing.
+
+---
+
+## Features
+
+- **Live preview** — See changes in real-time on the rendered website
+- **Enterprise handshake** — Secure WebSocket connection between CMS and website
+- **Inline editing** — Click-to-edit directly on the live page
+- **Collection-aware** — Respects collection schemas and field types
+
+---
+
+## Configuration
+
+| Key | Type | Visibility | Description |
+|-----|------|-----------|-------------|
+| `websiteUrl` | string | Public | Target website URL for preview |
+| `handshakeToken` | string | Private | Authentication token for WebSocket |
