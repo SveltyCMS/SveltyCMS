@@ -54,6 +54,7 @@
 	interface Props {
 		backUrl?: string;
 		children?: import('svelte').Snippet; // For action buttons
+		description?: string; // Optional subtitle shown under the title
 		highlight?: string;
 		icon?: string;
 		iconColor?: string;
@@ -66,6 +67,7 @@
 
 	const {
 		name,
+		description = '',
 		highlight = '',
 		icon,
 		iconColor = 'text-tertiary-500 dark:text-primary-500',
@@ -118,8 +120,9 @@
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 		{/if}
+		<div class="ml-2 min-w-0">
 		<h1
-			class="transition-max-width h1 relative ml-2 flex items-center gap-1 font-bold"
+			class="transition-max-width h1 relative flex items-center gap-1 font-bold"
 			style="font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);"
 			aria-live="polite"
 			data-cms-field="pageTitle"
@@ -137,6 +140,10 @@
 
 			<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal"> {name} </span>
 		</h1>
+		{#if description}
+			<p class="text-sm font-medium opacity-50">{description}</p>
+		{/if}
+		</div>
 	</div>
 
 	<div class="flex flex-wrap items-center gap-2 shrink-0">
