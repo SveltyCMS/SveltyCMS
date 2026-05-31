@@ -78,7 +78,10 @@ async function postAction(action: string, payload: Record<string, any>) {
   } else {
     // Other actions (testDatabase, seedDatabase) expect individual fields
     for (const [key, value] of Object.entries(payload)) {
-      form.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
+      form.append(
+        key,
+        typeof value === "object" ? JSON.stringify(value) : String(value),
+      );
     }
   }
 
@@ -118,7 +121,9 @@ async function postAction(action: string, payload: Record<string, any>) {
       }
 
       if (json.type === "failure" || result.success === false) {
-        throw new Error(result.message || result.error || "Action failed without message");
+        throw new Error(
+          result.message || result.error || "Action failed without message",
+        );
       }
 
       return result;
@@ -145,8 +150,21 @@ async function waitForServer() {
         signal: AbortSignal.timeout(4000),
       });
       const data = await res.json().catch(() => ({}));
-      if (["READY", "WARMED", "SETUP"].includes(data.overallStatus ?? data.status)) {
-        console.log(`Server ready (status: ${data.overallStatus || data.status})`);
+      const status = (data.overallStatus ?? data.status ?? "")
+        .toString()
+        .toUpperCase();
+      // Accept all operational states: the server is accepting requests
+      const operationalStates = [
+        "READY",
+        "WARMED",
+        "SETUP",
+        "WARMING",
+        "DEGRADED",
+        "INITIALIZING",
+        "HEALTHY",
+      ];
+      if (operationalStates.includes(status)) {
+        console.log(`Server ready (status: ${status})`);
         return;
       }
     } catch {}
