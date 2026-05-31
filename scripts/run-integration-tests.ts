@@ -57,12 +57,16 @@ const loadHardenedConfig = async () => {
     }
   }
 
-  const jwtSecret = process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026";
-  const encryptionKey = process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch";
+  const jwtSecret =
+    process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026";
+  const encryptionKey =
+    process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch";
   const adminPassword = process.env.ADMIN_PASSWORD || "Password123!";
 
   if (isCI && !testApiSecret) {
-    throw new Error("❌ CRITICAL: TEST_API_SECRET is missing in CI environment");
+    throw new Error(
+      "❌ CRITICAL: TEST_API_SECRET is missing in CI environment",
+    );
   }
 
   return {
@@ -137,7 +141,11 @@ function normalizePath(file: string) {
   return file.replace(/\\/g, "/");
 }
 
-function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType: string) {
+function filterTestsBySuite(
+  testFiles: string[],
+  suite: IntegrationSuite,
+  dbType: string,
+) {
   // First, always filter out db tests that don't match the current dbType
   let filtered = testFiles.filter((file) => {
     const path = normalizePath(file);
@@ -145,7 +153,8 @@ function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType
 
     if (path.endsWith("mongodb-adapter.test.ts")) return dbType === "mongodb";
     if (path.endsWith("mariadb-adapter.test.ts")) return dbType === "mariadb";
-    if (path.endsWith("postgresql-adapter.test.ts")) return dbType === "postgresql";
+    if (path.endsWith("postgresql-adapter.test.ts"))
+      return dbType === "postgresql";
     if (path.endsWith("sqlite-adapter.test.ts")) return dbType === "sqlite";
     // Contract test runs for all DBs (it auto-detects the active adapter internally)
 
@@ -153,7 +162,9 @@ function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType
   });
 
   if (suite === "db") {
-    return filtered.filter((file) => normalizePath(file).includes("tests/integration/databases/"));
+    return filtered.filter((file) =>
+      normalizePath(file).includes("tests/integration/databases/"),
+    );
   }
 
   if (suite === "api") {
@@ -222,7 +233,12 @@ async function waitForServerReady(maxAttempts = 60) {
 
       if (res.ok || res.status === 533) {
         const data = await res.json().catch(() => ({}));
-        const rawStatus = (data.overallStatus || data.status || data.health || "")
+        const rawStatus = (
+          data.overallStatus ||
+          data.status ||
+          data.health ||
+          ""
+        )
           .toString()
           .toLowerCase();
 
@@ -286,7 +302,9 @@ async function startPreviewServer() {
     throw new Error("Could not find server entry point (build/index.js)");
   }
 
-  console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
+  console.log(
+    `🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`,
+  );
 
   const runtimeCmd = process.platform === "win32" ? "node" : "bun";
 
@@ -315,7 +333,9 @@ async function prepareIsolatedServerForTestFile(filePath: string) {
   await testingAction("reset");
 
   if (setupModeTest) {
-    console.log("⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.");
+    console.log(
+      "⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.",
+    );
     // Force a restart to ensure setup-mode is detected on boot if needed
     await stopPreviewServer();
     await startPreviewServer();
@@ -366,7 +386,9 @@ function generatePrivateTestConfig(privateTestPath: string) {
   const db = getDbDefaults();
 
   const dbPortValue =
-    db.type === "sqlite" || !db.port ? "undefined" : String(Number.parseInt(db.port, 10));
+    db.type === "sqlite" || !db.port
+      ? "undefined"
+      : String(Number.parseInt(db.port, 10));
 
   const content = `/**
  * Auto-generated test config for integration tests.
@@ -421,7 +443,9 @@ export default privateConfig;
 `;
 
   writeFileSync(privateTestPath, content, "utf8");
-  console.log("✅ Generated config/private.test.ts from integration test environment");
+  console.log(
+    "✅ Generated config/private.test.ts from integration test environment",
+  );
 }
 
 function ensurePrivateTestConfig() {
@@ -437,14 +461,18 @@ function ensurePrivateTestConfig() {
   if (isCI) {
     generatePrivateTestConfig(privateTestPath);
     copyFileSync(privateTestPath, privatePath);
-    console.log("✅ Mirrored config/private.test.ts to config/private.ts for CI build");
+    console.log(
+      "✅ Mirrored config/private.test.ts to config/private.ts for CI build",
+    );
     console.log(`✅ Test config verified: ${privateTestPath}`);
     return;
   }
 
   if (!existsSync(privateTestPath) && existsSync(privatePath)) {
     copyFileSync(privatePath, privateTestPath);
-    console.log("✅ Copied config/private.ts to config/private.test.ts for TEST_MODE");
+    console.log(
+      "✅ Copied config/private.ts to config/private.test.ts for TEST_MODE",
+    );
   }
 
   if (!existsSync(privateTestPath)) {
@@ -452,7 +480,9 @@ function ensurePrivateTestConfig() {
   }
 
   if (!existsSync(privateTestPath)) {
-    throw new Error(`System setup did not create required test config: ${privateTestPath}`);
+    throw new Error(
+      `System setup did not create required test config: ${privateTestPath}`,
+    );
   }
 
   console.log(`✅ Test config verified: ${privateTestPath}`);
@@ -482,12 +512,16 @@ async function testingAction(action: "reset" | "seed", maxRetries = 5) {
 
       const text = await response.text().catch(() => "");
       if (response.status === 503 && i < maxRetries - 1) {
-        console.log(`⏳ /api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
+        console.log(
+          `⏳ /api/testing ${action} returned 503 (initializing). Retrying in 2s...`,
+        );
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
 
-      throw new Error(`/api/testing ${action} failed with HTTP ${response.status}: ${text}`);
+      throw new Error(
+        `/api/testing ${action} failed with HTTP ${response.status}: ${text}`,
+      );
     } catch (err: any) {
       lastError = err;
       if (i < maxRetries - 1) {
@@ -497,7 +531,10 @@ async function testingAction(action: "reset" | "seed", maxRetries = 5) {
     }
   }
 
-  throw lastError || new Error(`Failed /api/testing ${action} after ${maxRetries} retries`);
+  throw (
+    lastError ||
+    new Error(`Failed /api/testing ${action} after ${maxRetries} retries`)
+  );
 }
 
 async function runCommand(cmd: string, args: string[], opts: any = {}) {
@@ -539,7 +576,9 @@ export const schema: Schema = {
 };
 `;
   writeFileSync(tsPath, tsContent, "utf8");
-  console.log("✅ Created config/collections/test_collection.ts for build-time compilation");
+  console.log(
+    "✅ Created config/collections/test_collection.ts for build-time compilation",
+  );
 
   const compiledDir = join(ROOT, ".compiledCollections");
   if (!existsSync(compiledDir)) {
@@ -557,9 +596,13 @@ export const schema = {
 };
 `;
   writeFileSync(jsPath, jsContent, "utf8");
-  console.log("✅ Created .compiledCollections/test_collection.js for runtime loading");
+  console.log(
+    "✅ Created .compiledCollections/test_collection.js for runtime loading",
+  );
 
-  console.log("⚙️ Integration test config ready. /api/testing will reset/seed per test file.");
+  console.log(
+    "⚙️ Integration test config ready. /api/testing will reset/seed per test file.",
+  );
 }
 
 function isSetupModeTest(filePath: string) {
@@ -585,7 +628,7 @@ async function teardown() {
     const jsPath = join(ROOT, ".compiledCollections", "test_collection.js");
     if (existsSync(tsPath)) unlinkSync(tsPath);
     if (existsSync(jsPath)) unlinkSync(jsPath);
-  } catch (e) {
+  } catch (_e) {
     // Non-fatal
   }
 
@@ -634,10 +677,12 @@ async function main() {
 
   const explicitFiles = getExplicitFiles(argv);
   const hasExistingBuildOutput =
-    existsSync(join(ROOT, "build")) || existsSync(join(ROOT, ".svelte-kit", "output", "server"));
+    existsSync(join(ROOT, "build")) ||
+    existsSync(join(ROOT, ".svelte-kit", "output", "server"));
 
   const skipBuild =
-    argv.includes("--no-build") || (process.env.CI === "true" && hasExistingBuildOutput);
+    argv.includes("--no-build") ||
+    (process.env.CI === "true" && hasExistingBuildOutput);
   console.log(`🧭 Suite: ${suite}`);
   console.log(`🗄️ DB: ${dbType}`);
   if (failFast) console.log("🛑 Fail-fast enabled.");
@@ -688,7 +733,9 @@ async function main() {
   console.log(`🧪 Found ${testFiles.length} integration test files`);
 
   if (testFiles.length === 0) {
-    throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
+    throw new Error(
+      `No integration test files found for suite="${suite}" and db="${dbType}"`,
+    );
   }
 
   let passed = 0;
@@ -704,7 +751,9 @@ async function main() {
     API_BASE_URL = `http://${HOST}:${PORT}`;
 
     console.log("\n" + "-".repeat(80));
-    console.log(`🧪 Preparing isolated environment on port ${PORT} for ${relPath}`);
+    console.log(
+      `🧪 Preparing isolated environment on port ${PORT} for ${relPath}`,
+    );
     console.log("-".repeat(80));
 
     await prepareIsolatedServerForTestFile(file);
@@ -715,13 +764,17 @@ async function main() {
     const setupModeTest = isSetupModeTest(file);
     const db = getDbDefaults();
 
-    const { code } = await runCommand("bun", ["test", "--timeout", "60000", bunTestPath], {
-      env: {
-        ...getTestEnv(db),
-        SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
-        SVELTYCMS_SETUP_MODE_TEST: setupModeTest ? "true" : "false",
+    const { code } = await runCommand(
+      "bun",
+      ["test", "--timeout", "60000", bunTestPath],
+      {
+        env: {
+          ...getTestEnv(db),
+          SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
+          SVELTYCMS_SETUP_MODE_TEST: setupModeTest ? "true" : "false",
+        },
       },
-    });
+    );
 
     const duration = Date.now() - start;
     const success = code === 0;
@@ -732,12 +785,16 @@ async function main() {
       passed++;
     }
 
-    console.log(success ? `✅ Passed (${(duration / 1000).toFixed(1)}s)` : "❌ Failed");
+    console.log(
+      success ? `✅ Passed (${(duration / 1000).toFixed(1)}s)` : "❌ Failed",
+    );
 
     await stopPreviewServer();
 
     if (!success && failFast) {
-      console.log("\n🛑 Fail-fast: Aborting integration test suite due to failure.");
+      console.log(
+        "\n🛑 Fail-fast: Aborting integration test suite due to failure.",
+      );
       break;
     }
   }
@@ -750,7 +807,9 @@ async function main() {
 
   for (const result of results) {
     const status = result.success ? "✅" : "❌";
-    console.log(` ${status} ${result.file}  (${(result.time / 1000).toFixed(1)}s)`);
+    console.log(
+      ` ${status} ${result.file}  (${(result.time / 1000).toFixed(1)}s)`,
+    );
   }
 
   await teardown();
