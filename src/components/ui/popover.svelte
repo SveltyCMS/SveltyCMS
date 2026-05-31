@@ -3,30 +3,33 @@
 @component
 **SveltyCMS Popover — WCAG 3.0 Ready**
 
-FloatingUI-powered popover with auto-positioning, arrow indicator, click-outside
-dismissal, and configurable placement. Used as the base for Dropdown and Tooltip.
+Self-positioning popover using the `useFloating` rune (CSS Anchor Positioning
+with JS fallback). Zero external positioning dependencies. Handles auto-flip,
+viewport clamping, directional arrow, click-outside + Escape dismissal, and
+focus restoration.
 
 ### Props
 - `open` (boolean): Bindable open state.
-- `position` (Placement): FloatingUI placement (default: 'bottom').
+- `position` (Placement): Preferred placement (default: 'bottom').
 - `arrow` (boolean): Show directional arrow (default: true).
 - `trigger` / `children` (Snippet): Trigger and content slots.
 - `class` (string): Additional CSS classes.
 
 ### Features:
-- FloatingUI autoUpdate for scroll/resize repositioning
-- flip and shift middleware for viewport-aware placement
-- directional arrow indicator
+- CSS Anchor Positioning (compositor-level) in Chrome 143+ / Firefox 147+
+- JS fallback with flip + shift for Safari and older browsers
+- WCAG 3.0: aria-haspopup, aria-expanded, role="dialog", Escape close, focus restore
 - click-outside dismissal
+- directional arrow indicator
 - full Svelte 5 runes: $props, $bindable, $derived, $state, $effect
 -->
 
 <script lang="ts">
-	import { computePosition, autoUpdate, offset, flip, shift, arrow as floatArrow, type Placement } from '@floating-ui/dom';
 	import { cn } from '@utils/cn';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import Portal from './portal.svelte';
+	import { useFloating, type Placement } from '@utils/use-floating.svelte.ts';
 
 	interface Props {
 		open?: boolean;
@@ -40,7 +43,7 @@ dismissal, and configurable placement. Used as the base for Dropdown and Tooltip
 
 	let {
 		open = $bindable(false),
-		position = 'bottom',
+		position = 'bottom' as Placement,
 		arrow = true,
 		class: className,
 		trigger,
@@ -52,74 +55,64 @@ dismissal, and configurable placement. Used as the base for Dropdown and Tooltip
 	let floatingEl = $state<HTMLElement | null>(null);
 	let arrowEl = $state<HTMLElement | null>(null);
 
-	let x = $state(0);
-	let y = $state(0);
-	let actualPlacement = $state<string>('bottom');
-	let arrowX = $state<number | undefined>(0);
-	let arrowY = $state<number | undefined>(0);
-
-	$effect(() => {
-		if (open && referenceEl && floatingEl) {
-			const cleanup = autoUpdate(referenceEl, floatingEl, async () => {
-				const { x: nextX, y: nextY, placement: finalPlacement, middlewareData } = await computePosition(referenceEl!, floatingEl!, {
-					placement: position,
-					middleware: [
-						offset(12),
-						flip(),
-						shift({ padding: 10 }),
-						arrow && floatArrow({ element: arrowEl! })
-					].filter(Boolean) as any
-				});
-
-				x = nextX;
-				y = nextY;
-				actualPlacement = finalPlacement;
-
-				if (arrow) {
-					const { x: ax, y: ay } = middlewareData.arrow || {};
-					arrowX = ax;
-					arrowY = ay;
-				}
-			});
-
-			return cleanup;
-		}
+	const floating = useFloating({
+		reference: () => referenceEl,
+		floating: () => floatingEl,
+		arrow: () => arrowEl,
+		placement: () => position,
+		offset: 12,
+		padding: 10,
+		enabled: () => open,
+		showArrow: () => arrow,
 	});
 
-	// Handle click outside
+	// Click outside + Escape dismissal with focus restoration
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && open) {
+			open = false;
+			referenceEl?.focus();
+		}
+	}
+
 	function handleClickOutside(event: MouseEvent) {
-		if (open && referenceEl && floatingEl &&
+		if (
+			open &&
+			referenceEl &&
+			floatingEl &&
 			!referenceEl.contains(event.target as Node) &&
-			!floatingEl.contains(event.target as Node)) {
+			!floatingEl.contains(event.target as Node)
+		) {
 			open = false;
 		}
 	}
 
 	onMount(() => {
 		document.addEventListener('click', handleClickOutside);
-	});
-
-	onDestroy(() => {
-		if (typeof document !== 'undefined') {
+		document.addEventListener('keydown', handleKeydown);
+		return () => {
 			document.removeEventListener('click', handleClickOutside);
-		}
+			document.removeEventListener('keydown', handleKeydown);
+		};
 	});
 
-	const staticSide = $derived({
-		top: 'bottom',
-		right: 'left',
-		bottom: 'top',
-		left: 'right'
-	}[actualPlacement.split('-')[0]] as string);
+	function toggle() {
+		open = !open;
+		if (open) {
+			requestAnimationFrame(() => floatingEl?.focus());
+		} else {
+			referenceEl?.focus();
+		}
+	}
 </script>
 
 <div
 	bind:this={referenceEl}
 	class="inline-block"
-	onclick={(e) => { e.stopPropagation(); open = !open; }}
-	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (open = !open)}
+	onclick={(e) => { e.stopPropagation(); toggle(); }}
+	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle()}
 	role="button"
 	tabindex="0"
+	{...floating.triggerAria}
 	{...rest}
 >
 	{#if trigger}
@@ -129,23 +122,26 @@ dismissal, and configurable placement. Used as the base for Dropdown and Tooltip
 
 {#if open}
 	<Portal>
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
 			bind:this={floatingEl}
 			class={cn(
-				'z-200 card p-4 shadow-xl border border-surface-200 dark:border-surface-800 bg-surface-100/90 dark:bg-surface-900/90 backdrop-blur-md absolute',
+				'z-200 card p-4 shadow-xl border border-surface-200 dark:border-surface-800 bg-surface-100/90 dark:bg-surface-900/90 backdrop-blur-md fixed',
 				'transition-all duration-200 animate-in fade-in zoom-in-95',
 				className
 			)}
-			style="left: {x}px; top: {y}px;"
+			style={floating.positionStyle}
+			tabindex="-1"
+			{...floating.contentAria}
 		>
 			{#if arrow}
 				<div
 					bind:this={arrowEl}
 					class="absolute size-3 bg-surface-100 dark:bg-surface-900 border-l border-t border-surface-200 dark:border-surface-800 rotate-45"
 					style="
-						left: {arrowX != null ? `${arrowX}px` : ''};
-						top: {arrowY != null ? `${arrowY}px` : ''};
-						{staticSide}: -6px;
+						left: {floating.arrowX != null ? `${floating.arrowX}px` : ''};
+						top: {floating.arrowY != null ? `${floating.arrowY}px` : ''};
+						{floating.staticSide}: -6px;
 					"
 				></div>
 			{/if}

@@ -3,189 +3,135 @@
 @component
 **SveltyCMS Tooltip — WCAG 3.0 Ready**
 
-FloatingUI-powered tooltip with show-on-hover/focus, directional arrow, delayed
-reveal after position calculation (prevents layout flash), and dark/light theme.
+Self-positioning tooltip using the `useFloating` rune (CSS Anchor Positioning
+with JS fallback). Shows on hover/focus, hides on leave/blur/Escape. Delayed
+reveal after position calculation prevents layout flash.
 
 ### Props
 - `title` (string): Tooltip text (used if no content snippet).
-- `positioning` ({ placement, gutter }): FloatingUI placement options.
+- `positioning` ({ placement, gutter }): Placement options (default: top, 8px).
 - `triggerClass` (string): CSS class for the trigger wrapper.
 - `class` (string): Additional CSS classes on the tooltip.
 - `content` / `children` (Snippet): Custom tooltip/trigger content.
 
 ### Features:
-- FloatingUI autoUpdate with offset, flip, shift, arrow middleware
+- CSS Anchor Positioning (compositor-level) in Chrome 143+ / Firefox 147+
+- JS fallback with flip + shift for Safari and older browsers
+- show on mouseenter/focus, hide on mouseleave/blur/Escape
 - delayed visibility until position calculated (opacity-0 trick)
-- show on mouseenter/focus, hide on mouseleave/blur
-- dark background with light arrow (auto-inverts in light mode)
+- WCAG 3.0: role="tooltip", aria-describedby trigger→content linkage
 - full Svelte 5 runes: $props, $derived, $state, $effect
 -->
 
 <script lang="ts">
-  import {
-    computePosition,
-    autoUpdate,
-    offset,
-    flip,
-    shift,
-    arrow,
-  } from "@floating-ui/dom";
-  import { cn } from "@utils/cn";
-  import type { Snippet } from "svelte";
-  import Portal from "./portal.svelte";
+	import { cn } from "@utils/cn";
+	import type { Snippet } from "svelte";
+	import Portal from "./portal.svelte";
+	import { useFloating, type Placement } from "@utils/use-floating.svelte.ts";
 
-  interface Props {
-    title?: string;
-    positioning?: {
-      placement?:
-        | "top"
-        | "top-start"
-        | "top-end"
-        | "bottom"
-        | "bottom-start"
-        | "bottom-end"
-        | "left"
-        | "left-start"
-        | "left-end"
-        | "right"
-        | "right-start"
-        | "right-end";
-      gutter?: number;
-    };
-    class?: string;
-    triggerClass?: string;
-    content?: Snippet;
-    children?: Snippet;
-    [key: string]: any;
-  }
+	interface Props {
+		title?: string;
+		positioning?: {
+			placement?: Placement;
+			gutter?: number;
+		};
+		class?: string;
+		triggerClass?: string;
+		content?: Snippet;
+		children?: Snippet;
+		[key: string]: any;
+	}
 
-  let {
-    title = "",
-    positioning = { placement: "top", gutter: 8 },
-    class: className,
-    triggerClass,
-    content,
-    children,
-    ...rest
-  }: Props = $props();
+	let {
+		title = "",
+		positioning = { placement: "top", gutter: 8 },
+		class: className,
+		triggerClass,
+		content,
+		children,
+		...rest
+	}: Props = $props();
 
-  let open = $state(false);
-  let referenceEl = $state<HTMLElement | null>(null);
-  let floatingEl = $state<HTMLElement | null>(null);
-  let arrowEl = $state<HTMLElement | null>(null);
+	let open = $state(false);
+	let referenceEl = $state<HTMLElement | null>(null);
+	let floatingEl = $state<HTMLElement | null>(null);
+	let arrowEl = $state<HTMLElement | null>(null);
 
-  let x = $state(0);
-  let y = $state(0);
-  let actualPlacement = $state<string>("top");
-  let arrowX = $state<number | undefined>(0);
-  let arrowY = $state<number | undefined>(0);
+	const placement = $derived(positioning.placement ?? "top");
+	const gutter = $derived(positioning.gutter ?? 8);
 
-  const placement = $derived(positioning?.placement || "top");
-  const gutter = $derived(positioning?.gutter ?? 8);
-  let positionCalculated = $state(false);
+	const floating = useFloating({
+		reference: () => referenceEl,
+		floating: () => floatingEl,
+		arrow: () => arrowEl,
+		placement: () => placement,
+		offset: () => gutter,
+		padding: 5,
+		enabled: () => open,
+		showArrow: () => true,
+	});
 
-  $effect(() => {
-    if (open && referenceEl && floatingEl) {
-      const cleanup = autoUpdate(referenceEl, floatingEl, async () => {
-        const {
-          x: nextX,
-          y: nextY,
-          placement: finalPlacement,
-          middlewareData,
-        } = await computePosition(referenceEl!, floatingEl!, {
-          placement: placement,
-          middleware: [
-            offset(gutter),
-            flip(),
-            shift({ padding: 5 }),
-            arrow({ element: arrowEl! }),
-          ],
-        });
-
-        x = nextX;
-        y = nextY;
-        actualPlacement = finalPlacement;
-
-        const { x: ax, y: ay } = middlewareData.arrow || {};
-        arrowX = ax;
-        arrowY = ay;
-
-        // Mark as calculated to reveal the tooltip
-        if (!positionCalculated) positionCalculated = true;
-      });
-
-      return cleanup;
-    } else {
-      // Reset when closing
-      positionCalculated = false;
-    }
-  });
-
-  const TOOLTIP_BASE =
-    "z-[300] card px-2.5 py-1.5 text-xs font-medium shadow-xl absolute";
-  const TOOLTIP_THEME =
-    "bg-surface-900 dark:bg-white text-white dark:text-surface-900";
-
-  const staticSide = $derived(
-    {
-      top: "bottom",
-      right: "left",
-      bottom: "top",
-      left: "right",
-    }[actualPlacement.split("-")[0]] as string,
-  );
-
-  function show() {
-    open = true;
-  }
-  function hide() {
-    open = false;
-  }
+	function show() {
+		open = true;
+	}
+	function hide() {
+		open = false;
+	}
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === "Escape" && open) hide();
+	}
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 <div
-  bind:this={referenceEl}
-  class={cn("inline-block", triggerClass)}
-  onmouseenter={show}
-  onmouseleave={hide}
-  onfocus={show}
-  onblur={hide}
-  {...rest}
+	bind:this={referenceEl}
+	class={cn("inline-block", triggerClass)}
+	onmouseenter={show}
+	onmouseleave={hide}
+	onfocus={show}
+	onblur={hide}
+	aria-describedby={open ? "tooltip-content" : undefined}
+	tabindex="0"
+	role="button"
+	{...rest}
 >
-  {#if children}
-    {@render children()}
-  {/if}
+	{#if children}
+		{@render children()}
+	{/if}
 </div>
 
 {#if open}
-  <Portal>
-    <div
-      bind:this={floatingEl}
-      class={cn(
-        TOOLTIP_BASE,
-        TOOLTIP_THEME,
-        "transition duration-150 animate-in fade-in zoom-in-95 scale-95",
-        !positionCalculated ? "opacity-0" : "opacity-100",
-        className,
-      )}
-      style="left: {x}px; top: {y}px;"
-    >
-      {#if content}
-        {@render content()}
-      {:else}
-        <span>{title}</span>
-      {/if}
+	<Portal>
+		<div
+			bind:this={floatingEl}
+			id="tooltip-content"
+			role="tooltip"
+			class={cn(
+				"z-[300] card px-2.5 py-1.5 text-xs font-medium shadow-xl fixed",
+				"bg-surface-900 dark:bg-white text-white dark:text-surface-900",
+				"transition duration-150 animate-in fade-in zoom-in-95 scale-95",
+				!floating.positionCalculated ? "opacity-0" : "opacity-100",
+				className,
+			)}
+			style={floating.positionStyle}
+		>
+			{#if content}
+				{@render content()}
+			{:else}
+				<span>{title}</span>
+			{/if}
 
-      <!-- Arrow -->
-      <div
-        bind:this={arrowEl}
-        class="absolute size-2 bg-surface-900 dark:bg-white rotate-45"
-        style="
-					left: {arrowX != null ? `${arrowX}px` : ''};
-					top: {arrowY != null ? `${arrowY}px` : ''};
-					{staticSide}: -4px;
+			<!-- Arrow -->
+			<div
+				bind:this={arrowEl}
+				class="absolute size-2 bg-surface-900 dark:bg-white rotate-45"
+				style="
+					left: {floating.arrowX != null ? `${floating.arrowX}px` : ''};
+					top: {floating.arrowY != null ? `${floating.arrowY}px` : ''};
+					{floating.staticSide}: -4px;
 				"
-      ></div>
-    </div>
-  </Portal>
+			></div>
+		</div>
+	</Portal>
 {/if}
