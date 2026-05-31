@@ -278,7 +278,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 				<!-- Basic Search -->
 				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Basic Criteria</h3>
+					<h3 class="mb-3 text-lg font-semibold text-primary-500">Basic Criteria</h3>
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Filename</span>
@@ -297,7 +297,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 				<!-- Dimensions -->
 				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Dimensions</h3>
+					<h3 class="mb-3 text-lg font-semibold text-primary-500">Dimensions</h3>
 					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 						<label class="label">
 							<span>Min Width (px)</span>
@@ -339,7 +339,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 				<!-- File Properties -->
 				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">File Properties</h3>
+					<h3 class="mb-3 text-lg font-semibold text-primary-500">File Properties</h3>
 					<div class="grid gap-4 md:grid-cols-3">
 						<label class="label">
 							<span>Min Size (MB)</span>
@@ -360,7 +360,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 				<!-- Dates -->
 				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Upload Dates</h3>
+					<h3 class="mb-3 text-lg font-semibold text-primary-500">Upload Dates</h3>
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Uploaded After</span>
@@ -376,7 +376,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 				<!-- EXIF & Metadata -->
 				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Metadata & EXIF</h3>
+					<h3 class="mb-3 text-lg font-semibold text-primary-500">Metadata & EXIF</h3>
 					<div class="grid gap-4 md:grid-cols-3">
 						<label class="label">
 							<span>Has EXIF Data</span>
@@ -404,7 +404,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 				<!-- Advanced -->
 				<section>
-					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Advanced</h3>
+					<h3 class="mb-3 text-lg font-semibold text-primary-500">Advanced</h3>
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Dominant Color (hex)</span>
@@ -429,7 +429,7 @@ function handleKeydown(e: KeyboardEvent) {
 		<div class="flex-none border-t border-surface-300 p-4 dark:border-surface-600 bg-surface-200/50 dark:bg-surface-700/50">
 			<div class="flex items-center justify-between">
 				<div class="text-sm hidden sm:block">
-					<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong>
+					<strong class="text-primary-500">Tip:</strong>
 					Press
 					<kbd class="preset-filled-tertiary-500 badge dark:preset-filled-primary-500">Ctrl+Enter</kbd>
 					to search

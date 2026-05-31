@@ -96,7 +96,7 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 <div class="pointer-events-none absolute inset-0">
 	<svg
 		aria-hidden="true"
-		class="h-full w-full {background === 'white' ? 'text-slate-950' : 'text-white'} {mirrorAnimation ? '-scale-x-100' : ''}"
+		class="h-full w-full {background === 'white' ? 'text-surface-950' : 'text-white'} {mirrorAnimation ? '-scale-x-100' : ''}"
 		viewBox="0 0 696 316"
 		stroke-linecap="round"
 		fill="transparent"

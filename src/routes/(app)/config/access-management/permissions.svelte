@@ -256,7 +256,7 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 function getActionBadgeClass(action: string) {
 	switch (action.toLowerCase()) {
 		case 'read':
-			return 'bg-blue-500/15 text-blue-600 dark:text-blue-400';
+			return 'bg-tertiary-500/15 text-tertiary-600 dark:text-tertiary-400';
 		case 'create':
 		case 'write':
 			return 'bg-success-500/15 text-primary-600 dark:text-primary-500';

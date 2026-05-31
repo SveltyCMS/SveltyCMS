@@ -89,7 +89,7 @@
 		error: 'bg-error-500 text-white',
 		warning: 'bg-warning-500 text-white',
 		info: 'bg-info-500 text-white',
-		loading: 'bg-slate-500 text-white'
+		loading: 'bg-surface-500 text-white'
 	};
 
 	const icons = {

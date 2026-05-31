@@ -312,7 +312,7 @@
     <div
       class="mt-2 text-center text-[10px] uppercase tracking-wider text-surface-500"
     >
-      Status: <span class={isConnected ? "text-green-500" : "text-amber-500"}
+      Status: <span class={isConnected ? "text-success-500" : "text-warning-500"}
         >{isConnected ? "Synced" : "Handshaking"}</span
       >
       • Visual Edit: {visualEditingEnabled ? "Active" : "Disabled"}

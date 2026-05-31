@@ -755,17 +755,17 @@ onMount(() => {
 			{#if group.id === 'languages'}
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Left Column: Default Content Language + Available Content Languages -->
-					<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded-md border border-surface-300/50 bg-surface-50/60 p-4 dark:border-surface-600/60 dark:bg-surface-800/40">
 						{#if defaultLangField}
 							<div>
 								<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
-									<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-primary-500"></iconify-icon>
 									<span>{defaultLangField.label}</span>
 									{#if defaultLangField.required}
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={defaultLangField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+										<button type="button" class="ml-1 text-surface-400 hover:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -797,13 +797,13 @@ onMount(() => {
 						{#if availableLangsField}
 							<div>
 								<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-									<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:book-multiple" width="14" class="text-primary-500"></iconify-icon>
 									<span>{availableLangsField.label}</span>
 									{#if availableLangsField.required}
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={availableLangsField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+										<button type="button" class="ml-1 text-surface-400 hover:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -812,7 +812,7 @@ onMount(() => {
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[availableLangsField.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-surface-300/50 bg-surface-50 dark:border-surface-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[availableLangsField.key] as string[])?.length > 0}
 											{@const languages = values[availableLangsField.key] as string[]}
@@ -859,13 +859,13 @@ onMount(() => {
 									{#if showLanguagePicker[availableLangsField.key]}
 										<div
 											id="{availableLangsField.key}-lang-picker"
-											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-surface-300/60 bg-surface-50 p-2 shadow-lg dark:border-surface-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-surface-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-surface-600"
 												placeholder="Search..."
 												bind:value={languageSearch[availableLangsField.key]}
 											/>
@@ -893,7 +893,7 @@ onMount(() => {
 														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
 													</button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
+													<p class="px-1 py-2 text-center text-[11px] text-surface-500">No matches</p>
 												{/each}
 											</div>
 										</div>
@@ -903,23 +903,23 @@ onMount(() => {
 									<div class="mt-1 text-xs text-error-500">{errors[availableLangsField.key]}</div>
 								{/if}
 								{#if availableLangsField.placeholder}
-									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Example: {availableLangsField.placeholder}</p>
+									<p class="mt-1 text-[10px] text-surface-500 dark:text-surface-400">Example: {availableLangsField.placeholder}</p>
 								{/if}
 							</div>
 						{/if}
 					</div>
 					<!-- Right Column: Base Locale + Available Locales -->
-					<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded-md border border-surface-300/50 bg-surface-50/60 p-4 dark:border-surface-600/60 dark:bg-surface-800/40">
 						{#if baseLocaleField}
 							<div>
 								<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
-									<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:translate" width="18" class="text-primary-500"></iconify-icon>
 									<span>{baseLocaleField.label}</span>
 									{#if baseLocaleField.required}
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={baseLocaleField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+										<button type="button" class="ml-1 text-surface-400 hover:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -949,13 +949,13 @@ onMount(() => {
 						{#if localesField}
 							<div>
 								<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-									<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:translate-variant" width="14" class="text-primary-500"></iconify-icon>
 									<span>{localesField.label}</span>
 									{#if localesField.required}
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={localesField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+										<button type="button" class="ml-1 text-surface-400 hover:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -964,7 +964,7 @@ onMount(() => {
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[localesField.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-surface-300/50 bg-surface-50 dark:border-surface-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[localesField.key] as string[])?.length > 0}
 											{@const locales = values[localesField.key] as string[]}
@@ -1019,13 +1019,13 @@ onMount(() => {
 									{#if showLanguagePicker[localesField.key]}
 										<div
 											id="{localesField.key}-lang-picker"
-											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-surface-300/60 bg-surface-50 p-2 shadow-lg dark:border-surface-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-surface-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-surface-600"
 												placeholder="Search..."
 												bind:value={languageSearch[localesField.key]}
 											/>
@@ -1052,7 +1052,7 @@ onMount(() => {
 														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
 													</button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
+													<p class="px-1 py-2 text-center text-[11px] text-surface-500">No matches</p>
 												{/each}
 											</div>
 										</div>
@@ -1062,7 +1062,7 @@ onMount(() => {
 									<div class="mt-1 text-xs text-error-500">{errors[localesField.key]}</div>
 								{/if}
 								{#if localesField.placeholder}
-									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Example: {localesField.placeholder}</p>
+									<p class="mt-1 text-[10px] text-surface-500 dark:text-surface-400">Example: {localesField.placeholder}</p>
 								{/if}
 							</div>
 						{/if}
@@ -1082,8 +1082,8 @@ onMount(() => {
 								<!-- Label wrapped with tooltip -->
 								<SystemTooltip title={field.description} positioning={{ placement: 'top' }}>
 									<span class="flex items-center gap-2 cursor-help">
-										<iconify-icon icon={getFieldIcon(field)} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500 md:text-base">{field.label}</span>
+										<iconify-icon icon={getFieldIcon(field)} width="18" class="text-primary-500"></iconify-icon>
+										<span class="text-sm font-semibold text-primary-500 md:text-base">{field.label}</span>
 										{#if field.required}
 											<span class="text-error-500">*</span>
 										{/if}
@@ -1221,7 +1221,7 @@ onMount(() => {
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[field.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-surface-300/50 bg-surface-50 dark:border-surface-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as string[])?.length > 0}
 											{@const languages = values[field.key] as string[]}
@@ -1268,13 +1268,13 @@ onMount(() => {
 									{#if showLanguagePicker[field.key]}
 										<div
 											id="{field.key}-lang-picker"
-											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-surface-300/60 bg-surface-50 p-2 shadow-lg dark:border-surface-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-surface-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-surface-600"
 												placeholder="Search..."
 												bind:value={languageSearch[field.key]}
 											/>
@@ -1298,7 +1298,7 @@ onMount(() => {
 														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
 													</button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
+													<p class="px-1 py-2 text-center text-[11px] text-surface-500">No matches</p>
 												{/each}
 											</div>
 										</div>
@@ -1313,7 +1313,7 @@ onMount(() => {
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[field.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-surface-300/50 bg-surface-50 dark:border-surface-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
 											{@const levels = values[field.key] as LogLevel[]}
@@ -1357,7 +1357,7 @@ onMount(() => {
 									{#if showLogLevelPicker[field.key]}
 										<div
 											id="{field.key}-loglevel-picker"
-											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-surface-300/60 bg-surface-50 p-2 shadow-lg dark:border-surface-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add log level"
 											tabindex="-1"
@@ -1398,7 +1398,7 @@ onMount(() => {
 			{/if}
 
 			<!-- Local Group Actions -->
-			<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
+			<div class="mt-8 border-t border-surface-300/30 pt-6 dark:border-surface-700/30">
 				<div class="flex flex-wrap items-center justify-start gap-3">
 					<button
 						type="button"

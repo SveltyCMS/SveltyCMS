@@ -144,7 +144,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 		const baseClasses = 'ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
 		const contextMap = {
 			Current: 'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200',
-			Past: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+			Past: 'bg-surface-100 text-surface-800 dark:bg-surface-700 dark:text-surface-300',
 			Future: 'bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-200'
 		};
 		return `${baseClasses} ${relativeContext ? contextMap[relativeContext as keyof typeof contextMap] : ''}`;
@@ -167,10 +167,10 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	});
 </script>
 
-<span class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={tooltipText}>
+<span class="inline-flex items-center font-medium text-surface-900 dark:text-surface-100" title={tooltipText}>
 	<span>{formattedRange}</span>
 	{#if duration}
-		<span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400" aria-label="Duration: {duration}"> ({duration}) </span>
+		<span class="ml-2 text-sm font-normal text-surface-500 dark:text-surface-400" aria-label="Duration: {duration}"> ({duration}) </span>
 	{/if}
 	{#if relativeContext}
 		<span class={contextClasses} aria-label="Time context: {relativeContext}"> {relativeContext} </span>

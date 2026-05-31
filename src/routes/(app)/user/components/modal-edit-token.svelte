@@ -315,7 +315,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 								<button
 									type="button"
 									class="chip {tokenForm.data.role === r._id
-										? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
+										? 'preset-filled-primary-500'
 										: 'bg-surface-200 dark:bg-surface-100 text-black dark:text-black opacity-60'}"
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
@@ -326,7 +326,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 								</button>
 							{/each}
 						{:else}
-							<div class="text-sm text-gray-500 italic">No roles available.</div>
+							<div class="text-sm text-surface-500 italic">No roles available.</div>
 						{/if}
 					</div>
 				</div>
@@ -365,7 +365,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				</div>
 
 				<!-- Save -->
-				<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 px-10">
+				<button type="submit" form="token-form" class="preset-filled-primary-500 btn px-10">
 					{tokenForm.submitting ? '...' : button_save()}
 				</button>
 			</footer>

@@ -101,10 +101,10 @@ Default value is 'blank'.
 <section class="flex flex-col gap-3 overflow-hidden w-full">
 	<div class="flex items-center justify-between mb-1">
 		<div class="flex gap-2.5 items-center">
-			<iconify-icon icon="mdi:package-variant-closed" width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<iconify-icon icon="mdi:package-variant-closed" width="22" class="text-primary-500"></iconify-icon>
 			<h3 class="text-[1.05rem] font-semibold text-dark dark:text-white">Project Blueprint</h3>
 			<SystemTooltip title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings.">
-				<button type="button" class="text-slate-400 hover:text-tertiary-500" aria-label="Help: Project Blueprint">
+				<button type="button" class="text-surface-400 hover:text-tertiary-500" aria-label="Help: Project Blueprint">
 					<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
 				</button>
 			</SystemTooltip>
@@ -166,7 +166,7 @@ Default value is 'blank'.
 					onclick={() => select(preset.id)}
 				>
 					<div class="  mt-2 flex items-center gap-2">
-						<iconify-icon icon={preset.icon} width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon icon={preset.icon} width="22" class="text-primary-500"></iconify-icon>
 						<span class="flex-1 text-black dark:text-white font-bold text-[0.88rem] leading-[1.2]">{preset.title}</span>
 
 						{#if preset.complexity}

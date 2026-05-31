@@ -205,7 +205,7 @@ function handleKeyDown(e: KeyboardEvent) {
 					}}
 					aria-label="Edit {name}"
 				>
-					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-primary-500"></iconify-icon>
 				</button>
 			{:else}
 				<a
@@ -215,7 +215,7 @@ function handleKeyDown(e: KeyboardEvent) {
 					onclick={(e) => e.stopPropagation()}
 					aria-label="Edit {name}"
 				>
-					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-primary-500"></iconify-icon>
 				</a>
 			{/if}
 		</SystemTooltip>

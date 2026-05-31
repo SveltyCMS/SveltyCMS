@@ -206,7 +206,7 @@ onMount(() => {
 				<kbd class="rounded border border-surface-300 bg-white px-1 dark:border-surface-600 dark:bg-surface-700">↵</kbd> Select
 			</span>
 		</div>
-		<div class="flex items-center gap-1 text-tertiary-500 dark:text-primary-500">
+		<div class="flex items-center gap-1 text-primary-500">
 			<Icon icon="mdi:robot" />
 			Powered by AI Core v1.1
 		</div>

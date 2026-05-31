@@ -636,7 +636,7 @@ onMount(() => {
 			<div class="relative">
 				{#if availableWidgets.length > 0}
 					<button
-						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
+						class="preset-filled-primary-500 btn"
 						onclick={() => (dropdownOpen = !dropdownOpen)}
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
@@ -648,7 +648,7 @@ onMount(() => {
 				{/if}
 				{#if dropdownOpen}
 					<div
-						class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+						class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900"
 						role="menu"
 					>
 						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} /></div>
@@ -669,7 +669,7 @@ onMount(() => {
 									<div class="flex flex-col"><span>{widgetInfo?.name || widgetName}</span></div>
 								</button>
 							{:else}
-								<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
+								<div class="px-4 py-2 text-sm text-surface-500">No widgets found.</div>
 							{/each}
 						</div>
 					</div>
@@ -761,11 +761,11 @@ onMount(() => {
 				{:else}
 					<div class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center">
 						<div class="flex flex-col items-center px-10 py-12">
-							<iconify-icon icon="mdi:view-dashboard" width={80} class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"></iconify-icon>
-							<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">Your Dashboard is Empty</p>
+							<iconify-icon icon="mdi:view-dashboard" width={80} class="mb-6 text-primary-500 drop-shadow-lg"></iconify-icon>
+							<p class="mb-2 text-2xl font-bold text-primary-500">Your Dashboard is Empty</p>
 							<p class="mb-6 text-base text-surface-600 dark:text-surface-300">Click below to add your first widget and get started.</p>
 							<button
-								class="btn rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
+								class="btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg"
 								onclick={() => (dropdownOpen = true)}
 								aria-label="Add first widget"
 							>
@@ -797,7 +797,7 @@ onMount(() => {
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<div class="text-sm text-gray-600 dark:text-gray-400">
+				<div class="text-sm text-surface-600 dark:text-surface-400">
 					<iconify-icon icon="mdi:shield-check" width={16} class="mr-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>

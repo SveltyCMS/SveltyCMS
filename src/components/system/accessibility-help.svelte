@@ -90,7 +90,7 @@
 	<div class="flex items-center justify-between border-b border-surface-200 pb-4 dark:border-surface-700">
 		<div>
 			<h3 class="h3 flex items-center gap-2 font-bold">
-				<iconify-icon icon="mdi:accessibility" width="24" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:accessibility" width="24" class="text-primary-500" aria-hidden="true"></iconify-icon>
 				Accessibility Help
 			</h3>
 			<p class="text-sm text-surface-500">WCAG 2.2 AA & ATAG 2.0 Compliance</p>
@@ -174,9 +174,9 @@
 				</ul>
 			</div>
 
-			<div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-				<h5 class="mb-2 font-semibold text-emerald-800 dark:text-emerald-200">Part B: Accessible Content</h5>
-				<ul class="space-y-1 text-sm text-emerald-700 dark:text-emerald-300">
+			<div class="rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
+				<h5 class="mb-2 font-semibold text-success-800 dark:text-success-200">Part B: Accessible Content</h5>
+				<ul class="space-y-1 text-sm text-success-700 dark:text-success-300">
 					<li class="flex items-start gap-2">
 						<iconify-icon icon="mdi:check-circle" class="mt-0.5" width="16"></iconify-icon>
 						<span>Alt text enforcement for images</span>

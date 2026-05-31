@@ -72,14 +72,14 @@ export const widgetMeta = {
 	}
 
 	function healthCls(h: string): string {
-		const m: Record<string, string> = { excellent: 'text-emerald-500', good: 'text-green-500', fair: 'text-amber-500', poor: 'text-orange-500', critical: 'text-red-500' };
+		const m: Record<string, string> = { excellent: 'text-success-500', good: 'text-success-500', fair: 'text-warning-500', poor: 'text-warning-500', critical: 'text-error-500' };
 		return m[h] || 'text-surface-500';
 	}
 
 	function metricCls(v: number, lo: number, hi: number): string {
-		if (v > hi) return 'text-red-500';
-		if (v > lo) return 'text-amber-500';
-		return 'text-emerald-500';
+		if (v > hi) return 'text-error-500';
+		if (v > lo) return 'text-warning-500';
+		return 'text-success-500';
 	}
 
 	function pushSparkline(arr: number[], val: number): number[] {
@@ -148,11 +148,11 @@ export const widgetMeta = {
 						</div>
 						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
 							<span class="text-[10px] font-medium text-surface-500">Auth</span>
-							<span class="text-xs font-bold tabular-nums {m.authentication.successRate > 95 ? 'text-emerald-500' : 'text-amber-500'}">{m.authentication.successRate.toFixed(0)}%</span>
+							<span class="text-xs font-bold tabular-nums {m.authentication.successRate > 95 ? 'text-success-500' : 'text-warning-500'}">{m.authentication.successRate.toFixed(0)}%</span>
 						</div>
 						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
 							<span class="text-[10px] font-medium text-surface-500">Cache</span>
-							<span class="text-xs font-bold tabular-nums text-blue-500">{avgCache.toFixed(0)}%</span>
+							<span class="text-xs font-bold tabular-nums text-tertiary-500">{avgCache.toFixed(0)}%</span>
 						</div>
 					</div>
 				</div>
@@ -189,14 +189,14 @@ export const widgetMeta = {
 						<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
 							<div class="text-[11px] text-surface-500">Auth Success</div>
 							<div class="mt-1">
-								<span class="text-2xl font-semibold tabular-nums {m.authentication.successRate > 95 ? 'text-emerald-500' : 'text-amber-500'}">{m.authentication.successRate.toFixed(1)}%</span>
+								<span class="text-2xl font-semibold tabular-nums {m.authentication.successRate > 95 ? 'text-success-500' : 'text-warning-500'}">{m.authentication.successRate.toFixed(1)}%</span>
 							</div>
 							<div class="mt-1 text-[10px] text-surface-400">{m.authentication.validations} ok / {m.authentication.failures} fail</div>
 						</div>
 						<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
 							<div class="text-[11px] text-surface-500">Cache Hit Rate</div>
 							<div class="mt-1">
-								<span class="text-2xl font-semibold tabular-nums text-blue-500">{avgCache.toFixed(1)}%</span>
+								<span class="text-2xl font-semibold tabular-nums text-tertiary-500">{avgCache.toFixed(1)}%</span>
 							</div>
 						</div>
 					</div>
@@ -207,16 +207,16 @@ export const widgetMeta = {
 								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Requests</h5>
 								<div class="grid grid-cols-3 gap-2 text-center">
 									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums">{m.requests.total.toLocaleString()}</div><div class="text-[10px] text-surface-500">Total</div></div>
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-red-500">{m.requests.errors}</div><div class="text-[10px] text-surface-500">Errors</div></div>
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-amber-500">{m.performance.slowRequests}</div><div class="text-[10px] text-surface-500">Slow</div></div>
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-error-500">{m.requests.errors}</div><div class="text-[10px] text-surface-500">Errors</div></div>
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-warning-500">{m.performance.slowRequests}</div><div class="text-[10px] text-surface-500">Slow</div></div>
 								</div>
 							</div>
 							<div>
 								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Security</h5>
 								<div class="grid grid-cols-3 gap-2 text-center">
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-orange-500">{m.security.rateLimitViolations}</div><div class="text-[10px] text-surface-500">Rate Limits</div></div>
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-warning-500">{m.security.rateLimitViolations}</div><div class="text-[10px] text-surface-500">Rate Limits</div></div>
 									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-purple-500">{m.security.cspViolations}</div><div class="text-[10px] text-surface-500">CSP</div></div>
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-red-500">{m.security.authFailures}</div><div class="text-[10px] text-surface-500">Auth Fails</div></div>
+									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-error-500">{m.security.authFailures}</div><div class="text-[10px] text-surface-500">Auth Fails</div></div>
 								</div>
 							</div>
 							<div>
@@ -230,7 +230,7 @@ export const widgetMeta = {
 									<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Bottlenecks</h5>
 									<div class="space-y-1">
 										{#each m.performance.bottlenecks.slice(0, 3) as item}
-											<div class="rounded-xl bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{item}</div>
+											<div class="rounded-xl bg-warning-50 px-3 py-1.5 text-xs text-warning-700 dark:bg-warning-900/30 dark:text-warning-400">{item}</div>
 										{/each}
 									</div>
 								</div>

@@ -216,7 +216,7 @@
   // Helper to get text color based on translation status
   function getTranslationTextColor(percentage: number): string {
     if (percentage === 100) {
-      return "text-tertiary-500 dark:text-primary-500";
+      return "text-primary-500";
     }
     return "text-error-500";
   }
@@ -422,14 +422,14 @@
     class="flex flex-1 flex-col items-center"
   >
     <Tabs.List
-      class="flex justify-between md:justify-around rounded-tl-container rounded-tr-container border-b border-tertiary-500 dark:border-primary-500 w-full"
+      class="flex justify-between md:justify-around rounded-tl-container rounded-tr-container border-b border-primary-500 w-full"
     >
       <Tabs.Trigger value="0" class="flex-1">
         <div class="flex items-center justify-center gap-2 py-2">
           <iconify-icon
             icon="mdi:pen"
             width="20"
-            class="text-tertiary-500 dark:text-primary-500"
+            class="text-primary-500"
           ></iconify-icon>
           {button_edit()}
         </div>
@@ -441,7 +441,7 @@
             <iconify-icon
               icon="mdi:history"
               width="20"
-              class="text-tertiary-500 dark:text-primary-500"
+              class="text-primary-500"
             ></iconify-icon>
             {applayout_version()}
             <span class="preset-filled-secondary-500 badge"
@@ -457,7 +457,7 @@
             <iconify-icon
               icon="mdi:api"
               width="20"
-              class="text-tertiary-500 dark:text-primary-500"
+              class="text-primary-500"
             ></iconify-icon>
             API
           </div>
@@ -472,13 +472,13 @@
               <iconify-icon
                 icon={slot.props.icon}
                 width="20"
-                class="text-tertiary-500 dark:text-primary-500"
+                class="text-primary-500"
               ></iconify-icon>
             {:else}
               <iconify-icon
                 icon="mdi:puzzle-outline"
                 width="20"
-                class="text-tertiary-500 dark:text-primary-500"
+                class="text-primary-500"
               ></iconify-icon>
             {/if}
             {slot.props?.label || slot.id}
@@ -546,7 +546,7 @@
                         <iconify-icon
                           icon="mdi:code-braces"
                           width="16"
-                          class="font-bold text-tertiary-500 dark:text-primary-500"
+                          class="font-bold text-primary-500"
                         ></iconify-icon>
                       </button>
                     </SystemTooltip>
@@ -558,7 +558,7 @@
                         <iconify-icon icon="bi:translate" width="16"
                         ></iconify-icon>
                         <span
-                          class="font-medium text-tertiary-500 dark:text-primary-500"
+                          class="font-medium text-primary-500"
                           >{currentContentLanguage.toUpperCase()}</span
                         >
                         <span class="font-medium {textColor}"
@@ -571,7 +571,7 @@
                       <iconify-icon
                         icon={field.icon}
                         width="20"
-                        class="text-tertiary-500 dark:text-primary-500"
+                        class="text-primary-500"
                       ></iconify-icon>
                     {/if}
                   </div>

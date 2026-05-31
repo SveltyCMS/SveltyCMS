@@ -36,7 +36,7 @@ function handleUploadComplete() {
 
 <!-- PageTitle -->
 <div class="mb-4 flex items-center justify-between">
-	<PageTitle name={uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
+	<PageTitle name={uploadMedia_title()} icon="bi:images" iconColor="text-primary-500" />
 
 	<!-- Back -->
 	<button
@@ -54,13 +54,13 @@ function handleUploadComplete() {
 			<Tabs.Trigger value="0" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:database" width="24"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
+					<p class="text-primary-500">Local Upload</p>
 				</div>
 			</Tabs.Trigger>
 			<Tabs.Trigger value="1" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:radio" width="24"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
+					<p class="text-primary-500">Remote Upload</p>
 				</div>
 			</Tabs.Trigger>
 			<Tabs.Indicator />

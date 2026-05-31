@@ -254,7 +254,7 @@
 <div class="space-y-2" role="navigation" aria-label="Media folders">
 	<!-- Header -->
 	<div class="flex items-center justify-between">
-		<h3 class="flex items-center text-sm font-semibold text-tertiary-500 dark:text-primary-500">
+		<h3 class="flex items-center text-sm font-semibold text-primary-500">
 			<iconify-icon icon="bi:folder" width={24}></iconify-icon>
 			Media Folders
 		</h3>

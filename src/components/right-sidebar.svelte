@@ -287,7 +287,7 @@
 
 			<main class="mt-6 flex w-full flex-col gap-4 text-left">
 				<div class="border-b border-surface-300 pb-2 dark:border-surface-600">
-					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500">{siedabar_publish_options()}</h3>
+					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-primary-500">{siedabar_publish_options()}</h3>
 				</div>
 
 				<div class="space-y-2">
@@ -299,7 +299,7 @@
 						class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-left transition-colors"
 					>
 						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
-						<span class="text-sm text-tertiary-500 dark:text-primary-500">
+						<span class="text-sm text-primary-500">
 							{scheduleTimestamp ? new Date(scheduleTimestamp).toLocaleString(getLocale()) : 'Schedule publication...'}
 						</span>
 					</button>
@@ -309,7 +309,7 @@
 					<div class="space-y-1">
 						<p class="text-sm font-medium">{sidebar_createdby()}</p>
 						<div class="preset-filled-surface-500 rounded p-1.5 text-center">
-							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500"> {getDisplayName(currentEntry?.createdBy as string)} </span>
+							<span class="text-sm font-semibold text-primary-500"> {getDisplayName(currentEntry?.createdBy as string)} </span>
 						</div>
 					</div>
 
@@ -317,7 +317,7 @@
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="preset-filled-surface-500 rounded p-1.5 text-center">
-								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
+								<span class="text-sm font-semibold text-primary-500">
 									{getDisplayName(currentEntry?.updatedBy as string)}
 								</span>
 							</div>
@@ -330,16 +330,16 @@
 				<div class="space-y-2 text-xs">
 					<div class="flex items-center justify-between">
 						<span class="font-medium capitalize">Created:</span>
-						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.created}</span>
+						<span class="font-bold text-primary-500">{dates.created}</span>
 					</div>
 					<div class="flex items-center justify-between">
 						<span class="font-medium capitalize">Updated:</span>
-						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.updated}</span>
+						<span class="font-bold text-primary-500">{dates.updated}</span>
 					</div>
 				</div>
 
 				{#if currentMode === 'create'}
-					<div class="mt-3 text-center text-xs text-tertiary-500 dark:text-primary-500">
+					<div class="mt-3 text-center text-xs text-primary-500">
 						{new Date().toLocaleString(getLocale(), {
 							year: 'numeric',
 							month: 'short',

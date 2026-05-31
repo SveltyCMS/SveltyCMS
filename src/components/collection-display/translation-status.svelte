@@ -422,7 +422,7 @@ FIXES:
 			</button>
 		{/snippet}
 
-		<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
+		<div class="px-3 py-2 text-xs font-bold text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
 			{applayout_contentlanguage()}
 		</div>
 
@@ -449,7 +449,7 @@ FIXES:
 								<span class="min-w-8 text-right text-sm font-semibold"> {percentage}% </span>
 							</div>
 						{:else}
-							<span class="hidden text-xs font-normal text-tertiary-500 dark:text-primary-500 md:inline">{lang.toUpperCase()}</span>
+							<span class="hidden text-xs font-normal text-primary-500 md:inline">{lang.toUpperCase()}</span>
 						{/if}
 
 						{#if isActive}
@@ -463,7 +463,7 @@ FIXES:
 		{#if !isViewMode && showProgress}
 			<div class="border-t border-surface-200 dark:border-surface-50 my-1"></div>
 			<div class="px-4 py-2">
-				<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">{translationsstatus_completed()}</div>
+				<div class="mb-1 text-center text-xs font-medium text-primary-500">{translationsstatus_completed()}</div>
 				<div class="flex items-center justify-between gap-3">
 					{#if overallPercentage}
 						<div class="flex-1">

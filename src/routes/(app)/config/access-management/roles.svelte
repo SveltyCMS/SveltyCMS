@@ -216,7 +216,7 @@ function handleFinalize(e: CustomEvent) {
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Roles Management:</h3>
 
-	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
 		Manage user roles and their access permissions. You can create, edit, or delete roles and assign specific permissions to them.
 	</p>
 
@@ -283,7 +283,7 @@ function handleFinalize(e: CustomEvent) {
 
 									<!-- Role Name with Description hidden on small screens -->
 									<div class="flex flex-col">
-										<span class="flex items-center text-lg font-bold text-tertiary-500 dark:text-primary-500">
+										<span class="flex items-center text-lg font-bold text-primary-500">
 											{role.name}
 											{#if role.isAdmin}
 												<span class="ml-2 badge variant-filled-secondary text-xs">Admin</span>

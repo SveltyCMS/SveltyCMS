@@ -70,15 +70,15 @@ export const widgetMeta = {
 	}
 
 	function hitRateClass(rate: number): string {
-		if (rate >= 90) return 'text-emerald-500';
-		if (rate >= 70) return 'text-amber-500';
-		return 'text-red-500';
+		if (rate >= 90) return 'text-success-500';
+		if (rate >= 70) return 'text-warning-500';
+		return 'text-error-500';
 	}
 
 	function barColor(rate: number): string {
-		if (rate >= 90) return 'bg-emerald-500';
-		if (rate >= 70) return 'bg-amber-500';
-		return 'bg-red-500';
+		if (rate >= 90) return 'bg-success-500';
+		if (rate >= 70) return 'bg-warning-500';
+		return 'bg-error-500';
 	}
 </script>
 
@@ -128,12 +128,12 @@ export const widgetMeta = {
 				<!-- Inline stats -->
 				<div class="flex items-center gap-3 text-xs">
 					<span class="tabular-nums text-surface-500">
-						<span class="text-emerald-500 font-medium">{fmtNum(o.hits)}</span> hits
+						<span class="text-success-500 font-medium">{fmtNum(o.hits)}</span> hits
 					</span>
 					<span class="tabular-nums text-surface-500">
-						<span class="text-red-500 font-medium">{fmtNum(o.misses)}</span> misses
+						<span class="text-error-500 font-medium">{fmtNum(o.misses)}</span> misses
 					</span>
-					<span class="tabular-nums font-medium text-blue-500">{fmtSize(o.size)}</span>
+					<span class="tabular-nums font-medium text-tertiary-500">{fmtSize(o.size)}</span>
 				</div>
 			</div>
 		{:else}
@@ -144,7 +144,7 @@ export const widgetMeta = {
 				<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
 					<div class="flex items-center justify-between mb-2">
 						<span class="text-xs font-semibold uppercase tracking-wider text-surface-400">Overall</span>
-						<span class="text-xs font-medium text-blue-500 tabular-nums">{fmtSize(o.size)}</span>
+						<span class="text-xs font-medium text-tertiary-500 tabular-nums">{fmtSize(o.size)}</span>
 					</div>
 
 					<div class="flex items-baseline justify-between mb-2">
@@ -160,11 +160,11 @@ export const widgetMeta = {
 
 					<div class="grid grid-cols-4 gap-2 text-center text-xs">
 						<div class="rounded-lg bg-surface-100 p-1.5 dark:bg-surface-700/50">
-							<div class="font-mono font-semibold text-emerald-500 tabular-nums">{fmtNum(o.hits)}</div>
+							<div class="font-mono font-semibold text-success-500 tabular-nums">{fmtNum(o.hits)}</div>
 							<div class="text-[10px] text-surface-500">Hits</div>
 						</div>
 						<div class="rounded-lg bg-surface-100 p-1.5 dark:bg-surface-700/50">
-							<div class="font-mono font-semibold text-red-500 tabular-nums">{fmtNum(o.misses)}</div>
+							<div class="font-mono font-semibold text-error-500 tabular-nums">{fmtNum(o.misses)}</div>
 							<div class="text-[10px] text-surface-500">Misses</div>
 						</div>
 						<div class="rounded-lg bg-surface-100 p-1.5 dark:bg-surface-700/50">
@@ -185,7 +185,7 @@ export const widgetMeta = {
 							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
 								<div class="flex items-center justify-between mb-2">
 									<span class="text-xs font-semibold capitalize text-surface-600 dark:text-surface-300">{cat}</span>
-									<span class="text-xs tabular-nums text-blue-500">{fmtSize(s.size)}</span>
+									<span class="text-xs tabular-nums text-tertiary-500">{fmtSize(s.size)}</span>
 								</div>
 
 								<div class="flex items-center justify-between mb-2">

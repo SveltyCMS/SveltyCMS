@@ -125,10 +125,10 @@ Part of the Three Pillars Architecture for widget system.
 	const displayText = $derived(relativeTime || formattedDate);
 </script>
 
-<time class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={isoString} datetime={isoString}>
+<time class="inline-flex items-center font-medium text-surface-900 dark:text-surface-100" title={isoString} datetime={isoString}>
 	{#if relativeTime}
 		<span class="mr-1 text-primary-600 dark:text-primary-500"> {displayText} </span>
-		<span class="text-xs text-gray-500 dark:text-gray-400"> ({formattedDate}) </span>
+		<span class="text-xs text-surface-500 dark:text-surface-400"> ({formattedDate}) </span>
 	{:else}
 		{displayText}
 	{/if}

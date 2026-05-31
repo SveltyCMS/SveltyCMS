@@ -234,7 +234,7 @@ onMount(loadFlows);
 		</div>
 	{:else if flows.length === 0}
 		<div class="card p-12 text-center border-2 border-dashed border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fade>
-			<iconify-icon icon="mdi:robot-off-outline" width="64" height="64" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<iconify-icon icon="mdi:robot-off-outline" width="64" height="64" class="text-primary-500"></iconify-icon>
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
 			<p class="mb-6 text-sm opacity-40">Example: Send an email when a new article is published.</p>

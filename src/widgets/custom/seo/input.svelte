@@ -368,7 +368,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 							{#if isTranslated}
 								<div class="flex items-center gap-1 text-xs">
 									<iconify-icon icon="bi:translate" width="24"></iconify-icon>
-									<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+									<span class="font-medium text-primary-500">{lang.toUpperCase()}</span>
 									<span class="font-medium text-surface-400 dark:text-surface-300">({translationStats.schemaMarkup || 0}%)</span>
 								</div>
 							{/if}

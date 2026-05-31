@@ -145,14 +145,14 @@ beforeNavigate(({ cancel }) => {
 	<!-- Content -->
 	<div class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
 		<div class="mb-4">
-			<p class="text-tertiary-500 dark:text-primary-500 text-sm">
+			<p class="text-primary-500 text-sm">
 				Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
 				can perform in the system.
 			</p>
 		</div>
 
 		<Tabs value={currentTab} onValueChange={(e) => (currentTab = e.value)} class="grow">
-			<Tabs.List class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800">
+			<Tabs.List class="flex justify-around text-primary-500 border-b border-surface-200-800">
 				<Tabs.Trigger value="0" class="flex-1" aria-current={currentTab === '0' ? 'page' : undefined}>
 					<div class="flex items-center justify-center gap-1 py-4">
 						<iconify-icon icon="mdi:shield-lock-outline" width={24}></iconify-icon>

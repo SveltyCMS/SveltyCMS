@@ -271,7 +271,7 @@
 					<button
 						type="button"
 						onclick={() => isPinnedOpen = !isPinnedOpen}
-						class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+						class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
 					>
 						<span class="flex items-center gap-1.5">
 							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-primary-500"></iconify-icon>
@@ -326,10 +326,10 @@
 				<button
 					type="button"
 					onclick={() => { isCollectionsOpen = !isCollectionsOpen; if (isCollectionsOpen) { isMediaOpen = false; } }}
-					class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+					class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
 				>
 					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon icon="bi:collection" width="16" class="text-primary-500"></iconify-icon>
 						{#if isSidebarFull}Collections{/if}
 					</span>
 					{#if isSidebarFull}
@@ -358,10 +358,10 @@
 							toggleUIElement('leftSidebar', 'hidden');
 						}
 					}}
-					class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+					class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
 				>
 					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon icon="bi:images" width="16" class="text-primary-500"></iconify-icon>
 						{#if isSidebarFull}{Collections_MediaGallery()}{/if}
 					</span>
 					{#if isSidebarFull}
@@ -467,7 +467,7 @@
 							{/snippet}
 
 							<!-- Header to inform user about System Language context -->
-							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
+							<div class="px-3 py-2 text-xs font-bold text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
 								{applayout_systemlanguage()}
 							</div>
 
@@ -490,7 +490,7 @@
 											onclick={() => handleLanguageSelection(lang)}
 										>
 											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+											<span class="text-xs font-normal text-primary-500 ml-2">{lang.toUpperCase()}</span>
 										</button>
 									{/each}
 								</div>
@@ -501,7 +501,7 @@
 										onclick={() => handleLanguageSelection(lang)}
 									>
 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+										<span class="text-xs font-normal text-primary-500 ml-2">{lang.toUpperCase()}</span>
 									</button>
 								{/each}
 							{/if}

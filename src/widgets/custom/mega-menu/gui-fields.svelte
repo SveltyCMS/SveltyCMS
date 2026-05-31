@@ -125,7 +125,7 @@ Interactive level configuration with add/remove level capabilities
 	</div>
 
 	<div class=" border-t border-surface-200 pt-4 dark:text-surface-50">
-		<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={addLevel}>
+		<button type="button" class="preset-filled-primary-500 btn" onclick={addLevel}>
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 			Add Menu Level
 		</button>

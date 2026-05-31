@@ -75,16 +75,16 @@
 <div class="mb-1 flex items-center justify-between text-xs md:mb-0 md:text-sm" role="status" aria-live="polite">
 	<div>
 		<span>{entrylist_page()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+		<span class="text-primary-500">{currentPage}</span>
 		<span>{entrylist_of()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
+		<span class="text-primary-500">{computedPagesCount}</span>
 		<span class="ml-4" aria-label="Current items shown">
 			{#if totalItems > 0}
-				{entrylist_showing()} <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
-					class="text-tertiary-500 dark:text-primary-500">{endItem}</span
+				{entrylist_showing()} <span class="text-primary-500">{startItem}</span>–<span
+					class="text-primary-500">{endItem}</span
 				>
 				{entrylist_of()}
-				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span>
+				<span class="text-primary-500">{totalItems}</span>
 				{entrylist_items()}
 			{:else}
 				{entrylist_showing()}

@@ -99,10 +99,10 @@
 
 	function getHeatClasses(heatLevel: number): string {
 		const heatMap = {
-			1: 'bg-green-500/20',
-			2: 'bg-yellow-500/20',
-			3: 'bg-orange-500/20',
-			4: 'bg-red-500/20',
+			1: 'bg-success-500/20',
+			2: 'bg-warning-500/20',
+			3: 'bg-warning-500/20',
+			4: 'bg-error-500/20',
 			5: 'bg-purple-500/20'
 		};
 		return heatMap[heatLevel as keyof typeof heatMap] || '';
@@ -124,13 +124,13 @@
 	{#if heatmapData.length > 0}
 		{#each heatmapData as { word, heatLevel, isKeyword }, index (index)}
 			<span
-				class="relative cursor-help {getHeatClasses(heatLevel)} {isKeyword ? 'border-b-2 border-blue-500' : ''} group"
+				class="relative cursor-help {getHeatClasses(heatLevel)} {isKeyword ? 'border-b-2 border-tertiary-500' : ''} group"
 				aria-label="Heat level {heatLevel}: {word}{isKeyword ? ', keyword' : ''}"
 				transition:fade={{ duration: 200 }}
 			>
 				{word}
 				<span
-					class="absolute bottom-full left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 p-1 text-xs text-white group-hover:block"
+					class="absolute bottom-full left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-surface-800 p-1 text-xs text-white group-hover:block"
 				>
 					Heat: {heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}
 				</span>

@@ -68,5 +68,5 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 		</div>
 	{/if}
 {:else}
-	<span class="text-gray-400">–</span>
+	<span class="text-surface-400">–</span>
 {/if}

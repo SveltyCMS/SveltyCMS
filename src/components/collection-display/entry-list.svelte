@@ -976,7 +976,7 @@ bulk actions, and predictive preloading.
 							<button
 								type="button"
 								class="chip {header.visible
-									? 'dark:preset-filled-primary-500 preset-filled-tertiary-500'
+									? 'preset-filled-primary-500'
 									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
 								onclick={() => handleColumnVisibilityToggle(header)}
 							>
@@ -1067,7 +1067,7 @@ bulk actions, and predictive preloading.
 									class="flex w-full items-center justify-center font-bold uppercase focus:outline-none {(header as TableHeader).name ===
 									entryListPaginationSettings.sorting.sortedBy
 										? 'text-primary-500 dark:text-secondary-400'
-										: 'text-tertiary-500 dark:text-primary-500'}"
+										: 'text-primary-500'}"
 									onclick={() => onSortChange((header as TableHeader).name || '')}
 								>
 									{(header as TableHeader).label}
@@ -1241,7 +1241,7 @@ bulk actions, and predictive preloading.
 			/>
 		</div>
 	{:else}
-		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
+		<div class="py-10 text-center text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
 			<p class="text-lg">
 				{currentCollection?.name ? EntryList_no_collection({ name: currentCollection.name }) : 'No collection selected or collection is empty.'}

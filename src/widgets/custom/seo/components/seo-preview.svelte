@@ -159,7 +159,7 @@
 		<!-- Title -->
 		<div class="mb-1">
 			{#if heatmapMode}
-				<h3 class="relative text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500">
+				<h3 class="relative text-lg font-medium leading-tight text-primary-500">
 					{#each heatmapDataTitle as { word, color }, i (i)}
 						<span class="relative inline-block mr-1">
 							<span
@@ -198,23 +198,23 @@
 	{#if heatmapMode}
 		<div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]" transition:fade>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
-				<div class="w-2 h-2 rounded-full bg-red-500"></div>
+				<div class="w-2 h-2 rounded-full bg-error-500"></div>
 				<span>Keyword</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
-				<div class="w-2 h-2 rounded-full bg-yellow-500"></div>
+				<div class="w-2 h-2 rounded-full bg-warning-500"></div>
 				<span>Power Word</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
-				<div class="w-2 h-2 rounded-full bg-orange-400"></div>
+				<div class="w-2 h-2 rounded-full bg-warning-400"></div>
 				<span>Prominent</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
-				<div class="w-2 h-2 rounded-full bg-green-500"></div>
+				<div class="w-2 h-2 rounded-full bg-success-500"></div>
 				<span>Good Length</span>
 			</div>
 			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-100 dark:bg-surface-800">
-				<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+				<div class="w-2 h-2 rounded-full bg-tertiary-500"></div>
 				<span>Neutral</span>
 			</div>
 		</div>

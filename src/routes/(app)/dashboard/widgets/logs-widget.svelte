@@ -70,17 +70,17 @@ export const widgetMeta = {
 
 	function levelCls(level: string): string {
 		const m: Record<string, string> = {
-			fatal: 'text-purple-500', error: 'text-red-500', warn: 'text-amber-500',
-			info: 'text-emerald-500', debug: 'text-blue-500',
+			fatal: 'text-purple-500', error: 'text-error-500', warn: 'text-warning-500',
+			info: 'text-success-500', debug: 'text-tertiary-500',
 		};
 		return m[level?.toLowerCase()] || 'text-surface-500';
 	}
 
 	function levelBg(level: string): string {
 		const m: Record<string, string> = {
-			fatal: 'bg-purple-100 dark:bg-purple-900/30', error: 'bg-red-100 dark:bg-red-900/30',
-			warn: 'bg-amber-100 dark:bg-amber-900/30', info: 'bg-emerald-100 dark:bg-emerald-900/30',
-			debug: 'bg-blue-100 dark:bg-blue-900/30',
+			fatal: 'bg-purple-100 dark:bg-purple-900/30', error: 'bg-error-100 dark:bg-error-900/30',
+			warn: 'bg-warning-100 dark:bg-warning-900/30', info: 'bg-success-100 dark:bg-success-900/30',
+			debug: 'bg-tertiary-100 dark:bg-tertiary-900/30',
 		};
 		return m[level?.toLowerCase()] || '';
 	}

@@ -7,11 +7,11 @@ Displays a preview of the shared link for different platforms.
 
 <script module lang="ts">
 	const PLATFORMS = [
-		{ id: 'facebook', icon: 'mdi:facebook', color: 'text-blue-600', label: 'Facebook' },
-		{ id: 'whatsapp', icon: 'mdi:whatsapp', color: 'text-green-500', label: 'WhatsApp' },
+		{ id: 'facebook', icon: 'mdi:facebook', color: 'text-tertiary-600', label: 'Facebook' },
+		{ id: 'whatsapp', icon: 'mdi:whatsapp', color: 'text-success-500', label: 'WhatsApp' },
 		{ id: 'twitter', icon: 'mdi:twitter', color: 'text-black dark:text-white', label: 'X (Twitter)' },
-		{ id: 'linkedin', icon: 'mdi:linkedin', color: 'text-blue-700', label: 'LinkedIn' },
-		{ id: 'discord', icon: 'mdi:discord', color: 'text-indigo-500', label: 'Discord' }
+		{ id: 'linkedin', icon: 'mdi:linkedin', color: 'text-tertiary-700', label: 'LinkedIn' },
+		{ id: 'discord', icon: 'mdi:discord', color: 'text-tertiary-500', label: 'Discord' }
 	] as const;
 </script>
 
@@ -80,11 +80,11 @@ Displays a preview of the shared link for different platforms.
 		<!-- Dynamic Preview Styling based on Platform -->
 		<div class="w-full max-w-[500px] bg-white text-black overflow-hidden shadow-lg rounded-lg transition-all duration-300">
 			<!-- Image Area -->
-			<div class="relative bg-gray-100 aspect-[1.91/1] flex items-center justify-center overflow-hidden">
+			<div class="relative bg-surface-100 aspect-[1.91/1] flex items-center justify-center overflow-hidden">
 				{#if displayImage}
 					<img src={displayImage} alt="Social Preview" class="w-full h-full object-cover" />
 				{:else}
-					<div class="flex flex-col items-center text-gray-400">
+					<div class="flex flex-col items-center text-surface-400">
 						<iconify-icon icon="mdi:image-off" width="24" class="text-4xl"></iconify-icon>
 						<span class="text-xs uppercase font-bold mt-2 tracking-wider">No Image</span>
 					</div>
@@ -92,8 +92,8 @@ Displays a preview of the shared link for different platforms.
 			</div>
 
 			<!-- Content Area -->
-			<div class="p-3 bg-[#f0f2f5] border-t border-gray-200">
-				<div class="text-[12px] uppercase text-gray-500 truncate font-sans mb-0.5">
+			<div class="p-3 bg-[#f0f2f5] border-t border-surface-200">
+				<div class="text-[12px] uppercase text-surface-500 truncate font-sans mb-0.5">
 					{hostUrl
 						.replace(/^https?:\/\//, '')
 						.split('/')[0]

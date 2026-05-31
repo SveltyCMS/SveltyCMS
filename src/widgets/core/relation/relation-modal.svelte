@@ -129,7 +129,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	<header class="flex items-center justify-between border-b border-surface-500/20 pb-4">
 		<div class="flex flex-col gap-1">
 			<h3 class="text-xl font-bold tracking-tight">Select Related Entries</h3>
-			<p class="text-sm opacity-60">Collection: <span class="font-mono text-tertiary-500 dark:text-primary-500">{collectionID}</span></p>
+			<p class="text-sm opacity-60">Collection: <span class="font-mono text-primary-500">{collectionID}</span></p>
 		</div>
 		<div class="hidden sm:flex items-center gap-2">
 			{#if selected.size > 0}

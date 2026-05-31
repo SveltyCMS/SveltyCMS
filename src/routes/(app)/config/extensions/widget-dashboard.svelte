@@ -248,29 +248,29 @@ async function uninstallWidget(widgetName: string) {
 <div class="wrapper h-full max-h-screen space-y-6 overflow-y-auto p-4 pb-16">
 	{#if isLoading}
 		<div class="flex items-center justify-center p-8">
-			<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+			<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-600 border-t-transparent"></div>
 			<span class="ml-3 text-lg">Loading widgets...</span>
 		</div>
 	{:else if error}
-		<div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:bg-red-900/20">
+		<div class="rounded-lg border border-error-200 bg-error-50 p-4 dark:bg-error-900/20">
 			<div class="flex items-start gap-3">
-				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-red-600"></iconify-icon>
+				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-error-600"></iconify-icon>
 				<div>
-					<h3 class="font-semibold text-red-800 dark:text-red-300">Error Loading Widgets</h3>
-					<p class="text-red-700 dark:text-red-400">{error}</p>
-					<button onclick={() => loadWidgets()} class="mt-2 rounded-lg bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700">Retry</button>
+					<h3 class="font-semibold text-error-800 dark:text-error-300">Error Loading Widgets</h3>
+					<p class="text-error-700 dark:text-error-400">{error}</p>
+					<button onclick={() => loadWidgets()} class="mt-2 rounded-lg bg-error-600 px-3 py-1 text-sm text-white hover:bg-error-700">Retry</button>
 				</div>
 			</div>
 		</div>
 	{:else}
 		<!-- Permission Notice -->
 		{#if !canManageWidgets}
-			<div class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:bg-amber-900/20">
+			<div class="rounded-lg border border-warning-200 bg-warning-50 p-4 dark:bg-warning-900/20">
 				<div class="flex items-start gap-3">
-					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-amber-600"></iconify-icon>
+					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-warning-600"></iconify-icon>
 					<div>
-						<h3 class="font-semibold text-amber-800 dark:text-amber-300">Limited Access</h3>
-						<p class="text-amber-700 dark:text-amber-400">
+						<h3 class="font-semibold text-warning-800 dark:text-warning-300">Limited Access</h3>
+						<p class="text-warning-700 dark:text-warning-400">
 							You have read-only access to widget management. Contact your administrator to request widget management permissions.
 						</p>
 					</div>
@@ -279,12 +279,12 @@ async function uninstallWidget(widgetName: string) {
 		{/if}
 
 		<!-- Tab Navigation -->
-		<div class="flex gap-2 border-b border-gray-200 dark:border-gray-700" role="tablist" aria-label="Widget Categories">
+		<div class="flex gap-2 border-b border-surface-200 dark:border-surface-700" role="tablist" aria-label="Widget Categories">
 			<button
 				onclick={() => (activeTab = 'installed')}
 				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'installed'
-					? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+					? 'border-tertiary-600 text-tertiary-600 dark:border-tertiary-400 dark:text-tertiary-400'
+					: 'border-transparent text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-200'}"
 				role="tab"
 				aria-selected={activeTab === 'installed'}
 				aria-controls="installed-panel"
@@ -298,8 +298,8 @@ async function uninstallWidget(widgetName: string) {
 			<button
 				onclick={() => (activeTab = 'marketplace')}
 				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'marketplace'
-					? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+					? 'border-tertiary-600 text-tertiary-600 dark:border-tertiary-400 dark:text-tertiary-400'
+					: 'border-transparent text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-200'}"
 				role="tab"
 				aria-selected={activeTab === 'marketplace'}
 				aria-controls="marketplace-panel"
@@ -308,7 +308,7 @@ async function uninstallWidget(widgetName: string) {
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:store" width="24" class="text-xl"></iconify-icon>
 					<span>Marketplace</span>
-					<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+					<span class="rounded-full bg-tertiary-100 px-2 py-0.5 text-xs font-medium text-tertiary-700 dark:bg-tertiary-900/30 dark:text-tertiary-300">
 						Coming Soon
 					</span>
 				</div>
@@ -319,25 +319,25 @@ async function uninstallWidget(widgetName: string) {
 			<!-- Summary Cards with Colored Backgrounds and Tooltips -->
 			<div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="widget-stats">
 				<!-- Total Widgets -->
-				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
+				<div class="relative rounded-lg bg-tertiary-50 p-4 shadow-sm transition-all hover:bg-tertiary-100 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/30">
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-blue-600 dark:text-blue-400"
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-tertiary-600 dark:text-tertiary-400"
 						aria-label="Information about total widgets"
 						title="All registered widgets in the system (core + custom)"
 					>
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:widgets" width="24" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
+						<iconify-icon icon="mdi:widgets" width="24" class="text-2xl text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
 						<div>
-							<h3 class="font-semibold text-blue-800 dark:text-blue-300">Total</h3>
-							<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.total}</p>
+							<h3 class="font-semibold text-tertiary-800 dark:text-tertiary-300">Total</h3>
+							<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">{stats.total}</p>
 						</div>
 					</div>
 				</div>
 
 				<!-- Active Widgets -->
-				<div class="relative rounded-lg bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
+				<div class="relative rounded-lg bg-success-50 p-4 shadow-sm transition-all hover:bg-success-100 dark:bg-success-900/20 dark:hover:bg-success-900/30">
 					<button
 						class="btn-icon btn-icon-sm absolute right-2 top-2 text-primary-500"
 						aria-label="Information about active widgets"
@@ -355,39 +355,39 @@ async function uninstallWidget(widgetName: string) {
 				</div>
 
 				<!-- Core Widgets -->
-				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
+				<div class="relative rounded-lg bg-tertiary-50 p-4 shadow-sm transition-all hover:bg-tertiary-100 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/30">
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-blue-600 dark:text-blue-400"
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-tertiary-600 dark:text-tertiary-400"
 						aria-label="Information about core widgets"
 						title="Essential system widgets that are always active and cannot be disabled"
 					>
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:puzzle" width="24" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
+						<iconify-icon icon="mdi:puzzle" width="24" class="text-2xl text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
 						<div>
-							<h3 class="font-semibold text-blue-800 dark:text-blue-300">Core</h3>
-							<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.core}</p>
+							<h3 class="font-semibold text-tertiary-800 dark:text-tertiary-300">Core</h3>
+							<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">{stats.core}</p>
 						</div>
 					</div>
 				</div>
 
 				<!-- Custom Widgets -->
 				<div
-					class="relative rounded-lg bg-yellow-50 p-4 shadow-sm transition-all hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
+					class="relative rounded-lg bg-warning-50 p-4 shadow-sm transition-all hover:bg-warning-100 dark:bg-warning-900/20 dark:hover:bg-warning-900/30"
 				>
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-yellow-600 dark:text-yellow-400"
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-warning-600 dark:text-warning-400"
 						aria-label="Information about custom widgets"
 						title="Optional widgets that can be toggled on/off as needed"
 					>
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:puzzle-plus" width="24" class="text-2xl text-yellow-600 dark:text-yellow-400"></iconify-icon>
+						<iconify-icon icon="mdi:puzzle-plus" width="24" class="text-2xl text-warning-600 dark:text-warning-400"></iconify-icon>
 						<div>
-							<h3 class="font-semibold text-yellow-800 dark:text-yellow-300">Custom</h3>
-							<p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.custom}</p>
+							<h3 class="font-semibold text-warning-800 dark:text-warning-300">Custom</h3>
+							<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">{stats.custom}</p>
 						</div>
 					</div>
 				</div>
@@ -399,13 +399,13 @@ async function uninstallWidget(widgetName: string) {
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
 					<div class="relative flex-1">
-						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
 						></iconify-icon>
 						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 pl-10 pr-10 dark:text-white" />
 						{#if searchQuery}
 							<button
 								onclick={() => (searchQuery = '')}
-								class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+								class="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
 								aria-label="Clear search"
 								title="Clear search (Esc)"
 							>
@@ -427,8 +427,8 @@ async function uninstallWidget(widgetName: string) {
 							<span>{filter.label}</span>
 							<span
 								class="rounded-full px-2 py-0.5 text-xs font-semibold {activeFilter === filter.value
-									? 'bg-blue-500 text-white'
-									: 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300'}"
+									? 'bg-tertiary-500 text-white'
+									: 'bg-surface-300 text-surface-700 dark:bg-surface-600 dark:text-surface-300'}"
 							>
 								{filter.count}
 							</span>
@@ -440,11 +440,11 @@ async function uninstallWidget(widgetName: string) {
 			<div class="mb-12 grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="widget-grid">
 				{#if filteredWidgets.length === 0}
 					<div
-						class="col-span-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800"
+						class="col-span-full rounded-lg border-2 border-dashed border-surface-300 bg-surface-50 p-12 text-center dark:border-surface-600 dark:bg-surface-800"
 					>
-						<iconify-icon icon="mdi:help-circle" width="64" class="mx-auto text-6xl text-gray-400"></iconify-icon>
-						<h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No Widgets Found</h3>
-						<p class="mt-2 text-gray-600 dark:text-gray-400">
+						<iconify-icon icon="mdi:help-circle" width="64" class="mx-auto text-6xl text-surface-400"></iconify-icon>
+						<h3 class="mt-4 text-lg font-semibold text-surface-900 dark:text-white">No Widgets Found</h3>
+						<p class="mt-2 text-surface-600 dark:text-surface-400">
 							{#if searchQuery}
 								No widgets match your search "<strong>{searchQuery}</strong>"
 							{:else if activeFilter !== 'all'}
@@ -459,7 +459,7 @@ async function uninstallWidget(widgetName: string) {
 									searchQuery = '';
 									activeFilter = 'all';
 								}}
-								class="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+								class="mt-6 inline-flex items-center gap-2 rounded-lg bg-tertiary-600 px-6 py-3 text-sm font-medium text-white hover:bg-tertiary-700 focus:outline-none focus:ring-2 focus:ring-tertiary-500 focus:ring-offset-2"
 								aria-label="Clear all filters and search"
 							>
 								<iconify-icon icon="mdi:filter-off" width="24" class="text-lg"></iconify-icon>
@@ -475,35 +475,35 @@ async function uninstallWidget(widgetName: string) {
 			</div>
 		{:else}
 			<!-- Marketplace Tab -->
-			<div class="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
+			<div class="rounded-lg border border-surface-200 bg-surface-50 p-12 text-center dark:border-surface-700 dark:bg-surface-800">
 				<div class="mx-auto max-w-md">
-					<iconify-icon icon="mdi:store" width="64" class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Marketplace Coming Soon</h3>
-					<p class="mt-2 text-gray-600 dark:text-gray-400">
+					<iconify-icon icon="mdi:store" width="64" class="mx-auto text-6xl text-primary-500"></iconify-icon>
+					<h3 class="mt-4 text-xl font-semibold text-surface-900 dark:text-white">Marketplace Coming Soon</h3>
+					<p class="mt-2 text-surface-600 dark:text-surface-400">
 						The Widget Marketplace will allow you to discover, install, and manage premium and community widgets to extend your SveltyCMS
 						functionality.
 					</p>
 					<div class="mt-6 space-y-2 text-left">
-						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<div class="flex items-start gap-3 text-sm text-surface-600 dark:text-surface-400">
+							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-primary-500"></iconify-icon>
 							<span>Browse hundreds of widgets across multiple categories</span>
 						</div>
-						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<div class="flex items-start gap-3 text-sm text-surface-600 dark:text-surface-400">
+							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-primary-500"></iconify-icon>
 							<span>One-click installation and automatic updates</span>
 						</div>
-						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<div class="flex items-start gap-3 text-sm text-surface-600 dark:text-surface-400">
+							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-primary-500"></iconify-icon>
 							<span>Community ratings and reviews</span>
 						</div>
-						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<div class="flex items-start gap-3 text-sm text-surface-600 dark:text-surface-400">
+							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-primary-500"></iconify-icon>
 							<span>Support for both free and premium widgets</span>
 						</div>
 					</div>
 					<button
 						disabled
-						class="mt-6 cursor-not-allowed rounded-lg bg-gray-300 px-6 py-3 font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-500"
+						class="mt-6 cursor-not-allowed rounded-lg bg-surface-300 px-6 py-3 font-medium text-surface-500 dark:bg-surface-700 dark:text-surface-500"
 					>
 						Coming in Future Update
 					</button>

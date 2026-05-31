@@ -233,7 +233,7 @@
 							class="btn flex items-center space-x-2 p-2"
 							data-sveltekit-preload-data="hover"
 						>
-							<iconify-icon icon="bi:folder" width="28" class="text-yellow-500"></iconify-icon>
+							<iconify-icon icon="bi:folder" width="28" class="text-warning-500"></iconify-icon>
 							<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{folder.name}</span>
 						</a>
 					</div>
@@ -249,7 +249,7 @@
 							class="btn flex flex-col items-center p-2"
 							data-sveltekit-preload-data="hover"
 						>
-							<iconify-icon icon="bi:folder" width="28" class="text-yellow-500"></iconify-icon>
+							<iconify-icon icon="bi:folder" width="28" class="text-warning-500"></iconify-icon>
 							<span class="text-xs">{folder.name}</span>
 						</a>
 					</div>

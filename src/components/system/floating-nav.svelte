@@ -65,19 +65,19 @@
 			tooltip: 'Dashboard',
 			url: { external: false, path: '/dashboard' },
 			icon: 'mdi:view-dashboard',
-			color: 'bg-blue-500'
+			color: 'bg-tertiary-500'
 		},
 		{
 			tooltip: 'User Profile',
 			url: { external: false, path: '/user' },
 			icon: 'radix-icons:avatar',
-			color: 'bg-orange-500'
+			color: 'bg-warning-500'
 		},
 		{
 			tooltip: 'Collection Builder',
 			url: { external: false, path: '/config/collectionbuilder' },
 			icon: 'fluent-mdl2:build-definition',
-			color: 'bg-green-500'
+			color: 'bg-success-500'
 		},
 
 		{

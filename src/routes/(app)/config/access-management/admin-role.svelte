@@ -114,13 +114,13 @@ const cancelChanges = () => {
 	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Admin Role Management:</h3>
-	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
 		Please select a new role for the administrator from the dropdown below. Your changes will take effect after you click "Save Changes".
 	</p>
 	<div class="wrapper my-4">
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-left">
-			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
+			Current Admin Role: <span class="ml-2 text-primary-500">{currentAdminName}</span>
 		</p>
 
 		<!-- Dropdown to select admin role -->
@@ -135,7 +135,7 @@ const cancelChanges = () => {
 		{#if hasChanges}
 			<!-- Display new admin role-->
 			<p class="mt-4 text-center lg:text-left">
-				Selected Admin Role ID: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
+				Selected Admin Role ID: <span class="ml-2 text-primary-500">{selectedAdminRole}</span>
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->
@@ -154,7 +154,7 @@ const cancelChanges = () => {
 
 		<!-- Notification Message -->
 		{#if notification}
-			<p class="mt-4 text-green-600">{notification}</p>
+			<p class="mt-4 text-success-600">{notification}</p>
 		{/if}
 	</div>
 {/if}

@@ -104,26 +104,26 @@ Visual password strength indicator with match validation and accessibility featu
 
 	// Color classes
 	const COLOR_CLASSES: Record<number, string> = {
-		0: 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300',
-		1: 'bg-red-500 text-white',
-		2: 'bg-orange-500 text-white',
-		3: 'bg-yellow-500 text-gray-900',
-		4: 'bg-green-600 text-white',
-		5: 'bg-green-500 text-white'
+		0: 'bg-surface-300 text-surface-700 dark:bg-surface-600 dark:text-surface-300',
+		1: 'bg-error-500 text-white',
+		2: 'bg-warning-500 text-white',
+		3: 'bg-warning-500 text-surface-900',
+		4: 'bg-success-600 text-white',
+		5: 'bg-success-500 text-white'
 	};
 
 	// Bar colors
 	function getBarColor(barIndex: number, score: number): string {
 		if (score === 0) {
-			return 'bg-gray-200 dark:bg-gray-700';
+			return 'bg-surface-200 dark:bg-surface-700';
 		}
 		if (barIndex === 0) {
-			return score >= 1 ? 'bg-red-500' : 'bg-gray-200 dark:bg-gray-700';
+			return score >= 1 ? 'bg-error-500' : 'bg-surface-200 dark:bg-surface-700';
 		}
 		if (barIndex === 1) {
-			return score >= 2 ? 'bg-yellow-500' : 'bg-gray-200 dark:bg-gray-700';
+			return score >= 2 ? 'bg-warning-500' : 'bg-surface-200 dark:bg-surface-700';
 		}
-		return score >= 3 ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700';
+		return score >= 3 ? 'bg-success-500' : 'bg-surface-200 dark:bg-surface-700';
 	}
 
 	// Derived values
@@ -182,7 +182,7 @@ Visual password strength indicator with match validation and accessibility featu
 		transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 	>
 		<!-- Progress bar container -->
-		<div class="relative h-4 w-full overflow-hidden rounded-sm bg-gray-200 dark:bg-gray-700">
+		<div class="relative h-4 w-full overflow-hidden rounded-sm bg-surface-200 dark:bg-surface-700">
 			<!-- Animated progress bar -->
 			<div
 				role="progressbar"
@@ -223,7 +223,7 @@ Visual password strength indicator with match validation and accessibility featu
 			<div class="min-w-0 flex-1">
 				{#if !showMatchIndicator}
 					<div class="flex items-center gap-2">
-						<span class="text-xs text-gray-500 dark:text-gray-400"> Strength </span>
+						<span class="text-xs text-surface-500 dark:text-surface-400"> Strength </span>
 						{#if showRequirements}
 							<button
 								type="button"
@@ -240,8 +240,8 @@ Visual password strength indicator with match validation and accessibility featu
 				{:else}
 					<span
 						class="text-xs transition-colors {prefersReducedMotion ? 'duration-0' : 'duration-200'}"
-						class:text-red-500={!passwordsMatch}
-						class:text-green-500={passwordsMatch}
+						class:text-error-500={!passwordsMatch}
+						class:text-success-500={passwordsMatch}
 						role="status"
 						aria-live="polite"
 						transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
@@ -269,71 +269,71 @@ Visual password strength indicator with match validation and accessibility featu
 		{#if showRequirements && showRequirementsList}
 			<div
 				id="password-requirements"
-				class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+				class="rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-700 dark:bg-surface-800"
 				transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
-				<h4 class="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-300">Password Requirements</h4>
+				<h4 class="mb-2 text-xs font-semibold text-surface-700 dark:text-surface-300">Password Requirements</h4>
 				<ul class="space-y-1 text-xs" role="list">
 					<li class="flex items-center gap-2">
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasMinLength
-								? 'bg-green-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								? 'bg-success-500 text-white'
+								: 'bg-surface-300 text-surface-600 dark:bg-surface-600 dark:text-surface-400'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasMinLength ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}>
+						<span class={complexityChecks.hasMinLength ? 'text-success-600 dark:text-success-400' : 'text-surface-600 dark:text-surface-400'}>
 							At least {MIN_PASSWORD_LENGTH} characters
 						</span>
 					</li>
 					<li class="flex items-center gap-2">
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasUpper
-								? 'bg-green-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								? 'bg-success-500 text-white'
+								: 'bg-surface-300 text-surface-600 dark:bg-surface-600 dark:text-surface-400'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasUpper ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasUpper ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}>
+						<span class={complexityChecks.hasUpper ? 'text-success-600 dark:text-success-400' : 'text-surface-600 dark:text-surface-400'}>
 							One uppercase letter
 						</span>
 					</li>
 					<li class="flex items-center gap-2">
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasLower
-								? 'bg-green-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								? 'bg-success-500 text-white'
+								: 'bg-surface-300 text-surface-600 dark:bg-surface-600 dark:text-surface-400'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasLower ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasLower ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}>
+						<span class={complexityChecks.hasLower ? 'text-success-600 dark:text-success-400' : 'text-surface-600 dark:text-surface-400'}>
 							One lowercase letter
 						</span>
 					</li>
 					<li class="flex items-center gap-2">
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasNumber
-								? 'bg-green-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								? 'bg-success-500 text-white'
+								: 'bg-surface-300 text-surface-600 dark:bg-surface-600 dark:text-surface-400'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasNumber ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}> One number </span>
+						<span class={complexityChecks.hasNumber ? 'text-success-600 dark:text-success-400' : 'text-surface-600 dark:text-surface-400'}> One number </span>
 					</li>
 					<li class="flex items-center gap-2">
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasSpecial
-								? 'bg-green-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								? 'bg-success-500 text-white'
+								: 'bg-surface-300 text-surface-600 dark:bg-surface-600 dark:text-surface-400'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasSpecial ? '✓' : '○'}
 						</span>
-						<span class={complexityChecks.hasSpecial ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}>
+						<span class={complexityChecks.hasSpecial ? 'text-success-600 dark:text-success-400' : 'text-surface-600 dark:text-surface-400'}>
 							One special character (!@#$%^&*)
 						</span>
 					</li>

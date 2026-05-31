@@ -41,18 +41,18 @@ Renders grouped content in a read-only display format with collapsible functiona
 	const variantClasses = {
 		default: {
 			container: '',
-			header: 'border-b border-gray-200 bg-transparent dark:border-gray-700',
+			header: 'border-b border-surface-200 bg-transparent dark:border-surface-700',
 			content: 'bg-transparent pt-3'
 		},
 		card: {
-			container: 'rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-700',
-			header: 'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
+			container: 'rounded-lg border border-surface-200 bg-white shadow-sm dark:border-surface-700 dark:bg-surface-700',
+			header: 'rounded-t-lg border-b border-surface-200 bg-surface-50 dark:border-surface-600 dark:bg-surface-700',
 			content: 'p-4'
 		},
 		bordered: {
-			container: 'rounded-lg border border-gray-300 dark:border-gray-600',
-			header: 'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
-			content: 'rounded-b-lg bg-white p-4 dark:bg-gray-800'
+			container: 'rounded-lg border border-surface-300 dark:border-surface-600',
+			header: 'rounded-t-lg border-b border-surface-300 bg-surface-100 dark:border-surface-600 dark:bg-surface-700',
+			content: 'rounded-b-lg bg-white p-4 dark:bg-surface-800'
 		}
 	};
 
@@ -96,7 +96,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 			<button
 				type="button"
 				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
-					? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700'
+					? 'cursor-pointer hover:bg-surface-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-surface-700'
 					: ''}"
 				aria-expanded={!isCollapsed.value}
 				aria-controls={`${fieldName}-content`}
@@ -104,7 +104,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 				onkeydown={handleKeyDown}
 			>
 				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">{field.groupTitle}</h4>
+					<h4 class="m-0 text-base font-semibold text-surface-900 dark:text-surface-100">{field.groupTitle}</h4>
 				{/if}
 
 				<div class="transition-transform duration-200 ease-in-out {isCollapsed.value ? 'rotate-180' : ''}">
@@ -114,7 +114,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 		{:else}
 			<div class="flex items-center justify-between p-3 {variant.header}">
 				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">{field.groupTitle}</h4>
+					<h4 class="m-0 text-base font-semibold text-surface-900 dark:text-surface-100">{field.groupTitle}</h4>
 				{/if}
 			</div>
 		{/if}
@@ -130,12 +130,12 @@ Renders grouped content in a read-only display format with collapsible functiona
 		{#if children}
 			{@render children()}
 		{:else if value && Object.keys(value).length > 0}
-			<div class="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
-				<pre class="whitespace-pre-wrap font-mono text-sm text-gray-700 dark:text-gray-300">{JSON.stringify(value, null, 2)}</pre>
+			<div class="rounded border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-900">
+				<pre class="whitespace-pre-wrap font-mono text-sm text-surface-700 dark:text-surface-300">{JSON.stringify(value, null, 2)}</pre>
 			</div>
 		{:else}
 			<div class="flex items-center justify-center px-4 py-6">
-				<p class="text-center text-sm italic text-gray-500 dark:text-gray-400">No content in this group</p>
+				<p class="text-center text-sm italic text-surface-500 dark:text-surface-400">No content in this group</p>
 			</div>
 		{/if}
 	</div>

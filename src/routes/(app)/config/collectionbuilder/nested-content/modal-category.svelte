@@ -271,7 +271,7 @@ const cForm = "border border-surface-500 p-4 space-y-4 rounded-xl";
 				</button>
 				<button
 					type="submit"
-					class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
+					class="preset-filled-primary-500 btn"
 					aria-label={button_save()}
 					disabled={isSubmitting}
 				>

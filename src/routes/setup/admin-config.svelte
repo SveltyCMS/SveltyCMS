@@ -103,7 +103,7 @@
 
 <div class="fade-in">
 	<div class="mb-4">
-		<p class="text-sm text-center md:text-left text-tertiary-500 dark:text-primary-500 sm:text-base">
+		<p class="text-sm text-center md:text-left text-primary-500 sm:text-base">
 			{setup_help_admin_username?.() || 'Create your administrator account with full access to manage content, users, and system settings.'}
 		</p>
 	</div>
@@ -113,14 +113,14 @@
 			<!-- Username -->
 			<div>
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:account" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{form_username?.() || 'Username'}</span>
 					<SystemTooltip title={setup_help_admin_username()}>
 						<button
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_username?.() || 'Help: Username'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500 "
+							class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500 "
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -140,7 +140,7 @@
 					type="text"
 					autocomplete="username"
 					placeholder={setup_admin_placeholder_username?.() || 'Enter username'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.username ? 'border-error-500' : ''}"
+					class="input w-full rounded border border-surface-300 dark:border-surface-600   {displayErrors.username ? 'border-error-500' : ''}"
 					aria-invalid={!!displayErrors.username}
 					aria-describedby={displayErrors.username ? 'admin-username-error' : undefined}
 					aria-required="true"
@@ -153,14 +153,14 @@
 			<!-- Email -->
 			<div>
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:email" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{form_email?.() || 'Email'}</span>
 					<SystemTooltip title={setup_help_admin_email()}>
 						<button
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_email?.() || 'Help: Email'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -180,7 +180,7 @@
 					type="email"
 					autocomplete="email"
 					placeholder={setup_admin_placeholder_email?.() || 'admin@example.com'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.email ? 'border-error-500' : ''}"
+					class="input w-full rounded border border-surface-300 dark:border-surface-600   {displayErrors.email ? 'border-error-500' : ''}"
 					aria-invalid={!!displayErrors.email}
 					aria-describedby={displayErrors.email ? 'admin-email-error' : undefined}
 					aria-required="true"
@@ -193,14 +193,14 @@
 			<!-- Password -->
 			<div>
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:key-variant" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{form_password()}</span>
 					<SystemTooltip title={setup_help_admin_password()}>
 						<button
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_password?.() || 'Help: Password'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -216,7 +216,7 @@
 						type={showAdminPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 pr-8 {displayErrors.password ? 'border-error-500' : ''}"
+						class="input w-full rounded border border-surface-300 dark:border-surface-600 pr-8 {displayErrors.password ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.password}
 						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
 						aria-required="true"
@@ -225,7 +225,7 @@
 						type="button"
 						tabindex="-1"
 						onclick={() => (showAdminPassword = !showAdminPassword)}
-						class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+						class="absolute inset-y-0 right-2 flex items-center text-surface-400 hover:text-surface-600 focus:outline-none"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 					>
 						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
@@ -236,17 +236,17 @@
 				{#if adminUser.password}
 					{@const score = Object.values(passwordRequirements).filter(Boolean).length}
 					<div class="space-y-4">
-						<div class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+						<div class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
 							<div class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 							<div class="h-full transition-all duration-500 {score >= 2 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 3 ? 'bg-yellow-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 3 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 							<div class="h-full transition-all duration-500 {score >= 4 ? 'bg-primary-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 5 ? 'bg-emerald-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 5 ? 'bg-success-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 						</div>
 						<div class="flex justify-between text-[10px] font-bold uppercase tracking-wider">
-							<span class={score >= 1 ? 'text-error-500' : 'text-slate-400'}>Weak</span>
-							<span class={score >= 3 ? 'text-yellow-500' : 'text-slate-400'}>Moderate</span>
-							<span class={score >= 5 ? 'text-emerald-500' : 'text-slate-400'}>Strong</span>
+							<span class={score >= 1 ? 'text-error-500' : 'text-surface-400'}>Weak</span>
+							<span class={score >= 3 ? 'text-warning-500' : 'text-surface-400'}>Moderate</span>
+							<span class={score >= 5 ? 'text-success-500' : 'text-surface-400'}>Strong</span>
 						</div>
 					</div>
 				{/if}
@@ -259,14 +259,14 @@
 			<!-- Confirm Password -->
 			<div>
 				<label for="admin-confirm-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:key" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="text-black dark:text-white">{form_confirmpassword?.() || 'Confirm Password'}</span>
 					<SystemTooltip title={setup_help_admin_confirm_password()}>
 						<button
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_confirm_password?.() || 'Help: Confirm Password'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -282,7 +282,7 @@
 						type={showConfirmPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 pr-8 {displayErrors.confirmPassword ? 'border-error-500' : ''}"
+						class="input w-full rounded border border-surface-300 dark:border-surface-600 pr-8 {displayErrors.confirmPassword ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.confirmPassword}
 						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
 						aria-required="true"
@@ -291,7 +291,7 @@
 						type="button"
 						tabindex="-1"
 						onclick={() => (showConfirmPassword = !showConfirmPassword)}
-						class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+						class="absolute inset-y-0 right-2 flex items-center text-surface-400 hover:text-surface-600 focus:outline-none"
 						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
 					>
 						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
@@ -311,13 +311,13 @@
 			<ul class="space-y-2 text-sm" aria-labelledby="password-reqs-heading">
 				<li
 					class="flex items-center font-semibold {passwordRequirements.length
-						? 'text-tertiary-500 dark:text-primary-500'
+						? 'text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
 							? 'border-primary-300 bg-primary-100 text-primary-500'
-							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
+							: 'border-surface-300 bg-surface-100 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.length}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
@@ -328,13 +328,13 @@
 				</li>
 				<li
 					class="flex items-center font-semibold {passwordRequirements.letter
-						? 'text-tertiary-500 dark:text-primary-500'
+						? 'text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
 							? 'border-primary-300 bg-primary-100 text-primary-500'
-							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
+							: 'border-surface-300 bg-surface-100 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.letter}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
@@ -345,13 +345,13 @@
 				</li>
 				<li
 					class="flex items-center font-semibold {passwordRequirements.number
-						? 'text-tertiary-500 dark:text-primary-500'
+						? 'text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
 							? 'border-primary-300 bg-primary-100 text-primary-500'
-							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
+							: 'border-surface-300 bg-surface-100 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.number}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
@@ -362,13 +362,13 @@
 				</li>
 				<li
 					class="flex items-center font-semibold {passwordRequirements.special
-						? 'text-tertiary-500 dark:text-primary-500'
+						? 'text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
 							? 'border-primary-300 bg-primary-100 text-primary-500'
-							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
+							: 'border-surface-300 bg-surface-100 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.special}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
@@ -379,13 +379,13 @@
 				</li>
 				<li
 					class="flex items-center font-semibold {passwordRequirements.match
-						? 'text-tertiary-500 dark:text-primary-500'
+						? 'text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
 							? 'border-primary-300 bg-primary-100 text-primary-500'
-							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
+							: 'border-surface-300 bg-surface-100 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
 					>
 						{#if passwordRequirements.match}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"></iconify-icon>
@@ -394,7 +394,7 @@
 					{setup_help_admin_password_requirements_match?.() || 'Passwords match'}
 					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
-				<li class="mt-2 flex items-center justify-center border-t border-slate-700 pt-2 font-bold dark:border-slate-200 dark:text-white">
+				<li class="mt-2 flex items-center justify-center border-t border-surface-700 pt-2 font-bold dark:border-surface-200 dark:text-white">
 					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
 						<iconify-icon icon="mdi:shield-check" width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 					</span>

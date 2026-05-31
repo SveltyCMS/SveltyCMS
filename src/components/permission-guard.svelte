@@ -179,13 +179,13 @@ Permission-based access control component with advanced features and security.
 {#if isLoading && showLoadingState}
 	<!-- Loading state -->
 	<div
-		class="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+		class="flex items-center justify-center gap-2 rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-800"
 		role="status"
 		aria-live="polite"
 		transition:fade={{ duration: 200 }}
 	>
 		<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" aria-hidden="true"></div>
-		<span class="text-sm text-gray-600 dark:text-gray-400"> {finalMessages.loadingPermissions} </span>
+		<span class="text-sm text-surface-600 dark:text-surface-400"> {finalMessages.loadingPermissions} </span>
 	</div>
 {:else if shouldShowContent}
 	<!-- Authorized content -->
@@ -215,7 +215,7 @@ Permission-based access control component with advanced features and security.
 
 			<!-- Additional context for missing config (dev mode only) -->
 			{#if !config && import.meta.env.DEV}
-				<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+				<p class="mt-2 text-xs text-surface-500 dark:text-surface-400">
 					<strong>Dev Note:</strong>
 					No permission config provided. Pass a valid PermissionConfig object to this component.
 				</p>

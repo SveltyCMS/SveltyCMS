@@ -63,7 +63,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 				required={field.required}
 				checked={!!value}
 				onchange={handleChange}
-				class={`h-5 w-5 cursor-pointer rounded border-gray-300 transition-colors duration-200 focus:ring-2 focus:ring-offset-2 ${field.color ? `accent-${field.color}` : ''} ${field.size === 'sm' ? 'h-4 w-4' : field.size === 'lg' ? 'h-6 w-6' : ''}`}
+				class={`h-5 w-5 cursor-pointer rounded border-surface-300 transition-colors duration-200 focus:ring-2 focus:ring-offset-2 ${field.color ? `accent-${field.color}` : ''} ${field.size === 'sm' ? 'h-4 w-4' : field.size === 'lg' ? 'h-6 w-6' : ''}`}
 				aria-label={field.label}
 				aria-describedby={field.helper ? `${field.db_fieldName}-helper` : undefined}
 				style={field.color ? `accent-color: ${field.color}` : ''}

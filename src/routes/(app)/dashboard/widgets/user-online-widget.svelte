@@ -83,8 +83,8 @@ export const widgetMeta = {
 	function getRoleColor(role: string): string {
 		switch (role) {
 			case 'admin': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
-			case 'editor': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-			case 'viewer': return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
+			case 'editor': return 'bg-tertiary-100 text-tertiary-700 dark:bg-tertiary-900/40 dark:text-tertiary-300';
+			case 'viewer': return 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400';
 			default: return 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400';
 		}
 	}
@@ -135,7 +135,7 @@ export const widgetMeta = {
 			<div class="flex h-full items-center gap-3 overflow-hidden">
 				<!-- Count badge -->
 				<div class="flex shrink-0 items-center gap-1.5">
-					<span class="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+					<span class="text-lg font-bold tabular-nums text-success-600 dark:text-success-400">
 						{totalOnline}
 					</span>
 					<span class="text-xs text-surface-500 dark:text-surface-400">online</span>
@@ -157,7 +157,7 @@ export const widgetMeta = {
 									alt={user.name}
 									class="h-6 w-6 rounded-full object-cover"
 								/>
-								<div class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-100 bg-emerald-500 dark:border-surface-800"></div>
+								<div class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-100 bg-success-500 dark:border-surface-800"></div>
 							</div>
 							<span class="max-w-20 truncate text-xs font-medium text-surface-700 dark:text-surface-300">
 								{user.name}
@@ -173,7 +173,7 @@ export const widgetMeta = {
 				<!-- Header -->
 				<div class="flex items-center justify-between pb-3">
 					<div class="flex items-baseline gap-1.5">
-						<span class="text-2xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+						<span class="text-2xl font-semibold tabular-nums text-success-600 dark:text-success-400">
 							{totalOnline}
 						</span>
 						<span class="text-sm text-surface-500 dark:text-surface-400">online now</span>
@@ -219,7 +219,7 @@ export const widgetMeta = {
 									class="h-9 w-9 rounded-full object-cover ring-2 ring-white dark:ring-surface-800"
 									loading="lazy"
 								/>
-								<div class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-surface-800"></div>
+								<div class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-success-500 dark:border-surface-800"></div>
 							</div>
 
 							<!-- Name and role -->

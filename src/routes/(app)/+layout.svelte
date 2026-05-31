@@ -297,7 +297,7 @@ afterNavigate(() => {
 			</div>
 
 			{#if ui.state.footer !== 'hidden'}
-				<footer class="bg-blue-500"></footer>
+				<footer class="bg-tertiary-500"></footer>
 			{/if}
 		</div>
 

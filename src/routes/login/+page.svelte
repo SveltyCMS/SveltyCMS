@@ -423,7 +423,7 @@ function handleSignUpPointerEnter() {
 				{/snippet}
 				<!-- Header to inform user about System Language context -->
 				<div
-					class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
+					class="px-3 py-2 text-xs font-bold text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
 				>
 					{applayout_systemlanguage()}
 				</div>
@@ -455,7 +455,7 @@ function handleSignUpPointerEnter() {
 										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
 									{/if}
 								</span>
-								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+								<span class="text-xs font-normal text-primary-500 ml-2">{lang.toUpperCase()}</span>
 							</button>
 						{/each}
 					</div>
@@ -474,7 +474,7 @@ function handleSignUpPointerEnter() {
 										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
 									{/if}
 								</span>
-								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+								<span class="text-xs font-normal text-primary-500 ml-2">{lang.toUpperCase()}</span>
 							</button>
 						{/each}
 					</div>

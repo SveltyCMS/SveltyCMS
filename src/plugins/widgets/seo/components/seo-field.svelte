@@ -88,7 +88,7 @@
 			{#if translated}
 				<div class="flex items-center gap-1 text-xs">
 					<iconify-icon icon="bi:translate" width={16}></iconify-icon>
-					<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+					<span class="font-medium text-primary-500">{lang.toUpperCase()}</span>
 					<span class="font-medium text-error-500">({translationPct}%)</span>
 				</div>
 			{/if}

@@ -379,7 +379,7 @@ $effect(() => {
 	style="overflow: visible;"
 >
 	<header
-		class="widget-header flex cursor-grab items-center justify-between border-b border-gray-100 bg-white py-2 pl-4 pr-2 dark:text-surface-50 dark:bg-surface-800"
+		class="widget-header flex cursor-grab items-center justify-between border-b border-surface-100 bg-white py-2 pl-4 pr-2 dark:text-surface-50 dark:bg-surface-800"
 		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
 	>
 		<div class="flex flex-1 flex-col gap-0.5">
@@ -489,7 +489,7 @@ $effect(() => {
 						}
 					}}
 				>
-					<iconify-icon icon="mdi:drag-vertical" width={12} class="text-gray-900 drop-shadow-sm dark:text-surface-300"></iconify-icon>
+					<iconify-icon icon="mdi:drag-vertical" width={12} class="text-surface-900 drop-shadow-sm dark:text-surface-300"></iconify-icon>
 				</div>
 			{/each}
 		</div>

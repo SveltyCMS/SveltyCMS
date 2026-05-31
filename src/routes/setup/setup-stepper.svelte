@@ -33,7 +33,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						<div
 							class="absolute left-1/2 top-4 -z-10 h-0.5 w-full -translate-y-1/2 sm:top-5 {stepCompleted[i]
 								? 'bg-primary-500'
-								: 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
+								: 'border-t-2 border-dashed border-surface-200 bg-transparent'}"
 							aria-hidden="true"
 						></div>
 					{/if}
@@ -85,7 +85,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 					<div class="relative last:pb-0">
 						<button
 							class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[i] || i === currentStep
-								? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
+								? 'hover:bg-surface-50 dark:hover:bg-surface-800/70'
 								: 'cursor-not-allowed opacity-50'}"
 							disabled={!(stepClickable[i] || i === currentStep)}
 							onmouseenter={() => handleStepHover(i)}
@@ -106,26 +106,26 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 									? 'bg-primary-500 text-white'
 									: i === currentStep
 										? 'bg-error-500 text-white shadow-xl'
-										: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
+										: 'bg-surface-200 text-surface-600 ring-1 ring-surface-300 dark:bg-surface-700 dark:text-surface-300 dark:ring-surface-600'}"
 							>
 								<span class="text-[0.65rem]"> {stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'} </span>
 							</div>
 							<div class="text-left">
 								<div
 									class="text-base font-medium {i < currentStep
-										? 'text-slate-800 dark:text-slate-200'
+										? 'text-surface-800 dark:text-surface-200'
 										: i === currentStep
-											? 'text-slate-900 dark:text-white'
-											: 'text-slate-400 dark:text-slate-600'}"
+											? 'text-surface-900 dark:text-white'
+											: 'text-surface-400 dark:text-surface-600'}"
 								>
 									{step.label}
 								</div>
 								<div
 									class="mt-1 text-sm {i < currentStep
-										? 'text-slate-500 dark:text-slate-400'
+										? 'text-surface-500 dark:text-surface-400'
 										: i === currentStep
-											? 'text-slate-600 dark:text-slate-300'
-											: 'text-slate-400 dark:text-slate-600'}"
+											? 'text-surface-600 dark:text-surface-300'
+											: 'text-surface-400 dark:text-surface-600'}"
 								>
 									{step.shortDesc}
 								</div>
@@ -135,7 +135,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							<div
 								class="absolute left-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
 									? 'bg-primary-500'
-									: 'border-l-2 border-dashed border-slate-200'}"
+									: 'border-l-2 border-dashed border-surface-200'}"
 							></div>
 						{/if}
 					</div>
@@ -144,7 +144,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 			<!-- Setup Steps Legend -->
 			<div class="mt-auto flex items-end gap-6 border-t border-surface-200 dark:border-surface-700 pt-6">
 				<div class="flex-1">
-					<h4 class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
+					<h4 class="mb-4 text-sm font-semibold tracking-tight text-surface-700 dark:text-surface-200">Legend</h4>
 					<ul class="space-y-2 text-xs">
 						{#each legendItems as item (item.key)}
 							<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
@@ -154,11 +154,11 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 										? ' bg-primary-500 text-white'
 										: item.key === 'current'
 											? 'bg-error-500 text-white shadow-sm'
-											: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
+											: 'bg-surface-200 text-surface-600 ring-1 ring-surface-300 dark:bg-surface-700 dark:text-surface-300 dark:ring-surface-600'}"
 								>
 									<span class="text-[0.65rem]">{item.content}</span>
 								</div>
-								<span class="text-slate-600 dark:text-slate-400">{item.label}</span>
+								<span class="text-surface-600 dark:text-surface-400">{item.label}</span>
 							</li>
 						{/each}
 					</ul>

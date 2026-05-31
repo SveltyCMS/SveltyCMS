@@ -101,7 +101,7 @@ export const widgetMeta = {
 
 	function fileColor(f: MediaFile): string {
 		if (isImage(f)) return 'text-purple-500 dark:text-purple-400';
-		if (isVideo(f)) return 'text-rose-500 dark:text-rose-400';
+		if (isVideo(f)) return 'text-error-500 dark:text-error-400';
 		return 'text-surface-500 dark:text-surface-400';
 	}
 </script>

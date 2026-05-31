@@ -265,12 +265,12 @@ functionality for image editing and basic file information display.
 				<div class="flex items-center justify-between gap-2">
 					<p class="text-left">
 						{widget_ImageUpload_Name()}
-						<span class="text-tertiary-500 dark:text-primary-500">{value instanceof File ? value.name : (value as MediaImage).path}</span>
+						<span class="text-primary-500">{value instanceof File ? value.name : (value as MediaImage).path}</span>
 					</p>
 
 					<p class="text-left">
 						{widget_ImageUpload_Size()}
-						<span class="text-tertiary-500 dark:text-primary-500">{((value.size ?? 0) / 1024).toFixed(2)} KB</span>
+						<span class="text-primary-500">{((value.size ?? 0) / 1024).toFixed(2)} KB</span>
 					</p>
 				</div>
 				<!-- Image and Actions Container -->
@@ -298,15 +298,15 @@ functionality for image editing and basic file information display.
 					{:else}
 						<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
 							<p class="">{widget_ImageUpload_Type()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).type}</p>
+							<p class="font-bold text-primary-500">{(value as Any).type}</p>
 							<p class="">Path:</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).path}</p>
+							<p class="font-bold text-primary-500">{(value as Any).path}</p>
 							<p class="">{widget_ImageUpload_Uploaded()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">
+							<p class="font-bold text-primary-500">
 								{formatDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).createdAt))}
 							</p>
 							<p class="">{widget_ImageUpload_LastModified()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">
+							<p class="font-bold text-primary-500">
 								{formatDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).updatedAt))}
 							</p>
 

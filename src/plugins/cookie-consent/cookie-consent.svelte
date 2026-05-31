@@ -93,14 +93,14 @@
         <div class="flex-1 text-center">
           <h2
             id="cookie-heading"
-            class="text-xl font-bold text-gray-900 dark:text-white"
+            class="text-xl font-bold text-surface-900 dark:text-white"
           >
             {cookie_heading()}
           </h2>
           
           <p
             id="cookie-description"
-            class="mt-2 text-sm text-gray-600 dark:text-gray-300"
+            class="mt-2 text-sm text-surface-600 dark:text-surface-300"
           >
             {cookie_description()}
           </p>
@@ -115,10 +115,10 @@
           <!-- Necessary (always on) -->
           <div class="flex items-center justify-between">
             <div>
-              <div class="font-medium text-gray-900 dark:text-white">
+              <div class="font-medium text-surface-900 dark:text-white">
                 {cookie_necessary_title()}
               </div>
-              <div class="text-xs text-gray-500">{cookie_necessary_desc()}</div>
+              <div class="text-xs text-surface-500">{cookie_necessary_desc()}</div>
             </div>
             <Toggle value={true} disabled />
           </div>
@@ -126,10 +126,10 @@
           <!-- Analytics -->
           <div class="flex items-center justify-between">
             <div>
-              <div class="font-medium text-gray-900 dark:text-white">
+              <div class="font-medium text-surface-900 dark:text-white">
                 {cookie_analytics_title()}
               </div>
-              <div class="text-xs text-gray-500">{cookie_analytics_desc()}</div>
+              <div class="text-xs text-surface-500">{cookie_analytics_desc()}</div>
             </div>
             <Toggle bind:value={preferences.analytics} />
           </div>
@@ -137,10 +137,10 @@
           <!-- Marketing -->
           <div class="flex items-center justify-between">
             <div>
-              <div class="font-medium text-gray-900 dark:text-white">
+              <div class="font-medium text-surface-900 dark:text-white">
                 {cookie_marketing_title()}
               </div>
-              <div class="text-xs text-gray-500">{cookie_marketing_desc()}</div>
+              <div class="text-xs text-surface-500">{cookie_marketing_desc()}</div>
             </div>
             <Toggle bind:value={preferences.marketing} />
           </div>

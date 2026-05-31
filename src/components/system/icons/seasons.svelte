@@ -265,7 +265,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isValentine}
 			<!-- Valentine's Day -->
 			<div class="absolute -top-28 left-1/2 -translate-x-1/2 -translate-y-1/2">
-				<iconify-icon icon="mdi:heart" width="40" class="absolute -left-[60px] -top-[10px] text-red-600"></iconify-icon>
+				<iconify-icon icon="mdi:heart" width="40" class="absolute -left-[60px] -top-[10px] text-error-600"></iconify-icon>
 				<iconify-icon icon="mdi:cards-heart" width="40" class="absolute -right-[60px] -top-[20px] text-pink-500"></iconify-icon>
 			</div>
 
@@ -278,9 +278,9 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<!-- Easter -->
 			<div class="absolute -top-24 left-1/2 -translate-x-1/2 -translate-y-1/2">
 				<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] right-2 -rotate-25 text-tertiary-500"></iconify-icon>
-				<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[25px] left-0 rotate-12 text-yellow-500"></iconify-icon>
-				<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[5px] right-10 -rotate-32 text-green-500"></iconify-icon>
-				<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[31px] left-8 rotate-32 text-red-500"></iconify-icon>
+				<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[25px] left-0 rotate-12 text-warning-500"></iconify-icon>
+				<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[5px] right-10 -rotate-32 text-success-500"></iconify-icon>
+				<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[31px] left-8 rotate-32 text-error-500"></iconify-icon>
 			</div>
 		{/if}
 
@@ -308,10 +308,10 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		{#if isChineseNewYear}
 			<!-- Chinese New Year -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
-				<iconify-icon icon="noto:lantern" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
+				<iconify-icon icon="noto:lantern" width="40" class="absolute -left-[60px] -top-[20px] text-error-600"></iconify-icon>
 				<iconify-icon icon="noto:dragon-face" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>
 			</div>
-			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">{login_new_year()}</p>
+			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-error-600">{login_new_year()}</p>
 		{/if}
 
 		{#if isCherryBlossom}
@@ -344,10 +344,10 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<!-- Diwali -->
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
 				<iconify-icon icon="noto:diya-lamp" width="70" class="absolute left-[120px] top-[190px]"></iconify-icon>
-				<iconify-icon icon="noto:sparkles" width="50" class="absolute -right-[160px] top-[120px] text-yellow-500"></iconify-icon>
+				<iconify-icon icon="noto:sparkles" width="50" class="absolute -right-[160px] top-[120px] text-warning-500"></iconify-icon>
 				<iconify-icon icon="noto:sparkles" width="50" class="absolute -right-[200px] top-[100px] rotate-90 text-warning-500"></iconify-icon>
 			</div>
-			<p class="absolute -left-[10px] top-[170px] justify-center whitespace-nowrap text-3xl font-bold italic text-yellow-600">
+			<p class="absolute -left-[10px] top-[170px] justify-center whitespace-nowrap text-3xl font-bold italic text-warning-600">
 				{login_happy_diwali()}
 			</p>
 		{/if}
@@ -356,17 +356,17 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<!-- Holi -->
 			<div class="absolute inset-0 flex">
 				<!-- Powder effects with gradients -->
-				<div class="h-full w-full translate-y-8 bg-linear-to-b from-red-300/80 via-red-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-linear-to-b from-yellow-200/80 via-yellow-300/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-8 bg-linear-to-b from-green-300/80 via-green-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-error-300/80 via-error-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-linear-to-b from-warning-200/80 via-warning-300/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-success-300/80 via-success-400/80 to-transparent blur-xl"></div>
 				<div class="h-full w-full translate-y-12 bg-linear-to-b from-cyan-300/80 via-cyan-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-8 bg-linear-to-b from-blue-300/80 via-blue-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-tertiary-300/80 via-tertiary-400/80 to-transparent blur-xl"></div>
 				<div class="h-full w-full translate-y-12 bg-linear-to-b from-purple-300/80 via-purple-400/80 to-transparent blur-xl"></div>
 			</div>
 
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
 				<iconify-icon icon="noto:balloon" width="40" class="absolute -left-[60px] -top-[20px] text-purple-500"></iconify-icon>
-				<iconify-icon icon="noto:balloon" width="50" class="absolute right-[60px] top-[20px] text-green-500"></iconify-icon>
+				<iconify-icon icon="noto:balloon" width="50" class="absolute right-[60px] top-[20px] text-success-500"></iconify-icon>
 				<iconify-icon icon="game-icons:powder" width="50" class="absolute -right-[150px] top-[220px] text-primary-500"></iconify-icon>
 				<iconify-icon icon="game-icons:powder" width="30" class="absolute -right-[120px] top-[220px] -rotate-12 text-warning-500"></iconify-icon>
 			</div>

@@ -160,7 +160,7 @@ const statuses = Object.values(StatusTypes);
 	<!-- Left Side: Basic Info -->
 	 <Card class="wrapper">
 			<h3 class="text-lg font-bold flex items-center gap-2 border-b border-surface-200 dark:border-surface-700 pb-2">
-				<iconify-icon icon="mdi:information-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:information-outline" class="text-primary-500"></iconify-icon>
 				Basic Information
 			</h3>
 
@@ -218,7 +218,7 @@ const statuses = Object.values(StatusTypes);
 	<!-- Right Side: Style & Metadata -->
 	 <Card class="wrapper">
 			<h3 class="text-lg font-bold flex items-center gap-2 border-b border-surface-200 dark:border-surface-700 pb-2">
-				<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:palette-outline" class="text-primary-500"></iconify-icon>
 				Visuals & Description
 			</h3>
 

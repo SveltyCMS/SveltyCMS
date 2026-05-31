@@ -357,9 +357,9 @@
 								<div
 									class="flex items-center gap-2 px-4 py-3"
 									class:bg-primary-50={!!wizard.successMessage}
-									class:text-emerald-800={!!wizard.successMessage}
-									class:bg-red-50={!!wizard.errorMessage}
-									class:text-red-700={!!wizard.errorMessage}
+									class:text-success-800={!!wizard.successMessage}
+									class:bg-error-50={!!wizard.errorMessage}
+									class:text-error-700={!!wizard.errorMessage}
 								>
 									<svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										{#if wizard.successMessage}
@@ -398,44 +398,44 @@
 									<div class="border-t border-surface-200 bg-secondary-50/50 text-xs dark:border-surface-700 dark:bg-surface-900/50">
 										<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3 lg:grid-cols-6">
 											<div class="flex flex-col">
-												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{setup_db_test_latency()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
+												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{setup_db_test_latency()}:</span>
+												<span class="text-primary-500 font-bold">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
 											</div>
 											<div class="flex flex-col">
-												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{setup_db_test_engine()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.dbConfig.type}</span>
+												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{setup_db_test_engine()}:</span>
+												<span class="text-primary-500 font-bold">{wizard.dbConfig.type}</span>
 											</div>
 											<div class="flex flex-col">
-												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_host()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.host}>{wizard.dbConfig.host}</span>
+												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_host()}:</span>
+												<span class="text-primary-500 font-bold truncate" title={wizard.dbConfig.host}>{wizard.dbConfig.host}</span>
 											</div>
 											{#if !isFullUri}
 												<div class="flex flex-col">
-													<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_port()}:</span>
-													<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.dbConfig.port}</span>
+													<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_port()}:</span>
+													<span class="text-primary-500 font-bold">{wizard.dbConfig.port}</span>
 												</div>
 											{/if}
 											<div class="flex flex-col">
-												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_database()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.name}>{wizard.dbConfig.name}</span>
+												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_database()}:</span>
+												<span class="text-primary-500 font-bold truncate" title={wizard.dbConfig.name}>{wizard.dbConfig.name}</span>
 											</div>
 											{#if wizard.dbConfig.user}
 												<div class="flex flex-col">
-													<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_user?.() || setup_db_test_user()}:</span>
-													<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.user}>{wizard.dbConfig.user}</span>
+													<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_user?.() || setup_db_test_user()}:</span>
+													<span class="text-primary-500 font-bold truncate" title={wizard.dbConfig.user}>{wizard.dbConfig.user}</span>
 												</div>
 											{/if}
 										</div>
 										{#if !wizard.lastDbTestResult.success && wizard.lastDbTestResult.hint}
-											<div class="border-t border-surface-200 p-4 dark:border-surface-700 bg-amber-50/30 dark:bg-amber-900/10">
-												<div class="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-400 mb-2">
+											<div class="border-t border-surface-200 p-4 dark:border-surface-700 bg-warning-50/30 dark:bg-warning-900/10">
+												<div class="flex items-center gap-2 font-bold text-warning-700 dark:text-warning-400 mb-2">
 													<iconify-icon icon="mdi:lightbulb-outline" class="text-lg"></iconify-icon>
 													<span class="uppercase tracking-widest text-[10px]">Troubleshooting Suggestions</span>
 												</div>
 												<div class="space-y-2">
 													{#each wizard.lastDbTestResult.hint.split('\n') as step}
-														<div class="flex gap-2 text-slate-700 dark:text-slate-300">
-															<span class="shrink-0 text-amber-500">•</span>
+														<div class="flex gap-2 text-surface-700 dark:text-surface-300">
+															<span class="shrink-0 text-warning-500">•</span>
 															<span>{step.replace(/^\d+\.\s*/, '')}</span>
 														</div>
 													{/each}

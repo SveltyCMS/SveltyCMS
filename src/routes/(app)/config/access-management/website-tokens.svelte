@@ -359,13 +359,13 @@ $effect(() => {
 
 <div class="p-4">
 	<h3 class="mb-2 text-center text-xl font-bold">Website Access Tokens</h3>
-	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
 		Manage API tokens for external websites to access your content.
 	</p>
 
 	<div class="card mb-4">
 		<div class="p-4">
-			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500">Generate New Website Token</h4>
+			<h4 class="h4 mb-2 font-bold text-primary-500">Generate New Website Token</h4>
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<!-- Name -->
@@ -412,7 +412,7 @@ $effect(() => {
 					</div>
 				</div>
 				<div class="card max-h-60 overflow-y-auto p-4 bg-surface-100 dark:bg-surface-800" role="group" aria-labelledby="permissions-title">
-					<p id="permissions-title" class="text-sm text-gray-500 mb-2">
+					<p id="permissions-title" class="text-sm text-surface-500 mb-2">
 						Select permissions to grant to this token. If none selected, the token will have <strong>Read Only</strong> access.
 					</p>
 
@@ -452,7 +452,7 @@ $effect(() => {
 		<div class="p-4">
 			<div class="my-4 flex flex-wrap items-center justify-between gap-1">
 				<div class="flex items-center gap-4">
-					<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">Existing Tokens</h4>
+					<h4 class="h4 font-bold text-primary-500">Existing Tokens</h4>
 					{#if selectedTokens.size > 0}
 						<button class="btn btn-sm variant-filled-error" onclick={bulkDeleteTokens}>
 							Delete Selected ({selectedTokens.size})
@@ -530,7 +530,7 @@ $effect(() => {
 							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
 								<th aria-sort={sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? 'ascending' : 'descending') : 'none'}>
 									<button
-										class="flex w-full items-center justify-center text-center font-bold text-tertiary-500 dark:text-primary-500"
+										class="flex w-full items-center justify-center text-center font-bold text-primary-500"
 										onclick={() => {
 											sorting = {
 												sortedBy: header.key,
@@ -551,7 +551,7 @@ $effect(() => {
 									</button>
 								</th>
 							{/each}
-							<th class="text-center font-bold text-tertiary-500 dark:text-primary-500" scope="col">Action</th>
+							<th class="text-center font-bold text-primary-500" scope="col">Action</th>
 						</tr>
 					</thead>
 					<tbody>

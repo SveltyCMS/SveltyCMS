@@ -198,7 +198,7 @@
 					</div>
 				{:else}
 					{#if files.length === 0}
-						<div class="flex h-full items-center justify-center text-center text-tertiary-500 dark:text-primary-500">
+						<div class="flex h-full items-center justify-center text-center text-primary-500">
 							<div>
 								<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
 								<p class="text-lg">No media found</p>

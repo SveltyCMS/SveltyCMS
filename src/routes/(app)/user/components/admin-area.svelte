@@ -711,7 +711,7 @@
 
 	{#if showUserList || showUsertoken}
 		<div class="my-4 flex flex-wrap items-center justify-between gap-1">
-			<h2 class="order-1 text-xl font-bold text-tertiary-500 dark:text-primary-500">
+			<h2 class="order-1 text-xl font-bold text-primary-500">
 				{#if showUserList}
 					{adminarea_userlist()}
 				{:else if showUsertoken}
@@ -812,7 +812,7 @@
 
 							{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 								<th
-									class="cursor-pointer text-tertiary-500 dark:text-primary-500 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors"
+									class="cursor-pointer text-primary-500 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors"
 									onclick={() => {
 										sorting = {
 											sortedBy: header.key,

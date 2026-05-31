@@ -105,13 +105,13 @@ Features:
 
 	function getStatusColor(state: ConnectionState): string {
 		if (state === 'testing') {
-			return 'text-blue-600 dark:text-blue-400';
+			return 'text-tertiary-600 dark:text-tertiary-400';
 		}
 		if (state === 'success') {
-			return 'text-emerald-600 dark:text-emerald-400';
+			return 'text-success-600 dark:text-success-400';
 		}
 		if (state === 'error') {
-			return 'text-red-600 dark:text-red-400';
+			return 'text-error-600 dark:text-error-400';
 		}
 		return 'text-surface-400 dark:text-surface-600';
 	}
@@ -203,11 +203,11 @@ Features:
 
 <div
 	class="rounded-lg border transition-colors {state === 'success'
-		? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
+		? 'border-success-200 bg-success-50 dark:border-success-800 dark:bg-success-900/20'
 		: state === 'error'
-			? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+			? 'border-error-200 bg-error-50 dark:border-error-800 dark:bg-error-900/20'
 			: state === 'testing'
-				? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
+				? 'border-tertiary-200 bg-tertiary-50 dark:border-tertiary-800 dark:bg-tertiary-900/20'
 				: 'border-surface-200 bg-surface-50 dark:text-surface-50 dark:bg-surface-800/50'}"
 	role="region"
 	aria-live="polite"
@@ -228,17 +228,17 @@ Features:
 
 	<!-- Success Details -->
 	{#if state === 'success' && result}
-		<div class="border-t border-emerald-200 bg-white p-4 dark:border-emerald-800 dark:bg-surface-800">
+		<div class="border-t border-success-200 bg-white p-4 dark:border-success-800 dark:bg-surface-800">
 			<div class="grid gap-3 text-sm">
 				{#if result.atlas}
-					<div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+					<div class="flex items-center gap-2 text-success-700 dark:text-success-300">
 						<span>☁️</span>
 						<span class="font-medium">{setup_connection_mongodb_atlas()}</span>
 					</div>
 				{/if}
 
 				{#if result.authenticated}
-					<div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+					<div class="flex items-center gap-2 text-success-700 dark:text-success-300">
 						<span>🔒</span>
 						<span class="font-medium">{setup_connection_authenticated()}</span>
 					</div>
@@ -268,7 +268,7 @@ Features:
 						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">{setup_connection_sample_collections()}</p>
 						<div class="flex flex-wrap gap-2">
 							{#each result.collectionsSample as collection (collection)}
-								<span class="rounded bg-indigo-100 px-2 py-1 font-mono text-xs text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+								<span class="rounded bg-tertiary-100 px-2 py-1 font-mono text-xs text-tertiary-700 dark:bg-tertiary-900/30 dark:text-tertiary-300">
 									{collection}
 								</span>
 							{/each}
@@ -281,7 +281,7 @@ Features:
 
 	<!-- Error Details with Troubleshooting -->
 	{#if state === 'error' && result}
-		<div class="border-t border-red-200 bg-white p-4 dark:border-red-800 dark:bg-surface-800">
+		<div class="border-t border-error-200 bg-white p-4 dark:border-error-800 dark:bg-surface-800">
 			<!-- Technical Error Message -->
 			{#if result.error && result.error !== result.userFriendly}
 				<div class="mb-3 rounded-lg bg-surface-50 p-3 dark:bg-surface-900/50">
@@ -292,15 +292,15 @@ Features:
 
 			<!-- Troubleshooting Tips -->
 			{#if result.classification}
-				<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-					<p class="mb-2 flex items-center gap-2 font-semibold text-amber-900 dark:text-amber-100">
+				<div class="rounded-lg border border-warning-200 bg-warning-50 p-3 dark:border-warning-800 dark:bg-warning-900/20">
+					<p class="mb-2 flex items-center gap-2 font-semibold text-warning-900 dark:text-warning-100">
 						<span>💡</span>
 						<span>{setup_connection_troubleshooting()}</span>
 					</p>
-					<ul class="space-y-1.5 text-sm text-amber-800 dark:text-amber-200">
+					<ul class="space-y-1.5 text-sm text-warning-800 dark:text-warning-200">
 						{#each getTroubleshootingTips(result.classification) as tip (tip)}
 							<li class="flex gap-2">
-								<span class="text-amber-600 dark:text-amber-400">•</span>
+								<span class="text-warning-600 dark:text-warning-400">•</span>
 								<span>{tip}</span>
 							</li>
 						{/each}
@@ -329,10 +329,10 @@ Features:
 
 	<!-- Testing Animation -->
 	{#if state === 'testing'}
-		<div class="border-t border-blue-200 bg-white p-4 dark:border-blue-800 dark:bg-surface-800">
+		<div class="border-t border-tertiary-200 bg-white p-4 dark:border-tertiary-800 dark:bg-surface-800">
 			<div class="flex items-center gap-3">
 				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-					<div class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-blue-500 to-indigo-500"></div>
+					<div class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-tertiary-500 to-tertiary-500"></div>
 				</div>
 				<span class="text-sm text-surface-600 dark:text-surface-50">{setup_connection_connecting()}</span>
 			</div>

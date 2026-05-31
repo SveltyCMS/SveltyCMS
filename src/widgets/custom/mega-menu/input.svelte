@@ -212,7 +212,7 @@ Interactive menu builder with add/edit/reorder capabilities
 <div class="space-y-4">
 	<div class="flex items-center justify-between border-b border-surface-200 pb-3 dark:text-surface-50">
 		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
-		<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={addItem}>
+		<button type="button" class="preset-filled-primary-500 btn" onclick={addItem}>
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 			Add Menu Item
 		</button>
@@ -284,7 +284,7 @@ Interactive menu builder with add/edit/reorder capabilities
 							{#if (field as any).fields && (field as any).fields.length > 1}
 								<button
 									type="button"
-									class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
+									class="preset-filled-primary-500 btn"
 									onclick={() => addChildItem(item)}
 									aria-label="Add child item"
 									title="Add child item"
@@ -320,7 +320,7 @@ Interactive menu builder with add/edit/reorder capabilities
 
 	{#if error}
 		<div
-			class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+			class="flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300"
 			role="alert"
 			aria-live="polite"
 		>

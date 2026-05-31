@@ -450,13 +450,13 @@
 			aria-expanded={showWhySmtp}
 			aria-controls="why-smtp-content"
 		>
-			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true"></iconify-icon>
+			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"></iconify-icon>
 			<div class="flex-1">
-				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{setup_email_why_title()}</h3>
+				<h3 class="font-semibold text-primary-500">{setup_email_why_title()}</h3>
 			</div>
 			<iconify-icon
 				icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'}
-				class="mt-0.5 shrink-0 text-xl text-tertiary-500 dark:text-primary-500"
+				class="mt-0.5 shrink-0 text-xl text-primary-500"
 				aria-hidden="true"
 			></iconify-icon>
 		</button>
@@ -481,20 +481,20 @@
 	<div class="space-y-2">
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:email-fast-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:email-fast-outline" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_provider()}</span>
 				<SystemTooltip title={setup_email_help_provider()}>
 					<button
 						type="button"
 						tabindex="-1"
 						aria-label={setup_email_aria_help_provider()}
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
 				</SystemTooltip>
 			</div>
-			<select class="select w-full rounded border border-slate-300 dark:border-surface-600  " bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
+			<select class="select w-full rounded border border-surface-300 dark:border-surface-600  " bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
 				{#each presets as preset, index (index)}
 					<option value={preset.name}>{preset.name}</option>
 				{/each}
@@ -516,14 +516,14 @@
 		<!-- SMTP Host -->
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:server-network" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_host()} <span class="text-error-500">*</span></span>
 				<SystemTooltip title={setup_email_help_host()}>
 					<button
 						type="button"
 						tabindex="-1"
 						aria-label={setup_email_aria_help_host()}
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
@@ -531,7 +531,7 @@
 			</div>
 			<input
 				type="text"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+				class="input w-full rounded border border-surface-300 dark:border-surface-600  "
 				class:input-error={displayErrors.host || (wizard.emailSettings.host.trim() && !isValidHostname())}
 				bind:value={wizard.emailSettings.host}
 				placeholder={setup_email_host_placeholder()}
@@ -563,14 +563,14 @@
 		<label class="label">
 			<div class="mb-1 flex items-center justify-between">
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:ethernet" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 					<span class="font-medium text-black dark:text-white">{setup_email_port()} <span class="text-error-500">*</span></span>
 					<SystemTooltip title={setup_email_help_port()}>
 						<button
 							type="button"
 							tabindex="-1"
 							aria-label={setup_email_aria_help_port()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -582,7 +582,7 @@
 				<div class="flex gap-2">
 					<input
 						type="number"
-						class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+						class="input w-full rounded border border-surface-300 dark:border-surface-600  "
 						class:input-error={displayErrors.port}
 						value={Number(wizard.emailSettings.port)}
 						oninput={(e) => (wizard.emailSettings.port = e.currentTarget.value)}
@@ -599,7 +599,7 @@
 
 					<button
 						type="button"
-						class="preset-outlined-surface-500 btn btn-sm whitespace-nowrap border border-slate-300 dark:border-surface-600"
+						class="preset-outlined-surface-500 btn btn-sm whitespace-nowrap border border-surface-300 dark:border-surface-600"
 						aria-label={setup_email_aria_switch_standard()}
 						onclick={() => {
 							useCustomPort = false;
@@ -622,7 +622,7 @@
 				<!-- Standard port dropdown -->
 				<div class="flex gap-2">
 					<select
-						class="select w-full rounded border border-slate-300 dark:border-surface-600  "
+						class="select w-full rounded border border-surface-300 dark:border-surface-600  "
 						value={String(wizard.emailSettings.port)}
 						onchange={(e) => {
 							wizard.emailSettings.port = e.currentTarget.value;
@@ -666,14 +666,14 @@
 		<!-- SMTP User -->
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:account" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_user()} <span class="text-error-500">*</span></span>
 				<SystemTooltip title={setup_email_help_user()}>
 					<button
 						type="button"
 						tabindex="-1"
 						aria-label={setup_email_aria_help_user()}
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
@@ -681,7 +681,7 @@
 			</div>
 			<input
 				type="text"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+				class="input w-full rounded border border-surface-300 dark:border-surface-600  "
 				class:input-error={displayErrors.user}
 				bind:value={wizard.emailSettings.user}
 				placeholder={setup_email_user_placeholder()}
@@ -710,14 +710,14 @@
 		<!-- SMTP Password -->
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:key-variant" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_password()} <span class="text-error-500">*</span></span>
 				<SystemTooltip title={setup_email_help_password()}>
 					<button
 						type="button"
 						tabindex="-1"
 						aria-label={setup_email_aria_help_password()}
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						class="ml-1 text-surface-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
@@ -726,7 +726,7 @@
 			<div class="relative">
 				<input
 					type={showPassword ? 'text' : 'password'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   pr-10"
+					class="input w-full rounded border border-surface-300 dark:border-surface-600   pr-10"
 					class:input-error={displayErrors.password}
 					bind:value={wizard.emailSettings.password}
 					placeholder={setup_email_password_placeholder()}
@@ -764,12 +764,12 @@
 		<!-- From Email (Optional) -->
 		<label class="label md:col-span-2">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-				<iconify-icon icon="mdi:email-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:email-outline" width="18" class="text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_from()}</span>
 			</div>
 			<input
 				type="email"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+				class="input w-full rounded border border-surface-300 dark:border-surface-600  "
 				bind:value={wizard.emailSettings.from}
 				placeholder={wizard.emailSettings.user || 'noreply@example.com'}
 				onblur={() => {
@@ -785,7 +785,7 @@
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<button type="submit" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full" disabled={!isFormValid || isTesting}>
+		<button type="submit" class="preset-filled-primary-500 btn w-full" disabled={!isFormValid || isTesting}>
 			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
 			{isTesting ? setup_email_testing() : setup_email_test_button()}
 		</button>

@@ -53,7 +53,7 @@ Usage:
 		<section>
 			<h2 class="mb-3 text-xl font-bold">Preview</h2>
 			<div
-				class="h-52 w-full border border-gray-300 bg-contain bg-center bg-no-repeat"
+				class="h-52 w-full border border-surface-300 bg-contain bg-center bg-no-repeat"
 				style="background-image: url({selectedMedia.url}); opacity: {opacity}; transform: scale({size}) translate({positionX}px, {positionY}px) rotate({rotation}deg);"
 				role="img"
 				aria-label="Watermark preview"

@@ -333,7 +333,7 @@ Provides an organized interface for navigating hierarchical content structures.
 				{
 					icon: isFav ? 'bi:star-fill' : 'bi:star',
 					label: isFav ? 'Remove Favorite' : 'Add Favorite',
-					colorClass: isFav ? 'text-amber-500' : 'text-surface-500',
+					colorClass: isFav ? 'text-warning-500' : 'text-surface-500',
 					onClick: (_treeNode: any, event: MouseEvent) => {
 						event.stopPropagation();
 						if (isFav) {
@@ -512,11 +512,11 @@ Provides an organized interface for navigating hierarchical content structures.
 				onclick={() => showOnlyFavorites = !showOnlyFavorites}
 				class="btn btn-sm flex items-center gap-1.5 rounded-full border transition-all text-xs font-semibold py-1 px-3
 					{showOnlyFavorites
-						? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400'
+						? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
 						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-300'}"
 				aria-label="Filter by Favorites"
 			>
-				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14" class={showOnlyFavorites ? 'text-amber-500' : ''}></iconify-icon>
+				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14" class={showOnlyFavorites ? 'text-warning-500' : ''}></iconify-icon>
 				<span>Favorites</span>
 			</button>
 
@@ -553,7 +553,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		<div class="absolute right-0 top-0 flex h-full items-center">
 			{#if isSearching}
 				<div class="flex h-12 w-12 items-center justify-center">
-					<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
+					<div class="h-2 w-2 animate-pulse rounded-full bg-primary-500"></div>
 				</div>
 			{:else if search}
 				<button

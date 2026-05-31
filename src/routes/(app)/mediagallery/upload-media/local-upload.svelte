@@ -388,7 +388,7 @@ async function uploadLocalFiles() {
 
 			<div class="col-span-5 space-y-4 text-center">
 				<p class="font-bold">
-					<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
+					<span class="text-primary-500">Media Upload</span>
 					Drag files here to upload
 				</p>
 
@@ -409,7 +409,7 @@ async function uploadLocalFiles() {
 				</button>
 
 				<!-- File Size Limit -->
-				<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: 50 MB</p>
+				<p class="mt-2 text-sm text-primary-500">Max File Size: 50 MB</p>
 			</div>
 		</div>
 
@@ -418,7 +418,7 @@ async function uploadLocalFiles() {
 	</div>
 {:else}
 	<div class="mb-5 text-center sm:text-left">
-		<p class="text-center text-tertiary-500 dark:text-primary-500">
+		<p class="text-center text-primary-500">
 			This area facilitates the queuing and previewing of media files before they are officially uploaded to the gallery. Verify your selection below,
 			then confirm to complete the transfer.
 		</p>
@@ -466,14 +466,14 @@ async function uploadLocalFiles() {
 					<div class="flex grow items-center justify-between p-1 text-white font-bold">
 						<!-- Type -->
 						<SystemTooltip title={file.type} positioning={{ placement: 'top' }}>
-							<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden">
+							<div class="bg-primary-500/50 badge flex items-center gap-1 overflow-hidden">
 								<iconify-icon icon={iconName} width="12"></iconify-icon>
 								<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>
 							</div>
 						</SystemTooltip>
 						<!-- Size -->
 						<SystemTooltip title="Size" positioning={{ placement: 'top' }}>
-							<p class="bg-tertiary-500 dark:bg-primary-500/50 badge flex shrink-0 items-center gap-1 text-[10px]">
+							<p class="bg-primary-500/50 badge flex shrink-0 items-center gap-1 text-[10px]">
 								<span class="">{(file.size / 1024).toFixed(2)}</span>
 								KB
 							</p>
@@ -495,7 +495,7 @@ async function uploadLocalFiles() {
 		<!-- Actions Footer -->
 		<div class="flex items-center justify-between border-t border-surface-200 pt-4 dark:border-surface-700">
 			<button type="button" class="btn preset-outlined-surface-500" onclick={handleCancel}>Cancel</button>
-			<button type="button" class="btn dark:preset-filled-primary-500 preset-filled-tertiary-500" onclick={uploadLocalFiles} disabled={isUploading}>
+			<button type="button" class="btn preset-filled-primary-500" onclick={uploadLocalFiles} disabled={isUploading}>
 				{#if isUploading}
 					<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
 					<span>Uploading... {uploadProgress}%</span>

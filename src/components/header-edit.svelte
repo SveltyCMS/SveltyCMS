@@ -262,7 +262,7 @@
 			<div class="ml-2 flex-1 min-w-0">
 				<div class="text-xs uppercase opacity-70 dark:opacity-100 dark:text-white leading-none">{currentMode}</div>
 				<div class="text-sm font-bold capitalize truncate leading-tight">
-					<span class="text-tertiary-500 dark:text-primary-500">{currentCollection.name}</span>
+					<span class="text-primary-500">{currentCollection.name}</span>
 				</div>
 			</div>
 		{/if}
@@ -277,7 +277,7 @@
 					<button
 						onclick={save}
 						disabled={!isFormValid || !canWrite}
-						class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500"
+						class="btn-icon preset-filled-primary-500"
 						class:opacity-50={!isFormValid || !canWrite}
 						aria-label="Save"
 					>
@@ -299,7 +299,7 @@
 						<button
 							onclick={save}
 							disabled={!isFormValid || !canWrite}
-							class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500"
+							class="btn-icon preset-filled-primary-500"
 							class:opacity-50={!isFormValid || !canWrite}
 							aria-label="Save"
 						>
@@ -364,12 +364,12 @@
 
 		<!-- User -->
 		<div class="space-y-1 text-xs">
-			<p>Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span></p>
+			<p>Created by: <span class="text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span></p>
 			{#if currentEntry?.updatedBy}
-				<p class="text-tertiary-500 dark:text-primary-500">Last updated by: {getDisplayName(currentEntry?.updatedBy)}</p>
+				<p class="text-primary-500">Last updated by: {getDisplayName(currentEntry?.updatedBy)}</p>
 			{/if}
 			{#if scheduleTimestamp}
-				<p class="text-tertiary-500 dark:text-primary-500">Will publish on: {new Date(scheduleTimestamp).toLocaleString()}</p>
+				<p class="text-primary-500">Will publish on: {new Date(scheduleTimestamp).toLocaleString()}</p>
 			{/if}
 		</div>
 	</div>

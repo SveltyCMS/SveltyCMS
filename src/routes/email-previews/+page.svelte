@@ -40,7 +40,7 @@ const emailList = $derived({
 			<div class="flex h-full items-center justify-center p-10">
 				<div class="text-center">
 					<div class="mb-2 text-xl font-semibold">Loading Previewer...</div>
-					<p class="text-sm text-gray-500">Fetching email templates</p>
+					<p class="text-sm text-surface-500">Fetching email templates</p>
 				</div>
 			</div>
 		{:then module}
@@ -49,14 +49,14 @@ const emailList = $derived({
 			<EmailPreviewComponent {emailList} />
 		{:catch error}
 			<!-- Error State -->
-			<div class="rounded border border-red-200 bg-red-50 p-4 text-red-500">
+			<div class="rounded border border-error-200 bg-error-50 p-4 text-error-500">
 				<p class="font-bold">Failed to load email previewer</p>
 				<pre class="mt-2 text-xs">{error.message}</pre>
 			</div>
 		{/await}
 	{/if}
 {:else}
-	<div class="p-8 text-center text-gray-500">
-		<p>No email templates found in <code class="rounded bg-gray-100 px-1 py-0.5">/src/components/emails</code>.</p>
+	<div class="p-8 text-center text-surface-500">
+		<p>No email templates found in <code class="rounded bg-surface-100 px-1 py-0.5">/src/components/emails</code>.</p>
 	</div>
 {/if}

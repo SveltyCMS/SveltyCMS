@@ -37,10 +37,10 @@ Designed as a visual schema inspector for developers to understand what data str
 		type: string;
 		required?: 'Required' | 'Optional';
 	}) => `
-		<div class="col-span-full flex items-center justify-between border p-2 rounded dark:border-slate-700">
+		<div class="col-span-full flex items-center justify-between border p-2 rounded dark:border-surface-700">
 			<label class="font-semibold text-[0.9rem] text-black/80">${label}</label>
-			<input type="${type}" placeholder="${db_fieldName}" disabled class="w-64 bg-gray-100 dark:bg-slate-700 p-1 rounded" />
-			<span class="text-sm text-red-500">(${required} ${type})</span>
+			<input type="${type}" placeholder="${db_fieldName}" disabled class="w-64 bg-surface-100 dark:bg-surface-700 p-1 rounded" />
+			<span class="text-sm text-error-500">(${required} ${type})</span>
 		</div>`;
 
 	/** @type {(props: { label: string; db_fieldName: string }) => string} */
@@ -48,9 +48,9 @@ Designed as a visual schema inspector for developers to understand what data str
 		label: string;
 		db_fieldName: string;
 	}) => `
-		<div class="col-span-full p-2 border rounded dark:border-slate-700">
+		<div class="col-span-full p-2 border rounded dark:border-surface-700">
 			<label class="font-semibold text-[0.9rem]">${label}</label>
-			<textarea placeholder="${db_fieldName}" disabled rows="3" class="w-full bg-gray-100 dark:bg-slate-700 p-2 rounded"></textarea>
+			<textarea placeholder="${db_fieldName}" disabled rows="3" class="w-full bg-surface-100 dark:bg-surface-700 p-2 rounded"></textarea>
 		</div>`;
 
 	/** @type {(props: { label: string;  relation: string }) => string} */
@@ -58,9 +58,9 @@ Designed as a visual schema inspector for developers to understand what data str
 		label: string;
 		relation: string;
 	}) => `
-		<div class="col-span-full flex items-center justify-between border p-2 rounded dark:border-slate-700">
+		<div class="col-span-full flex items-center justify-between border p-2 rounded dark:border-surface-700">
 			<label class="font-semibold text-[0.9rem] text-black/80">${label}</label>
-			<select disabled class="p-1 rounded bg-gray-100 dark:bg-slate-700">
+			<select disabled class="p-1 rounded bg-surface-100 dark:bg-surface-700">
 				<option selected>${relation} (Mock)</option>
 			</select>
 		</div>`;
@@ -84,17 +84,17 @@ Designed as a visual schema inspector for developers to understand what data str
 
 <section class="p-6 border rounded-xl bg-white dark:bg-[#0d0f12] shadow-lg">
 	<!-- Header -->
-	<div class="flex items-center gap-4 pb-3 border-b border-slate-200 dark:border-slate-700 mb-4">
+	<div class="flex items-center gap-4 pb-3 border-b border-surface-200 dark:border-surface-700 mb-4">
 		<h2 class="text-2xl font-bold text-black dark:text-white">{currentSchema?.name || 'Unknown Schema'}</h2>
 		<div class="flex flex-col gap-1.5">
-			<p class="text-[0.8rem] text-slate-500 dark:text-slate-400">{currentSchema?.description || ''}</p>
+			<p class="text-[0.8rem] text-surface-500 dark:text-surface-400">{currentSchema?.description || ''}</p>
 		</div>
 	</div>
 
 	<!-- Schema Details -->
 	<div>
 		<h3 class="text-xl font-semibold mb-4 border-b pb-2">Defined Fields ({currentSchema?.fields.length ?? 0} fields)</h3>
-		<div class="space-y-6 p-4 bg-slate-50 dark:bg-[#1a1c20] rounded-lg/50 shadow-inner">
+		<div class="space-y-6 p-4 bg-surface-50 dark:bg-[#1a1c20] rounded-lg/50 shadow-inner">
 			{#if currentSchema?.fields && currentSchema.fields.length > 0}
 				{#each currentSchema.fields as field (field.key)}
 					<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 border-b pb-6">
@@ -102,7 +102,7 @@ Designed as a visual schema inspector for developers to understand what data str
 					</div>
 				{/each}
 			{:else}
-				<p class="text-slate-500 dark:text-slate-400">No fields are currently defined for this schema.</p>
+				<p class="text-surface-500 dark:text-surface-400">No fields are currently defined for this schema.</p>
 			{/if}
 		</div>
 	</div>

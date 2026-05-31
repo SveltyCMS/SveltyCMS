@@ -78,7 +78,7 @@ export const widgetMeta = {
 		{#if !scim}
 			<div class="flex h-full items-center justify-center">
 				<div class="flex flex-col items-center gap-3 text-surface-500">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
 					<p class="text-sm">Connecting to identity provider...</p>
 				</div>
 			</div>
@@ -95,15 +95,15 @@ export const widgetMeta = {
 					<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-[36px]">
 						<div class="flex items-center gap-2">
 							<div class="relative flex h-2.5 w-2.5">
-								<span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {scim.status === 'healthy' ? 'bg-emerald-400' : scim.status === 'degraded' ? 'bg-amber-400' : 'bg-red-400'}"></span>
-								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {scim.status === 'healthy' ? 'bg-emerald-500' : scim.status === 'degraded' ? 'bg-amber-500' : 'bg-red-500'}"></span>
+								<span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {scim.status === 'healthy' ? 'bg-success-400' : scim.status === 'degraded' ? 'bg-warning-400' : 'bg-error-400'}"></span>
+								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {scim.status === 'healthy' ? 'bg-success-500' : scim.status === 'degraded' ? 'bg-warning-500' : 'bg-error-500'}"></span>
 							</div>
-							<span class="font-bold tabular-nums text-sm capitalize {scim.status === 'healthy' ? 'text-emerald-600 dark:text-emerald-400' : scim.status === 'degraded' ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}">{scim.status}</span>
+							<span class="font-bold tabular-nums text-sm capitalize {scim.status === 'healthy' ? 'text-success-600 dark:text-success-400' : scim.status === 'degraded' ? 'text-warning-600 dark:text-warning-400' : 'text-error-500'}">{scim.status}</span>
 						</div>
 						<div class="flex items-center gap-2 text-right">
-							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{scim.activeUsers} Active Users</span>
+							<span class="font-semibold text-surface-700 dark:text-surface-300 tabular-nums">{scim.activeUsers} Active Users</span>
 							{#if scim.syncedToday > 0}
-								<span class="text-gray-400 dark:text-gray-500">| +{scim.syncedToday} Today</span>
+								<span class="text-surface-400 dark:text-surface-500">| +{scim.syncedToday} Today</span>
 							{/if}
 						</div>
 					</div>
@@ -111,11 +111,11 @@ export const widgetMeta = {
 					<!-- Status Header -->
 					<div class="flex items-center gap-3">
 						<div class="relative">
-							<div class="h-4 w-4 rounded-full {scim.status === 'healthy' ? 'bg-emerald-500' : scim.status === 'degraded' ? 'bg-amber-500' : 'bg-red-500'}"></div>
-							<div class="absolute inset-0 h-4 w-4 rounded-full {scim.status === 'healthy' ? 'bg-emerald-500' : scim.status === 'degraded' ? 'bg-amber-500' : 'bg-red-500'} animate-ping opacity-75"></div>
+							<div class="h-4 w-4 rounded-full {scim.status === 'healthy' ? 'bg-success-500' : scim.status === 'degraded' ? 'bg-warning-500' : 'bg-error-500'}"></div>
+							<div class="absolute inset-0 h-4 w-4 rounded-full {scim.status === 'healthy' ? 'bg-success-500' : scim.status === 'degraded' ? 'bg-warning-500' : 'bg-error-500'} animate-ping opacity-75"></div>
 						</div>
 						<div>
-							<div class="text-xl font-bold capitalize {scim.status === 'healthy' ? 'text-emerald-600 dark:text-emerald-400' : scim.status === 'degraded' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600'}">
+							<div class="text-xl font-bold capitalize {scim.status === 'healthy' ? 'text-success-600 dark:text-success-400' : scim.status === 'degraded' ? 'text-warning-600 dark:text-warning-400' : 'text-error-600'}">
 								{scim.status}
 							</div>
 							<div class="text-xs text-surface-500 dark:text-surface-400">SCIM Sync Status</div>
@@ -124,14 +124,14 @@ export const widgetMeta = {
 
 					<!-- Main Stats -->
 					<div class="my-4 grid grid-cols-2 gap-3.5">
-						<div class="rounded-2xl bg-surface-100 p-4 text-center dark:bg-surface-800 border border-transparent dark:border-gray-800">
+						<div class="rounded-2xl bg-surface-100 p-4 text-center dark:bg-surface-800 border border-transparent dark:border-surface-800">
 							<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
 								{scim.activeUsers}
 							</div>
 							<div class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1">Active Users</div>
 						</div>
 
-						<div class="rounded-2xl bg-surface-100 p-4 dark:bg-surface-800 border border-transparent dark:border-gray-800 flex flex-col justify-between items-center relative overflow-hidden">
+						<div class="rounded-2xl bg-surface-100 p-4 dark:bg-surface-800 border border-transparent dark:border-surface-800 flex flex-col justify-between items-center relative overflow-hidden">
 							<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
 								{scim.syncedToday}
 							</div>
@@ -161,13 +161,13 @@ export const widgetMeta = {
 							<span class="text-surface-500 dark:text-surface-400">Last Sync</span>
 							<span class="font-medium font-mono text-surface-700 dark:text-surface-300 tabular-nums">{scim.lastSync}</span>
 						</div>
-						<div class="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 pb-2">
+						<div class="flex justify-between items-center py-1 border-b border-surface-100 dark:border-surface-800 pb-2">
 							<span class="text-surface-500 dark:text-surface-400">Provider</span>
 							<span class="font-mono text-primary-600 dark:text-primary-400 font-semibold">{scim.provider}</span>
 						</div>
 
 						{#if scim.lastError}
-							<div class="text-xs text-red-500 bg-red-50 dark:bg-red-950/50 p-2.5 rounded-xl border border-red-250 dark:border-red-900/60 mt-1">
+							<div class="text-xs text-error-500 bg-error-50 dark:bg-error-950/50 p-2.5 rounded-xl border border-error-200 dark:border-error-900/60 mt-1">
 								{scim.lastError}
 							</div>
 						{/if}
@@ -179,9 +179,9 @@ export const widgetMeta = {
 							<iconify-icon 
 								icon={scim.endpointsHealthy ? "mdi:check-circle" : "mdi:alert-circle"} 
 								width={18}
-								class={scim.endpointsHealthy ? "text-emerald-500" : "text-amber-500"}
+								class={scim.endpointsHealthy ? "text-success-500" : "text-warning-500"}
 							></iconify-icon>
-							<span class={scim.endpointsHealthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600"}>
+							<span class={scim.endpointsHealthy ? "text-success-600 dark:text-success-400" : "text-warning-600"}>
 								{scim.endpointsHealthy ? "All endpoints healthy" : "Some endpoints degraded"}
 							</span>
 						</div>

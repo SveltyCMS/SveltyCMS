@@ -44,7 +44,7 @@ Features:
 	</section>
 
 	<footer class="flex justify-center">
-		<button class="dark:preset-filled-primary-500 preset-filled-tertiary-500 btn font-bold" onclick={handleGetStarted}>
+		<button class="preset-filled-primary-500 btn font-bold" onclick={handleGetStarted}>
 			{welcome_modal_cta()}
 			<iconify-icon icon="mdi:arrow-right" width="20" class="ml-2"></iconify-icon>
 		</button>

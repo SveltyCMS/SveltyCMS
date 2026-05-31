@@ -421,7 +421,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			<!-- Cancel -->
 			<button class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()} disabled={isUploading}>{button_cancel()}</button>
 			<!-- Save -->
-			<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={onFormSubmit} disabled={!files.length || isUploading}>
+			<button class="preset-filled-primary-500 btn" onclick={onFormSubmit} disabled={!files.length || isUploading}>
 				{#if isUploading}
 					<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 					Uploading...

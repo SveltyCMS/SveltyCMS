@@ -189,7 +189,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 {#if isVisible}
 	<div
-		class="fixed inset-0 z-99999999 flex items-center justify-center bg-gray-950/50 backdrop-blur-sm"
+		class="fixed inset-0 z-99999999 flex items-center justify-center bg-surface-950/50 backdrop-blur-sm"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="loading-title"
@@ -207,11 +207,11 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 		<!-- Loading content -->
 		<div
-			class="absolute flex flex-col items-center justify-center space-y-3 rounded-2xl bg-white/90 p-8 shadow-2xl backdrop-blur-md dark:bg-gray-900/90"
+			class="absolute flex flex-col items-center justify-center space-y-3 rounded-2xl bg-white/90 p-8 shadow-2xl backdrop-blur-md dark:bg-surface-900/90"
 			transition:scale={{ duration: prefersReducedMotion ? 0 : 300, start: 0.9 }}
 		>
 			<!-- Top text -->
-			<p id="loading-title" class="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-white">{loadingText.top}</p>
+			<p id="loading-title" class="text-sm font-medium uppercase tracking-wide text-surface-900 dark:text-white">{loadingText.top}</p>
 
 			<!-- Logo with animation -->
 			<div class="flex items-center justify-center {prefersReducedMotion ? '' : 'animate-pulse'}" aria-hidden="true">
@@ -219,17 +219,17 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			</div>
 
 			<!-- Bottom text -->
-			<p id="loading-description" class="text-xs uppercase text-gray-700 dark:text-gray-300">{loadingText.bottom}</p>
+			<p id="loading-description" class="text-xs uppercase text-surface-700 dark:text-surface-300">{loadingText.bottom}</p>
 
 			<!-- Progress bar (if available) -->
 			{#if hasProgress}
 				<div class="w-full" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					<div class="mb-1 flex items-center justify-between text-xs">
-						<span class="text-gray-600 dark:text-gray-400">Progress</span>
+						<span class="text-surface-600 dark:text-surface-400">Progress</span>
 						<span class="font-medium text-primary-500">{Math.round(progress!)}%</span>
 					</div>
 					<div
-						class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+						class="h-2 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
 						role="progressbar"
 						aria-valuenow={Math.round(progress!)}
 						aria-valuemin={0}
@@ -245,7 +245,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 			<!-- Elapsed time (after 3 seconds) -->
 			{#if elapsedTime > 3000}
-				<div class="text-xs text-gray-500 dark:text-gray-400" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+				<div class="text-xs text-surface-500 dark:text-surface-400" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					Elapsed: {formatElapsedTime(elapsedTime)}
 				</div>
 			{/if}

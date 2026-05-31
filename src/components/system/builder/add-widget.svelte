@@ -60,7 +60,7 @@
 
 <div class="fixed -top-16 left-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
-		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-tertiary-500 dark:text-primary-500" />
+		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 		<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-outlined-secondary-500 btn-icon mr-2">
 			<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 		</button>
@@ -77,9 +77,9 @@
 		</div>
 	{:else}
 		<div class="flex-col items-center justify-center overflow-auto">
-			<p class="text-wxl mb-3 text-center">Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span></p>
+			<p class="text-wxl mb-3 text-center">Define your <span class="text-primary-500">{selected_widget}</span></p>
 			<div class="w-100 mx-2 mb-2 flex justify-between gap-2">
-				<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={handleSave}>Save {selected_widget} Widget</button>
+				<button class="preset-filled-primary-500 btn" onclick={handleSave}>Save {selected_widget} Widget</button>
 				<button class="variant-filled-secondary btn dark:preset-outlined-secondary-500" onclick={handleWidgetCancel}>Cancel</button>
 			</div>
 

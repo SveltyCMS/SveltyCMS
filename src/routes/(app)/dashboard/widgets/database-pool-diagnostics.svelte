@@ -51,7 +51,7 @@ export const widgetMeta = {
 			case 'critical':
 				return 'text-error-600 bg-error-50';
 			default:
-				return 'text-gray-600 bg-gray-50';
+				return 'text-surface-600 bg-surface-50';
 		}
 	}
 

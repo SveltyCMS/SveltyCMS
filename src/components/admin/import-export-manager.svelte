@@ -338,8 +338,8 @@
 <div class="import-export-manager">
 	<div class="mb-6 flex items-center justify-between">
 		<div>
-			<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Data Import & Export</h2>
-			<p class="mt-1 text-gray-600 dark:text-gray-400">Backup and restore your collection data</p>
+			<h2 class="text-2xl font-bold text-surface-900 dark:text-white">Data Import & Export</h2>
+			<p class="mt-1 text-surface-600 dark:text-surface-400">Backup and restore your collection data</p>
 		</div>
 
 		<div class="flex gap-3">
@@ -356,25 +356,25 @@
 	</div>
 
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+		<div class="rounded-lg border border-surface-200 bg-white p-6 dark:border-surface-700 dark:bg-surface-800">
 			<div class="mb-4 flex items-center">
 				<div class="preset-filled-tertiary-500 btn-icon mr-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
 				<div>
-					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400">Export all collections to file</p>
+					<h3 class="font-semibold text-surface-900 dark:text-white">Export All Data</h3>
+					<p class="text-sm text-surface-600 dark:text-surface-400">Export all collections to file</p>
 				</div>
 			</div>
 
 			<button onclick={exportAllData} disabled={loading} class="preset-outline-secondary-500 btn mt-4 w-full">Export Everything</button>
 		</div>
 
-		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+		<div class="rounded-lg border border-surface-200 bg-white p-6 dark:border-surface-700 dark:bg-surface-800">
 			<div class="mb-4 flex items-center">
 				<div class="preset-filled-primary-500 btn-icon mr-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
 				<div>
-					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400">
-						<span class="font-semibold text-tertiary-500 dark:text-primary-500">{collections.length}</span>
+					<h3 class="font-semibold text-surface-900 dark:text-white">Collections</h3>
+					<p class="text-sm text-surface-600 dark:text-surface-400">
+						<span class="font-semibold text-primary-500">{collections.length}</span>
 						collections available
 					</p>
 				</div>
@@ -383,7 +383,7 @@
 			<div class="space-y-2">
 				{#each collections.slice(0, 3) as collection (collection.id)}
 					<div class="flex items-center justify-between text-sm">
-						<span class="text-tertiary-500 dark:text-primary-500">{collection.label}</span>
+						<span class="text-primary-500">{collection.label}</span>
 						<iconify-icon icon="mdi:chevron-right" width={24}></iconify-icon>
 					</div>
 				{/each}
@@ -451,7 +451,7 @@
 						</div>
 					</div>
 
-					<div class="max-h-48 overflow-y-auto rounded-md border border-gray-200 p-3 dark:border-gray-700">
+					<div class="max-h-48 overflow-y-auto rounded-md border border-surface-200 p-3 dark:border-surface-700">
 						{#each collections as collection (collection.id)}
 							{@const inputId = `export-collection-${collection.id}`}
 							<label for={inputId} class="flex cursor-pointer items-center space-x-3 py-2">
@@ -467,7 +467,7 @@
 									{collection.label}
 
 									{#if collection.description}
-										<span class="ml-2 text-sm text-gray-500">{collection.description}</span>
+										<span class="ml-2 text-sm text-surface-500">{collection.description}</span>
 									{/if}
 								</div>
 							</label>
@@ -520,9 +520,9 @@
 						type="file"
 						bind:files={importFiles}
 						accept=".json,.csv"
-						class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+						class="block w-full text-sm text-surface-500 file:mr-4 file:rounded-md file:border-0 file:bg-tertiary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-700 hover:file:bg-tertiary-100"
 					/>
-					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
+					<p class="mt-1 text-xs text-surface-500">Supported formats: JSON, CSV</p>
 				</div>
 
 				<div>
@@ -564,20 +564,20 @@
 			</div>
 			<div class="max-h-[calc(80vh-140px)] overflow-y-auto p-6">
 				<div class="space-y-6">
-					<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+					<div class="rounded-lg bg-surface-50 p-4 dark:bg-surface-800">
 						<h3 class="mb-3 font-semibold">Import Summary</h3>
 						<div class="grid grid-cols-3 gap-4 text-center">
 							<div>
 								<div class="text-2xl font-bold text-primary-500">{importResult.totalImported}</div>
-								<div class="text-sm text-gray-600">Imported</div>
+								<div class="text-sm text-surface-600">Imported</div>
 							</div>
 							<div>
 								<div class="text-waring-500 text-2xl font-bold">{importResult.totalSkipped}</div>
-								<div class="text-sm text-gray-600">Skipped</div>
+								<div class="text-sm text-surface-600">Skipped</div>
 							</div>
 							<div>
 								<div class="text-2xl font-bold text-error-500">{importResult.totalErrors}</div>
-								<div class="text-sm text-gray-600">Errors</div>
+								<div class="text-sm text-surface-600">Errors</div>
 							</div>
 						</div>
 					</div>
@@ -586,7 +586,7 @@
 						<h3 class="mb-3 font-semibold">Collection Details</h3>
 						<div class="max-h-64 space-y-3 overflow-y-auto">
 							{#each importResult.results as result (result.collection)}
-								<div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+								<div class="rounded-lg border border-surface-200 p-3 dark:border-surface-700">
 									<div class="mb-2 flex items-center justify-between">
 										<h4 class="font-medium">{result.collection}</h4>
 										<div class="flex space-x-4 text-sm">
@@ -599,13 +599,13 @@
 									{#if result.errors.length > 0}
 										<div class="text-sm">
 											<details>
-												<summary class="cursor-pointer text-red-600">{result.errors.length} errors</summary>
+												<summary class="cursor-pointer text-error-600">{result.errors.length} errors</summary>
 												<div class="mt-2 space-y-1">
 													{#each result.errors.slice(0, 5) as error (error.index)}
-														<div class="text-xs text-gray-600">Line {error.index + 1}: {error.error}</div>
+														<div class="text-xs text-surface-600">Line {error.index + 1}: {error.error}</div>
 													{/each}
 													{#if result.errors.length > 5}
-														<div class="text-xs text-gray-500">...and {result.errors.length - 5} more errors</div>
+														<div class="text-xs text-surface-500">...and {result.errors.length - 5} more errors</div>
 													{/if}
 												</div>
 											</details>

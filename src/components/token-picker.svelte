@@ -305,7 +305,7 @@
 						<iconify-icon icon="mdi:arrow-left"></iconify-icon>
 					</button>
 				{/if}
-				<h3 class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
+				<h3 class="text-lg font-bold text-primary-500">
 					{mode === 'configure' ? 'Configure Token' : 'Select Token'}
 					<span class="text-sm font-normal opacity-70">for</span>
 					<span class="badge variant-soft-secondary"> {activeInput.current?.field.label || activeInput.current?.field.name || 'Field'} </span>

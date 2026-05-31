@@ -68,11 +68,11 @@ export const widgetMeta = {
 
 	const threatColor = $derived.by(() => {
 		switch (overallThreatLevel) {
-			case 'critical': return 'text-red-600 dark:text-red-400';
-			case 'high': return 'text-orange-600 dark:text-orange-400';
-			case 'medium': return 'text-amber-600 dark:text-amber-400';
-			case 'low': return 'text-yellow-600 dark:text-yellow-400';
-			default: return 'text-emerald-600 dark:text-emerald-400';
+			case 'critical': return 'text-error-600 dark:text-error-400';
+			case 'high': return 'text-warning-600 dark:text-warning-400';
+			case 'medium': return 'text-warning-600 dark:text-warning-400';
+			case 'low': return 'text-warning-600 dark:text-warning-400';
+			default: return 'text-success-600 dark:text-success-400';
 		}
 	});
 
@@ -120,7 +120,7 @@ export const widgetMeta = {
 		{#if !statsData}
 			<div class="flex h-full items-center justify-center">
 				<div class="flex flex-col items-center gap-3 text-surface-500">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
 					<p class="text-sm">Loading security metrics...</p>
 				</div>
 			</div>
@@ -131,8 +131,8 @@ export const widgetMeta = {
 					<div class="flex items-center justify-between text-xs px-1 w-full h-full min-h-9">
 						<div class="flex items-center gap-2">
 							<div class="relative flex h-2.5 w-2.5">
-								<span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {overallThreatLevel === 'critical' || overallThreatLevel === 'high' ? 'bg-red-400' : overallThreatLevel === 'medium' ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
-								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {overallThreatLevel === 'critical' || overallThreatLevel === 'high' ? 'bg-red-500' : overallThreatLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+								<span class="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping {overallThreatLevel === 'critical' || overallThreatLevel === 'high' ? 'bg-error-400' : overallThreatLevel === 'medium' ? 'bg-warning-400' : 'bg-success-400'}"></span>
+								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {overallThreatLevel === 'critical' || overallThreatLevel === 'high' ? 'bg-error-500' : overallThreatLevel === 'medium' ? 'bg-warning-500' : 'bg-success-500'}"></span>
 							</div>
 							<div>
 								<span class="font-semibold capitalize {threatColor}">{overallThreatLevel}</span>
@@ -157,7 +157,7 @@ export const widgetMeta = {
 
 						<div class="flex items-center gap-3 font-medium text-surface-600 dark:text-surface-300">
 							<div class="flex items-center gap-1">
-								<iconify-icon icon="mdi:shield-remove" class="text-red-500"></iconify-icon>
+								<iconify-icon icon="mdi:shield-remove" class="text-error-500"></iconify-icon>
 								<span>{statsData.blockedIPs}</span>
 							</div>
 							<div class="flex items-center gap-1">
@@ -173,10 +173,10 @@ export const widgetMeta = {
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-3">
 								<div class="relative shrink-0">
-									<div class="h-6 w-6 rounded-full flex items-center justify-center {overallThreatLevel === 'critical' ? 'bg-red-500' : overallThreatLevel === 'high' ? 'bg-orange-500' : overallThreatLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}">
+									<div class="h-6 w-6 rounded-full flex items-center justify-center {overallThreatLevel === 'critical' ? 'bg-error-500' : overallThreatLevel === 'high' ? 'bg-warning-500' : overallThreatLevel === 'medium' ? 'bg-warning-500' : 'bg-success-500'}">
 										<iconify-icon icon={overallThreatLevel === 'safe' ? 'mdi:shield-check' : 'mdi:shield-alert'} class="text-white text-sm"></iconify-icon>
 									</div>
-									<div class="absolute inset-0 h-6 w-6 rounded-full {overallThreatLevel === 'critical' ? 'bg-red-500' : overallThreatLevel === 'high' ? 'bg-orange-500' : overallThreatLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'} animate-ping opacity-40"></div>
+									<div class="absolute inset-0 h-6 w-6 rounded-full {overallThreatLevel === 'critical' ? 'bg-error-500' : overallThreatLevel === 'high' ? 'bg-warning-500' : overallThreatLevel === 'medium' ? 'bg-warning-500' : 'bg-success-500'} animate-ping opacity-40"></div>
 								</div>
 								<div>
 									<div class="text-lg font-bold capitalize {threatColor} leading-tight">
@@ -217,11 +217,11 @@ export const widgetMeta = {
 						<div class="grid grid-cols-2 gap-2">
 							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between">
 								<div class="text-xs text-surface-500 dark:text-surface-400">Blocked IPs</div>
-								<div class="text-2xl font-bold tabular-nums mt-1 text-red-500">{statsData.blockedIPs}</div>
+								<div class="text-2xl font-bold tabular-nums mt-1 text-error-500">{statsData.blockedIPs}</div>
 							</div>
 							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between">
 								<div class="text-xs text-surface-500 dark:text-surface-400">Throttled</div>
-								<div class="text-2xl font-bold tabular-nums mt-1 text-orange-500">{statsData.throttledIPs}</div>
+								<div class="text-2xl font-bold tabular-nums mt-1 text-warning-500">{statsData.throttledIPs}</div>
 							</div>
 							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between">
 								<div class="text-xs text-surface-500 dark:text-surface-400">CSP Violations</div>
@@ -229,7 +229,7 @@ export const widgetMeta = {
 							</div>
 							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between">
 								<div class="text-xs text-surface-500 dark:text-surface-400">Rate Limits</div>
-								<div class="text-2xl font-bold tabular-nums mt-1 text-blue-600 dark:text-blue-400">{statsData.rateLimitHits}</div>
+								<div class="text-2xl font-bold tabular-nums mt-1 text-tertiary-600 dark:text-tertiary-400">{statsData.rateLimitHits}</div>
 							</div>
 						</div>
 
@@ -237,7 +237,7 @@ export const widgetMeta = {
 						{#if size.h >= 3}
 							<div class="flex-1 flex flex-col min-h-0">
 								<h4 class="mb-2 text-xs font-semibold text-surface-500 dark:text-surface-400 flex items-center gap-1.5 tracking-wider">
-									<iconify-icon icon="mdi:alert-circle" class="text-orange-500" ></iconify-icon>
+									<iconify-icon icon="mdi:alert-circle" class="text-warning-500" ></iconify-icon>
 									ACTIVE INCIDENTS ({activeIncidents.length})
 								</h4>
 
@@ -251,9 +251,9 @@ export const widgetMeta = {
 												<div class="flex justify-between items-center">
 													<div class="font-mono font-medium text-surface-700 dark:text-surface-200">{incident.clientIp}</div>
 													<div class="capitalize font-semibold text-[10px] px-1.5 py-0.5 rounded-full
-														{incident.threatLevel === 'critical' ? 'bg-red-500/10 text-red-500' :
-														  incident.threatLevel === 'high' ? 'bg-orange-500/10 text-orange-500' :
-														  incident.threatLevel === 'medium' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}">
+														{incident.threatLevel === 'critical' ? 'bg-error-500/10 text-error-500' :
+														  incident.threatLevel === 'high' ? 'bg-warning-500/10 text-warning-500' :
+														  incident.threatLevel === 'medium' ? 'bg-warning-500/10 text-warning-500' : 'bg-tertiary-500/10 text-tertiary-500'}">
 														{incident.threatLevel}
 													</div>
 												</div>

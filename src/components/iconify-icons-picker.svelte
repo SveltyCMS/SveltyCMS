@@ -545,7 +545,7 @@ Advanced icon picker with search, pagination, and favorites.
 				></iconify-icon>
 				<div class="min-w-0 flex-1 overflow-hidden">
 					<p class="text-xs text-surface-600 dark:text-surface-50">Selected Icon</p>
-					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">{iconselected}</p>
+					<p class="truncate text-sm font-medium text-primary-500">{iconselected}</p>
 				</div>
 			</button>
 

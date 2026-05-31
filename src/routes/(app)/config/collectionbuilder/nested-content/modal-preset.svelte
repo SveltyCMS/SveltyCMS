@@ -39,7 +39,7 @@ const cForm = "border border-surface-500 p-4 space-y-4 rounded-xl";
 			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => close?.(null)} disabled={isSubmitting}> Cancel </button>
 			<button
 				type="submit"
-				class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
+				class="preset-filled-primary-500 btn"
 				disabled={isSubmitting || selectedPreset === 'blank'}
 			>
 				Load Preset

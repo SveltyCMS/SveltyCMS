@@ -394,7 +394,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">Role</div>
 					<div class="flex-auto">
-						<div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+						<div class="rounded-md bg-surface-50 p-3 text-sm text-surface-600 dark:bg-surface-800 dark:text-surface-400">
 							<div class="flex items-center">
 								<iconify-icon icon="mdi:information" width={16} class="mr-2 shrink-0"></iconify-icon>
 								<div>
@@ -428,6 +428,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 		</div>
 
 		<!-- Save -->
-		<button type="submit" form="change_user_form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">{button_save()}</button>
+		<button type="submit" form="change_user_form" class="preset-filled-primary-500 btn">{button_save()}</button>
 	</footer>
 </div>

@@ -394,7 +394,7 @@ accessibility -->
 			{#if isSearching}
 				<div class="absolute right-4 top-1/2 -translate-y-1/2" role="status" aria-label="Searching">
 					<svg
-						class="h-5 w-5 animate-spin text-tertiary-500 dark:text-primary-500"
+						class="h-5 w-5 animate-spin text-primary-500"
 						xmlns="http://www.w3.org/2000/svg"
 						fill="none"
 						viewBox="0 0 24 24"
@@ -434,7 +434,7 @@ accessibility -->
 							{@const trigger = result.triggers[triggerKey]}
 							<button
 								type="button"
-								class="w-full px-4 py-3 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10 focus:outline-none"
+								class="w-full px-4 py-3 text-left transition-colors duration-150 hover:bg-primary-500/10 focus:outline-none"
 								onclick={(e) => handleResultClick(result, triggerKey, e)}
 								aria-label={`${result.title}: ${result.description}. Path: ${trigger?.path ?? 'Unknown'}`}
 							>
@@ -459,7 +459,7 @@ accessibility -->
 						{:else}
 							<!-- Multiple triggers -->
 							<div class="border-b border-surface-300 dark:text-surface-50 px-4 py-3">
-								<div class="font-bold text-tertiary-500 dark:text-primary-500"><HighlightedText text={result.title} term={sanitizedQuery} /></div>
+								<div class="font-bold text-primary-500"><HighlightedText text={result.title} term={sanitizedQuery} /></div>
 								<div class="mt-1 text-sm text-surface-600 dark:text-surface-300">
 									<HighlightedText text={result.description} term={sanitizedQuery} />
 								</div>
@@ -469,15 +469,15 @@ accessibility -->
 									{#if trigger?.path}
 										<button
 											type="button"
-											class="flex items-center justify-between px-6 py-2 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10 focus:outline-none"
+											class="flex items-center justify-between px-6 py-2 text-left transition-colors duration-150 hover:bg-primary-500/10 focus:outline-none"
 											onclick={(e) => handleResultClick(result, triggerKey, e)}
 											aria-label={`${result.title} - ${triggerKey}: Path ${trigger.path}`}
 										>
-											<span class="text-sm text-tertiary-500 dark:text-primary-500">
+											<span class="text-sm text-primary-500">
 												<HighlightedText text={triggerKey} term={sanitizedQuery} />
 											</span>
 											<span
-												class="ml-4 rounded bg-surface-200 dark:bg-surface-700 px-2 py-1 text-xs font-medium text-tertiary-500 dark:text-primary-500"
+												class="ml-4 rounded bg-surface-200 dark:bg-surface-700 px-2 py-1 text-xs font-medium text-primary-500"
 											>
 												{trigger.path}
 											</span>
@@ -496,7 +496,7 @@ accessibility -->
 				aria-live="polite"
 			>
 				<p class="text-surface-600 dark:text-surface-50">
-					No results found for <span class="font-semibold text-tertiary-500 dark:text-primary-500">"{sanitizedQuery}"</span>
+					No results found for <span class="font-semibold text-primary-500">"{sanitizedQuery}"</span>
 				</p>
 				<p class="mt-2 text-sm text-surface-500 dark:text-primary-500">Try using different keywords or check your spelling</p>
 			</div>

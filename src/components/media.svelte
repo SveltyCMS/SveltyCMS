@@ -255,7 +255,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 <div class="flex h-full flex-col gap-4" role="region" aria-label="Media gallery">
 	<!-- Header with controls -->
 	<div class="flex flex-wrap items-center gap-2">
-		<label for="media-search" class="font-bold text-tertiary-500 dark:text-primary-500">
+		<label for="media-search" class="font-bold text-primary-500">
 			Media
 			{#if hasFiles}
 				<span class="text-sm font-normal opacity-70">({filteredFiles.length})</span>

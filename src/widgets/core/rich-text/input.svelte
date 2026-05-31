@@ -551,7 +551,7 @@
 															{#each new Array(5) as _, c (c)}
 																<button
 																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
-																		? 'bg-blue-100 border-blue-500 dark:bg-blue-600 dark:border-blue-400'
+																		? 'bg-tertiary-100 border-tertiary-500 dark:bg-tertiary-600 dark:border-tertiary-400'
 																		: 'bg-surface-50 border-surface-200 dark:bg-surface-700 dark:border-surface-600'}"
 																	onmouseover={() => {
 																		hoverRows = r + 1;
@@ -608,7 +608,7 @@
 													<div class="relative pt-2 border-t border-surface-200 dark:border-surface-700">
 														<div class="relative w-full h-8 group overflow-hidden rounded cursor-pointer">
 															<div
-																class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-red-500 via-green-500 to-blue-500 opacity-90 group-hover:opacity-100 transition-opacity"
+																class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-error-500 via-success-500 to-tertiary-500 opacity-90 group-hover:opacity-100 transition-opacity"
 															>
 																<iconify-icon icon="mdi:palette" class="text-white drop-shadow-md" width="18"></iconify-icon>
 															</div>
@@ -732,7 +732,7 @@
 
 	{#if showSource}
 		<textarea
-			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
+			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-surface-200 border-none resize-y outline-none"
 			aria-label={field.label || field.db_fieldName || 'Rich text HTML editor'}
 			value={editor?.getHTML() || ''}
 			oninput={(e) => {
@@ -817,7 +817,7 @@
 
 	<!-- Error -->
 	{#if error}
-		<div class="border-t border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20 px-8 py-4 text-sm text-red-700 dark:text-red-300">
+		<div class="border-t border-error-200 bg-error-50 dark:border-error-900 dark:bg-error-900/20 px-8 py-4 text-sm text-error-700 dark:text-error-300">
 			{error}
 		</div>
 	{/if}

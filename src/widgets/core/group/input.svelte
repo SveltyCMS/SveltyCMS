@@ -97,18 +97,18 @@ Renders a group of fields, allowing for nested data structures.
 	const variantClasses = {
 		default: {
 			container: '',
-			header: 'border-b border-gray-200 bg-transparent dark:border-gray-700',
+			header: 'border-b border-surface-200 bg-transparent dark:border-surface-700',
 			content: 'bg-transparent pt-3'
 		},
 		card: {
-			container: 'rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800',
-			header: 'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
+			container: 'rounded-lg border border-surface-200 bg-white shadow-sm dark:border-surface-700 dark:bg-surface-800',
+			header: 'rounded-t-lg border-b border-surface-200 bg-surface-50 dark:border-surface-600 dark:bg-surface-700',
 			content: 'p-4'
 		},
 		bordered: {
-			container: 'rounded-lg border border-gray-300 dark:border-gray-600',
-			header: 'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
-			content: 'rounded-b-lg bg-white p-4 dark:bg-gray-800'
+			container: 'rounded-lg border border-surface-300 dark:border-surface-600',
+			header: 'rounded-t-lg border-b border-surface-300 bg-surface-100 dark:border-surface-600 dark:bg-surface-700',
+			content: 'rounded-b-lg bg-white p-4 dark:bg-surface-800'
 		}
 	};
 
@@ -166,7 +166,7 @@ Renders a group of fields, allowing for nested data structures.
 				{/each}
 			</div>
 		{:else}
-			<p class="text-sm italic text-gray-500">No fields defined in this group.</p>
+			<p class="text-sm italic text-surface-500">No fields defined in this group.</p>
 		{/if}
 	</div>
 </div>

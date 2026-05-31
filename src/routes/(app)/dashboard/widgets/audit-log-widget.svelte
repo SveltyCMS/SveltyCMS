@@ -73,20 +73,20 @@ export const widgetMeta = {
 	}
 
 	function actionColor(action: string, result?: string): string {
-		if (result === 'failure') return 'text-red-500 dark:text-red-400';
+		if (result === 'failure') return 'text-error-500 dark:text-error-400';
 		const a = (action || '').toLowerCase();
-		if (a.includes('delete') || a.includes('remove')) return 'text-orange-500 dark:text-orange-400';
-		if (a.includes('block') || a.includes('ban')) return 'text-amber-500 dark:text-amber-400';
-		if (a.includes('create')) return 'text-emerald-500 dark:text-emerald-400';
-		if (a.includes('update') || a.includes('edit')) return 'text-blue-500 dark:text-blue-400';
+		if (a.includes('delete') || a.includes('remove')) return 'text-warning-500 dark:text-warning-400';
+		if (a.includes('block') || a.includes('ban')) return 'text-warning-500 dark:text-warning-400';
+		if (a.includes('create')) return 'text-success-500 dark:text-success-400';
+		if (a.includes('update') || a.includes('edit')) return 'text-tertiary-500 dark:text-tertiary-400';
 		if (a.includes('login') || a.includes('auth')) return 'text-purple-500 dark:text-purple-400';
 		return 'text-surface-500';
 	}
 
 	function resultBadgeClass(result: string): string {
 		return result === 'success'
-			? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-			: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+			? 'bg-success-100 text-success-700 dark:bg-success-900/40 dark:text-success-300'
+			: 'bg-error-100 text-error-700 dark:bg-error-900/40 dark:text-error-300';
 	}
 </script>
 

@@ -38,7 +38,7 @@
 
 	<Body class="font-sans bg-[#f6f9fc] py-5">
 		<Container class="max-w-[600px] mx-auto bg-white rounded-lg overflow-hidden shadow-sm">
-			<Section class="p-8 text-center border-b border-gray-200">
+			<Section class="p-8 text-center border-b border-surface-200">
 				<Link href={hostLink}><Img src={logoSrc} alt="{sitename} logo" width="120" height="auto" class="mx-auto block" /></Link>
 			</Section>
 
@@ -50,11 +50,11 @@
 				</div>
 			</Section>
 
-			<Hr class="mx-6 border-gray-200" />
+			<Hr class="mx-6 border-surface-200" />
 
 			<Section class="p-6 text-center">
-				<Text class="text-gray-500 text-xs mb-2">This is an automated notification from <strong>{sitename}</strong>.</Text>
-				<Text class="text-gray-400 text-[10px] uppercase tracking-wider">Server: {hostLink}</Text>
+				<Text class="text-surface-500 text-xs mb-2">This is an automated notification from <strong>{sitename}</strong>.</Text>
+				<Text class="text-surface-400 text-[10px] uppercase tracking-wider">Server: {hostLink}</Text>
 			</Section>
 		</Container>
 	</Body>

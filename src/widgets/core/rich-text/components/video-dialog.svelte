@@ -89,7 +89,7 @@
 			</form>
 		{:else}
 			<div class="relative mt-2 flex flex-col items-center justify-center gap-4">
-				<p class="text-sm text-gray-500">Video upload is not yet implemented.</p>
+				<p class="text-sm text-surface-500">Video upload is not yet implemented.</p>
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
 					<button class="preset-outline-primary-500 btn w-full" disabled>Browse locally</button>

@@ -35,7 +35,7 @@ Features:
 	{#if isSeeding}
 		<div class="bg-surface-100 h-1.5 w-full overflow-hidden dark:bg-surface-700">
 			<div
-				class="bg-tertiary-500 h-full transition-all duration-500 ease-out dark:bg-primary-500"
+				class="bg-primary-500 h-full transition-all duration-500 ease-out"
 				style="width: {seedingProgress}%"
 				role="progressbar"
 				aria-valuenow={seedingProgress}
@@ -43,7 +43,7 @@ Features:
 				aria-valuemax="100"
 			></div>
 		</div>
-		<div class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:px-8">
+		<div class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-surface-500 sm:px-8">
 			<span>Database Seeding Progress</span>
 			<span>{seedingProgress}%</span>
 		</div>
@@ -56,7 +56,7 @@ Features:
 				<SystemTooltip title={button_previous()} positioning={{ placement: 'top', gutter: 8 }}>
 					<button
 						onclick={() => onprev()}
-						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 flex items-center gap-1"
+						class="preset-filled-primary-500 btn flex items-center gap-1"
 						aria-label={button_previous?.() || 'Go to previous step'}
 					>
 						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
@@ -80,7 +80,7 @@ Features:
 						onclick={() => onnext()}
 						disabled={!canProceed || isLoading}
 						aria-disabled={!canProceed || isLoading}
-						class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {canProceed
+						class="preset-filled-primary-500 btn transition-all {canProceed
 							? ''
 							: 'cursor-not-allowed opacity-60'} flex items-center gap-1"
 						aria-label={button_next?.() || 'Go to next step'}
@@ -103,7 +103,7 @@ Features:
 						}}
 						disabled={isLoading}
 						aria-disabled={isLoading}
-						class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {isLoading
+						class="preset-filled-primary-500 btn transition-all {isLoading
 							? 'cursor-not-allowed opacity-60'
 							: ''} flex items-center gap-1"
 						aria-label={button_complete?.() || 'Complete setup'}

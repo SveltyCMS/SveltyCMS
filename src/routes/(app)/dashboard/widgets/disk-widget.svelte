@@ -103,7 +103,7 @@ export const widgetMeta = {
 				<!-- Multi-disk Selector tabs (Only shown if more than 1 disk is detected) -->
 				{#if disks.length > 1}
 					<div 
-						class="flex flex-wrap gap-1.5 border-b pb-2 {theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}"
+						class="flex flex-wrap gap-1.5 border-b pb-2 {theme === 'dark' ? 'border-surface-800' : 'border-surface-200'}"
 						role="tablist"
 						aria-label="Select disk drive"
 					>
@@ -112,11 +112,11 @@ export const widgetMeta = {
 								type="button"
 								role="tab"
 								aria-selected={disk.key === d.key}
-								class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-blue-500 {disk.key === d.key
-									? 'bg-blue-500 text-white shadow-sm'
+								class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-tertiary-500 {disk.key === d.key
+									? 'bg-tertiary-500 text-white shadow-sm'
 									: theme === 'dark'
-										? 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-										: 'bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200'}"
+										? 'bg-surface-800 text-surface-400 hover:text-surface-200 hover:bg-surface-700'
+										: 'bg-surface-100 text-surface-600 hover:text-surface-900 hover:bg-surface-200'}"
 								onclick={() => (activeDiskKey = d.key)}
 							>
 								{d.name} ({d.percent.toFixed(0)}%)
@@ -129,25 +129,25 @@ export const widgetMeta = {
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
 						<div class="relative">
-							<div class="h-4 w-4 rounded-full {disk.level === 'high' ? 'bg-red-500' : disk.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'}"></div>
-							<div class="absolute inset-0 h-4 w-4 rounded-full {disk.level === 'high' ? 'bg-red-500' : disk.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'} animate-ping opacity-75"></div>
+							<div class="h-4 w-4 rounded-full {disk.level === 'high' ? 'bg-error-500' : disk.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'}"></div>
+							<div class="absolute inset-0 h-4 w-4 rounded-full {disk.level === 'high' ? 'bg-error-500' : disk.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'} animate-ping opacity-75"></div>
 						</div>
 						<div>
 							<span class="text-3xl font-semibold tabular-nums tracking-tighter">{disk.percent.toFixed(1)}</span>
-							<span class="text-xl font-medium text-gray-400">%</span>
+							<span class="text-xl font-medium text-surface-400">%</span>
 						</div>
-						<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Used</span>
+						<span class="text-sm {theme === 'dark' ? 'text-surface-400' : 'text-surface-500'}">Used</span>
 					</div>
 
 					<div class="text-right text-sm">
-						<div class="font-medium tabular-nums">{disk.free.toFixed(1)} GB <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">free</span></div>
+						<div class="font-medium tabular-nums">{disk.free.toFixed(1)} GB <span class="text-xs {theme === 'dark' ? 'text-surface-400' : 'text-surface-500'}">free</span></div>
 					</div>
 				</div>
 
 				<!-- Segmented Visual Bar -->
-				<div class="relative h-9 overflow-hidden rounded-2xl {theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} shadow-inner">
+				<div class="relative h-9 overflow-hidden rounded-2xl {theme === 'dark' ? 'bg-surface-800' : 'bg-surface-100'} shadow-inner">
 					<div
-						class="absolute h-full flex items-center justify-center font-semibold text-sm text-white transition-all duration-700 ease-out rounded-2xl {disk.level === 'high' ? 'bg-red-500' : disk.level === 'medium' ? 'bg-amber-500' : 'bg-blue-500'}"
+						class="absolute h-full flex items-center justify-center font-semibold text-sm text-white transition-all duration-700 ease-out rounded-2xl {disk.level === 'high' ? 'bg-error-500' : disk.level === 'medium' ? 'bg-warning-500' : 'bg-tertiary-500'}"
 						style="width: {disk.percent}%"
 					>
 						{#if disk.percent > 15}
@@ -155,7 +155,7 @@ export const widgetMeta = {
 						{/if}
 					</div>
 					<div
-						class="absolute h-full flex items-center justify-center font-medium text-sm text-gray-500 dark:text-gray-400 transition-all duration-700 ease-out"
+						class="absolute h-full flex items-center justify-center font-medium text-sm text-surface-500 dark:text-surface-400 transition-all duration-700 ease-out"
 						style="left: {disk.percent}%; width: {disk.freePercent}%"
 					>
 						{#if disk.freePercent > 15}
@@ -168,18 +168,18 @@ export const widgetMeta = {
 				<div class="space-y-3">
 					<div class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-4 text-center text-sm">
 						<div>
-							<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</div>
+							<div class={theme === 'dark' ? 'text-surface-400' : 'text-surface-500'}>Total</div>
 							<div class="font-semibold tabular-nums mt-0.5">{disk.total.toFixed(1)} GB</div>
 						</div>
 						<div>
-							<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</div>
-							<div class="font-semibold tabular-nums mt-0.5 {disk.level === 'high' ? 'text-red-500' : disk.level === 'medium' ? 'text-amber-500' : 'text-blue-500'}">
+							<div class={theme === 'dark' ? 'text-surface-400' : 'text-surface-500'}>Used</div>
+							<div class="font-semibold tabular-nums mt-0.5 {disk.level === 'high' ? 'text-error-500' : disk.level === 'medium' ? 'text-warning-500' : 'text-tertiary-500'}">
 								{disk.used.toFixed(1)} GB
 							</div>
 						</div>
 						{#if size.w > 1}
 							<div>
-								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</div>
+								<div class={theme === 'dark' ? 'text-surface-400' : 'text-surface-500'}>Free</div>
 								<div class="font-semibold tabular-nums mt-0.5">{disk.free.toFixed(1)} GB</div>
 							</div>
 						{/if}
@@ -213,7 +213,7 @@ export const widgetMeta = {
 									x="46"
 									y="52"
 									text-anchor="middle"
-									class="text-[22px] font-semibold fill-current {theme === 'dark' ? 'text-white' : 'text-gray-900'}"
+									class="text-[22px] font-semibold fill-current {theme === 'dark' ? 'text-white' : 'text-surface-900'}"
 								>
 									{disk.percent.toFixed(0)}
 								</text>
@@ -223,20 +223,20 @@ export const widgetMeta = {
 				</div>
 
 				{#if size.w >= 2}
-					<div class="flex justify-between text-xs pt-2 border-t {theme === 'dark' ? 'border-gray-700 text-gray-400' : 'border-gray-200 text-gray-500'}">
-						<span>Mount: <span class="font-mono text-gray-300 dark:text-gray-400">{disk.mountPoint}</span></span>
+					<div class="flex justify-between text-xs pt-2 border-t {theme === 'dark' ? 'border-surface-700 text-surface-400' : 'border-surface-200 text-surface-500'}">
+						<span>Mount: <span class="font-mono text-surface-300 dark:text-surface-400">{disk.mountPoint}</span></span>
 						{#if disk.filesystem}
-							<span>FS: <span class="font-mono text-gray-300 dark:text-gray-400">{disk.filesystem}</span></span>
+							<span>FS: <span class="font-mono text-surface-300 dark:text-surface-400">{disk.filesystem}</span></span>
 						{/if}
 					</div>
 				{/if}
 			</div>
 		{:else}
 			<div class="flex h-full flex-col items-center justify-center space-y-3" role="status" aria-live="polite">
-				<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+				<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading disk metrics</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<div class="text-sm font-medium {theme === 'dark' ? 'text-surface-300' : 'text-surface-700'}">Loading disk metrics</div>
+					<div class="text-xs {theme === 'dark' ? 'text-surface-400' : 'text-surface-500'}">Please wait...</div>
 				</div>
 			</div>
 		{/if}

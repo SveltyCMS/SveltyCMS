@@ -202,7 +202,7 @@ async function handleCollectionSave() {
 	<div class="preset-outlined-tertiary-500 rounded-t-md p-2 text-center dark:preset-outlined-primary-500">
 		<p>
 			{collection_widgetfield_addrequired()}
-			<span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span>
+			<span class="text-primary-500">{contentTypes}</span>
 			Collection inputs.
 		</p>
 		<p class="mb-2">{collection_widgetfield_drag()}</p>
