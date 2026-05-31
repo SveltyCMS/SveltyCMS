@@ -35,8 +35,8 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 | Metric                          | SveltyCMS (measured p95)           | How to reproduce                                          |
 | :------------------------------ | :--------------------------------- | :-------------------------------------------------------- |
-| **REST Read (auth+RBAC+cache)** | **1.625 ms**                       | `bun test tests/benchmarks/hooks-performance.test.ts`     |
-| **REST Write (auth+audit)**     | **1.072 ms**                       | `bun test tests/benchmarks/hooks-performance.test.ts`     |
+| **REST Read (auth+RBAC+cache)** | **1.607 ms**                       | `bun test tests/benchmarks/hooks-performance.test.ts`     |
+| **REST Write (auth+audit)**     | **1.157 ms**                       | `bun test tests/benchmarks/hooks-performance.test.ts`     |
 | **DB Raw Read (SQLite)**        | **0.084 ms**                       | `bun test tests/benchmarks/database-performance.test.ts`  |
 | **DB Raw Write (SQLite)**       | **0.104 ms**                       | `bun test tests/benchmarks/database-performance.test.ts`  |
 | **DB Raw Upsert (SQLite)**      | **0.067 ms**                       | `bun test tests/benchmarks/database-performance.test.ts`  |

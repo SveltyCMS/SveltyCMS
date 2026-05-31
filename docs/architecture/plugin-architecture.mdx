@@ -1,200 +1,250 @@
 ---
 path: "docs/architecture/plugin-architecture.mdx"
 title: Plugin Architecture
-description: Comprehensive guide to the SveltyCMS Enterprise Plugin System, including Slots, Injection Zones, and Lifecycle Hooks.
+description: Comprehensive guide to the SveltyCMS Enterprise Plugin System — slots, hooks, migrations, and the config-page pattern.
 icon: mdi:puzzle-outline
 order: 10
 author: "SveltyCMS Team"
 created: 2026-02-05
-updated: "2026-03-27"
+updated: "2026-05-31"
 tags:
   - plugins
   - architecture
   - guide
+  - extensions
 ---
 
 # Plugin Architecture
 
-SveltyCMS features a robust, enterprise-grade plugin architecture designed to allow deep customization without modifying the core codebase. This system relies on a **Slot-based** injection mechanism, centralized registration, and strict type safety.
+SveltyCMS features a robust, enterprise-grade plugin architecture for deep customization without modifying the core. Plugins leverage **Slots** for UI injection, **Lifecycle Hooks** for CRUD interception, **Migrations** for database provisioning, and a **Sandbox** for security isolation.
+
+---
 
 ## System Overview
 
-The plugin system is designed to be **Database Agnostic**. Plugins interact with the data layer through abstract interfaces, ensuring they function correctly regardless of whether the underlying database is MongoDB, PostgreSQL, MySQL, or MariaDB.
-
-The following diagram illustrates how plugins interact with the core Host Application:
-
 ```mermaid
 graph TD
-    subgraph Plugin System
-        Registry[SlotRegistry]
-        PluginDef[Plugin Definition]
-        SlotType[PluginSlot Interface]
+    subgraph "Plugin System"
+        Registry["Plugin Registry"]
+        Plugin["Plugin Definition"]
+        Sandbox["Sandbox (5s timeout, 100 queries)"]
     end
 
-    subgraph Host Application
-        Host[Host Component<br/>e.g. fields.svelte]
-        SlotComp[Slot.svelte Component]
+    subgraph "Host Application"
+        ConfigPage["Config Page (+page.svelte)"]
+        SlotComp["Slot.svelte"]
+        HookRunner["Hook Runner (CRUD)"]
     end
 
-    PluginDef -- Registers --> SlotType
-    SlotType -- Stored In --> Registry
-    Host -- Renders --> SlotComp
-    SlotComp -- Queries "getSlots(zone)" --> Registry
-    Registry -- Returns --> SlotType
-    SlotComp -- Renders --> Component[Plugin Component]
+    subgraph "Data Layer"
+        Content["Content System"]
+        Migrations["Plugin Migrations"]
+        MV["Materialized Views"]
+    end
 
-    style Registry fill:#f9f,stroke:#333,stroke-width:2px
-    style SlotComp fill:#bbf,stroke:#333,stroke-width:2px
-    style Host fill:#dfd,stroke:#333,stroke-width:2px
+    Plugin -->|registers with| Registry
+    Plugin -->|defines| Migrations
+    Plugin -->|intercepts| HookRunner
+    ConfigPage -->|provides admin UI for| Plugin
+    SlotComp -->|renders from| Plugin
+    HookRunner -->|reads/writes via| Content
+    Sandbox -->|wraps| HookRunner
+    Migrations -->|provisions| MV
 ```
 
-## Core Concepts
+---
 
-### 1. Plugins
+## Plugin Structure
 
-A **Plugin** is a self-contained module that defines metadata, configuration, and capabilities. It must implement the `Plugin` interface.
+Every plugin lives in `src/plugins/{plugin-id}/` and follows this structure:
+
+```
+src/plugins/my-plugin/
+├── index.ts                  ← Plugin definition + metadata
+├── index.server.ts           ← Server-only: hooks, migrations (optional)
+├── server/                   ← Server-side services (optional)
+│   └── service.ts
+├── ui/                       ← Svelte components (optional)
+│   └── MyComponent.svelte
+└── my-plugin.mdx             ← Plugin documentation
+```
+
+---
+
+## Plugin Interface
 
 ```typescript
 export interface Plugin {
-  metadata: PluginMetadata; // Name, version, icon...
-  migrations?: PluginMigration[]; // Database changes
-  ssrHook?: PluginSSRHook; // Server-side data enrichment
-  hooks?: PluginLifecycleHooks; // CRUD interception
-  ui?: PluginUIContribution; // UI slots and actions
-  config?: PluginConfig; // Settings schema
+  /** Required: name, version, icon, category */
+  metadata: PluginMetadata;
+
+  /** Optional: public/private settings schema */
+  config?: PluginConfig;
+
+  /** Optional: CRUD interception (beforeSave, afterSave, etc.) */
+  hooks?: PluginLifecycleHooks;
+
+  /** Optional: server-side entry data enrichment */
+  ssrHook?: PluginSSRHook;
+
+  /** Optional: UI columns, actions, edit tabs, sidebar slots */
+  ui?: PluginUIContribution;
+
+  /** Optional: database table provisioning */
+  migrations?: PluginMigration[];
+
+  /** Optional: restrict plugin to specific collections */
+  enabledCollections?: string[];
 }
 ```
 
-### 2. AI-Native Generative Integration (json-render-svelte)
+---
 
-Plugins can naturally extend the AI ecosystem of SveltyCMS. By providing custom widgets that include the `jsonRender: true` flag in their factory configuration, or by manually calling the `registerForJsonRender()` hook, marketplace plugins instantly become **AI-generatable**. This allows editors and remote AI agents (via the SveltyCMS MCP Server) to dynamically render Plugin-specific UI components via JSON specs.
+## Injection Zones
 
-### 2. Slots & Injection Zones
+Plugins inject UI components into predefined zones:
 
-**Slots** are specific locations within `Injection Zones` where plugins can render custom components.
+| Zone | Location | Used By |
+|------|----------|---------|
+| `dashboard` | Main dashboard widgets | PageSpeed, Stripe |
+| `sidebar` | Admin sidebar navigation | Editable Website |
+| `entry_edit` | Entry editor tabs/panels | Any content plugin |
+| `entry_edit_sidebar` | Entry editor sidebar | SEO plugins |
+| `entry_edit_header` | Entry editor header actions | Workflow actions |
+| `config` | System configuration area | Stripe, any settings plugin |
+| `entry_list_actions` | Entry list action buttons | PageSpeed refresh |
 
-**Available Injection Zones:**
-
-- **`entry_edit`**: In the Collection Entry Edit view (e.g., custom tabs for SEO, Previews).
-- **`dashboard`**: On the main Dashboard (e.g., Analytics widgets).
-- **`sidebar`**: In the main navigation sidebar.
-- **`config`**: In the System Configuration area.
-
-### 3. Registry
-
-The `SlotRegistry` is a singleton service that manages strictly typed slots. Plugins register their components here during initialization.
-
-## Creating a Plugin
-
-### Step 1: Define the Plugin
-
-Create a new directory in `src/plugins/your-plugin` and define your plugin object.
-
-```typescript
-// src/plugins/my-plugin/index.ts
-import type { Plugin } from "@src/plugins/types";
-
-export const myPlugin: Plugin = {
-  metadata: {
-    id: "my-plugin",
-    name: "My Custom Plugin",
-    version: "1.0.0",
-    description: "Adds a custom tab to the entry editor.",
-    icon: "mdi:star",
-    enabled: true,
-  },
-  // ... capabilities
-};
-```
-
-### Step 2: Register UI Slots
-
-To add a custom tab to the Content Editor:
-
-```typescript
-// src/plugins/my-plugin/index.ts
-import { slotRegistry } from "@src/plugins/slotRegistry";
-
-// Register the slot
-slotRegistry.register({
-  id: "my-plugin-tab",
-  zone: "entry_edit",
-  component: () => import("./my-custom-tab.svelte"), // Lazy loaded
-  props: {
-    label: "My Tab",
-    icon: "mdi:star",
-  },
-});
-```
-
-### Step 3: Implement the Component
-
-Create your Svelty component. It will receive context props automatically.
-
-```svelte
-<!-- src/plugins/my-plugin/my-custom-tab.svelte -->
-<script lang="ts">
-	export let collection;
-	export let currentCollectionValue;
-	export let user;
-</script>
-
-<div class="p-4">
-	<h3>Hello from My Plugin!</h3>
-	<p>Editing: {collection.name}</p>
-</div>
-```
+---
 
 ## Lifecycle Hooks
 
-Plugins can intercept CRUD operations to validate data, trigger side effects, or modify content.
-
 ```typescript
 hooks: {
-    beforeSave: async (context, collection, data) => {
-        if (collection === 'posts') {
-            data.slug = slugify(data.title);
-        }
-        return data;
-    },
-    afterDelete: async (context, collection, id) => {
-        await notifyExternalSystem(id);
-    }
+  /** Transform or validate data before it's saved. Must return data. */
+  beforeSave: async (context, collection, data) => { return data; },
+
+  /** Trigger side effects after a successful save. */
+  afterSave: async (context, collection, result) => {},
+
+  /** Guard or archive before deletion. */
+  beforeDelete: async (context, collection, id) => {},
+
+  /** Cleanup related data after deletion. */
+  afterDelete: async (context, collection, id) => {},
 }
 ```
 
-## Case Study: Stripe Payments Integration
+---
 
-Complex integrations like Stripe are best implemented as a **Plugin** that provides a **Widget**.
+## Sandbox Boundaries
 
-### 1. Configuration (Settings)
+All plugin hooks execute within a sandbox (`src/plugins/sandbox.ts`):
 
-The plugin defines its own settings schema. This automatically adds a "Stripe" section to the System Settings UI.
+| Boundary | Limit | Why |
+|----------|-------|-----|
+| **Collection access** | Only `plugin_{id}_*` for writes | Prevent data corruption |
+| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data |
+| **Query count** | 100 queries per hook | Prevent resource abuse |
+| **Timeout** | 5 seconds per hook | Prevent hangs |
+| **Error boundary** | Catches all errors | Plugin crash ≠ CMS crash |
+
+---
+
+## The Config Page + Plugin Pattern
+
+The recommended architecture for admin-facing plugins uses TWO layers:
+
+```
+┌──────────────────────────────────────────┐
+│  Config Page (routes/(app)/config/...)    │  ← Admin UI
+│  +page.svelte, +page.server.ts            │     CRUD forms, list views
+├──────────────────────────────────────────┤
+│  Plugin (src/plugins/...)                 │  ← Business logic
+│  hooks, migrations, services              │     Auto-behaviors, cache sync
+└──────────────────────────────────────────┘
+```
+
+**Example: Redirect Manager**
+
+| Layer | File | Purpose |
+|-------|------|---------|
+| Config Page | `config/redirects/+page.svelte` | Manual CRUD for redirect rules |
+| Plugin hooks | `redirect-manager/index.server.ts` | Auto-redirect on slug change |
+| Plugin migrations | `redirect-manager/index.server.ts` | Creates `redirects` + `redirects_mv` tables |
+| Plugin services | `redirect-manager/index.server.ts` | Edge KV sync, Materialized View sync |
+
+**The config page calls `LocalCMS` to write data. The plugin's `afterSave` hook fires automatically, handling cache invalidation and sync.** This separation keeps business logic in the plugin while the config page handles UI.
+
+---
+
+## Available Plugins
+
+| Plugin | Category | Status | Documentation |
+|--------|----------|--------|---------------|
+| **PageSpeed** | Performance | v1.1.0 | [pagespeed.mdx](src/plugins/pagespeed/pagespeed.mdx) |
+| **Editable Website** | Editing | Stable | [editable-website.mdx](src/plugins/editable-website/editable-website.mdx) |
+| **Redirect Manager** | SEO | Stable | [redirect-manager.mdx](src/plugins/redirect-manager/redirect-manager.mdx) |
+| **Sitemap** | SEO | Stable | [sitemap.mdx](src/plugins/sitemap/sitemap.mdx) |
+| **WebMCP** | AI | Stable | [webmcp.mdx](src/plugins/webmcp/webmcp.mdx) |
+| **Cookie Consent** | Privacy | Stable | [cookie-consent.mdx](src/plugins/cookie-consent/cookie-consent.mdx) |
+| **Stripe** | Payments | v1.0.0 | [stripe.mdx](src/plugins/stripe/stripe.mdx) |
+
+---
+
+## Case Study: Stripe Payments (Implemented)
+
+The Stripe plugin demonstrates a full plugin implementation:
+
+### 1. Configuration
 
 ```typescript
 config: {
-  publicKey: { type: 'string', label: 'Stripe Public Key' },
-  secretKey: { type: 'string', label: 'Stripe Secret Key', private: true }
+  public: {
+    publishableKey: "",   // Client-safe key (pk_...)
+    currency: "usd",      // Default currency
+  },
+  private: {
+    secretKey: "",        // Server-only key (sk_...)
+    webhookSecret: "",    // Webhook signing secret
+  },
 }
 ```
 
-### 2. The Product Widget
+### 2. Migrations
 
-The plugin registers a custom widget. When an editor creates a "Product" collection, they can use the `StripeProduct` widget to link an entry to a Stripe SKU.
+Creates `plugin_stripe_payments` and `plugin_stripe_customers` collections for transaction records and customer mapping.
 
 ### 3. Lifecycle Hooks
 
-Use `afterSave` to automatically sync content changes to Stripe. If a price changes in SveltyCMS, the plugin can update the corresponding price object in the Stripe API.
+```typescript
+beforeSave: async (context, _collection, data) => {
+  // Verify Stripe payment before allowing content save
+  if (data._stripePaymentIntent) {
+    const intent = await stripe.paymentIntents.retrieve(data._stripePaymentIntent);
+    if (intent.status !== "succeeded") throw new Error("Payment required");
+  }
+  return data;
+}
+```
 
-### 4. Dashboard Slot
+### 4. UI Components
 
-Inject a "Recent Sales" widget into the `dashboard` zone to show real-time revenue stats fetched from the Stripe API.
+- `PaymentForm.svelte` — Stripe Elements card input (PCI-compliant iframe)
+- `PaymentStatus.svelte` — Payment status badge in entry lists
+- Server endpoints for intent creation and webhook handling
+
+### 5. Optional Dependency
+
+The `stripe` npm package is dynamically imported only when the plugin is enabled — zero overhead when unused.
 
 ---
 
 ## Best Practices
 
-1.  **Lazy Loading**: Always use dynamic imports `() => import(...)` for components to keep the initial bundle size low.
-2.  **Type Safety**: Use the provided interfaces from `@src/plugins/types` to ensure compatibility.
-3.  **Isolation**: Keep your plugin styles scoped and avoid modifying global state directly.
-4.  **Security**: Use the `private: true` flag in your config schema to ensure secret keys never reach the client-side browser.
+1. **Lazy Loading**: Use `() => import(...)` for UI components to keep bundle size low.
+2. **Type Safety**: Import from `@src/plugins/types` for all interfaces.
+3. **Sandbox Compliance**: Stay within 100 queries and 5s timeout per hook.
+4. **Collection Prefixing**: Use `plugin_{id}_` for all plugin-owned collections.
+5. **Optional Dependencies**: Dynamic import server-side deps so plugins are truly optional.
+6. **Documentation**: Every plugin must have an `.mdx` file in its directory.
+7. **Config Page Pattern**: Admin-facing plugins should pair with a config page for CRUD.

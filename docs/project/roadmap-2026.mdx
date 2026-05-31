@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-05-24"
+updated: "2026-05-31"
 tags:
   - "roadmap"
   - "todo"
@@ -16,6 +16,14 @@ tags:
 # SveltyCMS: 2026 Todo List
 
 This document outlines the remaining high-priority tasks and strategic objectives for SveltyCMS in 2026.
+
+## ✅ Recently Completed (May 2026)
+
+- ✅ **Native UI Component Library v2**: 11 components enhanced with zero new dependencies. `useFloating` rune replaces `@floating-ui/dom` with CSS Anchor Positioning + JS fallback. `useDialog` rune adds focus trapping and WCAG 3.0 ARIA to modals/drawers. Combobox gains clearable, groupBy, debounce, loading. Rating gains fractional values. Table gains virtual scrolling. Toast gains swipe dismiss, richColors, callbacks, Alt+T hotkey. DatePicker gains datetime-local/time support.
+- ✅ **Stripe Payments Plugin**: Full plugin with PaymentIntent creation, webhook handler, PCI-compliant Stripe Elements form, tenant-level API keys. Uses official Stripe SDK via dynamic import (zero overhead when disabled).
+- ✅ **Plugin Documentation**: MDX docs for all 7 existing plugins + Stripe. Plugin architecture doc rewritten with current API, config-page pattern, sandbox boundaries, and Stripe case study.
+- ✅ **Dependency Reduction**: Removed `@floating-ui/dom` (3 packages). Zero external positioning dependencies. Compositor-level performance for Chrome/Firefox users.
+- ✅ **WCAG 3.0**: 16 accessibility fixes across popover, tooltip, modal, drawer, table, toast. Focus trapping, aria-modal, aria-haspopup, aria-expanded, Escape key, aria-sort.
 
 ## 🚀 Phase 5: Secure Upgrade & Cloud Strategy
 
