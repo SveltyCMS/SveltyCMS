@@ -4,23 +4,26 @@
 **SveltyCMS Drawer — WCAG 3.0 Ready**
 
 Slide-out panel using native `<dialog>` with backdrop blur, fly transition,
-configurable position (left/right/top/bottom), and color themes.
+configurable position, and full focus management via `useDialog`.
 
 ### Props
 - `open` (boolean): Bindable open state.
 - `position` ('left' | 'right' | 'top' | 'bottom'): Slide direction (default: 'right').
 - `size` (string): CSS width/height override.
 - `color` ('surface' | 'primary' | 'secondary' | 'tertiary'): Background theme.
-- `title` (string): Header title.
+- `title` (string): Header title. Also sets `aria-label`.
 - `class` (string): Additional CSS classes.
 - `children` / `footer` (Snippet): Content slots.
+- `closeOnEsc` (boolean): Allow Escape to close (default: true).
+- `closeOnOuterClick` (boolean): Allow backdrop click to close (default: true).
+- `onopen` / `onclose` (function): Lifecycle callbacks.
 
 ### Features:
 - native `<dialog>` with backdrop blur and fade animation
 - fly transition matching slide direction
-- backdrop click to dismiss
-- WCAG 3.0 ready with aria-label close button
-- full Svelte 5 runes: $props, $bindable, $derived, $state, $effect
+- focus trapping (Tab cycles within drawer), focus restoration on close
+- WCAG 3.0: aria-modal, role="dialog", aria-label, Escape key
+- full Svelte 5 runes: $props, $bindable, $derived, $state
 -->
 
 <script lang="ts">
@@ -28,6 +31,7 @@ configurable position (left/right/top/bottom), and color themes.
 	import type { Snippet } from 'svelte';
 	import Portal from './portal.svelte';
 	import { fly } from 'svelte/transition';
+	import { useDialog } from '@utils/use-dialog.svelte.ts';
 
 	interface Props {
 		open?: boolean;
@@ -38,6 +42,10 @@ configurable position (left/right/top/bottom), and color themes.
 		class?: string;
 		children?: Snippet;
 		footer?: Snippet;
+		closeOnEsc?: boolean;
+		closeOnOuterClick?: boolean;
+		onopen?: () => void;
+		onclose?: () => void;
 		[key: string]: any;
 	}
 
@@ -50,26 +58,30 @@ configurable position (left/right/top/bottom), and color themes.
 		class: className,
 		children,
 		footer,
+		closeOnEsc = true,
+		closeOnOuterClick = true,
+		onopen,
+		onclose,
 		...rest
 	}: Props = $props();
 
-	let dialogEl = $state<HTMLDialogElement | null>(null);
-
-	$effect(() => {
-		if (open) {
-			dialogEl?.showModal();
-			document.body.style.overflow = 'hidden';
-		} else {
-			dialogEl?.close();
-			document.body.style.overflow = '';
-		}
+	const dialog = useDialog({
+		open: () => open,
+		onClose: () => (open = false),
+		ariaLabel: () => title,
+		closeOnEsc: () => closeOnEsc,
+		closeOnOuterClick: () => closeOnOuterClick,
+		// svelte-ignore state_referenced_locally
+		onopen,
+		// svelte-ignore state_referenced_locally
+		onclose,
 	});
 
-	const positionClasses = {
+	const positionClasses: Record<string, string> = {
 		left: 'left-0 right-auto h-full w-80',
 		right: 'right-0 left-auto h-full w-80',
 		top: 'top-0 bottom-auto w-full h-80',
-		bottom: 'bottom-0 top-auto w-full h-80'
+		bottom: 'bottom-0 top-auto w-full h-80',
 	};
 
 	const flyParams = $derived.by(() => {
@@ -78,48 +90,44 @@ configurable position (left/right/top/bottom), and color themes.
 			case 'right': return { x: 320, duration: 300 };
 			case 'top': return { y: -320, duration: 300 };
 			case 'bottom': return { y: 320, duration: 300 };
+			default: return { x: 320, duration: 300 };
 		}
 	});
 
-	const colorClasses = {
+	const colorClasses: Record<string, string> = {
 		surface: 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800',
 		primary: 'bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800',
 		secondary: 'bg-secondary-50 dark:bg-secondary-950 border-secondary-200 dark:border-secondary-800',
-		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800'
+		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800',
 	};
-
-	function handleBackdropClick(e: MouseEvent) {
-		if (e.target === dialogEl) {
-			open = false;
-		}
-	}
-
-	function handleClose() {
-		open = false;
-	}
 </script>
 
 <Portal>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<dialog
-		bind:this={dialogEl}
-		onclose={handleClose}
-		onclick={handleBackdropClick}
+		bind:this={dialog.dialogEl}
+		onclick={dialog.onBackdropClick}
+		onkeydown={dialog.onKeydown}
 		class={cn(
 			'fixed inset-0 z-101 bg-transparent border-0 p-0 overflow-hidden backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
-			'open:flex flex-col'
+			'open:flex flex-col',
 		)}
+		{...dialog.dialogAria}
 		{...rest}
 	>
 		{#if open}
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
+				data-dialog-content
 				class={cn(
 					'fixed z-102 flex flex-col border-l dark:border-surface-800 shadow-2xl transition-all duration-300',
 					colorClasses[color],
 					positionClasses[position],
 					size,
-					className
+					className,
 				)}
 				transition:fly={flyParams}
+				tabindex="-1"
 			>
 				<!-- Header -->
 				<header class="flex items-center justify-between p-4 border-b border-surface-200 dark:border-surface-800 shrink-0">

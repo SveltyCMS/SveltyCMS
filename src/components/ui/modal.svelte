@@ -3,30 +3,33 @@
 @component
 **SveltyCMS Modal Dialog — WCAG 3.0 Ready**
 
-Native `<dialog>` modal with backdrop blur, zoom-in animation, configurable size
-(sm/md/lg/xl/fullscreen), color themes, and header/footer snippet slots.
+Native `<dialog>` modal with backdrop blur, zoom-in animation, configurable size,
+color themes, header/footer snippet slots, and full focus management via `useDialog`.
 
 ### Props
 - `open` (boolean): Bindable open state.
-- `title` (string): Header title (used if no header snippet).
+- `title` (string): Header title (used if no header snippet). Also sets `aria-label`.
 - `size` ('sm' | 'md' | 'lg' | 'xl' | 'fullscreen'): Modal width.
-- `color` ('surface' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error'): Background theme.
+- `color` ('surface' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error'): Theme.
 - `header` / `footer` / `children` (Snippet): Content slots.
+- `closeOnEsc` (boolean): Allow Escape to close (default: true).
+- `closeOnOuterClick` (boolean): Allow backdrop click to close (default: true).
+- `onopen` / `onclose` (function): Lifecycle callbacks.
 - `class` (string): Additional CSS classes.
 
 ### Features:
 - native `<dialog>` with backdrop blur and fade animation
 - zoom-in entrance animation with spring easing
-- backdrop click to dismiss
-- fullscreen mode for immersive workflows
-- WCAG 3.0 ready with aria-label close button
-- full Svelte 5 runes: $props, $bindable, $derived, $state, $effect
+- focus trapping (Tab cycles within modal), focus restoration on close
+- WCAG 3.0: aria-modal, role="dialog", aria-label, Escape key
+- full Svelte 5 runes: $props, $bindable, $derived, $state
 -->
 
 <script lang="ts">
 	import { cn } from '@utils/cn';
 	import type { Snippet } from 'svelte';
 	import Portal from './portal.svelte';
+	import { useDialog } from '@utils/use-dialog.svelte.ts';
 
 	interface Props {
 		open?: boolean;
@@ -37,6 +40,10 @@ Native `<dialog>` modal with backdrop blur, zoom-in animation, configurable size
 		header?: Snippet;
 		footer?: Snippet;
 		children?: Snippet;
+		closeOnEsc?: boolean;
+		closeOnOuterClick?: boolean;
+		onopen?: () => void;
+		onclose?: () => void;
 		[key: string]: any;
 	}
 
@@ -49,71 +56,70 @@ Native `<dialog>` modal with backdrop blur, zoom-in animation, configurable size
 		header,
 		footer,
 		children,
+		closeOnEsc = true,
+		closeOnOuterClick = true,
+		onopen,
+		onclose,
 		...rest
 	}: Props = $props();
 
-	let dialogEl = $state<HTMLDialogElement | null>(null);
-
-	$effect(() => {
-		if (open) {
-			dialogEl?.showModal();
-			document.body.style.overflow = 'hidden';
-		} else {
-			dialogEl?.close();
-			document.body.style.overflow = '';
-		}
+	const dialog = useDialog({
+		open: () => open,
+		onClose: () => (open = false),
+		ariaLabel: () => title,
+		closeOnEsc: () => closeOnEsc,
+		closeOnOuterClick: () => closeOnOuterClick,
+		// svelte-ignore state_referenced_locally
+		onopen,
+		// svelte-ignore state_referenced_locally
+		onclose,
 	});
 
 	const isFullscreen = $derived(size === 'fullscreen');
 
-	const sizeClasses = {
+	const sizeClasses: Record<string, string> = {
 		sm: 'max-w-sm',
 		md: 'max-w-lg',
 		lg: 'max-w-2xl',
 		xl: 'max-w-4xl',
-		fullscreen: 'h-full w-full rounded-none border-0'
+		fullscreen: 'h-full w-full rounded-none border-0',
 	};
 
-	const colorClasses = {
+	const colorClasses: Record<string, string> = {
 		surface: 'bg-surface-100 dark:bg-surface-900 border-surface-200 dark:border-surface-800',
 		primary: 'bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800',
 		secondary: 'bg-secondary-50 dark:bg-secondary-950 border-secondary-200 dark:border-secondary-800',
 		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800',
 		success: 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-surface-800',
 		warning: 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-surface-800',
-		error: 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-surface-800'
+		error: 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-surface-800',
 	};
-
-	function handleBackdropClick(e: MouseEvent) {
-		if (e.target === dialogEl) {
-			open = false;
-		}
-	}
-
-	function handleClose() {
-		open = false;
-	}
 </script>
 
 <Portal>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<dialog
-		bind:this={dialogEl}
-		onclose={handleClose}
-		onclick={handleBackdropClick}
+		bind:this={dialog.dialogEl}
+		onclick={dialog.onBackdropClick}
+		onkeydown={dialog.onKeydown}
 		class={cn(
 			'fixed inset-0 z-101 m-auto bg-transparent border-0 p-0 overflow-visible backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
-			'open:flex items-center justify-center p-4 sm:p-6 lg:p-8'
+			'open:flex items-center justify-center p-4 sm:p-6 lg:p-8',
 		)}
+		{...dialog.dialogAria}
 		{...rest}
 	>
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
+			data-dialog-content
 			class={cn(
 				'card shadow-2xl transition-all duration-300 transform scale-100 opacity-100',
 				'flex flex-col border overflow-hidden w-full m-auto',
 				sizeClasses[size],
 				colorClasses[color],
-				className
+				className,
 			)}
+			tabindex="-1"
 		>
 			<!-- Header -->
 			{#if header || title}
@@ -121,7 +127,7 @@ Native `<dialog>` modal with backdrop blur, zoom-in animation, configurable size
 					{#if header}
 						{@render header()}
 					{:else}
-						<h3 class="h4 font-bold tracking-tight text-surface-900 dark:text-white">
+						<h3 id={title ? 'modal-title' : undefined} class="h4 font-bold tracking-tight text-surface-900 dark:text-white">
 							{title}
 						</h3>
 					{/if}
@@ -140,7 +146,7 @@ Native `<dialog>` modal with backdrop blur, zoom-in animation, configurable size
 			<!-- Body -->
 			<div class={cn(
 				'flex-1 overflow-y-auto p-4 sm:p-6',
-				isFullscreen ? 'h-full' : 'max-h-[80vh]'
+				isFullscreen ? 'h-full' : 'max-h-[80vh]',
 			)}>
 				{#if children}
 					{@render children()}
@@ -176,7 +182,6 @@ Native `<dialog>` modal with backdrop blur, zoom-in animation, configurable size
 		to { transform: scale(1); opacity: 1; }
 	}
 
-	/* Disable default focus ring on dialog */
 	dialog:focus {
 		outline: none;
 	}
