@@ -445,7 +445,7 @@
 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
 					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
 					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={32} />
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon rounded-full hover:bg-surface-300/20" iconSize={24} />
 					</div>
 				</SystemTooltip>
 			</div>
@@ -513,8 +513,8 @@
 			<!-- Sign Out -->
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
-					<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
-						<iconify-icon icon="uil:signout" width="26" class=""></iconify-icon>
+					<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon rounded-full hover:bg-surface-500/20">
+						<iconify-icon icon="uil:signout" width="24" class=""></iconify-icon>
 					</button>
 				</SystemTooltip>
 			</div>
@@ -529,13 +529,13 @@
 						aria-label="System Configuration"
 						class="btn-icon flex items-center justify-center rounded-full hover:bg-surface-500/20"
 					>
-						<iconify-icon icon="material-symbols:build-circle" width="38" class=""></iconify-icon>
+						<iconify-icon icon="material-symbols:build-circle" width="24" class=""></iconify-icon>
 					</a>
 				</SystemTooltip>
 			</div>
 
 			<!-- Version -->
-			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={!isSidebarFull} /></div>
+			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
 
 			<!-- Community Links (only when expanded) -->
 			{#if isSidebarFull}
@@ -548,7 +548,7 @@
 							aria-label="Discord Community"
 							class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
 						>
-							<iconify-icon icon="ic:baseline-discord" width="30" class=""></iconify-icon>
+							<iconify-icon icon="ic:baseline-discord" width="24" class=""></iconify-icon>
 						</a>
 					</SystemTooltip>
 				</div>
