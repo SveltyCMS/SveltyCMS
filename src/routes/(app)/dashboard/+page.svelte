@@ -608,7 +608,7 @@ onMount(() => {
 </script>
 
 <main bind:this={mainContainerEl} class="relative overflow-y-auto overflow-x-hidden" style="touch-action: pan-y;">
-	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:text-surface-50">
+	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 px-6 py-3 dark:text-surface-50">
 		<PageTitle
 			name="Dashboard"
 			icon="bi:bar-chart-line"
