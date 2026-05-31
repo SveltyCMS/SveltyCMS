@@ -64,11 +64,16 @@ let originalValues = $state<Record<string, unknown>>({}); // Track original valu
 let errors = $state<Record<string, string>>({});
 let hasEmptyRequiredFields = $state(false);
 
-// Optimize: Use $derived instead of $effect for unsaved changes
+// Optimize: Use $derived instead of $effect for unsaved changes.
+// Guard on !loading && !error: while loading or after a failed load, `originalValues` is not
+// populated, yet `bind:value` inputs (e.g. <select>) auto-fill defaults into `values` — which
+// would otherwise look like unsaved edits and trigger a false "unsaved changes" navigation prompt.
 let hasUnsavedChanges = $derived(
-	Object.keys(values).some((key) => {
-		return JSON.stringify(values[key]) !== JSON.stringify(originalValues[key]);
-	}),
+	!loading &&
+		!error &&
+		Object.keys(values).some((key) => {
+			return JSON.stringify(values[key]) !== JSON.stringify(originalValues[key]);
+		}),
 );
 
 // Notify parent component when hasUnsavedChanges changes
