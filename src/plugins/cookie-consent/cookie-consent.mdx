@@ -38,11 +38,11 @@ A headless, accessible cookie consent banner that blocks non-essential scripts (
 
 ## Configuration
 
-| Key | Type | Visibility | Description |
-|-----|------|-----------|-------------|
-| `position` | string | Public | Banner position: `bottom`, `top`, `center` |
-| `theme` | string | Public | Visual theme: `light`, `dark`, `auto` |
-| `showDetails` | boolean | Public | Show category details by default |
+| Key           | Type    | Visibility | Description                                |
+| ------------- | ------- | ---------- | ------------------------------------------ |
+| `position`    | string  | Public     | Banner position: `bottom`, `top`, `center` |
+| `theme`       | string  | Public     | Visual theme: `light`, `dark`, `auto`      |
+| `showDetails` | boolean | Public     | Show category details by default           |
 
 ---
 
@@ -72,7 +72,7 @@ Add the cookie consent component to your layout:
 ### Check Consent Programmatically
 
 ```typescript
-const consent = JSON.parse(localStorage.getItem('cookie-consent') || '{}');
+const consent = JSON.parse(localStorage.getItem("cookie-consent") || "{}");
 if (consent.analytics) {
   // Initialize analytics
 }

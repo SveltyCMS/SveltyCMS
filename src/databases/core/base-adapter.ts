@@ -170,7 +170,9 @@ export abstract class BaseAdapter {
       (!options?.suppressErrorLog && process.env.BENCHMARK !== "true") ||
       process.env.BENCHMARK_DEBUG === "true";
 
-    console.error("DEBUG ERROR STACK:", error);
+    if (shouldLog || process.env.BENCHMARK_DEBUG === "true") {
+      console.error("DEBUG ERROR STACK:", error);
+    }
     if (shouldLog) {
       // 🛡️ NOISE REDUCTION: For benchmarks, don't dump the full error object as it contains massive queries/data
       const logPayload =

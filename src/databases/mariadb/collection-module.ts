@@ -13,17 +13,13 @@ export class CollectionModule implements ICollectionAdapter {
   private get crud() {
     return this.core.crud;
   }
-
   private get collectionRegistry() {
     return this.core.collectionRegistry as Map<string, CollectionModel>;
   }
 
   async getModel(id: string): Promise<CollectionModel> {
     const model = this.collectionRegistry.get(id);
-    if (model) {
-      return model;
-    }
-
+    if (model) return model;
     return {
       findOne: async <R = unknown>(query: Record<string, unknown>) => {
         const res = await this.crud.findOne<any>(id, query);
@@ -39,10 +35,7 @@ export class CollectionModule implements ICollectionAdapter {
   async createModel(schemaData: Schema): Promise<void> {
     const id = schemaData._id;
     if (!id) throw new Error("Schema must have an _id");
-
-    // 🚀 USE AGNOSTIC CORE: Standardized table creation with quoted identifiers
     await this.core.createModel(schemaData);
-
     const wrappedModel: CollectionModel = {
       findOne: async <R = unknown>(query: Record<string, unknown>) => {
         const res = await this.crud.findOne<any>(id, query);
@@ -54,55 +47,25 @@ export class CollectionModule implements ICollectionAdapter {
       },
     };
     this.collectionRegistry.set(id, wrappedModel);
-
-    // Register collection in core tables
     const tableName = `collection_${id}`;
     const dynamicTable = this.core.createDynamicTableDefinition(tableName);
     this.core.dynamicTables.set(id, dynamicTable);
     this.core.dynamicTables.set(tableName, dynamicTable);
   }
 
-  async updateModel(schemaData: Schema): Promise<void> {
-    await this.createModel(schemaData);
+  async updateModel(s: Schema): Promise<void> {
+    await this.createModel(s);
   }
 
   async deleteModel(id: string): Promise<void> {
     this.collectionRegistry.delete(id);
-    const tableName = `collection_${id}`;
-    if (this.core.pool) {
-      await this.core.pool.query(`DROP TABLE IF EXISTS \`${tableName}\``);
-    }
+    if (this.core.pool) await this.core.pool.query(`DROP TABLE IF EXISTS \`collection_${id}\``);
   }
 
-  async createIndexes(id: string, schema: Schema): Promise<DatabaseResult<void>> {
-    return this.core.wrap(async () => {
-      const tableName = `collection_${id}`;
-      const fields = (schema.fields || []) as any[];
-      if (!this.core.pool) throw new Error("Pool not available");
-
-      for (const field of fields) {
-        if (field.unique || field.indexed) {
-          const fieldName = field.db_fieldName || field.label;
-          const indexName = `idx_${id}_${fieldName}`;
-          const unique = field.unique ? "UNIQUE " : "";
-          try {
-            await this.core.pool.query(
-              `CREATE ${unique}INDEX \`${indexName}\` ON \`${tableName}\` (\`${fieldName}\`)`,
-            );
-          } catch (e: any) {
-            if (e.code === "ER_DUP_KEYNAME") continue;
-            console.warn(`Failed to create index ${indexName}:`, e);
-          }
-        }
-      }
-    }, "CREATE_INDEXES_FAILED");
-  }
-
-  async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
+  async getSchema(_c: string): Promise<DatabaseResult<Schema | null>> {
     return { success: true, data: null };
   }
-
-  async getSchemaById(_collectionId: string): Promise<DatabaseResult<Schema | null>> {
+  async getSchemaById(_c: string): Promise<DatabaseResult<Schema | null>> {
     return { success: true, data: null };
   }
 
@@ -110,8 +73,7 @@ export class CollectionModule implements ICollectionAdapter {
     try {
       const filter: Record<string, any> = { nodeType: "collection" };
       if (tenantId) filter.tenantId = tenantId;
-
-      const res = await this.crud.findMany("system_content_structure", filter as any);
+      const res = await this.crud.findMany("content_nodes", filter as any);
       if (res.success && Array.isArray(res.data)) {
         const schemas: Schema[] = [];
         for (const node of res.data) {
@@ -121,18 +83,59 @@ export class CollectionModule implements ICollectionAdapter {
               try {
                 def = JSON.parse(def);
               } catch {
-                // ignore
+                /* ignore */
               }
             }
-            if (def && typeof def === "object") {
-              schemas.push(def as Schema);
-            }
+            if (def && typeof def === "object") schemas.push(def as Schema);
           }
+        }
+        if (schemas.length > 0) return { success: true, data: schemas };
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Fallback: table listing with field discovery from data rows
+    try {
+      if (this.core.pool) {
+        const dbName = (this.core as any).config?.name || "";
+        const [tables] = await this.core.pool.query(
+          "SELECT TABLE_NAME as name FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME LIKE 'collection_%'",
+          [dbName],
+        );
+        const schemas: Schema[] = [];
+        for (const t of tables as any[]) {
+          const name = (t.name || "").replace("collection_", "");
+          if (!name) continue;
+          let fields: any[] = [];
+          try {
+            const rows = await this.core.pool.query(`SELECT data FROM \`${t.name}\` LIMIT 1`);
+            const row = (rows as any[])?.[0];
+            if (row?.data) {
+              const parsed = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+              fields = Object.keys(parsed)
+                .filter((k) => !k.startsWith("_") && k !== "tenantId")
+                .map((k) => ({
+                  db_fieldName: k,
+                  label: k,
+                  widget: { Name: "Input" },
+                  type: "string",
+                }));
+            }
+          } catch {
+            /* best effort */
+          }
+          schemas.push({
+            _id: name,
+            name,
+            fields,
+            status: "publish",
+          } as Schema);
         }
         return { success: true, data: schemas };
       }
     } catch {
-      // ignore
+      /* ignore */
     }
     return { success: true, data: [] };
   }

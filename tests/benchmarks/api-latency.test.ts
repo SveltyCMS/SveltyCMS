@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/api-latency.test.ts
- * @description Enterprise API overhead benchmark for SveltyCMS.
- * Measures the precise cost of the middleware stack compared to direct SDK calls.
+ * @description API Latency Benchmark
+ * @summary Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.
+ *
+ * ### Features:
+ * - Middleware stack overhead profiling
+ * - HTTP vs direct SDK latency comparison
+ * - Per-layer cost attribution
  */
 
 import {
@@ -39,6 +44,7 @@ afterAll(async () => {
 });
 
 export async function runApiLatencyAudit() {
+  // pre-existing unused var removed for TS strict mode
   await stabilize();
 
   console.log("\n🚀 Starting Enterprise API Latency Audit (E2E)...\n");
@@ -85,15 +91,17 @@ export async function runApiLatencyAudit() {
     printSummaryTable([
       { key: "HTTP Latency (findById)", val: httpRes.avgMs, unit: "ms" },
       { key: "Peak Throughput", val: Math.round(httpRes.rps), unit: "req/s" },
-      { key: "Memory RSS Δ", val: (httpRes.rssDelta || 0).toFixed(2), unit: "MB" },
+      {
+        key: "Memory RSS Δ",
+        val: (httpRes.rssDelta || 0).toFixed(2),
+        unit: "MB",
+      },
     ]);
 
     for (const r of allResults) exportResult(r);
     exportMetric("api.latency.http", httpRes.avgMs, "ms");
   } finally {
   }
-
-  console.log("\n✅ API latency audit completed.");
 }
 
 test("API Latency Enterprise Suite", async () => {

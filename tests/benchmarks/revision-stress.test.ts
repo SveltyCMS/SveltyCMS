@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/revision-stress.test.ts
- * @description Enterprise-grade Revision & History growth stress test for SveltyCMS.
- * Measures performance degradation when reading the latest version as history grows.
+ * @description Revision History Growth Stress Benchmark
+ * @summary Measures read and history list latency degradation under heavy revision history growth (100 revisions per entry).
+ *
+ * ### Features:
+ * - Latest version read latency with 100-revision history overhead
+ * - Full revision history list retrieval performance
+ * - Revision count impact analysis on read path throughput
  */
 
 import {
@@ -15,6 +20,7 @@ import {
   printSummaryTable,
   TEST_API_SECRET,
   getDbType,
+  forceRefreshServer,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -26,6 +32,7 @@ const TOTAL_REVISIONS = 100; // Stress level
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runRevisionAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log(`🚀 Starting Revision & History Growth Audit (${getDbType().toUpperCase()})...\n`);
 
   try {
@@ -34,7 +41,35 @@ async function runRevisionAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
-    await prepareCollection();
+
+    // Create REVISION_COLLECTION via HTTP API
+    await fetch(`${baseUrl}/api/testing`, {
+      method: "POST",
+      headers: {
+        "x-test-mode": "true",
+        "x-test-secret": TEST_API_SECRET,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "create-collection",
+        schema: {
+          _id: REVISION_COLLECTION,
+          name: REVISION_COLLECTION,
+          fields: [
+            {
+              db_fieldName: "title",
+              widget: { Name: "Input" },
+              required: true,
+            },
+            { db_fieldName: "content", widget: { Name: "RichText" } },
+          ],
+          revision: true,
+        },
+      }),
+    });
+
+    await forceRefreshServer(baseUrl);
+    await stabilize(1200);
 
     // 1. Prepare Target Entry
     console.log(
@@ -65,7 +100,10 @@ async function runRevisionAudit() {
           "x-test-secret": TEST_API_SECRET,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ title: `Version ${i + 1}`, content: `Content update ${i + 1}` }),
+        body: JSON.stringify({
+          title: `Version ${i + 1}`,
+          content: `Content update ${i + 1}`,
+        }),
       });
     }
 
@@ -84,7 +122,10 @@ async function runRevisionAudit() {
         const res = await fetch(
           `${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}`,
           {
-            headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+            headers: {
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+            },
           },
         );
         if (!res.ok) throw new Error(`Read failed: ${res.status}`);
@@ -105,7 +146,10 @@ async function runRevisionAudit() {
         const res = await fetch(
           `${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}/revisions`,
           {
-            headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+            headers: {
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+            },
           },
         );
         if (!res.ok) throw new Error(`List failed: ${res.status}`);
@@ -127,46 +171,24 @@ async function runRevisionAudit() {
     printSummaryTable([
       { key: "Read Latency (with history)", val: readResult.avgMs, unit: "ms" },
       { key: "History List Latency", val: listResult.avgMs, unit: "ms" },
-      { key: "History Growth Impact", val: (readResult.avgMs / 1.5).toFixed(2), unit: "x" }, // Rough baseline comparison
+      {
+        key: "History Growth Impact",
+        val: (readResult.avgMs / 1.5).toFixed(2),
+        unit: "x",
+      }, // Rough baseline comparison
     ]);
 
     for (const r of [readResult, listResult]) exportResult(r);
   } catch (err: any) {
     logger.error(`Revision audit failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Revision stress audit completed.");
-}
-
-async function prepareCollection() {
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
-  const db = getDb();
-
-  const schema = {
-    _id: REVISION_COLLECTION,
-    name: REVISION_COLLECTION,
-    fields: [
-      { db_fieldName: "title", widget: { Name: "Input" }, required: true },
-      { db_fieldName: "content", widget: { Name: "RichText" } },
-    ],
-    revision: true,
-  };
-
-  if (db?.collection?.createModel) {
-    await db.collection.createModel(schema).catch(() => {});
-  }
-
-  // Clean previous data
-  await db?.crud
-    ?.deleteMany?.(REVISION_COLLECTION, {}, { tenantId: "global" as any, permanent: true })
-    .catch(() => {});
 }
 
 test("Revision & History Stress Performance", async () => {

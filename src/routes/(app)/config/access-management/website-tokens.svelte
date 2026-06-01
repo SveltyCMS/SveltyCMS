@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/config/accessManagement/WebsiteTokens.svelte
+@file src/routes/(app)/config/access-management/website-tokens.svelte
 @component
 **This component manages website tokens within the application's access management system**
 

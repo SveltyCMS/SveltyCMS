@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/security-audit.test.ts
- * @description Enterprise security performance audit for SveltyCMS.
- * Measures overhead of WAF, audit logging, and cryptographic password hashing.
+ * @description Enterprise Security Defense Benchmark
+ * @summary Measures overhead of WAF request analysis, audit log persistence, Argon2id password hashing, and RBAC permission checks.
+ *
+ * ### Features:
+ * - Web Application Firewall (WAF) deep analysis overhead
+ * - Crypto-chained audit log persistence throughput
+ * - Argon2id password hashing latency and memory cost
+ * - Defense-in-depth RBAC permission check micro-benchmark
  */
 
 import {
@@ -21,6 +27,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runSecurityAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Security Audit...\n");
 
   try {
@@ -236,14 +243,13 @@ async function runSecurityAudit() {
   } catch (err: any) {
     logger.error(`Security benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Security audit completed.");
 }
 
 test("Security Infrastructure Performance", async () => {

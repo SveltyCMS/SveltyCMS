@@ -22,7 +22,7 @@ const dev = (() => {
 })();
 import { dbInitPromise } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
-import { getSystemState, isSystemReady } from "@src/stores/system/state.svelte";
+import { getSystemState, isSystemReady } from "@src/stores/system/state.svelte.ts";
 import type { SystemState } from "@src/stores/system/types";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
@@ -155,7 +155,9 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
   // Global Test Bypass (CI/Playwright) - Only if explicitly requested to skip
   if (process.env.TEST_MODE === "true" && process.env.SKIP_GATEKEEPER === "true") {
     if (!testModeWarned) {
-      logger.warn(`[Gatekeeper] SKIP_GATEKEEPER enabled. Bypassing state checks.`);
+      logger.warn(
+        `[Gatekeeper] SKIP_GATEKEEPER=true → bypassing firewall, rate-limit, and state checks (benchmark/CI mode — raw performance measurement)`,
+      );
       testModeWarned = true;
     }
     return resolve(event);

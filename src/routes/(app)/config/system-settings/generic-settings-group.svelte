@@ -1167,27 +1167,27 @@ onMount(() => {
 								</div>
 								<!-- Boolean Input -->
 							{:else if field.type === 'boolean'}
-								<label class="flex items-center space-x-2">
-									<input
-										id={field.key}
-										type="checkbox"
-										class="checkbox w-auto min-w-5 min-h-5"
-										checked={!!values[field.key]}
-										onchange={(e) => {
-											const checked = (e.target as HTMLInputElement).checked;
-											values[field.key] = checked;
-											errors[field.key] = '';
+								<input
+									id={field.key}
+									type="checkbox"
+									class="checkbox w-auto min-w-5 min-h-5"
+									checked={!!values[field.key]}
+									onchange={(e) => {
+										const checked = (e.target as HTMLInputElement).checked;
+										values[field.key] = checked;
+										errors[field.key] = '';
 
-											if (field.key === 'SEASONS' && checked) {
-												if (!values.SEASON_REGION) {
-													const tz = (values.TIMEZONE as string) || Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-													values.SEASON_REGION = detectSeasonRegion(tz);
-												}
+										if (field.key === 'SEASONS' && checked) {
+											if (!values.SEASON_REGION) {
+												const tz = (values.TIMEZONE as string) || Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+												values.SEASON_REGION = detectSeasonRegion(tz);
 											}
-										}}
-									/>
-									<!-- label already shown by the field header above (avoids duplicate) -->
-								</label>
+										}
+									}}
+									aria-invalid={!!errors[field.key]}
+									aria-required={field.required}
+									aria-describedby={errors[field.key] ? `${field.key}-error` : undefined}
+								/>
 								<!-- Select Input -->
 							{:else if field.type === 'select' && field.options}
 								<select

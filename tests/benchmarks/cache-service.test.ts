@@ -1,6 +1,12 @@
 /**
  * @file tests/benchmarks/cache-service.test.ts
- * @description Micro-benchmark for CacheService overhead and invalidation scaling.
+ * @description Cache Service Micro-Benchmark
+ * @summary Measures L1 cache hit latency and pattern invalidation overhead at scale
+ *
+ * ### Features:
+ * - L1 cache hit baseline (direct get)
+ * - Pattern-based invalidation stress (1k targets @ 200k noise keys)
+ * - Cache layer (L1/L2) performance profiling
  */
 
 import { test, runBenchmark, printTruthTable } from "./modules/benchmark-utils";
@@ -62,7 +68,11 @@ async function runCacheServiceBenchmark() {
         await cacheService.clearByPattern("bench-key-", TENANT);
       },
     });
-    results.push({ ...invalidationResult, layer: "L1", shortLabel: "Invalidate" });
+    results.push({
+      ...invalidationResult,
+      layer: "L1",
+      shortLabel: "Invalidate",
+    });
 
     printTruthTable({
       title: "SVELTYCMS — CACHE SERVICE TELEMETRY",

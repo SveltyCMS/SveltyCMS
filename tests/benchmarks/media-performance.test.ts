@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/media-performance.test.ts
- * @description Enterprise media benchmark for SveltyCMS.
- * Measures the full upload, processing, and storage pipeline via HTTP E2E.
+ * @description Enterprise Media Pipeline Benchmark
+ * @summary Measures full upload, processing, and storage pipeline via HTTP E2E
+ *
+ * ### Features:
+ * - Image upload throughput (sharp-based processing)
+ * - Thumbnail generation latency
+ * - Storage write/read pipeline end-to-end timing
  */
 
 import {
@@ -25,13 +30,19 @@ let testImageBuffer: Buffer;
 
 async function generateTestImage() {
   return sharp({
-    create: { width: 1920, height: 1080, channels: 3, background: { r: 64, g: 64, b: 96 } },
+    create: {
+      width: 1920,
+      height: 1080,
+      channels: 3,
+      background: { r: 64, g: 64, b: 96 },
+    },
   })
     .jpeg({ quality: 85 })
     .toBuffer();
 }
 
 async function runMediaAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Media Pipeline Audit...\n");
 
   try {
@@ -68,7 +79,9 @@ async function runMediaAudit() {
       onIteration: async (i: number) => {
         const noise = new Uint8Array([i % 256, Math.floor(Math.random() * 256)]);
         const uniqueBuffer = Buffer.concat([testImageBuffer, Buffer.from(noise)]);
-        const file = new File([uniqueBuffer], `sdk-media-${i}.jpg`, { type: "image/jpeg" });
+        const file = new File([uniqueBuffer], `sdk-media-${i}.jpg`, {
+          type: "image/jpeg",
+        });
         const res = await cms.media.upload(file, {
           userId: "system",
           tenantId: "global" as any,
@@ -132,10 +145,26 @@ async function runMediaAudit() {
     printSummaryTable([
       { key: "SDK Processing Latency", val: sdkResult.avgMs, unit: "ms" },
       { key: "HTTP Pipeline Latency", val: httpResult.avgMs, unit: "ms" },
-      { key: "SDK Throughput", val: Math.round(sdkResult.rps || 0), unit: "images/s" },
-      { key: "HTTP Throughput", val: Math.round(httpResult.rps || 0), unit: "images/s" },
-      { key: "HTTP p95 Latency", val: httpResult.p95Ms || httpResult.avgMs, unit: "ms" },
-      { key: "Memory Growth", val: (httpResult.rssDelta || 0).toFixed(1), unit: "MB" },
+      {
+        key: "SDK Throughput",
+        val: Math.round(sdkResult.rps || 0),
+        unit: "images/s",
+      },
+      {
+        key: "HTTP Throughput",
+        val: Math.round(httpResult.rps || 0),
+        unit: "images/s",
+      },
+      {
+        key: "HTTP p95 Latency",
+        val: httpResult.p95Ms || httpResult.avgMs,
+        unit: "ms",
+      },
+      {
+        key: "Memory Growth",
+        val: (httpResult.rssDelta || 0).toFixed(1),
+        unit: "MB",
+      },
     ]);
 
     for (const r of results) exportResult(r);
@@ -149,8 +178,6 @@ async function runMediaAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Media audit completed.");
 }
 
 test("Media Engine Enterprise Suite", async () => {

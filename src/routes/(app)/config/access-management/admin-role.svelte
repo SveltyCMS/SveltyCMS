@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/config/adminRoleManagement/AdminRole.svelte
+@file src/routes/(app)/config/access-management/admin-role.svelte
 @component
 **This component manages the selection and updating of the administrator role within the application**
 

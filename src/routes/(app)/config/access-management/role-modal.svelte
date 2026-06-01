@@ -1,6 +1,6 @@
 <!--
-@file src/routes/(app)/config/assessManagement/RoleModal.svelte
-@component 
+@file src/routes/(app)/config/access-management/role-modal.svelte
+@component
 **This component provides a modal for creating and editing roles in the access management system. It allows users to enter role name, description, and select associated permissions.**
 
 @example
@@ -136,7 +136,7 @@ function onFormSubmit(event: SubmitEvent): void {
 							{/if}
 						{/each}
 					</select>
-					<input type="text" bind:value={permSearch} placeholder="Search..." class="input input-sm max-w-[150px]" aria-label="Search permissions" />
+					<input type="text" bind:value={permSearch} placeholder="Search..." class="input input-sm max-w-37.5" aria-label="Search permissions" />
 				</div>
 			</div>
 

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-05-27"
+updated: "2026-06-01"
 tags:
   - "security"
   - "documentation"
@@ -248,15 +248,15 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 
 ## 🛡️ No Backdoor Policy
 
-SveltyCMS is designed with a **zero-backdoor philosophy**. Our testing infrastructure is physically isolated from production to ensure maximum security.
+SveltyCMS is designed with a **zero-backdoor philosophy**. Every testing and benchmarking path is explicitly gated, auditable, and production-impossible — even with full source code access.
 
 ### 🔒 Physical Isolation (Triple-Lock)
 
 To prevent accidental exposure or exploitation of testing features, we employ a "Triple-Lock" system:
 
-1.  **Build-Time Stripping**: Our Vite build process physically removes all testing routes (`/api/testing`) and isolation hooks from production artifacts using a custom plugin. If it's not in the build, it literally does not exist in production.
-2.  **Cryptographic Handshake**: Any testing feature requires a `x-test-secret` header matching a high-entropy UUID generated dynamically per-test-run.
-3.  **Network Lockdown**: Testing utilities strictly refuse requests not originating from `127.0.0.1` or `::1`.
+1.  **Environment Gating**: Testing and benchmarking code paths are only active when explicit environment variables (`TEST_MODE=true`, `BENCHMARK=true`) are set at the OS level — impossible to enable via HTTP requests. In production, these paths return 401 Unauthorized.
+2.  **Cryptographic Handshake**: The `/api/testing` endpoint uses `timingSafeEqual()` from `node:crypto` for constant-time secret comparison, preventing timing side-channel attacks. The HyperTurbo hook uses standard comparison gated behind the `BENCHMARK=true` environment check.
+3.  **Auth Path Exclusion**: The HyperTurbo hook permanently excludes `/api/auth/login` and `/api/auth/logout` paths — these always use real credentials, real session creation, and real audit trails regardless of environment.
 
 ### 🧪 Secure Testing Approach
 
@@ -278,7 +278,7 @@ Our integration tests authenticate like real users:
 
 ### ✅ Why This Matters
 
-- **Zero Attack Surface**: Production servers don't even contain the testing code paths.
+- **Environment-Gated, Not Stripped**: Testing code paths exist in all builds but are unconditionally gated behind OS-level environment variables. An attacker needs server filesystem access to enable them.
 - **Tests Real Security**: Authentication and authorization are tested end-to-end exactly as users experience them.
 - **Compliance Ready**: Audit logs show real user-like behavior, not bypasses.
 - **No Secrets in Code**: Test secrets are generated at runtime and never persisted.

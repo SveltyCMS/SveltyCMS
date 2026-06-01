@@ -4,7 +4,7 @@
 **SveltyCMS Button — WCAG 3.0 Ready**
 
 Polymorphic button/a element with 9 variants, 4 sizes, loading state, icon support,
-and full ARIA accessibility. Premium gradient overlay on hover.
+and full ARIA accessibility. Supports progressive corner-shape angled corners.
 
 ### Props
 - `variant` ('primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'ghost' | 'outline'): Visual style.
@@ -15,15 +15,10 @@ and full ARIA accessibility. Premium gradient overlay on hover.
 - `disabled` (boolean): Disable interaction.
 - `leadingIcon` / `trailingIcon` (string): Iconify icons.
 - `rounded` (boolean): Full rounded pill shape.
+- `shape` ('round' | 'angle'): Advanced corner-shape option (default: 'round').
+- `color` (string): Custom CSS color override.
 - `aria-label` / `labelledBy` / `describedBy`: ARIA attributes.
 - `children` (Snippet): Button content.
-
-### Features:
-- polymorphic (button or anchor via href)
-- premium gradient overlay on hover
-- loading state with configurable spinner
-- WCAG 3.0 ready with full ARIA label/description support
-- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">
@@ -37,6 +32,8 @@ and full ARIA accessibility. Premium gradient overlay on hover.
     loading?: boolean;
     disabled?: boolean;
     rounded?: boolean;
+    shape?: 'round' | 'angle';
+    color?: string;
     leadingIcon?: string;
     trailingIcon?: string;
     loadingIcon?: string;
@@ -59,6 +56,8 @@ and full ARIA accessibility. Premium gradient overlay on hover.
     loading = false,
     disabled = false,
     rounded = false,
+    shape = 'round',
+    color: propColor,
     leadingIcon,
     trailingIcon,
     loadingIcon = 'mdi:loading',
@@ -73,7 +72,17 @@ and full ARIA accessibility. Premium gradient overlay on hover.
 
   const element = $derived(href ? 'a' : 'button');
 
+  const isCustomColor = $derived(
+    propColor && (
+      propColor.startsWith('#') ||
+      propColor.startsWith('rgb') ||
+      propColor.startsWith('hsl') ||
+      propColor.startsWith('var(')
+    )
+  );
+
   const variantClass = $derived.by(() => {
+    if (isCustomColor) return 'preset-custom';
     switch (variant) {
       case 'primary': return 'preset-filled-primary-500 shadow-primary-500/20';
       case 'secondary': return 'preset-filled-secondary-500 shadow-secondary-500/20';
@@ -120,6 +129,19 @@ and full ARIA accessibility. Premium gradient overlay on hover.
           disabled: isDisabled
         }
   );
+
+  // Calculate dynamic custom variables for custom color presets (e.g. database themes)
+  const customStyles = $derived.by(() => {
+    if (!isCustomColor) return '';
+    if (variant === 'outline') {
+      return `--preset-bg: transparent; --preset-text: ${propColor}; --preset-border: ${propColor};`;
+    }
+    if (variant === 'ghost') {
+      return `--preset-bg: transparent; --preset-text: ${propColor}; --preset-border: transparent;`;
+    }
+    // Default filled
+    return `--preset-bg: ${propColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+  });
 </script>
 
 <svelte:element
@@ -135,10 +157,11 @@ and full ARIA accessibility. Premium gradient overlay on hover.
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-surface-500 dark:focus-visible:ring-surface-300',
     variantClass,
     sizeClass,
-    rounded ? 'rounded-full' : 'rounded-sm',
+    shape === 'angle' ? 'corner-angle' : (rounded ? 'rounded-full' : 'rounded-sm'),
     isDisabled && 'opacity-60 cursor-not-allowed',
     className
   )}
+  style={customStyles || undefined}
 >
   <!-- Premium gradient overlay -->
   <div class="absolute inset-0 rounded-[inherit] bg-linear-to-tr from-white/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -160,3 +183,32 @@ and full ARIA accessibility. Premium gradient overlay on hover.
     {/if}
   {/if}
 </svelte:element>
+
+<style>
+  /* Progressive enhancement: Corner shape angled cut styles with clip-path fallback */
+  .corner-angle {
+    position: relative;
+    corner-shape: angle; /* W3C CSS Standard */
+    --corner-offset: 8px;
+    clip-path: polygon(
+      0% var(--corner-offset),
+      var(--corner-offset) 0%,
+      calc(100% - var(--corner-offset)) 0%,
+      100% var(--corner-offset),
+      100% calc(100% - var(--corner-offset)),
+      calc(100% - var(--corner-offset)) 100%,
+      var(--corner-offset) 100%,
+      0% calc(100% - var(--corner-offset))
+    );
+  }
+
+  /* Tenant/Database custom styling system */
+  :global(.preset-custom) {
+    background-color: var(--preset-bg) !important;
+    color: var(--preset-text) !important;
+    border: 1px solid var(--preset-border) !important;
+  }
+  :global(.preset-custom:hover) {
+    filter: brightness(1.1);
+  }
+</style>

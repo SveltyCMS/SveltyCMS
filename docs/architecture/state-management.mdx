@@ -26,11 +26,11 @@ In 2026, SveltyCMS migrated its core state management from traditional Svelte St
 
 The system state is managed by a reactive class (`SystemStateContainer`) utilizing `$state` and `$derived` runes. This architecture provides several enterprise-tier benefits:
 
-1.  **Zero-Tax Synchronous Access**: Unlike standard stores which require the expensive `get()` helper (iterating all subscribers), Svelte 5 runes allow direct, zero-overhead access to the current state via `system.current`.
+1.  **Zero-Tax Synchronous Access**: Unlike standard stores which require the expensive `get()` helper (iterating all subscribers), Svelte 5 runes allow direct, zero-overhead access to the current state via `system.state`.
 2.  **Fine-Grained Reactivity**: UI components only re-render when the specific service they are watching (e.g., `databaseStatus`) changes, rather than on every system update.
 3.  **Derived Intelligence**: The `overallState` is a `$derived` rune, ensuring it is always calculated on-demand with zero computation tax when idle.
-4.  **Backward Compatibility**: The system maintains a legacy `systemStateStore` (Writable) that is automatically synchronized with the reactive class.
-5.  **🚀 Hot-Path Readiness Cache**: `isSystemReady()` now uses a module-level cache that is invalidated only on state transitions. The gatekeeper hook (`handleSystemState`) and all other hooks benefit from zero-overhead readiness checks without recomputing `deriveOverallState()` on every request.
+4.  **Single Source of Truth**: The store is consolidated entirely into `state.svelte.ts`, eliminating dual-state file duplication.
+5.  **🚀 Hot-Path Readiness Cache**: `isSystemReady()` uses a module-level cache that is invalidated only on state transitions. The gatekeeper hook (`handleSystemState`) and all other hooks benefit from zero-overhead readiness checks without recomputing `deriveOverallState()` on every request.
 
 The state is enforced by the `handleSystemState` server hook, which gates all incoming requests based on the reactive status.
 
@@ -147,6 +147,51 @@ The `reinitializeSystem` logic has been optimized to perform surgical updates ra
 - **Config Hot-Reload**: Re-parses `private.ts` without dropping active database connections.
 - **Dynamic Settings Sync**: Automatically re-synchronizes the in-memory settings cache with the database after configuration changes.
 - **Zero-Downtime Transitions**: Minimizes the window where requests are blocked during system updates, ensuring high availability during administrative operations.
+
+## 🗃️ Store Directory Structure (`src/stores`)
+
+SveltyCMS consolidates all reactive client-side states using Svelte 5 runes (`.svelte.ts`). Below is the architecture of the `src/stores` namespace.
+
+### Core Application & UI Stores
+
+- **`store.svelte.ts`**: Core application context (`app`), synchronizing session profiles, user settings, and current language (`contentLanguage`).
+- **`global-settings.svelte.ts`**: Holds public-facing tenant settings and dynamic site branding properties.
+- **`ui-store.svelte.ts`**: Manages panel layouts, sidebars, active workspaces, and screen transitions.
+- **`screen-size-store.svelte.ts`**: Tracks responsive window breakpoints (e.g., mobile, tablet, desktop) for adaptive layout rendering.
+- **`loading-store.svelte.ts`**: Controls the universal progress spinner overlay for async route and document transitions.
+- **`toast.svelte.ts`**: Orchestrates custom transient notifications.
+
+### Feature-Specific Stores
+
+- **`collection-store.svelte.ts`**: Manages the list of schema definitions and flat entry streams during CMS UI operations.
+- **`content-store.svelte.ts`**: Tracks the state of the active content editor, handles form bindings, drafts dirty state, and publication flow parameters.
+- **`collaboration-store.svelte.ts`**: Manages real-time multi-user presence, lock ownership, and concurrent active users on documents.
+- **`widget-store.svelte.ts`**: Holds dynamic widget configurations and acts as the registry for the modular field inputs.
+- **`image-editor-store.svelte.ts`**: Tracks canvas operations, filters, crops, and metadata editing parameters in the image editor component.
+- **`consent-store.svelte.ts`**: Tracks GDPR cookie consent status and preferences.
+- **`pinned-store.svelte.ts`**: Stores user-defined sidebar shortcut pins.
+- **`setup-store.svelte.ts`**: Drives the step-by-step setup wizard flow during the initial bootstrapping of SveltyCMS.
+- **`theme-store.svelte.ts`**: Manages theme persistence (dark/light mode) and color scheme preferences across sessions.
+- **`status-store.svelte.ts`**: Handles entry status toggling (publish/unpublish/draft) with optimistic UI updates.
+- **`config-store.svelte.ts`**: Configuration panel state management for system and collection settings.
+- **`active-input-store.svelte.ts`**: Tracks the currently focused form input field for keyboard shortcuts and context menus.
+- **`ui-mode-store.svelte.ts`**: Manages high-level UI mode state (edit/preview/live) across the CMS interface.
+- **`system-preferences.svelte.ts`**: Stores and synchronizes system-level user preferences and defaults.
+
+---
+
+## ⚙️ System Health Store (`src/stores/system`)
+
+The system health engine manages startup metrics, service heartbeats, and failovers. All system monitoring services import from the single source of truth: `src/stores/system/state.svelte.ts`.
+
+- **`state.svelte.ts`**: The reactive state container, defining the `SystemStateContainer` class. It manages overall states and exposes Svelte 5 derived variables (`isReady`, `isFailed`, `databaseStatus`, etc.) for fine-grained reactivity.
+- **`types.ts`**: Standardized typings for the store structure, status levels, anomaly detection payloads, and performance logs.
+- **`config.ts`**: Configures default timeouts, baseline startup times for dependencies, and default failure thresholds before self-calibration.
+- **`metrics.ts`**: Updates historical performance graphs, calculates Exponential Moving Averages (EMA) of initialization timers, and checks for service timing anomalies.
+- **`reporting.ts`**: Generates JSON summary logs and reports recommendations for service bottlenecks and timeouts.
+- **`async.ts`**: Exposes abort-signal compatible promise utilities (`waitForSystemReady`, `waitForServiceHealthy`) for boot sequence coordination.
+
+---
 
 ## 🔮 Future Improvements
 

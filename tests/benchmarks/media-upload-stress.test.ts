@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/media-upload-stress.test.ts
- * @description Media upload stress test — measures throughput for large files,
- * concurrent uploads, and streaming efficiency.
+ * @description Media Upload Stress Test
+ * @summary Measures throughput for large file uploads, concurrent transfers, and streaming efficiency.
+ *
+ * ### Features:
+ * - Large file upload throughput measurement
+ * - Concurrent upload stress testing
+ * - Streaming efficiency analysis
+ * - Multi-size payload performance profiling
  */
 import {
   test,
@@ -33,6 +39,7 @@ function generateTestFile(sizeMb: number): {
 }
 
 async function runUploadAudit() {
+  // pre-existing unused var removed for TS strict mode
   const FILE_SIZE_MB = parseInt(process.env.BENCH_UPLOAD_SIZE || "10", 10);
   console.log(`🚀 Starting Media Upload Stress Audit (${FILE_SIZE_MB}MB files)...\n`);
 
@@ -43,6 +50,12 @@ async function runUploadAudit() {
 
     await ensureStableTestData();
     await stabilize(1000);
+
+    const uploadHeaders = {
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
+      Origin: baseUrl,
+    };
 
     // 1. Single upload throughput
     console.log(`   → Measuring Single Upload (${FILE_SIZE_MB}MB)...`);
@@ -60,13 +73,13 @@ async function runUploadAudit() {
 
         const res = await fetch(`${baseUrl}/api/media/upload`, {
           method: "POST",
-          headers: {
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-          },
+          headers: uploadHeaders,
           body: formData,
         });
-        if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => "<no body>");
+          throw new Error(`Upload failed: ${res.status} - ${errBody}`);
+        }
         await res.json();
       },
     });
@@ -87,10 +100,7 @@ async function runUploadAudit() {
 
         const res = await fetch(`${baseUrl}/api/media/upload`, {
           method: "POST",
-          headers: {
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-          },
+          headers: uploadHeaders,
           body: formData,
         });
         if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
@@ -133,8 +143,6 @@ async function runUploadAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Media upload stress audit completed.");
 }
 
 test("Media Upload Stress Audit", async () => {

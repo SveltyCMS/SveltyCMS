@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/seo-performance.test.ts
- * @description Enterprise SEO Suite benchmark for SveltyCMS.
- * Measures redirect performance, sitemap generation, robots.txt, and related SEO features.
+ * @description Enterprise SEO Suite Performance Benchmark
+ * @summary Measures redirect lookup latency, dynamic sitemap.xml generation, robots.txt serving, and 404 logging performance.
+ *
+ * ### Features:
+ * - HTTP 301 redirect lookup and resolution latency
+ * - Dynamic sitemap.xml generation with i18n/hreflang support
+ * - robots.txt generation and serving performance
+ * - Missing-path 404 detection and analytics logging overhead
  */
 
 import {
@@ -23,6 +29,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runSeoAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log(`🚀 Starting Enterprise SEO Suite Audit (${getDbType().toUpperCase()})...\n`);
 
   try {
@@ -149,8 +156,6 @@ async function runSeoAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ SEO audit completed.");
 }
 
 test("Enterprise SEO Suite Performance", async () => {

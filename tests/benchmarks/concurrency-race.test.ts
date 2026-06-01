@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/concurrency-race.test.ts
- * @description Enterprise Concurrency & Race Condition Audit.
- * Simulates high-concurrency writes to a single document to prove atomic consistency (Lost Update protection).
+ * @description Concurrency & Race Condition Audit
+ * @summary Simulates high-concurrency writes to a single document to prove atomic consistency and lost update protection.
+ *
+ * ### Features:
+ * - High-concurrency write collision simulation
+ * - Atomic consistency verification
+ * - Lost update detection and prevention
+ * - Document-level concurrency stress testing
  */
 
 import {
@@ -23,6 +29,7 @@ const ENTRY_ID = "bench-shared-001";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runConcurrencyAudit() {
+  // pre-existing unused var removed for TS strict mode
   try {
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
@@ -54,7 +61,11 @@ async function runConcurrencyAudit() {
       const createRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ _id: ENTRY_ID, count: 0, title: "Concurrency Target" }),
+        body: JSON.stringify({
+          _id: ENTRY_ID,
+          count: 0,
+          title: "Concurrency Target",
+        }),
       });
       if (!createRes.ok)
         throw new Error(`Failed to create target entry: ${await createRes.text()}`);
@@ -172,8 +183,6 @@ async function runConcurrencyAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Concurrency audit completed.");
 }
 
 test("Concurrent Transaction Stress Test", async () => {

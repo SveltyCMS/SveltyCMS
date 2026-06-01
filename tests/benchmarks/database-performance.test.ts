@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/database-performance.test.ts
- * @description Enterprise database benchmark for SveltyCMS.
- * Measures raw CRUD performance, indexing efficiency, and connection pool resilience at the adapter level.
+ * @description Enterprise Database Adapter Benchmark
+ * @summary Measures raw CRUD performance, indexing efficiency, and connection pool resilience
+ *
+ * ### Features:
+ * - INSERT / SELECT / UPDATE / DELETE throughput per adapter
+ * - Indexed vs non-indexed query comparison
+ * - Connection pool resilience under concurrent load
  */
 
 import { sql } from "drizzle-orm";

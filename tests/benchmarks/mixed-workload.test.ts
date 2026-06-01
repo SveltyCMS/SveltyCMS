@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/mixed-workload.test.ts
- * @description Enterprise-grade mixed workload benchmark for SveltyCMS.
- * Simulates real-world traffic: 60% Read, 20% Search, 15% GraphQL, 5% Metadata.
+ * @description Mixed Workload Benchmark
+ * @summary Simulates real-world traffic with a weighted mix of reads, searches, GraphQL queries, and metadata requests.
+ *
+ * ### Features:
+ * - Weighted workload distribution (60% read, 20% search, 15% GraphQL, 5% metadata)
+ * - Realistic traffic pattern simulation
+ * - Concurrency-aware throughput measurement
+ * - Multi-operation latency profiling
  */
 
 import {
@@ -25,6 +31,7 @@ const CONCURRENCY = 8;
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runMixedWorkloadAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Mixed Workload Audit...\n");
 
   try {
@@ -121,14 +128,13 @@ async function runMixedWorkloadAudit() {
   } catch (err: any) {
     logger.error(`Mixed workload benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Mixed workload audit completed.");
 }
 
 test("Mixed Workload Enterprise Audit", async () => {

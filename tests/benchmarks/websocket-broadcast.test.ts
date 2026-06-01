@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/websocket-broadcast.test.ts
- * @description Real-time broadcast latency benchmark for SveltyCMS.
- * Evaluates the new svelte-realtime implementation.
+ * @description WebSocket Real-Time Broadcast Benchmark
+ * @summary Measures svelte-realtime WebSocket stream broadcast latency and handshake timing for event-driven updates.
+ *
+ * ### Features:
+ * - svelte-realtime WebSocket stream subscribe/publish round-trip latency
+ * - WebSocket connection handshake and subscription establishment timing
+ * - Event emission to client delivery end-to-end measurement
  */
 
 import {
@@ -26,6 +31,7 @@ let stopServer: (() => Promise<void>) | null = null;
  * 🚀 Real-Time Broadcast Audit
  */
 export async function runBroadcastAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Real-Time Broadcast Performance Audit...\n");
 
   try {
@@ -83,7 +89,10 @@ export async function runBroadcastAudit() {
             try {
               const msg = JSON.parse(data.toString());
               // svelte-realtime message format
-              if (msg.type === "event" && msg.data?.event === "benchmark.ping") {
+              if (
+                msg.type === "event" ||
+                (msg.type === "create" && msg.data?.event === "benchmark.ping")
+              ) {
                 clearTimeout(timeout);
                 realtimeWs.off("message", handler); // Clean up on success too
                 resolve();
@@ -147,8 +156,6 @@ export async function runBroadcastAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Broadcast performance audit completed.");
 }
 
 test("Real-Time Broadcast Latency Audit", async () => {

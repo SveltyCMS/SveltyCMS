@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-04-26"
-updated: "2026-05-30"
+updated: "2026-05-31"
 tags:
   - "benchmark"
   - "performance"
@@ -32,12 +32,12 @@ BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
 
 ### Record Modes
 
-| Mode      | Trigger                             | SQLite |        MDX        | Executive Summary |
-| --------- | ----------------------------------- | :----: | :---------------: | :---------------: |
-| `none`    | Normal `bun test`                   |   ❌   |        ❌         |        ❌         |
-| `history` | `BENCHMARK_HISTORY_ONLY=1`          |   ✅   |        ❌         |        ❌         |
-| `partial` | `BENCHMARK_RECORD=1 bun test ...`   |   ✅   | ✅ (section only) | Partial watermark |
-| `full`    | Matrix runner (`--sql`, `--db=...`) |   ✅   | ✅ (all sections) |  Ranked summary   |
+| Mode      | Trigger                             | SQLite |        MDX        | Executive Summary | Console trend comparison |
+| --------- | ----------------------------------- | :----: | :---------------: | :---------------: | :----------------------: |
+| `none`    | Normal `bun test`                   |   ❌   |        ❌         |        ❌         |       ✅ read-only       |
+| `history` | `BENCHMARK_HISTORY_ONLY=1`          |   ✅   |        ❌         |        ❌         |            ✅            |
+| `partial` | `BENCHMARK_RECORD=1 bun test ...`   |   ✅   | ✅ (section only) | Partial watermark |            ✅            |
+| `full`    | Matrix runner (`--sql`, `--db=...`) |   ✅   | ✅ (all sections) |  Ranked summary   |            ✅            |
 
 ### Data Flow
 
@@ -68,15 +68,15 @@ flowchart TD
 
 ### Step-by-step
 
-| Step | Function                        | What happens                                                                                        |
-| ---- | ------------------------------- | --------------------------------------------------------------------------------------------------- |
-| 1    | `setupBenchmarkServer()`        | Starts a SvelteKit server on a random port, seeds test data                                         |
-| 2    | `runBenchmark()`                | Runs the test scenario N times, collects timing data                                                |
-| 3    | `exportResult()`                | Saves JSON to `results/<db>/`, appends to `history.jsonl` (debug log), triggers trend analysis      |
-| 4    | `reportBenchmark(result, opts)` | Persists to `history.sqlite` (canonical), runs trend analysis, updates MDX section                  |
-| 5    | `printTruthTable()`             | Builds ASCII table -> calls `pushTableToMdx()` bridge                                               |
-| 6    | `pushTableToMdx()`              | Compatibility bridge — discovers the correct `<!-- TAG_TABLE_START -->` section, writes truth table |
-| 7    | `printSummaryTable()`           | Builds summary table -> calls `appendSummaryToMdx()` bridge                                         |
+| Step | Function                        | What happens                                                                                                                                                                                                                                                                                              |
+| ---- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `setupBenchmarkServer()`        | Starts a SvelteKit server on a random port with `PRESET=demo`. Setup wizard seeds admin/roles/settings + 11 preset collections via `seedPresetCollections()`. Then `setup-benchmarks.ts` seeds entry data via real HTTP endpoints. Uses shared `benchmark_shared` database, skips seeding if data exists. |
+| 2    | `runBenchmark()`                | Runs the test scenario N times, collects timing data                                                                                                                                                                                                                                                      |
+| 3    | `exportResult()`                | Saves JSON to `results/<db>/`, appends to `history.jsonl` (debug log), triggers trend analysis                                                                                                                                                                                                            |
+| 4    | `reportBenchmark(result, opts)` | Persists to `history.sqlite` (canonical), runs trend analysis, updates MDX section                                                                                                                                                                                                                        |
+| 5    | `printTruthTable()`             | Builds ASCII table -> calls `pushTableToMdx()` bridge                                                                                                                                                                                                                                                     |
+| 6    | `pushTableToMdx()`              | Compatibility bridge — discovers the correct `<!-- TAG_TABLE_START -->` section, writes truth table                                                                                                                                                                                                       |
+| 7    | `printSummaryTable()`           | Builds summary table -> calls `appendSummaryToMdx()` bridge                                                                                                                                                                                                                                               |
 
 ### Guardrails
 
@@ -108,7 +108,7 @@ flowchart TD
 | `benchmark-analysis.ts`        | `modules/`                  | Trend analysis, root cause classification, adaptive budgets, memory tracking                                             |
 | `benchmark-mdx.ts`             | `modules/`                  | MDX file I/O — atomic writes (temp→rename), file mutex, tag discovery                                                    |
 | `benchmark-summary.ts`         | `modules/`                  | Ranked executive summary — top regressions, shared causes, noisy tests **(implemented, matrix integration in progress)** |
-| `benchmark-meta.ts`            | `modules/`                  | Educational metadata for all 48 tests (code paths, impact, proves)                                                       |
+| `benchmark-meta.ts`            | `modules/`                  | Educational metadata for all 50 tests (code paths, impact, proves)                                                       |
 | `benchmark-cross-correlate.ts` | `modules/`                  | Single-test cross-correlation — checks related tests in `history.sqlite`                                                 |
 | `benchmark-intelligence.ts`    | `scripts/benchmark-matrix/` | Forecasting + fix suggestions + severity escalation                                                                      |
 | `benchmark-utils.ts`           | `modules/`                  | Runner utilities — `runBenchmark`, `exportResult`, `exportSubMetric`                                                     |
@@ -131,6 +131,8 @@ flowchart TD
 | **Atomic MDX Writes**         | Temp file + rename prevents half-written reports                                                                         |
 | **Idempotent SQLite**         | `INSERT OR IGNORE` prevents duplicate rows on retry                                                                      |
 | **Per-DB Budgets**            | SQLite/PG/MariaDB/MongoDB each have different cold/warm/CRUD/cache/concurrency budgets                                   |
+| **Shared Database**           | All benchmarks reuse `benchmark_shared.sqlite` — first run seeds, subsequent runs skip seeding (smart detect)            |
+| **Persistent Data**           | Database file persists between runs — no cleanup on stop. Write benchmarks recreate their own collections as needed      |
 | **48 Enhanced Sections**      | 9 dimensions: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance                          |
 
 ## 📝 Creating a New Benchmark
@@ -242,11 +244,25 @@ Each report section follows this layout:
 
 ## 🔬 How to Run
 
+> [!TIP]
+> Benchmarks share a single `benchmark_shared.sqlite` database.
+> First run seeds all data. Subsequent runs detect existing data and skip re-seeding — **much faster**.
+> To force a fresh seed, delete `config/database/benchmark_shared.sqlite`.
+
 **Console only (safe for normal dev):**
 
 ```bash
 bun test tests/benchmarks/auth-performance.test.ts
 ```
+
+**All benchmarks (sequential, with recording):**
+
+```bash
+bun run scripts/run-all-benchmarks.ts
+```
+
+> [!NOTE]
+> The runner runs each test sequentially and reports pass/fail.
 
 **Single test (record to report):**
 

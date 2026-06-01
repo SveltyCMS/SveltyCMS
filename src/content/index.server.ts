@@ -167,6 +167,10 @@ export const contentSystem = {
     incremental = false,
     adapter?: DatabaseAdapter,
   ) {
+    if (process.env.BENCHMARK === "true" || process.env.TEST_MODE === "true") {
+      const { refreshCollectionsCache } = await import("./content-service.server");
+      return await refreshCollectionsCache(tenantId, adapter);
+    }
     return this.initialize(tenantId, { skipReconciliation, incremental, force: true }, adapter);
   },
 

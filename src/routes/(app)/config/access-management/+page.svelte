@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/config/AccessManagement/+page.svelte
+@file src/routes/(app)/config/access-management/+page.svelte
 @component
 **This page manages the Access Management system, including roles and permissions**
 

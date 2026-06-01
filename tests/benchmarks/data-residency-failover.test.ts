@@ -1,8 +1,13 @@
 /**
  * @file tests/benchmarks/data-residency-failover.test.ts
- * @description Enterprise Data Residency & Sovereignty benchmark.
- * Simulates geopolitical boundaries and verifies that PII fields are blocked
- * when the network boundary is crossed, ensuring compliance with residency laws.
+ * @description Data Residency & Sovereignty Audit
+ * @summary Simulates geopolitical boundary crossing and verifies PII field blocking for residency law compliance.
+ *
+ * ### Features:
+ * - Geopolitical boundary simulation
+ * - PII field access enforcement
+ * - Cross-region data isolation verification
+ * - Residency law compliance validation
  */
 
 import {
@@ -20,6 +25,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runDataResidencyAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Data Residency Audit...\n");
 
   try {
@@ -89,8 +95,6 @@ async function runDataResidencyAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Data residency audit completed.");
 }
 
 test("Data Sovereignty & Field Blocking", async () => {

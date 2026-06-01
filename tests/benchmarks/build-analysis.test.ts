@@ -1,7 +1,12 @@
 /**
- * @file tests/benchmarks/build-analysis.bench.ts
- * @description Enterprise build analysis benchmark for SveltyCMS.
- * Measures compilation speed, bundle size trends, and tree-shaking efficiency.
+ * @file tests/benchmarks/build-analysis.test.ts
+ * @description Enterprise Build Analysis Benchmark
+ * @summary Measures compilation speed, bundle size trends, and tree-shaking efficiency
+ *
+ * ### Features:
+ * - Production build duration tracking
+ * - Bundle/output directory size analysis
+ * - Tree-shaking / dead-code elimination verification
  */
 
 import {
@@ -10,7 +15,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-} from "./benchmark-utils";
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -20,7 +25,10 @@ import { logger } from "@utils/logger";
 async function getDirSize(dir: string): Promise<number> {
   let total = 0;
   try {
-    const entries = await fs.readdir(dir, { recursive: true, withFileTypes: true });
+    const entries = await fs.readdir(dir, {
+      recursive: true,
+      withFileTypes: true,
+    });
 
     for (const entry of entries) {
       if (entry.isFile()) {
@@ -109,6 +117,7 @@ async function runBuildAnalysis() {
   } catch (err: any) {
     logger.error(`Build analysis failed: ${err.message}`);
     console.error(err);
+    throw err;
   }
 
   console.log("\n✅ Build analysis completed.");

@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/memory-stability.test.ts
- * @description Enterprise-grade memory stability benchmark for SveltyCMS.
- * Tracks RSS, Heap, and External memory growth under sustained load with leak detection.
+ * @description Memory Stability Benchmark
+ * @summary Tracks RSS, heap, and external memory growth under sustained load with automated leak detection.
+ *
+ * ### Features:
+ * - RSS, heap, and external memory tracking
+ * - Sustained load memory growth profiling
+ * - Automated memory leak detection
+ * - Periodic sampling with trend analysis
  */
 
 import "../unit/bun-preload.ts";
@@ -50,6 +56,7 @@ async function getMemoryStats(baseUrl: string, forceGC = false, signal?: AbortSi
 }
 
 export async function runMemoryStabilityAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log(`🚀 Starting Memory Stability Audit (${DURATION_SECONDS}s sustained load)...\n`);
 
   try {
@@ -177,7 +184,13 @@ export async function runMemoryStabilityAudit() {
       shortLabel: "Memory",
       subtitle: `${DURATION_SECONDS}s Sustained Load • ${getDbType().toUpperCase()}`,
       results: [
-        { name: "Memory Profile", layer: "Stability", rps, rssDelta: rssGrowth, heapSlope },
+        {
+          name: "Memory Profile",
+          layer: "Stability",
+          rps,
+          rssDelta: rssGrowth,
+          heapSlope,
+        },
       ],
     });
 
@@ -212,8 +225,6 @@ export async function runMemoryStabilityAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Memory stability audit completed.");
 }
 
 function calculateHeapSlope(snapshots: MemorySnapshot[]): number {

@@ -3,35 +3,10 @@
  * @description Entry point for the benchmark matrix tool.
  */
 
-import { plugin } from "bun";
-
 // 🚀 ENTERPRISE HARDENING: Ensure benchmark mode is detectable by all sub-modules
 process.env.SVELTY_BENCHMARK_SUITE = "true";
 process.env.BENCHMARK_MODE = "1";
 process.env.BENCHMARK_STABLE = "true";
-
-// Mock $app/environment for standalone execution
-plugin({
-  name: "svelte-kit-mock",
-  setup(build) {
-    build.onResolve({ filter: /^\$/ }, (args) => {
-      if (args.path.startsWith("$app/")) {
-        return {
-          path: args.path,
-          external: false,
-          namespace: "svelte-kit-mock",
-        };
-      }
-    });
-    build.onLoad({ filter: /.*/, namespace: "svelte-kit-mock" }, (_args) => {
-      return {
-        contents:
-          "export const browser = false; export const dev = false; export const building = false; export const version = '1.0.0';",
-        loader: "js",
-      };
-    });
-  },
-});
 
 import chalk from "chalk";
 import fs from "node:fs/promises";
@@ -330,7 +305,7 @@ async function main() {
         delete buildEnv.BENCHMARK_MODE;
         delete buildEnv.BENCHMARK;
         delete buildEnv.BENCHMARK_STABLE;
-        execSync("bun run build:high-memory", {
+        execSync("bun run build", {
           stdio: cfg.ci ? "pipe" : "inherit",
           env: buildEnv,
         });

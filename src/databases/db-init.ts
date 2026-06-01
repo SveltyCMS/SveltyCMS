@@ -54,7 +54,7 @@ export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
  */
 export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
   const { setSystemState, getSystemState, updateServiceHealth, startServiceInitialization } =
-    await import("@src/stores/system/state.svelte");
+    await import("@src/stores/system/state.svelte.ts");
   const { isSetupComplete } = await import("@utils/setup-check");
 
   const setupComplete = isSetupComplete();

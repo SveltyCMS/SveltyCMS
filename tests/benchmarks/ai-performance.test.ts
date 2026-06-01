@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/ai-performance.test.ts
- * @description Enterprise AI performance audit for SveltyCMS.
- * Measures the "Latency Tax" of internal CMS logic for AI enrichment and layout generation.
+ * @description AI Performance Audit
+ * @summary Measures the latency tax of internal CMS logic for AI enrichment and layout generation.
+ *
+ * ### Features:
+ * - AI enrichment latency measurement
+ * - Layout generation overhead profiling
+ * - End-to-end AI pipeline benchmarking
  */
 
 import {
@@ -21,6 +26,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runAIAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise AI Performance Audit...\n");
 
   try {
@@ -35,7 +41,10 @@ async function runAIAudit() {
     // Mock LLM and internal processing to isolate CMS overhead
     aiService.chat = async () => "Mocked LLM Response";
     aiService.process = async (_prompt: string, text: string) => `Processed: ${text}`;
-    aiService.generateLayoutSpec = async () => ({ root: "layout", elements: {} });
+    aiService.generateLayoutSpec = async () => ({
+      root: "layout",
+      elements: {},
+    });
     aiService.translate = async (text: string) => `Translated: ${text}`;
 
     // 1. Text Enrichment
@@ -90,7 +99,11 @@ async function runAIAudit() {
         val: (enrichResult.avgMs + layoutResult.avgMs).toFixed(1),
         unit: "ms",
       },
-      { key: "Rating", val: enrichResult.avgMs < 8 ? "EXCELLENT" : "GOOD", unit: "" },
+      {
+        key: "Rating",
+        val: enrichResult.avgMs < 8 ? "EXCELLENT" : "GOOD",
+        unit: "",
+      },
     ]);
 
     exportResult(enrichResult);
@@ -104,8 +117,6 @@ async function runAIAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ AI performance audit completed.");
 }
 
 test("AI Service Internal Overhead", async () => {

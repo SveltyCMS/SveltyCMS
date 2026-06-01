@@ -1,6 +1,13 @@
 /**
  * @file tests/benchmarks/cache-hit-ratio.test.ts
- * @description Measures Redis cache efficiency — hit rate, miss penalty, invalidation speed, and cold/warm fill.
+ * @description Cache Hit Ratio Audit
+ * @summary Measures Redis cache efficiency including hit rate, miss penalty, invalidation speed, and cold/warm fill.
+ *
+ * ### Features:
+ * - Hit rate and miss penalty measurement
+ * - Cache invalidation speed profiling
+ * - Cold start vs warm fill comparison
+ * - Redis-backed cache efficiency analysis
  */
 import {
   test,
@@ -20,6 +27,7 @@ import "../unit/bun-preload.ts";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runCacheAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Cache Efficiency Audit...\n");
 
   try {
@@ -96,7 +104,9 @@ async function runCacheAudit() {
         const res = await fetch(`${baseUrl}/api/system/cache/invalidate`, {
           method: "POST",
           headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ pattern: `collection:BenchmarkStable:bench-shared-*` }),
+          body: JSON.stringify({
+            pattern: `collection:BenchmarkStable:bench-shared-*`,
+          }),
         });
         if (!res.ok) throw new Error(`Invalidation failed: ${res.status}`);
         await res.json();
@@ -138,8 +148,6 @@ async function runCacheAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Cache efficiency audit completed.");
 }
 
 test("Cache Hit/Miss Ratio & Invalidation Audit", async () => {

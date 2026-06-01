@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/config/accessManagement/Roles.svelte
+@file src/routes/(app)/config/access-management/roles.svelte
 @component
 **This component manages roles within the application's access management system**
 

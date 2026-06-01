@@ -123,7 +123,7 @@ export async function handleTestingRoutes(
       }
 
       // ✨ Fix: Reset system state store so the system transitions back to SETUP/INITIALIZING
-      const { resetSystemState } = await import("@src/stores/system/state.svelte");
+      const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
       resetSystemState();
 
       return rawResponse({
@@ -276,7 +276,7 @@ export async function handleTestingRoutes(
               name: schema.name || collectionId,
               nodeType: "collection",
               collectionDef: { ...schema, _id: collectionId },
-              status: "published",
+              status: "publish",
               source: "api",
               tenantId,
             };
@@ -289,6 +289,10 @@ export async function handleTestingRoutes(
         }
       }
 
+      // Allow MongoDB write concerns to flush before cache refresh
+      if (initializedAdapter.type === "mongodb") {
+        await new Promise((r) => setTimeout(r, 100));
+      }
       // 🚀 BATCH SYNC: Refresh once for all collections
       const { refreshCollectionsCache } = await import("@src/content/content-service.server");
       await refreshCollectionsCache(tenantId, initializedAdapter);

@@ -14,7 +14,7 @@
 
 import { dev } from "$app/environment";
 import { getSetupState, SetupState, isSetupComplete, getTestSecret } from "@src/utils/setup-check";
-import { getSystemState } from "@src/stores/system/state.svelte";
+import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
 import {
   isApiLike,
@@ -477,7 +477,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       await getDbInitPromise(false, "CORE");
 
       // Verify if it failed during wait
-      const { getSystemState: getNewState } = await import("@src/stores/system/state.svelte");
+      const { getSystemState: getNewState } = await import("@src/stores/system/state.svelte.ts");
       if (getNewState().overallState === "FAILED") {
         return restrictedResponse("FAILED", isApiRoute, baseHeaderMap);
       }

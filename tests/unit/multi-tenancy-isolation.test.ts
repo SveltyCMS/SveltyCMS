@@ -161,6 +161,11 @@ describe("GraphQL Multi-Tenancy Isolation", () => {
       },
       tenantId: "tenant-A",
       bypassTenantIsolation: true,
+      cms: {
+        collections: {
+          find: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        },
+      },
     };
 
     const result = await resolverFn({}, {}, context);

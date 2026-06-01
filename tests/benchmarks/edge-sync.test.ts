@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/edge-sync.test.ts
- * @description Enterprise-grade Edge Sync benchmark for SveltyCMS.
- * Measures invalidation propagation latency across real edge nodes using live Redis.
+ * @description Enterprise Edge Sync Benchmark
+ * @summary Measures cache invalidation propagation latency across real edge nodes via live Redis
+ *
+ * ### Features:
+ * - Multi-node invalidation propagation timing
+ * - Redis pub/sub channel throughput
+ * - Cross-node cache coherence verification
  */
 
 import {
@@ -47,6 +52,7 @@ async function createLiveNode(id: string) {
 }
 
 async function runEdgeSyncAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Edge Sync Audit (Live Redis)...\n");
 
   let nodeA: CacheService | null = null;
@@ -115,21 +121,24 @@ async function runEdgeSyncAudit() {
       { key: "Avg Propagation Latency", val: result.avgMs, unit: "ms" },
       { key: "p95 Propagation", val: result.p95Ms || result.avgMs, unit: "ms" },
       { key: "Throughput", val: Math.round(result.rps || 0), unit: "ops/s" },
-      { key: "Rating", val: result.avgMs < 50 ? "EXCELLENT" : "GOOD", unit: "" },
+      {
+        key: "Rating",
+        val: result.avgMs < 50 ? "EXCELLENT" : "GOOD",
+        unit: "",
+      },
     ]);
 
     exportResult(result);
   } catch (err: any) {
     logger.error(`Edge Sync benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (nodeA) await nodeA.cleanup();
     for (const n of remoteNodes) {
       await n.cleanup();
     }
   }
-
-  console.log("\n✅ Edge sync audit completed.");
 }
 
 test("Edge Sync Enterprise Audit", async () => {

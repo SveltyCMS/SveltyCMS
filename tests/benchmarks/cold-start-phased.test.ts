@@ -1,80 +1,82 @@
 /**
  * @file tests/benchmarks/cold-start-phased.test.ts
- * @description Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
+ * @description Phased Cold Start Audit
+ * @summary Measures server cold-start latency to READY state, using the built server.
+ *
+ * ### Features:
+ * - Cold start measurement via setupBenchmarkServer()
+ * - Requires build/ or .svelte-kit/ to exist
+ * - Skips gracefully when no build output is available
  */
+
 import {
   test,
-  runBenchmark,
   printTruthTable,
   printSummaryTable,
   getDbType,
   exportResult,
+  setupBenchmarkServer,
+  stabilize,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
-import { runSystemBoot } from "@src/databases/db-init";
-import { systemStateStore, setSystemState } from "@src/stores/system/state.svelte";
-import { get } from "svelte/store";
-import { SQLiteAdapter } from "@src/databases/sqlite/sqlite-adapter";
-import { createSchemaProxy } from "@src/databases/core/schema-proxy";
+import { existsSync } from "node:fs";
 
 async function runColdStartPhasedAudit() {
   console.log("\n🚀 Starting Phased Cold Start Audit...\n");
 
-  let dbAdapter = new SQLiteAdapter() as any;
-  dbAdapter = createSchemaProxy(dbAdapter);
+  const buildExists =
+    existsSync("build/index.js") || existsSync(".svelte-kit/output/server/index.js");
+  if (!buildExists) {
+    console.log("⏭️ No build/ or .svelte-kit/ found — cold start requires build. Skipping.");
+    return;
+  }
 
-  // RESET STATE: Ensure we start from clean IDLE
-  setSystemState("IDLE", "Resetting for cold start benchmark");
-  await dbAdapter.connect(":memory:");
+  const coldStarts: number[] = [];
 
-  const results = await runBenchmark({
-    name: "Cold Start (IDLE → READY → WARMED)",
-    iterations: 5,
-    runs: 1,
-    concurrency: 1,
-    silent: false,
-    onIteration: async (_i: number) => {
-      // Re-reset between iterations
-      setSystemState("IDLE", "Reset for iteration");
-      await dbAdapter.connect(":memory:");
+  for (let i = 0; i < 5; i++) {
+    console.log(`   → Cold start iteration ${i + 1}/5...`);
+    const start = performance.now();
+    const server = await setupBenchmarkServer();
+    coldStarts.push(performance.now() - start);
+    await server.stop();
+    await stabilize(500);
+  }
 
-      // Trigger boot and poll for WARMED
-      void runSystemBoot(dbAdapter);
-
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error("Cold start timed out")), 30000);
-        const check = setInterval(() => {
-          const state = get(systemStateStore);
-          if (state.overallState === "WARMED") {
-            clearInterval(check);
-            clearTimeout(timeout);
-            resolve();
-          }
-        }, 10);
-      });
-    },
-  });
+  const avgCold = coldStarts.reduce((a, b) => a + b, 0) / coldStarts.length;
+  const sorted = [...coldStarts].sort((a, b) => a - b);
+  const p95Cold = sorted[Math.floor(sorted.length * 0.95)];
 
   printTruthTable({
     title: "SVELTYCMS — PHASED COLD START AUDIT",
     shortLabel: "Cold Start",
-    subtitle: `Phased Boot (IDLE → READY → WARMED) • ${getDbType().toUpperCase()}`,
-    results: [{ ...results, name: "Cold Start (IDLE → WARMED)", layer: "Core" }],
+    subtitle: `Build-Based Boot • ${getDbType().toUpperCase()}`,
+    results: [
+      {
+        name: "Cold Start (IDLE → READY)",
+        avgMs: avgCold,
+        p95Ms: p95Cold,
+        layer: "Core",
+      },
+    ],
   });
 
   printSummaryTable([
-    { key: "Avg Cold Start", val: results.avgMs, unit: "ms" },
-    { key: "p95 Cold Start", val: results.p95Ms, unit: "ms" },
+    { key: "Average Cold Start", val: avgCold.toFixed(0), unit: "ms" },
+    { key: "p95 Cold Start", val: p95Cold.toFixed(0), unit: "ms" },
     {
-      key: "Reliability",
-      val: results.errorRate === 0 ? "STABLE" : "DEGRADED",
+      key: "Rating",
+      val: avgCold < 8000 ? "EXCELLENT" : avgCold < 12000 ? "GOOD" : "SLOW",
       unit: "",
     },
   ]);
 
-  exportResult(results);
+  exportResult({
+    name: "Cold Start (IDLE → READY)",
+    avgMs: avgCold,
+    p95Ms: p95Cold,
+  });
 }
 
 test("Cold Start Phased Boot Latency", async () => {
   await runColdStartPhasedAudit();
-}, 120000);
+}, 300000);

@@ -54,18 +54,75 @@ export const globalSearchIndex = writable<SearchData[]>([
     description: "Build schemas with Visual Logic and BuzzForms.",
     keywords: ["builder", "collection", "logic", "conditional", "schema"],
     triggers: {
-      "Go to System Builder": { path: "/config/collectionbuilder" },
+      "Go to Collection Builder": { path: "/config/collectionbuilder" },
       "Create New Collection": { path: "/config/collectionbuilder/new" },
       "Manage Field Logic": { path: "/config/collectionbuilder?tab=logic" },
     },
   },
   {
-    title: "Workflow Engine",
-    description: "Visual State Machine for Content Lifecycles.",
-    keywords: ["workflow", "automation", "state", "approval", "publishing"],
+    title: "System Settings",
+    description: "Database and infrastructure configuration — extensible via plugins.",
+    keywords: ["settings", "config", "smtp", "email", "site", "cache", "security"],
+    triggers: { "Go to System Settings": { path: "/config/system-settings" } },
+  },
+  {
+    title: "System Monitor",
+    description: "Health dashboard, audit log, and plugin status overview.",
+    keywords: ["monitor", "health", "audit", "status", "logs"],
+    triggers: { "Go to System Monitor": { path: "/config/monitor" } },
+  },
+  {
+    title: "Access Management",
+    description: "Users, roles, permissions, and website tokens.",
+    keywords: ["access", "users", "roles", "permissions", "tokens", "rbac"],
     triggers: {
-      "Go to Workflow Builder": { path: "/config/workflows" },
+      "Go to Access Management": { path: "/config/access-management" },
     },
+  },
+  {
+    title: "Extensions",
+    description: "Plugins, widgets, themes, and marketplace.",
+    keywords: ["extensions", "plugins", "widgets", "themes", "marketplace"],
+    triggers: { "Go to Extensions": { path: "/config/extensions" } },
+  },
+  {
+    title: "Automations",
+    description: "Event-driven workflow automations.",
+    keywords: ["automation", "workflow", "trigger", "action", "event"],
+    triggers: { "Go to Automations": { path: "/config/automations" } },
+  },
+  {
+    title: "Background Queue",
+    description: "Monitor background jobs and retry failed tasks.",
+    keywords: ["queue", "jobs", "tasks", "background", "retry"],
+    triggers: { "Go to Background Queue": { path: "/config/queue" } },
+  },
+  {
+    title: "Data Sync",
+    description: "Import content from external platforms and sync config to filesystem.",
+    keywords: ["sync", "import", "export", "migrate", "config"],
+    triggers: {
+      "Go to Data Sync": { path: "/config/sync" },
+      "Smart Importer": { path: "/config/importer" },
+    },
+  },
+  {
+    title: "Webhooks",
+    description: "Outgoing HTTP callbacks on content events.",
+    keywords: ["webhook", "callback", "http", "event", "integration"],
+    triggers: { "Go to Webhooks": { path: "/config/webhooks" } },
+  },
+  {
+    title: "Redirects",
+    description: "301/302 redirect rules with regex support.",
+    keywords: ["redirect", "seo", "301", "302", "regex"],
+    triggers: { "Go to Redirects": { path: "/config/redirects" } },
+  },
+  {
+    title: "Trash",
+    description: "Recover or permanently delete soft-deleted content.",
+    keywords: ["trash", "delete", "recover", "restore", "soft-delete"],
+    triggers: { "Go to Trash": { path: "/config/trash" } },
   },
   {
     title: "User Profile",
@@ -87,8 +144,8 @@ export const globalSearchIndex = writable<SearchData[]>([
   },
   {
     title: "Configuration",
-    description: "Global system and plugin settings.",
-    keywords: ["config", "settings", "setup"],
+    description: "System configuration overview and navigation.",
+    keywords: ["config", "settings", "setup", "administration"],
     triggers: { "Go to Configuration": { path: "/config" } },
   },
 ]);
@@ -112,5 +169,5 @@ export function searchGlobalIndex(query: string): SearchData[] {
 }
 
 export function initializeGlobalSearch() {
-  logger.info("Global search initialized with Workflow and Batch engines.");
+  logger.info("Global search initialized with full config index.");
 }

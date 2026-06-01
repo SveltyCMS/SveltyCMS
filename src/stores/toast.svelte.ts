@@ -9,7 +9,7 @@
  */
 
 import { browser } from "$app/environment";
-import { screen, ScreenSize } from "./screen-size-store.svelte";
+import { screen, ScreenSize } from "@stores/screen-size-store.svelte.ts";
 
 // Test-friendly runtime checks.
 // Important: TEST_MODE must not force browser behavior during SSR/API requests.
@@ -107,9 +107,7 @@ class ToastStore {
   }
 
   get sortedToasts(): Toast[] {
-    return [...this.toasts].sort(
-      (a, b) => this.priority[b.type] - this.priority[a.type],
-    );
+    return [...this.toasts].sort((a, b) => this.priority[b.type] - this.priority[a.type]);
   }
 
   constructor() {
@@ -138,9 +136,7 @@ class ToastStore {
   // ==========================================
 
   /** Get effective position based on screen size */
-  getEffectivePosition(
-    requested?: ToastPosition,
-  ): Exclude<ToastPosition, "responsive"> {
+  getEffectivePosition(requested?: ToastPosition): Exclude<ToastPosition, "responsive"> {
     const pos = requested ?? this.position;
 
     if (pos !== "responsive") return pos;
@@ -195,41 +191,26 @@ class ToastStore {
     });
   }
 
-  success(
-    msgOrOpts: string | Partial<ToastOptions>,
-    opts?: Partial<ToastOptions>,
-  ): string {
+  success(msgOrOpts: string | Partial<ToastOptions>, opts?: Partial<ToastOptions>): string {
     return this._handleLegacy("success", msgOrOpts, opts);
   }
 
-  error(
-    msgOrOpts: string | Partial<ToastOptions>,
-    opts?: Partial<ToastOptions>,
-  ): string {
+  error(msgOrOpts: string | Partial<ToastOptions>, opts?: Partial<ToastOptions>): string {
     return this._handleLegacy("error", msgOrOpts, {
       duration: opts?.duration ?? 6000,
       ...opts,
     });
   }
 
-  warning(
-    msgOrOpts: string | Partial<ToastOptions>,
-    opts?: Partial<ToastOptions>,
-  ): string {
+  warning(msgOrOpts: string | Partial<ToastOptions>, opts?: Partial<ToastOptions>): string {
     return this._handleLegacy("warning", msgOrOpts, opts);
   }
 
-  info(
-    msgOrOpts: string | Partial<ToastOptions>,
-    opts?: Partial<ToastOptions>,
-  ): string {
+  info(msgOrOpts: string | Partial<ToastOptions>, opts?: Partial<ToastOptions>): string {
     return this._handleLegacy("info", msgOrOpts, opts);
   }
 
-  async promise<T>(
-    promise: Promise<T>,
-    options: ToastPromiseOptions<T>,
-  ): Promise<T> {
+  async promise<T>(promise: Promise<T>, options: ToastPromiseOptions<T>): Promise<T> {
     const id = this.show({
       type: "loading",
       message: options.loading,
@@ -241,10 +222,7 @@ class ToastStore {
 
       this.update(id, {
         type: "success",
-        message:
-          typeof options.success === "function"
-            ? options.success(result)
-            : options.success,
+        message: typeof options.success === "function" ? options.success(result) : options.success,
         duration: 3000,
       });
 
@@ -255,9 +233,7 @@ class ToastStore {
       this.update(id, {
         type: "error",
         message:
-          typeof options.error === "function"
-            ? options.error(err)
-            : options.error || errorMessage,
+          typeof options.error === "function" ? options.error(err) : options.error || errorMessage,
         duration: 5000,
       });
 
@@ -401,10 +377,7 @@ class ToastStore {
   }
 
   // Batch multiple toasts
-  batch(
-    items: Array<{ message: string; type: ToastType }>,
-    opts?: { stagger?: number },
-  ): void {
+  batch(items: Array<{ message: string; type: ToastType }>, opts?: { stagger?: number }): void {
     items.forEach((item, i) => {
       setTimeout(
         () => {
@@ -442,9 +415,7 @@ class ToastStore {
     // Check for duplicate message within last 5 seconds to prevent spam
     const duplicate = this.toasts.find(
       (t) =>
-        t.message === toast.message &&
-        t.type === toast.type &&
-        Date.now() - t.createdAt < 5000,
+        t.message === toast.message && t.type === toast.type && Date.now() - t.createdAt < 5000,
     );
 
     if (duplicate) {

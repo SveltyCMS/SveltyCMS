@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/transaction-acid.test.ts
- * @description Enterprise ACID benchmark for SveltyCMS.
- * Measures transaction commit latencies and rollback overhead.
+ * @description Transaction ACID Compliance Benchmark
+ * @summary Measures transaction commit latencies and rollback overhead across database adapters
+ *
+ * ### Features:
+ * - Transaction commit latency profiling
+ * - Rollback overhead measurement
+ * - Concurrent transaction isolation verification
  */
 
 import {
@@ -22,6 +27,7 @@ const COLLECTION_ID = "bench_acid";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runAcidAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("💎 Starting Enterprise ACID Audit...\n");
 
   try {
@@ -122,7 +128,11 @@ async function runAcidAudit() {
       { key: "Avg Commit Latency", val: commitResult.avgMs, unit: "ms" },
       { key: "Rollback Verification", val: rollbackResult.avgMs, unit: "ms" },
       { key: "Transaction Stability", val: "VERIFIED", unit: "" },
-      { key: "Peak Throughput", val: Math.round(commitResult.rps || 0), unit: "tx/s" },
+      {
+        key: "Peak Throughput",
+        val: Math.round(commitResult.rps || 0),
+        unit: "tx/s",
+      },
     ]);
 
     exportResult(commitResult);
@@ -137,8 +147,6 @@ async function runAcidAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ ACID audit completed.");
 }
 
 async function prepareAcidCollection(db: any) {

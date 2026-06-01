@@ -243,12 +243,49 @@ export class MongoCollectionMethods {
     try {
       const structureCollection = this.connection.db?.collection("system_content_structure");
       const query: Record<string, unknown> = { nodeType: "collection" };
-      if (tenantId) {
+      if (tenantId && tenantId !== "global") {
         query.tenantId = tenantId;
       }
       const nodes = (await structureCollection?.find(query).toArray()) || [];
 
-      return nodes.filter((node) => node.collectionDef).map((node) => node.collectionDef as Schema);
+      const schemas = nodes
+        .filter((node) => node.collectionDef)
+        .map((node) => node.collectionDef as Schema);
+      // Fallback: registered models when content structure collection is empty.
+      // Query a sample document from each collection to discover actual field names.
+      if (schemas.length === 0 && this.models.size > 0) {
+        const result: Schema[] = [];
+        for (const [id, entry] of this.models) {
+          try {
+            const doc = await entry.model.findOne({}).lean();
+            const fieldNames = doc
+              ? Object.keys(doc).filter(
+                  (k) => !k.startsWith("_") && k !== "tenantId" && k !== "__v",
+                )
+              : [];
+            result.push({
+              _id: id,
+              name: id,
+              fields: fieldNames.map((k) => ({
+                db_fieldName: k,
+                label: k,
+                widget: { Name: "Input" },
+                type: "string",
+              })),
+              status: "publish",
+            } as Schema);
+          } catch {
+            result.push({
+              _id: id,
+              name: id,
+              fields: [],
+              status: "publish",
+            } as Schema);
+          }
+        }
+        return result;
+      }
+      return schemas;
     } catch (error) {
       logger.error(`Failed to list schemas for tenant ${tenantId}:`, error);
       return [];

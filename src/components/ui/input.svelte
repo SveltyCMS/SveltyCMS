@@ -4,13 +4,16 @@
 **SveltyCMS Input — WCAG 3.0 Ready**
 
 Standard text input with label, error state, `aria-invalid`/`aria-describedby` linkage,
-and `crypto.randomUUID()` for accessible ID generation.
+and `crypto.randomUUID()` for accessible ID generation. Supports progressive
+corner-shape angled corners.
 
 ### Props
 - `value` (string | number | string[]): Bindable input value.
 - `label` (string): Label text above the input.
 - `error` (string): Error message with red border and alert text.
 - `type` (string): HTML input type (default: 'text').
+- `shape` ('round' | 'angle'): Advanced corner-shape option (default: 'round').
+- `focusColor` (string): Custom focus ring CSS color (e.g. hex, rgb).
 - `class` / `inputClass` / `labelClass` (string): CSS classes.
 - `id` (string): Custom ID (auto-generated UUID otherwise).
 
@@ -18,6 +21,7 @@ and `crypto.randomUUID()` for accessible ID generation.
 - WCAG 3.0 ready with `aria-invalid`, `aria-describedby`, label/ID `for` linkage
 - `crypto.randomUUID()` for collision-free accessible IDs
 - error message with `role="alert"` live region
+- custom angled corners via clip-path fallback
 - full Svelte 5 runes: $props, $bindable, $derived
 -->
 
@@ -37,6 +41,8 @@ and `crypto.randomUUID()` for accessible ID generation.
     labelClass?: string;
     inputClass?: string;
     error?: string;
+    shape?: 'round' | 'angle';
+    focusColor?: string;
     class?: string;
   };
 
@@ -47,6 +53,8 @@ and `crypto.randomUUID()` for accessible ID generation.
     labelClass,
     inputClass,
     error,
+    shape = 'round',
+    focusColor,
     class: className,
     id = generatedId,
     type = "text",
@@ -54,9 +62,14 @@ and `crypto.randomUUID()` for accessible ID generation.
   }: Props = $props();
 
   const baseInputStyles =
-    "flex h-10 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-surface-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50";
+    "flex h-10 w-full border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-surface-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200";
 
   const errorInputStyles = "border-error-500 focus-visible:ring-error-500";
+
+  const customStyles = $derived.by(() => {
+    if (!focusColor) return '';
+    return `--focus-ring-color: ${focusColor};`;
+  });
 </script>
 
 <div class="space-y-2 w-full">
@@ -78,9 +91,12 @@ and `crypto.randomUUID()` for accessible ID generation.
     class={cn(
       baseInputStyles,
       error && errorInputStyles,
+      shape === 'angle' ? 'corner-angle' : 'rounded-md',
+      focusColor && 'focus-custom',
       inputClass,
       className,
     )}
+    style={customStyles || undefined}
     bind:value
     aria-invalid={!!error}
     {...rest}
@@ -92,3 +108,27 @@ and `crypto.randomUUID()` for accessible ID generation.
     </p>
   {/if}
 </div>
+
+<style>
+  /* Progressive enhancement: Corner shape angled cut styles with clip-path fallback */
+  .corner-angle {
+    position: relative;
+    corner-shape: angle; /* W3C CSS Standard */
+    --corner-offset: 6px;
+    clip-path: polygon(
+      0% var(--corner-offset),
+      var(--corner-offset) 0%,
+      calc(100% - var(--corner-offset)) 0%,
+      100% var(--corner-offset),
+      100% calc(100% - var(--corner-offset)),
+      calc(100% - var(--corner-offset)) 100%,
+      var(--corner-offset) 100%,
+      0% calc(100% - var(--corner-offset))
+    );
+  }
+
+  /* Focus ring overrides for database/tenant custom theme support */
+  .focus-custom:focus-visible {
+    --tw-ring-color: var(--focus-ring-color) !important;
+  }
+</style>

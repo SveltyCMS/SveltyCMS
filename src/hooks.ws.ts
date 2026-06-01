@@ -27,9 +27,9 @@ import type { DatabaseId } from "@src/content/types";
 // Re-export the message hook
 export { message } from "svelte-realtime/server";
 
-// 🚀 Platform reference lives in src/live/ws-platform.ts (extracted here
+// 🚀 Platform reference lives in src/lib/ws-platform.ts (extracted here
 // to avoid SvelteKit's "unknown export" warning on non-hook exports).
-// Import directly: import { globalPlatform } from "@src/live/ws-platform";
+// Import directly: import { globalPlatform } from "@src/lib/ws-platform";
 import { initWsPlatform } from "@src/live/ws-platform";
 
 /** Initialize platform for global broadcasting */

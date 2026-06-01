@@ -5,7 +5,7 @@
  * All exports are SvelteKit query() wrappers per .remote.ts requirements.
  */
 
-import { query } from "$app/server";
+import { query, getRequestEvent } from "$app/server";
 
 export const generateToken = query(
   "unchecked",
@@ -14,6 +14,7 @@ export const generateToken = query(
     permissions: string[];
     expiresAt: string;
   }): Promise<{ success: boolean; message?: string; error?: string }> => {
+    const { fetch } = getRequestEvent();
     const r = await fetch("/api/website-tokens", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -30,6 +31,7 @@ export const generateToken = query(
 export const deleteWebsiteToken = query(
   "unchecked",
   async (id: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    const { fetch } = getRequestEvent();
     const r = await fetch(`/api/website-tokens/${id}`, { method: "DELETE" });
     const d = await r.json();
     return r.ok
@@ -41,6 +43,7 @@ export const deleteWebsiteToken = query(
 export const bulkDeleteTokens = query(
   "unchecked",
   async (ids: string[]): Promise<{ success: boolean; deleted: number; error?: string }> => {
+    const { fetch } = getRequestEvent();
     const results = await Promise.all(
       ids.map((id) => fetch(`/api/website-tokens/${id}`, { method: "DELETE" })),
     );

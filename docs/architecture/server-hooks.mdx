@@ -54,7 +54,7 @@ The pipeline is **dynamically dispatched** based on system state, with **two cac
 ```typescript
 // READY Pipeline (production order):
 const pipeline = [
-  handleHyperTurbo, //  1. ✨ BENCHMARK FAST-PATH (Bypasses all hooks for verified benchmarks)
+  handleHyperTurbo, // 1. BENCHMARK AUTH (Env-gated + secret + CSPRNG nonce; auth paths excluded)
   handleTurboPipeline, //  2. CONSOLIDATED GATEWAY (Classify, State, Setup, Health, CORS)
   handleSecurityHeaders, //  3. DEFENSE-IN-DEPTH (Essential Security Headers)
   handleTestIsolation, //  4. CI ISOLATION (Triple-lock: env + localhost + crypto secret)
@@ -73,6 +73,10 @@ const pipeline = [
   handleTokenResolution, // 17. RBAC Token Replacement in API responses
 ];
 ```
+
+### handleHyperTurbo - Benchmark Auth (Security-Gated)
+
+First hook. Active only when `BENCHMARK=true`. Requires `x-test-secret` + optional CSPRNG `x-bench-nonce`. Auth paths excluded. See [No Backdoor Policy](./security/index.mdx).
 
 ---
 

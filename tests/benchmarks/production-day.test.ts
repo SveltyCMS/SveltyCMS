@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/production-day.test.ts
- * @description 🚀 "Production Day in the Life" Composite Benchmark.
- * Simulates a realistic multi-user workload with a weighted mix of operations.
+ * @description Production Day Composite Workload Benchmark
+ * @summary Simulates a realistic multi-user workload with a weighted mix of read, list, update, media probe, and GraphQL search operations.
+ *
+ * ### Features:
+ * - Weighted operation distribution (40% list, 20% entry read, 25% update, 10% media, 5% GQL)
+ * - Realistic think-time simulation between user actions
+ * - 8-concurrent simulated users with traced request IDs
+ * - Composite throughput measurement for production-like conditions
  */
 
 import {
@@ -24,6 +30,7 @@ let stopServer: (() => Promise<void>) | null = null;
 let apiBaseUrl: string;
 
 async function runProductionDayAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log(`\n🚀 Starting "Production Day in the Life" Composite Audit...\n`);
 
   const { stop, baseUrl } = await setupBenchmarkServer();
@@ -156,8 +163,6 @@ async function runProductionDayAudit() {
     exportMetric("workflow.production_day.avg", results.avgMs, "ms");
     exportMetric("workflow.production_day.p95", results.p95Ms, "ms");
     exportMetric("workflow.production_day.rps", results.rps, "ops/s");
-
-    console.log("\n✅ Production day audit completed.");
   } finally {
     if (stopServer) {
       await stopServer();

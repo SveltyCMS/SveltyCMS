@@ -1,5 +1,5 @@
 /**
- * @file src/routes/(app)/config/accessManagement/+page.server.ts
+ * @file src/routes/(app)/config/access-management/+page.server.ts
  * @description Server-side logic for Access Management page using simplified auth system.
  */
 

@@ -100,7 +100,16 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
   async clearDatabase(): Promise<DatabaseResult<void>> {
     if (!this.isConnected()) return this.notConnectedError();
     if (this.connection!.db) {
-      await this.connection!.db.dropDatabase();
+      const db = this.connection!.db;
+      // Drop collections individually instead of dropDatabase().
+      // dropDatabase() destroys the connection pool, causing
+      // MongoClientClosedError in subsequent operations.
+      const cols = await db.listCollections().toArray();
+      for (const c of cols) {
+        if (!c.name.startsWith("system.")) {
+          await db.dropCollection(c.name).catch(() => {});
+        }
+      }
     }
     return { success: true, data: undefined };
   }

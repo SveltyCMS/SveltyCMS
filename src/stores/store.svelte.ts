@@ -1,241 +1,79 @@
 /** @file src/stores/store.svelte.ts
- * @description Global state management with Enterprise-grade reactivity
- *
- * Features:
- * - language persistence
- * - translation progress
- * - UI state management
- * - validation store
- * - change tracking
+ * @description Global state management with Enterprise-grade reactivity.
  */
 
-import type { Locale } from "@src/paraglide/runtime";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import type { Component } from "svelte";
-import { SvelteMap, SvelteSet } from "svelte/reactivity";
-
-const isProd =
-  typeof globalThis !== "undefined" && (globalThis as any).process?.env?.NODE_ENV === "production";
-
-// --- TYPES & INTERFACES ---
-
-interface SaveFunction {
-  fn: (args?: unknown) => unknown;
-  reset: () => void;
-}
-
-export interface TranslationSet {
-  total: SvelteSet<string>;
-  translated: SvelteSet<string>;
-}
-
-export type TranslationProgress = {
-  [key in Locale]?: TranslationSet;
-} & {
-  show: boolean;
-};
-
-// --- HELPER FUNCTIONS ---
-
-/**
- * Normalizes avatar URLs to ensure consistency across environments.
- */
-export function normalizeAvatarUrl(url: string | null | undefined): string {
-  const DEFAULT_AVATAR = "/Default_User.svg";
-  if (!url) {
-    return DEFAULT_AVATAR;
-  }
-
-  if (url.startsWith("data:") || /^https?:\/\//i.test(url)) {
-    return url;
-  }
-  if (/^\/?Default_User\.svg$/i.test(url)) {
-    return DEFAULT_AVATAR;
-  }
-
-  const normalized = url.replace(/^https?:\/\/[^/]+/i, "").replace(/^\/+/, "/");
-  if (normalized === "/files" || normalized === "/files/") {
-    return DEFAULT_AVATAR;
-  }
-  if (normalized.startsWith("/files/")) {
-    return normalized;
-  }
-
-  const trimmed = normalized.startsWith("/") ? normalized.slice(1) : normalized;
-  if (trimmed === "files") {
-    return DEFAULT_AVATAR;
-  }
-
-  if (trimmed.startsWith("static/")) {
-    return `/${trimmed}`;
-  }
-
-  const MEDIA_FOLDER = publicEnv.MEDIA_FOLDER;
-  if (trimmed.startsWith(`${MEDIA_FOLDER}/`)) {
-    return `/files/${trimmed.slice(MEDIA_FOLDER.length + 1)}`;
-  }
-  if (trimmed.startsWith("avatars/")) {
-    return `/files/${trimmed}`;
-  }
-
-  return trimmed
-    ? trimmed.endsWith(".svg")
-      ? `/${trimmed}`
-      : `/files/${trimmed}`
-    : DEFAULT_AVATAR;
-}
-
-/**
- * Cookie management helper
- */
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    return parts.pop()?.split(";").shift() || null;
-  }
-  return null;
-}
-
-function setCookie(name: string, value: string) {
-  if (typeof document === "undefined" || !value) {
-    return;
-  }
-  document.cookie = `${name}=${value}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${isProd ? "; Secure" : ""}`;
-}
-
-// --- CORE APP STORE ---
-
-export class AppStore {
-  // Granular Reactive State
-  translationProgress = $state({ show: false }) as TranslationProgress;
-  validationErrorsMap = new SvelteMap<string, string | null>();
-
-  // Core UI State
+class AppStore {
+  _systemLanguage = $state("en");
+  _contentLanguage = $state("en");
+  avatarSrc = $state("/Default_User.svg");
+  listboxValueState = $state("create");
   tabSetState = $state(0);
   drawerExpandedState = $state(true);
-  listboxValueState = $state("create");
-  avatarSrc = $state("/Default_User.svg");
-
-  // Status & Completion
-  translationStatus = $state<Record<string, unknown>>({});
   completionStatus = $state(0);
   translationStatusOpen = $state(false);
-
-  // Language Management (with persistence)
-  _systemLanguage = $state<Locale>("en" as Locale);
-  _contentLanguage = $state<Locale>("en" as Locale);
-
-  // Rendering & UI Elements
-  headerActionButton = $state<Component<Record<string, unknown>> | undefined>(undefined);
-  headerActionButton2 = $state<Component<Record<string, unknown>> | undefined>(undefined);
-  pkgBgColor = $state("preset-filled-primary-500");
-  file = $state<File | null>(null);
   saveEditedImage = $state(false);
-  saveFunction = $state<SaveFunction>({ fn: () => {}, reset: () => {} });
-
-  // App Lifecycle
-  saveLayerStore = $state<() => Promise<void>>(async () => {});
+  file = $state<File | null>(null);
   shouldShowNextButton = $state(false);
+  saveLayerStore = $state<() => Promise<void>>(async () => {});
+  saveFunction = $state<{ fn: (args?: unknown) => unknown; reset: () => void }>({
+    fn: () => {},
+    reset: () => {},
+  });
 
-  constructor() {
-    this.init();
-  }
-
-  private init() {
-    // 1. Initialize Languages from Cookies/Env
-    try {
-      this._systemLanguage =
-        (getCookie("systemLanguage") as Locale) ?? (publicEnv.BASE_LOCALE as Locale) ?? "en";
-      this._contentLanguage =
-        (getCookie("contentLanguage") as Locale) ??
-        (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale) ??
-        "en";
-    } catch {
-      this._systemLanguage = "en" as Locale;
-      this._contentLanguage = "en" as Locale;
-    }
-
-    // 2. Initialize Translation Progress Maps
-    const langs = (publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) || [];
-    for (const lang of langs) {
-      this.translationProgress[lang] = {
-        total: new SvelteSet<string>(),
-        translated: new SvelteSet<string>(),
-      };
-    }
-  }
-
-  // Dynamic Getters/Setters for Language (Auto-sync with cookies)
   get systemLanguage() {
     return this._systemLanguage;
   }
-  set systemLanguage(v: Locale) {
+  set systemLanguage(v: string) {
     this._systemLanguage = v;
-    setCookie("systemLanguage", v);
   }
 
   get contentLanguage() {
     return this._contentLanguage;
   }
-  set contentLanguage(v: Locale) {
+  set contentLanguage(v: string) {
     this._contentLanguage = v;
-    setCookie("contentLanguage", v);
   }
 
-  // Methods
   setAvatarSrc(v: string) {
-    this.avatarSrc = normalizeAvatarUrl(v);
-  }
-
-  updateTranslationStatus(value: Record<string, unknown>) {
-    Object.assign(this.translationStatus, value);
-  }
-
-  setTranslationStatusOpen(v: boolean) {
-    this.translationStatusOpen = v;
-  }
-
-  setCompletionStatus(v: number) {
-    this.completionStatus = v;
+    this.avatarSrc = v;
   }
 }
 
 export const app = new AppStore();
 
-// --- ENTERPRISE VALIDATION STORE ---
+class ValidationStore {
+  _errors = $state<Record<string, string | null>>({});
 
-export const validationStore = {
   get errors() {
-    return Object.fromEntries(app.validationErrorsMap);
-  },
-  get isValid() {
-    for (const error of app.validationErrorsMap.values()) {
-      if (error) {
-        return false;
-      }
-    }
-    return true;
-  },
-  setError: (fieldName: string, errorMessage: string | null) => {
-    if (app.validationErrorsMap.get(fieldName) !== errorMessage) {
-      app.validationErrorsMap.set(fieldName, errorMessage);
-    }
-  },
-  clearError: (fieldName: string) => {
-    if (app.validationErrorsMap.has(fieldName)) {
-      app.validationErrorsMap.delete(fieldName);
-    }
-  },
-  clearAllErrors: () => app.validationErrorsMap.clear(),
-  getError: (fieldName: string) => app.validationErrorsMap.get(fieldName) || null,
-  hasError: (fieldName: string) => !!app.validationErrorsMap.get(fieldName),
-};
+    return this._errors;
+  }
 
-// --- ENTERPRISE DATA CHANGE TRACKING ---
+  get isValid() {
+    return Object.values(this._errors).every((e) => !e);
+  }
+
+  setError(field: string, msg: string | null) {
+    this._errors[field] = msg;
+  }
+
+  clearError(field: string) {
+    delete this._errors[field];
+  }
+
+  clearAllErrors() {
+    this._errors = {};
+  }
+
+  getError(field: string) {
+    return this._errors[field] ?? null;
+  }
+
+  hasError(field: string) {
+    return !!this._errors[field];
+  }
+}
+
+export const validationStore = new ValidationStore();
 
 class DataChangeStore {
   hasChanges = $state(false);
@@ -270,28 +108,12 @@ class DataChangeStore {
 
 export const dataChangeStore = new DataChangeStore();
 
-// Custom Lightweight Toast Store
-export { toast } from "./toast.svelte.ts";
-
-// Static Constants
-export const tableHeaders = ["id", "email", "username", "role", "createdAt"] as const;
-export const indexer = undefined;
-
-// --- Language Store Wrappers (Compatibility with theme branch API) ---
-// These provide .value getter and .set() method that delegate to app store
-
 export const systemLanguage = {
   get value() {
     return app.systemLanguage;
   },
-  set value(newValue: Locale) {
-    app.systemLanguage = newValue;
-  },
-  set(newValue: Locale) {
-    app.systemLanguage = newValue;
-  },
-  update(fn: (value: Locale) => Locale) {
-    app.systemLanguage = fn(app.systemLanguage);
+  set value(v: string) {
+    app.systemLanguage = v;
   },
 };
 
@@ -299,43 +121,18 @@ export const contentLanguage = {
   get value() {
     return app.contentLanguage;
   },
-  set value(newValue: Locale) {
-    app.contentLanguage = newValue;
-  },
-  set(newValue: Locale) {
-    app.contentLanguage = newValue;
-  },
-  update(fn: (value: Locale) => Locale) {
-    app.contentLanguage = fn(app.contentLanguage);
+  set value(v: string) {
+    app.contentLanguage = v;
   },
 };
 
-// --- Compatibility Exports for theme branch components ---
-
-// translationProgress - direct reference to app.translationProgress
+let _transProgress = $state(0);
 export const translationProgress = {
   get value() {
-    return app.translationProgress;
+    return _transProgress;
   },
-  set value(newValue: TranslationProgress) {
-    Object.assign(app.translationProgress, newValue);
-  },
-  subscribe(fn: (value: TranslationProgress) => void) {
-    fn(app.translationProgress);
-    return () => {};
-  },
-};
-
-// avatarSrc - provides .value getter and setter
-export const avatarSrc = {
-  get value() {
-    return app.avatarSrc;
-  },
-  set value(newValue: string) {
-    app.avatarSrc = newValue;
-  },
-  set(newValue: string) {
-    app.avatarSrc = newValue;
+  set value(v: number) {
+    _transProgress = v;
   },
 };
 
@@ -343,34 +140,40 @@ export const storeListboxValue = {
   get value() {
     return app.listboxValueState;
   },
-  set value(newValue: string) {
-    app.listboxValueState = newValue;
-  },
-  set(newValue: string) {
-    app.listboxValueState = newValue;
-  },
-  subscribe(fn: (value: string) => void) {
-    fn(app.listboxValueState);
-    return () => {};
+  set value(v: string) {
+    app.listboxValueState = v;
   },
 };
 
-// tabSet - direct reference to app.tabSetState
 export const tabSet = {
   get value() {
     return app.tabSetState;
   },
-  set value(newValue: number) {
-    app.tabSetState = newValue;
-  },
-  set(newValue: number) {
-    app.tabSetState = newValue;
-  },
-  subscribe(fn: (value: number) => void) {
-    fn(app.tabSetState);
-    return () => {};
-  },
-  update(fn: (value: number) => number) {
-    app.tabSetState = fn(app.tabSetState);
+  set value(v: number) {
+    app.tabSetState = v;
   },
 };
+
+export const avatarSrc = {
+  get value() {
+    return app.avatarSrc;
+  },
+  set value(v: string) {
+    app.avatarSrc = v;
+  },
+};
+
+export function normalizeAvatarUrl(url: string | null | undefined): string {
+  const DEFAULT_AVATAR = "/Default_User.svg";
+  if (!url) return DEFAULT_AVATAR;
+  if (url.startsWith("data:") || /^https?:\/\//i.test(url)) return url;
+  if (/^\/?Default_User\.svg$/i.test(url)) return DEFAULT_AVATAR;
+  const normalized = url.replace(/^https?:\/\/[^/]+/i, "").replace(/^\/+/, "/");
+  if (normalized.startsWith("/files/")) return normalized;
+  return normalized.startsWith("/") ? normalized : "/files/" + normalized;
+}
+
+export const tableHeaders = ["id", "email", "username", "role", "createdAt"] as const;
+export const indexer = undefined;
+
+export { toast } from "./toast.svelte.ts";

@@ -39,20 +39,14 @@ export async function handleStripeWebhook(
     const { pluginRegistry } = await import("@src/plugins/registry");
     const pluginState = await pluginRegistry.getPluginState("stripe", tenantId);
     const webhookSecret =
-      (pluginState?.settings as any)?.webhookSecret ||
-      process.env.STRIPE_WEBHOOK_SECRET ||
-      "";
+      (pluginState?.settings as any)?.webhookSecret || process.env.STRIPE_WEBHOOK_SECRET || "";
 
     if (!webhookSecret) {
       return { received: false, error: "Webhook secret not configured" };
     }
 
     // Verify signature
-    const event = stripe.webhooks.constructEvent(
-      payload,
-      signature,
-      webhookSecret,
-    ) as WebhookEvent;
+    const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret) as WebhookEvent;
 
     // Handle payment events
     switch (event.type) {

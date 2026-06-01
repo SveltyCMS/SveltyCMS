@@ -4,21 +4,18 @@
 **SveltyCMS Badge — WCAG 3.0 Ready**
 
 Compact label for status indicators, counts, and metadata. Supports legacy variant
-mapping for backward compatibility and filled/tonal/outlined presets.
+mapping for backward compatibility, filled/tonal/outlined presets, and progressive
+corner-shape angled corners.
 
 ### Props
 - `variant` ('primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface' | 'outline'): Legacy variant with auto preset/color mapping.
 - `preset` ('filled' | 'tonal' | 'outlined'): Override visual style.
+- `color` (string): Standard theme color or custom CSS color (e.g. hex, rgb).
 - `size` ('sm' | 'md' | 'lg'): Size variant (default: 'md').
 - `rounded` (boolean): Full rounded pill shape (default: true).
+- `shape` ('round' | 'angle'): Advanced corner-shape option (default: 'round').
 - `class` (string): Additional CSS classes.
 - `children` (Snippet): Badge content.
-
-### Features:
-- backward-compatible variant mapping for test compatibility
-- filled, tonal, and outlined preset variants
-- three size densities with proportional padding
-- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">
@@ -29,9 +26,10 @@ mapping for backward compatibility and filled/tonal/outlined presets.
   type Props = HTMLAttributes<HTMLDivElement> & {
     variant?: 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface' | 'outline';
     preset?: 'filled' | 'tonal' | 'outlined';
-    color?: 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface';
+    color?: string;
     size?: 'sm' | 'md' | 'lg';
     rounded?: boolean;
+    shape?: 'round' | 'angle';
     children?: Snippet;
     class?: string;
   };
@@ -42,6 +40,7 @@ mapping for backward compatibility and filled/tonal/outlined presets.
     color: propColor,
     size = 'md',
     rounded = true,
+    shape = 'round',
     children,
     class: className,
     ...rest
@@ -68,21 +67,69 @@ mapping for backward compatibility and filled/tonal/outlined presets.
   const finalPreset = $derived(propPreset || variantMap[variant]?.preset || 'filled');
   const finalColor = $derived(propColor || variantMap[variant]?.color || 'primary');
 
+  // Detect custom colors (hex, rgb, hsl, etc.) to support database/tenant dynamic configurations
+  const isCustomColor = $derived(
+    finalColor.startsWith('#') ||
+    finalColor.startsWith('rgb') ||
+    finalColor.startsWith('hsl') ||
+    finalColor.startsWith('var(')
+  );
+
   const getPresetClass = $derived(() => {
+    if (isCustomColor) return 'preset-custom';
     if (finalPreset === 'tonal') return `preset-tonal-${finalColor}`;
     if (finalPreset === 'outlined') return `preset-outlined-${finalColor}-500`;
     return `preset-filled-${finalColor}-500`;
   });
 
+  // Calculate dynamic custom variables for custom color preset fallbacks
+  const customStyles = $derived.by(() => {
+    if (!isCustomColor) return '';
+    if (finalPreset === 'tonal') {
+      return `--preset-bg: ${finalColor}22; --preset-text: ${finalColor}; --preset-border: transparent;`;
+    }
+    if (finalPreset === 'outlined') {
+      return `--preset-bg: transparent; --preset-text: ${finalColor}; --preset-border: ${finalColor};`;
+    }
+    // Filled
+    return `--preset-bg: ${finalColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+  });
+
   const classes = $derived(cn(
-    'badge inline-flex items-center font-bold uppercase tracking-wider transition-colors',
+    'badge inline-flex items-center font-bold uppercase tracking-wider transition-all duration-200',
     getPresetClass(),
     sizeClasses[size],
-    rounded ? 'rounded-full' : 'rounded-md',
+    shape === 'angle' ? 'corner-angle' : (rounded ? 'rounded-full' : 'rounded-md'),
     className
   ));
 </script>
 
-<div class={classes} {...rest}>
+<div class={classes} style={customStyles || undefined} {...rest}>
   {@render children?.()}
 </div>
+
+<style>
+  /* Progressive enhancement: Corner shape angled cut styles with clip-path fallback */
+  .corner-angle {
+    position: relative;
+    corner-shape: angle; /* Future-ready CSS standard */
+    --corner-offset: 4px;
+    clip-path: polygon(
+      0% var(--corner-offset),
+      var(--corner-offset) 0%,
+      calc(100% - var(--corner-offset)) 0%,
+      100% var(--corner-offset),
+      100% calc(100% - var(--corner-offset)),
+      calc(100% - var(--corner-offset)) 100%,
+      var(--corner-offset) 100%,
+      0% calc(100% - var(--corner-offset))
+    );
+  }
+
+  /* Tenant/Database custom styling system */
+  :global(.preset-custom) {
+    background-color: var(--preset-bg) !important;
+    color: var(--preset-text) !important;
+    border: 1px solid var(--preset-border) !important;
+  }
+</style>

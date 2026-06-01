@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/widget-performance.test.ts
- * @description High-fidelity benchmark for SveltyCMS Core Widget overhead.
- * Measures the "Middleware Tax" of widget transformations and validation.
+ * @description Widget Performance Benchmark
+ * @summary Measures the middleware tax of widget transformations, validation, and rendering
+ *
+ * ### Features:
+ * - Widget transformation overhead (8 core widget types)
+ * - Validation pipeline latency per widget
+ * - Display rendering cost profiling
  */
 
 // 🚀 Direct mock to ensure widgets are available in this isolated run
@@ -38,6 +43,7 @@ import {
 import "../unit/bun-preload.ts";
 
 async function runWidgetAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting SveltyCMS Widget Performance Audit...\n");
 
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
@@ -158,8 +164,6 @@ async function runWidgetAudit() {
     throw err;
   } finally {
   }
-
-  console.log("\n✅ Widget performance audit completed.");
 }
 
 test("Widget Performance Audit Suite", async () => {

@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/chaos-resilience.test.ts
- * @description Enterprise Chaos & Resilience benchmark for SveltyCMS.
- * Simulates infrastructure brownouts and measures system stability & graceful degradation.
+ * @description Chaos & Resilience Audit
+ * @summary Simulates infrastructure brownouts and measures system stability and graceful degradation under stress.
+ *
+ * ### Features:
+ * - Infrastructure brownout simulation
+ * - System stability under resource starvation
+ * - Graceful degradation measurement
+ * - Recovery time profiling
  */
 
 import {
@@ -21,6 +27,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runChaosAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Chaos & Resilience Audit...\n");
 
   try {
@@ -98,8 +105,6 @@ async function runChaosAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Chaos & resilience audit completed.");
 }
 
 test("System Resilience under Chaos", async () => {

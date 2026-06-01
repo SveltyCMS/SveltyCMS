@@ -26,7 +26,6 @@ export type { ServiceName };
 
 import { initialState, initialServiceMetrics } from "./config";
 import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from "./metrics";
-
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 
 // 🚀 MODULE-LEVEL STATE MIRROR: overallState stored as a primitive string.
@@ -314,12 +313,6 @@ export function updateServiceHealth(
     if (metrics.healthCheckCount > 0) {
       const healthyChecks = metrics.healthCheckCount - metrics.failureCount;
       metrics.uptimePercentage = (healthyChecks / metrics.healthCheckCount) * 100;
-    }
-
-    // Track state transition timing if status changed
-    if (status === "healthy" && metrics.initializationDuration) {
-      // We can't call store.update inside store.update, so we manually track the transition here
-      // but for simplicity and consistency, let's just ensure the state is consistent.
     }
 
     return updatedState;

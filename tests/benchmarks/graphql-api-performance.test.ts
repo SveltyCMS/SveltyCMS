@@ -1,6 +1,13 @@
 /**
  * @file tests/benchmarks/graphql-api-performance.test.ts
- * @description GraphQL resolver performance and throughput audit.
+ * @description GraphQL API Performance Audit
+ * @summary Measures GraphQL resolver performance and throughput across varied query scenarios.
+ *
+ * ### Features:
+ * - Resolver-level latency profiling
+ * - Query complexity throughput analysis
+ * - Field-level resolution timing
+ * - GraphQL endpoint response benchmarking
  */
 
 import {
@@ -38,7 +45,7 @@ const graphqlScenarios = [
   },
   {
     name: "GQL: Entries (Stable Collection)",
-    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title content { title content } } }`,
+    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title } }`,
 
     shortLabel: "Entries",
     concurrency: 5,
@@ -132,7 +139,11 @@ export async function runGraphQLBenchmark() {
       { key: "Health Check", val: results[0].avgMs, unit: "ms" },
       { key: "Collection List", val: results[1].avgMs, unit: "ms" },
       { key: "Entries Query", val: results[2].avgMs, unit: "ms" },
-      { key: "Peak RPS", val: Math.max(...results.map((r) => r.rps || 0)), unit: "req/s" },
+      {
+        key: "Peak RPS",
+        val: Math.max(...results.map((r) => r.rps || 0)),
+        unit: "req/s",
+      },
     ]);
 
     // Export structured metrics for matrix
@@ -150,8 +161,6 @@ export async function runGraphQLBenchmark() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ GraphQL performance audit completed.");
 }
 
 test("GraphQL Performance Audit Suite", async () => {

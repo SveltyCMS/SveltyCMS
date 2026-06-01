@@ -4,7 +4,8 @@
  */
 
 import { SERVICE_BASELINE_TIMES } from "./config";
-import { getSystemState } from "./state.svelte";
+import { getSystemState } from "./state.svelte.ts";
+import type { ServiceStatus } from "./types";
 
 /**
  * Export comprehensive system state for health check endpoint with performance data
@@ -209,9 +210,10 @@ export function getRecommendedTimeouts() {
 
   return Object.fromEntries(
     Object.entries(state.services).map(([name, service]) => {
+      const svc = service as ServiceStatus;
       const baseline = SERVICE_BASELINE_TIMES[name as keyof typeof SERVICE_BASELINE_TIMES];
-      const recommended = service.metrics.averageInitTime
-        ? Math.ceil(service.metrics.averageInitTime * 3)
+      const recommended = svc.metrics.averageInitTime
+        ? Math.ceil(svc.metrics.averageInitTime * 3)
         : baseline * 3;
 
       return [
@@ -219,11 +221,11 @@ export function getRecommendedTimeouts() {
         {
           recommended,
           baseline,
-          current: service.metrics.averageInitTime || baseline,
+          current: svc.metrics.averageInitTime || baseline,
           confidence:
-            service.metrics.healthCheckCount > 5
+            svc.metrics.healthCheckCount > 5
               ? "high"
-              : service.metrics.healthCheckCount > 2
+              : svc.metrics.healthCheckCount > 2
                 ? "medium"
                 : "low",
         },

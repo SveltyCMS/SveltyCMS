@@ -13,6 +13,7 @@ import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
 import { seoResolvers, seoTypeDefs } from "./resolvers/seo";
 import { createLoaders } from "./loaders";
+import { LocalCMS } from "@src/services/sdk";
 
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -39,8 +40,9 @@ registerPermission(accessManagementPermission as any);
 // Schema Construction
 // ---------------------------------------------------------------------------
 async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
-  const { typeDefs: collectionTypeDefs, queryFields } = await registerCollections(tenantId);
-  const collectionResolversMap = await collectionsResolvers(dbAdapter, null, tenantId);
+  const registered = await registerCollections(tenantId);
+  const { typeDefs: collectionTypeDefs, queryFields } = registered;
+  const collectionResolversMap = await collectionsResolvers(dbAdapter, null, tenantId, registered);
 
   const typeDefs = `
     ${userTypeDefs()}
@@ -145,15 +147,26 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
           landingPage: true,
           cors: false,
           plugins,
-          context: async (serverContext: any) => ({
-            user: serverContext.user,
-            tenantId: serverContext.tenantId,
-            dbAdapter: serverContext.dbAdapter,
-            cms: serverContext.cms,
-            pubSub,
-            loaders: serverContext.loaders,
-            publicationFilter: serverContext.publicationFilter || "all",
-          }),
+          context: async (serverContext: any) => {
+            let _loaders: any = undefined;
+            return {
+              user: serverContext.user,
+              tenantId: serverContext.tenantId,
+              dbAdapter: serverContext.dbAdapter,
+              cms: serverContext.cms,
+              pubSub,
+              get loaders() {
+                if (_loaders === undefined) {
+                  _loaders = serverContext.loaders;
+                }
+                return _loaders;
+              },
+              set loaders(value) {
+                _loaders = value;
+              },
+              publicationFilter: serverContext.publicationFilter || "all",
+            };
+          },
         });
 
         return app;
@@ -171,10 +184,7 @@ export async function _refreshSchema(dbAdapter: any, tenantId?: string | null) {
   return await _getYogaApp(dbAdapter, tenantId);
 }
 
-// ---------------------------------------------------------------------------
-// Route Handlers
-// ---------------------------------------------------------------------------
-import { LocalCMS } from "@src/services/sdk";
+let sharedCMS: LocalCMS | null = null;
 
 async function handleRequest(event: RequestEvent) {
   const { locals, request } = event;
@@ -196,10 +206,10 @@ async function handleRequest(event: RequestEvent) {
     throw new AppError("Database unavailable: Adapter not initialized", 503);
   }
 
-  if (!(locals as any).sharedCMS || (locals as any).sharedCMS.db !== adapter) {
-    (locals as any).sharedCMS = new LocalCMS(adapter);
+  if (!sharedCMS || sharedCMS.db !== adapter) {
+    sharedCMS = new LocalCMS(adapter);
   }
-  const cms = (locals as any).sharedCMS;
+  const cms = sharedCMS;
 
   const url = new URL(request.url);
   const publicationFilterParam = url.searchParams.get("publicationFilter");
@@ -209,7 +219,7 @@ async function handleRequest(event: RequestEvent) {
     | "draft"
     | "all";
 
-  const loaders = createLoaders(adapter, (locals.tenantId as any) || null, publicationFilter);
+  let _loaders: any = null;
 
   try {
     const yogaApp = await _getYogaApp(adapter, locals.tenantId);
@@ -218,7 +228,15 @@ async function handleRequest(event: RequestEvent) {
       tenantId: locals.tenantId,
       dbAdapter: adapter,
       cms,
-      loaders,
+      get loaders() {
+        if (!_loaders) {
+          _loaders = createLoaders(adapter, (locals.tenantId as any) || null, publicationFilter);
+        }
+        return _loaders;
+      },
+      set loaders(value) {
+        _loaders = value;
+      },
       publicationFilter,
     });
 

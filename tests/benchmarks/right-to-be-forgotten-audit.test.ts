@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/right-to-be-forgotten-audit.test.ts
- * @description Enterprise GDPR/CCPA Compliance procedure benchmark.
- * Measures the speed and integrity of deep-deletion across all linked repositories.
+ * @description GDPR/CCPA Right-to-be-Forgotten Compliance Benchmark
+ * @summary Measures the speed and integrity of deep-deletion across all linked repositories for regulatory compliance.
+ *
+ * ### Features:
+ * - Deep-deletion latency measurement (GDPR wipe procedure)
+ * - Cross-repository cascading deletion integrity verification
+ * - Compliance rating based on wipe latency thresholds
  */
 
 import {
@@ -20,6 +25,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runGdprAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Right-to-be-Forgotten Audit...\n");
 
   try {
@@ -70,7 +76,11 @@ async function runGdprAudit() {
     printSummaryTable([
       { key: "Wipe Latency (Avg)", val: results.avgMs, unit: "ms" },
       { key: "Audit Integrity", val: "VERIFIED", unit: "" },
-      { key: "Compliance Rating", val: results.avgMs < 50 ? "EXCELLENT" : "GOOD", unit: "" },
+      {
+        key: "Compliance Rating",
+        val: results.avgMs < 50 ? "EXCELLENT" : "GOOD",
+        unit: "",
+      },
     ]);
   } catch (err: any) {
     logger.error(`GDPR audit failed: ${err.message}`);
@@ -82,8 +92,6 @@ async function runGdprAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ GDPR compliance audit completed.");
 }
 
 test("Right-to-be-Forgotten Deletion Integrity", async () => {

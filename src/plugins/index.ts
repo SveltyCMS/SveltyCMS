@@ -31,10 +31,7 @@ export const availablePlugins: Plugin[] = [
  *
  * Called during server startup from src/databases/db.ts
  */
-export async function initializePlugins(
-  dbAdapter: any,
-  tenantId = "default",
-): Promise<void> {
+export async function initializePlugins(dbAdapter: any, tenantId = "default"): Promise<void> {
   try {
     logger.info("🔌 Initializing plugin system...");
 

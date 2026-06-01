@@ -19,7 +19,7 @@ import {
   setSystemState,
   startServiceInitialization,
   updateServiceHealth,
-} from "@src/stores/system/state.svelte";
+} from "@src/stores/system/state.svelte.ts";
 
 describe("System Store - Service Health Management", () => {
   beforeEach(() => {

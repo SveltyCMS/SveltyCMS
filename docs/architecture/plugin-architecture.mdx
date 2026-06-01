@@ -104,15 +104,15 @@ export interface Plugin {
 
 Plugins inject UI components into predefined zones:
 
-| Zone | Location | Used By |
-|------|----------|---------|
-| `dashboard` | Main dashboard widgets | PageSpeed, Stripe |
-| `sidebar` | Admin sidebar navigation | Editable Website |
-| `entry_edit` | Entry editor tabs/panels | Any content plugin |
-| `entry_edit_sidebar` | Entry editor sidebar | SEO plugins |
-| `entry_edit_header` | Entry editor header actions | Workflow actions |
-| `config` | System configuration area | Stripe, any settings plugin |
-| `entry_list_actions` | Entry list action buttons | PageSpeed refresh |
+| Zone                 | Location                    | Used By                     |
+| -------------------- | --------------------------- | --------------------------- |
+| `dashboard`          | Main dashboard widgets      | PageSpeed, Stripe           |
+| `sidebar`            | Admin sidebar navigation    | Editable Website            |
+| `entry_edit`         | Entry editor tabs/panels    | Any content plugin          |
+| `entry_edit_sidebar` | Entry editor sidebar        | SEO plugins                 |
+| `entry_edit_header`  | Entry editor header actions | Workflow actions            |
+| `config`             | System configuration area   | Stripe, any settings plugin |
+| `entry_list_actions` | Entry list action buttons   | PageSpeed refresh           |
 
 ---
 
@@ -140,13 +140,13 @@ hooks: {
 
 All plugin hooks execute within a sandbox (`src/plugins/sandbox.ts`):
 
-| Boundary | Limit | Why |
-|----------|-------|-----|
-| **Collection access** | Only `plugin_{id}_*` for writes | Prevent data corruption |
-| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data |
-| **Query count** | 100 queries per hook | Prevent resource abuse |
-| **Timeout** | 5 seconds per hook | Prevent hangs |
-| **Error boundary** | Catches all errors | Plugin crash ≠ CMS crash |
+| Boundary                  | Limit                                                        | Why                      |
+| ------------------------- | ------------------------------------------------------------ | ------------------------ |
+| **Collection access**     | Only `plugin_{id}_*` for writes                              | Prevent data corruption  |
+| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data   |
+| **Query count**           | 100 queries per hook                                         | Prevent resource abuse   |
+| **Timeout**               | 5 seconds per hook                                           | Prevent hangs            |
+| **Error boundary**        | Catches all errors                                           | Plugin crash ≠ CMS crash |
 
 ---
 
@@ -166,12 +166,12 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 
 **Example: Redirect Manager**
 
-| Layer | File | Purpose |
-|-------|------|---------|
-| Config Page | `config/redirects/+page.svelte` | Manual CRUD for redirect rules |
-| Plugin hooks | `redirect-manager/index.server.ts` | Auto-redirect on slug change |
+| Layer             | File                               | Purpose                                     |
+| ----------------- | ---------------------------------- | ------------------------------------------- |
+| Config Page       | `config/redirects/+page.svelte`    | Manual CRUD for redirect rules              |
+| Plugin hooks      | `redirect-manager/index.server.ts` | Auto-redirect on slug change                |
 | Plugin migrations | `redirect-manager/index.server.ts` | Creates `redirects` + `redirects_mv` tables |
-| Plugin services | `redirect-manager/index.server.ts` | Edge KV sync, Materialized View sync |
+| Plugin services   | `redirect-manager/index.server.ts` | Edge KV sync, Materialized View sync        |
 
 **The config page calls `LocalCMS` to write data. The plugin's `afterSave` hook fires automatically, handling cache invalidation and sync.** This separation keeps business logic in the plugin while the config page handles UI.
 
@@ -179,15 +179,15 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 
 ## Available Plugins
 
-| Plugin | Category | Status | Documentation |
-|--------|----------|--------|---------------|
-| **PageSpeed** | Performance | v1.1.0 | [pagespeed.mdx](src/plugins/pagespeed/pagespeed.mdx) |
-| **Editable Website** | Editing | Stable | [editable-website.mdx](src/plugins/editable-website/editable-website.mdx) |
-| **Redirect Manager** | SEO | Stable | [redirect-manager.mdx](src/plugins/redirect-manager/redirect-manager.mdx) |
-| **Sitemap** | SEO | Stable | [sitemap.mdx](src/plugins/sitemap/sitemap.mdx) |
-| **WebMCP** | AI | Stable | [webmcp.mdx](src/plugins/webmcp/webmcp.mdx) |
-| **Cookie Consent** | Privacy | Stable | [cookie-consent.mdx](src/plugins/cookie-consent/cookie-consent.mdx) |
-| **Stripe** | Payments | v1.0.0 | [stripe.mdx](src/plugins/stripe/stripe.mdx) |
+| Plugin               | Category    | Status | Documentation                                                             |
+| -------------------- | ----------- | ------ | ------------------------------------------------------------------------- |
+| **PageSpeed**        | Performance | v1.1.0 | [pagespeed.mdx](src/plugins/pagespeed/pagespeed.mdx)                      |
+| **Editable Website** | Editing     | Stable | [editable-website.mdx](src/plugins/editable-website/editable-website.mdx) |
+| **Redirect Manager** | SEO         | Stable | [redirect-manager.mdx](src/plugins/redirect-manager/redirect-manager.mdx) |
+| **Sitemap**          | SEO         | Stable | [sitemap.mdx](src/plugins/sitemap/sitemap.mdx)                            |
+| **WebMCP**           | AI          | Stable | [webmcp.mdx](src/plugins/webmcp/webmcp.mdx)                               |
+| **Cookie Consent**   | Privacy     | Stable | [cookie-consent.mdx](src/plugins/cookie-consent/cookie-consent.mdx)       |
+| **Stripe**           | Payments    | v1.0.0 | [stripe.mdx](src/plugins/stripe/stripe.mdx)                               |
 
 ---
 
@@ -224,7 +224,7 @@ beforeSave: async (context, _collection, data) => {
     if (intent.status !== "succeeded") throw new Error("Payment required");
   }
   return data;
-}
+};
 ```
 
 ### 4. UI Components

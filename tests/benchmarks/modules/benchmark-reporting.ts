@@ -117,7 +117,7 @@ export function registerTestMeta(
   META_REGISTRY[slugify(testFile)] = { proves, codePaths, impact };
 }
 
-function getTestMeta(testFile: string): TestMeta {
+export function getTestMeta(testFile: string): TestMeta {
   const key = slugify(testFile);
   const registered = META_REGISTRY[key];
   if (registered) return registered;
@@ -335,11 +335,11 @@ export function appendSummaryToMdx(summaryTable: string, shortLabel?: string): v
  * Compatibility wrapper — called by benchmark-utils.ts exportResult().
  * Uses the old history.jsonl + new SQLite pipeline.
  */
-export function computeAndApplyTrend(
+export async function computeAndApplyTrend(
   result: any,
   shortLabel?: string,
   mode: "cold" | "warm" | "mixed" = "warm",
-): void {
+): Promise<void> {
   // Discover test file from env or call stack (legacy behavior)
   let testFile = process.env.BENCH_FILE || "unknown";
 
@@ -381,9 +381,11 @@ export function computeAndApplyTrend(
       ? "full"
       : process.env.BENCHMARK_RECORD === "1"
         ? "partial"
-        : "none";
+        : process.env.BENCHMARK_HISTORY_ONLY === "1"
+          ? "history"
+          : "none";
 
-  reportBenchmark(result, {
+  return reportBenchmark(result, {
     source: process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "single-test",
     mode: recordMode,
     testFile,

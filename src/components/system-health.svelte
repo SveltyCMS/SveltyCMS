@@ -18,7 +18,7 @@ Displays real-time system state and individual service health with comprehensive
 -->
 
 <script lang="ts">
-	import { systemState } from '@src/stores/system/state.svelte';
+	import { systemState } from '@src/stores/system/state.svelte.ts';
 	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
 	import { formatDisplayDate } from '@utils/date';
 	import { logger } from '@utils/logger';

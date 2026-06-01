@@ -120,9 +120,19 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
       // 🚀 Query system_content_structure first to get full schemas with fields
       try {
         const filter: Record<string, any> = { nodeType: "collection" };
-        if (tenantId) filter.tenantId = tenantId;
+        let isMultiTenant = false;
+        try {
+          const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
+          isMultiTenant = getPrivateSettingSync("MULTI_TENANT") === true;
+        } catch {
+          isMultiTenant = process.env.MULTI_TENANT === "true";
+        }
 
-        const res = await this.crud.findMany("system_content_structure", filter as any);
+        if (isMultiTenant && tenantId) {
+          filter.tenantId = tenantId;
+        }
+
+        const res = await this.crud.findMany("content_nodes", filter as any);
         if (res.success && Array.isArray(res.data)) {
           const schemas: Schema[] = [];
           for (const node of res.data) {
@@ -140,12 +150,16 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
               }
             }
           }
+          if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+            logger.info(
+              `[listSchemas] Found ${schemas.length} collections in DB for tenant ${tid}: ${schemas.map((s) => s._id).join(", ")}`,
+            );
+          }
+          // Return schemas if we found any with collectionDef from content_nodes.
+          // If empty, fall through to table-listing fallback (which returns fieldless
+          // schemas as a last resort). The refreshCollectionsCache merge ensures
+          // fieldless schemas never overwrite richer ones from files or API.
           if (schemas.length > 0) {
-            if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
-              logger.info(
-                `[listSchemas] Found ${schemas.length} collections in DB for tenant ${tid}: ${schemas.map((s) => s._id).join(", ")}`,
-              );
-            }
             return schemas;
           }
         }
@@ -154,6 +168,14 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
       }
 
       // Fallback to table listing if content nodes table is empty/errors out
+      // 🛡️ FILTER: Exclude plugin/materialized-view tables that may be
+      // Drizzle-registered but not physically created. These would cause
+      // "no such table" errors when downstream code queries them.
+      const EXCLUDED_TABLE_PATTERNS = [
+        /^collection_plugin_/,
+        /^collection_workflow_/,
+        /^collection_redirects_mv$/i,
+      ];
       if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
         logger.info(`[listSchemas] Falling back to table listing for tenant: ${tid}`);
       }
@@ -186,15 +208,79 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
         tables = res.rows || [];
       }
 
-      return tables.map(
-        (t: any) =>
-          ({
-            _id: t.name.replace("collection_", ""),
-            name: t.name.replace("collection_", ""),
-            slug: t.name.replace("collection_", ""),
-            fields: [],
+      // 🛡️ Apply exclusion patterns to filter plugin/materialized-view stubs
+      tables = tables.filter((t) => !EXCLUDED_TABLE_PATTERNS.some((p) => p.test(t.name)));
+
+      return await Promise.all(
+        tables.map(async (t: any) => {
+          const collectionName = t.name.replace("collection_", "");
+          // 🛡️ FIELD DISCOVERY: Try to extract field names from a sample row's JSON data.
+          // This ensures benchmark collections created purely via API (no files, no content_nodes)
+          // still get proper GraphQL type fields instead of empty ones.
+          let fields: any[] = [];
+          try {
+            if (this.adapter.type === "sqlite") {
+              const client = (this.adapter as any).sqlite;
+              if (client) {
+                const row = client.query
+                  ? client.query(`SELECT data FROM "${t.name}" LIMIT 1`).get()
+                  : client.prepare?.(`SELECT data FROM "${t.name}" LIMIT 1`).get();
+                if (row?.data) {
+                  const parsed = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+                  fields = Object.keys(parsed)
+                    .filter((k) => !k.startsWith("_") && k !== "tenantId")
+                    .map((k) => ({
+                      db_fieldName: k,
+                      label: k,
+                      widget: { Name: "Input" },
+                      type: "string",
+                    }));
+                }
+              }
+            } else if (this.adapter.type === "postgresql") {
+              const res = await (this.adapter as any).db.execute(
+                `SELECT data FROM "${t.name}" LIMIT 1`,
+              );
+              const row = res?.rows?.[0];
+              if (row?.data) {
+                const parsed = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+                fields = Object.keys(parsed)
+                  .filter((k) => !k.startsWith("_") && k !== "tenantId")
+                  .map((k) => ({
+                    db_fieldName: k,
+                    label: k,
+                    widget: { Name: "Input" },
+                    type: "string",
+                  }));
+              }
+            } else if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {
+              const [rows] = await (this.adapter as any).db.execute(
+                `SELECT data FROM \`${t.name}\` LIMIT 1`,
+              );
+              const row = rows?.[0];
+              if (row?.data) {
+                const parsed = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+                fields = Object.keys(parsed)
+                  .filter((k) => !k.startsWith("_") && k !== "tenantId")
+                  .map((k) => ({
+                    db_fieldName: k,
+                    label: k,
+                    widget: { Name: "Input" },
+                    type: "string",
+                  }));
+              }
+            }
+          } catch {
+            // Field discovery is best-effort; fall through with empty fields
+          }
+          return {
+            _id: collectionName,
+            name: collectionName,
+            slug: collectionName,
+            fields,
             status: "publish",
-          }) as Schema,
+          } as Schema;
+        }),
       );
     }, "LIST_SCHEMAS_FAILED");
   }

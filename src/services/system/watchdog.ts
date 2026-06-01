@@ -11,7 +11,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { getSystemState, updateServiceHealth } from "@src/stores/system/state.svelte";
+import { getSystemState, updateServiceHealth } from "@src/stores/system/state.svelte.ts";
 import { getDbInitPromise, getBootPhase } from "@src/databases/db";
 import { maintenanceService } from "./maintenance-service";
 

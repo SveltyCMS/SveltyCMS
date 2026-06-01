@@ -1,11 +1,7 @@
 /**
  * @file tests/benchmarks/index-pressure.test.ts
  * @description Enterprise Index Pressure audit for SveltyCMS.
- * Measures read performance with sorting and filtering on a large entry collection.
- *
- * ### Modes:
- * - **Matrix Runner**: Uses the runner's pre-warmed server via `API_BASE_URL` env.
- * - **Standalone**: Starts its own isolated server via `setupBenchmarkServer()`.
+ * @summaryMeasures read performance with sorting and filtering on a large entry collection.
  *
  * ### Features:
  * - smart server detection (no duplicate infrastructure)
@@ -47,6 +43,7 @@ const WARMUP_ITERS = IS_CI ? 20 : 50;
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runPressureAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log(
     `🚀 Starting Enterprise Index Pressure Audit (${ENTRY_COUNT.toLocaleString()} entries)...\n`,
   );
@@ -213,59 +210,17 @@ async function runPressureAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Index pressure audit completed.");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function prepareCollection(baseUrl: string) {
-  const schema = {
-    _id: COLLECTION_ID,
-    name: COLLECTION_ID,
-    fields: [
-      { db_fieldName: "title", widget: { Name: "Input" } },
-      { db_fieldName: "slug", widget: { Name: "Input" } },
-      { db_fieldName: "content", widget: { Name: "RichText" } },
-      { db_fieldName: "score", widget: { Name: "Number" } },
-      { db_fieldName: "category", widget: { Name: "Select" } },
-      { db_fieldName: "author", widget: { Name: "Relation" } },
-      { db_fieldName: "tags", widget: { Name: "Input" } },
-      { db_fieldName: "metadata", widget: { Name: "Group" } },
-    ],
-  };
-
-  // 🚀 IDEMPOTENT: Check if collection already exists before provisioning
-  try {
-    const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/schema`, {
-      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
-    });
-    if (checkRes.ok) {
-      console.log("   → Collection already exists. Skipping provisioning.");
-      return;
-    }
-  } catch {
-    /* proceed to create */
-  }
-
-  console.log("   → Provisioning index-pressure collection via HTTP API...");
-  const res = await fetch(`${baseUrl}/api/testing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
-    },
-    body: JSON.stringify({
-      action: "create-collection",
-      schema,
-    }),
+  // Collection already seeded by setup wizard (seedPresetCollections). Just verify.
+  const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/schema`, {
+    headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
   });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Failed to provision collection via API: ${res.status} ${body}`);
-  }
+  if (!checkRes.ok)
+    throw new Error(`Collection ${COLLECTION_ID} not found — setup may have failed`);
 }
 
 async function seedLargeDataset(baseUrl: string) {
@@ -300,19 +255,15 @@ async function seedLargeDataset(baseUrl: string) {
     let res: Response;
 
     while (true) {
-      // 🚀 TITAN SEED: Use the high-performance 'bulk-seed' action
-      res = await fetch(`${baseUrl}/api/testing`, {
+      // Use real bulk endpoint, not /api/testing backdoor
+      res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-test-mode": "true",
           "x-test-secret": TEST_API_SECRET,
         },
-        body: JSON.stringify({
-          action: "bulk-seed",
-          collectionId: COLLECTION_ID,
-          data: batch,
-        }),
+        body: JSON.stringify(batch),
       });
 
       if (res.ok) break;

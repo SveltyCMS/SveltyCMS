@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/throttling-backoff-stress.test.ts
- * @description Enterprise Throttling & Backoff benchmark.
- * Simulates high-velocity traffic and measures rate-limiting consistency and error handling.
+ * @description API Rate-Limiting & Throttling Stress Benchmark
+ * @summary Simulates high-velocity traffic from a single client IP to verify rate-limiting enforcement and backoff consistency.
+ *
+ * ### Features:
+ * - High-concurrency bombardment to trigger rate-limiting (HTTP 429)
+ * - Rate-limiter consistency validation (no unexpected failures)
+ * - Backoff policy verification under sustained load
  */
 
 import {
@@ -19,6 +24,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runThrottlingAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Throttling & Backoff Audit...\n");
 
   try {
@@ -61,7 +67,11 @@ async function runThrottlingAudit() {
     });
 
     printSummaryTable([
-      { key: "Throughput (RPS)", val: Math.round(results.rps || 0), unit: "req/s" },
+      {
+        key: "Throughput (RPS)",
+        val: Math.round(results.rps || 0),
+        unit: "req/s",
+      },
       {
         key: "Limiter Consistency",
         val: results.errorRate === 0 ? "STABLE" : "BYPASSED",
@@ -79,8 +89,6 @@ async function runThrottlingAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Throttling audit completed.");
 }
 
 test("Rate Limiting & Backoff Stress", async () => {

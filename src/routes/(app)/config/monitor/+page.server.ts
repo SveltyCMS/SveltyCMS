@@ -54,7 +54,7 @@ export const load = async ({ locals }: { locals: App.Locals }) => {
     services: [] as any[],
   };
   try {
-    const { getSystemState } = await import("@src/stores/system/state.svelte");
+    const { getSystemState } = await import("@src/stores/system/state.svelte.ts");
     const state = getSystemState();
     systemState = {
       overallState: state.overallState,

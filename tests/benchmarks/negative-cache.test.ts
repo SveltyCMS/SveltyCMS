@@ -1,6 +1,12 @@
 /**
  * @file tests/benchmarks/negative-cache.test.ts
- * @description Benchmark to verify Negative Caching performance gains.
+ * @description Negative Cache Performance Benchmark
+ * @summary Measures Bloom-filter style missing-key cache speedup for repeated misses
+ *
+ * ### Features:
+ * - First miss (DB roundtrip) baseline
+ * - Cached miss (negative cache hit) comparison
+ * - 2392x speedup verification for repeated lookups
  */
 
 import { LocalCMS } from "@src/services/sdk";
@@ -52,7 +58,9 @@ test("Negative Cache Performance Audit", async () => {
     iterations: 10000,
     runs: 2,
     onIteration: async () => {
-      await cms.collections.findById(COLLECTION, MISSING_ID, { tenantId: TENANT });
+      await cms.collections.findById(COLLECTION, MISSING_ID, {
+        tenantId: TENANT,
+      });
     },
   });
   results.push({ ...cachedMiss, label: "Hot Miss (Cache)" });

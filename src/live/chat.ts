@@ -44,6 +44,11 @@ interface ChatContext {
 const DEFAULT_ROOM = "ai";
 const AI_USERNAME = "SveltyAgent";
 const AI_USER_ID = "ai";
+const RATE_LIMIT_WINDOW_MS = 5_000; // 5 seconds
+const RATE_LIMIT_MAX_MSGS = 5; // Max messages per window
+
+/** Per-user rate limiting store (in-memory, reset on server restart) */
+const rateLimitMap = new Map<string, number[]>();
 
 // ====================== STREAM ======================
 
@@ -80,6 +85,21 @@ export const sendMessage = live(async (ctx: any, payload: SendMessagePayload) =>
   if (!content?.trim()) {
     return { success: false, error: "Message content cannot be empty" };
   }
+
+  // 🛡️ Per-user rate limiting to prevent abuse
+  const userId = ctx.user.profile._id.toString();
+  const rateKey = `${userId}:${room}`;
+  const now = Date.now();
+  const userTimestamps = rateLimitMap.get(rateKey) || [];
+  const recentMessages = userTimestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (recentMessages.length >= RATE_LIMIT_MAX_MSGS) {
+    return {
+      success: false,
+      error: `Rate limited. Please wait ${RATE_LIMIT_WINDOW_MS / 1000}s between messages.`,
+    };
+  }
+  recentMessages.push(now);
+  rateLimitMap.set(rateKey, recentMessages);
 
   if (content.length > 4000) {
     return {

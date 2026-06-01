@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/circuit-breaker-failover.test.ts
- * @description Enterprise Circuit Breaker & Failover benchmark.
- * Simulates external service failures and measures system graceful degradation.
+ * @description Circuit Breaker & Failover Audit
+ * @summary Simulates external service failures and measures system graceful degradation via circuit breaker patterns.
+ *
+ * ### Features:
+ * - External service failure simulation
+ * - Circuit breaker state transition timing
+ * - Failover path latency measurement
+ * - Graceful degradation under dependency loss
  */
 
 import {
@@ -19,6 +25,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runCircuitBreakerAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Circuit Breaker & Failover Audit...\n");
 
   try {
@@ -65,7 +72,11 @@ async function runCircuitBreakerAudit() {
 
     printSummaryTable([
       { key: "Fallback Latency", val: results.avgMs, unit: "ms" },
-      { key: "Failover Stability", val: results.errorRate === 0 ? "STABLE" : "FLAKY", unit: "" },
+      {
+        key: "Failover Stability",
+        val: results.errorRate === 0 ? "STABLE" : "FLAKY",
+        unit: "",
+      },
       { key: "Recovery Posture", val: "GRADUAL", unit: "" },
     ]);
   } catch (err: any) {
@@ -78,8 +89,6 @@ async function runCircuitBreakerAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Circuit breaker audit completed.");
 }
 
 test("Circuit Breaker & Fallback Resilience", async () => {

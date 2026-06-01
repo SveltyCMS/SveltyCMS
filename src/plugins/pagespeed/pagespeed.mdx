@@ -37,10 +37,10 @@ Monitors Core Web Vitals (LCP, FCP, CLS) and performance scores using the Google
 
 ## Configuration
 
-| Key | Type | Visibility | Description |
-|-----|------|-----------|-------------|
-| `defaultDevice` | string | Public | Test device: `mobile` or `desktop` (default: `mobile`) |
-| `apiKeySource` | string | Private | API key source: `settings` or `env` |
+| Key             | Type   | Visibility | Description                                            |
+| --------------- | ------ | ---------- | ------------------------------------------------------ |
+| `defaultDevice` | string | Public     | Test device: `mobile` or `desktop` (default: `mobile`) |
+| `apiKeySource`  | string | Private    | API key source: `settings` or `env`                    |
 
 ### Environment Variables
 
@@ -61,6 +61,7 @@ Click the **Refresh PageSpeed** action button on any entry to re-run the audit.
 ### View Metrics
 
 The performance column shows:
+
 - **Score** — color-coded (green ≥ 90, orange ≥ 50, red < 50)
 - **FCP** — First Contentful Paint (ms)
 - **LCP** — Largest Contentful Paint (ms)
@@ -70,8 +71,8 @@ The performance column shows:
 
 ## Collections
 
-| Collection | Purpose |
-|-----------|---------|
+| Collection                 | Purpose                               |
+| -------------------------- | ------------------------------------- |
 | `plugin_pagespeed_results` | Cached PageSpeed scores per entry URL |
 
 ---

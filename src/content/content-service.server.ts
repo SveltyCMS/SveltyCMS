@@ -158,7 +158,9 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
           }
 
           if (!isSafeCollectionPath(file.fullPath)) {
-            logger.error("[Scanner] Blocked unsafe schema path", { path: file.fullPath });
+            logger.error("[Scanner] Blocked unsafe schema path", {
+              path: file.fullPath,
+            });
             return;
           }
 
@@ -242,7 +244,13 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
 
   for (const s of fileSchemas) {
     if (s._id) {
-      schemaMap.set(s._id.toLowerCase(), s);
+      // 🛡️ FIELD PRESERVATION: File-based schemas always win, but also guard
+      // against the DB fallback (fields: []) overwriting a richer file schema.
+      const key = s._id.toLowerCase();
+      const existing = schemaMap.get(key);
+      if (!existing || (existing.fields?.length ?? 0) < (s.fields?.length ?? 0)) {
+        schemaMap.set(key, s);
+      }
     }
   }
 
@@ -470,7 +478,9 @@ export const contentService = {
       }
     }
     if (prunedPaths.length > 0) {
-      await dbAdapter.content.nodes.deleteMany(prunedPaths, { tenantId: tenantId as any });
+      await dbAdapter.content.nodes.deleteMany(prunedPaths, {
+        tenantId: tenantId as any,
+      });
     }
   },
 
@@ -484,11 +494,11 @@ export const contentService = {
     if (!stats) return;
 
     const cacheKey = `schema:${fullPath}`;
-    const cached = await cacheService.get<{ mtime: number; hash: string; schema: Schema }>(
-      cacheKey,
-      null,
-      CacheCategory.SCHEMA,
-    );
+    const cached = await cacheService.get<{
+      mtime: number;
+      hash: string;
+      schema: Schema;
+    }>(cacheKey, null, CacheCategory.SCHEMA);
 
     const moduleData = await loadSchemaNative(fullPath);
     const schema = moduleData?.schema;
@@ -588,13 +598,17 @@ export const contentService = {
         })
         .filter((u): u is any => u !== null);
       if (updates.length > 0)
-        await dbAdapter.content.nodes.bulkUpdate(updates, { tenantId: tenantId as any });
+        await dbAdapter.content.nodes.bulkUpdate(updates, {
+          tenantId: tenantId as any,
+        });
     }
 
     if (deleteOps.length > 0) {
       const pathsToDelete = deleteOps.map((op) => op.node.path).filter((p): p is string => !!p);
       if (pathsToDelete.length > 0)
-        await dbAdapter.content.nodes.deleteMany(pathsToDelete, { tenantId: tenantId as any });
+        await dbAdapter.content.nodes.deleteMany(pathsToDelete, {
+          tenantId: tenantId as any,
+        });
     }
     contentStore.updateVersion();
   },

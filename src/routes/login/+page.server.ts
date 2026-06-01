@@ -21,7 +21,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { sendMail } from "@utils/email.server";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
-import { getSystemState, isServiceHealthy } from "@src/stores/system/state.svelte";
+import { getSystemState, isServiceHealthy } from "@src/stores/system/state.svelte.ts";
 
 // Auth actions delegate to auth.remote.ts
 import {

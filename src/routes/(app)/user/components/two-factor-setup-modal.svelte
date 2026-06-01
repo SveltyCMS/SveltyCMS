@@ -26,6 +26,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	import { toast } from '@src/stores/toast.svelte.ts';
 	// Utils
 	import { logger } from '@utils/logger';
+	import QrCode from '@components/ui/qr-code.svelte';
 
 	// Native UI Components
 	// getModalStore deprecated - use modalState from @utils/modal-state.svelte;
@@ -173,7 +174,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 					<!-- QR Code -->
 					<div class="mb-4 flex justify-center">
 						<div class="rounded-lg bg-white p-4 shadow-sm">
-							<img src={qrCodeUrl} alt="2FA QR Code" class="h-48 w-48" style="image-rendering: pixelated;" />
+							<QrCode value={qrCodeUrl} size={192} color="#000000" backgroundColor="#ffffff" />
 						</div>
 					</div>
 				</div>

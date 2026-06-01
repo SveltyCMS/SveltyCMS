@@ -155,6 +155,7 @@ async function waitForServer() {
         "DEGRADED",
         "INITIALIZING",
         "HEALTHY",
+        "OPERATIONAL",
       ];
       if (operationalStates.includes(status)) {
         console.log(`Server ready (status: ${status})`);

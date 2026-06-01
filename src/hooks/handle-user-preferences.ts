@@ -10,7 +10,7 @@
  */
 
 import { ThemeManager } from "@src/databases/theme-manager";
-import { getSystemState } from "@src/stores/system/state.svelte";
+import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import type { Locale } from "@src/paraglide/runtime";
 import { locales } from "@src/paraglide/runtime";
 import { app } from "@src/stores/store.svelte";

@@ -6,7 +6,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { updateServiceHealth } from "@src/stores/system/state.svelte";
+import { updateServiceHealth } from "@src/stores/system/state.svelte.ts";
 
 export type ServiceId =
   | "adapter"

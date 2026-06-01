@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/relational-performance.test.ts
- * @description Enterprise relational performance audit for SveltyCMS.
- * Measures GraphQL resolver performance for complex joins and deep relations.
+ * @description GraphQL Relational Resolver Benchmark
+ * @summary Measures GraphQL resolver performance for shallow and deep relational queries including joins and nested population.
+ *
+ * ### Features:
+ * - Shallow relational query latency (collection listing)
+ * - Deep relational query latency (author population via joins)
+ * - GraphQL resolver throughput under concurrent load
  */
 
 import {
@@ -22,6 +27,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runRelationalAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Relational Audit...\n");
 
   try {
@@ -120,7 +126,11 @@ async function runRelationalAudit() {
     printSummaryTable([
       { key: "Shallow Query Latency", val: shallow.avgMs, unit: "ms" },
       { key: "Deep Query Latency", val: deep.avgMs, unit: "ms" },
-      { key: "Peak Throughput", val: Math.round(shallow.rps || 0), unit: "req/s" },
+      {
+        key: "Peak Throughput",
+        val: Math.round(shallow.rps || 0),
+        unit: "req/s",
+      },
       { key: "Rating", val: deep.avgMs < 15 ? "EXCELLENT" : "GOOD", unit: "" },
     ]);
 
@@ -129,14 +139,13 @@ async function runRelationalAudit() {
   } catch (err: any) {
     logger.error(`Relational benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Relational audit completed.");
 }
 
 test("Relational Resolver Performance", async () => {

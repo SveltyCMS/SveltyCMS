@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/cache-performance.test.ts
- * @description Enterprise cache benchmark for SveltyCMS.
- * Measures cache hit vs miss latency and efficiency via real HTTP E2E.
+ * @description Cache Performance Benchmark
+ * @summary Measures cache hit vs miss latency and efficiency via real HTTP end-to-end requests.
+ *
+ * ### Features:
+ * - Cache hit latency profiling
+ * - Cache miss penalty measurement
+ * - Concurrency-aware cache throughput
+ * - End-to-end HTTP cache efficiency analysis
  */
 
 import {
@@ -37,6 +43,7 @@ const CACHE_SCENARIOS = [
 ];
 
 async function runCacheAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Cache Efficiency Audit...\n");
 
   try {
@@ -121,8 +128,16 @@ async function runCacheAudit() {
     const summary = [{ key: "Cache Miss", val: miss?.avgMs || 0, unit: "ms" }];
     if (hit) {
       summary.push({ key: "Cache Hit", val: hit.avgMs, unit: "ms" });
-      summary.push({ key: "Cache Efficiency", val: parseFloat(efficiency.toFixed(1)), unit: "%" });
-      summary.push({ key: "Peak Hit RPS", val: Math.round(hit.rps || 0), unit: "req/s" });
+      summary.push({
+        key: "Cache Efficiency",
+        val: parseFloat(efficiency.toFixed(1)),
+        unit: "%",
+      });
+      summary.push({
+        key: "Peak Hit RPS",
+        val: Math.round(hit.rps || 0),
+        unit: "req/s",
+      });
     }
 
     printSummaryTable(summary);
@@ -136,8 +151,6 @@ async function runCacheAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Cache audit completed.");
 }
 
 test("Cache Enterprise Suite", async () => {

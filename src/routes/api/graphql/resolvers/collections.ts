@@ -21,12 +21,11 @@
  */
 
 // Collection Manager
-import { modifyRequest } from "@utils/modify-request";
 import { contentSystem } from "@src/content/index.server";
 import type { FieldInstance, Schema } from "@src/content/types";
 // Types
 import type { User } from "@src/databases/auth/types";
-import type { CollectionModel, DatabaseAdapter } from "@src/databases/db-interface";
+import type { DatabaseAdapter } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 // Token Engine
 import { replaceTokens } from "@src/services/token/engine";
@@ -132,7 +131,9 @@ export async function registerCollections(tenantId?: string | null) {
 
   // 🚀 BENCHMARK HARDENING: Force collection list refresh if in benchmark mode
   if (process.env.BENCHMARK === "true") {
-    await contentSystem.refresh(tenantId, false, false);
+    const { getDb } = await import("@src/databases/db");
+    const { refreshCollectionsCache } = await import("@src/content/content-service.server");
+    await refreshCollectionsCache(tenantId, getDb() || undefined);
   }
 
   const collections: Schema[] = await contentSystem.getCollections(tenantId);
@@ -358,13 +359,14 @@ export async function registerCollections(tenantId?: string | null) {
 // Builds resolvers for querying collection data.
 export async function collectionsResolvers(
   dbAdapter: DatabaseAdapter,
-  cacheClient: CacheClient | null,
+  _cacheClient: CacheClient | null,
   tenantId?: string | null,
+  preRegistered?: { resolvers: any; collections: Schema[] },
 ) {
   if (!dbAdapter) {
     throw new Error("Database adapter is not initialized");
   }
-  const { resolvers, collections } = await registerCollections(tenantId);
+  const { resolvers, collections } = preRegistered || (await registerCollections(tenantId));
 
   for (const collection of collections) {
     if (!collection._id) {
@@ -383,6 +385,8 @@ export async function collectionsResolvers(
         tenantId?: string | null;
         locale?: string;
         bypassTenantIsolation?: boolean;
+        publicationFilter?: string;
+        cms?: any;
       };
       if (!ctx.user) {
         throw new Error("Authentication required");
@@ -407,62 +411,27 @@ export async function collectionsResolvers(
       }
 
       const { page = 1, limit = 50 } = args.pagination || {};
-      const locale = ctx.locale || "en";
 
       try {
-        const contentVersion = contentSystem.getContentVersion();
-        const cacheKey = `query:collections:${collection._id}:${page}:${limit}:${locale}:${contentVersion}`;
-
-        if (getPrivateSettingSync("USE_REDIS") && cacheClient) {
-          const cachedResult = await cacheClient.get(cacheKey, ctx.tenantId);
-          if (cachedResult) {
-            return JSON.parse(cachedResult);
-          }
+        let cms = ctx.cms;
+        if (!cms) {
+          const { LocalCMS } = await import("@src/services/sdk");
+          cms = new LocalCMS(dbAdapter);
         }
 
-        const query: Record<string, unknown> = {};
-        if (getPrivateSettingSync("MULTI_TENANT") && ctx.tenantId) {
-          query.tenantId = ctx.tenantId;
-        }
-
-        // 🚀 SMART RESOLUTION: Try resolving physical name via adapter first
-        const collectionName = collection._id?.startsWith("collection_")
-          ? collection._id
-          : `collection_${collection._id}`;
-
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          console.log(`[GraphQL Resolver] Querying ${collectionName} for tenant ${ctx.tenantId}`);
-        }
-
-        const queryBuilder = dbAdapter
-          .queryBuilder(collectionName)
-          .where(Object.keys(query).length ? query : {})
-          .paginate({ page, pageSize: limit });
-        const result = await queryBuilder.execute();
+        const result = await cms.collections.find(collection._id as string, {
+          tenantId: ctx.tenantId,
+          limit,
+          offset: (page - 1) * limit,
+          publicationFilter: ctx.publicationFilter || "all",
+          user: ctx.user,
+        });
 
         if (!result.success) {
           throw new Error(`Database query failed: ${result.error?.message || "Unknown error"}`);
         }
 
-        const resultArray = (Array.isArray(result.data)
-          ? result.data
-          : []) as unknown as DocumentBase[];
-
-        if (resultArray.length > 0) {
-          try {
-            await modifyRequest({
-              data: resultArray,
-              fields: collection.fields as FieldInstance[],
-              collection: collection as unknown as CollectionModel,
-              user: ctx.user!,
-              type: "GET",
-            });
-          } catch (modifyError) {
-            logger.warn("GraphQL modify-request failed", {
-              error: modifyError instanceof Error ? modifyError.message : "Unknown error",
-            });
-          }
-        }
+        const resultArray = (result.data || []) as unknown as DocumentBase[];
 
         // 🚀 PERFORMANCE: Merge loops and skip token scan if not needed
         const processedResults = await Promise.all(
@@ -504,16 +473,6 @@ export async function collectionsResolvers(
             return doc;
           }),
         );
-
-        if (getPrivateSettingSync("USE_REDIS") && cacheClient) {
-          await cacheClient.set(
-            cacheKey,
-            JSON.stringify(processedResults),
-            "EX",
-            1800,
-            ctx.tenantId,
-          );
-        }
 
         return processedResults;
       } catch (error) {

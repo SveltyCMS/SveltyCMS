@@ -39,12 +39,12 @@ Accept payments via Stripe for gated content, memberships, or e-commerce. Uses t
 
 ### Plugin Settings
 
-| Key | Type | Visibility | Description |
-|-----|------|-----------|-------------|
-| `publishableKey` | string | Public | Stripe publishable key (starts with `pk_`) |
-| `secretKey` | string | Private | Stripe secret key (starts with `sk_`) |
-| `webhookSecret` | string | Private | Stripe webhook signing secret (starts with `whsec_`) |
-| `currency` | string | Public | Default currency for payments (e.g., `usd`) |
+| Key              | Type   | Visibility | Description                                          |
+| ---------------- | ------ | ---------- | ---------------------------------------------------- |
+| `publishableKey` | string | Public     | Stripe publishable key (starts with `pk_`)           |
+| `secretKey`      | string | Private    | Stripe secret key (starts with `sk_`)                |
+| `webhookSecret`  | string | Private    | Stripe webhook signing secret (starts with `whsec_`) |
+| `currency`       | string | Public     | Default currency for payments (e.g., `usd`)          |
 
 ### Environment Variables (fallback)
 
@@ -131,9 +131,9 @@ Body: (raw Stripe event)
 
 ## Collections
 
-| Collection | Purpose |
-|-----------|---------|
-| `plugin_stripe_payments` | Payment transaction records |
+| Collection                | Purpose                                |
+| ------------------------- | -------------------------------------- |
+| `plugin_stripe_payments`  | Payment transaction records            |
 | `plugin_stripe_customers` | Stripe customer ID to CMS user mapping |
 
 ---

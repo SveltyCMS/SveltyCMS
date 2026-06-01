@@ -198,12 +198,13 @@ export function writeTruthTable(
     }
 
     const block = [
+      "<!-- INSIGHT_PLACEHOLDER -->",
+      "",
       "```text",
       table,
       "```",
       "",
       "<!-- SUMMARY_PLACEHOLDER -->",
-      "<!-- INSIGHT_PLACEHOLDER -->",
     ].join("\n");
 
     doc = doc.slice(0, pos.idx) + START + "\n" + block + "\n" + doc.slice(endIdx);
@@ -283,24 +284,29 @@ export function writeTrendAndInsight(
       return;
     }
 
-    // Update the ### 🏷️ label (before the correct TABLE_START)
+    // Update the ### 🏷️ label
     const before = doc.slice(0, pos.idx);
     const li = before.lastIndexOf("### " + "\u{1F3F7}");
     if (li > 0) {
       const le = doc.indexOf("\n", li);
       const old = doc.slice(li, le);
-      const newHeading = old.replace(/\u26AA \u2014.*$/, trendLabel);
+      // Handle both "⚪ — ..." (fresh) and "⚪ avg 0% ..." (previously updated)
+      const newHeading = old.replace(
+        /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
+        trendLabel,
+      );
       doc = doc.slice(0, li) + newHeading + doc.slice(le);
     }
 
-    // Replace INSIGHT_PLACEHOLDER or append before END
+    // Replace INSIGHT_PLACEHOLDER or append after END
     const END = `<!-- ${resolvedTag}_TABLE_END -->`;
-    const insightBlock = "\n> " + insight;
+    const insightBlock = "\n> " + insight + "\n";
 
     if (doc.includes("<!-- INSIGHT_PLACEHOLDER -->")) {
       doc = doc.replace("<!-- INSIGHT_PLACEHOLDER -->", insightBlock);
     } else if (doc.includes(END)) {
-      doc = doc.replace(END, insightBlock + "\n" + END);
+      // Insert insight AFTER the END marker (outside the table block)
+      doc = doc.replace(END, END + insightBlock);
     }
 
     atomicWrite(docPath, doc);

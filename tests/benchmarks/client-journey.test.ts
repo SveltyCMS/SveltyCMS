@@ -1,8 +1,13 @@
 /**
  * @file tests/benchmarks/client-journey.test.ts
- * @description World Life Data: Full Client Journey Simulation.
- * Measures cumulative latency of a realistic user workflow:
- * Auth -> List -> View -> Edit -> Save -> Realtime.
+ * @description Full Client Journey Simulation Benchmark
+ * @summary Measures cumulative latency of a realistic editorial user workflow: Auth → List → View → Edit → Save.
+ *
+ * ### Features:
+ * - Multi-step user workflow simulation (health check, list, view, edit, save)
+ * - Realistic payload generation with variable content complexity
+ * - Request tracing via x-request-id for journey-level observability
+ * - Error logging to journey_errors.log for failure analysis
  */
 
 import { beforeAll, afterAll, test } from "bun:test";
@@ -32,6 +37,7 @@ let apiBaseUrl: string;
 const ERROR_LOG = "journey_errors.log";
 
 export async function runClientJourneyAudit() {
+  // pre-existing unused var removed for TS strict mode
   await stabilize();
 
   console.log("\n🚀 Starting World Life Data: Client Journey Simulation...\n");
@@ -159,8 +165,6 @@ export async function runClientJourneyAudit() {
   for (const r of allResults) exportResult(r);
   exportMetric("workflow.journey.avg", journeyRes.avgMs, "ms");
   exportMetric("workflow.journey.p95", journeyRes.p95Ms, "ms");
-
-  console.log("\n✅ Client journey audit completed.");
 }
 
 // --- Lifecycle & Runner Distribution ---

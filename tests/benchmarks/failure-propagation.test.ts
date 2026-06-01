@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/failure-propagation.test.ts
- * @description World Life Data: Failure Propagation & Fast-Fail Audit.
- * Measures the system's ability to reject invalid requests quickly (Fail-Fast).
+ * @description Failure Propagation & Fast-Fail Audit
+ * @summary Measures the system's ability to reject invalid requests quickly with minimal resource waste.
+ *
+ * ### Features:
+ * - Invalid request rejection latency
+ * - Fast-fail path efficiency measurement
+ * - Error propagation boundary verification
+ * - Resource waste minimization analysis
  */
 
 import {
@@ -32,6 +38,7 @@ afterAll(async () => {
 });
 
 export async function runFailurePropagationAudit() {
+  // pre-existing unused var removed for TS strict mode
   await stabilize();
 
   console.log("\n🚀 Starting World Life Data: Failure Propagation Audit...\n");
@@ -120,8 +127,6 @@ export async function runFailurePropagationAudit() {
   ]);
 
   for (const r of allResults) exportResult(r);
-
-  console.log("\n✅ Failure propagation audit completed.");
 }
 
 test("Failure Propagation World Life Suite", async () => {

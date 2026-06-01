@@ -14,14 +14,10 @@ export async function getStripe(tenantId = "default"): Promise<any> {
 
   const pluginState = await pluginRegistry.getPluginState("stripe", tenantId);
   const secretKey =
-    (pluginState?.settings as any)?.secretKey ||
-    process.env.STRIPE_SECRET_KEY ||
-    "";
+    (pluginState?.settings as any)?.secretKey || process.env.STRIPE_SECRET_KEY || "";
 
   if (!secretKey) {
-    throw new Error(
-      `Stripe secret key not configured for tenant "${tenantId}".`,
-    );
+    throw new Error(`Stripe secret key not configured for tenant "${tenantId}".`);
   }
 
   // @ts-ignore — stripe package is optional, only needed when plugin is enabled

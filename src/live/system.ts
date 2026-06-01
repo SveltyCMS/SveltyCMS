@@ -55,6 +55,25 @@ export const events = live.stream(
 // ====================== EVENTBUS BRIDGE ======================
 
 /**
+ * Pre-filter: only bridge events matching these prefixes to WebSocket clients.
+ * Reduces unnecessary CPU cycles from internal events (cache, metrics, etc.)
+ * that don't need real-time broadcasting.
+ */
+const BRIDGE_EVENT_PREFIXES = [
+  "content.",
+  "collection.",
+  "media.",
+  "user.",
+  "auth.",
+  "system.",
+  "benchmark.",
+];
+
+function shouldBridgeEvent(event: string): boolean {
+  return BRIDGE_EVENT_PREFIXES.some((prefix) => event.startsWith(prefix));
+}
+
+/**
  * Bridges internal EventBus events to all connected WebSocket clients.
  * Automatically handles tenant isolation.
  */
@@ -67,6 +86,9 @@ eventBus.on("*", (payload: any) => {
 
     const { event, data } = payload || {};
     if (!event) return;
+
+    // 🚀 Performance: skip events that don't need real-time broadcasting
+    if (!shouldBridgeEvent(event)) return;
 
     const tenantId = data?.tenantId || DEFAULT_TENANT_ID;
     const topic = `system_events:${tenantId}`;

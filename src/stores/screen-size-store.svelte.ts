@@ -18,7 +18,7 @@ class ScreenSizeStore {
   }
 
   get isMobile(): boolean {
-    return this.width < BREAKPOINTS[ScreenSize.MD]; // < 768px
+    return this.width < BREAKPOINTS[ScreenSize.MD];
   }
 
   get isTablet(): boolean {
@@ -26,7 +26,7 @@ class ScreenSizeStore {
   }
 
   get isDesktop(): boolean {
-    return this.width >= BREAKPOINTS[ScreenSize.LG]; // >= 1024px
+    return this.width >= BREAKPOINTS[ScreenSize.LG];
   }
 
   private rafId: number | null = null;

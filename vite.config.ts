@@ -310,6 +310,7 @@ process.on("SIGINT", () => {
  */
 function suppressThirdPartyWarningsPlugin(): Plugin {
   let originalConsoleWarn: typeof console.warn | undefined;
+  let originalConsoleLog: typeof console.log | undefined;
   let originalStderrWrite: typeof process.stderr.write | undefined;
   let originalStdoutWrite: typeof process.stdout.write | undefined;
   let isIntercepted = false;
@@ -320,6 +321,8 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
     // AWS SDK / Smithy chunk-split noise (adapter Rollup, not our code)
     /will end up in different chunks.*@smithy/,
     /will end up in different chunks.*@aws-sdk/,
+    // svelte-realtime startup noise (utility exports not meant for live())
+    /\[svelte-realtime\]/,
   ];
 
   function shouldSuppress(msg: string): boolean {
@@ -332,12 +335,18 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
       if (!isIntercepted) {
         isIntercepted = true;
         originalConsoleWarn = console.warn;
+        originalConsoleLog = console.log;
         originalStderrWrite = process.stderr.write.bind(process.stderr);
         originalStdoutWrite = process.stdout.write.bind(process.stdout);
         console.warn = (...args: unknown[]) => {
           const msg = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
           if (shouldSuppress(msg)) return;
           (originalConsoleWarn as typeof console.warn).apply(console, args);
+        };
+        console.log = (...args: unknown[]) => {
+          const msg = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
+          if (shouldSuppress(msg)) return;
+          (originalConsoleLog as typeof console.log).apply(console, args);
         };
         process.stderr.write = (chunk: any, ...rest: any[]): boolean => {
           const msg = typeof chunk === "string" ? chunk : (chunk?.toString() ?? "");
@@ -353,6 +362,7 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
     },
     closeBundle() {
       if (originalConsoleWarn) console.warn = originalConsoleWarn;
+      if (originalConsoleLog) console.log = originalConsoleLog;
       if (originalStderrWrite) process.stderr.write = originalStderrWrite;
       if (originalStdoutWrite) process.stdout.write = originalStdoutWrite;
       isIntercepted = false;

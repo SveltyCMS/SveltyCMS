@@ -1,6 +1,12 @@
 /**
  * @file tests/benchmarks/local-api-performance.test.ts
- * @description Benchmark to measure SDK overhead (LocalCMS) vs direct adapter calls.
+ * @description Local API Performance Benchmark
+ * @summary Measures LocalCMS SDK overhead vs direct adapter calls to verify zero-tax dispatching
+ *
+ * ### Features:
+ * - Direct adapter baseline latency
+ * - LocalCMS SDK proxy overhead comparison
+ * - Hot-swap self-overwriting getter verification
  */
 
 import { test, runBenchmark, getDbType, printTruthTable } from "./modules/benchmark-utils";
@@ -67,7 +73,6 @@ async function runLocalApiBenchmark() {
     console.log(`\n📊 SDK Middleware Tax: ${overhead.toFixed(2)}%`);
   } catch (err: any) {
     console.error("Benchmark failed:", err);
-
     throw err;
   }
 }

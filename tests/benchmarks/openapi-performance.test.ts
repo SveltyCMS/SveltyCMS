@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/openapi-performance.test.ts
- * @description Enterprise OpenAPI benchmark for SveltyCMS.
- * Measures dynamic spec generation and cached documentation endpoint performance.
+ * @description OpenAPI Performance Audit
+ * @summary Measures dynamic OpenAPI spec generation speed and cached documentation endpoint performance.
+ *
+ * ### Features:
+ * - Dynamic spec generation latency profiling
+ * - Cached endpoint response measurement
+ * - Spec size impact on generation time
+ * - SDK-ready output validation
  */
 
 import {
@@ -23,6 +29,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runOpenApiAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise OpenAPI Audit...\n");
 
   try {
@@ -128,8 +135,6 @@ async function runOpenApiAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ OpenAPI audit completed.");
 }
 
 test("OpenAPI Enterprise Audit", async () => {

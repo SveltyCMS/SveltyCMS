@@ -445,6 +445,7 @@ export async function runAuditForDatabase(
     await warmupServer(cfg, workerPort);
 
     log.db(dbKey, "Warmup complete. Starting benchmarks...");
+    await ensureSeedingIfNeeded({ path: "relational", strategy: "sql" } as any, env, cfg);
 
     let status: "SUCCESS" | "FAILED" = "SUCCESS";
     let errorMsg: string | undefined;
@@ -458,8 +459,6 @@ export async function runAuditForDatabase(
         progressTracker?.update();
         continue;
       }
-
-      await ensureSeedingIfNeeded(s, env, cfg);
 
       const useLock = s.intensity === "high" && cfg.parallelMode === "safe";
       if (useLock) {
@@ -481,11 +480,15 @@ export async function runAuditForDatabase(
 
         if (!outcome.passed) {
           status = "FAILED";
-          errorMsg = (errorMsg ? errorMsg + "; " : "") + `${s.shortLabel} failed`;
-          log.error(`Benchmark failed: ${s.shortLabel} (${dbKey})`);
+          const detail = outcome.error ? ` (${outcome.error})` : "";
+          errorMsg = (errorMsg ? errorMsg + "; " : "") + `${s.shortLabel} failed${detail}`;
+          log.error(`Benchmark failed: ${s.shortLabel} (${dbKey})${detail}`);
+          log.error(`  Debug: bun test ${s.path} -- --db=${dbKey}`);
 
           if (cfg.failFast) {
-            log.error(`❌ Fail-Fast triggered by ${s.shortLabel}`);
+            log.error(
+              `Fail-Fast: stopping after ${s.shortLabel} failed. Debug: bun test ${s.path}`,
+            );
             setShuttingDown(true);
             throw new Error("Fail-fast");
           }
@@ -494,6 +497,7 @@ export async function runAuditForDatabase(
         status = "FAILED";
         errorMsg = (errorMsg ? errorMsg + "; " : "") + `${s.shortLabel} crashed`;
         log.error(`Benchmark crashed: ${s.shortLabel} - ${err.message}`);
+        log.error(`  Debug: bun test ${s.path} -- --db=${dbKey}`);
 
         if (cfg.failFast) throw err;
       } finally {

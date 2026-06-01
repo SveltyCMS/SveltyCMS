@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/content-scale-stress.test.ts
- * @description Stress benchmark for SveltyCMS Content Scan.
- * Measures performance at extreme scale (1,000+ collections).
+ * @description Content Scale Stress Benchmark
+ * @summary Measures file-scanning and content discovery performance at extreme scale (1,000+ collections)
+ *
+ * ### Features:
+ * - 1,000+ collection file stress generation
+ * - Multi-level nested directory scanning
+ * - Sub-10ms persistence verification at scale
  */
 
 import {

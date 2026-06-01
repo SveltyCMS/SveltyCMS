@@ -1,5 +1,5 @@
 /**
- * @file tests/benchmark./modules/benchmark-meta.ts
+ * @file tests/benchmarks/modules/benchmark-meta.ts
  * @description Educational metadata registry for all benchmark tests.
  *
  * Each entry maps a test file to:
@@ -9,6 +9,8 @@
  *
  * This data feeds into MDX reports to help users understand
  * WHAT is being tested, WHY it matters, and WHERE to look.
+ *
+ * Covers all 50 benchmark tests across 9 dimensions.
  */
 import { registerTestMeta } from "./benchmark-reporting";
 
@@ -52,7 +54,7 @@ registerTestMeta(
 );
 
 registerTestMeta(
-  "tests/benchmarks/modules/build-analysis.test.ts",
+  "tests/benchmarks/build-analysis.test.ts",
   "Production bundle size, chunk count, and build performance",
   ["vite.config.ts", "svelte.config.js"],
   "Large bundles degrade FCP/LCP. Affects CDN costs and user experience.",

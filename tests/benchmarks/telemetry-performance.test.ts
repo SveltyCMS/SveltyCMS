@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/telemetry-performance.test.ts
- * @description Enterprise telemetry performance benchmark for SveltyCMS.
- * Measures the impact of update checks and telemetry data collection.
+ * @description Telemetry & Update Check Performance Benchmark
+ * @summary Measures telemetry update check latency and memory impact on both happy-path and failure-path scenarios.
+ *
+ * ### Features:
+ * - Happy-path telemetry update check latency and throughput
+ * - Failure-path error handling overhead with mocked 500 responses
+ * - Memory growth (RSS delta) measurement during telemetry collection
  */
 
 import {
@@ -21,6 +26,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runTelemetryAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Telemetry Audit...\n");
 
   try {
@@ -88,8 +94,16 @@ async function runTelemetryAudit() {
       printSummaryTable([
         { key: "Happy Path Latency", val: happyResult.avgMs, unit: "ms" },
         { key: "Error Path Latency", val: errorResult.avgMs, unit: "ms" },
-        { key: "Peak Throughput", val: Math.round(happyResult.rps || 0), unit: "req/s" },
-        { key: "Memory Growth", val: (happyResult.rssDelta || 0).toFixed(1), unit: "MB" },
+        {
+          key: "Peak Throughput",
+          val: Math.round(happyResult.rps || 0),
+          unit: "req/s",
+        },
+        {
+          key: "Memory Growth",
+          val: (happyResult.rssDelta || 0).toFixed(1),
+          unit: "MB",
+        },
       ]);
 
       for (const r of results) exportResult(r);
@@ -99,14 +113,13 @@ async function runTelemetryAudit() {
   } catch (err: any) {
     logger.error(`Telemetry benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Telemetry audit completed.");
 }
 
 test("Telemetry & Update Performance Audit", async () => {

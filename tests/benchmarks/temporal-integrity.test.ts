@@ -1,8 +1,12 @@
 /**
  * @file tests/benchmarks/temporal-integrity.test.ts
- * @description Enterprise Temporal Integrity Audit.
- * Simulates workflow actions across different "time zones" or artificial times
- * to prove that the CMS engine uses deterministic UTC timing for persistence.
+ * @description Temporal Integrity & UTC Normalization Audit
+ * @summary Validates deterministic UTC normalization of ISO date strings across timezone offsets for consistent persistence.
+ *
+ * ### Features:
+ * - Multi-timezone date persistence verification (UTC, EST, JST)
+ * - ISO 8601 date string normalization to UTC (Z) suffix
+ * - Cache-bypassed read-back validation for temporal integrity
  */
 
 import {
@@ -22,6 +26,7 @@ const COLLECTION_ID = "BenchmarkStable";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runTemporalAudit() {
+  // pre-existing unused var removed for TS strict mode
   process.stderr.write("🚀 Starting Enterprise Temporal Integrity Audit...\n");
 
   try {
@@ -55,7 +60,11 @@ async function runTemporalAudit() {
     // and return standardized ISO strings.
 
     const testDates = [
-      { name: "UTC Baseline", input: "2026-05-15T12:00:00Z", expected: "2026-05-15T12:00:00.000Z" },
+      {
+        name: "UTC Baseline",
+        input: "2026-05-15T12:00:00Z",
+        expected: "2026-05-15T12:00:00.000Z",
+      },
       {
         name: "EST (UTC-5)",
         input: "2026-05-15T07:00:00-05:00",
@@ -166,7 +175,11 @@ async function runTemporalAudit() {
     printSummaryTable([
       { key: "Timezones Tested", val: testDates.length, unit: "zones" },
       { key: "Failures", val: failures, unit: "" },
-      { key: "Temporal Health", val: failures === 0 ? "EXCELLENT" : "NEEDS WORK", unit: "" },
+      {
+        key: "Temporal Health",
+        val: failures === 0 ? "EXCELLENT" : "NEEDS WORK",
+        unit: "",
+      },
     ]);
   } catch (err: any) {
     logger.error(`Temporal audit failed: ${err.message}`);
@@ -178,8 +191,6 @@ async function runTemporalAudit() {
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Temporal audit completed.");
 }
 
 test("Temporal Integrity & Timezone Contract", async () => {

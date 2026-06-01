@@ -7,6 +7,7 @@
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import path from "node:path";
+import { Database } from "bun:sqlite";
 import { pushTableToMdx, appendSummaryToMdx, computeAndApplyTrend } from "./benchmark-reporting";
 
 // Auto-register educational metadata for all benchmark tests
@@ -355,47 +356,38 @@ export function getDbType(): string {
 }
 
 function discoverBenchmarkMetadata() {
-  const metadata = {
-    path: process.env.BENCH_FILE || "unknown",
-    proves: process.env.BENCH_PROVES || "Performance verification.",
-  };
-
-  if (metadata.path === "unknown") {
+  let filePath = process.env.BENCH_FILE || "";
+  if (!filePath) {
     try {
       const err = new Error();
       const stack = err.stack || "";
-      const lines = stack.split("\n");
-      for (const line of lines) {
-        const normalized = line.replace(/\\/g, "/");
-        if (
-          normalized.includes("tests/benchmarks/") &&
-          !normalized.includes("benchmark-utils.ts")
-        ) {
-          const match = normalized.match(/tests\/benchmarks\/([\w.-]+)/i);
-          if (match) {
-            metadata.path = `tests/benchmarks/${match[1].split(":")[0].split("?")[0]}`;
+      for (const line of stack.split("\n")) {
+        const n = line.replace(/\\/g, "/");
+        if (n.includes("tests/benchmarks/") && !n.includes("benchmark-utils.ts")) {
+          const m = n.match(/tests\/benchmarks\/([\w.-]+)/i);
+          if (m) {
+            filePath = `tests/benchmarks/${m[1].split(":")[0].split("?")[0]}`;
             break;
           }
         }
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
 
-  if (metadata.path !== "unknown" && metadata.proves === "Performance verification.") {
+  let proves = "";
+  if (filePath) {
     try {
-      const fullPath = path.resolve(process.cwd(), metadata.path);
+      const fullPath = path.resolve(process.cwd(), filePath);
       if (fs.existsSync(fullPath)) {
         const content = fs.readFileSync(fullPath, "utf-8");
-        const descMatch = content.match(/@description\s+(.+)/i);
-        if (descMatch) metadata.proves = descMatch[1].trim();
+        // Prefer @summary for table header, fall back to @description first line
+        const m = content.match(/@summary\s+(.+)/i) || content.match(/@description\s+(.+)/i);
+        if (m) proves = m[1].trim();
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
-  return metadata;
+
+  return { path: filePath || "unknown", proves };
 }
 
 export async function stabilize(ms: number = 150) {
@@ -473,6 +465,12 @@ export function printTruthTable(options: {
   log(h.center(options.title));
   const meta = discoverBenchmarkMetadata();
   log(h.center(`File: ${meta.path}`));
+  if (meta.proves) {
+    const lines = meta.proves.split("\n");
+    for (const line of lines) {
+      log(h.center(line));
+    }
+  }
   log(h.bar("╠", "╣"));
   options.results.forEach((r) => {
     const avgMs = r.avgMs ?? 0;
@@ -693,12 +691,13 @@ export async function setupBenchmarkServer() {
     JWT_SECRET_KEY,
     ENCRYPTION_KEY,
     TEST_API_SECRET: configSecret,
+    ADMIN_PASSWORD,
   } = await import("../../../scripts/benchmark-matrix/config");
 
   const dbType = getDbType() || "sqlite";
   const useRedis = process.env.USE_REDIS === "true";
   const dbKey = useRedis ? `${dbType}-redis` : dbType;
-  const dbName = `bench_tmp_${process.pid}`;
+  const dbName = `benchmark_shared`;
   const dbConf =
     ALL_DATABASES.find((d) => {
       const key = d.useRedis ? `${d.type}-redis` : d.type;
@@ -718,6 +717,7 @@ export async function setupBenchmarkServer() {
   process.env.JWT_SECRET_KEY = JWT_SECRET_KEY;
   process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
   process.env.TEST_API_SECRET = configSecret;
+  process.env.ADMIN_PASSWORD = ADMIN_PASSWORD;
   TEST_API_SECRET = configSecret;
   process.env.SVELTY_BENCHMARK_SUITE = "true";
 
@@ -735,20 +735,11 @@ export async function setupBenchmarkServer() {
   try {
     const { spawn } = await import("node:child_process");
     await new Promise<void>((resolve) => {
-      const proc = spawn(
-        "bun",
-        [
-          "run",
-          "--preload",
-          "./tests/unit/bun-preload.ts",
-          "scripts/benchmark-matrix/setup-benchmarks.ts",
-        ],
-        {
-          env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL },
-          stdio: "ignore",
-          shell: process.platform === "win32",
-        },
-      );
+      const proc = spawn("bun", ["run", "scripts/benchmark-matrix/setup-benchmarks.ts"], {
+        env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL },
+        stdio: "ignore",
+        shell: process.platform === "win32",
+      });
       proc.on("close", () => resolve());
     });
   } catch {
@@ -758,8 +749,15 @@ export async function setupBenchmarkServer() {
   return { baseUrl: process.env.API_BASE_URL, stop };
 }
 
-export function exportResult(r: any) {
+export async function exportResult(r: any) {
   const dbType = getDbType();
+
+  // Detect test file for SQLite persistence and trend comparison
+  let testFile = process.env.BENCH_FILE || "";
+  if (!testFile) {
+    const m = (process.argv[1] || "").match(/tests[/\\]benchmarks[/\\]([\w.-]+)\.ts/);
+    if (m) testFile = m[1];
+  }
   let dir = path.resolve(process.cwd(), RESULTS_DIR);
   if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -781,10 +779,141 @@ export function exportResult(r: any) {
       }) + "\n";
     fs.appendFileSync(historyFile, entry);
 
-    // Trigger trend analysis + MDX update
-    computeAndApplyTrend(r);
+    // Trigger trend analysis + MDX update (await to ensure writes complete)
+    await computeAndApplyTrend(r);
+
+    // Only persist to SQLite history when explicitly recording
+    if (process.env.BENCHMARK_RECORD === "1") {
+      persistSingleRun(r, testFile, dbType);
+    }
+
+    // Print historical comparison for fast developer feedback (single-run only)
+    if (process.env.BENCHMARK_MATRIX !== "1") {
+      printTrendComparison(r, dbType);
+    }
+
+    // Confirm recording to user
+    if (process.env.BENCHMARK_RECORD === "1") {
+      console.log(`  Recorded to benchmark_${dbType.replace("-", "_")}.mdx`);
+    }
   } catch {
     /* ignore */
+  }
+}
+
+/**
+ * Prints a trend comparison line comparing current run to historical baseline.
+ * Uses the same logic as the full matrix analysis (rolling median, pctChange).
+ */
+function printTrendComparison(
+  result: { name: string; avgMs: number; p95Ms: number; rps: number },
+  dbType: string,
+) {
+  try {
+    let testFile = process.env.BENCH_FILE || "";
+    if (!testFile) {
+      // process.argv[1] for "bun test" runs contains the absolute test file path
+      const argFile = process.argv[1] || "";
+      const m = argFile.match(/tests[/\\]benchmarks[/\\]([\w.-]+)\.ts/);
+      if (m) testFile = m[1];
+    }
+    if (!testFile) return;
+
+    const historyPath = path.resolve(process.cwd(), "tests/benchmarks/results", "history.sqlite");
+    if (!fs.existsSync(historyPath)) return;
+    const db = new Database(historyPath);
+    const rows = db
+      .prepare(
+        "SELECT avg_ms, p95_ms, rps FROM benchmark_runs WHERE test_id = ? AND db_type = ? ORDER BY timestamp DESC LIMIT 10",
+      )
+      .all(testFile, dbType) as Array<{
+      avg_ms: number;
+      p95_ms: number;
+      rps: number;
+    }>;
+    db.close();
+
+    if (rows.length < 2) {
+      console.log(`  ${`\u26AA`} baseline \u2014 ${rows.length} run(s) recorded`);
+      return;
+    }
+
+    const history = rows.slice(1);
+    const sorted = (vals: number[]) => [...vals].sort((a, b) => a - b);
+    const median = (vals: number[]) => sorted(vals)[Math.floor(vals.length / 2)];
+
+    const bAvg = median(history.map((r) => r.avg_ms));
+    const bP95 = median(history.filter((r) => r.p95_ms > 0).map((r) => r.p95_ms));
+    const bRPS = median(history.filter((r) => r.rps > 0).map((r) => r.rps));
+
+    const pct = (cur: number, base: number) => (base > 0 ? ((cur - base) / base) * 100 : 0);
+    const dAvg = pct(result.avgMs, bAvg);
+    const dP95 = pct(result.p95Ms, bP95);
+    const dRPS = pct(result.rps, bRPS);
+
+    const abs = Math.abs(dAvg);
+    const icon =
+      dAvg < -3
+        ? `\u{1F7E2}`
+        : abs < 5
+          ? `\u26AA`
+          : abs < 10
+            ? `\u{1F7E1}`
+            : abs < 20
+              ? `\u{1F7E0}`
+              : `\u{1F534}`;
+
+    let label = `${result.name}`;
+    if (result.avgMs > 0 && bAvg > 0) label += ` | avg ${dAvg > 0 ? "+" : ""}${dAvg.toFixed(0)}%`;
+    // Suppress noise at sub-millisecond: only report if absolute delta > 0.01ms or both > 0.05ms
+    const p95DeltaAbs = Math.abs(result.p95Ms - bP95);
+    const p95AboveNoise = result.p95Ms > 0.05 || bP95 > 0.05 || p95DeltaAbs > 0.01;
+    if (result.p95Ms > 0 && bP95 > 0 && Math.abs(dP95) > 3 && p95AboveNoise)
+      label += ` | p95 ${dP95 > 0 ? "+" : ""}${dP95.toFixed(0)}%`;
+    // Suppress RPS noise: require >5% AND absolute delta > 100 req/s
+    const rpsDeltaAbs = Math.abs(result.rps - bRPS);
+    if (result.rps > 0 && bRPS > 0 && Math.abs(dRPS) > 5 && rpsDeltaAbs > 100)
+      label += ` | rps ${dRPS > 0 ? "+" : ""}${dRPS.toFixed(0)}%`;
+    label += ` (${history.length + 1} runs)`;
+
+    console.log(`  Trend: ${icon} ${label}`);
+  } catch {
+    /* best effort */
+  }
+}
+
+/** Persist a single test run to the SQLite history DB for trend comparison */
+function persistSingleRun(r: any, testFile: string, dbType: string) {
+  if (!testFile) return;
+  try {
+    const historyPath = path.resolve(process.cwd(), "tests/benchmarks/results", "history.sqlite");
+    if (!fs.existsSync(historyPath)) return;
+    const db = new Database(historyPath);
+    db.run(
+      `INSERT INTO benchmark_runs (test_id, test_file, db_type, redis_enabled, phase, scenario, avg_ms, p50_ms, p95_ms, p99_ms, p99_9_ms, min_ms, max_ms, rps, cv, ci95_margin_ms, error_count, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      testFile,
+      "tests/benchmarks/" + testFile + ".ts",
+      dbType,
+      process.env.USE_REDIS === "true" ? 1 : 0,
+      "warm",
+      r.name || "",
+      r.avgMs,
+      r.p50Ms || r.avgMs,
+      r.p95Ms,
+      r.p99Ms || r.p95Ms,
+      r.p99Ms || r.p95Ms,
+      r.minMs || r.avgMs,
+      r.maxMs || r.avgMs,
+      r.rps,
+      r.cv || 0,
+      r.ci95MarginMs || 0,
+      r.errorCount || 0,
+      "SUCCESS",
+    );
+    db.close();
+  } catch {
+    /* best effort */
   }
 }
 
@@ -1133,10 +1262,21 @@ export async function waitForCollection(
       });
       if (res.ok) {
         const data = await res.json();
-        const types = data.data.__schema.types.map((t: any) => t.name);
-        if (types.includes(collectionId)) return;
+        if (data.errors) {
+          console.log(`[waitForCollection] GraphQL errors:`, JSON.stringify(data.errors));
+        } else {
+          const types = data.data.__schema.types.map((t: any) => t.name);
+          if (types.includes(collectionId)) return;
+          if (i % 5 === 0) {
+            console.log(`[waitForCollection] Types (sample):`, types.slice(0, 15).join(", "));
+          }
+        }
+      } else {
+        console.log(`[waitForCollection] Fetch not OK: ${res.status} ${res.statusText}`);
       }
-    } catch {}
+    } catch (e: any) {
+      console.log(`[waitForCollection] Exception:`, e.message);
+    }
     await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error(`Timeout waiting for collection ${collectionId} in GraphQL schema.`);
@@ -1148,7 +1288,7 @@ export function generateRealisticEntry(
 ) {
   const size = complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
   return {
-    _id: `real-${i}`,
+    _id: `real-${Date.now()}-${i}`,
     title: `Post Title ${i} - SveltyCMS Performance Audit`,
     slug: `post-${i}-${Math.random().toString(36).substring(7)}`,
     content: "A".repeat(size),

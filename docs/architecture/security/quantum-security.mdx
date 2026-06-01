@@ -82,7 +82,7 @@ It's crucial to understand that **classical** and **quantum** algorithms operate
 | **Argon2id**         | Very High          | Very Low              | ✅ Primary      | ✅ Very Low Risk |
 | **SHA-256**          | High               | Low (Grover's)        | ✅ Checksums    | ✅ Low Risk      |
 
-### Why SveltyCMS is Quantum-Resistant
+### Why SveltyCMS is Quantum-Resistant (4 Layers)
 
 #### 1. No Vulnerable Public-Key Cryptography
 
@@ -137,6 +137,10 @@ Quantum Computer:
 - Even with quantum speedup, 2^128 operations is still impossible
 - Would require more energy than exists in the observable universe
 - GCM mode provides authenticated encryption (integrity + confidentiality)
+
+#### 4. Per-Session CSPRNG Nonce (Memory-Only, Source-Code-Immune)
+
+Open-source code reveals every env var and header name. SveltyCMS counters this with `crypto.randomUUID()` nonces generated per benchmark run — stored exclusively in process memory, never on disk or in git. Even with full source code and a leaked config secret, the runtime nonce is unextractable without memory-level server access.
 
 ---
 

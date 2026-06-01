@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/truth-latency.test.ts
- * @description The "Truth Benchmark" suite for SveltyCMS.
- * Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack.
+ * @description Truth Latency Benchmark
+ * @summary Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack
+ *
+ * ### Features:
+ * - Isolated SDK baseline (LocalCMS, in-memory DB)
+ * - Middleware pipeline overhead measurement
+ * - Real HTTP stack E2E latency comparison
  */
 
 import {
@@ -72,7 +77,11 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
       silent: true,
       onIteration: async () => {},
     });
-    allResults.push({ ...logicRes, layer: "Logic", proves: "JS Harness Overhead" });
+    allResults.push({
+      ...logicRes,
+      layer: "Logic",
+      proves: "JS Harness Overhead",
+    });
 
     // 2. SDK Layer (Isolated In-Memory)
     const sdkRes = await runBenchmark({
@@ -113,7 +122,11 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
         await res.json();
       },
     });
-    allResults.push({ ...httpRes, layer: "HTTP", proves: "Full Production Stack" });
+    allResults.push({
+      ...httpRes,
+      layer: "HTTP",
+      proves: "Full Production Stack",
+    });
 
     printTruthTable({
       title: "SVELTYCMS — SRE TRUTH AUDIT",
@@ -122,10 +135,18 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
     });
 
     printSummaryTable([
-      { key: "Baseline Harness Overhead", val: allResults[0].avgMs, unit: "ms" },
+      {
+        key: "Baseline Harness Overhead",
+        val: allResults[0].avgMs,
+        unit: "ms",
+      },
       { key: "SDK Engine Latency", val: allResults[1].avgMs, unit: "ms" },
       { key: "E2E HTTP Latency", val: allResults[2].avgMs, unit: "ms" },
-      { key: "Peak HTTP Throughput", val: Math.round(allResults[2].rps), unit: "req/s" },
+      {
+        key: "Peak HTTP Throughput",
+        val: Math.round(allResults[2].rps),
+        unit: "req/s",
+      },
     ]);
 
     // 🚀 STOCHASTIC LOAD TEST
@@ -167,6 +188,4 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
     for (const r of allResults) exportResult(r);
   } finally {
   }
-
-  console.log("\n✅ Truth latency audit completed.");
 }, 600000);

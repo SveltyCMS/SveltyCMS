@@ -65,6 +65,7 @@ This component provides a user interface for managing 2FA settings:
 	// Native UI Components & Stores
 	// getModalStore deprecated - use modalState from @utils/modal-state.svelte;
 	import TwoFactorVerifyModal from './two-factor-verify-modal.svelte';
+	import QrCode from '@components/ui/qr-code.svelte';
 
 	interface Props {
 		body?: string;
@@ -84,7 +85,7 @@ This component provides a user interface for managing 2FA settings:
 	let isLoading = $state(false);
 	let backupCodes = $state<string[]>([]);
 	let setupData = $state<{
-		qrCodeUrl: string;
+		otpauthUrl: string;
 		secret: string;
 		backupCodes: string[];
 	} | null>(null);
@@ -134,12 +135,8 @@ This component provides a user interface for managing 2FA settings:
 			// Get the otpauth URL
 			const otpauthUrl = data.qrCodeURL || data.qrCodeUrl || data.qrCode || data.qr_code_url || '';
 
-			// Generate QR code image URL using a QR code API
-			// Using qrcode.show API (simple, no registration needed)
-			const qrCodeImageUrl = otpauthUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(otpauthUrl)}` : '';
-
 			setupData = {
-				qrCodeUrl: qrCodeImageUrl,
+				otpauthUrl,
 				secret: data.secret || data.secretKey || data.secret_key || '',
 				backupCodes: data.backupCodes || data.backup_codes || []
 			};
@@ -307,9 +304,9 @@ This component provides a user interface for managing 2FA settings:
 						<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setup_step_1()}</p>
 
 						<!-- QR Code -->
-						<div class="flex justify-center rounded-lg bg-white p-2 dark:bg-white">
-							{#if setupData.qrCodeUrl}
-								<img src={setupData.qrCodeUrl} alt="2FA QR Code" class="h-32 w-32" />
+						<div class="flex justify-center rounded-lg bg-white p-4 dark:bg-white">
+							{#if setupData.otpauthUrl}
+								<QrCode value={setupData.otpauthUrl} size={150} color="#000000" backgroundColor="#ffffff" />
 							{:else}
 								<div class="flex h-32 w-32 items-center justify-center bg-surface-200">
 									<p class="text-xs text-surface-600">QR Code</p>

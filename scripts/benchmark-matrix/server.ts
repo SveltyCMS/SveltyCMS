@@ -165,6 +165,8 @@ export function buildServerEnv(
     ADMIN_PASSWORD,
     JWT_SECRET_KEY,
     ENCRYPTION_KEY,
+    // CSPRNG nonce generated per benchmark run — prevents replay even with source code access
+    BENCH_NONCE: crypto.randomUUID(),
   };
 
   const env: NodeJS.ProcessEnv = {
@@ -210,11 +212,7 @@ export async function getServerEntryPoint(): Promise<string> {
     }
   }
 
-  console.log(`[getServerEntryPoint] ROOT is: "${ROOT}"`);
   const paths = [join(ROOT, "build", "index.js"), join(ROOT, "build", "server", "index.js")];
-  for (const p of paths) {
-    console.log(`[getServerEntryPoint] Check path: "${p}" -> exists: ${safeExistsSync(p)}`);
-  }
   const entryPoint = paths.find((p) => safeExistsSync(p));
 
   if (!entryPoint) {
@@ -553,22 +551,25 @@ export async function warmupServer(cfg: RunConfig, port: number) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-test-mode": "true",
         "x-test-secret": TEST_API_SECRET,
       },
       body: JSON.stringify({
-        email: "admin@example.com",
-        password: ADMIN_PASSWORD,
+        email: process.env.ADMIN_EMAIL || "admin@example.com",
+        password: process.env.ADMIN_PASSWORD || ADMIN_PASSWORD,
       }),
       signal: AbortSignal.timeout(5000),
     });
     if (loginRes.ok) log.success("Auth pipeline warmed up (Admin login successful)");
     else {
       const body = await loginRes.text();
-      log.warn(`Auth warmup failed (Status ${loginRes.status}): ${body.substring(0, 100)}`);
+      log.warn(
+        `Auth warmup failed (Status ${loginRes.status}) — real auth skipped: benchmarks use x-test-secret for performance. Cause: ${body.substring(0, 80)}`,
+      );
     }
   } catch (err: any) {
-    log.warn(`Auth warmup skipped: ${err.message}`);
+    log.warn(
+      `Auth warmup skipped (${err.message}) — non-critical: benchmarks authenticate via x-test-secret header`,
+    );
   }
 
   await verifyOpenAPI(port);
@@ -709,6 +710,8 @@ export async function runSystemSetup(
     ENCRYPTION_KEY,
     PASSWORD_MIN_LENGTH: "8",
     TEST_MODE: "true",
+    PRESET: "demo",
+    DEMO: "true",
     ...overrides,
   };
 

@@ -89,9 +89,7 @@ export const stripePlugin: Plugin = {
       if (data._stripePaymentIntent) {
         const { getStripe } = await import("./server/stripe");
         const stripe = await getStripe(context.tenantId);
-        const intent = await stripe.paymentIntents.retrieve(
-          data._stripePaymentIntent,
-        );
+        const intent = await stripe.paymentIntents.retrieve(data._stripePaymentIntent);
         if (intent.status !== "succeeded") {
           throw new Error(
             `Payment not completed. Status: ${intent.status}. Please complete payment before saving.`,

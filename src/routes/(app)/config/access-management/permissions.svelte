@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/config/assessManagement/Permissions.svelte
+@file src/routes/(app)/config/access-management/permissions.svelte
 @component
 **This component manages permissions in the access management system. It provides functionality to display existing permissions, search and filter permissions, modify permission settings, bulk delete selected permissions, and handle advanced permission conditions.**
 

@@ -32,7 +32,7 @@ import {
   setSystemState,
   resetSystemState,
   updateServiceHealth,
-} from "@src/stores/system/state.svelte";
+} from "@src/stores/system/state.svelte.ts";
 import { handleSystemState } from "@src/hooks/handle-system-state";
 import { isSetupComplete, getSetupState } from "@src/utils/setup-check";
 

@@ -11,7 +11,6 @@ import { ui } from "@src/stores/ui-store.svelte";
 import { browser } from "$app/environment";
 import { events } from "$live/system";
 import { chat, sendMessage as sendRpcMessage } from "$live/chat";
-import { get } from "svelte/store";
 
 export interface Message {
   id?: string;
@@ -35,14 +34,15 @@ class CollaborationStore {
 
   // --- Reactive Streams (Automatically synced stores) ---
   private eventStream = events;
-  private chatStream = $derived(chat(this.currentRoom || "ai"));
+  eventStreamValue = $state<any[]>([]);
+  chatStreamValue = $state<any[]>([]);
 
   // Connection status is global/handled differently, we'll assume true for now.
   isConnected = $state(true);
 
   // --- Aggregated State ---
   activities = $derived(
-    ((get(this.eventStream as any) as any[]) || []).map((ev: any) => ({
+    this.eventStreamValue.map((ev: any) => ({
       event: ev.event,
       collection: ev.data?.collection,
       user: ev.data?.user,
@@ -52,7 +52,7 @@ class CollaborationStore {
   );
 
   aiHistory = $derived(
-    ((get(this.chatStream as any) as any[]) || []).map((msg: any) => ({
+    this.chatStreamValue.map((msg: any) => ({
       id: msg.id,
       content: msg.content,
       role: msg.role,
@@ -61,12 +61,17 @@ class CollaborationStore {
     })) as Message[],
   );
 
-  private readonly effectCleanup?: () => void;
+  private effectCleanup?: () => void;
 
   constructor() {
     if (browser) {
+      // 1. Subscribe to the global events store
+      const unsubscribeEvents = this.eventStream.subscribe((value: any) => {
+        this.eventStreamValue = (value as any[]) || [];
+      });
+
       this.effectCleanup = $effect.root(() => {
-        // 1. Room Management (Auto-join based on collection)
+        // 2. Room Management (Auto-join based on collection)
         $effect(() => {
           const activeCollection = collections.active;
           const activeValue = collections.activeValue;
@@ -85,21 +90,37 @@ class CollaborationStore {
           }
         });
 
-        // 2. Notification Triggers (Toasts)
+        // 3. Dynamic chat stream subscription based on currentRoom
         $effect(() => {
-          const latestEvent = (get(this.eventStream as any) as any[])?.at(-1);
+          const stream = chat(this.currentRoom || "ai");
+          const unsubscribeChat = stream.subscribe((value: any) => {
+            this.chatStreamValue = (value as any[]) || [];
+          });
+          return unsubscribeChat;
+        });
+
+        // 4. Notification Triggers (Toasts)
+        $effect(() => {
+          const latestEvent = this.eventStreamValue.at(-1);
           if (latestEvent) {
             this.triggerToast(latestEvent);
           }
         });
 
-        // 3. Typing State Management
+        // 5. Typing State Management
         $effect(() => {
           const history = this.aiHistory;
           const lastMsg = history.at(-1);
           this.isTyping = lastMsg?.role === "user";
         });
       });
+
+      // Wrap the cleanup to release the events subscription as well
+      const originalCleanup = this.effectCleanup;
+      this.effectCleanup = () => {
+        unsubscribeEvents();
+        originalCleanup();
+      };
     }
   }
 

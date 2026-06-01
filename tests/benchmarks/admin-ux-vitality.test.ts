@@ -1,118 +1,109 @@
 /**
  * @file tests/benchmarks/admin-ux-vitality.test.ts
- * @description Simulated Admin UX Vitality benchmark for SveltyCMS.
- * Measures the server-side processing cost of complex Svelte logic for massive forms.
+ * @description Admin UX Vitality Benchmark
+ * @summary Forms and widget registry performance via real HTTP endpoints.
+ *
+ * ### Features:
+ * - Schema resolution with 8-field collection via HTTP
+ * - Widget registry lookup via collection listing
+ * - Tests the same code paths a real admin user triggers
  */
 
 import {
   test,
   runBenchmark,
   exportResult,
+  setupBenchmarkServer,
   stabilize,
   printTruthTable,
   printSummaryTable,
+  TEST_API_SECRET,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
+let stopServer: (() => Promise<void>) | null = null;
+
 async function runUXAudit() {
-  console.log("🚀 Starting Simulated Admin UX Vitality Audit...\n");
-
-  const { widgets: widgetStore } = await import("@src/stores/widget-store.svelte");
-  const { LocalCMS } = await import("@src/services/sdk");
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-
-  await ensureFullInitialization();
-  const db = getDb();
-  const cms = new LocalCMS(db as any);
-
-  // Mock Admin for Auth context
-  const mockAdmin = {
-    _id: "admin-123",
-    username: "admin",
-    role: "admin",
-    isAdmin: true,
-  };
-  const apiOptions = { user: mockAdmin, tenantId: "global" as any };
-
-  // 🚀 CRITICAL: Initialize widgets for this environment
-  await widgetStore.initialize("global", db!);
-
-  await stabilize();
+  console.log("🚀 Starting Admin UX Vitality Audit (HTTP)...\n");
 
   try {
-    // 1. Measure Schema-to-Form Transformation logic
-    console.log("   → Measuring Form Resolution Logic (50 fields)...");
-    const complexSchema = {
-      _id: "ux_stress_test",
-      fields: Array.from({ length: 50 }).map((_, i) => ({
-        name: `field_${i}`,
-        label: `Field ${i}`,
-        type: i % 3 === 0 ? "text" : i % 3 === 1 ? "richtext" : "relation",
-        required: true,
-        widget: { Name: "Input", Icon: "mdi:text", Color: "#ccc" },
-      })),
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+    const baseUrl = server.baseUrl;
+
+    await stabilize(1000);
+
+    const headers = {
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
     };
 
-    const formResult = await runBenchmark({
-      name: "Form Logic (50f)",
-      iterations: 500,
-      runs: 2,
-      onIteration: async () => {
-        // Simulates the logic that runs when opening the editor
-        await cms.collections.modifyRequest({
-          collection: complexSchema as any,
-          fields: complexSchema.fields,
-          data: [{}],
-          type: "GET",
-          ...apiOptions,
-        } as any);
-      },
-      silent: true,
-    });
+    const results = [];
 
-    // 2. Measure Widget Registration & Lookup
-    console.log("   → Measuring Widget Registry lookup performance...");
-    const widgetResult = await runBenchmark({
-      name: "Widget Registry",
-      iterations: 1000,
-      runs: 1,
-      onIteration: async () => {
-        await widgetStore.getWidgetModule({ label: "text" } as any);
-      },
+    // 1. Schema resolution — triggers widget lookups for each field
+    console.log("   → Measuring Schema Resolution (8 fields, bench_index_pressure)...");
+    const schemaResult = await runBenchmark({
+      name: "Schema Resolution (8f)",
+      iterations: 500,
+      warmupIterations: 50,
+      runs: 2,
+      concurrency: 4,
+      trimOutliers: "iqr",
       silent: true,
+      onIteration: async () => {
+        const res = await fetch(`${baseUrl}/api/collections/bench_index_pressure/schema`, {
+          headers,
+        });
+        if (!res.ok) throw new Error(`Schema failed: ${res.status}`);
+        await res.json();
+      },
     });
+    results.push({ ...schemaResult, layer: "HTTP", shortLabel: "Schema-8f" });
+
+    // 2. Collection listing — tests widget registry + schema loading
+    console.log("   → Measuring Collection Listing (widget registry)...");
+    const listResult = await runBenchmark({
+      name: "Collection List (11 cols)",
+      iterations: 500,
+      warmupIterations: 50,
+      runs: 2,
+      concurrency: 4,
+      trimOutliers: "iqr",
+      silent: true,
+      onIteration: async () => {
+        const res = await fetch(`${baseUrl}/api/collections`, { headers });
+        if (!res.ok) throw new Error(`List failed: ${res.status}`);
+        await res.json();
+      },
+    });
+    results.push({ ...listResult, layer: "HTTP", shortLabel: "List-11" });
 
     printTruthTable({
       title: "SVELTYCMS  —  ADMIN UX VITALITY AUDIT",
-      subtitle: `Form Processor • Widget Registry • Stress: 50 Fields`,
-      results: [
-        { ...formResult, layer: "Form Proc" },
-        { ...widgetResult, layer: "Registry" },
-      ],
+      subtitle: "Schema Resolution · Widget Registry · HTTP",
+      results,
     });
 
     printSummaryTable([
-      { key: "Complex Form Overhead", val: formResult.avgMs, unit: "ms" },
-      { key: "Widget Lookup Latency", val: widgetResult.avgMs, unit: "ms" },
-      {
-        key: "Simulated Rendering Vitality",
-        val: (100 - formResult.avgMs).toFixed(2),
-        unit: "/100",
-      },
+      { key: "Schema Resolution (8f)", val: schemaResult.avgMs, unit: "ms" },
+      { key: "Collection List (11 cols)", val: listResult.avgMs, unit: "ms" },
       {
         key: "UX Performance Tier",
-        val: formResult.avgMs < 5 ? "PLATINUM" : "GOLD",
+        val: schemaResult.avgMs < 10 ? "PLATINUM" : "GOLD",
         unit: "",
       },
     ]);
 
-    exportResult(formResult);
+    for (const r of results) exportResult(r);
   } catch (err: any) {
     console.error("❌ UX audit failed:", err.message);
     throw err;
+  } finally {
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
-
-  console.log("\n✅ Admin UX vitality audit completed.");
 }
 
 test("Admin Dashboard Vitality Simulation", async () => {

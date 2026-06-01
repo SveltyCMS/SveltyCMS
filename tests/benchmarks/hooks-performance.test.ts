@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/hooks-performance.test.ts
- * @description Enterprise Hooks & Middleware benchmark for SveltyCMS.
- * Measures the cost of the full middleware chain (Turbo, Security, Auth, Audit) via HTTP E2E.
+ * @description Hooks & Middleware Performance Benchmark
+ * @summary Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.
+ *
+ * ### Features:
+ * - Layer-by-layer middleware cost attribution
+ * - Static asset baseline vs full pipeline comparison
+ * - Security and auth overhead profiling
+ * - End-to-end middleware stack latency analysis
  */
 
 import {
@@ -70,6 +76,7 @@ const middlewareScenarios = [
 ];
 
 async function runHooksAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Hooks & Middleware Audit...\n");
 
   try {
@@ -177,14 +184,13 @@ async function runHooksAudit() {
   } catch (err: any) {
     logger.error(`Hooks benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Hooks & middleware audit completed.");
 }
 
 test("Hooks & Middleware Enterprise Audit", async () => {

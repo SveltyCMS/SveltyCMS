@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/multi-tenant-performance.test.ts
- * @description Enterprise multi-tenancy benchmark for SveltyCMS.
- * Measures the overhead of tenant isolation and context switching.
+ * @description Multi-Tenant Performance Audit
+ * @summary Measures the overhead of tenant isolation, context switching, and data partitioning across many tenants.
+ *
+ * ### Features:
+ * - Multi-tenant context switching latency
+ * - Tenant isolation overhead measurement
+ * - Cross-tenant data partitioning performance
+ * - High tenant count scalability profiling
  */
 
 import {
@@ -25,6 +31,7 @@ const CONCURRENCY = 8;
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runMultiTenantAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log(`🚀 Starting Enterprise Multi-Tenancy Audit (${TENANT_COUNT} tenants)...\n`);
 
   try {
@@ -94,7 +101,12 @@ async function runMultiTenantAudit() {
       subtitle: `${TENANT_COUNT} Tenants • Isolation Overhead • ${getDbType().toUpperCase()}`,
       results: [
         { ...baseline, shortLabel: "Single", layer: "Baseline" },
-        { ...multi, shortLabel: "Multi", layer: "Full Stack", overheadPct: overhead },
+        {
+          ...multi,
+          shortLabel: "Multi",
+          layer: "Full Stack",
+          overheadPct: overhead,
+        },
       ],
     });
 
@@ -113,14 +125,13 @@ async function runMultiTenantAudit() {
   } catch (err: any) {
     logger.error(`Multi-tenancy benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Multi-tenancy audit completed.");
 }
 
 test("Multi-Tenancy Enterprise Audit", async () => {

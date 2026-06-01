@@ -5,7 +5,7 @@
 
 import { logger } from "@utils/logger";
 import { DEFAULT_SYSTEM_READY_TIMEOUT, SERVICE_BASELINE_TIMES } from "./config";
-import { getSystemState, systemState } from "./state.svelte";
+import { getSystemState, systemState } from "./state.svelte.ts";
 import type { ServiceName } from "./types";
 
 interface WaitOptions {

@@ -1,7 +1,12 @@
 /**
  * @file tests/benchmarks/setup-proxy.test.ts
- * @description Enterprise cold-start and infrastructure routing audit for SveltyCMS.
- * Measures initialization latency and proxy header processing overhead.
+ * @description Infrastructure Boot & Proxy Routing Benchmark
+ * @summary Measures cold-start initialization latency and proxy header parsing overhead for enterprise deployments.
+ *
+ * ### Features:
+ * - Cold-start server boot latency (average and p95)
+ * - Proxy header parsing overhead (X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host)
+ * - Memory footprint measurement during infrastructure initialization
  */
 
 import {
@@ -20,6 +25,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runSetupAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Setup & Proxy Audit...\n");
 
   try {
@@ -71,7 +77,11 @@ async function runSetupAudit() {
         await res.text();
       },
     });
-    results.push({ ...proxyResult, shortLabel: "Proxy", layer: "Infrastructure" });
+    results.push({
+      ...proxyResult,
+      shortLabel: "Proxy",
+      layer: "Infrastructure",
+    });
 
     printTruthTable({
       title: "SVELTYCMS — INFRASTRUCTURE BOOT & ROUTING AUDIT",
@@ -91,18 +101,21 @@ async function runSetupAudit() {
       },
     ]);
 
-    exportResult({ ...proxyResult, coldStartAvgMs: avgCold, coldStartP95Ms: p95Cold });
+    exportResult({
+      ...proxyResult,
+      coldStartAvgMs: avgCold,
+      coldStartP95Ms: p95Cold,
+    });
   } catch (err: any) {
     logger.error(`Setup & Proxy benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ Setup & proxy audit completed.");
 }
 
 test("Setup & Infrastructure Audit", async () => {

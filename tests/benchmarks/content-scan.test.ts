@@ -1,7 +1,12 @@
 /**
- * @file tests/benchmarks/content-scan.bench.ts
- * @description Benchmark for SveltyCMS Content Scan (self-healing collections discovery).
- * Measures filesystem + metadata processing performance with realistic multi-extension projects.
+ * @file tests/benchmarks/content-scan.test.ts
+ * @description Content Scan Benchmark
+ * @summary Measures filesystem + metadata processing for self-healing collections discovery
+ *
+ * ### Features:
+ * - Realistic multi-extension project simulation (150+ files)
+ * - Nested directory traversal and metadata extraction
+ * - Persistent Mtime Tree (dirty-bit) optimization verification
  */
 
 import {
@@ -55,8 +60,9 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
   try {
     await prepareRealisticScanEnvironment();
 
-    const { contentSystem } = await import("@src/content/index.server");
-    const { cacheService } = await import("@src/databases/cache/cache-service");
+    // Use relative path — Bun has issues resolving @src aliases in dynamic imports
+    const { contentSystem } = await import("../../src/content/index.server.ts");
+    const { cacheService } = await import("../../src/databases/cache/cache-service");
 
     console.log(`🔬 Running content scan (${TARGET_FILE_COUNT} files)...`);
 
@@ -96,8 +102,16 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
 
     printSummaryTable([
       { key: "Average Scan Latency", val: scanResult.avgMs, unit: "ms" },
-      { key: "p95 Scan Latency", val: scanResult.p95Ms || scanResult.avgMs, unit: "ms" },
-      { key: "Peak Scan Throughput", val: Math.round(scanResult.rps || 0), unit: "ops/s" },
+      {
+        key: "p95 Scan Latency",
+        val: scanResult.p95Ms || scanResult.avgMs,
+        unit: "ms",
+      },
+      {
+        key: "Peak Scan Throughput",
+        val: Math.round(scanResult.rps || 0),
+        unit: "ops/s",
+      },
       { key: "Collection Capacity", val: TARGET_FILE_COUNT, unit: "files" },
     ]);
 
@@ -105,6 +119,7 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
   } catch (err: any) {
     logger.error(`Content Scan benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     await cleanupMockFiles();
     console.log("\n✅ Content Scan benchmark completed and cleaned up.");

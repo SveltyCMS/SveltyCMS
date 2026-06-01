@@ -1,7 +1,13 @@
 /**
  * @file tests/benchmarks/rest-api-performance.test.ts
- * @description Enterprise REST API benchmark for SveltyCMS.
- * Measures latency, throughput, and correctness of core REST endpoints.
+ * @description Enterprise REST API Performance Benchmark
+ * @summary Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.
+ *
+ * ### Features:
+ * - System health check endpoint latency
+ * - Collection schema retrieval performance
+ * - Collection CRUD list and search query throughput
+ * - Structured metric export for benchmark matrix correlation
  */
 
 import {
@@ -47,6 +53,7 @@ const restScenarios = [
 ];
 
 async function runRestAudit() {
+  // pre-existing unused var removed for TS strict mode
   console.log(`🚀 Starting Enterprise REST API Audit (${getDbType().toUpperCase()})...\n`);
 
   try {
@@ -85,7 +92,11 @@ async function runRestAudit() {
         },
       });
 
-      results.push({ ...result, layer: scenario.layer, shortLabel: scenario.name });
+      results.push({
+        ...result,
+        layer: scenario.layer,
+        shortLabel: scenario.name,
+      });
     }
 
     printTruthTable({
@@ -113,14 +124,13 @@ async function runRestAudit() {
   } catch (err: any) {
     logger.error(`REST audit failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
       stopServer = null;
     }
   }
-
-  console.log("\n✅ REST API audit completed.");
 }
 
 test("Enterprise REST API Performance", async () => {

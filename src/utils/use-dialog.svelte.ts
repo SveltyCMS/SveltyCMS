@@ -98,9 +98,9 @@ export function useDialog(options: DialogOptions) {
 
     // Focus trapping
     if (e.key === "Tab" && dialogEl) {
-      const focusable = Array.from(
-        dialogEl.querySelectorAll<HTMLElement>(FOCUSABLE),
-      ).filter((el) => el.offsetParent !== null);
+      const focusable = Array.from(dialogEl.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null,
+      );
 
       if (focusable.length === 0) return;
       const first = focusable[0];

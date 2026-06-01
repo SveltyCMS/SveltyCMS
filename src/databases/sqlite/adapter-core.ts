@@ -658,7 +658,13 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
                   );
 
                 const execute = async () => {
-                  const stmt = sqlite.prepare(sqlText);
+                  let stmt = this._statementCache.get(sqlText);
+                  if (!stmt) {
+                    stmt = sqlite.prepare(sqlText);
+                    if (this._statementCache.size < 1000) {
+                      this._statementCache.set(sqlText, stmt);
+                    }
+                  }
 
                   try {
                     if (method === "all") {
@@ -765,7 +771,8 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
 
     if (!dbPath) {
       const { isSetupComplete } = await import("@utils/setup-check-fast");
-      dbPath = process.env.DB_PATH || (isSetupComplete() ? "config/database/data.db" : ":memory:");
+      dbPath =
+        process.env.DB_PATH || (isSetupComplete() ? "config/database/sveltycms.db" : ":memory:");
     }
 
     // 🚀 HARDENING: Don't treat URIs as local paths

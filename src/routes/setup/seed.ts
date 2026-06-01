@@ -65,6 +65,388 @@ const defaultTheme: Theme = {
 // Re-export defaultRoles from shared module for backward compatibility
 export const defaultRoles = importedDefaultRoles;
 
+// ============================================================================
+// PRESET COLLECTION SCHEMAS — Used by benchmarks and integration tests.
+// Created during setup like a real user would, via dbAdapter.collection.createModel().
+// ============================================================================
+
+export const PRESET_COLLECTIONS: Record<string, Schema[]> = {
+  blog: [
+    {
+      _id: "posts",
+      name: "Posts",
+      icon: "mdi:post-outline",
+      fields: [
+        {
+          db_fieldName: "title",
+          label: "Title",
+          widget: { Name: "Input" },
+          type: "string",
+          required: true,
+        },
+        {
+          db_fieldName: "slug",
+          label: "Slug",
+          widget: { Name: "Input" },
+          type: "string",
+        },
+        {
+          db_fieldName: "content",
+          label: "Content",
+          widget: { Name: "RichText" },
+          type: "string",
+        },
+        {
+          db_fieldName: "excerpt",
+          label: "Excerpt",
+          widget: { Name: "Textarea" },
+          type: "string",
+        },
+        {
+          db_fieldName: "category",
+          label: "Category",
+          widget: { Name: "Relation" },
+          type: "string",
+          relation: "categories",
+        },
+        {
+          db_fieldName: "author",
+          label: "Author",
+          widget: { Name: "Relation" },
+          type: "string",
+          relation: "authors",
+        },
+        {
+          db_fieldName: "status",
+          label: "Status",
+          widget: { Name: "Select" },
+          type: "string",
+        },
+        {
+          db_fieldName: "publishDate",
+          label: "Publish Date",
+          widget: { Name: "DateTime" },
+          type: "string",
+        },
+        {
+          db_fieldName: "seo",
+          label: "SEO",
+          widget: { Name: "Seo" },
+          type: "object",
+        },
+      ],
+    },
+    {
+      _id: "categories",
+      name: "Categories",
+      icon: "mdi:shape-outline",
+      fields: [
+        {
+          db_fieldName: "name",
+          label: "Name",
+          widget: { Name: "Input" },
+          type: "string",
+          required: true,
+        },
+        {
+          db_fieldName: "slug",
+          label: "Slug",
+          widget: { Name: "Input" },
+          type: "string",
+        },
+        {
+          db_fieldName: "description",
+          label: "Description",
+          widget: { Name: "Textarea" },
+          type: "string",
+        },
+      ],
+    },
+    {
+      _id: "authors",
+      name: "Authors",
+      icon: "mdi:account-outline",
+      fields: [
+        {
+          db_fieldName: "name",
+          label: "Name",
+          widget: { Name: "Input" },
+          type: "string",
+          required: true,
+        },
+        {
+          db_fieldName: "bio",
+          label: "Bio",
+          widget: { Name: "RichText" },
+          type: "string",
+        },
+        {
+          db_fieldName: "avatar",
+          label: "Avatar",
+          widget: { Name: "Media" },
+          type: "string",
+        },
+      ],
+    },
+    {
+      _id: "BenchmarkStable",
+      name: "BenchmarkStable",
+      icon: "mdi:database-check",
+      fields: [
+        {
+          db_fieldName: "title",
+          label: "Title",
+          widget: { Name: "Input" },
+          type: "string",
+          required: true,
+        },
+        {
+          db_fieldName: "slug",
+          label: "Slug",
+          widget: { Name: "Input" },
+          type: "string",
+        },
+        {
+          db_fieldName: "content",
+          label: "Content",
+          widget: { Name: "RichText" },
+          type: "string",
+        },
+        {
+          db_fieldName: "count",
+          label: "Count",
+          widget: { Name: "Number" },
+          type: "number",
+        },
+        {
+          db_fieldName: "publishDate",
+          label: "Publish Date",
+          widget: { Name: "DateTime" },
+          type: "string",
+        },
+      ],
+    },
+  ],
+  demo: [], // Extended by blog preset + demo-specific below
+};
+
+// demo preset = blog collections + additional widget-heavy test collections
+PRESET_COLLECTIONS.demo = [
+  ...PRESET_COLLECTIONS.blog!,
+  {
+    _id: "benchmark_authors",
+    name: "benchmark_authors",
+    icon: "mdi:account-details",
+    fields: [
+      {
+        db_fieldName: "name",
+        label: "Name",
+        widget: { Name: "Input" },
+        type: "string",
+        required: true,
+      },
+      {
+        db_fieldName: "bio",
+        label: "Bio",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+    ],
+  },
+  {
+    _id: "benchmark_posts",
+    name: "benchmark_posts",
+    icon: "mdi:post",
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+      {
+        db_fieldName: "author",
+        label: "Author",
+        widget: { Name: "Relation" },
+        type: "string",
+        collection: "benchmark_authors",
+        multiple: false,
+      },
+    ],
+  },
+  {
+    _id: "redirects",
+    name: "redirects",
+    icon: "mdi:link-variant",
+    fields: [
+      {
+        db_fieldName: "source",
+        label: "From",
+        widget: { Name: "Input" },
+        type: "string",
+        required: true,
+      },
+      {
+        db_fieldName: "target",
+        label: "To",
+        widget: { Name: "Input" },
+        type: "string",
+        required: true,
+      },
+      {
+        db_fieldName: "type",
+        label: "Type",
+        widget: { Name: "Select" },
+        type: "number",
+        required: true,
+      },
+    ],
+  },
+  {
+    _id: "bench_revisions",
+    name: "bench_revisions",
+    icon: "mdi:history",
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+        indexed: true,
+        required: true,
+      },
+      {
+        db_fieldName: "content",
+        label: "Content",
+        widget: { Name: "RichText" },
+        type: "string",
+      },
+    ],
+  },
+  {
+    _id: "bench_acid",
+    name: "bench_acid",
+    icon: "mdi:flask-outline",
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+    ],
+  },
+  {
+    _id: "bench_index_pressure",
+    name: "bench_index_pressure",
+    icon: "mdi:gauge",
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+        indexed: true,
+        required: true,
+      },
+      {
+        db_fieldName: "slug",
+        label: "Slug",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+      {
+        db_fieldName: "content",
+        label: "Content",
+        widget: { Name: "RichText" },
+        type: "string",
+      },
+      {
+        db_fieldName: "score",
+        label: "Score",
+        widget: { Name: "Number" },
+        type: "number",
+        indexed: true,
+      },
+      {
+        db_fieldName: "category",
+        label: "Category",
+        widget: { Name: "Select" },
+        type: "string",
+        indexed: true,
+      },
+      {
+        db_fieldName: "author",
+        label: "Author",
+        widget: { Name: "Relation" },
+        type: "string",
+      },
+      {
+        db_fieldName: "tags",
+        label: "Tags",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+      {
+        db_fieldName: "metadata",
+        label: "Metadata",
+        widget: { Name: "Group" },
+        type: "object",
+      },
+    ],
+  },
+  {
+    _id: "bench_migration_large",
+    name: "bench_migration_large",
+    icon: "mdi:transfer",
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+        required: true,
+      },
+      {
+        db_fieldName: "data",
+        label: "Data",
+        widget: { Name: "JSON" },
+        type: "string",
+      },
+    ],
+  },
+];
+
+/**
+ * Seeds preset collection schemas directly into the database.
+ * Uses the same adapter pattern as seedDefaultTheme() and seedRoles().
+ * No filesystem dependency — works across all 4 database types.
+ */
+export async function seedPresetCollections(
+  dbAdapter: DatabaseAdapter,
+  preset: string,
+  _tenantId?: string | null,
+  options?: BaseQueryOptions,
+): Promise<Schema[]> {
+  const schemas = PRESET_COLLECTIONS[preset] || PRESET_COLLECTIONS.blog!;
+  if (schemas.length === 0) return [];
+
+  logger.info(`📦 Seeding ${schemas.length} preset collections (preset: ${preset})...`);
+
+  for (const schema of schemas) {
+    try {
+      await dbAdapter.collection.createModel(schema, false, options);
+    } catch (err: any) {
+      if (!err.message?.includes("already exists") && !err.message?.includes("duplicate")) {
+        logger.warn(`Preset collection "${schema._id}" createModel warning: ${err.message}`);
+      }
+    }
+  }
+
+  logger.info(`✅ ${schemas.length} preset collections seeded`);
+  return schemas;
+}
+
 // Seeds the default theme into the database
 export async function seedDefaultTheme(
   dbAdapter: DatabaseAdapter,
@@ -574,11 +956,12 @@ export async function initSystemFast(
   adapter: DatabaseAdapter,
   tenantId?: string | null,
   isDemoSeed = false,
+  preset?: string | null,
 ): Promise<{
   criticalPromise: Promise<void>;
   backgroundTask: () => Promise<void>;
 }> {
-  // Critical: Settings, Default Theme, Roles (needed for Admin User creation)
+  // Critical: Settings, Default Theme, Roles, Preset Collections
   const criticalPromise = (async () => {
     if (!adapter) throw new Error("Database adapter not available.");
 
@@ -589,6 +972,11 @@ export async function initSystemFast(
       seedDefaultTheme(adapter, tenantId),
       seedRoles(adapter, tenantId),
     ]);
+
+    // Seed preset collection schemas directly into the database
+    if (preset && preset !== "blank") {
+      await seedPresetCollections(adapter, preset, tenantId);
+    }
 
     // Clear existing content nodes if it's a blank setup to prevent ghost data
     if (!isDemoSeed) {

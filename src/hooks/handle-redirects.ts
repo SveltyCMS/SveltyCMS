@@ -7,7 +7,7 @@
  */
 
 import { getDb, isDbConnected } from "@src/databases/db";
-import { isSystemReady, getSystemState } from "@src/stores/system/state.svelte";
+import { isSystemReady, getSystemState } from "@src/stores/system/state.svelte.ts";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
