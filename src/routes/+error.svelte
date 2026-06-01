@@ -98,7 +98,7 @@ const errorSummary = isDatabaseError
 						class="absolute left-1/2 top-0 h-full w-4 -translate-x-1/2 text-center font-bold uppercase leading-none"
 						style="transform: translateX(-50%) rotate({(360 / array.length) * index}deg); transform-origin: center {size / 2}px;"
 					>
-						<SiteName {char} textClass={isCMSChar(index) ? 'text-primary-500' : 'text-white'} />
+						<SiteName {char} textClass={isCMSChar(index) ? 'text-tertiary-500 dark:text-primary-500' : 'text-white'} />
 					</div>
 				{/each}
 			</div>

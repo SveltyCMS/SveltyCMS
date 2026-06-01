@@ -206,7 +206,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 				role="button"
 				tabindex="0"
 				aria-label="Toggle Collaboration Chat"
-				class="relative flex items-center justify-center bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg cursor-grab active:cursor-grabbing transition-colors group border-2 border-white/20 dark:border-white/10"
+				class="relative flex items-center justify-center bg-tertiary-500 dark:bg-primary-500 hover:bg-tertiary-600 dark:bg-primary-600 text-white rounded-full shadow-lg cursor-grab active:cursor-grabbing transition-colors group border-2 border-white/20 dark:border-white/10"
 				style="width: {BUTTON_RADIUS * 2}px; height: {BUTTON_RADIUS * 2}px;"
 			>
 				<iconify-icon icon="material-symbols:forum-outline" width="32"></iconify-icon>
@@ -224,7 +224,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 				<!-- Connected Status Pulse -->
 				<span
 					class="absolute bottom-1 right-1 h-3 w-3 rounded-full border-2 border-white {collaboration.isConnected
-						? 'bg-primary-500 shadow-[0_0_5px_rgba(var(--color-primary-500),0.8)]'
+						? 'bg-tertiary-500 dark:bg-primary-500 shadow-[0_0_5px_rgba(var(--color-primary-500),0.8)]'
 						: 'bg-error-500'}"
 					title={collaboration.isConnected ? 'SveltyCMS Knowledge Core: Connected' : 'AI Assistant Offline'}
 				></span>

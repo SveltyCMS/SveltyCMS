@@ -792,7 +792,7 @@
 
 		<!-- Test Result -->
 		{#if testSuccess}
-			<div class="card preset-outlined-primary-500 p-4">
+			<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 				<!-- Header - Always visible with toggle button on mobile -->
 				<div class="flex items-start gap-3">
 					<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>

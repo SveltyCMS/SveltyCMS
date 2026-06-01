@@ -8,7 +8,7 @@
   name="Dashboard" 
   icon="bi:bar-chart-line" 
   highlight="Dash" 
-  iconColor="text-primary-500" 
+  iconColor="text-tertiary-500 dark:text-primary-500" 
   iconSize="24" 
   showBackButton={true}  
   backUrl="/home" 
@@ -59,6 +59,7 @@
 		iconColor?: string;
 		iconSize?: string;
 		name: string;
+		description?: string;
 		onBackClick?: (defaultBehavior: DefaultBehaviorFn) => void;
 		showBackButton?: boolean;
 		truncate?: boolean;
@@ -73,6 +74,7 @@
 		showBackButton = false,
 		backUrl = '',
 		truncate = true,
+		description = '',
 		onBackClick,
 		children
 	}: Props = $props();
@@ -118,25 +120,30 @@
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 		{/if}
-		<h1
-			class="transition-max-width h1 relative ml-2 flex items-center gap-1 font-bold"
-			style="font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);"
-			aria-live="polite"
-			data-cms-field="pageTitle"
-			data-cms-type="text"
-		>
-			{#if icon}
-				<iconify-icon {icon} width={iconSize} class={`mr-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
+		<div class="flex flex-col ml-2 min-w-0">
+			<h1
+				class="transition-max-width h1 relative flex items-center gap-1 font-bold"
+				style="font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);"
+				aria-live="polite"
+				data-cms-field="pageTitle"
+				data-cms-type="text"
+			>
+				{#if icon}
+					<iconify-icon {icon} width={iconSize} class={`mr-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
+				{/if}
+
+				<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
+					{#each titleParts() as part, i (i)}
+						<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}> {part} </span>
+					{/each}
+				</span>
+
+				<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal"> {name} </span>
+			</h1>
+			{#if description}
+				<span class="text-sm font-medium opacity-50 mt-1">{description}</span>
 			{/if}
-
-			<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
-				{#each titleParts() as part, i (i)}
-					<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}> {part} </span>
-				{/each}
-			</span>
-
-			<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal"> {name} </span>
-		</h1>
+		</div>
 	</div>
 
 	<div class="flex flex-wrap items-center gap-2 shrink-0">

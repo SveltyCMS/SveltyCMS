@@ -225,7 +225,7 @@ export const widgetMeta = {
 							<!-- Name and role -->
 							<div class="min-w-0 flex-1">
 								<div class="flex items-center gap-2">
-									<span class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+									<span class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
 										{user.name}
 									</span>
 									<span class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none {getRoleColor(user.role)}">

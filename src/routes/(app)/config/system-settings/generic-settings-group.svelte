@@ -770,7 +770,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={defaultLangField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+										<button type="button" class="ml-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -808,7 +808,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={availableLangsField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+										<button type="button" class="ml-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -823,7 +823,7 @@ onMount(() => {
 											{@const languages = values[availableLangsField.key] as string[]}
 											{#each languages as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !availableLangsField.readonly}
@@ -870,7 +870,7 @@ onMount(() => {
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 dark:border-slate-600"
 												placeholder="Search..."
 												bind:value={languageSearch[availableLangsField.key]}
 											/>
@@ -884,7 +884,7 @@ onMount(() => {
 												}) as lang (lang.code)}
 													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
 														onclick={() => {
 															toggleLanguage(availableLangsField.key, lang.code);
 															showLanguagePicker[availableLangsField.key] = false;
@@ -895,7 +895,7 @@ onMount(() => {
 														}}
 													>
 														<span>{lang.native} ({lang.code})</span>
-														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 													</button>
 												{:else}
 													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
@@ -924,7 +924,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={baseLocaleField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+										<button type="button" class="ml-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -960,7 +960,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={localesField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+										<button type="button" class="ml-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -975,7 +975,7 @@ onMount(() => {
 											{@const locales = values[localesField.key] as string[]}
 											{#each locales as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !localesField.readonly}
@@ -1030,7 +1030,7 @@ onMount(() => {
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 dark:border-slate-600"
 												placeholder="Search..."
 												bind:value={languageSearch[localesField.key]}
 											/>
@@ -1043,7 +1043,7 @@ onMount(() => {
 												}) as code (code)}
 													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
 														onclick={() => {
 															toggleLanguage(localesField.key, code);
 															showLanguagePicker[localesField.key] = false;
@@ -1054,7 +1054,7 @@ onMount(() => {
 														}}
 													>
 														<span>{displayLanguage(code)} ({code.toUpperCase()})</span>
-														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 													</button>
 												{:else}
 													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
@@ -1232,7 +1232,7 @@ onMount(() => {
 											{@const languages = values[field.key] as string[]}
 											{#each languages as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !field.readonly}
@@ -1279,7 +1279,7 @@ onMount(() => {
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 dark:border-slate-600"
 												placeholder="Search..."
 												bind:value={languageSearch[field.key]}
 											/>
@@ -1293,14 +1293,14 @@ onMount(() => {
 												}) as lang (lang.code)}
 													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
 														onclick={() => {
 															toggleLanguage(field.key, lang.code);
 															showLanguagePicker[field.key] = false;
 														}}
 													>
 														<span>{lang.native} ({lang.code})</span>
-														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 													</button>
 												{:else}
 													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
@@ -1324,7 +1324,7 @@ onMount(() => {
 											{@const levels = values[field.key] as LogLevel[]}
 											{#each levels as level (level)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
 												>
 													<span class="text-sm font-medium">{level}</span>
 													{#if !field.readonly}
@@ -1373,14 +1373,14 @@ onMount(() => {
 													{#if !currentValues.includes(level)}
 														<button
 															type="button"
-															class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs capitalize hover:bg-primary-500/10"
+															class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs capitalize hover:bg-tertiary-500 dark:bg-primary-500/10"
 															onclick={() => {
 																toggleLogLevel(field.key, level);
 																showLogLevelPicker[field.key] = false;
 															}}
 														>
 															<span>{level}</span>
-															<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+															<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 														</button>
 													{/if}
 												{/each}

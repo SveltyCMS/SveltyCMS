@@ -325,7 +325,7 @@ Advanced permission management interface with bulk actions and presets.
 				</button>
 
 				<!-- Bulk Actions Toggle -->
-				<button onclick={() => (showBulkActions = !showBulkActions)} class="preset-outlined-primary-500 btn-sm" aria-expanded={showBulkActions}>
+				<button onclick={() => (showBulkActions = !showBulkActions)} class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn-sm" aria-expanded={showBulkActions}>
 					<iconify-icon icon="mdi:cog-box" width="18"></iconify-icon>
 					Bulk Actions
 				</button>
@@ -333,7 +333,7 @@ Advanced permission management interface with bulk actions and presets.
 				<!-- Export -->
 				<button
 					onclick={exportPermissions}
-					class="preset-outlined-primary-500 btn-sm"
+					class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn-sm"
 					title="Export permissions"
 					aria-label="Export permissions as JSON"
 				>
@@ -413,13 +413,13 @@ Advanced permission management interface with bulk actions and presets.
 									<div class="flex items-center gap-2">
 										<span class="font-semibold">{role.name}</span>
 										{#if role.isAdmin}
-											<span class="badge preset-filled-primary-500 text-xs"> Admin </span>
+											<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs"> Admin </span>
 										{/if}
 									</div>
 									{#if role.description}
 										<span class="text-xs text-surface-600 dark:text-surface-50"> {role.description} </span>
 									{/if}
-									<span class="text-xs font-medium text-primary-500"> {countEnabledPermissions(role._id)}/{totalActions} enabled </span>
+									<span class="text-xs font-medium text-tertiary-500 dark:text-primary-500"> {countEnabledPermissions(role._id)}/{totalActions} enabled </span>
 								</div>
 							</th>
 
@@ -449,7 +449,7 @@ Advanced permission management interface with bulk actions and presets.
 									<button
 										onclick={() => setAllPermissionsForRole(role._id, true)}
 										disabled={role.isAdmin}
-										class="preset-outlined-primary-500 btn-sm"
+										class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn-sm"
 										title="Enable all"
 										aria-label={`Enable all permissions for ${role.name}`}
 									>

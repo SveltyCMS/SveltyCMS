@@ -137,7 +137,7 @@ const filteredLanguages = $derived(
 
 // Ensure a valid language is always used
 const currentLanguage = $derived(
-	systemLanguage.value && availableLocales.includes(systemLanguage.value)
+	systemLanguage.value && availableLocales.includes(systemLanguage.value as any)
 		? systemLanguage.value
 		: "en",
 );
@@ -447,12 +447,12 @@ function handleSignUpPointerEnter() {
 							<button
 								type="button"
 								onclick={() => handleLanguageSelection(lang)}
-								class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-primary-500/10 text-primary-500' : ''}"
+								class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
 							>
 								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
 									{getLanguageName(lang)}
 									{#if selected}
-										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
+										<iconify-icon icon="mdi:check" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{/if}
 								</span>
 								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
@@ -466,12 +466,12 @@ function handleSignUpPointerEnter() {
 							<button
 								type="button"
 								onclick={() => handleLanguageSelection(lang)}
-								class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-primary-500/10 text-primary-500' : ''}"
+								class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
 							>
 								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
 									{getLanguageName(lang)}
 									{#if selected}
-										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
+										<iconify-icon icon="mdi:check" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{/if}
 								</span>
 								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>

@@ -693,7 +693,7 @@
               {/each}
             </select>
             <button
-              class="preset-filled-primary-500 btn"
+              class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
               onclick={handleRevert}
               disabled={!selectedRevision?.data}
             >
@@ -759,7 +759,7 @@
                           >
                         </div>
                         <div
-                          class="mt-1 rounded border border-success-500/30 bg-primary-500/10 p-2"
+                          class="mt-1 rounded border border-success-500/30 bg-tertiary-500 dark:bg-primary-500/10 p-2"
                         >
                           <span class="text-success-700 dark:text-success-300"
                             >+ {JSON.stringify(ch.new)}</span
@@ -767,7 +767,7 @@
                         </div>
                       {:else if ch.status === "added"}
                         <div
-                          class="mt-1 rounded border border-success-500/30 bg-primary-500/10 p-2"
+                          class="mt-1 rounded border border-success-500/30 bg-tertiary-500 dark:bg-primary-500/10 p-2"
                         >
                           <span class="text-success-700 dark:text-success-300"
                             >+ {JSON.stringify(ch.value)}</span

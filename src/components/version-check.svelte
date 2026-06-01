@@ -60,7 +60,7 @@ latest version available on GitHub with comprehensive status reporting.
 	const pkg = $derived(publicEnv?.PKG_VERSION || '0.0.0');
 	let githubVersion = $state('');
 	let badgeVariant = $state<'variant-filled' | 'variant-soft' | 'variant-outline' | 'variant-glass'>('variant-filled');
-	let badgeColor = $state('bg-primary-500 text-white');
+	let badgeColor = $state('bg-tertiary-500 dark:bg-primary-500 text-white');
 	let versionStatusMessage = $state('Checking for updates...');
 	let statusIcon = $state('mdi:loading');
 	let statusSeverity = $state<'critical' | 'warning' | 'info' | 'success' | 'unknown'>('unknown');
@@ -89,7 +89,7 @@ latest version available on GitHub with comprehensive status reporting.
 
 	const transparentClasses = $derived.by(() => {
 		if (badgeColor.includes('success')) {
-			return 'bg-primary-500/20 text-success-700 dark:text-success-300';
+			return 'bg-tertiary-500 dark:bg-primary-500/20 text-success-700 dark:text-success-300';
 		}
 		if (badgeColor.includes('warning')) {
 			return 'bg-warning-500/20 text-warning-700 dark:text-warning-300';
@@ -174,7 +174,7 @@ latest version available on GitHub with comprehensive status reporting.
 				statusSeverity = 'warning';
 			} else {
 				badgeVariant = 'variant-filled';
-				badgeColor = 'bg-primary-500 text-white';
+				badgeColor = 'bg-tertiary-500 dark:bg-primary-500 text-white';
 				versionStatusMessage = 'You are up to date';
 				statusIcon = 'mdi:check-circle';
 				statusSeverity = 'success';
@@ -330,7 +330,7 @@ latest version available on GitHub with comprehensive status reporting.
 							: statusSeverity === 'warning'
 								? 'bg-warning-500'
 								: statusSeverity === 'success'
-									? 'bg-primary-500'
+									? 'bg-tertiary-500 dark:bg-primary-500'
 									: 'bg-surface-500'}"
 						aria-hidden="true"
 					></span>

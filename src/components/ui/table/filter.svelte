@@ -75,14 +75,14 @@ const densityIcon = $derived.by(() => {
                 <iconify-icon
                     icon="mingcute:search-line"
                     width="18"
-                    class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 group-focus-within:text-primary-500 transition-colors"
+                    class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 group-focus-within:text-tertiary-500 dark:text-primary-500 transition-colors"
                 ></iconify-icon>
                 <input
                     type="text"
                     bind:value={search}
                     oninput={onfilter}
                     placeholder="Search records..."
-                    class="w-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all shadow-xs"
+                    class="w-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 outline-none transition-all shadow-xs"
                 />
                 {#if search}
                     <button

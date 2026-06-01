@@ -159,9 +159,9 @@ Default value is 'blank'.
 					type="button"
 					role="option"
 					aria-selected={selected === preset.id}
-					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-left cursor-pointer snap-start bg-white dark:bg-white/5 dark:backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-primary-500/5 dark:hover:bg-primary-300/5 hover:border-primary-500/30 dark:hover:border-primary-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
+					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-left cursor-pointer snap-start bg-white dark:bg-white/5 dark:backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-tertiary-500 dark:bg-primary-500/5 dark:hover:bg-primary-300/5 hover:border-tertiary-500 dark:border-primary-500/30 dark:hover:border-primary-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
 					preset.id
-						? 'bg-primary-500/5! dark:bg-primary-300/10! border-primary-500! dark:border-primary-300! shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.2),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.1)]! -translate-y-1!'
+						? 'bg-tertiary-500 dark:bg-primary-500/5! dark:bg-primary-300/10! border-tertiary-500 dark:border-primary-500! dark:border-primary-300! shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.2),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.1)]! -translate-y-1!'
 						: ''}"
 					onclick={() => select(preset.id)}
 				>
@@ -173,7 +173,7 @@ Default value is 'blank'.
 							<div
 								class="absolute top-1 right-1 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
 								'simple'
-									? 'text-primary-600 dark:text-primary-500 bg-primary-600/10 dark:bg-primary-400/10 border-primary-600/30 dark:border-primary-400/40'
+									? 'text-tertiary-600 dark:text-primary-600 dark:text-primary-500 bg-tertiary-600 dark:bg-primary-600/10 dark:bg-primary-400/10 border-primary-600/30 dark:border-primary-400/40'
 									: preset.complexity === 'moderate'
 										? 'text-warning-600 dark:text-warning-400 bg-warning-600/10 dark:bg-warning-400/10 border-warning-600/30 dark:border-warning-400/40'
 										: 'text-error-600 dark:text-error-500 bg-error-600/10 dark:bg-error-400/10 border-error-600/30 dark:border-error-400/40'}"
@@ -201,7 +201,7 @@ Default value is 'blank'.
 					</div>
 
 					{#if selected === preset.id}
-						<iconify-icon icon="mdi:check-circle" width="24" class="absolute right-1 bottom-2 text-primary-500"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" width="24" class="absolute right-1 bottom-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					{/if}
 				</button>
 			{/each}
@@ -219,7 +219,7 @@ Default value is 'blank'.
 			<button
 				type="button"
 				class="w-1.5 h-1.5 p-0 cursor-pointer border-none rounded-full transition-all duration-250 bg-black/15 dark:bg-white/20 {visibleIndex === i
-					? 'w-4.5! rounded-[3px]! bg-primary-500! dark:bg-primary-300!'
+					? 'w-4.5! rounded-[3px]! bg-tertiary-500 dark:bg-primary-500! dark:bg-primary-300!'
 					: ''}"
 				aria-label={`Select preset ${preset.name || i + 1}`}
 				onclick={() => {

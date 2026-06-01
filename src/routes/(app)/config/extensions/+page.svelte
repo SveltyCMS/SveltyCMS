@@ -25,7 +25,7 @@ const tabs = [
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:puzzle-outline" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:puzzle-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Extension Management
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Install and manage plugins, widgets, and themes</p>
@@ -46,7 +46,7 @@ const tabs = [
 					<button
 						onclick={() => (activeTab = tab.id)}
 						class="relative px-6 py-4 font-medium transition-all {activeTab === tab.id
-							? 'text-primary-500'
+							? 'text-tertiary-500 dark:text-primary-500'
 							: 'text-surface-500 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-100'}"
 					>
 						<div class="flex items-center gap-2">
@@ -54,7 +54,7 @@ const tabs = [
 							<span>{tab.label}</span>
 						</div>
 						{#if activeTab === tab.id}
-							<div class="absolute bottom-0 left-0 h-0.5 w-full bg-primary-500"></div>
+							<div class="absolute bottom-0 left-0 h-0.5 w-full bg-tertiary-500 dark:bg-primary-500"></div>
 						{/if}
 					</button>
 				{/each}

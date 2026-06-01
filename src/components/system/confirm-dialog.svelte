@@ -40,6 +40,6 @@
 				{buttonTextCancel}
 			</button>
 		{/if}
-		<button class="btn preset-filled-primary-500" onclick={onConfirm}>{buttonTextConfirm}</button>
+		<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onConfirm}>{buttonTextConfirm}</button>
 	</div>
 </div>

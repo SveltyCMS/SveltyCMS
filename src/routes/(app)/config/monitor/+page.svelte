@@ -56,10 +56,10 @@ function formatUptime(seconds: number): string {
         <!-- Security Card -->
         <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fly={{ y: 20, delay: 100 }}>
             <div class="flex items-center justify-between">
-                <div class="bg-primary-500/10 p-2 rounded-lg">
-                    <iconify-icon icon="mdi:shield-lock" class="text-primary-500 text-2xl"></iconify-icon>
+                <div class="bg-tertiary-500 dark:bg-primary-500/10 p-2 rounded-lg">
+                    <iconify-icon icon="mdi:shield-lock" class="text-tertiary-500 dark:text-primary-500 text-2xl"></iconify-icon>
                 </div>
-                <span class="badge preset-filled-primary-500">Active</span>
+                <span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">Active</span>
             </div>
             <div>
                 <h3 class="text-sm font-bold opacity-40 uppercase tracking-widest">Security</h3>
@@ -153,7 +153,7 @@ function formatUptime(seconds: number): string {
                             <tr class="border-b border-surface-100 dark:border-surface-800">
                                 <td class="py-2 font-medium">{svc.name}</td>
                                 <td class="py-2">
-                                    <span class="badge text-[10px] {svc.status === 'healthy' ? 'preset-filled-primary-500' : svc.status === 'degraded' ? 'preset-filled-warning-500' : svc.status === 'initializing' ? 'preset-tonal-primary-500' : 'preset-filled-error-500'}">
+                                    <span class="badge text-[10px] {svc.status === 'healthy' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : svc.status === 'degraded' ? 'preset-filled-warning-500' : svc.status === 'initializing' ? 'preset-tonal-primary-500' : 'preset-filled-error-500'}">
                                         {svc.status}
                                     </span>
                                 </td>
@@ -212,7 +212,7 @@ function formatUptime(seconds: number): string {
                     </div>
                     <div class="flex items-center justify-between text-sm">
                         <span class="opacity-50">Error Rate</span>
-                        <span class="font-bold text-primary-500">{webhooks?.total > 0 ? '0%' : 'N/A'}</span>
+                        <span class="font-bold text-tertiary-500 dark:text-primary-500">{webhooks?.total > 0 ? '0%' : 'N/A'}</span>
                     </div>
                 </div>
             </div>

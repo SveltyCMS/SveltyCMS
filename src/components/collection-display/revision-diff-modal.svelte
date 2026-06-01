@@ -55,7 +55,7 @@ function onKeydown(e: KeyboardEvent) {
     <div class="p-6 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50/50 dark:bg-surface-950/20">
         <div>
             <h2 id="diff-modal-title" class="text-xl font-bold flex items-center gap-2">
-                <iconify-icon icon="mdi:compare" class="text-primary-500"></iconify-icon>
+                <iconify-icon icon="mdi:compare" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
                 Smart Diff Analysis
             </h2>
             <!-- Diff Statistics Summary (D7) -->
@@ -94,12 +94,12 @@ function onKeydown(e: KeyboardEvent) {
         {:else}
             <div class="grid grid-cols-1 gap-4">
                 {#each filteredDiffs as diff (diff.fieldName)}
-                    <div class="group border border-surface-200 dark:border-surface-800 rounded-xl overflow-hidden transition-all hover:border-primary-500/50" in:slide>
+                    <div class="group border border-surface-200 dark:border-surface-800 rounded-xl overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50" in:slide>
                         <!-- Field Header -->
                         <div class="px-4 py-2 bg-surface-50 dark:bg-surface-950 flex items-center justify-between border-b border-surface-200 dark:border-surface-800">
                             <div class="flex flex-col">
                                 <span class="text-xs font-bold opacity-40 uppercase tracking-tighter">{diff.fieldName}</span>
-                                <span class="font-mono text-sm font-bold text-primary-600 dark:text-primary-500">{diff.label}</span>
+                                <span class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-600 dark:text-primary-500">{diff.label}</span>
                             </div>
                             <span class="badge 
                                 {diff.type === 'added' ? 'preset-filled-success-500' : 
@@ -121,7 +121,7 @@ function onKeydown(e: KeyboardEvent) {
                                 </pre>
                             </div>
                             <!-- Right: New Value -->
-                            <div class="p-4 bg-primary-500/5 dark:bg-primary-500/5">
+                            <div class="p-4 bg-tertiary-500 dark:bg-primary-500/5 dark:bg-primary-500/5">
                                 <p class="text-[10px] uppercase font-bold opacity-30 mb-2">{newLabel}</p>
                                 <pre class="text-xs font-mono whitespace-pre-wrap break-all 
                                     {diff.type === 'added' || diff.type === 'modified' ? 'text-success-600 dark:text-success-400' : 'opacity-40'}">

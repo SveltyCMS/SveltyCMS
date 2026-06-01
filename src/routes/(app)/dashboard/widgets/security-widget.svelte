@@ -267,7 +267,7 @@ export const widgetMeta = {
 								{:else}
 									<div class="flex flex-1 items-center justify-center rounded-2xl bg-surface-50 dark:bg-surface-800/30 border border-dashed border-surface-200 dark:border-surface-700/80 text-center py-6">
 										<div>
-											<iconify-icon icon="mdi:shield-check" class="text-4xl text-primary-500/80 animate-pulse" ></iconify-icon>
+											<iconify-icon icon="mdi:shield-check" class="text-4xl text-tertiary-500 dark:text-primary-500/80 animate-pulse" ></iconify-icon>
 											<p class="text-xs text-surface-500 dark:text-surface-400 mt-2 font-medium">All systems secure</p>
 										</div>
 									</div>

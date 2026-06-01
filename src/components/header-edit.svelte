@@ -292,7 +292,7 @@
 
 				{#if ['edit', 'create'].includes(currentMode)}
 					{#if showNextButton}
-						<button onclick={next} class="btn-icon preset-filled-primary-500" aria-label="Next">
+						<button onclick={next} class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500" aria-label="Next">
 							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
 						</button>
 					{:else}
@@ -331,7 +331,7 @@
 			<!-- Status Toggle -->
 			<div class="flex flex-col items-center">
 				<Toggle value={publishToggle} disabled={disableStatusToggle} onToggle={toggleStatus} />
-				<span class="mt-1 text-xs" class:text-primary-500={publishToggle} class:text-error-500={!publishToggle}>
+				<span class="mt-1 text-xs" class:text-tertiary-500={publishToggle} class:dark:text-primary-500={publishToggle} class:text-error-500={!publishToggle}>
 					{publishToggle ? status_publish() : status_unpublish()}
 				</span>
 			</div>

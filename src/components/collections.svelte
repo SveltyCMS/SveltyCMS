@@ -264,15 +264,15 @@ Provides an organized interface for navigating hierarchical content structures.
 
 		function getBadgeColor(status?: StatusType): string {
 			const map: Record<StatusType, string> = {
-				[StatusTypes.publish]: 'bg-primary-500',
+				[StatusTypes.publish]: 'bg-tertiary-500 dark:bg-primary-500',
 				[StatusTypes.draft]: 'bg-warning-500',
 				[StatusTypes.archive]: 'bg-surface-500',
-				[StatusTypes.schedule]: 'bg-primary-500',
+				[StatusTypes.schedule]: 'bg-tertiary-500 dark:bg-primary-500',
 				[StatusTypes.clone]: 'bg-secondary-500',
 				[StatusTypes.delete]: 'bg-error-500',
 				[StatusTypes.unpublish]: 'bg-warning-400'
 			};
-			return status ? (map[status] ?? 'bg-primary-500') : 'bg-primary-500';
+			return status ? (map[status] ?? 'bg-tertiary-500 dark:bg-primary-500') : 'bg-tertiary-500 dark:bg-primary-500';
 		}
 
 		function mapToTreeNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
@@ -318,7 +318,7 @@ Provides an organized interface for navigating hierarchical content structures.
 				{
 					icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
 					label: isPinned ? 'Unpin Collection' : 'Pin Collection',
-					colorClass: isPinned ? 'text-primary-500' : 'text-surface-500',
+					colorClass: isPinned ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500',
 					onClick: (_treeNode: any, event: MouseEvent) => {
 						event.stopPropagation();
 						pinnedStore.togglePin({
@@ -346,7 +346,7 @@ Provides an organized interface for navigating hierarchical content structures.
 				{
 					icon: 'bi:tag',
 					label: 'Manage Tags',
-					colorClass: 'text-surface-500 hover:text-primary-500',
+					colorClass: 'text-surface-500 hover:text-tertiary-500 dark:text-primary-500',
 					onClick: (_treeNode: any, event: MouseEvent) => {
 						event.stopPropagation();
 						openTagEditor(node._id, label);
@@ -622,7 +622,7 @@ Provides an organized interface for navigating hierarchical content structures.
 				Manage Tags
 			</h3>
 			<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
-				Manage tags for <span class="font-bold text-primary-500">{activeCollectionLabelForTagging}</span>. Use commas to separate multiple tags.
+				Manage tags for <span class="font-bold text-tertiary-500 dark:text-primary-500">{activeCollectionLabelForTagging}</span>. Use commas to separate multiple tags.
 			</p>
 
 			<div class="space-y-4">
@@ -644,7 +644,7 @@ Provides an organized interface for navigating hierarchical content structures.
 				{#if tagMap[activeCollectionIdForTagging] && tagMap[activeCollectionIdForTagging].length > 0}
 					<div class="flex flex-wrap gap-1.5 mt-2">
 						{#each tagMap[activeCollectionIdForTagging] as tag}
-							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary-500/10 text-primary-500">
+							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500">
 								{tag}
 								<button
 									type="button"
@@ -674,7 +674,7 @@ Provides an organized interface for navigating hierarchical content structures.
 					</button>
 					<button
 						type="button"
-						class="btn preset-filled-primary-500 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
+						class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
 						onclick={saveTags}
 					>
 						Save

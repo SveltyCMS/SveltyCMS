@@ -113,7 +113,7 @@ Features:
       </p>
 
       <label
-        class="btn btn-lg preset-filled-primary-500 cursor-pointer shadow-lg hover:shadow-primary-500/20 transition-all"
+        class="btn btn-lg preset-filled-tertiary-500 dark:preset-filled-primary-500 cursor-pointer shadow-lg hover:shadow-primary-500/20 transition-all"
       >
         <iconify-icon icon="mdi:plus" width="24"></iconify-icon>
         <span>Upload First File</span>
@@ -143,7 +143,7 @@ Features:
         class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-300
 					hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 focus-within:ring-4 focus-within:ring-primary-500
 					{isSelected
-          ? 'border-primary-500 ring-2 ring-primary-500/20'
+          ? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
           : 'border-surface-200 dark:border-surface-800'}
 					{gridSize === 'tiny'
           ? 'w-32'
@@ -162,7 +162,7 @@ Features:
               type="checkbox"
               checked={isSelected}
               onchange={() => toggleSelection(file)}
-              class="checkbox h-6 w-6 rounded-full border-2 border-surface-400 checked:bg-primary-500 shadow-lg cursor-pointer"
+              class="checkbox h-6 w-6 rounded-full border-2 border-surface-400 checked:bg-tertiary-500 dark:bg-primary-500 shadow-lg cursor-pointer"
               aria-label="Select {file.filename}"
             />
           </div>

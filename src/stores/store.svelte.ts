@@ -12,6 +12,7 @@ class AppStore {
   completionStatus = $state(0);
   translationStatusOpen = $state(false);
   saveEditedImage = $state(false);
+  headerActionButton = $state(false);
   file = $state<File | null>(null);
   shouldShowNextButton = $state(false);
   saveLayerStore = $state<() => Promise<void>>(async () => {});
@@ -115,6 +116,9 @@ export const systemLanguage = {
   set value(v: string) {
     app.systemLanguage = v;
   },
+  set(v: string) {
+    app.systemLanguage = v;
+  },
 };
 
 export const contentLanguage = {
@@ -124,14 +128,20 @@ export const contentLanguage = {
   set value(v: string) {
     app.contentLanguage = v;
   },
+  set(v: string) {
+    app.contentLanguage = v;
+  },
 };
 
-let _transProgress = $state(0);
+let _transProgress = $state<any>(null);
 export const translationProgress = {
   get value() {
     return _transProgress;
   },
-  set value(v: number) {
+  set value(v: any) {
+    _transProgress = v;
+  },
+  set(v: any) {
     _transProgress = v;
   },
 };
@@ -143,6 +153,9 @@ export const storeListboxValue = {
   set value(v: string) {
     app.listboxValueState = v;
   },
+  set(v: string) {
+    app.listboxValueState = v;
+  },
 };
 
 export const tabSet = {
@@ -150,6 +163,9 @@ export const tabSet = {
     return app.tabSetState;
   },
   set value(v: number) {
+    app.tabSetState = v;
+  },
+  set(v: number) {
     app.tabSetState = v;
   },
 };

@@ -348,7 +348,7 @@
 				Export Data
 			</button>
 
-			<button onclick={() => (showImportModal = true)} class="preset-outlined-primary-500 btn" disabled={loading}>
+			<button onclick={() => (showImportModal = true)} class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn" disabled={loading}>
 				<iconify-icon icon="mdi:import" width={24}></iconify-icon>
 				Import Data
 			</button>
@@ -370,7 +370,7 @@
 
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-primary-500 btn-icon mr-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
+				<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-icon mr-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">
@@ -488,7 +488,7 @@
 				<button onclick={() => (showExportModal = false)} class="preset-outlined-secondary-500 btn">Cancel</button>
 				<button
 					onclick={exportSelectedCollections}
-					class="preset-filled-primary-500 btn"
+					class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
 					disabled={loading || exportOptions.collections.length === 0}
 				>
 					Export Selected
@@ -546,7 +546,7 @@
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<button onclick={() => (showImportModal = false)} class="preset-outlined-secondary-500 btn">Cancel</button>
-				<button onclick={handleImport} class="preset-filled-primary-500 btn" disabled={loading || !importFiles}>Import Data</button>
+				<button onclick={handleImport} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" disabled={loading || !importFiles}>Import Data</button>
 			</div>
 		</div>
 	</div>
@@ -568,7 +568,7 @@
 						<h3 class="mb-3 font-semibold">Import Summary</h3>
 						<div class="grid grid-cols-3 gap-4 text-center">
 							<div>
-								<div class="text-2xl font-bold text-primary-500">{importResult.totalImported}</div>
+								<div class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">{importResult.totalImported}</div>
 								<div class="text-sm text-gray-600">Imported</div>
 							</div>
 							<div>
@@ -590,7 +590,7 @@
 									<div class="mb-2 flex items-center justify-between">
 										<h4 class="font-medium">{result.collection}</h4>
 										<div class="flex space-x-4 text-sm">
-											<span class="text-primary-500">+{result.imported}</span>
+											<span class="text-tertiary-500 dark:text-primary-500">+{result.imported}</span>
 											<span class="text-waring-500">~{result.skipped}</span>
 											<span class="text-error-500">!{result.errors.length}</span>
 										</div>

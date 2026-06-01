@@ -274,7 +274,7 @@
 						class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
 					>
 						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-primary-500"></iconify-icon>
+							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							{#if isSidebarFull}Pinned{/if}
 						</span>
 						{#if isSidebarFull}
@@ -298,7 +298,7 @@
 											if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 										}}
 									>
-										<iconify-icon icon={item.icon || 'bi:pin'} width="16" class="text-primary-500"></iconify-icon>
+										<iconify-icon icon={item.icon || 'bi:pin'} width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										{#if isSidebarFull}
 											<span class="truncate">{item.name}</span>
 										{/if}
@@ -379,7 +379,7 @@
 							<a
 								href={firstCollectionPath}
 								data-sveltekit-preload-data="hover"
-								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-primary-500 bg-primary-500/10 hover:bg-primary-500/20 no-underline! transition-colors"
+								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500 dark:bg-primary-500/10 hover:bg-tertiary-500 dark:bg-primary-500/20 no-underline! transition-colors"
 								onclick={() => {
 									if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 								}}
@@ -391,7 +391,7 @@
 							<a
 								href="/mediagallery"
 								data-sveltekit-preload-data="hover"
-								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-primary-500 bg-primary-500/10 hover:bg-primary-500/20 no-underline! transition-colors"
+								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500 dark:bg-primary-500/10 hover:bg-tertiary-500 dark:bg-primary-500/20 no-underline! transition-colors"
 								onclick={() => {
 									if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 								}}
@@ -445,7 +445,7 @@
 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
 					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
 					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={32} />
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={24} />
 					</div>
 				</SystemTooltip>
 			</div>
@@ -514,7 +514,7 @@
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
 					<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
-						<iconify-icon icon="uil:signout" width="26" class=""></iconify-icon>
+						<iconify-icon icon="uil:signout" width="24" class=""></iconify-icon>
 					</button>
 				</SystemTooltip>
 			</div>
@@ -529,13 +529,13 @@
 						aria-label="System Configuration"
 						class="btn-icon flex items-center justify-center rounded-full hover:bg-surface-500/20"
 					>
-						<iconify-icon icon="material-symbols:build-circle" width="38" class=""></iconify-icon>
+						<iconify-icon icon="material-symbols:build-circle" width="24" class=""></iconify-icon>
 					</a>
 				</SystemTooltip>
 			</div>
 
 			<!-- Version -->
-			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={!isSidebarFull} /></div>
+			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
 
 			<!-- Community Links (only when expanded) -->
 			{#if isSidebarFull}
@@ -548,7 +548,7 @@
 							aria-label="Discord Community"
 							class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
 						>
-							<iconify-icon icon="ic:baseline-discord" width="30" class=""></iconify-icon>
+							<iconify-icon icon="ic:baseline-discord" width="24" class=""></iconify-icon>
 						</a>
 					</SystemTooltip>
 				</div>

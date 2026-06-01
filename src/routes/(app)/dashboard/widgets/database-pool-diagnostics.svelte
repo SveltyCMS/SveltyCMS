@@ -78,7 +78,7 @@ export const widgetMeta = {
 		if (utilization >= 75) {
 			return 'bg-warning-500';
 		}
-		return 'bg-primary-500';
+		return 'bg-tertiary-500 dark:bg-primary-500';
 	}
 
 	/**

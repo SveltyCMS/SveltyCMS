@@ -457,7 +457,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			<!-- Loading state -->
 			{#if isLoading}
 				<div class="flex items-center justify-center gap-2 p-4">
-					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
 					<span class="text-sm text-surface-600 dark:text-surface-50">Loading...</span>
 				</div>
 			{:else if hasOptions}
@@ -476,9 +476,9 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 							id={`option-${index}`}
 							role="option"
 							aria-selected={isSelected}
-							class="cursor-pointer border-b border-surface-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-primary-500/10 dark:text-surface-50 {isSelected
-								? 'bg-primary-500/20'
-								: ''} {isCreateOption ? 'font-medium text-primary-500' : 'text-surface-900 dark:text-surface-100'}"
+							class="cursor-pointer border-b border-surface-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:text-surface-50 {isSelected
+								? 'bg-tertiary-500 dark:bg-primary-500/20'
+								: ''} {isCreateOption ? 'font-medium text-tertiary-500 dark:text-primary-500' : 'text-surface-900 dark:text-surface-100'}"
 							onmousedown={(e) => handleOptionMouseDown(option, e)}
 							onmouseenter={() => (selectedIndex = index)}
 						>
@@ -488,7 +488,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 								{/if}
 								<span class="flex-1">{option}</span>
 								{#if isSelected}
-									<iconify-icon icon="mdi:check" width="18" aria-hidden="true" class="text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:check" width="18" aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 								{/if}
 							</div>
 						</li>

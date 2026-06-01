@@ -118,7 +118,7 @@
 				{
 					icon: isRootPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
 					label: isRootPinned ? 'Unpin Folder' : 'Pin Folder',
-					colorClass: isRootPinned ? 'text-primary-500' : 'text-surface-500',
+					colorClass: isRootPinned ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500',
 					onClick: (_treeNode: any, _event: MouseEvent) => {
 						pinnedStore.togglePin({
 							id: 'root',
@@ -147,7 +147,7 @@
 					{
 						icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
 						label: isPinned ? 'Unpin Folder' : 'Pin Folder',
-						colorClass: isPinned ? 'text-primary-500' : 'text-surface-500',
+						colorClass: isPinned ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500',
 						onClick: (_treeNode: any, _event: MouseEvent) => {
 							pinnedStore.togglePin({
 								id: f.id,
@@ -285,9 +285,9 @@
 		{#if isLoading}
 			<div class="flex flex-col items-center justify-center gap-3 p-6">
 				<div class="flex gap-2">
-					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500"></div>
-					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500 [animation-delay:0.1s]"></div>
-					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500 [animation-delay:0.2s]"></div>
+					<div class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
+					<div class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500 [animation-delay:0.1s]"></div>
+					<div class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500 [animation-delay:0.2s]"></div>
 				</div>
 				<p class="text-sm text-surface-600 dark:text-surface-50">Loading folders...</p>
 			</div>
@@ -305,7 +305,7 @@
 				nodes={tree}
 				selectedId={selectedFolderId}
 				compact={!isSidebarFull}
-				iconColorClass="text-primary-500"
+				iconColorClass="text-tertiary-500 dark:text-primary-500"
 				showBadges={false}
 				allowDragDrop={isEditMode}
 				onReorder={reorder}

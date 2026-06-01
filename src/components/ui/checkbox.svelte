@@ -172,7 +172,7 @@ keyboard navigation, and motion-respecting transitions.
 					'flex items-start w-full rounded-xl border-2 p-4 transition-all',
 					sizeTokens.gap,
 					cardActive
-						? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-sm'
+						? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-sm'
 						: 'border-surface-200 dark:border-surface-700 hover:border-surface-300 dark:hover:border-surface-600 bg-surface-50 dark:bg-surface-900',
 					invalid && 'border-error-500! bg-error-50! dark:bg-error-500/10!',
 					disabled && 'opacity-50 cursor-not-allowed'
@@ -184,7 +184,7 @@ keyboard navigation, and motion-respecting transitions.
 						sizeTokens.box,
 						sizeTokens.touch,
 						cardActive || internalChecked
-							? 'bg-primary-500 border-primary-500 text-white'
+							? 'bg-tertiary-500 dark:bg-primary-500 border-tertiary-500 dark:border-primary-500 text-white'
 							: 'border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800',
 						invalid && 'border-error-500!',
 						prefersReducedMotion ? 'duration-0' : 'duration-150'
@@ -216,7 +216,7 @@ keyboard navigation, and motion-respecting transitions.
 					sizeTokens.touch,
 					'focus-within:ring-2 focus-within:ring-primary-500/40 focus-within:ring-offset-2 dark:focus-within:ring-offset-surface-900',
 					internalChecked || isIndeterminate
-						? 'bg-primary-500 border-primary-500 text-white'
+						? 'bg-tertiary-500 dark:bg-primary-500 border-tertiary-500 dark:border-primary-500 text-white'
 						: 'border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 hover:border-primary-400',
 					invalid && 'border-error-500! focus-within:ring-error-500/40!',
 					disabled && 'cursor-not-allowed',

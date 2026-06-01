@@ -540,7 +540,7 @@ Features:
 								>
 									<input
 										id="system-lang-search"
-										class="mb-2 w-full rounded border border-surface-200 dark:border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:focus:border-primary-500"
+										class="mb-2 w-full rounded border border-surface-200 dark:border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:focus:border-tertiary-500 dark:border-primary-500"
 										placeholder="Search..."
 										bind:value={systemPickerSearch}
 									/>
@@ -551,7 +551,7 @@ Features:
 										{#each systemAvailable as sug (sug)}
 											<button
 												type="button"
-												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10"
+												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
 												onclick={() => addSystemLanguage(sug)}
 											>
 												<span class="text-black dark:text-white">{displayLang(sug)}</span>
@@ -647,7 +647,7 @@ Features:
 								>
 									<input
 										id="content-lang-search"
-										class="mb-2 w-full rounded border border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500"
+										class="mb-2 w-full rounded border border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500"
 										placeholder="Search languages..."
 										bind:value={contentPickerSearch}
 									/>
@@ -658,7 +658,7 @@ Features:
 										{#each contentAvailable as sug (sug.code)}
 											<button
 												type="button"
-												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10"
+												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
 												onclick={() => addContentLanguage(sug.code)}
 											>
 												<span class="text-black dark:text-white"
@@ -694,7 +694,7 @@ Features:
 						id="multi-tenant-mode"
 						type="checkbox"
 						bind:checked={systemSettings.multiTenant}
-						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+						class="h-4 w-4 rounded border-slate-300 text-tertiary-600 dark:text-primary-600 focus:ring-primary-500"
 					/>
 					<div class="flex items-center gap-2">
 						<iconify-icon icon="mdi:domain" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -713,7 +713,7 @@ Features:
 						id="demo-mode"
 						type="checkbox"
 						bind:checked={systemSettings.demoMode}
-						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+						class="h-4 w-4 rounded border-slate-300 text-tertiary-600 dark:text-primary-600 focus:ring-primary-500"
 					/>
 					<div class="flex items-center gap-2">
 						<iconify-icon icon="mdi:test-tube" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -744,7 +744,7 @@ Features:
 						id="use-redis"
 						type="checkbox"
 						bind:checked={systemSettings.useRedis}
-						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+						class="h-4 w-4 rounded border-slate-300 text-tertiary-600 dark:text-primary-600 focus:ring-primary-500"
 					/>
 					<div class="flex items-center gap-2">
 						<iconify-icon icon="devicon-plain:redis" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -795,7 +795,7 @@ Features:
 						</button>
 
 						{#if setupStore.wizard.redisTestPassed}
-							<div class="flex items-center gap-2 text-primary-500 text-sm font-medium animate-in fade-in zoom-in duration-300">
+							<div class="flex items-center gap-2 text-tertiary-500 dark:text-primary-500 text-sm font-medium animate-in fade-in zoom-in duration-300">
 								<iconify-icon icon="mdi:check-circle" width="20"></iconify-icon>
 								<span>{setup_db_test_redis_success?.() || 'Connected successfully!'}</span>
 							</div>

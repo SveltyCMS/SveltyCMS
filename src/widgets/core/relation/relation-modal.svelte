@@ -157,7 +157,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		{#if loading}
 			<div class="flex h-full items-center justify-center py-12" in:fade>
 				<div class="flex flex-col items-center gap-4">
-					<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-primary-500"></iconify-icon>
+					<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<span class="text-sm font-medium animate-pulse">Fetching collection data...</span>
 				</div>
 			</div>
@@ -185,7 +185,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 					<button
 						type="button"
 						class="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus:ring-2 focus:ring-primary-500"
-						class:bg-primary-500={isSelected}
+						class:bg-tertiary-500={isSelected} class:dark:bg-primary-500={isSelected}
 						class:text-white={isSelected}
 						onclick={() => toggleSelection(idStr)}
 					>
@@ -218,7 +218,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		<div class="flex items-center gap-3">
 			<button
 				type="button"
-				class="btn preset-filled-primary-500"
+				class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500"
 				onclick={handleSave}
 			>
 				<iconify-icon icon="mdi:check" class="mr-1"></iconify-icon>

@@ -339,17 +339,17 @@ async function uninstallWidget(widgetName: string) {
 				<!-- Active Widgets -->
 				<div class="relative rounded-lg bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-primary-500"
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-tertiary-500 dark:text-primary-500"
 						aria-label="Information about active widgets"
 						title="Widgets currently enabled and available for use in collections"
 					>
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:check-circle" width="24" class="text-2xl text-primary-500"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" width="24" class="text-2xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<div>
-							<h3 class="font-semibold text-primary-500">Active</h3>
-							<p class="text-2xl font-bold text-primary-500">{stats.active}</p>
+							<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">Active</h3>
+							<p class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">{stats.active}</p>
 						</div>
 					</div>
 				</div>

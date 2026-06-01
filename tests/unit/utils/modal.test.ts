@@ -86,7 +86,7 @@ describe("Modal Utilities", () => {
         ConfirmDialog,
         {
           htmlTitle: "Delete 5 item",
-          body: 'Are you sure you want to delete <span class="text-primary-500 font-bold">5 item(s)</span>?',
+          body: 'Are you sure you want to delete <span class="text-tertiary-500 dark:text-primary-500 font-bold">5 item(s)</span>?',
           buttonTextConfirm: "Delete",
           buttonTextCancel: "Cancel",
           modalClasses: "!bg-error-500/10 !border-error-500/20",
@@ -105,7 +105,7 @@ describe("Modal Utilities", () => {
         ConfirmDialog,
         {
           htmlTitle: "Archive  item",
-          body: 'Are you sure you want to archive <span class="text-primary-500 font-bold">1 item(s)</span>?',
+          body: 'Are you sure you want to archive <span class="text-tertiary-500 dark:text-primary-500 font-bold">1 item(s)</span>?',
           buttonTextConfirm: "Archive",
           buttonTextCancel: "Cancel",
           modalClasses: "!bg-warning-500/10 !border-warning-500/20",

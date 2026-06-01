@@ -88,7 +88,7 @@
 
 <div class="space-y-6 text-black dark:text-white p-2">
 	<header class="flex items-center gap-3 border-b border-surface-500/20 pb-4">
-		<iconify-icon icon="mdi:shield-lock" class="text-primary-500" width="32"></iconify-icon>
+		<iconify-icon icon="mdi:shield-lock" class="text-tertiary-500 dark:text-primary-500" width="32"></iconify-icon>
 		<div>
 			<h2 class="text-xl font-bold">Privacy & Data Management</h2>
 			<p class="text-sm opacity-70">Manage your personal data and account privacy (GDPR)</p>
@@ -98,7 +98,7 @@
 	<div class="grid grid-cols-1 gap-4 focus:outline-none">
 		<!-- Export Data -->
 		<div
-			class="card p-5 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700 hover:border-primary-500/50 transition-colors"
+			class="card p-5 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700 hover:border-tertiary-500 dark:border-primary-500/50 transition-colors"
 		>
 			<div class="flex items-start gap-4">
 				<div class="p-3 rounded-lg bg-secondary-500/10 text-secondary-500">

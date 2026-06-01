@@ -240,7 +240,7 @@
 							<div class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 							<div class="h-full transition-all duration-500 {score >= 2 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 							<div class="h-full transition-all duration-500 {score >= 3 ? 'bg-yellow-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 4 ? 'bg-primary-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 4 ? 'bg-tertiary-500 dark:bg-primary-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 							<div class="h-full transition-all duration-500 {score >= 5 ? 'bg-emerald-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 						</div>
 						<div class="flex justify-between text-[10px] font-bold uppercase tracking-wider">
@@ -316,7 +316,7 @@
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
-							? 'border-primary-300 bg-primary-100 text-primary-500'
+							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.length}
@@ -333,7 +333,7 @@
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
-							? 'border-primary-300 bg-primary-100 text-primary-500'
+							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.letter}
@@ -350,7 +350,7 @@
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
-							? 'border-primary-300 bg-primary-100 text-primary-500'
+							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.number}
@@ -367,7 +367,7 @@
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
-							? 'border-primary-300 bg-primary-100 text-primary-500'
+							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.special}
@@ -384,7 +384,7 @@
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
-							? 'border-primary-300 bg-primary-100 text-primary-500'
+							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.match}

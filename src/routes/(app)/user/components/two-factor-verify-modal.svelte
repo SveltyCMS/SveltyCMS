@@ -133,7 +133,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 <div class="max-w-md p-6">
 	<div class="mb-6 text-center">
-		<div class="mb-4"><iconify-icon icon="mdi:shield-lock" width="48" class="text-primary-500"></iconify-icon></div>
+		<div class="mb-4"><iconify-icon icon="mdi:shield-lock" width="48" class="text-tertiary-500 dark:text-primary-500"></iconify-icon></div>
 
 		<h4 class="h4 mb-2">{title || twofa_verify_title()}</h4>
 
@@ -171,7 +171,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	<!-- Toggle Code Type -->
 	<div class="mb-6 text-center">
-		<button onclick={toggleCodeType} class="text-sm text-primary-500 underline hover:text-primary-600">
+		<button onclick={toggleCodeType} class="text-sm text-tertiary-500 dark:text-primary-500 underline hover:text-tertiary-600 dark:text-primary-600">
 			{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
 		</button>
 	</div>
@@ -183,7 +183,7 @@ This modal			class="input text-center font-mono tracking-wider"
 		<button
 			onclick={submitCode}
 			disabled={!code.trim() || isVerifying || (!useBackupCode && code.length !== 6) || (useBackupCode && code.length < 8)}
-			class="preset-filled-primary-500 btn flex-1"
+			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn flex-1"
 		>
 			{#if isVerifying}
 				<iconify-icon icon="mdi:loading" width="20" class="mr-2 animate-spin"></iconify-icon>

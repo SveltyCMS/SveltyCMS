@@ -105,7 +105,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 	<div
 		class={cn(
-			'flex flex-wrap items-center gap-2 p-2 border rounded-xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500/50',
+			'flex flex-wrap items-center gap-2 p-2 border rounded-xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-tertiary-500 dark:border-primary-500/50',
 			'bg-surface-50 dark:bg-surface-900 border-surface-200 dark:border-surface-700 font-sans',
 			disabled && 'opacity-50 cursor-not-allowed grayscale',
 			className

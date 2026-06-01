@@ -84,7 +84,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
   const variantClass = $derived.by(() => {
     if (isCustomColor) return 'preset-custom';
     switch (variant) {
-      case 'primary': return 'preset-filled-primary-500 shadow-primary-500/20';
+      case 'primary': return 'preset-filled-tertiary-500 dark:preset-filled-primary-500 shadow-primary-500/20';
       case 'secondary': return 'preset-filled-secondary-500 shadow-secondary-500/20';
       case 'tertiary': return 'preset-filled-tertiary-500 shadow-tertiary-500/20';
       case 'success': return 'preset-filled-success-500 shadow-success-500/20';

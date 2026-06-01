@@ -230,7 +230,7 @@
 	<div class="flex h-full flex-col justify-between px-3 py-4">
 		<!-- Special "Next" button for Menu wizard -->
 		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
-			<button type="button" onclick={nextAction!} class="btn preset-filled-primary-500 w-full gap-2 shadow-lg">
+			<button type="button" onclick={nextAction!} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
 				{button_next()}
 			</button>
@@ -241,7 +241,7 @@
 					type="button"
 					onclick={save}
 					disabled={!isFormValid || !canWrite}
-					class="btn preset-filled-primary-500 w-full gap-2 shadow-lg transition-all"
+					class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full gap-2 shadow-lg transition-all"
 					class:opacity-50={!isFormValid || !canWrite}
 					class:cursor-not-allowed={!isFormValid || !canWrite}
 					aria-label="Save"
@@ -255,7 +255,7 @@
 					<Toggle
 						value={statusStore.isPublish}
 						label={statusStore.isPublish ? status_publish() : status_unpublish()}
-						labelColor={statusStore.isPublish ? 'text-primary-500' : 'text-error-500'}
+						labelColor={statusStore.isPublish ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
 						disabled={shouldDisableStatusToggle}
@@ -272,7 +272,7 @@
 							class="btn gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md"
 						>
 							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
-							Clone <span class="font-semibold text-primary-500">{currentCollection?.name}</span>
+							Clone <span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentCollection?.name}</span>
 						</button>
 
 						<button type="button" onclick={handleDelete} disabled={!canDelete} class="btn preset-filled-error-500 w-full gap-2 shadow-md">

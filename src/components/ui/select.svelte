@@ -112,7 +112,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-required={required}
 				class={cn(
 					'peer block w-full appearance-none rounded-xl border bg-surface-50 dark:bg-surface-900 transition-all',
-					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500',
+					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
 					'pt-5 pb-1.5 px-3',
@@ -132,9 +132,9 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				for={generatedId}
 				class={cn(
 					'pointer-events-none absolute left-3 origin-left transition-all duration-200',
-					'peer-focus:-translate-y-3.5 peer-focus:scale-75 peer-focus:text-primary-500',
+					'peer-focus:-translate-y-3.5 peer-focus:scale-75 peer-focus:text-tertiary-500 dark:text-primary-500',
 					value
-						? '-translate-y-3.5 scale-75 text-primary-500'
+						? '-translate-y-3.5 scale-75 text-tertiary-500 dark:text-primary-500'
 						: 'top-1/2 -translate-y-1/2 text-surface-500 dark:text-surface-400',
 					sizeTokens.text,
 					invalid && 'text-error-500! peer-focus:text-error-500!'
@@ -177,7 +177,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-required={required}
 				class={cn(
 					'block w-full appearance-none rounded-xl border bg-surface-50 dark:bg-surface-900 transition-all',
-					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500',
+					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
 					sizeTokens.padding,

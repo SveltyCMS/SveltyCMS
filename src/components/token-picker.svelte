@@ -380,10 +380,10 @@
 		{:else if selectedToken}
 			<div class="flex-1 space-y-4 overflow-y-auto pr-2">
 				<!-- Token Info -->
-				<div class="card variant-soft-primary border border-primary-500/30 p-4">
+				<div class="card variant-soft-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
 					<div class="mb-2 flex items-center justify-between">
 						<div class="text-lg font-bold text-primary-700 dark:text-primary-500">{selectedToken.name}</div>
-						<span class="badge preset-filled-primary-500">{selectedToken.type}</span>
+						<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">{selectedToken.type}</span>
 					</div>
 					<code class="code mb-2 block">{selectedToken.token}</code>
 					<p class="text-sm opacity-80">{selectedToken.description}</p>
@@ -476,7 +476,7 @@
 						<iconify-icon icon="mdi:plus"></iconify-icon>
 						Add Another
 					</button>
-					<button onclick={insert} class="btn preset-filled-primary-500 flex-1 font-bold">Insert Token</button>
+					<button onclick={insert} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex-1 font-bold">Insert Token</button>
 				</div>
 			</div>
 		{/if}

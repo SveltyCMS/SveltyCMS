@@ -98,7 +98,7 @@ onMount(() => {
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:sync" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:sync" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Config Sync & Backup
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Synchronize configuration between filesystem and database</p>
@@ -221,7 +221,7 @@ onMount(() => {
 												<td><span class="preset-tonal-surface-500 badge capitalize">{item.type}</span></td>
 												<td>
 													{#if changeType === 'new'}
-														<span class="preset-filled-primary-500 badge">New</span>
+														<span class="preset-filled-tertiary-500 dark:preset-filled-primary-500 badge">New</span>
 													{/if}
 													{#if changeType === 'updated'}
 														<span class="preset-filled-warning-500 badge">Updated</span>

@@ -131,8 +131,8 @@ class ModalManager {
     const theme = isArchive ? DEFAULT_THEMES.archive : DEFAULT_THEMES.delete;
 
     const body = isBatch
-      ? `Are you sure you want to ${action.toLowerCase()} <span class="text-primary-500 font-bold">${count} ${itemType}(s)</span>?`
-      : `Are you sure you want to ${action.toLowerCase()} <span class="text-primary-500 font-bold">${itemName}</span>?`;
+      ? `Are you sure you want to ${action.toLowerCase()} <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${itemType}(s)</span>?`
+      : `Are you sure you want to ${action.toLowerCase()} <span class="text-tertiary-500 dark:text-primary-500 font-bold">${itemName}</span>?`;
 
     const adminWarning =
       isAdmin && !isArchive
@@ -162,7 +162,7 @@ class ModalManager {
     const { status, count = 1, onConfirm } = options;
     this.showConfirm({
       title: "Confirm Status Change",
-      body: `Change <span class="text-primary-500 font-bold">${count} item(s)</span> to <span class="text-primary-500 font-bold">${status}</span>?`,
+      body: `Change <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span> to <span class="text-tertiary-500 dark:text-primary-500 font-bold">${status}</span>?`,
       confirmText: "Change Status",
       theme: DEFAULT_THEMES[status] || DEFAULT_THEMES.default,
       onConfirm,
@@ -190,7 +190,7 @@ class ModalManager {
     const { count = 1, onConfirm } = options;
     this.showConfirm({
       title: "Clone Items",
-      body: `Clone <span class="text-primary-500 font-bold">${count} item(s)</span>?`,
+      body: `Clone <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span>?`,
       confirmText: "Clone",
       theme: DEFAULT_THEMES.clone,
       onConfirm,

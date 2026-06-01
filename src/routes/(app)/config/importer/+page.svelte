@@ -158,7 +158,7 @@ async function handleScaffold() {
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:database-import-outline" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:database-import-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Smart CMS Importer
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Migrate content from WordPress or Drupal with AI-powered field mapping</p>
@@ -168,17 +168,17 @@ async function handleScaffold() {
 	<!-- Step Wizard -->
 	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fly={{ y: 20, delay: 100 }}>
 		<div class="flex items-center gap-4 mb-6">
-			<div class="flex items-center gap-2 {step >= 1 ? 'text-primary-500 font-bold' : ''}">
+			<div class="flex items-center gap-2 {step >= 1 ? 'text-tertiary-500 dark:text-primary-500 font-bold' : ''}">
 				<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center border-current">1</div>
 				<span>Source</span>
 			</div>
 			<div class="h-0.5 w-12 bg-surface-300"></div>
-			<div class="flex items-center gap-2 {step >= 2 ? 'text-primary-500 font-bold' : ''}">
+			<div class="flex items-center gap-2 {step >= 2 ? 'text-tertiary-500 dark:text-primary-500 font-bold' : ''}">
 				<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center border-current">2</div>
 				<span>Mapping</span>
 			</div>
 			<div class="h-0.5 w-12 bg-surface-300"></div>
-			<div class="flex items-center gap-2 {step >= 3 ? 'text-primary-500 font-bold' : ''}">
+			<div class="flex items-center gap-2 {step >= 3 ? 'text-tertiary-500 dark:text-primary-500 font-bold' : ''}">
 				<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center border-current">3</div>
 				<span>Import</span>
 			</div>
@@ -220,7 +220,7 @@ async function handleScaffold() {
 					<button class="btn preset-filled-secondary-500 flex-1" onclick={handleScaffold} disabled={!sourceUrl || !contentType || loading}>
 						✨ Instant Scaffold (AI)
 					</button>
-					<button class="btn preset-filled-primary-500 flex-1" onclick={nextStep} disabled={!sourceUrl || !contentType || !targetCollection || loading}>
+					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex-1" onclick={nextStep} disabled={!sourceUrl || !contentType || !targetCollection || loading}>
 						Next: Map Fields
 					</button>
 				</div>
@@ -272,7 +272,7 @@ async function handleScaffold() {
 
 				<div class="flex justify-between mt-6">
 					<button class="btn preset-outlined-surface-500" onclick={() => step = 1}>Back</button>
-					<button class="btn preset-filled-primary-500" onclick={nextStep}>Start Import</button>
+					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={nextStep}>Start Import</button>
 				</div>
 			</div>
 		{:else if step === 3}
@@ -301,7 +301,7 @@ async function handleScaffold() {
 								<div class="text-sm opacity-60">Total Items</div>
 							</div>
 						</div>
-						<button class="btn preset-filled-primary-500" onclick={() => step = 1}>Start New Import</button>
+						<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => step = 1}>Start New Import</button>
 					</div>
 				{/if}
 			</div>

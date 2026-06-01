@@ -12,7 +12,7 @@ const LAYOUT_KEY = "dashboard.layout.default";
 
 async function fetchLayout(): Promise<Layout | null> {
   try {
-    const res = await fetch(`/api/systemPreferences?key=${LAYOUT_KEY}`);
+    const res = await fetch(`/api/system-preferences?key=${LAYOUT_KEY}`);
     if (res.status === 404) {
       logger.info("No saved dashboard layout, using default");
       return null;

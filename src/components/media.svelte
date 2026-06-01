@@ -278,7 +278,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		<div class="flex gap-1 rounded-lg border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
 			<button
 				onclick={() => (currentViewMode.value = 'grid')}
-				class="btn-icon btn-icon-sm {currentViewMode.value === 'grid' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}"
+				class="btn-icon btn-icon-sm {currentViewMode.value === 'grid' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outlined-surface-500'}"
 				aria-label="Grid view"
 				aria-pressed={currentViewMode.value === 'grid'}
 			>
@@ -286,7 +286,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			</button>
 			<button
 				onclick={() => (currentViewMode.value = 'list')}
-				class="btn-icon btn-icon-sm {currentViewMode.value === 'list' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}"
+				class="btn-icon btn-icon-sm {currentViewMode.value === 'list' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outlined-surface-500'}"
 				aria-label="List view"
 				aria-pressed={currentViewMode.value === 'list'}
 			>
@@ -295,7 +295,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		</div>
 
 		<!-- Refresh -->
-		<button onclick={fetchMedia} class="preset-outlined-primary-500 btn-sm" disabled={isLoading} aria-label="Refresh media">
+		<button onclick={fetchMedia} class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn-sm" disabled={isLoading} aria-label="Refresh media">
 			<iconify-icon icon="mdi:refresh" width="20" class={isLoading && !prefersReducedMotion ? 'animate-spin' : ''}></iconify-icon>
 		</button>
 
@@ -318,13 +318,13 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	<!-- Selection toolbar (multiple mode) -->
 	{#if multiple && selectedCount > 0}
 		<div
-			class="flex items-center justify-between rounded-lg border-l-4 border-primary-500 bg-primary-50 p-3 dark:bg-primary-900/20"
+			class="flex items-center justify-between rounded-lg border-l-4 border-tertiary-500 dark:border-primary-500 bg-primary-50 p-3 dark:bg-primary-900/20"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<span class="text-sm font-medium"> {selectedCount} file{selectedCount !== 1 ? 's' : ''} selected </span>
 			<div class="flex gap-2">
 				<button onclick={clearSelection} class="preset-outlined-surface-500btn btn-sm">Clear</button>
-				<button onclick={confirmSelection} class="preset-filled-primary-500 btn-sm">Confirm Selection</button>
+				<button onclick={confirmSelection} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-sm">Confirm Selection</button>
 			</div>
 		</div>
 	{/if}
@@ -333,8 +333,8 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	{#if isLoading}
 		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 			<div class="flex flex-col items-center gap-3">
-				<div class="h-12 w-12 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
-				<p class="text-lg text-primary-500">Loading media...</p>
+				<div class="h-12 w-12 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
+				<p class="text-lg text-tertiary-500 dark:text-primary-500">Loading media...</p>
 			</div>
 		</div>
 	{:else if error}
@@ -343,7 +343,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:alert-circle" width="48" class="text-error-500"></iconify-icon>
 				<p class="text-lg text-error-500">Error: {error}</p>
-				<button onclick={fetchMedia} class="preset-filled-primary-500 btn-sm">Try Again</button>
+				<button onclick={fetchMedia} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-sm">Try Again</button>
 			</div>
 		</div>
 	{:else if !hasFiles}
@@ -394,7 +394,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 							class="btn-sm m-1 p-1 hover:bg-surface-600"
 							type="button"
 						>
-							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-primary-500"></iconify-icon>
+							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						</button>
 						<p class="flex-1 truncate pr-2 text-center text-sm text-white" title={file.filename}>{file.filename}</p>
 					</div>

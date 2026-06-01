@@ -167,7 +167,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 					<div class="flex items-center gap-2">
 						<!-- Drag Handle -->
 						<button
-							class="cursor-grab active:cursor-grabbing p-1 text-surface-400 hover:text-primary-500"
+							class="cursor-grab active:cursor-grabbing p-1 text-surface-400 hover:text-tertiary-500 dark:text-primary-500"
 							aria-label="Drag to reorder"
 							title="Drag to reorder"
 						>

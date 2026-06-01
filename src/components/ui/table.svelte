@@ -181,7 +181,7 @@ function onVirtualScroll() {
                                 </th>
                             {/if}
                             {#each columns as col}
-                                <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'cursor-pointer hover:text-primary-500', col.class)}
+                                <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'cursor-pointer hover:text-tertiary-500 dark:text-primary-500', col.class)}
                                     style={col.width ? `width: ${col.width}` : ''}
                                     aria-sort={sortKey === col.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
                                     onclick={() => col.sortable && handleSort(col.key)}>
@@ -189,7 +189,7 @@ function onVirtualScroll() {
                                         <span>{col.label}</span>
                                         {#if col.sortable && sortKey === col.key}
                                             <iconify-icon icon={sortOrder === 'asc' ? 'mingcute:arrow-up-line' : 'mingcute:arrow-down-line'}
-                                                class="text-primary-500 animate-in fade-in zoom-in duration-300"></iconify-icon>
+                                                class="text-tertiary-500 dark:text-primary-500 animate-in fade-in zoom-in duration-300"></iconify-icon>
                                         {/if}
                                     </div>
                                 </th>
@@ -205,8 +205,8 @@ function onVirtualScroll() {
                             {#if rowSnippet}
                                 {@render rowSnippet({ row, index })}
                             {:else}
-                                <tr class={cn('group transition-all duration-200 hover:bg-primary-500/3 dark:hover:bg-primary-500/5',
-                                    selectedIds.has(row._id || row.id) && 'bg-primary-500/5 dark:bg-primary-500/8', onrowclick && 'cursor-pointer')}
+                                <tr class={cn('group transition-all duration-200 hover:bg-tertiary-500 dark:bg-primary-500/3 dark:hover:bg-tertiary-500 dark:bg-primary-500/5',
+                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500/5 dark:bg-primary-500/8', onrowclick && 'cursor-pointer')}
                                     onclick={() => onrowclick?.(row)}
                                     onkeydown={(e) => {
                                         if (e.key === 'Enter') onrowclick?.(row);
@@ -251,7 +251,7 @@ function onVirtualScroll() {
                             </th>
                         {/if}
                         {#each columns as col}
-                            <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'cursor-pointer hover:text-primary-500', col.class)}
+                            <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'cursor-pointer hover:text-tertiary-500 dark:text-primary-500', col.class)}
                                 style={col.width ? `width: ${col.width}` : ''}
                                 aria-sort={sortKey === col.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
                                 onclick={() => col.sortable && handleSort(col.key)}>
@@ -259,7 +259,7 @@ function onVirtualScroll() {
                                     <span>{col.label}</span>
                                     {#if col.sortable && sortKey === col.key}
                                         <iconify-icon icon={sortOrder === 'asc' ? 'mingcute:arrow-up-line' : 'mingcute:arrow-down-line'}
-                                            class="text-primary-500 animate-in fade-in zoom-in duration-300"></iconify-icon>
+                                            class="text-tertiary-500 dark:text-primary-500 animate-in fade-in zoom-in duration-300"></iconify-icon>
                                     {/if}
                                 </div>
                             </th>
@@ -289,8 +289,8 @@ function onVirtualScroll() {
                             {#if rowSnippet}
                                 {@render rowSnippet({ row, index })}
                             {:else}
-                                <tr class={cn('group transition-all duration-200 hover:bg-primary-500/3 dark:hover:bg-primary-500/5',
-                                    selectedIds.has(row._id || row.id) && 'bg-primary-500/5 dark:bg-primary-500/8', onrowclick && 'cursor-pointer')}
+                                <tr class={cn('group transition-all duration-200 hover:bg-tertiary-500 dark:bg-primary-500/3 dark:hover:bg-tertiary-500 dark:bg-primary-500/5',
+                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500/5 dark:bg-primary-500/8', onrowclick && 'cursor-pointer')}
                                     onclick={() => onrowclick?.(row)}
                                     onkeydown={(e) => {
                                         if (e.key === 'Enter') onrowclick?.(row);

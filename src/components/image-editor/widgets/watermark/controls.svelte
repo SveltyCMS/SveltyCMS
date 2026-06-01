@@ -103,13 +103,13 @@ Professional watermark controls with text, image, and advanced options
 	<!-- Group 1: Add Controls -->
 	<div class="control-group">
 		<div class="add-buttons">
-			<button type="button" class="btn btn-sm preset-filled-primary-500" onclick={onAddImage} title="Add Image Watermark (I)">
+			<button type="button" class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onAddImage} title="Add Image Watermark (I)">
 				<iconify-icon icon="mdi:image-plus" width="18"></iconify-icon>
 				<span class="hidden sm:inline">Add Image</span>
 			</button>
 
 			{#if onAddText}
-				<button type="button" class="btn btn-sm preset-outlined-primary-500" onclick={onAddText} title="Add Text Watermark (T)">
+				<button type="button" class="btn btn-sm preset-outlined-tertiary-500 dark:preset-outlined-primary-500" onclick={onAddText} title="Add Text Watermark (T)">
 					<iconify-icon icon="mdi:text-box-plus" width="18"></iconify-icon>
 					<span class="hidden sm:inline">Add Text</span>
 				</button>
@@ -193,7 +193,7 @@ Professional watermark controls with text, image, and advanced options
 				<button
 					class="btn btn-icon btn-sm"
 					type="button"
-					class:preset-filled-primary-500={isTiled}
+					class:preset-filled-tertiary-500={isTiled} class:dark:preset-filled-primary-500={isTiled}
 					class:preset-outlined-surface-500={!isTiled}
 					onclick={onTileToggle}
 					title="Tile watermark across image"

@@ -589,7 +589,7 @@ Advanced icon picker with search, pagination, and favorites.
 				showDropdown = true;
 				handleFocus();
 			}}
-			class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-surface-300 p-4 text-surface-500 transition-colors hover:border-primary-500 hover:text-primary-500 dark:border-surface-600 dark:text-surface-400 dark:hover:border-primary-500 dark:hover:text-primary-500"
+			class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-surface-300 p-4 text-surface-500 transition-colors hover:border-tertiary-500 dark:border-primary-500 hover:text-tertiary-500 dark:text-primary-500 dark:border-surface-600 dark:text-surface-400 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:text-tertiary-500 dark:text-primary-500"
 			aria-expanded={showDropdown}
 			aria-controls="icon-dropdown"
 			aria-label="Choose icon"
@@ -665,7 +665,7 @@ Advanced icon picker with search, pagination, and favorites.
 					aria-selected={activeTab === 'search'}
 					onclick={() => switchTab('search')}
 					class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'search'
-						? 'border-b-2 border-primary-500 text-primary-500'
+						? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
 				>
 					Search
@@ -676,7 +676,7 @@ Advanced icon picker with search, pagination, and favorites.
 						aria-selected={activeTab === 'favorites'}
 						onclick={() => switchTab('favorites')}
 						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'favorites'
-							? 'border-b-2 border-primary-500 text-primary-500'
+							? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
 					>
 						Favorites ({favorites.length})
@@ -688,7 +688,7 @@ Advanced icon picker with search, pagination, and favorites.
 						aria-selected={activeTab === 'recent'}
 						onclick={() => switchTab('recent')}
 						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'recent'
-							? 'border-b-2 border-primary-500 text-primary-500'
+							? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
 					>
 						Recent ({recentSelections.length})
@@ -729,7 +729,7 @@ Advanced icon picker with search, pagination, and favorites.
 					<!-- Loading state (initial) -->
 					<div class="flex justify-center py-12" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 						<div class="flex flex-col items-center gap-3">
-							<div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+							<div class="h-10 w-10 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
 							<p class="text-sm text-surface-600 dark:text-surface-50">Loading icons...</p>
 						</div>
 					</div>
@@ -750,14 +750,14 @@ Advanced icon picker with search, pagination, and favorites.
 								role="option"
 								aria-selected={iconselected === fullIconName || index === selectedIndex}
 								tabindex="0"
-								class="group relative flex cursor-pointer items-center justify-center rounded-lg p-3 transition-all duration-200 hover:scale-110 hover:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-500 active:scale-95 {index ===
+								class="group relative flex cursor-pointer items-center justify-center rounded-lg p-3 transition-all duration-200 hover:scale-110 hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-500 active:scale-95 {index ===
 								selectedIndex
 									? 'ring-2 ring-primary-500'
 									: ''}"
 								id={`icon-option-${index}`}
 								aria-label={`Select icon ${fullIconName}`}
 							>
-								<iconify-icon icon={fullIconName} width="24" aria-hidden="true" class="transition-colors duration-200 group-hover:text-primary-500"
+								<iconify-icon icon={fullIconName} width="24" aria-hidden="true" class="transition-colors duration-200 group-hover:text-tertiary-500 dark:text-primary-500"
 								></iconify-icon>
 
 								{#if activeTab === 'favorites'}

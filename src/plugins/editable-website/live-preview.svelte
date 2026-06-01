@@ -204,7 +204,7 @@
     <!-- Toolbar -->
     <div class="mb-4 flex items-center justify-between gap-3">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <iconify-icon icon="mdi:open-in-new" width="20" class="text-primary-500"
+        <iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"
         ></iconify-icon>
         <input
           type="text"

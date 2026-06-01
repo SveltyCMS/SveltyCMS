@@ -108,7 +108,7 @@
 			return 'bg-error-500';
 		}
 		if (field?.count && length === (field?.count as number)) {
-			return 'bg-primary-500'; // Semantic success color
+			return 'bg-tertiary-500 dark:bg-primary-500'; // Semantic success color
 		}
 		if (field?.count && length > (field?.count as number)) {
 			return 'bg-warning-500'; // Semantic warning color
@@ -310,7 +310,7 @@
 			<!-- Validation indicator -->
 			{#if isValidating}
 				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Validating">
-					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
 				</div>
 			{/if}
 		</div>

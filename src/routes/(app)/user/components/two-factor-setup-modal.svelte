@@ -273,7 +273,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				type="submit"
 				form="twofa-form"
 				disabled={verificationCode.length !== 6 || isVerifying}
-				class="preset-filled-primary-500 btn {parent?.buttonPositive ?? ''}"
+				class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn {parent?.buttonPositive ?? ''}"
 			>
 				{#if isVerifying}
 					<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>

@@ -179,7 +179,7 @@ $effect(() => {
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:cog-outline" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:cog-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Dynamic System Settings
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Configure global system settings</p>
@@ -199,7 +199,7 @@ $effect(() => {
 			{#if selectedGroupId && selectedGroupId !== 'gdpr'}
 				<button
 					onclick={() => saveTrigger.fire()}
-					class="btn preset-filled-primary-500 flex items-center gap-1.5 min-w-30"
+					class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex items-center gap-1.5 min-w-30"
 					disabled={saving || !hasUnsavedChanges}
 				>
 					{#if saving}
@@ -227,7 +227,7 @@ $effect(() => {
 
 		<p class="text-surface-600 dark:text-surface-300 text-sm mb-6">
 			These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with
-			"Restart Required" need a server restart. Settings are organized into <span class="font-bold text-primary-500">{availableGroups.length}</span>
+			"Restart Required" need a server restart. Settings are organized into <span class="font-bold text-tertiary-500 dark:text-primary-500">{availableGroups.length}</span>
 			logical groups for easy management.
 		</p>
 
@@ -251,7 +251,7 @@ $effect(() => {
 					<a
 						href={`?group=${g.id}`}
 						data-sveltekit-preload-data="hover"
-						class="btn {selectedGroupId === g.id ? 'preset-filled-primary-500' : 'preset-tonal-surface'} whitespace-nowrap snap-start flex items-center justify-center gap-2"
+						class="btn {selectedGroupId === g.id ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'} whitespace-nowrap snap-start flex items-center justify-center gap-2"
 					>
 						<span>{g.icon}</span>
 						<span>{g.name}</span>

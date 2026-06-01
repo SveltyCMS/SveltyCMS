@@ -259,7 +259,7 @@ function getActionBadgeClass(action: string) {
 			return 'bg-blue-500/15 text-blue-600 dark:text-blue-400';
 		case 'create':
 		case 'write':
-			return 'bg-success-500/15 text-primary-600 dark:text-primary-500';
+			return 'bg-success-500/15 text-tertiary-600 dark:text-primary-600 dark:text-primary-500';
 		case 'delete':
 			return 'bg-error-500/15 text-error-600 dark:text-error-500';
 		case 'manage':
@@ -287,7 +287,7 @@ function getActionBadgeClass(action: string) {
 				type="text"
 				bind:value={searchTerm}
 				placeholder="Search Permissions..."
-				class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-800/80 bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
+				class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-800/80 bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
 				aria-label="Search permissions"
 			/>
 		</div>
@@ -303,7 +303,7 @@ function getActionBadgeClass(action: string) {
 		{#if adminRole}
 			<div class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-50 dark:bg-surface-900/30 border border-surface-200/60 dark:border-surface-800/55 py-2 px-4 rounded-lg w-max mx-auto shadow-xs">
 				<span class="font-extrabold text-error-500">*</span>
-				<span><span class="font-semibold text-primary-600 dark:text-primary-500">{adminRole.name}</span> Role has all permissions by default.</span>
+				<span><span class="font-semibold text-tertiary-600 dark:text-primary-600 dark:text-primary-500">{adminRole.name}</span> Role has all permissions by default.</span>
 			</div>
 		{/if}
 		<div class="permission overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-800/80 shadow-sm bg-white dark:bg-surface-900">
@@ -313,7 +313,7 @@ function getActionBadgeClass(action: string) {
 					<tr>
 						<th class="px-5 py-4 font-semibold text-surface-700 dark:text-surface-300 w-2/5" aria-sort={sortBy === 'name' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
 							<button
-								class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 dark:text-surface-400 hover:text-primary-500 dark:hover:text-primary-500 transition-colors"
+								class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 dark:text-surface-400 hover:text-tertiary-500 dark:text-primary-500 dark:hover:text-tertiary-500 dark:text-primary-500 transition-colors"
 								onclick={() => handleSort('name')}
 								title="Click to sort by permission name"
 							>
@@ -322,7 +322,7 @@ function getActionBadgeClass(action: string) {
 									<iconify-icon
 										icon={sortOrder === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
 										width="14"
-										class="text-primary-500"
+										class="text-tertiary-500 dark:text-primary-500"
 										aria-hidden="true"
 									></iconify-icon>
 								{/if}
@@ -330,7 +330,7 @@ function getActionBadgeClass(action: string) {
 						</th>
 						<th class="px-5 py-4 font-semibold text-center w-1/5" aria-sort={sortBy === 'action' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
 							<button
-								class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 dark:text-surface-400 hover:text-primary-500 dark:hover:text-primary-500 transition-colors mx-auto"
+								class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 dark:text-surface-400 hover:text-tertiary-500 dark:text-primary-500 dark:hover:text-tertiary-500 dark:text-primary-500 transition-colors mx-auto"
 								onclick={() => handleSort('action')}
 								title="Click to sort by action"
 							>
@@ -339,7 +339,7 @@ function getActionBadgeClass(action: string) {
 									<iconify-icon
 										icon={sortOrder === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
 										width="14"
-										class="text-primary-500"
+										class="text-tertiary-500 dark:text-primary-500"
 										aria-hidden="true"
 									></iconify-icon>
 								{/if}
@@ -355,7 +355,7 @@ function getActionBadgeClass(action: string) {
 										<div class="flex items-center gap-1.5 mt-0.5">
 											<input
 												type="checkbox"
-												class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
+												class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
 												checked={filteredPermissions.length > 0 && filteredPermissions.every((p) => role.permissions.includes(p._id))}
 												indeterminate={filteredPermissions.length > 0 &&
 													filteredPermissions.some((p) => role.permissions.includes(p._id)) &&
@@ -365,7 +365,7 @@ function getActionBadgeClass(action: string) {
 												aria-label={`Select all for ${role.name}`}
 											/>
 											<button
-												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-200 dark:border-surface-700/60 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 dark:text-surface-400 hover:text-primary-500 dark:hover:text-primary-500 transition-colors"
+												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-200 dark:border-surface-700/60 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 dark:text-surface-400 hover:text-tertiary-500 dark:text-primary-500 dark:hover:text-tertiary-500 dark:text-primary-500 transition-colors"
 												onclick={() => toggleAllForRole(role._id, true)}
 												title="Assign role to all filtered permissions"
 												aria-label={`Assign ${role.name} to all filtered permissions`}
@@ -411,7 +411,7 @@ function getActionBadgeClass(action: string) {
 													type="checkbox"
 													checked={role.permissions.includes(permission._id)}
 													onchange={() => toggleRole(permission._id, role._id)}
-													class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
+													class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
 													aria-label={`Assign ${permission.name} (${permission.action}) to ${role.name}`}
 												/>
 											</td>

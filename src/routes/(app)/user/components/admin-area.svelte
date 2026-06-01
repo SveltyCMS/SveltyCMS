@@ -959,7 +959,7 @@
 										{:else if header.key === 'expires'}
 											{#if isToken(row)}
 												{#if row.consumed}
-													<span class="font-bold text-primary-500 flex items-center justify-center gap-1">
+													<span class="font-bold text-tertiary-500 dark:text-primary-500 flex items-center justify-center gap-1">
 														<iconify-icon icon="mdi:check-circle" width={18}></iconify-icon>
 														{adminarea_consumed()}
 													</span>

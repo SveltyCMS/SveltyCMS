@@ -51,7 +51,7 @@ Displays detailed SEO analysis results in a modal overlay.
 			<!-- Header -->
 			<header class="card-header flex items-center justify-between border-b border-surface-500/20 p-4">
 				<h3 class="h3 flex items-center gap-2">
-					<iconify-icon icon="mdi:google-analytics" width="24" class="text-primary-500"></iconify-icon>
+					<iconify-icon icon="mdi:google-analytics" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					SEO Analysis Report
 				</h3>
 				<button type="button" class="btn-icon btn-icon-sm preset-outlined-surface-500" onclick={close} aria-label="Close">
@@ -118,7 +118,7 @@ Displays detailed SEO analysis results in a modal overlay.
 										? 'border-error-500 bg-error-500/10'
 										: suggestion.type === 'warning'
 											? 'border-warning-500 bg-warning-500/10'
-											: 'border-primary-500 bg-primary-500/10'}"
+											: 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/10'}"
 								>
 									<div class="flex items-start justify-between">
 										<div>
@@ -139,7 +139,7 @@ Displays detailed SEO analysis results in a modal overlay.
 												? 'preset-filled-error-500'
 												: suggestion.type === 'warning'
 													? 'variant-filled-warning'
-													: 'preset-filled-primary-500'} text-[10px] uppercase"
+													: 'preset-filled-tertiary-500 dark:preset-filled-primary-500'} text-[10px] uppercase"
 										>
 											{suggestion.type}
 										</span>

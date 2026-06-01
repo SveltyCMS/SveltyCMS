@@ -67,7 +67,7 @@ function handleInputChange(e: Event) {
 	<!-- Zoom Out Button -->
 	<button
 		onclick={onZoomOut}
-		class="btn-icon shrink-0 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-primary-500/12 hover:text-white disabled:opacity-35"
+		class="btn-icon shrink-0 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white disabled:opacity-35"
 		title="Zoom Out"
 		aria-label="Zoom out"
 		disabled={zoomLevel <= minZoom}
@@ -92,7 +92,7 @@ function handleInputChange(e: Event) {
 	<!-- Zoom In Button -->
 	<button
 		onclick={onZoomIn}
-		class="btn-icon shrink-0 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-primary-500/12 hover:text-white disabled:opacity-35"
+		class="btn-icon shrink-0 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white disabled:opacity-35"
 		title="Zoom In"
 		aria-label="Zoom in"
 		disabled={zoomLevel >= maxZoom}
@@ -118,7 +118,7 @@ function handleInputChange(e: Event) {
 	<!-- Fit to Screen -->
 	<button
 		onclick={onFitToScreen}
-		class="zoom-action btn-icon ml-2 flex h-8 w-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-primary-500/12 hover:text-white sm:w-auto sm:px-2.5 sm:py-1.5"
+		class="zoom-action btn-icon ml-2 flex h-8 w-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white sm:w-auto sm:px-2.5 sm:py-1.5"
 		title="Fit to Screen"
 		aria-label="Fit image to screen"
 	>
@@ -129,7 +129,7 @@ function handleInputChange(e: Event) {
 	<!-- Fill Screen -->
 	<button
 		onclick={onFillScreen}
-		class="zoom-action btn-icon flex h-8 w-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-primary-500/12 hover:text-white sm:w-auto sm:px-2.5 sm:py-1.5"
+		class="zoom-action btn-icon flex h-8 w-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white sm:w-auto sm:px-2.5 sm:py-1.5"
 		title="Fill Screen"
 		aria-label="Fill screen with image"
 	>
@@ -141,7 +141,7 @@ function handleInputChange(e: Event) {
 	<!-- 100% / Actual Size -->
 	<button
 		onclick={onActualSize}
-		class="zoom-action btn-icon ml-2 flex h-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 px-2.5 py-1.5 text-xs text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-primary-500/12 hover:text-white"
+		class="zoom-action btn-icon ml-2 flex h-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 px-2.5 py-1.5 text-xs text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white"
 		title="Actual Size (100%)"
 		aria-label="View at actual size"
 	>

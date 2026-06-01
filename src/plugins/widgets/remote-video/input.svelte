@@ -260,7 +260,7 @@ Part of the Three Pillars Architecture for widget system.
 
 			{#if isLoading}
 				<div class="flex items-center px-3" aria-label="Loading">
-					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
 				</div>
 			{/if}
 

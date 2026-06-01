@@ -84,7 +84,7 @@ $effect(() => {
 			>
 				<div class="flex items-center gap-3">
 					{#if icon}
-						<iconify-icon icon={icon} width="20" class="text-primary-500"></iconify-icon>
+						<iconify-icon icon={icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					{/if}
 					<span class="font-bold text-surface-900 dark:text-white">{title}</span>
 				</div>

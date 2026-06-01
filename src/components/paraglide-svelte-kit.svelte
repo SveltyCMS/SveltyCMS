@@ -31,19 +31,17 @@
 
 	let locale = $derived(getLocale());
 
-	// Effect to handle language changes
 	$effect(() => {
 		const desiredLang = systemLanguage.value; // Get the desired language from the store
 
 		if (desiredLang) {
 			// Ensure the desired language is one of the available locales and is different from the current
-			if (availableLocales.includes(desiredLang) && locale !== desiredLang) {
+			if (availableLocales.includes(desiredLang as any) && (locale as any) !== desiredLang) {
 				setLocale(desiredLang as LanguageCode, { reload: false });
 				// Persisting to localStorage ensures the preference is remembered across sessions/reloads.
 				if (browser) {
 					globalThis.localStorage.setItem('systemLanguage', desiredLang);
 				}
-				locale = desiredLang;
 			}
 		}
 	});

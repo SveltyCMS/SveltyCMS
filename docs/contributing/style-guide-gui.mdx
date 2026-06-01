@@ -36,6 +36,10 @@ Our UI is built on a robust and flexible foundation:
 - **ALWAYS** use the preset classes defined in `app.css` (e.g., `preset-filled-primary-500`, `preset-tonal-success`, `preset-outlined-surface-500`).
 - **ALWAYS** use CSS custom properties for one-off colors (e.g., `var(--color-primary-500)`, `var(--color-error-500)`).
 - **NEVER** use hardcoded Tailwind colors (e.g., `text-red-500`, `bg-blue-500`).
+- **ALWAYS** follow the **Dynamic Accent Color Pair Policy**:
+  - For interactive components, visual anchors, highlighted text, and primary navigation states, use **Tertiary (Blue)** in light mode and **Primary (Green)** in dark mode.
+  - Implement this using the standard token pairing format: `text-tertiary-500 dark:text-primary-500`, `bg-tertiary-500 dark:bg-primary-500`, or `preset-filled-tertiary-500 dark:preset-filled-primary-500`.
+  - Hardcoding `primary-500` or `tertiary-500` without a dark-mode counterpart for these elements is prohibited.
 
 ### Use Native UI Components
 

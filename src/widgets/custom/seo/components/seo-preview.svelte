@@ -110,7 +110,7 @@
 				<button
 					type="button"
 					onclick={() => (SeoPreviewToggle = false)}
-					class="{!SeoPreviewToggle ? 'preset-filled-primary-500' : 'preset-filled-surface-500'} btn-icon"
+					class="{!SeoPreviewToggle ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-filled-surface-500'} btn-icon"
 					aria-label="Desktop View"
 				>
 					<iconify-icon icon="mdi:monitor" width={24}></iconify-icon>
@@ -122,7 +122,7 @@
 				<button
 					type="button"
 					onclick={() => (SeoPreviewToggle = true)}
-					class="{SeoPreviewToggle ? 'preset-filled-primary-500' : 'preset-filled-surface-500'} btn-icon"
+					class="{SeoPreviewToggle ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-filled-surface-500'} btn-icon"
 					aria-label="Mobile View"
 				>
 					<iconify-icon icon="mdi:cellphone" width={24}></iconify-icon>
@@ -171,7 +171,7 @@
 					{/each}
 				</h3>
 			{:else}
-				<h3 class="text-lg font-medium leading-tight text-primary-500 hover:underline dark:text-primary-500">{title || 'Page Title'}</h3>
+				<h3 class="text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500 hover:underline dark:text-primary-500">{title || 'Page Title'}</h3>
 			{/if}
 		</div>
 

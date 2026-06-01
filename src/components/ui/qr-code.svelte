@@ -55,7 +55,7 @@ avoiding third-party API exposure for sensitive URLs (like 2FA secrets).
   // Calculate SVG path for the dark modules to optimize DOM rendering
   const svgPath = $derived.by(() => {
     if (!qrResult) return '';
-    const matrix = qrResult.modules;
+    const matrix = qrResult.data;
     const len = matrix.length;
     let path = '';
 
@@ -82,7 +82,7 @@ avoiding third-party API exposure for sensitive URLs (like 2FA secrets).
     return path;
   });
 
-  const matrixSize = $derived(qrResult ? qrResult.modules.length : 0);
+  const matrixSize = $derived(qrResult ? qrResult.data.length : 0);
 </script>
 
 {#if qrResult}

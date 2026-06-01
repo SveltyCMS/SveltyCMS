@@ -31,7 +31,7 @@ Toolbar controls for the FocalPoint widget
 	<!-- Focal Point Coordinates -->
 	<div class="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 p-2 px-3 backdrop-blur-md">
 		<div class="flex items-center gap-2">
-			<iconify-icon icon="mdi:target" width="18" class="text-primary-500"></iconify-icon>
+			<iconify-icon icon="mdi:target" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<span class="text-xs font-semibold uppercase tracking-wider text-white/70">Focal Point</span>
 		</div>
 		
@@ -79,7 +79,7 @@ Toolbar controls for the FocalPoint widget
 	<!-- Actions: Reset -->
 	<button 
 		onclick={onReset} 
-		class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 transition-all hover:border-primary-400/30 hover:bg-primary-500/10 hover:text-white active:scale-95 group" 
+		class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 transition-all hover:border-primary-400/30 hover:bg-tertiary-500 dark:bg-primary-500/10 hover:text-white active:scale-95 group" 
 		title="Reset to center (50%, 50%)"
 		aria-label="Reset focal point"
 	>

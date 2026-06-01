@@ -91,7 +91,7 @@ function setPage(page: number) {
         />
 
         <div class="flex items-center gap-1 px-2">
-            <span class="font-bold text-primary-500">{currentPage}</span>
+            <span class="font-bold text-tertiary-500 dark:text-primary-500">{currentPage}</span>
             <span class="opacity-50">/</span>
             <span>{computedPagesCount}</span>
         </div>

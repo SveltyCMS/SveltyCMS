@@ -234,7 +234,7 @@
 								<iconify-icon
 									icon="mdi:{user?.is2FAEnabled ? 'check-decagram' : 'alert-circle'}"
 									width={20}
-									class={user?.is2FAEnabled ? 'text-primary-500' : 'text-error-500'}
+									class={user?.is2FAEnabled ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500'}
 								></iconify-icon>
 								<span class="text-xs font-bold uppercase">{user?.is2FAEnabled ? 'Enabled' : 'Disabled'}</span>
 							</div>
@@ -246,7 +246,7 @@
 				<div class="card p-4 w-full max-w-xs space-y-1 bg-surface-200-700-token border border-surface-500 shadow-sm" in:fly={{ y: 10, delay: 300, duration: 300 }}>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<iconify-icon icon="mdi:forum" class="text-primary-500" width={18}></iconify-icon>
+							<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<span class="text-sm">Real-time Collaboration</span>
 						</div>
 						<input
@@ -261,7 +261,7 @@
 					</div>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<iconify-icon icon="material-symbols:volume-up-outline" class="text-primary-500" width={18}></iconify-icon>
+							<iconify-icon icon="material-symbols:volume-up-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<span class="text-sm">Sound Notifications</span>
 						</div>
 						<input
@@ -286,19 +286,19 @@
 			{#if user}
 				<form>
 					<div class="flex items-center gap-2 mb-1">
-						<iconify-icon icon="mdi:account" class="text-primary-500" width={20}></iconify-icon>
+						<iconify-icon icon="mdi:account" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{username()}:</span>
 					</div>
 					<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input mb-4" />
 
 					<div class="flex items-center gap-2 mb-1">
-						<iconify-icon icon="mdi:email" class="text-primary-500" width={20}></iconify-icon>
+						<iconify-icon icon="mdi:email" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{email()}:</span>
 					</div>
 					<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input mb-4" />
 
 					<div class="flex items-center gap-2 mb-1">
-						<iconify-icon icon="mdi:lock" class="text-primary-500" width={20}></iconify-icon>
+						<iconify-icon icon="mdi:lock" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{form_password()}:</span>
 					</div>
 					<input bind:value={password} name="security" type="security" autocomplete="current-password" disabled class="input" />

@@ -198,6 +198,8 @@ While Figma serves as a designer's sandbox to model themes, SveltyCMS's **inject
 
 To guarantee that the current look and feel of the SveltyCMS administration panel does not change during the refactoring process, we enforce three safety guardrails:
 
+0.  **Dynamic Accent Color Pairing Consistency:**
+    All dynamic components must follow the `tertiary-500` (Light) / `primary-500` (Dark) color pairing for accents and main buttons. No refactoring should hardcode `primary-500` for light-mode actions unless theme parameters override it.
 1.  **Local CSS Variable Fallbacks (`var(--token, fallback)`):**
     All CSS custom property references in Svelte templates contain the current design values as hardcoded CSS fallbacks. For example:
     - Instead of `style="border-radius: var(--admin-radius-card);"`, we write `style="border-radius: var(--admin-radius-card, 0.75rem);"`.

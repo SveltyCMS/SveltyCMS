@@ -567,7 +567,7 @@
 										<div
 											class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 ring-1 ring-white/10 transition-transform group-hover/item:scale-110 group-active/item:scale-95"
 										>
-											<iconify-icon icon={config.icon} width="16" class={hoveredAction === config.type ? 'text-primary-500' : 'text-surface-300'}
+											<iconify-icon icon={config.icon} width="16" class={hoveredAction === config.type ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-300'}
 											></iconify-icon>
 										</div>
 

@@ -78,7 +78,7 @@ function handleConfigure(plugin: any) {
 				<div class="mb-3 flex items-start justify-between">
 					<div class="flex items-center gap-3">
 						<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-50 dark:bg-surface-900/50">
-							<iconify-icon icon={plugin.icon || 'mdi:puzzle'} width="32" class="text-primary-500"></iconify-icon>
+							<iconify-icon icon={plugin.icon || 'mdi:puzzle'} width="32" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						</div>
 						<div>
 							<div class="flex items-center gap-2">
@@ -108,7 +108,7 @@ function handleConfigure(plugin: any) {
 						<button
 							onclick={() => handleToggle(plugin)}
 							class="inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors {plugin.enabled
-								? 'bg-primary-500 text-white hover:bg-primary-600'
+								? 'bg-tertiary-500 dark:bg-primary-500 text-white hover:bg-tertiary-600 dark:bg-primary-600'
 								: 'bg-surface-200 text-surface-600 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-400'}"
 						>
 							{plugin.enabled ? 'Active' : 'Disabled'}

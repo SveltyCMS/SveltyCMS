@@ -305,7 +305,7 @@ $effect(() => {
 
 		// Update Paraglide locale (handles routing internally)
 		setLocale(desired as any, { reload: false });
-		currentLocale = desired;
+		currentLocale = desired as any;
 	}
 });
 

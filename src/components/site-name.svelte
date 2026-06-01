@@ -75,7 +75,7 @@ import SiteName from './site-name.svelte';
 {:else if parts}
 	<!-- Site name with highlighted portion -->
 	<span class="text-left font-bold {textClass}">
-		{parts.before}<span class="text-primary-500">{parts.highlight}</span>{parts.after}
+		{parts.before}<span class="text-tertiary-500 dark:text-primary-500">{parts.highlight}</span>{parts.after}
 	</span>
 {:else}
 	<!-- Full site name without highlighting -->

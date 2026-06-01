@@ -164,10 +164,10 @@ export const widgetMeta = {
 										<path
 											d={linePath}
 											fill="none"
-											stroke={errorRate > 5 ? '#ef4444' : errorRate > 2 ? '#f59e0b' : '#10b981'}
 											stroke-width="2"
 											stroke-linecap="round"
 											stroke-linejoin="round"
+											class={errorRate > 5 ? 'stroke-error-500' : errorRate > 2 ? 'stroke-warning-500' : 'stroke-success-500'}
 										/>
 									</svg>
 								</div>

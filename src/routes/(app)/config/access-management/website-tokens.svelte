@@ -440,7 +440,7 @@ $effect(() => {
 			</div>
 
 			<div class="mt-4 flex justify-end">
-				<button class="preset-filled-primary-500 btn" onclick={generateToken}>
+				<button class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" onclick={generateToken}>
 					<iconify-icon icon="mdi:key-plus" class="mr-2"></iconify-icon>
 					Generate Token
 				</button>

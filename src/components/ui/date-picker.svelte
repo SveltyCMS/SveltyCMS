@@ -64,7 +64,7 @@ const describedBy = $derived([descriptionId, errorId].filter(Boolean).join(' ') 
 const classes = $derived(cn(
 	'input px-3 py-2 rounded-lg border transition-all duration-200 w-full',
 	'bg-surface-50 dark:bg-surface-900',
-	error ? 'border-error-500 focus:ring-error-500/20 focus:border-error-500' : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
+	error ? 'border-error-500 focus:ring-error-500/20 focus:border-error-500' : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 	'focus:ring-2',
 	disabled && 'opacity-50 cursor-not-allowed grayscale',
 	className

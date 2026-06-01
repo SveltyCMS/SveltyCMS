@@ -105,7 +105,7 @@ menu item at a specific level. Uses the standard widget loading system.
 
 	<footer class="flex justify-end gap-3 border-t border-surface-200 pt-5 dark:border-surface-700">
 		<button type="button" class="btn preset-outlined-surface-500" onclick={onCancel}> Discard </button>
-		<button type="button" class="btn preset-filled-primary-500" onclick={onSave}>
+		<button type="button" class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onSave}>
 			<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
 			Save Changes
 		</button>

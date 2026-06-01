@@ -97,8 +97,8 @@ function onDragLeave() {
 	class={cn(
 		'relative group flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl transition-all duration-200 cursor-pointer outline-none',
 		'bg-surface-50/50 dark:bg-surface-900/50',
-		isDragging ? 'border-primary-500 bg-primary-500/5 ring-4 ring-primary-500/10' : 'border-surface-300 dark:border-surface-700 hover:border-primary-500/50',
-		'focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500',
+		isDragging ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/5 ring-4 ring-primary-500/10' : 'border-surface-300 dark:border-surface-700 hover:border-tertiary-500 dark:border-primary-500/50',
+		'focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-tertiary-500 dark:border-primary-500',
 		disabled && 'opacity-50 cursor-not-allowed grayscale pointer-events-none',
 		className
 	)}
@@ -122,7 +122,7 @@ function onDragLeave() {
 		<div class="pointer-events-none flex flex-col items-center gap-4 text-center">
 			<div class={cn(
 				"w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200",
-				isDragging ? "bg-primary-500 text-white" : "bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400"
+				isDragging ? "bg-tertiary-500 dark:bg-primary-500 text-white" : "bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400"
 			)}>
 				{#if icon}
 					{@render icon()}
@@ -139,6 +139,6 @@ function onDragLeave() {
 	{/if}
 
 	{#if isDragging}
-		<div class="absolute inset-0 pointer-events-none rounded-2xl border-4 border-primary-500/20 animate-pulse"></div>
+		<div class="absolute inset-0 pointer-events-none rounded-2xl border-4 border-tertiary-500 dark:border-primary-500/20 animate-pulse"></div>
 	{/if}
 </label>

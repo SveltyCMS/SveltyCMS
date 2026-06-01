@@ -122,7 +122,7 @@ export const widgetMeta = {
 		{#if !m}
 			<div class="flex h-full items-center justify-center">
 				<div class="flex flex-col items-center gap-3 text-surface-400">
-					<div class="h-7 w-7 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+					<div class="h-7 w-7 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
 					<p class="text-xs">Gathering metrics...</p>
 				</div>
 			</div>

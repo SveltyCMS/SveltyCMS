@@ -49,7 +49,7 @@ const configItems = [
 		href: "/config/monitor",
 		label: "System Monitor",
 		icon: "mdi:shield-check-outline",
-		iconColor: "text-primary-500",
+		iconColor: "text-tertiary-500 dark:text-primary-500",
 		permission: {
 			contextId: "config:systemMonitor",
 			name: "System Monitor",
@@ -128,7 +128,7 @@ const configItems = [
 		href: "/config/queue",
 		label: "Background Queue",
 		icon: "mdi:playlist-play",
-		iconColor: "text-primary-600",
+		iconColor: "text-tertiary-600 dark:text-primary-600",
 		permission: {
 			contextId: "config:queue",
 			name: "Background Queue",
@@ -190,7 +190,7 @@ const configItems = [
 		href: "/email-previews",
 		label: "Email Previews",
 		icon: "mdi:email-outline",
-		iconColor: "text-primary-600",
+		iconColor: "text-tertiary-600 dark:text-primary-600",
 		target: "_blank",
 		permission: {
 			contextId: "system:admin",
@@ -264,7 +264,7 @@ const configItems = [
 				<PermissionGuard config={item.permission}>
 					<a
 						href={item.href}
-						class="flex h-24 flex-col items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-primary-500 hover:bg-primary-50 hover:shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+						class="flex h-24 flex-col items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 dark:border-primary-500 hover:bg-primary-50 hover:shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
 						aria-label={item.label}
 						target={item.target}
 						rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
@@ -276,7 +276,7 @@ const configItems = [
 							class={`text-3xl lg:text-4xl ${item.iconColor || ''} transition-transform duration-300 group-hover:scale-110`}
 						></iconify-icon>
 						<p
-							class="w-full truncate text-xs font-medium uppercase tracking-wide group-hover:text-primary-600 dark:group-hover:text-primary-500 lg:text-sm"
+							class="w-full truncate text-xs font-medium uppercase tracking-wide group-hover:text-tertiary-600 dark:text-primary-600 dark:group-hover:text-tertiary-500 dark:text-primary-500 lg:text-sm"
 						>
 							{item.label}
 						</p>
@@ -287,7 +287,7 @@ const configItems = [
 				<div in:fly={{ y: 20, delay: idx * 50, duration: 300 }}>
 				<a
 					href={item.href}
-					class="group flex h-24 flex-col items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-primary-500 hover:bg-primary-50 hover:shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+					class="group flex h-24 flex-col items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 dark:border-primary-500 hover:bg-primary-50 hover:shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
 					aria-label={item.label}
 					target={item.target}
 					rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
@@ -299,7 +299,7 @@ const configItems = [
 						class={`text-3xl lg:text-4xl ${item.iconColor || ''} transition-transform duration-300 group-hover:scale-110`}
 					></iconify-icon>
 					<p
-						class="w-full truncate text-xs font-medium uppercase tracking-wide text-surface-600 dark:text-surface-300 group-hover:text-primary-600 dark:group-hover:text-primary-500 lg:text-sm"
+						class="w-full truncate text-xs font-medium uppercase tracking-wide text-surface-600 dark:text-surface-300 group-hover:text-tertiary-600 dark:text-primary-600 dark:group-hover:text-tertiary-500 dark:text-primary-500 lg:text-sm"
 					>
 						{item.label}
 					</p>

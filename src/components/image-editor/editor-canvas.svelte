@@ -457,7 +457,7 @@ for the image editor canvas with reactive rendering.
 	<button
 		class="canvas-container block h-full w-full border-0 p-0 text-left cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none"
 		class:border-2={isDragging}
-		class:border-primary-500={isDragging}
+		class:border-tertiary-500={isDragging} class:dark:border-primary-500={isDragging}
 		class:border-dashed={isDragging}
 		class:bg-primary-50={isDragging}
 		class:dark:bg-primary-900={isDragging}
@@ -514,7 +514,7 @@ for the image editor canvas with reactive rendering.
 				</div>
 
 				<div class="pointer-events-auto">
-					<button class="btn preset-filled-primary-500 gap-2" onclick={() => onupload?.()}>
+					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 gap-2" onclick={() => onupload?.()}>
 						<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 						<span>Upload Image</span>
 					</button>
@@ -541,14 +541,14 @@ for the image editor canvas with reactive rendering.
 			transition:fade={{ duration: 200 }}
 		>
 			<div class="loading-spinner flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg dark:bg-surface-800">
-				<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			</div>
 			<span class="text-sm text-surface-600 dark:text-surface-300">{loadingMessage}</span>
 
 			<!-- Add progress bar if available -->
 			{#if loadingProgress !== undefined}
 				<div class="w-64 h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden mt-2">
-					<div class="h-full bg-primary-500 transition-all duration-300" style="width: {loadingProgress}%"></div>
+					<div class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-300" style="width: {loadingProgress}%"></div>
 				</div>
 			{/if}
 		</div>

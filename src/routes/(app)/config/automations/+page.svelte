@@ -175,13 +175,13 @@ onMount(loadFlows);
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:robot-outline" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:robot-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Workflow Automations
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Automate actions when content changes &mdash; send emails, call webhooks, update fields</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<a class="btn preset-filled-primary-500" href="/config/automations/new" data-sveltekit-preload-data="hover">
+			<a class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" href="/config/automations/new" data-sveltekit-preload-data="hover">
 				<iconify-icon icon="mdi:plus"></iconify-icon>
 				<span>New Automation</span>
 			</a>
@@ -238,7 +238,7 @@ onMount(loadFlows);
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
 			<p class="mb-6 text-sm opacity-40">Example: Send an email when a new article is published.</p>
-			<a class="btn preset-filled-primary-500" href="/config/automations/new" data-sveltekit-preload-data="hover">
+			<a class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" href="/config/automations/new" data-sveltekit-preload-data="hover">
 				<iconify-icon icon="mdi:plus"></iconify-icon>
 				Get Started
 			</a>
@@ -248,7 +248,7 @@ onMount(loadFlows);
 			<div class="grid gap-4">
 				{#each filteredFlows as flow (flow.id)}
 					<div
-						class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-primary-500 transition-all duration-200 rounded-lg flex items-center gap-4"
+						class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded-lg flex items-center gap-4"
 						class:opacity-50={!flow.active}
 						transition:slide
 					>
@@ -270,14 +270,14 @@ onMount(loadFlows);
 									<iconify-icon
 										icon={getTriggerIcon(flow)}
 										class="text-xl"
-										class:text-primary-600={flow.active}
+										class:text-tertiary-600={flow.active} class:dark:text-primary-600={flow.active}
 										class:dark:text-primary-500={flow.active}
 									></iconify-icon>
 								</div>
 
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center gap-2 mb-0.5">
-										<a class="font-bold text-lg truncate hover:text-primary-600 transition-colors text-left" href={`/config/automations/${flow.id}`} data-sveltekit-preload-data="hover">
+										<a class="font-bold text-lg truncate hover:text-tertiary-600 dark:text-primary-600 transition-colors text-left" href={`/config/automations/${flow.id}`} data-sveltekit-preload-data="hover">
 											{flow.name}
 										</a>
 										{#if flow.active}

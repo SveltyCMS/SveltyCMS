@@ -100,7 +100,7 @@ export function classifyDatabaseError(
     const existingName = raw.match(/already have: \[([^\]]+)\]/i)?.[1] || "SveltyCMS";
     return {
       classification: "CASE_MISMATCH",
-      userFriendly: `A database named '<span class="text-primary-500 font-bold">${existingName}</span>' already exists. On this system, database names are case-insensitive, so you cannot create '${dbConfig?.name}'.`,
+      userFriendly: `A database named '<span class="text-tertiary-500 dark:text-primary-500 font-bold">${existingName}</span>' already exists. On this system, database names are case-insensitive, so you cannot create '${dbConfig?.name}'.`,
       hint: "Use the existing name exactly, or choose a completely different name, or choose to overwrite.",
       canOverwrite: true,
       details: { existingName },
@@ -112,7 +112,7 @@ export function classifyDatabaseError(
   if (lower.includes("database is not empty") || lower.includes("db already exists")) {
     return {
       classification: "DB_ALREADY_EXISTS",
-      userFriendly: `Database '<span class="text-primary-500 font-bold">${dbConfig?.name}</span>' already exists and contains data.`,
+      userFriendly: `Database '<span class="text-tertiary-500 dark:text-primary-500 font-bold">${dbConfig?.name}</span>' already exists and contains data.`,
       hint: "SveltyCMS requires a fresh database. Please choose a different name or confirm you want to OVERWRITE (this will delete all existing tables).",
       canOverwrite: true,
       raw,

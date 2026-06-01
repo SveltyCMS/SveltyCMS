@@ -44,7 +44,7 @@ onMount(loadTrash);
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:delete-outline" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:delete-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Global Trash Bin
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Browse and restore soft-deleted content from all collections</p>
@@ -92,7 +92,7 @@ onMount(loadTrash);
 								<td>{item.deletedBy || 'System'}</td>
 								<td class="text-right">
 									<button
-										class="btn btn-sm preset-filled-primary-500"
+										class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500"
 										onclick={() => restoreItem(item.collectionId, item._id)}
 									>
 										<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>

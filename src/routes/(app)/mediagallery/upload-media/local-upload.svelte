@@ -520,7 +520,7 @@ async function uploadLocalFiles() {
 			aria-valuemin={0}
 			aria-valuemax={100}
 		>
-			<div class="h-full bg-primary-500 transition-all duration-300" style="width: {uploadProgress}%"></div>
+			<div class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-300" style="width: {uploadProgress}%"></div>
 		</div>
 		<div class="flex items-center justify-between text-xs text-surface-600 dark:text-surface-50">
 			<span>Speed: {formatBytes(uploadSpeed)}/s</span>

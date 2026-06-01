@@ -232,7 +232,7 @@ Interactive menu builder with add/edit/reorder capabilities
 					class:scale-95={draggedItem?._id === item._id}
 					class:opacity-50={draggedItem?._id === item._id}
 					class:!border-primary-400={dragOverIndex === index}
-					class:!bg-primary-500={dragOverIndex === index}
+					class:!bg-tertiary-500={dragOverIndex === index} class:dark:bg-primary-500={dragOverIndex === index}
 					class:dark:!border-primary-600={dragOverIndex === index}
 					class:dark:!bg-primary-900={dragOverIndex === index}
 					draggable={(field as any).defaults?.enableDragDrop !== false}

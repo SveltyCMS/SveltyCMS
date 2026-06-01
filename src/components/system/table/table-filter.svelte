@@ -107,7 +107,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		if (except !== 'column') {
 			columnShow = false;
 		}
-		app.setTranslationStatusOpen(false);
+		app.translationStatusOpen = false;
 	}
 
 	// Function to cycle density
@@ -147,7 +147,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			aria-label={table_search_aria()}
 			bind:value={globalSearchValue}
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
-			class="input w-full h-full outline-none border-none bg-transparent px-4 transition-all duration-500 ease-in-out focus:border-tertiary-500 dark:text-surface-50 dark:bg-surface-800 dark:focus:border-primary-500"
+			class="input w-full h-full outline-none border-none bg-transparent px-4 transition-all duration-500 ease-in-out focus:border-tertiary-500 dark:text-surface-50 dark:bg-surface-800 dark:focus:border-tertiary-500 dark:border-primary-500"
 		/>
 		<button
 			onclick={() => {

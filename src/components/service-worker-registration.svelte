@@ -88,7 +88,7 @@ Registers and manages the service worker for offline support and caching.
 
 {#if updateAvailable}
 	<!-- Update notification -->
-	<div class="card preset-filled-primary-500 fixed bottom-4 right-4 z-50 max-w-sm p-4 shadow-xl">
+	<div class="card preset-filled-tertiary-500 dark:preset-filled-primary-500 fixed bottom-4 right-4 z-50 max-w-sm p-4 shadow-xl">
 		<div class="flex items-center gap-3">
 			<svg aria-hidden="true" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path

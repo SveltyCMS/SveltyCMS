@@ -85,7 +85,7 @@
 		{#if insertUrl}
 			<form onsubmit={handleSubmit} class="relative mt-2 flex flex-col items-center justify-center gap-4">
 				<FloatingInput bind:value={youtubeUrl} autofocus={true} textColor="black" name="Youtube URL" label="Youtube URL" />
-				<button type="submit" class="preset-filled-primary-500 btn w-full">Add Video</button>
+				<button type="submit" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full">Add Video</button>
 			</form>
 		{:else}
 			<div class="relative mt-2 flex flex-col items-center justify-center gap-4">

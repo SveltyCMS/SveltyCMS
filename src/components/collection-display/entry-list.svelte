@@ -1046,7 +1046,7 @@ bulk actions, and predictive preloading.
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 						<TableIcons
-							cellClass={`w-10 ${hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+							cellClass={`w-10 ${hasSelections ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
 							checked={SelectAll.value}
 							onCheck={(checked: boolean) => {
 								SelectAll.value = checked;
@@ -1066,7 +1066,7 @@ bulk actions, and predictive preloading.
 									type="button"
 									class="flex w-full items-center justify-center font-bold uppercase focus:outline-none {(header as TableHeader).name ===
 									entryListPaginationSettings.sorting.sortedBy
-										? 'text-primary-500 dark:text-secondary-400'
+										? 'text-tertiary-500 dark:text-primary-500 dark:text-secondary-400'
 										: 'text-tertiary-500 dark:text-primary-500'}"
 									onclick={() => onSortChange((header as TableHeader).name || '')}
 								>
@@ -1084,12 +1084,12 @@ bulk actions, and predictive preloading.
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
 							<tr
-								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
+								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-tertiary-500 dark:bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 							>
 								<TableIcons
-									cellClass={`w-10 text-center ${selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+									cellClass={`w-10 text-center ${selectedMap[index] ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
 									checked={selectedMap[index]}
 									onCheck={(isChecked: boolean) => {
 										selectedMap[index] = isChecked;
@@ -1099,7 +1099,7 @@ bulk actions, and predictive preloading.
 									{#each visibleTableHeaders as header (header.id)}
 										<td
 											class="text-center {cellPaddingClass} text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
-												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
+												? 'cursor-pointer transition-colors duration-200 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 												: 'hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
 											onclick={async () => {
 												if ((header as TableHeader).name === 'status') {

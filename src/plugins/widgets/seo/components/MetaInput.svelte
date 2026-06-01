@@ -98,14 +98,14 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 		<div class="flex flex-col text-xs sm:flex-row sm:text-base gap-x-2">
 			<span>
 				{widget_seo_suggestioncharacter()}
-				<span class="text-primary-500">{value.length}</span>
+				<span class="text-tertiary-500 dark:text-primary-500">{value.length}</span>
 			</span>
 			{#if desktopPx && mobilePx}
 				<span>
 					{widget_seo_suggestionwidthdesktop()}
-					<span class="text-primary-500">{characterWidth}</span>/{desktopPx}px
+					<span class="text-tertiary-500 dark:text-primary-500">{characterWidth}</span>/{desktopPx}px
 					{widget_seo_suggestionwidthmobile()}
-					<span class="text-primary-500">{characterWidth}</span>/{mobilePx}px
+					<span class="text-tertiary-500 dark:text-primary-500">{characterWidth}</span>/{mobilePx}px
 				</span>
 			{/if}
 		</div>

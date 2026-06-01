@@ -296,10 +296,10 @@ $effect(() => {
 						<div class="wrap-break-word lg:-mt-1">
 							{#if isInviteFlow}
 								{form_signup()}
-								<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
+								<span class="text-2xl text-tertiary-500 dark:text-primary-500 sm:text-3xl">: Complete Invitation</span>
 							{:else}
 								{form_signup()}
-								<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
+								<span class="text-2xl capitalize text-tertiary-500 dark:text-primary-500 sm:text-3xl">: New User</span>
 							{/if}
 						</div>
 					</h1>
@@ -375,7 +375,7 @@ $effect(() => {
 						errorMessage={signUpForm.errors.email?.[0] || ''}
 					/>
 					{#if isInviteFlow}
-						<span class="text-xs text-primary-500">? Email pre-filled from invitation</span>
+						<span class="text-xs text-tertiary-500 dark:text-primary-500">? Email pre-filled from invitation</span>
 					{/if}
 
 					<!-- Hidden email input to ensure form submission when disabled -->
@@ -460,7 +460,7 @@ $effect(() => {
 					{:else if isInviteFlow}
 						<!-- Hidden token field for invite flow -->
 						<input type="hidden" name="token" value={token} />
-						<span class="text-xs text-primary-500">Using invitation token</span>
+						<span class="text-xs text-tertiary-500 dark:text-primary-500">Using invitation token</span>
 					{/if}
 
 					{#if inviteError && !signUpForm.data.token}

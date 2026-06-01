@@ -41,7 +41,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 
 	// Multi-language handling
 	let availableLanguages = $state<string[]>([]);
-	const lang = $derived(app.contentLanguage || 'en');
+	const lang = $derived((app.contentLanguage || 'en') as any);
 	const langData = $derived(value?.[lang]);
 
 	// Optimized features lookup
@@ -175,7 +175,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		<div class="flex border-b border-surface-400/30 mb-6">
 			<button
 				class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 0
-					? 'border-primary-500 font-bold text-primary-500'
+					? 'border-tertiary-500 dark:border-primary-500 font-bold text-tertiary-500 dark:text-primary-500'
 					: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
 				onclick={() => (activeTab = 0)}
 			>
@@ -184,7 +184,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 			{#if hasFeature('social')}
 				<button
 					class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 1
-						? 'border-primary-500 font-bold text-primary-500'
+						? 'border-tertiary-500 dark:border-primary-500 font-bold text-tertiary-500 dark:text-primary-500'
 						: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
 					onclick={() => (activeTab = 1)}
 				>
@@ -194,7 +194,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 			{#if hasFeature('advanced')}
 				<button
 					class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 2
-						? 'border-primary-500 font-bold text-primary-500'
+						? 'border-tertiary-500 dark:border-primary-500 font-bold text-tertiary-500 dark:text-primary-500'
 						: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
 					onclick={() => (activeTab = 2)}
 				>

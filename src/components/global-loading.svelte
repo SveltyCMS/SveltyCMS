@@ -226,7 +226,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 				<div class="w-full" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					<div class="mb-1 flex items-center justify-between text-xs">
 						<span class="text-gray-600 dark:text-gray-400">Progress</span>
-						<span class="font-medium text-primary-500">{Math.round(progress!)}%</span>
+						<span class="font-medium text-tertiary-500 dark:text-primary-500">{Math.round(progress!)}%</span>
 					</div>
 					<div
 						class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"

@@ -184,7 +184,7 @@ Permission-based access control component with advanced features and security.
 		aria-live="polite"
 		transition:fade={{ duration: 200 }}
 	>
-		<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" aria-hidden="true"></div>
+		<div class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent" aria-hidden="true"></div>
 		<span class="text-sm text-gray-600 dark:text-gray-400"> {finalMessages.loadingPermissions} </span>
 	</div>
 {:else if shouldShowContent}

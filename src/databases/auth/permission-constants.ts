@@ -57,7 +57,7 @@ export const color = {
     share: "preset-outline-secondary-500",
   },
   enabled: {
-    create: "preset-filled-primary-500",
+    create: "preset-filled-tertiary-500 dark:preset-filled-primary-500",
     read: "preset-filled-tertiary-500",
     write: "variant-filled-warning",
     delete: "preset-filled-error-500",

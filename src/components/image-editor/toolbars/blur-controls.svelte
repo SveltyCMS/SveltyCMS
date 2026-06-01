@@ -102,7 +102,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 <div class="blur-controls flex w-full flex-wrap items-center gap-2 lg:gap-3">
 	<!-- Add Region Button -->
 	<button
-		class="btn btn-sm preset-filled-primary-500 shrink-0"
+		class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500 shrink-0"
 		onclick={onAddRegion}
 		title="Add Blur Region (Click on image)"
 		aria-label="Add blur region"

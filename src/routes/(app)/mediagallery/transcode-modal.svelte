@@ -64,7 +64,7 @@ function toggleResolution(res: string) {
 <div class="p-6 space-y-6 bg-surface-50 dark:bg-surface-900 rounded-2xl max-w-xl mx-auto shadow-2xl border border-surface-200 dark:border-surface-800">
 	<div class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-4">
 		<div>
-			<h2 class="text-xl font-bold text-primary-500 flex items-center gap-2">
+			<h2 class="text-xl font-bold text-tertiary-500 dark:text-primary-500 flex items-center gap-2">
 				<iconify-icon icon="mdi:video-processing" width="24"></iconify-icon>
 				Video Transcoding Hub
 			</h2>
@@ -81,13 +81,13 @@ function toggleResolution(res: string) {
 			<span class="block text-sm font-bold uppercase tracking-widest opacity-60">Output Format</span>
 			<div class="flex gap-2">
 				<button 
-					class="btn flex-1 {format === 'hls' ? 'preset-filled-primary-500' : 'preset-tonal-surface'}"
+					class="btn flex-1 {format === 'hls' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
 					onclick={() => format = 'hls'}
 				>
 					HLS (Adaptive)
 				</button>
 				<button 
-					class="btn flex-1 {format === 'mp4' ? 'preset-filled-primary-500' : 'preset-tonal-surface'}"
+					class="btn flex-1 {format === 'mp4' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
 					onclick={() => format = 'mp4'}
 				>
 					MP4 (Fixed)
@@ -130,7 +130,7 @@ function toggleResolution(res: string) {
 				<span>{progress}%</span>
 			</div>
 			<div class="h-2 w-full bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
-				<div class="h-full bg-primary-500 transition-all duration-500" style:width="{progress}%"></div>
+				<div class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-500" style:width="{progress}%"></div>
 			</div>
 		</div>
 	{/if}
@@ -138,7 +138,7 @@ function toggleResolution(res: string) {
 	<div class="flex gap-3 pt-4">
 		<button class="btn preset-tonal-surface flex-1" onclick={onClose}>Cancel</button>
 		<button 
-			class="btn preset-filled-primary-500 flex-1 gap-2" 
+			class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex-1 gap-2" 
 			onclick={startTranscoding}
 			disabled={isProcessing || resolutions.length === 0}
 		>

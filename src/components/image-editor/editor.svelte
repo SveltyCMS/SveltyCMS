@@ -349,7 +349,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 	{#if isProcessing}
 		<div class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
 			<div class="text-white flex flex-col items-center gap-2">
-				<iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="48"></iconify-icon>
+				<iconify-icon icon="mdi:loading" class="animate-spin text-tertiary-500 dark:text-primary-500" width="48"></iconify-icon>
 				<p class="font-medium">Processing image...</p>
 			</div>
 		</div>

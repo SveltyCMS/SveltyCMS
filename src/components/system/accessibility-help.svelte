@@ -198,7 +198,7 @@
 	<div class="border-t border-surface-200 pt-4 dark:border-surface-700">
 		<a
 			href="/accessibility-statement"
-			class="text-sm text-primary-600 hover:text-primary-800 dark:text-primary-500 dark:hover:text-primary-300 underline-offset-4 hover:underline"
+			class="text-sm text-tertiary-600 dark:text-primary-600 hover:text-primary-800 dark:text-primary-500 dark:hover:text-primary-300 underline-offset-4 hover:underline"
 			onclick={() => {
 				// Let default navigation happen, but close dialog if needed
 				if (close) close();
@@ -220,6 +220,6 @@
 			<iconify-icon icon="mdi:message-text" width="16" class="mr-2"></iconify-icon>
 			Give Feedback
 		</button>
-		<button onclick={close} class="btn preset-filled-primary-500">Close Dialog</button>
+		<button onclick={close} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500">Close Dialog</button>
 	</div>
 </div>

@@ -367,7 +367,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<div class="absolute left-1/2 top-[-50px] -translate-x-1/2 justify-center">
 				<iconify-icon icon="noto:balloon" width="40" class="absolute -left-[60px] -top-[20px] text-purple-500"></iconify-icon>
 				<iconify-icon icon="noto:balloon" width="50" class="absolute right-[60px] top-[20px] text-green-500"></iconify-icon>
-				<iconify-icon icon="game-icons:powder" width="50" class="absolute -right-[150px] top-[220px] text-primary-500"></iconify-icon>
+				<iconify-icon icon="game-icons:powder" width="50" class="absolute -right-[150px] top-[220px] text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				<iconify-icon icon="game-icons:powder" width="30" class="absolute -right-[120px] top-[220px] -rotate-12 text-warning-500"></iconify-icon>
 			</div>
 			<p

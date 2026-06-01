@@ -248,9 +248,9 @@ Features:
 				</div>
 
 				<!-- AI/Pending Tags -->
-				<section class="p-3 border border-primary-500/30 rounded bg-primary-50/50 dark:bg-primary-900/10">
+				<section class="p-3 border border-tertiary-500 dark:border-primary-500/30 rounded bg-primary-50/50 dark:bg-primary-900/10">
 					<div class="flex justify-between items-center mb-2">
-						<span class="text-sm font-bold flex items-center gap-1 text-primary-600 dark:text-primary-500">
+						<span class="text-sm font-bold flex items-center gap-1 text-tertiary-600 dark:text-primary-600 dark:text-primary-500">
 							<iconify-icon icon="mdi:robot-excited-outline"></iconify-icon>
 							AI / Pending Tags
 						</span>
@@ -322,7 +322,7 @@ Features:
 					</div>
 
 					{#if file.metadata?.aiTags?.length}
-						<div class="mt-3 pt-3 border-t border-primary-500/20">
+						<div class="mt-3 pt-3 border-t border-tertiary-500 dark:border-primary-500/20">
 							<button class="btn btn-sm variant-filled-success w-full" onclick={saveAITags} disabled={isSaving}>
 								<iconify-icon icon="mdi:check-all"></iconify-icon>
 								<span>Save All to Media Tags</span>

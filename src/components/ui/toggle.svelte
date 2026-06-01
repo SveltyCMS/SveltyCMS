@@ -43,7 +43,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 	let {
 		value = $bindable(false),
 		label,
-		labelColor = 'text-primary-500',
+		labelColor = 'text-tertiary-500 dark:text-primary-500',
 		description,
 		disabled = false,
 		iconOn,
@@ -97,7 +97,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 			class={cn(
 				'pointer-events-auto relative inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-surface-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-surface-300 dark:ring-offset-surface-950',
 				sizes[size].track,
-				value ? 'bg-primary-500' : 'bg-error-500 transition-colors'
+				value ? 'bg-tertiary-500 dark:bg-primary-500' : 'bg-error-500 transition-colors'
 			)}
 			onclick={toggle}
 			{disabled}
@@ -115,10 +115,10 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 					<iconify-icon
 						icon={value ? iconOn : iconOff}
 						width={sizes[size].icon}
-						class={cn(value ? 'text-primary-500' : 'text-error-500', disabled && 'text-surface-600')}
+						class={cn(value ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500', disabled && 'text-surface-600')}
 					></iconify-icon>
 				{:else}
-					<span class={cn('text-[10px] font-bold', value ? 'text-primary-500' : 'text-error-500', disabled && 'text-surface-600')}>
+					<span class={cn('text-[10px] font-bold', value ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500', disabled && 'text-surface-600')}>
 						{value ? 'ON' : 'OFF'}
 					</span>
 				{/if}
@@ -133,7 +133,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 					for={id}
 					class={cn(
 						"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-						value ? 'text-primary-500' : labelColor
+						value ? 'text-tertiary-500 dark:text-primary-500' : labelColor
 					)}
 				>
 					{label}

@@ -65,7 +65,7 @@ const { widget, onToggle, onUninstall, canManage }: Props = $props();
 				<div class="flex flex-wrap items-center gap-2">
 					<h3 class="text-lg font-bold text-surface-900 dark:text-surface-50">{widget.name}</h3>
 					{#if widget.isCore}
-						<span class="badge preset-filled-primary-500">Core</span>
+						<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">Core</span>
 					{:else}
 						<span class="badge preset-filled-tertiary-500">Custom</span>
 					{/if}

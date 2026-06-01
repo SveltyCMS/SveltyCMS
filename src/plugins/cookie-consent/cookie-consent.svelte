@@ -184,7 +184,7 @@
 
       <!-- Privacy Link -->
       <p class="mt-2 text-center text-xs text-surface-500">
-        <a href="/privacy-policy" class="hover:underline hover:text-primary-500"
+        <a href="/privacy-policy" class="hover:underline hover:text-tertiary-500 dark:text-primary-500"
           >Privacy Policy</a
         >
       </p>

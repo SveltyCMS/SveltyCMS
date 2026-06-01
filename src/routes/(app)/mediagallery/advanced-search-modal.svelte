@@ -226,7 +226,7 @@ function handleKeydown(e: KeyboardEvent) {
 				<div class="flex flex-wrap gap-2">
 					<button
 						type="button"
-						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
+						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
 							const date = new SvelteDate();
 							date.setDate(date.getDate() - 7);
@@ -239,7 +239,7 @@ function handleKeydown(e: KeyboardEvent) {
 					</button>
 					<button
 						type="button"
-						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
+						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
 							const date = new SvelteDate();
 							date.setDate(date.getDate() - 30);
@@ -252,7 +252,7 @@ function handleKeydown(e: KeyboardEvent) {
 					</button>
 					<button
 						type="button"
-						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
+						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
 							formValues.minSize = '5';
 							formValues.maxSize = '';
@@ -263,7 +263,7 @@ function handleKeydown(e: KeyboardEvent) {
 					</button>
 					<button
 						type="button"
-						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
+						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
 							formValues.minWidth = '3840';
 							formValues.minHeight = '2160';
@@ -438,7 +438,7 @@ function handleKeydown(e: KeyboardEvent) {
 				<div class="flex gap-3 ml-auto">
 					<button type="button" onclick={resetForm} class="preset-outlined-surface-500 btn">Reset</button>
 					<button type="button" onclick={onClose} class="preset-outlined-surface-500 btn">Cancel</button>
-					<button type="submit" form="advanced-search-form" class="preset-filled-primary-500 btn">
+					<button type="submit" form="advanced-search-form" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">
 						<iconify-icon icon="mdi:magnify" width={20}></iconify-icon>
 						Search
 					</button>

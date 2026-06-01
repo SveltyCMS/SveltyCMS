@@ -617,7 +617,7 @@ $effect(() => {
 									<button
 										type="button"
 										onclick={toggle2FACodeType}
-										class="text-sm text-primary-500 underline hover:text-primary-600"
+										class="text-sm text-tertiary-500 dark:text-primary-500 underline hover:text-tertiary-600 dark:text-primary-600"
 										aria-label={useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
 									>
 										{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
@@ -642,7 +642,7 @@ $effect(() => {
 											isVerifying2FA ||
 											(!useBackupCode && twoFACode.length !== 6) ||
 											(useBackupCode && twoFACode.length < 8)}
-										class="btn preset-filled-primary-500 flex-1"
+										class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex-1"
 										aria-label={twofa_verify_button()}
 									>
 										{#if isVerifying2FA}

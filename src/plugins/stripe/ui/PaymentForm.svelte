@@ -117,7 +117,7 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 			</div>
 		</div>
 	{:else}
-		<div bind:this={cardElement} class="min-h-[44px] p-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 transition-all focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500"></div>
+		<div bind:this={cardElement} class="min-h-[44px] p-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 transition-all focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-tertiary-500 dark:border-primary-500"></div>
 
 		{#if error}
 			<p class="text-xs text-error-500 font-medium" role="alert">{error}</p>

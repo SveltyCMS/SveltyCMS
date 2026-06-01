@@ -38,12 +38,12 @@ Displays real-time system state and individual service health with comprehensive
 		IDLE: { icon: '💤', color: 'text-surface-500', label: 'Idle' },
 		INITIALIZING: {
 			icon: '⏳',
-			color: 'text-primary-500',
+			color: 'text-tertiary-500 dark:text-primary-500',
 			label: 'Initializing'
 		},
 		WARMING: { icon: '🔥', color: 'text-tertiary-500', label: 'Warming Up' },
-		WARMED: { icon: '🚀', color: 'text-primary-600', label: 'Warmed Up' },
-		READY: { icon: '✅', color: 'text-primary-500', label: 'Ready' },
+		WARMED: { icon: '🚀', color: 'text-tertiary-600 dark:text-primary-600', label: 'Warmed Up' },
+		READY: { icon: '✅', color: 'text-tertiary-500 dark:text-primary-500', label: 'Ready' },
 		DEGRADED: { icon: '⚠️', color: 'text-warning-500', label: 'Degraded' },
 		FAILED: { icon: '❌', color: 'text-error-500', label: 'Failed' },
 		SETUP: { icon: '🛠️', color: 'text-secondary-500', label: 'Setup Mode' },
@@ -51,14 +51,14 @@ Displays real-time system state and individual service health with comprehensive
 	} as const;
 
 	const SERVICE_CONFIG = {
-		healthy: { color: 'preset-filled-primary-500', icon: '✓', label: 'Healthy' },
+		healthy: { color: 'preset-filled-tertiary-500 dark:preset-filled-primary-500', icon: '✓', label: 'Healthy' },
 		unhealthy: {
 			color: 'preset-filled-error-500',
 			icon: '✗',
 			label: 'Unhealthy'
 		},
 		initializing: {
-			color: 'preset-filled-primary-500',
+			color: 'preset-filled-tertiary-500 dark:preset-filled-primary-500',
 			icon: '⟳',
 			label: 'Initializing'
 		},
@@ -362,7 +362,7 @@ Displays real-time system state and individual service health with comprehensive
 					System Health
 					{#if isLoading}
 						<span
-							class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+							class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
 							role="status"
 							aria-label="Loading"
 						></span>
@@ -427,7 +427,7 @@ Displays real-time system state and individual service health with comprehensive
 
 		<div class="card preset-outlined-surface-500p-3">
 			<p class="text-xs opacity-70">Health</p>
-			<p class="text-lg font-bold {healthPercentage >= 80 ? 'text-primary-500' : healthPercentage >= 50 ? 'text-warning-500' : 'text-error-500'}">
+			<p class="text-lg font-bold {healthPercentage >= 80 ? 'text-tertiary-500 dark:text-primary-500' : healthPercentage >= 50 ? 'text-warning-500' : 'text-error-500'}">
 				{healthPercentage}%
 			</p>
 		</div>
@@ -445,7 +445,7 @@ Displays real-time system state and individual service health with comprehensive
 		>
 			<div
 				class="h-full {healthPercentage >= 80
-					? 'bg-primary-500'
+					? 'bg-tertiary-500 dark:bg-primary-500'
 					: healthPercentage >= 50
 						? 'bg-warning-500'
 						: 'bg-error-500'} transition-all duration-500"
@@ -511,7 +511,7 @@ Displays real-time system state and individual service health with comprehensive
 					<code class="code flex-1 p-2">{apiHealthUrl}</code>
 					<button
 						type="button"
-						class="btn-icon preset-outlined-primary-500"
+						class="btn-icon preset-outlined-tertiary-500 dark:preset-outlined-primary-500"
 						onclick={copyEndpoint}
 						title="Copy to clipboard"
 						aria-label="Copy endpoint URL to clipboard"

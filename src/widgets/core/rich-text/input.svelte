@@ -515,7 +515,7 @@
 										<button
 											type="button"
 											class="btn {editorStateVersion && activeDropdown === btn.label
-												? 'preset-filled-primary-500'
+												? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
 												: 'preset-tonal'} flex items-center gap-2"
 											onclick={(e) => toggleDropdown(btn.label, e)}
 										>
@@ -661,7 +661,7 @@
 												{#each btn.items as item (item.label)}
 													<button
 														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
-															? 'text-primary-600 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
+															? 'text-tertiary-600 dark:text-primary-600 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
 															: 'text-surface-700 dark:text-white'}"
 														onclick={(e) => {
 															e.stopPropagation();
@@ -681,7 +681,7 @@
 									<button
 										type="button"
 										aria-label={btn.label}
-										class="btn-icon {editorStateVersion && btn.active?.() ? 'preset-filled-primary-500' : 'preset-tonal'}"
+										class="btn-icon {editorStateVersion && btn.active?.() ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal'}"
 										onclick={btn.cmd}
 									>
 										<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>

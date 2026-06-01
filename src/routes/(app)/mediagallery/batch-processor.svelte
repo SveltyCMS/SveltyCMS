@@ -60,12 +60,12 @@ async function runBatch() {
 
 <div class="fixed inset-x-0 bottom-0 z-50 p-4 pointer-events-none">
 	<div 
-		class="mx-auto max-w-4xl bg-surface-100 dark:bg-surface-800 rounded-2xl shadow-2xl border border-primary-500/30 p-6 pointer-events-auto"
+		class="mx-auto max-w-4xl bg-surface-100 dark:bg-surface-800 rounded-2xl shadow-2xl border border-tertiary-500 dark:border-primary-500/30 p-6 pointer-events-auto"
 		transition:slide={{ axis: 'y', duration: 300 }}
 	>
 		<div class="flex items-center justify-between mb-6">
 			<div class="flex items-center gap-3">
-				<div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-white font-bold shadow-lg">
+				<div class="flex h-10 w-10 items-center justify-center rounded-full bg-tertiary-500 dark:bg-primary-500 text-white font-bold shadow-lg">
 					{selectedIds.size}
 				</div>
 				<div>
@@ -84,14 +84,14 @@ async function runBatch() {
 				<span class="block text-[10px] font-bold uppercase tracking-widest opacity-60">1. Select Action</span>
 				<div class="flex flex-col gap-2">
 					<button 
-						class="btn btn-sm justify-start gap-2 {operation === 'filter' ? 'preset-filled-primary-500' : 'preset-tonal-surface'}"
+						class="btn btn-sm justify-start gap-2 {operation === 'filter' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
 						onclick={() => operation = 'filter'}
 					>
 						<iconify-icon icon="mdi:auto-fix" width="18"></iconify-icon>
 						Apply Filter
 					</button>
 					<button 
-						class="btn btn-sm justify-start gap-2 {operation === 'resize' ? 'preset-filled-primary-500' : 'preset-tonal-surface'}"
+						class="btn btn-sm justify-start gap-2 {operation === 'resize' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
 						onclick={() => operation = 'resize'}
 					>
 						<iconify-icon icon="mdi:resize" width="18"></iconify-icon>
@@ -121,7 +121,7 @@ async function runBatch() {
 			<!-- Step 3: Run -->
 			<div class="flex flex-col justify-end">
 				<button 
-					class="btn preset-filled-primary-500 w-full gap-2 shadow-xl"
+					class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full gap-2 shadow-xl"
 					onclick={runBatch}
 					disabled={isProcessing}
 				>

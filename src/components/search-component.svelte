@@ -434,7 +434,7 @@ accessibility -->
 							{@const trigger = result.triggers[triggerKey]}
 							<button
 								type="button"
-								class="w-full px-4 py-3 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10 focus:outline-none"
+								class="w-full px-4 py-3 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"
 								onclick={(e) => handleResultClick(result, triggerKey, e)}
 								aria-label={`${result.title}: ${result.description}. Path: ${trigger?.path ?? 'Unknown'}`}
 							>
@@ -469,7 +469,7 @@ accessibility -->
 									{#if trigger?.path}
 										<button
 											type="button"
-											class="flex items-center justify-between px-6 py-2 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10 focus:outline-none"
+											class="flex items-center justify-between px-6 py-2 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"
 											onclick={(e) => handleResultClick(result, triggerKey, e)}
 											aria-label={`${result.title} - ${triggerKey}: Path ${trigger.path}`}
 										>

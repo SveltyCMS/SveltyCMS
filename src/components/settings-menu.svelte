@@ -77,7 +77,7 @@ Sidebar navigation for System Settings
 					class="relative w-full cursor-pointer rounded-lg p-2 transition-colors flex items-center {isFullSidebar
 						? 'justify-between text-left'
 						: 'justify-center text-center'} {selectedGroupId === group.id
-						? 'bg-primary-500 text-white'
+						? 'bg-tertiary-500 dark:bg-primary-500 text-white'
 						: 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
 				>
 					<div class="flex items-center {isFullSidebar ? 'gap-3' : 'gap-0'} overflow-hidden">

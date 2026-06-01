@@ -305,7 +305,9 @@ export class Auth {
     if (result?.success) {
       return result.data;
     }
-    return 0;
+    // Return -1 ("unknown"), NOT 0, on failure: a failed/early read must not be
+    // mistaken for a genuine empty database (which would force the first-user/sign-up flow).
+    return -1;
   }
 
   async createSession(

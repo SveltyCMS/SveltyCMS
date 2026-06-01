@@ -223,7 +223,7 @@ function handleFinalize(e: CustomEvent) {
 	<div class="wrapper my-4">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-2">
-				<button onclick={() => openModal(null, '')} class="preset-filled-primary-500 btn">
+				<button onclick={() => openModal(null, '')} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">
 					<iconify-icon icon="mdi:plus-circle-outline" class="mr-2"></iconify-icon>
 					Create Role
 				</button>

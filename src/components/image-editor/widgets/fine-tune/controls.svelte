@@ -121,7 +121,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
 		<!-- Auto Adjust -->
 		{#if onAutoAdjust}
-			<button type="button" class="btn btn-sm preset-outlined-primary-500" onclick={onAutoAdjust} title="Auto Adjust (Shift+A)">
+			<button type="button" class="btn btn-sm preset-outlined-tertiary-500 dark:preset-outlined-primary-500" onclick={onAutoAdjust} title="Auto Adjust (Shift+A)">
 				<iconify-icon icon="mdi:auto-fix" width="16"></iconify-icon>
 				<span class="hidden sm:inline">Auto</span>
 			</button>
@@ -134,7 +134,7 @@ function handleKeyDown(e: KeyboardEvent) {
 			<button
 				type="button"
 				class="btn btn-sm"
-				class:preset-filled-primary-500={isComparing}
+				class:preset-filled-tertiary-500={isComparing} class:dark:preset-filled-primary-500={isComparing}
 				class:preset-outlined-surface-500={!isComparing}
 				onclick={onCompareToggle}
 				title="Compare before/after (C)"

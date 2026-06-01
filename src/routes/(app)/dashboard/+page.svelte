@@ -608,7 +608,7 @@ onMount(() => {
 </script>
 
 <main bind:this={mainContainerEl} class="relative overflow-y-auto overflow-x-hidden" style="touch-action: pan-y;">
-	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:text-surface-50">
+	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 px-6 py-3 dark:text-surface-50">
 		<PageTitle
 			name="Dashboard"
 			icon="bi:bar-chart-line"
@@ -624,7 +624,7 @@ onMount(() => {
 				aria-label="Toggle AI Dashboard Mode"
 				title="Toggle AI Dashboard Mode"
 			>
-				<iconify-icon icon="mdi:robot-outline" width={20} class={aiDashboardSpec ? 'text-primary-500' : ''}></iconify-icon>
+				<iconify-icon icon="mdi:robot-outline" width={20} class={aiDashboardSpec ? 'text-tertiary-500 dark:text-primary-500' : ''}></iconify-icon>
 			</button>
 			<!-- Reset All Button - Small and subtle -->
 			{#if currentPreferences.length > 0}
@@ -662,9 +662,9 @@ onMount(() => {
 									role="menuitem"
 								>
 									{#if widgetInfo?.icon}
-										<iconify-icon icon={widgetInfo.icon} width="20" class="text-primary-500"></iconify-icon>
+										<iconify-icon icon={widgetInfo.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{:else}
-										<iconify-icon icon="mdi:view-dashboard" width={20} class="text-primary-500"></iconify-icon>
+										<iconify-icon icon="mdi:view-dashboard" width={20} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{/if}
 									<div class="flex flex-col"><span>{widgetInfo?.name || widgetName}</span></div>
 								</button>
@@ -683,8 +683,8 @@ onMount(() => {
 			<GenerativeDashboard spec={aiDashboardSpec}>
 				{#if aiLoading}
 					<div class="flex flex-col items-center justify-center py-20 animate-pulse">
-						<iconify-icon icon="mdi:robot-outline" width="64" class="text-primary-500 mb-4"></iconify-icon>
-						<p class="text-lg font-bold text-primary-500">Generating AI Dashboard...</p>
+						<iconify-icon icon="mdi:robot-outline" width="64" class="text-tertiary-500 dark:text-primary-500 mb-4"></iconify-icon>
+						<p class="text-lg font-bold text-tertiary-500 dark:text-primary-500">Generating AI Dashboard...</p>
 						<p class="text-sm text-surface-500">Connecting to Knowledge Core (mcp.sveltycms.com)</p>
 					</div>
 				{:else if currentPreferences.length > 0}
@@ -692,7 +692,7 @@ onMount(() => {
 						<!-- Grid drop indicator -->
 						{#if gridDropIndicator}
 							<div
-								class="pointer-events-none absolute z-30 rounded-lg border-2 border-dashed border-primary-500 bg-primary-500/20"
+								class="pointer-events-none absolute z-30 rounded-lg border-2 border-dashed border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/20"
 								style:grid-column="span {gridDropIndicator.width}"
 								style:grid-row="span {gridDropIndicator.height}"
 								style:grid-column-start={gridDropIndicator.col + 1}
@@ -752,7 +752,7 @@ onMount(() => {
 									{@const currentIndex = currentPreferences.findIndex((p: DashboardWidgetConfig) => p.id === item.id)}
 									{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
 									{#if isDropTarget}
-										<div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-primary-500" style:transform="translateY(-50%)"></div>
+										<div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-tertiary-500 dark:bg-primary-500" style:transform="translateY(-50%)"></div>
 									{/if}
 								{/if}
 							</div>
@@ -801,7 +801,7 @@ onMount(() => {
 					<iconify-icon icon="mdi:shield-check" width={16} class="mr-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
-				<div class="flex space-x-2"><button onclick={() => (showImportExport = false)} class="preset-filled-primary-500 btn">Done</button></div>
+				<div class="flex space-x-2"><button onclick={() => (showImportExport = false)} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">Done</button></div>
 			</div>
 		</div>
 	</div>

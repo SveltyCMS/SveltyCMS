@@ -384,7 +384,7 @@ $effect(() => {
 	>
 		<div class="flex flex-1 flex-col gap-0.5">
 			<h2 id="widget-title-{widgetId || label}" class="font-display flex items-center gap-2 truncate text-base font-semibold tracking-tight">
-				<iconify-icon icon="mdi:view-grid" width={24} class={theme === 'light' ? 'text-tertiary-500' : 'text-primary-500'}></iconify-icon>
+				<iconify-icon icon="mdi:view-grid" width={24} class={theme === 'light' ? 'text-tertiary-500' : 'text-tertiary-500 dark:text-primary-500'}></iconify-icon>
 				<span class="truncate">{label}</span>
 			</h2>
 
@@ -421,13 +421,13 @@ $effect(() => {
 							<button
 								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
 									s.w && size.h === s.h
-									? 'font-bold text-primary-500'
+									? 'font-bold text-tertiary-500 dark:text-primary-500'
 									: ''}"
 								onclick={() => handleMenuSizeChange(s)}
 							>
 								<span>{getSizeLabel(s)}</span>
 								{#if size.w === s.w && size.h === s.h}
-									<iconify-icon icon="mdi:check" width={16} class="text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:check" width={16} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 								{/if}
 							</button>
 						{/each}
@@ -496,8 +496,8 @@ $effect(() => {
 	{/if}
 
 	{#if isResizing && previewSize}
-		<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-primary-500/10 backdrop-blur-sm">
-			<div class="rounded-lg bg-primary-500 px-4 py-2 text-white shadow-lg">Snap to: {getSizeLabel(previewSize)}</div>
+		<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-tertiary-500 dark:bg-primary-500/10 backdrop-blur-sm">
+			<div class="rounded-lg bg-tertiary-500 dark:bg-primary-500 px-4 py-2 text-white shadow-lg">Snap to: {getSizeLabel(previewSize)}</div>
 		</div>
 	{/if}
 </article>

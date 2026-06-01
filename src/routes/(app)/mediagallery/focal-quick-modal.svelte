@@ -169,7 +169,7 @@ const imageUrl = $derived(
 			<!-- Header -->
 			<header class="flex items-center justify-between border-b border-surface-300 p-4 dark:text-surface-50">
 				<h3 id="focal-modal-title" class="text-lg font-semibold flex items-center gap-2">
-					<iconify-icon icon="mdi:crosshairs-gps" width="24" class="text-primary-500"></iconify-icon>
+					<iconify-icon icon="mdi:crosshairs-gps" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					Set Focal Point
 				</h3>
 				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close (Escape)" aria-keyshortcuts="Escape">
@@ -217,9 +217,9 @@ const imageUrl = $derived(
 						style="left: {focalPoint.x}%; top: {focalPoint.y}%; transform: translate(-50%, -50%);"
 					>
 						<!-- Outer glow -->
-						<div class="absolute inset-0 w-8 h-8 rounded-full bg-primary-500/20 blur-sm -translate-x-1/2 -translate-y-1/2"></div>
+						<div class="absolute inset-0 w-8 h-8 rounded-full bg-tertiary-500 dark:bg-primary-500/20 blur-sm -translate-x-1/2 -translate-y-1/2"></div>
 						<!-- Crosshair icon -->
-						<iconify-icon icon="mdi:crosshairs-gps" width="32" class="text-primary-500 drop-shadow-lg relative z-10"></iconify-icon>
+						<iconify-icon icon="mdi:crosshairs-gps" width="32" class="text-tertiary-500 dark:text-primary-500 drop-shadow-lg relative z-10"></iconify-icon>
 					</div>
 				</div>
 			</div>
@@ -240,7 +240,7 @@ const imageUrl = $derived(
 
 				<div class="flex gap-2">
 					<button onclick={handleClose} class="btn preset-outlined-surface-500" aria-keyshortcuts="Escape">Cancel</button>
-					<button onclick={handleSave} class="btn preset-filled-primary-500" aria-keyshortcuts="mod+s">
+					<button onclick={handleSave} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" aria-keyshortcuts="mod+s">
 						<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 						<span>Save</span>
 					</button>

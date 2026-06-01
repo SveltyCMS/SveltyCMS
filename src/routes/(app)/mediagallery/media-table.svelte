@@ -94,7 +94,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 					{@const isSelected = selectedFiles.has(fileId)}
 					
 					<tr 
-						class="transition-colors cursor-pointer {isSelected ? 'bg-primary-500/10 dark:bg-primary-500/5' : 'hover:bg-surface-50 dark:hover:bg-surface-800/50'}"
+						class="transition-colors cursor-pointer {isSelected ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-primary-500/5' : 'hover:bg-surface-50 dark:hover:bg-surface-800/50'}"
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}
 						tabindex="0"
@@ -132,7 +132,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							<div class="flex justify-end gap-1">
 								<button 
 									onclick={(e) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
-									class="btn-icon btn-icon-sm preset-ghost-surface hover:preset-filled-primary-500"
+									class="btn-icon btn-icon-sm preset-ghost-surface hover:preset-filled-tertiary-500 dark:preset-filled-primary-500"
 									aria-label="Edit"
 								>
 									<iconify-icon icon="mdi:pencil" width="16"></iconify-icon>

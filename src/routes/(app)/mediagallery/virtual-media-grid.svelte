@@ -110,7 +110,7 @@ onMount(() => {
 					tabindex="0"
 					class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-surface-900 shadow-sm transition-all duration-200 
                         hover:z-10 hover:-translate-y-1 hover:shadow-lg focus:ring-4 focus:ring-primary-500 text-left cursor-pointer
-                        {isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
+                        {isSelected ? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
 					style:height="{itemHeight - 32}px"
 					onclick={() => isSelectionMode ? toggleSelection(file) : onOpenFileDetails(file)}
 					onkeydown={(e) => {

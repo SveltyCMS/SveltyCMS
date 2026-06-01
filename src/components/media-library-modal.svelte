@@ -151,22 +151,22 @@
 	<div class="modal-media-library flex min-h-[78vh] w-full min-w-0 flex-1 self-stretch flex-col bg-white p-3 shadow-xl dark:bg-surface-800 sm:p-4 lg:min-h-[82vh]">
 		<header class="flex-none border-b border-surface-200 pb-3 mb-4 dark:border-surface-600">
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<h2 class="text-lg font-bold text-primary-500 sm:text-xl">Media Library</h2>
+				<h2 class="text-lg font-bold text-tertiary-500 dark:text-primary-500 sm:text-xl">Media Library</h2>
 				<div class="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
 				<button
-					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
+					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
 					onclick={() => (activeTab = 'local')}
 				>
 					Local Upload
 				</button>
 				<button
-					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
+					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
 					onclick={() => (activeTab = 'library')}
 				>
 					Library
 				</button>
 				<button
-					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? 'preset-filled-primary-500' : 'preset-outline-surface-500'}"
+					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
 					onclick={() => (activeTab = 'remote')}
 				>
 					Remote Upload
@@ -188,13 +188,13 @@
 			{:else if activeTab === 'library'}
 				{#if isLoading}
 					<div class="flex h-full items-center justify-center">
-						<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-primary-500"></iconify-icon>
+						<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					</div>
 				{:else if error}
 					<div class="flex h-full flex-col items-center justify-center text-error-500">
 						<iconify-icon icon="mdi:alert-circle" width="48"></iconify-icon>
 						<p>{error}</p>
-						<button class="btn preset-filled-primary-500 mt-4" onclick={fetchMedia}>Retry</button>
+						<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 mt-4" onclick={fetchMedia}>Retry</button>
 					</div>
 				{:else}
 					{#if files.length === 0}
@@ -212,7 +212,7 @@
 								<button
 									type="button"
 									class="group relative flex min-h-75] flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-85 {isSelected
-										? 'border-primary-500 ring-2 ring-primary-500/20'
+										? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
 										: 'border-surface-200 dark:border-surface-800'}"
 									onclick={() => {
 										if (selectedFiles.has(fileId)) {
@@ -250,7 +250,7 @@
 
 										<div class="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
 										{#if isSelected}
-											<div class="absolute right-2 top-2 rounded-full bg-primary-500 px-2 py-1 text-[10px] font-bold text-white shadow-md">
+											<div class="absolute right-2 top-2 rounded-full bg-tertiary-500 dark:bg-primary-500 px-2 py-1 text-[10px] font-bold text-white shadow-md">
 												Selected
 											</div>
 										{/if}
@@ -282,7 +282,7 @@
 		<footer class="mt-4 flex flex-col gap-2 border-t border-surface-200 pt-4 dark:border-surface-600 sm:flex-row sm:justify-end">
 			<button type="button" class="btn preset-outline-surface-500 w-full sm:w-auto" onclick={handleClose}>Cancel</button>
 			{#if activeTab === 'library' && selectedFiles.size > 0}
-				<button type="button" class="btn preset-filled-primary-500 w-full font-bold sm:w-auto" onclick={handleConfirm}>
+				<button type="button" class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full font-bold sm:w-auto" onclick={handleConfirm}>
 					Select {selectedFiles.size} Item{selectedFiles.size > 1 ? 's' : ''}
 				</button>
 			{/if}

@@ -95,7 +95,7 @@
 
 {#if modalState.active}
 	<div class="modal-schedule {cBase}" role="dialog" aria-labelledby="schedule-modal-title">
-		<header id="schedule-modal-title" class={`text-center text-primary-500 ${cHeader}`}>Schedule Entry</header>
+		<header id="schedule-modal-title" class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader}`}>Schedule Entry</header>
 		<article class="text-center text-sm">Set a date and time to publish this entry.</article>
 
 		<form
@@ -135,7 +135,7 @@
 
 		<footer class="modal-footer flex items-center justify-end space-x-4">
 			<button class="btn preset-outlined-secondary-500" onclick={() => modalState.close()}>{button_cancel()}</button>
-			<button class="btn preset-filled-primary-500" onclick={() => handleSubmission()} disabled={!isFormValid}>
+			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => handleSubmission()} disabled={!isFormValid}>
 				{entrylist_multibutton_schedule()}
 			</button>
 		</footer>

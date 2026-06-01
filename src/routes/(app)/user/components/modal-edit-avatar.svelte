@@ -397,7 +397,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		{#if isUploading}
 			<div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
 				<div class="flex flex-col items-center gap-2">
-					<div class="h-16 w-16 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+					<div class="h-16 w-16 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
 					{#if uploadProgress > 0}
 						<span class="text-sm font-bold text-white">{uploadProgress}%</span>
 					{/if}

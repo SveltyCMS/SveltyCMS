@@ -180,7 +180,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 		<button
 			type="button"
 			onclick={toggleText}
-			class="ml-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-sm font-medium text-primary-500 transition-colors hover:bg-primary-500/10 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+			class="ml-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-sm font-medium text-tertiary-500 dark:text-primary-500 transition-colors hover:bg-tertiary-500 dark:bg-primary-500/10 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500"
 			aria-expanded={isExpanded}
 			aria-label={isExpanded ? 'Show less text' : 'Show more text'}
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
@@ -193,7 +193,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 	<!-- Match count indicator (if searching) -->
 	{#if term && matchCount > 0}
 		<span
-			class="ml-2 inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-600 dark:text-primary-500"
+			class="ml-2 inline-flex items-center gap-1 rounded-full bg-tertiary-500 dark:bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-tertiary-600 dark:text-primary-600 dark:text-primary-500"
 			title="Number of matches found"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>

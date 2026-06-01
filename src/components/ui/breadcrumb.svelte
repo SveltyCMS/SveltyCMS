@@ -52,7 +52,7 @@ let {
 				{#if item.href && !isLast}
 					<a
 						href={item.href}
-						class="flex items-center gap-1.5 text-surface-500 hover:text-primary-500 transition-colors font-medium"
+						class="flex items-center gap-1.5 text-surface-500 hover:text-tertiary-500 dark:text-primary-500 transition-colors font-medium"
 					>
 						{#if item.icon}
 							<iconify-icon icon={item.icon} width="16"></iconify-icon>

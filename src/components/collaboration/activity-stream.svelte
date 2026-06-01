@@ -95,10 +95,10 @@ with the AI collaboration assistant.
 				<div class="flex items-center gap-1 cursor-help">
 					<span
 						class="flex h-2 w-2 rounded-full {collaboration.isConnected
-							? 'bg-primary-500 shadow-[0_0_8px_rgba(var(--color-primary-500),0.8)]'
+							? 'bg-tertiary-500 dark:bg-primary-500 shadow-[0_0_8px_rgba(var(--color-primary-500),0.8)]'
 							: 'bg-error-500'} animate-pulse"
 					></span>
-					<span class="text-xs font-bold {collaboration.isConnected ? 'text-primary-500' : 'opacity-70'}"
+					<span class="text-xs font-bold {collaboration.isConnected ? 'text-tertiary-500 dark:text-primary-500' : 'opacity-70'}"
 						>{collaboration.isConnected ? 'MCP Live' : 'Offline'}</span
 					>
 				</div>
@@ -114,7 +114,7 @@ with the AI collaboration assistant.
 	<div class="flex border-b border-surface-500/30 shrink-0">
 		<button
 			class="flex-1 py-2 text-sm font-medium transition-colors {collaboration.activeTab === 'activity'
-				? 'bg-primary-500/10 border-b-2 border-primary-500'
+				? 'bg-tertiary-500 dark:bg-primary-500/10 border-b-2 border-tertiary-500 dark:border-primary-500'
 				: 'opacity-60 hover:opacity-100'}"
 			onclick={() => (collaboration.activeTab = 'activity')}
 		>
@@ -122,7 +122,7 @@ with the AI collaboration assistant.
 		</button>
 		<button
 			class="flex-1 py-2 text-sm font-medium transition-colors {collaboration.activeTab === 'chat'
-				? 'bg-primary-500/10 border-b-2 border-primary-500'
+				? 'bg-tertiary-500 dark:bg-primary-500/10 border-b-2 border-tertiary-500 dark:border-primary-500'
 				: 'opacity-60 hover:opacity-100'}"
 			onclick={() => (collaboration.activeTab = 'chat')}
 		>
@@ -142,10 +142,10 @@ with the AI collaboration assistant.
 				{/if}
 				{#each collaboration.activities as activity (activity.timestamp)}
 					<div transition:slide|local class="flex gap-3 p-3 rounded-lg bg-surface-300-600-token/30 border border-surface-500/10">
-						<div class="mt-1"><iconify-icon icon={getEventIcon(activity.event)} width="20" class="text-primary-500"></iconify-icon></div>
+						<div class="mt-1"><iconify-icon icon={getEventIcon(activity.event)} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon></div>
 						<div class="flex-1 min-w-0">
 							<p class="text-sm">
-								<span class="font-bold text-primary-500">{activity.user?.username || 'System'}</span>
+								<span class="font-bold text-tertiary-500 dark:text-primary-500">{activity.user?.username || 'System'}</span>
 								<span class="opacity-80">
 									{#if activity.event === 'entry:create'}
 										created a new record
@@ -182,7 +182,7 @@ with the AI collaboration assistant.
 							{/if}
 							<div
 								class="p-3 rounded-2xl text-sm wrap-break-word overflow-hidden {msg.role === 'user'
-									? 'bg-primary-500 text-white rounded-br-none'
+									? 'bg-tertiary-500 dark:bg-primary-500 text-white rounded-br-none'
 									: 'bg-surface-300-600-token rounded-bl-none'} shadow-sm"
 							>
 								{msg.content}
@@ -195,9 +195,9 @@ with the AI collaboration assistant.
 					<div class="flex justify-start">
 						<div class="bg-surface-300-600-token p-3 rounded-2xl rounded-bl-none shadow-sm">
 							<div class="flex gap-1">
-								<span class="w-1.5 h-1.5 bg-primary-500 rounded-full animate-bounce"></span>
-								<span class="w-1.5 h-1.5 bg-primary-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-								<span class="w-1.5 h-1.5 bg-primary-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+								<span class="w-1.5 h-1.5 bg-tertiary-500 dark:bg-primary-500 rounded-full animate-bounce"></span>
+								<span class="w-1.5 h-1.5 bg-tertiary-500 dark:bg-primary-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+								<span class="w-1.5 h-1.5 bg-tertiary-500 dark:bg-primary-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
 							</div>
 						</div>
 					</div>
@@ -218,7 +218,7 @@ with the AI collaboration assistant.
 				/>
 				<button
 					type="submit"
-					class="bg-primary-500 hover:bg-primary-600 text-white rounded-lg p-1.5 transition-colors disabled:opacity-50"
+					class="bg-tertiary-500 dark:bg-primary-500 hover:bg-tertiary-600 dark:bg-primary-600 text-white rounded-lg p-1.5 transition-colors disabled:opacity-50"
 					disabled={!newMessage.trim() || (collaboration.isTyping && !collaboration.currentRoom)}
 					aria-label="Send message"
 				>

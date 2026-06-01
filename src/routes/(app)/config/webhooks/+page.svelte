@@ -148,12 +148,12 @@ onMount(loadWebhooks);
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:webhook" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:webhook" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Webhooks
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Manage webhook endpoints and event subscriptions</p>
 		</div>
-		<button class="btn preset-filled-primary-500" onclick={openAddModal}>
+		<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={openAddModal}>
 			<iconify-icon icon="mdi:plus"></iconify-icon>
 			<span>Add Webhook</span>
 		</button>
@@ -171,14 +171,14 @@ onMount(loadWebhooks);
 			<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
 			<h3 class="h3 font-bold">No Webhooks Configured</h3>
 			<p class="mb-6 opacity-60">Add a webhook to start integrating with external systems.</p>
-			<button class="btn preset-filled-primary-500" onclick={openAddModal}>Get Started</button>
+			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={openAddModal}>Get Started</button>
 		</div>
 	{:else}
 		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fade>
 			<div class="grid gap-4">
 				{#each webhooks as webhook (webhook.id)}
 					<div
-						class="card p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-primary-500 transition-colors"
+						class="card p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-tertiary-500 dark:border-primary-500 transition-colors"
 					>
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2 mb-1">
@@ -303,7 +303,7 @@ onMount(loadWebhooks);
 
 			<footer class="p-4 border-t border-surface-300 dark:border-surface-700 flex justify-end gap-2 bg-surface-50 dark:bg-surface-900">
 				<button class="btn preset-ghost-surface-500" onclick={() => (showModal = false)}>Cancel</button>
-				<button class="btn preset-filled-primary-500" disabled={isSaving} onclick={saveWebhook}>
+				<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" disabled={isSaving} onclick={saveWebhook}>
 					{#if isSaving}
 						<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 						<span>Saving...</span>

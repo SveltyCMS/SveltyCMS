@@ -83,7 +83,7 @@ function handleCancel() {
 		{#if data.requiresToken}
 			<!-- Token Input Form -->
 			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">{oauth_entertoken()}</h2>
+				<h2 class="mb-2 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">{oauth_entertoken()}</h2>
 				<FloatingInput
 					id="token"
 					name="token"

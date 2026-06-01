@@ -87,7 +87,7 @@ const availableTransitions = $derived.by(() => {
     <div class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm space-y-4" in:fade>
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-                <iconify-icon icon="mdi:state-machine" class="text-primary-500 text-xl"></iconify-icon>
+                <iconify-icon icon="mdi:state-machine" class="text-tertiary-500 dark:text-primary-500 text-xl"></iconify-icon>
                 <h3 class="text-sm font-bold uppercase tracking-wider opacity-50">Workflow Status</h3>
             </div>
             {#if currentState}
@@ -101,7 +101,7 @@ const availableTransitions = $derived.by(() => {
         {#if !instance}
              <div class="p-4 rounded-lg bg-surface-50 dark:bg-surface-950 text-center border-2 border-dashed border-surface-200 dark:border-surface-800">
                 <p class="text-xs italic opacity-40 mb-2">No active workflow instance for this entry.</p>
-                <button class="btn btn-sm preset-filled-primary-500" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')}>
+                <button class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')}>
                     Start Workflow
                 </button>
              </div>
@@ -132,7 +132,7 @@ const availableTransitions = $derived.by(() => {
                         ></textarea>
                         <div class="flex justify-end gap-2">
                             <button class="btn btn-sm variant-ghost-surface text-[10px]" onclick={() => showComment = false}>Cancel</button>
-                            <button class="btn btn-sm preset-filled-primary-500 text-[10px]" onclick={() => triggerTransition(selectedTargetStateId)}>Confirm Move</button>
+                            <button class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500 text-[10px]" onclick={() => triggerTransition(selectedTargetStateId)}>Confirm Move</button>
                         </div>
                     </div>
                 {/if}

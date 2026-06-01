@@ -54,7 +54,7 @@
 						{iconStatus === StatusTypes.unpublish
 			? 'border-yellow-500'
 			: iconStatus === StatusTypes.publish
-				? 'border-primary-500'
+				? 'border-tertiary-500 dark:border-primary-500'
 				: iconStatus === StatusTypes.schedule
 					? 'border-pink-500'
 					: 'border-surface-800'}

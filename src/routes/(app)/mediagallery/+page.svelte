@@ -272,7 +272,7 @@ async function handleOpenFileDetails(file: any) {
 					<span class="hidden md:inline">New Folder</span>
 				</button>
 
-				<label class="btn preset-filled-primary-500 cursor-pointer">
+				<label class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 cursor-pointer">
 					<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 					<span class="hidden md:inline">Upload</span>
 					<input 
@@ -311,14 +311,14 @@ async function handleOpenFileDetails(file: any) {
 			<div class="flex border border-surface-300 dark:border-surface-600 rounded-lg overflow-hidden">
 				<button 
 					onclick={() => view = 'grid'} 
-					class="p-2 transition-colors {view === 'grid' ? 'bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
+					class="p-2 transition-colors {view === 'grid' ? 'bg-tertiary-500 dark:bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
 					aria-label="Grid view"
 				>
 					<iconify-icon icon="mdi:grid-large" width="20"></iconify-icon>
 				</button>
 				<button 
 					onclick={() => view = 'table'} 
-					class="p-2 transition-colors {view === 'table' ? 'bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
+					class="p-2 transition-colors {view === 'table' ? 'bg-tertiary-500 dark:bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
 					aria-label="Table view"
 				>
 					<iconify-icon icon="mdi:format-list-bulleted" width="20"></iconify-icon>
@@ -327,7 +327,7 @@ async function handleOpenFileDetails(file: any) {
 
 			<button 
 				onclick={() => isSelectionMode = !isSelectionMode}
-				class="btn {isSelectionMode ? 'preset-filled-primary-500' : 'preset-tonal-surface'}"
+				class="btn {isSelectionMode ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
 			>
 				{isSelectionMode ? 'Exit Selection' : 'Select'}
 			</button>

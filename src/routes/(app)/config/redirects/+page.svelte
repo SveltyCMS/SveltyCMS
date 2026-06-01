@@ -39,12 +39,12 @@
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:arrow-decision" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:arrow-decision" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Redirect Manager
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Manage your site redirects globally</p>
 		</div>
-		<button class="btn preset-filled-primary-500" onclick={() => openModal()}>
+		<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => openModal()}>
 			<iconify-icon icon="mdi:plus" class="mr-2"></iconify-icon>
 			Add Redirect
 		</button>
@@ -85,7 +85,7 @@
 							</td>
 							<td>
 								{#if redirect.active}
-									<span class="badge preset-filled-primary-500">Active</span>
+									<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">Active</span>
 								{:else}
 									<span class="badge preset-filled-surface-500">Inactive</span>
 								{/if}
@@ -165,7 +165,7 @@
 
 				<div class="flex justify-end gap-2 pt-4">
 					<button type="button" class="btn preset-outlined-surface-500" onclick={closeModal}>Cancel</button>
-					<button type="submit" class="btn preset-filled-primary-500">{button_save()}</button>
+					<button type="submit" class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500">{button_save()}</button>
 				</div>
 			</form>
 		</div>

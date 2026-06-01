@@ -144,10 +144,10 @@ export const widgetMeta = {
 										<path
 											d={linePath}
 											fill="none"
-											stroke={scim.status === 'healthy' ? '#10b981' : '#f59e0b'}
 											stroke-width="1.8"
 											stroke-linecap="round"
 											stroke-linejoin="round"
+											class={scim.status === 'healthy' ? 'stroke-success-500' : 'stroke-warning-500'}
 										/>
 									</svg>
 								</div>
@@ -163,7 +163,7 @@ export const widgetMeta = {
 						</div>
 						<div class="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 pb-2">
 							<span class="text-surface-500 dark:text-surface-400">Provider</span>
-							<span class="font-mono text-primary-600 dark:text-primary-400 font-semibold">{scim.provider}</span>
+							<span class="font-mono text-tertiary-600 dark:text-primary-600 dark:text-primary-400 font-semibold">{scim.provider}</span>
 						</div>
 
 						{#if scim.lastError}

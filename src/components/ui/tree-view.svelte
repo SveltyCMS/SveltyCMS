@@ -457,7 +457,7 @@ search filtering, and RTL support.
     <div class="flex flex-col group/item relative">
         <!-- Drag drop indicator: before -->
         {#if dragOverNode?.id === node.id && dropPosition === 'before'}
-            <div class="absolute -top-0.5 left-0 right-0 h-0.5 bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
+            <div class="absolute -top-0.5 left-0 right-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
         {/if}
 
         <button
@@ -468,11 +468,11 @@ search filtering, and RTL support.
                 densityTokens.padding,
                 densityTokens.touch,
                 isSelected
-                    ? 'bg-primary-500/10 border-primary-500/30 text-primary-700 dark:text-primary-300 shadow-xs'
+                    ? 'bg-tertiary-500 dark:bg-primary-500/10 border-tertiary-500 dark:border-primary-500/30 text-primary-700 dark:text-primary-300 shadow-xs'
                     : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
                 isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
-                dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-primary-500/20 border-primary-500',
+                dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500 dark:bg-primary-500/20 border-tertiary-500 dark:border-primary-500',
                 node.disabled && 'opacity-50 cursor-not-allowed'
             )}
             style="padding-left: {indentLeft(depth)}rem"
@@ -524,7 +524,7 @@ search filtering, and RTL support.
                     <iconify-icon
                         icon={node.icon}
                         width={densityTokens.icon}
-                        class={cn(isSelected ? 'text-primary-500' : iconColorClass)}
+                        class={cn(isSelected ? 'text-tertiary-500 dark:text-primary-500' : iconColorClass)}
                         aria-hidden="true"
                     ></iconify-icon>
                 </div>
@@ -535,7 +535,7 @@ search filtering, and RTL support.
                 'truncate transition-colors',
                 densityTokens.font,
                 isSelected
-                    ? 'font-bold text-primary-600 dark:text-primary-500'
+                    ? 'font-bold text-tertiary-600 dark:text-primary-600 dark:text-primary-500'
                     : 'font-medium text-surface-900 dark:text-surface-100'
             )}>
                 {nodeLabel}
@@ -577,7 +577,7 @@ search filtering, and RTL support.
 
         <!-- Drag drop indicator: after -->
         {#if dragOverNode?.id === node.id && dropPosition === 'after'}
-            <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
+            <div class="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
         {/if}
 
         <!-- Children (recursive) -->

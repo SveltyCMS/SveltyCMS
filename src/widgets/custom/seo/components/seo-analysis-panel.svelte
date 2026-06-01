@@ -78,7 +78,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 			<div class="flex items-center gap-3">
 				<div
 					class="font-bold {analysisResult.score.overall >= 80
-						? 'text-primary-500'
+						? 'text-tertiary-500 dark:text-primary-500'
 						: analysisResult.score.overall >= 50
 							? 'text-warning-500'
 							: 'text-error-500'}"
@@ -146,14 +146,14 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 								? 'border-error-500 bg-error-500/10'
 								: suggestion.type === 'warning'
 									? 'border-warning-500 bg-warning-500/10'
-									: 'border-primary-500 bg-primary-500/10'}"
+									: 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/10'}"
 						>
 							<div class="flex items-start gap-2">
 								<div class="mt-0.5 shrink-0">
 									<iconify-icon
 										icon={suggestionIcon}
 										width="16"
-										class={suggestion.type === 'error' ? 'text-error-500' : suggestion.type === 'warning' ? 'text-warning-500' : 'text-primary-500'}
+										class={suggestion.type === 'error' ? 'text-error-500' : suggestion.type === 'warning' ? 'text-warning-500' : 'text-tertiary-500 dark:text-primary-500'}
 									></iconify-icon>
 								</div>
 								<div class="flex-1 min-w-0">

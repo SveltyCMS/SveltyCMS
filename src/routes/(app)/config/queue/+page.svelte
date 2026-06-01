@@ -19,8 +19,8 @@ let isClearing = $state(false);
 
 const statusColors: Record<string, string> = {
 	pending: "preset-tonal-surface",
-	running: "preset-filled-primary-500",
-	completed: "preset-filled-primary-500",
+	running: "preset-filled-tertiary-500 dark:preset-filled-primary-500",
+	completed: "preset-filled-tertiary-500 dark:preset-filled-primary-500",
 	failed: "preset-filled-error-500",
 };
 
@@ -64,7 +64,7 @@ function getFilterUrl(status?: string) {
 	<div class="flex items-center justify-between" in:fade>
 		<div>
 			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:tray-full" class="text-primary-500"></iconify-icon>
+				<iconify-icon icon="mdi:tray-full" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				Background Queue
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Monitor and manage background job processing</p>
@@ -79,7 +79,7 @@ function getFilterUrl(status?: string) {
 
 	<!-- Statistics Cards -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }}>
-		<a href={getFilterUrl()} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-primary-500 transition-colors">
+		<a href={getFilterUrl()} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg bg-surface-200 dark:bg-surface-700">
 					<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
@@ -103,7 +103,7 @@ function getFilterUrl(status?: string) {
 			</div>
 		</a>
 
-		<a href={getFilterUrl('running')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-primary-500 transition-colors">
+		<a href={getFilterUrl('running')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg preset-tonal-primary">
 					<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
@@ -145,7 +145,7 @@ function getFilterUrl(status?: string) {
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-bold">Recent Jobs</h2>
 			{#if $page.url.searchParams.has('status')}
-				<span class="badge preset-filled-primary-500 uppercase text-[10px]">
+				<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500 uppercase text-[10px]">
 					Filter: {$page.url.searchParams.get('status')}
 				</span>
 				<a href={getFilterUrl()} class="btn btn-sm preset-ghost-surface-500">Clear Filter</a>

@@ -430,7 +430,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 								<!-- Current Selection Indicator -->
 								{#if listboxValue === action}
-									<iconify-icon icon="mdi:check" width={18} class="relative z-10 text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:check" width={18} class="relative z-10 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 								{/if}
 							</button>
 						</li>

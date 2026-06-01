@@ -311,7 +311,7 @@ const steps = [
 				<div class="flex items-center gap-2">
 					<button
 						class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 w-full sm:w-auto justify-center"
-						class:bg-primary-500={activeStep === step.number}
+						class:bg-tertiary-500={activeStep === step.number} class:dark:bg-primary-500={activeStep === step.number}
 						class:text-white={activeStep === step.number}
 						class:preset-tonal-surface={activeStep !== step.number}
 						class:opacity-50={step.number > activeStep + 1}
@@ -339,7 +339,7 @@ const steps = [
 				<div class="p-6 space-y-6" transition:fade>
 					<div class="space-y-4">
 						<h3 class="h3 font-bold flex items-center gap-2">
-							<iconify-icon icon="mdi:flash-outline" class="text-primary-500"></iconify-icon>
+							<iconify-icon icon="mdi:flash-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							Trigger Configuration
 						</h3>
 
@@ -364,7 +364,7 @@ const steps = [
 								{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption (triggerOption.type)}
 									<button
 										class="card p-3 text-center border-2 transition-all duration-200 rounded-lg"
-										class:border-primary-500={flow.trigger.type === triggerOption.type}
+										class:border-tertiary-500={flow.trigger.type === triggerOption.type} class:dark:border-primary-500={flow.trigger.type === triggerOption.type}
 										class:bg-primary-50={flow.trigger.type === triggerOption.type}
 										class:dark:bg-primary-950={flow.trigger.type === triggerOption.type}
 										class:border-surface-200={flow.trigger.type !== triggerOption.type}
@@ -431,7 +431,7 @@ const steps = [
 						{#if flow.trigger.type === 'manual'}
 							<div class="preset-tonal-surface p-4 rounded-lg" transition:slide>
 								<div class="flex items-center gap-2 mb-2">
-									<iconify-icon icon="mdi:information-outline" class="text-lg text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:information-outline" class="text-lg text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									<span class="font-medium">Manual Trigger</span>
 								</div>
 								<p class="text-sm opacity-70">
@@ -457,7 +457,7 @@ const steps = [
 				<div class="p-6 space-y-6" transition:fade>
 					<div class="flex items-center justify-between">
 						<h3 class="h3 font-bold flex items-center gap-2">
-							<iconify-icon icon="mdi:cog-outline" class="text-primary-500"></iconify-icon>
+							<iconify-icon icon="mdi:cog-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							Operation Chain
 						</h3>
 					</div>
@@ -547,7 +547,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'body', token.value)}
 																>
 																	{token.label}
@@ -584,7 +584,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'to', token.value)}
 																>
 																	{token.label}
@@ -608,7 +608,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'subject', token.value)}
 																>
 																	{token.label}
@@ -637,7 +637,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'body', token.value)}
 																>
 																	{token.label}
@@ -669,7 +669,7 @@ const steps = [
 																{#each availableTokens as token}
 																	<button
 																		type="button"
-																		class="block w-full text-left p-1 hover:bg-primary-500 hover:text-white rounded"
+																		class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																		onclick={() => insertToken(i, 'message', token.value)}
 																	>
 																		{token.label}
@@ -713,7 +713,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'value', token.value)}
 																>
 																	{token.label}
@@ -762,7 +762,7 @@ const steps = [
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 							{#each OPERATION_TYPES as opType (opType.type)}
 								<button
-									class="card p-3 text-center border border-surface-300 dark:border-surface-600 hover:border-primary-500 transition-all duration-200 rounded-lg hover:scale-105"
+									class="card p-3 text-center border border-surface-300 dark:border-surface-600 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded-lg hover:scale-105"
 									onclick={() => addOperation(opType.type)}
 								>
 									<iconify-icon icon={opType.icon} class="text-xl mb-1"></iconify-icon>
@@ -778,7 +778,7 @@ const steps = [
 			{#if activeStep === 3}
 				<div class="p-6 space-y-6" transition:fade>
 					<h3 class="h3 font-bold flex items-center gap-2">
-						<iconify-icon icon="mdi:eye-outline" class="text-primary-500"></iconify-icon>
+						<iconify-icon icon="mdi:eye-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						Preview & Test
 					</h3>
 
@@ -840,7 +840,7 @@ const steps = [
 					<!-- Test Execution -->
 					<div class="space-y-3">
 						<div class="flex items-center gap-3">
-							<button class="btn preset-filled-primary-500" onclick={testFlow} disabled={isTesting || isNew}>
+							<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={testFlow} disabled={isTesting || isNew}>
 								{#if isTesting}
 									<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 									<span>Testing...</span>
@@ -983,12 +983,12 @@ const steps = [
 
 			<div class="flex items-center gap-2">
 				{#if activeStep < 3}
-					<button class="btn preset-filled-primary-500" onclick={() => (activeStep += 1)} disabled={!canProceed}>
+					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => (activeStep += 1)} disabled={!canProceed}>
 						Next
 						<iconify-icon icon="mdi:chevron-right"></iconify-icon>
 					</button>
 				{:else}
-					<button class="btn preset-filled-primary-500" onclick={save} disabled={isSaving}>
+					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={save} disabled={isSaving}>
 						{#if isSaving}
 							<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 							Saving...

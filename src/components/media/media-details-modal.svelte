@@ -328,7 +328,7 @@
       </video>
     {:else if file.type === 'audio'}
       <div class="audio-preview flex flex-col items-center gap-4 w-full max-w-sm">
-        <div class="audio-icon-box bg-primary-500/10 text-primary-500 p-6 rounded-full">
+        <div class="audio-icon-box bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 p-6 rounded-full">
           <iconify-icon icon="mdi:music-note" width="48"></iconify-icon>
         </div>
         <audio src={mediaUrl(file)} controls class="w-full"></audio>
@@ -375,25 +375,25 @@
     <div class="tabs-container flex border-b border-surface-200 dark:border-surface-800 mb-4 text-sm font-semibold">
       <button 
         onclick={() => activeTab = 'info'}
-        class="px-4 py-2 border-b-2 transition-all {activeTab === 'info' ? 'border-primary-500 text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
+        class="px-4 py-2 border-b-2 transition-all {activeTab === 'info' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
       >
         Info & Tags
       </button>
       <button 
         onclick={() => activeTab = 'versions'}
-        class="px-4 py-2 border-b-2 transition-all {activeTab === 'versions' ? 'border-primary-500 text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
+        class="px-4 py-2 border-b-2 transition-all {activeTab === 'versions' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
       >
         Versions ({file.versions?.length || 0})
       </button>
       <button 
         onclick={() => activeTab = 'references'}
-        class="px-4 py-2 border-b-2 transition-all {activeTab === 'references' ? 'border-primary-500 text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
+        class="px-4 py-2 border-b-2 transition-all {activeTab === 'references' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
       >
         Usage
       </button>
       <button 
         onclick={() => activeTab = 'share'}
-        class="px-4 py-2 border-b-2 transition-all {activeTab === 'share' ? 'border-primary-500 text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
+        class="px-4 py-2 border-b-2 transition-all {activeTab === 'share' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
       >
         Share Links ({file.metadata?.sharedLinks?.length || 0})
       </button>
@@ -421,7 +421,7 @@
             
             <div class="flex flex-wrap gap-1.5 mb-3">
               {#each file.metadata?.tags || [] as tag}
-                <span class="tag-badge bg-primary-500/10 text-primary-600 dark:text-primary-500 border border-primary-500/20 px-2 py-0.5 rounded-md text-xs flex items-center gap-1">
+                <span class="tag-badge bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-600 dark:text-primary-600 dark:text-primary-500 border border-tertiary-500 dark:border-primary-500/20 px-2 py-0.5 rounded-md text-xs flex items-center gap-1">
                   <span>{tag}</span>
                   <button 
                     onclick={() => handleRemoveTag(tag)} 
@@ -447,7 +447,7 @@
               />
               <button 
                 onclick={handleAddTag}
-                class="btn preset-filled-primary-500 text-xs py-1.5 px-3"
+                class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs py-1.5 px-3"
                 disabled={isSavingTags || !newTagInput.trim()}
               >
                 Add
@@ -474,7 +474,7 @@
             />
             <button 
               onclick={triggerFileInput} 
-              class="btn preset-filled-primary-500 text-xs px-4"
+              class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs px-4"
               disabled={isUploadingVersion}
             >
               {#if isUploadingVersion}
@@ -492,9 +492,9 @@
             <h3 class="font-bold text-sm mb-2">Version History</h3>
             <div class="flex flex-col gap-2">
               <!-- Current Active Version -->
-              <div class="version-item bg-primary-500/5 border border-primary-500/20 rounded-xl p-3 flex justify-between items-center text-xs">
+              <div class="version-item bg-tertiary-500 dark:bg-primary-500/5 border border-tertiary-500 dark:border-primary-500/20 rounded-xl p-3 flex justify-between items-center text-xs">
                 <div class="flex items-center gap-3">
-                  <div class="version-badge bg-primary-500 text-white font-bold px-2 py-0.5 rounded text-[10px]">
+                  <div class="version-badge bg-tertiary-500 dark:bg-primary-500 text-white font-bold px-2 py-0.5 rounded text-[10px]">
                     ACTIVE
                   </div>
                   <div>
@@ -549,7 +549,7 @@
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
           {#if isScanningRefs}
             <div class="flex flex-col items-center justify-center p-8 gap-3">
-              <iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="32"></iconify-icon>
+              <iconify-icon icon="mdi:loading" class="animate-spin text-tertiary-500 dark:text-primary-500" width="32"></iconify-icon>
               <span class="text-xs opacity-60">Scanning collections for usage references...</span>
             </div>
           {:else}
@@ -561,7 +561,7 @@
                 {#each references as ref}
                   <div class="reference-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl p-3 flex justify-between items-center text-xs">
                     <div>
-                      <span class="font-bold text-primary-500 uppercase tracking-wider text-[10px]">{ref.collection}</span>
+                      <span class="font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-[10px]">{ref.collection}</span>
                       <p class="font-semibold mt-0.5">Field: <span class="font-mono">{ref.field}</span></p>
                       <p class="opacity-60 mt-0.5 font-mono">Entry ID: {ref.entryId}</p>
                     </div>
@@ -614,7 +614,7 @@
 
             <button 
               onclick={handleGenerateShareLink}
-              class="btn preset-filled-primary-500 text-xs py-1.5 w-full mt-2"
+              class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs py-1.5 w-full mt-2"
               disabled={isCreatingShare}
             >
               {#if isCreatingShare}

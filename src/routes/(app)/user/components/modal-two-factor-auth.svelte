@@ -264,7 +264,7 @@ This component provides a user interface for managing 2FA settings:
 
 <!-- Main Modal Component -->
 <div class="modal-2fa space-y-3">
-	<header class={`text-center text-primary-500 ${cHeader} shrink-0`}>{title ?? twofa_title()}</header>
+	<header class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader} shrink-0`}>{title ?? twofa_title()}</header>
 
 	<article class="shrink-0 text-center text-sm">{body ?? twofa_description()}</article>
 
@@ -272,7 +272,7 @@ This component provides a user interface for managing 2FA settings:
 		<!-- Status Section -->
 		<div class="mb-4 flex items-center justify-between rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
-				<div class="rounded-lg bg-primary-500/10 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
+				<div class="rounded-lg bg-tertiary-500 dark:bg-primary-500/10 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
 				<div>
 					<p class="text-sm font-semibold">{twofa_title()}</p>
 					<p class="text-xs text-surface-600 dark:text-surface-300">{twofa_description()}</p>
@@ -397,7 +397,7 @@ This component provides a user interface for managing 2FA settings:
 		<!-- Action buttons -->
 		{#if !is2FAEnabled && setupData}
 			<!-- Verify button when setting up -->
-			<button onclick={verify2FA} disabled={isLoading || !verificationCode || verificationCode.length !== 6} class="preset-filled-primary-500 btn">
+			<button onclick={verify2FA} disabled={isLoading || !verificationCode || verificationCode.length !== 6} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">
 				{#if isLoading}
 					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
 					{twofa_verifying()}

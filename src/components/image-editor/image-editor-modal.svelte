@@ -191,7 +191,7 @@ A reusable modal that wraps the main Image Editor.
 		{#if isInitializing}
 			<div class="absolute inset-0 flex items-center justify-center bg-surface-900/80 z-50 backdrop-blur-sm">
 				<div class="text-center">
-					<iconify-icon icon="mdi:loading" width="48" class="animate-spin text-primary-500"></iconify-icon>
+					<iconify-icon icon="mdi:loading" width="48" class="animate-spin text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<p class="mt-2 text-sm text-surface-300">Loading editor...</p>
 				</div>
 			</div>

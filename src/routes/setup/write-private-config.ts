@@ -131,7 +131,7 @@ export const privateEnv = {
             ? /\bDB_HOST\s*:\s*['"][^'"]*['"]/
             : dbConfig.host
               ? new RegExp(`\\bDB_HOST\\s*:\\s*['"]${escape(dbConfig.host)}['"]`)
-              : /\bDB_HOST\s*:\\s*['"]['"]/,
+              : /\bDB_HOST\s*:\s*['"]['"]/,
       },
       {
         name: "DB_NAME",

@@ -173,7 +173,7 @@ function handleThemeChange() {
 						target="_blank"
 						rel="noopener noreferrer"
 						aria-label={marketplace()}
-						class="preset-filled-primary-500 btn gap-2"
+						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn gap-2"
 					>
 						<iconify-icon icon="icon-park-outline:shopping-bag" width={20}></iconify-icon>
 						<span>{marketplace()}</span>

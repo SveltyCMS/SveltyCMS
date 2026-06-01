@@ -73,7 +73,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 									<iconify-icon icon="mdi:chevron-down" class="ml-1 h-4 w-4 transition-transform"></iconify-icon>
 								</span>
 							{/snippet}
-							<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-primary-500 dark:bg-surface-900/90 -mx-2">
+							<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
 								{applayout_systemlanguage()}
 							</div>
 							<div class="custom-scrollbar max-h-64 overflow-y-auto">
@@ -114,7 +114,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 								<iconify-icon icon="mdi:chevron-down" class="ml-1 h-4 w-4 transition-transform"></iconify-icon>
 							</span>
 						{/snippet}
-						<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-primary-500 dark:bg-surface-900/90 -mx-2">
+						<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
 							{applayout_systemlanguage()}
 						</div>
 						<div class="custom-scrollbar max-h-64 overflow-y-auto">

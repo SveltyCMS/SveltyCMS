@@ -122,7 +122,7 @@ beforeNavigate(({ cancel }) => {
 		<button
 			onclick={saveAllChanges}
 			aria-label="Save all changes"
-			class="preset-filled-primary-500 btn font-semibold shadow-xs"
+			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn font-semibold shadow-xs"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 		>
 			{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}

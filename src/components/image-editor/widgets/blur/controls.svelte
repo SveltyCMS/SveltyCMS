@@ -47,7 +47,7 @@ Minimal blur controls focused on drag-resize rectangular regions.
 
 <div class="blur-controls" role="toolbar" aria-label="Blur controls">
 	<div class="control-group">
-		<button type="button" class="btn btn-sm preset-filled-primary-500" onclick={onAddRegion} title="Add blur region">
+		<button type="button" class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onAddRegion} title="Add blur region">
 			<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
 			<span>Add Region</span>
 		</button>
