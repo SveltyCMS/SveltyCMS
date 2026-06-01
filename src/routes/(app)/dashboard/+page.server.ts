@@ -104,7 +104,9 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(301, "/login");
   }
 
-  // Check if user has permission to access dashboard
+  // Check if user has permission to access dashboard.
+  // Guard tenantRoles: locals.roles can be undefined (e.g. roles not yet loaded), and calling
+  // .some() on undefined would 500 the whole dashboard instead of doing a clean permission check.
   const hasDashboardPermission =
     isAdmin ||
     (tenantRoles ?? []).some((role) =>
