@@ -118,7 +118,7 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const files = (Array.isArray(data) ? data : []) as MediaFile[]}
+		{const files = (Array.isArray(data) ? data : []) as MediaFile[]}
 
 		{#if files.length === 0}
 			<div class="flex h-full flex-col items-center justify-center text-center">

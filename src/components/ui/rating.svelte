@@ -123,10 +123,10 @@ function starFill(displayVal: number, index: number): number {
 	{...rest}
 >
 	{#each Array(count) as _, i}
-		{@const fill = starFill(displayValue, i)}
-		{@const fillPercent = fill * 100}
-		{@const isFull = fill >= 1}
-		{@const isEmpty = fill <= 0}
+		{const fill = starFill(displayValue, i)}
+		{const fillPercent = fill * 100}
+		{const isFull = fill >= 1}
+		{const isEmpty = fill <= 0}
 
 		<span
 			role="presentation"

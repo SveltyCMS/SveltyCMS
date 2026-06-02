@@ -654,7 +654,7 @@ onMount(() => {
 						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} /></div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
-								{@const widgetInfo = widgetComponentRegistry[widgetName]}
+								{const widgetInfo = widgetComponentRegistry[widgetName]}
 								<button
 									class="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
 									onclick={() => addNewWidget(widgetName)}
@@ -749,8 +749,8 @@ onMount(() => {
 									/>
 								{/if}
 								{#if dropIndicator}
-									{@const currentIndex = currentPreferences.findIndex((p: DashboardWidgetConfig) => p.id === item.id)}
-									{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
+									{const currentIndex = currentPreferences.findIndex((p: DashboardWidgetConfig) => p.id === item.id)}
+									{const isDropTarget = dropIndicator.targetIndex === currentIndex}
 									{#if isDropTarget}
 										<div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-tertiary-500 dark:bg-primary-500" style:transform="translateY(-50%)"></div>
 									{/if}

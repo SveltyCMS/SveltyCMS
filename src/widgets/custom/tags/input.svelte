@@ -11,6 +11,7 @@
 	import { parse } from 'valibot';
 	import type { FieldType } from './index';
 	import { createValidationSchema } from './index';
+	import Badge from '@components/ui/badge.svelte';
 
 	interface Props {
 		field: FieldType;
@@ -87,17 +88,17 @@
 	>
 		{#if Array.isArray(value)}
 			{#each value as tag, i}
-				<span class="badge variant-filled-primary flex items-center gap-1 pl-2 pr-1 py-1 rounded">
+				<Badge variant="primary" size="sm" class="flex items-center gap-1 ps-2! pe-1! py-1!">
 					{tag}
 					<button 
 						type="button" 
-						class="btn-icon btn-icon-sm variant-soft hover:variant-filled-error" 
+						class="btn-icon btn-icon-sm hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-error-500 transition-colors" 
 						onclick={(e) => { e.stopPropagation(); removeTag(i); }}
 						aria-label={`Remove tag ${tag}`}
 					>
 						<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 					</button>
-				</span>
+				</Badge>
 			{/each}
 		{/if}
 

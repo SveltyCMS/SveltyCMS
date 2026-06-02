@@ -90,8 +90,8 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 			
 			<tbody class="divide-y divide-surface-100 dark:divide-surface-800">
 				{#each paginatedFiles as file (file._id || file.filename)}
-					{@const fileId = file._id?.toString() || file.filename}
-					{@const isSelected = selectedFiles.has(fileId)}
+					{const fileId = file._id?.toString() || file.filename}
+					{const isSelected = selectedFiles.has(fileId)}
 					
 					<tr 
 						class="transition-colors cursor-pointer {isSelected ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-primary-500/5' : 'hover:bg-surface-50 dark:hover:bg-surface-800/50'}"

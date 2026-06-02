@@ -1072,7 +1072,7 @@ bulk actions, and predictive preloading.
 								>
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
-										{@const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+										{const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
 										<iconify-icon icon={sortIcon} width="16" class="ml-1 origin-center"></iconify-icon>
 									{/if}
 								</button>
@@ -1173,7 +1173,7 @@ bulk actions, and predictive preloading.
 													<div class="flex w-full items-center justify-center"><Status value={entry.status || entry.raw_status || 'draft'} /></div>
 												{:else if (header as TableHeader).component}
 													<!-- Dynamic Plugin Component Injection -->
-													{@const pluginId = ((header as TableHeader).id || '').split('-')[0]}
+													{const pluginId = ((header as TableHeader).id || '').split('-')[0]}
 
 													<PluginComponent
 														{pluginId}
@@ -1200,9 +1200,9 @@ bulk actions, and predictive preloading.
 														</div>
 													</div>
 												{:else if typeof (entry as any)[(header as TableHeader).name || ''] === 'object' && (entry as any)[(header as TableHeader).name || ''] !== null}
-													{@const fieldData = (entry as any)[(header as TableHeader).name || ''] as Record<string, any>}
-													{@const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
-													{@const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
+													{const fieldData = (entry as any)[(header as TableHeader).name || ''] as Record<string, any>}
+													{const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
+													{const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
 													{#if (header as TableHeader).name === 'last_name'}
 														<span title={debugInfo}><Sanitize html={translatedValue} profile="strict" /></span>
 													{:else}

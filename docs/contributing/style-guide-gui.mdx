@@ -26,6 +26,9 @@ Our UI is built on a robust and flexible foundation:
 
 - **`src/components/ui/`**: Our native Svelte 5 component library — 37 reusable, WCAG 3.0-ready primitives. Always prefer these over building new components from scratch.
 - **Tailwind CSS v4**: Utility-first styling for all layout and custom one-off styles.
+  - **Exclamation Mark Suffix**: Always use the suffix exclamation mark syntax (e.g., `py-0!` or `px-1!`) instead of the legacy prefix syntax (e.g., `!py-0` or `!px-1`) to avoid compiler and linter warnings.
+  - **RTL-Friendly Logical Properties**: Use Svelte/Tailwind logical properties (e.g., `ps-*`, `pe-*`) instead of directional properties (e.g., `pl-*`, `pr-*`) to support right-to-left layout directionality seamlessly.
+  - **No `tailwind.config.js`**: We use CSS-based config configuration (`@import "tailwindcss"` in `app.css`). Do not create or modify `tailwind.config.js`. Write all utility classes inline rather than using `@apply` (except for base layer component abstractions).
 - **Design Tokens**: Pure Tailwind v4 `@theme` block in `app.css` provides all semantic color palettes including `primary`, `secondary`, `tertiary`, `surface`, `error`, `warning`, `success`. Preset classes (`preset-filled-*`, `preset-tonal-*`, `preset-outlined-*`) are defined as Tailwind `@utility` classes.
 - **Base Classes**: `card`, `badge`, `btn`, `input`, `btn-icon` are defined as Tailwind `@utility` classes in `app.css`.
 
@@ -483,3 +486,4 @@ Before submitting a PR:
 - [ ] **`prefers-reduced-motion`**: Any custom animation checks the media query.
 - [ ] **Svelte 5 Runes**: `$state`, `$derived`, `$props`, `$bindable` used. No Svelte 4 legacy syntax.
 - [ ] **Responsiveness**: Mobile-first, tested at 320px width.
+- [ ] **Tailwind v4 & RTL Conventions**: Use suffix exclamation marks (e.g., `py-0!`) and RTL logical properties (e.g., `ps-`, `pe-`).

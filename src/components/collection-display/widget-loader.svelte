@@ -98,7 +98,7 @@ rather than bundling all widgets upfront.
 	</div>
 {:else if component}
 	<!-- Loaded component -->
-	{@const Component = component}
+	{const Component = component}
 	<Component {field} bind:value {WidgetData} {tenantId} {collectionName} />
 {:else}
 	<!-- Unexpected state -->

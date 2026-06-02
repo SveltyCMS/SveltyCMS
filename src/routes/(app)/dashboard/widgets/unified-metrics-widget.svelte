@@ -115,7 +115,7 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const m = data as UnifiedMetrics | null}
+		{const m = data as UnifiedMetrics | null}
 
 		{#if m}{recordMetrics(m)}{/if}
 
@@ -127,8 +127,8 @@ export const widgetMeta = {
 				</div>
 			</div>
 		{:else}
-			{@const health = computeHealth(m)}
-			{@const avgCache = (m.api.cacheHitRate + m.authentication.cacheHitRate) / 2}
+			{const health = computeHealth(m)}
+			{const avgCache = (m.api.cacheHitRate + m.authentication.cacheHitRate) / 2}
 
 			{#if isCompact}
 				<div class="flex h-full items-center gap-3 overflow-hidden">

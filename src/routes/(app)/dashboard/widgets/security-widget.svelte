@@ -114,8 +114,8 @@ export const widgetMeta = {
 	onDataLoaded={handleDataLoaded}
 >
 	{#snippet children({ data })}
-		{@const statsData = data?.stats as SecurityStats | null}
-		{@const activeIncidents = data?.incidents || []}
+		{const statsData = data?.stats as SecurityStats | null}
+		{const activeIncidents = data?.incidents || []}
 
 		{#if !statsData}
 			<div class="flex h-full items-center justify-center">
@@ -142,12 +142,12 @@ export const widgetMeta = {
 
 						<!-- Mini Sparkline inside compact mode -->
 						{#if threatHistory.length > 1}
-							{@const maxVal = Math.max(...threatHistory, 3)}
-							{@const points = threatHistory.map((val, i) => ({
+							{const maxVal = Math.max(...threatHistory, 3)}
+							{const points = threatHistory.map((val, i) => ({
 								x: (i / Math.max(1, threatHistory.length - 1)) * 60,
 								y: 18 - (val / maxVal) * 14 - 2
 							}))}
-							{@const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+							{const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
 							<div class="w-16 h-5 opacity-80" aria-hidden="true">
 								<svg viewBox="0 0 60 18" class="w-full h-full overflow-visible">
 									<path d={linePath} fill="none" stroke={sparklineStyle.stroke} stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
@@ -190,13 +190,13 @@ export const widgetMeta = {
 
 							<!-- Sparkline Trend Chart -->
 							{#if threatHistory.length > 1}
-								{@const maxVal = Math.max(...threatHistory, 5)}
-								{@const points = threatHistory.map((val, i) => ({
+								{const maxVal = Math.max(...threatHistory, 5)}
+								{const points = threatHistory.map((val, i) => ({
 									x: (i / Math.max(1, threatHistory.length - 1)) * 100,
 									y: 28 - (val / maxVal) * 22 - 2
 								}))}
-								{@const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
-								{@const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} 28 L ${points[0].x.toFixed(2)} 28 Z`}
+								{const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+								{const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} 28 L ${points[0].x.toFixed(2)} 28 Z`}
 
 								<div class="w-24 h-8" aria-hidden="true" title="Incident volume trend">
 									<svg viewBox="0 0 100 28" class="w-full h-full overflow-visible">

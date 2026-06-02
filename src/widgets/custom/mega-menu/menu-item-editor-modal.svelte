@@ -57,7 +57,7 @@ menu item at a specific level. Uses the standard widget loading system.
 		</div>
 		<button
 			type="button"
-			class="btn-icon variant-soft-surface hover:variant-filled-surface transition-colors"
+			class="btn-icon preset-tonal-surface hover:preset-filled-surface-500 transition-colors"
 			onclick={onCancel}
 			aria-label="Close modal"
 		>
@@ -69,9 +69,9 @@ menu item at a specific level. Uses the standard widget loading system.
 		{#if meta.fields && meta.fields.length > 0}
 			<div class="grid grid-cols-1 gap-6">
 				{#each meta.fields as field (getFieldName(field))}
-					{@const fieldName = getFieldName(field)}
-					{@const widgetName = field.widget?.Name || ''}
-					{@const widgetLoader = getWidgetLoader(widgetName)}
+					{const fieldName = getFieldName(field)}
+					{const widgetName = field.widget?.Name || ''}
+					{const widgetLoader = getWidgetLoader(widgetName)}
 
 					<div class="field-wrapper">
 						{#if widgetLoader}

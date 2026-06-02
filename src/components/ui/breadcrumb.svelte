@@ -43,7 +43,7 @@ let {
 <nav aria-label="Breadcrumb" class={cn('flex py-3', className)}>
 	<ol class="flex items-center space-x-2 text-sm">
 		{#each items as item, i}
-			{@const isLast = i === items.length - 1}
+			{const isLast = i === items.length - 1}
 			<li class="flex items-center gap-2">
 				{#if i > 0}
 					<iconify-icon icon={separator} class="opacity-30 mx-1" width="16"></iconify-icon>

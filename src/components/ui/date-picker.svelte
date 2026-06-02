@@ -27,6 +27,7 @@ and transparent browser indicator trick for consistent cross-browser appearance.
 
 <script lang="ts">
 import { cn } from '@utils/cn';
+import { generateId } from '@utils/id-generator';
 
 interface Props {
 	value?: string;
@@ -56,7 +57,7 @@ let {
 	onchange
 }: Props = $props();
 
-const id = globalThis.crypto?.randomUUID?.() ?? `date-${Math.random().toString(36).slice(2, 9)}`;
+const id = generateId('date-picker');
 const errorId = $derived(error ? `${id}-error` : undefined);
 const descriptionId = $derived(description ? `${id}-description` : undefined);
 const describedBy = $derived([descriptionId, errorId].filter(Boolean).join(' ') || undefined);

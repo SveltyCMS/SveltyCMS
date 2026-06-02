@@ -60,6 +60,7 @@ card variants, and full keyboard navigation per ARIA radiogroup pattern.
 
 <script lang="ts">
 	import { cn } from '@utils/cn';
+	import { generateId } from '@utils/id-generator';
 	import { setContext } from 'svelte';
 	import type { Snippet } from 'svelte';
 
@@ -97,7 +98,7 @@ card variants, and full keyboard navigation per ARIA radiogroup pattern.
 		onchange
 	}: Props = $props();
 
-	const generatedId = globalThis.crypto?.randomUUID?.() ?? `radio-${Math.random().toString(36).slice(2, 9)}`;
+	const generatedId = generateId('radio-group');
 	const groupName = $derived(name || generatedId);
 	const legendId = $derived(`${generatedId}-legend`);
 	const descriptionId = $derived(description ? `${generatedId}-description` : undefined);

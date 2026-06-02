@@ -20,6 +20,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	import { dndzone } from 'svelte-dnd-action';
 	const uuidv4 = () => crypto.randomUUID();
 	import type { FieldType } from './index';
+	import Button from '@components/ui/button.svelte';
 
 	interface Props {
 		collectionName?: string;
@@ -190,9 +191,9 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 					<div class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
 						{#if (field as any).fields}
 							{#each (field as any).fields as subField}
-								{@const subFieldName = subField.db_fieldName || getFieldName(subField)}
-								{@const widgetName = subField.widget?.Name || subField.type || 'Input'}
-								{@const widgetLoader = getWidgetLoader(widgetName)}
+								{const subFieldName = subField.db_fieldName || getFieldName(subField)}
+								{const widgetName = subField.widget?.Name || subField.type || 'Input'}
+								{const widgetLoader = getWidgetLoader(widgetName)}
 
 								<div class="col-span-1 {(subField as any).width ? `lg:col-span-${(subField as any).width}` : ''} w-full">
 									{#if widgetLoader}
@@ -211,8 +212,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 		{/each}
 	</div>
 
-	<button onclick={addItem} class="btn variant-filled-primary w-full sm:w-auto">
-		<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
-		<span>{(field as any).addLabel || 'Add Item'}</span>
-	</button>
+	<Button onclick={addItem} variant="primary" class="w-full sm:w-auto" leadingIcon="mdi:plus">
+		{(field as any).addLabel || 'Add Item'}
+	</Button>
 </div>

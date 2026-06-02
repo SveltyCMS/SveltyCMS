@@ -74,7 +74,7 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
-		{@const disks = (() => {
+		{const disks = (() => {
 			if (!fetchedData?.diskInfo) return [];
 			return Object.entries(fetchedData.diskInfo).map(([key, value]) => {
 				const disk = value as any;
@@ -96,7 +96,7 @@ export const widgetMeta = {
 			});
 		})()}
 
-		{@const disk = disks.find(d => d.key === activeDiskKey) || disks[0]}
+		{const disk = disks.find(d => d.key === activeDiskKey) || disks[0]}
 
 		{#if disk}
 			<div class="flex h-full flex-col justify-between space-y-3" role="region" aria-label="Disk usage statistics">

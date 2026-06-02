@@ -97,7 +97,7 @@ export const widgetMeta = {
 	onDataLoaded={updateMetricsHistory}
 >
 	{#snippet children({ data })}
-		{@const metrics = data as HealthMetrics | null}
+		{const metrics = data as HealthMetrics | null}
 
 		{#if !metrics}
 			<div class="flex h-full items-center justify-center">
@@ -107,21 +107,21 @@ export const widgetMeta = {
 				</div>
 			</div>
 		{:else}
-			{@const errorRate = metrics.requests?.total > 0 
+			{const errorRate = metrics.requests?.total > 0 
 				? (metrics.requests.errors / metrics.requests.total) * 100 
 				: 0}
-			{@const cacheHitRate = (metrics.cache?.hits ?? 0) + (metrics.cache?.misses ?? 0) > 0 
+			{const cacheHitRate = (metrics.cache?.hits ?? 0) + (metrics.cache?.misses ?? 0) > 0 
 				? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100 
 				: 0}
-			{@const authSuccessRate = metrics.auth?.validations > 0 
+			{const authSuccessRate = metrics.auth?.validations > 0 
 				? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100 
 				: 100}
 
-			{@const points = errorHistory.map((val: number, i: number) => ({
+			{const points = errorHistory.map((val: number, i: number) => ({
 				x: (i / Math.max(1, errorHistory.length - 1)) * 110,
 				y: 24 - (Math.min(10, val) / 10) * 18 - 3 // Normalise 0-10% scale for visual precision
 			}))}
-			{@const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+			{const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
 
 			<div class="flex h-full flex-col space-y-4" role="region" aria-label="Performance stats">
 				{#if size.h === 1}

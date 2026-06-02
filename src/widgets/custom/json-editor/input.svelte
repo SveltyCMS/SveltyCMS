@@ -56,7 +56,7 @@
 		<span class="text-[10px] uppercase tracking-widest text-surface-400 font-bold">JSON Data</span>
 		<button 
 			type="button" 
-			class="btn btn-sm variant-soft-primary text-[10px] h-6 py-0 px-2"
+			class="text-[10px] h-6 px-2.5 rounded bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-400 font-semibold transition-all disabled:opacity-50 disabled:pointer-events-none"
 			onclick={formatJson}
 			disabled={!!parseError}
 		>

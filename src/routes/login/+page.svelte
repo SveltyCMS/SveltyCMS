@@ -443,7 +443,7 @@ function handleSignUpPointerEnter() {
 
 					<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
 						{#each filteredLanguages as lang (lang)}
-							{@const selected = lang === currentLanguage}
+							{const selected = lang === currentLanguage}
 							<button
 								type="button"
 								onclick={() => handleLanguageSelection(lang)}
@@ -462,7 +462,7 @@ function handleSignUpPointerEnter() {
 				{:else}
 					<div class="flex flex-col gap-1">
 						{#each availableLanguages as lang (lang)}
-							{@const selected = lang === currentLanguage}
+							{const selected = lang === currentLanguage}
 							<button
 								type="button"
 								onclick={() => handleLanguageSelection(lang)}

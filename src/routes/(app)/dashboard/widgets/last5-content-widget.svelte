@@ -84,7 +84,7 @@ export const widgetMeta = {
 >
 	{#snippet children({ data: items }: { data: FetchedData })}
 		{#if items && Array.isArray(items) && items.length > 0}
-			{@const limit = size.h === 1 ? 1 : 5}
+			{const limit = size.h === 1 ? 1 : 5}
 			<div class="flex flex-col h-full overflow-hidden" role="region" aria-label="Recent content items">
 				<div 
 					class="flex-1 overflow-y-auto pr-1 space-y-1.5 custom-scroll" 

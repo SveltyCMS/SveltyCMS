@@ -25,6 +25,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 
 <script lang="ts">
 	import { cn } from '@utils/cn';
+	import { generateId } from '@utils/id-generator';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	type Props = {
@@ -79,7 +80,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 		if (onToggle) onToggle(value);
 	}
 
-	const id = `toggle-${Math.random().toString(36).substring(7)}`;
+	const id = generateId('toggle');
 </script>
 
 <div class={cn('flex items-start gap-3', className)} {...rest}>

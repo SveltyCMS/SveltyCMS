@@ -681,8 +681,8 @@
 		</button>
 
 		{#if showUsertoken && !showUserList && tableData}
-			{@const now = new Date()}
-			{@const expiredTokens = tableData.filter(
+			{const now = new Date()}
+			{const expiredTokens = tableData.filter(
 				(item): item is Token => isToken(item) && item.expires != null && new Date(String(item.expires)) < now
 			)}
 			{#if expiredTokens.length > 0}
@@ -837,9 +837,9 @@
 
 					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 						{#each tableData as row, index (row._id || index)}
-							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
-							{@const isConsumed = isToken(row) && row.consumed}
-							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
+							{const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
+							{const isConsumed = isToken(row) && row.consumed}
+							{const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
 								class="divide-x divide-surface-200/50 dark:divide-surface-50 {isExpired || isConsumed
 									? 'bg-surface-50 opacity-60 dark:bg-surface-900/20'
@@ -964,8 +964,8 @@
 														{adminarea_consumed()}
 													</span>
 												{:else if row.expires}
-													{@const isTokenExpired = checkTokenExpired(row)}
-													{@const remainingTime = getRemainingTime(row.expires)}
+													{const isTokenExpired = checkTokenExpired(row)}
+													{const remainingTime = getRemainingTime(row.expires)}
 													<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
 														{remainingTime}
 														{#if isTokenExpired}

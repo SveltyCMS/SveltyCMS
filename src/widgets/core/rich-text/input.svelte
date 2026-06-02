@@ -14,6 +14,7 @@
 
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import Button from '@components/ui/button.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	// Stores
 	import { app } from '@src/stores/store.svelte';
@@ -635,8 +636,8 @@
 															onkeydown={(e) => e.key === 'Enter' && setLink()}
 														/>
 														<div class="flex justify-end gap-2">
-															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}>Cancel</button>
-															<button class="btn btn-sm variant-filled-primary" onclick={setLink}>Set Link</button>
+															<Button variant="secondary" size="sm" onclick={closeDropdowns}>Cancel</Button>
+															<Button variant="primary" size="sm" onclick={setLink}>Set Link</Button>
 														</div>
 													</div>
 												</div>
@@ -652,8 +653,8 @@
 															onkeydown={(e) => e.key === 'Enter' && setVideo()}
 														/>
 														<div class="flex justify-end gap-2">
-															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}>Cancel</button>
-															<button class="btn btn-sm variant-filled-primary" onclick={setVideo}>Embed</button>
+															<Button variant="secondary" size="sm" onclick={closeDropdowns}>Cancel</Button>
+															<Button variant="primary" size="sm" onclick={setVideo}>Embed</Button>
 														</div>
 													</div>
 												</div>
@@ -661,7 +662,7 @@
 												{#each btn.items as item (item.label)}
 													<button
 														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
-															? 'text-tertiary-600 dark:text-primary-600 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
+															? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
 															: 'text-surface-700 dark:text-white'}"
 														onclick={(e) => {
 															e.stopPropagation();

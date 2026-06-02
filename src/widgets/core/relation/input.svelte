@@ -29,6 +29,8 @@ Interactive selector with "Select" button and clear functionality
 <script lang="ts">
 	import { app } from '@src/stores/store.svelte';
 	import { showModal } from '@utils/modal.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import type { FieldType } from './';
 
 	let {
@@ -114,25 +116,24 @@ Interactive selector with "Select" button and clear functionality
 <div class="relation-container" class:invalid={error}>
 	<div class="flex flex-wrap gap-2">
 		{#each selectedEntries as entry (entry._id)}
-			<div class="badge variant-filled-surface flex items-center gap-2 p-2">
+			<Badge variant="surface" class="flex items-center gap-2 p-2">
 				<span>{entry[field.displayField as string]?.[lang] || entry[field.displayField as string] || '...'}</span>
 				<button
 					onclick={() => removeItem(entry._id)}
 					type="button"
-					class="btn-icon btn-icon-sm variant-filled-error rounded-full w-4 h-4"
+					class="btn-icon btn-icon-sm rounded-full w-4 h-4 bg-error-500/20 text-error-500 hover:bg-error-500 hover:text-white transition-colors"
 					aria-label="Remove"
 				>
 					<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 				</button>
-			</div>
+			</Badge>
 		{/each}
 	</div>
 
 	<div class="actions mt-2">
-		<button onclick={openRelationModal} type="button" aria-label="Select Entry" class="btn btn-sm variant-filled-primary">
-			<iconify-icon icon="mdi:plus" class="mr-1"></iconify-icon>
+		<Button onclick={openRelationModal} variant="primary" size="sm" leadingIcon="mdi:plus" aria-label="Select Entry">
 			{field.multiple ? 'Add Entries' : selectedEntries.length > 0 ? 'Change Selection' : 'Select Entry'}
-		</button>
+		</Button>
 	</div>
 
 	{#if error}

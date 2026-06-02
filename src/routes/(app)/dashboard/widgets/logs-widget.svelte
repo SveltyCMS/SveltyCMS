@@ -130,8 +130,8 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const allLogs = (data?.logs || []) as LogEntry[]}
-		{@const filtered = filterLogs(allLogs)}
+		{const allLogs = (data?.logs || []) as LogEntry[]}
+		{const filtered = filterLogs(allLogs)}
 
 		{#if !isCompact}
 			<!-- Controls (rich layout only) -->
@@ -208,8 +208,8 @@ export const widgetMeta = {
 			<!-- Rich (h:2+): expandable cards -->
 			<div class="flex-1 overflow-y-auto space-y-1 pe-0.5 custom-scroll">
 				{#each filtered as log (log.timestamp + log.message)}
-					{@const logId = log.timestamp + log.message}
-					{@const isOpen = expandedId === logId}
+					{const logId = log.timestamp + log.message}
+					{const isOpen = expandedId === logId}
 					<button
 						onclick={() => toggleExpand(logId)}
 						class="w-full text-left group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"

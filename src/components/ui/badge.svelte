@@ -82,29 +82,37 @@ corner-shape angled corners.
     return `preset-filled-${finalColor}-500`;
   });
 
-  // Calculate dynamic custom variables for custom color preset fallbacks
+  // Calculate dynamic custom variables for custom color preset fallbacks and theme contexts
   const customStyles = $derived.by(() => {
-    if (!isCustomColor) return '';
-    if (finalPreset === 'tonal') {
-      return `--preset-bg: ${finalColor}22; --preset-text: ${finalColor}; --preset-border: transparent;`;
+    let styles = '';
+
+    // Set dynamic border-radius when not angled and not fully rounded (pill)
+    if (shape !== 'angle' && !rounded) {
+      styles += `border-radius: var(--admin-radius-input, 6px); `;
     }
-    if (finalPreset === 'outlined') {
-      return `--preset-bg: transparent; --preset-text: ${finalColor}; --preset-border: ${finalColor};`;
+
+    if (isCustomColor) {
+      if (finalPreset === 'tonal') {
+        styles += `--preset-bg: ${finalColor}22; --preset-text: ${finalColor}; --preset-border: transparent;`;
+      } else if (finalPreset === 'outlined') {
+        styles += `--preset-bg: transparent; --preset-text: ${finalColor}; --preset-border: ${finalColor};`;
+      } else {
+        styles += `--preset-bg: ${finalColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+      }
     }
-    // Filled
-    return `--preset-bg: ${finalColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+    return styles || undefined;
   });
 
   const classes = $derived(cn(
     'badge inline-flex items-center font-bold uppercase tracking-wider transition-all duration-200',
     getPresetClass(),
     sizeClasses[size],
-    shape === 'angle' ? 'corner-angle' : (rounded ? 'rounded-full' : 'rounded-md'),
+    shape === 'angle' ? 'corner-angle' : (rounded ? 'rounded-full' : ''),
     className
   ));
 </script>
 
-<div class={classes} style={customStyles || undefined} {...rest}>
+<div class={classes} style={customStyles} {...rest}>
   {@render children?.()}
 </div>
 

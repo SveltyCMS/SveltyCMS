@@ -236,7 +236,7 @@ onMount(loadWebhooks);
 
 <!-- Webhook Editor Modal -->
 {#if showModal && editingWebhook}
-	{@const activeWebhook = editingWebhook}
+	{const activeWebhook = editingWebhook}
 	<div class="fixed inset-0 z-1000 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" transition:fade>
 		<div
 			class="card bg-surface-100 dark:bg-surface-800 w-full max-w-2xl overflow-hidden shadow-2xl border border-surface-300 dark:border-surface-700"

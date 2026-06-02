@@ -388,7 +388,7 @@
 					</div>
 				{/each}
 				{#if collections.length > 3}
-					<p class="text-xs text-surface-300">...and {collections.length - 3} more</p>
+					<p class="text-xs text-surface-600 dark:text-surface-400">...and {collections.length - 3} more</p>
 				{/if}
 			</div>
 		</div>
@@ -453,7 +453,7 @@
 
 					<div class="max-h-48 overflow-y-auto rounded-md border border-gray-200 p-3 dark:border-gray-700">
 						{#each collections as collection (collection.id)}
-							{@const inputId = `export-collection-${collection.id}`}
+							{const inputId = `export-collection-${collection.id}`}
 							<label for={inputId} class="flex cursor-pointer items-center space-x-3 py-2">
 								<input
 									id={inputId}
@@ -557,9 +557,9 @@
 		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
-				<button onclick={() => (showResultsModal = false)} class="preset-outlined-surface-500 btn-sm">
-					<iconify-icon icon="mdi:close" width={24}></iconify-icon>
-					mdi:close
+				<button onclick={() => (showResultsModal = false)} class="preset-outlined-surface-500 btn-sm" aria-label="Close results">
+					<iconify-icon icon="mdi:close" width={24} aria-hidden="true"></iconify-icon>
+					Close
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] overflow-y-auto p-6">

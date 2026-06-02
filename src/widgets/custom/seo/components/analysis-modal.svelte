@@ -111,7 +111,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							<!-- Group by priority/type implicitly by sorting -->
 							<h4 class="h4">Room for Improvement</h4>
 							{#each analysisResult.suggestions as suggestion (suggestion.title)}
-								{@const suggestionIcon =
+								{const suggestionIcon =
 									suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 								<div
 									class="card border-l-4 p-4 {suggestion.type === 'error'
@@ -138,7 +138,7 @@ Displays detailed SEO analysis results in a modal overlay.
 											class="badge {suggestion.type === 'error'
 												? 'preset-filled-error-500'
 												: suggestion.type === 'warning'
-													? 'variant-filled-warning'
+													? 'preset-filled-warning-500'
 													: 'preset-filled-tertiary-500 dark:preset-filled-primary-500'} text-[10px] uppercase"
 										>
 											{suggestion.type}
@@ -148,9 +148,9 @@ Displays detailed SEO analysis results in a modal overlay.
 							{/each}
 						</div>
 					{:else}
-						<div class="alert variant-soft-success">
-							<iconify-icon icon="mdi:check-circle" class="text-2xl mr-2"></iconify-icon>
-							<span>Great job! No specific issues found.</span>
+						<div class="card border-l-4 border-success-500 bg-success-500/10 p-4 flex items-center">
+							<iconify-icon icon="mdi:check-circle" class="text-2xl mr-2 text-success-500"></iconify-icon>
+							<span class="text-success-800 dark:text-success-200 font-medium">Great job! No specific issues found.</span>
 						</div>
 					{/if}
 				{:else}

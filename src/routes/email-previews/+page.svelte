@@ -45,7 +45,7 @@ const emailList = $derived({
 			</div>
 		{:then module}
 			<!-- Resolved State - Dynamic component with any typing for third-party module -->
-			{@const EmailPreviewComponent = module.EmailPreview as any}
+			{const EmailPreviewComponent = module.EmailPreview as any}
 			<EmailPreviewComponent {emailList} />
 		{:catch error}
 			<!-- Error State -->

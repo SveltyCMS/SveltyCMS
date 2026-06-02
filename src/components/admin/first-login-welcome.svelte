@@ -155,7 +155,7 @@
 		<!-- Header -->
 		<div class="mb-8 text-center">
 			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-				<iconify-icon icon="mdi:rocket-launch" width={40} class="text-blue-600 dark:text-blue-400"></iconify-icon>
+				<iconify-icon icon="mdi:rocket-launch" width={40} class="text-blue-600 dark:text-blue-400" aria-hidden="true"></iconify-icon>
 			</div>
 			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">Congratulations, {user?.username || 'Admin'}!</h2>
 			<p class="text-gray-600 dark:text-gray-400">Your SveltyCMS installation is ready. Let's get you started with the essential features.</p>
@@ -180,11 +180,11 @@
 
 		<!-- Current Step -->
 		{#if currentStep < welcomeSteps.length}
-			{@const step = welcomeSteps[currentStep]}
+			{const step = welcomeSteps[currentStep]}
 			<div class="step-content">
 				<div class="mb-6 text-center">
 					<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-						<iconify-icon icon={step.icon} width="32" class="text-gray-600 dark:text-gray-400"></iconify-icon>
+						<iconify-icon icon={step.icon} width="32" class="text-gray-600 dark:text-gray-400" aria-hidden="true"></iconify-icon>
 					</div>
 					<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">{step.title}</h3>
 					<p class="mx-auto max-w-md text-gray-600 dark:text-gray-400">{step.description}</p>

@@ -60,7 +60,7 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const mem = (() => {
+		{const mem = (() => {
 			const totalObj = data?.memoryInfo?.total || {};
 			const usedMb = Number(totalObj.usedMemMb ?? 0);
 			const freeMb = Number(totalObj.freeMemMb ?? 0);

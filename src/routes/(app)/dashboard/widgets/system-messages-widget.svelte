@@ -130,7 +130,7 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const messages = (Array.isArray(data) ? data : []) as SysMessage[]}
+		{const messages = (Array.isArray(data) ? data : []) as SysMessage[]}
 
 		{#if messages.length === 0}
 			<div class="flex h-full flex-col items-center justify-center text-center">
@@ -157,8 +157,8 @@ export const widgetMeta = {
 			<div class="flex h-full flex-col">
 				<div class="flex-1 overflow-y-auto space-y-2 pe-0.5 custom-scroll">
 					{#each messages.slice(0, 5) as msg (msg.id || msg.timestamp + msg.title)}
-						{@const msgId = msg.id || msg.timestamp + msg.title}
-						{@const isOpen = expandedId === msgId}
+						{const msgId = msg.id || msg.timestamp + msg.title}
+						{const isOpen = expandedId === msgId}
 						<button
 							onclick={() => toggleExpand(msgId)}
 							class="w-full text-left rounded-2xl border-s-3 {severityCls(msg)} px-4 py-3 transition-colors hover:opacity-90"

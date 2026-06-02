@@ -133,7 +133,7 @@
 		{#if safeValue !== null}
 			<button 
 				type="button" 
-				class="btn btn-sm variant-soft-surface p-1 mr-1 opacity-60 hover:opacity-100"
+				class="btn-icon btn-icon-sm hover:bg-surface-200 dark:hover:bg-surface-700 p-1 mr-1 opacity-60 hover:opacity-100"
 				onclick={handleClear}
 				aria-label="Clear value"
 				title="Clear"

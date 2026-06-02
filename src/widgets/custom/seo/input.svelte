@@ -170,7 +170,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
-	<div class="card p-4 variant-glass-surface">
+	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm">
 		<!-- Inline Tabs Implementation -->
 		<div class="flex border-b border-surface-400/30 mb-6">
 			<button

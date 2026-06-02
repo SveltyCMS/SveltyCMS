@@ -171,8 +171,8 @@ function handleKeyDown(e: KeyboardEvent) {
 		<div class="adjustments-scroll">
 			<div class="adjustments-grid">
 				{#each getAdjustmentsByCategory(activeCategory as 'basic' | 'tone' | 'color' | 'detail') as adj (adj.key)}
-					{@const adjConfig = getAdjustmentConfig(adj.key)}
-					{@const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
+					{const adjConfig = getAdjustmentConfig(adj.key)}
+					{const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
 					<button
 						type="button"
 						class="adjustment-btn"

@@ -288,7 +288,7 @@ $effect(() => {
 		<div class="card flex flex-col bg-surface-50-950 border border-surface-200/50 dark:border-surface-700/50">
 			{#if selectedGroupId}
 				{#key selectedGroupId}
-					{@const group = availableGroups.find((g) => g.id === selectedGroupId)}
+					{const group = availableGroups.find((g) => g.id === selectedGroupId)}
 					{#if group}
 						<div class="h-full overflow-y-auto p-6">
 							{#if group.id === 'gdpr'}

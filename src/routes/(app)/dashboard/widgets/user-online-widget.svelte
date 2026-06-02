@@ -110,9 +110,9 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const onlineUsers = (data?.onlineUsers || []) as OnlineUser[]}
-		{@const totalOnline = onlineUsers.length}
-		{@const filteredUsers = searchTerm.trim()
+		{const onlineUsers = (data?.onlineUsers || []) as OnlineUser[]}
+		{const totalOnline = onlineUsers.length}
+		{const filteredUsers = searchTerm.trim()
 			? onlineUsers.filter((u: OnlineUser) =>
 				u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				u.email.toLowerCase().includes(searchTerm.toLowerCase())

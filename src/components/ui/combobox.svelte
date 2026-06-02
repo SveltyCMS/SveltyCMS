@@ -44,6 +44,7 @@ async loading, grouped options, configurable debounce, and clearable selection.
 import { cn } from '@utils/cn';
 import { slide } from 'svelte/transition';
 import { onMount, type Snippet } from 'svelte';
+import { generateId } from '@utils/id-generator';
 
 interface Option {
 	label: string;
@@ -257,7 +258,7 @@ $effect(() => {
 	}
 });
 
-const id = globalThis.crypto?.randomUUID?.() ?? `combo-${Math.random().toString(36).slice(2, 9)}`;
+	const id = generateId('combobox');
 </script>
 
 <div class={cn('relative w-full space-y-1.5', className)}>
@@ -359,9 +360,9 @@ const id = globalThis.crypto?.randomUUID?.() ?? `combo-${Math.random().toString(
 						{group.name}
 					</div>
 					{#each group.items as opt}
-						{@const flatIndex = flatFilteredOptions.indexOf(opt)}
-						{@const active = flatIndex === activeIndex}
-						{@const selected = opt.value === value}
+						{const flatIndex = flatFilteredOptions.indexOf(opt)}
+						{const active = flatIndex === activeIndex}
+						{const selected = opt.value === value}
 
 						<button
 							type="button"
@@ -395,8 +396,8 @@ const id = globalThis.crypto?.randomUUID?.() ?? `combo-${Math.random().toString(
 			<!-- Flat options -->
 			{:else if filteredOptions.length > 0}
 				{#each filteredOptions as opt, i (opt.value)}
-					{@const active = i === activeIndex}
-					{@const selected = opt.value === value}
+					{const active = i === activeIndex}
+					{const selected = opt.value === value}
 
 					<button
 						type="button"

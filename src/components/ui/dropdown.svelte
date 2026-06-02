@@ -82,7 +82,7 @@ function handleSelect(opt: Option) {
 			{@render children()}
 		{:else}
 			{#each options as opt (opt.value)}
-				{@const selected = value === opt.value}
+				{const selected = value === opt.value}
 				<button
 					type="button"
 					class={cn(

@@ -73,7 +73,7 @@ export const widgetMeta = {
 	onDataLoaded={updateSyncHistory}
 >
 	{#snippet children({ data })}
-		{@const scim = data as ScimMetrics | null}
+		{const scim = data as ScimMetrics | null}
 
 		{#if !scim}
 			<div class="flex h-full items-center justify-center">
@@ -83,11 +83,11 @@ export const widgetMeta = {
 				</div>
 			</div>
 		{:else}
-			{@const points = syncHistory.map((val: number, i: number) => ({
+			{const points = syncHistory.map((val: number, i: number) => ({
 				x: (i / Math.max(1, syncHistory.length - 1)) * 80,
 				y: 18 - (Math.min(50, val) / 50) * 14 - 2 // Normalized trend height
 			}))}
-			{@const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+			{const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
 
 			<div class="flex h-full flex-col justify-between" role="region" aria-label="SCIM Sync status stats">
 				{#if size.h === 1}

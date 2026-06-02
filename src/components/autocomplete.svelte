@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/autocomplete.svelte
 @description
 Advanced autocomplete component with fuzzy search, keyboard navigation, and accessibility.
@@ -7,13 +7,13 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 **Enhanced Autocomplete - Svelte 5 Optimized**
 
 @example Basic usage
-<Autocomplete 
-  {options} 
-  onSelect={(value) => console.log(value)} 
+<Autocomplete
+  {options}
+  onSelect={(value) => console.log(value)}
 />
 
 @example With custom filtering and multiple selection
-<Autocomplete 
+<Autocomplete
   {options}
   bind:value={selectedValue}
   placeholder="Search..."
@@ -403,7 +403,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			bind:value={keyword}
 			{placeholder}
 			{disabled}
-			class="input {className} px-3 py-1.5 pr-20 transition-all duration-200 placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+			class="input {className} px-3 py-1.5 pr-20 transition-all duration-200 placeholder:text-surface-600 dark:placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}
@@ -469,8 +469,8 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 					{/if}
 
 					{#each displayOptions as option, index (option)}
-						{@const isCreateOption = option.startsWith('Create: "')}
-						{@const isSelected = index === selectedIndex}
+						{const isCreateOption = option.startsWith('Create: "')}
+						{const isSelected = index === selectedIndex}
 
 						<li
 							id={`option-${index}`}

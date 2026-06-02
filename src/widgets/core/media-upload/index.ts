@@ -70,6 +70,7 @@ const MediaWidget = createWidget<MediaProps>({
     multiupload: false,
     allowedTypes: [],
     folder: "global",
+    altText: false,
   },
 
   modifyRequest: async ({ data, field, user, tenantId, collectionName }) => {

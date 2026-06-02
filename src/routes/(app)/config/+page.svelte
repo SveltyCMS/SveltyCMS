@@ -257,7 +257,7 @@ const configItems = [
 
 	<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
 		{#each configItems as item, idx (item.id || item.label)}
-			{@const usePermissionGuard = !!item.permission}
+			{const usePermissionGuard = !!item.permission}
 
 			{#if usePermissionGuard}
 				<div in:fly={{ y: 20, delay: idx * 50, duration: 300 }}>

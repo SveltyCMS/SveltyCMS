@@ -597,7 +597,7 @@ $effect(() => {
 											{new Date(token.createdAt).toLocaleDateString()}
 										{:else if header.key === 'expiresAt'}
 											{#if token.expiresAt}
-												{@const daysLeft = Math.ceil((new Date(token.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}
+												{const daysLeft = Math.ceil((new Date(token.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}
 												<span class={daysLeft < 7 && daysLeft > 0 ? 'text-warning-500 font-bold' : daysLeft <= 0 ? 'text-error-500 font-bold' : ''}>
 													{new Date(token.expiresAt).toLocaleDateString()}
 													{#if daysLeft < 0}

@@ -208,7 +208,7 @@ async function freePort(port: number) {
 async function waitForServerReady(maxAttempts = 60) {
   console.log("⏳ Waiting for server to reach READY state...");
 
-  const targetStates = ["ready", "healthy", "setup", "warmed", "warming"];
+  const targetStates = ["ready", "healthy", "setup", "warmed", "warming", "operational"];
 
   for (let i = 0; i < maxAttempts; i++) {
     try {

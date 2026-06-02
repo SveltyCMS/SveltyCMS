@@ -136,8 +136,8 @@ Features:
     </div>
   {:else}
     {#each filteredFiles as file (file._id || file.filename)}
-      {@const fileId = file._id?.toString() || file.filename}
-      {@const isSelected = selectedFiles.has(fileId)}
+      {const fileId = file._id?.toString() || file.filename}
+      {const isSelected = selectedFiles.has(fileId)}
 
       <div
         class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-300

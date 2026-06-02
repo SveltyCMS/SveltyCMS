@@ -309,7 +309,7 @@ Part of the Three Pillars Architecture for widget system.
 					{#if allowManualEdit}
 						<button 
 							type="button" 
-							class="btn btn-sm variant-soft-surface p-1"
+							class="p-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center min-w-[32px] h-8"
 							onclick={toggleManualEdit}
 							title={isEditingManually ? 'Save' : 'Edit Metadata'}
 						>
@@ -351,14 +351,14 @@ Part of the Three Pillars Architecture for widget system.
 						href={fetchedMetadata.url}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="btn btn-sm variant-soft-primary gap-1 text-xs"
+						class="px-3 py-1.5 rounded bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-500 dark:hover:bg-primary-600 text-white transition-colors flex items-center gap-1 text-xs font-medium"
 					>
 						<iconify-icon icon="mdi:open-in-new" width="14"></iconify-icon>
 						Watch
 					</a>
 					<button 
 						type="button"
-						class="btn btn-sm variant-soft-surface gap-1 text-xs"
+						class="px-3 py-1.5 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center gap-1 text-xs font-medium"
 						onclick={() => fetchedMetadata && navigator.clipboard.writeText(fetchedMetadata.url)}
 					>
 						<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>

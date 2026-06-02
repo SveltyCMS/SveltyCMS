@@ -139,7 +139,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 					<div class="space-y-2">
 				{#if analysisResult.suggestions.length > 0}
 					{#each analysisResult.suggestions as suggestion (suggestion.id)}
-						{@const suggestionIcon =
+						{const suggestionIcon =
 							suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 						<div
 							class="card border-l-4 p-3 {suggestion.type === 'error'

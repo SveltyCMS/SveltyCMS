@@ -26,6 +26,7 @@ detection, max tag limit, and configurable Badge preset/color.
 
 <script lang="ts">
 import { cn } from '@utils/cn';
+import { generateId } from '@utils/id-generator';
 import Badge from './badge.svelte';
 import { fade, scale } from 'svelte/transition';
 
@@ -59,7 +60,7 @@ let {
 
 let inputValue = $state('');
 let inputElement = $state<HTMLInputElement>();
-const id = Math.random().toString(36).substring(7);
+const id = generateId('tags');
 
 function addTag(tag: string) {
 	if (disabled || !tag.trim()) return;

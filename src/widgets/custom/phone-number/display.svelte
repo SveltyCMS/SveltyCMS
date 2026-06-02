@@ -33,7 +33,7 @@ Renders: <a href="tel:+49 30 12345678">+49 30 12345678</a>
 		<iconify-icon icon="mdi:phone-outline" width="16" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 		<a 
 			href="tel:{value.replace(/\s/g, '')}" 
-			class="text-tertiary-600 dark:text-primary-600 dark:text-primary-500 hover:underline font-medium transition-colors"
+			class="text-tertiary-600 dark:text-primary-500 hover:underline font-medium transition-colors"
 			title="Call: {value}"
 		>
 			{value}

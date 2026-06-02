@@ -350,6 +350,8 @@ export interface Widget extends BaseEntity {
 export interface CmsMediaMetadata {
   advancedMetadata?: Record<string, unknown>;
   aiTags?: string[];
+  /** ATAG 2.0 B.2.1: Accessible alternative text for screen readers and accessibility tools */
+  altText?: string;
   author?: string;
   camera?: string;
   codec?: string;
@@ -631,7 +633,12 @@ export interface IAuthAdapter {
     type?: string,
     options?: BaseQueryOptions,
   ): Promise<
-    DatabaseResult<{ success: boolean; message: string; email?: string; details?: Token }>
+    DatabaseResult<{
+      success: boolean;
+      message: string;
+      email?: string;
+      details?: Token;
+    }>
   >;
 }
 
@@ -689,7 +696,11 @@ export interface ICrudAdapter {
   find<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options?: FindOptions<T> & { rawSql?: boolean; sql?: string; params?: Record<string, any> },
+    options?: FindOptions<T> & {
+      rawSql?: boolean;
+      sql?: string;
+      params?: Record<string, any>;
+    },
   ): Promise<DatabaseResult<T[]>>;
   insert<T extends BaseEntity>(
     collection: string,

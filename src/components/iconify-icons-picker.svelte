@@ -743,7 +743,7 @@ Advanced icon picker with search, pagination, and favorites.
 						in:fade={{ duration: prefersReducedMotion ? 0 : 300 }}
 					>
 						{#each displayIcons as icon, index (icon)}
-							{@const fullIconName = icon.includes(':') ? icon : `${selectedLibrary}:${icon}`}
+							{const fullIconName = icon.includes(':') ? icon : `${selectedLibrary}:${icon}`}
 							<div
 								onclick={() => selectIcon(icon)}
 								onkeydown={(e) => e.key === 'Enter' && selectIcon(icon)}

@@ -18,6 +18,7 @@ Renders selected media files as thumbnails for display purposes.
 -->
 <script lang="ts">
 	import type { MediaFile } from './types';
+	import Badge from '@components/ui/badge.svelte';
 
 	const { value }: { value: string | string[] | null | undefined } = $props();
 
@@ -73,7 +74,7 @@ Renders selected media files as thumbnails for display purposes.
 						class="absolute bottom-full left-1/2 z-10 hidden -translate-x-1/2 flex-wrap gap-1 rounded bg-surface-900 p-1 text-[8px] text-white group-hover:flex"
 					>
 						{#each (file as any).aiTags.slice(0, 5) as tag, i (tag + i)}
-							<span class="badge variant-filled-primary py-0 px-1">{tag}</span>
+							<Badge variant="primary" size="sm" class="py-0! px-1!">{tag}</Badge>
 						{/each}
 					</div>
 				{/if}

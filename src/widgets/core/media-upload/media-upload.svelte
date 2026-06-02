@@ -45,6 +45,7 @@ functionality for image editing and basic file information display.
 	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
 	import { getFieldName } from '@utils/utils';
 	import { formatDateString } from '@utils/date';
+	import Badge from '@components/ui/badge.svelte';
 
 	// Define reactive state
 	let isFlipped = $state(false);
@@ -279,7 +280,7 @@ functionality for image editing and basic file information display.
 						<div class="relative col-span-11 m-auto" bind:this={containerRef}>
 							<img
 								src={value instanceof File ? URL.createObjectURL(value) : value.thumbnails?.sm?.url || value.url}
-								alt="Preview"
+								alt={value instanceof File ? value.name : (value.metadata?.altText || value.originalFilename || 'Media preview')}
 								class="max-h-[200px] max-w-[500px] rounded"
 							/>
 							{#if value && !(value instanceof File)}
@@ -314,7 +315,7 @@ functionality for image editing and basic file information display.
 								<p class="">AI Tags:</p>
 								<div class="flex flex-wrap gap-1">
 									{#each value.metadata.aiTags as tag, i (tag + i)}
-										<span class="badge variant-soft-primary text-[10px]">{tag}</span>
+										<Badge variant="primary" size="sm" class="text-[10px]">{tag}</Badge>
 									{/each}
 								</div>
 							{/if}

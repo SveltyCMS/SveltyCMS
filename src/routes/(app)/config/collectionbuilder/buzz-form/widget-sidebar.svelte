@@ -83,7 +83,7 @@ let paletteItems = $derived(
 	<!-- Widget List -->
 	<div class="min-h-0 flex-1 overflow-y-auto space-y-6">
 		{#each categories as cat (cat)}
-			{@const catItems = paletteItems.filter((i) => i.category === cat)}
+			{const catItems = paletteItems.filter((i) => i.category === cat)}
 			{#if catItems.length > 0}
 				<div>
 					<h3 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-surface-400">{cat}</h3>

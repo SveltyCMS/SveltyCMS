@@ -55,9 +55,9 @@
 	<!-- Toolbar -->
 	<div class="flex items-center justify-between bg-surface-100 dark:bg-surface-800 p-2 border-b border-surface-200 dark:border-surface-700">
 		<div class="flex gap-1">
-			<button type="button" class="btn btn-sm {previewMode === 'edit' ? 'variant-filled-primary' : 'variant-soft'}" onclick={() => previewMode = 'edit'}>Edit</button>
-			<button type="button" class="btn btn-sm {previewMode === 'split' ? 'variant-filled-primary' : 'variant-soft'}" onclick={() => previewMode = 'split'}>Split</button>
-			<button type="button" class="btn btn-sm {previewMode === 'preview' ? 'variant-filled-primary' : 'variant-soft'}" onclick={() => previewMode = 'preview'}>Preview</button>
+			<button type="button" class="px-3 py-1 rounded text-xs font-semibold transition-colors {previewMode === 'edit' ? 'bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-500 dark:hover:bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700'}" onclick={() => previewMode = 'edit'}>Edit</button>
+			<button type="button" class="px-3 py-1 rounded text-xs font-semibold transition-colors {previewMode === 'split' ? 'bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-500 dark:hover:bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700'}" onclick={() => previewMode = 'split'}>Split</button>
+			<button type="button" class="px-3 py-1 rounded text-xs font-semibold transition-colors {previewMode === 'preview' ? 'bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-500 dark:hover:bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700'}" onclick={() => previewMode = 'preview'}>Preview</button>
 		</div>
 		<span class="text-[10px] text-surface-400 uppercase font-bold">{LANGUAGE}</span>
 	</div>

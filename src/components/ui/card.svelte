@@ -63,28 +63,39 @@ corner-shape angled corners.
   });
 
   const customStyles = $derived.by(() => {
-    if (!isCustomColor) return '';
-    if (finalPreset === 'tonal') {
-      return `--preset-bg: ${finalColor}15; --preset-text: ${finalColor}; --preset-border: ${finalColor}33;`;
+    let styles = '';
+    
+    // Set dynamic border-radius
+    if (shape !== 'angle') {
+      styles += `border-radius: var(--admin-radius-card, 12px); `;
     }
-    if (finalPreset === 'outlined') {
-      return `--preset-bg: transparent; --preset-text: ${finalColor}; --preset-border: ${finalColor};`;
+
+    // Set dynamic border-width and shadow
+    styles += `border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation); `;
+    
+    if (isCustomColor) {
+      if (finalPreset === 'tonal') {
+        styles += `--preset-bg: ${finalColor}15; --preset-text: ${finalColor}; --preset-border: ${finalColor}33;`;
+      } else if (finalPreset === 'outlined') {
+        styles += `--preset-bg: transparent; --preset-text: ${finalColor}; --preset-border: ${finalColor};`;
+      } else {
+        styles += `--preset-bg: ${finalColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+      }
     }
-    // Default filled
-    return `--preset-bg: ${finalColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+    return styles || undefined;
   });
 
   const classes = $derived(cn(
     'card transition-all duration-200',
     getPresetClass(),
-    shape === 'angle' ? 'corner-angle' : 'rounded-lg',
+    shape === 'angle' ? 'corner-angle' : '',
     // Default neutral card when no preset/color
     !finalPreset && !isCustomColor && 'border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-surface-50 shadow-sm',
     className
   ));
 </script>
 
-<div class={classes} style={customStyles || undefined} {...rest}>
+<div class={classes} style={customStyles} {...rest}>
   {#if header}
     <div class="flex flex-col space-y-1.5 p-6 border-b border-surface-200/20 dark:border-surface-700/20">
       {@render header()}

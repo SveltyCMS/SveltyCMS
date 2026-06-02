@@ -94,8 +94,8 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const cache = data as CacheResponse | null}
-		{@const hasData = cache?.overall != null}
+		{const cache = data as CacheResponse | null}
+		{const hasData = cache?.overall != null}
 
 		{#if !hasData}
 			<!-- ===== Empty / Loading ===== -->
@@ -105,7 +105,7 @@ export const widgetMeta = {
 				<div class="text-xs text-surface-400 mt-1">Metrics will appear as traffic flows</div>
 			</div>
 		{:else if isCompact}
-			{@const o = cache.overall}
+			{const o = cache.overall}
 			<!-- ===== Compact (h:1) ===== -->
 			<div class="flex h-full items-center gap-3 overflow-hidden">
 				<!-- Hit rate badge -->
@@ -137,7 +137,7 @@ export const widgetMeta = {
 				</div>
 			</div>
 		{:else}
-			{@const o = cache.overall}
+			{const o = cache.overall}
 			<!-- ===== Rich (h:2+) ===== -->
 			<div class="flex h-full flex-col space-y-3">
 				<!-- Overall Summary -->

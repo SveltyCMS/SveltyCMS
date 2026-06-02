@@ -150,7 +150,7 @@ export const widgetMeta = {
 	onDataLoaded={handleDataLoaded}
 >
 	{#snippet children({ data })}
-		{@const healthData = data as HealthData | null}
+		{const healthData = data as HealthData | null}
 
 		{#if !healthData}
 			<div class="flex h-full items-center justify-center">
@@ -222,8 +222,8 @@ export const widgetMeta = {
 						<!-- Services Cards Feed -->
 						<div class="flex-1 overflow-y-auto pr-1 space-y-2 custom-scroll max-h-55">
 							{#each Object.entries(healthData.components) as [name, service] (name)}
-								{@const latency = service.performance?.latency}
-								{@const history = latencyHistory[name] || []}
+								{const latency = service.performance?.latency}
+								{const history = latencyHistory[name] || []}
 								<div class="rounded-2xl bg-surface-50 dark:bg-surface-800/40 p-3 border border-surface-200/50 dark:border-surface-700/50 flex items-center justify-between gap-3">
 									<div class="flex-1 min-w-0">
 										<div class="flex items-center gap-1.5">
@@ -243,12 +243,12 @@ export const widgetMeta = {
 									<div class="flex items-center gap-3">
 										<!-- Mini SVG Latency Sparkline inside card -->
 										{#if history.length > 1}
-											{@const maxVal = Math.max(...history, 50)}
-											{@const points = history.map((val, i) => ({
+											{const maxVal = Math.max(...history, 50)}
+											{const points = history.map((val, i) => ({
 												x: (i / Math.max(1, history.length - 1)) * 40,
 												y: 14 - (val / maxVal) * 12
 											}))}
-											{@const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+											{const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
 											<div class="w-10 h-4 opacity-70 hidden sm:block" aria-hidden="true" title="Latency trend">
 												<svg viewBox="0 0 40 14" class="w-full h-full overflow-visible">
 													<path d={linePath} fill="none" stroke="rgb(16, 185, 129)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />

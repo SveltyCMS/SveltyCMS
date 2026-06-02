@@ -40,6 +40,7 @@ keyboard navigation, and motion-respecting transitions.
 
 <script lang="ts">
 	import { cn } from '@utils/cn';
+	import { generateId } from '@utils/id-generator';
 
 	interface Props {
 		checked?: boolean | 'indeterminate';
@@ -77,7 +78,7 @@ keyboard navigation, and motion-respecting transitions.
 	let internalChecked = $state(checked !== false);
 	let prefersReducedMotion = $state(false);
 
-	const generatedId = globalThis.crypto?.randomUUID?.() ?? `checkbox-${Math.random().toString(36).slice(2, 9)}`;
+	const generatedId = generateId('checkbox');
 	const errorId = $derived(error ? `${generatedId}-error` : undefined);
 	const descriptionId = $derived(description ? `${generatedId}-description` : undefined);
 

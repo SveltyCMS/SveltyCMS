@@ -27,13 +27,12 @@ corner-shape angled corners.
 
 <script lang="ts">
   import { cn } from "@utils/cn";
+  import { generateId } from '@utils/id-generator';
   import type { HTMLInputAttributes } from "svelte/elements";
+  import { getThemeContext } from "./theme-context.svelte";
 
-  // Generate a RFC 4122 v4 UUID for accessibility linkage
-  const generatedId =
-    typeof crypto !== "undefined"
-      ? crypto.randomUUID()
-      : "input-" + Math.random().toString(36).substring(7);
+  // Generate a hydration-safe unique ID
+  const generatedId = generateId('input');
 
   type Props = HTMLInputAttributes & {
     value?: string | number | string[];
@@ -61,15 +60,42 @@ corner-shape angled corners.
     ...rest
   }: Props = $props();
 
-  const baseInputStyles =
-    "flex h-10 w-full border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-surface-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200";
+  const theme = getThemeContext();
+
+  	const baseInputStyles =
+  		"flex h-10 w-full border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200";
 
   const errorInputStyles = "border-error-500 focus-visible:ring-error-500";
 
   const customStyles = $derived.by(() => {
-    if (!focusColor) return '';
-    return `--focus-ring-color: ${focusColor};`;
+    let styles = '';
+
+    // Wire custom property for input border radius
+    if (shape !== 'angle') {
+      styles += `border-radius: var(--admin-radius-input, 6px); `;
+    }
+
+    // Set dynamic border-width
+    styles += `border-width: var(--admin-border-width, 1px); `;
+
+    // Apply scale multiplier dynamically to heights and paddings
+    const scale = theme ? theme.spacingScale : 1.0;
+    if (scale !== 1.0) {
+      const heightValue = 40; // Default md/cozy
+      const pxValue = 12; // 3 * 4px
+      const pyValue = 8;  // 2 * 4px
+      const textValue = '0.875rem';
+
+      styles += `height: ${Math.round(heightValue * scale)}px; padding-left: ${Math.round(pxValue * scale * 10) / 10}px; padding-right: ${Math.round(pxValue * scale * 10) / 10}px; padding-top: ${Math.round(pyValue * scale * 10) / 10}px; padding-bottom: ${Math.round(pyValue * scale * 10) / 10}px; font-size: ${textValue}; `;
+    }
+
+    if (focusColor) {
+      styles += `--focus-ring-color: ${focusColor}; `;
+    }
+    return styles || undefined;
   });
+
+  const errorId = $derived(error ? `${id}-error` : undefined);
 </script>
 
 <div class="space-y-2 w-full">
@@ -91,19 +117,20 @@ corner-shape angled corners.
     class={cn(
       baseInputStyles,
       error && errorInputStyles,
-      shape === 'angle' ? 'corner-angle' : 'rounded-md',
+      shape === 'angle' ? 'corner-angle' : '',
       focusColor && 'focus-custom',
       inputClass,
       className,
     )}
-    style={customStyles || undefined}
+    style={customStyles}
     bind:value
     aria-invalid={!!error}
+    aria-describedby={errorId}
     {...rest}
   />
 
   {#if error}
-    <p class="text-[0.8rem] font-medium text-error-500">
+    <p id={errorId} class="text-[0.8rem] font-medium text-error-500" role="alert">
       {error}
     </p>
   {/if}

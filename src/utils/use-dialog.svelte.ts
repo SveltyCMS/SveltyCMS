@@ -75,11 +75,16 @@ export function useDialog(options: DialogOptions) {
         const focusable = dialogEl?.querySelector<HTMLElement>(FOCUSABLE);
         if (focusable) focusable.focus();
       });
-    } else if (!isOpen && triggerEl) {
-      if (document.contains(triggerEl)) {
-        (triggerEl as HTMLElement).focus();
+    } else if (!isOpen) {
+      if (dialogEl && dialogEl.open) {
+        dialogEl.close();
       }
-      triggerEl = null;
+      if (triggerEl) {
+        if (document.contains(triggerEl)) {
+          (triggerEl as HTMLElement).focus();
+        }
+        triggerEl = null;
+      }
       document.body.style.overflow = "";
       options.onclose?.();
     }
@@ -140,7 +145,12 @@ export function useDialog(options: DialogOptions) {
   });
 
   return {
-    dialogEl,
+    get dialogEl() {
+      return dialogEl;
+    },
+    set dialogEl(value) {
+      dialogEl = value;
+    },
     get dialogAria() {
       return dialogAria;
     },

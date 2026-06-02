@@ -25,6 +25,7 @@
 	import { getFieldName } from '@utils/utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import Portal from "@components/ui/portal.svelte";
+	import Badge from '@components/ui/badge.svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
@@ -283,7 +284,7 @@
 						{#if (file as any).aiTags?.length}
 							<div class="mt-1 flex flex-wrap justify-center gap-0.5">
 								{#each (file as any).aiTags.slice(0, 3) as tag, i (tag + i)}
-									<span class="badge variant-soft-secondary py-0 px-1 text-[8px]">{tag}</span>
+									<Badge variant="secondary" size="sm" class="text-[8px]">{tag}</Badge>
 								{/each}
 								{#if (file as any).aiTags.length > 3}
 									<span class="text-[8px] opacity-50">...</span>

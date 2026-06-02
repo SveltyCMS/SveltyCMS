@@ -199,7 +199,7 @@ function selectNode(id: string) {
 			<h3 class="text-xs font-bold uppercase tracking-widest opacity-40 mb-6">Properties</h3>
 			
 			{#if selectedNodeId}
-				{@const node = states.find(s => s.id === selectedNodeId)}
+				{const node = states.find(s => s.id === selectedNodeId)}
 				{#if node}
 					<div class="space-y-6" in:fade>
                         <div class="badge preset-filled-primary-500 text-[10px]">State: {node.id}</div>
@@ -225,7 +225,7 @@ function selectNode(id: string) {
 					</div>
 				{/if}
 			{:else if selectedTransitionId}
-                {@const trans = transitions.find(t => t.id === selectedTransitionId)}
+                {const trans = transitions.find(t => t.id === selectedTransitionId)}
                 {#if trans}
                     <div class="space-y-6" in:fade>
                         <div class="badge preset-filled-secondary-500 text-[10px]">Transition: {trans.id}</div>

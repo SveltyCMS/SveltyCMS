@@ -111,7 +111,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							<!-- Group by priority/type implicitly by sorting -->
 							<h4 class="h4">Room for Improvement</h4>
 							{#each analysisResult.suggestions as suggestion (suggestion.title)}
-								{@const suggestionIcon =
+								{const suggestionIcon =
 									suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 								<div
 									class="card border-l-4 p-4 {suggestion.type === 'error'

@@ -129,7 +129,7 @@
 		{#if safeValue}
 			<button 
 				type="button" 
-				class="btn btn-sm variant-soft-surface p-1 mr-1 opacity-60 hover:opacity-100"
+				class="p-1 mr-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center"
 				onclick={handleClear}
 				title="Clear"
 			>

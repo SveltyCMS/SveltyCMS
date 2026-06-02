@@ -29,6 +29,9 @@ export interface MediaProps {
    */
   placeholder?: string;
 
+  /** ATAG 2.0 B.2.1: Whether to show alt-text input field for accessible media descriptions */
+  altText?: boolean;
+
   // Index signature to satisfy WidgetProps constraint
   [key: string]: unknown;
 }

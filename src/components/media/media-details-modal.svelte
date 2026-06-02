@@ -632,7 +632,7 @@
             <h3 class="font-bold text-sm mb-2">Active Sharing Links</h3>
             <div class="flex flex-col gap-2">
               {#each file.metadata?.sharedLinks || [] as link}
-                {@const expired = isExpired(link.expiry)}
+                {const expired = isExpired(link.expiry)}
                 <div class="share-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl p-3 flex flex-col gap-2 text-xs">
                   <div class="flex justify-between items-center">
                     <div class="flex gap-2 items-center">

@@ -785,7 +785,7 @@ onMount(() => {
 									aria-describedby={errors[defaultLangField.key] ? `${defaultLangField.key}-error` : undefined}
 								>
 									{#if (values.AVAILABLE_CONTENT_LANGUAGES as string[])?.length > 0}
-										{@const languages = values.AVAILABLE_CONTENT_LANGUAGES as string[]}
+										{const languages = values.AVAILABLE_CONTENT_LANGUAGES as string[]}
 										{#each languages as langCode (langCode)}
 											<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
 										{/each}
@@ -820,7 +820,7 @@ onMount(() => {
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[availableLangsField.key] as string[])?.length > 0}
-											{@const languages = values[availableLangsField.key] as string[]}
+											{const languages = values[availableLangsField.key] as string[]}
 											{#each languages as langCode (langCode)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
@@ -937,7 +937,7 @@ onMount(() => {
 									onchange={() => (errors[baseLocaleField.key] = '')}
 								>
 									{#if (values.LOCALES as string[])?.length > 0}
-										{@const locales = values.LOCALES as string[]}
+										{const locales = values.LOCALES as string[]}
 										{#each locales as langCode (langCode)}
 											<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
 										{/each}
@@ -972,7 +972,7 @@ onMount(() => {
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[localesField.key] as string[])?.length > 0}
-											{@const locales = values[localesField.key] as string[]}
+											{const locales = values[localesField.key] as string[]}
 											{#each locales as langCode (langCode)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
@@ -1229,7 +1229,7 @@ onMount(() => {
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as string[])?.length > 0}
-											{@const languages = values[field.key] as string[]}
+											{const languages = values[field.key] as string[]}
 											{#each languages as langCode (langCode)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
@@ -1321,7 +1321,7 @@ onMount(() => {
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
-											{@const levels = values[field.key] as LogLevel[]}
+											{const levels = values[field.key] as LogLevel[]}
 											{#each levels as level (level)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
@@ -1369,7 +1369,7 @@ onMount(() => {
 										>
 											<div class="max-h-48 overflow-auto">
 												{#each LOG_LEVELS as level (level)}
-													{@const currentValues = (values[field.key] as LogLevel[]) || []}
+													{const currentValues = (values[field.key] as LogLevel[]) || []}
 													{#if !currentValues.includes(level)}
 														<button
 															type="button"

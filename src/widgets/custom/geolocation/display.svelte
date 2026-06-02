@@ -25,7 +25,7 @@
 		<a 
 			href="https://www.google.com/maps/search/?api=1&query={value.coordinates[1]},{value.coordinates[0]}" 
 			target="_blank" 
-			class="btn btn-sm variant-soft-primary px-2 py-0 h-6"
+			class="text-[10px] font-semibold h-6 px-2.5 rounded bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-400 flex items-center justify-center transition-colors"
 		>
 			View on Map
 		</a>

@@ -23,6 +23,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
 
 <script lang="ts">
   import { cn } from '@utils/cn';
+  import { getThemeContext } from './theme-context.svelte';
 
   interface Props {
     variant?: 'primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'ghost' | 'outline';
@@ -130,17 +131,55 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
         }
   );
 
+  const theme = getThemeContext();
+
   // Calculate dynamic custom variables for custom color presets (e.g. database themes)
   const customStyles = $derived.by(() => {
-    if (!isCustomColor) return '';
-    if (variant === 'outline') {
-      return `--preset-bg: transparent; --preset-text: ${propColor}; --preset-border: ${propColor};`;
+    let styles = '';
+    
+    // Wire custom property for input/button border radius
+    if (shape !== 'angle' && !rounded) {
+      styles += `border-radius: var(--admin-radius-input, 4px); `;
     }
-    if (variant === 'ghost') {
-      return `--preset-bg: transparent; --preset-text: ${propColor}; --preset-border: transparent;`;
+
+    // Apply scale multiplier dynamically to heights and paddings
+    const scale = theme ? theme.spacingScale : 1.0;
+    if (scale !== 1.0) {
+      let heightValue = 40; // Default md
+      let pxValue = 16;
+      let textValue = '0.875rem';
+      let gapValue = 8;
+
+      if (size === 'sm') {
+        heightValue = 32;
+        pxValue = 12;
+        textValue = '0.75rem';
+        gapValue = 6;
+      } else if (size === 'lg') {
+        heightValue = 48;
+        pxValue = 24;
+        textValue = '1.125rem';
+        gapValue = 10;
+      } else if (size === 'xl') {
+        heightValue = 56;
+        pxValue = 32;
+        textValue = '1.25rem';
+        gapValue = 12;
+      }
+
+      styles += `height: ${Math.round(heightValue * scale)}px; padding-left: ${Math.round(pxValue * scale * 10) / 10}px; padding-right: ${Math.round(pxValue * scale * 10) / 10}px; font-size: ${textValue}; gap: ${Math.round(gapValue * scale * 10) / 10}px; `;
     }
-    // Default filled
-    return `--preset-bg: ${propColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+
+    if (isCustomColor) {
+      if (variant === 'outline') {
+        styles += `--preset-bg: transparent; --preset-text: ${propColor}; --preset-border: ${propColor};`;
+      } else if (variant === 'ghost') {
+        styles += `--preset-bg: transparent; --preset-text: ${propColor}; --preset-border: transparent;`;
+      } else {
+        styles += `--preset-bg: ${propColor}; --preset-text: #ffffff; --preset-border: transparent;`;
+      }
+    }
+    return styles || undefined;
   });
 </script>
 
@@ -157,11 +196,11 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-surface-500 dark:focus-visible:ring-surface-300',
     variantClass,
     sizeClass,
-    shape === 'angle' ? 'corner-angle' : (rounded ? 'rounded-full' : 'rounded-sm'),
+    shape === 'angle' ? 'corner-angle' : (rounded ? 'rounded-full' : ''),
     isDisabled && 'opacity-60 cursor-not-allowed',
     className
   )}
-  style={customStyles || undefined}
+  style={customStyles}
 >
   <!-- Premium gradient overlay -->
   <div class="absolute inset-0 rounded-[inherit] bg-linear-to-tr from-white/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"></div>

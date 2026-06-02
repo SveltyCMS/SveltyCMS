@@ -40,6 +40,7 @@ import { initializeDarkMode } from "@src/stores/theme-store.svelte.ts";
 import { ui } from "@src/stores/ui-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import Portal from "@components/ui/portal.svelte";
+import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
 import { isSearchVisible } from "@utils/global-search-index";
 import { getTextDirection } from "@utils/utils";
@@ -80,6 +81,27 @@ const { children, data }: Props = $props();
 
 // Initialize Content Context
 setContentContext(untrack(() => data.tenantId) || null);
+
+// Initialize Adaptive Workspace Theme Context based on User Role
+const userRole = $derived(data.user?.role || 'editor');
+const initialDensity = $derived(
+	userRole === 'admin' || userRole === 'manager'
+		? 'spacious'
+		: userRole === 'translator'
+			? 'compact'
+			: 'cozy'
+);
+
+const theme = setThemeContext(untrack(() => ({
+	role: userRole as any,
+	density: initialDensity,
+	themeName: 'default'
+})));
+
+$effect(() => {
+	theme.role = userRole as any;
+	theme.density = initialDensity;
+});
 
 // Component State
 let loadError = $state<Error | null>(null);
@@ -244,7 +266,16 @@ afterNavigate(() => {
 		</div>
 	</div>
 {:else}
-	<div class="relative h-lvh w-full">
+	<div 
+		class="relative h-lvh w-full"
+		style="
+			--admin-spacing-scale: {theme.spacingScale};
+			--admin-radius-card: {theme.radiusCard};
+			--admin-radius-input: {theme.radiusInput};
+			--admin-sidebar-width: {theme.sidebarWidth};
+			--admin-header-height: {theme.headerHeight};
+		"
+	>
 		{#if $isSearchVisible}
 			<SearchComponent />
 		{/if}

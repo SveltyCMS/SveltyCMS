@@ -179,9 +179,9 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		{:else}
 			<div class="grid grid-cols-1 gap-2 p-1">
 				{#each filteredEntries as entry (entry._id || entry.id)}
-					{@const id = entry._id || entry.id}
-					{@const idStr = id.toString()}
-					{@const isSelected = selected.has(idStr)}
+					{const id = entry._id || entry.id}
+					{const idStr = id.toString()}
+					{const isSelected = selected.has(idStr)}
 					<button
 						type="button"
 						class="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus:ring-2 focus:ring-primary-500"

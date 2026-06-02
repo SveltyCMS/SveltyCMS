@@ -400,8 +400,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			>
 				<ul class="flex flex-col py-1">
 					{#each filteredActions as action (action)}
-						{@const config = actionConfig[action]}
-						{@const disabled = disabledMap[action]}
+						{const config = actionConfig[action]}
+						{const disabled = disabledMap[action]}
 						<li role="none">
 							<button
 								type="button"

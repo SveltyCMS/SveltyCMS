@@ -475,7 +475,7 @@ const steps = [
 							onfinalize={handleDnd}
 						>
 							{#each flow.operations as op, i (op.id)}
-								{@const meta = getOperationMeta(op.type)}
+								{const meta = getOperationMeta(op.type)}
 								<div
 									class="card p-4 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-900 relative"
 									transition:slide
@@ -512,7 +512,7 @@ const steps = [
 
 									<!-- Webhook Config -->
 									{#if op.type === 'webhook'}
-										{@const cfg = op.config as WebhookOperationConfig}
+										{const cfg = op.config as WebhookOperationConfig}
 										<div class="space-y-3">
 											<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 												<label class="label md:col-span-2">
@@ -568,7 +568,7 @@ const steps = [
 
 									<!-- Email Config -->
 									{#if op.type === 'email'}
-										{@const cfg = op.config as EmailOperationConfig}
+										{const cfg = op.config as EmailOperationConfig}
 										<div class="space-y-3">
 											<div class="relative">
 												<label class="label">
@@ -652,7 +652,7 @@ const steps = [
 
 									<!-- Log Config -->
 									{#if op.type === 'log'}
-										{@const cfg = op.config as LogOperationConfig}
+										{const cfg = op.config as LogOperationConfig}
 										<div class="space-y-3">
 											<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 												<div class="relative md:col-span-2">
@@ -693,7 +693,7 @@ const steps = [
 
 									<!-- Set Field Config -->
 									{#if op.type === 'set_field'}
-										{@const cfg = op.config as SetFieldOperationConfig}
+										{const cfg = op.config as SetFieldOperationConfig}
 										<div class="grid grid-cols-2 gap-3">
 											<label class="label">
 												<span class="text-sm">Field Name</span>
@@ -728,7 +728,7 @@ const steps = [
 
 									<!-- Condition Config -->
 									{#if op.type === 'condition'}
-										{@const cfg = op.config as ConditionOperationConfig}
+										{const cfg = op.config as ConditionOperationConfig}
 										<div class="grid grid-cols-3 gap-3">
 											<label class="label">
 												<span class="text-sm">Field</span>
@@ -802,7 +802,7 @@ const steps = [
 							<span class="font-medium">Trigger:</span>
 							{#if flow.trigger.type === 'event'}
 								{#each flow.trigger.events || [] as event (event)}
-									{@const meta = AUTOMATION_EVENTS.find((e) => e.event === event)}
+									{const meta = AUTOMATION_EVENTS.find((e) => e.event === event)}
 									<span class="badge preset-tonal-primary text-xs">
 										<iconify-icon icon={meta?.icon || 'mdi:flash'} class="mr-1"></iconify-icon>
 										{meta?.label || event}
@@ -822,7 +822,7 @@ const steps = [
 						<div class="flex flex-wrap items-center gap-2 text-sm">
 							<span class="font-medium">Chain:</span>
 							{#each flow.operations as op, i (op.id)}
-								{@const meta = getOperationMeta(op.type)}
+								{const meta = getOperationMeta(op.type)}
 								<span class="badge preset-tonal-secondary text-xs">
 									<iconify-icon icon={meta?.icon || 'mdi:cog'} class="mr-1"></iconify-icon>
 									{meta?.label || op.type}
@@ -887,7 +887,7 @@ const steps = [
 								</div>
 
 								{#each testResult.operationResults as opResult, i (i)}
-									{@const opMeta = OPERATION_TYPES.find((t) => t.type === opResult.type)}
+									{const opMeta = OPERATION_TYPES.find((t) => t.type === opResult.type)}
 									<div class="py-2 border-t border-surface-200 dark:border-surface-700">
 										<div class="flex items-center gap-2 text-sm mb-1">
 											<iconify-icon

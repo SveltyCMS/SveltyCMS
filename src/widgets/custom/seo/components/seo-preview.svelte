@@ -144,7 +144,7 @@
 	</div>
 
 	<!-- Preview Card -->
-	<div class="card variant-glass-surface p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-[375px] mx-auto' : 'w-full'}">
+	<div class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-[375px] mx-auto' : 'w-full'}">
 		<!-- URL Line -->
 		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700">
@@ -171,7 +171,7 @@
 					{/each}
 				</h3>
 			{:else}
-				<h3 class="text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500 hover:underline dark:text-primary-500">{title || 'Page Title'}</h3>
+				<h3 class="text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500 hover:underline">{title || 'Page Title'}</h3>
 			{/if}
 		</div>
 

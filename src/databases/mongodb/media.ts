@@ -60,6 +60,7 @@ export const mediaSchema = new Schema<MediaItem>(
       duration: Number, // Duration for videos/audio
       codec: String, // Codec used for media file
       format: String, // Format of the media file
+      altText: String, // ATAG 2.0 B.2.1: Accessible alternative text
       type: mongoose.Schema.Types.Mixed, // Allow additional metadata fields via [key: string]: unknown
     },
     createdBy: { type: String, required: true }, // Created by user ID

@@ -68,7 +68,7 @@ const cHeader =
 		<!-- Grid -->
 		<div class="flex-1 overflow-y-auto p-6">
 			{#each ['Core', 'Custom', 'Marketplace'] as category (category)}
-				{@const categoryKeys =
+				{const categoryKeys =
 					category === 'Core'
 						? widgets.coreWidgets
 						: category === 'Custom'
@@ -77,7 +77,7 @@ const cHeader =
 								? widgets.marketplaceWidgets
 								: []}
 
-				{@const filteredKeys = categoryKeys.filter((key) => !searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase()))}
+				{const filteredKeys = categoryKeys.filter((key) => !searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase()))}
 
 				{#if filteredKeys.length > 0}
 					<div class="mb-8 last:mb-0">

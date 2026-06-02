@@ -61,7 +61,7 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const cpu = {
+		{const cpu = {
 			current: Number(data?.cpuInfo?.historicalLoad?.usage?.at(-1) ?? 0),
 			average: data?.cpuInfo?.historicalLoad?.usage?.length
 				? Number(data.cpuInfo.historicalLoad.usage.reduce((a: number, b: number) => a + b, 0) / data.cpuInfo.historicalLoad.usage.length)
@@ -73,13 +73,13 @@ export const widgetMeta = {
 
 		{#if data?.cpuInfo}
 			<!-- SVG Chart / Sparkline Calculations -->
-			{@const chartHeight = size.h === 1 ? 40 : 150}
-			{@const points = cpu.usage.map((val: number, i: number) => ({
+			{const chartHeight = size.h === 1 ? 40 : 150}
+			{const points = cpu.usage.map((val: number, i: number) => ({
 				x: (i / Math.max(1, cpu.usage.length - 1)) * 300,
 				y: chartHeight - (val / 100) * (chartHeight - (size.h === 1 ? 4 : 20)) - (size.h === 1 ? 2 : 10)
 			}))}
-			{@const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
-			{@const areaPath = points.length ? `${linePath} L ${points.at(-1)!.x.toFixed(2)} ${chartHeight} L 0 ${chartHeight} Z` : ''}
+			{const linePath = points.map((p: { x: number; y: number }, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')}
+			{const areaPath = points.length ? `${linePath} L ${points.at(-1)!.x.toFixed(2)} ${chartHeight} L 0 ${chartHeight} Z` : ''}
 
 			<div class="flex h-full flex-col justify-between {size.h === 1 ? 'space-y-1' : 'space-y-3'}">
 				{#if size.h === 1}
@@ -177,8 +177,8 @@ export const widgetMeta = {
 
 					<!-- Tooltip (Only in rich layout) -->
 					{#if size.h !== 1 && activeIndex !== null && points[activeIndex]}
-						{@const val = cpu.usage[activeIndex]}
-						{@const time = new Date(cpu.timestamps[activeIndex]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+						{const val = cpu.usage[activeIndex]}
+						{const time = new Date(cpu.timestamps[activeIndex]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 						<div
 							class="absolute pointer-events-none z-20 px-3 py-2 text-xs rounded-xl border shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700"
 							style="left: {Math.max(20, Math.min(points[activeIndex].x - 45, 220))}px; top: {points[activeIndex].y - 58}px;"

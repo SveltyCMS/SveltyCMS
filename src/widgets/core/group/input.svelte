@@ -150,9 +150,9 @@ Renders a group of fields, allowing for nested data structures.
 		{#if (field as any).fields && (field as any).fields.length > 0}
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				{#each (field as any).fields as subField, index (subField.db_fieldName || subField.name || index)}
-					{@const subFieldName = normalizeFieldName(subField)}
-					{@const widgetName = (subField as any).widget?.Name || (subField as any).type || 'Input'}
-					{@const widgetLoader = getWidgetLoader(widgetName)}
+					{const subFieldName = normalizeFieldName(subField)}
+					{const widgetName = (subField as any).widget?.Name || (subField as any).type || 'Input'}
+					{const widgetLoader = getWidgetLoader(widgetName)}
 
 					<div class="col-span-1 {(subField as any).width ? `lg:col-span-${(subField as any).width}` : ''} w-full">
 						{#if widgetLoader && value}

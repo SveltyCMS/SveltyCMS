@@ -427,8 +427,8 @@ FIXES:
 		</div>
 
 		{#each dropdownLanguages as lang (lang)}
-			{@const percentage = languageProgress[lang] || 0}
-			{@const isActive = currentLanguage === lang}
+			{const percentage = languageProgress[lang] || 0}
+			{const isActive = currentLanguage === lang}
 
 			<button
 				class="w-full text-left px-3 py-2 flex items-center gap-3 rounded-lg transition-colors {isActive ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold' : 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300'}"

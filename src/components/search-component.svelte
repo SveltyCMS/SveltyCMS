@@ -430,8 +430,8 @@ accessibility -->
 							: ''}"
 					>
 						{#if Object.entries(result.triggers).length === 1}
-							{@const triggerKey = Object.keys(result.triggers)[0]}
-							{@const trigger = result.triggers[triggerKey]}
+							{const triggerKey = Object.keys(result.triggers)[0]}
+							{const trigger = result.triggers[triggerKey]}
 							<button
 								type="button"
 								class="w-full px-4 py-3 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"

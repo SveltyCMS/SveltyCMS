@@ -453,7 +453,7 @@ Part of the Three Pillars Architecture for the widget system.
 			<iconify-icon icon="mdi:map-marker-radius" width="20"></iconify-icon>
 			{field.label}
 		</div>
-		<button type="button" class="btn btn-sm variant-soft-surface gap-1" onclick={handleClear}>
+		<button type="button" class="px-3 py-1.5 rounded text-xs font-semibold bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center gap-1" onclick={handleClear}>
 			<iconify-icon icon="mdi:close-circle-outline" width="16"></iconify-icon>
 			Clear
 		</button>
@@ -555,7 +555,7 @@ Part of the Three Pillars Architecture for the widget system.
 			<div class="lg:col-span-5 flex flex-col gap-2">
 				<div class="label text-xs uppercase font-bold text-surface-500 flex items-center justify-between">
 					<span>Interactive Map</span>
-					<span class="badge variant-soft-primary uppercase text-[9px] font-mono tracking-wider px-1.5 py-0.5">
+					<span class="badge preset-tonal-primary uppercase text-[9px] font-mono tracking-wider px-1.5 py-0.5">
 						{googleMapsApiKey ? 'Google Maps' : 'MapLibre Free'}
 					</span>
 				</div>

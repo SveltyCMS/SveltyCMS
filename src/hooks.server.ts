@@ -33,6 +33,7 @@ if (typeof (globalThis as any).__dirname === "undefined") {
 }
 
 import { isSetupComplete } from "@utils/setup-check-fast";
+import { resetIdCounters } from "@utils/id-generator";
 
 // 🚀 ZERO-RESTART ARCHITECTURE:
 // We track the setup state dynamically to allow the system to switch from
@@ -401,6 +402,8 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   inFlightRequests++;
+  // Reset per-request ID counters for deterministic SSR/hydration IDs
+  resetIdCounters();
   const traceId = (event.locals as any).requestId || crypto.randomUUID();
   const traceHeader = event.request.headers.get("x-svelty-trace");
   const isBenchmark =

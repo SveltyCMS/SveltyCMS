@@ -501,7 +501,7 @@
 			</select>
 		</label>
 		{#if selectedPreset !== setup_email_preset_custom()}
-			{@const preset = presets.find((p) => p.name === selectedPreset)}
+			{const preset = presets.find((p) => p.name === selectedPreset)}
 			{#if preset?.note}
 				<div class="card preset-outlined-warning-500 flex items-start gap-2 p-3" role="alert">
 					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500" aria-hidden="true"></iconify-icon>
@@ -648,7 +648,7 @@
 						{setup_email_button_custom()}
 					</button>
 				</div>
-				{@const selectedPort = commonPorts.find((p) => p.value === effectivePort())}
+				{const selectedPort = commonPorts.find((p) => p.value === effectivePort())}
 				{#if selectedPort}
 					<div class="mt-1 flex items-center gap-2">
 						{#if effectiveSecure()}

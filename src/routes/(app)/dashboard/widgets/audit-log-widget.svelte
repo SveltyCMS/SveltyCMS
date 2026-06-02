@@ -102,7 +102,7 @@ export const widgetMeta = {
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const logs = (Array.isArray(data) ? data : []) as AuditEntry[]}
+		{const logs = (Array.isArray(data) ? data : []) as AuditEntry[]}
 
 		{#if logs.length === 0}
 			<!-- ===== Empty ===== -->

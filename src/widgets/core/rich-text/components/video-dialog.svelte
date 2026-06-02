@@ -10,6 +10,7 @@
 
 <script lang="ts">
 	import FloatingInput from '@components/ui/floating-input.svelte';
+	import Button from '@components/ui/button.svelte';
 	import type { Editor } from '@tiptap/core';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -85,15 +86,15 @@
 		{#if insertUrl}
 			<form onsubmit={handleSubmit} class="relative mt-2 flex flex-col items-center justify-center gap-4">
 				<FloatingInput bind:value={youtubeUrl} autofocus={true} textColor="black" name="Youtube URL" label="Youtube URL" />
-				<button type="submit" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full">Add Video</button>
+				<Button type="submit" variant="primary" class="w-full">Add Video</Button>
 			</form>
 		{:else}
 			<div class="relative mt-2 flex flex-col items-center justify-center gap-4">
 				<p class="text-sm text-gray-500">Video upload is not yet implemented.</p>
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
-					<button class="preset-outline-primary-500 btn w-full" disabled>Browse locally</button>
-					<button class="variant-filled-secondary btn w-full" onclick={() => (insertUrl = true)}>YouTube</button>
+					<Button variant="outline" class="w-full" disabled>Browse locally</Button>
+					<Button variant="secondary" class="w-full" onclick={() => (insertUrl = true)}>YouTube</Button>
 				</div>
 			</div>
 		{/if}

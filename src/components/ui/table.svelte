@@ -201,7 +201,7 @@ function onVirtualScroll() {
                         <tr aria-hidden="true" style="height: {virtualTopSpacer}px"></tr>
 
                         {#each virtualData as row, vi}
-                            {@const index = virtualVisibleStart + vi}
+                            {const index = virtualVisibleStart + vi}
                             {#if rowSnippet}
                                 {@render rowSnippet({ row, index })}
                             {:else}

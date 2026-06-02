@@ -428,9 +428,9 @@ async function uploadLocalFiles() {
 		<!-- File Grid -->
 		<div class="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
 			{#each files as file (file.name + file.size)}
-				{@const fileKey = `${file.name}-${file.size}`}
-				{@const previewUrl = objectUrls.get(fileKey)}
-				{@const iconName = getFileIcon(file)}
+				{const fileKey = `${file.name}-${file.size}`}
+				{const previewUrl = objectUrls.get(fileKey)}
+				{const iconName = getFileIcon(file)}
 
 				<div class="group relative overflow-hidden rounded border border-surface-200 shadow-sm transition-all hover:shadow-md dark:border-surface-50">
 					<!-- Delete button -->

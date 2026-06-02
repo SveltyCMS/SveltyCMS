@@ -120,12 +120,12 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		{:else if analysisResult}
 			<!-- Metrics Summary -->
 			<div class="grid grid-cols-2 gap-2 p-3 bg-surface-50/5 border-b border-surface-500/10">
-				<div class="card p-2 variant-soft">
+				<div class="card p-2 preset-soft-surface">
 					<div class="text-[10px] uppercase opacity-50 font-bold">Readability</div>
 					<div class="text-sm font-bold">{analysisResult.readability.fleschKincaidScore}</div>
 					<div class="text-[9px] opacity-70 leading-tight">{getReadingEaseDescription(analysisResult.readability.fleschKincaidScore)}</div>
 				</div>
-				<div class="card p-2 variant-soft">
+				<div class="card p-2 preset-soft-surface">
 					<div class="text-[10px] uppercase opacity-50 font-bold">Word Count</div>
 					<div class="text-sm font-bold">{analysisResult.readability.wordCount}</div>
 					<div class="text-[9px] opacity-70">~{analysisResult.readability.readingTime} min read</div>
@@ -139,7 +139,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 					<div class="space-y-2">
 				{#if analysisResult.suggestions.length > 0}
 					{#each analysisResult.suggestions as suggestion (suggestion.id)}
-						{@const suggestionIcon =
+						{const suggestionIcon =
 							suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 						<div
 							class="card border-l-4 p-3 {suggestion.type === 'error'
@@ -178,7 +178,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						</div>
 					{/each}
 				{:else}
-					<div class="alert variant-soft-success">
+					<div class="flex items-center gap-2 rounded-lg border border-success-200 bg-success-50/50 p-3 text-success-700 dark:border-success-900/30 dark:bg-success-950/20 dark:text-success-300">
 						<iconify-icon icon="mdi:check-circle" class="text-xl"></iconify-icon>
 						<span class="text-sm">No issues found!</span>
 					</div>
@@ -191,7 +191,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 					<div class="flex items-center justify-between mb-2">
 						<h4 class="text-xs font-bold uppercase opacity-50">Internal Linking</h4>
 						<button 
-							class="btn btn-sm variant-soft-primary py-0.5 px-2 text-[10px]" 
+							class="btn btn-sm preset-tonal-primary py-0.5 px-2 text-[10px]" 
 							onclick={fetchLinkSuggestions}
 							disabled={isFetchingLinks}
 						>
@@ -202,13 +202,13 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 					{#if linkSuggestions.length > 0}
 						<div class="space-y-2">
 							{#each linkSuggestions as link}
-								<div class="card p-2 variant-soft-surface text-xs flex items-center justify-between gap-2 group">
+								<div class="card p-2 preset-soft-surface text-xs flex items-center justify-between gap-2 group">
 									<div class="truncate flex-1">
 										<div class="font-bold truncate">{link.title}</div>
 										<div class="opacity-50 text-[10px] truncate">{link.url}</div>
 									</div>
 									<button 
-										class="btn btn-sm variant-ghost-surface p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+										class="btn btn-sm preset-ghost-surface-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
 										title="Copy relative URL"
 										onclick={() => {
 											navigator.clipboard.writeText(link.url);

@@ -501,7 +501,7 @@
         >
           {#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
             {#if rawField.widget}
-              {@const field = ensureFieldProperties(rawField)}
+              {const field = ensureFieldProperties(rawField)}
               <div
                 class="mx-auto text-center {!field?.width
                   ? 'w-full '
@@ -552,8 +552,8 @@
                     </SystemTooltip>
                     <!-- Translation status -->
                     {#if field.translated}
-                      {@const percentage = getFieldTranslationPercentage(field)}
-                      {@const textColor = getTranslationTextColor(percentage)}
+                      {const percentage = getFieldTranslationPercentage(field)}
+                      {const textColor = getTranslationTextColor(percentage)}
                       <div class="flex items-center gap-1 text-xs">
                         <iconify-icon icon="bi:translate" width="16"
                         ></iconify-icon>
@@ -578,10 +578,10 @@
                 </div>
 
                 {#if field.widget}
-                  {@const widgetName = field.widget.Name}
+                  {const widgetName = field.widget.Name}
 
                   <!-- --- PERFORMANCE FIX: ROBUST WIDGET FINDER --- -->
-                  {@const loadedWidget = (() => {
+                  {const loadedWidget = (() => {
                     // 1. Try exact path from widget store (fastest)
                     const storePath =
                       widgetFunctions[widgetName]?.componentPath;
@@ -646,7 +646,7 @@
                   })()}
 
                   {#if loadedWidget}
-                    {@const fieldName = getFieldName(field, false)}
+                    {const fieldName = getFieldName(field, false)}
                     {#key currentContentLanguage}
                       <!-- Widget remounts when currentContentLanguage changes -->
                       <WidgetLoader
@@ -740,11 +740,11 @@
             <h3 class="mb-3 text-lg font-bold">Quick Preview</h3>
 
             {#if selectedRevision}
-              {@const diffObject = selectedRevision?.diff || null}
+              {const diffObject = selectedRevision?.diff || null}
               {#if diffObject && Object.keys(diffObject).length > 0}
                 <div class="space-y-3 font-mono text-sm">
                   {#each Object.entries(diffObject) as [key, change] (key)}
-                    {@const ch = change as any}
+                    {const ch = change as any}
                     <div>
                       <strong
                         class="font-bold text-surface-600 dark:text-surface-300"

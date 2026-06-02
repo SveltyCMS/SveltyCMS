@@ -234,7 +234,7 @@
 
 				<!-- Password Strength Meter -->
 				{#if adminUser.password}
-					{@const score = Object.values(passwordRequirements).filter(Boolean).length}
+					{const score = Object.values(passwordRequirements).filter(Boolean).length}
 					<div class="space-y-4">
 						<div class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
 							<div class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}" style="width: 20%" aria-hidden="true"></div>

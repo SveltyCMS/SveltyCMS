@@ -207,8 +207,8 @@
 					{:else}
 						<div class="grid grid-cols-1 items-start gap-4 content-start auto-rows-max sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
 							{#each files as file (getFileId(file))}
-								{@const fileId = getFileId(file)}
-								{@const isSelected = selectedFiles.has(fileId)}
+								{const fileId = getFileId(file)}
+								{const isSelected = selectedFiles.has(fileId)}
 								<button
 									type="button"
 									class="group relative flex min-h-75] flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-85 {isSelected
@@ -228,7 +228,7 @@
 										{#if getPreviewUrl(file)}
 											<img
 												src={getPreviewUrl(file)}
-												alt={file.filename}
+												alt={file.metadata?.altText || file.originalFilename || file.filename}
 												class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 will-change-transform group-hover:scale-110"
 												loading="lazy"
 												decoding="async"

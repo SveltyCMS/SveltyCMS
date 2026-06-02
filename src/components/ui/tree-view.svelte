@@ -447,12 +447,12 @@ search filtering, and RTL support.
 </script>
 
 {#snippet treeNode(node: TreeItem, depth: number)}
-    {@const hasChildren = !!(node.children && node.children.length > 0)}
-    {@const expanded = expandedIds.has(node.id)}
-    {@const isSelected = selectedId === node.id}
-    {@const isFocused = focusedNodeId === node.id}
-    {@const nodeLabel = getNodeLabel(node)}
-    {@const showBadge = shouldShowBadge(node)}
+    {const hasChildren = !!(node.children && node.children.length > 0)}
+    {const expanded = expandedIds.has(node.id)}
+    {const isSelected = selectedId === node.id}
+    {const isFocused = focusedNodeId === node.id}
+    {const nodeLabel = getNodeLabel(node)}
+    {const showBadge = shouldShowBadge(node)}
 
     <div class="flex flex-col group/item relative">
         <!-- Drag drop indicator: before -->

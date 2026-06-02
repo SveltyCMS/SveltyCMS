@@ -364,7 +364,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			aria-label="Media files"
 		>
 			{#each filteredFiles as file, index (file.filename)}
-				{@const selected = isSelected(file.filename)}
+				{const selected = isSelected(file.filename)}
 				<div
 					class="group card relative flex {currentViewMode.value === 'list'
 						? 'flex-row items-center'
@@ -411,7 +411,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 							<!-- Thumbnail view -->
 							<img
 								src={getThumbnailUrl(file, currentViewMode.value === 'list' ? 'sm' : 'md')}
-								alt={file.filename}
+								alt={file.metadata?.altText || file.originalFilename || file.filename}
 								class="max-h-full max-w-full rounded-md object-contain"
 								loading="lazy"
 							/>

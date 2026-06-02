@@ -94,7 +94,7 @@ Interactive star rating with hover states and click selection
 		{#if !field.required || (value !== null && value !== undefined)}
 			<button
 				type="button"
-				class="btn btn-sm variant-soft-surface p-1 opacity-60 hover:opacity-100 transition-opacity"
+				class="p-1.5 rounded-md bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-all flex items-center justify-center"
 				onclick={handleClear}
 				title="Reset Rating"
 			>

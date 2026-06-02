@@ -26,4 +26,13 @@ describe("Input component (SSR)", () => {
     expect(body).toContain("border-error-500");
     expect(body).toContain('aria-invalid="true"');
   });
+
+  it("links error state with aria-describedby", () => {
+    const { body } = render(Input, {
+      props: { id: "test-input", type: "text", error: "Invalid field" },
+    });
+    expect(body).toContain('id="test-input-error"');
+    expect(body).toContain('aria-describedby="test-input-error"');
+    expect(body).toContain('role="alert"');
+  });
 });

@@ -6,6 +6,7 @@
 
 <script lang="ts">
 	import type { FieldType } from './index';
+	import Badge from '@components/ui/badge.svelte';
 
 	interface Props {
 		field: FieldType;
@@ -21,9 +22,9 @@
 <div class="flex flex-wrap gap-2">
 	{#if tags.length > 0}
 		{#each tags as tag}
-			<span class="badge variant-soft-primary px-2 py-1 rounded">
+			<Badge variant="secondary" size="sm" class="px-2! py-1! rounded!">
 				{tag}
-			</span>
+			</Badge>
 		{/each}
 	{:else}
 		<span class="text-surface-400 italic">No tags</span>

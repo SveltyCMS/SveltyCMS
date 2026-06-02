@@ -285,3 +285,29 @@ select:focus {
   position: fixed !important;
   z-index: 2147483647 !important;
 }
+
+/* ------------------------------------------------------------------ */
+/* Administrative Theme & Adaptive Workspaces Dynamic CSS Variables    */
+/* ------------------------------------------------------------------ */
+:root {
+  /* Dynamic Spacing & Spacing Scale */
+  --admin-spacing-scale: 1;
+  --admin-border-width: 1px;
+
+  /* Radii */
+  --admin-radius-card: 12px;
+  --admin-radius-input: 6px;
+
+  /* Shadow weights */
+  --admin-shadow-elevation: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+
+  /* Layout Sizing */
+  --admin-sidebar-width: 240px;
+  --admin-header-height: 64px;
+
+  /* Editorial Status Colors */
+  --admin-color-draft: oklch(65% 0 219deg);
+  --admin-color-published: oklch(69.59% 0.15 162.47deg);
+  --admin-color-scheduled: oklch(58.74% 0.2 256.12deg);
+  --admin-color-review: oklch(76.86% 0.16 70.07deg);
+}

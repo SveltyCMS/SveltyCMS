@@ -37,6 +37,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 
 <script lang="ts">
 	import { cn } from '@utils/cn';
+	import { generateId } from '@utils/id-generator';
 
 	interface SelectOption {
 		value: string;
@@ -76,7 +77,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		onchange
 	}: Props = $props();
 
-	const generatedId = globalThis.crypto?.randomUUID?.() ?? `select-${Math.random().toString(36).slice(2, 9)}`;
+	const generatedId = generateId('select');
 	const errorId = $derived(error ? `${generatedId}-error` : undefined);
 	const descriptionId = $derived(description ? `${generatedId}-description` : undefined);
 

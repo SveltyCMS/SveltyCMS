@@ -102,7 +102,7 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 		fill="transparent"
 	>
 		{#each pathConfigs as path, index (path.id)}
-			{@const state = pathStates[index]}
+			{const state = pathStates[index]}
 			<path
 				d={path.d}
 				stroke="currentColor"
