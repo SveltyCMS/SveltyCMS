@@ -51,7 +51,9 @@ for (const b of benchmarks) {
     shell: true,
     env: {
       ...process.env,
-      DB_TYPE: "sqlite",
+      // 🚀 DATABASE-AGNOSTIC: Inherit DB_TYPE from environment (set by --db flag).
+      // Falls back to "sqlite" only if no DB_TYPE is set.
+      DB_TYPE: process.env.DB_TYPE ?? "sqlite",
       SVELTY_BENCHMARK_SUITE: "true",
       BENCHMARK_DEV: "true", // Run against source for latest fixes
       QUIET: "true",

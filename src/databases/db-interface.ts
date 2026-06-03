@@ -28,6 +28,7 @@ import type {
   WebsiteToken,
 } from "../content/types";
 import type { Role, Session, Token, User } from "./auth/types";
+import { BaseAdapter } from "./core/base-adapter";
 
 /** * Utility Types for DRY CRUD Operations
  * Strips managed fields from entities when creating or updating.
@@ -1162,6 +1163,28 @@ export interface ICollectionAdapter {
   getNativeDriverModel?<TNative = any>(collectionId: string): Promise<TNative>;
 }
 
+export interface ISqlAdapter extends BaseAdapter {
+  type: string;
+  schema: any;
+  db: any;
+  getTable(collection: string): any;
+  getColumn(table: any, name: string, forcePhysical?: boolean): any;
+  getPhysicalSelection(table: any): any;
+  prepareValues(table: any, data: any, id: DatabaseId | undefined, now: Date, options: any): any;
+  mapQuery(table: any, query: any, options?: any): any;
+  applyOrderBy(builder: any, table: any, options: any): any;
+  isSystemTable(collection: string): boolean;
+  upsertNative?(table: any, values: any, conflictTarget: any[], options?: BaseQueryOptions): Promise<void>;
+  transaction<T>(
+    fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
+    options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },
+  ): Promise<DatabaseResult<T>>;
+  raw: {
+    execute: (sql: string, params?: any[]) => Promise<any>;
+    client: any;
+  };
+}
+
 export interface IDBAdapter {
   type: string;
   // Top-Level Domains
@@ -1265,7 +1288,7 @@ export interface IDBAdapter {
   // Transaction Support
   transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
-    options?: { timeout?: number; isolationLevel?: string },
+    options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },
   ): Promise<DatabaseResult<T>>;
 
   // Database Agnostic Utilities

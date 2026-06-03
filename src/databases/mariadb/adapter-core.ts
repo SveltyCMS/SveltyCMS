@@ -1,18 +1,46 @@
 /**
- * @file src/databases/mariadb/adapter/adapter-core.ts
- * @description Core functionality for MariaDB adapter, unified via BaseSqlAdapter.
+ * @file src/databases/mariadb/adapter-core.ts
+ * @description
+ * Core functionality for MariaDB database adapter.
+ *
+ * Responsibilities include:
+ * - Establishing connection pool to MariaDB/MySQL.
+ * - Implementing CRUD operations tailored to MariaDB driver.
+ * - Provisioning dynamically defined tables and schemas.
+ *
+ * ### Features:
+ * - automated database auto-creation
+ * - JSON_SET / JSON_EXTRACT atomic increments
+ * - transaction handling and metadata mapping
  */
 
 import { logger } from "@src/utils/logger";
+import { BaseAdapter } from "../core/base-adapter";
+import type {
+  BaseEntity,
+  BaseQueryOptions,
+  DatabaseCapabilities,
+  DatabaseResult,
+  DatabaseId,
+  FindOptions,
+  EntityCreate,
+  EntityUpdate,
+  QueryFilter,
+  ICrudAdapter,
+  ISqlAdapter,
+} from "../db-interface";
+import * as helpers from "../core/drizzle-sql-helpers";
+import { generateUUID } from "@utils/native-utils";
+import { count as drizzleCount, getTableColumns, getTableName, asc, desc, type Column, eq, isNull, and } from "drizzle-orm";
+import * as schema from "./schema";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
-import type { DatabaseCapabilities, DatabaseResult } from "../db-interface";
-import { BaseSqlAdapter } from "../core/base-sql-adapter";
-import * as schema from "./schema";
+import { sql, type SQL } from "drizzle-orm";
 import { mysqlTable, varchar, json, datetime, boolean } from "drizzle-orm/mysql-core";
-import { sql } from "drizzle-orm";
+import * as utils from "../core/relational-utils";
 
-export abstract class AdapterCore extends BaseSqlAdapter {
+export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
+  public type = "mariadb";
   public capabilities: DatabaseCapabilities = {
     supportsTransactions: true,
     supportsIndexing: true,
@@ -38,9 +66,89 @@ export abstract class AdapterCore extends BaseSqlAdapter {
   public activeDatabaseName: string = "unknown";
   private _transactionModule?: import("./transaction-module").TransactionModule;
 
+  // Cache and Registry State
+  protected preparedStatements = new Map<string, any>();
+  protected readonly MAX_PREPARED_STATEMENTS = 500;
+  protected _tableColumnsCache = new Map<any, Record<string, Column>>();
+  protected tableRegistry = new Map<string, any>();
+  protected dynamicTables = new Map<string, any>();
+  protected modelRegistry = new Map<string, any>();
+  protected _resolving = new Set<string>();
+  protected _selectionCache = new Map<string, any>();
+  protected _lastTable: any = null;
+  protected _lastCols: Record<string, Column> | null = null;
+
+  // Lazy Domain Module Cache
+  protected _auth: any = null;
+  protected _content: any = null;
+  protected _media: any = null;
+  protected _system: any = null;
+  protected _batch: any = null;
+  protected _collection: any = null;
+
+  // Domain module getters
+  public get auth(): any {
+    if (!this._auth) {
+      const { RelationalAuthModule } = require("../core/relational-auth");
+      this._auth = new RelationalAuthModule(this as any, this.schema);
+    }
+    return this._auth;
+  }
+
+  public get content(): any {
+    if (!this._content) {
+      const { RelationalContentModule } = require("../core/relational-content");
+      this._content = new RelationalContentModule(this as any, this.schema);
+    }
+    return this._content;
+  }
+
+  public get media(): any {
+    if (!this._media) {
+      const { RelationalMediaModule } = require("../core/relational-media");
+      this._media = new RelationalMediaModule(this as any, this.schema);
+    }
+    return this._media;
+  }
+
+  public get system(): any {
+    if (!this._system) {
+      const { RelationalSystemModule } = require("../core/relational-system");
+      this._system = new RelationalSystemModule(this as any, this.schema);
+    }
+    return this._system;
+  }
+
+  public get batch(): any {
+    if (!this._batch) {
+      const { BatchModule } = require("../core/batch-module");
+      this._batch = new BatchModule(this as any);
+    }
+    return this._batch;
+  }
+
+  public get collection(): any {
+    if (!this._collection) {
+      const { CollectionModule } = require("../core/collection-module");
+      this._collection = new CollectionModule(this as any);
+    }
+    return this._collection;
+  }
+
+  public get crud(): ICrudAdapter {
+    return this as any;
+  }
+
   async connect(
-    connection: string | mysql.PoolOptions,
-    _options?: unknown,
+    connectionString: string,
+    options?: unknown,
+  ): Promise<DatabaseResult<void>>;
+  async connect(
+    poolOptions: import("../db-interface").ConnectionPoolOptions,
+  ): Promise<DatabaseResult<void>>;
+  public async connect(
+    connection: any,
+    _options?: any,
   ): Promise<DatabaseResult<void>> {
     try {
       let finalConnection = connection;
@@ -87,7 +195,9 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       this.pool = mysql.createPool(poolConfig);
       this.activeDatabaseName =
         poolConfig.database ||
-        (poolConfig.uri ? new URL(poolConfig.uri).pathname.slice(1) : "unknown");
+        (poolConfig.uri
+          ? new URL(poolConfig.uri).pathname.slice(1)
+          : "unknown");
 
       // Verification with Auto-Creation Support
       try {
@@ -101,7 +211,9 @@ export abstract class AdapterCore extends BaseSqlAdapter {
         if (isMissingDb) {
           const dbName = this.activeDatabaseName;
           if (dbName && dbName !== "unknown") {
-            logger.info(`[mariadb] Database "${dbName}" not found. Attempting auto-creation...`);
+            logger.info(
+              `[mariadb] Database "${dbName}" not found. Attempting auto-creation...`,
+            );
             // Create admin connection without database specified
             const adminConfig = { ...poolConfig };
             delete adminConfig.database;
@@ -113,7 +225,9 @@ export abstract class AdapterCore extends BaseSqlAdapter {
 
             const adminConn = await mysql.createConnection(adminConfig);
             try {
-              await adminConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+              await adminConn.query(
+                `CREATE DATABASE IF NOT EXISTS \`${dbName}\``,
+              );
               await adminConn.end();
               // Re-verify the primary pool
               await this.pool.query("SELECT 1");
@@ -130,7 +244,9 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       }
 
       this._db = drizzle(this.pool, { schema, mode: "default" });
-      await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+      await this.pool.query(
+        "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED",
+      );
 
       this.connected = true;
       logger.info("Connected to MariaDB");
@@ -229,7 +345,6 @@ export abstract class AdapterCore extends BaseSqlAdapter {
   > {
     if (!this.pool) return this.notConnectedError();
     return this.wrap(async () => {
-      // mysql2/promise Pool wraps the internal Pool in a .pool property
       const internalPool = (this.pool as any).pool || this.pool;
 
       const total = internalPool.config?.connectionLimit || 100;
@@ -253,8 +368,6 @@ export abstract class AdapterCore extends BaseSqlAdapter {
    * 🚀 AGNOSTIC CORE: MariaDB implementation of JSON field extraction.
    */
   public getJsonField(field: string): import("drizzle-orm").SQL {
-    // 🚀 Performance: Use JSON_UNQUOTE(JSON_EXTRACT(...)) for faster path-based extraction
-    // This allows MariaDB to use indexes on virtual columns if available.
     const path = `$.${field}`;
     return sql`JSON_UNQUOTE(JSON_EXTRACT(data, ${path}))`;
   }
@@ -266,7 +379,7 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     const schemaAny = this.schema as any;
 
     // 1. Check direct alias map
-    const alias = (BaseSqlAdapter as any).TABLE_ALIASES[collection];
+    const alias = helpers.SQL_TABLE_ALIASES[collection];
     if (alias && schemaAny[alias]) return schemaAny[alias];
 
     // 2. Check if the name itself is a schema export
@@ -281,19 +394,21 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     return this.db;
   }
 
-  public override getTable(collection: string): any {
-    return super.getTable(collection);
-  }
-
   public override destroy(): void {
     if (this.preparedStatements.size > 0) this.preparedStatements.clear();
   }
 
   public transaction = async <T>(
-    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
+    fn: (
+      transaction: import("../db-interface").DatabaseTransaction,
+    ) => Promise<DatabaseResult<T>>,
     options?: {
       timeout?: number;
-      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
+      isolationLevel?:
+        | "read uncommitted"
+        | "read committed"
+        | "repeatable read"
+        | "serializable";
     },
   ): Promise<DatabaseResult<T>> => {
     if (!this._transactionModule) {
@@ -322,7 +437,7 @@ export abstract class AdapterCore extends BaseSqlAdapter {
   /**
    * 🚀 RAW ACCESS: Implementation for MariaDB (mysql2)
    */
-  public override get raw(): {
+  public get raw(): {
     execute: (sql: string, params?: any[]) => Promise<any>;
     client: any;
   } {
@@ -334,5 +449,822 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       },
       client: this.pool,
     };
+  }
+
+  public isSystemTable(collection: string): boolean {
+    return helpers.isSystemTable(collection);
+  }
+
+  public getTable(collection: string): any {
+    if (typeof collection !== "string") return null;
+
+    const cached = this.tableRegistry.get(collection);
+    if (cached) return cached;
+
+    if (this._resolving.has(collection)) {
+      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
+      return null;
+    }
+    this._resolving.add(collection);
+
+    try {
+      if (helpers.isSystemTable(collection)) {
+        const aliased = this.getAliasedTable(collection);
+        if (aliased) {
+          this.tableRegistry.set(collection, aliased);
+          return aliased;
+        }
+      }
+
+      const cleanId = collection.replace(/-/g, "");
+      const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
+
+      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+      if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
+        return this.getTable(cleanName);
+      }
+
+      const dynamicTable = this.createDynamicTableDefinition(tableName);
+      this.tableRegistry.set(collection, dynamicTable);
+      return dynamicTable;
+    } finally {
+      this._resolving.delete(collection);
+    }
+  }
+
+  public getColumn(table: any, name: string, forcePhysical = false): any {
+    const self = this as any;
+    const lastRef = {
+      get table() { return self._lastTable; },
+      set table(val) { self._lastTable = val; },
+      get cols() { return self._lastCols; },
+      set cols(val) { self._lastCols = val; }
+    };
+    return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
+  }
+
+  public getPhysicalSelection(table: any): any {
+    const self = this as any;
+    const lastRef = {
+      get table() { return self._lastTable; },
+      set table(val) { self._lastTable = val; },
+      get cols() { return self._lastCols; },
+      set cols(val) { self._lastCols = val; }
+    };
+    return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f)
+    );
+  }
+
+  public mapQuery(table: any, query: any, options: any = {}): any {
+    const self = this as any;
+    const lastRef = {
+      get table() { return self._lastTable; },
+      set table(val) { self._lastTable = val; },
+      get cols() { return self._lastCols; },
+      set cols(val) { self._lastCols = val; }
+    };
+    return helpers.mapQuery(
+      table,
+      query,
+      options,
+      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
+      (f) => this.getJsonField(f)
+    );
+  }
+
+  public applyOrderBy(builder: any, table: any, options: any): any {
+    const self = this as any;
+    const lastRef = {
+      get table() { return self._lastTable; },
+      set table(val) { self._lastTable = val; },
+      get cols() { return self._lastCols; },
+      set cols(val) { self._lastCols = val; }
+    };
+    return helpers.applyOrderBy(
+      builder,
+      table,
+      options,
+      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
+      (f) => this.getJsonField(f)
+    );
+  }
+
+  public prepareValues(table: any, data: any, id: any, now: Date, options: any): any {
+    const values: any = {};
+    const self = this as any;
+    const lastRef = {
+      get table() { return self._lastTable; },
+      set table(val) { self._lastTable = val; },
+      get cols() { return self._lastCols; },
+      set cols(val) { self._lastCols = val; }
+    };
+    const getCol = (t: any, n: string) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
+
+    let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
+    if (!schemaCols) {
+      try {
+        const resolvedCols = getTableColumns(table);
+        if (resolvedCols && Object.keys(resolvedCols).length > 0) {
+          schemaCols = resolvedCols as any;
+          this._tableColumnsCache.set(table, schemaCols!);
+        }
+      } catch {}
+    }
+
+    for (const k in data) {
+      if (!Object.hasOwn(data, k)) continue;
+      if (k === "_id" || k === "id") continue;
+
+      const isPhysical = schemaCols?.[k] || getCol(table, k);
+
+      if (isPhysical) {
+        if ((k === "_id" || k === "id") && id) continue;
+        if (data[k] !== undefined) {
+          values[k] = data[k];
+        }
+      }
+    }
+
+    if (id) {
+      const idCol = schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
+      if (idCol) {
+        values[idCol.name] = id;
+      }
+    }
+
+    if (options?.tenantId && (schemaCols?.["tenantId"] || getCol(table, "tenantId"))) {
+      values.tenantId = options.tenantId;
+    }
+
+    if (id && (schemaCols?.["createdAt"] || getCol(table, "createdAt"))) {
+      values.createdAt = now;
+    }
+    if (schemaCols?.["updatedAt"] || getCol(table, "updatedAt")) {
+      values.updatedAt = now;
+    }
+
+    if (getCol(table, "data")) {
+      const dynamicData: any = {};
+      for (const k in data) {
+        if (!Object.hasOwn(data, k)) continue;
+        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt") continue;
+        const isPhysical = schemaCols?.[k] || getCol(table, k);
+        if (!isPhysical) {
+          dynamicData[k] = data[k];
+        }
+      }
+      values.data = JSON.stringify(dynamicData) || "{}";
+    }
+
+    const result = utils.convertISOToDates(values);
+
+    for (const k in result) {
+      const val = result[k];
+      if (
+        val &&
+        typeof val === "object" &&
+        typeof (val as any).getTime === "function"
+      ) {
+        result[k] = new Date((val as any).getTime());
+      }
+    }
+
+    return result;
+  }
+
+  // --- CRUD Operations ---
+  async findOne<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T | null>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: `Invalid collection: expected string, got ${typeof collection}`,
+        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+      };
+    }
+    return this.wrap(async () => {
+      const q = this.hooks.length > 0
+        ? await this.runHooks("before", "find", collection, query, options)
+        : query;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const where = this.mapQuery(table, q as any, options);
+
+      const results = await this.getDrizzleInstance(options)
+        .select(this.getPhysicalSelection(table))
+        .from(table)
+        .where(where)
+        .limit(1);
+
+      const data = results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
+      return this.hooks.length > 0
+        ? await this.runHooks("after", "find", collection, data, options)
+        : data;
+    }, "FIND_ONE_FAILED");
+  }
+
+  async findMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T[]>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: `Invalid collection: expected string, got ${typeof collection}`,
+        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+      };
+    }
+    return this.wrap(async () => {
+      const q = this.hooks.length > 0
+        ? await this.runHooks("before", "find", collection, query, options)
+        : query;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const where = this.mapQuery(table, q as any, options);
+
+      const tableName = getTableName(table);
+      const isDynamic = collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
+
+      let results;
+      if (isDynamic) {
+        const selection = this.getPhysicalSelection(table);
+        const columns = Object.keys(selection);
+        const colList = columns.map((c) => `\`${c}\``).join(", ");
+
+        let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(`\`${tableName}\``)} WHERE ${where || sql`1=1`}`;
+
+        if (options.sort) {
+          const sortConditions: any[] = [];
+          const normalizedSorts: { field: string; direction: "asc" | "desc" }[] = [];
+          if (Array.isArray(options.sort)) {
+            for (const item of options.sort) {
+              if (Array.isArray(item) && item.length >= 2) {
+                normalizedSorts.push({ field: item[0], direction: item[1] as "asc" | "desc" });
+              } else if (typeof item === "object" && item !== null) {
+                const keys = Object.keys(item);
+                if (keys.length > 0) {
+                  const field = keys[0];
+                  const direction = (item as any)[field];
+                  normalizedSorts.push({ field, direction });
+                }
+              }
+            }
+          } else if (typeof options.sort === "object") {
+            for (const field of Object.keys(options.sort)) {
+              const direction = (options.sort as any)[field];
+              normalizedSorts.push({ field, direction });
+            }
+          }
+
+          const self = this as any;
+          const lastRef = {
+            get table() { return self._lastTable; },
+            set table(val) { self._lastTable = val; },
+            get cols() { return self._lastCols; },
+            set cols(val) { self._lastCols = val; }
+          };
+          for (const s of normalizedSorts) {
+            let sortCol: any;
+            const column = helpers.getColumnHelper(table, s.field, this._tableColumnsCache, lastRef, false);
+            if (column) {
+              sortCol = column;
+            } else {
+              const dataCol = helpers.getColumnHelper(table, "data", this._tableColumnsCache, lastRef, false);
+              if (dataCol) {
+                sortCol = this.getJsonField(s.field);
+              }
+            }
+
+            if (sortCol) {
+              sortConditions.push(s.direction === "asc" ? asc(sortCol) : desc(sortCol));
+            }
+          }
+
+          if (sortConditions.length > 0) {
+            sqlQuery = sql`${sqlQuery} ORDER BY ${sql.join(sortConditions, sql`, `)}`;
+          }
+        }
+
+        if (options.limit !== undefined) sqlQuery = sql`${sqlQuery} LIMIT ${options.limit}`;
+        if (options.offset !== undefined) sqlQuery = sql`${sqlQuery} OFFSET ${options.offset}`;
+
+        const db = this.getDrizzleInstance(options);
+        const execResult = await db.execute(sqlQuery);
+        const rawRows = Array.isArray(execResult)
+          ? execResult
+          : (execResult as any).rows || [execResult];
+
+        results = rawRows.map((row: any) => {
+          const obj: any = {};
+          if (Array.isArray(row)) {
+            columns.forEach((col, idx) => {
+              if (row[idx] !== undefined) obj[col] = row[idx];
+            });
+          } else if (row && typeof row === "object") {
+            columns.forEach((col) => {
+              if (row[col] !== undefined) obj[col] = row[col];
+            });
+          }
+          return obj;
+        });
+      } else {
+        let builder: any = this.getDrizzleInstance(options)
+          .select(this.getPhysicalSelection(table))
+          .from(table)
+          .where(where);
+        builder = this.applyOrderBy(builder, table, options);
+        if (options.limit) builder = builder.limit(options.limit);
+        if (options.offset) builder = builder.offset(options.offset);
+        results = await builder;
+      }
+
+      const data = utils.convertArrayDatesToISO(results as any) as T[];
+      return this.hooks.length > 0
+        ? await this.runHooks("after", "find", collection, data, options)
+        : data;
+    }, "FIND_MANY_FAILED");
+  }
+
+  async find<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T[]>> {
+    return this.findMany(collection, query, options);
+  }
+
+  async findByIds<T extends BaseEntity>(
+    collection: string,
+    ids: DatabaseId[],
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T[]>> {
+    return this.findMany(collection, { _id: { $in: ids } } as any, options);
+  }
+
+  async findById<T extends BaseEntity>(
+    collection: string,
+    id: DatabaseId,
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T | null>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: `Invalid collection: expected string, got ${typeof collection}`,
+        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+      };
+    }
+    if (id === undefined || id === null) {
+      return {
+        success: false,
+        message: `Invalid ID: ${id}`,
+        error: { code: "INVALID_ID", message: "ID must be a non-null value" },
+      };
+    }
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+
+      const conditions: SQL[] = [eq(idCol, id as any)];
+
+      if (!options.bypassTenantCheck && options.tenantId !== undefined && options.tenantId !== "global") {
+        const tenantCol = this.getColumn(table, "tenantId");
+        if (tenantCol) {
+          conditions.push(
+            options.tenantId === null ? isNull(tenantCol) : eq(tenantCol, options.tenantId as string)
+          );
+        }
+      }
+
+      const results = await this.getDrizzleInstance(options)
+        .select()
+        .from(table)
+        .where(and(...conditions))
+        .limit(1);
+
+      return results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
+    }, "FIND_BY_ID_FAILED");
+  }
+
+  async exists<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<boolean>> {
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      if (!table) return false;
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const where = this.mapQuery(table, query as any, options);
+      const results = await this.getDrizzleInstance(options)
+        .select({ id: idCol })
+        .from(table)
+        .where(where)
+        .limit(1);
+      return results.length > 0;
+    }, "EXISTS_FAILED");
+  }
+
+  async count<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T> = {},
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<number>> {
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      const where = this.mapQuery(table, query || {}, options);
+      try {
+        const result = await this.getDrizzleInstance(options)
+          .select({ count: drizzleCount() })
+          .from(table)
+          .where(where);
+        return result[0].count;
+      } catch (err: any) {
+        const tableName = getTableName(table);
+        const isDynamic = tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
+        if (err?.errno === 1146 && isDynamic) { // MariaDB/MySQL Table doesn't exist error number
+          return 0;
+        }
+        throw err;
+      }
+    }, "COUNT_FAILED");
+  }
+
+  async insert<T extends BaseEntity>(
+    collection: string,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: `Invalid collection: expected string, got ${typeof collection}`,
+        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+      };
+    }
+    return this.wrap(async () => {
+      const d = this.hooks.length > 0 ? await this.runHooks("before", "insert", collection, data, options) : data;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const id = (d as any)._id || generateUUID();
+      const now = new Date();
+      const values = this.prepareValues(table, d, id, now, options);
+
+      const query = this.getDrizzleInstance(options).insert(table).values(values);
+      await (query as any);
+      const finalData = utils.convertDatesToISO(values) as T;
+
+      return this.hooks.length > 0
+        ? await this.runHooks("after", "insert", collection, finalData, options)
+        : finalData;
+    }, "INSERT_FAILED", undefined, { ...options, isWrite: true });
+  }
+
+  async insertMany<T extends BaseEntity>(
+    collection: string,
+    data: EntityCreate<T>[],
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T[]>> {
+    if (!data || data.length === 0) return { success: true, data: [] };
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const now = new Date();
+      const len = data.length;
+      const batchValues = Array.from({ length: len });
+      for (let i = 0; i < len; i++) {
+        const item = data[i];
+        const id = (item as any)._id || generateUUID();
+        batchValues[i] = this.prepareValues(table, item, id, now, options);
+      }
+
+      const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
+      await (query as any);
+      return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
+    }, "INSERT_MANY_FAILED", undefined, { ...options, isWrite: true });
+  }
+
+  async update<T extends BaseEntity>(
+    collection: string,
+    id: DatabaseId,
+    data: EntityUpdate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: `Invalid collection: expected string, got ${typeof collection}`,
+        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+      };
+    }
+    if (id === undefined || id === null) {
+      return {
+        success: false,
+        message: `Update failed: ID is ${id}`,
+        error: { code: "INVALID_ID", message: `Cannot update ${collection} with ${id} ID` },
+      };
+    }
+    return this.wrap(async () => {
+      const d = this.hooks.length > 0 ? await this.runHooks("before", "update", collection, data, options) : data;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const now = new Date();
+      const values = this.prepareValues(table, d, id, now, options);
+
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+
+      const query = this.getDrizzleInstance(options).update(table).set(values).where(eq(idCol, id as any));
+      await query;
+
+      const updated = await this.findOne<T>(collection, { _id: id } as any, options);
+      if (!updated.success || !updated.data) {
+        return {
+          success: false,
+          message: `Record ${id} not found in ${getTableName(table)}`,
+          error: { code: "NOT_FOUND", message: "Record not found" },
+        };
+      }
+
+      return this.hooks.length > 0 ? await this.runHooks("after", "update", collection, updated.data, options) : updated.data;
+    }, "UPDATE_FAILED", undefined, { ...options, isWrite: true });
+  }
+
+  async updateMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    data: EntityUpdate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<{ modifiedCount: number }>> {
+    return this.wrap(async () => {
+      const items = await this.findMany(collection, query, options);
+      if (!items.success) throw new Error(items.message);
+      let modifiedCount = 0;
+      for (const item of items.data || []) {
+        const res = await this.update(collection, (item as any)._id, data, options);
+        if (res.success) modifiedCount++;
+      }
+      return { modifiedCount };
+    }, "UPDATE_MANY_FAILED", undefined, { ...options, isWrite: true });
+  }
+
+  async delete(
+    collection: string,
+    id: DatabaseId,
+    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
+  ): Promise<DatabaseResult<void>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: `Invalid collection: expected string, got ${typeof collection}`,
+        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+      };
+    }
+    if (id === undefined || id === null) {
+      return {
+        success: false,
+        message: `Delete failed: ID is ${id}`,
+        error: { code: "INVALID_ID", message: `Cannot delete from ${collection} with ${id} ID` },
+      };
+    }
+    return this.wrap(async () => {
+      if (this.hooks.length > 0) await this.runHooks("before", "delete", collection, { _id: id }, options);
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+
+      const hasIsDeleted = !!this.getColumn(table, "isDeleted");
+      if (options.permanent || !hasIsDeleted) {
+        await this.getDrizzleInstance(options).delete(table).where(eq(idCol, id as any));
+      } else {
+        await this.getDrizzleInstance(options).update(table).set({ isDeleted: true, updatedAt: new Date() }).where(eq(idCol, id as any));
+      }
+      if (this.hooks.length > 0) await this.runHooks("after", "delete", collection, { _id: id }, options);
+    }, "DELETE_FAILED", undefined, { ...options, isWrite: true });
+  }
+
+  async deleteMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
+  ): Promise<DatabaseResult<{ deletedCount: number }>> {
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      if (options.permanent && (!query || Object.keys(query).length === 0)) {
+        await this.getDrizzleInstance(options).delete(table);
+        return { deletedCount: -1 };
+      }
+      const items = await this.findMany(collection, query, options);
+      if (!items.success) throw new Error(items.message);
+      let deletedCount = 0;
+      for (const item of items.data || []) {
+        const res = await this.delete(collection, (item as any)._id, options);
+        if (res.success) deletedCount++;
+      }
+      return { deletedCount };
+    }, "DELETE_MANY_FAILED");
+  }
+
+  async restore(
+    collection: string,
+    id: DatabaseId,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<void>> {
+    if (id === undefined || id === null) {
+      return {
+        success: false,
+        message: `Restore failed: ID is ${id}`,
+        error: { code: "INVALID_ID", message: `Cannot restore in ${collection} with ${id} ID` },
+      };
+    }
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      await this.getDrizzleInstance(options)
+        .update(table)
+        .set({ isDeleted: false, updatedAt: new Date() })
+        .where(eq(idCol, id as any));
+    }, "RESTORE_FAILED");
+  }
+
+  async upsert<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    const existing = await this.findOne(collection, query, options);
+    if (existing.success && existing.data) {
+      const existingId = (existing.data as any)._id || (existing.data as any).id;
+      if (existingId) {
+        return this.update(collection, existingId, data as any, options);
+      }
+    }
+    return this.insert(collection, data, options);
+  }
+
+  async upsertMany<T extends BaseEntity>(
+    collection: string,
+    items: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T[]>> {
+    const results: T[] = [];
+    for (const item of items) {
+      const res = await this.upsert(collection, item.query, item.data, options);
+      if (res.success && res.data) results.push(res.data as T);
+    }
+    return { success: true, data: results };
+  }
+
+  async aggregate<R>(
+    _collection: string,
+    _pipeline: unknown[],
+    _options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<R[]>> {
+    if (process.env.BENCHMARK_MODE !== "true") {
+      return this.notImplemented("aggregate");
+    }
+    return { success: true, data: [] };
+  }
+
+  async upsertNative(
+    table: any,
+    values: any,
+    _conflictTarget: any[],
+    options: BaseQueryOptions = {},
+  ): Promise<void> {
+    await this.wrap(
+      async () => {
+        const db = this.getDrizzleInstance(options);
+        await (db.insert(table).values(values) as any).onDuplicateKeyUpdate({
+          set: values,
+        });
+      },
+      "UPSERT_NATIVE_FAILED",
+      undefined,
+      { isWrite: true },
+    );
+  }
+
+  async atomicIncrement(
+    collection: string,
+    id: DatabaseId,
+    field: string,
+    amount: number,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<Record<string, unknown>>> {
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (!table)
+          throw new Error(`Collection table not found: ${collection}`);
+        const tableName = getTableName(table);
+        const idCol =
+          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
+
+        const tenantFilter =
+          options?.bypassTenantCheck ||
+          !options?.tenantId ||
+          options?.tenantId === "global"
+            ? ""
+            : ` AND \`tenantId\` = '${options.tenantId}'`;
+
+        const dataCol = this.getColumn(table, "data");
+        if (dataCol) {
+          await this.getDrizzleInstance(options).execute(
+            sql.raw(
+              `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(\`data\`, '$.${field}', COALESCE(JSON_EXTRACT(\`data\`, '$.${field}'), 0) + ${amount}), \`updatedAt\` = NOW() WHERE \`_id\` = '${String(id)}'${tenantFilter}`,
+            ),
+          );
+        } else {
+          await this.getDrizzleInstance(options).execute(
+            sql.raw(
+              `UPDATE \`${tableName}\` SET \`${field}\` = COALESCE(\`${field}\`, 0) + ${amount}, \`updatedAt\` = NOW() WHERE \`_id\` = '${String(id)}'${tenantFilter}`,
+            ),
+          );
+        }
+
+        const updated = await this.findOne<any>(
+          collection,
+          { _id: id } as any,
+          { ...options, bypassCache: true },
+        );
+        if (!updated.success || !updated.data) {
+          throw new Error(`Entry not found after increment: ${String(id)}`);
+        }
+        return updated.data as Record<string, unknown>;
+      },
+      "ATOMIC_INCREMENT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
+  }
+
+  public async createModel(schemaData: any): Promise<void> {
+    const tableName = schemaData._id || schemaData.id;
+    if (!tableName) throw new Error("Schema must have an _id");
+
+    const normalizedName = tableName.replace(/-/g, "");
+    const table = this.getTable(normalizedName);
+    const physicalName = getTableName(table as any);
+
+    await this.wrap(
+      async () => {
+        const isBenchSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
+        const debugMode = process.env.BENCHMARK_DEBUG === "true";
+
+        if (debugMode && !isBenchSuite) {
+          console.log(
+            `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
+          );
+        }
+
+        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME, \`updatedAt\` DATETIME, \`data\` LONGTEXT);`;
+
+        if (ddl) {
+          if (debugMode && !isBenchSuite) {
+            console.log(`[DB Provision] [MARIADB] Executing DDL for ${physicalName}`);
+          }
+          await this.raw.execute(ddl);
+        }
+
+        const columns = [
+          { name: "isDeleted", type: "TINYINT(1) DEFAULT 0" },
+          { name: "status", type: "VARCHAR(255) DEFAULT 'draft'" },
+          { name: "tenantId", type: "VARCHAR(36)" },
+          { name: "createdAt", type: "DATETIME" },
+          { name: "updatedAt", type: "DATETIME" },
+        ];
+
+        for (const col of columns) {
+          try {
+            const query = `SHOW COLUMNS FROM \`${physicalName}\` LIKE '${col.name}'`;
+            const res = await this.raw.execute(query);
+            const exists = res.length > 0;
+
+            if (!exists) {
+              const alterSql = `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${col.name}\` ${col.type}`;
+              await this.raw.execute(alterSql);
+            }
+          } catch {}
+        }
+
+        logger.info(`[MARIADB Adapter] Provisioned table: ${physicalName}`);
+      },
+      "CREATE_MODEL_FAILED",
+      undefined,
+      { isWrite: true },
+    );
   }
 }

@@ -4,12 +4,11 @@
  */
 
 import type { Schema } from "@src/content/types";
-import type { CollectionModel, DatabaseResult, ICollectionAdapter } from "../db-interface";
+import type { CollectionModel, DatabaseResult, ICollectionAdapter, ISqlAdapter } from "../db-interface";
 import { DatabaseModule } from "./base-adapter";
-import type { BaseSqlAdapter } from "./base-sql-adapter";
 import { logger } from "@src/utils/logger";
 
-export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements ICollectionAdapter {
+export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICollectionAdapter {
   private get crud() {
     return this.adapter.crud;
   }
@@ -38,7 +37,7 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
     }
 
     // 🚀 USE AGNOSTIC CORE: Standardized table creation with quoted identifiers
-    await this.adapter.createModel(schemaData);
+    await (this.adapter as any).createModel(schemaData);
 
     const wrappedModel: CollectionModel = {
       findOne: async <R = unknown>(query: Record<string, unknown>) => {

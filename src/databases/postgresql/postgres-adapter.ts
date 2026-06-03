@@ -1,61 +1,28 @@
 import type {
   IDBAdapter,
-  IAuthAdapter,
-  IContentAdapter,
-  IMediaAdapter,
-  ISystemAdapter,
   IMonitoringAdapter,
-  ICollectionAdapter,
   DatabaseResult,
   BaseEntity,
 } from "../db-interface";
 import { PostgresAdapterCore } from "./adapter-core";
 import * as utils from "../core/relational-utils";
-import { AuthModule } from "./auth-module";
-import { ContentModule } from "./content-module";
-import { MediaModule } from "./media-module";
-import { RelationalSystemModule } from "../core/relational-system";
-import { BatchModule } from "./batch-module";
-import { CollectionModule } from "./collection-module";
-import { PerformanceModule } from "./performance-module";
-import { CacheModule } from "./cache-module";
 import { PostgresQueryBuilder } from "./postgres-query-builder";
-import * as schema from "./schema";
 
 export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter {
   public readonly type = "postgresql";
-
-  // Public interface modules (Lazy-loaded via Getters)
-  public get auth(): IAuthAdapter {
-    return (this._auth ??= new AuthModule(this));
-  }
-
-  public get content(): IContentAdapter {
-    return (this._content ??= new ContentModule(this));
-  }
-
-  public get media(): IMediaAdapter {
-    return (this._media ??= new MediaModule(this));
-  }
-
-  public get collection(): ICollectionAdapter {
-    return (this._collection ??= new CollectionModule(this) as any);
-  }
-
-  public get batch(): IDBAdapter["batch"] {
-    return (this._batch ??= new BatchModule(this) as any);
-  }
-
-  public get system(): ISystemAdapter {
-    return (this._system ??= new RelationalSystemModule(this, schema));
-  }
+  private _monitoring: any = null;
 
   public get monitoring(): IMonitoringAdapter {
-    return (this._monitoring ??= {
-      performance: new PerformanceModule(this),
-      cache: new CacheModule(this),
-      getConnectionPoolStats: async () => this.getConnectionPoolStats(),
-    });
+    if (!this._monitoring) {
+      const { PerformanceModule } = require("../core/performance-module");
+      const { CacheModule } = require("../core/cache-module");
+      this._monitoring = {
+        performance: new PerformanceModule(this as any),
+        cache: new CacheModule(this as any),
+        getConnectionPoolStats: async () => this.getConnectionPoolStats(),
+      };
+    }
+    return this._monitoring;
   }
 
   constructor(_config: any = {}) {

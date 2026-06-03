@@ -394,7 +394,7 @@ Implemented a robust lookup identification engine in the MongoDB and SQL adapter
 
 ### 8.4 SQL Atomic Batching (Platinum SQL Upgrade)
 
-Refactored the `BaseSqlAdapter` to utilize native Drizzle batching for `insertMany`.
+Refactored the `ISqlAdapter` implementations to utilize native Drizzle batching for `insertMany`.
 
 - **Goal**: Resolve the 10-50x performance gap between SQL individual inserts and bulk operations.
 - **Implementation**: Replaced iterative `for` loops with atomic `db.insert().values([...])` calls.

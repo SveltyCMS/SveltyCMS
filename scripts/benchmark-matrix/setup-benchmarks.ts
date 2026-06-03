@@ -61,18 +61,45 @@ async function createCollection(schema: any): Promise<void> {
   if (!res.ok) throw new Error(`Collection create failed: ${res.status}`);
 }
 
+async function waitForServer(maxRetries = 8): Promise<void> {
+  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(`${API_BASE}/api/health`, {
+        headers: headers(),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok || res.status === 401 || res.status === 403) {
+        // Server is up — 401/403 are fine, it means auth is responding
+        return;
+      }
+    } catch {
+      // Not ready yet
+    }
+    const wait = Math.min(1000 * 2 ** i, 8000);
+    log(`   ⏳ Server not ready, retrying in ${wait}ms (attempt ${i + 1}/${maxRetries})...`);
+    await delay(wait);
+  }
+  throw new Error(`Server at ${API_BASE} not reachable after ${maxRetries} attempts`);
+}
+
 async function smartCheck(): Promise<boolean> {
   try {
-    const checkAuthor = await fetch(`${API_BASE}/api/collections/benchmark_authors/author-1`, {
-      headers: headers(),
-    });
-    const checkStable = await fetch(
-      `${API_BASE}/api/collections/BenchmarkStable/bench-shared-001`,
-      { headers: headers() },
-    );
-    const checkRedirect = await fetch(`${API_BASE}/api/collections/redirects/bench-redirect-1`, {
-      headers: headers(),
-    });
+    const sig = () => AbortSignal.timeout(15000);
+    const [checkAuthor, checkStable, checkRedirect] = await Promise.all([
+      fetch(`${API_BASE}/api/collections/benchmark_authors/author-1`, {
+        headers: headers(),
+        signal: sig(),
+      }),
+      fetch(`${API_BASE}/api/collections/BenchmarkStable/bench-shared-001`, {
+        headers: headers(),
+        signal: sig(),
+      }),
+      fetch(`${API_BASE}/api/collections/redirects/bench-redirect-1`, {
+        headers: headers(),
+        signal: sig(),
+      }),
+    ]);
 
     if (checkAuthor.ok && checkStable.ok && checkRedirect.ok) {
       const authorJson = await checkAuthor.json().catch(() => ({}));
@@ -102,6 +129,9 @@ async function main(): Promise<void> {
     }
 
     log(`🚀 Benchmark data seeding via HTTP: ${API_BASE}`);
+
+    // Wait for the server to be fully up before any requests
+    await waitForServer();
 
     // Smart check: skip seeding if data already exists
     if (await smartCheck()) {

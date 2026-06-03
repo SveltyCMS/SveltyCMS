@@ -118,6 +118,7 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
 
 let yogaAppPromise: Promise<any> | null = null;
 let lastSchemaVersion: number | null = null;
+let lastDbAdapter: any = null;
 
 export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
   const { contentSystem } = await import("@src/content/index.server");
@@ -127,9 +128,11 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
   if (
     !yogaAppPromise ||
     lastSchemaVersion !== currentVersion ||
+    lastDbAdapter !== dbAdapter ||
     (isBenchmark && lastSchemaVersion === null)
   ) {
     lastSchemaVersion = currentVersion;
+    lastDbAdapter = dbAdapter;
     yogaAppPromise = (async () => {
       try {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
@@ -197,8 +200,12 @@ async function handleRequest(event: RequestEvent) {
   await contentSystem.waitForReload();
 
   let adapter = locals.dbAdapter;
-  if (!adapter) {
-    const { getDb } = await import("@src/databases/db");
+  // 🚀 HARDENING: If adapter is missing or disconnected (e.g. after reinitialize), refresh it
+  if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
+    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
+    if (!isDbConnected()) {
+      await getDbInitPromise();
+    }
     adapter = getDb();
   }
 

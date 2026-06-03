@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-05-27"
+updated: "2026-06-03"
 tags:
   - "style-guide"
   - "gui"
@@ -14,23 +14,30 @@ tags:
   - "tailwind"
   - "contributing"
   - "wcag3"
+  - "admin-theme"
 ---
 
 # GUI Styling & UX Guide
 
 This document is the single source of truth for all GUI, styling, and UX patterns within SveltyCMS. Adhering to this guide is mandatory for all contributions to ensure a cohesive, accessible, and performant user interface.
 
-## 🏗️ Foundation: Native Components + Tailwind
+## 🏗️ Foundation: Native Components + Tailwind + Theme System
 
 Our UI is built on a robust and flexible foundation:
 
-- **`src/components/ui/`**: Our native Svelte 5 component library — 37 reusable, WCAG 3.0-ready primitives. Always prefer these over building new components from scratch.
-- **Tailwind CSS v4**: Utility-first styling for all layout and custom one-off styles.
-  - **Exclamation Mark Suffix**: Always use the suffix exclamation mark syntax (e.g., `py-0!` or `px-1!`) instead of the legacy prefix syntax (e.g., `!py-0` or `!px-1`) to avoid compiler and linter warnings.
-  - **RTL-Friendly Logical Properties**: Use Svelte/Tailwind logical properties (e.g., `ps-*`, `pe-*`) instead of directional properties (e.g., `pl-*`, `pr-*`) to support right-to-left layout directionality seamlessly.
-  - **No `tailwind.config.js`**: We use CSS-based config configuration (`@import "tailwindcss"` in `app.css`). Do not create or modify `tailwind.config.js`. Write all utility classes inline rather than using `@apply` (except for base layer component abstractions).
-- **Design Tokens**: Pure Tailwind v4 `@theme` block in `app.css` provides all semantic color palettes including `primary`, `secondary`, `tertiary`, `surface`, `error`, `warning`, `success`. Preset classes (`preset-filled-*`, `preset-tonal-*`, `preset-outlined-*`) are defined as Tailwind `@utility` classes.
-- **Base Classes**: `card`, `badge`, `btn`, `input`, `btn-icon` are defined as Tailwind `@utility` classes in `app.css`.
+- **`src/components/ui/`**: 37+ reusable, WCAG 3.0-ready Svelte 5 primitives. **Always prefer these.**
+- **Tailwind CSS v4** with CSS-first configuration (`@import "tailwindcss"` in `app.css`).
+- **Admin Theme System**: Full support for color + structural theming inspired by Drupal Gin (see `admin-theme-plan.mdx`).
+
+**Key Rules**:
+
+- Use suffix `!` for important utilities (`py-0!`, `px-1!`).
+- Prefer RTL logical properties (`ps-`, `pe-`, `start-`, `end-`).
+- Never use hardcoded colors — always use presets or CSS variables.
+- **No `tailwind.config.js`**: CSS-based config only (`@import "tailwindcss"` in `app.css`).
+- **No `@apply`** except for base layer component abstractions; write utility classes inline.
+- **Design Tokens**: Pure Tailwind v4 `@theme` block provides all semantic palettes (`primary`, `secondary`, `tertiary`, `surface`, `error`, `warning`, `success`). Preset classes (`preset-filled-*`, `preset-tonal-*`, `preset-outlined-*`) are defined as `@utility` classes.
+- **Base Classes**: `card`, `badge`, `btn`, `input`, `btn-icon` are defined as `@utility` classes in `app.css`.
 
 ## 🎨 Core Principles
 
@@ -39,15 +46,17 @@ Our UI is built on a robust and flexible foundation:
 - **ALWAYS** use the preset classes defined in `app.css` (e.g., `preset-filled-primary-500`, `preset-tonal-success`, `preset-outlined-surface-500`).
 - **ALWAYS** use CSS custom properties for one-off colors (e.g., `var(--color-primary-500)`, `var(--color-error-500)`).
 - **NEVER** use hardcoded Tailwind colors (e.g., `text-red-500`, `bg-blue-500`).
-- **ALWAYS** follow the **Dynamic Accent Color Pair Policy**:
-  - For interactive components, visual anchors, highlighted text, and primary navigation states, use **Tertiary (Blue)** in light mode and **Primary (Green)** in dark mode.
-  - Implement this using the standard token pairing format: `text-tertiary-500 dark:text-primary-500`, `bg-tertiary-500 dark:bg-primary-500`, or `preset-filled-tertiary-500 dark:preset-filled-primary-500`.
-  - Hardcoding `primary-500` or `tertiary-500` without a dark-mode counterpart for these elements is prohibited.
+- **ALWAYS** follow the **Dynamic Accent Color Pair Policy** (configurable per theme):
+  - Default: **Tertiary (Blue)** in light mode and **Primary (Green)** in dark mode.
+  - Implement as: `text-tertiary-500 dark:text-primary-500` / `preset-filled-tertiary-500 dark:preset-filled-primary-500`.
+  - Can be overridden by admin themes via `AdminTheme` context.
+  - Hardcoding `primary-500` or `tertiary-500` without a dark-mode counterpart is prohibited.
 
-### Use Native UI Components
+### Use Native UI Components + Theme Context
 
 - **ALWAYS** check `src/components/ui/` first before building any UI element. The library covers buttons, inputs, modals, drawers, popovers, tabs, tables, tree-views, and more.
-- **NEVER** re-implement a primitive that already exists as a native component. If a native component doesn't meet your needs, extend it via `$props()` and snippets rather than rebuilding.
+- **NEVER** re-implement a primitive that already exists as a native component. Extend via `$props()` and snippets instead.
+- All components must respect the active `AdminTheme` context (density, variant, radii, etc.) via `getContext(ADMIN_THEME_KEY)` from `theme-context.svelte.ts`.
 
 ### Svelte 5 Runes Only
 
@@ -308,7 +317,7 @@ For persistent in-page messages:
 <Loader variant="text" lines={3} lastLineWidth="60%" />
 ```
 
-## 🌙 Dark Mode
+## 🌙 Dark Mode & CMS Page Layout Standard
 
 Every class that sets a color, background, or border must have a `dark:` variant using theme colors. Our native components handle this automatically.
 
@@ -322,13 +331,13 @@ When writing custom styles:
 
 Every CMS configuration page MUST follow this structure, modeled after `/config/monitor`.
 
-### Page Shell (Outer Container)
+### Page Shell (Outer Container — Theme-Aware)
 
 ```svelte
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto admin-theme-container">
 ```
 
-This provides the unified full-height scrollable container with theme-aware background.
+This provides the unified full-height scrollable container with theme-aware background. The `admin-theme-container` class ensures CSS variable tokens from the active `AdminTheme` are scoped correctly.
 
 ### Page Header
 
@@ -354,12 +363,13 @@ Every page header uses this exact pattern:
 - Subtitle uses `text-sm opacity-50 font-medium`
 - Action buttons go in the right side of the flex container
 
-### Content Cards
+### Content Cards (Theme-Aware)
 
-All content sections use the unified card class:
+All content sections use the unified card class with CSS variable support for border-radius:
 
-```
-card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm
+```svelte
+<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm"
+     style="border-radius: var(--admin-radius-card, 0.75rem);">
 ```
 
 **Rules**:
@@ -367,6 +377,7 @@ card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surf
 - Always wrap content blocks in cards, never bare `<div>` sections
 - Use `space-y-4` or `space-y-6` inside cards for internal spacing
 - For tables inside cards, use `overflow-x-auto` wrapper
+- Always include `style="border-radius: var(--admin-radius-card, 0.75rem);"` to respect the active admin theme
 
 ### Stats Grid (When Applicable)
 
@@ -447,7 +458,9 @@ card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surf
   </div>
 
   <!-- Content Card -->
-  <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fly={{ y: 20, delay: 200 }}>
+  <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm"
+       style="border-radius: var(--admin-radius-card, 0.75rem);"
+       in:fly={{ y: 20, delay: 200 }}>
     {#if isLoading}
       <Loader variant="text" lines={3} />
     {:else if items.length === 0}
@@ -478,8 +491,10 @@ card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surf
 
 Before submitting a PR:
 
+- [ ] **Theme Awareness**: Component respects `--admin-*` CSS variables and `AdminTheme` context (density, variant, radii). CSS variable fallbacks included (e.g., `var(--admin-radius-card, 0.75rem)`).
 - [ ] **Use Native Components**: Prefer `src/components/ui/` over building from scratch.
 - [ ] **Semantic Colors**: Use preset classes (`preset-filled-primary-500`) or CSS variables (`var(--color-primary-500)`). No hardcoded hex/Tailwind colors.
+- [ ] **Dynamic Accent Pairing**: Interactive accents use `tertiary-500` (light) / `primary-500` (dark), or are intentionally overridden by AdminTheme.
 - [ ] **Dark Mode**: All custom styles have `dark:` variants.
 - [ ] **Error Handling**: Correct error pattern used (Absolute via component `error` prop, Static, or Banner).
 - [ ] **WCAG 3.0**: `aria-label` on icon-only buttons, `role="alert"` on errors, `role="status"` on live regions, 24px touch targets.

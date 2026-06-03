@@ -229,6 +229,8 @@ export async function handleCollectionFind(
     return streamingJsonResponse(iterator, totalCount);
   }
 
+  const bypassCache = url.searchParams.get("bypassCache") === "true" || url.searchParams.get("nocache") === "true";
+
   return successResponse(
     event,
     await cms.collections.find(collectionId, {
@@ -239,6 +241,7 @@ export async function handleCollectionFind(
       sortDirection,
       filter,
       publicationFilter,
+      bypassCache,
     }),
   );
 }
@@ -250,9 +253,10 @@ export async function handleCollectionEntry(
   collectionId: string,
   entryId: string,
 ) {
+  const bypassCache = event.url.searchParams.get("bypassCache") === "true" || event.url.searchParams.get("nocache") === "true";
   return successResponse(
     event,
-    await cms.collections.findById(collectionId, entryId, { tenantId }),
+    await cms.collections.findById(collectionId, entryId, { tenantId, bypassCache }),
   );
 }
 

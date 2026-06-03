@@ -140,7 +140,7 @@ export async function runBenchmarkScript(
   let cmd =
     s.path.endsWith(".test.ts") || s.path.endsWith(".bench.ts")
       ? `bun test --preload ./tests/unit/bun-preload.ts ./${s.path}`
-      : `bun run --preload ./tests/unit/bun-preload.ts ./${s.path}`;
+      : `bun run ./${s.path}`;
 
   if (process.env.PROF_MODE === "0x") {
     const profOutput = path.join(env.RESULTS_DIR || ".", `prof-${s.shortLabel}`);
@@ -567,7 +567,7 @@ async function ensureSeedingIfNeeded(s: BenchmarkScript, env: NodeJS.ProcessEnv,
   ) {
     const ok = await runTask(
       "Seeding Relational Data",
-      "bun run --preload ./tests/unit/bun-preload.ts ./scripts/benchmark-matrix/setup-benchmarks.ts",
+      "bun run ./scripts/benchmark-matrix/setup-benchmarks.ts",
       env,
       cfg.ci,
     );

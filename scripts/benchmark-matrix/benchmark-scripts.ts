@@ -418,7 +418,11 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     strategy: "all",
     tags: ["cpu", "network", "disk"],
     metricCategory: "scale",
-    correlatedWith: ["index-pressure", "rest-api-performance", "graphql-api-performance"],
+    correlatedWith: [
+      "index-pressure",
+      "rest-api-performance",
+      "graphql-api-performance",
+    ],
   },
   {
     path: "tests/benchmarks/graphql-stress.test.ts",
@@ -489,7 +493,10 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     tags: ["cpu", "network"],
     metricCategory: "latency",
     requiredCapabilities: ["networked"],
-    codePaths: ["src/databases/cache/redis-adapter.ts", "src/databases/cache/cache-service.ts"],
+    codePaths: [
+      "src/databases/cache/redis-adapter.ts",
+      "src/databases/cache/cache-service.ts",
+    ],
   },
   // --- NEW: Media Upload Stress ---
   {
@@ -531,6 +538,45 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     strategy: "all",
     tags: ["cpu", "disk", "network"],
     metricCategory: "scale",
+  },
+  {
+    path: "tests/benchmarks/concurrency-throughput.test.ts",
+    label: "Multi-Doc Concurrency Throughput",
+    shortLabel: "Throughput",
+    level: 5,
+    section: "scale",
+    intensity: "high",
+    estimatedMs: 120_000,
+    desc: "Measures throughput scaling across 10, 100, 1000 documents.",
+    strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "throughput",
+  },
+  {
+    path: "tests/benchmarks/concurrency-max.test.ts",
+    label: "Max Throughput — No Throttle",
+    shortLabel: "MaxRPS",
+    level: 5,
+    section: "scale",
+    intensity: "high",
+    estimatedMs: 60_000,
+    desc: "1000 concurrent writes across 100 docs — no semaphore.",
+    strategy: "all",
+    tags: ["cpu", "disk", "network"],
+    metricCategory: "throughput",
+  },
+  {
+    path: "tests/benchmarks/local-api-throughput.test.ts",
+    label: "Local SDK Throughput",
+    shortLabel: "LocalSDK",
+    level: 5,
+    section: "scale",
+    intensity: "high",
+    estimatedMs: 60_000,
+    desc: "1000 direct adapter calls — no HTTP, no middleware.",
+    strategy: "all",
+    tags: ["cpu", "disk"],
+    metricCategory: "throughput",
   },
 
   // --- RESILIENCE & SECURITY (Safety Boundaries) ---
@@ -604,7 +650,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
 
   // --- TOOLING (DX Baseline) ---
   {
-    path: "tests/benchmarks/modules/build-analysis.test.ts",
+    path: "tests/benchmarks/build-analysis.test.ts",
     label: "Production Build Analysis",
     shortLabel: "Build",
     level: 0,

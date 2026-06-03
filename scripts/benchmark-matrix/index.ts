@@ -51,42 +51,24 @@ import { initProgressTracker } from "./progress";
 
 /**
  * ✨ Configuration Safeguard (Enterprise Resilience)
- * Ensures user configuration is never permanently lost or corrupted by audit suites.
+ * Ensures test configurations and mock artifacts are purged, leaving user private configs untouched.
  */
 class ConfigSafeguard {
-  private static configPath = path.join(process.cwd(), "config/private.ts");
-  private static backupPath = path.join(process.cwd(), "config/private.ts.backup");
+  private static configPath = path.join(process.cwd(), "config/private.test.ts");
 
-  /** Backs up the current config if it exists */
+  /** No backup needed for private.test.ts since it is dynamic and transient */
   static async backup() {
-    try {
-      await fs.access(this.configPath);
-      await fs.copyFile(this.configPath, this.backupPath);
-      log.info("🛡️ Backup: config/private.ts secured.");
-    } catch {
-      // No config to backup (fresh install mode)
-    }
+    // No-op: private.test.ts is transient
   }
 
-  /** Restores the backup or cleans up leaked configs */
+  /** Cleans up leaked test configurations and mock collections */
   static async restore() {
     try {
-      // 1. If backup exists, restore it (overwriting any leaks)
-      if (
-        await fs
-          .access(this.backupPath)
-          .then(() => true)
-          .catch(() => false)
-      ) {
-        await fs.rename(this.backupPath, this.configPath);
-        log.info("🛡️ Restore: original config/private.ts recovered.");
-      } else {
-        // 2. If no backup, ensure no leaked config remains (return to Setup Mode)
-        await fs.rm(this.configPath, { force: true });
-        log.info("🛡️ Cleanup: Return to Setup Mode confirmed.");
-      }
+      // Clean up the transient test configuration if it exists
+      await fs.rm(this.configPath, { force: true });
+      log.info("🛡️ Cleanup: Transient config/private.test.ts removed.");
 
-      // 4. Purge mock collections to prevent redirection leaks
+      // Purge mock collections to prevent redirection leaks
       const compiledDir = path.join(process.cwd(), ".compiledCollections");
       const files = await fs.readdir(compiledDir).catch(() => []);
       for (const file of files) {
@@ -251,20 +233,26 @@ async function main() {
     log.success("Isolation Guard: private.test.ts detected.");
   } catch {
     log.warn("Isolation Guard: private.test.ts missing. Attempting self-healing...");
-    const sqliteConf = ALL_DATABASES.find((d) => d.type === "sqlite" && !d.useRedis);
-    if (!sqliteConf) {
-      log.error("CRITICAL: No SQLite config found for self-healing.");
+    // 🚀 DATABASE-AGNOSTIC: Use the first non-Redis db from the active filter
+    // (respects --db=mongodb, --db=postgresql, etc.) instead of hardcoding SQLite.
+    // This prevents failures when the SQLite adapter is excluded from the build.
+    const healingConf =
+      activeDatabases.find((d) => !d.useRedis) ??
+      ALL_DATABASES.find((d) => d.type === "sqlite" && !d.useRedis);
+    if (!healingConf) {
+      log.error("CRITICAL: No database config available for self-healing.");
       process.exit(1);
     }
+    log.info(`Self-healing using database: ${healingConf.type}`);
     try {
-      const workerDbName_healing = "SveltyCMS_healing_test";
+      const workerDbName_healing = `SveltyCMS_healing_test_${healingConf.type}`;
       const healingPort = PORT_BASE + HEALING_PORT_OFFSET;
-      const server = await startServer(sqliteConf, healingPort, workerDbName_healing);
+      const server = await startServer(healingConf, healingPort, workerDbName_healing);
       const ok = await runTask(
         "Baseline Setup",
         "bun run scripts/setup-system.ts",
         {
-          DB_TYPE: "sqlite",
+          DB_TYPE: healingConf.type,
           DB_NAME: workerDbName_healing,
           TEST_MODE: "true",
           ADMIN_PASSWORD,
@@ -281,7 +269,7 @@ async function main() {
         log.error("CRITICAL: Self-healing failed. Run scripts/setup-system.ts manually.");
         process.exit(1);
       }
-      log.success("Self-healing complete. private.test.ts generated.");
+      log.success(`Self-healing complete via ${healingConf.type}. private.test.ts generated.`);
     } catch (e: any) {
       log.error(`Self-healing interrupted: ${e.message}`);
       await stopServer();

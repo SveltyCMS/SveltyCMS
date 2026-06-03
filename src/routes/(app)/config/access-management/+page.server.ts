@@ -12,12 +12,7 @@ import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const {
-      user,
-      roles: tenantRoles = [],
-      tenantId,
-      isAdmin: localsIsAdmin,
-    } = locals;
+    const { user, roles: tenantRoles = [], tenantId, isAdmin: localsIsAdmin } = locals;
 
     // User authentication and permission checks already done by handleAuthorization hook
     if (!user) {

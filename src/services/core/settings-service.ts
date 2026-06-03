@@ -169,10 +169,8 @@ export class SettingsService {
       } else {
         try {
           const isTest = process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true";
-          const configFilename = isTest ? "private.test" : "private";
-          const module = await import(/* @vite-ignore */ `../../config/${configFilename}`).catch(
-            () => ({}),
-          );
+          const configPath = "../../config/" + (isTest ? "private.test" : "private");
+          const module = await import(/* @vite-ignore */ configPath).catch(() => ({}));
           privateConfig = (module.privateEnv || module) as PrivateEnv;
         } catch (error) {
           logger.trace("Private config not found during setup", {

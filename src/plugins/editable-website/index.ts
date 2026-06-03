@@ -7,11 +7,13 @@
 import { slotRegistry } from "@src/plugins/slot-registry";
 import type { Plugin } from "@src/plugins/types";
 
+const livePreviewComponent = "./live-preview.svelte";
+
 // Register the Live Preview slot with a condition
 slotRegistry.register({
   id: "live_preview",
   zone: "entry_edit",
-  component: () => import("./live-preview.svelte"),
+  component: () => import(livePreviewComponent),
   props: {
     label: "Live Preview",
     icon: "mdi:eye-outline",
@@ -37,7 +39,7 @@ export const editableWebsitePlugin: Plugin = {
           id: "live_preview",
           label: "Live Preview",
           icon: "mdi:eye-outline",
-          component: () => import("./live-preview.svelte"),
+          component: () => import(livePreviewComponent),
         },
       ],
     },

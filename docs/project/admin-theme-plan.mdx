@@ -1,261 +1,283 @@
 ---
 path: docs/project/admin-theme-plan.mdx
 title: Administration Theme System Architecture
-description: Strategic plan for implementing highly flexible, structural admin themes in SveltyCMS.
+description: Strategic plan for implementing Gin-level flexible, structural admin themes in SveltyCMS — matching and surpassing Drupal Gin's admin UI flexibility.
 author: "SveltyCMS Team"
 created: 2026-06-01
+updated: 2026-06-03
 status: in-progress
 ---
 
-# Administration Theme System Architecture
+# Administration Theme System Architecture (Gin-Inspired)
 
-This document presents the detailed architectural blueprint for achieving layout and styling flexibility within the SveltyCMS administration panels.
-
----
-
-## 1. The Challenge: Beyond Simple Color Swapping
-
-Traditional theme systems (including standard Tailwind implementations) focus on swapping color variables (e.g., changing `--color-primary-500` from blue to green). However, advanced CMS admin themes do more than change colors; they dynamically alter:
-
-- **Structural Layouts:** Sidebar positioning, header densities, floating action panels, and layout spacing.
-- **Design Metrics:** Focus rings, border radii, border thicknesses, container spacing, and shadow weights.
-- **Typography & Density:** Content density levels (compact, cozy, spacious), and specialized font pairings.
-- **Component Templates:** Transforming native UI elements (buttons, inputs, cards) from standard flat forms into modern rounded containers.
+This document is the strategic blueprint for making SveltyCMS's admin UI as flexible, opinionated, and extensible as **Drupal Gin** — and then going further, thanks to Svelte 5's reactive component model.
 
 ---
 
-## 2. Proposed Architecture: SveltyCMS Admin Theme System
+## 1. Vision: Gin-Level Flexibility
 
-To enable this flexibility, SveltyCMS will decouple layout structure, component configuration, and design tokens from hardcoded values.
+Drupal Gin has become the gold standard for modern admin UIs because it goes beyond color theming — it delivers a cohesive, modular, and deeply customizable experience with dedicated modules for every part of the admin interface.
+
+SveltyCMS aims to match or exceed each:
+
+| Gin Module             | SveltyCMS Equivalent                                 | Priority |
+| :--------------------- | :--------------------------------------------------- | :------- |
+| **Gin Toolbar**        | Enhanced top + side navigation with role-based menus | High     |
+| **Gin Login**          | Branded, fully themed login + forgot password pages  | High     |
+| **Gin Layout Builder** | Themed + improved Layout/Block system                | Medium   |
+| **Gin Type Tray**      | Content type browser / quick-create tray             | High     |
+| **Gin Dashboard**      | Widget-based, customizable home dashboard            | High     |
+
+We achieve this through **color theming** (Skeleton.dev compatible) + **structural theming** (CSS variables + Svelte 5 Context) — with zero PHP/Twig overhead.
+
+### SveltyCMS Advantages Over Gin
+
+- **True reactive Svelte components** → much smoother UX than Drupal's PHP + Twig render pipeline
+- **Easier per-tenant / multi-site theming** via native `tenantId` isolation
+- **Better mobile responsiveness** out of the box (no Drupal legacy baggage)
+- **Live preview** in the theme customizer (possible natively with Svelte 5 `$state`)
+- **Zero compilation overhead** — CSS variables swap instantly at runtime
+
+---
+
+## 2. Core Architecture
 
 ```mermaid
 graph TD
-    A[Theme Configuration / DB] --> B[Theme Negotiator Hook]
-    B --> C[Admin Layout +layout.svelte]
-    C --> D[CSS custom tokens / variables]
-    C --> E[Svelte 5 Theme Context]
-    D --> F[Global/App CSS styles]
-    E --> G[Native UI Components]
-    F --> G
-```
-
-### Key Pillars of the System
-
-### Pillar A: Layout & Metric Abstraction (CSS Custom Properties)
-
-We will transition Tailwind v4 styles from static values to dynamic tokens computed at runtime.
-
-```css
-/* src/app.css or theme styles */
-:root[data-admin-theme="custom"] {
-  /* Dynamic Spacing & Border Scales */
-  --admin-spacing-scale: 1.1;
-  --admin-border-width: 2px;
-  --admin-radius-card: 16px;
-  --admin-radius-input: 12px;
-  --admin-shadow-elevation: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-
-  /* Color Customizations */
-  --color-primary-500: oklch(62% 0.18 250deg); /* Accent blue */
-  --color-surface-900: oklch(14% 0.02 240deg); /* Warm charcoal */
-
-  /* Navigation layout properties */
-  --admin-sidebar-width: 280px;
-  --admin-header-height: 70px;
-}
-```
-
-Components (e.g., card.svelte, input.svelte) will read these layout metrics directly:
-
-```html
-<!-- Native card with dynamic metrics support -->
-<div
-  class="card border-(length:--admin-border-width) shadow-(--admin-shadow-elevation)"
-  style="border-radius: var(--admin-radius-card);"
->
-  ...
-</div>
+    A[DB Theme Config] --> B[Theme Service]
+    B --> C["Admin +layout.svelte"]
+    C --> D["CSS Variables + data-admin-theme"]
+    C --> E[Svelte 5 AdminTheme Context]
+    D --> F[Native UI Components]
+    E --> F
+    F --> G[Custom CSS Injection]
+    G --> H["Per-Tenant Stylesheet (Runtime)"]
 ```
 
 ---
 
-### Pillar B: Svelte 5 Component Context System (`ThemeContext`)
+## 3. Pillar A: Design Tokens — `--admin-*` Structural Variables
 
-To support structural changes (e.g., a button displaying as a pill with high shadow borders in one theme, but flat and squared in another), we will introduce a Svelte Context Provider in the root Admin layout.
+All structural tokens live in `src/utilities.css` (imported by `app.css`), protected from theme copy-paste overwrites.
+
+```css
+/* src/utilities.css — :root defaults (cozy density) */
+:root {
+  /* Density Scale (0.85 = compact, 1.0 = cozy, 1.25 = spacious) */
+  --admin-density: 1;
+
+  /* Radii */
+  --admin-radius-base: 0.75rem;
+  --admin-radius-card: 0.875rem;
+  --admin-radius-input: 0.625rem;
+  --admin-radius-button: 0.5rem;
+
+  /* Borders & Shadows */
+  --admin-border-width: 1px;
+  --admin-shadow-elevation: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  --admin-shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.05);
+
+  /* Layout Sizing */
+  --admin-sidebar-width: 260px;
+  --admin-header-height: 64px;
+
+  /* Features */
+  --admin-sticky-bar-height: 56px;
+
+  /* Editorial Status Colors */
+  --admin-color-draft: oklch(65% 0 219deg);
+  --admin-color-published: oklch(69.59% 0.15 162.47deg);
+  --admin-color-scheduled: oklch(58.74% 0.2 256.12deg);
+  --admin-color-review: oklch(76.86% 0.16 70.07deg);
+}
+
+/* Compact density overrides */
+[data-density="compact"] {
+  --admin-density: 0.85;
+  --admin-radius-card: 6px;
+  --admin-radius-input: 4px;
+  --admin-sidebar-width: 200px;
+  --admin-header-height: 48px;
+}
+
+/* Spacious density overrides */
+[data-density="spacious"] {
+  --admin-density: 1.25;
+  --admin-radius-card: 16px;
+  --admin-radius-input: 10px;
+  --admin-sidebar-width: 300px;
+  --admin-header-height: 72px;
+}
+```
+
+Components read these directly:
+
+```svelte
+<div class="card shadow-sm"
+     style="border-radius: var(--admin-radius-card, 0.875rem);
+            border-width: var(--admin-border-width, 1px);">
+```
+
+---
+
+## 4. Pillar B: Svelte 5 `AdminTheme` Context
+
+The `AdminTheme` class in `src/components/ui/theme-context.svelte.ts` is the reactive source of truth for structural theme state — consumed by all native UI components via Svelte context.
 
 ```typescript
 // src/components/ui/theme-context.svelte.ts
 export interface ThemeConfig {
+  id: string;
   name: string;
   density: "compact" | "cozy" | "spacious";
-  variant: "flat" | "bordered" | "neumorphic";
-  shadows: boolean;
+  variant: "flat" | "bordered" | "elevated";
+  accentMode: "default" | "primary-only" | "custom";
+  role: "editor" | "reviewer" | "translator" | "admin" | "manager";
+  customCss?: string;
+  features: {
+    stickyActionBar: boolean;
+    collapsibleSidebar: boolean;
+    brandedLogin: boolean;
+    highContrastMode: boolean;
+    reducedMotion: boolean;
+  };
 }
-
-export const ADMIN_THEME_KEY = Symbol("admin-theme");
 ```
 
-In the main administration layout:
+Set in `(app)/+layout.svelte`, consumed in every native component:
 
-```html
-<!-- src/routes/(admin)/+layout.svelte -->
+```svelte
+<!-- src/routes/(app)/+layout.svelte -->
 <script lang="ts">
-  import { setContext } from "svelte";
+  import { setThemeContext } from '@components/ui/theme-context.svelte';
 
-  let currentThemeConfig = $state<ThemeConfig>({
-    name: "custom",
-    density: "cozy",
-    variant: "bordered",
-    shadows: true,
-  });
-
-  setContext(ADMIN_THEME_KEY, currentThemeConfig);
+  const theme = setThemeContext({ density: 'cozy', variant: 'bordered' });
 </script>
+
+<div data-density={theme.density} data-admin-theme={theme.themeName}>
+  {@render children()}
+</div>
 ```
 
-In our native UI components (e.g., button.svelte):
+**Fallback Guard**: If `getThemeContext()` returns `undefined` (unit tests, setup screens), components resolve to the standard `cozy/bordered` defaults automatically.
 
-```html
-<script lang="ts">
-  import { getContext } from "svelte";
-  import { ADMIN_THEME_KEY, type ThemeConfig } from "./theme-context.svelte";
+---
 
-  const theme = getContext<ThemeConfig>(ADMIN_THEME_KEY);
+## 5. Admin Theme Settings Panel (Gin Settings Equivalent)
 
-  // Reactively calculate styles based on current theme structure
-  const densityPadding = $derived.by(() => {
-    if (!theme) return "px-4 py-2";
-    if (theme.density === "compact") return "px-2 py-1 text-xs";
-    if (theme.density === "spacious") return "px-6 py-3 text-base";
-    return "px-4 py-2"; // Cozy
-  });
-</script>
+**Location**: `Settings → Appearance → Admin Theme`
+
+| Tab                  | Features                                                                                      |
+| :------------------- | :-------------------------------------------------------------------------------------------- |
+| **Presets & Import** | Skeleton.dev imports, curated Svelty presets, paste theme JSON                                |
+| **Colors**           | Accent color (light/dark pairing toggle), focus ring color, custom palettes                   |
+| **Layout & Density** | Compact / Cozy / Spacious, sidebar width (resizable), header density                          |
+| **Navigation**       | Vertical sidebar (default), top toolbar option, collapsible / hidden states                   |
+| **Visual Style**     | Border radius (global + per-component), shadow intensity, card style (flat/bordered/elevated) |
+| **Features**         | Sticky action bar, dark mode behavior, reduced motion, high contrast mode                     |
+| **Advanced**         | Custom CSS textarea (with sanitization), reset to defaults, Export / Import theme JSON        |
+
+### Key Flexibility Features (Must-Have for Gin Parity)
+
+- ✅ **Sticky Action Bar** — Save / Preview / Delete buttons that stick on scroll in content edit forms
+- ✅ **Resizable / Collapsible Sidebar**
+- ✅ **Per-user Theme Overrides** (like Gin's per-user settings)
+- ✅ **Accent Color + Focus Color** with live preview
+- ✅ **Custom Logo / Branding** on login + admin header
+- ✅ **Dark Mode** with auto + forced options
+- ✅ **Custom CSS injection** (safely sanitized, per-tenant)
+- ✅ **Role-based layout variations**
+
+---
+
+## 6. Figma Integration
+
+### Design Token Pipeline
+
+```
+Figma Variables (Tokens Studio) → JSON Export → Style Dictionary build
+→ CSS custom properties in app.css / tenant stylesheets
 ```
 
----
+- **1-to-1 Mapping**: Figma variable names map directly to `--admin-*` CSS properties
+- **Mode Switching**: Figma modes (Light/Dark, Classic/Custom) → `data-admin-theme` attributes
+- **Component Parity**: Svelte component props (`variant`, `density`) match Figma component variants exactly
 
-## 3. How Figma Can Assist the Workflow
+### Figma API Dynamic Importer
 
-Integrating **Figma** into this design pipeline creates a powerful workflow bridging design and production code.
+An administrator can input a Figma File URL + Personal Access Token → SveltyCMS fetches variables via the Figma REST API (`/v1/files/:key/variables`) → writes a new theme record to DB → live in one click.
 
-### 1. Figma Variables & Design Tokens (1-to-1 Mapping)
+### Skeleton.dev Coexistence
 
-Figma Variables support multiple types (Color, Float/Number, String, Boolean) and **Modes** (e.g., Light Mode vs. Dark Mode, or Default Theme vs. Custom Theme).
-
-- **Token Alignment:** We map Figma Variable names directly to SveltyCMS's CSS custom properties. For example, a Figma numeric variable named `spacing/scale` translates directly to `--admin-spacing-scale`.
-- **Variable Modes:** Changing the layout mode in Figma (e.g., switching the page mode from "Classic" to "Custom Layout") instantly updates padding, radius, and shadow properties in the mockup. SveltyCMS replicates this behavior via DOM data attributes (e.g., `data-admin-theme="custom"`).
-
-### 2. Auto-generated Token Pipelines (Style Dictionary)
-
-Rather than manually coding styles, we establish a continuous delivery pipeline for themes:
-
-1.  **Figma Tokens Studio:** Designers manage colors, layout values, and typographic scales using the _Tokens Studio_ plugin in Figma.
-2.  **JSON Export:** Design variables are exported as structured JSON tokens.
-3.  **Style Dictionary / Build Task:** SveltyCMS integrates a build step using `Style Dictionary` to automatically parse these JSON files and compile them into CSS custom properties under `src/app.css` or tenant-specific stylesheets.
-
-### 3. Component Variant Parity
-
-We match component properties inside SveltyCMS with **Figma Component Variants**.
-
-- If our Svelte Button component supports `variant` (primary, secondary, etc.) and `shape` (round, angle), the corresponding Figma Button component contains identical variant dimensions.
-- This ensures that UI mocks generated in Figma are rendered identically in the CMS engine with zero code transformations.
-
-### 4. Figma API Dynamic Theme Importer (Advanced Feature)
-
-SveltyCMS can include a theme synchronizer utility inside the administration Settings panel:
-
-- An administrator inputs a Figma File URL and their Figma Personal Access Token.
-- The SveltyCMS backend calls the **Figma REST API** (`/v1/files/:key/variables`) to retrieve the design variables.
-- The system dynamically writes these variables into a new custom theme database record, allowing administrators to design a theme in Figma and sync it to SveltyCMS in one click.
-
-### 5. Semantic SCSS/CSS Variable Rollout
-
-SveltyCMS will implement a **Semantic SCSS/CSS Variable Rollout** system directly synced to Figma design collections:
-
-- **Decoupled Primitives & Semantics:** Primitives (exact hex codes like `#3b82f6` or `gray/100`) are mapped in a background base SCSS layer.
-- **Semantic Tokens Rollout:** Design styles are coded entirely using semantic tokens (e.g., `--theme-bg-elevation-1`, `--theme-border-input-focus`).
-- **CSS Layer Boundaries:** By encapsulating core components inside a Svelte/Tailwind CSS layer (e.g. `@layer components`), developers can load a complete semantic SCSS theme file rolled out from Figma variables that overrides every layout border, spacing ratio, and component styling dynamically.
-
-### 6. Coexistence with Skeleton Theme Generator (themes.skeleton.dev)
-
-SveltyCMS utilizes standard Tailwind v4 and Skeleton-compatible variable mappings (e.g. `--color-primary-500`, `--color-surface-900`) inside [src/app.css](file:///D:/SveltyCMS/src/app.css).
-To allow users to directly copy-paste custom generated themes from `https://themes.skeleton.dev/themes/create`, our admin theme architecture defines a layered approach:
-
-- **Color Overwrites (Copied Palette):** When a user pastes a custom theme into the `@theme` block, the primary, secondary, and surface color palettes swap globally.
-- **Structural Layering (Layout Theme):** SveltyCMS overlays layout-specific tokens (e.g. `--admin-spacing-scale`, `--admin-border-width`) on top of the pasted color tokens.
-- **Adaptive Component Classes:** Components react to the color palette updates automatically (since they use class maps like `preset-filled-primary-500` which reference the newly pasted variables), while their structure adjusts depending on SveltyCMS's contextual variables.
-
-### 7. Future-Proofing: The Dynamic CSS Custom Theme Paradigm
-
-While Figma serves as a designer's sandbox to model themes, SveltyCMS's **injected CSS Variable theme system** is the ultimate future-proof mechanism for achieving high-level admin theme portability:
-
-- **Zero Compilation Overhead:** Traditional setups require compilation tasks (Sass/Webpack/Vite rebuilds) to swap administrative designs. By executing styling entirely via runtime CSS variables, a new custom layout can be loaded instantly by serving a static `.css` file.
-- **Enterprise Multi-Tenant Isolation:** Dynamic custom variables allow the server to inject tenant-specific CSS properties at render time. Tenant A (using a corporate flat theme) and Tenant B (using a modern rounded theme) share the exact same compiled SvelteKit JavaScript bundles, keeping runtime performance at sub-millisecond level.
-- **Simple Plugin Overrides:** Community developers can package fully customized admin themes as basic CSS plugins containing variable overwrites, which are registered in SveltyCMS without touching Svelte source files.
-
-### 8. Visual Regression Prevention & Default Aesthetic Safety
-
-To guarantee that the current look and feel of the SveltyCMS administration panel does not change during the refactoring process, we enforce three safety guardrails:
-
-0.  **Dynamic Accent Color Pairing Consistency:**
-    All dynamic components must follow the `tertiary-500` (Light) / `primary-500` (Dark) color pairing for accents and main buttons. No refactoring should hardcode `primary-500` for light-mode actions unless theme parameters override it.
-1.  **Local CSS Variable Fallbacks (`var(--token, fallback)`):**
-    All CSS custom property references in Svelte templates contain the current design values as hardcoded CSS fallbacks. For example:
-    - Instead of `style="border-radius: var(--admin-radius-card);"`, we write `style="border-radius: var(--admin-radius-card, 0.75rem);"`.
-    - If no custom theme stylesheet is served or variables fail to load, the browser falls back to the exact current style definitions.
-2.  **Default Theme Root Mappings in `app.css`:**
-    Under the `:root` pseudo-class in [src/app.css](file:///D:/SveltyCMS/src/app.css), we initialize all `--admin-*` tokens matching SveltyCMS's current design values (e.g. `--admin-spacing-scale: 1.0;`, `--admin-border-width: 1px;`, `--admin-radius-card: 0.75rem;`).
-3.  **Svelte 5 Context Fallback Guard:**
-    If `getContext(ADMIN_THEME_KEY)` returns `undefined` (because a component is loaded outside the admin layout context, such as in unit tests or setup screens), components resolve to the standard cozy/rounded layout properties automatically.
-4.  **Baseline Visual Regression Tests:**
-    Before executing the CSS variables migration, we record visual screenshot baselines using our automated Playwright integration suite. We compare new runs pixel-for-pixel to ensure exactly `0%` visual deviance from our current production styling.
-
-### 9. Theme-Exclusive Features & Advanced Extension Capabilities
-
-Advanced admin themes do not merely style core layouts; they inject dynamic UI features (e.g. custom shortcuts, dynamic navigation toolbars, sticky action headers, and real-time palette tweaks) that are missing from standard themes.
-SveltyCMS supports this level of advanced flexibility via our **Svelte 5 Context API & Asset Injection pipeline**:
-
-- **Feature Flags in Context Store:** The Svelte 5 `ThemeConfig` context includes a `features` map (e.g. `{ quickSearch: true, stickyHeader: true, layoutToggles: true }`). The admin layout uses these flags to conditionally mount and render advanced components or structural changes.
-- **Dynamic Script & Style Injection:** Custom admin themes can define optional JS/CSS files to be loaded on the fly (e.g. `gin-features.js` to handle specialized layout gestures or sidebar behaviors).
-- **Polymorphic Snippet Slots:** SveltyCMS layouts expose optional layout hooks (e.g. `{#if theme.slots.headerBar} ... {/if}`) allowing custom themes to render custom headers, user menus, or status modules in places where the default layout might only display plain text.
+Themes from `https://themes.skeleton.dev/themes/create` can be pasted directly into the `@theme` block. SveltyCMS overlays `--admin-*` structural tokens on top — color palette swaps globally, structural layout stays controlled.
 
 ---
 
-## 4. Implementation Roadmap & Timeline Estimation
+## 7. Visual Regression Prevention
 
-The conversion of the SveltyCMS administration panel to use this dynamic design token system is estimated to take **9 to 13 working days (~2 weeks)** for a single engineer, broken down into the following phases:
-
-### Phase 1: Design Token Abstraction - [COMPLETED]
-
-- **CSS Variable Mapping:** Extract hardcoded dimensions, shadows, and spacing rules from `src/app.css` into `--admin-*` tokens.
-  - _Implementation:_ All dynamic administrative tokens (`--admin-spacing-scale`, radii, elevations, layout heights, and editorial colors) were mapped inside [utilities.css](file:///d:/SveltyCMS/src/utilities.css) (imported by `src/app.css`) to protect variables from being overridden during theme swapping or copy-paste style modifications.
-- **Theme Context Setup:** Create the Svelte 5 `ThemeContext` controller and hook it into the admin root layout `(app)/+layout.svelte`.
-  - _Implementation:_ Implemented `AdminTheme` reactive controller under [theme-context.svelte.ts](file:///d:/SveltyCMS/src/components/ui/theme-context.svelte.ts) and set it up inside [+layout.svelte](<file:///d:/SveltyCMS/src/routes/(app)/+layout.svelte>) using Svelte 5 context and dynamic layout-density configurations (spacious, cozy, compact). Included Svelte 5 compiler refinements (`untrack`) to ensure clean compilation outputs.
-
-### Phase 2: Component Refactoring - [IN PROGRESS]
-
-- **Component Token Wiring:** Refactor the 36 native UI components (cards, inputs, dropdowns, tables, buttons) to reactively read context properties and layout metrics.
-  - _Implementation:_ Refactored core primitives including [Button](file:///d:/SveltyCMS/src/components/ui/button.svelte), [Card](file:///d:/SveltyCMS/src/components/ui/card.svelte), [Input](file:///d:/SveltyCMS/src/components/ui/input.svelte), and [Badge](file:///d:/SveltyCMS/src/components/ui/badge.svelte) to dynamically adjust padding, border radius, border width, and layout metrics based on scaling factors. Applied rounding logic (`Math.round(val * 10) / 10`) to heights and paddings to clean up floating point rendering.
-- **Aesthetic Quality Assurance (1 day):** Ensure layout density, borders, and margins render consistently under extreme styling changes.
-
-### Phase 3: DB Integration & Settings Panel (Est. 2-3 Days)
-
-- **Database & Settings Integration (1.5 days):** Add settings tables, tenant preferences schema, and CRUD endpoints to store the active theme configuration.
-- **Sync Utility & GUI (1.5 days):** Build the copy-paste GUI and the Figma API synchronization module in the administration dashboard.
-
-### Phase 4: Validation & Quality Control (Est. 2-3 Days)
-
-- **Cross-Browser and E2E Auditing (1.5 days):** Verify spacing metrics across layouts, test performance impact, and validate responsive rendering.
-- **Accessibility & WCAG Auditing (1 day):** Verify color contrast scales, keyboard focus rings, and screen-reader flow during theme swaps.
-  - _Implementation:_ Created automated integration tests in [theme-context.test.ts](file:///d:/SveltyCMS/tests/unit/components/ui/theme-context.test.ts) to verify correct context metrics propagation and scaling in SSR. Passed all checks successfully.
+1. **CSS Variable Fallbacks**: All `var(--admin-*, fallback)` references include the current value as fallback so the browser never renders a broken layout if no custom theme is served.
+2. **Default Root Mappings**: `:root` in `utilities.css` initializes all `--admin-*` tokens to the current production values.
+3. **Svelte 5 Context Fallback Guard**: Components resolve to cozy/bordered defaults when `getThemeContext()` returns `undefined`.
+4. **Playwright Visual Regression**: Baseline screenshots before CSS variable migration, zero-tolerance pixel comparison.
 
 ---
 
-## 5. Upgrade: Adaptive Workspaces Architecture
+## 8. Implementation Roadmap
 
-To elevate SveltyCMS from structural branding to adaptive, workflow-aware environments:
+### Phase 1: Foundation — ✅ COMPLETED
 
-- **Role-Based Layout Adjustments:** Dynamically reorganize sidebar options, layout density, and component groupings according to the user's role (e.g., translators receive focus on localization tables; managers receive dashboard metrics).
-- **Interactive Density Modes:** Contextual parameters for `compact` (heavy listings and developer logs), `cozy` (standard editing), and `spacious` (distraction-free writer modes).
-- **Real-Time Contrast Validation:** Dynamic color scale analysis to verify that focus rings, text elements, and alert states meet contrast safety ratios.
-- **Status-Color Tokens:** Standardized theme variables linked directly to content review states (draft, scheduled, review, published).
+- `app.css` + `utilities.css` separation
+- Initial `--admin-*` CSS variables (spacing scale, radii, sidebar, header, status colors)
+- `AdminTheme` reactive class + `setThemeContext` / `getThemeContext` in `theme-context.svelte.ts`
+- `data-density` classes in admin layout root
+
+### Phase 2: Core Theme Engine — 🔄 IN PROGRESS
+
+- [ ] Finalize full structural CSS variables (add `--admin-radius-base`, `--admin-radius-button`, `[data-density]` overrides, sticky bar height)
+- [ ] Expand `AdminTheme` interface: `variant`, `accentMode`, `customCss`, `features` map
+- [ ] Refactor key UI components (Button, Card, Input, Table, Sidebar) to consume theme context
+- [ ] Add `data-admin-theme` + `data-density` attributes to admin layout root element
+
+### Phase 3: Settings UI — Next Priority
+
+- [ ] Build full **Admin Theme Settings** page (`settings/appearance/admin-theme`)
+- [ ] Implement Skeleton.dev preset import
+- [ ] Custom CSS injection with DOMPurify sanitization
+- [ ] Live theme preview system (Svelte 5 `$state` → instant re-render)
+
+### Phase 4: Gin Feature Parity
+
+- [ ] **Sticky Action Bar** on all content edit forms
+- [ ] **Resizable / Collapsible Sidebar** with `localStorage` persistence
+- [ ] **Branded Login page** with tenant logo + custom accent
+- [ ] **Role-based navigation** layout adjustments
+- [ ] **Dashboard widget system** (drag-and-drop, per-role defaults)
+
+### Phase 5: Advanced
+
+- [ ] Per-user theme overrides (stored in user preferences)
+- [ ] Figma API sync utility
+- [ ] Theme marketplace / community plugins
+- [ ] Theme Export / Import JSON
+
+---
+
+## 9. Adaptive Workspaces
+
+Beyond visual theming — SveltyCMS adapts the entire workspace to the user's role:
+
+- **Role-Based Layouts**: Translators → localization tables focus; Managers → dashboard metrics; Developers → compact density + raw JSON views
+- **Density Modes**: `compact` (heavy listings, developer logs), `cozy` (standard editing), `spacious` (distraction-free writer mode)
+- **Real-Time Contrast Validation**: Dynamic color scale analysis verifying focus rings, text, and alert states meet WCAG 3.0 contrast ratios
+- **Status-Color Tokens**: `--admin-color-draft`, `--admin-color-published`, `--admin-color-scheduled`, `--admin-color-review` linked directly to content review states
+
+---
+
+## 10. Next Steps (Immediate Actions)
+
+1. **Finalize `--admin-*` variables** in `utilities.css` — add `[data-density]` overrides, `radius-base`, `radius-button`, `sticky-bar-height`
+2. **Expand `AdminTheme` context** — add `variant`, `accentMode`, `features` map, `customCss`
+3. **Refactor core components** — Button, Card, Input to consume `--admin-radius-*` and theme context `variant`
+4. **Build Theme Settings UI** — this is the highest-value visible deliverable
+5. **Sticky Action Bar** component — immediate UX win on content edit forms
+6. **Update visual regression test baselines** before any structural migration

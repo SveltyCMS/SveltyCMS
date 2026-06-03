@@ -3,11 +3,10 @@
  * @description Performance metrics module for SQLite
  */
 
-import type { DatabaseResult, PerformanceMetrics } from "../db-interface";
-import type { BaseSqlAdapter } from "../core/base-sql-adapter";
+import type { DatabaseResult, PerformanceMetrics, ISqlAdapter } from "../db-interface";
 import { DatabaseModule } from "../core/base-adapter";
 
-export class PerformanceModule extends DatabaseModule<BaseSqlAdapter> {
+export class PerformanceModule extends DatabaseModule<ISqlAdapter> {
   async getMetrics(): Promise<DatabaseResult<PerformanceMetrics>> {
     const stats = this.adapter["metrics"];
     return {

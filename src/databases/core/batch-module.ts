@@ -19,14 +19,14 @@ import type {
   DatabaseError,
   DatabaseId,
   DatabaseResult,
+  ISqlAdapter,
 } from "../db-interface";
-import type { BaseSqlAdapter } from "./base-sql-adapter";
 import * as utils from "./relational-utils";
 
 import { DatabaseModule } from "../core/base-adapter";
 
-export class BatchModule extends DatabaseModule<BaseSqlAdapter> {
-  constructor(core: BaseSqlAdapter) {
+export class BatchModule extends DatabaseModule<ISqlAdapter> {
+  constructor(core: ISqlAdapter) {
     super(core);
   }
 

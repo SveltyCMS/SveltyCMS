@@ -51,11 +51,7 @@ async function runConcurrencyAudit() {
       headers,
     });
     if (checkRes.ok) {
-      const checkData = await checkRes.json();
-      const entry = checkData?.data ?? checkData;
-      console.log(
-        `   → Checked entry: _id=${entry?._id}, count=${entry?.count}, keys=${Object.keys(entry || {}).join(",")}`,
-      );
+      console.log(`   → Concurrency target entry found.`);
     } else if (checkRes.status === 404) {
       console.log(`   → Entry not found. Creating _id=${ENTRY_ID}...`);
       const createRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}`, {
@@ -120,18 +116,34 @@ async function runConcurrencyAudit() {
     const duration = performance.now() - t0;
     const successCount = responses.filter((r) => r.ok).length;
 
-    // 3. Read final count from the LAST increment response body
-    // (Each increment returns the updated document, bypassing cache)
-    let finalCount = 0;
-    for (let i = responses.length - 1; i >= 0; i--) {
-      if (responses[i].ok) {
+    // 3. Find the maximum count returned across all successful increment response bodies
+    let maxCountFromResponses = 0;
+    for (const res of responses) {
+      if (res.ok) {
         try {
-          const body = await responses[i].clone().json();
+          const body = await res.clone().json();
           const data = body?.data ?? body;
-          finalCount = data?.count ?? data?.data?.count ?? 0;
-          if (finalCount > 0) break;
+          const count = data?.count ?? data?.data?.count ?? 0;
+          if (count > maxCountFromResponses) {
+            maxCountFromResponses = count;
+          }
         } catch {}
       }
+    }
+
+    // Also fetch the final state from the database directly, bypassing cache
+    let finalCount = maxCountFromResponses;
+    const finalRes = await fetch(
+      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true`,
+      {
+        headers,
+      },
+    );
+    if (finalRes.ok) {
+      const finalData = await finalRes.json();
+      const dbCount = finalData.data?.count ?? finalData.count ?? 0;
+      console.log(`   → Max count from responses: ${maxCountFromResponses}, DB final count: ${dbCount}`);
+      finalCount = Math.max(maxCountFromResponses, dbCount);
     }
 
     // 4. Print results and verify

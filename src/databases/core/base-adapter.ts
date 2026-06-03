@@ -13,6 +13,7 @@ import type {
   ICrudAdapter,
   IBatchAdapter,
 } from "../db-interface";
+import * as relationalUtils from "./relational-utils";
 
 export type HookType = "before" | "after";
 export type HookAction = "insert" | "update" | "delete" | "find";
@@ -26,6 +27,7 @@ export interface DatabaseHook {
 }
 
 export abstract class BaseAdapter {
+  public readonly utils: any = relationalUtils;
   protected hooks: DatabaseHook[] = [];
   private hookCache = new Map<string, DatabaseHook[]>();
 

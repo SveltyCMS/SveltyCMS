@@ -18,7 +18,7 @@ export * from "./navigation";
 export * from "./tenant";
 export * from "./preview";
 export * from "./security";
-export * from "./modal.svelte";
+// export * from "./modal.svelte"; // Commented out to prevent esbuild loader errors on server-side builds
 export * from "./logger";
 export * from "./api";
 

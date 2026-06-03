@@ -20,15 +20,15 @@ import type {
   Widget,
   Tenant,
   MediaItem,
+  ISqlAdapter,
 } from "../db-interface";
-import type { BaseSqlAdapter } from "./base-sql-adapter";
 import * as utils from "./relational-utils";
 
 export class RelationalSystemModule implements ISystemAdapter {
-  protected readonly adapter: BaseSqlAdapter;
+  protected readonly adapter: ISqlAdapter;
   protected readonly schema: any;
 
-  constructor(adapter: BaseSqlAdapter, schema: any) {
+  constructor(adapter: ISqlAdapter, schema: any) {
     this.adapter = adapter;
     this.schema = schema;
   }

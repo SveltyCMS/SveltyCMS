@@ -88,7 +88,7 @@ export function parseArgs(): RunConfig {
 
   const sqlFlag = hasFlag(argv, "--sql") || hasFlag(argv, "--sqlite") || hasFlag(argv, "--sqllite");
 
-  let skipBuild = hasFlag(argv, "--no-build");
+  let skipBuild = hasFlag(argv, "--no-build") || hasFlag(argv, "--skip-build");
   if (skipBuild) {
     try {
       const buildTime = Bun.file("build/index.js").lastModified;
@@ -105,14 +105,20 @@ export function parseArgs(): RunConfig {
     }
   }
 
+  // Build dbFilter: only set when a --db flag or --sql/--sqlite shortcut was provided.
+  // Otherwise leave as null so filterDatabases() returns all 8 configurations.
+  const dbFilterRaw = dbRaw || (sqlFlag ? "sqlite" : "");
+  const dbFilter: string[] | null = dbFilterRaw
+    ? dbFilterRaw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    : null;
+
   const cfg: RunConfig = {
     parallelMode,
     skipBuild,
-    dbFilter:
-      (dbRaw || (sqlFlag ? "sqlite" : ""))
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean) || null,
+    dbFilter,
     sectionFilter:
       getArg(argv, "--section")
         ?.split(",")

@@ -17,6 +17,34 @@ import { logger } from "@src/utils/logger";
 import { SQLiteAdapterCore } from "./adapter-core";
 
 export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
+  private _monitoring: any = null;
+
+  public get monitoring(): any {
+    if (!this._monitoring) {
+      const { PerformanceModule } = require("../core/performance-module");
+      const { CacheModule } = require("../core/cache-module");
+      this._monitoring = {
+        performance: new PerformanceModule(this as any),
+        cache: new CacheModule(this as any),
+        getConnectionPoolStats: async () => this.getConnectionPoolStats(),
+      };
+    }
+    return this._monitoring;
+  }
+
+  public async getConnectionPoolStats(): Promise<DatabaseResult<any>> {
+    return {
+      success: true,
+      data: {
+        total: 1,
+        active: 0,
+        idle: 1,
+        waiting: 0,
+        avgConnectionTime: 0,
+      },
+    };
+  }
+
   constructor(_config: any = {}) {
     super();
   }

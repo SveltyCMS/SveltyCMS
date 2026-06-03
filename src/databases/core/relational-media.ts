@@ -19,15 +19,15 @@ import type {
   EntityCreate,
   IMediaAdapter,
   BaseQueryOptions,
+  ISqlAdapter,
 } from "../db-interface";
-import type { BaseSqlAdapter } from "./base-sql-adapter";
 import * as utils from "./relational-utils";
 
 export class RelationalMediaModule implements IMediaAdapter {
-  protected readonly adapter: BaseSqlAdapter;
+  protected readonly adapter: ISqlAdapter;
   protected readonly schema: any;
 
-  constructor(adapter: BaseSqlAdapter, schema: any) {
+  constructor(adapter: ISqlAdapter, schema: any) {
     this.adapter = adapter;
     this.schema = schema;
   }

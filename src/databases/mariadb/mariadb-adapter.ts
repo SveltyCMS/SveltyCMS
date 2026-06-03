@@ -25,82 +25,46 @@ import type {
   DatabaseResult,
   IDBAdapter,
   QueryBuilder,
-  IAuthAdapter,
-  IContentAdapter,
-  IMediaAdapter,
-  ISystemAdapter,
   IMonitoringAdapter,
-  ICollectionAdapter,
 } from "../db-interface";
-import { CollectionModule } from "./collection-module";
-import { AuthModule } from "./auth-module";
-import { ContentModule } from "./content-module";
-import { MediaModule } from "./media-module";
-import { RelationalSystemModule } from "../core/relational-system";
-import { BatchModule } from "./batch-module";
-
-import { CacheModule } from "./cache-module";
-import { PerformanceModule } from "./performance-module";
 import { MariaDBQueryBuilder } from "./maria-db-query-builder";
-import * as schema from "./schema";
 import { AdapterCore } from "./adapter-core";
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   public readonly type = "mariadb";
-
-  // Public interface modules (Lazy-loaded via Getters)
-  public get auth(): IAuthAdapter {
-    return (this._auth ??= new AuthModule(this));
-  }
-
-  public get content(): IContentAdapter {
-    return (this._content ??= new ContentModule(this));
-  }
-
-  public get media(): IMediaAdapter {
-    return (this._media ??= new MediaModule(this));
-  }
-
-  public get collection(): ICollectionAdapter {
-    return (this._collection ??= new CollectionModule(this));
-  }
-
-  public get batch(): IDBAdapter["batch"] {
-    return (this._batch ??= new BatchModule(this) as any);
-  }
-
-  public get system(): ISystemAdapter {
-    return (this._system ??= new RelationalSystemModule(this, schema));
-  }
+  private _monitoring: any = null;
 
   public get monitoring(): IMonitoringAdapter {
-    return (this._monitoring ??= {
-      performance: new PerformanceModule(this),
-      cache: new CacheModule(),
-      getConnectionPoolStats: async () =>
-        this.wrap(async () => {
-          if (!this.pool)
+    if (!this._monitoring) {
+      const { PerformanceModule } = require("../core/performance-module");
+      const { CacheModule } = require("../core/cache-module");
+      this._monitoring = {
+        performance: new PerformanceModule(this as any),
+        cache: new CacheModule(this as any),
+        getConnectionPoolStats: async () =>
+          this.wrap(async () => {
+            if (!this.pool)
+              return {
+                total: 0,
+                active: 0,
+                idle: 0,
+                waiting: 0,
+                avgConnectionTime: 0,
+              };
             return {
-              total: 0,
-              active: 0,
-              idle: 0,
-              waiting: 0,
+              total: (this.pool as any)._allConnections?.length || 10,
+              active:
+                (this.pool as any)._allConnections?.length -
+                  (this.pool as any)._freeConnections?.length || 0,
+              idle: (this.pool as any)._freeConnections?.length || 0,
+              waiting: (this.pool as any)._connectionQueue?.length || 0,
               avgConnectionTime: 0,
             };
-          return {
-            total: (this.pool as any)._allConnections?.length || 10,
-            active:
-              (this.pool as any)._allConnections?.length -
-                (this.pool as any)._freeConnections?.length || 0,
-            idle: (this.pool as any)._freeConnections?.length || 0,
-            waiting: (this.pool as any)._connectionQueue?.length || 0,
-            avgConnectionTime: 0,
-          };
-        }, "POOL_STATS_FAILED"),
-    });
+          }, "POOL_STATS_FAILED"),
+      };
+    }
+    return this._monitoring;
   }
-
-  // Internal lazy modules are inherited from BaseSqlAdapter
 
   constructor(_config: any = {}) {
     super();
@@ -121,7 +85,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
     options?: unknown,
   ): Promise<DatabaseResult<void>> {
     const result = await super.connect(
-      connectionOrOptions as string | import("mysql2/promise").PoolOptions,
+      connectionOrOptions as any,
       options,
     );
     if (result.success && this.pool) {

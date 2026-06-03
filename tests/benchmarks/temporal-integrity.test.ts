@@ -34,10 +34,9 @@ async function runTemporalAudit() {
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
-    process.stderr.write("[DEBUG] Calling ensureStableTestData...\n");
     await ensureStableTestData();
 
-    const listRes = await fetch(
+    await fetch(
       `${baseUrl}/api/collections/${COLLECTION_ID}?limit=10&bypassCache=true`,
       {
         headers: {
@@ -47,11 +46,7 @@ async function runTemporalAudit() {
         },
       },
     );
-    const listData = await listRes.json();
-    console.log(
-      `[DEBUG] Initial Collection List (${COLLECTION_ID}):`,
-      JSON.stringify(listData, null, 2),
-    );
+
 
     console.log("   → Testing persistence of ISO Dates from various timezone offsets...");
 
@@ -127,7 +122,6 @@ async function runTemporalAudit() {
 
         const data = await getRes.json().catch(() => ({}));
         const entry = data?.data ?? data;
-        console.log(`[DEBUG] Entry keys for ${td.name}:`, entry ? Object.keys(entry) : "null");
         // SQL adapters flatten collection fields to the top-level; also check the nested data blob
         returnedDate = entry?.publishDate ?? entry?.data?.publishDate;
       }

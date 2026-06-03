@@ -42,7 +42,8 @@ export async function runDatabaseBenchmark() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+    const { getDb, ensureFullInitialization } =
+      await import("@src/databases/db");
     await ensureFullInitialization();
     const db = getDb();
     if (!db) throw new Error("Database not initialized");
@@ -57,10 +58,7 @@ export async function runDatabaseBenchmark() {
       { name: "FIND MANY (limit 50)", fn: createFindManyTest(db) },
       { name: "UPDATE", fn: createUpdateTest(db) },
       { name: "NATIVE UPSERT", fn: createUpsertNativeTest(db) },
-      {
-        name: "AGGREGATION",
-        fn: db.getCapabilities?.().supportsAggregation ? createAggregationTest(db) : null,
-      },
+      { name: "COUNT", fn: createCountTest(db) },
       { name: "DELETE", fn: createDeleteTest(db) },
       { name: "BULK INSERT (100)", fn: createBulkInsertTest(db) },
     ].filter((s) => s.fn !== null);
@@ -243,21 +241,12 @@ function createUpsertNativeTest(db: any) {
   };
 }
 
-function createAggregationTest(db: any) {
+function createCountTest(db: any) {
   return async () => {
-    // Simple sum/grouping aggregation
-    await db.crud.aggregate(
+    // Real COUNT query — works on all adapters
+    await db.crud.count(
       COLLECTION_ID,
-      [
-        { $match: { status: "active" } },
-        {
-          $group: {
-            _id: "$status",
-            total: { $sum: "$value" },
-            count: { $sum: 1 },
-          },
-        },
-      ],
+      { status: "active" },
       { tenantId: TEST_TENANT },
     );
   };
@@ -315,7 +304,9 @@ async function prepareCollection(db: any) {
     {},
     { bypassTenantCheck: true, permanent: true },
   );
-  console.log(`   [DB Trace] Deleted ${delRes.data?.deletedCount || 0} records.`);
+  console.log(
+    `   [DB Trace] Deleted ${delRes.data?.deletedCount || 0} records.`,
+  );
 
   console.log("   [DB Trace] Seeding stable record...");
   await db.crud.insert(

@@ -5,7 +5,7 @@
     "": {
       "name": "sveltycms",
       "dependencies": {
-        "@aws-sdk/client-s3": "^3.1059.0",
+        "@aws-sdk/client-s3": "^3.1060.0",
         "@better-svelte-email/components": "^2.1.1",
         "@better-svelte-email/preview": "^2.1.1",
         "@better-svelte-email/server": "^2.1.1",
@@ -21,31 +21,31 @@
         "@tailwindcss/typography": "^0.5.19",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/svelte": "^5.3.1",
-        "@tiptap/core": "^3.24.0",
-        "@tiptap/extension-character-count": "^3.24.0",
-        "@tiptap/extension-collaboration": "^3.24.0",
+        "@tiptap/core": "^3.25.0",
+        "@tiptap/extension-character-count": "^3.25.0",
+        "@tiptap/extension-collaboration": "^3.25.0",
         "@tiptap/extension-collaboration-cursor": "^3.0.0",
-        "@tiptap/extension-color": "^3.24.0",
-        "@tiptap/extension-font-family": "^3.24.0",
-        "@tiptap/extension-image": "^3.24.0",
-        "@tiptap/extension-link": "^3.24.0",
-        "@tiptap/extension-placeholder": "^3.24.0",
-        "@tiptap/extension-table": "^3.24.0",
-        "@tiptap/extension-table-cell": "^3.24.0",
-        "@tiptap/extension-table-header": "^3.24.0",
-        "@tiptap/extension-table-row": "^3.24.0",
-        "@tiptap/extension-text-align": "^3.24.0",
-        "@tiptap/extension-text-style": "^3.24.0",
-        "@tiptap/extension-underline": "^3.24.0",
-        "@tiptap/extension-youtube": "^3.24.0",
-        "@tiptap/pm": "^3.24.0",
-        "@tiptap/starter-kit": "^3.24.0",
+        "@tiptap/extension-color": "^3.25.0",
+        "@tiptap/extension-font-family": "^3.25.0",
+        "@tiptap/extension-image": "^3.25.0",
+        "@tiptap/extension-link": "^3.25.0",
+        "@tiptap/extension-placeholder": "^3.25.0",
+        "@tiptap/extension-table": "^3.25.0",
+        "@tiptap/extension-table-cell": "^3.25.0",
+        "@tiptap/extension-table-header": "^3.25.0",
+        "@tiptap/extension-table-row": "^3.25.0",
+        "@tiptap/extension-text-align": "^3.25.0",
+        "@tiptap/extension-text-style": "^3.25.0",
+        "@tiptap/extension-underline": "^3.25.0",
+        "@tiptap/extension-youtube": "^3.25.0",
+        "@tiptap/pm": "^3.25.0",
+        "@tiptap/starter-kit": "^3.25.0",
         "@types/serialize-javascript": "^5.0.4",
         "argon2": "^0.44.0",
         "buffer": "^6.0.3",
         "cloudinary": "^2.10.0",
         "deepmerge": "^4.3.1",
-        "dompurify": "^3.4.7",
+        "dompurify": "^3.4.8",
         "drizzle-orm": "^0.45.2",
         "esbuild": "^0.28.0",
         "google-auth-library": "^10.6.2",
@@ -160,7 +160,7 @@
   },
   "overrides": {
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
-    "@tiptap/core": "^3.24.0",
+    "@tiptap/core": "^3.25.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
   },
@@ -443,7 +443,7 @@
 
     "@googleapis/admin": ["@googleapis/admin@30.3.0", "", { "dependencies": { "googleapis-common": "^8.0.0" } }, "sha512-9vBP163vUDGb7BZuGat0Hzajf010t4HuXrR13MWDF/2pCNcg65gAAOzu3PSTIcqiuxL7nsjhkzj+oxg/t7s3vA=="],
 
-    "@googlemaps/js-api-loader": ["@googlemaps/js-api-loader@2.0.2", "", { "dependencies": { "@types/google.maps": "^3.53.1" } }, "sha512-bKVuTqatS8Jven5aFqVB7rCHF1VFEzpzyi0ruzO0GUR+A7m9oMqMgtnmpANj7kMYEvvhty8Fk7TnJ1MKjWHu+Q=="],
+    "@googlemaps/js-api-loader": ["@googlemaps/js-api-loader@2.1.0", "", { "dependencies": { "@types/google.maps": "^3.53.1" } }, "sha512-aZii781WEfncmJAFk1UPv6bdwT1mgRZzY8IWmpmx9mGAMCt97JZrXpn95LTsYinj7E4tC+LJv3FE8k2xRAsYgg=="],
 
     "@graphql-tools/executor": ["@graphql-tools/executor@1.5.1", "", { "dependencies": { "@graphql-tools/utils": "^11.0.0", "@graphql-typed-document-node/core": "^3.2.0", "@repeaterjs/repeater": "^3.0.4", "@whatwg-node/disposablestack": "^0.0.6", "@whatwg-node/promise-helpers": "^1.0.0", "tslib": "^2.4.0" }, "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0" } }, "sha512-n94Qcu875Mji9GQ52n5UbgOTxlgvFJicBPYD+FRks9HKIQpdNPjkkrKZUYNG51XKa+bf03rxNflm4+wXhoHHrA=="],
 
@@ -1525,7 +1525,7 @@
 
     "domhandler": ["domhandler@5.0.3", "", { "dependencies": { "domelementtype": "^2.3.0" } }, "sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w=="],
 
-    "dompurify": ["dompurify@3.4.7", "", { "optionalDependencies": { "@types/trusted-types": "^2.0.7" } }, "sha512-2jBxDJY4RR06tQNy4w5FlFH7kfxsQZlufd0sbv+chfHCxeJwrFw2baUDsSwvBISD4K4RDbd0PTfy3uNXsR6siA=="],
+    "dompurify": ["dompurify@3.4.8", "", { "optionalDependencies": { "@types/trusted-types": "^2.0.7" } }, "sha512-yb1cEmaOum7wFvOCSQxyfgVlv5D47Rc30iZWoMpbDIWTnJ6grDDQyu2KFJzB2k7u0pMuJcQ1zphH//fFnw2tjQ=="],
 
     "domutils": ["domutils@3.2.2", "", { "dependencies": { "dom-serializer": "^2.0.0", "domelementtype": "^2.3.0", "domhandler": "^5.0.3" } }, "sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw=="],
 
@@ -2958,8 +2958,6 @@
     "@boxyhq/saml-jackson/redis": ["redis@4.7.1", "", { "dependencies": { "@redis/bloom": "1.2.0", "@redis/client": "1.6.1", "@redis/graph": "1.1.1", "@redis/json": "1.0.7", "@redis/search": "1.2.0", "@redis/time-series": "1.1.0" } }, "sha512-S1bJDnqLftzHXHP8JsT5II/CtHWQrASX5K96REjWjlmWKrviSOLWmM7QnRLstAWsu1VBBV1ffV6DzCvxNP0UJQ=="],
 
     "@envelop/graphql-jit/graphql-jit": ["graphql-jit@0.8.7", "", { "dependencies": { "@graphql-typed-document-node/core": "^3.2.0", "fast-json-stringify": "^5.16.1", "generate-function": "^2.3.1", "lodash.memoize": "^4.1.2", "lodash.merge": "4.6.2", "lodash.mergewith": "4.6.2" }, "peerDependencies": { "graphql": ">=15" } }, "sha512-KGzCrsxQPfEiXOUIJCexWKiWF6ycjO89kAO6SdO8OWRGwYXbG0hsLuTnbFfMq0gj7d7/ib/Gh7jtst7FHZEEjw=="],
-
-    "@googlemaps/js-api-loader/@types/google.maps": ["@types/google.maps@3.58.1", "", {}, "sha512-X9QTSvGJ0nCfMzYOnaVs/k6/4L+7F5uCS+4iUmkLEls6J9S/Phv+m/i3mDeyc49ZBgwab3EFO1HEoBY7k98EGQ=="],
 
     "@graphql-tools/executor/@graphql-tools/utils": ["@graphql-tools/utils@11.0.0", "", { "dependencies": { "@graphql-typed-document-node/core": "^3.1.1", "@whatwg-node/promise-helpers": "^1.0.0", "cross-inspect": "1.0.1", "tslib": "^2.4.0" }, "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0" } }, "sha512-bM1HeZdXA2C3LSIeLOnH/bcqSgbQgKEDrjxODjqi3y58xai2TkNrtYcQSoWzGbt9VMN1dORGjR7Vem8SPnUFQA=="],
 

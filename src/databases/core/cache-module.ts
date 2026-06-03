@@ -11,11 +11,10 @@
  * - Invalidate category
  */
 
-import type { DatabaseResult, CacheOptions } from "../db-interface";
-import type { BaseSqlAdapter } from "./base-sql-adapter";
+import type { DatabaseResult, CacheOptions, ISqlAdapter } from "../db-interface";
 
 export class CacheModule {
-  constructor(_core: BaseSqlAdapter) {}
+  constructor(_core: ISqlAdapter) {}
 
   async get<T>(key: string): Promise<DatabaseResult<T | null>> {
     const { cacheService } = await import("@src/databases/cache/cache-service");

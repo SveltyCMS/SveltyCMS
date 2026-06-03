@@ -188,20 +188,14 @@ export function buildServerEnv(
   return env;
 }
 
-// Cache the entry point to avoid checking the file system repeatedly
-let cachedEntryPoint: string | null = null;
-
 /**
  * Determines the server entry point.
  * 🚀 SMART DISCOVERY: Checks build folder, then fallback to .svelte-kit output.
  */
 export async function getServerEntryPoint(): Promise<string> {
-  if (cachedEntryPoint) return cachedEntryPoint;
-
   if (process.env.BENCHMARK_DEV === "true") {
     log.info("🚀 BENCHMARK_DEV mode: Forcing Vite Dev entry point.");
-    cachedEntryPoint = join(ROOT, "src", "hooks.server.ts");
-    return cachedEntryPoint;
+    return join(ROOT, "src", "hooks.server.ts");
   }
 
   function safeExistsSync(p: string): boolean {
@@ -217,14 +211,12 @@ export async function getServerEntryPoint(): Promise<string> {
 
   if (!entryPoint) {
     log.info("🚀 No production build found. Falling back to Vite Dev mode.");
-    cachedEntryPoint = join(ROOT, "src", "hooks.server.ts");
-    return cachedEntryPoint;
+    return join(ROOT, "src", "hooks.server.ts");
   }
 
   console.log(`[getServerEntryPoint] Selected entry point: "${entryPoint}"`);
   log.info(`🚀 Entry Point: Found at ${relative(ROOT, entryPoint)}`);
 
-  cachedEntryPoint = entryPoint;
   return entryPoint;
 }
 
