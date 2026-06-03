@@ -1174,7 +1174,12 @@ export interface ISqlAdapter extends BaseAdapter {
   mapQuery(table: any, query: any, options?: any): any;
   applyOrderBy(builder: any, table: any, options: any): any;
   isSystemTable(collection: string): boolean;
-  upsertNative?(table: any, values: any, conflictTarget: any[], options?: BaseQueryOptions): Promise<void>;
+  upsertNative?(
+    table: any,
+    values: any,
+    conflictTarget: any[],
+    options?: BaseQueryOptions,
+  ): Promise<void>;
   transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },

@@ -165,14 +165,7 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
-  authSessions: [
-    "_id",
-    "user_id",
-    "expires",
-    "tenantId",
-    "createdAt",
-    "updatedAt",
-  ],
+  authSessions: ["_id", "user_id", "expires", "tenantId", "createdAt", "updatedAt"],
   authTokens: [
     "_id",
     "user_id",
@@ -500,11 +493,7 @@ export function getColumnHelper(
 export function translateCondition(col: Column, cond: QueryCondition): SQL {
   let val = cond.value;
 
-  if (
-    val !== null &&
-    typeof val === "object" &&
-    typeof (val as any).getTime === "function"
-  ) {
+  if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
     if (!(val instanceof Date)) {
       val = new Date((val as any).getTime());
     }
@@ -587,15 +576,9 @@ export function mapQuery(
     if (idCol) {
       const conditions = [eq(idCol, query._id as any)];
       const tenantCol = getColumn(table, "tenantId");
-      if (
-        options.tenantId !== undefined &&
-        options.tenantId !== "global" &&
-        tenantCol
-      ) {
+      if (options.tenantId !== undefined && options.tenantId !== "global" && tenantCol) {
         conditions.push(
-          options.tenantId === null
-            ? isNull(tenantCol)
-            : eq(tenantCol, options.tenantId as string),
+          options.tenantId === null ? isNull(tenantCol) : eq(tenantCol, options.tenantId as string),
         );
       }
       return and(...conditions);
@@ -612,9 +595,7 @@ export function mapQuery(
     const tenantId = options.tenantId;
     const tenantCol = getColumn(table, "tenantId");
     if (tenantId !== undefined && tenantId !== "global" && tenantCol) {
-      conditions.push(
-        tenantId === null ? isNull(tenantCol) : eq(tenantCol, tenantId as string),
-      );
+      conditions.push(tenantId === null ? isNull(tenantCol) : eq(tenantCol, tenantId as string));
     }
   }
 
@@ -715,21 +696,10 @@ export function getPhysicalSelection(
 
   if (isSystem && SYSTEM_LITERAL_COLUMNS[systemName]) {
     columnNames = SYSTEM_LITERAL_COLUMNS[systemName];
-  } else if (
-    systemName === "contentNodes" ||
-    lowerName.includes("content_nodes")
-  ) {
+  } else if (systemName === "contentNodes" || lowerName.includes("content_nodes")) {
     columnNames = SYSTEM_LITERAL_COLUMNS.contentNodes;
   } else {
-    columnNames = [
-      "_id",
-      "data",
-      "status",
-      "tenantId",
-      "createdAt",
-      "updatedAt",
-      "isDeleted",
-    ];
+    columnNames = ["_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
   }
 
   for (let i = 0; i < columnNames.length; i++) {

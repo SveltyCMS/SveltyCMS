@@ -24,7 +24,7 @@ tags:
 > The full matrix runner (`bun run scripts/benchmark-matrix/index.ts --sql`) always records.
 
 <!-- BENCHMARK_START -->
-## 📊 Latest Performance Audit (03/06/2026, 19:17:57)
+## 📊 Latest Performance Audit (03/06/2026, 19:24:24)
 
 > [!WARNING]
 > **Performance Regressions Detected for SQLITE+REDIS**:
@@ -37,7 +37,7 @@ tags:
 ### ⚡ Executive Latency Matrix
 | Scenario | Avg Latency | Trend | Target Budget | Result |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cold Start** | 275ms | ⚪ (+1.0%) | < 5000ms | 🟢 PASS |
+| **Cold Start** | 258ms | ⚪ (-4.7%) | < 5000ms | 🟢 PASS |
 | **REST (Collections)** | 2.021ms | 🟢 (+0.0%) | < 5ms | 🟢 PASS |
 | **Middleware Hooks** | 3.052ms | ⚪ | < 2ms | 🔴 FAIL |
 | **GraphQL (Avg)** | N/A | ⚪ (—) | < 5ms | ⚪ N/A |
@@ -315,7 +315,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.171 ms │ p95:        1.171 ms │ RPS:        854 ║
+║ Concurrent PATCH Bomb          │        1.130 ms │ p95:        1.130 ms │ RPS:        885 ║
 ```
 <!-- CONCURRENCY_TABLE_END -->
 

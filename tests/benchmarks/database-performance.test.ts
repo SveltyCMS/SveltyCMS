@@ -42,8 +42,7 @@ export async function runDatabaseBenchmark() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { getDb, ensureFullInitialization } =
-      await import("@src/databases/db");
+    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
     await ensureFullInitialization();
     const db = getDb();
     if (!db) throw new Error("Database not initialized");
@@ -244,11 +243,7 @@ function createUpsertNativeTest(db: any) {
 function createCountTest(db: any) {
   return async () => {
     // Real COUNT query — works on all adapters
-    await db.crud.count(
-      COLLECTION_ID,
-      { status: "active" },
-      { tenantId: TEST_TENANT },
-    );
+    await db.crud.count(COLLECTION_ID, { status: "active" }, { tenantId: TEST_TENANT });
   };
 }
 
@@ -304,9 +299,7 @@ async function prepareCollection(db: any) {
     {},
     { bypassTenantCheck: true, permanent: true },
   );
-  console.log(
-    `   [DB Trace] Deleted ${delRes.data?.deletedCount || 0} records.`,
-  );
+  console.log(`   [DB Trace] Deleted ${delRes.data?.deletedCount || 0} records.`);
 
   console.log("   [DB Trace] Seeding stable record...");
   await db.crud.insert(

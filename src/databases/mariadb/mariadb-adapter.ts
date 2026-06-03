@@ -84,10 +84,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
       | import("../db-interface").ConnectionPoolOptions,
     options?: unknown,
   ): Promise<DatabaseResult<void>> {
-    const result = await super.connect(
-      connectionOrOptions as any,
-      options,
-    );
+    const result = await super.connect(connectionOrOptions as any, options);
     if (result.success && this.pool) {
       const { runMigrations } = await import("./migrations");
       const migrationResult = await runMigrations(this.pool);

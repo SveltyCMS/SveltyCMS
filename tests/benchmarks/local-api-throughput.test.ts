@@ -39,9 +39,7 @@ async function run() {
     .createModel({
       _id: "BenchmarkStable",
       name: "BenchmarkStable",
-      fields: [
-        { db_fieldName: "title", widget: { Name: "Input" }, type: "string" },
-      ],
+      fields: [{ db_fieldName: "title", widget: { Name: "Input" }, type: "string" }],
     })
     .catch(() => {});
 
@@ -63,13 +61,7 @@ async function run() {
   for (let d = 0; d < WRITE_DOCS; d++)
     for (let w = 0; w < WRITES_PER_DOC; w++)
       writeTasks.push(
-        db.crud.atomicIncrement(
-          "BenchmarkStable",
-          `local-tp-${d}`,
-          "count",
-          1,
-          { tenantId: T },
-        ),
+        db.crud.atomicIncrement("BenchmarkStable", `local-tp-${d}`, "count", 1, { tenantId: T }),
       );
   const writeResults = await Promise.all(writeTasks);
   const writeMs = performance.now() - w0;
@@ -87,9 +79,7 @@ async function run() {
   for (let c = 0; c < READ_COLLECTIONS; c++) {
     const name = `bench_read_${c}`;
     readCols.push(name);
-    await db.collection
-      .createModel({ _id: name, name, fields: [] })
-      .catch(() => {});
+    await db.collection.createModel({ _id: name, name, fields: [] }).catch(() => {});
     const docs = Array.from({ length: DOCS_PER_COLLECTION }, (_, i) => ({
       _id: `rd-${c}-${i}`,
       title: `R${c}-${i}`,
@@ -150,8 +140,7 @@ async function run() {
     { key: "Write × HTTP", val: (writeRPS / 500).toFixed(1) + "×", unit: "" },
   ]);
 
-  if (writeOk !== totalWrites)
-    throw new Error(`Lost ${totalWrites - writeOk} writes`);
+  if (writeOk !== totalWrites) throw new Error(`Lost ${totalWrites - writeOk} writes`);
 }
 
 test("Local SDK Benchmark", async () => {

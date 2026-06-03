@@ -41,9 +41,7 @@ async function run() {
 
   // Pre-seed all the documents we'll need via the testing API
   const maxDocs = 1000;
-  console.log(
-    `   → Pre-seeding ${maxDocs} throughput documents via testing API...`,
-  );
+  console.log(`   → Pre-seeding ${maxDocs} throughput documents via testing API...`);
   await fetch(`${baseUrl}/api/testing`, {
     method: "POST",
     headers: H,
@@ -72,8 +70,7 @@ async function run() {
     { label: "1000 docs × 1", docs: 1000, perDoc: 1 },
   ];
 
-  const results: { label: string; rps: number; total: number; ok: number }[] =
-    [];
+  const results: { label: string; rps: number; total: number; ok: number }[] = [];
 
   for (const s of scales) {
     const total = s.docs * s.perDoc;
@@ -99,17 +96,14 @@ async function run() {
     for (let i = 0; i < tasks.length; i += BATCH) {
       const wave = tasks.slice(i, i + BATCH);
       out.push(...(await Promise.all(wave.map((t) => t()))));
-      if (i + BATCH < tasks.length)
-        await new Promise((r) => setTimeout(r, GAP_MS));
+      if (i + BATCH < tasks.length) await new Promise((r) => setTimeout(r, GAP_MS));
     }
 
     const duration = performance.now() - t0;
     const ok = out.filter((r) => r.ok).length;
     const rps = (total / duration) * 1000;
     results.push({ label: s.label, rps, total, ok });
-    console.log(
-      `   → ${ok}/${total} OK, ${rps.toFixed(0)} RPS, ${ok === total ? "✅" : "❌"}`,
-    );
+    console.log(`   → ${ok}/${total} OK, ${rps.toFixed(0)} RPS, ${ok === total ? "✅" : "❌"}`);
   }
 
   printTruthTable({
@@ -126,9 +120,7 @@ async function run() {
   });
 
   const sf =
-    results[2] && results[0]
-      ? (results[2].rps / Math.max(1, results[0].rps)).toFixed(1)
-      : "N/A";
+    results[2] && results[0] ? (results[2].rps / Math.max(1, results[0].rps)).toFixed(1) : "N/A";
   printSummaryTable([
     { key: "Database", val: dbType.toUpperCase(), unit: "" },
     ...results.map((r) => ({
@@ -139,8 +131,7 @@ async function run() {
     { key: "Scaling (1000÷10)", val: sf + "×", unit: "" },
   ]);
 
-  if (results.some((r) => r.ok !== r.total))
-    throw new Error("Throughput failed");
+  if (results.some((r) => r.ok !== r.total)) throw new Error("Throughput failed");
 }
 
 test("Multi-Doc Throughput", async () => {

@@ -24,7 +24,7 @@ tags:
 > The full matrix runner (`bun run scripts/benchmark-matrix/index.ts --sql`) always records.
 
 <!-- BENCHMARK_START -->
-## 📊 Latest Performance Audit (03/06/2026, 19:17:57)
+## 📊 Latest Performance Audit (03/06/2026, 19:24:24)
 
 > [!WARNING]
 > **Performance Regressions Detected for SQLITE**:
@@ -37,7 +37,7 @@ tags:
 ### ⚡ Executive Latency Matrix
 | Scenario | Avg Latency | Trend | Target Budget | Result |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cold Start** | 267ms | ⚪ (-4.8%) | < 5000ms | 🟢 PASS |
+| **Cold Start** | 282ms | ⚪ (+0.4%) | < 5000ms | 🟢 PASS |
 | **REST (Collections)** | 0.675ms | ⚪ (+0.0%) | < 5ms | 🟢 PASS |
 | **Middleware Hooks** | 1.983ms | ⚪ | < 2ms | 🟢 PASS |
 | **GraphQL (Avg)** | 5.582ms | ⚪ (+0.0%) | < 5ms | 🔴 FAIL |
@@ -61,7 +61,7 @@ xychart-beta
 ## 📈 Core Infrastructure Trends
 
 ### 🏷️ Database Adapter Performance {#dbRaw}
-**Raw Adapter p95:** 0.056ms | **Target:** < 50ms | **Trend:** ⚪ (+9.5%)
+**Raw Adapter p95:** 0.056ms | **Target:** < 50ms | **Trend:** ⚪ (+8.5%)
 > Direct database access latency (bypass CMS logic).
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
@@ -611,7 +611,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.328 ms │ p95:        1.328 ms │ RPS:        753 ║
+║ Concurrent PATCH Bomb          │        1.077 ms │ p95:        1.077 ms │ RPS:        928 ║
 ```
 <!-- CONCURRENCY_TABLE_END -->
 
@@ -622,9 +622,9 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        464 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        460 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        422 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        503 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        492 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        432 ║
 ```
 <!-- THROUGHPUT_TABLE_END -->
 
@@ -1141,6 +1141,7 @@ xychart-beta
 ║ Found                                              │    1000/1000          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LOCAL_API_TABLE_END -->
 
 ### 🏷️ Setup Proxy & Bootstrap Isolation 🟢 avg -29% p95 -21% rps +42% (5 runs)
@@ -1334,16 +1335,15 @@ xychart-beta
 
 <!-- UX_VITALITY_TABLE_END -->
 
-### 🏷️ Media Engine & DAM Overhead     🟠 avg +14% p95 +17% rps -12% (11 runs)
+### 🏷️ Media Engine & DAM Overhead 🟠 avg +14% p95 +17% rps -12% (11 runs)
 
 > **Budget**: ≤ 50,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
 <!-- MEDIA_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 12% — check connection pool saturation or lock contention.  
-**Check**: `src/services/MediaService.ts` · `src/databases/media/`
-
+> Throughput dropped 12% — check connection pool saturation or lock contention.  
+> **Check**: `src/services/MediaService.ts` · `src/databases/media/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1366,6 +1366,7 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ║ Small RPS                                          │      144.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- MEDIA_TABLE_END -->
 
 ### 🏷️ Relational & Nested Queries ⚪ avg -1% (36 runs)
@@ -1910,9 +1911,9 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ║                  File: tests/benchmarks/concurrency-throughput.test.ts                  ║
 ║         100 writes across 10, 100, 1000 docs. Same work, different parallelism.         ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        509 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        490 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        431 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        507 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        499 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        432 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1921,10 +1922,10 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Database                                           │       SQLITE          ║
-║ 10 docs × 10 RPS                                   │      509.108 req/s    ║
-║ 100 docs × 1 RPS                                   │      489.521 req/s    ║
-║ 1000 docs × 1 RPS                                  │      430.890 req/s    ║
-║ Scaling (1000÷10)                                  │         0.8×          ║
+║ 10 docs × 10 RPS                                   │      507.454 req/s    ║
+║ 100 docs × 1 RPS                                   │      498.614 req/s    ║
+║ 1000 docs × 1 RPS                                  │      432.048 req/s    ║
+║ Scaling (1000÷10)                                  │         0.9×          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- CONCURRENCY_TABLE_END -->

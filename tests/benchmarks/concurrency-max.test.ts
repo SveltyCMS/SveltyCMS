@@ -30,22 +30,30 @@ async function run() {
   await ensureStableTestData();
   await forceRefreshServer(baseUrl);
 
-  const H = { "Content-Type": "application/json", "x-test-mode": "true", "x-test-secret": TEST_API_SECRET, "x-tenant-id": "global" };
+  const H = {
+    "Content-Type": "application/json",
+    "x-test-mode": "true",
+    "x-test-secret": TEST_API_SECRET,
+    "x-tenant-id": "global",
+  };
   const dbType = getDbType();
 
   // Seed 100 docs
   console.log("   → Seeding 100 docs...");
   await fetch(`${baseUrl}/api/testing`, {
-    method: "POST", headers: H,
+    method: "POST",
+    headers: H,
     body: JSON.stringify({ action: "seed-throughput-docs", count: DOCS }),
   }).catch(() => {});
   for (let i = 0; i < DOCS; i += 50) {
     await Promise.all(
       Array.from({ length: Math.min(50, DOCS - i) }, (_, j) =>
         fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${i + j}`, {
-          method: "PATCH", headers: H, body: JSON.stringify({ count: 0 }),
-        }).catch(() => {})
-      )
+          method: "PATCH",
+          headers: H,
+          body: JSON.stringify({ count: 0 }),
+        }).catch(() => {}),
+      ),
     );
   }
   await forceRefreshServer(baseUrl);
@@ -60,17 +68,18 @@ async function run() {
     for (let w = 0; w < WRITES_PER_DOC; w++) {
       tasks.push(
         fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`, {
-          method: "POST", headers: H,
+          method: "POST",
+          headers: H,
           body: JSON.stringify({ field: "count", amount: 1 }),
           signal: AbortSignal.timeout(30000),
-        })
+        }),
       );
     }
   }
 
   const responses = await Promise.all(tasks);
   const duration = performance.now() - t0;
-  const ok = responses.filter(r => r.ok).length;
+  const ok = responses.filter((r) => r.ok).length;
   const rps = (totalWrites / duration) * 1000;
 
   console.log(`   → ${ok}/${totalWrites} OK, ${rps.toFixed(0)} RPS, ${duration.toFixed(0)}ms`);
@@ -79,7 +88,15 @@ async function run() {
     title: `SVELTYCMS — MAX THROUGHPUT (${dbType.toUpperCase()})`,
     shortLabel: "Max",
     subtitle: `${totalWrites} writes × ${DOCS} docs • No throttle`,
-    results: [{ name: "Full Blast", avgMs: duration / totalWrites, p95Ms: duration / totalWrites, rps, layer: ok === totalWrites ? "✅" : "❌" }],
+    results: [
+      {
+        name: "Full Blast",
+        avgMs: duration / totalWrites,
+        p95Ms: duration / totalWrites,
+        rps,
+        layer: ok === totalWrites ? "✅" : "❌",
+      },
+    ],
   });
 
   printSummaryTable([
@@ -94,6 +111,9 @@ async function run() {
 }
 
 test("Max Throughput — No Throttle", async () => {
-  try { await run(); }
-  finally { if (stopServer) await stopServer().catch(() => {}); }
+  try {
+    await run();
+  } finally {
+    if (stopServer) await stopServer().catch(() => {});
+  }
 }, 300000);

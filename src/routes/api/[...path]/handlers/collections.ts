@@ -229,7 +229,8 @@ export async function handleCollectionFind(
     return streamingJsonResponse(iterator, totalCount);
   }
 
-  const bypassCache = url.searchParams.get("bypassCache") === "true" || url.searchParams.get("nocache") === "true";
+  const bypassCache =
+    url.searchParams.get("bypassCache") === "true" || url.searchParams.get("nocache") === "true";
 
   return successResponse(
     event,
@@ -253,7 +254,9 @@ export async function handleCollectionEntry(
   collectionId: string,
   entryId: string,
 ) {
-  const bypassCache = event.url.searchParams.get("bypassCache") === "true" || event.url.searchParams.get("nocache") === "true";
+  const bypassCache =
+    event.url.searchParams.get("bypassCache") === "true" ||
+    event.url.searchParams.get("nocache") === "true";
   return successResponse(
     event,
     await cms.collections.findById(collectionId, entryId, { tenantId, bypassCache }),

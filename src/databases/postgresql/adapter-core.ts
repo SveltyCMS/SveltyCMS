@@ -31,7 +31,17 @@ import type {
 } from "../db-interface";
 import * as helpers from "../core/drizzle-sql-helpers";
 import { generateUUID } from "@utils/native-utils";
-import { count as drizzleCount, getTableColumns, getTableName, asc, desc, type Column, eq, isNull, and } from "drizzle-orm";
+import {
+  count as drizzleCount,
+  getTableColumns,
+  getTableName,
+  asc,
+  desc,
+  type Column,
+  eq,
+  isNull,
+  and,
+} from "drizzle-orm";
 import * as schema from "./schema";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -167,9 +177,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     return this.sql;
   }
 
-  public getDrizzle(
-    mode: "read" | "write" = "write",
-  ): PostgresJsDatabase<typeof schema> {
+  public getDrizzle(mode: "read" | "write" = "write"): PostgresJsDatabase<typeof schema> {
     if (mode === "write") return this.db;
     if (this._readDb) return this._readDb;
 
@@ -200,10 +208,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     return this.db;
   }
 
-  async connect(
-    connectionString: string,
-    options?: unknown,
-  ): Promise<DatabaseResult<void>>;
+  async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
   async connect(
     poolOptions: import("../db-interface").ConnectionPoolOptions,
   ): Promise<DatabaseResult<void>>;
@@ -241,10 +246,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
             user: decodeURIComponent(url.username),
             password: decodeURIComponent(url.password),
             database: url.pathname.slice(1),
-            ssl:
-              url.searchParams.get("sslmode") === "require"
-                ? "require"
-                : undefined,
+            ssl: url.searchParams.get("sslmode") === "require" ? "require" : undefined,
             onnotice: () => {},
             transform: { undefined: null },
           };
@@ -387,8 +389,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     DatabaseResult<import("../db-interface").ConnectionPoolStats>
   > {
     try {
-      if (!this.sql)
-        return this.handleError("Not connected", "POOL_STATS_FAILED");
+      if (!this.sql) return this.handleError("Not connected", "POOL_STATS_FAILED");
       return {
         success: true,
         data: {
@@ -450,10 +451,18 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   public getColumn(table: any, name: string, forcePhysical = false): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
   }
@@ -461,47 +470,71 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   public getPhysicalSelection(table: any): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f)
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
     );
   }
 
   public mapQuery(table: any, query: any, options: any = {}): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.mapQuery(
       table,
       query,
       options,
       (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
-      (f) => this.getJsonField(f)
+      (f) => this.getJsonField(f),
     );
   }
 
   public applyOrderBy(builder: any, table: any, options: any): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.applyOrderBy(
       builder,
       table,
       options,
       (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
-      (f) => this.getJsonField(f)
+      (f) => this.getJsonField(f),
     );
   }
 
@@ -509,12 +542,21 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     const values: any = {};
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
-    const getCol = (t: any, n: string) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
+    const getCol = (t: any, n: string) =>
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
 
     let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
     if (!schemaCols) {
@@ -542,7 +584,8 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     }
 
     if (id) {
-      const idCol = schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
+      const idCol =
+        schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
       if (idCol) {
         values[idCol.name] = id;
       }
@@ -563,7 +606,8 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       const dynamicData: any = {};
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
-        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt") continue;
+        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
+          continue;
         const isPhysical = schemaCols?.[k] || getCol(table, k);
         if (!isPhysical) {
           dynamicData[k] = data[k];
@@ -576,11 +620,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
     for (const k in result) {
       const val = result[k];
-      if (
-        val &&
-        typeof val === "object" &&
-        typeof (val as any).getTime === "function"
-      ) {
+      if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
         result[k] = new Date((val as any).getTime());
       }
     }
@@ -602,9 +642,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       };
     }
     return this.wrap(async () => {
-      const q = this.hooks.length > 0
-        ? await this.runHooks("before", "find", collection, query, options)
-        : query;
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
@@ -635,15 +676,17 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       };
     }
     return this.wrap(async () => {
-      const q = this.hooks.length > 0
-        ? await this.runHooks("before", "find", collection, query, options)
-        : query;
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
 
       const tableName = getTableName(table);
-      const isDynamic = collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
+      const isDynamic =
+        collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
 
       let results;
       if (isDynamic) {
@@ -678,18 +721,38 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
           const self = this as any;
           const lastRef = {
-            get table() { return self._lastTable; },
-            set table(val) { self._lastTable = val; },
-            get cols() { return self._lastCols; },
-            set cols(val) { self._lastCols = val; }
+            get table() {
+              return self._lastTable;
+            },
+            set table(val) {
+              self._lastTable = val;
+            },
+            get cols() {
+              return self._lastCols;
+            },
+            set cols(val) {
+              self._lastCols = val;
+            },
           };
           for (const s of normalizedSorts) {
             let sortCol: any;
-            const column = helpers.getColumnHelper(table, s.field, this._tableColumnsCache, lastRef, false);
+            const column = helpers.getColumnHelper(
+              table,
+              s.field,
+              this._tableColumnsCache,
+              lastRef,
+              false,
+            );
             if (column) {
               sortCol = column;
             } else {
-              const dataCol = helpers.getColumnHelper(table, "data", this._tableColumnsCache, lastRef, false);
+              const dataCol = helpers.getColumnHelper(
+                table,
+                "data",
+                this._tableColumnsCache,
+                lastRef,
+                false,
+              );
               if (dataCol) {
                 sortCol = this.getJsonField(s.field);
               }
@@ -706,7 +769,8 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         }
 
         if (options.limit !== undefined) sqlQuery = drizzleSql`${sqlQuery} LIMIT ${options.limit}`;
-        if (options.offset !== undefined) sqlQuery = drizzleSql`${sqlQuery} OFFSET ${options.offset}`;
+        if (options.offset !== undefined)
+          sqlQuery = drizzleSql`${sqlQuery} OFFSET ${options.offset}`;
 
         const db = this.getDrizzleInstance(options);
         const rawRows = await (db as any).values(sqlQuery);
@@ -748,7 +812,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<AsyncIterable<T>>> {
     return this.wrap(async () => {
-      const q = this.hooks.length > 0 ? await this.runHooks("before", "find", collection, query, options) : query;
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q, options);
@@ -814,11 +881,17 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
       const conditions: SQL[] = [eq(idCol, id as any)];
 
-      if (!options.bypassTenantCheck && options.tenantId !== undefined && options.tenantId !== "global") {
+      if (
+        !options.bypassTenantCheck &&
+        options.tenantId !== undefined &&
+        options.tenantId !== "global"
+      ) {
         const tenantCol = this.getColumn(table, "tenantId");
         if (tenantCol) {
           conditions.push(
-            options.tenantId === null ? isNull(tenantCol) : eq(tenantCol, options.tenantId as string)
+            options.tenantId === null
+              ? isNull(tenantCol)
+              : eq(tenantCol, options.tenantId as string),
           );
         }
       }
@@ -869,7 +942,8 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         return result[0].count;
       } catch (err: any) {
         const tableName = getTableName(table);
-        const isDynamic = tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
+        const isDynamic =
+          tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
         if (err?.code === "42P01" && isDynamic) {
           return 0;
         }
@@ -890,22 +964,30 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
       };
     }
-    return this.wrap(async () => {
-      const d = this.hooks.length > 0 ? await this.runHooks("before", "insert", collection, data, options) : data;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const id = (d as any)._id || generateUUID();
-      const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "insert", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const id = (d as any)._id || generateUUID();
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
 
-      const query = this.getDrizzleInstance(options).insert(table).values(values);
-      const result = await (query as any).returning();
-      const finalData = utils.convertDatesToISO(result[0]) as T;
+        const query = this.getDrizzleInstance(options).insert(table).values(values);
+        const result = await (query as any).returning();
+        const finalData = utils.convertDatesToISO(result[0]) as T;
 
-      return this.hooks.length > 0
-        ? await this.runHooks("after", "insert", collection, finalData, options)
-        : finalData;
-    }, "INSERT_FAILED", undefined, { ...options, isWrite: true });
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "insert", collection, finalData, options)
+          : finalData;
+      },
+      "INSERT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async insertMany<T extends BaseEntity>(
@@ -914,22 +996,27 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
     if (!data || data.length === 0) return { success: true, data: [] };
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const now = new Date();
-      const len = data.length;
-      const batchValues = Array.from({ length: len });
-      for (let i = 0; i < len; i++) {
-        const item = data[i];
-        const id = (item as any)._id || generateUUID();
-        batchValues[i] = this.prepareValues(table, item, id, now, options);
-      }
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const now = new Date();
+        const len = data.length;
+        const batchValues = Array.from({ length: len });
+        for (let i = 0; i < len; i++) {
+          const item = data[i];
+          const id = (item as any)._id || generateUUID();
+          batchValues[i] = this.prepareValues(table, item, id, now, options);
+        }
 
-      const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
-      const results = await (query as any).returning();
-      return utils.convertArrayDatesToISO(results as any) as T[];
-    }, "INSERT_MANY_FAILED", undefined, { ...options, isWrite: true });
+        const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
+        const results = await (query as any).returning();
+        return utils.convertArrayDatesToISO(results as any) as T[];
+      },
+      "INSERT_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async update<T extends BaseEntity>(
@@ -952,33 +1039,49 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         error: { code: "INVALID_ID", message: `Cannot update ${collection} with ${id} ID` },
       };
     }
-    return this.wrap(async () => {
-      const d = this.hooks.length > 0 ? await this.runHooks("before", "update", collection, data, options) : data;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "update", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
 
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      const query = this.getDrizzleInstance(options).update(table).set(values).where(eq(idCol, id as any));
-      const results = await query.returning();
-      let res = results[0];
-      if (!res) {
-        const check = await this.getDrizzleInstance(options).select().from(table).where(eq(idCol, id as any));
-        res = check[0];
-      }
-      if (!res) {
-        return {
-          success: false,
-          message: `Record ${id} not found in ${getTableName(table)}`,
-          error: { code: "NOT_FOUND", message: "Record not found" },
-        };
-      }
-      const finalData = utils.convertDatesToISO(res) as unknown as T;
-      return this.hooks.length > 0 ? await this.runHooks("after", "update", collection, finalData, options) : finalData;
-    }, "UPDATE_FAILED", undefined, { ...options, isWrite: true });
+        const query = this.getDrizzleInstance(options)
+          .update(table)
+          .set(values)
+          .where(eq(idCol, id as any));
+        const results = await query.returning();
+        let res = results[0];
+        if (!res) {
+          const check = await this.getDrizzleInstance(options)
+            .select()
+            .from(table)
+            .where(eq(idCol, id as any));
+          res = check[0];
+        }
+        if (!res) {
+          return {
+            success: false,
+            message: `Record ${id} not found in ${getTableName(table)}`,
+            error: { code: "NOT_FOUND", message: "Record not found" },
+          };
+        }
+        const finalData = utils.convertDatesToISO(res) as unknown as T;
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "update", collection, finalData, options)
+          : finalData;
+      },
+      "UPDATE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async updateMany<T extends BaseEntity>(
@@ -987,16 +1090,21 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     data: EntityUpdate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.wrap(async () => {
-      const items = await this.findMany(collection, query, options);
-      if (!items.success) throw new Error(items.message);
-      let modifiedCount = 0;
-      for (const item of items.data || []) {
-        const res = await this.update(collection, (item as any)._id, data, options);
-        if (res.success) modifiedCount++;
-      }
-      return { modifiedCount };
-    }, "UPDATE_MANY_FAILED", undefined, { ...options, isWrite: true });
+    return this.wrap(
+      async () => {
+        const items = await this.findMany(collection, query, options);
+        if (!items.success) throw new Error(items.message);
+        let modifiedCount = 0;
+        for (const item of items.data || []) {
+          const res = await this.update(collection, (item as any)._id, data, options);
+          if (res.success) modifiedCount++;
+        }
+        return { modifiedCount };
+      },
+      "UPDATE_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async delete(
@@ -1018,21 +1126,33 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         error: { code: "INVALID_ID", message: `Cannot delete from ${collection} with ${id} ID` },
       };
     }
-    return this.wrap(async () => {
-      if (this.hooks.length > 0) await this.runHooks("before", "delete", collection, { _id: id }, options);
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+    return this.wrap(
+      async () => {
+        if (this.hooks.length > 0)
+          await this.runHooks("before", "delete", collection, { _id: id }, options);
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      const hasIsDeleted = !!this.getColumn(table, "isDeleted");
-      if (options.permanent || !hasIsDeleted) {
-        await this.getDrizzleInstance(options).delete(table).where(eq(idCol, id as any));
-      } else {
-        await this.getDrizzleInstance(options).update(table).set({ isDeleted: true, updatedAt: new Date() }).where(eq(idCol, id as any));
-      }
-      if (this.hooks.length > 0) await this.runHooks("after", "delete", collection, { _id: id }, options);
-    }, "DELETE_FAILED", undefined, { ...options, isWrite: true });
+        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
+        if (options.permanent || !hasIsDeleted) {
+          await this.getDrizzleInstance(options)
+            .delete(table)
+            .where(eq(idCol, id as any));
+        } else {
+          await this.getDrizzleInstance(options)
+            .update(table)
+            .set({ isDeleted: true, updatedAt: new Date() })
+            .where(eq(idCol, id as any));
+        }
+        if (this.hooks.length > 0)
+          await this.runHooks("after", "delete", collection, { _id: id }, options);
+      },
+      "DELETE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async deleteMany<T extends BaseEntity>(
@@ -1136,16 +1256,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   }
 
   public transaction = async <T>(
-    fn: (
-      transaction: import("../db-interface").DatabaseTransaction,
-    ) => Promise<DatabaseResult<T>>,
+    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: {
       timeout?: number;
-      isolationLevel?:
-        | "read uncommitted"
-        | "read committed"
-        | "repeatable read"
-        | "serializable";
+      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
     },
   ): Promise<DatabaseResult<T>> => {
     if (!this._transactionModule) {
@@ -1172,8 +1286,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   }
 
   public configureReplicas(urls: string[] | string): void {
-    const replicaUrls =
-      typeof urls === "string" ? (JSON.parse(urls) as string[]) : urls;
+    const replicaUrls = typeof urls === "string" ? (JSON.parse(urls) as string[]) : urls;
     if (!Array.isArray(replicaUrls)) return;
     for (const sql of this.allReplicaSqls) sql.end().catch(() => {});
     this.allReplicaSqls = [];
@@ -1220,10 +1333,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   ): Promise<void> {
     const tableName = getTableName(table);
 
-    if (
-      process.env.BENCHMARK_DEBUG === "true" ||
-      process.env.BENCHMARK === "true"
-    ) {
+    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
       logger.info(
         `[upsertNative] Table: ${tableName}, ID: ${values._id}, source: ${values.source}, tenant: ${values.tenantId}`,
       );
@@ -1233,9 +1343,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       async () => {
         const db = this.getDrizzleInstance(options);
         const rawNames = conflictTarget.map((col: any) =>
-          col && typeof col === "object" && col.name
-            ? `"${col.name}"`
-            : `"${String(col)}"`,
+          col && typeof col === "object" && col.name ? `"${col.name}"` : `"${String(col)}"`,
         );
         const rawTarget = drizzleSql.raw(rawNames.join(", "));
         await (db.insert(table).values(values) as any).onConflictDoUpdate({
@@ -1259,17 +1367,13 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     return this.wrap(
       async () => {
         const table = this.getTable(collection);
-        if (!table)
-          throw new Error(`Collection table not found: ${collection}`);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         const tableName = getTableName(table);
-        const idCol =
-          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         const tenantFilter =
-          options?.bypassTenantCheck ||
-          !options?.tenantId ||
-          options?.tenantId === "global"
+          options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global"
             ? ""
             : ` AND "tenantId" = '${options.tenantId}'`;
 
@@ -1277,11 +1381,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         const sqlQuery = dataCol
           ? `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, '{${field}}', to_jsonb(coalesce((CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END->>'${field}')::numeric, 0) + ${amount})), "updatedAt" = now() WHERE "${idCol.name}" = '${String(id)}'${tenantFilter} RETURNING *`
           : `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = now() WHERE "${idCol.name}" = '${String(id)}'${tenantFilter} RETURNING *`;
-        
+
         let rows: any[] = [];
         for (let attempt = 0; attempt < 3 && rows.length === 0; attempt++) {
-          if (attempt > 0)
-            await new Promise((r) => setTimeout(r, 5 * attempt));
+          if (attempt > 0) await new Promise((r) => setTimeout(r, 5 * attempt));
           rows = (await this.raw.execute(sqlQuery)) || [];
         }
         if (rows.length === 0) {
@@ -1310,7 +1413,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
         if (debugMode && !isBenchSuite) {
           console.log(
-            `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`
+            `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
           );
         }
 
@@ -1323,8 +1426,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       },
       "CREATE_MODEL_FAILED",
       undefined,
-      { isWrite: true }
+      { isWrite: true },
     );
   }
 }
-

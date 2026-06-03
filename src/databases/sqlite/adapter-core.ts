@@ -20,7 +20,14 @@ import type {
 } from "../db-interface";
 import * as helpers from "../core/drizzle-sql-helpers";
 import { generateUUID } from "@utils/native-utils";
-import { count as drizzleCount, getTableColumns, getTableName, asc, desc, type Column } from "drizzle-orm";
+import {
+  count as drizzleCount,
+  getTableColumns,
+  getTableName,
+  asc,
+  desc,
+  type Column,
+} from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
 import * as schema from "./schema";
 import { sql, type SQL, eq, isNull, and } from "drizzle-orm";
@@ -189,10 +196,18 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
   public getColumn(table: any, name: string, forcePhysical = false): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
   }
@@ -200,47 +215,71 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
   public getPhysicalSelection(table: any): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f)
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
     );
   }
 
   public mapQuery(table: any, query: any, options: any = {}): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.mapQuery(
       table,
       query,
       options,
       (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
-      (f) => this.getJsonField(f)
+      (f) => this.getJsonField(f),
     );
   }
 
   public applyOrderBy(builder: any, table: any, options: any): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.applyOrderBy(
       builder,
       table,
       options,
       (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
-      (f) => this.getJsonField(f)
+      (f) => this.getJsonField(f),
     );
   }
 
@@ -248,12 +287,21 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     const values: any = {};
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
-    const getCol = (t: any, n: string) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
+    const getCol = (t: any, n: string) =>
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
 
     let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
     if (!schemaCols) {
@@ -276,11 +324,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         if ((k === "_id" || k === "id") && id) continue;
         if (data[k] !== undefined) {
           let val = data[k];
-          if (
-            typeof val === "object" &&
-            val !== null &&
-            !(val instanceof Date)
-          ) {
+          if (typeof val === "object" && val !== null && !(val instanceof Date)) {
             val = JSON.stringify(val);
           }
           values[k] = val;
@@ -289,7 +333,8 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     }
 
     if (id) {
-      const idCol = schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
+      const idCol =
+        schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
       if (idCol) {
         values[idCol.name] = id;
       }
@@ -310,7 +355,8 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       const dynamicData: any = {};
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
-        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt") continue;
+        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
+          continue;
         const isPhysical = schemaCols?.[k] || getCol(table, k);
         if (!isPhysical) {
           dynamicData[k] = data[k];
@@ -323,11 +369,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
 
     for (const k in result) {
       const val = result[k];
-      if (
-        val &&
-        typeof val === "object" &&
-        typeof (val as any).getTime === "function"
-      ) {
+      if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
         result[k] = new Date((val as any).getTime());
       }
     }
@@ -349,9 +391,10 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       };
     }
     return this.wrap(async () => {
-      const q = this.hooks.length > 0
-        ? await this.runHooks("before", "find", collection, query, options)
-        : query;
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
@@ -382,15 +425,17 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       };
     }
     return this.wrap(async () => {
-      const q = this.hooks.length > 0
-        ? await this.runHooks("before", "find", collection, query, options)
-        : query;
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
 
       const tableName = getTableName(table);
-      const isDynamic = collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
+      const isDynamic =
+        collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
 
       let results;
       if (isDynamic) {
@@ -425,18 +470,38 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
 
           const self = this as any;
           const lastRef = {
-            get table() { return self._lastTable; },
-            set table(val) { self._lastTable = val; },
-            get cols() { return self._lastCols; },
-            set cols(val) { self._lastCols = val; }
+            get table() {
+              return self._lastTable;
+            },
+            set table(val) {
+              self._lastTable = val;
+            },
+            get cols() {
+              return self._lastCols;
+            },
+            set cols(val) {
+              self._lastCols = val;
+            },
           };
           for (const s of normalizedSorts) {
             let sortCol: any;
-            const column = helpers.getColumnHelper(table, s.field, this._tableColumnsCache, lastRef, false);
+            const column = helpers.getColumnHelper(
+              table,
+              s.field,
+              this._tableColumnsCache,
+              lastRef,
+              false,
+            );
             if (column) {
               sortCol = column;
             } else {
-              const dataCol = helpers.getColumnHelper(table, "data", this._tableColumnsCache, lastRef, false);
+              const dataCol = helpers.getColumnHelper(
+                table,
+                "data",
+                this._tableColumnsCache,
+                lastRef,
+                false,
+              );
               if (dataCol) {
                 sortCol = this.getJsonField(s.field);
               }
@@ -495,11 +560,17 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<AsyncIterable<T>>> {
     return this.wrap(async () => {
-      const q = this.hooks.length > 0 ? await this.runHooks("before", "find", collection, query, options) : query;
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
-      let builder = this.getDrizzleInstance(options).select(this.getPhysicalSelection(table)).from(table).where(where);
+      let builder = this.getDrizzleInstance(options)
+        .select(this.getPhysicalSelection(table))
+        .from(table)
+        .where(where);
       builder = this.applyOrderBy(builder, table, options);
       if (options.limit) builder = builder.limit(options.limit);
       if (options.offset) builder = builder.offset(options.offset);
@@ -560,11 +631,17 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
 
       const conditions: SQL[] = [eq(idCol, id as any)];
 
-      if (!options.bypassTenantCheck && options.tenantId !== undefined && options.tenantId !== "global") {
+      if (
+        !options.bypassTenantCheck &&
+        options.tenantId !== undefined &&
+        options.tenantId !== "global"
+      ) {
         const tenantCol = this.getColumn(table, "tenantId");
         if (tenantCol) {
           conditions.push(
-            options.tenantId === null ? isNull(tenantCol) : eq(tenantCol, options.tenantId as string)
+            options.tenantId === null
+              ? isNull(tenantCol)
+              : eq(tenantCol, options.tenantId as string),
           );
         }
       }
@@ -615,7 +692,8 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         return result[0].count;
       } catch (err: any) {
         const tableName = getTableName(table);
-        const isDynamic = tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
+        const isDynamic =
+          tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
         if (err?.code === "SQLITE_ERROR" && err?.message?.includes("no such table") && isDynamic) {
           return 0;
         }
@@ -636,22 +714,30 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
       };
     }
-    return this.wrap(async () => {
-      const d = this.hooks.length > 0 ? await this.runHooks("before", "insert", collection, data, options) : data;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const id = (d as any)._id || generateUUID();
-      const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "insert", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const id = (d as any)._id || generateUUID();
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
 
-      const query = this.getDrizzleInstance(options).insert(table).values(values);
-      const result = await (query as any).returning();
-      const finalData = utils.convertDatesToISO(result[0]) as T;
+        const query = this.getDrizzleInstance(options).insert(table).values(values);
+        const result = await (query as any).returning();
+        const finalData = utils.convertDatesToISO(result[0]) as T;
 
-      return this.hooks.length > 0
-        ? await this.runHooks("after", "insert", collection, finalData, options)
-        : finalData;
-    }, "INSERT_FAILED", undefined, { ...options, isWrite: true });
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "insert", collection, finalData, options)
+          : finalData;
+      },
+      "INSERT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async insertMany<T extends BaseEntity>(
@@ -660,28 +746,33 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
     if (!data || data.length === 0) return { success: true, data: [] };
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const now = new Date();
-      const len = data.length;
-      const batchValues = Array.from({ length: len });
-      for (let i = 0; i < len; i++) {
-        const item = data[i];
-        const id = (item as any)._id || generateUUID();
-        batchValues[i] = this.prepareValues(table, item, id, now, options);
-      }
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const now = new Date();
+        const len = data.length;
+        const batchValues = Array.from({ length: len });
+        for (let i = 0; i < len; i++) {
+          const item = data[i];
+          const id = (item as any)._id || generateUUID();
+          batchValues[i] = this.prepareValues(table, item, id, now, options);
+        }
 
-      const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
-      try {
-        const results = await (query as any).returning();
-        return utils.convertArrayDatesToISO(results as any) as T[];
-      } catch (err: any) {
-        logger.warn("[SQLite] insertMany returning fallback invoked due to error:", err);
-        await (query as any);
-        return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
-      }
-    }, "INSERT_MANY_FAILED", undefined, { ...options, isWrite: true });
+        const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
+        try {
+          const results = await (query as any).returning();
+          return utils.convertArrayDatesToISO(results as any) as T[];
+        } catch (err: any) {
+          logger.warn("[SQLite] insertMany returning fallback invoked due to error:", err);
+          await (query as any);
+          return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
+        }
+      },
+      "INSERT_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async update<T extends BaseEntity>(
@@ -704,33 +795,49 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         error: { code: "INVALID_ID", message: `Cannot update ${collection} with ${id} ID` },
       };
     }
-    return this.wrap(async () => {
-      const d = this.hooks.length > 0 ? await this.runHooks("before", "update", collection, data, options) : data;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "update", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
 
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      const query = this.getDrizzleInstance(options).update(table).set(values).where(eq(idCol, id as any));
-      const results = await query.returning();
-      let res = results[0];
-      if (!res) {
-        const check = await this.getDrizzleInstance(options).select().from(table).where(eq(idCol, id as any));
-        res = check[0];
-      }
-      if (!res) {
-        return {
-          success: false,
-          message: `Record ${id} not found in ${getTableName(table)}`,
-          error: { code: "NOT_FOUND", message: "Record not found" },
-        };
-      }
-      const finalData = utils.convertDatesToISO(res) as unknown as T;
-      return this.hooks.length > 0 ? await this.runHooks("after", "update", collection, finalData, options) : finalData;
-    }, "UPDATE_FAILED", undefined, { ...options, isWrite: true });
+        const query = this.getDrizzleInstance(options)
+          .update(table)
+          .set(values)
+          .where(eq(idCol, id as any));
+        const results = await query.returning();
+        let res = results[0];
+        if (!res) {
+          const check = await this.getDrizzleInstance(options)
+            .select()
+            .from(table)
+            .where(eq(idCol, id as any));
+          res = check[0];
+        }
+        if (!res) {
+          return {
+            success: false,
+            message: `Record ${id} not found in ${getTableName(table)}`,
+            error: { code: "NOT_FOUND", message: "Record not found" },
+          };
+        }
+        const finalData = utils.convertDatesToISO(res) as unknown as T;
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "update", collection, finalData, options)
+          : finalData;
+      },
+      "UPDATE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async updateMany<T extends BaseEntity>(
@@ -739,16 +846,21 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     data: EntityUpdate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.wrap(async () => {
-      const items = await this.findMany(collection, query, options);
-      if (!items.success) throw new Error(items.message);
-      let modifiedCount = 0;
-      for (const item of items.data || []) {
-        const res = await this.update(collection, (item as any)._id, data, options);
-        if (res.success) modifiedCount++;
-      }
-      return { modifiedCount };
-    }, "UPDATE_MANY_FAILED", undefined, { ...options, isWrite: true });
+    return this.wrap(
+      async () => {
+        const items = await this.findMany(collection, query, options);
+        if (!items.success) throw new Error(items.message);
+        let modifiedCount = 0;
+        for (const item of items.data || []) {
+          const res = await this.update(collection, (item as any)._id, data, options);
+          if (res.success) modifiedCount++;
+        }
+        return { modifiedCount };
+      },
+      "UPDATE_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async delete(
@@ -770,21 +882,33 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         error: { code: "INVALID_ID", message: `Cannot delete from ${collection} with ${id} ID` },
       };
     }
-    return this.wrap(async () => {
-      if (this.hooks.length > 0) await this.runHooks("before", "delete", collection, { _id: id }, options);
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+    return this.wrap(
+      async () => {
+        if (this.hooks.length > 0)
+          await this.runHooks("before", "delete", collection, { _id: id }, options);
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      const hasIsDeleted = !!this.getColumn(table, "isDeleted");
-      if (options.permanent || !hasIsDeleted) {
-        await this.getDrizzleInstance(options).delete(table).where(eq(idCol, id as any));
-      } else {
-        await this.getDrizzleInstance(options).update(table).set({ isDeleted: true, updatedAt: new Date() }).where(eq(idCol, id as any));
-      }
-      if (this.hooks.length > 0) await this.runHooks("after", "delete", collection, { _id: id }, options);
-    }, "DELETE_FAILED", undefined, { ...options, isWrite: true });
+        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
+        if (options.permanent || !hasIsDeleted) {
+          await this.getDrizzleInstance(options)
+            .delete(table)
+            .where(eq(idCol, id as any));
+        } else {
+          await this.getDrizzleInstance(options)
+            .update(table)
+            .set({ isDeleted: true, updatedAt: new Date() })
+            .where(eq(idCol, id as any));
+        }
+        if (this.hooks.length > 0)
+          await this.runHooks("after", "delete", collection, { _id: id }, options);
+      },
+      "DELETE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async deleteMany<T extends BaseEntity>(
@@ -825,7 +949,10 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       const table = this.getTable(collection);
       const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
       if (!idCol) throw new Error("ID column not found");
-      await this.getDrizzleInstance(options).update(table).set({ isDeleted: false, updatedAt: new Date() }).where(eq(idCol, id as any));
+      await this.getDrizzleInstance(options)
+        .update(table)
+        .set({ isDeleted: false, updatedAt: new Date() })
+        .where(eq(idCol, id as any));
     }, "RESTORE_FAILED");
   }
 
@@ -874,19 +1001,26 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
   ): Promise<void> {
     const tableName = getTableName(table);
     if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
-      logger.info(`[upsertNative] Table: ${tableName}, ID: ${values._id}, source: ${values.source}, tenant: ${values.tenantId}`);
-    }
-    await this.wrap(async () => {
-      const db = this.getDrizzleInstance(options);
-      const rawNames = conflictTarget.map((col: any) =>
-        col && typeof col === "object" && "name" in col ? `"${col.name}"` : `"${String(col)}"`
+      logger.info(
+        `[upsertNative] Table: ${tableName}, ID: ${values._id}, source: ${values.source}, tenant: ${values.tenantId}`,
       );
-      const rawTarget = sql.raw(rawNames.join(", "));
-      await (db.insert(table).values(values) as any).onConflictDoUpdate({
-        target: rawTarget,
-        set: values,
-      });
-    }, "UPSERT_NATIVE_FAILED", undefined, { isWrite: true });
+    }
+    await this.wrap(
+      async () => {
+        const db = this.getDrizzleInstance(options);
+        const rawNames = conflictTarget.map((col: any) =>
+          col && typeof col === "object" && "name" in col ? `"${col.name}"` : `"${String(col)}"`,
+        );
+        const rawTarget = sql.raw(rawNames.join(", "));
+        await (db.insert(table).values(values) as any).onConflictDoUpdate({
+          target: rawTarget,
+          set: values,
+        });
+      },
+      "UPSERT_NATIVE_FAILED",
+      undefined,
+      { isWrite: true },
+    );
   }
 
   async atomicIncrement(
@@ -896,35 +1030,48 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     amount: number,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<Record<string, unknown>>> {
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const tableName = getTableName(table);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const tableName = getTableName(table);
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      const now = new Date();
-      const tenantFilter = options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global"
-        ? ""
-        : ` AND "tenantId" = '${options.tenantId}'`;
+        const now = new Date();
+        const tenantFilter =
+          options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global"
+            ? ""
+            : ` AND "tenantId" = '${options.tenantId}'`;
 
-      const dataCol = this.getColumn(table, "data");
-      if (dataCol) {
-        await this.getDrizzleInstance(options).run(
-          sql.raw(`UPDATE "${tableName}" SET "data" = json_set("data", '$.${field}', coalesce(json_extract("data", '$.${field}'), 0) + ${amount}), "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = '${String(id)}'${tenantFilter}`)
-        );
-      } else {
-        await this.getDrizzleInstance(options).run(
-          sql.raw(`UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = '${String(id)}'${tenantFilter}`)
-        );
-      }
+        const dataCol = this.getColumn(table, "data");
+        if (dataCol) {
+          await this.getDrizzleInstance(options).run(
+            sql.raw(
+              `UPDATE "${tableName}" SET "data" = json_set("data", '$.${field}', coalesce(json_extract("data", '$.${field}'), 0) + ${amount}), "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = '${String(id)}'${tenantFilter}`,
+            ),
+          );
+        } else {
+          await this.getDrizzleInstance(options).run(
+            sql.raw(
+              `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = '${String(id)}'${tenantFilter}`,
+            ),
+          );
+        }
 
-      const updated = await this.findOne<any>(collection, { _id: id } as any, { ...options, bypassCache: true });
-      if (!updated.success || !updated.data) {
-        throw new Error(`Entry not found after increment: ${String(id)}`);
-      }
-      return updated.data as Record<string, unknown>;
-    }, "ATOMIC_INCREMENT_FAILED", undefined, { ...options, isWrite: true });
+        const updated = await this.findOne<any>(collection, { _id: id } as any, {
+          ...options,
+          bypassCache: true,
+        });
+        if (!updated.success || !updated.data) {
+          throw new Error(`Entry not found after increment: ${String(id)}`);
+        }
+        return updated.data as Record<string, unknown>;
+      },
+      "ATOMIC_INCREMENT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   public async createModel(schemaData: any): Promise<void> {
@@ -934,36 +1081,43 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     const table = this.getTable(normalizedName);
     const physicalName = getTableName(table as any);
 
-    await this.wrap(async () => {
-      const isBenchSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
-      const debugMode = process.env.BENCHMARK_DEBUG === "true";
+    await this.wrap(
+      async () => {
+        const isBenchSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
+        const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
-      const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
-      if (debugMode && !isBenchSuite) {
-        console.log(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
-      }
-      await this.raw.execute(ddl);
+        const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
+        if (debugMode && !isBenchSuite) {
+          console.log(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
+        }
+        await this.raw.execute(ddl);
 
-      const columns = [
-        { name: "isDeleted", type: "INTEGER DEFAULT 0" },
-        { name: "status", type: "TEXT DEFAULT 'draft'" },
-        { name: "tenantId", type: "TEXT" },
-        { name: "createdAt", type: "INTEGER" },
-        { name: "updatedAt", type: "INTEGER" },
-      ];
+        const columns = [
+          { name: "isDeleted", type: "INTEGER DEFAULT 0" },
+          { name: "status", type: "TEXT DEFAULT 'draft'" },
+          { name: "tenantId", type: "TEXT" },
+          { name: "createdAt", type: "INTEGER" },
+          { name: "updatedAt", type: "INTEGER" },
+        ];
 
-      for (const col of columns) {
-        try {
-          const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
-          const exists = tableInfo.some((c: any) => c.name === col.name);
-          if (!exists) {
-            await this.raw.execute(`ALTER TABLE "${physicalName}" ADD COLUMN "${col.name}" ${col.type}`);
-          }
-        } catch {}
-      }
+        for (const col of columns) {
+          try {
+            const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
+            const exists = tableInfo.some((c: any) => c.name === col.name);
+            if (!exists) {
+              await this.raw.execute(
+                `ALTER TABLE "${physicalName}" ADD COLUMN "${col.name}" ${col.type}`,
+              );
+            }
+          } catch {}
+        }
 
-      logger.info(`[SQLITE Adapter] Provisioned table: ${physicalName}`);
-    }, "CREATE_MODEL_FAILED", undefined, { isWrite: true });
+        logger.info(`[SQLITE Adapter] Provisioned table: ${physicalName}`);
+      },
+      "CREATE_MODEL_FAILED",
+      undefined,
+      { isWrite: true },
+    );
   }
 
   public capabilities: DatabaseCapabilities = {
@@ -1059,21 +1213,13 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
 
     // 3. Normalized CamelCase check (e.g. 'workflow_definitions' -> 'workflowDefinitions')
     // This is where most system tables live in the Drizzle schema export
-    const camelName = physicalName.replace(/_([a-z])/g, (g: string) =>
-      g[1].toUpperCase(),
-    );
+    const camelName = physicalName.replace(/_([a-z])/g, (g: string) => g[1].toUpperCase());
     if (schemaAny[camelName]) return schemaAny[camelName];
 
     // 🛡️ HARDENING: Explicit fallback for workflow tables if naming normalization fails
-    if (
-      physicalName.includes("workflow_definitions") &&
-      schemaAny.workflowDefinitions
-    )
+    if (physicalName.includes("workflow_definitions") && schemaAny.workflowDefinitions)
       return schemaAny.workflowDefinitions;
-    if (
-      physicalName.includes("workflow_instances") &&
-      schemaAny.workflowInstances
-    )
+    if (physicalName.includes("workflow_instances") && schemaAny.workflowInstances)
       return schemaAny.workflowInstances;
 
     // 4. Final fallback: try raw collection name
@@ -1094,9 +1240,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       tenantId: text("tenantId"),
       data: text("data").notNull().default("{}"),
       status: text("status").notNull().default("draft"),
-      isDeleted: integer("isDeleted", { mode: "boolean" })
-        .notNull()
-        .default(false),
+      isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
       createdAt: integer("createdAt", { mode: "timestamp_ms" })
         .notNull()
         .default(sql`(strftime('%s','now')*1000)`),
@@ -1120,15 +1264,12 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
   >();
   protected _statementCache = new Map<string, any>();
 
-  protected state: "idle" | "connecting" | "connected" | "closing" | "closed" =
-    "idle";
+  protected state: "idle" | "connecting" | "connected" | "closing" | "closed" = "idle";
   protected config: string | SQLiteConfig = "";
 
   public get sqlite(): SQLiteClient {
     if (!this._sqlite) {
-      throw new Error(
-        `[SQLite] Database client not initialized (state: ${this.state})`,
-      );
+      throw new Error(`[SQLite] Database client not initialized (state: ${this.state})`);
     }
     const worker = testWorkerContext.getStore();
     if (worker && process.env.TEST_MODE === "true") {
@@ -1147,9 +1288,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     if (!this.isConnected()) {
       const worker = testWorkerContext.getStore();
       if (!(worker && process.env.TEST_MODE === "true")) {
-        throw new Error(
-          `[SQLite] Database connection not established (state: ${this.state})`,
-        );
+        throw new Error(`[SQLite] Database connection not established (state: ${this.state})`);
       }
     }
     const worker = testWorkerContext.getStore();
@@ -1173,18 +1312,12 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
   /* CONNECT                                          */
   /* ------------------------------------------------ */
 
-  async connect(
-    connectionString: string,
-    options?: unknown,
-  ): Promise<DatabaseResult<void>>;
+  async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
   async connect(
     poolOptions: import("../db-interface").ConnectionPoolOptions,
   ): Promise<DatabaseResult<void>>;
   public async connect(
-    config?:
-      | string
-      | SQLiteConfig
-      | import("../db-interface").ConnectionPoolOptions,
+    config?: string | SQLiteConfig | import("../db-interface").ConnectionPoolOptions,
     _options?: any,
   ): Promise<DatabaseResult<void>> {
     let finalConfig = config;
@@ -1300,9 +1433,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
   }
 
   public async transaction<T>(
-    fn: (
-      transaction: import("../db-interface").DatabaseTransaction,
-    ) => Promise<DatabaseResult<T>>,
+    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: { timeout?: number; isolationLevel?: string },
   ): Promise<DatabaseResult<T>> {
     const module = new TransactionModule(this as any);
@@ -1379,10 +1510,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
 
   public async getVersion(): Promise<DatabaseResult<string>> {
     return this.wrap(async () => {
-      const row = this.prepareAndExecute(
-        "SELECT sqlite_version() as version",
-        "get",
-      );
+      const row = this.prepareAndExecute("SELECT sqlite_version() as version", "get");
       return row.version as string;
     }, "GET_VERSION_FAILED");
   }
@@ -1439,27 +1567,17 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       const normLower = normalizedPath.toLowerCase();
 
       if (normLower.startsWith(root)) {
-        normalizedPath = normalizedPath
-          .substring(root.length)
-          .replace(/^\//, "");
-      } else if (
-        normalizedPath.includes(":/") &&
-        !normalizedPath.startsWith("file:")
-      ) {
+        normalizedPath = normalizedPath.substring(root.length).replace(/^\//, "");
+      } else if (normalizedPath.includes(":/") && !normalizedPath.startsWith("file:")) {
         // Absolute path on Windows but not in CWD, use file URI
         normalizedPath = `file:///${normalizedPath}`;
       }
     }
 
     // ALWAYS log this to server-debug.log for diagnosis
-    logger.info(
-      `[SQLite] Opening database at: ${normalizedPath} (Original: ${dbPath})`,
-    );
+    logger.info(`[SQLite] Opening database at: ${normalizedPath} (Original: ${dbPath})`);
 
-    const readonly =
-      (this.config as SQLiteConfig)?.readonly ||
-      dbPath.includes("mode=ro") ||
-      false;
+    const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
     const options = readonly ? { readonly } : {};
 
     // 🚀 If in Bun, use Bun's native driver exclusively.
@@ -1467,9 +1585,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       try {
         const driverName = "bun" + ":sqlite";
         const { Database } = await import(/* @vite-ignore */ driverName);
-        logger.debug(
-          `[SQLite] Bun detected. Attempting to use native 'bun:sqlite'...`,
-        );
+        logger.debug(`[SQLite] Bun detected. Attempting to use native 'bun:sqlite'...`);
 
         // 🚀 WINDOWS RESILIENCE: Retry on "SQLITE_MISUSE" or "busy" which often indicates
         // a transient file lock or path access issue on Windows.
@@ -1504,40 +1620,30 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         }
         if (!sqlite) throw lastErr;
 
-        const { drizzle } = await import(
-          /* @vite-ignore */ "drizzle-orm/bun-sqlite"
-        );
+        const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
         const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
 
         // 🚀 AGNOSTIC SILENCE: Only log success once per process to keep benchmarks clean
         if (!(globalThis as any).__SQLITE_DRIVER_LOGGED__) {
-          logger.info(
-            `[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`,
-          );
+          logger.info(`[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`);
           (globalThis as any).__SQLITE_DRIVER_LOGGED__ = true;
         }
 
         return { sqlite, db };
       } catch (e: any) {
-        logger.warn(
-          `[SQLite] ⚠️ Bun driver probe failed: ${e.message}. Falling back...`,
-        );
+        logger.warn(`[SQLite] ⚠️ Bun driver probe failed: ${e.message}. Falling back...`);
 
         // 🚀 WINDOWS OPTIMIZATION: On Windows Bun, if bun:sqlite fails,
         // we likely have a serious environment issue. better-sqlite3 is
         // even more likely to fail due to native bindings.
         if (process.platform === "win32") {
           const isMisuse =
-            e.message?.includes("misuse") ||
-            e.code === "SQLITE_MISUSE" ||
-            e.errno === 21;
+            e.message?.includes("misuse") || e.code === "SQLITE_MISUSE" || e.errno === 21;
 
           if (isMisuse && process.env.BENCHMARK_DEBUG !== "true") {
             // Silently continue to fallbacks if misuse (expected in some path formats)
           } else {
-            logger.error(
-              `[SQLite] Native 'bun:sqlite' failed on Windows: ${e.message}`,
-            );
+            logger.error(`[SQLite] Native 'bun:sqlite' failed on Windows: ${e.message}`);
           }
 
           // Don't fall through to better-sqlite3 on Windows Bun to avoid extreme noise
@@ -1559,10 +1665,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
           logger.info(`[SQLite] Using 'better-sqlite3' driver.`);
           return { sqlite, db };
         } catch (bindingError: any) {
-          if (
-            process.platform === "win32" &&
-            bindingError.message.includes("bindings")
-          ) {
+          if (process.platform === "win32" && bindingError.message.includes("bindings")) {
             throw new Error("BETTER_SQLITE3_BINDINGS_MISSING");
           }
           throw bindingError;
@@ -1588,8 +1691,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         if (major > 22 || (major === 22 && minor >= 5)) {
           try {
             const req = await getRequire();
-            if (!req)
-              throw new Error("requireFunc not available for node:sqlite");
+            if (!req) throw new Error("requireFunc not available for node:sqlite");
             const { DatabaseSync } = req("node:sqlite");
             // 🚀 WINDOWS HARDENING: Use normalized path (absolute/file URI) for native driver
             const sqlite = new DatabaseSync(normalizedPath);
@@ -1600,16 +1702,13 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
             });
 
             // 🚀 Shim node:sqlite using drizzle-orm/sqlite-proxy
-            const { drizzle: proxyDrizzle } =
-              await import("drizzle-orm/sqlite-proxy");
+            const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");
 
             const db = proxyDrizzle(
               async (sqlText, params = [], method) => {
                 const serializedParams = (params || []).map((p) => {
                   if (typeof p === "boolean") return p ? 1 : 0;
-                  return p !== null && typeof p === "object"
-                    ? JSON.stringify(p)
-                    : p;
+                  return p !== null && typeof p === "object" ? JSON.stringify(p) : p;
                 });
 
                 // 🚀 HARDENING: Detect transactions as writes to prevent mutex deadlocks
@@ -1630,9 +1729,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
                   try {
                     if (method === "all") {
                       const result = stmt.all(...serializedParams);
-                      const rows = (result || []).map((row: any) =>
-                        Object.values(row),
-                      );
+                      const rows = (result || []).map((row: any) => Object.values(row));
                       return { rows };
                     } else if (method === "get") {
                       const result = stmt.get(...serializedParams);
@@ -1647,9 +1744,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
                       };
                     } else if (method === "values") {
                       const result = stmt.all(...serializedParams);
-                      const rows = (result || []).map((row: any) =>
-                        Object.values(row),
-                      );
+                      const rows = (result || []).map((row: any) => Object.values(row));
                       return { rows };
                     } else {
                       const result = stmt.run(...serializedParams);
@@ -1676,14 +1771,10 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
               { schema },
             );
 
-            logger.info(
-              `[SQLite] Using native 'node:sqlite' driver (Shimmed).`,
-            );
+            logger.info(`[SQLite] Using native 'node:sqlite' driver (Shimmed).`);
             return { sqlite: sqlite as any, db };
           } catch (nodeSqliteErr: any) {
-            logger.error(
-              `[SQLite] node:sqlite fallback failed: ${nodeSqliteErr.message}`,
-            );
+            logger.error(`[SQLite] node:sqlite fallback failed: ${nodeSqliteErr.message}`);
           }
         }
       }
@@ -1741,8 +1832,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     if (!dbPath) {
       const { isSetupComplete } = await import("@utils/setup-check-fast");
       dbPath =
-        process.env.DB_PATH ||
-        (isSetupComplete() ? "config/database/sveltycms.db" : ":memory:");
+        process.env.DB_PATH || (isSetupComplete() ? "config/database/sveltycms.db" : ":memory:");
     }
 
     // 🚀 HARDENING: Don't treat URIs as local paths
@@ -1753,11 +1843,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     }
 
     // Handle standard relative paths
-    if (
-      dbPath !== ":memory:" &&
-      !path.isAbsolute(dbPath) &&
-      !dbPath.startsWith("file:")
-    ) {
+    if (dbPath !== ":memory:" && !path.isAbsolute(dbPath) && !dbPath.startsWith("file:")) {
       dbPath = path.resolve(process.cwd(), dbPath);
     }
 

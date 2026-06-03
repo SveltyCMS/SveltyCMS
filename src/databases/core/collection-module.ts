@@ -4,7 +4,12 @@
  */
 
 import type { Schema } from "@src/content/types";
-import type { CollectionModel, DatabaseResult, ICollectionAdapter, ISqlAdapter } from "../db-interface";
+import type {
+  CollectionModel,
+  DatabaseResult,
+  ICollectionAdapter,
+  ISqlAdapter,
+} from "../db-interface";
 import { DatabaseModule } from "./base-adapter";
 import { logger } from "@src/utils/logger";
 

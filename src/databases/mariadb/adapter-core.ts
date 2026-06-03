@@ -31,7 +31,17 @@ import type {
 } from "../db-interface";
 import * as helpers from "../core/drizzle-sql-helpers";
 import { generateUUID } from "@utils/native-utils";
-import { count as drizzleCount, getTableColumns, getTableName, asc, desc, type Column, eq, isNull, and } from "drizzle-orm";
+import {
+  count as drizzleCount,
+  getTableColumns,
+  getTableName,
+  asc,
+  desc,
+  type Column,
+  eq,
+  isNull,
+  and,
+} from "drizzle-orm";
 import * as schema from "./schema";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
@@ -139,17 +149,11 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
     return this as any;
   }
 
-  async connect(
-    connectionString: string,
-    options?: unknown,
-  ): Promise<DatabaseResult<void>>;
+  async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
   async connect(
     poolOptions: import("../db-interface").ConnectionPoolOptions,
   ): Promise<DatabaseResult<void>>;
-  public async connect(
-    connection: any,
-    _options?: any,
-  ): Promise<DatabaseResult<void>> {
+  public async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
     try {
       let finalConnection = connection;
 
@@ -195,9 +199,7 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
       this.pool = mysql.createPool(poolConfig);
       this.activeDatabaseName =
         poolConfig.database ||
-        (poolConfig.uri
-          ? new URL(poolConfig.uri).pathname.slice(1)
-          : "unknown");
+        (poolConfig.uri ? new URL(poolConfig.uri).pathname.slice(1) : "unknown");
 
       // Verification with Auto-Creation Support
       try {
@@ -211,9 +213,7 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         if (isMissingDb) {
           const dbName = this.activeDatabaseName;
           if (dbName && dbName !== "unknown") {
-            logger.info(
-              `[mariadb] Database "${dbName}" not found. Attempting auto-creation...`,
-            );
+            logger.info(`[mariadb] Database "${dbName}" not found. Attempting auto-creation...`);
             // Create admin connection without database specified
             const adminConfig = { ...poolConfig };
             delete adminConfig.database;
@@ -225,9 +225,7 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
             const adminConn = await mysql.createConnection(adminConfig);
             try {
-              await adminConn.query(
-                `CREATE DATABASE IF NOT EXISTS \`${dbName}\``,
-              );
+              await adminConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
               await adminConn.end();
               // Re-verify the primary pool
               await this.pool.query("SELECT 1");
@@ -244,9 +242,7 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
       }
 
       this._db = drizzle(this.pool, { schema, mode: "default" });
-      await this.pool.query(
-        "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED",
-      );
+      await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
       this.connected = true;
       logger.info("Connected to MariaDB");
@@ -399,16 +395,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
   }
 
   public transaction = async <T>(
-    fn: (
-      transaction: import("../db-interface").DatabaseTransaction,
-    ) => Promise<DatabaseResult<T>>,
+    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: {
       timeout?: number;
-      isolationLevel?:
-        | "read uncommitted"
-        | "read committed"
-        | "repeatable read"
-        | "serializable";
+      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
     },
   ): Promise<DatabaseResult<T>> => {
     if (!this._transactionModule) {
@@ -495,10 +485,18 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
   public getColumn(table: any, name: string, forcePhysical = false): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
   }
@@ -506,47 +504,71 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
   public getPhysicalSelection(table: any): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f)
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
     );
   }
 
   public mapQuery(table: any, query: any, options: any = {}): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.mapQuery(
       table,
       query,
       options,
       (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
-      (f) => this.getJsonField(f)
+      (f) => this.getJsonField(f),
     );
   }
 
   public applyOrderBy(builder: any, table: any, options: any): any {
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
     return helpers.applyOrderBy(
       builder,
       table,
       options,
       (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
-      (f) => this.getJsonField(f)
+      (f) => this.getJsonField(f),
     );
   }
 
@@ -554,12 +576,21 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
     const values: any = {};
     const self = this as any;
     const lastRef = {
-      get table() { return self._lastTable; },
-      set table(val) { self._lastTable = val; },
-      get cols() { return self._lastCols; },
-      set cols(val) { self._lastCols = val; }
+      get table() {
+        return self._lastTable;
+      },
+      set table(val) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val) {
+        self._lastCols = val;
+      },
     };
-    const getCol = (t: any, n: string) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
+    const getCol = (t: any, n: string) =>
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
 
     let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
     if (!schemaCols) {
@@ -587,7 +618,8 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
     }
 
     if (id) {
-      const idCol = schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
+      const idCol =
+        schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
       if (idCol) {
         values[idCol.name] = id;
       }
@@ -608,7 +640,8 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
       const dynamicData: any = {};
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
-        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt") continue;
+        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
+          continue;
         const isPhysical = schemaCols?.[k] || getCol(table, k);
         if (!isPhysical) {
           dynamicData[k] = data[k];
@@ -621,11 +654,7 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
     for (const k in result) {
       const val = result[k];
-      if (
-        val &&
-        typeof val === "object" &&
-        typeof (val as any).getTime === "function"
-      ) {
+      if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
         result[k] = new Date((val as any).getTime());
       }
     }
@@ -647,9 +676,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
       };
     }
     return this.wrap(async () => {
-      const q = this.hooks.length > 0
-        ? await this.runHooks("before", "find", collection, query, options)
-        : query;
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
@@ -680,15 +710,17 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
       };
     }
     return this.wrap(async () => {
-      const q = this.hooks.length > 0
-        ? await this.runHooks("before", "find", collection, query, options)
-        : query;
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
 
       const tableName = getTableName(table);
-      const isDynamic = collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
+      const isDynamic =
+        collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
 
       let results;
       if (isDynamic) {
@@ -723,18 +755,38 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
           const self = this as any;
           const lastRef = {
-            get table() { return self._lastTable; },
-            set table(val) { self._lastTable = val; },
-            get cols() { return self._lastCols; },
-            set cols(val) { self._lastCols = val; }
+            get table() {
+              return self._lastTable;
+            },
+            set table(val) {
+              self._lastTable = val;
+            },
+            get cols() {
+              return self._lastCols;
+            },
+            set cols(val) {
+              self._lastCols = val;
+            },
           };
           for (const s of normalizedSorts) {
             let sortCol: any;
-            const column = helpers.getColumnHelper(table, s.field, this._tableColumnsCache, lastRef, false);
+            const column = helpers.getColumnHelper(
+              table,
+              s.field,
+              this._tableColumnsCache,
+              lastRef,
+              false,
+            );
             if (column) {
               sortCol = column;
             } else {
-              const dataCol = helpers.getColumnHelper(table, "data", this._tableColumnsCache, lastRef, false);
+              const dataCol = helpers.getColumnHelper(
+                table,
+                "data",
+                this._tableColumnsCache,
+                lastRef,
+                false,
+              );
               if (dataCol) {
                 sortCol = this.getJsonField(s.field);
               }
@@ -834,11 +886,17 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
       const conditions: SQL[] = [eq(idCol, id as any)];
 
-      if (!options.bypassTenantCheck && options.tenantId !== undefined && options.tenantId !== "global") {
+      if (
+        !options.bypassTenantCheck &&
+        options.tenantId !== undefined &&
+        options.tenantId !== "global"
+      ) {
         const tenantCol = this.getColumn(table, "tenantId");
         if (tenantCol) {
           conditions.push(
-            options.tenantId === null ? isNull(tenantCol) : eq(tenantCol, options.tenantId as string)
+            options.tenantId === null
+              ? isNull(tenantCol)
+              : eq(tenantCol, options.tenantId as string),
           );
         }
       }
@@ -889,8 +947,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         return result[0].count;
       } catch (err: any) {
         const tableName = getTableName(table);
-        const isDynamic = tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
-        if (err?.errno === 1146 && isDynamic) { // MariaDB/MySQL Table doesn't exist error number
+        const isDynamic =
+          tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
+        if (err?.errno === 1146 && isDynamic) {
+          // MariaDB/MySQL Table doesn't exist error number
           return 0;
         }
         throw err;
@@ -910,22 +970,30 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
       };
     }
-    return this.wrap(async () => {
-      const d = this.hooks.length > 0 ? await this.runHooks("before", "insert", collection, data, options) : data;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const id = (d as any)._id || generateUUID();
-      const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "insert", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const id = (d as any)._id || generateUUID();
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
 
-      const query = this.getDrizzleInstance(options).insert(table).values(values);
-      await (query as any);
-      const finalData = utils.convertDatesToISO(values) as T;
+        const query = this.getDrizzleInstance(options).insert(table).values(values);
+        await (query as any);
+        const finalData = utils.convertDatesToISO(values) as T;
 
-      return this.hooks.length > 0
-        ? await this.runHooks("after", "insert", collection, finalData, options)
-        : finalData;
-    }, "INSERT_FAILED", undefined, { ...options, isWrite: true });
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "insert", collection, finalData, options)
+          : finalData;
+      },
+      "INSERT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async insertMany<T extends BaseEntity>(
@@ -934,22 +1002,27 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
     if (!data || data.length === 0) return { success: true, data: [] };
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const now = new Date();
-      const len = data.length;
-      const batchValues = Array.from({ length: len });
-      for (let i = 0; i < len; i++) {
-        const item = data[i];
-        const id = (item as any)._id || generateUUID();
-        batchValues[i] = this.prepareValues(table, item, id, now, options);
-      }
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const now = new Date();
+        const len = data.length;
+        const batchValues = Array.from({ length: len });
+        for (let i = 0; i < len; i++) {
+          const item = data[i];
+          const id = (item as any)._id || generateUUID();
+          batchValues[i] = this.prepareValues(table, item, id, now, options);
+        }
 
-      const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
-      await (query as any);
-      return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
-    }, "INSERT_MANY_FAILED", undefined, { ...options, isWrite: true });
+        const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
+        await (query as any);
+        return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
+      },
+      "INSERT_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async update<T extends BaseEntity>(
@@ -972,30 +1045,43 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         error: { code: "INVALID_ID", message: `Cannot update ${collection} with ${id} ID` },
       };
     }
-    return this.wrap(async () => {
-      const d = this.hooks.length > 0 ? await this.runHooks("before", "update", collection, data, options) : data;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "update", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
 
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      const query = this.getDrizzleInstance(options).update(table).set(values).where(eq(idCol, id as any));
-      await query;
+        const query = this.getDrizzleInstance(options)
+          .update(table)
+          .set(values)
+          .where(eq(idCol, id as any));
+        await query;
 
-      const updated = await this.findOne<T>(collection, { _id: id } as any, options);
-      if (!updated.success || !updated.data) {
-        return {
-          success: false,
-          message: `Record ${id} not found in ${getTableName(table)}`,
-          error: { code: "NOT_FOUND", message: "Record not found" },
-        };
-      }
+        const updated = await this.findOne<T>(collection, { _id: id } as any, options);
+        if (!updated.success || !updated.data) {
+          return {
+            success: false,
+            message: `Record ${id} not found in ${getTableName(table)}`,
+            error: { code: "NOT_FOUND", message: "Record not found" },
+          };
+        }
 
-      return this.hooks.length > 0 ? await this.runHooks("after", "update", collection, updated.data, options) : updated.data;
-    }, "UPDATE_FAILED", undefined, { ...options, isWrite: true });
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "update", collection, updated.data, options)
+          : updated.data;
+      },
+      "UPDATE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async updateMany<T extends BaseEntity>(
@@ -1004,16 +1090,21 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
     data: EntityUpdate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.wrap(async () => {
-      const items = await this.findMany(collection, query, options);
-      if (!items.success) throw new Error(items.message);
-      let modifiedCount = 0;
-      for (const item of items.data || []) {
-        const res = await this.update(collection, (item as any)._id, data, options);
-        if (res.success) modifiedCount++;
-      }
-      return { modifiedCount };
-    }, "UPDATE_MANY_FAILED", undefined, { ...options, isWrite: true });
+    return this.wrap(
+      async () => {
+        const items = await this.findMany(collection, query, options);
+        if (!items.success) throw new Error(items.message);
+        let modifiedCount = 0;
+        for (const item of items.data || []) {
+          const res = await this.update(collection, (item as any)._id, data, options);
+          if (res.success) modifiedCount++;
+        }
+        return { modifiedCount };
+      },
+      "UPDATE_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async delete(
@@ -1035,21 +1126,33 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         error: { code: "INVALID_ID", message: `Cannot delete from ${collection} with ${id} ID` },
       };
     }
-    return this.wrap(async () => {
-      if (this.hooks.length > 0) await this.runHooks("before", "delete", collection, { _id: id }, options);
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+    return this.wrap(
+      async () => {
+        if (this.hooks.length > 0)
+          await this.runHooks("before", "delete", collection, { _id: id }, options);
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      const hasIsDeleted = !!this.getColumn(table, "isDeleted");
-      if (options.permanent || !hasIsDeleted) {
-        await this.getDrizzleInstance(options).delete(table).where(eq(idCol, id as any));
-      } else {
-        await this.getDrizzleInstance(options).update(table).set({ isDeleted: true, updatedAt: new Date() }).where(eq(idCol, id as any));
-      }
-      if (this.hooks.length > 0) await this.runHooks("after", "delete", collection, { _id: id }, options);
-    }, "DELETE_FAILED", undefined, { ...options, isWrite: true });
+        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
+        if (options.permanent || !hasIsDeleted) {
+          await this.getDrizzleInstance(options)
+            .delete(table)
+            .where(eq(idCol, id as any));
+        } else {
+          await this.getDrizzleInstance(options)
+            .update(table)
+            .set({ isDeleted: true, updatedAt: new Date() })
+            .where(eq(idCol, id as any));
+        }
+        if (this.hooks.length > 0)
+          await this.runHooks("after", "delete", collection, { _id: id }, options);
+      },
+      "DELETE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async deleteMany<T extends BaseEntity>(
@@ -1166,17 +1269,13 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
     return this.wrap(
       async () => {
         const table = this.getTable(collection);
-        if (!table)
-          throw new Error(`Collection table not found: ${collection}`);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         const tableName = getTableName(table);
-        const idCol =
-          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         const tenantFilter =
-          options?.bypassTenantCheck ||
-          !options?.tenantId ||
-          options?.tenantId === "global"
+          options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global"
             ? ""
             : ` AND \`tenantId\` = '${options.tenantId}'`;
 
@@ -1195,11 +1294,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
           );
         }
 
-        const updated = await this.findOne<any>(
-          collection,
-          { _id: id } as any,
-          { ...options, bypassCache: true },
-        );
+        const updated = await this.findOne<any>(collection, { _id: id } as any, {
+          ...options,
+          bypassCache: true,
+        });
         if (!updated.success || !updated.data) {
           throw new Error(`Entry not found after increment: ${String(id)}`);
         }

@@ -1,9 +1,4 @@
-import type {
-  IDBAdapter,
-  IMonitoringAdapter,
-  DatabaseResult,
-  BaseEntity,
-} from "../db-interface";
+import type { IDBAdapter, IMonitoringAdapter, DatabaseResult, BaseEntity } from "../db-interface";
 import { PostgresAdapterCore } from "./adapter-core";
 import * as utils from "../core/relational-utils";
 import { PostgresQueryBuilder } from "./postgres-query-builder";

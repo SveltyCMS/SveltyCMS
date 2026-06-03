@@ -70,7 +70,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     }
 
     const refresh = url.searchParams.get("refresh") === "true";
-    const nocache = url.searchParams.get("nocache") === "true" || url.searchParams.get("bypassCache") === "true";
+    const nocache =
+      url.searchParams.get("nocache") === "true" || url.searchParams.get("bypassCache") === "true";
     const bypassCache = refresh || nocache;
 
     // === GET REQUESTS WITH CACHING ===

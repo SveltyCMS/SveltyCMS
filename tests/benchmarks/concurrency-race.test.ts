@@ -142,7 +142,9 @@ async function runConcurrencyAudit() {
     if (finalRes.ok) {
       const finalData = await finalRes.json();
       const dbCount = finalData.data?.count ?? finalData.count ?? 0;
-      console.log(`   → Max count from responses: ${maxCountFromResponses}, DB final count: ${dbCount}`);
+      console.log(
+        `   → Max count from responses: ${maxCountFromResponses}, DB final count: ${dbCount}`,
+      );
       finalCount = Math.max(maxCountFromResponses, dbCount);
     }
 

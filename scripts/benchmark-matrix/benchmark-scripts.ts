@@ -418,11 +418,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     strategy: "all",
     tags: ["cpu", "network", "disk"],
     metricCategory: "scale",
-    correlatedWith: [
-      "index-pressure",
-      "rest-api-performance",
-      "graphql-api-performance",
-    ],
+    correlatedWith: ["index-pressure", "rest-api-performance", "graphql-api-performance"],
   },
   {
     path: "tests/benchmarks/graphql-stress.test.ts",
@@ -493,10 +489,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     tags: ["cpu", "network"],
     metricCategory: "latency",
     requiredCapabilities: ["networked"],
-    codePaths: [
-      "src/databases/cache/redis-adapter.ts",
-      "src/databases/cache/cache-service.ts",
-    ],
+    codePaths: ["src/databases/cache/redis-adapter.ts", "src/databases/cache/cache-service.ts"],
   },
   // --- NEW: Media Upload Stress ---
   {

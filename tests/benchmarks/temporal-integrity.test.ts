@@ -36,17 +36,13 @@ async function runTemporalAudit() {
 
     await ensureStableTestData();
 
-    await fetch(
-      `${baseUrl}/api/collections/${COLLECTION_ID}?limit=10&bypassCache=true`,
-      {
-        headers: {
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-          "x-tenant-id": "global",
-        },
+    await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}?limit=10&bypassCache=true`, {
+      headers: {
+        "x-test-mode": "true",
+        "x-test-secret": TEST_API_SECRET,
+        "x-tenant-id": "global",
       },
-    );
-
+    });
 
     console.log("   → Testing persistence of ISO Dates from various timezone offsets...");
 
