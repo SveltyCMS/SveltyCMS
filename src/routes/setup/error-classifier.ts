@@ -109,7 +109,11 @@ export function classifyDatabaseError(
   }
 
   // 4. DB Already Exists (Matched case but not empty)
-  if (lower.includes("database is not empty") || lower.includes("db already exists")) {
+  if (
+    lower.includes("database is not empty") ||
+    lower.includes("database not empty") ||
+    lower.includes("db already exists")
+  ) {
     return {
       classification: "DB_ALREADY_EXISTS",
       userFriendly: `Database '<span class="text-tertiary-500 dark:text-primary-500 font-bold">${dbConfig?.name}</span>' already exists and contains data.`,

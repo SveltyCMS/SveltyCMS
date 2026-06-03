@@ -73,6 +73,10 @@ corner-shape angled corners.
     // Set dynamic border-width and shadow
     styles += `border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation); `;
     
+    if (shape === 'angle') {
+      styles += `corner-shape: angle; --corner-offset: 12px; `;
+    }
+
     if (isCustomColor) {
       if (finalPreset === 'tonal') {
         styles += `--preset-bg: ${finalColor}15; --preset-text: ${finalColor}; --preset-border: ${finalColor}33;`;
@@ -115,28 +119,4 @@ corner-shape angled corners.
   {/if}
 </div>
 
-<style>
-  /* Progressive enhancement: Corner shape angled cut styles with clip-path fallback */
-  .corner-angle {
-    position: relative;
-    corner-shape: angle; /* W3C CSS Standard */
-    --corner-offset: 12px;
-    clip-path: polygon(
-      0% var(--corner-offset),
-      var(--corner-offset) 0%,
-      calc(100% - var(--corner-offset)) 0%,
-      100% var(--corner-offset),
-      100% calc(100% - var(--corner-offset)),
-      calc(100% - var(--corner-offset)) 100%,
-      var(--corner-offset) 100%,
-      0% calc(100% - var(--corner-offset))
-    );
-  }
 
-  /* Tenant/Database custom styling system */
-  :global(.preset-custom) {
-    background-color: var(--preset-bg) !important;
-    color: var(--preset-text) !important;
-    border: 1px solid var(--preset-border) !important;
-  }
-</style>

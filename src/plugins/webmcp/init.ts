@@ -15,9 +15,9 @@ export async function initWebMCP(): Promise<void> {
 
   logger.info("[WebMCP] Initializing AI agent interface...");
 
-  const navigatorAny = window.navigator as any;
-  if (!navigatorAny?.modelContext) {
-    logger.warn("[WebMCP] navigator.modelContext not available. AI bridge inactive.");
+  const docAny = window.document as any;
+  if (!docAny?.modelContext) {
+    logger.warn("[WebMCP] document.modelContext not available. AI bridge inactive.");
     return;
   }
 

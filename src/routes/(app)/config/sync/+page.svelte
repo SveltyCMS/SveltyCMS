@@ -52,7 +52,7 @@ async function loadStatus() {
 }
 
 async function performSync() {
-	if (!status || status.unmetRequirements.length > 0) {
+	if (!status || status?.unmetRequirements?.length > 0) {
 		toast.warning("Sync blocked due to unmet requirements.");
 		return;
 	}
@@ -170,7 +170,7 @@ onMount(() => {
 				<div class="my-4">
 					<button
 						class="preset-filled-tertiary-500 btn w-full dark:preset-filled-primary-500 sm:w-auto"
-						disabled={isProcessing || !status || status.status === 'in_sync' || status.unmetRequirements.length > 0}
+						disabled={isProcessing || !status || status.status === 'in_sync' || status?.unmetRequirements?.length > 0}
 						onclick={syncAllChanges}
 					>
 						<iconify-icon icon="mdi:sync" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>

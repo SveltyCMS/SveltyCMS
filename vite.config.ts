@@ -545,7 +545,11 @@ function sveltyCmsPlugin(): Plugin {
             path.join(CWD, "src/content/vite.ts"),
           );
           await generateContentTypes(server);
-          server.ws.send({ type: "full-reload", path: "*" });
+          // Send targeted content-structure update instead of full-reload
+          // to avoid breaking mongoose models and active sessions.
+          server.ws.send("svelty:content-update", {
+            timestamp: Date.now(),
+          });
         } catch (error) {
           log.error("Error recompiling collections:", error);
         }

@@ -21,7 +21,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { sendMail } from "@utils/email.server";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
-import { getSystemState, isServiceHealthy } from "@src/stores/system/state.svelte.ts";
+import { getSystemState } from "@src/stores/system/state.svelte.ts";
 
 // Auth actions delegate to auth.remote.ts
 import {
@@ -83,29 +83,18 @@ async function checkDatabaseHealth(): Promise<{
   }
 
   try {
-    // Retry service health check — boot engine may not have reported yet
-    let serviceHealthy = isServiceHealthy("database");
-    if (!serviceHealthy) {
-      // Wait briefly for boot engine to report (SQLite connects instantly)
-      await new Promise((r) => setTimeout(r, 500));
-      serviceHealthy = isServiceHealthy("database");
-    }
-
-    if (!serviceHealthy) {
-      const reason = "Database service is initializing — please wait a moment and refresh";
-      _dbHealthCache = { healthy: false, reason, timestamp: now };
-      return { healthy: false, reason };
-    }
-
-    if (auth) {
+    if (auth && typeof auth.getUserCount === "function") {
       const roleCount = await auth.getUserCount({}, { bypassTenantCheck: true });
       if (roleCount === 0) {
         const reason = "Database is empty — setup may not have completed";
         _dbHealthCache = { healthy: false, reason, timestamp: now };
         return { healthy: false, reason };
       }
+      // roleCount > 0 — users exist, DB is healthy
+      _dbHealthCache = { healthy: true, timestamp: now };
+      return { healthy: true };
     }
-
+    // Auth not ready yet — skip health check, let sign-in form handle it
     _dbHealthCache = { healthy: true, timestamp: now };
     return { healthy: true };
   } catch (err: any) {
@@ -117,16 +106,16 @@ async function checkDatabaseHealth(): Promise<{
 async function waitForAuthService(): Promise<boolean> {
   const startTime = Date.now();
   while (Date.now() - startTime < AUTH_SERVICE_TIMEOUT_MS) {
-    if (auth) return true;
+    if (auth && typeof auth.getUserCount === "function") return true;
     await new Promise((r) => setTimeout(r, 200));
   }
-  return !!auth;
+  return !!(auth && typeof auth.getUserCount === "function");
 }
 
 async function shouldShowGoogleOAuth(hasInvite?: boolean): Promise<boolean> {
   if (!getPrivateSettingSync("GOOGLE_CLIENT_ID")) return false;
-  if (!auth) return false;
   if (hasInvite) return true;
+  if (!auth || typeof auth.getUserCount !== "function") return false;
   try {
     const count = await auth.getUserCount({}, { bypassTenantCheck: true });
     return count > 0;
@@ -137,8 +126,8 @@ async function shouldShowGoogleOAuth(hasInvite?: boolean): Promise<boolean> {
 
 async function shouldShowGithubOAuth(hasInvite?: boolean): Promise<boolean> {
   if (!getPrivateSettingSync("GITHUB_CLIENT_ID")) return false;
-  if (!auth) return false;
   if (hasInvite) return true;
+  if (!auth || typeof auth.getUserCount !== "function") return false;
   try {
     const count = await auth.getUserCount({}, { bypassTenantCheck: true });
     return count > 0;

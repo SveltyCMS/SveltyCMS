@@ -361,6 +361,18 @@ const getPipeline = () => {
 export const handle: Handle = async ({ event, resolve }) => {
   const pathname = event.url.pathname;
 
+  // 🚀 HOT-SWAP CHECK: Dynamically synchronize setup state on every request
+  const currentSetupState = isSetupComplete();
+  if (setupComplete !== currentSetupState) {
+    logger.info(`🔄 System setup state change detected: ${setupComplete} -> ${currentSetupState}`);
+    setupComplete = currentSetupState;
+    if (setupComplete) {
+      ensureFullMiddleware().catch((err) =>
+        logger.error("Failed to lazy-load full middleware:", err),
+      );
+    }
+  }
+
   // 🚀 Fast-return for known static/missing paths (avoids ALL middleware + trace overhead)
   if (pathname === "/favicon.ico") {
     return new Response(null, { status: 204 });
@@ -371,12 +383,30 @@ export const handle: Handle = async ({ event, resolve }) => {
   if (pathname === "/api/system/health" || pathname === "/health") {
     inFlightRequests++;
     try {
+      const state =
+        (globalThis as any).__SYSTEM_OVERALL_STATE__ || (setupComplete ? "READY" : "SETUP");
+
+      // 🚀 Trigger database boot in background if setup is complete and system is IDLE
+      if (
+        setupComplete &&
+        (state === "IDLE" || (globalThis as any).__SYSTEM_OVERALL_STATE__ === undefined)
+      ) {
+        import("./databases/db")
+          .then(({ getDbInitPromise }) => {
+            getDbInitPromise(false, "CORE").catch(() => {});
+          })
+          .catch(() => {});
+      }
+
+      const isReady =
+        state === "READY" || state === "WARMED" || state === "WARMING" || state === "DEGRADED";
+      const isDbConnected = state !== "SETUP" && state !== "IDLE" && state !== "FAILED";
       const mem = process.memoryUsage();
       return Response.json(
         {
-          status: "healthy",
-          overallStatus: "operational",
-          database: "connected",
+          status: isReady ? "healthy" : "unhealthy",
+          overallStatus: state,
+          database: isDbConnected ? "connected" : "disconnected",
           uptime: process.uptime(),
           timestamp: new Date().toISOString(),
           dbType: process.env.DB_TYPE || "unknown",

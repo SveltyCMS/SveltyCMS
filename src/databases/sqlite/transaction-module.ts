@@ -43,14 +43,20 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
           // 🚀 CRUD Support: Note that we use the main db instance because SQLite
           // transaction is connection-bound, and we've already opened it with BEGIN.
           insert: async (collection: string, data: any, options: any = {}) =>
-            this.core.crud.insert(collection, data, { ...options, transaction: { db: this.db } }),
+            this.core.crud.insert(collection, data, {
+              ...options,
+              transaction: { db: this.db },
+            }),
           update: async (collection: string, id: any, data: any, options: any = {}) =>
             this.core.crud.update(collection, id, data, {
               ...options,
               transaction: { db: this.db },
             }),
           delete: async (collection: string, id: any, options: any = {}) =>
-            this.core.crud.delete(collection, id, { ...options, transaction: { db: this.db } }),
+            this.core.crud.delete(collection, id, {
+              ...options,
+              transaction: { db: this.db },
+            }),
           findById: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.findOne(collection, { _id: id } as any, {
               ...options,
@@ -59,7 +65,6 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
           db: this.db,
 
           // 🛡️ Domain Support: Injecting domain modules into the transaction object
-          // This allows tx.auth, tx.content, etc. to be used within TransactionManager.runAtomic blocks.
           auth: this.core.auth,
           content: this.core.content,
           media: this.core.media,

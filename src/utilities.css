@@ -311,3 +311,34 @@ select:focus {
   --admin-color-scheduled: oklch(58.74% 0.2 256.12deg);
   --admin-color-review: oklch(76.86% 0.16 70.07deg);
 }
+
+/* ========================================================================
+   📐 GLOBAL CORNER ANGLE & CUSTOM COLOR SYSTEM
+   ======================================================================== */
+.corner-angle {
+  position: relative;
+  clip-path: polygon(
+    0% var(--corner-offset),
+    var(--corner-offset) 0%,
+    calc(100% - var(--corner-offset)) 0%,
+    100% var(--corner-offset),
+    100% calc(100% - var(--corner-offset)),
+    calc(100% - var(--corner-offset)) 100%,
+    var(--corner-offset) 100%,
+    0% calc(100% - var(--corner-offset))
+  );
+}
+
+.preset-custom {
+  background-color: var(--preset-bg) !important;
+  color: var(--preset-text) !important;
+  border: 1px solid var(--preset-border) !important;
+}
+.preset-custom:hover {
+  filter: brightness(1.1);
+}
+
+/* Focus ring overrides for database/tenant custom theme support */
+.focus-custom:focus-visible {
+  --tw-ring-color: var(--focus-ring-color) !important;
+}

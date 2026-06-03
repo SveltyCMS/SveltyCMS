@@ -7,7 +7,6 @@
 
 import { spawn } from "node:child_process";
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
 
 const run = (cmd: string, args: string[] = [], options: { silent?: boolean } = {}) => {
   return new Promise<boolean>((resolve) => {
@@ -58,11 +57,9 @@ async function main() {
     hasIntegrationTestChanges ||
     hasScriptChanges;
 
-  const buildExists = existsSync("build/index.js");
-
   // 2. Sequential checks (clearer output)
   const tasks = [
-    { name: "Format", run: () => run("vp fmt") },
+    { name: "Format", run: () => run("vp fmt", ["--config", ".oxfmtrc.json"]) },
     {
       name: "Dependency Audit (warn-only)",
       run: async () => {
@@ -89,31 +86,22 @@ async function main() {
     {
       name: "Unit Tests (Vitest)",
       skip: !hasTsOrSvelte,
-      run: () =>
-        stagedFiles.join(" ").length > 6000
-          ? run("bun run test:unit")
-          : run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"]),
+      run: () => run("bun run test:unit --run"),
     },
     {
       name: "Unit Tests (Bun Native)",
-      skip: !hasTsOrSvelte || process.env.PRE_COMMIT === "true",
+      skip: !hasTsOrSvelte,
       run: () => run("bun run test:unit:bun"),
     },
     {
       name: "Production Build",
-      skip: !hasTsOrSvelte || process.env.PRE_COMMIT === "true",
+      skip: !hasTsOrSvelte,
       run: () => run("bun run build"),
     },
     {
       name: "Integration Tests (SQLite)",
-      skip: !shouldRunIntegration || process.env.PRE_COMMIT === "true",
-      run: () =>
-        buildExists
-          ? run("bun run scripts/run-integration-tests.ts --filter=sqlite --no-build")
-          : (console.warn(
-              "⚠️ Build missing! Skipping integration tests. Run 'bun run build' to enable.",
-            ),
-            Promise.resolve(true)),
+      skip: !shouldRunIntegration,
+      run: () => run("bun run scripts/run-integration-tests.ts --db=sqlite --no-build"),
     },
   ];
 

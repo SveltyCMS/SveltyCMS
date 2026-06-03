@@ -12,7 +12,7 @@ import { app } from "@src/stores/store.svelte";
 // 🚀 OPTIMIZATION: Compile Regex once globally.
 // Matches unlocalized (e.g., /api) and localized (e.g., /en-US/api) paths.
 const WHITELIST_REGEX =
-  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login)/;
+  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews)/;
 
 // Module-level cache for initialization promises to prevent "storms"
 const initPromises = new Map<string | null, Promise<void>>();

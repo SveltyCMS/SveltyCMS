@@ -100,7 +100,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
     const freshUser = await refreshUser(sessionUser, tenantId);
 
     // Get total user count for smart UI logic (like hiding chat for single users)
-    const totalUsers = (await auth?.getUserCount({}, { tenantId: tenantId as DatabaseId })) ?? 1;
+    const totalUsers = (await auth?.getUserCount?.({}, { tenantId: tenantId as DatabaseId })) ?? 1;
 
     // Check if AI features are enabled for solo user assistant
     const aiModelChat = await getPrivateSetting("AI_MODEL_CHAT");
@@ -113,7 +113,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
       // Streamed data (Promises)
       contentStructure: contentPromise.then(async () => {
         const nodes = await contentSystem.getContentStructure(tenantId);
-        return nodes.map((node: any) => {
+        return (nodes ?? []).map((node: any) => {
           const sanitized = JSON.parse(JSON.stringify(node));
           return {
             ...sanitized,

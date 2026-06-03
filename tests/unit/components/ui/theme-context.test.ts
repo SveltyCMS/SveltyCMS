@@ -47,8 +47,8 @@ describe("AdminTheme Context & Adaptive Workspaces", () => {
 
     // Check button scaling and styling
     expect(body).toContain("height: 32px;");
-    expect(body).toContain("padding-left: 12.8px;");
-    expect(body).toContain("padding-right: 12.8px;");
+    expect(body).toContain("padding-inline-start: 12.8px;");
+    expect(body).toContain("padding-inline-end: 12.8px;");
     expect(body).toContain("gap: 6.4px;");
     expect(body).toContain("border-radius: var(--admin-radius-input, 4px);");
 
@@ -59,8 +59,8 @@ describe("AdminTheme Context & Adaptive Workspaces", () => {
 
     // Check input scaling and styling
     expect(body).toContain("height: 32px;");
-    expect(body).toContain("padding-left: 9.6px;");
-    expect(body).toContain("padding-right: 9.6px;");
+    expect(body).toContain("padding-inline-start: 9.6px;");
+    expect(body).toContain("padding-inline-end: 9.6px;");
     expect(body).toContain("padding-top: 6.4px;");
     expect(body).toContain("padding-bottom: 6.4px;");
 
@@ -75,13 +75,13 @@ describe("AdminTheme Context & Adaptive Workspaces", () => {
 
     // Check button scaling (height = 40 * 1.2 = 48px, px = 16 * 1.2 = 19.2px)
     expect(body).toContain("height: 48px;");
-    expect(body).toContain("padding-left: 19.2px;");
-    expect(body).toContain("padding-right: 19.2px;");
+    expect(body).toContain("padding-inline-start: 19.2px;");
+    expect(body).toContain("padding-inline-end: 19.2px;");
     expect(body).toContain("gap: 9.6px;");
 
     // Check input scaling (height = 40 * 1.2 = 48px, px = 12 * 1.2 = 14.4px)
     expect(body).toContain("height: 48px;");
-    expect(body).toContain("padding-left: 14.4px;");
-    expect(body).toContain("padding-right: 14.4px;");
+    expect(body).toContain("padding-inline-start: 14.4px;");
+    expect(body).toContain("padding-inline-end: 14.4px;");
   });
 });

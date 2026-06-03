@@ -44,15 +44,15 @@ git config core.hooksPath .githooks
 
 ### 🛡️ High-Performance Quality Gate (`scripts/quality-gate.ts`)
 
-In April 2026, the pre-commit chain was upgraded to a **Parallel TypeScript Orchestrator**, reducing validation from ~150s to **~34s**.
+The pre-commit chain uses a **Parallel TypeScript Orchestrator** to run checks efficiently.
 
-In May 2026, the gate was further optimized for local development by introducing **Tired Check Routing** using the `PRE_COMMIT="true"` environment flag. This achieves an ultra-fast commit feedback loop of **under 10 seconds** locally.
+The gate runs the full unit test suites (both Vitest and Bun Native) and the Production Build locally before every commit to ensure zero CI regressions. SQLite Integration Tests are also run locally on staged changes.
 
 Key features:
 
 - **Parallel Execution**: Linting, Type-Checking, and Testing run simultaneously.
-- **Related Test Filtering**: Uses `vitest related` to only run tests affected by staged changes.
-- **Selective Local Runs**: Automatically skips heavy operations (Production Build, Bun Native Unit Tests, and SQLite Integration Tests) during local commits, delegating them to the robust GitHub Actions CI workflows.
+- **Full Test Suite & Build Verification**: Runs the complete unit test suites (Vitest & Bun Native) and the Production Build locally to prevent broken builds in CI.
+- **Local Integration Verification**: Automatically runs SQLite Integration Tests locally when relevant code changes are staged.
 - **Safe Staging Isolation**: The hook only re-stages files that were **already staged** before formatting/linting auto-fixes ran, respecting the developer's selective staging (e.g. `git commit -p`) instead of blindly staging everything.
 
 #### Local Pre-commit Steps:
@@ -60,8 +60,9 @@ Key features:
 The hook orchestrates the following checks:
 
 1.  **Global Lint & Format**: Fast `oxfmt` + `oxlint` check.
-2.  **Incremental Unit Testing**: `vitest related` run on staged files.
+2.  **Full Unit Testing**: Runs Vitest (`bun run test:unit --run`) and Bun Native (`bun run test:unit:bun`) suites.
 3.  **Mandatory Codegen & Check**: `paraglide` compilation and type-checking via `svelte-check`.
+4.  **Build & Integration Check**: Verifies Production Build compiles and runs SQLite Integration Tests.
 
 ---
 

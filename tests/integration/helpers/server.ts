@@ -27,17 +27,10 @@ export async function checkServer(): Promise<boolean> {
 
     const data = await response.json();
 
-    // Accept READY or SETUP states for integration testing
-    const status = data?.overallStatus || data?.status || data?.setupState || "";
-    const isHealthy = [
-      "READY",
-      "SETUP",
-      "WARMED",
-      "INITIALIZING",
-      "MISSING_CONFIG",
-      "MISSING_ADMIN",
-      "HEALTHY",
-    ].includes(status.toUpperCase());
+    const status = data?.overallStatus || data?.status || "";
+    const isHealthy = ["READY", "SETUP", "WARMED", "INITIALIZING", "HEALTHY"].includes(
+      status.toUpperCase(),
+    );
 
     if (!isHealthy) {
       console.log(`[checkServer] Unhealthy state: ${status} (HTTP ${response.status})`);

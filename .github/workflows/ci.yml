@@ -681,7 +681,7 @@ jobs:
   # ------------------------------------------------
   benchmarks:
     name: 📊 Benchmarks (${{ matrix.db }})
-    needs: [db-tests, e2e-wizard, e2e-auth, e2e-app]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')

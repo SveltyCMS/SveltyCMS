@@ -253,45 +253,39 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		const isAtlas = dbConfig.type === 'mongodb+srv';
 
 		// Smart host selection
-		if (!(isAtlas || dbConfig.host)) {
-			dbConfig.host = 'localhost';
-		} else if (isAtlas && dbConfig.host === 'localhost') {
-			dbConfig.host = '';
+		if (dbConfig.type === 'sqlite') {
+			dbConfig.host = 'config/database';
+			dbConfig.port = '';
+			if (!dbConfig.name || dbConfig.name.toLowerCase() === 'sveltycms' || dbConfig.name.toLowerCase() === 'sveltycms.db') {
+				dbConfig.name = 'sveltycms.db';
+			}
+		} else {
+			// Non-SQLite database types
+			if (dbConfig.host === 'config/database' || !dbConfig.host || (isAtlas && dbConfig.host === 'localhost')) {
+				dbConfig.host = isAtlas ? '' : 'localhost';
+			}
+			if (
+				!dbConfig.name ||
+				dbConfig.name.toLowerCase() === 'sveltycms.db' ||
+				dbConfig.name.toLowerCase() === 'sveltycms'
+			) {
+				dbConfig.name = 'sveltycms';
+			}
 		}
 
 		// Smart port selection based on database type
 		switch (dbConfig.type) {
 			case 'mongodb':
 				dbConfig.port = '27017';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
-					dbConfig.name = 'sveltycms';
-				}
 				break;
 			case 'mariadb':
 				dbConfig.port = '3306';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
-					dbConfig.name = 'sveltycms';
-				}
 				break;
 			case 'postgresql':
 				dbConfig.port = '5432';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
-					dbConfig.name = 'sveltycms';
-				}
-				break;
-			case 'sqlite':
-				// SQLite uses a file path, no port
-				dbConfig.host = 'config/database';
-				dbConfig.port = '';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') {
-					dbConfig.name = 'sveltycms.db';
-				}
 				break;
 			case 'mongodb+srv':
 				dbConfig.port = '';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
-					dbConfig.name = 'sveltycms';
-				}
 				break;
 		}
 	}

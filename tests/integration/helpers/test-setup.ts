@@ -126,7 +126,7 @@ export async function prepareAuthenticatedContext(
     if (health.ok) {
       const data = await health.json();
       const status = (data.overallStatus || data.status || "").toUpperCase();
-      if (["READY", "WARMED", "WARMING"].includes(status)) {
+      if (["READY", "WARMED", "HEALTHY"].includes(status)) {
         isReady = true;
         break;
       }

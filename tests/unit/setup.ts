@@ -157,6 +157,10 @@ if (isBun) {
   if (!globalThis.afterEach) setGlobal("afterEach", bunTest.afterEach);
   if (!globalThis.beforeAll) setGlobal("beforeAll", bunTest.beforeAll);
   if (!globalThis.afterAll) setGlobal("afterAll", bunTest.afterAll);
+
+  bunTest.beforeEach(() => {
+    (globalThis as any).__svelte_context_map__ = new Map();
+  });
 }
 
 // Normalized backslashes for Windows
@@ -695,10 +699,16 @@ const svelteCommon = {
   beforeUpdate: (fn: any) => fn?.(),
   afterUpdate: (fn: any) => fn?.(),
   tick: () => Promise.resolve(),
-  getAllContexts: () => new Map(),
-  getContext: () => undefined,
-  setContext: (_unused: any, v: any) => v,
-  hasContext: () => false,
+  getAllContexts: () => (globalThis as any).__svelte_context_map__ || new Map(),
+  getContext: (key: any) => ((globalThis as any).__svelte_context_map__ || new Map()).get(key),
+  setContext: (key: any, v: any) => {
+    if (!(globalThis as any).__svelte_context_map__) {
+      (globalThis as any).__svelte_context_map__ = new Map();
+    }
+    (globalThis as any).__svelte_context_map__.set(key, v);
+    return v;
+  },
+  hasContext: (key: any) => ((globalThis as any).__svelte_context_map__ || new Map()).has(key),
   mount: (component: any, options: any) => ({
     component,
     options,

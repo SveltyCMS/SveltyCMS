@@ -57,7 +57,7 @@
 	import { logger } from '@src/utils/logger.ts';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
-	let { data } = $props();
+	let { data: _data } = $props();
 	// Stores
 	const wizard = setupStore.wizard;
 	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, completeSetup } = setupStore;
@@ -66,6 +66,16 @@
 	let showDbPassword = $state(false);
 	let initialDataSnapshot = $state('');
 	let currentLanguageTag = $state(getLocale());
+
+	// Asynchronously probe local Redis only when reaching Step 2 (System Config).
+	// Guard: use highestStepReached >= 1 (not dbTestPassed) because clearDbTestError() resets
+	// dbTestPassed on every Next click — it's always false by the time we reach step 2.
+	// highestStepReached >= 1 means the user legitimately advanced past step 0 (DB accepted).
+	$effect(() => {
+		if (wizard.currentStep === 2 && wizard.highestStepReached >= 1 && !wizard.redisAvailable) {
+			setupStore.probeRedis();
+		}
+	});
 
 	// --- 4. LIFECYCLE HOOKS ---
 	onMount(() => {
@@ -332,7 +342,7 @@
 						{:else if wizard.currentStep === 2}
 							<SystemConfig
 								bind:systemSettings={wizard.systemSettings}
-								redisAvailable={data.redisAvailable}
+								redisAvailable={wizard.redisAvailable}
 								validationErrors={wizard.validationErrors}
 							/>
 						{:else if wizard.currentStep === 3}

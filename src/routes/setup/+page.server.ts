@@ -11,7 +11,6 @@ import { promisify } from "node:util";
 import { version as pkgVersion } from "../../../package.json";
 import { logger } from "@utils/logger";
 import type { Actions, PageServerLoad } from "./$types";
-import { checkRedis } from "./utils";
 import inlangSettings from "../../../project.inlang/settings.json";
 
 // Delegate core setup logic to setup.remote.ts
@@ -48,7 +47,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     theme: locals.theme,
     darkMode: locals.darkMode,
     availableLanguages,
-    redisAvailable: await checkRedis(),
     settings: {
       PKG_VERSION: pkgVersion,
     },

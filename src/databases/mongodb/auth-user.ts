@@ -105,7 +105,10 @@ export class UserAdapter {
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<User>> {
     try {
-      const normalizedData = { ...userData, email: userData.email?.toLowerCase() };
+      const normalizedData = {
+        ...userData,
+        email: userData.email?.toLowerCase(),
+      };
 
       // Ensure password is hashed if provided and not already hashed
       if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
@@ -114,7 +117,9 @@ export class UserAdapter {
       }
 
       // safeQuery used for validation side-effects as per documentation requirement
-      safeQuery({}, userData.tenantId as string, { bypassTenantCheck: options.bypassTenantCheck });
+      safeQuery({}, userData.tenantId as string, {
+        bypassTenantCheck: options.bypassTenantCheck,
+      });
 
       const userId = generateId();
       const Model = this.UserModel;
@@ -190,7 +195,9 @@ export class UserAdapter {
       let query = this.UserModel.find(filter).lean();
 
       if (options.sortField) {
-        query = query.sort({ [options.sortField]: options.sortDirection === "desc" ? -1 : 1 });
+        query = query.sort({
+          [options.sortField]: options.sortDirection === "desc" ? -1 : 1,
+        });
       }
 
       if (options.pageSize) {
@@ -203,7 +210,11 @@ export class UserAdapter {
         this.UserModel.countDocuments(filter),
       ]);
 
-      return { success: true, data: users.map((u) => this.mapUser(u)), meta: { total } } as any;
+      return {
+        success: true,
+        data: users.map((u) => this.mapUser(u)),
+        meta: { total },
+      } as any;
     } catch (err) {
       const message = "Error fetching users";
       return {
@@ -403,13 +414,15 @@ export class UserAdapter {
     _options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<User | null>> {
     try {
-      const SessionModel =
-        this._sessionAdapter?.SessionModel ||
-        this._activeConnection?.models?.auth_sessions ||
-        mongoose.models.auth_sessions;
+      // 🛡️ HMR-RESILIENT: Always try to get the model from the live mongoose instance.
+      // After Vite full-reload, cached adapter references may be stale.
+      let SessionModel = this._sessionAdapter?.SessionModel || mongoose.models.auth_sessions;
 
+      // If model isn't available on mongoose.models, explicitly register the schema.
+      // This handles the HMR case where module re-evaluation clears model registrations.
       if (!SessionModel) {
-        throw new Error("Session model (auth_sessions) not registered");
+        const { SessionSchema } = await import("./auth-session");
+        SessionModel = mongoose.model("auth_sessions", SessionSchema);
       }
 
       const results = await SessionModel.aggregate([
@@ -433,7 +446,10 @@ export class UserAdapter {
         return { success: true, data: null };
       }
 
-      return { success: true, data: session.user ? convertMongoUserToISO(session.user) : null };
+      return {
+        success: true,
+        data: session.user ? convertMongoUserToISO(session.user) : null,
+      };
     } catch (err) {
       const message = "Session validation failed";
       return {

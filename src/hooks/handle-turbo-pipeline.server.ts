@@ -266,12 +266,13 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         }
       }
 
-      (event.locals as any).isAdmin = !!event.locals.user?.isAdmin;
+      (event.locals as any).isAdmin =
+        !!event.locals.user?.isAdmin || event.locals.user?.role === "admin";
       (event.locals as any).dbAdapter = db;
       // 🚀 HONEST BENCHMARKS: Only set testBypass for non-benchmark test mode.
       // Benchmarks inject a real user but still run the FULL middleware chain
       // (rate limiting, RBAC, audit logging) for honest performance measurement.
-      if (!IS_BENCHMARK) {
+      if (!IS_BENCHMARK && event.request.headers.get("x-test-security") !== "true") {
         (event.locals as any).__testBypass = true;
       }
 
@@ -406,14 +407,20 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         // We assume COMPLETE for the sake of the Turbo Gate, and let the
         // handleSystemState hook handle the "INITIALIZING" wait.
         setupState = SetupState.COMPLETE;
+      }
+    }
 
-        // However, if we are specifically ON a setup route, we might want the real state
-        // to show the "Admin created" step etc.
-        const isSetupRoute =
-          pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-        if (isSetupRoute || isTestMode) {
-          setupState = await getSetupState();
-        }
+    // ── 3b. SETUP ROUTE DEEP STATE CHECK ──────────────────────────────────────
+    // CRITICAL: Always perform a deep check for /setup routes, even when the system
+    // is operationally READY. Without this, the fast path (isSystemOperationallyReady=true)
+    // would set setupState=COMPLETE and block all setup remote function calls
+    // (testRedisConnection, testEmailConnection, etc.) with a 302 redirect, returning
+    // HTML instead of JSON and causing "Unexpected token '<'" errors.
+    {
+      const isSetupRouteDeep =
+        pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+      if (isSetupRouteDeep || isTestMode) {
+        setupState = await getSetupState();
       }
     }
     (event.locals as any).__setupState = setupState;

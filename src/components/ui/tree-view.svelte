@@ -475,7 +475,7 @@ search filtering, and RTL support.
                 dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500 dark:bg-primary-500/20 border-tertiary-500 dark:border-primary-500',
                 node.disabled && 'opacity-50 cursor-not-allowed'
             )}
-            style="padding-left: {indentLeft(depth)}rem"
+            style="padding-inline-start: {indentLeft(depth)}rem"
             onclick={() => toggleNode(node)}
             onkeydown={(e) => handleKeyDown(e, node)}
             onmouseenter={() => handleHover?.(node)}
@@ -535,7 +535,7 @@ search filtering, and RTL support.
                 'truncate transition-colors',
                 densityTokens.font,
                 isSelected
-                    ? 'font-bold text-tertiary-600 dark:text-primary-600 dark:text-primary-500'
+                    ? 'font-bold text-tertiary-600 dark:text-primary-600'
                     : 'font-medium text-surface-900 dark:text-surface-100'
             )}>
                 {nodeLabel}
@@ -590,8 +590,8 @@ search filtering, and RTL support.
             >
                 <!-- Vertical Guide Line -->
                 <div
-                    class="absolute left-0 top-0 w-px bg-linear-to-b from-surface-200 to-transparent dark:from-surface-700"
-                    style="margin-left: {guidelineLeft(depth)}rem; height: 100%"
+                    class="absolute inset-s-0 top-0 w-px bg-linear-to-b from-surface-200 to-transparent dark:from-surface-700"
+                    style="margin-inline-start: {guidelineLeft(depth)}rem; height: 100%"
                     aria-hidden="true"
                 ></div>
 

@@ -4,6 +4,7 @@
  */
 
 @import "tailwindcss";
+@import "./utilities.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -104,6 +105,7 @@
   --color-surface-700: oklch(35% 0 247deg);
   --color-surface-800: oklch(25% 0 196deg);
   --color-surface-900: oklch(19% 0 196deg);
+  --color-surface-950: oklch(16% 0 none);
 }
 
 /* ========================================================================
@@ -266,5 +268,3 @@
     @apply bg-surface-950 text-surface-100;
   }
 }
-
-@import "./utilities.css";

@@ -39,13 +39,14 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 		baseOpacity: 0.1 + i * 0.03
 	}));
 
-	// Reactive state for all path animations - using array to store animation values
-	let pathStates = $state<Array<{ pathLength: number; opacity: number; pathOffset: number }>>(
-		pathConfigs.map(() => ({
+	// Reactive array: config + animation state combined so the {#each} re-renders
+	let paths = $state(
+		pathConfigs.map((config) => ({
+			config,
 			pathLength: 0.3,
 			opacity: 0.3,
-			pathOffset: mirrorAnimation ? 1 : 0
-		}))
+			pathOffset: mirrorAnimation ? 1 : 0,
+		})),
 	);
 
 	onMount(() => {
@@ -59,28 +60,17 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 		const startTime = performance.now();
 
 		const animate = (currentTime: number) => {
-			const elapsed = (currentTime - startTime) / 1000; // Convert to seconds
+			const elapsed = (currentTime - startTime) / 1000;
 
-			pathStates = pathConfigs.map((config) => {
-				const duration = config.duration;
-				// Progress cycles from 0 to 1 over the duration
+			paths = paths.map((p) => {
+				const duration = p.config.duration;
 				const progress = (elapsed / duration) % 1;
-
-				// Create smooth sinusoidal animation for pathLength (0.3 -> 1 -> 0.3)
-				// Using cosine for smooth start
 				const wave = 0.5 * (1 - Math.cos(progress * Math.PI * 2));
-				const pathLength = 0.3 + wave * 0.7; // Range: 0.3 to 1.0
-
-				// Opacity animation (0.3 -> 0.6 -> 0.3)
-				const opacity = 0.3 + wave * 0.3; // Range: 0.3 to 0.6
-
-				// PathOffset animation (for the "drawing" effect)
-				const pathOffset = mirrorAnimation ? 1 - progress : progress;
-
 				return {
-					pathLength,
-					opacity,
-					pathOffset
+					...p,
+					pathLength: 0.3 + wave * 0.7,
+					opacity: 0.3 + wave * 0.3,
+					pathOffset: mirrorAnimation ? 1 - progress : progress,
 				};
 			});
 
@@ -101,16 +91,15 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 		stroke-linecap="round"
 		fill="transparent"
 	>
-		{#each pathConfigs as path, index (path.id)}
-			{const state = pathStates[index]}
+		{#each paths as path (path.config.id)}
 			<path
-				d={path.d}
+				d={path.config.d}
 				stroke="currentColor"
-				stroke-width={path.width}
-				stroke-opacity={state.opacity}
+				stroke-width={path.config.width}
+				stroke-opacity={path.opacity}
 				pathLength="1"
-				stroke-dasharray={state.pathLength}
-				stroke-dashoffset={state.pathOffset}
+				stroke-dasharray={path.pathLength}
+				stroke-dashoffset={path.pathOffset}
 			/>
 		{/each}
 	</svg>

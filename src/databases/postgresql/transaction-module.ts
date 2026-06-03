@@ -37,11 +37,20 @@ export class TransactionModule {
           },
           // 🚀 Add basic CRUD support for the benchmark
           insert: async (collection: string, data: any, options: any = {}) =>
-            this.core.crud.insert(collection, data, { ...options, transaction: { db: _tx } }),
+            this.core.crud.insert(collection, data, {
+              ...options,
+              transaction: { db: _tx },
+            }),
           update: async (collection: string, id: any, data: any, options: any = {}) =>
-            this.core.crud.update(collection, id, data, { ...options, transaction: { db: _tx } }),
+            this.core.crud.update(collection, id, data, {
+              ...options,
+              transaction: { db: _tx },
+            }),
           delete: async (collection: string, id: any, options: any = {}) =>
-            this.core.crud.delete(collection, id, { ...options, transaction: { db: _tx } }),
+            this.core.crud.delete(collection, id, {
+              ...options,
+              transaction: { db: _tx },
+            }),
           findById: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.findOne(collection, { _id: id } as any, {
               ...options,
@@ -50,7 +59,6 @@ export class TransactionModule {
           db: _tx,
 
           // 🛡️ Domain Support: Injecting domain modules into the transaction object
-          // This allows tx.auth, tx.content, etc. to be used within TransactionManager.runAtomic blocks.
           auth: this.core.auth,
           content: this.core.content,
           media: this.core.media,

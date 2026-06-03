@@ -12,7 +12,12 @@ import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const { user, roles: tenantRoles, tenantId } = locals;
+    const {
+      user,
+      roles: tenantRoles = [],
+      tenantId,
+      isAdmin: localsIsAdmin,
+    } = locals;
 
     // User authentication and permission checks already done by handleAuthorization hook
     if (!user) {
@@ -20,11 +25,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       throw redirect(302, "/login");
     }
 
-    // Check if user is admin (admins have access to all config pages)
-    const userRole = (tenantRoles || []).find((role) => role._id === user.role);
-    const isAdmin = userRole?.isAdmin === true || user.role === "admin";
-
-    if (!isAdmin) {
+    // Check if user is admin — admins use localsIsAdmin from hook
+    if (!localsIsAdmin) {
       // For non-admins, check specific permission
       // You can add more granular permission checks here if needed
       const message = `User ${user._id} does not have permission to access access management`;

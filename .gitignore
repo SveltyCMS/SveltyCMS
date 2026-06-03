@@ -79,3 +79,4 @@ testing-artifacts
 testing-artifacts/
 .playwright-mcp
 .antigravitycli/
+.antigravitycli

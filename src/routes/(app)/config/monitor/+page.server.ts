@@ -8,9 +8,9 @@ import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
 export const load = async ({ locals }: { locals: App.Locals }) => {
-  const { user, tenantId } = locals;
+  const { tenantId, isAdmin } = locals;
 
-  if (!user?.isAdmin) {
+  if (!isAdmin) {
     throw error(403, "Access Denied: Admin privileges required");
   }
 

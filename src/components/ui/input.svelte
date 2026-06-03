@@ -86,7 +86,11 @@ corner-shape angled corners.
       const pyValue = 8;  // 2 * 4px
       const textValue = '0.875rem';
 
-      styles += `height: ${Math.round(heightValue * scale)}px; padding-left: ${Math.round(pxValue * scale * 10) / 10}px; padding-right: ${Math.round(pxValue * scale * 10) / 10}px; padding-top: ${Math.round(pyValue * scale * 10) / 10}px; padding-bottom: ${Math.round(pyValue * scale * 10) / 10}px; font-size: ${textValue}; `;
+      styles += `height: ${Math.round(heightValue * scale)}px; padding-inline-start: ${Math.round(pxValue * scale * 10) / 10}px; padding-inline-end: ${Math.round(pxValue * scale * 10) / 10}px; padding-top: ${Math.round(pyValue * scale * 10) / 10}px; padding-bottom: ${Math.round(pyValue * scale * 10) / 10}px; font-size: ${textValue}; `;
+    }
+
+    if (shape === 'angle') {
+      styles += `corner-shape: angle; --corner-offset: 6px; `;
     }
 
     if (focusColor) {
@@ -136,26 +140,4 @@ corner-shape angled corners.
   {/if}
 </div>
 
-<style>
-  /* Progressive enhancement: Corner shape angled cut styles with clip-path fallback */
-  .corner-angle {
-    position: relative;
-    corner-shape: angle; /* W3C CSS Standard */
-    --corner-offset: 6px;
-    clip-path: polygon(
-      0% var(--corner-offset),
-      var(--corner-offset) 0%,
-      calc(100% - var(--corner-offset)) 0%,
-      100% var(--corner-offset),
-      100% calc(100% - var(--corner-offset)),
-      calc(100% - var(--corner-offset)) 100%,
-      var(--corner-offset) 100%,
-      0% calc(100% - var(--corner-offset))
-    );
-  }
 
-  /* Focus ring overrides for database/tenant custom theme support */
-  .focus-custom:focus-visible {
-    --tw-ring-color: var(--focus-ring-color) !important;
-  }
-</style>

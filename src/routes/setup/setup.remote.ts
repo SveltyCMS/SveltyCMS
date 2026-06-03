@@ -102,3 +102,8 @@ export const testRedisConnection = query(
     return fn(host, port, password);
   },
 );
+
+export const probeRedis = query("unchecked", async (_payload?: {}) => {
+  const { probeRedis: fn } = await import("./setup.server");
+  return fn();
+});

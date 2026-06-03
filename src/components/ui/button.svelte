@@ -167,7 +167,11 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
         gapValue = 12;
       }
 
-      styles += `height: ${Math.round(heightValue * scale)}px; padding-left: ${Math.round(pxValue * scale * 10) / 10}px; padding-right: ${Math.round(pxValue * scale * 10) / 10}px; font-size: ${textValue}; gap: ${Math.round(gapValue * scale * 10) / 10}px; `;
+      styles += `height: ${Math.round(heightValue * scale)}px; padding-inline-start: ${Math.round(pxValue * scale * 10) / 10}px; padding-inline-end: ${Math.round(pxValue * scale * 10) / 10}px; font-size: ${textValue}; gap: ${Math.round(gapValue * scale * 10) / 10}px; `;
+    }
+
+    if (shape === 'angle') {
+      styles += `corner-shape: angle; --corner-offset: 8px; `;
     }
 
     if (isCustomColor) {
@@ -223,31 +227,4 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
   {/if}
 </svelte:element>
 
-<style>
-  /* Progressive enhancement: Corner shape angled cut styles with clip-path fallback */
-  .corner-angle {
-    position: relative;
-    corner-shape: angle; /* W3C CSS Standard */
-    --corner-offset: 8px;
-    clip-path: polygon(
-      0% var(--corner-offset),
-      var(--corner-offset) 0%,
-      calc(100% - var(--corner-offset)) 0%,
-      100% var(--corner-offset),
-      100% calc(100% - var(--corner-offset)),
-      calc(100% - var(--corner-offset)) 100%,
-      var(--corner-offset) 100%,
-      0% calc(100% - var(--corner-offset))
-    );
-  }
 
-  /* Tenant/Database custom styling system */
-  :global(.preset-custom) {
-    background-color: var(--preset-bg) !important;
-    color: var(--preset-text) !important;
-    border: 1px solid var(--preset-border) !important;
-  }
-  :global(.preset-custom:hover) {
-    filter: brightness(1.1);
-  }
-</style>

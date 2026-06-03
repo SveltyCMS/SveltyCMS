@@ -10,7 +10,7 @@ export interface ThemeConfig {
   themeName: string;
 }
 
-export const ADMIN_THEME_KEY = Symbol("admin-theme");
+export const ADMIN_THEME_KEY = Symbol.for("admin-theme");
 
 export class AdminTheme {
   #density = $state<"compact" | "cozy" | "spacious">("cozy");

@@ -49,6 +49,26 @@ export interface AdminUser {
   password: string;
 }
 
+async function verifyDiskSpace() {
+  try {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const stats = await fs.statfs(path.resolve("."));
+    const freeBytes = Number(stats.bavail) * stats.bsize;
+    const freeMb = freeBytes / (1024 * 1024);
+    if (freeMb < 50) {
+      return {
+        success: false,
+        error: `Insufficient disk space: Only ${freeMb.toFixed(1)} MB available on server disk. SveltyCMS requires at least 50 MB to run setup.`,
+      };
+    }
+  } catch (err: any) {
+    const { logger } = await import("@utils/logger");
+    logger.warn("Failed to check disk space during setup:", err);
+  }
+  return null;
+}
+
 export async function testDatabaseConnection(
   configData: DbConfig,
   createIfMissing = false,
@@ -62,6 +82,9 @@ export async function testDatabaseConnection(
 
   const { success, output: dbConfig } = safeParse(databaseConfigSchema, configData);
   if (!(success && dbConfig)) return { success: false, error: "Invalid configuration" };
+
+  const diskCheck = await verifyDiskSpace();
+  if (diskCheck) return diskCheck;
 
   const start = performance.now();
   try {
@@ -141,6 +164,9 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
   const { success, output: dbConfig } = safeParse(databaseConfigSchema, configData);
   if (!(success && dbConfig)) return { success: false, error: "Invalid configuration" };
 
+  const diskCheck = await verifyDiskSpace();
+  if (diskCheck) return diskCheck;
+
   try {
     if (systemData.preset && systemData.preset !== "blank") {
       const { cpSync, existsSync: es } = await import("node:fs");
@@ -200,6 +226,13 @@ export async function completeSetup(
   // Wait for critical background seeding to complete
   const { setupManager } = await import("./setup-manager");
   await setupManager.waitTillDone();
+
+  if (setupManager.seedingError) {
+    return {
+      success: false,
+      error: `Critical database seeding failed: ${setupManager.seedingError}`,
+    };
+  }
 
   const {
     ensureFullInitialization,
@@ -478,6 +511,11 @@ export async function testRedisConnection(host = "localhost", port = 6379, passw
   } catch (e: any) {
     return { success: false, error: e.message };
   }
+}
+
+export async function probeRedis() {
+  const { checkRedis } = await import("./utils");
+  return checkRedis();
 }
 
 // ── internal helpers ──

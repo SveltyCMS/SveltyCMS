@@ -24,10 +24,11 @@ import fs from "node:fs";
  * @throws {Error} If user lacks required permission or is not logged in.
  */
 function requireCollectionBuilderPermission(locals: any): void {
-  const { user, roles: tenantRoles } = locals;
+  const { user, roles: tenantRoles, isAdmin } = locals;
   if (!user) {
     throw error(401, "Authentication required");
   }
+  if (isAdmin) return;
   if (!hasPermissionWithRoles(user, "config:collectionbuilder", tenantRoles)) {
     logger.warn("[CollectionBuilder] Permission denied for action.", {
       userId: user._id,

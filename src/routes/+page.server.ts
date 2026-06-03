@@ -97,10 +97,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     logger.warn("No collections found for user. Redirecting to fallback.", {
       tenantId,
     });
-    // 🛡️ Use user.isAdmin directly (set by auth system) rather than looking up
-    // role._id === user.role, which fails in relational DBs where role._id is a UUID
-    // but user.role is the human-readable name (e.g. "admin").
-    const isAdmin = Boolean(user?.isAdmin);
+    // 🛡️ Check both user.isAdmin and user.role for compatibility with
+    // databases where isAdmin is stored vs derived from the role name.
+    const isAdmin = Boolean(user?.isAdmin || user?.role === "admin");
 
     if (isAdmin) {
       throw redirect(302, "/config/collectionbuilder");

@@ -60,7 +60,6 @@ export class MongoTransactionModule {
           }),
 
         // 🛡️ Domain Support: Injecting domain modules into the transaction object
-        // This allows tx.auth, tx.content, etc. to be used within TransactionManager.runAtomic blocks.
         auth: this.adapter.auth,
         content: this.adapter.content,
         media: this.adapter.media,

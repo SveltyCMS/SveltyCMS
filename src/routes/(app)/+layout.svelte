@@ -48,7 +48,7 @@ import { onMount, untrack } from "svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
 import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation
-import { afterNavigate, beforeNavigate } from "$app/navigation";
+import { afterNavigate, beforeNavigate, invalidate } from "$app/navigation";
 import { page } from "$app/state";
 import type { Schema, ContentNode } from "../../content/types";
 import { setContentContext } from "@src/content";
@@ -222,6 +222,14 @@ onMount(() => {
 	);
 });
 
+// 🔥 HMR: Listen for collection changes without breaking active sessions.
+// Replaces full-reload — just refreshes content data.
+if (import.meta.hot) {
+	import.meta.hot.on("svelty:content-update", () => {
+		invalidate("app:content");
+	});
+}
+
 beforeNavigate(({ from, to }) => {
 	if (from && to && from.route.id !== to.route.id) {
 		globalLoadingStore.startLoading(loadingOperations.navigation);
@@ -266,7 +274,7 @@ afterNavigate(() => {
 		</div>
 	</div>
 {:else}
-	<div 
+	<div
 		class="relative h-lvh w-full"
 		style="
 			--admin-spacing-scale: {theme.spacingScale};
@@ -306,7 +314,7 @@ afterNavigate(() => {
 						<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
 					{/if}
 
-					<div class="relative flex-1 overflow-visible {ui.state.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {screen.isDesktop ? 'mb-2' : 'mb-16'}">
+					<div class="relative flex-1 overflow-visible {screen.isDesktop ? 'mb-2' : 'mb-16'}">
 						{@render children?.()}
 					</div>
 
@@ -328,7 +336,7 @@ afterNavigate(() => {
 			</div>
 
 			{#if ui.state.footer !== 'hidden'}
-				<footer class="bg-blue-500"></footer>
+				<footer class="bg-tertiary-500"></footer>
 			{/if}
 		</div>
 

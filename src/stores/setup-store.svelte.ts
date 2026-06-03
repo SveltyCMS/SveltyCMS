@@ -259,6 +259,7 @@ function createSetupStore() {
     // Redis test state
     redisTestPassed: false,
     lastRedisTestResult: null as any | null,
+    redisAvailable: false,
   });
 
   // --- Validation Logic ---
@@ -525,11 +526,12 @@ function createSetupStore() {
         return true;
       }
       logger.warn("⚠️  Database initialization had issues:", data.error);
-      if (data.code === "SETUP_ALREADY_COMPLETE") {
+      const code = "code" in data ? data.code : undefined;
+      if (code === "SETUP_ALREADY_COMPLETE") {
         wizard.errorMessage = data.error || "";
       }
       toast.error(data.error || "Seeding failed.", {
-        duration: data.code === "SETUP_ALREADY_COMPLETE" ? 8000 : 4000,
+        duration: code === "SETUP_ALREADY_COMPLETE" ? 8000 : 4000,
       });
       return false;
     } catch (error) {
@@ -709,6 +711,29 @@ function createSetupStore() {
     }
   }
 
+  async function probeRedis(): Promise<boolean> {
+    try {
+      const { probeRedis: probeRemote } = await import("../routes/setup/setup.remote");
+      const res = await probeRemote({});
+      wizard.redisAvailable = res;
+      return res;
+    } catch (e: any) {
+      // Silently handle all probe failures — Redis detection is a best-effort optimization hint.
+      // Common failures include: HTML error page returned as JSON (SyntaxError), network error,
+      // or server not ready yet. None of these should be surfaced to the user.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("Unexpected token") || msg.includes("not valid JSON")) {
+        logger.debug(
+          "[Setup] Redis probe: server returned non-JSON (may still be initializing). Skipping.",
+        );
+      } else {
+        logger.debug("[Setup] Redis probe failed (non-critical):", msg);
+      }
+      wizard.redisAvailable = false;
+      return false;
+    }
+  }
+
   // --- CLEAR METHOD ---
   function clear() {
     const initialState = {
@@ -728,6 +753,8 @@ function createSetupStore() {
       errorMessage: "",
       successMessage: "",
       showDbDetails: false,
+      redisTestPassed: false,
+      redisAvailable: false,
     };
 
     Object.assign(wizard, initialState);
@@ -827,6 +854,7 @@ function createSetupStore() {
     completeSetup,
     testRedisConnection,
     clearDbTestError,
+    probeRedis,
 
     // Derived state as getters
     get stepCompleted() {

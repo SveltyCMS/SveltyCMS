@@ -72,8 +72,6 @@ import {
 // Import for internal use
 import { SESSION_COOKIE_NAME } from "./constants";
 
-import { TransactionManager } from "../core/transaction-manager";
-
 // Main Auth class
 export class Auth {
   private readonly db: DatabaseAdapter;
@@ -95,29 +93,24 @@ export class Auth {
     sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
-    // 💎  Wrap the entire business flow in an atomic transaction
-    return TransactionManager.runAtomic(this.db as any, async (tx: any) => {
-      try {
-        const { email, password } = userData;
+    try {
+      const { email, password } = userData;
 
-        if (email) userData.email = email.toLowerCase();
+      if (email) userData.email = email.toLowerCase();
 
-        // --- PASSWORD HASHING ---
-        if (password) {
-          // Internal strength check (not using 'this' to avoid binding issues in callbacks if any)
-          if (password.length < 8) throw new Error("Password too short");
-          userData.password = await cryptoHashPassword(password);
-        }
-
-        // 🚀 CRITICAL: Use the transaction-scoped 'tx' adapter, passing the transaction context
-        return await tx.auth.createUserAndSession(userData, sessionData, {
-          ...options,
-          transaction: tx,
-        });
-      } catch (err: any) {
-        throw new Error(err.message || "Failed to create user and session");
+      // --- PASSWORD HASHING ---
+      if (password) {
+        if (password.length < 8) throw new Error("Password too short");
+        userData.password = await cryptoHashPassword(password);
       }
-    });
+
+      // Delegate to adapter — each adapter has its own manual rollback.
+      // MongoDB: auth-composition.ts line 100-112 (deleteUser on session failure).
+      // SQL: relational-auth.ts createUserAndSession (same pattern).
+      return await this.db.auth.createUserAndSession(userData, sessionData, options);
+    } catch (err: any) {
+      throw new Error(err.message || "Failed to create user and session");
+    }
   }
 
   async deleteUserAndSessions(
@@ -217,7 +210,12 @@ export class Auth {
   async getUserBySamlId(samlId: string, options?: BaseQueryOptions): Promise<User | null> {
     // Uses generic checkUser structure mapping to adapter lookup
     return this.checkUser(
-      { user_id: undefined as any, email: undefined as any, samlId, tenantId: options?.tenantId },
+      {
+        user_id: undefined as any,
+        email: undefined as any,
+        samlId,
+        tenantId: options?.tenantId,
+      },
       options,
     );
   }
@@ -420,7 +418,9 @@ export class Auth {
     tenantId?: DatabaseId | null;
   }): Promise<string> {
     // Get user email (required for token creation)
-    const user = await this.getUserById(tokenData.user_id, { tenantId: tokenData.tenantId });
+    const user = await this.getUserById(tokenData.user_id, {
+      tenantId: tokenData.tenantId,
+    });
     if (!user) {
       throw new Error("User not found");
     }
@@ -662,11 +662,16 @@ export class Auth {
           // Lock for 15 minutes after 5 failures
           const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000);
           updates.lockoutUntil = dateToISODateString(lockoutUntil);
-          logger.error("Account locked due to multiple failed attempts", { email });
+          logger.error("Account locked due to multiple failed attempts", {
+            email,
+          });
         }
 
         await this.db.auth.updateUserAttributes(user._id, updates);
-        logger.warn("Password authentication failed", { email, failedAttempts });
+        logger.warn("Password authentication failed", {
+          email,
+          failedAttempts,
+        });
         return null;
       }
 

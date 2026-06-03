@@ -87,7 +87,11 @@ Features:
 					>
 						{#if isLoading && currentStep === 0}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
-							<span class="inline">Seeding...</span>
+							{#if canProceed}
+								<span class="inline">Seeding...</span>
+							{:else}
+								<span class="inline">Connecting...</span>
+							{/if}
 						{:else}
 							<span class="inline">{button_next()}</span>
 							<iconify-icon icon="mdi:arrow-right-bold" class="h-5 w-5"></iconify-icon>
