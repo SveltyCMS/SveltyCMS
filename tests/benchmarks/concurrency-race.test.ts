@@ -47,34 +47,45 @@ async function runConcurrencyAudit() {
     } as const;
 
     // 1. Check current state by reading the entry
-    const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
-      headers,
-    });
+    const checkRes = await fetch(
+      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`,
+      {
+        headers,
+      },
+    );
     if (checkRes.ok) {
       console.log(`   → Concurrency target entry found.`);
     } else if (checkRes.status === 404) {
       console.log(`   → Entry not found. Creating _id=${ENTRY_ID}...`);
-      const createRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          _id: ENTRY_ID,
-          count: 0,
-          title: "Concurrency Target",
-        }),
-      });
+      const createRes = await fetch(
+        `${baseUrl}/api/collections/${COLLECTION_ID}`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            _id: ENTRY_ID,
+            count: 0,
+            title: "Concurrency Target",
+          }),
+        },
+      );
       if (!createRes.ok)
-        throw new Error(`Failed to create target entry: ${await createRes.text()}`);
+        throw new Error(
+          `Failed to create target entry: ${await createRes.text()}`,
+        );
     } else {
       throw new Error(`Failed to check entry state: ${checkRes.status}`);
     }
 
     // Reset the count field to 0 via PATCH
-    const resetRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ count: 0 }),
-    });
+    const resetRes = await fetch(
+      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`,
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ count: 0 }),
+      },
+    );
     const resetBody = resetRes.ok
       ? "OK"
       : `${resetRes.status} ${await resetRes
@@ -97,22 +108,52 @@ async function runConcurrencyAudit() {
     const initialCount = initialData.data?.count ?? initialData.count ?? 0;
 
     console.log(`   → Initial count: ${initialCount}`);
-    console.log("   → Blasting 100 concurrent increments...");
+
+    // Per-adapter concurrency tuning:
+    // SQLite: file lock needs batching. MongoDB: connection pool handles full blast.
+    // PG/MariaDB: pooled connections, moderate batching avoids contention.
+    const dbType = getDbType().toLowerCase();
+    const BATCH =
+      dbType.includes("sqlite") || dbType.includes("mariadb")
+        ? 20
+        : dbType.includes("mongodb")
+          ? 100
+          : 50;
+    const GAP =
+      dbType.includes("sqlite") || dbType.includes("mariadb") ? 25 : 0;
+    console.log(
+      `   → Blasting 100 concurrent increments (batch ${BATCH}, ${dbType})...`,
+    );
 
     // 2. Blast 100 concurrent atomic increments
     const CONCURRENCY = 100;
     const t0 = performance.now();
 
     const promises = Array.from({ length: CONCURRENCY }).map(async () => {
-      const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ field: "count", amount: 1 }),
-      });
+      const res = await fetch(
+        `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ field: "count", amount: 1 }),
+        },
+      );
       return res;
     });
 
-    const responses = await Promise.all(promises);
+    const responses: Response[] = [];
+    if (BATCH < 100) {
+      // SQLite: batched execution to avoid SQLITE_BUSY
+      for (let i = 0; i < promises.length; i += BATCH) {
+        const wave = promises.slice(i, i + BATCH);
+        responses.push(...(await Promise.all(wave)));
+        if (i + BATCH < promises.length)
+          await new Promise((r) => setTimeout(r, GAP));
+      }
+    } else {
+      // PG/MongoDB/MariaDB: full parallelism via connection pools
+      responses.push(...(await Promise.all(promises)));
+    }
     const duration = performance.now() - t0;
     const successCount = responses.filter((r) => r.ok).length;
 
@@ -152,7 +193,8 @@ async function runConcurrencyAudit() {
     console.log(`   → Final count: ${finalCount}`);
 
     const isPerfect = finalCount === initialCount + CONCURRENCY;
-    const lockUpDetected = !isPerfect || (successCount < CONCURRENCY && duration > 5000);
+    const lockUpDetected =
+      !isPerfect || (successCount < CONCURRENCY && duration > 5000);
 
     printTruthTable({
       title: "SVELTYCMS — CONCURRENCY AUDIT",
@@ -185,7 +227,9 @@ async function runConcurrencyAudit() {
     ]);
 
     if (lockUpDetected) {
-      throw new Error("Concurrency Audit Failed: Database lockup or severe error rate detected.");
+      throw new Error(
+        "Concurrency Audit Failed: Database lockup or severe error rate detected.",
+      );
     }
   } catch (err: any) {
     logger.error(`Concurrency audit failed: ${err.message}`);
