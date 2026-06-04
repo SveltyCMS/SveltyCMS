@@ -465,6 +465,7 @@ jobs:
           PASSWORD_MIN_LENGTH=8 \
           TEST_MODE=true \
           TEST_API_SECRET="$TEST_API_SECRET" \
+          PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173 \
           node build/index.js > preview.log 2>&1 &
 
           # Increase timeout and add explicit logging
@@ -675,6 +676,7 @@ jobs:
           TEST_MODE=true \
           SKIP_TEST_CLEANUP=true \
           TEST_API_SECRET="$TEST_API_SECRET" \
+          PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173 \
           node build/index.js > preview.log 2>&1 &
 
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 2000
