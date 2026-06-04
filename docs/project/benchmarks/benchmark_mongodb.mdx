@@ -25,21 +25,28 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (03/06/2026, 19:17:57)
+## 📊 Latest Performance Audit (04/06/2026, 10:18:07)
+
+> [!WARNING]
+> **Performance Regressions Detected for MONGODB**:
+>
+> - **REST/Collections p95**: 7.857ms (was 0.000ms, delta: +57.1%) - _Exceeded budget: 7.857ms > 5ms_
+>
+> _Please investigate potential database adapter performance bottlenecks or environment variance._
 
 **Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend      | Target Budget | Result  |
-| :--------------------- | :---------- | :--------- | :------------ | :------ |
-| **Cold Start**         | 256ms       | ⚪ (-6.0%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | N/A         | ⚪ (—)     | < 5ms         | ⚪ N/A  |
-| **Middleware Hooks**   | N/A         | ⚪         | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | N/A         | ⚪ (—)     | < 5ms         | ⚪ N/A  |
-| **Million-Row Index**  | N/A         | ⚪         | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.568ms     | ⚪         | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪         | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
+| :--------------------- | :---------- | :----------- | :------------ | :------ |
+| **Cold Start**         | 425ms       | ⚪ (+40.2%)  | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 7.857ms     | ⚪ (+429.6%) | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | N/A         | ⚪           | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | 5.702ms     | ⚪ (+57.4%)  | < 5ms         | 🔴 FAIL |
+| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | 0.568ms     | ⚪           | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -54,7 +61,7 @@ xychart-beta
   title "MONGODB Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.695, 0.695, 0.695, 0.695, 0.695, 0.695, 0.695, 1.054, 1.054, 1.210]
+  line "p95 Latency" : [0.695, 0.695, 0.695, 0.695, 0.695, 0.695, 1.054, 1.054, 1.210, 7.857]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -222,10 +229,10 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.858 ms │ p95:        1.973 ms │ RPS:      1,166 ║
-║ Collection Schema              │        2.508 ms │ p95:        4.744 ms │ RPS:        399 ║
-║ Collection Find (List)         │        2.409 ms │ p95:        4.284 ms │ RPS:        415 ║
-║ Collection Search              │        2.446 ms │ p95:        4.401 ms │ RPS:        409 ║
+║ Health Check                   │        1.229 ms │ p95:        2.872 ms │ RPS:        814 ║
+║ Collection Schema              │        4.618 ms │ p95:        8.927 ms │ RPS:        217 ║
+║ Collection Find (List)         │        4.319 ms │ p95:        7.857 ms │ RPS:        232 ║
+║ Collection Search              │        4.529 ms │ p95:        8.822 ms │ RPS:        221 ║
 ```
 
 <!-- REST_TABLE_END -->
@@ -239,13 +246,13 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        2.643 ms │ p95:        4.314 ms │ RPS:        360 ║
-║ GQL: 10c Light                 │        5.156 ms │ p95:        8.307 ms │ RPS:        190 ║
-║ GQL: 20c Moderate              │       10.426 ms │ p95:       15.735 ms │ RPS:         96 ║
-║ GQL: 40c Heavy                 │       21.649 ms │ p95:       33.542 ms │ RPS:         46 ║
-║ GQL: 60c Stress                │       31.129 ms │ p95:       47.079 ms │ RPS:         32 ║
-║ GQL: 80c Extreme               │       31.341 ms │ p95:       63.375 ms │ RPS:         31 ║
-║ GQL: 100c Max                  │       43.842 ms │ p95:       78.086 ms │ RPS:         23 ║
+║ GQL: 5c Warmup                 │        4.774 ms │ p95:        7.466 ms │ RPS:        204 ║
+║ GQL: 10c Light                 │        8.978 ms │ p95:       14.109 ms │ RPS:        110 ║
+║ GQL: 20c Moderate              │       16.851 ms │ p95:       26.460 ms │ RPS:         59 ║
+║ GQL: 40c Heavy                 │       31.883 ms │ p95:       50.528 ms │ RPS:         31 ║
+║ GQL: 60c Stress                │       46.694 ms │ p95:       73.851 ms │ RPS:         21 ║
+║ GQL: 80c Extreme               │       46.792 ms │ p95:       94.172 ms │ RPS:         21 ║
+║ GQL: 100c Max                  │       65.310 ms │ p95:      116.679 ms │ RPS:         15 ║
 ```
 
 <!-- GRAPHQL_TABLE_END -->
@@ -1139,14 +1146,16 @@ xychart-beta
 
 <!-- SECURITY_TABLE_END -->
 
-### 🏷️ REST API Performance 🟢 avg -6% p95 -15% rps +7% (23 runs)
+### 🏷️ REST API Performance 🔴 avg +102% p95 +122% rps -51% (25 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- REST_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.  
-> **Check**: `src/services/SEOService.ts` · `src/hooks/handle-seo.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 51% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+102%) — review recent commits immediately.  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1154,10 +1163,10 @@ xychart-beta
 ║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.531 ms │ p95:        0.984 ms │ RPS:      1,883 ║
-║ Collection Schema              │        2.319 ms │ p95:        4.363 ms │ RPS:        431 ║
-║ Collection Find (List)         │        2.717 ms │ p95:        5.441 ms │ RPS:        368 ║
-║ Collection Search              │        2.515 ms │ p95:        4.701 ms │ RPS:        398 ║
+║ Health Check                   │        1.205 ms │ p95:        2.620 ms │ RPS:        830 ║
+║ Collection Schema              │        4.431 ms │ p95:        8.242 ms │ RPS:        226 ║
+║ Collection Find (List)         │        4.585 ms │ p95:        8.533 ms │ RPS:        218 ║
+║ Collection Search              │        4.095 ms │ p95:        7.778 ms │ RPS:        244 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1165,22 +1174,23 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.531 ms       ║
-║ Collection Schema                                  │        2.319 ms       ║
-║ Collection Find (List)                             │        2.717 ms       ║
-║ Collection Search                                  │        2.515 ms       ║
+║ Health Check                                       │        1.205 ms       ║
+║ Collection Schema                                  │        4.431 ms       ║
+║ Collection Find (List)                             │        4.585 ms       ║
+║ Collection Search                                  │        4.095 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- REST_TABLE_END -->
 
-### 🏷️ GraphQL API Performance 🟢 avg -33% p95 -18% rps +51% (9 runs)
+### 🏷️ GraphQL API Performance 🟠 avg +18% p95 +25% rps -15% (14 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- GRAPHQL_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 15% — check connection pool saturation or lock contention.  
 > **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
@@ -1189,13 +1199,13 @@ xychart-beta
 ║                      File: tests/benchmarks/graphql-stress.test.ts                      ║
 ║  Discovers the server's maximum sustainable GraphQL throughput by ramping concurrency   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        2.588 ms │ p95:        4.534 ms │ RPS:        386 ║
-║ GQL: 10c Light                 │        4.790 ms │ p95:        8.689 ms │ RPS:        209 ║
-║ GQL: 20c Moderate              │        9.182 ms │ p95:       17.332 ms │ RPS:        109 ║
-║ GQL: 40c Heavy                 │       19.059 ms │ p95:       34.858 ms │ RPS:         53 ║
-║ GQL: 60c Stress                │       27.077 ms │ p95:       49.423 ms │ RPS:         37 ║
-║ GQL: 80c Extreme               │       35.311 ms │ p95:       61.537 ms │ RPS:         28 ║
-║ GQL: 100c Max                  │       43.900 ms │ p95:       76.272 ms │ RPS:         23 ║
+║ GQL: 5c Warmup                 │        4.562 ms │ p95:        7.134 ms │ RPS:        214 ║
+║ GQL: 10c Light                 │        8.564 ms │ p95:       14.382 ms │ RPS:        116 ║
+║ GQL: 20c Moderate              │       16.040 ms │ p95:       24.210 ms │ RPS:         62 ║
+║ GQL: 40c Heavy                 │       29.824 ms │ p95:       45.848 ms │ RPS:         34 ║
+║ GQL: 60c Stress                │       46.227 ms │ p95:       72.589 ms │ RPS:         22 ║
+║ GQL: 80c Extreme               │       45.968 ms │ p95:       91.088 ms │ RPS:         21 ║
+║ GQL: 100c Max                  │       68.463 ms │ p95:      123.153 ms │ RPS:         15 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1204,7 +1214,7 @@ xychart-beta
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Max Sustainable Concurrency                        │      100.000 connections ║
-║ Max Sustainable Throughput                         │      386.000 req/s    ║
+║ Max Sustainable Throughput                         │      214.000 req/s    ║
 ║ Capacity Rating                                    │   ENTERPRISE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -1445,7 +1455,11 @@ xychart-beta
 > **Budget**: ≤ 180,000ms (suite) | **Tags**: `cpu`, `disk` | **Level**: 5
 
 <!-- INDEX_PRESSURE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 35% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+51%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1475,7 +1489,11 @@ xychart-beta
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- CONTENT_STRESS_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 40% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+66%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1506,7 +1524,11 @@ xychart-beta
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- JOURNEY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 46% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+84%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1536,7 +1558,11 @@ xychart-beta
 > **Budget**: ≤ 40,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- CONCURRENCY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 41% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+70%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗

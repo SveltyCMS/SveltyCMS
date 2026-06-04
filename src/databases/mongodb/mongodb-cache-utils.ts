@@ -5,7 +5,7 @@
  */
 
 import { CacheCategory } from "@src/databases/cache/types";
-import { cacheMetrics } from "@src/databases/cache-metrics";
+import { cacheMetrics } from "@src/databases/cache/cache-metrics";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@src/utils/logger";
 

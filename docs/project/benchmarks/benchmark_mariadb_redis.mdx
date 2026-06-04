@@ -25,21 +25,28 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (03/06/2026, 19:17:57)
+## 📊 Latest Performance Audit (04/06/2026, 10:29:56)
+
+> [!WARNING]
+> **Performance Regressions Detected for MARIADB+REDIS**:
+>
+> - **REST/Collections p95**: 5.812ms (was 0.000ms, delta: +16.2%) - _Exceeded budget: 5.812ms > 5ms_
+>
+> _Please investigate potential database adapter performance bottlenecks or environment variance._
 
 **Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend      | Target Budget | Result  |
-| :--------------------- | :---------- | :--------- | :------------ | :------ |
-| **Cold Start**         | 256ms       | ⚪ (-5.9%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | N/A         | ⚪ (—)     | < 5ms         | ⚪ N/A  |
-| **Middleware Hooks**   | N/A         | ⚪         | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | N/A         | ⚪ (—)     | < 5ms         | ⚪ N/A  |
-| **Million-Row Index**  | N/A         | ⚪         | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | N/A         | ⚪         | < 50ms        | ⚪ N/A  |
-| **Setup Quality**      | HEALTHY     | ⚪         | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
+| :--------------------- | :---------- | :---------- | :------------ | :------ |
+| **Cold Start**         | 368ms       | ⚪ (+13.7%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 5.812ms     | ⚪ (-51.9%) | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | N/A         | ⚪          | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | 3.933ms     | ⚪ (+0.0%)  | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | N/A         | ⚪          | < 50ms        | ⚪ N/A  |
+| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -54,7 +61,7 @@ xychart-beta
   title "MARIADB+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.786, 0.786, 0.786, 0.786, 0.786, 0.786, 0.786, 0.786, 0.786, 0.786]
+  line "p95 Latency" : [0.786, 0.786, 0.786, 0.786, 27.507, 27.507, 27.507, 27.507, 27.507, 5.812]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -204,19 +211,34 @@ xychart-beta
 
 <!-- REST_TABLE_START -->
 
-> **Measures**: End-to-end throughput and latency of the unified REST dispatcher.
-> **Code**: `src/routes/api/[...path]/+server.ts`, `src/hooks.server.ts`
-> **Why**: REST is the primary API surface. Degradation affects all integrations and SDK consumers.
-> **Correlates**: `hooks-performance`, `auth-performance` | **Anti-correlates**: `database-performance`
+### 🏷️ REST API Performance ⚪ —
+
+> 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
+> 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Health Check                   │        1.110 ms │ p95:        2.389 ms │ RPS:        901 ║
+║ Collection Schema              │        3.353 ms │ p95:        6.183 ms │ RPS:        298 ║
+║ Collection Find (List)         │        3.318 ms │ p95:        5.812 ms │ RPS:        301 ║
+║ Collection Search              │        3.196 ms │ p95:        5.789 ms │ RPS:        313 ║
+```
 
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
 
-> **Measures**: Resolver execution time and throughput for common queries.
-> **Code**: `src/routes/api/graphql/+server.ts`, `src/routes/api/graphql/resolvers/`
-> **Why**: GraphQL resolvers can trigger cascading DB queries. N+1 patterns are common here.
-> **Correlates**: `rest-api-performance`
+### 🏷️ GraphQL API Performance ⚪ —
+
+> 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
+> 🎯 **Proves**: Resolver execution time and throughput for common queries.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ GQL: System Health             │        1.289 ms │ p95:        2.329 ms │ RPS:        776 ║
+║ GQL: Collection List           │        3.933 ms │ p95:        6.814 ms │ RPS:        254 ║
+║ GQL: Concurrent Load           │        3.375 ms │ p95:        5.886 ms │ RPS:        296 ║
+```
 
 <!-- GRAPHQL_TABLE_END -->
 

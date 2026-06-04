@@ -33,7 +33,7 @@ The `DatabaseResilience` system provides:
 It is integrated in:
 
 - `src/databases/db.ts` (initialization, adapter loading, system status)
-- `src/databases/cache-service.ts` (Redis connection)
+- `src/databases/cache/cache-service.ts` (Redis connection)
 - `src/databases/mongodb/mongodb-adapter.ts` (reconnection handlers)
 
 | Feature                                           | Status         | Key Artifacts                                                                     |
@@ -181,7 +181,7 @@ Applied in:
 
 - Virtual folders initialization (`src/databases/db.ts`)
 - Database adapter loading (`src/databases/db.ts`)
-- Redis connection (`src/databases/cache-service.ts`)
+- Redis connection (`src/databases/cache/cache-service.ts`)
 
 ### Self-Healing Database Reconnection
 

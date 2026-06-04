@@ -25,24 +25,28 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (03/06/2026, 19:17:57)
+## 📊 Latest Performance Audit (04/06/2026, 10:27:03)
 
-**Status:** ❌ FAIL
+> [!WARNING]
+> **Performance Regressions Detected for POSTGRESQL**:
+>
+> - **REST/Collections p95**: 5.920ms (was 0.000ms, delta: +18.4%) - _Exceeded budget: 5.920ms > 5ms_
+>
+> _Please investigate potential database adapter performance bottlenecks or environment variance._
 
-> [!CAUTION]
-> **Anomalies Detected**: LocalSDK failed (exited with code 1) See console for stack trace.
+**Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend      | Target Budget | Result  |
-| :--------------------- | :---------- | :--------- | :------------ | :------ |
-| **Cold Start**         | 265ms       | ⚪ (-5.2%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | N/A         | ⚪ (—)     | < 5ms         | ⚪ N/A  |
-| **Middleware Hooks**   | N/A         | ⚪         | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | N/A         | ⚪ (—)     | < 5ms         | ⚪ N/A  |
-| **Million-Row Index**  | N/A         | ⚪         | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.808ms     | ⚪         | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪         | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
+| :--------------------- | :---------- | :----------- | :------------ | :------ |
+| **Cold Start**         | 328ms       | ⚪ (+16.1%)  | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 5.920ms     | ⚪ (+331.8%) | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | N/A         | ⚪           | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | 3.679ms     | ⚪ (+0.0%)   | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | 0.808ms     | ⚪           | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -57,14 +61,14 @@ xychart-beta
   title "POSTGRESQL Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892]
+  line "p95 Latency" : [0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 5.920]
 ```
 
 ## 📈 Core Infrastructure Trends
 
 ### 🏷️ Database Adapter Performance {#dbRaw}
 
-**Raw Adapter p95:** 0.808ms | **Target:** < 50ms | **Trend:** ⚪ (-4.3%)
+**Raw Adapter p95:** 0.808ms | **Target:** < 50ms | **Trend:** ⚪ (-2.1%)
 
 > Direct database access latency (bypass CMS logic).
 
@@ -237,20 +241,28 @@ xychart-beta
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
 ```text
-║ Health Check                   │        0.831 ms │ p95:        1.441 ms │ RPS:      1,204 ║
-║ Collection Schema              │        1.765 ms │ p95:        3.058 ms │ RPS:        567 ║
-║ Collection Find (List)         │        2.074 ms │ p95:        3.966 ms │ RPS:        482 ║
-║ Collection Search              │        1.844 ms │ p95:        3.239 ms │ RPS:        542 ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Health Check                   │        1.054 ms │ p95:        2.128 ms │ RPS:        949 ║
+║ Collection Schema              │        3.406 ms │ p95:        6.078 ms │ RPS:        294 ║
+║ Collection Find (List)         │        3.354 ms │ p95:        5.920 ms │ RPS:        298 ║
+║ Collection Search              │        3.233 ms │ p95:        5.584 ms │ RPS:        309 ║
 ```
 
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
 
-> **Measures**: Resolver execution time and throughput for common queries.
-> **Code**: `src/routes/api/graphql/+server.ts`, `src/routes/api/graphql/resolvers/`
-> **Why**: GraphQL resolvers can trigger cascading DB queries. N+1 patterns are common here.
-> **Correlates**: `rest-api-performance`
+### 🏷️ GraphQL API Performance ⚪ —
+
+> 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
+> 🎯 **Proves**: Resolver execution time and throughput for common queries.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ GQL: System Health             │        1.303 ms │ p95:        2.309 ms │ RPS:        768 ║
+║ GQL: Collection List           │        3.679 ms │ p95:        6.645 ms │ RPS:        272 ║
+║ GQL: Concurrent Load           │        3.286 ms │ p95:        6.081 ms │ RPS:        304 ║
+```
 
 <!-- GRAPHQL_TABLE_END -->
 
@@ -791,7 +803,11 @@ xychart-beta
 > **Budget**: ≤ 5,000ms (suite) | **Tags**: `cpu` | **Level**: 2
 
 <!-- LOCAL_API_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 40% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+67%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -969,29 +985,70 @@ xychart-beta
 
 <!-- SECURITY_TABLE_END -->
 
-### 🏷️ REST API Performance ⚪ —
+### 🏷️ REST API Performance ⚪ avg 0% (3 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- REST_TABLE_START -->
 
-> **Measures**: End-to-end throughput and latency of the unified REST dispatcher.
-> **Code**: `src/routes/api/[...path]/+server.ts`, `src/hooks.server.ts`
-> **Why**: REST is the primary API surface. Degradation affects all integrations and SDK consumers.
-> **Correlates**: `hooks-performance`, `auth-performance` | **Anti-correlates**: `database-performance`
+> Within normal variance — no action needed.  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS — ENTERPRISE REST API AUDIT                          ║
+║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
+║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Health Check                   │        1.016 ms │ p95:        2.075 ms │ RPS:        984 ║
+║ Collection Schema              │        3.362 ms │ p95:        6.121 ms │ RPS:        297 ║
+║ Collection Find (List)         │        3.304 ms │ p95:        5.675 ms │ RPS:        303 ║
+║ Collection Search              │        3.220 ms │ p95:        5.798 ms │ RPS:        311 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Health Check                                       │        1.016 ms       ║
+║ Collection Schema                                  │        3.362 ms       ║
+║ Collection Find (List)                             │        3.304 ms       ║
+║ Collection Search                                  │        3.220 ms       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- REST_TABLE_END -->
 
-### 🏷️ GraphQL API Performance 🟢 avg -12% p95 -14% rps +14% (10 runs)
+### 🏷️ GraphQL API Performance 🔴 avg +82% p95 +85% rps -46% (12 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- GRAPHQL_TABLE_START -->
+<!-- INSIGHT_PLACEHOLDER -->
 
-> **Measures**: Resolver execution time and throughput for common queries.
-> **Code**: `src/routes/api/graphql/+server.ts`, `src/routes/api/graphql/resolvers/`
-> **Why**: GraphQL resolvers can trigger cascading DB queries. N+1 patterns are common here.
-> **Correlates**: `rest-api-performance`
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                          ║
+║                 File: tests/benchmarks/graphql-api-performance.test.ts                  ║
+║   Measures GraphQL resolver performance and throughput across varied query scenarios.   ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ GQL: System Health             │        1.434 ms │ p95:        2.556 ms │ RPS:        698 ║
+║ GQL: Collection List           │        3.929 ms │ p95:        7.212 ms │ RPS:        255 ║
+║ GQL: Concurrent Load           │        3.176 ms │ p95:        5.696 ms │ RPS:        315 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Health Check                                       │        1.434 ms       ║
+║ Collection List                                    │        3.929 ms       ║
+║ Entries Query                                      │        3.176 ms       ║
+║ Peak RPS                                           │      697.500 req/s    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- GRAPHQL_TABLE_END -->
 

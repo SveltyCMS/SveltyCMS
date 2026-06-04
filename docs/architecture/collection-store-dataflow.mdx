@@ -282,7 +282,7 @@ This ensures that the next SSR load will always fetch fresh data after any data 
 **Server-Side:**
 
 - `src/routes/(app)/[language]/[...collection]/+page.server.ts` - SSR load function
-- `src/databases/cache-service.ts` - Redis caching layer
+- `src/databases/cache/cache-service.ts` - Redis caching layer
 - `src/utils/modify-request.ts` - Data enrichment
 
 **Client-Side:**

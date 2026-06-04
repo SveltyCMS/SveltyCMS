@@ -1247,17 +1247,18 @@ export async function waitForCollection(
   collectionId: string,
   tenantId: string = "global",
 ) {
+  const headers = {
+    "Content-Type": "application/json",
+    "x-test-mode": "true",
+    "x-test-secret": TEST_API_SECRET,
+    "x-tenant-id": tenantId,
+  };
   const query = `query { __schema { types { name } } }`;
   for (let i = 0; i < 20; i++) {
     try {
       const res = await fetch(`${baseUrl}/api/graphql`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-          "x-tenant-id": tenantId,
-        },
+        headers,
         body: JSON.stringify({ query }),
       });
       if (res.ok) {
@@ -1276,6 +1277,23 @@ export async function waitForCollection(
       }
     } catch (e: any) {
       console.log(`[waitForCollection] Exception:`, e.message);
+    }
+    // After 10 retries, try forcing collection creation + cache refresh
+    if (i === 10) {
+      console.log(`[waitForCollection] Forcing collection creation via testing API...`);
+      await fetch(`${baseUrl}/api/testing`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          action: "create-collection",
+          schema: { _id: collectionId, name: collectionId, fields: [] },
+        }),
+      }).catch(() => {});
+      await fetch(`${baseUrl}/api/content/refresh`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ method: "refresh", tenantId }),
+      }).catch(() => {});
     }
     await new Promise((r) => setTimeout(r, 1000));
   }

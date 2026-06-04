@@ -124,7 +124,7 @@ Real-time monitoring is integrated directly into the `CacheService`, utilizing h
 - **Latency Tracking**: Microsecond-precision timing for L1 vs L2 performance comparisons.
 - **Prometheus Export**: Metrics are exposed via the `/api/metrics` endpoint for Grafana integration.
 
-### Predictive Warming (`CacheWarmingService.ts`)
+### Predictive Warming (`cache-warming-service.ts`)
 
 Proactive caching reduces "cold start" latency:
 
@@ -149,6 +149,7 @@ await cacheService.set("key", data, 3600);
 
 // Pattern invalidation
 await cacheService.deletePattern("query:collections:*");
+```
 
 ### Content Structure Cache (`cms:content_structure`)
 

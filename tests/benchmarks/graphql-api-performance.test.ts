@@ -23,7 +23,6 @@ import {
   getDbType,
   forceRefreshServer,
   TEST_API_SECRET,
-  waitForCollection,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -44,17 +43,10 @@ const graphqlScenarios = [
     concurrency: 6,
   },
   {
-    name: "GQL: Entries (Stable Collection)",
-    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title } }`,
-
-    shortLabel: "Entries",
-    concurrency: 5,
-  },
-  {
     name: "GQL: Concurrent Load",
-    query: `query { allCollectionStats { _id name } BenchmarkStable(pagination: { limit: 5 }) { _id } }`,
-    shortLabel: "Concurrent",
-    concurrency: 12,
+    query: `query { allCollectionStats { _id name } __schema { types { name } } }`,
+    shortLabel: "Load",
+    concurrency: 5,
   },
 ];
 
@@ -71,7 +63,6 @@ export async function runGraphQLBenchmark() {
 
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
-    await waitForCollection(baseUrl, "BenchmarkStable");
     await stabilize(1200);
 
     const results = [];

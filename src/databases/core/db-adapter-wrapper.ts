@@ -22,6 +22,8 @@ export interface TenantOptions {
   collection?: string;
 }
 
+let isMultiTenantCached: boolean | undefined = undefined;
+
 /**
  * Central wrapper to enforce strict tenant isolation across database calls.
  * Ensures operations are either scoped to a tenant or allowed in single-tenant/global mode.
@@ -41,15 +43,17 @@ export async function withTenant<T>(
     return operation();
   }
 
-  // Check if multi-tenancy is enabled in the system
-  let config = getPrivateEnv();
-
-  // If config is not loaded yet, try to load it
-  if (!config) {
-    config = await loadPrivateConfig();
+  let isMultiTenant = isMultiTenantCached;
+  if (isMultiTenant === undefined || process.env.TEST_MODE === "true") {
+    let config = getPrivateEnv();
+    if (!config) {
+      config = await loadPrivateConfig();
+    }
+    isMultiTenant = config?.MULTI_TENANT === true;
+    if (process.env.TEST_MODE !== "true") {
+      isMultiTenantCached = isMultiTenant;
+    }
   }
-
-  const isMultiTenant = config?.MULTI_TENANT === true;
 
   // If multi-tenancy is disabled, we don't require a tenantId
   if (!isMultiTenant) {

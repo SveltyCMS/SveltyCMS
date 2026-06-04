@@ -9,15 +9,15 @@
 import type { IDBAdapter } from "../db-interface";
 import { toDbId } from "@src/utils/db-id";
 
-// 🚀 Store collection wrappers to avoid redundant object allocations
-const wrapperCache = new Map<string, any>();
-
 /**
  * Creates a proxy that exposes collection-specific methods on the database adapter.
  */
 export function createSchemaProxy(adapter: IDBAdapter): any {
+  const adapterWrappers = new Map<string, any>();
+
   return new Proxy(adapter, {
     get(target, prop, receiver) {
+      // 1. Fast lookup for target properties, keeping correct receiver and supporting symbols
       const value = Reflect.get(target, prop, receiver);
       if (value !== undefined) {
         return typeof value === "function" ? value.bind(target) : value;
@@ -38,7 +38,6 @@ export function createSchemaProxy(adapter: IDBAdapter): any {
       }
 
       // 3. Logic: If property is not found, we treat it as a virtual collection access.
-      // Match typical collection names (alphanumeric, camelCase, or snake_case)
       const isCollectionName = /^[a-z][a-zA-Z0-9_]*$/.test(prop);
       const isForcedCollection = prop.startsWith("collection_");
 
@@ -59,7 +58,7 @@ export function createSchemaProxy(adapter: IDBAdapter): any {
 
       if ((isCollectionName || isForcedCollection) && !isReserved) {
         // 🚀 CACHE HIT: Return existing wrapper if available
-        let wrapper = wrapperCache.get(prop);
+        let wrapper = adapterWrappers.get(prop);
         if (wrapper) return wrapper;
 
         wrapper = {
@@ -73,7 +72,7 @@ export function createSchemaProxy(adapter: IDBAdapter): any {
           count: (filter: any, options?: any) => target.crud.count(prop, filter, options),
         };
 
-        wrapperCache.set(prop, wrapper);
+        adapterWrappers.set(prop, wrapper);
         return wrapper;
       }
 

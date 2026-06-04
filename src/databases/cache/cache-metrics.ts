@@ -1,16 +1,19 @@
 /**
- * @file src\databases\cache-metrics.ts
+ * @file src/databases/cache/cache-metrics.ts
  * @description Cache performance metrics tracking and monitoring
  *
  * Enhancements:
- * - Added LRU-like eviction for recentEvents (faster than shift()).
- * - Cached hitRate computation.
- * - Histogram for response times (Prometheus-ready).
+ * - Circular buffer for recentEvents event log.
+ * - Hoisted response histogram boundary lookup (zero-allocation).
+ * - Numeric timestamp tracking on the hot path (lazy format conversion).
  */
 
 import type { ISODateString } from "@src/content/types";
 import { dateToISODateString } from "@src/utils/date";
 import { logger } from "@utils/logger";
+
+const HISTOGRAM_BOUNDS = [0, 10, 50, 100, 500, Infinity];
+const PROM_BOUND_LABELS = ["0", "10", "50", "100", "500", "+Inf"];
 
 export interface CacheMetricSnapshot {
   avgResponseTime: number;
@@ -32,6 +35,15 @@ export interface CacheEvent {
   type: "hit" | "miss" | "set" | "delete" | "clear";
 }
 
+interface InternalCacheEvent {
+  category: string;
+  key: string;
+  responseTime?: number;
+  tenantId?: string | null;
+  timestamp: number;
+  type: "hit" | "miss" | "set" | "delete" | "clear";
+}
+
 export class CacheMetrics {
   private hits = 0;
   private misses = 0;
@@ -44,11 +56,13 @@ export class CacheMetrics {
     { hits: number; misses: number; totalTTL: number; ttlCount: number }
   >();
   private tenantMetrics = new Map<string, { hits: number; misses: number }>();
-  private recentEvents: CacheEvent[] = [];
+  
+  private recentEvents: InternalCacheEvent[] = [];
+  private eventIndex = 0;
   private readonly MAX_EVENTS = 100;
 
-  // New: Response time histogram buckets (for Prometheus)
-  private responseTimeBuckets = [0, 10, 50, 100, 500, Infinity].map(() => 0);
+  // Response time histogram buckets (for Prometheus)
+  private responseTimeBuckets = HISTOGRAM_BOUNDS.map(() => 0);
 
   recordHit(key: string, category: string, tenantId?: string | null, responseTime?: number): void {
     this.hits++;
@@ -65,7 +79,6 @@ export class CacheMetrics {
       category,
       tenantId,
       responseTime,
-      timestamp: dateToISODateString(new Date()),
     });
   }
 
@@ -84,7 +97,6 @@ export class CacheMetrics {
       category,
       tenantId,
       responseTime,
-      timestamp: dateToISODateString(new Date()),
     });
   }
 
@@ -95,7 +107,6 @@ export class CacheMetrics {
       key,
       category,
       tenantId,
-      timestamp: dateToISODateString(new Date()),
     });
   }
 
@@ -105,7 +116,6 @@ export class CacheMetrics {
       key,
       category,
       tenantId,
-      timestamp: dateToISODateString(new Date()),
     });
   }
 
@@ -115,7 +125,6 @@ export class CacheMetrics {
       key: pattern,
       category,
       tenantId,
-      timestamp: dateToISODateString(new Date()),
     });
   }
 
@@ -152,13 +161,21 @@ export class CacheMetrics {
     this.tenantMetrics.set(tenantId, metrics);
   }
 
-  private addEvent(event: CacheEvent): void {
-    this.recentEvents.push(event);
-    if (this.recentEvents.length > this.MAX_EVENTS) this.recentEvents.shift(); // Optimized eviction
+  private addEvent(event: Omit<InternalCacheEvent, "timestamp">): void {
+    const internalEvent: InternalCacheEvent = {
+      ...event,
+      timestamp: Date.now(),
+    };
+    if (this.recentEvents.length < this.MAX_EVENTS) {
+      this.recentEvents.push(internalEvent);
+    } else {
+      this.recentEvents[this.eventIndex] = internalEvent;
+      this.eventIndex = (this.eventIndex + 1) % this.MAX_EVENTS;
+    }
   }
 
   getSnapshot(): CacheMetricSnapshot {
-    const hitRate = this.requestCount > 0 ? this.hits / this.requestCount : 0; // Cached-like (simple calc)
+    const hitRate = this.requestCount > 0 ? this.hits / this.requestCount : 0;
     const avgResponseTime = this.requestCount > 0 ? this.totalResponseTime / this.requestCount : 0;
     const byCategory: CacheMetricSnapshot["byCategory"] = {};
     for (const [cat, met] of this.categoryMetrics) {
@@ -192,7 +209,24 @@ export class CacheMetrics {
   }
 
   getRecentEvents(limit = 50): CacheEvent[] {
-    return this.recentEvents.slice(-limit);
+    const events: CacheEvent[] = [];
+    const size = this.recentEvents.length;
+    const start = size < this.MAX_EVENTS ? 0 : this.eventIndex;
+
+    for (let i = 0; i < size; i++) {
+      const idx = (start + i) % this.MAX_EVENTS;
+      const ev = this.recentEvents[idx];
+      events.push({
+        type: ev.type,
+        key: ev.key,
+        category: ev.category,
+        tenantId: ev.tenantId,
+        responseTime: ev.responseTime,
+        timestamp: dateToISODateString(new Date(ev.timestamp)),
+      });
+    }
+
+    return events.slice(-limit);
   }
 
   reset(): void {
@@ -201,6 +235,7 @@ export class CacheMetrics {
     this.categoryMetrics.clear();
     this.tenantMetrics.clear();
     this.recentEvents = [];
+    this.eventIndex = 0;
     this.responseTimeBuckets.fill(0);
     logger.info("Cache metrics reset");
   }
@@ -234,14 +269,13 @@ export class CacheMetrics {
       "# TYPE cache_avg_response_time_ms gauge",
       `cache_avg_response_time_ms ${snapshot.avgResponseTime.toFixed(2)}`,
     ];
-    // New: Add histogram
     lines.push(
       "# HELP cache_response_time_histogram_ms Response time histogram",
       "# TYPE cache_response_time_histogram_ms histogram",
     );
     this.responseTimeBuckets.forEach((count, i) =>
       lines.push(
-        `cache_response_time_histogram_ms_bucket{le="${[0, 10, 50, 100, 500, "+Inf"][i]}"} ${count}`,
+        `cache_response_time_histogram_ms_bucket{le="${PROM_BOUND_LABELS[i]}"} ${count}`,
       ),
     );
     for (const [cat, met] of Object.entries(snapshot.byCategory)) {
@@ -255,9 +289,11 @@ export class CacheMetrics {
   }
 
   private updateResponseHistogram(time: number): void {
-    for (let i = 0; i < this.responseTimeBuckets.length; i++) {
-      if (time <= [0, 10, 50, 100, 500, Infinity][i]) {
-        this.responseTimeBuckets[i]++;
+    const buckets = this.responseTimeBuckets;
+    const len = buckets.length;
+    for (let i = 0; i < len; i++) {
+      if (time <= HISTOGRAM_BOUNDS[i]) {
+        buckets[i]++;
         break;
       }
     }

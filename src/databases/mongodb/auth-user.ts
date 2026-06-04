@@ -426,7 +426,12 @@ export class UserAdapter {
       }
 
       const results = await SessionModel.aggregate([
-        { $match: { _id: sessionId } },
+        {
+          $match: {
+            _id: sessionId,
+            expires: { $gt: new Date() },
+          },
+        },
         { $limit: 1 },
         {
           $lookup: {
@@ -442,10 +447,6 @@ export class UserAdapter {
       if (results.length === 0) return { success: true, data: null };
 
       const session = results[0];
-      if (!session.expires || new Date(session.expires) < new Date()) {
-        return { success: true, data: null };
-      }
-
       return {
         success: true,
         data: session.user ? convertMongoUserToISO(session.user) : null,

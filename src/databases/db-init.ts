@@ -135,6 +135,30 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     },
   });
 
+  // Cache Service (Critical)
+  dbPluginRegistry.register({
+    id: "cache",
+    dependencies: ["base"],
+    critical: true,
+    initialize: async (adapter) => {
+      startServiceInitialization("cache");
+      const { cacheService } = await import("./cache/cache-service");
+      const { loadPrivateConfig } = await import("./db");
+      const config = await loadPrivateConfig();
+      await cacheService.initialize(config);
+      updateServiceHealth("cache", "healthy", "Cache service online");
+
+      // Warm critical paths on startup in background if setup complete
+      const { isSetupComplete } = await import("@utils/setup-check");
+      if (isSetupComplete()) {
+        const { cacheWarmingService } = await import("./cache/cache-warming-service");
+        cacheWarmingService.initialize(adapter).catch((err) => {
+          logger.trace("Cache warming failed:", err);
+        });
+      }
+    },
+  });
+
   // 3. Auth Service
   dbPluginRegistry.register({
     id: "auth",

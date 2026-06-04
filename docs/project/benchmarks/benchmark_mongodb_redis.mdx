@@ -25,21 +25,21 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (03/06/2026, 19:17:57)
+## 📊 Latest Performance Audit (04/06/2026, 10:18:07)
 
 **Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend      | Target Budget | Result  |
-| :--------------------- | :---------- | :--------- | :------------ | :------ |
-| **Cold Start**         | 263ms       | ⚪ (-4.8%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 0.572ms     | ⚪ (+0.0%) | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | N/A         | ⚪         | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | 6.747ms     | ⚪ (-0.0%) | < 5ms         | 🔴 FAIL |
-| **Million-Row Index**  | 3.463ms     | ⚪         | < 250ms       | 🟢 PASS |
-| **DB Raw (p95)**       | 0.611ms     | ⚪         | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪         | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
+| :--------------------- | :---------- | :---------- | :------------ | :------ |
+| **Cold Start**         | 407ms       | ⚪ (+31.9%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 0.572ms     | ⚪ (+0.0%)  | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | N/A         | ⚪          | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | 5.580ms     | ⚪ (-11.4%) | < 5ms         | 🔴 FAIL |
+| **Million-Row Index**  | 3.463ms     | ⚪          | < 250ms       | 🟢 PASS |
+| **DB Raw (p95)**       | 0.611ms     | ⚪          | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -87,7 +87,7 @@ xychart-beta
 
 ### 🏷️ Relational Resolver Latency {#relationalAvg}
 
-**Relational p95:** 3.590ms | **Trend:** ⚪ (-46.8%)
+**Relational p95:** 3.590ms | **Trend:** ⚪ (-43.0%)
 
 > Tests performance of complex JOINs and nested relationship population.
 
@@ -222,10 +222,10 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.531 ms │ p95:        0.984 ms │ RPS:      1,883 ║
-║ Collection Schema              │        2.319 ms │ p95:        4.363 ms │ RPS:        431 ║
-║ Collection Find (List)         │        2.717 ms │ p95:        5.441 ms │ RPS:        368 ║
-║ Collection Search              │        2.515 ms │ p95:        4.701 ms │ RPS:        398 ║
+║ Health Check                   │        1.205 ms │ p95:        2.620 ms │ RPS:        830 ║
+║ Collection Schema              │        4.431 ms │ p95:        8.242 ms │ RPS:        226 ║
+║ Collection Find (List)         │        4.585 ms │ p95:        8.533 ms │ RPS:        218 ║
+║ Collection Search              │        4.095 ms │ p95:        7.778 ms │ RPS:        244 ║
 ```
 
 <!-- REST_TABLE_END -->
@@ -239,13 +239,13 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        2.588 ms │ p95:        4.534 ms │ RPS:        386 ║
-║ GQL: 10c Light                 │        4.790 ms │ p95:        8.689 ms │ RPS:        209 ║
-║ GQL: 20c Moderate              │        9.182 ms │ p95:       17.332 ms │ RPS:        109 ║
-║ GQL: 40c Heavy                 │       19.059 ms │ p95:       34.858 ms │ RPS:         53 ║
-║ GQL: 60c Stress                │       27.077 ms │ p95:       49.423 ms │ RPS:         37 ║
-║ GQL: 80c Extreme               │       35.311 ms │ p95:       61.537 ms │ RPS:         28 ║
-║ GQL: 100c Max                  │       43.900 ms │ p95:       76.272 ms │ RPS:         23 ║
+║ GQL: 5c Warmup                 │        4.562 ms │ p95:        7.134 ms │ RPS:        214 ║
+║ GQL: 10c Light                 │        8.564 ms │ p95:       14.382 ms │ RPS:        116 ║
+║ GQL: 20c Moderate              │       16.040 ms │ p95:       24.210 ms │ RPS:         62 ║
+║ GQL: 40c Heavy                 │       29.824 ms │ p95:       45.848 ms │ RPS:         34 ║
+║ GQL: 60c Stress                │       46.227 ms │ p95:       72.589 ms │ RPS:         22 ║
+║ GQL: 80c Extreme               │       45.968 ms │ p95:       91.088 ms │ RPS:         21 ║
+║ GQL: 100c Max                  │       68.463 ms │ p95:      123.153 ms │ RPS:         15 ║
 ```
 
 <!-- GRAPHQL_TABLE_END -->

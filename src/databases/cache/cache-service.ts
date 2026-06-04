@@ -7,6 +7,7 @@ import { logger } from "@utils/logger";
 import { LRUCache } from "lru-cache";
 import { CacheCategory, type CacheStats } from "./types";
 import { BloomFilter } from "@utils/bloom-filter";
+import { cacheMetrics } from "./cache-metrics";
 
 // --- EXPORTED CONSTANTS (API Compatibility) ---
 export const API_CACHE_TTL_S = 300;
@@ -343,12 +344,14 @@ export class CacheService {
       this.stats.hits++;
       this.stats.l1Hits++;
       this.recordMetricSync("cache:hit:l1", 1);
+      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
       return l1Value as T;
     }
 
     // 0. Check Negative Cache (Bloom)
     if (!this.negativeInvalidated.has(fullKey) && this.negativeBloom.has(fullKey)) {
       this.stats.hits++;
+      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
       return null;
     }
 
@@ -369,11 +372,13 @@ export class CacheService {
             if (l2Value) {
               const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
 
-              this.recordLatency(performance.now() - start);
+              const responseTime = performance.now() - start;
+              this.recordLatency(responseTime);
               this.l1.set(fullKey, parsed);
               this.stats.hits++;
               this.stats.l2Hits++;
               this.recordMetricSync("cache:hit:l2", 1);
+              cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, responseTime);
               return parsed as T;
             }
           } catch (err) {
@@ -383,6 +388,7 @@ export class CacheService {
 
         this.stats.misses++;
         this.recordMetricSync("cache:miss", 1);
+        cacheMetrics.recordMiss(fullKey, _category || CacheCategory.GENERAL, tenantId);
 
         // 🚀 DISTRIBUTED STAMPEDE PROTECTION
         // Attempt to acquire a lock to prevent thundering herd on the same key.
@@ -428,6 +434,7 @@ export class CacheService {
       this.stats.hits++;
       this.stats.l1Hits++;
       this.recordMetricSync("cache:hit:l1", 1);
+      cacheMetrics.recordHit(fullKey, CacheCategory.GENERAL, tenantId, 0);
       return l1Value as T;
     }
     return null;
@@ -522,6 +529,7 @@ export class CacheService {
     this.l1.set(fullKey, value, { ttl: finalTTL * 1000 });
     this.negativeInvalidated.add(fullKey); // Override bloom filter
     this.addToPrefixMap(fullKey);
+    cacheMetrics.recordSet(fullKey, _category, finalTTL, tenantId);
 
     if (tags.length > 0) {
       const tagSet = this.keyToTags.get(fullKey) || new Set();
@@ -601,6 +609,7 @@ export class CacheService {
       const fullKey = this.generateKey(k, tenantId);
       this.l1.delete(fullKey);
       this.negativeInvalidated.add(fullKey); // Override bloom filter
+      cacheMetrics.recordDelete(fullKey, CacheCategory.GENERAL, tenantId);
       if (this.isL2Ready()) {
         try {
           await this.l2.del(fullKey);
@@ -614,6 +623,9 @@ export class CacheService {
 
   async clearByTags(tags: string[], tenantId: string | null = "*"): Promise<void> {
     this.clearLocalL1ByTags(tags, tenantId);
+    for (const tag of tags) {
+      cacheMetrics.recordClear(`tag:${tag}`, CacheCategory.GENERAL, tenantId);
+    }
     if (this.isL2Ready()) {
       try {
         if (typeof this.l2.multi === "function") {
@@ -643,6 +655,7 @@ export class CacheService {
 
   async clearByPattern(pattern: string, tenantId: string | null = "*") {
     this.clearLocalL1ByPattern(pattern, tenantId);
+    cacheMetrics.recordClear(pattern, CacheCategory.GENERAL, tenantId);
     if (this.isL2Ready()) {
       try {
         const fullPattern = this.generateKey(pattern, tenantId) + "*";
@@ -872,11 +885,16 @@ export class CacheService {
       this.latencyBuffer.length > 0
         ? this.latencyBuffer.reduce((a, b) => a + b, 0) / this.latencyBuffer.length
         : 0;
+    const metricsSnapshot = cacheMetrics.getSnapshot();
     return {
       ...this.stats,
+      hits: metricsSnapshot.hits,
+      misses: metricsSnapshot.misses,
       avgLatency,
       l1Size: this.l1.size,
       tagCount: this.tagMap.size,
+      byCategory: metricsSnapshot.byCategory,
+      byTenant: metricsSnapshot.byTenant,
     };
   }
 }

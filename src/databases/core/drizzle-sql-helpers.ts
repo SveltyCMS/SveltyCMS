@@ -34,6 +34,7 @@ import {
 } from "drizzle-orm";
 import { queryTranslator, type LogicalGroup, type QueryCondition } from "../core/query-ir";
 import type { FindOptions } from "../db-interface";
+import { safeDate } from "./relational-utils";
 
 // 🚀 CENTRALIZED TABLE ALIASES: Shared across all SQL adapters.
 export const SQL_TABLE_ALIASES: Record<string, string> = {
@@ -494,16 +495,11 @@ export function translateCondition(col: Column, cond: QueryCondition): SQL {
   let val = cond.value;
 
   if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
-    if (!(val instanceof Date)) {
-      val = new Date((val as any).getTime());
-    }
+    val = safeDate(val);
   } else if (Array.isArray(val)) {
     val = val.map((v) =>
-      v !== null &&
-      typeof v === "object" &&
-      typeof (v as any).getTime === "function" &&
-      !(v instanceof Date)
-        ? new Date((v as any).getTime())
+      v !== null && typeof v === "object" && typeof (v as any).getTime === "function"
+        ? safeDate(v)
         : v,
     );
   }
@@ -664,11 +660,16 @@ export function applyOrderBy(
   return builder;
 }
 
+const tableSelectionCache = new WeakMap<any, any>();
+
 export function getPhysicalSelection(
   table: any,
   selectionCache: Map<string, any>,
   getColumn: (table: any, name: string, forcePhysical?: boolean) => Column | undefined,
 ): any {
+  let cached = tableSelectionCache.get(table);
+  if (cached) return cached;
+
   const tableName = getTableName(table);
   const lowerName = tableName.toLowerCase();
   const isDynamic =
@@ -682,13 +683,19 @@ export function getPhysicalSelection(
   if (!isDynamic && !isSystem) {
     try {
       const columns = getTableColumns(table);
-      if (columns && Object.keys(columns).length > 0) return columns;
+      if (columns && Object.keys(columns).length > 0) {
+        tableSelectionCache.set(table, columns);
+        return columns;
+      }
     } catch {}
   }
 
   if (isSystem) {
-    const cached = selectionCache.get(systemName);
-    if (cached) return cached;
+    const cachedSel = selectionCache.get(systemName);
+    if (cachedSel) {
+      tableSelectionCache.set(table, cachedSel);
+      return cachedSel;
+    }
   }
 
   const selection: any = {};
@@ -716,5 +723,6 @@ export function getPhysicalSelection(
     selectionCache.set(systemName, selection);
   }
 
+  tableSelectionCache.set(table, selection);
   return selection;
 }

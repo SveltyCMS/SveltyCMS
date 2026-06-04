@@ -378,19 +378,18 @@ export class RelationalAuthModule implements IAuthAdapter {
       async () => {
         const id = utils.generateId() as string;
         const db = this.getDb(options);
-        await db.insert(this.schema.authSessions).values({
+        const now = new Date();
+        const sessionValues = {
           _id: id,
           user_id: sessionData.user_id as string,
           expires: new Date(sessionData.expires),
           tenantId: (sessionData.tenantId as string) || null,
-        });
-        const [result] = await db
-          .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
-          .from(this.schema.authSessions)
-          .where(eq(this.schema.authSessions._id, id))
-          .limit(1);
-        // 🚀 Optimized mapper
-        return utils.convertSessionToISO(result) as unknown as Session;
+          createdAt: now,
+          updatedAt: now,
+        };
+        await db.insert(this.schema.authSessions).values(sessionValues);
+        // 🚀 Optimized mapper: construct the return session object directly to avoid a redundant SELECT query
+        return utils.convertSessionToISO(sessionValues) as unknown as Session;
       },
       "CREATE_SESSION_FAILED",
       undefined,
@@ -418,28 +417,34 @@ export class RelationalAuthModule implements IAuthAdapter {
     sessionId: DatabaseId,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<User | null>> {
-    // 🚀 Retrieve the session and user sequentially to avoid duplicate column name collisions under node:sqlite
     return this.adapter.wrap(
       async () => {
         const db = this.getDb(options);
-        const [session] = await db
-          .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
+        const conditions = [
+          eq(this.schema.authSessions._id, sessionId as string),
+          gt(this.schema.authSessions.expires, isoDateStringToDate(nowISODateString())),
+        ];
+        if (options?.tenantId !== undefined) {
+          conditions.push(
+            options.tenantId === null
+              ? isNull(this.schema.authUsers.tenantId)
+              : eq(this.schema.authUsers.tenantId, options.tenantId as string),
+          );
+        }
+        const results = await db
+          .select({
+            user: this.adapter.getPhysicalSelection(this.schema.authUsers),
+          })
           .from(this.schema.authSessions)
-          .where(
-            and(
-              eq(this.schema.authSessions._id, sessionId as string),
-              gt(this.schema.authSessions.expires, isoDateStringToDate(nowISODateString())),
-            ),
+          .innerJoin(
+            this.schema.authUsers,
+            eq(this.schema.authSessions.user_id, this.schema.authUsers._id),
           )
+          .where(and(...conditions))
           .limit(1);
 
-        if (!session) return null;
-
-        const userRes = await this.getUserById(session.user_id, options);
-        if (!userRes.success) {
-          throw new Error(userRes.message);
-        }
-        return userRes.data;
+        if (results.length === 0) return null;
+        return this.mapUser(results[0].user);
       },
       "VALIDATE_SESSION_FAILED",
       undefined,

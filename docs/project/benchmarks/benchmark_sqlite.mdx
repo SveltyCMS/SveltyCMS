@@ -24,32 +24,38 @@ tags:
 > The full matrix runner (`bun run scripts/benchmark-matrix/index.ts --sql`) always records.
 
 <!-- BENCHMARK_START -->
-## 📊 Latest Performance Audit (03/06/2026, 19:24:24)
+
+## 📊 Latest Performance Audit (04/06/2026, 10:52:47)
 
 > [!WARNING]
 > **Performance Regressions Detected for SQLITE**:
-> - **Hooks/Middleware**: 1.983ms (was 1.983ms, delta: -0.0%) - *Statistical regression detected (critical, confidence: 46%)*
 >
-> *Please investigate potential database adapter performance bottlenecks or environment variance.*
+> - **Hooks/Middleware**: 1.983ms (was 1.983ms, delta: -0.0%) - _Statistical regression detected (critical, confidence: 46%)_
+>
+> _Please investigate potential database adapter performance bottlenecks or environment variance._
 
 **Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
-| Scenario | Avg Latency | Trend | Target Budget | Result |
-| :--- | :--- | :--- | :--- | :--- |
-| **Cold Start** | 282ms | ⚪ (+0.4%) | < 5000ms | 🟢 PASS |
-| **REST (Collections)** | 0.675ms | ⚪ (+0.0%) | < 5ms | 🟢 PASS |
-| **Middleware Hooks** | 1.983ms | ⚪ | < 2ms | 🟢 PASS |
-| **GraphQL (Avg)** | 5.582ms | ⚪ (+0.0%) | < 5ms | 🔴 FAIL |
-| **Million-Row Index** | N/A | ⚪ | < 250ms | ⚪ N/A |
-| **DB Raw (p95)** | 0.056ms | ⚪ | < 50ms | 🟢 PASS |
-| **Setup Quality** | HEALTHY | ⚪ | 100% | PASS |
+
+| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
+| :--------------------- | :---------- | :---------- | :------------ | :------ |
+| **Cold Start**         | 255ms       | ⚪ (-39.5%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 0.675ms     | ⚪ (+0.0%)  | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | 1.983ms     | ⚪          | < 2ms         | 🟢 PASS |
+| **GraphQL (Avg)**      | 4.268ms     | ⚪ (-8.7%)  | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | 0.056ms     | ⚪          | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
+
 **Mixed p95:** 0.000ms | **Trend:** ⚪ (—)
+
 > Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
 
 ### 📈 Historical Latency Trends
+
 ```mermaid
 xychart-beta
   title "SQLITE Latency Trend (last 10 runs)"
@@ -61,36 +67,47 @@ xychart-beta
 ## 📈 Core Infrastructure Trends
 
 ### 🏷️ Database Adapter Performance {#dbRaw}
-**Raw Adapter p95:** 0.056ms | **Target:** < 50ms | **Trend:** ⚪ (+8.5%)
+
+**Raw Adapter p95:** 0.056ms | **Target:** < 50ms | **Trend:** ⚪ (+1.1%)
+
 > Direct database access latency (bypass CMS logic).
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
+
 **Middleware p95:** 1.983ms | **Target:** < 2ms | **Trend:** 🔴 (-0.0%)
+
 > Total overhead of security, logging, and auth hooks.
 
 ### 🏷️ Memory Stability Audit {#memGrowth}
-**Memory RSS Δ:** 0.000MB | **Target:** < 60MB | **Trend:** ⚪ (—)
-> Peak memory growth during stress workload.
 
+**Memory RSS Δ:** 0.000MB | **Target:** < 60MB | **Trend:** ⚪ (—)
+
+> Peak memory growth during stress workload.
 
 ## 🏢 Enterprise Scale Audit
 
 ### 🏷️ Multi-Tenancy Performance {#tenancyAvg}
+
 **Tenancy p95:** 0.000ms | **Trend:** ⚪ (—)
+
 > Measures latency across tenant isolation boundaries.
 
 ### 🏷️ Relational Resolver Latency {#relationalAvg}
-**Relational p95:** 4.202ms | **Trend:** ⚪ (-24.7%)
+
+**Relational p95:** 4.202ms | **Trend:** ⚪ (-10.1%)
+
 > Tests performance of complex JOINs and nested relationship population.
 
 ### 🏷️ Telemetry & Update Performance {#telemetryAvg}
-**Telemetry p95:** 0.000ms | **Trend:** ⚪ (—)
-> Measures overhead of telemetry collection and cryptographic signing.
 
+**Telemetry p95:** 0.000ms | **Trend:** ⚪ (—)
+
+> Measures overhead of telemetry collection and cryptographic signing.
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
 <!-- API_LATENCY_TABLE_START -->
+
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
 > Throughput dropped 67% — check connection pool saturation or lock contention.  
 > **Severe degradation** (+191%) — review recent commits immediately.  
@@ -117,10 +134,13 @@ xychart-beta
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- API_LATENCY_TABLE_END -->
 
 <!-- COLD_START_TABLE_START -->
+
 ### 🏷️ PHASED COLD START ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
 
@@ -128,10 +148,13 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cold Start (IDLE → READY)      │        0.063 ms │ p95:        0.159 ms │ RPS:          0 ║
 ```
+
 <!-- COLD_START_TABLE_END -->
 
 <!-- TRUTH_AUDIT_TABLE_START -->
+
 ### 🏷️ SRE TRUTH AUDIT ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
@@ -141,10 +164,13 @@ xychart-beta
 ║ Local SDK (Full)               │        0.004 ms │ p95:        0.008 ms │ RPS:    226,860 ║
 ║ HTTP End-to-End                │        0.521 ms │ p95:        0.675 ms │ RPS:      1,918 ║
 ```
+
 <!-- TRUTH_AUDIT_TABLE_END -->
 
 <!-- SCAN_TABLE_START -->
+
 ### 🏷️ Self-Healing Content Scan ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/content-scan.test.ts](../../../tests/benchmarks/content-scan.test.ts)
 > 🎯 **Proves**: Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.
 
@@ -152,9 +178,11 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Content Scan (Self-Healing)    │        0.004 ms │ p95:        0.007 ms │ RPS:    159,655 ║
 ```
+
 <!-- SCAN_TABLE_END -->
 
 <!-- HOOKS_TRACE_TABLE_START -->
+
 > Within normal variance — no action needed.  
 > **Check**: `src/services/AIService.ts`
 
@@ -186,10 +214,13 @@ xychart-beta
 ║ Peak RPS                                           │      531.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- HOOKS_TRACE_TABLE_END -->
 
 <!-- EDGE_SYNC_TABLE_START -->
+
 ### 🏷️ Edge Sync & Distributed Cache ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/edge-sync.test.ts](../../../tests/benchmarks/edge-sync.test.ts)
 > 🎯 **Proves**: Verifies distributed L1/L2 cache invalidation latency across simulated nodes.
 
@@ -197,10 +228,13 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Edge Sync Propagation          │       15.619 ms │ p95:       16.173 ms │ RPS:         60 ║
 ```
+
 <!-- EDGE_SYNC_TABLE_END -->
 
 <!-- TELEMETRY_TABLE_START -->
+
 ### 🏷️ Telemetry Collection & Signing ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/telemetry-performance.test.ts](../../../tests/benchmarks/telemetry-performance.test.ts)
 > 🎯 **Proves**: Measures the overhead of telemetry data collection and cryptographic signing.
 
@@ -209,10 +243,13 @@ xychart-beta
 ║ Auth Validation @ 1c           │        0.361 ms │ p95:        0.429 ms │ RPS:      2,553 ║
 ║ HTTP Auth Pipeline @ 8c        │        1.368 ms │ p95:        2.439 ms │ RPS:        698 ║
 ```
+
 <!-- TELEMETRY_TABLE_END -->
 
 <!-- STATE_MACHINE_TABLE_START -->
+
 ### 🏷️ State Machine Transitions ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
 > 🎯 **Proves**: Validates rapid IDLE -> READY self-healing cycles.
 
@@ -220,17 +257,22 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ State Transition (READY -> IDLE -> READY) │       20.931 ms │ p95:       25.083 ms │ RPS:         48 ║
 ```
+
 <!-- STATE_MACHINE_TABLE_END -->
 
 <!-- DB_RAW_P95_TABLE_START -->
+
 > **Measures**: Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.
 > **Code**: `src/databases/<db>/crud-methods.ts`, `src/databases/<db>/adapter-core.ts`
 > **Why**: Adapter bottlenecks cascade to all data operations. Check indexes, connection pools, and query plans.
 > **Correlates**: `index-pressure`, `graphql-api-performance` | **Anti-correlates**: `hooks-performance`
+
 <!-- DB_RAW_P95_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
+
 ### 🏷️ ACID Transaction Overhead ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](../../../tests/benchmarks/transaction-acid.test.ts)
 > 🎯 **Proves**: Measures commit/rollback latency and transaction isolation performance.
 
@@ -239,10 +281,13 @@ xychart-beta
 ║ TX Commit                      │        0.287 ms │ p95:        0.430 ms │ RPS:      2,657 ║
 ║ TX Rollback Integrity          │        0.149 ms │ p95:        0.179 ms │ RPS:      6,700 ║
 ```
+
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
+
 ### 🏷️ System Cache Efficiency ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/cache-performance.test.ts](../../../tests/benchmarks/cache-performance.test.ts)
 > 🎯 **Proves**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
 
@@ -250,9 +295,11 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cache Miss (Bypass)            │        0.461 ms │ p95:        0.618 ms │ RPS:      1,958 ║
 ```
+
 <!-- CACHE_TABLE_END -->
 
 <!-- AI_OVERHEAD_TABLE_START -->
+
 > Within normal variance — no action needed.  
 > **Check**: `src/services/AIService.ts`
 
@@ -278,10 +325,13 @@ xychart-beta
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- AI_OVERHEAD_TABLE_END -->
 
 <!-- TEMPORAL_TABLE_START -->
+
 ### 🏷️ Temporal Integrity Audit ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](../../../tests/benchmarks/temporal-integrity.test.ts)
 > 🎯 **Proves**: Verifies timezone normalization and deterministic UTC persistence.
 
@@ -289,16 +339,21 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Timezone Ingestion             │        1.591 ms │ p95:        1.591 ms │ RPS:        629 ║
 ```
+
 <!-- TEMPORAL_TABLE_END -->
 
 <!-- WIDGETS_TABLE_START -->
+
 > **Measures**: Audits server-side processing cost of built-in widgets (Input, RichText, Relation).
 > **Code**: `src/widgets/*/index.ts`, `src/widgets/widget-factory.ts`
 > **Why**: Widgets compose the content editing experience. Heavy widgets slow every form render.
+
 <!-- WIDGETS_TABLE_END -->
 
 <!-- UX_VITALITY_TABLE_START -->
+
 ### 🏷️ Simulated Admin UX Vitality ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/admin-ux-vitality.test.ts](../../../tests/benchmarks/admin-ux-vitality.test.ts)
 > 🎯 **Proves**: Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.
 
@@ -307,10 +362,13 @@ xychart-beta
 ║ Schema Resolution (8f)         │        1.014 ms │ p95:        1.733 ms │ RPS:        949 ║
 ║ Collection List (11 cols)      │       13.924 ms │ p95:       17.279 ms │ RPS:         71 ║
 ```
+
 <!-- UX_VITALITY_TABLE_END -->
 
 <!-- MEDIA_TABLE_START -->
+
 ### 🏷️ Media Engine & DAM Overhead ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/media-performance.test.ts](../../../tests/benchmarks/media-performance.test.ts)
 > 🎯 **Proves**: Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.
 
@@ -319,10 +377,13 @@ xychart-beta
 ║ SDK: Media Processing          │        0.758 ms │ p95:        1.033 ms │ RPS:      1,050 ║
 ║ HTTP: Media Upload             │        2.271 ms │ p95:        3.108 ms │ RPS:        424 ║
 ```
+
 <!-- MEDIA_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
+
 ### 🏷️ Relational & Nested Queries ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/relational-performance.test.ts](../../../tests/benchmarks/relational-performance.test.ts)
 > 🎯 **Proves**: Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
 
@@ -331,10 +392,13 @@ xychart-beta
 ║ Shallow Relational Query       │        3.675 ms │ p95:        5.859 ms │ RPS:        262 ║
 ║ Deep Relational Query          │        2.642 ms │ p95:        4.202 ms │ RPS:        360 ║
 ```
+
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- OPENAPI_TABLE_START -->
+
 ### 🏷️ OpenAPI Specification Performance ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/openapi-performance.test.ts](../../../tests/benchmarks/openapi-performance.test.ts)
 > 🎯 **Proves**: Generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification.
 
@@ -343,9 +407,11 @@ xychart-beta
 ║ Cold OpenAPI Generation        │        1.298 ms │ p95:        1.298 ms │ RPS:        771 ║
 ║ Warm OpenAPI Hit (Cached)      │        0.850 ms │ p95:        1.000 ms │ RPS:      1,087 ║
 ```
+
 <!-- OPENAPI_TABLE_END -->
 
 <!-- AUTH_TRACE_TABLE_START -->
+
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
 > Throughput dropped 98% — check connection pool saturation or lock contention.  
 > **Severe degradation** (+6201%) — review recent commits immediately.  
@@ -374,10 +440,13 @@ xychart-beta
 ║ Auth Memory RSS Δ                                  │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- AUTH_TRACE_TABLE_END -->
 
 <!-- SECURITY_TABLE_START -->
+
 ### 🏷️ Security Hardening & Audit ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/security-audit.test.ts](../../../tests/benchmarks/security-audit.test.ts)
 > 🎯 **Proves**: Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.
 
@@ -390,38 +459,50 @@ xychart-beta
 ║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS: 10,650,762 ║
 ║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 15,144,631 ║
 ```
+
 <!-- SECURITY_TABLE_END -->
 
 <!-- REST_TABLE_START -->
+
 ### 🏷️ REST API Performance ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.489 ms │ p95:        1.009 ms │ RPS:      2,044 ║
-║ Collection Schema              │        2.087 ms │ p95:        3.705 ms │ RPS:        479 ║
-║ Collection Find (List)         │        2.211 ms │ p95:        3.857 ms │ RPS:        452 ║
-║ Collection Search              │        2.138 ms │ p95:        3.734 ms │ RPS:        468 ║
+║ Health Check                   │        0.741 ms │ p95:        1.404 ms │ RPS:      1,349 ║
+║ Collection Schema              │        2.375 ms │ p95:        4.460 ms │ RPS:        421 ║
+║ Collection Find (List)         │        2.343 ms │ p95:        4.080 ms │ RPS:        427 ║
+║ Collection Search              │        2.340 ms │ p95:        4.113 ms │ RPS:        427 ║
 ```
+
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
+
 ### 🏷️ GraphQL API Performance ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
 > 🎯 **Proves**: Resolver execution time and throughput for common queries.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health             │        0.952 ms │ p95:        1.582 ms │ RPS:      1,051 ║
-║ GQL: Collection List           │        5.582 ms │ p95:        7.646 ms │ RPS:        179 ║
-║ GQL: Entries (Stable Collection) │        2.967 ms │ p95:        4.924 ms │ RPS:        337 ║
-║ GQL: Concurrent Load           │       10.766 ms │ p95:       13.009 ms │ RPS:         93 ║
+║ GQL: 5c Warmup                 │        3.740 ms │ p95:        5.842 ms │ RPS:        242 ║
+║ GQL: 10c Light                 │        6.410 ms │ p95:       10.078 ms │ RPS:        154 ║
+║ GQL: 20c Moderate              │       12.725 ms │ p95:       19.643 ms │ RPS:         79 ║
+║ GQL: 40c Heavy                 │       24.555 ms │ p95:       37.750 ms │ RPS:         41 ║
+║ GQL: 60c Stress                │       33.530 ms │ p95:       51.074 ms │ RPS:         30 ║
+║ GQL: 80c Extreme               │       35.342 ms │ p95:       70.336 ms │ RPS:         28 ║
+║ GQL: 100c Max                  │       53.039 ms │ p95:       94.389 ms │ RPS:         19 ║
 ```
+
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- SEO_TABLE_START -->
+
 ### 🏷️ Enterprise SEO Suite Audit ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/seo-performance.test.ts](../../../tests/benchmarks/seo-performance.test.ts)
 > 🎯 **Proves**: E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.
 
@@ -432,15 +513,19 @@ xychart-beta
 ║ Robots.txt Generation          │        0.168 ms │ p95:        0.265 ms │ RPS:      5,969 ║
 ║ Missing Path (404 Log)         │        0.770 ms │ p95:        1.393 ms │ RPS:      1,299 ║
 ```
+
 <!-- SEO_TABLE_END -->
 
 <!-- BROADCAST_TABLE_START -->
+
 > **Measures**: Benchmarks network-layer broadcast latency (SSE vs WebSocket).
 > **Code**: `src/services/RealtimeService.ts`
 > **Why**: Realtime features are latency-sensitive. Broadcast delays break collaborative editing.
+
 <!-- BROADCAST_TABLE_END -->
 
 <!-- REAL_TIME_TABLE_START -->
+
 ### 🏷️ WebSocket & Realtime Latency ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/realtime-performance.test.ts](../../../tests/benchmarks/realtime-performance.test.ts)
@@ -451,9 +536,11 @@ xychart-beta
 ║ 10 Listeners                   │        0.001 ms │ p95:        0.002 ms │ RPS:    749,379 ║
 ║ 50 Listeners                   │        0.002 ms │ p95:        0.004 ms │ RPS:    424,144 ║
 ```
+
 <!-- REAL_TIME_TABLE_END -->
 
 <!-- NEGATIVE_CACHE_TABLE_START -->
+
 ### 🏷️ Negative Cache Performance ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](../../../tests/benchmarks/negative-cache.test.ts)
@@ -464,9 +551,11 @@ xychart-beta
 ║ First Miss (DB)                │        8.860 ms │ p95:        8.860 ms │ RPS:        113 ║
 ║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    550,858 ║
 ```
+
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
 <!-- REVISION_STRESS_TABLE_START -->
+
 ### 🏷️ Revision & History Growth ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/revision-stress.test.ts](../../../tests/benchmarks/revision-stress.test.ts)
@@ -477,9 +566,11 @@ xychart-beta
 ║ Latest Read (High Revision Count) │        1.137 ms │ p95:        2.272 ms │ RPS:        880 ║
 ║ History List Retrieval         │        0.961 ms │ p95:        1.593 ms │ RPS:      1,041 ║
 ```
+
 <!-- REVISION_STRESS_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
+
 ### 🏷️ Memory Stability & GC Behavior ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](../../../tests/benchmarks/memory-stability.test.ts)
@@ -489,9 +580,11 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     12,050 ║
 ```
+
 <!-- MEMORY_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
+
 ### 🏷️ Multi-Tenant Performance & Isolation ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](../../../tests/benchmarks/multi-tenant-performance.test.ts)
@@ -502,9 +595,11 @@ xychart-beta
 ║ Single Tenant Baseline         │        3.949 ms │ p95:        6.885 ms │ RPS:        253 ║
 ║ Multi-Tenant Context Switching │        1.973 ms │ p95:        4.739 ms │ RPS:        507 ║
 ```
+
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
+
 ### 🏷️ Realistic Mixed Workload ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/mixed-workload.test.ts](../../../tests/benchmarks/mixed-workload.test.ts)
@@ -514,15 +609,19 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Mixed Workload                 │        2.829 ms │ p95:        6.281 ms │ RPS:        333 ║
 ```
+
 <!-- MIXED_TABLE_END -->
 
 <!-- GQL_STRESS_TABLE_START -->
+
 > **Measures**: High-concurrency GraphQL query stress test for resolver efficiency.
 > **Code**: `src/routes/api/graphql/+server.ts`, `src/routes/api/graphql/resolvers/`
 > **Why**: GraphQL under load reveals resolver inefficiencies and connection pool exhaustion.
+
 <!-- GQL_STRESS_TABLE_END -->
 
 <!-- MIGRATION_TABLE_START -->
+
 ### 🏷️ Bulk Migration & Scale ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/migration-scale.test.ts](../../../tests/benchmarks/migration-scale.test.ts)
@@ -533,9 +632,11 @@ xychart-beta
 ║ Bulk Migration (10k)           │       25.318 ms │ p95:       39.754 ms │ RPS:         40 ║
 ║ Post-Migration Read            │        5.858 ms │ p95:       10.096 ms │ RPS:        171 ║
 ```
+
 <!-- MIGRATION_TABLE_END -->
 
 <!-- INDEX_PRESSURE_TABLE_START -->
+
 ### 🏷️ Million-Row Index Pressure ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/index-pressure.test.ts](../../../tests/benchmarks/index-pressure.test.ts)
@@ -546,9 +647,11 @@ xychart-beta
 ║ Sorted List (25k rows)         │        3.201 ms │ p95:        5.207 ms │ RPS:        312 ║
 ║ Filtered Query (25k rows)      │        2.547 ms │ p95:        4.567 ms │ RPS:        393 ║
 ```
+
 <!-- INDEX_PRESSURE_TABLE_END -->
 
 <!-- CONTENT_STRESS_TABLE_START -->
+
 > Within normal variance — no action needed.  
 > **Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
@@ -573,10 +676,13 @@ xychart-beta
 ║ Scale Efficiency                                   │        ELITE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- CONTENT_STRESS_TABLE_END -->
 
 <!-- CACHE_EFFICIENCY_TABLE_START -->
+
 ### 🏷️ Cache Hit/Miss Ratio & Efficiency ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/cache-hit-ratio.test.ts](../../../tests/benchmarks/cache-hit-ratio.test.ts)
 > 🎯 **Proves**: Measures Redis cache hit/miss ratio, cold vs warm read speedup, and invalidation performance.
 
@@ -584,67 +690,86 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cache Miss (Bypass)            │        0.461 ms │ p95:        0.618 ms │ RPS:      1,958 ║
 ```
+
 <!-- CACHE_EFFICIENCY_TABLE_END -->
 
 <!-- MEDIA_UPLOAD_TABLE_START -->
+
 ### 🏷️ Media Upload Stress & Throughput ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/media-upload-stress.test.ts](../../../tests/benchmarks/media-upload-stress.test.ts)
 > 🎯 **Proves**: Measures large file upload throughput, concurrent upload handling, and streaming efficiency.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Upload (10MB)           │       24.406 ms │ p95:       28.731 ms │ RPS:         41 ║
-║ Small Upload (1MB)             │        7.039 ms │ p95:       14.104 ms │ RPS:        142 ║
+║ Single Upload (10MB)           │       21.858 ms │ p95:       32.228 ms │ RPS:         46 ║
+║ Small Upload (1MB)             │        6.211 ms │ p95:       12.926 ms │ RPS:        161 ║
 ```
+
 <!-- MEDIA_UPLOAD_TABLE_END -->
 
 <!-- JOURNEY_TABLE_START -->
+
 > **Measures**: E2E journey: Login -> List -> View -> Edit -> Save -> Realtime. Measures cumulative latency.
 > **Code**: `src/hooks/handle-authentication.ts`, `src/routes/api/[...path]/+server.ts`
 > **Why**: End-to-end journey latency is what users actually feel. Individual benchmarks don't capture this.
+
 <!-- JOURNEY_TABLE_END -->
 
 <!-- CONCURRENCY_TABLE_START -->
+
 ### 🏷️ Concurrency & Race Condition ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 > 🎯 **Proves**: Verifies atomic consistency and lost-update protection.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.077 ms │ p95:        1.077 ms │ RPS:        928 ║
+║ Concurrent PATCH Bomb          │        1.152 ms │ p95:        1.152 ms │ RPS:        868 ║
 ```
+
 <!-- CONCURRENCY_TABLE_END -->
 
 <!-- THROUGHPUT_TABLE_START -->
+
 ### 🏷️ Multi-Doc Concurrency Throughput ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
 > 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        503 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        492 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        432 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        501 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        491 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        429 ║
 ```
+
 <!-- THROUGHPUT_TABLE_END -->
 
 <!-- MAXRPS_TABLE_START -->
+
 > ⏳ **Max Throughput — No Throttle**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/concurrency-max.test.ts](../../../tests/benchmarks/concurrency-max.test.ts)
+
 <!-- MAXRPS_TABLE_END -->
 
 <!-- LOCALSDK_TABLE_START -->
+
 > ⏳ **Local SDK Throughput**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/local-api-throughput.test.ts](../../../tests/benchmarks/local-api-throughput.test.ts)
+
 <!-- LOCALSDK_TABLE_END -->
 
 <!-- FAST_FAIL_TABLE_START -->
+
 > **Measures**: Measures system overhead when downstream dependencies (DB/Redis) fail or timeout.
 > **Code**: `src/hooks.server.ts`, `src/services/circuit-breaker.ts`
 > **Why**: Failure propagation speed determines system resilience. Fast-fail prevents cascade.
+
 <!-- FAST_FAIL_TABLE_END -->
 
 <!-- CIRCUIT_BREAKER_TABLE_START -->
+
 ### 🏷️ Circuit Breaker Failover ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
@@ -654,9 +779,11 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Circuit Breaker Fallback       │        0.296 ms │ p95:        1.458 ms │ RPS:      3,373 ║
 ```
+
 <!-- CIRCUIT_BREAKER_TABLE_END -->
 
 <!-- RESILIENCE_TABLE_START -->
+
 ### 🏷️ Chaos & Infrastructure Resilience ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/chaos-resilience.test.ts](../../../tests/benchmarks/chaos-resilience.test.ts)
@@ -666,9 +793,11 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Chaos Resilience (Brownout)    │      184.809 ms │ p95:      722.589 ms │ RPS:          5 ║
 ```
+
 <!-- RESILIENCE_TABLE_END -->
 
 <!-- THROTTLING_TABLE_START -->
+
 ### 🏷️ Throttling & Backoff Stress ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
@@ -678,9 +807,11 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Throttling Enforcement         │        0.846 ms │ p95:        3.191 ms │ RPS:      1,183 ║
 ```
+
 <!-- THROTTLING_TABLE_END -->
 
 <!-- GDPR_TABLE_START -->
+
 ### 🏷️ GDPR Compliance Speed ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
@@ -690,9 +821,11 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Deep Deletion Speed            │        1.110 ms │ p95:        2.254 ms │ RPS:        901 ║
 ```
+
 <!-- GDPR_TABLE_END -->
 
 <!-- BUILD_TABLE_START -->
+
 ### 🏷️ Production Build Analysis ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/modules/build-analysis.test.ts](../../../tests/benchmarks/modules/build-analysis.test.ts)
@@ -701,39 +834,51 @@ xychart-beta
 ```text
 ║ Production Build               │    27342.252 ms │ p95:    27342.252 ms │ RPS:          0 ║
 ```
+
 <!-- BUILD_TABLE_END -->
 
 <!-- DX_TOOLING_TABLE_START -->
+
 > **Measures**: Measures overhead of the build, sync, and lint toolchain.
 > **Code**: `scripts/quality-gate.ts`, `vite.config.ts`
 > **Why**: Slow tooling kills developer productivity. Every second matters in CI/CD.
+
 <!-- DX_TOOLING_TABLE_END -->
 
 <!-- CACHE_SVC_TABLE_START -->
+
 > **Measures**: CacheService L1 hit latency and pattern invalidation under noise.
 > **Code**: `src/databases/cache/cache-service.ts`
 > **Why**: L1 cache is the fastest retrieval path. Degradation here affects every cached operation.
+
 <!-- CACHE_SVC_TABLE_END -->
 
 <!-- LOCAL_API_TABLE_START -->
+
 > **Measures**: SDK overhead (LocalCMS) vs direct adapter calls.
 > **Code**: `src/services/sdk/local-cms.ts`, `src/services/sdk/namespaces/*.ts`
 > **Why**: Zero-tax SDK is a core performance promise. Overhead here defeats the purpose of server-side calls.
+
 <!-- LOCAL_API_TABLE_END -->
 
 <!-- SOVEREIGNTY_TABLE_START -->
+
 > **Measures**: PII blocking and data sovereignty enforcement with cross-region failover.
 > **Code**: `src/services/DataResidencyService.ts`, `src/hooks/handle-authentication.ts`
 > **Why**: GDPR/CCPA compliance depends on fast data residency checks. Slow checks delay every request.
+
 <!-- SOVEREIGNTY_TABLE_END -->
 
 <!-- PROD_DAY_TABLE_START -->
+
 > **Measures**: Full production day with mixed workload, 100% reliability.
 > **Code**: `src/routes/api/[...path]/+server.ts`, `src/databases/<db>/crud-methods.ts`, `src/databases/cache/cache-service.ts`
 > **Why**: The ultimate test. Reveals slow memory leaks, cache churn, and connection pool drift.
+
 <!-- PROD_DAY_TABLE_END -->
 
 <!-- SETUP_PROXY_TABLE_START -->
+
 > Within normal variance — no action needed.  
 > **Check**: `src/hooks/handle-system-state.ts` · `src/routes/setup/+page.server.ts`
 
@@ -758,15 +903,16 @@ xychart-beta
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- SETUP_PROXY_TABLE_END -->
 
-
---- 
+---
 
 ## 🔬 Host Environment
-| CPU | Cores | RAM | Runtime |
-| :--- | :--- | :--- | :--- |
-| Intel(R) Core(TM) Ultra 9 275HX | 24 | 63GB | Bun 1.3.14 / Node v24.3.0 |
+
+| CPU                             | Cores | RAM  | Runtime                   |
+| :------------------------------ | :---- | :--- | :------------------------ |
+| Intel(R) Core(TM) Ultra 9 275HX | 24    | 63GB | Bun 1.3.14 / Node v24.3.0 |
 
 <!-- BENCHMARK_END -->
 
@@ -1117,8 +1263,10 @@ xychart-beta
 
 > **Budget**: ≤ 5,000ms (suite) | **Tags**: `cpu` | **Level**: 2
 
-<!-- LOCAL_API_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 31% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+46%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1335,14 +1483,13 @@ xychart-beta
 
 <!-- UX_VITALITY_TABLE_END -->
 
-### 🏷️ Media Engine & DAM Overhead 🟠 avg +14% p95 +17% rps -12% (11 runs)
+### 🏷️ Media Engine & DAM Overhead 🟢 avg -4% p95 +6% (15 runs)
 
 > **Budget**: ≤ 50,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
 <!-- MEDIA_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-> Throughput dropped 12% — check connection pool saturation or lock contention.  
+> Within normal variance — no action needed.  
 > **Check**: `src/services/MediaService.ts` · `src/databases/media/`
 
 ```text
@@ -1351,8 +1498,8 @@ xychart-beta
 ║                   File: tests/benchmarks/media-upload-stress.test.ts                    ║
 ║Measures throughput for large file uploads, concurrent transfers, and streaming efficiency.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Upload (10MB)           │       24.758 ms │ p95:       33.755 ms │ RPS:         40 ║
-║ Small Upload (1MB)             │        6.933 ms │ p95:       13.399 ms │ RPS:        144 ║
+║ Single Upload (10MB)           │       21.858 ms │ p95:       32.228 ms │ RPS:         46 ║
+║ Small Upload (1MB)             │        6.211 ms │ p95:       12.926 ms │ RPS:        161 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1360,10 +1507,10 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Upload 10MB                                        │       24.758 ms       ║
-║ Upload 1MB                                         │        6.933 ms       ║
-║ Throughput                                         │        403.9 MB/s     ║
-║ Small RPS                                          │      144.000 req/s    ║
+║ Upload 10MB                                        │       21.858 ms       ║
+║ Upload 1MB                                         │        6.211 ms       ║
+║ Throughput                                         │        457.5 MB/s     ║
+║ Small RPS                                          │      161.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1512,12 +1659,15 @@ xychart-beta
 
 <!-- SECURITY_TABLE_END -->
 
-### 🏷️ REST API Performance 🟢 avg -22% p95 -28% rps +25% (34 runs)
+### 🏷️ REST API Performance 🟠 avg +10% rps -11% (40 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- REST_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+> Throughput dropped 11% — check connection pool saturation or lock contention.  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1525,10 +1675,10 @@ xychart-beta
 ║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.489 ms │ p95:        1.009 ms │ RPS:      2,044 ║
-║ Collection Schema              │        2.087 ms │ p95:        3.705 ms │ RPS:        479 ║
-║ Collection Find (List)         │        2.211 ms │ p95:        3.857 ms │ RPS:        452 ║
-║ Collection Search              │        2.138 ms │ p95:        3.734 ms │ RPS:        468 ║
+║ Health Check                   │        0.741 ms │ p95:        1.404 ms │ RPS:      1,349 ║
+║ Collection Schema              │        2.375 ms │ p95:        4.460 ms │ RPS:        421 ║
+║ Collection Find (List)         │        2.343 ms │ p95:        4.080 ms │ RPS:        427 ║
+║ Collection Search              │        2.340 ms │ p95:        4.113 ms │ RPS:        427 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1536,32 +1686,39 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.489 ms       ║
-║ Collection Schema                                  │        2.087 ms       ║
-║ Collection Find (List)                             │        2.211 ms       ║
-║ Collection Search                                  │        2.138 ms       ║
+║ Health Check                                       │        0.741 ms       ║
+║ Collection Schema                                  │        2.375 ms       ║
+║ Collection Find (List)                             │        2.343 ms       ║
+║ Collection Search                                  │        2.340 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- REST_TABLE_END -->
 
-### 🏷️ GraphQL API Performance ⚪ avg +4% (50 runs)
+### 🏷️ GraphQL API Performance 🔴 avg +24% p95 +30% rps -24% (28 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- GRAPHQL_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 24% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+24%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                          SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                          ║
-║                 File: tests/benchmarks/graphql-api-performance.test.ts                  ║
-║   Measures GraphQL resolver performance and throughput across varied query scenarios.   ║
+║                         SVELTYCMS — GRAPHQL CAPACITY DISCOVERY                          ║
+║                      File: tests/benchmarks/graphql-stress.test.ts                      ║
+║  Discovers the server's maximum sustainable GraphQL throughput by ramping concurrency   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health             │        0.952 ms │ p95:        1.582 ms │ RPS:      1,051 ║
-║ GQL: Collection List           │        5.582 ms │ p95:        7.646 ms │ RPS:        179 ║
-║ GQL: Entries (Stable Collection) │        2.967 ms │ p95:        4.924 ms │ RPS:        337 ║
-║ GQL: Concurrent Load           │       10.766 ms │ p95:       13.009 ms │ RPS:         93 ║
+║ GQL: 5c Warmup                 │        5.158 ms │ p95:        8.228 ms │ RPS:        175 ║
+║ GQL: 10c Light                 │        9.510 ms │ p95:       14.333 ms │ RPS:        104 ║
+║ GQL: 20c Moderate              │       17.825 ms │ p95:       27.449 ms │ RPS:         56 ║
+║ GQL: 40c Heavy                 │       32.719 ms │ p95:       51.616 ms │ RPS:         30 ║
+║ GQL: 60c Stress                │       45.109 ms │ p95:       69.158 ms │ RPS:         22 ║
+║ GQL: 80c Extreme               │       46.110 ms │ p95:       91.525 ms │ RPS:         22 ║
+║ GQL: 100c Max                  │       66.216 ms │ p95:      116.297 ms │ RPS:         15 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1569,10 +1726,9 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.952 ms       ║
-║ Collection List                                    │        5.582 ms       ║
-║ Entries Query                                      │        2.967 ms       ║
-║ Peak RPS                                           │     1050.700 req/s    ║
+║ Max Sustainable Concurrency                        │      100.000 connections ║
+║ Max Sustainable Throughput                         │      175.000 req/s    ║
+║ Capacity Rating                                    │   ENTERPRISE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1583,7 +1739,11 @@ xychart-beta
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
 <!-- SEO_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 22% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+27%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1812,7 +1972,11 @@ xychart-beta
 > **Budget**: ≤ 180,000ms (suite) | **Tags**: `cpu`, `disk` | **Level**: 5
 
 <!-- INDEX_PRESSURE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 42% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+71%) — review recent commits immediately.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1911,9 +2075,9 @@ xychart-beta
 ║                  File: tests/benchmarks/concurrency-throughput.test.ts                  ║
 ║         100 writes across 10, 100, 1000 docs. Same work, different parallelism.         ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        507 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        499 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        432 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        503 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        486 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        426 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1922,12 +2086,13 @@ xychart-beta
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Database                                           │       SQLITE          ║
-║ 10 docs × 10 RPS                                   │      507.454 req/s    ║
-║ 100 docs × 1 RPS                                   │      498.614 req/s    ║
-║ 1000 docs × 1 RPS                                  │      432.048 req/s    ║
-║ Scaling (1000÷10)                                  │         0.9×          ║
+║ 10 docs × 10 RPS                                   │      502.989 req/s    ║
+║ 100 docs × 1 RPS                                   │      485.688 req/s    ║
+║ 1000 docs × 1 RPS                                  │      426.132 req/s    ║
+║ Scaling (1000÷10)                                  │         0.8×          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- CONCURRENCY_TABLE_END -->
 
 ### 🏷️ Failure Propagation & Fast-Fail Audit ⚪ —

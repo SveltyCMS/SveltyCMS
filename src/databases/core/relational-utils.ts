@@ -4,7 +4,7 @@
  */
 
 import { generateUUID as uuidv4 } from "@utils/native-utils";
-import { toISOString, isoDateStringToDate, nowISODateString } from "@src/utils/date";
+import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import type {
   DatabaseError,
   DatabaseId,
@@ -73,50 +73,52 @@ const DATE_FIELDS = new Set([
  * 🚀 High-Performance Data Transformer
  * Guaranteed to preserve integrity even in minified production environments.
  */
+export const safeDate = (input: any): Date => {
+  if (input && typeof input === "object" && typeof (input as any).getTime === "function") {
+    return new Date((input as any).getTime());
+  }
+  return new Date(input);
+};
+
+/**
+ * 🚀 High-Performance Data Transformer
+ * Guaranteed to preserve integrity even in minified production environments.
+ */
 export function convertDatesToISO(row: any): any {
   if (!row) return row;
-
-  // 1. Create a clean result object
-  const result: any = {};
-
-  // 2. EXHAUSTIVE CRAWL: Capture everything the driver returned
-  // Drizzle results are sometimes Proxies; crawling helps preserve keys.
-  // 🚀 Track hasJsonField during crawl to skip Set lookups on non-JSON rows
-  const keys = Object.getOwnPropertyNames(row).concat(Object.keys(row));
-  let hasJsonField = false;
-  for (const key of keys) {
-    if (result[key] === undefined) {
-      result[key] = row[key];
-      if (!hasJsonField && JSON_FIELDS.has(key)) hasJsonField = true;
-    }
+  if (Array.isArray(row)) {
+    return row.map(convertDatesToISO);
   }
 
-  // 3. TRANSFORMATIONS
-  for (const key in result) {
-    const val = result[key];
+  const result: any = {};
+  const keys = Object.keys(row);
+
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    let v = row[k];
 
     if (
-      val instanceof Date ||
-      (val && typeof val === "object" && typeof (val as any).getTime === "function")
+      v instanceof Date ||
+      (v && typeof v === "object" && typeof (v as any).getTime === "function")
     ) {
-      result[key] = toISOString(val instanceof Date ? val : new Date((val as any).getTime()));
+      v = (v instanceof Date ? v : new Date((v as any).getTime())).toISOString();
     } else if (
-      hasJsonField &&
-      JSON_FIELDS.has(key) &&
-      typeof val === "string" &&
-      (val.startsWith("{") || val.startsWith("["))
+      JSON_FIELDS.has(k) &&
+      typeof v === "string" &&
+      v.length > 1 &&
+      (v[0] === "{" || v[0] === "[")
     ) {
       try {
-        const parsed = JSON.parse(val);
-        result[key] = parsed;
-        // HYBRID FLATTENING: Dynamic data to top-level
-        if (key === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const parsed = JSON.parse(v);
+        v = parsed;
+        if (k === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
           Object.assign(result, parsed);
         }
       } catch {
-        result[key] = val;
+        // Keep original string
       }
     }
+    result[k] = v;
   }
 
   return result;
@@ -124,25 +126,25 @@ export function convertDatesToISO(row: any): any {
 
 export const convertArrayDatesToISO = (rows: any[]) => {
   if (!rows || rows.length === 0) return [];
-  const len = rows.length;
-  const result = Array.from({ length: len });
-  for (let i = 0; i < len; i++) {
-    result[i] = convertDatesToISO(rows[i]);
-  }
-  return result;
+  return rows.map(convertDatesToISO);
 };
 
 export function convertISOToDates(data: any): any {
   if (!data) return data;
+  if (Array.isArray(data)) {
+    return data.map(convertISOToDates);
+  }
+
   const result: any = Object.assign({}, data);
-  for (const key in result) {
+  const keys = Object.keys(result);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
     const val = result[key];
     if (DATE_FIELDS.has(key)) {
       if (typeof val === "string" && val.length > 5) {
         result[key] = isoDateStringToDate(val as any);
       } else if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
         // 🚀 CROSS-CONTEXT FIX: Always re-wrap if it looks like a Date.
-        // This handles cases where 'instanceof Date' fails due to multiple constructor instances (cross-chunk).
         result[key] = new Date((val as any).getTime());
       }
     } else if (JSON_FIELDS.has(key) && val !== null && typeof val === "object") {

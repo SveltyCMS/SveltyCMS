@@ -30,6 +30,10 @@ export abstract class BaseAdapter {
   public readonly utils: any = relationalUtils;
   protected hooks: DatabaseHook[] = [];
   private hookCache = new Map<string, DatabaseHook[]>();
+  private compiledHooks = new Map<
+    string,
+    (collection: string, data: any, options?: any) => Promise<any>
+  >();
 
   /**
    * 🚀  Registers a global interceptor for database operations.
@@ -41,6 +45,7 @@ export abstract class BaseAdapter {
     this.hooks.push({ priority: 100, ...hook });
     this.hooks.sort((a, b) => (a.priority || 100) - (b.priority || 100));
     this.hookCache.clear(); // Invalidate cache
+    this.compiledHooks.clear(); // Invalidate compiled cache
     logger.debug(`[Hooks] Registered ${hook.type}:${hook.action} for ${hook.id}`);
   }
 
@@ -58,28 +63,33 @@ export abstract class BaseAdapter {
     if (this.hooks.length === 0) return data;
 
     const cacheKey = `${type}:${action}`;
-    let activeHooks = this.hookCache.get(cacheKey);
+    let compiled = this.compiledHooks.get(cacheKey);
 
-    if (activeHooks === undefined) {
-      activeHooks = this.hooks.filter((h) => h.type === type && h.action === action);
-      this.hookCache.set(cacheKey, activeHooks);
-    }
-
-    if (activeHooks.length === 0) return data;
-
-    let result = data;
-    for (let i = 0, len = activeHooks.length; i < len; i++) {
-      const hook = activeHooks[i];
-      try {
-        const hookResult = await hook.handler(collection, result, options);
-        if (hookResult !== undefined && type === "before") {
-          result = hookResult;
-        }
-      } catch (error) {
-        logger.error(`[Hooks] Hook '${hook.id}' failed:`, error);
+    if (compiled === undefined) {
+      const activeHooks = this.hooks.filter((h) => h.type === type && h.action === action);
+      if (activeHooks.length === 0) {
+        compiled = async (_coll, d) => d;
+      } else {
+        compiled = async (coll, d, opts) => {
+          let result = d;
+          for (let i = 0, len = activeHooks.length; i < len; i++) {
+            const hook = activeHooks[i];
+            try {
+              const hookResult = await hook.handler(coll, result, opts);
+              if (hookResult !== undefined && type === "before") {
+                result = hookResult;
+              }
+            } catch (error) {
+              logger.error(`[Hooks] Hook '${hook.id}' failed:`, error);
+            }
+          }
+          return result;
+        };
       }
+      this.compiledHooks.set(cacheKey, compiled);
     }
-    return result;
+
+    return compiled(collection, data, options);
   }
 
   /**

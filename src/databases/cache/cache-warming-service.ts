@@ -12,8 +12,8 @@
  */
 
 import { logger } from "@utils/logger";
-import { cacheService } from "./cache/cache-service";
-import { CacheCategory } from "./cache/types";
+import { cacheService } from "./cache-service";
+import { CacheCategory } from "./types";
 
 export class CacheWarmingService {
   private lastReconcile = 0;

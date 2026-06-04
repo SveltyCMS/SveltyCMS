@@ -340,6 +340,22 @@ export async function handleTestingRoutes(
         /* already exists */
       }
 
+      // Clear existing throughput docs to prevent UNIQUE constraint violations
+      try {
+        await adapter.crud.deleteMany(
+          collectionId,
+          {},
+          {
+            tenantId,
+            permanent: true,
+          },
+        );
+      } catch (err: any) {
+        logger.warn(
+          `[testing] Failed to clear collection ${collectionId} before seeding: ${err.message}`,
+        );
+      }
+
       // Seed in batches
       const BATCH = 100;
       let seeded = 0;
