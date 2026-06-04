@@ -378,7 +378,12 @@ export class CacheService {
               this.stats.hits++;
               this.stats.l2Hits++;
               this.recordMetricSync("cache:hit:l2", 1);
-              cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, responseTime);
+              cacheMetrics.recordHit(
+                fullKey,
+                _category || CacheCategory.GENERAL,
+                tenantId,
+                responseTime,
+              );
               return parsed as T;
             }
           } catch (err) {
@@ -405,7 +410,7 @@ export class CacheService {
           //   b) Automatically after TTL expires (500ms fallback)
         }
 
-        return undefined;
+        return null;
       } finally {
         // 🛡️ CRITICAL: If we acquired a lock but returned undefined (miss),
         // the external caller will populate the cache via set(). We defer
@@ -820,9 +825,12 @@ export class CacheService {
       // O(bucket) scan instead of O(all)
       this._isBulkClearing = true;
       try {
+        // Strip glob characters (*, ?) for prefix matching — generateKey
+        // preserves them literally, but startsWith needs the prefix only
+        const matchPrefix = fullPattern.replace(/[*?]+$/, "");
         const keys = Array.from(bestBucket);
         for (let i = 0; i < keys.length; i++) {
-          if (keys[i].startsWith(fullPattern)) {
+          if (keys[i].startsWith(matchPrefix)) {
             this.l1.delete(keys[i]);
           }
         }
@@ -839,9 +847,11 @@ export class CacheService {
     }
 
     // FALLBACK: Only used when no prefix bucket exists (should be rare)
+    // Strip glob characters for prefix matching (same as fast path above)
+    const fallbackPrefix = fullPattern.replace(/[*?]+$/, "");
     const allKeys = Array.from(this.l1.keys());
     for (let i = 0; i < allKeys.length; i++) {
-      if (allKeys[i].startsWith(fullPattern)) {
+      if (allKeys[i].startsWith(fallbackPrefix)) {
         this.l1.delete(allKeys[i]);
         this.removeFromPrefixMap(allKeys[i]);
       }

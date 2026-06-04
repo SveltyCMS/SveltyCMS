@@ -25,7 +25,7 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 10:52:47)
+## 📊 Latest Performance Audit (04/06/2026, 11:40:36)
 
 > [!WARNING]
 > **Performance Regressions Detected for SQLITE+REDIS**:
@@ -40,10 +40,10 @@ tags:
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
 | :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 273ms       | ⚪ (-27.1%) | < 5000ms      | 🟢 PASS |
+| **Cold Start**         | 257ms       | ⚪ (-27.6%) | < 5000ms      | 🟢 PASS |
 | **REST (Collections)** | 2.021ms     | 🟢 (+0.0%)  | < 5ms         | 🟢 PASS |
 | **Middleware Hooks**   | 3.052ms     | ⚪          | < 2ms         | 🔴 FAIL |
-| **GraphQL (Avg)**      | 6.004ms     | ⚪ (+5.3%)  | < 5ms         | 🔴 FAIL |
+| **GraphQL (Avg)**      | 6.004ms     | ⚪ (+2.5%)  | < 5ms         | 🔴 FAIL |
 | **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
 | **DB Raw (p95)**       | 0.051ms     | ⚪          | < 50ms        | 🟢 PASS |
 | **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
@@ -400,7 +400,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.275 ms │ p95:        1.275 ms │ RPS:        784 ║
+║ Concurrent PATCH Bomb          │        2.128 ms │ p95:        2.128 ms │ RPS:        470 ║
 ```
 
 <!-- CONCURRENCY_TABLE_END -->

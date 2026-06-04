@@ -305,16 +305,18 @@ SveltyCMS ships with an enterprise-grade benchmark intelligence system — 48 te
 | **Differential execution**    | `--differential` runs only tests affected by recent code changes                  |
 | **8 educational reports**     | `docs/project/benchmarks/benchmark_<db>.mdx` with Measures/Budget/Code/Why        |
 
-### Latest SQLite Results (May 2026)
+### Latest Results (June 2026)
 
-| Metric                           | Value       | Budget  |
-| -------------------------------- | ----------- | ------- |
-| Cold Start                       | **381ms**   | <5000ms |
-| REST API p95                     | **0.59ms**  | <5ms    |
-| DB Raw p95                       | **0.074ms** | <50ms   |
-| Middleware + Auth                | **1.78ms**  | <2ms    |
-| Index Pressure (25K rows)        | **1.89ms**  | <250ms  |
-| Content Scale (1000 collections) | **750ms**   | —       |
+| Metric                           | Value        | Budget  |
+| -------------------------------- | ------------ | ------- |
+| Cold Start                       | **381ms**    | <5000ms |
+| REST API p95                     | **0.59ms**   | <5ms    |
+| DB Raw p95                       | **0.074ms**  | <50ms   |
+| Middleware + Auth                | **1.78ms**   | <2ms    |
+| Concurrency Throughput (MariaDB) | **1,054 RPS** | —     |
+| Concurrency Race (MariaDB)       | **100/100**  | —       |
+| Local SDK Write (SQLite)         | **41,009 RPS** | —     |
+| Local SDK Write (MariaDB)        | **6,549 RPS** | —     |
 
 ### How to Run
 

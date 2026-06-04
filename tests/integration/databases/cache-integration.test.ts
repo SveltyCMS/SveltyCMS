@@ -2,12 +2,24 @@
  * @file tests/integration/databases/cache-integration.test.ts
  * @description Integration tests for the real CacheService.
  * Tests cache hits, misses, invalidation, TTL, patterns, and multi-tenancy.
+ *
+ * Uses dynamic import with cache-busting to bypass Bun's global mock
+ * preload (bunfig.toml preloads tests/unit/bun-preload.ts for all tests).
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
-import { cacheService } from "@src/databases/cache/cache-service";
+import { beforeEach, describe, expect, test, beforeAll } from "bun:test";
 
 const TEST_TENANT = "cache-test-tenant";
+
+let cacheService: any;
+
+beforeAll(async () => {
+  // 🚀 Dynamic import bypasses Bun's global mock (bun-preload.ts)
+  const module = await import(`@src/databases/cache/cache-service?bun-unmock=${Date.now()}`);
+  cacheService = module.cacheService;
+  // Enable multi-tenant key prefixing for proper tenant isolation
+  (globalThis as any).__mockMultiTenant = true;
+});
 
 describe("Cache Integration Tests (Real CacheService)", () => {
   beforeEach(async () => {

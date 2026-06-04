@@ -1166,10 +1166,9 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     }
   } else if (activeDb.type === "postgresql") {
     try {
-      await (activeDb as any).execute(
-        sql.raw(
-          `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('bench-shared-001', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
-        ),
+      await (activeDb.raw?.execute || activeDb.execute).call(
+        activeDb,
+        `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('bench-shared-001', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
       );
     } catch (e: any) {
       if (process.env.BENCHMARK_DEBUG === "true")

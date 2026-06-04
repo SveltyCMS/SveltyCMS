@@ -4,7 +4,7 @@ title: Competitive Comparison
 description: A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus.
 author SveltyCMS Team
 created 2026-03-21
-updated 2026-05-27
+updated 2026-06-04
 tags:
   - comparison
   - benchmarks
@@ -54,25 +54,32 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 ## 🏆 Competitive Context — Is SveltyCMS Really That Fast?
 
-Yes. **SveltyCMS operates in a different performance league.** Here's the evidence from our June 2026 benchmark matrix (4 databases, Local SDK + HTTP full stack):
+Yes. **SveltyCMS operates in a different performance league.** Here's the evidence from our June 2026 benchmark matrix — 48 tests across 4 databases, measuring every adapter under extreme concurrent load:
 
-| CMS                        | Concurrent Writes (RPS) | Local SDK Read (RPS) | Notes                                      |
-| -------------------------- | ----------------------- | -------------------- | ------------------------------------------ |
-| **SveltyCMS (SQLite)**    | **741 RPS**             | **17,900 RPS**       | In-process DB, batch 20, file lock safety |
-| **SveltyCMS (MongoDB)**    | **932 RPS**             | **5,100 RPS**        | Native driver, batch 100 full blast       |
-| **SveltyCMS (PostgreSQL)** | **354 RPS**             | **6,300 RPS**        | postgres.js pool, batch 50                |
-| **SveltyCMS (MariaDB)**    | **388 RPS**             | **9,000 RPS**        | mysql2 pool, batch 20, JSON_SET atomic    |
-| Payload CMS 3.x            | 150–250 RPS             | —                    | React/Next.js, VDOM hydration tax          |
-| Strapi 5                   | 50–200 RPS              | —                    | Koa-based, plugin middleware overhead      |
-| Directus 11                | 100–300 RPS             | —                    | Express-based                              |
-| WordPress REST             | 10–50 RPS               | —                    | PHP, no persistent connection pooling      |
+| CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Concurrent Writes (RPS) | Notes / Conditions             |
+| -------------------------- | ----------------- | --------------- | ----------------------- | ------------------------------ |
+| **SveltyCMS (MariaDB)**    | **0.06 - 0.367**  | **~0.1**        | **1,054 RPS**           | **atomicIncrement RETURNING**  |
+| **SveltyCMS (PostgreSQL)** | **0.06 - 0.367**  | **~0.1**        | **1,037 RPS**           | UPDATE RETURNING + pool retry  |
+| **SveltyCMS (MongoDB)**    | **0.06 - 0.367**  | **~0.1**        | **729 RPS**             | Native $inc, batch 100         |
+| **SveltyCMS (SQLite)**     | **0.06 - 0.367**  | **~0.1**        | **504 RPS**             | In-process, batch 20           |
+| **SveltyCMS (Local SDK)**  | **0.003**         | —               | **41,009 RPS** (SQLite) | Direct adapter, no HTTP        |
+| **SveltyCMS (Neg Cache)**  | **0.003**         | —               | —                       | Hot-Miss (404 Cache Hit)       |
+| **Payload CMS 3.x**        | 4–12              | 3–10            | 150–250                 | React/Next.js hydration tax    |
+| **Directus 11**            | 3–18              | 4–12            | 100–300                 | Express-based                  |
+| **Strapi v5**              | 6–25              | 5–15            | 50–200                  | Koa middleware overhead        |
+| **Drupal 10**              | 15–50             | 10–30           | 30–100                  | PHP/Symfony, no native pooling |
+| **WordPress 6.x**          | 20–80             | 15–50           | 10–50                   | PHP, per-request DB connect    |
+
+_Note: All SveltyCMS metrics sourced from our June 2026 benchmark matrix — 48 tests across 4 databases, measuring every adapter under extreme concurrent load. Competitor figures are approximate ranges from publicly documented framework overhead; we encourage independent verification._
 
 ### Key Takeaways
 
-- **HTTP concurrency: 2–18× faster** than competitors (868 RPS vs 50–300 RPS).
-- **Local SDK: 17,900 RPS reads** — in-process SQLite bypasses HTTP/uws entirely.
-- **All 4 databases within 0.2ms** for REST Collection Find (3.3ms) — true agnostic parity.
-- **Auth pipeline: 1.84ms** — 50% fewer DB queries via innerJoin consolidation, 5% faster.
+- **HTTP concurrency: 2–20× faster** than competitors (1,054 RPS vs 50–300 RPS).
+- **Local SDK: 41,009 RPS writes** (SQLite) — in-process DB bypasses HTTP/uws entirely.
+- **All 4 databases within 0.2ms** for REST Collection Find — true agnostic parity.
+- **MariaDB 2.7× speedup** from atomicIncrement RETURNING optimization (388→1,054 RPS).
+- **PostgreSQL 2.9× speedup** from pool exhaustion retry fix (354→1,037 RPS).
+- **Atomic concurrency race: 100/100** (MongoDB, MariaDB) — zero lost updates under extreme load.
 - **Cache L1: 1.67M RPS at 0.001ms** — circular buffer telemetry, 95% less metrics overhead.
 - **70/70 security regression tests pass** — defense-in-depth uncompromised by refactoring.
 

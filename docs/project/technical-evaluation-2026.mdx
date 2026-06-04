@@ -179,33 +179,14 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 
 ### 3.2 Competitive Benchmark Analysis (2026)
 
-Verified performance metrics from the SveltyCMS CI pipeline (March 2026). These represent raw database driver latencies and compiled middleware overhead in a standard production environment.
-
-| CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Middleware Overhead (µs) | Media Upload (ms) | Notes / Conditions             |
-| -------------------------- | ----------------- | --------------- | ------------------------ | ----------------- | ------------------------------ |
-| **SveltyCMS (API layer)**  | **0.06 - 0.367**  | **~0.1**        | **12–15**                | **0.12 (Async)**  | **Agnostic Core** Optimized    |
-| **SveltyCMS (Neg Cache)**  | **0.003**         | —               | —                        | —                 | Hot-Miss (404 Cache Hit)       |
-| **Payload CMS 3.x**        | 4–12              | 3–10            | ~85                      | 100–350           | Similar full-stack             |
-| **Directus 11**            | 3–18              | 4–12            | ~110                     | 120–400           | Cache-dependent                |
-| **Strapi v5**              | 6–25              | 5–15            | ~150                     | 150–500           | Full stack, ORM overhead       |
-| **SveltyCMS (raw SQLite)** | **0.007**         | **0.1**         | —                        | —                 | Bun Native SQLite, zero-config |
-
-_Note: SveltyCMS metrics derived from the enterprise-grade benchmark matrix (`scripts/benchmark-matrix/`) with 48 tests across 9 dimensions. The system includes rolling trend analysis, cross-test correlation, adaptive budgets, and root cause classification. Database metrics reflect raw driver latency. Middleware overhead reflects compiled SvelteKit edge-ready hooks. Media upload time reflects block time (Phase 3 background jobs)._
+See [Competitive Comparison](../competitive-comparison.mdx#-competitive-context--is-sveltycms-really-that-fast) for the full benchmark matrix — 48 tests across 4 databases under extreme concurrent load, with per-adapter throughput, Local SDK, and competitor comparisons (Payload, Directus, Strapi, Drupal, WordPress).
 
 > **Reproduce locally:**
 >
 > ```bash
-> # Single test (console only)
 > bun test tests/benchmarks/database-performance.test.ts
->
-> # Record to report (populates docs/project/benchmarks/)
 > BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts
->
-> # Full SQLite matrix (all 48 tests)
 > bun run scripts/benchmark-matrix/index.ts --sql
->
-> # Differential (only tests affected by recent changes)
-> bun run scripts/benchmark-matrix/index.ts --sql --differential
 > ```
 >
 > **8 database reports** available at `docs/project/benchmarks/benchmark_<db>.mdx` with educational context (Measures/Budget/Code/Why), trend labels, and root cause insights.

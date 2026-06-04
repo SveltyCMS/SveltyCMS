@@ -25,7 +25,7 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 10:27:03)
+## 📊 Latest Performance Audit (04/06/2026, 11:40:36)
 
 > [!WARNING]
 > **Performance Regressions Detected for POSTGRESQL**:
@@ -38,15 +38,15 @@ tags:
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
-| :--------------------- | :---------- | :----------- | :------------ | :------ |
-| **Cold Start**         | 328ms       | ⚪ (+16.1%)  | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 5.920ms     | ⚪ (+331.8%) | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | N/A         | ⚪           | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | 3.679ms     | ⚪ (+0.0%)   | < 5ms         | 🟢 PASS |
-| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.808ms     | ⚪           | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
+| :--------------------- | :---------- | :---------- | :------------ | :------ |
+| **Cold Start**         | 266ms       | ⚪ (-12.9%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 5.920ms     | ⚪ (+22.2%) | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | N/A         | ⚪          | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | 3.679ms     | 🟢 (+0.0%)  | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | 0.808ms     | ⚪          | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -61,14 +61,14 @@ xychart-beta
   title "POSTGRESQL Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 0.892, 5.920]
+  line "p95 Latency" : [5.920, 5.920, 5.920, 5.920, 5.920, 5.920, 5.920, 5.920, 5.920, 5.920]
 ```
 
 ## 📈 Core Infrastructure Trends
 
 ### 🏷️ Database Adapter Performance {#dbRaw}
 
-**Raw Adapter p95:** 0.808ms | **Target:** < 50ms | **Trend:** ⚪ (-2.1%)
+**Raw Adapter p95:** 0.808ms | **Target:** < 50ms | **Trend:** ⚪ (+0.0%)
 
 > Direct database access latency (bypass CMS logic).
 
@@ -462,7 +462,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        2.607 ms │ p95:        2.607 ms │ RPS:        384 ║
+║ Concurrent PATCH Bomb          │        2.823 ms │ p95:        2.823 ms │ RPS:        354 ║
 ```
 
 <!-- CONCURRENCY_TABLE_END -->
@@ -476,9 +476,9 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        369 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        496 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        438 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        348 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        488 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        436 ║
 ```
 
 <!-- THROUGHPUT_TABLE_END -->
@@ -1246,9 +1246,9 @@ xychart-beta
 ║                  File: tests/benchmarks/concurrency-throughput.test.ts                  ║
 ║         100 writes across 10, 100, 1000 docs. Same work, different parallelism.         ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        363 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        504 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        436 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        366 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        503 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        439 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1257,9 +1257,9 @@ xychart-beta
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Database                                           │   POSTGRESQL          ║
-║ 10 docs × 10 RPS                                   │      362.933 req/s    ║
-║ 100 docs × 1 RPS                                   │      504.224 req/s    ║
-║ 1000 docs × 1 RPS                                  │      436.392 req/s    ║
+║ 10 docs × 10 RPS                                   │      366.202 req/s    ║
+║ 100 docs × 1 RPS                                   │      503.090 req/s    ║
+║ 1000 docs × 1 RPS                                  │      438.711 req/s    ║
 ║ Scaling (1000÷10)                                  │         1.2×          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```

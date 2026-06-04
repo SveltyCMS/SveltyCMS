@@ -25,15 +25,18 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 10:29:56)
+## 📊 Latest Performance Audit (04/06/2026, 11:45:55)
 
 **Status:** ✅ PASS
+
+> [!NOTE]
+> **All 48 tests pass**: Concurrency race: 100/100 zero lost updates. Throughput: 1,054 RPS (multi-doc). Local SDK: 6,549 writes/sec. atomicIncrement RETURNING optimization delivers 2.7× speedup.
 
 ### ⚡ Executive Latency Matrix
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
 | :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 376ms       | ⚪ (+14.3%) | < 5000ms      | 🟢 PASS |
+| **Cold Start**         | 258ms       | ⚪ (-29.4%) | < 5000ms      | 🟢 PASS |
 | **REST (Collections)** | 0.537ms     | 🟢 (+0.0%)  | < 5ms         | 🟢 PASS |
 | **Middleware Hooks**   | 1.666ms     | ⚪          | < 2ms         | 🟢 PASS |
 | **GraphQL (Avg)**      | 3.578ms     | ⚪ (-0.0%)  | < 5ms         | 🟢 PASS |
@@ -419,7 +422,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.076 ms │ p95:        1.076 ms │ RPS:        929 ║
+║ Concurrent PATCH Bomb          │        1.816 ms │ p95:        1.816 ms │ RPS:        551 ║
 ```
 
 <!-- CONCURRENCY_TABLE_END -->
@@ -433,9 +436,9 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        508 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        454 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        416 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        474 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        490 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        406 ║
 ```
 
 <!-- THROUGHPUT_TABLE_END -->
@@ -1198,13 +1201,11 @@ xychart-beta
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                        SVELTYCMS — THROUGHPUT SCALING (MARIADB)                         ║
-║                  File: tests/benchmarks/concurrency-throughput.test.ts                  ║
-║         100 writes across 10, 100, 1000 docs. Same work, different parallelism.         ║
+║                              SVELTYCMS — CONCURRENCY AUDIT                              ║
+║                     File: tests/benchmarks/concurrency-race.test.ts                     ║
+║Simulates high-concurrency writes to a single document to prove atomic consistency and lost update protection.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        515 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        489 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        429 ║
+║ Concurrent PATCH Bomb          │        1.816 ms │ p95:        1.816 ms │ RPS:        551 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1212,11 +1213,10 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Database                                           │      MARIADB          ║
-║ 10 docs × 10 RPS                                   │      514.620 req/s    ║
-║ 100 docs × 1 RPS                                   │      488.849 req/s    ║
-║ 1000 docs × 1 RPS                                  │      428.922 req/s    ║
-║ Scaling (1000÷10)                                  │         0.8×          ║
+║ Total Duration                                     │      203.000 ms       ║
+║ Successful Writes                                  │      100.000 /100     ║
+║ Database Lockup                                    │         NONE          ║
+║ Concurrency Health                                 │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 

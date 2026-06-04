@@ -18,8 +18,11 @@ import {
 import "../unit/bun-preload.ts";
 
 const COLLECTION_ID = "BenchmarkStable";
-const BATCH = 20;
-const GAP_MS = 25;
+// Per-adapter concurrency tuning:
+// SQLite: file lock needs batching. MongoDB: connection pool handles full blast.
+// MariaDB/PG: pooled connections, full parallelism via connection pools.
+let BATCH = 20;
+let GAP_MS = 25;
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -38,6 +41,14 @@ async function run() {
     "x-tenant-id": "global",
   };
   const dbType = getDbType();
+
+  // Per-adapter concurrency tuning (matching concurrency-race.test.ts):
+  // SQLite: file lock needs batching. MongoDB: connection pool handles full blast.
+  // MariaDB/PG: pooled connections, full parallelism via connection pools.
+  const dbLower = dbType.toLowerCase();
+  BATCH = dbLower.includes("sqlite") ? 20 : dbLower.includes("mongodb") ? 100 : 50;
+  GAP_MS = dbLower.includes("sqlite") ? 25 : 0;
+  console.log(`   → Throughput config: batch ${BATCH}, gap ${GAP_MS}ms (${dbType})`);
 
   // Pre-seed all the documents we'll need via the testing API
   const maxDocs = 1000;

@@ -56,7 +56,7 @@ export class CacheMetrics {
     { hits: number; misses: number; totalTTL: number; ttlCount: number }
   >();
   private tenantMetrics = new Map<string, { hits: number; misses: number }>();
-  
+
   private recentEvents: InternalCacheEvent[] = [];
   private eventIndex = 0;
   private readonly MAX_EVENTS = 100;
@@ -274,9 +274,7 @@ export class CacheMetrics {
       "# TYPE cache_response_time_histogram_ms histogram",
     );
     this.responseTimeBuckets.forEach((count, i) =>
-      lines.push(
-        `cache_response_time_histogram_ms_bucket{le="${PROM_BOUND_LABELS[i]}"} ${count}`,
-      ),
+      lines.push(`cache_response_time_histogram_ms_bucket{le="${PROM_BOUND_LABELS[i]}"} ${count}`),
     );
     for (const [cat, met] of Object.entries(snapshot.byCategory)) {
       lines.push(

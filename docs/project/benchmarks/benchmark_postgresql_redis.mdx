@@ -25,7 +25,7 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 10:27:03)
+## 📊 Latest Performance Audit (04/06/2026, 11:40:36)
 
 > [!WARNING]
 > **Performance Regressions Detected for POSTGRESQL+REDIS**:
@@ -38,15 +38,15 @@ tags:
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
-| :--------------------- | :---------- | :----------- | :------------ | :------ |
-| **Cold Start**         | 386ms       | ⚪ (+22.9%)  | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 5.675ms     | ⚪ (+339.1%) | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | N/A         | ⚪           | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | 3.929ms     | ⚪ (+0.0%)   | < 5ms         | 🟢 PASS |
-| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.818ms     | ⚪           | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
+| :--------------------- | :---------- | :---------- | :------------ | :------ |
+| **Cold Start**         | 282ms       | ⚪ (-20.3%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 5.675ms     | ⚪ (+22.4%) | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | N/A         | ⚪          | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | 3.929ms     | ⚪ (+0.0%)  | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | 0.818ms     | ⚪          | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -61,7 +61,7 @@ xychart-beta
   title "POSTGRESQL+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.831, 0.831, 0.831, 0.831, 0.831, 0.831, 0.831, 0.831, 0.831, 5.675]
+  line "p95 Latency" : [5.675, 5.675, 5.675, 5.675, 5.675, 5.675, 5.675, 5.675, 5.675, 5.675]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -386,7 +386,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        2.887 ms │ p95:        2.887 ms │ RPS:        346 ║
+║ Concurrent PATCH Bomb          │        2.926 ms │ p95:        2.926 ms │ RPS:        342 ║
 ```
 
 <!-- CONCURRENCY_TABLE_END -->

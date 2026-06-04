@@ -25,7 +25,7 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 10:18:07)
+## 📊 Latest Performance Audit (04/06/2026, 11:40:36)
 
 > [!WARNING]
 > **Performance Regressions Detected for MONGODB**:
@@ -38,15 +38,15 @@ tags:
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
-| :--------------------- | :---------- | :----------- | :------------ | :------ |
-| **Cold Start**         | 425ms       | ⚪ (+40.2%)  | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 7.857ms     | ⚪ (+429.6%) | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | N/A         | ⚪           | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | 5.702ms     | ⚪ (+57.4%)  | < 5ms         | 🔴 FAIL |
-| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.568ms     | ⚪           | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
+| :--------------------- | :---------- | :---------- | :------------ | :------ |
+| **Cold Start**         | 270ms       | ⚪ (-30.4%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 7.857ms     | ⚪ (+6.6%)  | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | N/A         | ⚪          | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | 5.702ms     | ⚪ (+2.1%)  | < 5ms         | 🔴 FAIL |
+| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | 0.568ms     | ⚪          | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -61,7 +61,7 @@ xychart-beta
   title "MONGODB Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.695, 0.695, 0.695, 0.695, 0.695, 0.695, 1.054, 1.054, 1.210, 7.857]
+  line "p95 Latency" : [7.857, 7.857, 7.857, 7.857, 7.857, 7.857, 7.857, 7.857, 7.857, 7.857]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -433,7 +433,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.488 ms │ p95:        1.488 ms │ RPS:        672 ║
+║ Concurrent PATCH Bomb          │        1.492 ms │ p95:        1.492 ms │ RPS:        670 ║
 ```
 
 <!-- CONCURRENCY_TABLE_END -->
@@ -447,9 +447,9 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        507 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        500 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        439 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        494 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        464 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        428 ║
 ```
 
 <!-- THROUGHPUT_TABLE_END -->
@@ -1558,11 +1558,7 @@ xychart-beta
 > **Budget**: ≤ 40,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- CONCURRENCY_TABLE_START -->
-
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-> Throughput dropped 41% — check connection pool saturation or lock contention.  
-> **Severe degradation** (+70%) — review recent commits immediately.  
-> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1570,9 +1566,9 @@ xychart-beta
 ║                  File: tests/benchmarks/concurrency-throughput.test.ts                  ║
 ║         100 writes across 10, 100, 1000 docs. Same work, different parallelism.         ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        504 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        501 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        436 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        469 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        495 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        428 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1581,9 +1577,9 @@ xychart-beta
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Database                                           │      MONGODB          ║
-║ 10 docs × 10 RPS                                   │      503.512 req/s    ║
-║ 100 docs × 1 RPS                                   │      500.670 req/s    ║
-║ 1000 docs × 1 RPS                                  │      436.251 req/s    ║
+║ 10 docs × 10 RPS                                   │      469.373 req/s    ║
+║ 100 docs × 1 RPS                                   │      495.492 req/s    ║
+║ 1000 docs × 1 RPS                                  │      428.176 req/s    ║
 ║ Scaling (1000÷10)                                  │         0.9×          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```

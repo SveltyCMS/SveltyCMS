@@ -25,7 +25,7 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 10:18:07)
+## 📊 Latest Performance Audit (04/06/2026, 11:40:36)
 
 **Status:** ✅ PASS
 
@@ -33,10 +33,10 @@ tags:
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
 | :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 407ms       | ⚪ (+31.9%) | < 5000ms      | 🟢 PASS |
+| **Cold Start**         | 254ms       | ⚪ (-32.2%) | < 5000ms      | 🟢 PASS |
 | **REST (Collections)** | 0.572ms     | ⚪ (+0.0%)  | < 5ms         | 🟢 PASS |
 | **Middleware Hooks**   | N/A         | ⚪          | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | 5.580ms     | ⚪ (-11.4%) | < 5ms         | 🔴 FAIL |
+| **GraphQL (Avg)**      | 5.580ms     | ⚪ (-0.0%)  | < 5ms         | 🔴 FAIL |
 | **Million-Row Index**  | 3.463ms     | ⚪          | < 250ms       | 🟢 PASS |
 | **DB Raw (p95)**       | 0.611ms     | ⚪          | < 50ms        | 🟢 PASS |
 | **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
@@ -87,7 +87,7 @@ xychart-beta
 
 ### 🏷️ Relational Resolver Latency {#relationalAvg}
 
-**Relational p95:** 3.590ms | **Trend:** ⚪ (-43.0%)
+**Relational p95:** 3.590ms | **Trend:** ⚪ (-35.7%)
 
 > Tests performance of complex JOINs and nested relationship population.
 
@@ -419,7 +419,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.504 ms │ p95:        1.504 ms │ RPS:        665 ║
+║ Concurrent PATCH Bomb          │        1.073 ms │ p95:        1.073 ms │ RPS:        932 ║
 ```
 
 <!-- CONCURRENCY_TABLE_END -->

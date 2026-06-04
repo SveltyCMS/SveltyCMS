@@ -148,7 +148,9 @@ export function convertISOToDates(data: any): any {
         result[key] = new Date((val as any).getTime());
       }
     } else if (JSON_FIELDS.has(key) && val !== null && typeof val === "object") {
-      result[key] = JSON.stringify(val);
+      // 🚀 DRIZZLE COMPATIBILITY: Drizzle handles JSON serialization natively.
+      // Manually stringifying here causes double-serialization in MariaDB/MySQL.
+      result[key] = val;
     }
   }
   return result;

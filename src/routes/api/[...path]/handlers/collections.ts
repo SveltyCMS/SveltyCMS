@@ -259,7 +259,10 @@ export async function handleCollectionEntry(
     event.url.searchParams.get("nocache") === "true";
   return successResponse(
     event,
-    await cms.collections.findById(collectionId, entryId, { tenantId, bypassCache }),
+    await cms.collections.findById(collectionId, entryId, {
+      tenantId,
+      bypassCache,
+    }),
   );
 }
 
@@ -423,7 +426,6 @@ export async function handleCollectionIncrement(
   }
 
   if (!result.success) {
-    console.error("[Increment] failed:", result);
     throw new AppError(result.message || "Failed to increment field", 500);
   }
 
