@@ -208,6 +208,18 @@
 		}
 	}
 
+	function handleCollectionsClick(): void {
+		isCollectionsOpen = !isCollectionsOpen;
+		if (isCollectionsOpen) {
+			isMediaOpen = false;
+		}
+		if (collections.length === 0) {
+			goto('/config/collectionbuilder');
+		} else {
+			goto(firstCollectionPath);
+		}
+	}
+
 	$effect(() => {
 		if (firstCollectionPath === undefined) return;
 	});
@@ -325,7 +337,7 @@
 			<div class="space-y-1">
 				<button
 					type="button"
-					onclick={() => { isCollectionsOpen = !isCollectionsOpen; if (isCollectionsOpen) { isMediaOpen = false; } }}
+					onclick={handleCollectionsClick}
 					class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
 				>
 					<span class="flex items-center gap-1.5">
@@ -374,20 +386,7 @@
 				</button>
 				{#if isMediaOpen}
 					<div class="px-1 space-y-2">
-						<!-- Back to collections link when on media gallery -->
-						{#if isSidebarFull && currentPath.includes('/mediagallery')}
-							<a
-								href={firstCollectionPath}
-								data-sveltekit-preload-data="hover"
-								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
-								onclick={() => {
-									if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
-								}}
-							>
-								<iconify-icon icon="bi:arrow-left" width="14"></iconify-icon>
-								Back to Collections
-							</a>
-						{:else if isSidebarFull}
+						{#if isSidebarFull && !currentPath.includes('/mediagallery')}
 							<a
 								href="/mediagallery"
 								data-sveltekit-preload-data="hover"

@@ -253,7 +253,7 @@ async function handleOpenFileDetails(file: any) {
 }
 </script>
 
-<div class="flex flex-col gap-4">
+<div class="flex flex-col gap-4 px-2">
 	<PageTitle 
 		name="Media Gallery" 
 		icon="bi:images" 
@@ -288,7 +288,7 @@ async function handleOpenFileDetails(file: any) {
 	</PageTitle>
 
 	<!-- Toolbar -->
-	<div class="flex flex-wrap items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 p-4 rounded-xl shadow-sm border border-surface-200 dark:border-surface-700">
+	<div class="flex flex-wrap items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 p-4 rounded shadow-sm border border-surface-200 dark:border-surface-700">
 		<div class="flex-1 min-w-[300px] relative">
 			<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
 			<input 
@@ -308,7 +308,7 @@ async function handleOpenFileDetails(file: any) {
 				{/each}
 			</select>
 
-			<div class="flex border border-surface-300 dark:border-surface-600 rounded-lg overflow-hidden">
+			<div class="flex border border-surface-300 dark:border-surface-600 rounded overflow-hidden">
 				<button 
 					onclick={() => view = 'grid'} 
 					class="p-2 transition-colors {view === 'grid' ? 'bg-tertiary-500 dark:bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"

@@ -421,15 +421,15 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     `CREATE TABLE IF NOT EXISTS redirects_mv (
 			_id VARCHAR(36) PRIMARY KEY,
 			tenantId VARCHAR(36) NOT NULL,
-			\`from\` VARCHAR(500) NOT NULL,
-			\`to\` VARCHAR(2000) NOT NULL,
+			source VARCHAR(500) NOT NULL,
+			target VARCHAR(2000) NOT NULL,
 			type INT NOT NULL DEFAULT 301,
 			isRegex BOOLEAN NOT NULL DEFAULT FALSE,
 			active BOOLEAN NOT NULL DEFAULT TRUE,
 			metadata JSON NOT NULL,
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX tenant_from_idx (tenantId, \`from\`)
+			INDEX tenant_source_idx (tenantId, source)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
     // Workflow Definitions
@@ -501,6 +501,32 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
       }
     } catch {
       // Ignore
+    }
+
+    // 🚀 MIGRATION: Rename 'from'/'to' columns to 'source'/'target' in redirects_mv if needed
+    try {
+      const [columns] = await connection.query("SHOW COLUMNS FROM redirects_mv LIKE 'from'");
+      if (Array.isArray(columns) && columns.length > 0) {
+        logger.info(
+          "[MariaDB] Migrating 'from'/'to' columns to 'source'/'target' in redirects_mv...",
+        );
+        await connection.query(
+          "ALTER TABLE redirects_mv CHANGE \`from\` source VARCHAR(500) NOT NULL",
+        );
+        await connection.query(
+          "ALTER TABLE redirects_mv CHANGE \`to\` target VARCHAR(2000) NOT NULL",
+        );
+        try {
+          await connection.query("ALTER TABLE redirects_mv DROP INDEX tenant_from_idx");
+        } catch {}
+        try {
+          await connection.query(
+            "ALTER TABLE redirects_mv ADD INDEX tenant_source_idx (tenantId, source)",
+          );
+        } catch {}
+      }
+    } catch (err) {
+      logger.error("[MariaDB] redirects_mv column migration failed:", err);
     }
   } catch {
     // Column already exists or other error we can ignore

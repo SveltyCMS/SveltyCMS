@@ -6,7 +6,7 @@
 <script lang="ts">
 import { enhance } from "$app/forms";
 import { invalidateAll } from "$app/navigation";
-import { page } from "$app/stores";
+import { page } from "$app/state";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { formatRelativeDate } from "@utils/date";
 import { fade, fly } from "svelte/transition";
@@ -42,13 +42,13 @@ function formatDate(date: string | Date | undefined) {
 }
 
 function getPaginationUrl(offset: number) {
-	const params = new URLSearchParams($page.url.searchParams);
+	const params = new URLSearchParams(page.url.searchParams);
 	params.set("offset", offset.toString());
 	return `?${params.toString()}`;
 }
 
 function getFilterUrl(status?: string) {
-	const params = new URLSearchParams($page.url.searchParams);
+	const params = new URLSearchParams(page.url.searchParams);
 	if (status) {
 		params.set("status", status);
 	} else {
@@ -144,9 +144,9 @@ function getFilterUrl(status?: string) {
 	<div class="flex flex-wrap items-center justify-between gap-4">
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-bold">Recent Jobs</h2>
-			{#if $page.url.searchParams.has('status')}
-				<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500 uppercase text-[10px]">
-					Filter: {$page.url.searchParams.get('status')}
+			{#if page.url.searchParams.has('status')}
+							<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500 uppercase text-[10px]">
+								Filter: {page.url.searchParams.get('status')}
 				</span>
 				<a href={getFilterUrl()} class="btn btn-sm preset-ghost-surface-500">Clear Filter</a>
 			{/if}

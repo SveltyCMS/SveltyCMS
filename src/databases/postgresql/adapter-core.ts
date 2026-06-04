@@ -46,19 +46,10 @@ import * as schema from "./schema";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql as drizzleSql, type SQL } from "drizzle-orm";
-import {
-  pgTable,
-  varchar,
-  jsonb,
-  timestamp,
-  boolean,
-} from "drizzle-orm/pg-core";
+import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import * as utils from "../core/relational-utils";
 
-export abstract class PostgresAdapterCore
-  extends BaseAdapter
-  implements ISqlAdapter
-{
+export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAdapter {
   public type = "postgresql";
   public capabilities: DatabaseCapabilities = {
     supportsTransactions: true,
@@ -186,9 +177,7 @@ export abstract class PostgresAdapterCore
     return this.sql;
   }
 
-  public getDrizzle(
-    mode: "read" | "write" = "write",
-  ): PostgresJsDatabase<typeof schema> {
+  public getDrizzle(mode: "read" | "write" = "write"): PostgresJsDatabase<typeof schema> {
     if (mode === "write") return this.db;
     if (this._readDb) return this._readDb;
 
@@ -219,10 +208,7 @@ export abstract class PostgresAdapterCore
     return this.db;
   }
 
-  async connect(
-    connectionString: string,
-    options?: unknown,
-  ): Promise<DatabaseResult<void>>;
+  async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
   async connect(
     poolOptions: import("../db-interface").ConnectionPoolOptions,
   ): Promise<DatabaseResult<void>>;
@@ -249,8 +235,7 @@ export abstract class PostgresAdapterCore
         // 🚀 Higher pool for benchmark/stress testing (2× default: each
         // concurrent HTTP request may need 2 DB calls simultaneously)
         max:
-          process.env.SVELTY_BENCHMARK_SUITE === "true" ||
-          process.env.BENCHMARK === "true"
+          process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true"
             ? 200
             : 100,
         connect_timeout: 30,
@@ -266,10 +251,7 @@ export abstract class PostgresAdapterCore
             user: decodeURIComponent(url.username),
             password: decodeURIComponent(url.password),
             database: url.pathname.slice(1),
-            ssl:
-              url.searchParams.get("sslmode") === "require"
-                ? "require"
-                : undefined,
+            ssl: url.searchParams.get("sslmode") === "require" ? "require" : undefined,
             onnotice: () => {},
             transform: { undefined: null },
           };
@@ -412,8 +394,7 @@ export abstract class PostgresAdapterCore
     DatabaseResult<import("../db-interface").ConnectionPoolStats>
   > {
     try {
-      if (!this.sql)
-        return this.handleError("Not connected", "POOL_STATS_FAILED");
+      if (!this.sql) return this.handleError("Not connected", "POOL_STATS_FAILED");
       return {
         success: true,
         data: {
@@ -442,9 +423,7 @@ export abstract class PostgresAdapterCore
     if (cached) return cached;
 
     if (this._resolving.has(collection)) {
-      logger.error(
-        `Infinite recursion detected in getTable for: ${collection}`,
-      );
+      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
       return null;
     }
     this._resolving.add(collection);
@@ -459,13 +438,9 @@ export abstract class PostgresAdapterCore
       }
 
       const cleanId = collection.replace(/-/g, "");
-      const tableName = cleanId.startsWith("collection_")
-        ? cleanId
-        : `collection_${cleanId}`;
+      const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
 
-      const cleanName = collection.startsWith("collection_")
-        ? collection.slice(11)
-        : collection;
+      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
       if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
         return this.getTable(cleanName);
       }
@@ -494,13 +469,7 @@ export abstract class PostgresAdapterCore
         self._lastCols = val;
       },
     };
-    return helpers.getColumnHelper(
-      table,
-      name,
-      this._tableColumnsCache,
-      lastRef,
-      forcePhysical,
-    );
+    return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
   }
 
   public getPhysicalSelection(table: any): any {
@@ -519,11 +488,8 @@ export abstract class PostgresAdapterCore
         self._lastCols = val;
       },
     };
-    return helpers.getPhysicalSelection(
-      table,
-      this._selectionCache,
-      (t, n, f) =>
-        helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
+    return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
     );
   }
 
@@ -547,8 +513,7 @@ export abstract class PostgresAdapterCore
       table,
       query,
       options,
-      (t, n) =>
-        helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
+      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
       (f) => this.getJsonField(f),
     );
   }
@@ -573,19 +538,12 @@ export abstract class PostgresAdapterCore
       builder,
       table,
       options,
-      (t, n) =>
-        helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
+      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
       (f) => this.getJsonField(f),
     );
   }
 
-  public prepareValues(
-    table: any,
-    data: any,
-    id: any,
-    now: Date,
-    options: any,
-  ): any {
+  public prepareValues(table: any, data: any, id: any, now: Date, options: any): any {
     const values: any = {};
     const self = this as any;
     const lastRef = {
@@ -605,8 +563,7 @@ export abstract class PostgresAdapterCore
     const getCol = (t: any, n: string) =>
       helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
 
-    let schemaCols: Record<string, any> | undefined =
-      this._tableColumnsCache.get(table);
+    let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
     if (!schemaCols) {
       try {
         const resolvedCols = getTableColumns(table);
@@ -633,19 +590,13 @@ export abstract class PostgresAdapterCore
 
     if (id) {
       const idCol =
-        schemaCols?.["_id"] ||
-        getCol(table, "_id") ||
-        schemaCols?.["id"] ||
-        getCol(table, "id");
+        schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
       if (idCol) {
         values[idCol.name] = id;
       }
     }
 
-    if (
-      options?.tenantId &&
-      (schemaCols?.["tenantId"] || getCol(table, "tenantId"))
-    ) {
+    if (options?.tenantId && (schemaCols?.["tenantId"] || getCol(table, "tenantId"))) {
       values.tenantId = options.tenantId;
     }
 
@@ -660,13 +611,7 @@ export abstract class PostgresAdapterCore
       const dynamicData: any = {};
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
-        if (
-          k === "_id" ||
-          k === "id" ||
-          k === "tenantId" ||
-          k === "createdAt" ||
-          k === "updatedAt"
-        )
+        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
           continue;
         const isPhysical = schemaCols?.[k] || getCol(table, k);
         if (!isPhysical) {
@@ -680,11 +625,7 @@ export abstract class PostgresAdapterCore
 
     for (const k in result) {
       const val = result[k];
-      if (
-        val &&
-        typeof val === "object" &&
-        typeof (val as any).getTime === "function"
-      ) {
+      if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
         result[k] = new Date((val as any).getTime());
       }
     }
@@ -723,9 +664,7 @@ export abstract class PostgresAdapterCore
         .where(where)
         .limit(1);
 
-      const data = results.length
-        ? (utils.convertDatesToISO(results[0]) as T)
-        : null;
+      const data = results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
       return this.hooks.length > 0
         ? await this.runHooks("after", "find", collection, data, options)
         : data;
@@ -758,8 +697,7 @@ export abstract class PostgresAdapterCore
 
       const tableName = getTableName(table);
       const isDynamic =
-        collection.toLowerCase().includes("benchmark") ||
-        collection.startsWith("collection_");
+        collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
 
       let results;
       if (isDynamic) {
@@ -838,9 +776,7 @@ export abstract class PostgresAdapterCore
             }
 
             if (sortCol) {
-              sortConditions.push(
-                s.direction === "asc" ? asc(sortCol) : desc(sortCol),
-              );
+              sortConditions.push(s.direction === "asc" ? asc(sortCol) : desc(sortCol));
             }
           }
 
@@ -849,8 +785,7 @@ export abstract class PostgresAdapterCore
           }
         }
 
-        if (options.limit !== undefined)
-          sqlQuery = drizzleSql`${sqlQuery} LIMIT ${options.limit}`;
+        if (options.limit !== undefined) sqlQuery = drizzleSql`${sqlQuery} LIMIT ${options.limit}`;
         if (options.offset !== undefined)
           sqlQuery = drizzleSql`${sqlQuery} OFFSET ${options.offset}`;
 
@@ -1031,8 +966,7 @@ export abstract class PostgresAdapterCore
       } catch (err: any) {
         const tableName = getTableName(table);
         const isDynamic =
-          tableName.startsWith("collection_") ||
-          tableName.toLowerCase().includes("benchmark");
+          tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
         if (err?.code === "42P01" && isDynamic) {
           return 0;
         }
@@ -1063,26 +997,17 @@ export abstract class PostgresAdapterCore
             ? await this.runHooks("before", "insert", collection, data, options)
             : data;
         const table = this.getTable(collection);
-        if (!table)
-          throw new Error(`Collection table not found: ${collection}`);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         const id = (d as any)._id || generateUUID();
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);
 
-        const query = this.getDrizzleInstance(options)
-          .insert(table)
-          .values(values);
+        const query = this.getDrizzleInstance(options).insert(table).values(values);
         const result = await (query as any).returning();
         const finalData = utils.convertDatesToISO(result[0]) as T;
 
         return this.hooks.length > 0
-          ? await this.runHooks(
-              "after",
-              "insert",
-              collection,
-              finalData,
-              options,
-            )
+          ? await this.runHooks("after", "insert", collection, finalData, options)
           : finalData;
       },
       "INSERT_FAILED",
@@ -1100,8 +1025,7 @@ export abstract class PostgresAdapterCore
     return this.wrap(
       async () => {
         const table = this.getTable(collection);
-        if (!table)
-          throw new Error(`Collection table not found: ${collection}`);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         const now = new Date();
         const len = data.length;
         const batchValues = Array.from({ length: len });
@@ -1111,9 +1035,7 @@ export abstract class PostgresAdapterCore
           batchValues[i] = this.prepareValues(table, item, id, now, options);
         }
 
-        const query = this.getDrizzleInstance(options)
-          .insert(table)
-          .values(batchValues);
+        const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
         const results = await (query as any).returning();
         return utils.convertArrayDatesToISO(results as any) as T[];
       },
@@ -1156,13 +1078,11 @@ export abstract class PostgresAdapterCore
             ? await this.runHooks("before", "update", collection, data, options)
             : data;
         const table = this.getTable(collection);
-        if (!table)
-          throw new Error(`Collection table not found: ${collection}`);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);
 
-        const idCol =
-          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         const query = this.getDrizzleInstance(options)
@@ -1187,13 +1107,7 @@ export abstract class PostgresAdapterCore
         }
         const finalData = utils.convertDatesToISO(res) as unknown as T;
         return this.hooks.length > 0
-          ? await this.runHooks(
-              "after",
-              "update",
-              collection,
-              finalData,
-              options,
-            )
+          ? await this.runHooks("after", "update", collection, finalData, options)
           : finalData;
       },
       "UPDATE_FAILED",
@@ -1214,12 +1128,7 @@ export abstract class PostgresAdapterCore
         if (!items.success) throw new Error(items.message);
         let modifiedCount = 0;
         for (const item of items.data || []) {
-          const res = await this.update(
-            collection,
-            (item as any)._id,
-            data,
-            options,
-          );
+          const res = await this.update(collection, (item as any)._id, data, options);
           if (res.success) modifiedCount++;
         }
         return { modifiedCount };
@@ -1261,18 +1170,10 @@ export abstract class PostgresAdapterCore
     return this.wrap(
       async () => {
         if (this.hooks.length > 0)
-          await this.runHooks(
-            "before",
-            "delete",
-            collection,
-            { _id: id },
-            options,
-          );
+          await this.runHooks("before", "delete", collection, { _id: id }, options);
         const table = this.getTable(collection);
-        if (!table)
-          throw new Error(`Collection table not found: ${collection}`);
-        const idCol =
-          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         const hasIsDeleted = !!this.getColumn(table, "isDeleted");
@@ -1287,13 +1188,7 @@ export abstract class PostgresAdapterCore
             .where(eq(idCol, id as any));
         }
         if (this.hooks.length > 0)
-          await this.runHooks(
-            "after",
-            "delete",
-            collection,
-            { _id: id },
-            options,
-          );
+          await this.runHooks("after", "delete", collection, { _id: id }, options);
       },
       "DELETE_FAILED",
       undefined,
@@ -1360,8 +1255,7 @@ export abstract class PostgresAdapterCore
   ): Promise<DatabaseResult<T>> {
     const existing = await this.findOne(collection, query, options);
     if (existing.success && existing.data) {
-      const existingId =
-        (existing.data as any)._id || (existing.data as any).id;
+      const existingId = (existing.data as any)._id || (existing.data as any).id;
       if (existingId) {
         return this.update(collection, existingId, data as any, options);
       }
@@ -1409,16 +1303,10 @@ export abstract class PostgresAdapterCore
   }
 
   public transaction = async <T>(
-    fn: (
-      transaction: import("../db-interface").DatabaseTransaction,
-    ) => Promise<DatabaseResult<T>>,
+    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: {
       timeout?: number;
-      isolationLevel?:
-        | "read uncommitted"
-        | "read committed"
-        | "repeatable read"
-        | "serializable";
+      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
     },
   ): Promise<DatabaseResult<T>> => {
     if (!this._transactionModule) {
@@ -1445,8 +1333,7 @@ export abstract class PostgresAdapterCore
   }
 
   public configureReplicas(urls: string[] | string): void {
-    const replicaUrls =
-      typeof urls === "string" ? (JSON.parse(urls) as string[]) : urls;
+    const replicaUrls = typeof urls === "string" ? (JSON.parse(urls) as string[]) : urls;
     if (!Array.isArray(replicaUrls)) return;
     for (const sql of this.allReplicaSqls) sql.end().catch(() => {});
     this.allReplicaSqls = [];
@@ -1493,10 +1380,7 @@ export abstract class PostgresAdapterCore
   ): Promise<void> {
     const tableName = getTableName(table);
 
-    if (
-      process.env.BENCHMARK_DEBUG === "true" ||
-      process.env.BENCHMARK === "true"
-    ) {
+    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
       logger.info(
         `[upsertNative] Table: ${tableName}, ID: ${values._id}, source: ${values.source}, tenant: ${values.tenantId}`,
       );
@@ -1505,14 +1389,10 @@ export abstract class PostgresAdapterCore
     await this.wrap(
       async () => {
         const db = this.getDrizzleInstance(options);
-        const rawNames = conflictTarget.map((col: any) =>
-          col && typeof col === "object" && col.name
-            ? `"${col.name}"`
-            : `"${String(col)}"`,
-        );
-        const rawTarget = drizzleSql.raw(rawNames.join(", "));
+        // Pass Drizzle column references directly — sql.raw() can produce
+        // invalid ON CONFLICT targets on strict SQL dialects (PostgreSQL).
         await (db.insert(table).values(values) as any).onConflictDoUpdate({
-          target: rawTarget,
+          target: conflictTarget,
           set: values,
         });
       },
@@ -1532,17 +1412,13 @@ export abstract class PostgresAdapterCore
     return this.wrap(
       async () => {
         const table = this.getTable(collection);
-        if (!table)
-          throw new Error(`Collection table not found: ${collection}`);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         const tableName = getTableName(table);
-        const idCol =
-          this.getColumn(table, "_id") || this.getColumn(table, "id");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         const tenantFilter =
-          options?.bypassTenantCheck ||
-          !options?.tenantId ||
-          options?.tenantId === "global"
+          options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global"
             ? ""
             : ` AND "tenantId" = '${options.tenantId}'`;
 
@@ -1553,16 +1429,12 @@ export abstract class PostgresAdapterCore
 
         let rows: any[] = [];
         for (let attempt = 0; attempt < 5 && rows.length === 0; attempt++) {
-          if (attempt > 0)
-            await new Promise((r) => setTimeout(r, 10 * attempt));
+          if (attempt > 0) await new Promise((r) => setTimeout(r, 10 * attempt));
           try {
             rows = (await this.raw.execute(sqlQuery)) || [];
           } catch (err: any) {
             // "too many clients" → pool exhaustion, retry with backoff
-            if (
-              err?.message?.includes("too many clients") ||
-              err?.code === "53300"
-            ) {
+            if (err?.message?.includes("too many clients") || err?.code === "53300") {
               await new Promise((r) => setTimeout(r, 20 * (attempt + 1)));
               continue;
             }
@@ -1602,9 +1474,7 @@ export abstract class PostgresAdapterCore
         const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" VARCHAR(36) PRIMARY KEY, "tenantId" VARCHAR(36), "status" VARCHAR(255) DEFAULT 'draft', "isDeleted" BOOLEAN DEFAULT FALSE, "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "data" JSONB);`;
 
         if (debugMode && !isBenchSuite) {
-          console.log(
-            `[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`,
-          );
+          console.log(`[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`);
         }
         await this.raw.execute(ddl);
       },

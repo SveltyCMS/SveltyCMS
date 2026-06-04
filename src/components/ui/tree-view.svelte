@@ -468,7 +468,7 @@ search filtering, and RTL support.
                 densityTokens.padding,
                 densityTokens.touch,
                 isSelected
-                    ? 'bg-tertiary-500 dark:bg-primary-500/10 border-tertiary-500 dark:border-primary-500/30 text-primary-700 dark:text-primary-300 shadow-xs'
+                    ? 'bg-tertiary-500 dark:bg-primary-500/10 border-tertiary-500 dark:border-primary-500/30 text-white dark:text-primary-300 shadow-xs'
                     : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
                 isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
@@ -524,7 +524,7 @@ search filtering, and RTL support.
                     <iconify-icon
                         icon={node.icon}
                         width={densityTokens.icon}
-                        class={cn(isSelected ? 'text-tertiary-500 dark:text-primary-500' : iconColorClass)}
+                        class={cn(isSelected ? 'text-white dark:text-primary-500' : iconColorClass)}
                         aria-hidden="true"
                     ></iconify-icon>
                 </div>
@@ -535,7 +535,7 @@ search filtering, and RTL support.
                 'truncate transition-colors',
                 densityTokens.font,
                 isSelected
-                    ? 'font-bold text-tertiary-600 dark:text-primary-600'
+                    ? 'font-bold text-white dark:text-primary-600'
                     : 'font-medium text-surface-900 dark:text-surface-100'
             )}>
                 {nodeLabel}

@@ -46,7 +46,10 @@ if (!isBrowser && Object.keys(pluginModulesRaw).length === 0) {
                 const module = nodeRequire(indexPath);
                 pluginModulesRaw[`./${entry.name}/index.ts`] = module;
               } catch (err: any) {
-                logger.trace(`[Plugins Scanner] Fallback require failed for ${entry.name}:`, err.message);
+                logger.trace(
+                  `[Plugins Scanner] Fallback require failed for ${entry.name}:`,
+                  err.message,
+                );
               }
             }
           }

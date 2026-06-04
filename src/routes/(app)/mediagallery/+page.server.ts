@@ -20,7 +20,7 @@ import type { MediaAccess } from "@root/src/utils/media/media-models";
 // Auth
 import { dbAdapter } from "@src/databases/db";
 import { MediaService } from "@src/utils/media/media-service.server";
-import { error, redirect } from "@sveltejs/kit";
+import { error, redirect, isHttpError, isRedirect } from "@sveltejs/kit";
 // System Logger
 import { type LoggableValue, logger } from "@utils/logger";
 import { getImageSizes, moveMediaToTrash } from "@utils/media/media-storage.server";
@@ -247,6 +247,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     return returnData;
   } catch (err) {
+    if (isRedirect(err) || isHttpError(err)) {
+      throw err;
+    }
     const message = `Error in media gallery load function: ${err instanceof Error ? err.message : String(err)}`;
     logger.error(message);
     throw error(500, message);

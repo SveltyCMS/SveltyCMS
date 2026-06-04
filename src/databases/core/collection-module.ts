@@ -200,20 +200,51 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
             .all() as any[];
         }
       } else if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {
-        const dbName = (this.adapter as any).activeDatabaseName || (this.adapter as any).config?.name || "sveltycms";
+        const dbName =
+          (this.adapter as any).activeDatabaseName ||
+          (this.adapter as any).config?.name ||
+          "sveltycms";
         const res = await (this.adapter as any).raw.execute(
           `SELECT TABLE_NAME as name FROM information_schema.TABLES WHERE TABLE_SCHEMA = '${dbName}' AND TABLE_NAME LIKE 'collection_%'`,
         );
         tables = res || [];
       } else if (this.adapter.type === "postgresql") {
+        // Exclude known system tables from discovery (dynamically created collection
+        // tables don't have a 'collection_' prefix — they use the schema _id as-is).
+        const SYSTEM_TABLES = [
+          "content_nodes",
+          "content_drafts",
+          "content_revisions",
+          "auth_users",
+          "auth_sessions",
+          "auth_tokens",
+          "roles",
+          "themes",
+          "widgets",
+          "media_items",
+          "system_virtual_folders",
+          "system_preferences",
+          "audit_logs",
+          "svelty_jobs",
+          "website_tokens",
+          "plugin_pagespeed_results",
+          "plugin_states",
+          "plugin_migrations",
+          "tenants",
+        ];
+        const excludedList = SYSTEM_TABLES.map((t) => `'${t}'`).join(", ");
         const res = await (this.adapter as any).db.execute(
-          "SELECT tablename as name FROM pg_catalog.pg_tables WHERE tablename LIKE 'collection_%'",
+          `SELECT tablename as name FROM pg_catalog.pg_tables ` +
+            `WHERE schemaname = 'public' AND tablename NOT IN (${excludedList})`,
         );
         tables = res.rows || [];
       }
 
       // 🛡️ Apply exclusion patterns to filter plugin/materialized-view stubs
-      tables = tables.filter((t) => t && typeof t.name === "string" && !EXCLUDED_TABLE_PATTERNS.some((p) => p.test(t.name)));
+      tables = tables.filter(
+        (t) =>
+          t && typeof t.name === "string" && !EXCLUDED_TABLE_PATTERNS.some((p) => p.test(t.name)),
+      );
 
       return await Promise.all(
         tables.map(async (t: any) => {

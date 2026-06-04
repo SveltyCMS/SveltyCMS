@@ -235,7 +235,7 @@ export const themes = sqliteTable(
     path: text("path", { length: 500 }).notNull(),
     isActive: integer("isActive", { mode: "boolean" }).notNull().default(false),
     isDefault: integer("isDefault", { mode: "boolean" }).notNull().default(false),
-    config: text("config").notNull(),
+    config: text("config", { mode: "json" }).$type<Record<string, any>>().notNull(),
     previewImage: text("previewImage"),
     customCss: text("customCss"),
     tenantId: tenantField(),
@@ -255,13 +255,13 @@ export const widgets = sqliteTable(
     _id: uuidPk(),
     name: text("name", { length: 255 }).notNull(),
     isActive: integer("isActive", { mode: "boolean" }).notNull().default(true),
-    instances: text("instances")
+    instances: text("instances", { mode: "json" })
       .notNull()
-      .default("{}" as any),
-    dependencies: text("dependencies")
+      .default({} as any),
+    dependencies: text("dependencies", { mode: "json" })
       .$type<string[]>()
       .notNull()
-      .default("[]" as any),
+      .default([] as any),
     tenantId: tenantField(),
     ...timestamps,
   },

@@ -162,8 +162,6 @@ const IS_QUIET = typeof process !== "undefined" && process.env.QUIET === "true";
 import { isRedirect } from "@sveltejs/kit";
 import { handleApiError } from "@utils/error-handling";
 
-
-
 // --- Server Startup Logic ---
 if (!building) {
   // ✨ NEW: Smart initialization logic that respects the system state machine

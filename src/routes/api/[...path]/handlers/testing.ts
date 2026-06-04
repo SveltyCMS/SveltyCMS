@@ -271,13 +271,12 @@ export async function handleTestingRoutes(
         try {
           logger.info(`[testing] Provisioning collection: ${collectionId}...`);
           await initializedAdapter.collection.createModel(schema);
+          logger.info(`[testing] Model created for: ${collectionId}`);
 
           if (initializedAdapter.content?.nodes?.upsertContentStructureNode) {
-            if (process.env.BENCHMARK_DEBUG === "true") {
-              console.log(
-                `[testing] Upserting collection node for ${collectionId} (tenant: ${tenantId})`,
-              );
-            }
+            logger.info(
+              `[testing] Upserting content node for ${collectionId} (tenant: ${tenantId})`,
+            );
             const node: any = {
               _id: collectionId,
               path: `/collection/${(schema.name || collectionId).toLowerCase()}`,
@@ -288,7 +287,16 @@ export async function handleTestingRoutes(
               source: "api",
               tenantId,
             };
-            await initializedAdapter.content.nodes.upsertContentStructureNode(node);
+            const upsertRes =
+              await initializedAdapter.content.nodes.upsertContentStructureNode(node);
+            logger.info(
+              `[testing] Content node upsert result for ${collectionId}: ${upsertRes.success ? "OK" : "FAILED"}`,
+            );
+            if (!upsertRes.success) {
+              logger.error(
+                `[testing] Upsert failed for ${collectionId}: ${upsertRes.message || "unknown"}`,
+              );
+            }
           }
           results.push({ id: collectionId, success: true });
         } catch (e: any) {

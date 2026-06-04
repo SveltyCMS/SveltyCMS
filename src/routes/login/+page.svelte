@@ -411,31 +411,31 @@ function handleSignUpPointerEnter() {
 
 		<!-- Language Select -->
 		<div
-			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
+			class="language-selector absolute bottom-1/4 left-0 right-0 flex justify-center transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			<Dropdown position="top" closeOnSelect={false} class="p-2! w-64 bg-surface-900! border-surface-700! dark:bg-surface-900! dark:border-surface-700! backdrop-blur-none!">
+			<Dropdown position="bottom" closeOnSelect={false} class="p-3! w-60 bg-black/90! border-white/10! dark:bg-black/90! dark:border-white/10! backdrop-blur-md! rounded-2xl! shadow-2xl">
 				{#snippet trigger()}
-					<span class="flex items-center justify-between gap-2 text-white/80 hover:text-white transition-colors cursor-pointer">
-						<span>{getLanguageName(currentLanguage)}</span>
-						<iconify-icon icon="mdi:chevron-up" width={20}></iconify-icon>
+					<span class="flex items-center justify-between gap-3 text-white bg-black/75 hover:bg-black/85 px-5 py-2.5 rounded-full transition-colors cursor-pointer shadow-lg">
+						<span class="text-base font-semibold">{getLanguageName(currentLanguage)}</span>
+						<iconify-icon icon="mdi:chevron-down" width={24}></iconify-icon>
 					</span>
 				{/snippet}
 				<!-- Header to inform user about System Language context -->
 				<div
-					class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
+					class="px-3 py-1.5 text-[10px] font-bold text-white/40 uppercase tracking-widest text-center border-b border-white/10 mb-2"
 				>
 					{applayout_systemlanguage()}
 				</div>
 
 				{#if Array.isArray(getPublicSetting('LOCALES')) && (getPublicSetting('LOCALES') as any[]).length > 5}
-					<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
+					<div class="px-2 pb-2 mb-2 border-b border-white/10">
 						<input
 							type="text"
 							bind:this={searchInput}
 							bind:value={searchQuery}
 							placeholder="Search language..."
-							class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
+							class="w-full rounded-lg bg-white/10 px-3 py-2 text-sm placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 text-white border-none"
 							aria-label="Search languages"
 							onclick={(e) => e.stopPropagation()}
 						/>

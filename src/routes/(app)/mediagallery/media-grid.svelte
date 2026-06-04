@@ -94,13 +94,13 @@ Features:
 </script>
 
 <div
-  class="flex flex-wrap items-start gap-4 overflow-auto content-start p-1 min-h-100"
+  class="flex flex-wrap items-start gap-4 overflow-auto content-start min-h-100"
   role="grid"
   aria-label="Media asset grid"
 >
   {#if filteredFiles.length === 0}
     <div
-      class="flex flex-col items-center justify-center w-full min-h-75 border-2 border-dashed border-surface-300 dark:border-surface-700 rounded-2xl bg-surface-50/50 dark:bg-surface-800/20"
+      class="flex flex-col items-center justify-center w-full min-h-75 border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50/50 dark:bg-surface-800/20"
       transition:scale={{ duration: 200 }}
     >
       <iconify-icon icon="mdi:cloud-upload-outline" width="64" class=""

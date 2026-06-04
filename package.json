@@ -111,7 +111,7 @@
     "@inlang/paraglide-js": "^2.18.2",
     "@mcp-b/webmcp-polyfill": "^3.0.0",
     "@opentelemetry/api": "^1.9.1",
-    "@smithy/node-http-handler": "^4.7.6",
+    "@smithy/node-http-handler": "^4.7.7",
     "@sveltejs/kit": "^2.63.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",

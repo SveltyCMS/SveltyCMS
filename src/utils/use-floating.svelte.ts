@@ -231,7 +231,7 @@ export function useFloating(options: FloatingOptions) {
     // --- CSS Anchor Positioning path (Chrome 143+, Firefox 147+) ---
     if (SUPPORTS_ANCHOR) {
       ref.style.anchorName = anchorName;
-      float.style.positionAnchor = `--${anchorName}`;
+      float.style.positionAnchor = anchorName;
       (float.style as any).positionArea = placement.replace("-", " ");
       (float.style as any).positionTryOptions = "flip-block, flip-inline";
       float.style.inset = "auto";

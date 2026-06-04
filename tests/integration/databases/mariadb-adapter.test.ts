@@ -149,11 +149,13 @@ describeMariaDB("MariaDB Adapter Integration", () => {
       }
     });
 
-    it("should support path-based filtering (Relational Simulation)", async () => {
+    it("should resolve redirectsMV correctly", async () => {
       if (!db) return;
-      // QueryBuilder test
-      const qb = db.queryBuilder(testCollection);
-      const res = await qb.where({ scope: "test", tenantId: TEST_TENANT } as any).execute();
+      const res = await db.crud.findMany("redirectsMV", {
+        tenantId: "test_tenant_mariadb",
+        source: "/",
+        active: true,
+      } as any);
       expect(res.success).toBe(true);
     });
   });
