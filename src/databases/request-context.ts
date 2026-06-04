@@ -1,6 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { DatabaseId } from "./db-interface";
 
+import { generateUUID } from "@src/utils/native-utils";
+
 export interface RequestContext {
   correlationId?: string;
   tenantId?: DatabaseId | null;
@@ -34,5 +36,5 @@ export function getRequestContext(): RequestContext | undefined {
  * Generate a new correlation ID if one doesn't exist.
  */
 export function generateCorrelationId(): string {
-  return globalThis.crypto?.randomUUID() || Math.random().toString(36).substring(2, 15);
+  return generateUUID();
 }

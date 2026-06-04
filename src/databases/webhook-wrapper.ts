@@ -223,50 +223,52 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
     };
 
-    const MAX_PROXY_DEPTH = 5;
-    let depth = 0;
+    const wrappedMethodsCache = new Map<string | symbol, Function>();
 
     return new Proxy(capturedCrud, {
       get(target, prop, receiver) {
-        if (depth++ > MAX_PROXY_DEPTH) {
-          depth = 0;
-          throw new Error("CRUD proxy depth exceeded");
+        if (prop === "then") return undefined;
+        if (typeof prop !== "string" && typeof prop !== "symbol") {
+          return Reflect.get(target, prop, receiver);
         }
-        try {
-          let originalFunction: Function | undefined;
 
-          if (typeof prop === "string" && prop in wrappedMethods) {
-            originalFunction = wrappedMethods[prop as keyof ICrudAdapter] as Function;
+        const cached = wrappedMethodsCache.get(prop);
+        if (cached) return cached;
+
+        let originalFunction: Function | undefined;
+
+        if (typeof prop === "string" && prop in wrappedMethods) {
+          originalFunction = wrappedMethods[prop as keyof ICrudAdapter] as Function;
+        } else {
+          const value = Reflect.get(target, prop, receiver);
+          if (typeof value === "function") {
+            originalFunction = value.bind(target);
           } else {
-            const value = Reflect.get(target, prop, receiver);
-            if (typeof value === "function") {
-              originalFunction = value.bind(target);
-            } else {
-              return value;
-            }
+            return value;
           }
-
-          return async (...args: any[]) => {
-            const ctx = getRequestContext();
-            return tracer.startActiveSpan(`crud.${String(prop)}`, async (span) => {
-              if (ctx?.tenantId) span.setAttribute("tenant.id", ctx.tenantId);
-              if (ctx?.userId) span.setAttribute("user.id", ctx.userId);
-              try {
-                const res = await originalFunction!(...args);
-                span.setStatus({ code: SpanStatusCode.OK });
-                return res;
-              } catch (err: any) {
-                span.recordException(err);
-                span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
-                throw err;
-              } finally {
-                span.end();
-              }
-            });
-          };
-        } finally {
-          depth--;
         }
+
+        const wrappedFn = async (...args: any[]) => {
+          const ctx = getRequestContext();
+          return tracer.startActiveSpan(`crud.${String(prop)}`, async (span) => {
+            if (ctx?.tenantId) span.setAttribute("tenant.id", ctx.tenantId);
+            if (ctx?.userId) span.setAttribute("user.id", ctx.userId);
+            try {
+              const res = await originalFunction!(...args);
+              span.setStatus({ code: SpanStatusCode.OK });
+              return res;
+            } catch (err: any) {
+              span.recordException(err);
+              span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+              throw err;
+            } finally {
+              span.end();
+            }
+          });
+        };
+
+        wrappedMethodsCache.set(prop, wrappedFn);
+        return wrappedFn;
       },
     });
   };
@@ -315,41 +317,54 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
     };
 
-    const MAX_PROXY_DEPTH = 5;
-    let filesDepth = 0;
-
+    const wrappedFilesCache = new Map<string | symbol, any>();
     const filesProxy = new Proxy(originalFiles, {
       get(fTarget, fProp, fReceiver) {
-        if (filesDepth++ > MAX_PROXY_DEPTH) {
-          filesDepth = 0;
-          throw new Error("Files proxy depth exceeded");
+        if (fProp === "then") return undefined;
+        if (typeof fProp !== "string" && typeof fProp !== "symbol") {
+          return Reflect.get(fTarget, fProp, fReceiver);
         }
-        try {
-          if (typeof fProp === "string" && fProp in wrappedFiles) {
-            return wrappedFiles[fProp as keyof IMediaAdapter["files"]];
-          }
-          const fValue = Reflect.get(fTarget, fProp, fReceiver);
-          return typeof fValue === "function" ? fValue.bind(fTarget) : fValue;
-        } finally {
-          filesDepth--;
+
+        const cached = wrappedFilesCache.get(fProp);
+        if (cached) return cached;
+
+        if (typeof fProp === "string" && fProp in wrappedFiles) {
+          const fn = wrappedFiles[fProp as keyof IMediaAdapter["files"]]!;
+          wrappedFilesCache.set(fProp, fn);
+          return fn;
         }
+
+        const fValue = Reflect.get(fTarget, fProp, fReceiver);
+        if (typeof fValue === "function") {
+          const bound = fValue.bind(fTarget);
+          wrappedFilesCache.set(fProp, bound);
+          return bound;
+        }
+
+        return fValue;
       },
     });
 
-    let mediaDepth = 0;
+    const wrappedMediaCache = new Map<string | symbol, any>();
     return new Proxy(capturedMedia, {
       get(target, prop, receiver) {
-        if (mediaDepth++ > MAX_PROXY_DEPTH) {
-          mediaDepth = 0;
-          throw new Error("Media proxy depth exceeded");
+        if (prop === "files") return filesProxy;
+        if (prop === "then") return undefined;
+        if (typeof prop !== "string" && typeof prop !== "symbol") {
+          return Reflect.get(target, prop, receiver);
         }
-        try {
-          if (prop === "files") return filesProxy;
-          const value = Reflect.get(target, prop, receiver);
-          return typeof value === "function" ? value.bind(target) : value;
-        } finally {
-          mediaDepth--;
+
+        const cached = wrappedMediaCache.get(prop);
+        if (cached) return cached;
+
+        const value = Reflect.get(target, prop, receiver);
+        if (typeof value === "function") {
+          const bound = value.bind(target);
+          wrappedMediaCache.set(prop, bound);
+          return bound;
         }
+
+        return value;
       },
     });
   };
@@ -397,55 +412,60 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
   const crudProxy = originalCrud ? wrapCrud(originalCrud) : undefined;
   const mediaProxy = originalMedia ? wrapMedia(originalMedia) : undefined;
 
-  const MAX_PROXY_DEPTH = 5;
-  let adapterDepth = 0;
+  const wrappedAdapterCache = new Map<string | symbol, any>();
 
   return new Proxy(adapter, {
     get(target, prop, receiver) {
-      if (adapterDepth++ > MAX_PROXY_DEPTH) {
-        adapterDepth = 0;
-        throw new Error("Adapter proxy depth exceeded");
+      if (prop === "crud" && crudProxy) return crudProxy;
+      if (prop === "media" && mediaProxy) return mediaProxy;
+      if (prop === "__isSveltyProxy__") return true;
+      if (prop === "constructor") return target.constructor;
+      if (prop === "then") return undefined;
+      if (typeof prop !== "string" && typeof prop !== "symbol") {
+        return Reflect.get(target, prop, receiver);
       }
-      try {
-        if (prop === "crud" && crudProxy) return crudProxy;
-        if (prop === "media" && mediaProxy) return mediaProxy;
-        if (prop === "__isSveltyProxy__") return true;
-        if (prop === "constructor") return target.constructor;
 
-        let value = Reflect.get(target, prop, receiver);
+      const cached = wrappedAdapterCache.get(prop);
+      if (cached) return cached;
 
-        // Final Resilience: If still missing but is a known critical interface, return empty object to prevent crash
-        if (!value && (prop === "collection" || prop === "batch")) {
-          // Try one last thing: check if it's on the class prototype
-          const protoValue = (target.constructor?.prototype as any)?.[prop];
-          if (protoValue) return protoValue;
-          // 🚀 Self-Healing Dummy: Returns a function that returns null/empty for any method call.
-          // This prevents "is not a function" crashes during high-concurrency bootstrap races.
-          return new Proxy(
-            {},
-            {
-              get: (_, subProp) => {
-                if (subProp === "getModel") {
-                  return () => ({
-                    findOne: () => Promise.resolve(null),
-                    aggregate: () => Promise.resolve([]),
-                    find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
-                  });
-                }
-                return () => Promise.resolve({ success: false, message: "Interface initializing" });
-              },
+      let value = Reflect.get(target, prop, receiver);
+
+      // Final Resilience: If still missing but is a known critical interface, return empty object to prevent crash
+      if (!value && (prop === "collection" || prop === "batch")) {
+        // Try one last thing: check if it's on the class prototype
+        const protoValue = (target.constructor?.prototype as any)?.[prop];
+        if (protoValue) {
+          wrappedAdapterCache.set(prop, protoValue);
+          return protoValue;
+        }
+        // 🚀 Self-Healing Dummy: Returns a function that returns null/empty for any method call.
+        // This prevents "is not a function" crashes during high-concurrency bootstrap races.
+        const dummy = new Proxy(
+          {},
+          {
+            get: (_, subProp) => {
+              if (subProp === "getModel") {
+                return () => ({
+                  findOne: () => Promise.resolve(null),
+                  aggregate: () => Promise.resolve([]),
+                  find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
+                });
+              }
+              return () => Promise.resolve({ success: false, message: "Interface initializing" });
             },
-          );
-        }
-
-        if (typeof value === "function") {
-          value = value.bind(target);
-        }
-
-        return value;
-      } finally {
-        adapterDepth--;
+          },
+        );
+        wrappedAdapterCache.set(prop, dummy);
+        return dummy;
       }
+
+      if (typeof value === "function") {
+        const bound = value.bind(target);
+        wrappedAdapterCache.set(prop, bound);
+        return bound;
+      }
+
+      return value;
     },
     ownKeys(target) {
       const keys = Reflect.ownKeys(target);
