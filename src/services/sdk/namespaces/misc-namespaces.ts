@@ -19,7 +19,11 @@ import { aiService } from "@src/services/core/ai-service";
 import * as settingsService from "@src/services/core/settings-service";
 import { generateSecureToken } from "@utils/native-utils";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
-import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
+import type {
+  DatabaseId,
+  IDBAdapter,
+  ISODateString,
+} from "@src/databases/db-interface";
 import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
 
@@ -36,51 +40,60 @@ export class WidgetsNamespace extends BaseNamespace {
   }
 
   async getActiveWidgets() {
-    if (!this._dbAdapter.system?.widgets?.getActiveWidgets) return { success: true, data: [] };
+    if (!this._dbAdapter.system?.widgets?.getActiveWidgets)
+      return { success: true, data: [] };
     return this._dbAdapter.system.widgets.getActiveWidgets();
   }
 
   async list(options: LocalApiOptions = {}) {
     const { tenantId = "default-tenant" } = options;
-    const { widgets, getWidgetDependencies } = await import("@src/stores/widget-store.svelte.ts");
+    const { widgets, getWidgetDependencies } =
+      await import("@src/stores/widget-store.svelte.ts");
     await widgets.initialize(tenantId as string);
-    const activeWidgetsResult = await this._dbAdapter.system.widgets.getActiveWidgets();
-    const activeWidgetNames = (activeWidgetsResult.success ? activeWidgetsResult.data : []).map(
-      (w: any) => (typeof w === "string" ? w : w.name),
+    const activeWidgetsResult =
+      await this._dbAdapter.system.widgets.getActiveWidgets();
+    const activeWidgetNames = (
+      activeWidgetsResult.success ? activeWidgetsResult.data : []
+    ).map((w: any) => (typeof w === "string" ? w : w.name));
+    const widgetList = Object.entries(widgets.widgetFunctions).map(
+      ([name, widgetFn]) => {
+        const isActive = activeWidgetNames.includes(name);
+        const isCore = widgets.coreWidgets.includes(name);
+        const dependencies = getWidgetDependencies(name);
+        const widget = widgetFn as unknown as Record<string, unknown>;
+        return {
+          name,
+          icon:
+            (widget.Icon as string) ||
+            (isCore ? "mdi:puzzle" : "mdi:puzzle-plus"),
+          description: (widget.Description as string) || "",
+          isCore,
+          isActive,
+          dependencies,
+          pillar: {
+            definition: {
+              name: widget.Name as string,
+              description: widget.Description as string,
+              icon: widget.Icon as string,
+              guiSchema: widget.GuiSchema
+                ? Object.keys(widget.GuiSchema as object).length
+                : 0,
+              aggregations: !!widget.aggregations,
+            },
+            input: {
+              componentPath: (widget.__inputComponentPath as string) || "",
+              exists: !!(widget.__inputComponentPath as string),
+            },
+            display: {
+              componentPath: (widget.__displayComponentPath as string) || "",
+              exists: !!(widget.__displayComponentPath as string),
+            },
+          },
+          canDisable: !isCore && dependencies.length === 0,
+          hasValidation: !!widget.GuiSchema,
+        };
+      },
     );
-    const widgetList = Object.entries(widgets.widgetFunctions).map(([name, widgetFn]) => {
-      const isActive = activeWidgetNames.includes(name);
-      const isCore = widgets.coreWidgets.includes(name);
-      const dependencies = getWidgetDependencies(name);
-      const widget = widgetFn as unknown as Record<string, unknown>;
-      return {
-        name,
-        icon: (widget.Icon as string) || (isCore ? "mdi:puzzle" : "mdi:puzzle-plus"),
-        description: (widget.Description as string) || "",
-        isCore,
-        isActive,
-        dependencies,
-        pillar: {
-          definition: {
-            name: widget.Name as string,
-            description: widget.Description as string,
-            icon: widget.Icon as string,
-            guiSchema: widget.GuiSchema ? Object.keys(widget.GuiSchema as object).length : 0,
-            aggregations: !!widget.aggregations,
-          },
-          input: {
-            componentPath: (widget.__inputComponentPath as string) || "",
-            exists: !!(widget.__inputComponentPath as string),
-          },
-          display: {
-            componentPath: (widget.__displayComponentPath as string) || "",
-            exists: !!(widget.__displayComponentPath as string),
-          },
-        },
-        canDisable: !isCore && dependencies.length === 0,
-        hasValidation: !!widget.GuiSchema,
-      };
-    });
     widgetList.sort((a, b) => {
       if (a.isCore && !b.isCore) return -1;
       if (!a.isCore && b.isCore) return 1;
@@ -90,13 +103,17 @@ export class WidgetsNamespace extends BaseNamespace {
   }
 
   async activate(widgetId: string) {
-    const result = await this._dbAdapter.system.widgets.activate(widgetId as DatabaseId);
+    const result = await this._dbAdapter.system.widgets.activate(
+      widgetId as DatabaseId,
+    );
     if (!result.success) throw new AppError(result.message, 500);
     return { widgetId };
   }
 
   async deactivate(widgetId: string) {
-    const result = await this._dbAdapter.system.widgets.deactivate(widgetId as DatabaseId);
+    const result = await this._dbAdapter.system.widgets.deactivate(
+      widgetId as DatabaseId,
+    );
     if (!result.success) throw new AppError(result.message, 500);
     return { widgetId };
   }
@@ -117,15 +134,26 @@ export class SettingsNamespace {
     return settingsService.invalidateSettingsCache(options.tenantId as string);
   }
   async getPublic(options: LocalApiOptions = {}) {
-    const { public: p } = await settingsService.loadSettingsCache(options.tenantId as string);
+    const { public: p } = await settingsService.loadSettingsCache(
+      options.tenantId as string,
+    );
     return p;
   }
   async get(key: string, options: LocalApiOptions = {}) {
-    if (key === "all") return settingsService.getAllSettings(options.tenantId as string);
-    return settingsService.getUntypedSetting(key, "private", options.tenantId as string);
+    if (key === "all")
+      return settingsService.getAllSettings(options.tenantId as string);
+    return settingsService.getUntypedSetting(
+      key,
+      "private",
+      options.tenantId as string,
+    );
   }
   async set(key: string, value: any, options: LocalApiOptions = {}) {
-    return settingsService.setPrivateSetting(key as any, value, options.tenantId as string);
+    return settingsService.setPrivateSetting(
+      key as any,
+      value,
+      options.tenantId as string,
+    );
   }
 }
 
@@ -147,7 +175,12 @@ export class ImporterNamespace {
     if (!Array.isArray(data)) throw new AppError("Data must be an array", 422);
     const shouldProcessInBackground = async || data.length > 50;
     if (shouldProcessInBackground) {
-      let jobPayload: any = { collectionName, mode, duplicateStrategy, tenantId };
+      let jobPayload: any = {
+        collectionName,
+        mode,
+        duplicateStrategy,
+        tenantId,
+      };
       if (data.length > 1000) {
         jobPayload.tempPayloadId = await saveTempPayload(data);
       } else {
@@ -189,9 +222,14 @@ export class ImporterNamespace {
           }
         }
         const result = doc._id
-          ? await this._dbAdapter.crud.upsert(collectionName, { _id: doc._id as DatabaseId }, doc, {
-              tenantId: tenantId as DatabaseId,
-            })
+          ? await this._dbAdapter.crud.upsert(
+              collectionName,
+              { _id: doc._id as DatabaseId },
+              doc,
+              {
+                tenantId: tenantId as DatabaseId,
+              },
+            )
           : await this._dbAdapter.crud.insert(collectionName, doc, {
               tenantId: tenantId as DatabaseId,
             });
@@ -201,20 +239,49 @@ export class ImporterNamespace {
         errors++;
       }
     }
-    return { success: true, imported, skipped, errors, total: data.length, status: "completed" };
+    return {
+      success: true,
+      imported,
+      skipped,
+      errors,
+      total: data.length,
+      status: "completed",
+    };
   }
   async scaffold(body: any) {
-    const { sourceType, sourceUrl, apiKey, sourceTypeIdentifier, collectionName } = body;
+    const {
+      sourceType,
+      sourceUrl,
+      apiKey,
+      sourceTypeIdentifier,
+      collectionName,
+    } = body;
     if (!sourceType || !sourceUrl || !sourceTypeIdentifier || !collectionName)
       throw new AppError("Missing params", 400);
     let sourceData;
     if (sourceType === "drupal")
-      sourceData = await fetchDrupalData(sourceUrl, sourceTypeIdentifier, apiKey);
+      sourceData = await fetchDrupalData(
+        sourceUrl,
+        sourceTypeIdentifier,
+        apiKey,
+      );
     else if (sourceType === "wordpress")
-      sourceData = await fetchWordPressData(sourceUrl, sourceTypeIdentifier, apiKey);
+      sourceData = await fetchWordPressData(
+        sourceUrl,
+        sourceTypeIdentifier,
+        apiKey,
+      );
     else throw new AppError("Unsupported source", 400);
-    const schema = await scaffoldCollectionSchema(collectionName, sourceData.schema);
-    const collectionPath = path.join(process.cwd(), "config", "collections", `${schema.slug}.ts`);
+    const schema = await scaffoldCollectionSchema(
+      collectionName,
+      sourceData.schema,
+    );
+    const collectionPath = path.join(
+      process.cwd(),
+      "config",
+      "collections",
+      `${schema.slug}.ts`,
+    );
     const fileContent = `import { widgets } from '@widgets';\nimport type { Schema } from '@src/content/types';\n\nexport const schema: Schema = ${JSON.stringify(schema, null, 2).replace(/"widget":\s*"(\w+)"/g, '"widget": widgets.$1')};\n`;
     await fs.mkdir(path.dirname(collectionPath), { recursive: true });
     await fs.writeFile(collectionPath, fileContent);
@@ -253,7 +320,10 @@ export class ImporterNamespace {
         ? collectionsResult.data.find((c: any) => c.name === targetCollection)
         : null;
       if (!targetCol) throw new AppError("Target collection not found", 404);
-      finalMapping = await aiService.suggestMapping(externalData.schema, targetCol);
+      finalMapping = await aiService.suggestMapping(
+        externalData.schema,
+        targetCol,
+      );
     }
     if (dryRun)
       return {
@@ -271,9 +341,13 @@ export class ImporterNamespace {
         const attributes = sourceType === "drupal" ? item.attributes : item;
         for (const [sourceField, targetField] of Object.entries(finalMapping)) {
           let targetKey =
-            typeof targetField === "string" ? targetField : (targetField as any).target;
+            typeof targetField === "string"
+              ? targetField
+              : (targetField as any).target;
           let transform =
-            typeof targetField === "string" ? undefined : (targetField as any).transform;
+            typeof targetField === "string"
+              ? undefined
+              : (targetField as any).transform;
           let value = attributes[sourceField];
           if (transform === "media" && value) {
             try {
@@ -322,7 +396,13 @@ export class WebsiteTokensNamespace extends BaseNamespace {
     super(_dbAdapterOverride);
   }
   async list(options: TokenOptions = {}) {
-    const { tenantId, page = 1, limit = 10, sort = "createdAt", order = "desc" } = options;
+    const {
+      tenantId,
+      page = 1,
+      limit = 10,
+      sort = "createdAt",
+      order = "desc",
+    } = options;
     return withTenant(
       tenantId ?? null,
       async () => {
@@ -378,7 +458,9 @@ export class WebsiteTokensNamespace extends BaseNamespace {
     return withTenant(
       tenantId ?? null,
       async () => {
-        const result = await this._dbAdapter.system.websiteTokens.delete(tokenId as any);
+        const result = await this._dbAdapter.system.websiteTokens.delete(
+          tokenId as any,
+        );
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
       },
@@ -394,10 +476,12 @@ export class SystemNamespace {
   public settings: SettingsNamespace;
   public importer: ImporterNamespace;
   public websiteTokens: WebsiteTokensNamespace;
+  public themes: ThemeNamespace;
   constructor(private _dbAdapter: IDBAdapter) {
     this.settings = new SettingsNamespace(this._dbAdapter);
     this.importer = new ImporterNamespace(this._dbAdapter);
     this.websiteTokens = new WebsiteTokensNamespace(this._dbAdapter);
+    this.themes = new ThemeNamespace();
   }
   getHealth() {
     return getHealthCheckReport();
@@ -405,14 +489,20 @@ export class SystemNamespace {
   async reinitialize(force: boolean = true) {
     return reinitializeSystem(force);
   }
-  async refresh(options: LocalApiOptions & { skipReconciliation?: boolean } = {}) {
+  async refresh(
+    options: LocalApiOptions & { skipReconciliation?: boolean } = {},
+  ) {
     const { tenantId, skipReconciliation = false } = options;
     const { contentSystem } = await import("@src/content/index.server");
     return contentSystem.refresh(tenantId as string, skipReconciliation);
   }
   async getPreferences(
     keys: string[],
-    options: { userId?: string; scope?: "user" | "system"; tenantId?: string } = {},
+    options: {
+      userId?: string;
+      scope?: "user" | "system";
+      tenantId?: string;
+    } = {},
   ) {
     const { userId, scope = "system", tenantId } = options;
     return this._dbAdapter.system.preferences.getMany(keys, {
@@ -424,7 +514,11 @@ export class SystemNamespace {
   async setPreference(
     key: string,
     value: any,
-    options: { userId?: string; scope?: "user" | "system"; tenantId?: string } = {},
+    options: {
+      userId?: string;
+      scope?: "user" | "system";
+      tenantId?: string;
+    } = {},
   ) {
     const { userId, scope = "system", tenantId } = options;
     return this._dbAdapter.system.preferences.set(key, value, {
@@ -446,6 +540,56 @@ export class SystemNamespace {
 }
 
 /**
+ * Theme Namespace — zero-overhead server-side theme operations via LocalCMS SDK
+ */
+export class ThemeNamespace {
+  async getAdminTheme(tenantId?: string | null) {
+    const { adminThemeService } =
+      await import("@src/services/core/admin-theme-service");
+    return adminThemeService.getAdminTheme(tenantId);
+  }
+  async saveAdminTheme(settings: any, tenantId?: string | null) {
+    const { adminThemeService } =
+      await import("@src/services/core/admin-theme-service");
+    return adminThemeService.saveAdminTheme(settings, tenantId);
+  }
+  async listThemes(tenantId?: string | null) {
+    const { adminThemeService } =
+      await import("@src/services/core/admin-theme-service");
+    return adminThemeService.listThemes(tenantId);
+  }
+  async createTheme(name: string, settings?: any, tenantId?: string | null) {
+    const { adminThemeService } =
+      await import("@src/services/core/admin-theme-service");
+    return adminThemeService.createTheme(name, settings, tenantId);
+  }
+  async activateTheme(themeId: string, tenantId?: string | null) {
+    const { adminThemeService } =
+      await import("@src/services/core/admin-theme-service");
+    return adminThemeService.activateTheme(themeId, tenantId);
+  }
+  async deleteTheme(themeId: string, tenantId?: string | null) {
+    const { adminThemeService } =
+      await import("@src/services/core/admin-theme-service");
+    return adminThemeService.deleteTheme(themeId, tenantId);
+  }
+  async cloneTheme(
+    sourceId: string,
+    newName: string,
+    tenantId?: string | null,
+  ) {
+    const { adminThemeService } =
+      await import("@src/services/core/admin-theme-service");
+    return adminThemeService.cloneTheme(sourceId, newName, tenantId);
+  }
+  async resetToDefaults(tenantId?: string | null) {
+    const { adminThemeService } =
+      await import("@src/services/core/admin-theme-service");
+    return adminThemeService.resetToDefaults(tenantId);
+  }
+}
+
+/**
  * Automation Namespace
  */
 export class AutomationNamespace extends BaseNamespace {
@@ -455,7 +599,11 @@ export class AutomationNamespace extends BaseNamespace {
   async getLogs(flowId: string, options: any = {}) {
     return automationService.getLogs(flowId, options);
   }
-  async executeFlow(id: string, triggerData: any = {}, options: LocalApiOptions = {}) {
+  async executeFlow(
+    id: string,
+    triggerData: any = {},
+    options: LocalApiOptions = {},
+  ) {
     const { tenantId } = options;
     const flow = await this.getFlow(id, options);
     if (!flow) throw new Error(`Flow ${id} not found`);
@@ -471,7 +619,9 @@ export class TelemetryNamespace extends BaseNamespace {
   async checkUpdateStatus(options: LocalApiOptions = {}) {
     const { tenantId } = options;
     return withTenant(tenantId ?? null, async () => {
-      const result = await (this._dbAdapter.system as any).health.getUpdateStatus();
+      const result = await (
+        this._dbAdapter.system as any
+      ).health.getUpdateStatus();
       if (!result.success) throw new AppError(result.message, 500);
       return result.data;
     });

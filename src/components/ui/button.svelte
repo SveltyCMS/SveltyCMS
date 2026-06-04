@@ -136,10 +136,10 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
   // Calculate dynamic custom variables for custom color presets (e.g. database themes)
   const customStyles = $derived.by(() => {
     let styles = '';
-    
-    // Wire custom property for input/button border radius
+
+    // Wire custom property for button border radius
     if (shape !== 'angle' && !rounded) {
-      styles += `border-radius: var(--admin-radius-input, 4px); `;
+      styles += `border-radius: var(--admin-radius-button, 0.25rem); `;
     }
 
     // Apply scale multiplier dynamically to heights and paddings
@@ -226,5 +226,3 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
     {/if}
   {/if}
 </svelte:element>
-
-

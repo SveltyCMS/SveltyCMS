@@ -1,12 +1,12 @@
 ---
 path: "docs/architecture/ui-and-screen-state.mdx"
 title: "UI & Screen State Architecture"
-description: "Technical documentation of the SveltyCMS UI visibility and screen size management systems built with Svelte 5 runes."
+description: "Technical documentation of the SveltyCMS UI visibility, screen size management, and 6-region admin theme layout shell — built with Svelte 5 runes."
 order: 35
 icon: "mdi:monitor-screenshot"
 author: "SveltyCMS Team"
 created: "2025-12-26"
-updated: "2026-03-27"
+updated: "2026-06-04"
 tags:
   - "architecture"
   - "state-management"
@@ -14,6 +14,7 @@ tags:
   - "runes"
   - "ui"
   - "responsive"
+  - "admin-theme"
 ---
 
 # UI & Screen State Architecture
@@ -89,16 +90,26 @@ Sidebars and headers can be in one of three states:
 
 #### `ui.state`
 
-Directly access the visibility of primary layout elements:
+Directly access the visibility of all six layout regions:
 
-- `leftSidebar`
-- `right-sidebar`
-- `pageheader`
-- `pagefooter`
+| Key            | Type             | Default  | Description                                |
+| -------------- | ---------------- | -------- | ------------------------------------------ |
+| `leftSidebar`  | `full \| hidden` | `full`   | Main navigation sidebar                    |
+| `rightSidebar` | `full \| hidden` | `hidden` | Entry inspector panel                      |
+| `pageheader`   | `full \| hidden` | `full`   | Collection breadcrumb bar                  |
+| `pagefooter`   | `full \| hidden` | `hidden` | Entry metadata footer                      |
+| `header`       | `full \| hidden` | `hidden` | Global top toolbar (`global-toolbar` slot) |
+| `footer`       | `full \| hidden` | `hidden` | Global bottom bar (`global-footer` slot)   |
+
+Each region is independently toggleable and persisted to DB per-theme via `config.adminTheme.layoutState`.
 
 #### `ui.toggle(element, visibility)`
 
-Manually override the state of a UI element. Manual toggles active a **600ms override timer** to prevent automatic layout shifts from interfering with user interactions.
+Manually override the state of a UI element. Manual toggles activate a **600ms override timer** to prevent automatic layout shifts from interfering with user interactions.
+
+#### `ui.stickyActionContent`
+
+A Svelte 5 `Snippet` reference used by the `<StickyActions>` wrapper component. Pages set this via `<StickyActions><button>Save</button></StickyActions>`, and `+layout.svelte` renders it into a sticky bar at the bottom of the viewport when `theme.features.stickyActionBar` is enabled. Automatically cleared on page destroy.
 
 #### `ui.setRouteContext(ctx)`
 
@@ -158,3 +169,5 @@ const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === "collapse
 - **[State Management](./state-management.mdx)** - System lifecycle and health architecture.
 - **[Global Loading Store](./global-loading-store.mdx)** - Concurrent loading state management.
 - **[Code Structure](./code-structure.mdx)** - Project folder organization.
+- **[Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx)** - User guide for the 6-region theme shell.
+- **[Admin Theme Plan](../project/admin-theme-plan.mdx)** - Architecture blueprint for the admin theme system.

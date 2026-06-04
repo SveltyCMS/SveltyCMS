@@ -288,28 +288,74 @@ select:focus {
 
 /* ------------------------------------------------------------------ */
 /* Administrative Theme & Adaptive Workspaces Dynamic CSS Variables    */
+/*                                                                      */
+/* These variables control the admin UI's structural appearance         */
+/* (density, spacing, radii, shadows, layout sizes) and are             */
+/* independent of color theming.                                        */
+/*                                                                      */
+/* ALL values here are the COZY defaults — the current production       */
+/* design.  Compact and Spacious overrides live in [data-density]       */
+/* attribute selectors below.                                           */
 /* ------------------------------------------------------------------ */
 :root {
-  /* Dynamic Spacing & Spacing Scale */
-  --admin-spacing-scale: 1;
-  --admin-border-width: 1px;
+  /* Density Scale (0.85 = compact, 1.0 = cozy, 1.25 = spacious) */
+  --admin-density: 1;
 
   /* Radii */
-  --admin-radius-card: 12px;
-  --admin-radius-input: 6px;
+  --admin-radius-base: 0.75rem;
+  --admin-radius-card: 0.75rem;
+  --admin-radius-input: 0.375rem;
+  --admin-radius-button: 0.25rem;
 
-  /* Shadow weights */
-  --admin-shadow-elevation: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  /* Borders & Shadows */
+  --admin-border-width: 1px;
+  --admin-shadow-elevation: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  --admin-shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.05);
 
   /* Layout Sizing */
   --admin-sidebar-width: 240px;
   --admin-header-height: 64px;
+
+  /* Features */
+  --admin-sticky-bar-height: 56px;
 
   /* Editorial Status Colors */
   --admin-color-draft: oklch(65% 0 219deg);
   --admin-color-published: oklch(69.59% 0.15 162.47deg);
   --admin-color-scheduled: oklch(58.74% 0.2 256.12deg);
   --admin-color-review: oklch(76.86% 0.16 70.07deg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Density Overrides                                                    */
+/*                                                                      */
+/* Applied via data-density="compact|cozy|spacious" on the admin        */
+/* layout root element.  Compact is tuned for data-heavy views          */
+/* (translators, developers); Spacious for writers and managers.        */
+/* ------------------------------------------------------------------ */
+
+/* Compact — high-density data views */
+[data-density="compact"] {
+  --admin-density: 0.85;
+  --admin-radius-base: 0.25rem;
+  --admin-radius-card: 6px;
+  --admin-radius-input: 4px;
+  --admin-radius-button: 0.125rem;
+  --admin-sidebar-width: 200px;
+  --admin-header-height: 48px;
+  --admin-sticky-bar-height: 44px;
+}
+
+/* Spacious — distraction-free content editing */
+[data-density="spacious"] {
+  --admin-density: 1.25;
+  --admin-radius-base: 1rem;
+  --admin-radius-card: 16px;
+  --admin-radius-input: 10px;
+  --admin-radius-button: 0.625rem;
+  --admin-sidebar-width: 300px;
+  --admin-header-height: 72px;
+  --admin-sticky-bar-height: 64px;
 }
 
 /* ========================================================================

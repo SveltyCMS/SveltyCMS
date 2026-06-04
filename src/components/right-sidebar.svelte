@@ -42,6 +42,8 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { page } from '$app/state';
 	import Slot from '@src/components/system/slot.svelte';
+	import Collections from '@src/components/collections.svelte';
+	import { getThemeContext } from '@components/ui/theme-context.svelte';
 	// Utils
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entry-actions';
 
@@ -73,6 +75,13 @@
 
 	// --- Permissions & UI logic ---
 	let showSidebar = $derived(['edit', 'create'].includes(currentMode) && canWrite);
+
+	// Theme-aware: show collections in right sidebar?
+	const themeCtx = getThemeContext();
+	const showCollectionsHere = $derived(
+		(themeCtx?.features?.layoutRegions?.collections === 'right' ||
+		 themeCtx?.features?.layoutRegions?.collections === 'both')
+	);
 
 	let shouldDisableStatusToggle = $derived(
 		(currentMode === 'create' && !ui.isRightSidebarVisible) ||
@@ -226,8 +235,19 @@
 	}
 </script>
 
-{#if showSidebar}
+{#if showSidebar || showCollectionsHere}
 	<div class="flex h-full flex-col justify-between px-3 py-4">
+		<!-- Collections tree (when theme moves it to right sidebar) -->
+		{#if showCollectionsHere}
+			<div class="mb-3">
+				<Collections />
+			</div>
+			{#if showSidebar}
+				<hr class="my-2 border-surface-200 dark:border-surface-700" />
+			{/if}
+		{/if}
+
+		{#if showSidebar}
 		<!-- Special "Next" button for Menu wizard -->
 		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
 			<button type="button" onclick={nextAction!} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full gap-2 shadow-lg">
@@ -350,6 +370,7 @@
 					</div>
 				{/if}
 			</footer>
+			{/if}
 		{/if}
 	</div>
 {/if}

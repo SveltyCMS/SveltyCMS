@@ -1,9 +1,10 @@
-<!-- 
+<!--
 @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/+page.svelte
 @component Collection Builder Editor Shell
  -->
 <script lang="ts">
 import PageTitle from "@src/components/page-title.svelte";
+import StickyActions from "@components/ui/sticky-actions.svelte";
 import type { FieldInstance, Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import { button_delete, button_save } from "@src/paraglide/messages";
@@ -177,9 +178,9 @@ $effect(() => {
 <div class="flex flex-col h-[calc(100vh-80px)] lg:h-[calc(100vh-64px)] overflow-hidden bg-surface-50 dark:bg-surface-950">
 	<!-- Mobile Stepper (Horizontal) -->
 	<div class="lg:hidden p-4 border-b border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm z-20">
-		<Stepper 
-			{steps} 
-			currentStep={activeStep - 1} 
+		<Stepper
+			{steps}
+			currentStep={activeStep - 1}
 			{completedSteps}
 			orientation="horizontal"
 		/>
@@ -189,26 +190,27 @@ $effect(() => {
 	<main class="flex-1 flex flex-col min-w-0 bg-surface-50 dark:bg-surface-950/50 overflow-hidden relative">
 		<!-- Studio Header -->
 		<header class="flex items-center justify-between px-2 py-2 sm:px-6 lg:px-10 border-b border-surface-200/60 dark:border-surface-800/60 bg-white/50 dark:bg-surface-900/50 backdrop-blur-md z-10 shrink-0 min-h-[72px]">
-				<PageTitle 
-					name={action === 'edit' ? `Edit ${collection.value?.name}` : (collection.value?.name && collection.value.name !== 'new' ? `Create ${collection.value.name}` : 'Create Collection')} 
-					icon={collection.value?.icon || 'ic:baseline-build'} 
-					showBackButton={true} 
+				<PageTitle
+					name={action === 'edit' ? `Edit ${collection.value?.name}` : (collection.value?.name && collection.value.name !== 'new' ? `Create ${collection.value.name}` : 'Create Collection')}
+					icon={collection.value?.icon || 'ic:baseline-build'}
+					showBackButton={true}
 					backUrl="/config/collectionbuilder"
 				>
 					<div class="flex gap-2 ml-auto">
 					{#if action === 'edit'}
-						<button 
-							onclick={handleCollectionDelete} 
-							class="preset-filled-error-500 btn flex items-center gap-1" 
+						<button
+							onclick={handleCollectionDelete}
+							class="preset-filled-error-500 btn flex items-center gap-1"
 							disabled={isLoading}
 						>
 							<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
 							<span class="hidden sm:inline">{button_delete()}</span>
 						</button>
 					{/if}
-					<button 
-						onclick={() => handleCollectionSave()} 
-						class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]" 
+					<StickyActions>
+					<button
+						onclick={() => handleCollectionSave()}
+						class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]"
 						disabled={isLoading}
 					>
 						{#if isLoading}
@@ -218,6 +220,7 @@ $effect(() => {
 						{/if}
 						<span>{button_save()}</span>
 					</button>
+					</StickyActions>
 				</div>
 			</PageTitle>
 		</header>
@@ -240,4 +243,3 @@ $effect(() => {
 		<!-- NO INTERNAL FOOTER - Handled by +layout.svelte -->
 	</main>
 </div>
-

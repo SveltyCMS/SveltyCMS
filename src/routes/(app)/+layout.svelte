@@ -40,6 +40,7 @@ import { initializeDarkMode } from "@src/stores/theme-store.svelte.ts";
 import { ui } from "@src/stores/ui-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import Portal from "@components/ui/portal.svelte";
+import Slot from "@components/system/slot.svelte";
 import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
 import { isSearchVisible } from "@utils/global-search-index";
@@ -84,23 +85,97 @@ setContentContext(untrack(() => data.tenantId) || null);
 
 // Initialize Adaptive Workspace Theme Context based on User Role
 const userRole = $derived(data.user?.role || 'editor');
+
+// Try to load admin theme config from the active DB theme, fall back to role-based defaults
+// The config shape is dynamic (JSON from DB), so we use Record<string, any>
+const dbAdminConfig = $derived(
+	(data.theme as any)?.config?.adminTheme as Record<string, any> | undefined
+);
+
 const initialDensity = $derived(
-	userRole === 'admin' || userRole === 'manager'
+	dbAdminConfig?.density ||
+	(userRole === 'admin' || userRole === 'manager'
 		? 'spacious'
 		: userRole === 'translator'
 			? 'compact'
-			: 'cozy'
+			: 'cozy')
 );
+const initialVariant = $derived(dbAdminConfig?.variant || 'bordered');
 
 const theme = setThemeContext(untrack(() => ({
+	id: 'default',
+	name: 'Default',
 	role: userRole as any,
 	density: initialDensity,
-	themeName: 'default'
+	variant: initialVariant as any,
+	accentMode: 'default',
+	themeName: (data.theme as any)?.name || 'default',
+	customCss: dbAdminConfig?.customCss,
+	features: {
+		stickyActionBar: dbAdminConfig?.features?.stickyActionBar ?? false,
+		collapsibleSidebar: dbAdminConfig?.features?.collapsibleSidebar ?? ui.state.leftSidebar !== 'hidden',
+		brandedLogin: dbAdminConfig?.features?.brandedLogin ?? false,
+		highContrastMode: dbAdminConfig?.features?.highContrastMode ?? false,
+		reducedMotion: dbAdminConfig?.features?.reducedMotion ?? false,
+		layoutRegions: dbAdminConfig?.features?.layoutRegions ?? { collections: 'left', mediaGalleries: 'left' },
+	},
 })));
 
 $effect(() => {
 	theme.role = userRole as any;
 	theme.density = initialDensity;
+	theme.variant = initialVariant as any;
+
+	// Per-user theme overrides: merge on top of tenant theme
+	const userTheme = data.user?.preferences?.theme;
+	if (userTheme?.density) theme.density = userTheme.density;
+	if (userTheme?.variant) theme.variant = userTheme.variant;
+	if (userTheme?.reducedMotion) theme.features = { ...theme.features, reducedMotion: true };
+	if (userTheme?.highContrast) theme.features = { ...theme.features, highContrastMode: true };
+	if (userTheme?.layoutState) {
+		for (const [key, val] of Object.entries(userTheme.layoutState)) {
+			if (val) ui.toggle(key as any, val as any);
+		}
+	}
+});
+
+// ── Layout state: restore from DB theme on first load ──
+let layoutStateRestored = false;
+$effect(() => {
+	const saved = dbAdminConfig?.layoutState;
+	if (saved && !layoutStateRestored) {
+		for (const key of Object.keys(saved)) {
+			if ((saved as any)[key]) {
+				ui.toggle(key as any, (saved as any)[key]);
+			}
+		}
+		layoutStateRestored = true;
+	}
+});
+
+// Debounced save of layout state back to theme when ui.state changes
+let layoutSaveTimer: ReturnType<typeof setTimeout>;
+$effect(() => {
+	// Track each ui.state key individually for granular reactivity
+	const state: Record<string, string> = {
+		leftSidebar: ui.state.leftSidebar,
+		rightSidebar: ui.state.rightSidebar,
+		pageheader: ui.state.pageheader,
+		pagefooter: ui.state.pagefooter,
+		header: ui.state.header,
+		footer: ui.state.footer,
+	};
+	// Debounce 2s to batch rapid toggles
+	clearTimeout(layoutSaveTimer);
+	layoutSaveTimer = setTimeout(async () => {
+		try {
+			await fetch('/api/theme/admin-theme', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ layoutState: state }),
+			});
+		} catch { /* silent — layout state save is best-effort */ }
+	}, 2000);
 });
 
 // Component State
@@ -228,6 +303,11 @@ if (import.meta.hot) {
 	import.meta.hot.on("svelty:content-update", () => {
 		invalidate("app:content");
 	});
+	// Theme file sync: refresh theme list when /themes/*.json changes
+	import.meta.hot.on("svelty:theme-update", (data: any) => {
+		console.log(`[AppLayout] Theme file updated: ${data?.name}`);
+		invalidate("app:content");
+	});
 }
 
 beforeNavigate(({ from, to }) => {
@@ -276,12 +356,18 @@ afterNavigate(() => {
 {:else}
 	<div
 		class="relative h-lvh w-full"
+		data-admin-theme={theme.themeName}
+		data-density={theme.density}
 		style="
 			--admin-spacing-scale: {theme.spacingScale};
+			--admin-density: {theme.densityScale};
+			--admin-radius-base: {theme.radiusBase};
 			--admin-radius-card: {theme.radiusCard};
 			--admin-radius-input: {theme.radiusInput};
+			--admin-radius-button: {theme.radiusButton};
 			--admin-sidebar-width: {theme.sidebarWidth};
 			--admin-header-height: {theme.headerHeight};
+			--admin-sticky-bar-height: {theme.stickyBarHeight};
 		"
 	>
 		{#if $isSearchVisible}
@@ -294,15 +380,18 @@ afterNavigate(() => {
 
 		<div class="flex h-lvh flex-col overflow-hidden">
 			{#if ui.state.header !== 'hidden'}
-				<header class="sticky top-0 z-10 bg-tertiary-500"></header>
+				<header class="sticky top-0 z-10" style="height: var(--admin-header-height, 32px); min-height: 4px;">
+					<Slot name="global-toolbar" />
+				</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
 				{#if ui.state.leftSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh {ui.state.leftSidebar === 'full'
-							? 'w-60'
+							? ''
 							: 'w-fit'} relative border-r bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
+						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>
 						<LeftSidebar />
@@ -318,9 +407,23 @@ afterNavigate(() => {
 						{@render children?.()}
 					</div>
 
+					<!-- Sticky action bar (theme-controlled via features.stickyActionBar) -->
+										{#if theme.features.stickyActionBar && ui.stickyActionContent}
+											<div class="sticky bottom-0 z-20 w-full border-t border-surface-200 dark:border-surface-700 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
+												style="min-height: var(--admin-sticky-bar-height, 56px);"
+												role="toolbar"
+												aria-label="Page actions"
+												aria-live="polite"
+											>
+												<div class="flex items-center justify-end gap-2 px-4 py-2">
+													{@render ui.stickyActionContent()}
+												</div>
+											</div>
+										{/if}
+
 					{#if ui.state.pagefooter !== 'hidden'}
 						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
-								<PageFooter />
+							<PageFooter />
 						</footer>
 					{/if}
 				</main>
@@ -336,7 +439,9 @@ afterNavigate(() => {
 			</div>
 
 			{#if ui.state.footer !== 'hidden'}
-				<footer class="bg-tertiary-500"></footer>
+				<footer style="min-height: var(--admin-header-height, 24px);">
+					<Slot name="global-footer" />
+				</footer>
 			{/if}
 		</div>
 

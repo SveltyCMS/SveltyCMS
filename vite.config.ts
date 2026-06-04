@@ -235,6 +235,7 @@ const paths = {
     process.env.COMPILED_COLLECTIONS_DIR || ".compiledCollections",
   ),
   widgets: path.resolve(CWD, "src/widgets"),
+  themes: path.resolve(CWD, "themes"),
 };
 
 // --- Utilities ---
@@ -277,6 +278,9 @@ async function initializeCollectionsStructure() {
 
   await fsPromises.mkdir(paths.userCollections, { recursive: true });
   await fsPromises.mkdir(paths.compiledCollections, { recursive: true });
+
+  // Ensure themes directory exists
+  await fsPromises.mkdir(paths.themes, { recursive: true });
 
   const sourceFiles = (await fsPromises.readdir(paths.userCollections, { recursive: true })).filter(
     (file): file is string =>
@@ -571,6 +575,43 @@ function sveltyCmsPlugin(): Plugin {
           log.error("Error reloading widgets:", err);
         }
       }, 150);
+    }
+
+    // 🎨 THEME FILE SYNC: /themes/*.json → DB auto-import
+    const isThemeFile = absoluteFile.startsWith(paths.themes) && file.endsWith(".json");
+    if (isThemeFile) {
+      setTimeout(async () => {
+        log.info(`Theme file detected: ${path.basename(file)}. Syncing to database...`);
+        try {
+          const themeJson = JSON.parse(readFileSync(file, "utf-8"));
+          // Validate required fields
+          if (!themeJson.name) {
+            log.warn(`Theme file ${path.basename(file)} missing "name" field — skipping`);
+            return;
+          }
+          // Import to database via the admin-theme-service
+          const { adminThemeService } = await server.ssrLoadModule(
+            path.join(CWD, "src/services/core/admin-theme-service.ts"),
+          );
+          // Check if theme with this name already exists, update if so
+          const existing = await adminThemeService.listThemes();
+          const match = existing.find((t: any) => t.name === themeJson.name);
+          if (match) {
+            await adminThemeService.saveAdminTheme(themeJson, undefined, match.id);
+            log.success(`Theme "${themeJson.name}" updated from file.`);
+          } else {
+            await adminThemeService.createTheme(themeJson.name, themeJson);
+            log.success(`Theme "${themeJson.name}" imported from file.`);
+          }
+          // Notify client to refresh theme list
+          server.ws.send("svelty:theme-update", {
+            name: themeJson.name,
+            timestamp: Date.now(),
+          });
+        } catch (err) {
+          log.error(`Failed to sync theme file ${path.basename(file)}:`, err);
+        }
+      }, 200);
     }
   };
 

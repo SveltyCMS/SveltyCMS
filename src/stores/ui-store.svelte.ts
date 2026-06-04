@@ -61,6 +61,9 @@ class UIStore {
   isCommandBarVisible = $state(false);
   userPreferred = $state<UIVisibility>("collapsed");
 
+  // Sticky action bar: pages set their action buttons here
+  stickyActionContent = $state<import("svelte").Snippet | null>(null);
+
   // Internal state
   private manualTimer: ReturnType<typeof setTimeout> | null = null;
 

@@ -24,6 +24,7 @@ import {
 	loadingOperations,
 } from "@src/stores/loading-store.svelte.ts";
 import { toast } from "@src/stores/toast.svelte.ts";
+import StickyActions from "@components/ui/sticky-actions.svelte";
 import { logger } from "@utils/logger";
 import { page } from "$app/state";
 import { beforeNavigate } from "$app/navigation";
@@ -119,6 +120,7 @@ beforeNavigate(({ cancel }) => {
 <div class="absolute inset-0 p-2 space-y-5 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
 	<!-- Header -->
 	<PageTitle name="Access Management" icon="mdi:shield-account-outline" showBackButton={true} backUrl="/config">
+		<StickyActions>
 		<button
 			onclick={saveAllChanges}
 			aria-label="Save all changes"
@@ -140,6 +142,7 @@ beforeNavigate(({ cancel }) => {
 		>
 			Reset
 		</button>
+		</StickyActions>
 	</PageTitle>
 
 	<!-- Content -->

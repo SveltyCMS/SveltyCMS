@@ -4,7 +4,7 @@
  */
 
 import { AppError } from "@utils/error-handling";
-import type { RequestEvent } from "@sveltejs/kit";
+import { json, type RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { rawResponse, successResponse } from "./base";
@@ -424,7 +424,12 @@ export async function handleAiRoutes(
     const { jobQueue } = await import("@src/services/background/jobs/job-queue-service");
     const jobId = await jobQueue.dispatch(
       "bulk-translate",
-      { collectionName, targetLanguages, sourceLanguage, tenantId: tenantId as string },
+      {
+        collectionName,
+        targetLanguages,
+        sourceLanguage,
+        tenantId: tenantId as string,
+      },
       tenantId as string,
     );
     return successResponse(
@@ -635,16 +640,79 @@ export async function handleThemeRoutes(
   segments: string[],
 ) {
   const action = segments[1];
+  const request = event.request;
+
+  // ── Admin Theme CRUD ──
+  if (action === "admin-theme" && request.method === "GET") {
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const theme = await adminThemeService.getAdminTheme(tenantId);
+    return json(theme ?? {});
+  }
+  if (action === "admin-theme" && request.method === "POST") {
+    const body = await request.json();
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const result = await adminThemeService.saveAdminTheme(body, tenantId);
+    return successResponse(event, result);
+  }
+  if (action === "admin-theme" && request.method === "DELETE") {
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const result = await adminThemeService.resetToDefaults(tenantId);
+    return successResponse(event, result);
+  }
+  if (action === "import-preset" && request.method === "POST") {
+    const { presetJson } = await request.json();
+    if (!presetJson) throw new AppError("presetJson is required", 400);
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const result = await adminThemeService.importPreset(presetJson, tenantId);
+    return successResponse(event, result);
+  }
+
+  // ── Multi-Theme Management ──
+  if (action === "list" && request.method === "GET") {
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const themes = await adminThemeService.listThemes(tenantId);
+    return json(themes);
+  }
+  if (action === "create" && request.method === "POST") {
+    const { name, settings } = await request.json();
+    if (!name) throw new AppError("name is required", 400);
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const result = await adminThemeService.createTheme(name, settings, tenantId);
+    return successResponse(event, result, 201);
+  }
+  if (action === "delete" && request.method === "POST") {
+    const { themeId } = await request.json();
+    if (!themeId) throw new AppError("themeId is required", 400);
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    await adminThemeService.deleteTheme(themeId, tenantId);
+    return successResponse(event, { success: true });
+  }
+  if (action === "activate" && request.method === "POST") {
+    const { themeId } = await request.json();
+    if (!themeId) throw new AppError("themeId is required", 400);
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const result = await adminThemeService.activateTheme(themeId, tenantId);
+    return successResponse(event, result);
+  }
+  if (action === "clone" && request.method === "POST") {
+    const { sourceId, name } = await request.json();
+    if (!sourceId || !name) throw new AppError("sourceId and name are required", 400);
+    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const result = await adminThemeService.cloneTheme(sourceId, name, tenantId);
+    return successResponse(event, result, 201);
+  }
+
+  // ── Existing theme endpoints ──
   const { ThemeManager } = await import("@src/databases/theme-manager");
   const themeManager = ThemeManager.getInstance();
 
-  if (action === "get-current-theme" && event.request.method === "GET") {
+  if (action === "get-current-theme" && request.method === "GET") {
     const theme = await themeManager.getTheme(tenantId);
     if (!theme) throw new AppError("No active theme found.", 404);
     return rawResponse(event, theme);
   }
-  if (action === "update-theme" && event.request.method === "POST") {
-    const { themeId, customCss } = await event.request.json();
+  if (action === "update-theme" && request.method === "POST") {
+    const { themeId, customCss } = await request.json();
     if (!themeId) throw new AppError("themeId is required", 400);
     const result = await cms.db.system.themes.update(themeId as DatabaseId, {
       customCss,
@@ -654,8 +722,8 @@ export async function handleThemeRoutes(
     await themeManager.refresh();
     return successResponse(event, result.data);
   }
-  if (action === "set-default" && event.request.method === "POST") {
-    const { themeId } = await event.request.json();
+  if (action === "set-default" && request.method === "POST") {
+    const { themeId } = await request.json();
     await cms.db.system.themes.setDefault(themeId as DatabaseId);
     return successResponse(event, { success: true });
   }

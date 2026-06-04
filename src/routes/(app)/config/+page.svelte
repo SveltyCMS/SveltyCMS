@@ -45,6 +45,21 @@ const configItems = [
 		},
 	},
 	{
+		id: "appearance",
+		href: "/config/appearance",
+		label: "Appearance",
+		icon: "mdi:palette-outline",
+		iconColor: "text-tertiary-500 dark:text-primary-500",
+		permission: {
+			contextId: "config:appearance",
+			name: "Appearance",
+			description: "Admin theme, density, and visual customization",
+			requiredRole: "admin",
+			action: "manage",
+			contextType: "configuration",
+		},
+	},
+	{
 		id: "monitor",
 		href: "/config/monitor",
 		label: "System Monitor",

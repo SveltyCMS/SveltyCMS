@@ -58,6 +58,7 @@
 	// Import necessary utilities and types
 	import { page } from '$app/state';
 	import { scale } from 'svelte/transition';
+	import { getThemeContext } from '@components/ui/theme-context.svelte';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
@@ -95,6 +96,15 @@
 
 	// Derived values
 	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
+
+	// Theme-aware: should collections render in this sidebar?
+	const themeCtx = getThemeContext();
+	const collectionsPosition = $derived(
+		themeCtx?.features?.layoutRegions?.collections ?? 'left'
+	);
+	const showCollectionsHere = $derived(
+		collectionsPosition === 'left' || collectionsPosition === 'both'
+	);
 
 	const firstCollectionPath = $derived.by(() => {
 		if (collections?.[0]) {
@@ -352,7 +362,7 @@
 						></iconify-icon>
 					{/if}
 				</button>
-				{#if isCollectionsOpen}
+				{#if isCollectionsOpen && showCollectionsHere}
 					<div class="px-1">
 						<Collections />
 					</div>
@@ -437,7 +447,7 @@
 					</a>
 				</SystemTooltip>
 			</div>
- 
+
  			<!-- Theme Toggle -->
  			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
  				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
@@ -447,7 +457,7 @@
  					</div>
  				</SystemTooltip>
  			</div>
- 
+
  			<!-- Language Selector -->
  			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
  				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
@@ -507,7 +517,7 @@
  					</div>
  				</SystemTooltip>
  			</div>
- 
+
  			<!-- Sign Out -->
  			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
  				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
@@ -516,7 +526,7 @@
  					</button>
  				</SystemTooltip>
  			</div>
- 
+
  			<!-- Config -->
  			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
  				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
@@ -531,10 +541,10 @@
  					</a>
  				</SystemTooltip>
  			</div>
- 
+
  			<!-- Version -->
  			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
- 
+
  			<!-- Community Links (only when expanded) -->
  			{#if isSidebarFull}
  				<div class="order-7 flex items-center justify-center gap-1">

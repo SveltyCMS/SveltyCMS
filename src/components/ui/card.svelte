@@ -20,6 +20,7 @@ corner-shape angled corners.
   import { cn } from '@utils/cn';
   import type { Snippet } from 'svelte';
   import type { HTMLAttributes } from 'svelte/elements';
+  import { getThemeContext } from './theme-context.svelte';
 
   type Props = HTMLAttributes<HTMLDivElement> & {
     variant?: 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface';
@@ -62,17 +63,21 @@ corner-shape angled corners.
     return `preset-filled-${finalColor}-500`;
   });
 
+  const theme = getThemeContext();
+
   const customStyles = $derived.by(() => {
     let styles = '';
-    
+
     // Set dynamic border-radius
     if (shape !== 'angle') {
-      styles += `border-radius: var(--admin-radius-card, 12px); `;
+      styles += `border-radius: var(--admin-radius-card, 0.75rem); `;
     }
 
-    // Set dynamic border-width and shadow
-    styles += `border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation); `;
-    
+    // Set dynamic border-width and shadow — variant-aware via theme context
+    const shadow = theme?.cardShadow ?? 'var(--admin-shadow-elevation)';
+    const borderW = theme?.cardBorder ?? 'var(--admin-border-width, 1px)';
+    styles += `border-width: ${borderW}; box-shadow: ${shadow}; `;
+
     if (shape === 'angle') {
       styles += `corner-shape: angle; --corner-offset: 12px; `;
     }
@@ -118,5 +123,3 @@ corner-shape angled corners.
     </div>
   {/if}
 </div>
-
-

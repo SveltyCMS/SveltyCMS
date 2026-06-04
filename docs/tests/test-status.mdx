@@ -6,19 +6,20 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-05-19"
+updated: "2026-06-04"
 tags:
   - "testing"
   - "status"
   - "coverage"
   - "fail-closed"
   - "playwright"
+  - "admin-theme"
 ---
 
 # SveltyCMS Test Suite Status
 
-> **Last Updated:** May 25, 2026
-> **Total Tests:** 1393+ (Unit + Integration + E2E + Audit)
+> **Last Updated:** June 4, 2026
+> **Total Tests:** 1417+ (Unit + Integration + E2E + Audit)
 > **Overall Pass Rate:** 100% (All core and unit suites passing)
 
 ## Executive Summary
@@ -28,6 +29,7 @@ The testing suite has reached a major milestone with **100% Core Widget Logic Co
 - **Unit Tests:** 888 (Vitest) / 108 (Bun) across 108 test files — 100% pass under both runners
 - **Widget Suite:** 100% Pass Rate for all core and custom portable widgets.
 - **Defense-in-Depth Security:** 51 new tests verifying 4-layer security model (Middleware → Dispatcher → Handler → Page Action).
+- **Admin Theme System:** 26 consolidated white-box + SSR tests covering AdminTheme derived values (density scaling, radii, shadows, borders), feature merge strategy, user preference overrides, CSS sanitization, and SSR component variable propagation. (Replaces legacy `theme-context.test.ts`)
 - **CSP Headers Tested:** 9 tests verifying Content-Security-Policy on all responses — `default-src`, `object-src`, frame/script restrictions.
 - **AI Co-Pilot Tested:** 11 tests for `suggestFields()` schema suggestions and `scoreContent()` quality scoring.
 - **Version Channels Tested:** 7 tests for LTS/Stable/Next channel detection.
@@ -74,6 +76,7 @@ The testing suite has reached a major milestone with **100% Core Widget Logic Co
 | **API - User & Management**   | ✅ Complete  | 100%      | 72/72      |
 | **Encryption & Cryptography** | ✅ Excellent | 100%      | 14/14      |
 | **Auth & Lockout Security**   | ✅ Excellent | 100%      | 32/32      |
+| **Admin Theme System**        | ✅ Complete  | 100%      | 26/26      |
 | **WebSocket & Realtime**      | ✅ Hardened  | 100%      | 0.3ms uWS  |
 
 ---
@@ -108,7 +111,17 @@ The testing suite has reached a major milestone with **100% Core Widget Logic Co
 - ✅ **Parallel Speed**: E2E tests now run with `workers: 4` without SQLite locking issues.
 - ✅ **Atomic State**: Each worker operates on a unique `.db` file, ensuring total data isolation.
 
-### 6. Enterprise Identity & SAML SSO / SCIM 2.0 🔐
+### 6. Admin Theme System 🎨
+
+- ✅ **Derived Values**: All AdminTheme density-based derived values verified (densityScale, spacingScale, sidebarWidth, headerHeight, stickyBarHeight, radii for card/input/button).
+- ✅ **Visual Variant Logic**: cardShadow and cardBorder correctly synthesize per variant (flat → none, bordered → elevation, elevated → elevated shadow).
+- ✅ **Feature Merge Strategy**: DEFAULT_THEME_FEATURES correctly merged with partial overrides; layoutRegions default to collections:left.
+- ✅ **User Preference Overrides**: Tenant theme defaults preserved when user has no preference; user density/variant/features override tenant when set.
+- ✅ **CSS Sanitization**: url(), @import, javascript:, <script>, and HTML tags stripped; safe CSS passes through unchanged.
+- ✅ **SSR Component Propagation**: Compact and spacious densities correctly propagate CSS variables to Button, Card, Input, and Badge in server-rendered HTML.
+- ✅ **Consolidation**: Replaced legacy `theme-context.test.ts` (5 tests) with 26-test suite in `admin-theme.test.ts`.
+
+### 7. Enterprise Identity & SAML SSO / SCIM 2.0 🔐
 
 - ✅ **SAML 2.0 CSRF State Hardening**: Modified authorization flow to generate dynamic, cryptographically secure 16-byte state tokens, storing them in a secure `saml_state` cookie (`SameSite: Lax`, `HttpOnly`) and validating them against the IdP's returned `RelayState` on the ACS endpoint to prevent OAuth/SAML CSRF.
 - ✅ **SCIM 2.0 Bulk Endpoint**: Implemented support for the SCIM `POST /Bulk` endpoint, handling multi-operation payloads, `failOnErrors` constraints, and resolving nested `bulkId:<id>` references dynamically to link newly created users with group/role associations in a single request.
@@ -131,6 +144,6 @@ npx playwright test --workers=4
 bun run test:unit
 ```
 
-Last Updated: 2026-05-25
+Last Updated: 2026-06-04
 Current Pass Rate: 100% (Vitest: 888/888 in 7.2s, Bun: 108/108)
-Current State: DI-Hardened / Fail-Closed / 4-Layer Defense-in-Depth / CSP-Protected / AI Co-Pilot / Version Channels / ETag + API Versioning / Parallel Optimized / Svelte 5 / SAML CSRF-Protected / SCIM Bulk-Enabled / Bun-Test-Infra-Fixed / Lint-Zero-Warnings / Node-Default-Env (44% faster)
+Current State: DI-Hardened / Fail-Closed / 4-Layer Defense-in-Depth / CSP-Protected / AI Co-Pilot / Version Channels / ETag + API Versioning / Parallel Optimized / Svelte 5 / SAML CSRF-Protected / SCIM Bulk-Enabled / Admin-Theme-Tested / Lint-Zero-Warnings / Node-Default-Env (44% faster)

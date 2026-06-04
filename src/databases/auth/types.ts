@@ -46,6 +46,13 @@ export interface User extends BaseEntity {
       enabled?: boolean; // Master switch
       sound?: boolean;
     };
+    theme?: {
+      density?: "compact" | "cozy" | "spacious";
+      variant?: "flat" | "bordered" | "elevated";
+      reducedMotion?: boolean;
+      highContrast?: boolean;
+      layoutState?: Record<string, "full" | "hidden">;
+    };
   };
   resetRequestedAt?: ISODateString; // The last time the user requested a password reset (ISO date string)
   resetToken?: string; // Token for resetting the user's password

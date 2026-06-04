@@ -20,6 +20,7 @@ import GDPRSettings from "@src/components/system/gdpr-settings.svelte";
 import { groupsNeedingConfig } from "@src/stores/config-store.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
+import StickyActions from "@components/ui/sticky-actions.svelte";
 import { onMount, untrack } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { fade } from "svelte/transition";
@@ -197,6 +198,7 @@ $effect(() => {
 		<!-- Action Buttons -->
 		<div class="mb-6 flex flex-wrap items-center gap-2">
 			{#if selectedGroupId && selectedGroupId !== 'gdpr'}
+				<StickyActions>
 				<button
 					onclick={() => saveTrigger.fire()}
 					class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex items-center gap-1.5 min-w-30"
@@ -210,6 +212,7 @@ $effect(() => {
 						<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
 					{/if}
 				</button>
+				</StickyActions>
 			{/if}
 
 			<form method="POST" action="?/repairContentCache" use:enhance={handleRepair} class="w-full sm:w-auto">

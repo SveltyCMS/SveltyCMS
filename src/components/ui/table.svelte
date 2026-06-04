@@ -42,6 +42,7 @@ placeholders, and empty state.
 import { cn } from '@utils/cn';
 import type { Snippet } from 'svelte';
 import Pagination from './table/pagination.svelte';
+import { getThemeContext } from './theme-context.svelte';
 
 interface Column {
     key: string;
@@ -86,7 +87,7 @@ let {
     selectable = false,
     selectedIds = $bindable(new Set()),
     loading = false,
-    density = $bindable('normal'),
+    density = $bindable(undefined as 'compact' | 'normal' | 'comfortable' | undefined),
     class: className,
     totalItems = 0,
     currentPage = $bindable(1),
@@ -101,6 +102,19 @@ let {
     virtualScroll = false,
     virtualHeight = 500
 }: Props = $props();
+
+const theme = getThemeContext();
+
+// Effective density: explicit prop wins, falls back to theme context, then 'normal'
+const effectiveDensity = $derived(
+    density ?? (
+        theme
+            ? (theme.density === 'compact' ? 'compact' as const
+                : theme.density === 'spacious' ? 'comfortable' as const
+                : 'normal' as const)
+            : 'normal' as const
+    )
+);
 
 function handleSort(key: string) {
     if (sortKey === key) sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
@@ -123,7 +137,7 @@ const allSelected = $derived(data.length > 0 && selectedIds.size === data.length
 const someSelected = $derived(selectedIds.size > 0 && selectedIds.size < data.length);
 
 const densityClass = $derived.by(() => {
-    switch(density) {
+    switch(effectiveDensity) {
         case 'compact': return 'p-2 text-xs';
         case 'comfortable': return 'p-6 text-base';
         default: return 'p-4 text-sm';
@@ -137,7 +151,7 @@ const VIRTUAL_OVERSCAN = 10;
 let virtualScrollTop = $state(0);
 let scrollContainer = $state<HTMLDivElement | null>(null);
 
-const rowHeight = $derived(ROW_HEIGHTS[density] ?? 48);
+const rowHeight = $derived(ROW_HEIGHTS[effectiveDensity] ?? 48);
 const virtualVisibleStart = $derived(Math.max(0, Math.floor(virtualScrollTop / rowHeight) - VIRTUAL_OVERSCAN));
 const virtualVisibleEnd = $derived(Math.min(data.length, Math.ceil((virtualScrollTop + virtualHeight) / rowHeight) + VIRTUAL_OVERSCAN));
 const virtualData = $derived(data.slice(virtualVisibleStart, virtualVisibleEnd));

@@ -4,7 +4,7 @@ title: Administration Theme System Architecture
 description: Strategic plan for implementing Gin-level flexible, structural admin themes in SveltyCMS — matching and surpassing Drupal Gin's admin UI flexibility.
 author: "SveltyCMS Team"
 created: 2026-06-01
-updated: 2026-06-03
+updated: 2026-06-04
 status: in-progress
 ---
 
@@ -44,14 +44,17 @@ We achieve this through **color theming** (Skeleton.dev compatible) + **structur
 
 ```mermaid
 graph TD
-    A[DB Theme Config] --> B[Theme Service]
-    B --> C["Admin +layout.svelte"]
-    C --> D["CSS Variables + data-admin-theme"]
-    C --> E[Svelte 5 AdminTheme Context]
-    D --> F[Native UI Components]
-    E --> F
-    F --> G[Custom CSS Injection]
-    G --> H["Per-Tenant Stylesheet (Runtime)"]
+    A["File System<br/>/themes/*.json"] -->|"Vite HMR auto-import"| B[DB Theme Config]
+    B --> C[Theme Service]
+    C --> D["Admin +layout.svelte"]
+    D --> E["CSS Variables + data-admin-theme"]
+    D --> F[Svelte 5 AdminTheme Context]
+    E --> G[Native UI Components]
+    F --> G
+    F --> H[ui-store Layout State]
+    H --> I["Sticky Action Bar<br/>+ 6 Toggleable Regions"]
+    G --> J[Custom CSS Injection]
+    J --> K["Per-Tenant Stylesheet (Runtime)"]
 ```
 
 ---
@@ -63,14 +66,13 @@ All structural tokens live in `src/utilities.css` (imported by `app.css`), prote
 ```css
 /* src/utilities.css — :root defaults (cozy density) */
 :root {
-  /* Density Scale (0.85 = compact, 1.0 = cozy, 1.25 = spacious) */
   --admin-density: 1;
 
   /* Radii */
   --admin-radius-base: 0.75rem;
-  --admin-radius-card: 0.875rem;
-  --admin-radius-input: 0.625rem;
-  --admin-radius-button: 0.5rem;
+  --admin-radius-card: 0.75rem;
+  --admin-radius-input: 0.375rem;
+  --admin-radius-button: 0.25rem;
 
   /* Borders & Shadows */
   --admin-border-width: 1px;
@@ -78,7 +80,7 @@ All structural tokens live in `src/utilities.css` (imported by `app.css`), prote
   --admin-shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.05);
 
   /* Layout Sizing */
-  --admin-sidebar-width: 260px;
+  --admin-sidebar-width: 240px;
   --admin-header-height: 64px;
 
   /* Features */
@@ -91,30 +93,34 @@ All structural tokens live in `src/utilities.css` (imported by `app.css`), prote
   --admin-color-review: oklch(76.86% 0.16 70.07deg);
 }
 
-/* Compact density overrides */
 [data-density="compact"] {
   --admin-density: 0.85;
+  --admin-radius-base: 0.25rem;
   --admin-radius-card: 6px;
   --admin-radius-input: 4px;
+  --admin-radius-button: 0.125rem;
   --admin-sidebar-width: 200px;
   --admin-header-height: 48px;
+  --admin-sticky-bar-height: 44px;
 }
 
-/* Spacious density overrides */
 [data-density="spacious"] {
   --admin-density: 1.25;
+  --admin-radius-base: 1rem;
   --admin-radius-card: 16px;
   --admin-radius-input: 10px;
+  --admin-radius-button: 0.625rem;
   --admin-sidebar-width: 300px;
   --admin-header-height: 72px;
+  --admin-sticky-bar-height: 64px;
 }
 ```
 
-Components read these directly:
+Components read these directly with fallbacks:
 
 ```svelte
 <div class="card shadow-sm"
-     style="border-radius: var(--admin-radius-card, 0.875rem);
+     style="border-radius: var(--admin-radius-card, 0.75rem);
             border-width: var(--admin-border-width, 1px);">
 ```
 
@@ -122,10 +128,31 @@ Components read these directly:
 
 ## 4. Pillar B: Svelte 5 `AdminTheme` Context
 
-The `AdminTheme` class in `src/components/ui/theme-context.svelte.ts` is the reactive source of truth for structural theme state — consumed by all native UI components via Svelte context.
+The `AdminTheme` class in `src/components/ui/theme-context.svelte.ts` is the reactive source of truth for structural theme state — consumed by all 37+ native UI components via Svelte context.
 
 ```typescript
 // src/components/ui/theme-context.svelte.ts
+export interface ThemeFeatures {
+  stickyActionBar: boolean;
+  collapsibleSidebar: boolean;
+  brandedLogin: boolean;
+  highContrastMode: boolean;
+  reducedMotion: boolean;
+  layoutRegions?: {
+    collections: "left" | "right" | "both" | "floating";
+    mediaGalleries: "left" | "right" | "both" | "hidden";
+  };
+}
+
+export interface LayoutState {
+  leftSidebar: "full" | "hidden";
+  rightSidebar: "full" | "hidden";
+  pageheader: "full" | "hidden";
+  pagefooter: "full" | "hidden";
+  header: "full" | "hidden";
+  footer: "full" | "hidden";
+}
+
 export interface ThemeConfig {
   id: string;
   name: string;
@@ -133,14 +160,9 @@ export interface ThemeConfig {
   variant: "flat" | "bordered" | "elevated";
   accentMode: "default" | "primary-only" | "custom";
   role: "editor" | "reviewer" | "translator" | "admin" | "manager";
+  themeName: string;
   customCss?: string;
-  features: {
-    stickyActionBar: boolean;
-    collapsibleSidebar: boolean;
-    brandedLogin: boolean;
-    highContrastMode: boolean;
-    reducedMotion: boolean;
-  };
+  features: ThemeFeatures;
 }
 ```
 
@@ -165,55 +187,94 @@ Set in `(app)/+layout.svelte`, consumed in every native component:
 
 ## 5. Admin Theme Settings Panel (Gin Settings Equivalent)
 
-**Location**: `Settings → Appearance → Admin Theme`
+**Location**: `Config → Appearance` (`/config/appearance`)
 
-| Tab                  | Features                                                                                      |
-| :------------------- | :-------------------------------------------------------------------------------------------- |
-| **Presets & Import** | Skeleton.dev imports, curated Svelty presets, paste theme JSON                                |
-| **Colors**           | Accent color (light/dark pairing toggle), focus ring color, custom palettes                   |
-| **Layout & Density** | Compact / Cozy / Spacious, sidebar width (resizable), header density                          |
-| **Navigation**       | Vertical sidebar (default), top toolbar option, collapsible / hidden states                   |
-| **Visual Style**     | Border radius (global + per-component), shadow intensity, card style (flat/bordered/elevated) |
-| **Features**         | Sticky action bar, dark mode behavior, reduced motion, high contrast mode                     |
-| **Advanced**         | Custom CSS textarea (with sanitization), reset to defaults, Export / Import theme JSON        |
+| Tab                  | Features                                                                                                |
+| :------------------- | :------------------------------------------------------------------------------------------------------ |
+| **Themes**           | Multi-theme management — create, activate, clone, delete named themes                                   |
+| **Presets & Import** | Skeleton.dev imports, curated Svelty presets, paste theme JSON                                          |
+| **Layout & Density** | Compact / Cozy / Spacious, sidebar width (resizable), header density                                    |
+| **Visual Style**     | Border radius (global + per-component), shadow intensity, card style (flat/bordered/elevated)           |
+| **Features**         | Sticky action bar, collapsible sidebar, branded login, contrast, reduced motion, layout regions         |
+| **Advanced**         | Custom CSS textarea (with sanitization), reset to defaults, Export / Import theme JSON, theme file docs |
 
 ### Key Flexibility Features (Must-Have for Gin Parity)
 
-- ✅ **Sticky Action Bar** — Save / Preview / Delete buttons that stick on scroll in content edit forms
-- ✅ **Resizable / Collapsible Sidebar**
-- ✅ **Per-user Theme Overrides** (like Gin's per-user settings)
-- ✅ **Accent Color + Focus Color** with live preview
-- ✅ **Custom Logo / Branding** on login + admin header
-- ✅ **Dark Mode** with auto + forced options
+- ✅ **Multi-Theme Management** — Create, switch, clone, delete named themes like Drupal Gin/DXPR
+- ✅ **Theme-Driven Layout Regions** — Move Collections tree between left/right sidebar per theme
+- ✅ **Live Preview** — Instant `$state`-based re-render of all 37+ components before saving
 - ✅ **Custom CSS injection** (safely sanitized, per-tenant)
-- ✅ **Role-based layout variations**
+- ✅ **Role-based density auto-selection** (translators → compact, managers → spacious)
+- ✅ **Sticky Action Bar** — `<StickyActions>` snippet wrapper; WCAG 2.2 AA compliant
+- ✅ **6-Region Toggleable Shell** — `ui-store` controls all regions independently
+- ✅ **Layout State DB Persistence** — Per-theme layout state saved/restored automatically
+- ✅ **File + DB Hybrid Themes** — `/themes/*.json` Git-trackable, Vite HMR auto-import
+- ✅ **Dashboard Widgets** — 16 widgets, drag-and-drop, lazy loading
+- [ ] **Per-user Theme Overrides** — Phase 5 (mandatory per multi-tenancy)
 
 ---
 
-## 6. Figma Integration
+## 6. Pillar C: Theme File Format (`/themes/*.json`)
 
-### Design Token Pipeline
+Each theme can be distributed as a JSON file in the `/themes/` directory. Vite's `sveltyCmsPlugin` watches these files and auto-imports them to the database on change.
 
+```json
+{
+  "name": "Developer Workbench",
+  "description": "Compact density, flat cards, collections on the right. For developers.",
+  "density": "compact",
+  "variant": "flat",
+  "features": {
+    "stickyActionBar": false,
+    "collapsibleSidebar": true,
+    "brandedLogin": false,
+    "highContrastMode": false,
+    "reducedMotion": false,
+    "layoutRegions": {
+      "collections": "right",
+      "mediaGalleries": "left"
+    }
+  },
+  "layoutState": {
+    "leftSidebar": "full",
+    "rightSidebar": "full",
+    "pageheader": "hidden",
+    "pagefooter": "hidden",
+    "header": "hidden",
+    "footer": "hidden"
+  },
+  "customCss": "/* optional custom CSS */",
+  "presetSource": "sveltycms-builtin"
+}
 ```
-Figma Variables (Tokens Studio) → JSON Export → Style Dictionary build
-→ CSS custom properties in app.css / tenant stylesheets
-```
 
-- **1-to-1 Mapping**: Figma variable names map directly to `--admin-*` CSS properties
-- **Mode Switching**: Figma modes (Light/Dark, Classic/Custom) → `data-admin-theme` attributes
-- **Component Parity**: Svelte component props (`variant`, `density`) match Figma component variants exactly
-
-### Figma API Dynamic Importer
-
-An administrator can input a Figma File URL + Personal Access Token → SveltyCMS fetches variables via the Figma REST API (`/v1/files/:key/variables`) → writes a new theme record to DB → live in one click.
-
-### Skeleton.dev Coexistence
-
-Themes from `https://themes.skeleton.dev/themes/create` can be pasted directly into the `@theme` block. SveltyCMS overlays `--admin-*` structural tokens on top — color palette swaps globally, structural layout stays controlled.
+**Sync flow**: File save → Vite detects → `sveltyCmsPlugin.handleHmr()` → `adminThemeService.create/update` → DB → `server.ws.send("svelty:theme-update")` → client refreshes theme list.
 
 ---
 
-## 7. Visual Regression Prevention
+## 7. Pillar D: Svelte 5 Snippet-Based Sticky Action Bar
+
+The `<StickyActions>` wrapper component (`src/components/ui/sticky-actions.svelte`) uses Svelte 5's snippet pattern to register page action buttons into the layout's sticky bar:
+
+```svelte
+<!-- Any page: wrap buttons in StickyActions -->
+<StickyActions>
+  <button onclick={save} aria-keyshortcuts="Mod+S">Save</button>
+  <button onclick={reset}>Reset</button>
+</StickyActions>
+```
+
+**How it works:**
+
+1. `<StickyActions>` renders buttons in-place AND sets `ui.stickyActionContent` to its children snippet
+2. `+layout.svelte` renders `{@render ui.stickyActionContent()}` into a sticky bar when `theme.features.stickyActionBar` is true
+3. On page destroy, `onMount` cleanup sets `ui.stickyActionContent = null`
+
+**Accessibility**: `role="toolbar"`, `aria-label="Page actions"`, `aria-live="polite"`, native `<button>` elements with visible focus indicators. WCAG 2.2 AA compliant.
+
+---
+
+## 8. Visual Regression Prevention
 
 1. **CSS Variable Fallbacks**: All `var(--admin-*, fallback)` references include the current value as fallback so the browser never renders a broken layout if no custom theme is served.
 2. **Default Root Mappings**: `:root` in `utilities.css` initializes all `--admin-*` tokens to the current production values.
@@ -222,7 +283,7 @@ Themes from `https://themes.skeleton.dev/themes/create` can be pasted directly i
 
 ---
 
-## 8. Implementation Roadmap
+## 9. Implementation Roadmap
 
 ### Phase 1: Foundation — ✅ COMPLETED
 
@@ -231,38 +292,53 @@ Themes from `https://themes.skeleton.dev/themes/create` can be pasted directly i
 - `AdminTheme` reactive class + `setThemeContext` / `getThemeContext` in `theme-context.svelte.ts`
 - `data-density` classes in admin layout root
 
-### Phase 2: Core Theme Engine — 🔄 IN PROGRESS
+### Phase 2: Core Theme Engine — ✅ COMPLETED
 
-- [ ] Finalize full structural CSS variables (add `--admin-radius-base`, `--admin-radius-button`, `[data-density]` overrides, sticky bar height)
-- [ ] Expand `AdminTheme` interface: `variant`, `accentMode`, `customCss`, `features` map
-- [ ] Refactor key UI components (Button, Card, Input, Table, Sidebar) to consume theme context
-- [ ] Add `data-admin-theme` + `data-density` attributes to admin layout root element
+- [x] Finalize full structural CSS variables (add `--admin-radius-base`, `--admin-radius-button`, `[data-density]` overrides, sticky bar height)
+- [x] Expand `AdminTheme` interface: `variant`, `accentMode`, `customCss`, `features` map
+- [x] Refactor key UI components (Button, Card, Input, Table, Sidebar) to consume theme context
+- [x] Add `data-admin-theme` + `data-density` attributes to admin layout root element
 
-### Phase 3: Settings UI — Next Priority
+### Phase 3: Settings UI + Multi-Theme Management — ✅ COMPLETED
 
-- [ ] Build full **Admin Theme Settings** page (`settings/appearance/admin-theme`)
-- [ ] Implement Skeleton.dev preset import
-- [ ] Custom CSS injection with DOMPurify sanitization
-- [ ] Live theme preview system (Svelte 5 `$state` → instant re-render)
+- [x] Build full **Admin Theme Settings** page (`config/appearance`) with 6 tabs
+- [x] **Multi-theme management**: Create, activate, clone, delete named themes (Gin/DXPR-style switching)
+- [x] **Theme selector** with active/default badges, per-theme density/variant display
+- [x] Skeleton.dev preset import
+- [x] Custom CSS injection with sanitization
+- [x] Live theme preview system (Svelte 5 `$state` → instant re-render)
+- [x] Full theme CRUD API (`list`, `create`, `activate`, `clone`, `delete`)
+- [x] Theme persistence via existing `Theme` DB records (`config.adminTheme`)
+- [x] Auto-load active theme on app startup from DB
 
-### Phase 4: Gin Feature Parity
+### Phase 4: Gin Feature Parity — ✅ COMPLETE
 
-- [ ] **Sticky Action Bar** on all content edit forms
-- [ ] **Resizable / Collapsible Sidebar** with `localStorage` persistence
-- [ ] **Branded Login page** with tenant logo + custom accent
-- [ ] **Role-based navigation** layout adjustments
-- [ ] **Dashboard widget system** (drag-and-drop, per-role defaults)
+- [x] **Theme-driven layout region repositioning** — Collections tree can move between left/right sidebar per theme
+- [x] **Slot-injectable layout shell** — All 6 regions content-injectable; `global-toolbar`, `global-footer` slots
+- [x] **Layout state DB persistence** — Per-theme `layoutState` stored in DB, restored on startup, auto-saved on change
+- [x] **File + DB hybrid themes** — `/themes/*.json` files watched by Vite, auto-imported to DB, `svelty:theme-update` HMR event
+- [x] **Sticky Action Bar** — `<StickyActions>` snippet wrapper component, WCAG 2.2 AA compliant, wired to Access Management page
+- [x] **Dashboard widget system** — 16 modular widgets, drag-and-drop grid, lazy loading, per-category defaults (see `docs/architecture/dashboard-system.mdx`)
 
-### Phase 5: Advanced
+### Phase 5: Per-User Theme Overrides (Mandatory per Multi-Tenancy)
 
-- [ ] Per-user theme overrides (stored in user preferences)
-- [ ] Figma API sync utility
-- [ ] Theme marketplace / community plugins
-- [ ] Theme Export / Import JSON
+Per the multi-tenancy architecture (`docs/architecture/multi-tenancy.mdx`), each tenant must be able to override theme settings at the user level:
+
+- [ ] **Per-user theme preferences** — Store user-specific theme overrides (density, variant, features) in user profile
+- [ ] **User-level layout state** — Per-user layout preferences (collapsed sidebars, visible regions) stored alongside tenant defaults
+- [ ] **Preference merge strategy** — User overrides merge on top of tenant theme defaults; admin can lock settings
+- [ ] **Settings UI** — Per-user theme tab in user profile settings
+
+### Phase 6: Optional Enhancements
+
+- [ ] **Figma API import** — Pull design tokens directly from Figma (optional)
+- [ ] **File-based theme discovery on boot** — Scan `/themes/` directory and import new files on server start (currently Vite HMR only)
+- [ ] **Theme marketplace** — External service at marketplace.sveltycms.com (optional, separate project)
+- [ ] **Branded Login** — Tenant logo + custom accent on login page (optional, only if requested)
 
 ---
 
-## 9. Adaptive Workspaces
+## 10. Adaptive Workspaces
 
 Beyond visual theming — SveltyCMS adapts the entire workspace to the user's role:
 
@@ -270,14 +346,5 @@ Beyond visual theming — SveltyCMS adapts the entire workspace to the user's ro
 - **Density Modes**: `compact` (heavy listings, developer logs), `cozy` (standard editing), `spacious` (distraction-free writer mode)
 - **Real-Time Contrast Validation**: Dynamic color scale analysis verifying focus rings, text, and alert states meet WCAG 3.0 contrast ratios
 - **Status-Color Tokens**: `--admin-color-draft`, `--admin-color-published`, `--admin-color-scheduled`, `--admin-color-review` linked directly to content review states
-
----
-
-## 10. Next Steps (Immediate Actions)
-
-1. **Finalize `--admin-*` variables** in `utilities.css` — add `[data-density]` overrides, `radius-base`, `radius-button`, `sticky-bar-height`
-2. **Expand `AdminTheme` context** — add `variant`, `accentMode`, `features` map, `customCss`
-3. **Refactor core components** — Button, Card, Input to consume `--admin-radius-*` and theme context `variant`
-4. **Build Theme Settings UI** — this is the highest-value visible deliverable
-5. **Sticky Action Bar** component — immediate UX win on content edit forms
-6. **Update visual regression test baselines** before any structural migration
+- **6-Region Layout Shell**: Each region independently toggleable via `ui-store`, persisted to DB per-theme, responsive across 6 breakpoints
+- **Svelte 5 Snippet Pattern**: `<StickyActions>` demonstrates the pattern — any page wraps its actions and they appear in the sticky bar automatically

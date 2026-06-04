@@ -101,7 +101,7 @@
     "upgrade": "npx tsx scripts/upgrade.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1061.0",
+    "@aws-sdk/client-s3": "^3.1062.0",
     "@better-svelte-email/components": "^2.1.1",
     "@better-svelte-email/preview": "^2.1.1",
     "@better-svelte-email/server": "^2.1.1",

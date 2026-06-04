@@ -13,6 +13,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 <script lang="ts">
 import PageTitle from "@src/components/page-title.svelte";
+import StickyActions from "@components/ui/sticky-actions.svelte";
 import type {
 	AgenticTaskOperationConfig,
 	AutomationEvent,
@@ -988,6 +989,7 @@ const steps = [
 						<iconify-icon icon="mdi:chevron-right"></iconify-icon>
 					</button>
 				{:else}
+					<StickyActions>
 					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={save} disabled={isSaving}>
 						{#if isSaving}
 							<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
@@ -998,9 +1000,9 @@ const steps = [
 							<span class="text-[10px] opacity-60 ml-1 hidden sm:inline">(Ctrl+S)</span>
 						{/if}
 					</button>
+					</StickyActions>
 				{/if}
 			</div>
 		</div>
 	</div>
 {/if}
-

@@ -511,10 +511,10 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
           "[MariaDB] Migrating 'from'/'to' columns to 'source'/'target' in redirects_mv...",
         );
         await connection.query(
-          "ALTER TABLE redirects_mv CHANGE \`from\` source VARCHAR(500) NOT NULL",
+          "ALTER TABLE redirects_mv CHANGE `from` source VARCHAR(500) NOT NULL",
         );
         await connection.query(
-          "ALTER TABLE redirects_mv CHANGE \`to\` target VARCHAR(2000) NOT NULL",
+          "ALTER TABLE redirects_mv CHANGE `to` target VARCHAR(2000) NOT NULL",
         );
         try {
           await connection.query("ALTER TABLE redirects_mv DROP INDEX tenant_from_idx");

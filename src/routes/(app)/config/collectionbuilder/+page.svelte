@@ -57,6 +57,7 @@ import { useContent } from "@src/content";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import Button from "@components/ui/button.svelte";
+import StickyActions from "@components/ui/sticky-actions.svelte";
 import PageTitle from "@src/components/page-title.svelte";
 // Logger
 import { logger } from "@utils/logger";
@@ -715,7 +716,9 @@ $effect(() => {
 <div class="absolute inset-0 pt-3 px-6 pb-6 space-y-6 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
 	<!-- Header -->
 	<PageTitle name={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
+		<StickyActions>
 		{@render saveButton(false)}
+		</StickyActions>
 	</PageTitle>
 
 	{#if currentConfig.length > 0}

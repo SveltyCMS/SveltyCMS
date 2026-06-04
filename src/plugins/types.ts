@@ -179,7 +179,10 @@ export type InjectionZone =
   | "entry_edit_sidebar"
   | "entry_edit_header"
   | "config"
-  | "entry_list_actions";
+  | "entry_list_actions"
+  | "global-toolbar"
+  | "global-footer"
+  | "sticky-action-bar";
 
 // Plugin Slot definition
 export interface PluginSlot {
