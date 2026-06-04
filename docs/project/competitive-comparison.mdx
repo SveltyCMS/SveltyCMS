@@ -58,10 +58,10 @@ Yes. **SveltyCMS operates in a different performance league.** Here's the eviden
 
 | CMS                        | Concurrent Writes (RPS) | Local SDK Read (RPS) | Notes                                      |
 | -------------------------- | ----------------------- | -------------------- | ------------------------------------------ |
-| **SveltyCMS (SQLite)**    | **868 RPS**             | **17,900 RPS**       | In-process DB, zero TCP, 1.84ms auth pipeline |
-| **SveltyCMS (PostgreSQL)** | **435 RPS**             | **6,300 RPS**        | Full HTTP pipeline, postgres.js pool       |
-| **SveltyCMS (MariaDB)**    | **463 RPS**             | **9,000 RPS**        | mysql2 pool, JSON type                     |
-| **SveltyCMS (MongoDB)**    | **463 RPS**             | **5,100 RPS**        | Native driver, aggregation pipeline        |
+| **SveltyCMS (SQLite)**    | **741 RPS**             | **17,900 RPS**       | In-process DB, batch 20, file lock safety |
+| **SveltyCMS (MongoDB)**    | **932 RPS**             | **5,100 RPS**        | Native driver, batch 100 full blast       |
+| **SveltyCMS (PostgreSQL)** | **354 RPS**             | **6,300 RPS**        | postgres.js pool, batch 50                |
+| **SveltyCMS (MariaDB)**    | **388 RPS**             | **9,000 RPS**        | mysql2 pool, batch 20, JSON_SET atomic    |
 | Payload CMS 3.x            | 150–250 RPS             | —                    | React/Next.js, VDOM hydration tax          |
 | Strapi 5                   | 50–200 RPS              | —                    | Koa-based, plugin middleware overhead      |
 | Directus 11                | 100–300 RPS             | —                    | Express-based                              |
