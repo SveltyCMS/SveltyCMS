@@ -26,3 +26,10 @@ All marketplace widgets are "Portable Modules". They are self-contained and incl
 - Must follow the 3-Pillar Architecture.
 - Must include unit tests in a `tests/` folder.
 - Must be accessible (WCAG 2.2 AA).
+
+## 🚀 System Discovery & Autoloading
+
+Marketplace widgets do not require compile-time registration or hardcoded static imports. SveltyCMS automatically registers optional/marketplace modules:
+1. **Dynamic Scanning**: During boot, `WidgetRegistryService` scans the directory `src/widgets/marketplace/` dynamically.
+2. **Eager Loading**: Any discovered directory with an `index.ts` containing a default export function matching the `WidgetModule` interface is registered automatically.
+3. This allows developers to drag-and-drop or install/delete marketplace widgets on disk with zero configuration.

@@ -379,7 +379,7 @@
 							<a
 								href={firstCollectionPath}
 								data-sveltekit-preload-data="hover"
-								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500 dark:bg-primary-500/10 hover:bg-tertiary-500 dark:bg-primary-500/20 no-underline! transition-colors"
+								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
 								onclick={() => {
 									if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 								}}
@@ -391,7 +391,7 @@
 							<a
 								href="/mediagallery"
 								data-sveltekit-preload-data="hover"
-								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500 dark:bg-primary-500/10 hover:bg-tertiary-500 dark:bg-primary-500/20 no-underline! transition-colors"
+								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
 								onclick={() => {
 									if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 								}}
@@ -409,12 +409,11 @@
 
 	<!-- Plugin Sidebar Items -->
 	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
-
 	<!-- Footer -->
 	<div class="mb-2 mt-auto w-full px-1">
 		<div class="mx-1 mb-2 border-0 border-t border-surface-500"></div>
 
-		<div class="grid w-full items-center justify-center gap-2 text-surface-700 dark:text-surface-200 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
+		<div class="grid w-full items-center justify-center gap-1 text-surface-700 dark:text-surface-200 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
 			<!-- Avatar -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
@@ -425,12 +424,12 @@
 						aria-label="User Profile"
 						class="{isSidebarFull
 							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
-							: 'h-10 w-10 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
+							: 'h-8 w-8 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
 					>
-						<img src={avatarUrl} alt="User Avatar" class="mx-auto h-full w-full overflow-hidden rounded-full object-cover {isSidebarFull ? 'size-10' : 'size-9'}" />
+						<img src={avatarUrl} alt="User Avatar" class="mx-auto h-full w-full overflow-hidden rounded-full object-cover {isSidebarFull ? 'size-8' : 'size-7'}" />
 						{#if isSidebarFull && user?.username}
 							<div
-								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight"
+								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-xs font-semibold leading-tight"
 								title={user.username}
 							>
 								{user.username}
@@ -439,120 +438,120 @@
 					</a>
 				</SystemTooltip>
 			</div>
+ 
+ 			<!-- Theme Toggle -->
+ 			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
+ 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+ 					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
+ 					<div class="flex items-center justify-center">
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={28} />
+ 					</div>
+ 				</SystemTooltip>
+ 			</div>
+ 
+ 			<!-- Language Selector -->
+ 			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
+ 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
+ 					<div class="language-selector relative">
+ 						<Dropdown position="right-start" class="w-56">
+ 							{#snippet trigger()}
+ 								<button
+ 									class="mb-3 preset-filled-surface-500 hover:bg-surface-400 rounded-full flex items-center justify-center uppercase transition-colors {isSidebarFull
+ 										? 'w-12 h-12 text-xs font-semibold'
+ 										: 'w-11 h-11 text-xs font-semibold'}"
+ 									aria-label="Select language"
+ 								>
+ 									{languageTag}
+ 								</button>
+ 							{/snippet}
 
-			<!-- Theme Toggle -->
-			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
-				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
-					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
-					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={24} />
-					</div>
-				</SystemTooltip>
-			</div>
+ 							<!-- Header to inform user about System Language context -->
+ 							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
+ 								{applayout_systemlanguage()}
+ 							</div>
 
-			<!-- Language Selector -->
-			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
-				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
-					<div class="language-selector relative">
-						<Dropdown position="right-start" class="w-56">
-							{#snippet trigger()}
-								<button
-									class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
-										? 'mb-3 w-6.5 h-6.5 text-xs'
-										: 'w-6 h-6 text-xs'}"
-									aria-label="Select language"
-								>
-									{languageTag}
-								</button>
-							{/snippet}
+ 							{#if showLanguageDropdown}
+ 								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
+ 									<input
+ 										type="text"
+ 										bind:value={searchQuery}
+ 										placeholder="Search language..."
+ 										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
+ 										aria-label="Search languages"
+ 										onclick={(e) => e.stopPropagation()}
+ 									/>
+ 								</div>
 
-							<!-- Header to inform user about System Language context -->
-							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
-								{applayout_systemlanguage()}
-							</div>
-
-							{#if showLanguageDropdown}
-								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
-									<input
-										type="text"
-										bind:value={searchQuery}
-										placeholder="Search language..."
-										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
-										aria-label="Search languages"
-										onclick={(e) => e.stopPropagation()}
-									/>
-								</div>
-
-								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
-									{#each filteredLanguages as lang (lang)}
-										<button
-											class="w-full text-left px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
-											onclick={() => handleLanguageSelection(lang)}
-										>
-											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-										</button>
-									{/each}
-								</div>
-							{:else}
-								{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
-									<button
-										class="w-full text-left px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
-										onclick={() => handleLanguageSelection(lang)}
-									>
-										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-									</button>
-								{/each}
-							{/if}
-						</Dropdown>
-					</div>
-				</SystemTooltip>
-			</div>
-
-			<!-- Sign Out -->
-			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
-				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
-					<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
-						<iconify-icon icon="uil:signout" width="24" class=""></iconify-icon>
-					</button>
-				</SystemTooltip>
-			</div>
-
-			<!-- Config -->
-			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
-				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
-					<a
-						href="/config"
-						data-sveltekit-preload-data="hover"
-						onclick={handleConfigClick}
-						aria-label="System Configuration"
+ 								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
+ 									{#each filteredLanguages as lang (lang)}
+ 										<button
+ 											class="w-full text-left px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
+ 											onclick={() => handleLanguageSelection(lang)}
+ 										>
+ 											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+ 											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+ 										</button>
+ 									{/each}
+ 								</div>
+ 							{:else}
+ 								{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
+ 									<button
+ 										class="w-full text-left px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
+ 										onclick={() => handleLanguageSelection(lang)}
+ 									>
+ 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+ 										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+ 									</button>
+ 								{/each}
+ 							{/if}
+ 						</Dropdown>
+ 					</div>
+ 				</SystemTooltip>
+ 			</div>
+ 
+ 			<!-- Sign Out -->
+ 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
+ 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
+ 					<button onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20">
+ 						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
+ 					</button>
+ 				</SystemTooltip>
+ 			</div>
+ 
+ 			<!-- Config -->
+ 			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
+ 				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
+ 					<a
+ 						href="/config"
+ 						data-sveltekit-preload-data="hover"
+ 						onclick={handleConfigClick}
+ 						aria-label="System Configuration"
 						class="btn-icon flex items-center justify-center rounded-full hover:bg-surface-500/20"
-					>
-						<iconify-icon icon="material-symbols:build-circle" width="24" class=""></iconify-icon>
-					</a>
-				</SystemTooltip>
-			</div>
-
-			<!-- Version -->
-			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
-
-			<!-- Community Links (only when expanded) -->
-			{#if isSidebarFull}
-				<div class="order-7 flex items-center justify-center gap-1">
-					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
-						<a
-							href="https://discord.gg/VrvZF6e2sC"
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label="Discord Community"
-							class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
-						>
-							<iconify-icon icon="ic:baseline-discord" width="24" class=""></iconify-icon>
-						</a>
-					</SystemTooltip>
-				</div>
-			{/if}
+ 					>
+						<iconify-icon icon="material-symbols:build-circle" width="35" class=""></iconify-icon>
+ 					</a>
+ 				</SystemTooltip>
+ 			</div>
+ 
+ 			<!-- Version -->
+ 			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
+ 
+ 			<!-- Community Links (only when expanded) -->
+ 			{#if isSidebarFull}
+ 				<div class="order-7 flex items-center justify-center gap-1">
+ 					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+ 						<a
+ 							href="https://discord.gg/VrvZF6e2sC"
+ 							target="_blank"
+ 							rel="noopener noreferrer"
+ 							aria-label="Discord Community"
+ 							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
+ 						>
+ 							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
+ 						</a>
+ 					</SystemTooltip>
+ 				</div>
+ 			{/if}
 		</div>
 	</div>
 </div>

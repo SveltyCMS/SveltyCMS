@@ -86,13 +86,13 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	};
 
 	const colorClasses: Record<string, string> = {
-		surface: 'bg-surface-100 dark:bg-surface-900 border-surface-200 dark:border-surface-800',
+		surface: 'bg-surface-100 dark:bg-surface-900 border-surface-200 dark:border-surface-700',
 		primary: 'bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800',
 		secondary: 'bg-secondary-50 dark:bg-secondary-950 border-secondary-200 dark:border-secondary-800',
 		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800',
-		success: 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-surface-800',
-		warning: 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-surface-800',
-		error: 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-surface-800',
+		success: 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-surface-700',
+		warning: 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-surface-700',
+		error: 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-surface-700',
 	};
 </script>
 
@@ -123,7 +123,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		>
 			<!-- Header -->
 			{#if header || title}
-				<header class="flex items-center justify-between p-4 border-b border-surface-200 dark:border-surface-800 shrink-0">
+				<header class="flex items-center justify-between p-4 border-b border-surface-200 dark:border-surface-700 shrink-0">
 					{#if header}
 						{@render header()}
 					{:else}
@@ -155,7 +155,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 
 			<!-- Footer -->
 			{#if footer}
-				<footer class="p-4 bg-surface-50 dark:bg-surface-900/50 border-t border-surface-200 dark:border-surface-800 flex justify-end gap-3 shrink-0">
+				<footer class="p-4 bg-surface-50 dark:bg-surface-900/50 border-t border-surface-200 dark:border-surface-700 flex justify-end gap-3 shrink-0">
 					{@render footer()}
 				</footer>
 			{/if}

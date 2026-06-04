@@ -86,8 +86,9 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     setupDbStatus = true;
     setupStatusCheckedDb = true;
     return true;
-  } catch {
+  } catch (err: any) {
     // Fail safe to false to stay in setup mode if DB is unreachable
+    console.error("[setupCheck] Deep check failed:", err);
     return false;
   }
 }

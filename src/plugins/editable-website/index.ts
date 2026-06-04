@@ -13,7 +13,7 @@ const livePreviewComponent = "./live-preview.svelte";
 slotRegistry.register({
   id: "live_preview",
   zone: "entry_edit",
-  component: () => import(livePreviewComponent),
+  component: () => import(/* @vite-ignore */ livePreviewComponent),
   props: {
     label: "Live Preview",
     icon: "mdi:eye-outline",
@@ -39,7 +39,7 @@ export const editableWebsitePlugin: Plugin = {
           id: "live_preview",
           label: "Live Preview",
           icon: "mdi:eye-outline",
-          component: () => import(livePreviewComponent),
+          component: () => import(/* @vite-ignore */ livePreviewComponent),
         },
       ],
     },

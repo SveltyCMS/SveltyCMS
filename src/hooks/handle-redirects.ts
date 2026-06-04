@@ -7,7 +7,7 @@
  */
 
 import { getDb, isDbConnected } from "@src/databases/db";
-import { isSystemReady, getSystemState } from "@src/stores/system/state.svelte.ts";
+import { isSystemReady } from "@src/stores/system/state.svelte.ts";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
@@ -37,6 +37,10 @@ function flush404Logs() {
   if (logBuffer.size === 0) return;
   const db = getDb();
   if (!db) return;
+
+  // 🛡️ Verify the table schema exists before flushing to prevent ER_NO_SUCH_TABLE
+  const schemaExists = cacheService.getSync<any>("schema:404_logs");
+  if (!schemaExists) return;
 
   const logsToFlush = Array.from(logBuffer.values());
   logBuffer.clear();
@@ -150,8 +154,7 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     cached = await cacheService.get<any>(cacheKey, tenantId);
   }
 
-  const state = getSystemState().overallState;
-  const ready = isSystemReady() || state === "SETUP";
+  const ready = isSystemReady();
   const connected = isDbConnected();
 
   let hasRedirect = false;

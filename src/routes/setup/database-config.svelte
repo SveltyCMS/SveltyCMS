@@ -323,7 +323,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</button>
 
 			{#if showAtlasHelper}
-				<div id="atlas-helper-content" class="border-t border-blue-200 p-4 pt-3 text-blue-900 dark:border-blue-500/30 dark:text-blue-200">
+				<div id="atlas-helper-content" class="border-t border-tertiary-200 p-4 pt-3 text-tertiary-900 dark:border-tertiary-500/30 dark:text-tertiary-200">
 					<p class="text-sm">To connect to MongoDB Atlas, paste your connection string into the <strong>Host</strong> field:</p>
 					<ul class="mt-2 space-y-1 text-sm">
 						<li class="flex items-start gap-2">
@@ -348,7 +348,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	{/if}
 
 	{#if dbConfig.type === 'mysql'}
-		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+		<div class="mb-6 rounded border border-tertiary-200 bg-tertiary-50 p-4 text-tertiary-900 dark:border-tertiary-500/30 dark:bg-blue-500/10 dark:text-tertiary-200">
 			<p class="font-semibold">{setup_db_coming_soon()}</p>
 			<p class="mt-1">{setup_db_postgres_mysql_note()}</p>
 			<p class="mt-2">{setup_db_postgres_mysql_timeline()}</p>
@@ -388,20 +388,20 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</div>
 
 			{#if isInstallingDriver}
-				<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
+				<div class="mt-2 flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500" role="status">
 					<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"></iconify-icon>
 					<span>Installing database driver...</span>
 				</div>
 			{/if}
 			{#if installSuccess}
-				<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400" role="status">
+				<div class="mt-2 flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500" role="status">
 					<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
 					<span>{installSuccess}</span>
 				</div>
 			{/if}
 			{#if installError}
 				<div
-					class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+					class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-error-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
 					role="alert"
 				>
 					<div class="flex items-center gap-2">

@@ -26,11 +26,15 @@ export class CacheWarmingService {
     const start = performance.now();
 
     try {
+      let hasRedirectsCollection = false;
       // 1. Warm Core Schemas (Required for all collection loads)
       if (db?.collection?.listSchemas) {
         const schemas = await db.collection.listSchemas();
         if (schemas.success && schemas.data) {
           for (const schema of schemas.data) {
+            if (schema.name === "redirects") {
+              hasRedirectsCollection = true;
+            }
             await cacheService.set(
               `schema:${schema.name}`,
               schema,
@@ -51,7 +55,7 @@ export class CacheWarmingService {
       }
 
       // 3. JIT Predictive Redirect Caching (Top 100)
-      if (db?.crud?.find) {
+      if (hasRedirectsCollection && db?.crud?.find) {
         try {
           const redirects = await db.crud.find("redirects", {}, { limit: 100 });
           if (redirects.success && redirects.data) {

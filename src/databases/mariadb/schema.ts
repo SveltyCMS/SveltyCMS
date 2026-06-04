@@ -501,6 +501,26 @@ export const tenants = mysqlTable(
   }),
 );
 
+// Redirects Materialized View Table
+export const redirectsMV = mysqlTable(
+  "redirects_mv",
+  {
+    _id: varchar("_id", { length: 36 }).primaryKey(),
+    tenantId: tenantField(),
+    source: text("source").notNull(),
+    target: text("target").notNull(),
+    type: int("type").default(301),
+    isRegex: boolean("isRegex").default(false),
+    active: boolean("active").default(true),
+    metadata: json("metadata"),
+    ...timestamps,
+  },
+  (table) => ({
+    tenantIdx: index("tenant_idx").on(table.tenantId),
+    activeIdx: index("active_idx").on(table.active),
+  }),
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
   authUsers,
@@ -522,4 +542,5 @@ export const schema = {
   pluginMigrations,
   tenants,
   auditLogs,
+  redirectsMV,
 };

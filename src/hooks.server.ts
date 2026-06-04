@@ -157,15 +157,12 @@ if (setupComplete) {
 }
 
 const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
-const TEST_API_SECRET = typeof process !== "undefined" ? process.env.TEST_API_SECRET : null;
 const IS_QUIET = typeof process !== "undefined" && process.env.QUIET === "true";
 
 import { isRedirect } from "@sveltejs/kit";
 import { handleApiError } from "@utils/error-handling";
 
-logger.info(
-  `[HooksInit] TEST_MODE: ${process.env.TEST_MODE}, SECRET_DEFINED: ${!!TEST_API_SECRET}`,
-);
+
 
 // --- Server Startup Logic ---
 if (!building) {

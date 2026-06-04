@@ -249,6 +249,10 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
     REDIS_PORT: Number(system.redisPort),
   } as any);
 
+  // Invalidate setup cache so the system performs a fresh deep check on the next request
+  const { invalidateSetupCache } = await import("@src/utils/setup-check");
+  invalidateSetupCache(true);
+
   return successResponse(event, {
     success: true,
     message: "SveltyCMS setup complete and environment initialized.",

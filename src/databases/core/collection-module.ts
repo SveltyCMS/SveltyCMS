@@ -200,11 +200,11 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
             .all() as any[];
         }
       } else if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {
-        const dbName = (this.adapter as any).config.name;
-        const res = await (this.adapter as any).db.execute(
+        const dbName = (this.adapter as any).activeDatabaseName || (this.adapter as any).config?.name || "sveltycms";
+        const res = await (this.adapter as any).raw.execute(
           `SELECT TABLE_NAME as name FROM information_schema.TABLES WHERE TABLE_SCHEMA = '${dbName}' AND TABLE_NAME LIKE 'collection_%'`,
         );
-        tables = res[0] || [];
+        tables = res || [];
       } else if (this.adapter.type === "postgresql") {
         const res = await (this.adapter as any).db.execute(
           "SELECT tablename as name FROM pg_catalog.pg_tables WHERE tablename LIKE 'collection_%'",
@@ -213,7 +213,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       }
 
       // 🛡️ Apply exclusion patterns to filter plugin/materialized-view stubs
-      tables = tables.filter((t) => !EXCLUDED_TABLE_PATTERNS.some((p) => p.test(t.name)));
+      tables = tables.filter((t) => t && typeof t.name === "string" && !EXCLUDED_TABLE_PATTERNS.some((p) => p.test(t.name)));
 
       return await Promise.all(
         tables.map(async (t: any) => {

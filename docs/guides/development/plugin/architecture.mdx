@@ -1,5 +1,5 @@
 ---
-path: "docs/architecture/plugin-architecture.mdx"
+path: "docs/guides/development/plugin/architecture.mdx"
 title: Plugin Architecture
 description: Comprehensive guide to the SveltyCMS Enterprise Plugin System — slots, hooks, migrations, and the config-page pattern.
 icon: mdi:puzzle-outline
@@ -51,6 +51,15 @@ graph TD
     Sandbox -->|wraps| HookRunner
     Migrations -->|provisions| MV
 ```
+
+## System Discovery & Autoloading
+
+SveltyCMS dynamically scans and registers plugins on system boot. There are no static hardcoded imports of plugins in the core codebase.
+
+- **Vite Dev/Build**: Scans all `src/plugins/*/index.ts` paths using Vite's native eager glob tool `import.meta.glob("./*/index.ts", { eager: true })`.
+- **Bun/Node runtime (CLI/Vitest)**: Utilizes a resilient directory scanning fallback (`fs.readdirSync`) to import plugins dynamically.
+
+This allows any custom or optional plugin to be added to or deleted from the `src/plugins/` directory without causing compile-time compile/build errors.
 
 ---
 

@@ -62,11 +62,15 @@ export const stripePlugin: Plugin = {
       version: 1,
       description: "Ensure plugin_stripe_payments collection exists",
       up: async (dbAdapter) => {
-        await dbAdapter.crud.findMany(
-          "plugin_stripe_payments",
-          {},
-          { limit: 1, bypassTenantCheck: true },
-        );
+        if (typeof (dbAdapter as any).createModel === "function") {
+          await (dbAdapter as any).createModel({ _id: "plugin_stripe_payments" });
+        } else {
+          await dbAdapter.crud.findMany(
+            "plugin_stripe_payments",
+            {},
+            { limit: 1, bypassTenantCheck: true },
+          );
+        }
       },
     },
     {
@@ -75,11 +79,15 @@ export const stripePlugin: Plugin = {
       version: 2,
       description: "Ensure plugin_stripe_customers collection exists",
       up: async (dbAdapter) => {
-        await dbAdapter.crud.findMany(
-          "plugin_stripe_customers",
-          {},
-          { limit: 1, bypassTenantCheck: true },
-        );
+        if (typeof (dbAdapter as any).createModel === "function") {
+          await (dbAdapter as any).createModel({ _id: "plugin_stripe_customers" });
+        } else {
+          await dbAdapter.crud.findMany(
+            "plugin_stripe_customers",
+            {},
+            { limit: 1, bypassTenantCheck: true },
+          );
+        }
       },
     },
   ],
