@@ -47,6 +47,21 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
       // 🚀 Write-Queue Coalescing: Group same-collection + same-operation items
       // to use bulk SQL (INSERT ... VALUES (...), (...)) instead of N sequential
       // round-trips. This transforms O(N) mutex acquisitions into O(groups).
+      // 🛡️ MULTI-TENANT ISOLATION: Reject batches containing mixed tenantIds.
+      // Without this guard, coalescing across tenants sharing a DB instance
+      // could cause cross-tenant data leaks.
+      let batchTenantId: string | null = null;
+      for (const op of operations) {
+        const opTenant = (op as any).tenantId || null;
+        if (batchTenantId === null) {
+          batchTenantId = opTenant;
+        } else if (opTenant && opTenant !== batchTenantId) {
+          throw new Error(
+            `[SECURITY] Batch contains mixed tenantIds: ${batchTenantId} vs ${opTenant}. Cross-tenant coalescing rejected.`,
+          );
+        }
+      }
+
       const groups = new Map<string, BatchOperation<T>[]>();
       for (const op of operations) {
         const key = `${op.operation}:${op.collection}`;

@@ -39,7 +39,9 @@ interface TurboAuthContext {
   roles: Role[];
   bitset: Uint32Array;
   tenantId: DatabaseId | null;
-  timestamp: number;
+  /** Absolute expiry timestamp (ms). Fixed at SET time — never extended on GET.
+   *  This prevents timing attacks that infer session liveness from TTL reset patterns. */
+  expiresAt: number;
 }
 
 /** Session ID → pre-computed auth context. LRU-limited to 1000 entries. */
@@ -83,7 +85,8 @@ export function setTurboAuthContext(
     roles,
     bitset,
     tenantId,
-    timestamp: Date.now(),
+    // Absolute expiry — never slides on access. Prevents timing attacks.
+    expiresAt: Date.now() + TURBO_AUTH_TTL_MS,
   });
 }
 
@@ -136,8 +139,9 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 
   // ── Gate 4: Auth context must be in turbo cache ───────────────────────
   const turboCtx = turboAuthCache.get(sessionId);
-  if (!turboCtx || Date.now() - turboCtx.timestamp > TURBO_AUTH_TTL_MS) {
-    // Stale or missing — fall through to full auth pipeline
+  // 🛡️ Absolute expiry — never slides on access. Prevents timing attacks
+  // that infer session liveness from TTL reset patterns.
+  if (!turboCtx || Date.now() > turboCtx.expiresAt) {
     if (turboCtx) turboAuthCache.delete(sessionId);
     return resolve(event);
   }

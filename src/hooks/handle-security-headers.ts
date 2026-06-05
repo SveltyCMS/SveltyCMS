@@ -77,8 +77,25 @@ export function applyAllSecurityHeaders(
         "frame-src 'none'",
       ].join("; "),
     );
-    // Relax COEP for GraphQL playground to allow external resource loading
     headers.set("Cross-Origin-Embedder-Policy", "unsafe-none");
+  } else {
+    // 🛡️ Tightly-scoped CSP for all non-GraphQL routes.
+    // No inline eval, no external script sources — prevents XSS at the browser level.
+    headers.set(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "frame-src 'none'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+      ].join("; "),
+    );
   }
 }
 

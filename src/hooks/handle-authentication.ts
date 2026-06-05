@@ -393,7 +393,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const turboSessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
   if (turboSessionId) {
     const turboCtx = turboAuthCache.get(turboSessionId);
-    if (turboCtx && Date.now() - turboCtx.timestamp < 60_000) {
+    // 🛡️ Absolute expiry — never slides on access. Prevents timing attacks
+    // that infer session liveness from TTL reset patterns.
+    if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
       (locals as any).tenantId = turboCtx.tenantId || locals.tenantId;
