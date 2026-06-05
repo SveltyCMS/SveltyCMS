@@ -53,6 +53,7 @@ The Server-Sent Events (SSE) stream at `/api/events` performs real-time filterin
 
 - **Cleanup**: SSE streams utilize the `cancel()` method to clear `setInterval` heartbeats and `eventBus` listeners, preventing memory leaks that could lead to Denial of Service (DoS).
 - **Caching**: Services like `AutomationService` and `WebhookService` use a `Map<tenantId, Cache>` structure to ensure that cached data is never shared across tenant boundaries.
+- **Batch Operation Guard**: The core `batch-module.ts` (`execute()`) validates that all operations in a batch share the same `tenantId` before coalescing. Mixed-tenant batches are rejected with a security error — preventing cross-tenant data leakage when multiple tenants share a database instance.
 
 ## 4. Data Portability & Encryption
 
@@ -69,6 +70,7 @@ The import system validates the scope of incoming settings. It dynamically looks
 | Boundary           | Mechanism                       | Enforcement Point |
 | :----------------- | :------------------------------ | :---------------- |
 | **Data**           | Explicit `tenantId` filters     | Database Adapters |
+| **Batch**          | Mixed-tenant rejection guard    | `batch-module.ts` |
 | **Schema**         | Isolated Yoga Instances         | GraphQL Handler   |
 | **Real-Time**      | Payload Filtering               | SSE Controller    |
 | **Secrets**        | AES-256-GCM Encryption          | Export Utility    |

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-06-01"
+updated: "2026-06-05"
 tags:
   - "security"
   - "documentation"
@@ -83,6 +83,11 @@ SveltyCMS security architecture includes:
   - Rate limiting
   - Timing attack prevention
   - Information disclosure prevention
+
+- **[Middleware Security Hardening](/docs/architecture/server-hooks.mdx#handleSecurityHeaders)** - Real-time security at the protocol layer
+  - **Content Security Policy**: Tightly-scoped CSP (`script-src 'self'`, no inline eval) emitted on all non-GraphQL responses — the highest-leverage single-line XSS mitigation in SvelteKit
+  - **Multi-Tenant Batch Isolation**: `batch-module.ts` rejects coalesced operations containing mixed tenant IDs, preventing cross-tenant data leaks in shared-DB deployments
+  - **Timing-Safe Auth Cache**: Turbo auth cache uses absolute expiry (fixed at SET time, never extended on GET) — prevents attackers from inferring session liveness through TTL reset pattern analysis
 
 ### Infrastructure Security
 
