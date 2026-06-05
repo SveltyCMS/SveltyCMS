@@ -176,6 +176,8 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
           uri: finalConnection,
           connectionLimit: 100,
           connectTimeout: 30000,
+          maxIdle: 50,
+          idleTimeout: 60000,
         };
       } else {
         const c = (finalConnection || {}) as any;
@@ -188,7 +190,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
           connectionLimit: 100,
           connectTimeout: 30000,
           waitForConnections: true,
-          maxIdle: 10,
+          // 🚀 Adapter Hot Path: Raise maxIdle from 10→50 to reduce
+          // connection churn. With connectionLimit=100, keeping only 10 idle
+          // connections forces frequent re-creation under load.
+          maxIdle: 50,
           idleTimeout: 60000,
           queueLimit: 0,
           enableKeepAlive: true,
@@ -412,6 +417,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
     return mysqlTable(tableName, {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
+      collection: varchar("collection", { length: 255 }),
+      slug: varchar("slug", { length: 255 }),
+      locale: varchar("locale", { length: 50 }),
+      publishedAt: datetime("publishedAt"),
       data: json("data").notNull().default({}),
       status: varchar("status", { length: 50 }).notNull().default("draft"),
       isDeleted: boolean("isDeleted").notNull().default(false),
@@ -636,16 +645,25 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
       values.updatedAt = now;
     }
 
+    // Map common fields explicitly
+    if (schemaCols?.["collection"] || getCol(table, "collection")) {
+      values.collection = data.collection || getTableName(table).replace(/^collection_/, "");
+    }
+
+    if (schemaCols?.["publishedAt"] || getCol(table, "publishedAt")) {
+      const pubAt = data.publishedAt || data.metadata?.publishedAt;
+      if (pubAt !== undefined) {
+        values.publishedAt = pubAt;
+      }
+    }
+
     if (getCol(table, "data")) {
       const dynamicData: any = {};
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
         if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
           continue;
-        const isPhysical = schemaCols?.[k] || getCol(table, k);
-        if (!isPhysical) {
-          dynamicData[k] = data[k];
-        }
+        dynamicData[k] = data[k];
       }
       values.data = dynamicData;
     }
@@ -1442,7 +1460,47 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
           { name: "tenantId", type: "VARCHAR(36)" },
           { name: "createdAt", type: "DATETIME" },
           { name: "updatedAt", type: "DATETIME" },
+          { name: "collection", type: "VARCHAR(255)" },
+          { name: "slug", type: "VARCHAR(255)" },
+          { name: "locale", type: "VARCHAR(50)" },
+          { name: "publishedAt", type: "DATETIME" },
         ];
+
+        const dynamicCols = ["collection", "slug", "locale", "publishedAt"];
+
+        if (schemaData.fields && Array.isArray(schemaData.fields)) {
+          for (const field of schemaData.fields) {
+            if (field.indexed || field.unique) {
+              const fieldName = field.db_fieldName || field.label;
+              if (fieldName) {
+                let colType = "VARCHAR(255)";
+                if (field.type === "boolean") {
+                  colType = "TINYINT(1)";
+                } else if (field.type === "number" || field.type === "integer") {
+                  colType = "INT";
+                }
+                const reserved = [
+                  "_id",
+                  "id",
+                  "tenantId",
+                  "status",
+                  "isDeleted",
+                  "createdAt",
+                  "updatedAt",
+                  "collection",
+                  "slug",
+                  "locale",
+                  "publishedAt",
+                  "data",
+                ];
+                if (!reserved.includes(fieldName)) {
+                  columns.push({ name: fieldName, type: colType });
+                  dynamicCols.push(fieldName);
+                }
+              }
+            }
+          }
+        }
 
         for (const col of columns) {
           try {
@@ -1454,6 +1512,16 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
               const alterSql = `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${col.name}\` ${col.type}`;
               await this.raw.execute(alterSql);
             }
+          } catch {}
+        }
+
+        // Create indexes
+        for (const colName of dynamicCols) {
+          try {
+            const indexName = `${physicalName}_${colName}_idx`;
+            await this.raw.execute(
+              `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${physicalName}\` (\`${colName}\`)`,
+            );
           } catch {}
         }
 

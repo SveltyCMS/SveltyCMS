@@ -132,6 +132,19 @@ export const contentNavigation = {
    * Returns a lightweight navigation structure for client serialization.
    */
   async getNavigationStructure(tenantId: string | null = null): Promise<NavigationNode[]> {
+    const version = contentStore.contentVersion;
+    const cacheKey = `navigation:tree:${tenantId || "global"}:${version}`;
+
+    if (typeof window === "undefined" && import.meta.env.SSR) {
+      try {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const cached = await cacheService.get<NavigationNode[]>(cacheKey, tenantId);
+        if (cached) return cached;
+      } catch {
+        logger.trace("[NavigationCache] Read failed or skipped");
+      }
+    }
+
     const tenantStructure = await this.getContentStructure(tenantId);
 
     const stripToNavigation = (nodes: ContentNode[]): NavigationNode[] => {
@@ -148,7 +161,18 @@ export const contentNavigation = {
       }));
     };
 
-    return stripToNavigation(tenantStructure);
+    const result = stripToNavigation(tenantStructure);
+
+    if (typeof window === "undefined" && import.meta.env.SSR) {
+      try {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        await cacheService.set(cacheKey, result, 300, tenantId);
+      } catch {
+        logger.trace("[NavigationCache] Write failed or skipped");
+      }
+    }
+
+    return result;
   },
 
   /**

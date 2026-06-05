@@ -40,6 +40,8 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
+import { invalidateTurboAuthContext } from "./handle-turbo-get";
+import { turboAuthCache } from "./handle-turbo-get";
 
 // --- MODULE-LEVEL CACHES & STATE ---
 let multiTenantCached: boolean | null = null;
@@ -370,28 +372,53 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     return await resolve(event);
   }
 
+  // 🚀 TURBO GET FAST-PATH: Auth context already resolved by handleTurboGet.
+  // User, roles, tenantId, and bitset are pre-injected — skip session validation entirely.
+  if ((locals as any).__turboAuth === true) {
+    return await resolve(event);
+  }
+
   // 🚀 PERFORMANCE: Ultra-fast exit for static assets using pre-computed flags
   const flags = getRequestFlags(locals as any);
   if (flags.isStatic) return resolve(event);
+
+  // ── Compute cookie config once (used by turbo check + normal flow) ─────
+  const isProd = !dev && process.env.TEST_MODE !== "true";
+  const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+  const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+
+  // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
+  // dynamic imports, tenant resolution, or CSRF work. On a warm cache hit,
+  // this skips ~2ms of per-request auth overhead for ALL request types.
+  const turboSessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
+  if (turboSessionId) {
+    const turboCtx = turboAuthCache.get(turboSessionId);
+    if (turboCtx && Date.now() - turboCtx.timestamp < 60_000) {
+      (locals as any).user = turboCtx.user;
+      (locals as any).roles = turboCtx.roles;
+      (locals as any).tenantId = turboCtx.tenantId || locals.tenantId;
+      (locals as any).__turboAuth = true;
+      return await resolve(event);
+    }
+  }
 
   // Initialize tenant context ONLY if not already set
   if (!locals.tenantId) locals.tenantId = null as any;
 
   // --- Phase 1: Gated Initialization ---
-  // 🚀 Static import — setup state never changes after boot
-  const { SetupState } = await import("@utils/setup-check");
-  const setupState = (locals as any).__setupState || SetupState.COMPLETE;
+  // 🚀 Zero-import: setup state is always pre-set by handleTurboPipeline.
+  // Use string literals to avoid the dynamic import overhead on every request.
+  const setupState = (locals as any).__setupState || "COMPLETE";
 
-  if (setupState !== SetupState.COMPLETE) {
-    if (setupState === SetupState.MISSING_CONFIG) locals.__setupConfigExists = false;
+  if (setupState !== "COMPLETE") {
+    if (setupState === "MISSING_CONFIG") locals.__setupConfigExists = false;
     return await resolve(event);
   }
 
   // 🛡️ Ensure CSRF token established (Skip for Bearer auth to avoid overhead)
   const authHeader = event.request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    const isProd = !dev && process.env.TEST_MODE !== "true";
-    const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+    // Reuse isSecure computed at function top — no need to recompute
     ensureCsrfToken(cookies, isSecure);
   }
 
@@ -419,10 +446,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         locals.tenantId = `test-worker-${workerIndex}` as DatabaseId;
       }
     }
-
-    const isProd = !dev && process.env.TEST_MODE !== "true";
-    const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
-    const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     const authHeader = event.request.headers.get("Authorization");
     // 🛡️ SECURITY: Only accept __Host- prefixed cookies when secure (prevents subdomain cookie tossing).
@@ -553,6 +576,10 @@ export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId 
   strongRefs.delete(sessionId);
   lastRefreshAttempt.delete(sessionId);
   lastRotationAttempt.delete(sessionId);
+
+  // 🚀 Turbo GET: Also invalidate the auth context cache so a revoked
+  // session can't access cached API responses within the TTL window.
+  invalidateTurboAuthContext(sessionId);
 
   const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
   cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});

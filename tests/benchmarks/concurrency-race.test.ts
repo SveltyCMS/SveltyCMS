@@ -47,17 +47,38 @@ async function runConcurrencyAudit() {
     } as const;
 
     // 1. Check current state by reading the entry
-    const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
-      headers,
-    });
+    const checkRes = await fetch(
+      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true`,
+      {
+        headers,
+      },
+    );
     if (checkRes.ok) {
       const checkData = await checkRes.json();
       if (checkData?.data != null) {
         console.log(`   → Concurrency target entry found.`);
       } else {
-        // Entry returned 200 but data is null — entry exists in DB but not readable.
-        // Fall through to PATCH which will handle via ensureStableTestData seed.
-        console.log(`   → Entry returned null (will re-seed via PATCH).`);
+        console.log(`   → Entry returned null. Purging existing and creating _id=${ENTRY_ID}...`);
+        const delRes = await fetch(
+          `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?permanent=true`,
+          {
+            method: "DELETE",
+            headers,
+          },
+        );
+        console.log(`   → DELETE response status: ${delRes.status}, body: ${await delRes.text()}`);
+
+        const createRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            _id: ENTRY_ID,
+            count: 0,
+            title: "Concurrency Target",
+          }),
+        });
+        if (!createRes.ok)
+          throw new Error(`Failed to create target entry: ${await createRes.text()}`);
       }
     } else if (checkRes.status === 404) {
       console.log(`   → Entry not found. Creating _id=${ENTRY_ID}...`);
@@ -111,17 +132,8 @@ async function runConcurrencyAudit() {
     // PG/MariaDB: pooled connections, full parallelism via connection pools.
     const dbType = getDbType().toLowerCase();
 
-    // SQLite is single-writer — 100 concurrent writes to same doc is N/A.
-    // Skip gracefully rather than failing.
-    if (dbType.includes("sqlite")) {
-      console.log(
-        `   → SQLite detected — concurrency race N/A (single-writer WAL architecture). Skipping.`,
-      );
-      return;
-    }
-
     const BATCH = dbType.includes("mongodb") ? 100 : 50; // MariaDB and PG both use 50
-    const GAP = dbType.includes("sqlite") ? 25 : 0; // Only SQLite needs gaps (file lock)
+    const GAP = dbType.includes("sqlite") ? 0 : 0; // The write-drain queue handles serialization natively, no artificial gap needed
     console.log(`   → Blasting 100 concurrent increments (batch ${BATCH}, ${dbType})...`);
 
     // 2. Blast 100 concurrent atomic increments
@@ -156,6 +168,7 @@ async function runConcurrencyAudit() {
 
     // 3. Find the maximum count returned across all successful increment response bodies
     let maxCountFromResponses = 0;
+    let loggedFailed = false;
     for (const res of responses) {
       if (res.ok) {
         try {
@@ -166,6 +179,14 @@ async function runConcurrencyAudit() {
             maxCountFromResponses = count;
           }
         } catch {}
+      } else if (!loggedFailed) {
+        loggedFailed = true;
+        try {
+          const errBody = await res.clone().text();
+          console.error(`   → FAILED RESPONSE STATUS: ${res.status}, BODY: ${errBody}`);
+        } catch {
+          console.error(`   → FAILED RESPONSE STATUS: ${res.status}`);
+        }
       }
     }
 

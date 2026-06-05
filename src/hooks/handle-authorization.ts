@@ -32,6 +32,10 @@ import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
+// 🚀 Turbo GET fast-path: imports for populating auth context cache
+import { setTurboAuthContext } from "./handle-turbo-get";
+import { getRoleBitset } from "@src/databases/auth/permissions";
+
 // --- MODULE-LEVEL CACHES ---
 let multiTenantCached: boolean | null = null;
 let userCountCache: { count: number; timestamp: number } | null = null;
@@ -139,6 +143,13 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // 🚀 TURBO GET FAST-PATH: Auth context pre-injected by handleTurboGet.
+  // User, roles, and bitset already on locals — skip role loading entirely.
+  if ((locals as any).__turboAuth === true) {
+    locals.isAdmin = isAdmin(user) || (user as any)?.isAdmin;
+    return resolve(event);
+  }
+
   const pathname = url.pathname;
 
   // 1. ULTRA-FAST SHORT-CIRCUIT using pre-computed flags from Turbo Pipeline
@@ -189,6 +200,9 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     locals.isAdmin = true;
     locals.hasAdminPermission = true;
     locals.hasManageUsersPermission = true;
+    // 🚀 Turbo GET: Populate auth context cache so subsequent GET requests
+    // skip the full auth/authz middleware chain entirely.
+    _populateTurboAuth(event, user, []);
     return await resolve(event);
   }
 
@@ -230,6 +244,10 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
       throw redirect(302, "/login");
     }
 
+    // 🚀 Turbo GET: Populate auth context cache after roles are resolved
+    // so the next GET request to a cached endpoint skips all middleware.
+    _populateTurboAuth(event, user!, roles);
+
     const response = await resolve(event);
 
     return response;
@@ -251,4 +269,42 @@ export async function invalidateRolesCache(tenantId?: string | null): Promise<vo
   const key = tenantId || "global";
   rolesCache.delete(key);
   cacheService.delete(`roles:${key}`, tenantId).catch(() => {});
+}
+
+// ─── Turbo GET Auth Context Population ───────────────────────────────────────
+
+/**
+ * Populates the turbo auth context cache after successful authentication
+ * and role resolution. This enables subsequent GET requests to skip the
+ * full handleAuthentication + handleAuthorization middleware chain.
+ */
+function _populateTurboAuth(
+  event: import("@sveltejs/kit").RequestEvent,
+  user: import("@src/databases/auth/types").User,
+  roles: Role[],
+): void {
+  try {
+    const sessionId =
+      event.cookies.get("auth_sessions") ||
+      event.cookies.get("__Host-auth_sessions") ||
+      event.cookies.get("__Secure-auth_sessions");
+
+    if (!sessionId) return;
+
+    // Compute the combined permission bitset from all user roles
+    let bitset: Uint32Array;
+    if (roles.length > 0) {
+      const userRole = roles.find((r) => r._id.toString() === user.role?.toString());
+      bitset = userRole ? getRoleBitset(userRole) : getRoleBitset(roles[0]);
+    } else {
+      // Admin users have no specific roles — use empty bitset
+      // (the dispatcher's admin fast-path bypasses permission checks)
+      bitset = new Uint32Array(1);
+    }
+
+    setTurboAuthContext(sessionId, user, roles, bitset, (event.locals.tenantId as any) || null);
+  } catch {
+    // Non-critical — turbo cache miss just means the next request runs
+    // through the normal middleware chain.
+  }
 }

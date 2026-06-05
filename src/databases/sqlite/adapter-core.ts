@@ -49,7 +49,7 @@ const testWorkerContext = new AsyncLocalStorage<string>();
  * Uses AsyncLocalStorage to allow the same execution context to re-acquire the lock.
  */
 class Mutex {
-  private queue: Promise<void> = Promise.resolve();
+  private queue: Promise<any> = Promise.resolve();
   private storage = new AsyncLocalStorage<boolean>();
 
   async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
@@ -58,18 +58,18 @@ class Mutex {
       return await fn();
     }
 
-    const current = this.queue;
-    let resolveNext: () => void;
-    this.queue = new Promise((res) => {
-      resolveNext = res;
+    return new Promise<T>((resolve, reject) => {
+      this.queue = this.queue
+        .then(async () => {
+          try {
+            const res = await this.storage.run(true, fn);
+            resolve(res);
+          } catch (err) {
+            reject(err);
+          }
+        })
+        .catch(() => {});
     });
-
-    try {
-      await current;
-      return await this.storage.run(true, fn);
-    } finally {
-      resolveNext!();
-    }
   }
 }
 
@@ -89,6 +89,8 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
   protected _selectionCache = new Map<string, any>();
   protected _lastTable: any = null;
   protected _lastCols: Record<string, Column> | null = null;
+  /** Tables that have been fully provisioned with physical columns via createModel */
+  protected _provisionedTables = new Set<string>();
 
   // Lazy Domain Module Cache
   private _auth: any = null;
@@ -185,7 +187,64 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         return this.getTable(cleanName);
       }
 
-      const dynamicTable = this.createDynamicTableDefinition(tableName);
+      // Query content_nodes for indexed fields synchronously
+      const columnsToAdd = new Map<string, string>();
+      // Only add common projection columns if this table was provisioned
+      // via createModel (which runs ALTER TABLE). Tests and benchmarks that
+      // create tables directly won't have these columns physically.
+      if (this._provisionedTables.has(collection)) {
+        columnsToAdd.set("collection", "text");
+        columnsToAdd.set("slug", "text");
+        columnsToAdd.set("locale", "text");
+        columnsToAdd.set("publishedAt", "integer");
+      }
+
+      try {
+        const client = this._sqlite ? this.sqlite : null;
+        if (client) {
+          let row: any = null;
+          if (client.query) {
+            row = client
+              .query(`SELECT data FROM content_nodes WHERE _id = '${cleanName}' LIMIT 1`)
+              .get();
+          } else if (client.prepare) {
+            row = client
+              .prepare(`SELECT data FROM content_nodes WHERE _id = ? LIMIT 1`)
+              .get(cleanName);
+          }
+          if (row?.data) {
+            const nodeData = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+            let def = nodeData.collectionDef;
+            if (def) {
+              if (typeof def === "string") {
+                def = JSON.parse(def);
+              }
+              if (def && Array.isArray(def.fields)) {
+                for (const field of def.fields) {
+                  if (field.indexed || field.unique) {
+                    const fieldName = field.db_fieldName || field.label;
+                    if (fieldName && !columnsToAdd.has(fieldName)) {
+                      let colType = "text";
+                      if (
+                        field.type === "number" ||
+                        field.type === "integer" ||
+                        field.type === "boolean"
+                      ) {
+                        colType = "integer";
+                      }
+                      columnsToAdd.set(fieldName, colType);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Safe fallback
+      }
+
+      const dynamicTable = this.createDynamicTableDefinition(tableName, columnsToAdd);
       this.tableRegistry.set(collection, dynamicTable);
       return dynamicTable;
     } finally {
@@ -351,16 +410,37 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       values.updatedAt = now;
     }
 
+    // Map common fields explicitly — only if data provides them
+    // (avoids inserting columns that may not exist in the physical table
+    //  for tables created before projection support was added)
+    if ((schemaCols?.["collection"] || getCol(table, "collection")) && "collection" in data) {
+      values.collection = data.collection || getTableName(table).replace(/^collection_/, "");
+    }
+
+    if (
+      (schemaCols?.["publishedAt"] || getCol(table, "publishedAt")) &&
+      ("publishedAt" in data || (data.metadata && "publishedAt" in data.metadata))
+    ) {
+      const pubAt = data.publishedAt || data.metadata?.publishedAt;
+      if (pubAt !== undefined) {
+        values.publishedAt = pubAt;
+      }
+    }
+
+    if ((schemaCols?.["slug"] || getCol(table, "slug")) && "slug" in data) {
+      values.slug = data.slug;
+    }
+    if ((schemaCols?.["locale"] || getCol(table, "locale")) && "locale" in data) {
+      values.locale = data.locale;
+    }
+
     if (getCol(table, "data")) {
       const dynamicData: any = {};
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
         if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
           continue;
-        const isPhysical = schemaCols?.[k] || getCol(table, k);
-        if (!isPhysical) {
-          dynamicData[k] = data[k];
-        }
+        dynamicData[k] = data[k];
       }
       values.data = JSON.stringify(dynamicData) || "{}";
     }
@@ -952,21 +1032,26 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       userId?: DatabaseId;
     } = {},
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (options.permanent && (!query || Object.keys(query).length === 0)) {
-        await this.getDrizzleInstance(options).delete(table);
-        return { deletedCount: -1 };
-      }
-      const items = await this.findMany(collection, query, options);
-      if (!items.success) throw new Error(items.message);
-      let deletedCount = 0;
-      for (const item of items.data || []) {
-        const res = await this.delete(collection, (item as any)._id, options);
-        if (res.success) deletedCount++;
-      }
-      return { deletedCount };
-    }, "DELETE_MANY_FAILED");
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (options.permanent && (!query || Object.keys(query).length === 0)) {
+          await this.getDrizzleInstance(options).delete(table);
+          return { deletedCount: -1 };
+        }
+        const items = await this.findMany(collection, query, options);
+        if (!items.success) throw new Error(items.message);
+        let deletedCount = 0;
+        for (const item of items.data || []) {
+          const res = await this.delete(collection, (item as any)._id, options);
+          if (res.success) deletedCount++;
+        }
+        return { deletedCount };
+      },
+      "DELETE_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async restore(
@@ -984,15 +1069,20 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         },
       };
     }
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
-      await this.getDrizzleInstance(options)
-        .update(table)
-        .set({ isDeleted: false, updatedAt: new Date() })
-        .where(eq(idCol, id as any));
-    }, "RESTORE_FAILED");
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
+        await this.getDrizzleInstance(options)
+          .update(table)
+          .set({ isDeleted: false, updatedAt: new Date() })
+          .where(eq(idCol, id as any));
+      },
+      "RESTORE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async upsert<T extends BaseEntity>(
@@ -1160,7 +1250,43 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
           { name: "updatedAt", type: "INTEGER" },
         ];
 
-        for (const col of columns) {
+        const dynamicCols = [
+          { name: "collection", type: "TEXT" },
+          { name: "slug", type: "TEXT" },
+          { name: "locale", type: "TEXT" },
+          { name: "publishedAt", type: "INTEGER" },
+        ];
+
+        if (schemaData.fields && Array.isArray(schemaData.fields)) {
+          for (const field of schemaData.fields) {
+            if (field.indexed || field.unique) {
+              const fieldName = field.db_fieldName || field.label;
+              if (fieldName) {
+                let colType = "TEXT";
+                if (
+                  field.type === "number" ||
+                  field.type === "integer" ||
+                  field.type === "boolean"
+                ) {
+                  colType = "INTEGER";
+                }
+                if (
+                  !dynamicCols.some((c) => c.name === fieldName) &&
+                  !columns.some((c) => c.name === fieldName) &&
+                  fieldName !== "_id" &&
+                  fieldName !== "id" &&
+                  fieldName !== "data"
+                ) {
+                  dynamicCols.push({ name: fieldName, type: colType });
+                }
+              }
+            }
+          }
+        }
+
+        const allColumnsToEnsure = [...columns, ...dynamicCols];
+
+        for (const col of allColumnsToEnsure) {
           try {
             const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
             const exists = tableInfo.some((c: any) => c.name === col.name);
@@ -1172,7 +1298,19 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
           } catch {}
         }
 
+        // Create indexes
+        for (const col of dynamicCols) {
+          try {
+            const indexName = `${physicalName}_${col.name}_idx`;
+            await this.raw.execute(
+              `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${col.name}")`,
+            );
+          } catch {}
+        }
+
         logger.info(`[SQLITE Adapter] Provisioned table: ${physicalName}`);
+        // Track that this table has physical columns so getTable() can add them
+        this._provisionedTables.add(normalizedName);
       },
       "CREATE_MODEL_FAILED",
       undefined,
@@ -1292,10 +1430,10 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     return this._db!;
   }
 
-  public createDynamicTableDefinition(name: string) {
+  public createDynamicTableDefinition(name: string, columnsToAdd?: Map<string, string>) {
     // 🚀 HARDENING: Standardize dynamic columns to ensure text columns like '_id'
     // are physically selectable in all drivers (especially Bun).
-    const columns = {
+    const columns: Record<string, any> = {
       _id: text("_id").primaryKey().notNull(),
       tenantId: text("tenantId"),
       data: text("data").notNull().default("{}"),
@@ -1309,11 +1447,47 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         .default(sql`(strftime('%s','now')*1000)`),
     };
 
-    return sqliteTable(name, columns, (t) => ({
-      tenantIdx: index(`${name}_tenant_idx`).on(t.tenantId),
-      statusIdx: index(`${name}_status_idx`).on(t.status),
-      updatedIdx: index(`${name}_updated_idx`).on(t.updatedAt),
-    }));
+    if (columnsToAdd) {
+      for (const [colName, colType] of columnsToAdd.entries()) {
+        if (
+          colName === "_id" ||
+          colName === "id" ||
+          colName === "tenantId" ||
+          colName === "status" ||
+          colName === "isDeleted" ||
+          colName === "createdAt" ||
+          colName === "updatedAt" ||
+          colName === "data"
+        ) {
+          continue;
+        }
+        if (colType === "integer") {
+          if (colName === "publishedAt") {
+            columns[colName] = integer(colName, { mode: "timestamp_ms" });
+          } else {
+            columns[colName] = integer(colName);
+          }
+        } else {
+          columns[colName] = text(colName);
+        }
+      }
+    }
+
+    return sqliteTable(name, columns, (t) => {
+      const idxs: Record<string, any> = {
+        tenantIdx: index(`${name}_tenant_idx`).on(t.tenantId),
+        statusIdx: index(`${name}_status_idx`).on(t.status),
+        updatedIdx: index(`${name}_updated_idx`).on(t.updatedAt),
+      };
+      if (columnsToAdd) {
+        for (const colName of columnsToAdd.keys()) {
+          if (t[colName]) {
+            idxs[`${colName}Idx`] = index(`${name}_${colName}_idx`).on(t[colName]);
+          }
+        }
+      }
+      return idxs;
+    });
   }
 
   protected _sqlite: SQLiteClient | null = null;
@@ -1444,6 +1618,13 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         // @ts-ignore - Dynamic import to avoid circular dependency
         const { runMigrations } = await import("./migrations");
         await runMigrations(this._sqlite);
+
+        // 🚀 TABLE REGISTRY PRE-WARMING: Build all dynamic table definitions
+        // upfront so getTable() never queries content_nodes during requests.
+        // Without this, every first request to a collection does a synchronous
+        // DB read for indexed field discovery — adding ~0.5ms per cold collection.
+        await this._warmTableRegistry();
+
         this._provisioned = true;
       } catch (err: any) {
         logger.error(`[SQLite] Provisioning failed: ${err.message}`);
@@ -1472,6 +1653,61 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
   }
   public async ensureCollections() {
     await this.provision();
+  }
+
+  /**
+   * 🚀 TABLE REGISTRY PRE-WARMING
+   * Queries all content_nodes at startup and pre-builds dynamic table definitions
+   * into tableRegistry. After this runs, getTable() returns instantly from the
+   * in-memory Map — zero DB queries on the request path.
+   *
+   * This eliminates the ~0.5ms synchronous content_nodes query that previously
+   * ran on the first request to each collection after server restart.
+   */
+  private async _warmTableRegistry(): Promise<void> {
+    const client = this._sqlite;
+    if (!client) return;
+
+    try {
+      let rows: any[] = [];
+      if (client.query) {
+        rows = client
+          .query("SELECT _id, data FROM content_nodes WHERE _id NOT LIKE 'system_%'")
+          .all();
+      } else if (client.prepare) {
+        rows = client
+          .prepare("SELECT _id, data FROM content_nodes WHERE _id NOT LIKE 'system_%'")
+          .all();
+      }
+
+      let warmed = 0;
+      for (const row of rows) {
+        const cleanId = String(row._id).replace(/-/g, "");
+        const collectionName = cleanId.startsWith("collection_")
+          ? cleanId
+          : `collection_${cleanId}`;
+
+        if (this.tableRegistry.has(collectionName)) continue;
+
+        try {
+          // Call getTable which populates tableRegistry
+          this.getTable(collectionName);
+          // Mark as provisioned since the table exists in content_nodes
+          this._provisionedTables.add(collectionName);
+          warmed++;
+        } catch {
+          // Skip collections that fail to resolve
+        }
+      }
+
+      if (warmed > 0) {
+        logger.info(
+          `[SQLite] Table registry pre-warmed: ${warmed} collections ready (zero-DB request path)`,
+        );
+      }
+    } catch {
+      // Non-critical: if content_nodes doesn't exist yet (fresh DB), skip silently
+    }
   }
 
   public async waitForConnection(): Promise<void> {

@@ -7,7 +7,6 @@
 
 import { contentSystem } from "@src/content/index.server";
 import type { Role, User } from "@src/databases/auth/types";
-import { dbInitPromise } from "@src/databases/db";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error, redirect } from "@sveltejs/kit";
@@ -31,19 +30,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   }
 
   try {
-    // Wait for the database and content-manager to be ready
-    await dbInitPromise;
-
-    // 🚀 NEW: Specifically wait for background tasks (Content, Themes, Cache)
-    // before making redirect decisions based on content availability.
-    const { runBackgroundTasks } = await import("@src/databases/db-init");
-    const { getDb } = await import("@src/databases/db");
-    const adapter = getDb();
-    if (adapter) {
-      await runBackgroundTasks(adapter);
-    }
-
-    // Verify content-manager is ready (should be from hooks)
+    // 🚀 Background tasks already run at system startup via hooks.server.ts.
+    // The content system health check is informational only — if it's not ready,
+    // getFirstCollectionRedirectUrl will throw naturally and we handle that below.
     const healthStatus = contentSystem.getHealthStatus();
     if (healthStatus.state !== "initialized") {
       logger.warn("ContentSystem not initialized in page load - still waiting...", {

@@ -18,8 +18,6 @@
 
 import type { PermissionConfig } from "@src/databases/auth/permissions";
 import type { Role, User } from "@src/databases/auth/types";
-// Auth
-import { auth } from "@src/databases/db";
 // System Logger
 import { getUntypedSetting } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
@@ -59,27 +57,9 @@ export const load: PageServerLoad = async (event) => {
     // Use isAdmin from authorization hook (handles multi-tenant fallback correctly)
     const isAdmin = event.locals.isAdmin === true;
 
-    // Always fetch fresh user data from database to ensure we have the latest changes
-    // This is especially important after profile updates
-    let freshUser: User | null = null;
-    if (user?._id && auth) {
-      freshUser = await auth.getUserById(user._id.toString() as any, {
-        tenantId: event.locals.tenantId,
-        bypassTenantCheck: true,
-      });
-      if (freshUser) {
-        logger.debug("Fresh user data fetched for user page", {
-          userId: freshUser._id,
-          username: freshUser.username,
-          email: freshUser.email,
-        });
-      }
-    }
-
-    // Fallback to session user if database fetch fails
-    if (!freshUser) {
-      freshUser = user;
-    }
+    // 🚀 The layout already refreshes user data via refreshUser(). Use locals.user
+    // directly instead of a redundant auth.getUserById() DB round-trip.
+    const freshUser = user as User | null;
 
     // Prepare user object for return, ensuring _id is a string and including admin status
     const safeUser = freshUser

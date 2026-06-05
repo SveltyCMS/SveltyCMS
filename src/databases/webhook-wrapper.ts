@@ -48,7 +48,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         ) {
           const event: WebhookEvent = collection === "MediaItem" ? "media:upload" : "entry:create";
           webhookService.trigger(event, { collection, data: res.data as any }, tenantId);
-          eventBus.emit(event as any, { collection, data: res.data as any, tenantId });
+          eventBus.emit(event as any, {
+            collection,
+            data: res.data as any,
+            tenantId,
+          });
         }
         return res;
       },
@@ -69,7 +73,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         ) {
           for (const item of res.data) {
             webhookService.trigger("entry:create", { collection, data: item as any }, tenantId);
-            eventBus.emit("entry:create", { collection, data: item as any, tenantId });
+            eventBus.emit("entry:create", {
+              collection,
+              data: item as any,
+              tenantId,
+            });
           }
         }
         return res;
@@ -139,7 +147,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
           );
           eventBus.emit("entry:update", {
             collection,
-            data: { query, changes: data, modifiedCount: res.data.modifiedCount },
+            data: {
+              query,
+              changes: data,
+              modifiedCount: res.data.modifiedCount,
+            },
             tenantId,
           });
         }
@@ -163,7 +175,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         ) {
           const event: WebhookEvent = collection === "MediaItem" ? "media:delete" : "entry:delete";
           webhookService.trigger(event, { collection, id: id as any }, tenantId);
-          eventBus.emit(event as any, { collection, entryId: id as any, tenantId });
+          eventBus.emit(event as any, {
+            collection,
+            entryId: id as any,
+            tenantId,
+          });
         }
         return res;
       },
@@ -185,7 +201,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         ) {
           webhookService.trigger(
             "entry:delete",
-            { collection, query: query as any, deletedCount: res.data.deletedCount },
+            {
+              collection,
+              query: query as any,
+              deletedCount: res.data.deletedCount,
+            },
             tenantId,
           );
           eventBus.emit("entry:delete", {
@@ -212,12 +232,19 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
           typeof collection === "string" &&
           collection.startsWith(CONTENT_COLLECTION_PREFIX)
         ) {
-          webhookService.trigger(
-            "entry:update",
-            { collection, query: query as any, data: res.data },
+          // 🚀 Side-Effect Offloading: Defer webhook dispatch
+          setImmediate(() => {
+            webhookService.trigger(
+              "entry:update",
+              { collection, query: query as any, data: res.data },
+              tenantId,
+            );
+          });
+          eventBus.emit("entry:update", {
+            collection,
+            data: { query, data: res.data },
             tenantId,
-          );
-          eventBus.emit("entry:update", { collection, data: { query, data: res.data }, tenantId });
+          });
         }
         return res;
       },
@@ -259,7 +286,10 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
               return res;
             } catch (err: any) {
               span.recordException(err);
-              span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+              span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: err.message,
+              });
               throw err;
             } finally {
               span.end();
@@ -448,10 +478,16 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
                 return () => ({
                   findOne: () => Promise.resolve(null),
                   aggregate: () => Promise.resolve([]),
-                  find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
+                  find: () => ({
+                    lean: () => ({ exec: () => Promise.resolve([]) }),
+                  }),
                 });
               }
-              return () => Promise.resolve({ success: false, message: "Interface initializing" });
+              return () =>
+                Promise.resolve({
+                  success: false,
+                  message: "Interface initializing",
+                });
             },
           },
         );

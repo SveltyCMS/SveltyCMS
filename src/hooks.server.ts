@@ -49,6 +49,7 @@ if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
 }
 
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
+import { handleTurboGet } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { handleSecurityHeaders, applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 
@@ -298,10 +299,43 @@ if (!building) {
 
 // Helper to dynamically wrap SvelteKit middleware inside a high-resolution tracing span
 // 🚀 Pre-resolves the handle reference once (saves one function call per hook per request)
+// 🚀 HOOK TIMING: Accumulates per-hook latency for diagnostics via getHookTimings().
+const hookTimings = new Map<string, { count: number; total: number; min: number; max: number }>();
+
+export function getHookTimings(): Record<
+  string,
+  { avg: number; min: number; max: number; count: number }
+> {
+  const result: Record<string, any> = {};
+  for (const [name, t] of hookTimings) {
+    result[name] = {
+      avg: t.total / t.count,
+      min: t.min,
+      max: t.max,
+      count: t.count,
+    };
+  }
+  return result;
+}
+
 function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   const resolvedHandle = handleFnRef();
   return async (input) => {
-    return await traceSpan(`hook:${name}`, async () => await resolvedHandle(input));
+    const start = performance.now();
+    try {
+      return await traceSpan(`hook:${name}`, async () => await resolvedHandle(input));
+    } finally {
+      const elapsed = performance.now() - start;
+      let t = hookTimings.get(name);
+      if (!t) {
+        t = { count: 0, total: 0, min: Infinity, max: 0 };
+        hookTimings.set(name, t);
+      }
+      t.count++;
+      t.total += elapsed;
+      if (elapsed < t.min) t.min = elapsed;
+      if (elapsed > t.max) t.max = elapsed;
+    }
   };
 }
 
@@ -324,6 +358,10 @@ const getPipeline = () => {
         wrapHandle("system-state", () => handleSystemState),
         wrapHandle("redirects", () => handleRedirects),
         wrapHandle("compression", () => handleCompression),
+        // 🚀 Turbo GET: After security gates but before auth/authz.
+        // Rate limiting & firewall still apply; only session validation
+        // and role loading are skipped for cached responses.
+        wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("user-preferences", () => handleUserPreferences),
         wrapHandle("authentication", () => handleAuthentication),
         wrapHandle("authorization", () => handleAuthorization),
@@ -397,6 +435,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         state === "READY" || state === "WARMED" || state === "WARMING" || state === "DEGRADED";
       const isDbConnected = state !== "SETUP" && state !== "IDLE" && state !== "FAILED";
       const mem = process.memoryUsage();
+      const hooks = getHookTimings();
       return Response.json(
         {
           status: isReady ? "healthy" : "unhealthy",
@@ -411,6 +450,7 @@ export const handle: Handle = async ({ event, resolve }) => {
             heapUsed: mem.heapUsed,
             external: mem.external,
           },
+          hooks: Object.keys(hooks).length > 0 ? hooks : undefined,
         },
         {
           headers: {

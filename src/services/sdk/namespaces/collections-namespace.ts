@@ -1208,11 +1208,15 @@ export class CollectionsNamespace {
     CollectionsNamespace._requestCache.clear();
 
     // 2. Clear L2 (External) Cache
-    const patterns = [
-      `collection:${schema._id}:*`,
-      `cms:content_structure:${tenantId || "global"}`,
-      `cms:content_structure:${tenantId || "global"}:${schema._id}`,
-    ];
+    const patterns = [`cms:content_structure:${tenantId || "global"}`];
+    if (schema._id) {
+      patterns.push(
+        `collection:${schema._id}:*`,
+        `cms:content_structure:${tenantId || "global"}:${schema._id}`,
+        `/api/collections/${schema._id.toLowerCase()}*`,
+        `/api/collections/${schema._id}*`,
+      );
+    }
     for (const pattern of patterns) {
       await cacheService
         .clearByPattern(pattern, (tenantId || undefined) as string | undefined)

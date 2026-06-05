@@ -21,17 +21,37 @@ export interface PermissionConfig {
   name: string;
 }
 
+// Bitset mapping maps permission ID to a unique bit index
+const permissionToBitIndex = new Map<string, number>();
+const bitIndexToPermission: string[] = [];
+let nextBitIndex = 0;
+
+// Action index maps action:type:contextId string to the Permission object
+const permissionActionIndex = new Map<string, Permission>();
+
+function indexPermission(permission: Permission) {
+  if (!permissionToBitIndex.has(permission._id)) {
+    permissionToBitIndex.set(permission._id, nextBitIndex);
+    bitIndexToPermission[nextBitIndex] = permission._id;
+    nextBitIndex++;
+  }
+  const key = `${permission.action}:${permission.type}:${permission.contextId || ""}`;
+  permissionActionIndex.set(key, permission);
+}
+
 // Permission registry for dynamic permissions
 const permissionRegistry = new Map<string, Permission>();
 
 // Initialize with core permissions
 corePermissions.forEach((permission) => {
   permissionRegistry.set(permission._id, permission);
+  indexPermission(permission);
 });
 
 // Register a new permission
 export function registerPermission(permission: Permission): void {
   permissionRegistry.set(permission._id, permission);
+  indexPermission(permission);
   logger.trace(`Permission registered: ${permission._id}`);
 }
 
@@ -45,24 +65,39 @@ export function getPermissionById(permissionId: string): Permission | undefined 
   return permissionRegistry.get(permissionId);
 }
 
+// Compile a role's permissions into a Uint32Array bitset, cached directly on the role
+export function getRoleBitset(role: Role): Uint32Array {
+  if ((role as any).__bitset) {
+    return (role as any).__bitset;
+  }
+
+  const size = Math.max(1, Math.ceil(nextBitIndex / 32));
+  const bitset = new Uint32Array(size);
+
+  for (const permId of role.permissions || []) {
+    let index = permissionToBitIndex.get(permId);
+    if (index === undefined) {
+      index = nextBitIndex;
+      permissionToBitIndex.set(permId, index);
+      bitIndexToPermission[index] = permId;
+      nextBitIndex++;
+    }
+    const wordIndex = index >> 5;
+    if (wordIndex >= bitset.length) {
+      continue;
+    }
+    bitset[wordIndex] |= 1 << (index & 31);
+  }
+
+  (role as any).__bitset = bitset;
+  return bitset;
+}
+
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
 export function hasPermissionWithRoles(user: User, permissionId: string, roles: Role[]): boolean {
   // ADMIN FAST-PATH: If the user object is already marked as admin, grant immediately.
-  // This prevents failures when user.role is a name string ("admin") that doesn't match
-  // any role._id (which are UUIDs in relational databases).
   if (user.isAdmin) {
     return true;
-  }
-
-  // Check cache first
-  const cachedResult = permissionCache.get(
-    user._id as string,
-    permissionId,
-    roles.map((r) => r._id as string),
-  );
-
-  if (cachedResult !== null) {
-    return cachedResult;
   }
 
   let userRole = roles.find((role) => role._id === user.role);
@@ -100,8 +135,25 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
     return true;
   }
 
-  // Check if user's role has the specific permission
-  const hasPermission = userRole.permissions.includes(permissionId);
+  // Bitset Fast Path Check
+  const index = permissionToBitIndex.get(permissionId);
+  if (index === undefined) {
+    logger.warn("Permission denied (unregistered ID) for user", {
+      email: user.email,
+      userId: user._id,
+      permissionId,
+    });
+    return false;
+  }
+
+  const bitset = getRoleBitset(userRole);
+  const wordIndex = index >> 5;
+  if (wordIndex >= bitset.length) {
+    return false;
+  }
+
+  const hasPermission = (bitset[wordIndex] & (1 << (index & 31))) !== 0;
+
   if (!hasPermission) {
     logger.warn("Permission denied for user", {
       email: user.email,
@@ -118,16 +170,6 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
     granted: hasPermission,
     email: user.email,
   });
-
-  // Cache the result (except for admin users)
-  if (!user.isAdmin) {
-    permissionCache.set(
-      user._id as string,
-      permissionId,
-      roles.map((r) => r._id as string),
-      hasPermission,
-    );
-  }
 
   return hasPermission;
 }
@@ -185,16 +227,26 @@ export function hasPermissionByAction(
     return true;
   }
 
-  // Find matching permission
-  const permission = Array.from(permissionRegistry.values()).find(
-    (p) => p.action === action && p.type === type && (!contextId || p.contextId === contextId),
-  );
+  // Find matching permission via Action Index
+  const key = `${action}:${type}:${contextId || ""}`;
+  const permission = permissionActionIndex.get(key);
 
   if (!permission) {
     return false;
   }
 
-  return userRole.permissions.includes(permission._id);
+  const index = permissionToBitIndex.get(permission._id);
+  if (index === undefined) {
+    return false;
+  }
+
+  const bitset = getRoleBitset(userRole);
+  const wordIndex = index >> 5;
+  if (wordIndex >= bitset.length) {
+    return false;
+  }
+
+  return (bitset[wordIndex] & (1 << (index & 31))) !== 0;
 }
 
 // Get permissions for a specific role (with roles parameter)

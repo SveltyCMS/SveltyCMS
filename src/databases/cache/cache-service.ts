@@ -370,7 +370,12 @@ export class CacheService {
             const start = performance.now();
             const l2Value = await this.l2.get(fullKey);
             if (l2Value) {
-              const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+              let parsed: any;
+              if (typeof l2Value === "string" && l2Value.startsWith("__RAW_STRING__:")) {
+                parsed = l2Value.substring(15);
+              } else {
+                parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+              }
 
               const responseTime = performance.now() - start;
               this.recordLatency(responseTime);
@@ -491,7 +496,12 @@ export class CacheService {
           for (let i = 0; i < l2Values.length; i++) {
             const val = l2Values[i];
             if (val) {
-              const parsed = JSON.parse(val);
+              let parsed: any;
+              if (typeof val === "string" && val.startsWith("__RAW_STRING__:")) {
+                parsed = val.substring(15);
+              } else {
+                parsed = JSON.parse(val);
+              }
               resolvedResults[i] = parsed;
               const originalIndex = missingIndices[i];
               results[originalIndex] = parsed as T;
@@ -548,7 +558,9 @@ export class CacheService {
 
     if (this.isL2Ready()) {
       try {
-        await this.l2.set(fullKey, JSON.stringify(value), { EX: finalTTL });
+        const valStr =
+          typeof value === "string" ? `__RAW_STRING__:${value}` : JSON.stringify(value);
+        await this.l2.set(fullKey, valStr, { EX: finalTTL });
         if (tags.length > 0 && typeof this.l2.multi === "function") {
           const multi = this.l2.multi();
           for (const tag of tags) multi.sAdd(`tag:${tag}`, fullKey);

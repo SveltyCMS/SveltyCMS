@@ -61,13 +61,31 @@ async function run() {
   const totalWrites = DOCS * WRITES_PER_DOC;
   console.log(`   → Blasting ${totalWrites} concurrent writes (NO throttle)...`);
 
+  // Helper to retry fetches on network-level failures (e.g. ECONNREFUSED/ECONNRESET due to backlog)
+  async function fetchWithRetry(
+    url: string,
+    init: RequestInit,
+    retries = 5,
+    delay = 100,
+  ): Promise<Response> {
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await fetch(url, init);
+      } catch (err) {
+        if (i === retries - 1) throw err;
+        await new Promise((resolve) => setTimeout(resolve, delay + Math.random() * 50));
+      }
+    }
+    throw new Error("Fetch failed after retries");
+  }
+
   const t0 = performance.now();
   // All requests at once — no semaphore, no batching
   const tasks: Promise<Response>[] = [];
   for (let d = 0; d < DOCS; d++) {
     for (let w = 0; w < WRITES_PER_DOC; w++) {
       tasks.push(
-        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`, {
+        fetchWithRetry(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`, {
           method: "POST",
           headers: H,
           body: JSON.stringify({ field: "count", amount: 1 }),

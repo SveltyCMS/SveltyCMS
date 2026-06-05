@@ -129,9 +129,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     }
 
     // 6. Handle 'edit' action (default)
-    // Initialize content-manager for this tenant before accessing data
+    // Initialize content-manager for this tenant before accessing data.
+    // Note: forced refresh() removed — the save actions already refresh on write,
+    // and the cache TTL handles staleness. Trust the cache on reads.
     await contentSystem.initialize(locals.tenantId);
-    await contentSystem.refresh(); // Force a refresh to bypass any stale cache
     const collectionIdentifier = params.contentPath;
 
     // Try resolving exactly as passed (UUID or relative path)
@@ -533,14 +534,14 @@ import type { Schema } from '@src/content/types';
 
 export const schema: Schema = {
 	// Collection Name coming from filename so not needed
-	
+
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: '',
 	status: '',
 	description: '',
 	slug: '',
-	
+
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options
 	fields: []

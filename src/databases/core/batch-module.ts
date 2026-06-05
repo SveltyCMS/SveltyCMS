@@ -44,54 +44,104 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
       let totalProcessed = 0;
       const errors: DatabaseError[] = [];
 
+      // 🚀 Write-Queue Coalescing: Group same-collection + same-operation items
+      // to use bulk SQL (INSERT ... VALUES (...), (...)) instead of N sequential
+      // round-trips. This transforms O(N) mutex acquisitions into O(groups).
+      const groups = new Map<string, BatchOperation<T>[]>();
       for (const op of operations) {
+        const key = `${op.operation}:${op.collection}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(op);
+      }
+
+      for (const [, ops] of groups) {
+        const operation = ops[0].operation;
+        const collection = ops[0].collection;
         try {
-          let res: DatabaseResult<T | undefined>;
-          switch (op.operation) {
-            case "insert":
-              res = await this.crud.insert(
-                op.collection,
-                op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
-              );
-              break;
-            case "update":
-              if (!op.id) {
-                throw new Error("ID required for update operation");
+          // Coalesce: use bulk methods for groups of same-collection inserts/deletes
+          if (operation === "insert" && ops.length > 1) {
+            const items = ops.map(
+              (op) => op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+            );
+            const bulkRes = await this.crud.insertMany(collection, items);
+            if (bulkRes.success && bulkRes.data) {
+              for (const item of bulkRes.data) {
+                results.push({
+                  success: true,
+                  data: item,
+                } as DatabaseResult<T>);
+                totalProcessed++;
               }
-              res = await this.crud.update(
-                op.collection,
-                op.id,
-                op.data as Partial<Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">>,
-              );
-              break;
-            case "delete":
-              if (!op.id) {
-                throw new Error("ID required for delete operation");
+            } else if (!bulkRes.success) {
+              errors.push((bulkRes as any).error!);
+            }
+            continue;
+          }
+          if (operation === "delete" && ops.length > 1) {
+            const ids = ops.map((op) => op.id!);
+            const deleteRes = await this.crud.deleteMany(collection, {
+              _id: { $in: ids },
+            } as any);
+            if (deleteRes.success) {
+              for (const id of ids) {
+                results.push({
+                  success: true,
+                  data: { _id: id },
+                } as DatabaseResult<T>);
+                totalProcessed++;
               }
-              res = (await this.crud.delete(
-                op.collection,
-                op.id,
-              )) as unknown as DatabaseResult<undefined>;
-              break;
-            case "upsert":
-              if (!(op.query && op.data)) {
-                throw new Error("Query and data required for upsert operation");
+            } else {
+              errors.push(deleteRes.error!);
+              for (let i = 0; i < ids.length; i++) {
+                results.push({
+                  success: false,
+                  message: deleteRes.message,
+                  error: deleteRes.error,
+                });
               }
-              res = await this.crud.upsert(
-                op.collection,
-                op.query as import("../db-interface").QueryFilter<T & BaseEntity>,
-                op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
-              );
-              break;
-            default:
-              throw new Error(`Unsupported batch operation: ${op.operation}`);
+            }
+            continue;
           }
 
-          results.push(res as DatabaseResult<T>);
-          if (res.success) {
-            totalProcessed++;
-          } else {
-            errors.push(res.error!);
+          // Fallback: individual ops for updates, upserts, or single-item groups
+          for (const op of ops) {
+            let res: DatabaseResult<T | undefined>;
+            switch (op.operation) {
+              case "insert":
+                res = await this.crud.insert(
+                  collection,
+                  op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+                );
+                break;
+              case "update":
+                if (!op.id) throw new Error("ID required for update operation");
+                res = await this.crud.update(
+                  collection,
+                  op.id,
+                  op.data as Partial<Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">>,
+                );
+                break;
+              case "delete":
+                if (!op.id) throw new Error("ID required for delete operation");
+                res = (await this.crud.delete(
+                  collection,
+                  op.id,
+                )) as unknown as DatabaseResult<undefined>;
+                break;
+              case "upsert":
+                if (!(op.query && op.data)) throw new Error("Query and data required");
+                res = await this.crud.upsert(
+                  collection,
+                  op.query as import("../db-interface").QueryFilter<T & BaseEntity>,
+                  op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+                );
+                break;
+              default:
+                throw new Error(`Unsupported batch operation: ${op.operation}`);
+            }
+            results.push(res as DatabaseResult<T>);
+            if (res!.success) totalProcessed++;
+            else errors.push(res!.error!);
           }
         } catch (error) {
           const dbError = utils.createDatabaseError(
@@ -99,11 +149,13 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
             error instanceof Error ? error.message : String(error),
             error,
           );
-          results.push({
-            success: false,
-            message: dbError.message,
-            error: dbError,
-          });
+          for (let i = 0; i < ops.length; i++) {
+            results.push({
+              success: false,
+              message: dbError.message,
+              error: dbError,
+            });
+          }
           errors.push(dbError);
         }
       }

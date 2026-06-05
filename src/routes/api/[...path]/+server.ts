@@ -222,21 +222,6 @@ export const _handler = async (event: RequestEvent) => {
   const { user } = locals;
   let tenantId = (locals.tenantId as string) || null;
 
-  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit
-  if (request.method === "GET") {
-    const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
-    if (cached) {
-      if (typeof cached === "string") {
-        return new Response(cached, {
-          headers: { "X-Cache": "HIT-L1", "Content-Type": "application/json" },
-        });
-      }
-      return json(cached, {
-        headers: { "X-Cache": "HIT-L1", "Content-Type": "application/json" },
-      });
-    }
-  }
-
   // Support tenantId override for super-admins
   if (url.searchParams.has("tenantId")) {
     if (user?.role === "super-admin") {
@@ -310,6 +295,22 @@ export const _handler = async (event: RequestEvent) => {
       throw new AppError(`Security violation: ${csrfResult.error}`, 403, "CSRF_VIOLATION");
   }
 
+  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit AFTER Auth
+  if (request.method === "GET") {
+    const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
+    if (cached) {
+      console.log(`[CacheHit] Hit: ${url.pathname + url.search}`);
+      if (typeof cached === "string") {
+        return new Response(cached, {
+          headers: { "X-Cache": "HIT-L1", "Content-Type": "application/json" },
+        });
+      }
+      return json(cached, {
+        headers: { "X-Cache": "HIT-L1", "Content-Type": "application/json" },
+      });
+    }
+  }
+
   if (!NAMESPACE_CONFIG[namespace]) {
     throw new AppError(`API Namespace "/api/${namespace}" not found`, 404, "NAMESPACE_NOT_FOUND");
   }
@@ -332,6 +333,39 @@ export const _handler = async (event: RequestEvent) => {
   // Skip ETag for streaming responses (SSE) and non-200 responses
   const contentType = response.headers.get("content-type") || "";
   const isStreaming = contentType.includes("text/event-stream");
+
+  // Cache successful GET responses in cacheService
+  if (request.method === "GET" && response.status === 200 && !isStreaming) {
+    try {
+      const pathStr = url.pathname;
+      // 🚀 Pre-Encode: expand cache to all hot-read GET endpoints
+      // Settings, schema, navigation, themes, and system config rarely change
+      // and should never hit the DB on warm requests.
+      const isCacheable =
+        pathStr.includes("/api/collections") ||
+        pathStr.includes("/api/content") ||
+        pathStr.includes("/api/settings") ||
+        pathStr.includes("/api/system") ||
+        pathStr.includes("/api/schema") ||
+        pathStr.includes("/api/navigation") ||
+        pathStr.includes("/api/themes") ||
+        pathStr.includes("/api/config");
+      if (isCacheable) {
+        console.log(`[CacheSet] Caching endpoint: ${url.pathname + url.search}`);
+        const responseBody = await response.clone().text();
+        const { CacheCategory } = await import("@src/databases/cache/types");
+        await cacheService.set(
+          url.pathname + url.search,
+          responseBody,
+          300,
+          tenantId,
+          CacheCategory.API,
+        );
+      }
+    } catch (err) {
+      console.error("[CacheSet] Error:", err);
+    }
+  }
 
   if (request.method === "GET" && response.status === 200 && !isStreaming && response.body) {
     try {

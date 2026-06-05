@@ -98,6 +98,25 @@ export class SettingsService {
     tenantId: string = GLOBAL_TENANT,
     overrides?: { dbAdapter: IDBAdapter; getPrivateEnv: () => PrivateEnv },
   ): Promise<SettingsCache> {
+    const cacheKey = `settings:cache:${tenantId}`;
+    if (!overrides && typeof window === "undefined" && import.meta.env.SSR) {
+      try {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const cached = cacheService.getSync<SettingsCache>(cacheKey, tenantId);
+        if (cached && cached.loaded && Date.now() - cached.loadedAt < CACHE_TTL) {
+          this.caches.set(tenantId, cached);
+          return cached;
+        }
+        const asyncCached = await cacheService.get<SettingsCache>(cacheKey, tenantId);
+        if (asyncCached && asyncCached.loaded && Date.now() - asyncCached.loadedAt < CACHE_TTL) {
+          this.caches.set(tenantId, asyncCached);
+          return asyncCached;
+        }
+      } catch {
+        // Ignored
+      }
+    }
+
     const cache = this.getOrCreateCache(tenantId);
     const now = Date.now();
 
@@ -111,23 +130,36 @@ export class SettingsService {
     }
 
     try {
-      const dbModule = overrides || (await import("@src/databases/db"));
-      const { dbAdapter, getPrivateEnv } = dbModule as any;
+      let dbAdapter: any;
+      let getPrivateEnv: any = () => ({}) as any;
 
-      // 🚀 WAIT for the database to be fully booted before touching preferences.
-      // During early startup, the adapter exists but the "system" plugin hasn't
-      // mounted preferences yet, causing "getMany is not a function".
-      if (!overrides) {
-        try {
-          const { ensureFullInitialization } = await import("@src/databases/db");
-          await ensureFullInitialization();
-        } catch {
-          // Boot hasn't started yet — use empty cache
+      if (typeof window === "undefined" && import.meta.env.SSR) {
+        const dbModule = overrides || (await import("@src/databases/db"));
+        dbAdapter = dbModule.dbAdapter;
+        getPrivateEnv = dbModule.getPrivateEnv;
+
+        // 🚀 WAIT for the database to be fully booted before touching preferences.
+        // During early startup, the adapter exists but the "system" plugin hasn't
+        // mounted preferences yet, causing "getMany is not a function".
+        if (!overrides) {
+          try {
+            const { ensureFullInitialization } = await import("@src/databases/db");
+            await ensureFullInitialization();
+          } catch {
+            // Boot hasn't started yet — use empty cache
+          }
         }
+      } else {
+        dbAdapter = overrides?.dbAdapter;
+        getPrivateEnv = overrides?.getPrivateEnv || (() => ({}) as any);
       }
 
       // Refresh adapter reference after ensuring initialization
-      const freshAdapter = overrides ? dbAdapter : (await import("@src/databases/db")).dbAdapter;
+      const freshAdapter = overrides
+        ? dbAdapter
+        : typeof window === "undefined" && import.meta.env.SSR
+          ? (await import("@src/databases/db")).dbAdapter
+          : null;
 
       if (
         !freshAdapter?.system?.preferences ||
@@ -204,6 +236,15 @@ export class SettingsService {
       cache.loaded = true;
       cache.loadedAt = Date.now();
 
+      if (!overrides && typeof window === "undefined" && import.meta.env.SSR) {
+        try {
+          const { cacheService } = await import("@src/databases/cache/cache-service");
+          await cacheService.set(cacheKey, cache, 300, tenantId);
+        } catch {
+          // Ignored
+        }
+      }
+
       const replicas = (mergedPrivate as any).DB_REPLICA_URLS;
       if (replicas && dbAdapter.configureReplicas) {
         dbAdapter.configureReplicas(replicas);
@@ -221,9 +262,19 @@ export class SettingsService {
     if (tenantId) {
       this.caches.delete(tenantId);
       logger.debug(`Settings cache manually invalidated for tenant ${tenantId}`);
+      if (typeof window === "undefined" && import.meta.env.SSR) {
+        import("@src/databases/cache/cache-service").then(({ cacheService }) => {
+          cacheService.delete(`settings:cache:${tenantId}`, tenantId).catch(() => {});
+        });
+      }
     } else {
       this.caches.clear();
       logger.debug("All settings caches manually invalidated");
+      if (typeof window === "undefined" && import.meta.env.SSR) {
+        import("@src/databases/cache/cache-service").then(({ cacheService }) => {
+          cacheService.clearByPattern("settings:cache:*").catch(() => {});
+        });
+      }
     }
   }
 
@@ -284,6 +335,9 @@ export class SettingsService {
     value: PrivateEnv[K],
     tenantId: string = GLOBAL_TENANT,
   ): Promise<void> {
+    if (typeof window !== "undefined" || !import.meta.env.SSR) {
+      throw new Error("setPrivateSetting is server-only");
+    }
     const { dbAdapter } = await import("@src/databases/db");
     if (!dbAdapter?.system.preferences) {
       throw new Error("Database adapter not available");
@@ -313,6 +367,9 @@ export class SettingsService {
     snapshot: Record<string, unknown>,
     tenantId: string = GLOBAL_TENANT,
   ): Promise<{ updated: number }> {
+    if (typeof window !== "undefined" || !import.meta.env.SSR) {
+      throw new Error("updateSettingsFromSnapshot is server-only");
+    }
     const { dbAdapter } = await import("@src/databases/db");
     if (!dbAdapter?.system.preferences) {
       throw new Error("Database adapter not available");

@@ -35,9 +35,12 @@ export class CacheWarmingService {
             if (schema.name === "redirects") {
               hasRedirectsCollection = true;
             }
+            // 🚀 Pre-encode: cache the serialized JSON string so cache hits
+            // bypass JSON.stringify() entirely — direct stream to response.
+            const preEncoded = JSON.stringify(schema);
             await cacheService.set(
               `schema:${schema.name}`,
-              schema,
+              preEncoded,
               3600,
               null,
               CacheCategory.SCHEMA,
@@ -50,7 +53,9 @@ export class CacheWarmingService {
       if (db?.system?.themes?.getActive) {
         const theme = await db.system.themes.getActive();
         if (theme.success && theme.data) {
-          await cacheService.set("active_theme", theme.data, 3600, null, CacheCategory.THEME);
+          // 🚀 Pre-encode: cache serialized theme so reads never touch DB
+          const preEncodedTheme = JSON.stringify(theme.data);
+          await cacheService.set("active_theme", preEncodedTheme, 3600, null, CacheCategory.THEME);
         }
       }
 
@@ -60,7 +65,14 @@ export class CacheWarmingService {
           const redirects = await db.crud.find("redirects", {}, { limit: 100 });
           if (redirects.success && redirects.data) {
             for (const r of redirects.data) {
-              await cacheService.set(`redirect:${r.from}`, r, 3600, r.tenantId, CacheCategory.API);
+              const preEncodedRedirect = JSON.stringify(r);
+              await cacheService.set(
+                `redirect:${r.from}`,
+                preEncodedRedirect,
+                3600,
+                r.tenantId,
+                CacheCategory.API,
+              );
             }
           }
         } catch (err: any) {
@@ -104,7 +116,12 @@ export class CacheWarmingService {
       // Note: This uses the agnostic aggregation layer
       const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const topAccess = await db.crud.aggregate("audit_logs", [
-        { $match: { eventType: "collection_find", timestamp: { $gte: last24h } } },
+        {
+          $match: {
+            eventType: "collection_find",
+            timestamp: { $gte: last24h },
+          },
+        },
         { $group: { _id: "$targetId", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 10 },

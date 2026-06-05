@@ -22,6 +22,7 @@ import { logger } from "@utils/logger";
 import { sendMail } from "@utils/email.server";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
+import pkg from "../../../package.json";
 
 // Auth actions delegate to auth.remote.ts
 import {
@@ -361,7 +362,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       firstCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
     } catch {}
 
-    const pkgVersion = (await import("../../../package.json")).version;
+    const pkgVersion = pkg.version;
 
     return {
       ...errorDefaults,

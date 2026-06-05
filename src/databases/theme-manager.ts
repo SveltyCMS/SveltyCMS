@@ -90,6 +90,10 @@ export class ThemeManager {
       if (!Array.isArray(allThemes) || allThemes.length === 0) {
         logger.warn("No themes found in database. Using DEFAULT_THEME fallback.");
         this.themeCache.set("global", DEFAULT_THEME);
+        try {
+          const { cacheService } = await import("./cache/cache-service");
+          await cacheService.set("theme:global", DEFAULT_THEME, 300, "global");
+        } catch {}
         return;
       }
 
@@ -99,11 +103,19 @@ export class ThemeManager {
 
       // Cache it as the global default
       this.themeCache.set("global", defaultTheme);
+      try {
+        const { cacheService } = await import("./cache/cache-service");
+        await cacheService.set("theme:global", defaultTheme, 300, "global");
+      } catch {}
       logger.debug(`Default theme cached: ${defaultTheme.name}`);
     } catch (err) {
       logger.error("Failed to load themes from database:", err);
       // Fallback to DEFAULT_THEME on error
       this.themeCache.set("global", DEFAULT_THEME);
+      try {
+        const { cacheService } = await import("./cache/cache-service");
+        await cacheService.set("theme:global", DEFAULT_THEME, 300, "global");
+      } catch {}
     }
   }
 
@@ -119,12 +131,22 @@ export class ThemeManager {
       return this.themeCache.get(cacheKey)!;
     }
 
+    // Try cacheService L1/L2
+    try {
+      const { cacheService } = await import("./cache/cache-service");
+      const cached = await cacheService.get<Theme>(`theme:${cacheKey}`, tenantId);
+      if (cached) {
+        this.themeCache.set(cacheKey, cached);
+        return cached;
+      }
+    } catch {}
+
     // For tenant-specific themes, fetch from database
     // For now, fall back to global theme since tenant-specific themes
     // require additional schema implementation
     if (tenantId) {
       logger.debug(`No tenant-specific theme for ${tenantId}, using global theme`);
-      const globalTheme = this.themeCache.get("global");
+      const globalTheme = await this.getTheme(null);
       if (globalTheme) {
         return globalTheme;
       }
@@ -151,6 +173,11 @@ export class ThemeManager {
       // Update cache
       const cacheKey = tenantId || "global";
       this.themeCache.set(cacheKey, theme);
+      try {
+        const { cacheService } = await import("./cache/cache-service");
+        await cacheService.set(`theme:${cacheKey}`, theme, 300, tenantId);
+        await cacheService.publishInvalidation(`theme:${cacheKey}`, tenantId);
+      } catch {}
 
       logger.info(`Theme updated to: ${theme.name}`, {
         tenantId: tenantId || "global",
@@ -171,6 +198,10 @@ export class ThemeManager {
     }
 
     this.themeCache.clear();
+    try {
+      const { cacheService } = await import("./cache/cache-service");
+      await cacheService.clearByPattern("theme:*");
+    } catch {}
     await this.loadAndCacheDefaultTheme();
     logger.debug("ThemeManager cache refreshed.");
   }

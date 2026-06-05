@@ -25,22 +25,22 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 12:53:12)
+## 📊 Latest Performance Audit (04/06/2026, 22:18:11)
 
-**Status:** ✅ PASS (47/48 — concurrency race N/A for single-writer DB)
+**Status:** ❌ FAIL
 
-> [!NOTE]
-> **SQLite Architecture**: Concurrency race (100 writes to single doc) marked N/A — SQLite WAL mode is single-writer by design. This test measures parallel write capability which SQLite doesn't claim to support. Multi-doc throughput: 504 RPS (different docs, no contention). Local SDK: 41,009 writes/sec. All other 47 tests pass.
+> [!CAUTION]
+> **Anomalies Detected**: Fail-fast See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
 | :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 276ms       | ⚪ (-20.9%) | < 5000ms      | 🟢 PASS |
+| **Cold Start**         | 265ms       | ⚪ (-24.1%) | < 5000ms      | 🟢 PASS |
 | **REST (Collections)** | 0.975ms     | ⚪ (+44.4%) | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | 1.911ms     | ⚪          | < 2ms         | 🟢 PASS |
+| **Middleware Hooks**   | 3.222ms     | ⚪          | < 2ms         | 🔴 FAIL |
 | **GraphQL (Avg)**      | 3.606ms     | ⚪ (-18.0%) | < 5ms         | 🟢 PASS |
-| **Million-Row Index**  | 0.658ms     | ⚪          | < 250ms       | 🟢 PASS |
+| **Million-Row Index**  | 0.693ms     | ⚪          | < 250ms       | 🟢 PASS |
 | **DB Raw (p95)**       | 0.051ms     | ⚪          | < 50ms        | 🟢 PASS |
 | **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
@@ -70,7 +70,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 1.911ms | **Target:** < 2ms | **Trend:** ⚪ (-0.5%)
+**Middleware p95:** 3.222ms | **Target:** < 2ms | **Trend:** ⚪ (+67.8%)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -449,12 +449,12 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ WAF Deep Analysis              │        0.004 ms │ p95:        0.007 ms │ RPS:    210,493 ║
-║ Audit Log Persistence          │        0.000 ms │ p95:        0.001 ms │ RPS:  2,304,590 ║
-║ Argon2id Password Hashing      │        0.562 ms │ p95:        0.753 ms │ RPS:      1,780 ║
-║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 11,622,501 ║
-║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS: 11,215,792 ║
-║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 16,474,465 ║
+║ WAF Deep Analysis              │        0.005 ms │ p95:        0.009 ms │ RPS:    175,306 ║
+║ Audit Log Persistence          │        0.154 ms │ p95:        0.279 ms │ RPS:      6,508 ║
+║ Argon2id Password Hashing      │        8.478 ms │ p95:       31.936 ms │ RPS:        118 ║
+║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  9,359,790 ║
+║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS:  7,900,142 ║
+║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 15,163,002 ║
 ```
 
 <!-- SECURITY_TABLE_END -->
@@ -468,10 +468,10 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.546 ms │ p95:        1.168 ms │ RPS:      1,833 ║
-║ Collection Schema              │        2.187 ms │ p95:        4.272 ms │ RPS:        457 ║
-║ Collection Find (List)         │        2.407 ms │ p95:        5.411 ms │ RPS:        415 ║
-║ Collection Search              │        2.381 ms │ p95:        5.080 ms │ RPS:        420 ║
+║ Health Check                   │        0.700 ms │ p95:        1.295 ms │ RPS:      1,429 ║
+║ Collection Schema              │        4.343 ms │ p95:        6.157 ms │ RPS:        230 ║
+║ Collection Find (List)         │        4.060 ms │ p95:        4.955 ms │ RPS:        246 ║
+║ Collection Search              │        3.895 ms │ p95:        4.617 ms │ RPS:        257 ║
 ```
 
 <!-- REST_TABLE_END -->
@@ -641,8 +641,8 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Sorted List (25k rows)         │        0.481 ms │ p95:        0.658 ms │ RPS:      2,079 ║
-║ Filtered Query (25k rows)      │        0.493 ms │ p95:        0.634 ms │ RPS:      2,029 ║
+║ Sorted List (25k rows)         │        0.567 ms │ p95:        0.693 ms │ RPS:      1,764 ║
+║ Filtered Query (25k rows)      │        0.632 ms │ p95:        1.007 ms │ RPS:      1,582 ║
 ```
 
 <!-- INDEX_PRESSURE_TABLE_END -->
@@ -699,8 +699,8 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Upload (10MB)           │       24.261 ms │ p95:       37.781 ms │ RPS:         41 ║
-║ Small Upload (1MB)             │        6.425 ms │ p95:       15.118 ms │ RPS:        156 ║
+║ Single Upload (10MB)           │       23.502 ms │ p95:       37.665 ms │ RPS:         43 ║
+║ Small Upload (1MB)             │        6.195 ms │ p95:       12.873 ms │ RPS:        161 ║
 ```
 
 <!-- MEDIA_UPLOAD_TABLE_END -->
@@ -722,7 +722,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.387 ms │ p95:        1.387 ms │ RPS:        721 ║
+║ Concurrent PATCH Bomb          │        0.778 ms │ p95:        0.778 ms │ RPS:      1,286 ║
 ```
 
 <!-- CONCURRENCY_TABLE_END -->
@@ -736,9 +736,9 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        497 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        493 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        433 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        508 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        455 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        435 ║
 ```
 
 <!-- THROUGHPUT_TABLE_END -->
@@ -921,13 +921,15 @@ xychart-beta
 
 ### 📦 Core System Readiness — Fast, low-intensity tests verifying basic system health and network overhead
 
-### 🏷️ API LAYER LATENCY ⚪ avg +1% (50 runs)
+### 🏷️ API LAYER LATENCY 🔴 avg +87% p95 +34% rps -47% (50 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Within normal variance — no action needed.  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 47% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+87%) — review recent commits immediately.  
 > **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```text
@@ -936,7 +938,7 @@ xychart-beta
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │        1.843 ms │ p95:        3.364 ms │ RPS:        515 ║
+║ HTTP: findById @ 8c            │        3.419 ms │ p95:        4.573 ms │ RPS:        283 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -944,8 +946,8 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │        1.843 ms       ║
-║ Peak Throughput                                    │      515.000 req/s    ║
+║ HTTP Latency (findById)                            │        3.419 ms       ║
+║ Peak Throughput                                    │      283.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -1485,7 +1487,7 @@ xychart-beta
 
 <!-- UX_VITALITY_TABLE_END -->
 
-### 🏷️ Media Engine & DAM Overhead ⚪ avg +1% p95 +17% rps -6% (16 runs)
+### 🏷️ Media Engine & DAM Overhead ⚪ avg -1% p95 +12% (19 runs)
 
 > **Budget**: ≤ 50,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -1500,8 +1502,8 @@ xychart-beta
 ║                   File: tests/benchmarks/media-upload-stress.test.ts                    ║
 ║Measures throughput for large file uploads, concurrent transfers, and streaming efficiency.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Upload (10MB)           │       24.261 ms │ p95:       37.781 ms │ RPS:         41 ║
-║ Small Upload (1MB)             │        6.425 ms │ p95:       15.118 ms │ RPS:        156 ║
+║ Single Upload (10MB)           │       23.502 ms │ p95:       37.665 ms │ RPS:         43 ║
+║ Small Upload (1MB)             │        6.195 ms │ p95:       12.873 ms │ RPS:        161 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1509,10 +1511,10 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Upload 10MB                                        │       24.261 ms       ║
-║ Upload 1MB                                         │        6.425 ms       ║
-║ Throughput                                         │        412.2 MB/s     ║
-║ Small RPS                                          │      156.000 req/s    ║
+║ Upload 10MB                                        │       23.502 ms       ║
+║ Upload 1MB                                         │        6.195 ms       ║
+║ Throughput                                         │        425.5 MB/s     ║
+║ Small RPS                                          │      161.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1662,14 +1664,14 @@ xychart-beta
 
 <!-- SECURITY_TABLE_END -->
 
-### 🏷️ REST API Performance 🟢 avg -18% p95 -17% rps +21% (41 runs)
+### 🏷️ REST API Performance 🟡 avg +6% p95 -7% rps -6% (44 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- REST_TABLE_START -->
 
-> Within normal variance — no action needed.  
-> **Check**: `src/databases/core/base-adapter.ts` · `src/widgets/*/index.ts`
+> Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1677,10 +1679,10 @@ xychart-beta
 ║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.546 ms │ p95:        1.168 ms │ RPS:      1,833 ║
-║ Collection Schema              │        2.187 ms │ p95:        4.272 ms │ RPS:        457 ║
-║ Collection Find (List)         │        2.407 ms │ p95:        5.411 ms │ RPS:        415 ║
-║ Collection Search              │        2.381 ms │ p95:        5.080 ms │ RPS:        420 ║
+║ Health Check                   │        0.700 ms │ p95:        1.295 ms │ RPS:      1,429 ║
+║ Collection Schema              │        4.343 ms │ p95:        6.157 ms │ RPS:        230 ║
+║ Collection Find (List)         │        4.060 ms │ p95:        4.955 ms │ RPS:        246 ║
+║ Collection Search              │        3.895 ms │ p95:        4.617 ms │ RPS:        257 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1688,10 +1690,10 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.546 ms       ║
-║ Collection Schema                                  │        2.187 ms       ║
-║ Collection Find (List)                             │        2.407 ms       ║
-║ Collection Search                                  │        2.381 ms       ║
+║ Health Check                                       │        0.700 ms       ║
+║ Collection Schema                                  │        4.343 ms       ║
+║ Collection Find (List)                             │        4.060 ms       ║
+║ Collection Search                                  │        3.895 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1936,7 +1938,9 @@ xychart-beta
 > **Budget**: ≤ 120,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- MIGRATION_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.  
+> **Check**: `src/databases/<db>/crud-methods.ts` · `src/databases/<db>/schema.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1961,12 +1965,14 @@ xychart-beta
 
 <!-- MIGRATION_TABLE_END -->
 
-### 🏷️ Million-Row Index Pressure 🟢 avg -85% p95 -87% rps +589% (13 runs)
+### 🏷️ Million-Row Index Pressure 🟢 avg -82% p95 -86% rps +461% (16 runs)
 
 > **Budget**: ≤ 180,000ms (suite) | **Tags**: `cpu`, `disk` | **Level**: 5
 
 <!-- INDEX_PRESSURE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.  
+> **Check**: `src/databases/<db>/crud-methods.ts` · `src/databases/<db>/schema.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1974,8 +1980,8 @@ xychart-beta
 ║                      File: tests/benchmarks/index-pressure.test.ts                      ║
 ║                     Enterprise Index Pressure audit for SveltyCMS.                      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Sorted List (25k rows)         │        0.481 ms │ p95:        0.658 ms │ RPS:      2,079 ║
-║ Filtered Query (25k rows)      │        0.493 ms │ p95:        0.634 ms │ RPS:      2,029 ║
+║ Sorted List (25k rows)         │        0.567 ms │ p95:        0.693 ms │ RPS:      1,764 ║
+║ Filtered Query (25k rows)      │        0.632 ms │ p95:        1.007 ms │ RPS:      1,582 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1983,9 +1989,9 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Cold Scan Latency                                  │        0.033 ms       ║
-║ Warm Scan Latency                                  │        0.002 ms       ║
-║ Scale Efficiency                                   │        ELITE          ║
+║ Sorted Query (p95)                                 │        0.693 ms       ║
+║ Filtered Query (p95)                               │        1.007 ms       ║
+║ Index Health                                       │      OPTIMAL          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2061,11 +2067,13 @@ xychart-beta
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                              SVELTYCMS — CONCURRENCY AUDIT                              ║
-║                     File: tests/benchmarks/concurrency-race.test.ts                     ║
-║Simulates high-concurrency writes to a single document to prove atomic consistency and lost update protection.║
+║                         SVELTYCMS — THROUGHPUT SCALING (SQLITE)                         ║
+║                  File: tests/benchmarks/concurrency-throughput.test.ts                  ║
+║         100 writes across 10, 100, 1000 docs. Same work, different parallelism.         ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.387 ms │ p95:        1.387 ms │ RPS:        721 ║
+║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        508 ║
+║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        455 ║
+║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        435 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2073,14 +2081,13 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Duration                                     │         N/A            ║
-║ Successful Writes                                  │         N/A            ║
-║ Database Lockup                                    │         N/A            ║
-║ Concurrency Health                                 │    N/A (single-writer) ║
+║ Database                                           │       SQLITE          ║
+║ 10 docs × 10 RPS                                   │      507.731 req/s    ║
+║ 100 docs × 1 RPS                                   │      454.621 req/s    ║
+║ 1000 docs × 1 RPS                                  │      435.210 req/s    ║
+║ Scaling (1000÷10)                                  │         0.9×          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-
-\*SQLite WAL mode is single-writer by design — concurrent writes to the same document are serialized by the storage engine. This test measures parallel write capability which SQLite doesn't claim to support. See multi-doc throughput test for SQLite's true concurrent write performance.
 
 <!-- CONCURRENCY_TABLE_END -->
 
