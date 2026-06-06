@@ -341,27 +341,30 @@ This provides the unified full-height scrollable container with theme-aware back
 
 ### Page Header
 
-Every page header uses this exact pattern:
+Every page header uses the shared **`PageTitle`** component (`@components/page-title.svelte`).
+Do NOT hand-roll an inline `<h1>` header — `PageTitle` gives every page the same title size,
+icon treatment, subtitle, responsive truncation, sidebar toggle, accessibility (ARIA live
+region) and action-button slot, so all pages look and behave identically.
 
 ```svelte
-<div class="flex items-center justify-between" in:fade>
-  <div>
-    <h1 class="text-3xl font-bold flex items-center gap-3">
-      <iconify-icon icon="mdi:icon-name" class="text-primary-500"></iconify-icon>
-      Page Title
-    </h1>
-    <p class="text-sm opacity-50 font-medium">Descriptive subtitle</p>
-  </div>
-  <!-- Optional: status badge, action button group -->
-</div>
+<script>
+  import PageTitle from '@components/page-title.svelte';
+</script>
+
+<PageTitle name="Page Title" icon="mdi:icon-name" description="Descriptive subtitle">
+  <!-- Optional action buttons (rendered on the right) -->
+  <Button variant="primary" leadingIcon="mdi:plus">Create New</Button>
+</PageTitle>
 ```
 
 **Rules**:
 
-- `<h1>` always uses `text-3xl font-bold flex items-center gap-3`
-- Always include a leading icon with `class="text-primary-500"`
-- Subtitle uses `text-sm opacity-50 font-medium`
-- Action buttons go in the right side of the flex container
+- Use `<PageTitle>` for every page header — never an inline `<h1 class="text-3xl …">`.
+- `name` = title; `icon` = leading icon (defaults to `text-tertiary-500 dark:text-primary-500`,
+  i.e. blue in light mode / green in dark — keep this default unless there's a reason not to).
+- `description` = optional subtitle (renders as `text-sm font-medium opacity-50`).
+- Action buttons go in the default slot (children) — they render on the right.
+- Use `highlight` to emphasise part of the title, and `showBackButton`/`backUrl` for back nav.
 
 ### Content Cards (Theme-Aware)
 
@@ -441,20 +444,13 @@ All content sections use the unified card class with CSS variable support for bo
 
 <div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
   <!-- Header -->
-  <div class="flex items-center justify-between" in:fade>
-    <div>
-      <h1 class="text-3xl font-bold flex items-center gap-3">
-        <iconify-icon icon="mdi:icon-name" class="text-primary-500"></iconify-icon>
-        Page Title
-      </h1>
-      <p class="text-sm opacity-50 font-medium">Page description</p>
-    </div>
-    <div class="flex items-center gap-2">
+  <div in:fade>
+    <PageTitle name="Page Title" icon="mdi:icon-name" description="Page description">
       <button class="btn btn-sm preset-filled-primary-500" onclick={handleCreate}>
         <iconify-icon icon="mdi:plus" class="mr-1"></iconify-icon>
         Create New
       </button>
-    </div>
+    </PageTitle>
   </div>
 
   <!-- Content Card -->
@@ -478,7 +474,7 @@ All content sections use the unified card class with CSS variable support for bo
 ### Anti-Patterns (DO NOT USE)
 
 - ❌ `container mx-auto p-4` — use `absolute inset-0 p-6`
-- ❌ `<PageTitle>` component — use inline header per the standard above
+- ❌ Inline `<h1 class="text-3xl font-bold …">` page header — use the `<PageTitle>` component
 - ❌ `h1 text-primary-500` — never hardcode colors on headings
 - ❌ Bare `<div>` content sections — always wrap in a card
 - ❌ `table-container` / `table-hover` classes — use the native table pattern
