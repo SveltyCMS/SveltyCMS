@@ -15,14 +15,13 @@ import {
 	targetWidget,
 } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { widgetFunctions } from "@src/stores/widget-store.svelte.ts";
+import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 import { sveltyRegistry } from "@src/services/json-render/catalog";
 import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
 import { modalState } from "@utils/modal.svelte";
 import { asAny, getGuiFields } from "@utils/utils";
 import { untrack } from "svelte";
 import { flip } from "svelte/animate";
-import { get } from "svelte/store";
 import type { DndEvent } from "svelte-dnd-action";
 import { dndzone } from "svelte-dnd-action";
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
@@ -115,7 +114,7 @@ function addField() {
 		},
 		(r: { selectedWidget: string } | undefined) => {
 			if (!r) return;
-			const widgetInstance = get(widgetFunctions)[r.selectedWidget];
+			const widgetInstance = getWidgetFunction(r.selectedWidget);
 			if (widgetInstance) {
 				const newWidget = {
 					widget: { key: r.selectedWidget, Name: r.selectedWidget } as any,
@@ -257,7 +256,7 @@ const quickWidgets = [
 ];
 
 function addQuickWidget(key: string) {
-	const widgetInstance = get(widgetFunctions)[key];
+	const widgetInstance = getWidgetFunction(key);
 	if (widgetInstance) {
 		const newIndex = items.length;
 		const newDragId = Math.random().toString(36).substring(7);
@@ -293,9 +292,9 @@ const viewOptions = [
 	<!-- Left Side: View Toggle & List -->
 	<div class="flex-1 flex flex-col gap-6 min-w-0">
 		<div class="flex items-center justify-between gap-4">
-		<SegmentedControl 
-			options={viewOptions} 
-			bind:value={builderView} 
+		<SegmentedControl
+			options={viewOptions}
+			bind:value={builderView}
 			class="max-w-md"
 		/>
 		<div class="text-xs font-medium text-surface-500 dark:text-surface-50 bg-surface-100 dark:bg-surface-800 px-3 py-1 rounded-full border border-surface-200 dark:border-surface-700">
@@ -337,9 +336,9 @@ const viewOptions = [
 				<Card class="p-4 flex flex-wrap items-center gap-2 bg-surface-50/50 dark:bg-surface-900/50 border-dashed">
 					<span class="text-xs font-bold text-surface-500 dark:text-surface-50 mr-2 uppercase tracking-tight">Quick Add:</span>
 					{#each quickWidgets as qw}
-						<Button 
-							variant="outline" 
-							size="sm" 
+						<Button
+							variant="outline"
+							size="sm"
 							onclick={() => addQuickWidget(qw.key)}
 							leadingIcon={qw.icon}
 							class="text-[11px] h-8"
@@ -347,9 +346,9 @@ const viewOptions = [
 							{qw.label}
 						</Button>
 					{/each}
-					<Button 
-						variant="primary" 
-						size="sm" 
+					<Button
+						variant="primary"
+						size="sm"
 						onclick={addField}
 						leadingIcon="mdi:plus"
 						class="ml-auto h-8"
@@ -363,7 +362,7 @@ const viewOptions = [
 					use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
 					onconsider={handleDndConsider}
 					onfinalize={handleDndFinalize}
-					class="space-y-3 min-h-[200px]"
+					class="space-y-3 min-h-50"
 				>
 					{#each items as item (item._dragId)}
 						<div animate:flip={{ duration: flipDurationMs }} class="group relative">

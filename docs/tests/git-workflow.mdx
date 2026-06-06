@@ -130,19 +130,33 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 - **Runner**: Vitest with jsdom for components, stores, services, and API logic.
 - **Command**: `bun run test:unit`
 
+### 🔗 Contract Tests (Adapter Parity)
+
+- **Purpose**: Identical assertions run against all 4 databases (SQLite, MongoDB, PostgreSQL, MariaDB).
+- **Location**: `tests/integration/databases/contract.test.ts`
+- **Contracts**: Adapter, Auth, Permission, Setup Gating, Resilience.
+- **Command**: `bun run test:integration`
+
 ### 🎭 Playwright Tests (E2E)
 
 - **Purpose**: Browser automation for critical user journeys.
 - **Standard**: Always point to `127.0.0.1:4173` via `TEST_MODE=true`.
 - **Location**: `tests/e2e/`
 
-### Integration Tests
+### 🧠 Smart Test Orchestrator
 
-- **Purpose**: Multi-database verification of the full middleware chain (Firewall → Auth → RBAC → Handler → DB).
-- **Runner**: `scripts/run-integration-tests.ts` — orchestrates build, preview server, DB seeding, test execution, and cleanup.
-- **Databases**: SQLite, MongoDB, PostgreSQL, MariaDB (same suite against all 4 engines).
-- **Command**: `bun run test:integration`
-- **Isolation**: Generates `config/private.test.ts` with isolated credentials. Never touches production data.
+- **Purpose**: Reads `git diff` and selects required test suites. Unknown changes fail closed.
+- **Command**: `bun run test:smart`
+
+### 🔍 AI Slop Scanner
+
+- **Purpose**: Detects unsafe `{@html}`, legacy Svelte 4 patterns, missing ARIA, RTL violations, dead exports.
+- **Command**: `bun run slop`
+
+### 🧬 Mutation Tester
+
+- **Purpose**: Introduces deliberate bugs; verifies tests catch them. Target: >85% kill rate.
+- **Command**: `bun run mutate`
 
 ---
 
@@ -160,8 +174,17 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 If the pre-commit hook is taking too long or you want to run checks manually:
 
 ```bash
+# Smart Test Orchestrator — auto-detects what to test from git diff
+bun run test:smart
+
 # Run the high-performance parallel quality gate
 bun run scripts/quality-gate.ts
+
+# AI Slop Scanner — detect code smells in staged files
+bun run slop
+
+# Mutation Tester — verify tests catch real bugs
+bun run mutate
 ```
 
 ### CI Parity Before Every Push
@@ -172,12 +195,13 @@ Run the full local CI parity check to ensure zero regressions:
 bun run format && bun run lint && bun run check && bun run test:unit
 ```
 
-### Security Regression Check
+### Security & Slop Regression Check
 
 For changes touching auth, middleware, or API routes, also run:
 
 ```bash
 bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
+bun run slop
 ```
 
 > [!NOTE]

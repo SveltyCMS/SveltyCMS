@@ -5,6 +5,7 @@
  */
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { handleDialog } from "./helpers/setup-wizard";
+import { seedReadyState, resetToSetupMode } from "./helpers/test-orch";
 
 // --- PAGE OBJECT MODEL ---
 
@@ -242,6 +243,16 @@ test.describe("Setup Wizard: Navigation & State", () => {
   });
 });
 
+test.describe("Setup Wizard: Pre-Seeded Fast Path", () => {
+  test("should skip to login after API-seeded ready state", async ({ page }) => {
+    test.setTimeout(30_000);
+    await seedReadyState();
+    await page.goto("/setup");
+    await page.waitForURL(/\/login/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/login/);
+  });
+});
+
 test.describe("Setup Wizard: Full Provisioning Flow", () => {
   const DB_TYPES = process.env.DB_TYPE
     ? [process.env.DB_TYPE as "sqlite" | "mongodb" | "postgresql" | "mariadb"]
@@ -251,8 +262,10 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
     test(`Wizard Flow: ${dbType.toUpperCase()}`, async ({ wizard, page }) => {
       test.setTimeout(240_000);
 
-      await test.step("Step 0: Clean Reset", async () => {
-        await wizard.hardReset();
+      await test.step("Step 0: Clean Reset (API-seeded)", async () => {
+        await resetToSetupMode();
+        await page.goto("/setup");
+        await page.waitForSelector("body", { timeout: 60000 });
         await wizard.dismissModals();
       });
 

@@ -1,55 +1,99 @@
 /**
- * @file  @src/tests/unit/security/persistent-dos.test.ts
- * @description Persistence Test: Ensure rate limiting state is saved across sessions,
+ * @file tests/unit/security/security-response-service-dos.bun.test.ts
+ * @description Persistent DoS protection tests: dump/restore, corrupt files, concurrency.
  */
-import { test, expect, describe } from "bun:test";
+import { test, expect, describe, beforeEach, afterEach } from "bun:test";
 import { securityResponseService } from "@src/services/security/response-service";
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
+
+// --- Helpers ---
+
+async function fileExists(p: string) {
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function safeUnlink(p: string) {
+  try {
+    await fs.unlink(p);
+  } catch (e: any) {
+    if (e.code !== "ENOENT") throw e;
+  }
+}
 
 describe("Persistent DoS Protection", () => {
-  const DUMP_PATH = path.resolve(process.cwd(), "config/database/security_rl_dump.json");
+  let tempDir: string;
+  let originalDumpPath: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "svelty-dos-"));
+    originalDumpPath = (securityResponseService as any).DUMP_PATH;
+    (securityResponseService as any).DUMP_PATH = path.join(tempDir, "security_rl_dump.json");
+    await safeUnlink((securityResponseService as any).DUMP_PATH);
+  });
+
+  afterEach(async () => {
+    await safeUnlink((securityResponseService as any).DUMP_PATH);
+    if (originalDumpPath) (securityResponseService as any).DUMP_PATH = originalDumpPath;
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  });
 
   test("should dump and restore rate limiter state", async () => {
-    // 1. Trigger some rate limiting activity (consume 10 points, limit is 5)
     const ip = "1.2.3.4";
     const endpoint = "/api/auth/login";
 
-    // Use public API with forceSecurity to bypass test-mode bypass
-    const resFirst = await securityResponseService.checkRateLimit(
-      ip,
-      endpoint,
-      undefined,
-      true,
-      10,
-    );
-    expect(resFirst.action).toBe("throttle");
+    const first = await securityResponseService.checkRateLimit(ip, endpoint, undefined, true, 10);
+    expect(first.action).toBe("throttle");
 
-    // 2. Trigger dump
     await securityResponseService.destroy();
+    expect(await fileExists((securityResponseService as any).DUMP_PATH)).toBe(true);
 
-    // 3. Verify file exists
-    const exists = await fs
-      .access(DUMP_PATH)
-      .then(() => true)
-      .catch(() => false);
-    expect(exists).toBe(true);
-
-    // 4. Manually trigger restore on a NEW instance (or clear current state)
     (securityResponseService as any).limiters.clear();
     await (securityResponseService as any).restoreState();
 
-    // 5. Check if state is back. It should still be throttled.
-    const resAfter = await securityResponseService.checkRateLimit(ip, endpoint, undefined, true, 1);
+    const restored = await securityResponseService.checkRateLimit(ip, endpoint, undefined, true, 1);
+    expect(restored.action).toBe("throttle");
+    expect(restored.reason).toContain("Rate limit exceeded");
+  });
 
-    expect(resAfter.action).toBe("throttle");
-    expect(resAfter.reason).toContain("Rate limit exceeded");
+  test("should handle corrupt dump file gracefully", async () => {
+    await fs.writeFile((securityResponseService as any).DUMP_PATH, "{invalid json");
+    await expect((securityResponseService as any).restoreState()).resolves.not.toThrow();
+    const check = await securityResponseService.checkRateLimit(
+      "5.5.5.5",
+      "/test",
+      undefined,
+      true,
+      1,
+    );
+    expect(check.action).toBe("allow");
+  });
 
-    // 6. Verify file is cleaned up after restore
-    const existsAfter = await fs
-      .access(DUMP_PATH)
-      .then(() => true)
-      .catch(() => false);
-    expect(existsAfter).toBe(false);
+  test("should handle missing dump file gracefully", async () => {
+    await safeUnlink((securityResponseService as any).DUMP_PATH);
+    await expect((securityResponseService as any).restoreState()).resolves.not.toThrow();
+  });
+
+  test("should clean up dump after successful restore", async () => {
+    await securityResponseService.checkRateLimit("10.0.0.1", "/api/test", undefined, true, 10);
+    await securityResponseService.destroy();
+    await (securityResponseService as any).restoreState();
+    expect(await fileExists((securityResponseService as any).DUMP_PATH)).toBe(false);
+  });
+
+  test("should handle concurrent restore attempts safely", async () => {
+    await securityResponseService.checkRateLimit("172.16.0.1", "/api/login", undefined, true, 8);
+    await securityResponseService.destroy();
+
+    const restores = Array.from({ length: 5 }, () =>
+      (securityResponseService as any).restoreState(),
+    );
+    await expect(Promise.all(restores)).resolves.not.toThrow();
   });
 });

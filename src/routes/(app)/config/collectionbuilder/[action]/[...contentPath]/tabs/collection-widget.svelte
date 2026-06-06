@@ -9,10 +9,9 @@ import {
 	collection,
 	setTargetWidget,
 } from "@src/stores/collection-store.svelte";
-import { widgetFunctions } from "@src/stores/widget-store.svelte.ts";
+import { getWidgetFunction, getWidgetNames } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";
 import { asAny, getGuiFields } from "@utils/utils";
-import { get } from "svelte/store";
 // Using iconify-icon web component
 // Stores
 import { page } from "$app/state";
@@ -51,7 +50,7 @@ function mapFieldsWithWidgets(fields: any[]) {
 			field.widget?.Name || // For existing widgets
 			field.__type || // For schema-defined widgets
 			field.type || // Backup type field
-			Object.keys(get(widgetFunctions)).find((key) => field[key]) || // Check if field has widget property
+			getWidgetNames().find((key: string) => field[key]) || // Check if field has widget property
 			"Unknown Widget"; // Fallback
 
 		return {
@@ -103,7 +102,7 @@ function modalSelectWidget(): void {
 				return;
 			}
 			const { selectedWidget } = r;
-			const widgetInstance = get(widgetFunctions)[selectedWidget];
+			const widgetInstance = getWidgetFunction(selectedWidget);
 			if (selectedWidget && widgetInstance) {
 				// Create a new widget object with the selected widget data
 				const newWidget = {
@@ -171,7 +170,7 @@ async function handleSave() {
 	try {
 		const updatedFields = fields.map((field) => {
 			const widgetInstance = field.widget?.Name
-				? get(widgetFunctions)[field.widget.Name]
+				? getWidgetFunction(field.widget.Name)
 				: undefined;
 			if (field.widget?.Name && widgetInstance) {
 				const GUI_FIELDS = getGuiFields(

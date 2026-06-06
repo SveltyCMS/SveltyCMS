@@ -152,7 +152,11 @@ describe("Soft Delete Engine", () => {
       });
 
       mockModel.findOneAndUpdate.mockReturnValue({
-        exec: vi.fn().mockResolvedValue({ ...deletedDoc, slug: "my-slug", isDeleted: false }),
+        exec: vi.fn().mockResolvedValue({
+          ...deletedDoc,
+          slug: "my-slug",
+          isDeleted: false,
+        }),
       });
 
       const result = await crud.restore("123" as any);

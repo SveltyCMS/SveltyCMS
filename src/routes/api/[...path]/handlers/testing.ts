@@ -636,6 +636,204 @@ export async function handleTestingRoutes(
       }
     }
 
+    if (action === "benchmark-seed") {
+      const AUTHOR_COUNT = params.authorCount || 10;
+      const POSTS_PER_AUTHOR = params.postsPerAuthor || 5;
+
+      // Phase 1: Create benchmark collections in parallel
+      const collectionSchemas = [
+        {
+          _id: "benchmark_authors",
+          name: "benchmark_authors",
+          fields: [
+            {
+              db_fieldName: "_id",
+              label: "ID",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "name",
+              label: "Name",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+          ],
+        },
+        {
+          _id: "benchmark_posts",
+          name: "benchmark_posts",
+          fields: [
+            {
+              db_fieldName: "_id",
+              label: "ID",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "title",
+              label: "Title",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "author",
+              label: "Author",
+              widget: { Name: "Relation" },
+              type: "string",
+              relation: "benchmark_authors",
+            },
+          ],
+        },
+        {
+          _id: "BenchmarkStable",
+          name: "BenchmarkStable",
+          fields: [
+            {
+              db_fieldName: "_id",
+              label: "ID",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "title",
+              label: "Title",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "content",
+              label: "Content",
+              widget: { Name: "RichText" },
+              type: "string",
+            },
+            {
+              db_fieldName: "count",
+              label: "Count",
+              widget: { Name: "Input" },
+              type: "number",
+            },
+          ],
+        },
+        {
+          _id: "redirects",
+          name: "redirects",
+          fields: [
+            {
+              db_fieldName: "_id",
+              label: "ID",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "source",
+              label: "Source",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "target",
+              label: "Target",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "type",
+              label: "Type",
+              widget: { Name: "Input" },
+              type: "number",
+            },
+          ],
+        },
+      ];
+
+      await Promise.all(
+        collectionSchemas.map(async (schema) => {
+          try {
+            await initializedAdapter.collection.createModel(schema);
+          } catch {
+            /* already exists */
+          }
+        }),
+      );
+
+      // Phase 2: Seed data using LocalCMS for zero-latency writes
+      const { LocalCMS } = await import("@src/services/sdk");
+      const localCms = new LocalCMS(initializedAdapter);
+
+      // Seed authors
+      const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
+        _id: `author-${i + 1}`,
+        name: `Author ${i + 1}`,
+        tenantId,
+      }));
+      await localCms.collections.bulkCreate("benchmark_authors", authors, {
+        tenantId,
+        skipValidation: true,
+        system: true,
+      });
+
+      // Seed posts
+      const posts = authors.flatMap((author, ai) =>
+        Array.from({ length: POSTS_PER_AUTHOR }, (_, pi) => ({
+          title: `Post ${pi + 1} by Author ${ai + 1}`,
+          author: author._id,
+          tenantId,
+        })),
+      );
+      await localCms.collections.bulkCreate("benchmark_posts", posts, {
+        tenantId,
+        skipValidation: true,
+        system: true,
+      });
+
+      // Seed stable entry and redirects in parallel
+      await Promise.all([
+        localCms.collections.create(
+          "BenchmarkStable",
+          {
+            _id: "bench-shared-001",
+            title: "Stable Benchmark Entry",
+            content: "This is a stable entry for REST and API performance testing.",
+            count: 1,
+            tenantId,
+          },
+          { tenantId, skipValidation: true, system: true },
+        ),
+        localCms.collections.bulkCreate(
+          "redirects",
+          [
+            {
+              _id: "bench-redirect-1",
+              source: "/old-path-1",
+              target: "/new-path-1",
+              type: 301,
+              tenantId,
+            },
+            {
+              _id: "bench-redirect-2",
+              source: "/old-path-2",
+              target: "/new-path-2",
+              type: 301,
+              tenantId,
+            },
+          ],
+          { tenantId, skipValidation: true, system: true },
+        ),
+      ]);
+
+      return rawResponse({
+        success: true,
+        message: `Seeded ${authors.length} authors + ${posts.length} posts + stable entry + 2 redirects`,
+        counts: {
+          authors: authors.length,
+          posts: posts.length,
+          stable: 1,
+          redirects: 2,
+        },
+      });
+    }
+
     throw new AppError(`Unknown action: ${action}`, 400);
   } catch (err: any) {
     if (err instanceof AppError) {

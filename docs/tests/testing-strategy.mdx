@@ -1,161 +1,150 @@
 ---
 path: "docs/tests/testing-strategy.mdx"
-title: "Testing Strategy: Three-Layer Architecture"
-description: "SveltyCMS testing strategy — White-Box unit tests, Black-Box integration tests, and E2E Playwright tests."
+title: "Testing Strategy: Four-Gate Architecture"
+description: "SveltyCMS testing strategy — Contracts, White-Box unit, Black-Box integration, and E2E with Smart Orchestrator."
 author: "SveltyCMS Team"
 created: "2026-02-15"
 updated: "2026-06-06"
 tags:
   - "testing"
   - "strategy"
-  - "white-box"
-  - "black-box"
+  - "contracts"
+  - "smart-runner"
   - "e2e"
 ---
 
-# Testing Strategy: Three-Layer Architecture
+# Testing Strategy: Four-Gate Architecture
 
-SveltyCMS uses a **three-layer testing pyramid** where each layer is optimized for what it does best. No layer duplicates another — pure algorithms get unit tests, API contracts get integration tests, and user journeys get E2E tests.
+SveltyCMS uses a **four-gate testing architecture** enforced by a Smart Test Orchestrator. Every changed file triggers exactly the tests that verify it. Unknown changes fail closed into the full core suite.
 
-## Layer Boundaries
+```mermaid
+graph TD
+    classDef gate1 fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:white;
+    classDef gate2 fill:#2980b9,stroke:#3498db,stroke-width:2px,color:white;
+    classDef gate3 fill:#e67e22,stroke:#f39c12,stroke-width:2px,color:white;
+    classDef gate4 fill:#8e44ad,stroke:#9b59b6,stroke-width:2px,color:white;
+    classDef runner fill:#c0392b,stroke:#e74c3c,stroke-width:2px,color:white;
 
-| Layer         | Scope       | Tooling                    | Tests What                                                              | Doesn't Test                    |
-| ------------- | ----------- | -------------------------- | ----------------------------------------------------------------------- | ------------------------------- |
-| **White-Box** | Unit        | Vitest (jsdom)             | Pure algorithms, schemas, data transforms, state machines               | I/O, DB, filesystem, network    |
-| **Black-Box** | Integration | `run-integration-tests.ts` | Real server + real DB — API contracts, middleware, RBAC, DB agnosticism | UI, browser rendering           |
-| **E2E**       | Browser     | Playwright                 | User journeys, accessibility, keyboard nav, visual flows                | Internal implementation details |
+    GitDiff[Git Diff]:::runner --> SmartOrch{Smart Orchestrator<br>scripts/test-smart.ts}:::runner
+
+    SmartOrch -->|"src/hooks/*"| Gate1[Gate 1: Unit Tests]:::gate1
+    SmartOrch -->|"src/routes/api/*"| Gate2[Gate 2: Contracts]:::gate2
+    SmartOrch -->|"*.svelte"| Gate3[Gate 3: Doctor]:::gate3
+    SmartOrch -->|"setup/*"| Gate4[Gate 4: E2E]:::gate4
+    SmartOrch -->|"unknown"| FullCore[Full Core Suite<br>FAIL-CLOSED]:::runner
+```
+
+## The Four Gates
+
+| Gate             | Trigger                                                         | Tooling                             | Tests What                                            |
+| ---------------- | --------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------- |
+| **1 — Unit**     | Touch `src/hooks/`, `src/stores/`, `src/utils/`, `src/widgets/` | Vitest (jsdom)                      | Pure logic, runes, schemas, state machines            |
+| **2 — Contract** | Touch `src/routes/api/`, adapters, auth modules                 | Black-box HTTP + `contract.test.ts` | Cross-DB parity, RBAC fail-closed, auth, setup gating |
+| **3 — Doctor**   | Touch `*.svelte`, `vite.config.ts`                              | `svelte-check` + `oxlint`           | Type safety, bad Svelte 5 patterns, missing ARIA      |
+| **4 — E2E**      | Touch `src/routes/setup/`, `tests/e2e/`                         | Playwright                          | User journeys, keyboard nav, visual flows             |
 
 ---
 
-## 1. White-Box Testing (Unit)
+## Canonical Test Harness
+
+All tests use a **single source of truth** for fixtures and contracts:
+
+```
+tests/harness/
+  fixtures.ts    — Fixed tenants, users, roles, tokens (no Math.random()/Date.now())
+  contracts.ts   — AdapterContract, AuthContract, PermissionContract, SetupGatingContract
+  index.ts       — Barrel export
+```
+
+**Rule**: No test file invents its own tenant ID, user fixture, or mock data. Import from `@tests/harness`.
+
+---
+
+## 1. Contract Tests (Universal Adapter Verification)
+
+**"Prove every database behaves identically."**
+
+File: `tests/integration/databases/contract.test.ts` | Runner: `bun run test:integration`
+
+The Contract Test is the single source of truth for cross-database behavioral parity. It runs the same assertions against whichever adapter is active:
+
+| Contract                | What It Verifies                                                      |
+| ----------------------- | --------------------------------------------------------------------- |
+| **AdapterContract**     | connect/disconnect, CRUD lifecycle, tenant isolation                  |
+| **AuthContract**        | login, bad credentials, session validation, account lockout           |
+| **PermissionContract**  | admin access, editor denial, viewer denial, public 401, unknown → 403 |
+| **SetupGatingContract** | `/api/setup/*` blocked after setup, `/setup` → `/login` redirect      |
+| **ResilienceContract**  | concurrent request handling, valid JSON on all errors                 |
+
+Every adapter (SQLite, MongoDB, PostgreSQL, MariaDB) MUST pass every assertion. If one adapter fails, it's a bug.
+
+---
+
+## 2. White-Box Testing (Unit)
 
 **"Test pure logic knowing how it works."**
 
-Files: `tests/unit/**/*.test.ts` | Runner: `bun run test:unit` | Tests: 915
+Files: `tests/unit/**/*.test.ts` | Runner: `bun run test:unit` | Tests: 1,063 (118 files, 0 failures)
 
 These tests have full access to internal code structure. They're fast (milliseconds), parallelizable, and catch logic regressions immediately.
 
-**What belongs here:**
-
-- Pure functions (date formatting, crypto, validation schemas)
-- Data transforms (tree adapters, logic builders, pluralization)
-- Svelte 5 rune stores (state transitions, derived values)
-- Widget validation schemas (Valibot, defaults, edge cases)
-- Security utilities (Argon2id, CSPRNG tokens, SHA-256 checksums)
-
-**What does NOT belong here:**
-
-- Database adapter calls (mock the adapter, test at integration layer)
-- Filesystem operations (real filesystem = integration test)
-- Cloud SDK wrappers (S3, Cloudinary — integration/E2E only)
-- Form submission flows (use E2E Playwright)
+**Rule**: Every bug fix must add a regression test.
 
 ---
 
-## 2. Black-Box Testing (Integration)
+## 3. Black-Box Testing (Integration)
 
 **"Test the API as a consumer sees it."**
 
-Files: `tests/unit/api/*.test.ts` | Runner: `bun run test:integration` | Tests: ~450
+Runner: `bun run test:integration` | Tests: ~450
 
-The integration runner (`scripts/run-integration-tests.ts`) orchestrates the full lifecycle:
-
-1. Generates `config/private.test.ts` with isolated DB credentials
-2. Builds the production server (`bun run build`)
-3. Starts preview server on a free port
-4. Seeds the database via `/api/testing`
-5. Runs tests against real HTTP endpoints
-6. Tears down the server and cleans up
-
-**What belongs here:**
-
-- API endpoint contracts (REST, GraphQL)
-- Authentication flows (login, session, 2FA, token rotation)
-- RBAC enforcement (admin/editor/viewer permission boundaries)
-- Database CRUD across all 4 adapters (SQLite, MongoDB, PostgreSQL, MariaDB)
-- Middleware chain verification (firewall, rate-limit, auth, CSP headers)
-- Media upload/download with SSRF protection
-
-**Key hardening:**
-
-- **Fail-Closed by default**: Unmapped API routes return 403
-- **No backdoors**: Tests authenticate via real login, not header bypasses
-- **Database agnostic**: Same suite runs against all 4 databases
-- **Isolation**: Each test run uses its own temp database, never touches production
+Real HTTP requests against a running server. Verifies middleware chain, RBAC enforcement, and DB agnosticism.
 
 ---
 
-## 3. E2E Testing (Browser)
+## 4. E2E Testing (Browser)
 
 **"Test the full user journey in a real browser."**
 
 Files: `tests/e2e/*.spec.ts` | Runner: `npx playwright test` | Scenarios: ~40
 
-Playwright drives Chromium, Firefox, and WebKit against the running server. These tests verify that UI, accessibility, and visual flows work end-to-end.
-
-**What belongs here:**
-
-- Setup wizard flow (all 4 databases)
-- Login → Dashboard → Content creation → Publish
-- RBAC enforcement in the UI (admin sees X, editor doesn't)
-- Media library interactions (upload, search, share, version history)
-- Keyboard navigation and focus traps
-- Accessibility audits (Axe-Core, RTL mirroring)
-- Collection builder drag-and-drop
-
-**What does NOT belong here:**
-
-- API contract validation (use integration tests — faster, more reliable)
-- Database adapter verification (use integration tests — covers all 4 DBs)
-- Pure algorithm edge cases (use unit tests — milliseconds vs seconds)
-
 ---
 
-## 4. Benchmark Audit
+## Smart Test Orchestrator
 
-**"Prove performance under stress."**
+```bash
+bun run test:smart              # reads git diff, runs only needed suites
+bun run test:smart --all        # runs everything
+bun run test:smart --list       # previews without executing
+bun run test:smart --suite=auth # filters by suite name
+```
 
-Runner: `bun run scripts/benchmark-matrix/index.ts` | Metrics: 50+ across 4 databases
+**Fail-Closed Policy**: If changed files don't match any rule → runs full core suite. Flaky = unstable core. No automatic retries.
 
-Not a functional test layer — this validates SRE-grade resilience:
+### File-to-Suite Mapping
 
-- Cold start time (< 1s target)
-- REST p95 latency (< 0.6ms SQLite, < 0.7ms others)
-- Chaos resilience (500ms DB brownouts)
-- Migration throughput (> 6,600 entries/s)
-- Index pressure (100,000+ entries with complex filters)
+| Changed Files                         | Runs                                 |
+| ------------------------------------- | ------------------------------------ |
+| `src/hooks/handle-authentication.ts`  | Auth & Security unit tests           |
+| `src/routes/api/[...path]/+server.ts` | Authorization & RBAC unit tests      |
+| `src/databases/**/*.ts`               | Full adapter contract matrix         |
+| `src/widgets/**/*.ts`                 | Widget unit + schema + accessibility |
+| `src/**/*.svelte`                     | Svelte Doctor (check + lint)         |
+| `src/routes/setup/**`                 | E2E Setup Wizard                     |
+| Unknown/untracked                     | Full core suite (fail-closed)        |
 
 ---
 
 ## Layer Selection Guide
 
-| If you're testing...                      | Use this layer                                    |
-| ----------------------------------------- | ------------------------------------------------- |
-| A validation schema (Valibot)             | Unit — `safeParse()` with edge cases              |
-| A date formatting function                | Unit — fast, deterministic                        |
-| An API endpoint returning JSON            | Integration — real HTTP, real DB                  |
-| Whether an editor can access admin routes | Integration — RBAC through real middleware        |
-| The setup wizard flow                     | E2E — Playwright fills real forms                 |
-| Keyboard tab order through a modal        | E2E — Playwright `page.keyboard.press("Tab")`     |
-| File upload with SSRF protection          | Integration — real server, real file I/O          |
-| S3 upload actually works                  | Integration — real SDK call                       |
-| A CSS class changes on hover              | Not worth testing — visual regression if critical |
-| A store's derived value computation       | Unit — Svelte 5 runes, in-memory                  |
-
----
-
-## Continuous Integration
-
-```bash
-# Local pre-commit (fast path — related tests only)
-bun run scripts/quality-gate.ts
-
-# Full CI pipeline (all 4 databases)
-# - Unit: Vitest (915 tests, ~15s)
-# - Integration: SQLite → MongoDB → PostgreSQL → MariaDB
-# - E2E: Playwright (Chromium, Firefox, WebKit)
-# - Benchmarks: On main branch only
-```
+| If you're testing...                      | Use this layer                                  |
+| ----------------------------------------- | ----------------------------------------------- |
+| Cross-database adapter parity             | Contract — `contract.test.ts` against all 4 DBs |
+| A validation schema (Valibot)             | Unit — `safeParse()` with edge cases            |
+| An API endpoint returning JSON            | Integration — real HTTP, real DB                |
+| Whether an editor can access admin routes | Integration — RBAC through real middleware      |
+| The setup wizard flow                     | E2E — Playwright fills real forms               |
+| Keyboard tab order through a modal        | E2E — `page.keyboard.press("Tab")`              |
 
 ---
 

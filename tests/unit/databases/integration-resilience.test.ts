@@ -10,8 +10,14 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-vi.unmock("@src/databases/db");
-import { ensureFullInitialization, resetDbInitPromise } from "@src/databases/db";
+
+// Override any pre-existing mock to get real behavior
+vi.mock("@src/databases/db", () => {
+  const actual = vi.importActual("@src/databases/db");
+  return actual;
+});
+
+import { resetDbInitPromise, ensureFullInitialization } from "@src/databases/db";
 import { SQLiteAdapter } from "@src/databases/sqlite/sqlite-adapter";
 import { generateUUID } from "@src/utils/native-utils";
 
@@ -81,7 +87,9 @@ describe("SveltyCMS Integration Resilience & Boundary Audits", () => {
       expect(insertResult.data).toBeDefined();
 
       // 5. Query the entry back from the adapter
-      const findResult = (await adapter.crud.findOne<any>(tableName, { _id: docId })) as any;
+      const findResult = (await adapter.crud.findOne<any>(tableName, {
+        _id: docId,
+      })) as any;
       expect(findResult.success).toBe(true);
       expect(findResult.data).toBeDefined();
 

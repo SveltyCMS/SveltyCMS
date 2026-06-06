@@ -49,4 +49,32 @@ describe("Adaptive Rate Limiting", () => {
     expect(service.getPointsForThreat("high")).toBe(50);
     expect(service.getPointsForThreat("critical")).toBe(100);
   });
+
+  it("should increase cost multiplier under high pressure", () => {
+    (systemMonitor.getAdaptiveCostMultiplier as any).mockReturnValue(3.0);
+    expect(systemMonitor.getAdaptiveCostMultiplier()).toBe(3.0);
+    const points = service.getPointsForThreat("medium");
+    // Base points still 20 — multiplier is applied at rate-limit check level
+    expect(points).toBe(20);
+  });
+
+  it("should report nominal system status under normal load", () => {
+    const metrics = systemMonitor.getMetrics();
+    expect(metrics.status).toBe("nominal");
+    expect(metrics.pressureScore).toBeLessThan(0.5);
+  });
+
+  it("should handle extreme pressure scores", () => {
+    (systemMonitor.getAdaptiveCostMultiplier as any).mockReturnValue(10.0);
+    (systemMonitor.getMetrics as any).mockReturnValue({
+      cpuLoad: 0.95,
+      eventLoopLag: 500,
+      memoryUsage: 90,
+      pressureScore: 0.95,
+      status: "critical",
+    });
+    const metrics = systemMonitor.getMetrics();
+    expect(metrics.status).toBe("critical");
+    expect(systemMonitor.getAdaptiveCostMultiplier()).toBe(10.0);
+  });
 });

@@ -47,8 +47,12 @@ describe("TelemetryService Environment Checks", () => {
     expect(result.status).toBe("test_mode");
   });
 
-  it("should use TELEMETRY_CLIENT_SECRET if present in settings", async () => {
-    // This is a more complex test that might require mocking settings-service
-    // For now, let's ensure the environment checks remain solid.
+  it("should not crash when checking status without env vars", async () => {
+    delete process.env.TEST_MODE;
+    delete process.env.CI;
+    delete process.env.VITEST;
+    delete process.env.NODE_ENV;
+    const result = await telemetryService.checkUpdateStatus();
+    expect(result).toBeDefined();
   });
 });

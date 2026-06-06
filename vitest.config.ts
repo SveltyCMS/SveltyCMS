@@ -26,6 +26,7 @@ export default defineConfig({
       "@utils": path.resolve(__dirname, "./src/utils"),
       "@stores": path.resolve(__dirname, "./src/stores"),
       "@widgets": path.resolve(__dirname, "./src/widgets"),
+      "@tests": path.resolve(__dirname, "./tests"),
       "@root": path.resolve(__dirname, "./"),
       $paraglide: path.resolve(__dirname, "./src/paraglide"),
       "$app/environment": path.resolve(__dirname, "./tests/unit/mocks/$app/environment.ts"),

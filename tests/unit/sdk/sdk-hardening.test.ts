@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MediaService } from "../../src/utils/media/media-service.server";
+import { MediaService } from "../../../src/utils/media/media-service.server";
 import crypto from "node:crypto";
-import type { DatabaseId } from "../../src/content/types";
+import type { DatabaseId } from "../../../src/content/types";
 
 // Mock the dependencies that Vitest might try to import and fail
 vi.mock("$app/environment", () => ({
@@ -76,11 +76,12 @@ describe("SDK & Media Hardening", () => {
       media: {
         files: {
           getByHash: vi.fn().mockResolvedValue({ success: true, data: null }),
-          upload: vi
-            .fn()
-            .mockImplementation((data) =>
-              Promise.resolve({ success: true, data: { ...data, _id: "new_id" } }),
-            ),
+          upload: vi.fn().mockImplementation((data) =>
+            Promise.resolve({
+              success: true,
+              data: { ...data, _id: "new_id" },
+            }),
+          ),
         },
       },
       settings: {

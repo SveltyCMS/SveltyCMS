@@ -7,14 +7,43 @@ if [ "$CI" = "true" ]; then
     exit 0
 fi
 
-# Run the high-performance parallel quality gate
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║           SveltyCMS Pre-Commit Quality Gate                  ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+# ── Gate 1: High-Performance Quality Gate (Format + Lint + Check + Unit) ──
+echo "🛡️  Gate 1: Quality Gate (format + lint + type-check + unit tests)"
 export PRE_COMMIT="true"
 bun run scripts/quality-gate.ts
+echo ""
 
-# Run the documentation linter
+# ── Gate 2: Documentation Linter ─────────────────────────────────────────
+echo "📖 Gate 2: Documentation Linter"
 bun run lint:docs
+echo ""
 
-# Ensure only already staged files that got modified by fixes are re-staged
+# ── Gate 3: AI Slop Scanner (detect code smells in staged files) ─────────
+echo "🔍 Gate 3: AI Slop Scanner"
+staged_svelte=$(git diff --cached --name-only --diff-filter=ACM | grep '\.svelte$' || true)
+staged_ts=$(git diff --cached --name-only --diff-filter=ACM | grep '\.ts$' || true)
+
+if [ -n "$staged_svelte" ] || [ -n "$staged_ts" ]; then
+    bun run scripts/slop-scanner.ts --ci
+    echo "✅ Slop scan passed"
+else
+    echo "⏩ No .svelte/.ts files staged — skipping slop scan"
+fi
+echo ""
+
+# ── Gate 4: Smart Test Runner (targeted tests for changed files) ─────────
+echo "🧪 Gate 4: Smart Test Orchestrator"
+bun run scripts/test-smart.ts
+echo ""
+
+# ── Re-stage files modified by auto-fixers ───────────────────────────────
+echo "📦 Re-staging auto-fixed files..."
 staged_files=$(git diff --cached --name-only)
 if [ -n "$staged_files" ]; then
     for file in $staged_files; do
@@ -24,3 +53,8 @@ if [ -n "$staged_files" ]; then
     done
 fi
 
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  ✅ All gates passed. Commit allowed.                        ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""

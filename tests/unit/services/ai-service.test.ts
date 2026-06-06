@@ -113,5 +113,26 @@ describe("AIService", () => {
       expect(spec?.root).toBe("mock");
       expect(spec?.elements).toBeDefined();
     });
+
+    it("should handle empty prompt", async () => {
+      const spec = await aiService.generateLayoutSpec("");
+      expect(spec).toBeDefined();
+    });
+  });
+
+  describe("error handling", () => {
+    it("should handle fetch failure gracefully", async () => {
+      mockFetch.mockRejectedValueOnce(new Error("Network error"));
+      await expect(aiService.chat("Hello")).resolves.toBeDefined();
+    });
+
+    it("should handle empty search results", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ results: [] }),
+      });
+      const results = await aiService.searchContext("unknown topic");
+      expect(results).toEqual([]);
+    });
   });
 });

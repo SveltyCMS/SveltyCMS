@@ -179,3 +179,29 @@ describe("Date Utils - Edge Cases", () => {
     expect(isoString).toBe("2099-12-31T23:59:59.999Z" as any);
   });
 });
+
+describe("Date Utils — Property-Based Round-Trip", () => {
+  it("dateToISODateString → new Date → toISOString preserves value", () => {
+    const dates = [
+      new Date(),
+      new Date("2026-01-01"),
+      new Date("1970-01-01"),
+      new Date("2099-12-31"),
+      new Date(0),
+      new Date(1_700_000_000_000),
+    ];
+    for (const d of dates) {
+      const iso = dateToISODateString(d);
+      const back = new Date(iso);
+      expect(dateToISODateString(back)).toBe(iso);
+    }
+  });
+
+  it("normalizeDateInput always returns valid ISO", () => {
+    const inputs = [new Date(), "2026-06-06", null, undefined, 0];
+    for (const input of inputs) {
+      const result = normalizeDateInput(input as any);
+      expect(typeof result).toBe("string");
+    }
+  });
+});

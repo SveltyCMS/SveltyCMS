@@ -889,6 +889,7 @@ export default defineConfig((): any => {
           "@types": "./src/types",
           "@utils": "./src/utils",
           "@widgets": "./src/widgets",
+          "@tests": "./tests",
         },
         csrf: {
           trustedOrigins: [

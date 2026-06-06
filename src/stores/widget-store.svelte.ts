@@ -437,6 +437,11 @@ export function getWidgetFunction(name: string) {
   return widgetStateInstance.widgetFunctions[name];
 }
 
+/** Returns all registered widget names (keys) */
+export function getWidgetNames(): string[] {
+  return Object.keys(widgetStateInstance.widgetFunctions);
+}
+
 export function isWidgetActive(name: string): boolean {
   return widgets.activeWidgets.includes(name);
 }

@@ -203,7 +203,7 @@ $effect(() => {
 				isRepairing = true;
 				repairResult = null;
 				try {
-					const { repairContentCache } = await import('./settings.remote');
+					const { repairContentCache } = await import('./admin.remote');
 					const result = await repairContentCache();
 					if (result.success) {
 						repairResult = { success: true, message: result.message };

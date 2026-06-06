@@ -19,12 +19,11 @@ import {
 	setTargetWidget,
 } from "@src/stores/collection-store.svelte";
 import { tabSet } from "@src/stores/store.svelte.ts";
-import { widgetFunctions } from "@src/stores/widget-store.svelte.ts";
+import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 // Native UI Components
 import { modalState } from "@utils/modal.svelte";
 // Using iconify-icon web component
 import { getGuiFields } from "@utils/utils";
-import { get } from "svelte/store";
 import type { DndEvent, Item } from "svelte-dnd-action";
 // Stores
 import { page } from "$app/state";
@@ -169,7 +168,7 @@ function modalSelectWidget(selected?: Field): void {
 // Function to save data by sending a POST request
 async function handleCollectionSave() {
 	fields = fields.map((field) => {
-		const widgetInstance = get(widgetFunctions)[field.widget.Name];
+		const widgetInstance = getWidgetFunction(field.widget.Name);
 		const guiSchema = widgetInstance?.GuiSchema;
 		if (!guiSchema) {
 			return field;

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2509-28"
-updated: "2026-06-01"
+updated: "2026-06-06"
 tags:
   - "testing"
   - "documentation"
@@ -19,15 +19,19 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** May 19, 2026
-**Total Tests:** 1400+ (Unit + Integration + E2E + Audit + Accessibility)
-**Pass Rate:** 100% (All tests passing)
-**Memory Stability:** ✅ STABLE (Verified < 1MB/min growth at 3,400+ RPS)
-**World Life Data:** ✅ VERIFIED (1.85x Fast-Fail Efficiency)
+**Last Updated:** June 6, 2026
+**Total Tests:** 1,553+ (Unit: 1,063 + Integration: ~490 + E2E: ~40)
+**Pass Rate:** 100%
+**Smart Runner:** ✅ `bun run test:smart` — git-diff-aware orchestration
+**Contract Tests:** ✅ Universal adapter parity across 4 databases
+**Slop Scanner:** ✅ 0 errors — XSS, legacy patterns, dead exports
+**Mutation Testing:** ✅ 100% effective kill rate on critical utilities
 
 ## Quick Links
 
 - [Testing Overview & Strategy](./testing-strategy.mdx) 🚀
+- [Contract Tests](./testing-strategy.mdx#1-contract-tests-universal-adapter-verification) 🔗
+- [Smart Orchestrator](./testing-strategy.mdx#smart-test-orchestrator) 🧠
 - [Master Performance Leaderboard](../project/benchmarks/index.mdx) 🏆
 - [Audit (Analysis)](../project/benchmarks/index.mdx)
 - [Memory Stability Audit](../project/benchmarks/benchmark_sqlite.mdx#memGrowth) 🚀
@@ -42,8 +46,14 @@ tags:
 ### Running Tests Locally
 
 ```bash
+# Smart test runner — auto-detects what to test from git diff
+bun run test:smart
+
 # Run the High-Performance Quality Gate (4.4x faster)
 bun run scripts/quality-gate.ts
+
+# Run specific contract against active database
+bun test tests/integration/databases/contract.test.ts
 
 # Run the complete Enterprise Performance Matrix (All 4 Databases)
 bun run scripts/benchmark-matrix/index.ts

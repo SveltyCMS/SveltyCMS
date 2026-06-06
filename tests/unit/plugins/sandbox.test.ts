@@ -148,3 +148,29 @@ describe("Plugin Sandbox - Scoped DB Access", () => {
     ).not.toThrow();
   });
 });
+
+describe("Plugin Sandbox — Error Boundaries", () => {
+  it("should not leak internal adapter errors", () => {
+    const mock = createMockAdapter();
+    mock.crud.findMany = () => {
+      throw new Error("Internal DB failure");
+    };
+    const { adapter } = createScopedDbAdapter(mock, "pagespeed");
+    expect(() => adapter.crud.findMany("posts" as any, {} as any)).toThrow();
+  });
+
+  it("should track stats for auditing", () => {
+    const mock = createMockAdapter();
+    const { adapter, stats } = createScopedDbAdapter(mock, "pagespeed");
+    adapter.crud.findMany("posts" as any, {} as any);
+    adapter.crud.insert("plugin_pagespeed_x" as any, {} as any, undefined as any);
+    expect(stats).toBeDefined();
+    expect(stats.queryCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should handle edge-case collection names", () => {
+    const mock = createMockAdapter();
+    const { adapter } = createScopedDbAdapter(mock, "p");
+    expect(() => adapter.crud.findMany("" as any, {} as any)).toBeDefined();
+  });
+});

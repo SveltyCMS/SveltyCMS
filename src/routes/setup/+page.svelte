@@ -380,7 +380,7 @@
 									</svg>
 									<div class="flex-1">
 										{#if wizard.errorMessage}
-											<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span class="font-normal">{@html wizard.errorMessage}</span>{/if}
+											<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span class="font-normal">{wizard.errorMessage}</span>{/if}
 										{:else}
 											{wizard.successMessage}
 										{/if}

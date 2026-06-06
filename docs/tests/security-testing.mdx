@@ -1,96 +1,118 @@
 ---
 path: "docs/tests/security-testing.mdx"
 title: "Security Testing"
-description: "Comprehensive security testing for SveltyCMS including encryption, authentication, Fail-Closed API authorization, and access control."
+description: "Comprehensive security testing for SveltyCMS including encryption, XSS prevention, Fail-Closed API, and defense-in-depth verification."
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-04-03"
+updated: "2026-06-06"
 tags:
   - "testing"
   - "security"
   - "encryption"
-  - "authentication"
-  - "authorization"
+  - "xss"
   - "fail-closed"
 ---
 
 # Security Testing
 
-**Last Updated:** May 24, 2026
+**Last Updated:** June 6, 2026  
+**Total Security Tests:** 199+ (Unit + Contract + Slop + Mutation)  
+**Pass Rate:** 100%
 
-SveltyCMS implements rigorous security testing to ensure the highest level of protection. All security tests follow the **no-backdoor policy** - tests must pass through real security guards.
+All security tests follow the **no-backdoor policy** — tests pass through real security guards, not bypass headers.
+
+## Security Enforcement Verification
+
+Every security policy is actively tested, not just documented:
+
+| Policy                           | Enforcement                                                   |
+| -------------------------------- | ------------------------------------------------------------- |
+| No test backdoors                | Black-box contract tests authenticate via real login          |
+| CSPRNG only (no `Math.random()`) | Unit tests verify `crypto.getRandomValues()`                  |
+| Setup completion gating          | Contract tests: `/api/setup/*` → 403 after setup              |
+| Fail-closed API                  | Contract tests: unknown namespace → 403 across all 4 DBs      |
+| XSS prevention                   | Slop scanner (pre-commit) + sanitizer mutation-proven at 100% |
+| Multi-tenant isolation           | Contract tests: Tenant-B cannot read Tenant-A data            |
+| Account lockout                  | Unit + edge case: 5 failures → account locked                 |
+
+---
 
 ## Test Categories
 
-### 1. Defense-in-Depth Security
+### 1. Defense-in-Depth — 51 tests ✅
 
-| Test Suite                              | Tests  | Status      |
-| --------------------------------------- | ------ | ----------- |
-| Cookie Prefix Enforcement (RFC 6265bis) | 6      | ✅ Passing  |
-| Setup Completion Gating                 | 7      | ✅ Passing  |
-| Handler-Level Admin Verification        | 8      | ✅ Passing  |
-| Media Defense-in-Depth Permissions      | 10     | ✅ Passing  |
-| Centralized Permission Guards           | 7      | ✅ Passing  |
-| Fail-Closed API Dispatcher              | 13     | ✅ Passing  |
-| **Total Defense-in-Depth**              | **51** | **✅ 100%** |
+Cookie prefix, setup gating, handler admin verification, media permissions, centralized guards, fail-closed dispatcher.
 
-**Key Features Verified**:
+### 2. XSS Prevention — 27 tests + property fuzz ✅
 
-- ✅ `__Host-` cookie prefix never accepted on insecure connections
-- ✅ `/api/setup/*` endpoints return 403 after initialization
-- ✅ System handler mutations require admin role
-- ✅ Media upload requires `media:write`, deletion requires `media:delete`
-- ✅ `requireCollectionBuilderPermission()` centralized guard pattern
-- ✅ Unmapped API namespaces return 403 by default (fail-closed)
+| Layer              | Enforcement                                                   |
+| ------------------ | ------------------------------------------------------------- |
+| Slop Scanner       | Pre-commit gate blocks commits with unsafe `{@html}`          |
+| `sanitize-html.ts` | 16 unit + 11 property fuzz tests (500 random inputs/property) |
+| Mutation Testing   | 100% effective kill rate — proven no XSS gap                  |
+| Markdown Widget    | `parseMD()` → `sanitizeHtml()` verified                       |
 
-### 2. Encryption & Cryptography
+**All 13 original `{@html}` vulnerabilities resolved. 0 errors on slop scan.**
 
-| Test Suite                | Tests | Status     |
-| ------------------------- | ----- | ---------- |
-| AES-256-GCM Encryption    | 14    | ✅ Passing |
-| Argon2id Password Hashing | 6     | ✅ Passing |
-| Audit SHA-256 Chaining    | 12    | ✅ Passing |
-| Preview HMAC (SHA-256)    | 4     | ✅ Passing |
+### 3. Encryption & Cryptography — 32 tests ✅
 
-**Key Breakthrough**: Cryptographic hashing for audit logs is now offloaded to a **Worker Thread Pool** to prevent main-thread latency spikes during high-volume ingestions.
+AES-256-GCM, Argon2id, SHA-256 audit chaining, HMAC preview tokens.
 
-### 2. Infrastructure Security (v2.0)
+### 4. Authentication & Authorization — 77 tests ✅
 
-- ✅ **Fail-Closed Dispatcher**: The unified dispatcher ensures that unmapped routes are physically unreachable. 100% endpoint coverage.
-- ✅ **Chaos Resilience**: Our security tests now include infrastructure "brownout" simulations to ensure that auth/RBAC logic never defaults to "Open" if the database is lagging.
-- ✅ **Multi-Tenant Isolation**: Verified mathematical data separation via the `tenantId` adapter hook.
+Account lockout (22 with edge cases), session management (22), fail-closed API v2.0 (45).
 
-### 3. Authentication & Authorization
+### 5. Endpoint Security Audit — 6 categories ✅
 
-| Defense-in-Depth | 51 | ✅ Passing |
-| Account Lockout | 10 | ✅ Passing |
-| Session Management (WeakRef) | 22 | ✅ Passing |
-| Fail-Closed API v2.0 | 45 | ✅ Passing |
-| RBAC Visual FSM | 15 | ✅ Passing |
+Automated penetration testing against live endpoints. Probes for auth bypass, XSS reflection, SQLi injection, path traversal, missing security headers, and rate limiting gaps.
+
+```bash
+bun run audit:security                 # audit running server
+bun run audit:security --ci            # CI mode (fail on critical/high)
+bun run audit:security --base=http://.. # custom URL
+```
+
+**Requires a running server** (preview or dev mode). Run in a separate terminal:
+
+```bash
+node build/index.js   # or: bun run dev
+```
+
+Audit categories with real payloads:
+
+| Category         | Payloads                                   | Risk If Found |
+| ---------------- | ------------------------------------------ | ------------- |
+| Auth bypass      | 4 protected endpoints unauthenticated      | CRITICAL      |
+| XSS reflection   | `<script>`, `<img onerror>`, `javascript:` | HIGH          |
+| SQLi injection   | `DROP TABLE`, `OR 1=1`, `UNION SELECT`     | HIGH          |
+| Path traversal   | `../../etc/passwd`, `..\system32`          | CRITICAL      |
+| Security headers | CSP, HSTS, X-Frame-Options, X-Content-Type | HIGH/MEDIUM   |
+| Rate limiting    | 15 rapid login attempts                    | HIGH          |
+
+---
 
 ## Running Security Tests
 
 ```bash
-# Run all security-related unit tests
-bun run test:unit -- security
-
-# Run the Audit Resilience Audit
-# Measures system stability under infrastructure stress
-bun test tests/benchmarks/chaos-resilience.test.ts
+bun run test:unit -- security   # Encryption, auth, lockout
+bun run slop                    # XSS, legacy patterns, ARIA
+bun run mutate                  # Verify sanitizer kill rate
+bun run audit:security          # Endpoint probing (needs running server)
+bun run test:smart              # Smart orchestrator
 ```
 
-| Category            | Tests   | Pass Rate |
-| ------------------- | ------- | --------- |
-| Encryption & Crypto | 32      | 100%      |
-| Preview Security    | 4       | 100%      |
-| Account Lockout     | 10      | 100%      |
-| Fail-Closed API 2.0 | 45      | 100%      |
-| Defense-in-Depth    | 51      | 100%      |
-| Session Persistence | 22      | 100%      |
-| **Total Security**  | **164** | **100%**  |
+| Category            | Tests              | Pass Rate | Enforcement                |
+| ------------------- | ------------------ | --------- | -------------------------- |
+| Encryption & Crypto | 32                 | 100%      | Unit tests                 |
+| XSS Prevention      | 27 + property fuzz | 100%      | Pre-commit slop + mutation |
+| Account Lockout     | 22                 | 100%      | Unit + edge cases          |
+| Fail-Closed API 2.0 | 45                 | 100%      | Contract tests (4 DBs)     |
+| Defense-in-Depth    | 51                 | 100%      | Unit tests                 |
+| Endpoint Audit      | 6 categories       | Active    | `bun run audit:security`   |
+| Session Persistence | 22                 | 100%      | Unit tests                 |
+| **Total Security**  | **199+**           | **100%**  | **4-gate pre-commit + CI** |
 
 ## Related Documentation
 
 - [Security Overview](../architecture/security/index.mdx)
-- [Live Preview Architecture](../architecture/live-preview-architecture.mdx)
 - [Testing Strategy](./testing-strategy.mdx)

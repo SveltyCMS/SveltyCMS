@@ -1,7 +1,9 @@
 /**
- * @file tests\unit\safe-query-manual.test.ts
- * @description
+ * @file tests/unit/security/safe-query-manual.test.ts
+ * @description Security hardening for safeQuery multi-tenant isolation.
  */
+
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Properly mock @src/databases/config-state
 vi.mock("@src/databases/config-state", () => ({
@@ -13,7 +15,7 @@ vi.mock("@src/databases/config-state", () => ({
   clearPrivateConfigCache: () => {},
 }));
 
-import { safeQuery } from "../../src/utils/security/safe-query";
+import { safeQuery } from "../../../src/utils/security/safe-query";
 
 describe("safeQuery Hardening", () => {
   beforeEach(() => {

@@ -5,7 +5,7 @@
 
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widget-constants";
+import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widgets/widget-constants";
 
 const isBun = typeof Bun !== "undefined";
 

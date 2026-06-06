@@ -128,3 +128,38 @@ describe("getTotpReplayRegistry singleton", () => {
     expect(a).not.toBe(b);
   });
 });
+
+describe("TOTP Registry — concurrency & resilience", () => {
+  let adapter: InMemoryTotpRegistryAdapter;
+
+  beforeEach(() => {
+    adapter = new InMemoryTotpRegistryAdapter();
+  });
+
+  it("should handle very long codes", async () => {
+    const ok = await adapter.tryInsert("u1", "1".repeat(100), Date.now() + 60_000);
+    expect(ok).toBe(true);
+  });
+
+  it("should allow only first of concurrent inserts", async () => {
+    const exp = Date.now() + 60_000;
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => adapter.tryInsert("u1", "concurrent", exp)),
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
+  it("should trigger cleanup on 100th write, not 101st", async () => {
+    const mock = {
+      tryInsert: vi.fn().mockResolvedValue(true),
+      deleteExpired: vi.fn(),
+    };
+    const reg = new UsedTotpCodeRegistry(mock);
+    for (let i = 0; i < 99; i++) await reg.consumeCode("u", `c${i}`);
+    expect(mock.deleteExpired).not.toHaveBeenCalled();
+    await reg.consumeCode("u", "c99");
+    expect(mock.deleteExpired).toHaveBeenCalledTimes(1);
+    await reg.consumeCode("u", "c100");
+    expect(mock.deleteExpired).toHaveBeenCalledTimes(1); // no double-cleanup
+  });
+});

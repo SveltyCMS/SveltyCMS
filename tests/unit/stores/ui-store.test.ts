@@ -9,7 +9,7 @@
  * - Real singleton behavior
  */
 
-import { ui } from "../../src/stores/ui-store.svelte";
+import { ui } from "../../../src/stores/ui-store.svelte";
 
 // Mock implementation of UIStore for legacy tests if needed
 const createMockUIStore = () => {

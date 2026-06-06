@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/markdown/input.svelte
 @component
 **Split-pane Markdown Editor**
@@ -6,6 +6,7 @@
 
 <script lang="ts">
 	import { app } from '@src/stores/store.svelte';
+	import { sanitizeHtml } from '@utils/sanitize-html';
 	import type { FieldType } from './index';
 
 	interface Props {
@@ -14,9 +15,9 @@
 	}
 
 	let { field, value = $bindable(null) }: Props = $props();
-	
+
 	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
-	
+
 	let rawText = $state('');
 	let previewMode = $state<'split' | 'edit' | 'preview'>('split');
 
@@ -27,7 +28,7 @@
 	function handleInput(e: Event) {
 		const target = e.target as HTMLTextAreaElement;
 		rawText = target.value;
-		
+
 		if (field.translated) {
 			if (!value || typeof value !== 'object') value = {};
 			value = { ...value, [LANGUAGE]: rawText };
@@ -39,7 +40,7 @@
 	// Simple MD parser (Regex-based for demo, replace with 'marked' for production)
 	function parseMD(md: string) {
 		if (!md) return '';
-		return md
+		const html = md
 			.replace(/^# (.*$)/gim, '<h1>$1</h1>')
 			.replace(/^## (.*$)/gim, '<h2>$1</h2>')
 			.replace(/^### (.*$)/gim, '<h3>$1</h3>')
@@ -48,6 +49,7 @@
 			.replace(/!\[(.*?)\]\((.*?)\)/gim, "<img alt='$1' src='$2' />")
 			.replace(/\[(.*?)\]\((.*?)\)/gim, "<a href='$2'>$1</a>")
 			.replace(/^\n/gim, '<br />');
+		return sanitizeHtml(html);
 	}
 </script>
 
@@ -63,7 +65,7 @@
 	</div>
 
 	<!-- Editor Area -->
-	<div class="flex h-[400px]">
+	<div class="flex h-100">
 		{#if previewMode !== 'preview'}
 			<textarea
 				aria-label={field.label || field.db_fieldName || 'Markdown editor'}
@@ -76,6 +78,7 @@
 
 		{#if previewMode !== 'edit'}
 			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-l border-surface-200 dark:border-surface-700">
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html parseMD(rawText)}
 			</div>
 		{/if}

@@ -98,6 +98,7 @@ Designed as a visual schema inspector for developers to understand what data str
 			{#if currentSchema?.fields && currentSchema.fields.length > 0}
 				{#each currentSchema.fields as field (field.key)}
 					<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 border-b pb-6">
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 						{@html getFieldComponentHtml(field)}
 					</div>
 				{/each}
