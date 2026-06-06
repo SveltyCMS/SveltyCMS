@@ -129,9 +129,16 @@ export function handleApiError(err: unknown, event: RequestEvent) {
         details: appErr.details,
       });
     } else {
-      logger.warn(`AppError [${event.url.pathname}]: ${message}`, {
-        details: appErr.details,
-      });
+      // Suppress expected 4xx errors during benchmark runs to keep output clean
+      if (process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true") {
+        logger.debug(`AppError [${event.url.pathname}]: ${message}`, {
+          details: appErr.details,
+        });
+      } else {
+        logger.warn(`AppError [${event.url.pathname}]: ${message}`, {
+          details: appErr.details,
+        });
+      }
     }
   }
   // 4. Handle SvelteKit HttpErrors (thrown via error())

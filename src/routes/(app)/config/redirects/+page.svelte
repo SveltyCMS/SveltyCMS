@@ -7,7 +7,6 @@
 	import { fade, fly } from "svelte/transition";
 	import { toast } from '@src/stores/toast.svelte';
 	import { button_save } from '@src/paraglide/messages';
-	import { enhance } from '$app/forms';
 
 	let { data } = $props();
 	let redirects = $derived(data.redirects || []);
@@ -95,16 +94,15 @@
 									<button class="btn-icon btn-icon-sm preset-outlined-surface-500" onclick={() => openModal(redirect)} aria-label="Edit Redirect">
 										<iconify-icon icon="mdi:pencil"></iconify-icon>
 									</button>
-									<form method="POST" action="?/delete" use:enhance={() => {
-										return async ({ result }) => {
-											if (result.type === 'success') toast.success('Redirect deleted');
-										};
-									}}>
-										<input type="hidden" name="id" value={redirect._id} />
-										<button class="btn-icon btn-icon-sm preset-outlined-error-500" aria-label="Delete Redirect">
-											<iconify-icon icon="mdi:trash-can"></iconify-icon>
-										</button>
-									</form>
+									<button class="btn-icon btn-icon-sm preset-outlined-error-500" aria-label="Delete Redirect" onclick={async () => {
+																				const { deleteRedirect } = await import('./redirects.remote');
+																				await deleteRedirect(redirect._id);
+																				toast.success('Redirect deleted');
+																				// Reload to reflect changes
+																				window.location.reload();
+																			}}>
+																				<iconify-icon icon="mdi:trash-can"></iconify-icon>
+																			</button>
 								</div>
 							</td>
 						</tr>
@@ -120,14 +118,23 @@
 		<div class="card p-6 w-full max-w-lg space-y-4 shadow-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md">
 			<h3 class="h3">{selectedRedirect._id ? 'Edit' : 'Add'} Redirect</h3>
 
-			<form method="POST" action="?/save" use:enhance={() => {
-				return async ({ result }) => {
-					if (result.type === 'success') {
-						toast.success('Redirect saved');
-						closeModal();
-					}
-				};
-			}} class="space-y-4">
+			<form onsubmit={async (e) => {
+								e.preventDefault();
+								const fd = new FormData(e.currentTarget as HTMLFormElement);
+								const { saveRedirect } = await import('./redirects.remote');
+								await saveRedirect({
+									id: fd.get('id')?.toString() || undefined,
+									from: fd.get('from')?.toString() || '',
+									to: fd.get('to')?.toString() || '',
+									type: parseInt(fd.get('type')?.toString() || '301'),
+									active: fd.get('active') === 'true',
+									isRegex: fd.get('isRegex') === 'on',
+								});
+								toast.success('Redirect saved');
+								closeModal();
+								// Reload to reflect changes
+								window.location.reload();
+							}} class="space-y-4">
 				<input type="hidden" name="id" value={selectedRedirect._id || ''} />
 
 				<label class="label">

@@ -55,7 +55,6 @@ export interface WsUpgradeContext {
 interface WsAuthResult {
   profile: User;
   tenantId: string;
-  sessionId?: string;
   connectedAt: number;
 }
 
@@ -216,7 +215,6 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     return {
       profile,
       tenantId: tenantId || "default",
-      sessionId: sessionId || undefined,
       connectedAt: Date.now(),
     };
   } catch (err) {

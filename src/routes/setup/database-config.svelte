@@ -42,7 +42,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { safeParse } from 'valibot';
-	import { deserialize } from '$app/forms';
 
 	// Popup settings (click to toggle)
 
@@ -182,34 +181,17 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		installSuccess = '';
 
 		try {
-			const formData = new FormData();
-			formData.append('dbType', dbType);
+			const { installDatabaseDriver: installDbDriver } = await import('./setup.remote');
+			const result = await installDbDriver(dbType);
 
-			const response = await fetch('?/installDriver', {
-				method: 'POST',
-				body: formData
-			});
-
-			const result = deserialize(await response.text());
-
-			if (result.type === 'success') {
-				const data = result.data as {
-					success: boolean;
-					message?: string;
-					alreadyInstalled?: boolean;
-					error?: string;
-				};
-				if (data.success) {
-					installSuccess = data.message || `Successfully installed driver for ${dbType}`;
-					if (data.alreadyInstalled) {
-						installSuccess = `Driver for ${dbType} is already installed`;
-					}
+			if (result.success) {
+				if (result.alreadyInstalled) {
+					installSuccess = `Driver for ${dbType} is already installed`;
 				} else {
-					installError = data.error || `Failed to install driver for ${dbType}`;
+					installSuccess = result.message || `Successfully installed driver for ${dbType}`;
 				}
 			} else {
-				const errorMsg = (result as { data?: { error?: string } }).data?.error || `Failed to install driver for ${dbType}`;
-				installError = errorMsg;
+				installError = result.error || `Failed to install driver for ${dbType}`;
 			}
 		} catch (error) {
 			installError = `Network error while installing driver: ${error instanceof Error ? error.message : String(error)}`;

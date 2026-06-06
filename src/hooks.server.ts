@@ -51,7 +51,7 @@ if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
 import { handleTurboGet } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
-import { handleSecurityHeaders, applyAllSecurityHeaders } from "./hooks/handle-security-headers";
+import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 
 import { getTestSecret } from "@src/utils/setup-check";
 
@@ -114,8 +114,7 @@ let handleSecurity: Handle = passThrough,
   handleTokenResolution: Handle = passThrough,
   handleRedirects: Handle = passThrough,
   handleSystemState: Handle = passThrough,
-  handleTestIsolation: Handle = passThrough,
-  handleStaticAssetCaching: Handle = passThrough;
+  handleTestIsolation: Handle = passThrough;
 
 // ✨ ENTERPRISE: Lazy-loaded handle variables for dynamic mode switching
 let fullMiddlewareInitialized = false;
@@ -147,8 +146,6 @@ async function ensureFullMiddleware() {
   handleSystemState = state.handleSystemState;
   const isolation = await import("./hooks/handle-test-isolation");
   handleTestIsolation = isolation.handleTestIsolation;
-  const caching = await import("./hooks/handle-static-asset-caching");
-  handleStaticAssetCaching = caching.handleStaticAssetCaching;
 
   fullMiddlewareInitialized = true;
 }
@@ -351,17 +348,15 @@ const getPipeline = () => {
       cachedPipelineReady = sequence(
         wrapHandle("hyper-turbo", () => handleHyperTurbo),
         wrapHandle("turbo-pipeline", () => handleTurboPipeline),
-        wrapHandle("security-headers", () => handleSecurityHeaders),
         wrapHandle("test-isolation", () => handleTestIsolation),
-        wrapHandle("static-asset-caching", () => handleStaticAssetCaching),
         wrapHandle("security", () => handleSecurity),
         wrapHandle("system-state", () => handleSystemState),
+        // 🚀 Turbo GET: Right after security gates but BEFORE auth/authz.
+        // Serves pre-encoded cached responses with pre-computed session auth,
+        // bypassing handleAuthentication, handleAuthorization, and CSRF.
+        wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("redirects", () => handleRedirects),
         wrapHandle("compression", () => handleCompression),
-        // 🚀 Turbo GET: After security gates but before auth/authz.
-        // Rate limiting & firewall still apply; only session validation
-        // and role loading are skipped for cached responses.
-        wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("user-preferences", () => handleUserPreferences),
         wrapHandle("authentication", () => handleAuthentication),
         wrapHandle("authorization", () => handleAuthorization),
@@ -378,7 +373,6 @@ const getPipeline = () => {
       cachedPipelineSetup = sequence(
         wrapHandle("hyper-turbo", () => handleHyperTurbo),
         wrapHandle("turbo-pipeline", () => handleTurboPipeline),
-        wrapHandle("security-headers", () => handleSecurityHeaders),
         wrapHandle("compression", () => handleCompression),
       );
     }

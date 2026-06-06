@@ -21,29 +21,6 @@ import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/s
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { safeParse } from "valibot";
-import {
-  testDatabaseConnection as testDbRemote,
-  seedDatabase as seedDbRemote,
-  completeSetup as completeSetupRemote,
-  testRedisConnection as testRedisRemote,
-} from "../routes/setup/setup.remote";
-
-// Compatibility: wrap for the store's object-style call pattern
-const _testDb = (p: any) =>
-  testDbRemote({
-    configData: p.configData,
-    createIfMissing: p.createIfMissing,
-    allowOverwrite: p.allowOverwrite,
-  });
-const _seedDb = (p: any) => seedDbRemote({ configData: p.configData, systemData: p.systemData });
-const _completeSetup = (p: any) =>
-  completeSetupRemote({
-    database: p.database,
-    admin: p.admin,
-    system: p.system,
-  });
-const _testRedis = (p: any) =>
-  testRedisRemote({ host: p.host, port: p.port, password: p.password });
 
 // --- Types ---
 export type SupportedDbType =
@@ -445,7 +422,8 @@ function createSetupStore() {
     wizard.lastDbTestResult = null;
 
     try {
-      const data = await _testDb({
+      const { testDatabaseConnection: testDbRemote } = await import("../routes/setup/setup.remote");
+      const data = await testDbRemote({
         configData: wizard.dbConfig,
         createIfMissing,
         allowOverwrite,
@@ -511,7 +489,8 @@ function createSetupStore() {
     wizard.isLoading = true;
 
     try {
-      const data = await _seedDb({
+      const { seedDatabase: seedDbRemote } = await import("../routes/setup/setup.remote");
+      const data = await seedDbRemote({
         configData: wizard.dbConfig,
         systemData: wizard.systemSettings,
       });
@@ -579,7 +558,8 @@ function createSetupStore() {
 
     try {
       logger.debug("[SetupStore] Calling completeSetup remote function...");
-      const data = await _completeSetup({
+      const { completeSetup: completeSetupRemote } = await import("../routes/setup/setup.remote");
+      const data = await completeSetupRemote({
         database: wizard.dbConfig,
         admin: wizard.adminUser,
         system: {
@@ -686,7 +666,8 @@ function createSetupStore() {
     wizard.lastRedisTestResult = null;
 
     try {
-      const data = await _testRedis({
+      const { testRedisConnection: testRedisRemote } = await import("../routes/setup/setup.remote");
+      const data = await testRedisRemote({
         host: wizard.systemSettings.redisHost,
         port: Number(wizard.systemSettings.redisPort),
         password: (wizard.systemSettings.redisPassword || undefined) as string,

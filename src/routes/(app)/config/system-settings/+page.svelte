@@ -25,7 +25,6 @@ import { onMount, untrack } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { fade } from "svelte/transition";
 import { goto } from "$app/navigation";
-import { enhance } from "$app/forms";
 import { page } from "$app/state";
 import GenericSettingsGroup from "./generic-settings-group.svelte";
 import type { SettingGroup } from "./settings-groups";
@@ -57,21 +56,6 @@ beforeNavigate(({ cancel }) => {
 // Repair Action State
 let isRepairing = $state(false);
 let repairResult = $state<{ success: boolean; message?: string; error?: string } | null>(null);
-
-function handleRepair() {
-	isRepairing = true;
-	repairResult = null;
-	return async ({ result }: any) => {
-		isRepairing = false;
-		if (result.type === 'success') {
-			repairResult = { success: true, message: result.data.message };
-			setTimeout(() => { repairResult = null; }, 5000);
-		} else if (result.type === 'failure' || result.type === 'error') {
-			repairResult = { success: false, error: result.data?.error || 'Repair failed' };
-		}
-	};
-}
-
 
 // Derived selection from URL
 const selectedGroupId = $derived(page.url.searchParams.get("group"));
@@ -215,12 +199,27 @@ $effect(() => {
 				</StickyActions>
 			{/if}
 
-			<form method="POST" action="?/repairContentCache" use:enhance={handleRepair} class="w-full sm:w-auto">
-				<button disabled={isRepairing} class="btn preset-filled-warning-500 w-full flex items-center justify-center gap-1.5">
-					<span>{isRepairing ? '⏳' : '🛠️'}</span>
-					<span>{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
-				</button>
-			</form>
+			<button disabled={isRepairing} class="btn preset-filled-warning-500 w-full flex items-center justify-center gap-1.5" onclick={async () => {
+				isRepairing = true;
+				repairResult = null;
+				try {
+					const { repairContentCache } = await import('./settings.remote');
+					const result = await repairContentCache();
+					if (result.success) {
+						repairResult = { success: true, message: result.message };
+						setTimeout(() => { repairResult = null; }, 5000);
+					} else {
+						repairResult = { success: false, error: result.error || 'Repair failed' };
+					}
+				} catch (e: any) {
+					repairResult = { success: false, error: e.message || 'Repair failed' };
+				} finally {
+					isRepairing = false;
+				}
+			}}>
+				<span>{isRepairing ? '⏳' : '🛠️'}</span>
+				<span>{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
+			</button>
 
 			<button onclick={exportAll} class="btn preset-filled-surface-500 w-full sm:w-auto flex items-center justify-center gap-1.5">
 				<span>📤</span>

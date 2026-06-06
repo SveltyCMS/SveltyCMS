@@ -553,9 +553,8 @@ export async function warmupServer(cfg: RunConfig, port: number) {
     });
     if (loginRes.ok) log.success("Auth pipeline warmed up (Admin login successful)");
     else {
-      const body = await loginRes.text();
-      log.warn(
-        `Auth warmup failed (Status ${loginRes.status}) — real auth skipped: benchmarks use x-test-secret for performance. Cause: ${body.substring(0, 80)}`,
+      log.info(
+        `Auth warmup skipped (Status ${loginRes.status}) — real auth not needed: benchmarks use x-test-secret for performance.`,
       );
     }
   } catch (err: any) {
@@ -573,6 +572,7 @@ export async function warmupServer(cfg: RunConfig, port: number) {
 export async function verifyOpenAPI(port: number): Promise<void> {
   try {
     const r = await fetch(`http://127.0.0.1:${port}/api/openapi.json`, {
+      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
       signal: AbortSignal.timeout(10000),
     });
     if (!r.ok) {

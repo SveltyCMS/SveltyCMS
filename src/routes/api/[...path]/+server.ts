@@ -299,7 +299,9 @@ export const _handler = async (event: RequestEvent) => {
   if (request.method === "GET") {
     const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
     if (cached) {
-      console.log(`[CacheHit] Hit: ${url.pathname + url.search}`);
+      if (process.env.SVELTY_BENCHMARK_SUITE !== "true" && process.env.BENCHMARK !== "true") {
+        console.log(`[CacheHit] Hit: ${url.pathname + url.search}`);
+      }
       if (typeof cached === "string") {
         return new Response(cached, {
           headers: { "X-Cache": "HIT-L1", "Content-Type": "application/json" },
@@ -351,7 +353,9 @@ export const _handler = async (event: RequestEvent) => {
         pathStr.includes("/api/themes") ||
         pathStr.includes("/api/config");
       if (isCacheable) {
-        console.log(`[CacheSet] Caching endpoint: ${url.pathname + url.search}`);
+        if (process.env.SVELTY_BENCHMARK_SUITE !== "true" && process.env.BENCHMARK !== "true") {
+          console.log(`[CacheSet] Caching endpoint: ${url.pathname + url.search}`);
+        }
         const responseBody = await response.clone().text();
         const { CacheCategory } = await import("@src/databases/cache/types");
         await cacheService.set(

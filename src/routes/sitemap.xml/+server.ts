@@ -33,18 +33,22 @@ export const GET: RequestHandler = async ({ locals, url }: { locals: any; url: U
     // Only include public collections (not system ones)
     if (col.name.startsWith("system_") || col.name === "redirects") continue;
 
-    const result = await cms.collections.find(col.name, {
-      publicationFilter: "published",
-      tenantId,
-    });
+    try {
+      const result = await cms.collections.find(col.name, {
+        publicationFilter: "published",
+        tenantId,
+      });
 
-    if (result.success) {
-      entries.push(
-        ...result.data.map((e: any) => ({
-          ...e,
-          _collection: col.name,
-        })),
-      );
+      if (result.success) {
+        entries.push(
+          ...result.data.map((e: any) => ({
+            ...e,
+            _collection: col.name,
+          })),
+        );
+      }
+    } catch {
+      // Gracefully skip collections that fail to resolve (e.g., schema cache mismatch)
     }
   }
 

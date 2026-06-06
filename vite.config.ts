@@ -30,12 +30,14 @@ import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import adapter from "svelte-adapter-uws";
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { svelteInspector } from "@sveltejs/vite-plugin-svelte-inspector";
 import tailwindcss from "@tailwindcss/vite";
 import uws from "svelte-adapter-uws/vite";
 import realtime from "svelte-realtime/vite";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
 import { compile } from "./src/utils/compilation/compile.ts";
@@ -851,7 +853,97 @@ export default defineConfig((): any => {
       privateConfigFallbackPlugin(),
       stubServerModulesPlugin(),
       browserShimsPlugin(),
-      sveltekit(),
+      sveltekit({
+        preprocess: [vitePreprocess()],
+        compilerOptions: {
+          runes: true,
+          experimental: {
+            async: true,
+          },
+        },
+        adapter: adapter({
+          out: "build",
+          precompress: true,
+          envPrefix: "",
+          websocket: true,
+        }),
+        experimental: {
+          remoteFunctions: true,
+        },
+        alias: {
+          $paraglide: "./src/paraglide",
+          "@api": "./src/routes/api",
+          "@auth": "./src/databases/auth",
+          "@collections": "./config/collections",
+          "@config": "./config",
+          "@components": "./src/components",
+          "@content": "./src/content",
+          "@databases": "./src/databases",
+          "@hooks": "./src/hooks",
+          "@root": ".",
+          "@services": "./src/services",
+          "@src": "./src",
+          "@static": "./static",
+          "@stores": "./src/stores",
+          "@themes": "./src/themes",
+          "@types": "./src/types",
+          "@utils": "./src/utils",
+          "@widgets": "./src/widgets",
+        },
+        csrf: {
+          trustedOrigins: [
+            "http://127.0.0.1:4173",
+            "http://127.0.0.1:4174",
+            "http://127.0.0.1:4175",
+            "http://127.0.0.1:4176",
+            "http://127.0.0.1:4177",
+            "http://127.0.0.1:4178",
+            "http://127.0.0.1:4179",
+            "http://localhost:4173",
+          ],
+        },
+        csp: {
+          mode: "nonce",
+          directives: {
+            "default-src": ["self"],
+            "script-src": [
+              "self",
+              "blob:",
+              "https://*.iconify.design",
+              "https://code.iconify.design",
+            ],
+            "worker-src": ["self", "blob:"],
+            "style-src": ["self", "https://*.iconify.design"],
+            "img-src": [
+              "self",
+              "data:",
+              "blob:",
+              "https://*.iconify.design",
+              "https://*.simplesvg.com",
+              "https://*.unisvg.com",
+              "https://placehold.co",
+              "https://api.qrserver.com",
+              "https://github.com",
+              "https://raw.githubusercontent.com",
+            ],
+            "font-src": ["self", "data:"],
+            "connect-src": [
+              "self",
+              "https://*.iconify.design",
+              "https://*.simplesvg.com",
+              "https://*.unisvg.com",
+              "https://code.iconify.design",
+              "https://raw.githubusercontent.com",
+              "wss:",
+              "ws:",
+            ],
+            "object-src": ["none"],
+            "base-uri": ["self"],
+            "form-action": ["self"],
+            "frame-src": ["self", "https://127.0.0.1:5173", "https://localhost:5173"],
+          },
+        },
+      }),
       uws(),
       realtime({ typedImports: !isBuild }),
       svelteInspector({

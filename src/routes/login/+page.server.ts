@@ -6,13 +6,10 @@
  * The form actions below parse formData and delegate to those functions.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
 import { generateGoogleAuthUrl, googleAuth } from "@src/databases/auth/google-auth";
 import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
-import { auth, dbInitPromise, shutdownSystem } from "@src/databases/db";
-import { isHttpError, isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
-import { invalidateSetupCache } from "@utils/setup-check";
+import { auth, dbInitPromise } from "@src/databases/db";
+import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import type { PageServerLoad } from "./$types";
 import type { ISODateString, DatabaseId } from "@src/content/types";
@@ -410,116 +407,5 @@ export const actions: Actions = {
     const inviteToken = event.url.searchParams.get("invite_token");
     const authUrl = await generateGithubAuthUrl(inviteToken, undefined);
     throw redirect(303, authUrl);
-  },
-
-  verify2FA: async (event) => {
-    const isTestSecurity = event.request.headers.get("x-test-security") === "true";
-    if ((process.env.TEST_MODE !== "true" || isTestSecurity) && (await limiter.isLimited(event))) {
-      event.setHeaders({ "Retry-After": "60" });
-      return fail(429, { message: "Too many requests." });
-    }
-    try {
-      await dbInitPromise;
-    } catch {
-      return fail(503, { message: "Database system is not ready." });
-    }
-    if (!(await waitForAuthService()) || !auth)
-      return fail(503, { message: "Authentication system is not ready." });
-
-    const formData = await event.request.formData();
-    const userId = (formData.get("userId") as string) || "";
-    const code = (formData.get("code") as string) || "";
-    if (!userId || !code) return fail(400, { message: "User ID and code required." });
-
-    const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
-    try {
-      const twoFactorService = getDefaultTwoFactorAuthService(auth as any);
-      if (!twoFactorService) return fail(503, { message: "2FA service unavailable." });
-      const twoFaResult = await twoFactorService.verify2FA(userId as any as DatabaseId, code);
-      if (!twoFaResult.success) {
-        return fail(400, {
-          message: twoFaResult.message || "Invalid 2FA code.",
-        });
-      }
-
-      const user = await auth.getUserById(userId);
-      if (!user) return fail(400, { message: "User not found." });
-
-      const sessionCookie = auth.createSessionCookie(userId as any as DatabaseId);
-      event.cookies.set(sessionCookie.name, sessionCookie.value, {
-        ...(sessionCookie.attributes as Record<string, unknown>),
-        path: "/",
-      });
-
-      auth
-        .updateUserAttributes(
-          userId as any,
-          {
-            lastAuthMethod: "security",
-            lastActiveAt: new Date().toISOString() as any,
-          },
-          { bypassTenantCheck: true },
-        )
-        .catch(() => {});
-
-      let finalCollectionPath: string | null = null;
-      try {
-        finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
-      } catch {}
-      throw redirect(303, finalCollectionPath ?? "/config/collectionbuilder");
-    } catch (err) {
-      if (isRedirect(err) || isHttpError(err)) throw err;
-      logger.error("2FA verification error:", (err as Error).message);
-      return fail(500, { message: "2FA verification failed." });
-    }
-  },
-
-  resetSetup: async ({ locals }) => {
-    try {
-      const systemState = getSystemState();
-
-      const isAdmin = locals.user?.role === "admin";
-      const isSystemFailed = systemState.overallState === "FAILED";
-      const isTestMode = process.env.TEST_MODE === "true";
-      const dbHealth = await checkDatabaseHealth();
-      const isDbUnhealthy = !dbHealth.healthy;
-
-      if (!(isAdmin || isSystemFailed || isTestMode || isDbUnhealthy)) {
-        return fail(403, {
-          message: "You do not have permission to reset the setup.",
-        });
-      }
-
-      if (!isTestMode) {
-        const configPath = path.join(process.cwd(), "config", "private.ts");
-        try {
-          await fs.unlink(configPath);
-        } catch (e: any) {
-          if (e.code !== "ENOENT") {
-            logger.warn(`Could not delete private.ts (${e.code}). Attempting to clear it instead.`);
-            try {
-              // On Windows, if Vite locks the file, we can sometimes still truncate it
-              await fs.writeFile(configPath, "");
-            } catch {
-              throw e; // throw the original error if both fail
-            }
-          }
-        }
-      }
-
-      // Shut down database system completely in memory and clear registries
-      try {
-        await shutdownSystem();
-      } catch (shutdownErr) {
-        logger.error("Failed to shutdown database system during setup reset:", shutdownErr);
-      }
-
-      _dbHealthCache = null;
-      invalidateSetupCache(true);
-      return { success: true, message: "Setup has been reset." };
-    } catch (error) {
-      logger.error("Failed to reset setup:", error);
-      return fail(500, { message: "Failed to reset setup." });
-    }
   },
 };

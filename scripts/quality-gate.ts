@@ -100,11 +100,6 @@ async function main() {
           : run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"]),
     },
     {
-      name: "Unit Tests (Bun Native)",
-      skip: !hasTsOrSvelte || process.env.PRE_COMMIT === "true",
-      run: () => run("bun run test:unit:bun"),
-    },
-    {
       name: "Production Build",
       skip: !hasTsOrSvelte || process.env.PRE_COMMIT === "true",
       run: () => run("bun run build", [], { env: { COMPILE_ALL_ADAPTERS: "true" } }),

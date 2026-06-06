@@ -63,8 +63,8 @@ import PageTitle from "@src/components/page-title.svelte";
 import { logger } from "@utils/logger";
 import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
-import { deserialize } from "$app/forms";
 import { afterNavigate, goto, invalidate } from "$app/navigation";
+import { saveContentStructure, deleteContentNodes, installPreset } from "./collectionbuilder.remote";
 import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount } from "svelte";
 import { page } from "$app/state";
@@ -182,65 +182,28 @@ function getDescendantIds(categoryId: string, flat: ContentNode[]): string[] {
 }
 
 async function doDelete(idsToDelete: string[]) {
-	const formData = new FormData();
-	formData.append("ids", JSON.stringify(idsToDelete));
-	const response = await fetch("?/deleteCollections", {
-		method: "POST",
-		body: formData,
-	});
-
-	const text = await response.text();
-	const result = text
-		? (deserialize(text) as {
-				type?: string;
-				data?: {
-					success?: boolean;
-					message?: string;
-					contentStructure?: ContentNode[];
-				};
-				error?: { message?: string };
-			})
-		: {};
-	const payload = (
-		result.type === "success" || result.type === "failure"
-			? result.data
-			: result
-	) as
-		| { success?: boolean; message?: string; contentStructure?: ContentNode[] }
-		| undefined;
-	const message =
-		result.type === "error"
-			? (result.error?.message ?? "Server error")
-			: (payload?.message ?? "Deletion failed");
-
-	if (!response.ok) {
-		logger.error("Delete failed", message);
-		toast.error(message);
-		return;
-	}
-
-	if (
-		(result.type === "success" && payload?.success) ||
-		payload?.success === true
-	) {
-		if (payload?.contentStructure && Array.isArray(payload.contentStructure)) {
-			currentConfig = payload.contentStructure;
-			setContentStructure(payload.contentStructure);
-		} else {
+	try {
+		const result = await deleteContentNodes(idsToDelete);
+		if ("success" in result && result.success) {
 			const idSet = new SvelteSet(idsToDelete);
 			currentConfig = currentConfig.filter(
 				(n) => !idSet.has(n._id?.toString() ?? ""),
 			);
 			setContentStructure(currentConfig);
+			// Invalidate layout so edit/create page sidebar gets fresh structure (no deleted items)
+			await invalidate("app:content");
+			toast.success(
+				idsToDelete.length > 1
+					? "Category and attached items deleted"
+					: "Item deleted successfully",
+			);
+		} else {
+			const message = (result as any).message ?? "Deletion failed";
+			logger.error("Delete failed", message);
+			toast.error(message);
 		}
-		// Invalidate layout so edit/create page sidebar gets fresh structure (no deleted items)
-		await invalidate("app:content");
-		toast.success(
-			idsToDelete.length > 1
-				? "Category and attached items deleted"
-				: "Item deleted successfully",
-		);
-	} else {
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Deletion failed";
 		logger.error("Delete failed", message);
 		toast.error(message);
 	}
@@ -388,56 +351,19 @@ async function handleSave() {
 
 	try {
 		isLoading = true;
-		const formData = new FormData();
-		formData.append("items", JSON.stringify(items));
 
-		const response = await fetch("?/saveConfig", {
-			method: "POST",
-			body: formData,
-		});
+		const result = await saveContentStructure(items as any);
 
-		const text = await response.text();
-		let result: {
-			type?: string;
-			data?: {
-				success?: boolean;
-				contentStructure?: unknown;
-				message?: string;
-				idMapping?: Record<string, string>;
-			};
-			error?: { message?: string };
-		};
-		try {
-			result = text ? (deserialize(text) as typeof result) : {};
-		} catch {
-			logger.error("Error saving categories: response was not valid", {
-				status: response.status,
-				body: text.slice(0, 200),
-			});
-			toast.error(
-				response.ok
-					? "Invalid server response"
-					: `Save failed (${response.status})`,
-			);
-			return;
-		}
-
-		const payload: {
-			success?: boolean;
-			contentStructure?: unknown;
-			message?: string;
-			idMapping?: Record<string, string>;
-		} =
-			result.type === "success" || result.type === "failure"
-				? ((result.data as typeof payload) ?? {})
-				: ((result as typeof payload) ?? {});
-
-		const message =
-			result.type === "error"
-				? (result.error?.message ?? "Server error")
-				: (payload?.message ?? "Failed to save");
-
-		if (!response.ok) {
+		if ("success" in result && result.success && result.contentStructure) {
+			toast.success("Organization updated successfully");
+			currentConfig = result.contentStructure as ContentNode[];
+			setContentStructure(currentConfig);
+			treeVersion++;
+			skipNextSyncFromData = true;
+			nodesToSave = {};
+			await invalidate("app:content");
+		} else {
+			const message = (result as any).message ?? "Failed to save";
 			logger.error("Error saving categories:", message);
 			const isDuplicateName =
 				typeof message === "string" &&
@@ -448,51 +374,6 @@ async function handleSave() {
 			} else {
 				toast.error(message);
 			}
-			return;
-		}
-
-		// SvelteKit fail() returns HTTP 200 with result.type === 'failure' — treat as failure; never show success
-		const isFailureOrDuplicate =
-			result.type === "failure" ||
-			(typeof message === "string" &&
-				(message.includes("already exists at this level") ||
-					message.includes("already exists in the target category")));
-		if (isFailureOrDuplicate) {
-			logger.error("Error saving categories:", message);
-			toast.warning(
-				message ||
-					"A category/collection with this name already exists at this level. Please choose another name.",
-			);
-			return;
-		}
-
-		const isSuccess =
-			(result.type === "success" && payload?.success) ||
-			(payload?.success === true && payload?.contentStructure != null);
-		if (isSuccess) {
-			toast.success("Organization updated successfully");
-			if (payload?.contentStructure) {
-				const idMap = payload.idMapping ?? {};
-				currentConfig = (payload.contentStructure as ContentNode[]).map(
-					(node) => {
-						const oldId = node._id.toString();
-						const realId = idMap[oldId];
-						if (realId) {
-							node._id = realId as DatabaseId;
-							node.path = node.path?.replace(oldId, realId) ?? node.path;
-						}
-						return node;
-					},
-				);
-				setContentStructure(currentConfig);
-				treeVersion++;
-			}
-			skipNextSyncFromData = true;
-			nodesToSave = {};
-			await invalidate("app:content");
-		} else {
-			logger.error("Error saving categories:", message);
-			toast.error(message);
 		}
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
@@ -643,33 +524,19 @@ function modalLoadPreset(): void {
 
 			try {
 				isLoading = true;
-				const formData = new FormData();
-				formData.append("presetId", response.presetId);
 
-				const res = await fetch("?/loadPreset", {
-					method: "POST",
-					body: formData,
-				});
+				const result = await installPreset(response.presetId);
 
-				const text = await res.text();
-				const result = text ? (deserialize(text) as any) : {};
+				if ("success" in result && result.success) {
+					toast.success(`Preset ${response.presetId} loaded successfully`);
 
-				const payload = result.type === "success" ? result.data : result;
-
-				if (!res.ok || result.type === "failure" || result.type === "error") {
-					const message =
-						payload?.message ||
-						result.error?.message ||
-						"Failed to load preset";
+					// Force a full page reload to reflect the new collections
+					// which are now compiled into the system
+					window.location.reload();
+				} else {
+					const message = (result as any).message || "Failed to load preset";
 					toast.error(message);
-					return;
 				}
-
-				toast.success(`Preset ${response.presetId} loaded successfully`);
-
-				// Force a full page reload to reflect the new collections
-				// which are now compiled into the system
-				window.location.reload();
 			} catch (err) {
 				logger.error("Error loading preset:", err);
 				toast.error(

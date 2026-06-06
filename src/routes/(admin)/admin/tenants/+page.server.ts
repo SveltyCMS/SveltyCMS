@@ -9,7 +9,7 @@ import { TenantModel } from "@src/databases/mongodb/tenant";
 import { error, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
-import type { Actions, PageServerLoad } from "./$types";
+import type { PageServerLoad } from "./$types";
 
 // Only System Admins can access this
 export const load: PageServerLoad = async ({ locals }) => {
@@ -28,31 +28,4 @@ export const load: PageServerLoad = async ({ locals }) => {
     logger.error("Failed to load tenants", err);
     throw error(500, "Failed to load tenants");
   }
-};
-
-export const actions: Actions = {
-  // Action to suspend/activate a tenant
-  toggleStatus: async ({ request, locals }) => {
-    const { user, isAdmin } = locals;
-
-    if (!user || !isAdmin || user.tenantId) {
-      throw error(403, "Forbidden");
-    }
-
-    const formData = await request.formData();
-    const tenantId = formData.get("tenantId") as string;
-    const status = formData.get("status") as string;
-
-    if (!tenantId || !["active", "suspended"].includes(status)) {
-      throw error(400, "Invalid parameters");
-    }
-
-    try {
-      await TenantModel.updateOne({ _id: tenantId }, { status });
-      return { success: true };
-    } catch (err) {
-      logger.error(`Failed to update tenant status ${tenantId}`, err);
-      throw error(500, "Update failed");
-    }
-  },
 };

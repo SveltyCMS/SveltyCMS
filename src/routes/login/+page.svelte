@@ -49,7 +49,6 @@ import {
 import { systemLanguage } from "@src/stores/store.svelte.ts";
 import { getLanguageName } from "@utils/language-utils";
 // SvelteKit
-import { deserialize } from "$app/forms";
 // Components
 import SignIn from "./components/sign-in.svelte";
 import SignUp from "./components/sign-up.svelte";
@@ -330,19 +329,12 @@ function handleSignUpPointerEnter() {
 							type="button"
 							onclick={async () => {
 								if (confirm(db_error_reset_confirm())) {
-									const response = await fetch('?/resetSetup', { method: 'POST', body: new FormData() });
-									const result = deserialize(await response.text());
-
-									if (result.type === 'success') {
-										const data = result.data as { success: boolean; error?: string };
-										if (data.success) {
-											window.location.href = '/setup';
-										} else {
-											alert('Failed to reset setup: ' + (data.error || 'Unknown error'));
-										}
+									const { resetSetup } = await import('./auth.remote');
+									const result = await resetSetup();
+									if (result.success) {
+										window.location.href = '/setup';
 									} else {
-										const errorMsg = (result as { data?: { error?: string } }).data?.error || 'Failed to reset setup';
-										alert('Failed to reset setup: ' + errorMsg);
+										alert('Failed to reset setup: ' + (result.message || 'Unknown error'));
 									}
 								}
 							}}

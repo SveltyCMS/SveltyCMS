@@ -433,9 +433,9 @@
 						aria-label="User Profile"
 						class="{isSidebarFull
 							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
-							: 'h-8 w-8 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
-					>
-						<img src={avatarUrl} alt="User Avatar" class="mx-auto h-full w-full overflow-hidden rounded-full object-cover {isSidebarFull ? 'size-8' : 'size-7'}" />
+							: 'h-9 w-9 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
+						>
+							<img src={avatarUrl} alt="User Avatar" class="mx-auto h-full w-full overflow-hidden rounded-full object-cover {isSidebarFull ? 'size-8' : 'size-8'}" />
 						{#if isSidebarFull && user?.username}
 							<div
 								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-xs font-semibold leading-tight"

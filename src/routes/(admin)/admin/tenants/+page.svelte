@@ -1,11 +1,11 @@
 <!--
-@file src/routes/(admin)/admin/tenants/+page.svelte 
+@file src/routes/(admin)/admin/tenants/+page.svelte
 @component
 **Admin dashboard for managing tenants, quotas, and statuses. features: List tenants, toggle status, visualize quotas**
 
 ### Props:
  - `data`: { tenants: Tenant[] }
- 
+
 ### Features:
  - List tenants
  - Toggle tenant status
@@ -13,7 +13,6 @@
 -->
 
 <script lang="ts">
-import { enhance } from "$app/forms";
 import type { PageData } from "./$types";
 
 let { data } = $props<{ data: PageData }>();
@@ -89,16 +88,20 @@ function formatBytes(bytes: number, decimals = 2) {
 						<td class="uppercase text-xs font-bold opacity-70">{tenant.plan}</td>
 						<td>{new Date(tenant.createdAt).toLocaleDateString()}</td>
 						<td>
-							<form method="POST" action="?/toggleStatus" use:enhance>
-								<input type="hidden" name="tenantId" value={tenant._id} />
-								{#if tenant.status === 'active'}
-									<input type="hidden" name="status" value="suspended" />
-									<button class="btn btn-sm variant-soft-error">Suspend</button>
-								{:else}
-									<input type="hidden" name="status" value="active" />
-									<button class="btn btn-sm variant-filled-success">Activate</button>
-								{/if}
-							</form>
+							<button
+								class="btn btn-sm {tenant.status === 'active' ? 'variant-soft-error' : 'variant-filled-success'}"
+								onclick={async () => {
+									const { toggleTenantStatus } = await import('./tenants.remote');
+									await toggleTenantStatus({
+										tenantId: tenant._id,
+										status: tenant.status === 'active' ? 'suspended' : 'active',
+									});
+									// Reload to reflect changes
+									window.location.reload();
+								}}
+							>
+								{tenant.status === 'active' ? 'Suspend' : 'Activate'}
+							</button>
 						</td>
 					</tr>
 				{/each}

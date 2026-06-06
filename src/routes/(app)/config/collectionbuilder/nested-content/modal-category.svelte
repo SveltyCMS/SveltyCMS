@@ -20,7 +20,6 @@ import {
 	setContentStructure,
 } from "@src/stores/collection-store.svelte";
 import { logger } from "@utils/logger";
-import { deserialize } from "$app/forms";
 import { invalidate } from "$app/navigation";
 
 // Lucide Icons
@@ -157,61 +156,18 @@ async function deleteCategory(): Promise<void> {
 	formError = null;
 
 	try {
-		const formDataDelete = new FormData();
-		formDataDelete.append("ids", JSON.stringify(idsToDelete));
-		const response = await fetch("?/deleteCollections", {
-			method: "POST",
-			body: formDataDelete,
-		});
+		const { deleteContentNodes } = await import("../collectionbuilder.remote");
+		const result = await deleteContentNodes([categoryId]);
 
-		const text = await response.text();
-		const result = text
-			? (deserialize(text) as {
-					type?: string;
-					data?: {
-						success?: boolean;
-						message?: string;
-						contentStructure?: ContentNode[];
-					};
-					error?: { message?: string };
-				})
-			: {};
-		const payload = (
-			result.type === "success" || result.type === "failure"
-				? result.data
-				: result
-		) as
-			| {
-					success?: boolean;
-					message?: string;
-					contentStructure?: ContentNode[];
-			  }
-			| undefined;
-		const message =
-			result.type === "error"
-				? (result.error?.message ?? "Server error")
-				: (payload?.message ?? "Deletion failed");
-
-		if (!response.ok) {
-			logger.error("Delete category failed", message);
-			formError = message;
-			return;
-		}
-
-		if (
-			(result.type === "success" && payload?.success) ||
-			payload?.success === true
-		) {
-			const newStructure =
-				payload?.contentStructure && Array.isArray(payload.contentStructure)
-					? payload.contentStructure
-					: flat.filter(
-							(n) => !new SvelteSet(idsToDelete).has(n._id?.toString() ?? ""),
-						);
+		if ("success" in result && result.success) {
+			const newStructure = flat.filter(
+				(n) => !new SvelteSet(idsToDelete).has(n._id?.toString() ?? ""),
+			);
 			setContentStructure(newStructure);
 			await invalidate("app:content");
 			close?.({ __categoryDeleted: true, contentStructure: newStructure });
 		} else {
+			const message = (result as any).message ?? "Deletion failed";
 			formError = message;
 		}
 	} catch (error) {

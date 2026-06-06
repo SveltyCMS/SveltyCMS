@@ -15,8 +15,7 @@
 import { error, redirect } from "@sveltejs/kit";
 // System Logs
 import { logger } from "@utils/logger";
-import { contentService } from "@src/content/content-service.server";
-import type { PageServerLoad, Actions } from "./$types";
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
@@ -68,35 +67,4 @@ export const load: PageServerLoad = async ({ locals }) => {
     logger.error(message);
     throw error(500, message);
   }
-};
-
-export const actions: Actions = {
-  repairContentCache: async ({ locals }) => {
-    const { isAdmin, user } = locals;
-    if (!isAdmin) {
-      throw error(403, "Only administrators can repair the content cache.");
-    }
-
-    logger.info(`🛠️ Content Cache Repair triggered by user: ${user?._id}`);
-
-    try {
-      // 1. Clear any mtime/schema caches to force a fresh scan
-      // (Optionally done here or inside fullReload)
-
-      // 2. Trigger full structural reconciliation
-      await contentService.fullReload();
-
-      return {
-        success: true,
-        message: "Content structure cache rebuilt and synchronized successfully.",
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      logger.error(`❌ Content Cache Repair failed: ${msg}`);
-      return {
-        success: false,
-        error: `Repair failed: ${msg}`,
-      };
-    }
-  },
 };

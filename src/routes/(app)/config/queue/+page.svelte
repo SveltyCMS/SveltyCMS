@@ -4,7 +4,6 @@
 -->
 
 <script lang="ts">
-import { enhance } from "$app/forms";
 import { invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -79,7 +78,7 @@ function getFilterUrl(status?: string) {
 
 	<!-- Statistics Cards -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }}>
-		<a href={getFilterUrl()} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
+		<a href={getFilterUrl()} class="card p-4 border border-surface-200  bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg bg-surface-200 dark:bg-surface-700">
 					<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
@@ -153,21 +152,24 @@ function getFilterUrl(status?: string) {
 		</div>
 
 		<div class="flex items-center gap-2">
-			<form method="POST" action="?/clearCompleted" use:enhance={() => {
+			<button class="btn btn-sm preset-ghost-surface-500" disabled={isClearing} onclick={async () => {
 				isClearing = true;
-				return async ({ result }) => {
-					isClearing = false;
-					if (result.type === 'success') {
+				try {
+					const { clearCompleted } = await import('./queue.remote');
+					const result = await clearCompleted();
+					if (result.success) {
 						toast.success('Completed jobs cleared.');
 						invalidateAll();
 					}
-				};
+				} catch (e: any) {
+					toast.error(e.message || 'Failed to clear completed jobs.');
+				} finally {
+					isClearing = false;
+				}
 			}}>
-				<button class="btn btn-sm preset-ghost-surface-500" disabled={isClearing}>
-					<iconify-icon icon="mdi:broom"></iconify-icon>
-					<span>Clear Completed</span>
-				</button>
-			</form>
+				<iconify-icon icon="mdi:broom"></iconify-icon>
+				<span>Clear Completed</span>
+			</button>
 		</div>
 	</div>
 
@@ -222,39 +224,43 @@ function getFilterUrl(status?: string) {
 							<td class="p-3 text-right">
 								<div class="flex items-center justify-end gap-1">
 									{#if job.status === 'failed'}
-										<form method="POST" action="?/retryJob" use:enhance={() => {
+										<button class="btn btn-sm preset-tonal-primary-500" title="Retry Job" disabled={isRetrying} onclick={async () => {
 											isRetrying = true;
-											return async ({ result }) => {
-												isRetrying = false;
-												if (result.type === 'success') {
+											try {
+												const { retryJob } = await import('./queue.remote');
+												const result = await retryJob(job._id);
+												if (result.success) {
 													toast.success('Job rescheduled.');
 													invalidateAll();
 												}
-											};
+											} catch (e: any) {
+												toast.error(e.message || 'Failed to retry job.');
+											} finally {
+												isRetrying = false;
+											}
 										}}>
-											<input type="hidden" name="jobId" value={job._id} />
-											<button class="btn btn-sm preset-tonal-primary-500" title="Retry Job" disabled={isRetrying}>
-												<iconify-icon icon="mdi:replay"></iconify-icon>
-											</button>
-										</form>
+											<iconify-icon icon="mdi:replay"></iconify-icon>
+										</button>
 									{/if}
 
-									<form method="POST" action="?/deleteJob" use:enhance={() => {
+									<button class="btn btn-sm preset-tonal-error-500" title="Delete Job" disabled={isDeleting} onclick={async () => {
 										if (!confirm('Are you sure you want to delete this job?')) return;
 										isDeleting = true;
-										return async ({ result }) => {
-											isDeleting = false;
-											if (result.type === 'success') {
+										try {
+											const { deleteJob } = await import('./queue.remote');
+											const result = await deleteJob(job._id);
+											if (result.success) {
 												toast.success('Job deleted.');
 												invalidateAll();
 											}
-										};
+										} catch (e: any) {
+											toast.error(e.message || 'Failed to delete job.');
+										} finally {
+											isDeleting = false;
+										}
 									}}>
-										<input type="hidden" name="jobId" value={job._id} />
-										<button class="btn btn-sm preset-tonal-error-500" title="Delete Job" disabled={isDeleting}>
-											<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-										</button>
-									</form>
+										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
+									</button>
 								</div>
 							</td>
 						</tr>

@@ -4,9 +4,8 @@
  */
 
 import { getDb } from "@src/databases/db";
-import type { DatabaseId } from "@src/databases/db-interface";
-import { error, fail } from "@sveltejs/kit";
-import type { Actions, PageServerLoad } from "./$types";
+import { error } from "@sveltejs/kit";
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ url }) => {
   const db = getDb();
@@ -52,62 +51,4 @@ export const load: PageServerLoad = async ({ url }) => {
       offset,
     },
   };
-};
-
-export const actions: Actions = {
-  retryJob: async ({ request }) => {
-    const db = getDb();
-    if (!db || !db.system.jobs) return fail(500, { message: "Database not ready" });
-
-    const formData = await request.formData();
-    const jobId = formData.get("jobId") as string;
-
-    if (!jobId) return fail(400, { message: "Job ID is required" });
-
-    const result = await db.system.jobs.update(jobId as DatabaseId, {
-      status: "pending",
-      attempts: 0,
-      nextRunAt: new Date(),
-      lastError: undefined,
-    });
-
-    if (!result.success) {
-      return fail(500, { message: result.message });
-    }
-
-    return { success: true };
-  },
-
-  deleteJob: async ({ request }) => {
-    const db = getDb();
-    if (!db || !db.system.jobs) return fail(500, { message: "Database not ready" });
-
-    const formData = await request.formData();
-    const jobId = formData.get("jobId") as string;
-
-    if (!jobId) return fail(400, { message: "Job ID is required" });
-
-    const result = await db.system.jobs.delete(jobId as DatabaseId);
-
-    if (!result.success) {
-      return fail(500, { message: result.message });
-    }
-
-    return { success: true };
-  },
-
-  clearCompleted: async () => {
-    const db = getDb();
-    if (!db || !db.system.jobs) return fail(500, { message: "Database not ready" });
-
-    // In a real scenario, we might want to cleanup jobs older than a certain date
-    // For now, let's just use the cleanup method with a very recent date to clear all finished jobs
-    const result = await db.system.jobs.cleanup(new Date());
-
-    if (!result.success) {
-      return fail(500, { message: result.message });
-    }
-
-    return { success: true, count: result.data };
-  },
 };

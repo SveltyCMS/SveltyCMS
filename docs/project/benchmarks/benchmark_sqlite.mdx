@@ -729,16 +729,31 @@ xychart-beta
 
 <!-- THROUGHPUT_TABLE_START -->
 
-### 🏷️ Multi-Doc Concurrency Throughput ⚪ —
-
-> 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
-> 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
+> Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+> **Check**: `src/hooks.server.ts` · `src/databases/<db>/adapter-core.ts`
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                        SVELTYCMS — LOCAL SDK BENCHMARK (SQLITE)                         ║
+║                   File: tests/benchmarks/local-api-throughput.test.ts                   ║
+║        Measures write throughput, read throughput, and SDK overhead in one pass.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        508 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        455 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        435 ║
+║ Writes (1000)                  │        0.037 ms │ p95:        0.000 ms │ RPS:     27,102 ║
+║ Reads (1000)                   │        0.082 ms │ p95:        0.000 ms │ RPS:     12,136 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Database                                           │       SQLITE          ║
+║ Write RPS                                          │    27102.474 req/s    ║
+║ Writes OK                                          │    1000/1000          ║
+║ Read RPS                                           │    12136.084 req/s    ║
+║ Reads OK                                           │    1000/1000          ║
+║ Write × HTTP                                       │        54.2×          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- THROUGHPUT_TABLE_END -->
@@ -752,8 +767,32 @@ xychart-beta
 
 <!-- LOCALSDK_TABLE_START -->
 
-> ⏳ **Local SDK Throughput**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/local-api-throughput.test.ts](../../../tests/benchmarks/local-api-throughput.test.ts)
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 46% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+100%) — review recent commits immediately.  
+> **Check**: `src/hooks/handle-system-state.ts` · `src/routes/setup/+page.server.ts`
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                           SVELTYCMS — SDK OVERHEAD TELEMETRY                            ║
+║                  File: tests/benchmarks/local-api-performance.test.ts                   ║
+║  Measures LocalCMS SDK overhead vs direct adapter calls to verify zero-tax dispatching  ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Direct Adapter Call            │        0.016 ms │ p95:        0.024 ms │ RPS:     60,890 ║
+║ LocalCMS SDK Call              │        0.013 ms │ p95:        0.017 ms │ RPS:     74,200 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Average Cold Start                                 │            1 ms       ║
+║ p95 Cold Start                                     │            1 ms       ║
+║ Proxy Header Parsing                               │        0.729 ms       ║
+║ Rating                                             │    EXCELLENT          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- LOCALSDK_TABLE_END -->
 
@@ -921,15 +960,15 @@ xychart-beta
 
 ### 📦 Core System Readiness — Fast, low-intensity tests verifying basic system health and network overhead
 
-### 🏷️ API LAYER LATENCY 🔴 avg +87% p95 +34% rps -47% (50 runs)
+### 🏷️ API LAYER LATENCY 🔴 avg +56423% p95 +30317% rps -100% (50 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- API_LATENCY_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-> Throughput dropped 47% — check connection pool saturation or lock contention.  
-> **Severe degradation** (+87%) — review recent commits immediately.  
+> Throughput dropped 100% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+56423%) — review recent commits immediately.  
 > **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```text
@@ -938,7 +977,7 @@ xychart-beta
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │        3.419 ms │ p95:        4.573 ms │ RPS:        283 ║
+║ HTTP: findById @ 8c            │     1033.235 ms │ p95:     1037.205 ms │ RPS:          1 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -946,15 +985,15 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │        3.419 ms       ║
-║ Peak Throughput                                    │      283.000 req/s    ║
+║ HTTP Latency (findById)                            │     1033.235 ms       ║
+║ Peak Throughput                                    │        1.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- API_LATENCY_TABLE_END -->
 
-### 🏷️ PHASED COLD START ⚪ avg -3% (48 runs)
+### 🏷️ PHASED COLD START ⚪ avg +2% (50 runs)
 
 > **Budget**: ≤ 10,000ms (suite) | **Tags**: `network` | **Level**: 0
 
@@ -969,7 +1008,7 @@ xychart-beta
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
 ║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.069 ms │ p95:        0.170 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.071 ms │ p95:        0.166 ms │ RPS:          0 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -985,7 +1024,7 @@ xychart-beta
 
 <!-- COLD_START_TABLE_END -->
 
-### 🏷️ SRE TRUTH AUDIT 🟢 rps +84% (7 runs)
+### 🏷️ SRE TRUTH AUDIT 🟢 rps +63% (7 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `network` | **Level**: 0
 
@@ -1000,9 +1039,9 @@ xychart-beta
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
 ║     Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,739,726 ║
-║ Local SDK (Full)               │        0.005 ms │ p95:        0.010 ms │ RPS:    198,979 ║
-║ HTTP End-to-End                │        0.601 ms │ p95:        0.975 ms │ RPS:      1,663 ║
+║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,425,222 ║
+║ Local SDK (Full)               │        0.005 ms │ p95:        0.009 ms │ RPS:    221,762 ║
+║ HTTP End-to-End                │        0.670 ms │ p95:        0.923 ms │ RPS:      1,493 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1012,8 +1051,8 @@ xychart-beta
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Baseline Harness Overhead                          │        0.000 ms       ║
 ║ SDK Engine Latency                                 │        0.005 ms       ║
-║ E2E HTTP Latency                                   │        0.601 ms       ║
-║ Peak HTTP Throughput                               │     1663.000 req/s    ║
+║ E2E HTTP Latency                                   │        0.670 ms       ║
+║ Peak HTTP Throughput                               │     1493.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1025,9 +1064,29 @@ xychart-beta
 
 <!-- BUILD_TABLE_START -->
 
-> **Measures**: Measures production bundle size, chunk count, and build performance.
-> **Code**: `vite.config.ts`, `svelte.config.js`
-> **Why**: Large bundles degrade FCP/LCP. Affects CDN costs and user experience.
+> Within normal variance — no action needed.  
+> **Check**: `vite.config.ts` · `svelte.config.js`
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS — PRODUCTION BUILD ANALYSIS                          ║
+║                      File: tests/benchmarks/build-analysis.test.ts                      ║
+║       Measures compilation speed, bundle size trends, and tree-shaking efficiency       ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Production Build               │    32545.000 ms │ p95:    32545.000 ms │ RPS:          0 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Build Time                                         │        32545 ms       ║
+║ Total Bundle Size                                  │         0.20 MB       ║
+║ JS Chunks                                          │     1048.000          ║
+║ Build Efficiency                                   │    EXCELLENT          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- BUILD_TABLE_END -->
 
@@ -1045,7 +1104,7 @@ xychart-beta
 
 ### 📦 Core System Internals — Cache, middleware, state machine, SDK, and content scanning subsystems
 
-### 🏷️ Self-Healing Content Scan ⚪ avg 0% p95 -14% (50 runs)
+### 🏷️ Self-Healing Content Scan ⚪ avg 0% rps -8% (50 runs)
 
 > **Budget**: ≤ 8,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -1060,7 +1119,7 @@ xychart-beta
 ║                       File: tests/benchmarks/content-scan.test.ts                       ║
 ║    Measures filesystem + metadata processing for self-healing collections discovery     ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Content Scan (Self-Healing)    │        0.004 ms │ p95:        0.006 ms │ RPS:    165,873 ║
+║ Content Scan (Self-Healing)    │        0.004 ms │ p95:        0.007 ms │ RPS:    159,432 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1069,23 +1128,23 @@ xychart-beta
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Average Scan Latency                               │        0.004 ms       ║
-║ p95 Scan Latency                                   │        0.006 ms       ║
-║ Peak Scan Throughput                               │   165873.000 ops/s    ║
+║ p95 Scan Latency                                   │        0.007 ms       ║
+║ Peak Scan Throughput                               │   159432.000 ops/s    ║
 ║ Collection Capacity                                │      150.000 files    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- SCAN_TABLE_END -->
 
-### 🏷️ Middleware & Hooks Performance 🟢 avg -15% p95 -12% rps +23% (50 runs)
+### 🏷️ Middleware & Hooks Performance ⚪ avg +1% p95 +12% (50 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `cpu`, `security` | **Level**: 2
 
 <!-- HOOKS_TRACE_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-> Throughput dropped 27% — check connection pool saturation or lock contention.  
-> **Severe degradation** (+65%) — review recent commits immediately.  
+> Throughput dropped 22% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+55%) — review recent commits immediately.  
 > **Check**: `src/databases/cache/cache-service.ts`
 
 ```text
@@ -1094,11 +1153,11 @@ xychart-beta
 ║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
 ║Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (No Middleware)   │        0.178 ms │ p95:        0.252 ms │ RPS:      4,830 ║
-║ Turbo Pipeline (Light)         │        0.791 ms │ p95:        1.525 ms │ RPS:      1,181 ║
-║ Full Security + Auth Pipeline  │        1.911 ms │ p95:        3.382 ms │ RPS:        513 ║
-║ REST with API Caching          │        1.790 ms │ p95:        3.079 ms │ RPS:        542 ║
-║ Mutation + Audit Logging       │        1.214 ms │ p95:        1.448 ms │ RPS:        730 ║
+║ Static Asset (No Middleware)   │        0.209 ms │ p95:        0.319 ms │ RPS:      4,185 ║
+║ Turbo Pipeline (Light)         │        1.431 ms │ p95:        2.837 ms │ RPS:        647 ║
+║ Full Security + Auth Pipeline  │        3.273 ms │ p95:        4.735 ms │ RPS:        291 ║
+║ REST with API Caching          │        3.660 ms │ p95:        5.469 ms │ RPS:        262 ║
+║ Mutation + Audit Logging       │        1.429 ms │ p95:        2.040 ms │ RPS:        630 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1106,19 +1165,19 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (no hooks)                            │        0.178 ms       ║
-║ Turbo Pipeline                                     │        0.791 ms       ║
-║ Full Auth Pipeline                                 │        1.911 ms       ║
-║ API Cache Overhead                                 │       -0.121 ms       ║
-║ Auth Overhead (Turbo→Full)                         │        1.120 ms       ║
-║ Audit Logging Overhead                             │       -0.697 ms       ║
-║ Peak RPS                                           │     4830.000 req/s    ║
+║ Static Asset (no hooks)                            │        0.209 ms       ║
+║ Turbo Pipeline                                     │        1.431 ms       ║
+║ Full Auth Pipeline                                 │        3.273 ms       ║
+║ API Cache Overhead                                 │        0.387 ms       ║
+║ Auth Overhead (Turbo→Full)                         │        1.842 ms       ║
+║ Audit Logging Overhead                             │       -1.844 ms       ║
+║ Peak RPS                                           │     4185.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- HOOKS_TRACE_TABLE_END -->
 
-### 🏷️ Edge Sync & Distributed Cache 🔴 avg +65% p95 +90% rps -27% (49 runs)
+### 🏷️ Edge Sync & Distributed Cache 🔴 avg +55% p95 +90% rps -22% (50 runs)
 
 > **Budget**: ≤ 5,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -1133,7 +1192,7 @@ xychart-beta
 ║                        File: tests/benchmarks/edge-sync.test.ts                         ║
 ║  Measures cache invalidation propagation latency across real edge nodes via live Redis  ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Edge Sync Propagation          │       25.687 ms │ p95:       30.824 ms │ RPS:         39 ║
+║ Edge Sync Propagation          │       24.103 ms │ p95:       30.713 ms │ RPS:         42 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1141,9 +1200,9 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Propagation Latency                            │       25.687 ms       ║
-║ p95 Propagation                                    │       30.824 ms       ║
-║ Throughput                                         │       39.000 ops/s    ║
+║ Avg Propagation Latency                            │       24.103 ms       ║
+║ p95 Propagation                                    │       30.713 ms       ║
+║ Throughput                                         │       42.000 ops/s    ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -1156,7 +1215,8 @@ xychart-beta
 
 <!-- TELEMETRY_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.  
+> Within normal variance — no action needed.  
+> Throughput dropped 23% — check connection pool saturation or lock contention.  
 > **Check**: `src/databases/<db>/crud-methods.ts`
 
 ```text
@@ -1165,8 +1225,8 @@ xychart-beta
 ║                  File: tests/benchmarks/telemetry-performance.test.ts                   ║
 ║Measures telemetry update check latency and memory impact on both happy-path and failure-path scenarios.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Telemetry (Happy Path)         │        0.000 ms │ p95:        0.000 ms │ RPS:  2,034,588 ║
-║ Telemetry (Failure Path)       │        0.001 ms │ p95:        0.002 ms │ RPS:  1,347,709 ║
+║ Telemetry (Happy Path)         │        0.000 ms │ p95:        0.000 ms │ RPS:  2,001,001 ║
+║ Telemetry (Failure Path)       │        0.001 ms │ p95:        0.002 ms │ RPS:  1,638,002 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1176,7 +1236,7 @@ xychart-beta
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Happy Path Latency                                 │        0.000 ms       ║
 ║ Error Path Latency                                 │        0.001 ms       ║
-║ Peak Throughput                                    │  2034588.000 req/s    ║
+║ Peak Throughput                                    │  2001001.000 req/s    ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -1189,7 +1249,9 @@ xychart-beta
 
 <!-- STATE_MACHINE_TABLE_START -->
 
-> Within normal variance — no action needed.  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 20% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+26%) — review recent commits immediately.  
 > **Check**: `src/databases/cache/cache-service.ts` · `src/databases/cache/l1-cache.ts`
 
 ```text
@@ -1198,7 +1260,7 @@ xychart-beta
 ║                 File: tests/benchmarks/state-machine-transition.test.ts                 ║
 ║Simulates rapid system re-initializations and verifies valid self-healing state transitions under stress.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ State Transition (READY -> IDLE -> READY) │       19.105 ms │ p95:       25.631 ms │ RPS:         52 ║
+║ State Transition (READY -> IDLE -> READY) │       23.805 ms │ p95:       32.599 ms │ RPS:         42 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1206,7 +1268,7 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Transition Latency                             │       19.105 ms       ║
+║ Avg Transition Latency                             │       23.805 ms       ║
 ║ Cycle Stability                                    │       STABLE          ║
 ║ Heals Performed                                    │       50.000 cycles   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -1214,36 +1276,25 @@ xychart-beta
 
 <!-- STATE_MACHINE_TABLE_END -->
 
-### 🏷️ System Cache Efficiency ⚪ avg 0% p95 -6% (44 runs)
+### 🏷️ System Cache Efficiency 🔴 avg +26% p95 +16% rps -20% (46 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
 <!-- CACHE_TABLE_START -->
-
-> Performance improved — recent optimizations or cache warming likely effective.  
-> **Check**: `src/services/RevisionService.ts`
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
-║                      File: tests/benchmarks/negative-cache.test.ts                      ║
-║        Measures Bloom-filter style missing-key cache speedup for repeated misses        ║
+║                           SVELTYCMS — CACHE SERVICE TELEMETRY                           ║
+║                      File: tests/benchmarks/cache-service.test.ts                       ║
+║        Measures L1 cache hit latency and pattern invalidation overhead at scale         ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ First Miss (DB)                │       13.360 ms │ p95:       13.360 ms │ RPS:         75 ║
-║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    543,168 ║
+║ Cache L1 Hit                   │        0.001 ms │ p95:        0.001 ms │ RPS:  1,595,376 ║
+║ Pattern Invalidation (1k items @ 200k noise) │        3.539 ms │ p95:        8.117 ms │ RPS:        283 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Read Latency (with history)                        │        0.993 ms       ║
-║ History List Latency                               │        0.838 ms       ║
-║ History Growth Impact                              │         0.66 x        ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
+<!-- SUMMARY_PLACEHOLDER -->
 <!-- CACHE_TABLE_END -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
@@ -1296,14 +1347,12 @@ xychart-beta
 
 <!-- LOCAL_API_TABLE_END -->
 
-### 🏷️ Setup Proxy & Bootstrap Isolation 🟢 avg -29% p95 -21% rps +42% (5 runs)
+### 🏷️ Setup Proxy & Bootstrap Isolation 🔴 avg +100% p95 +106% rps -46% (7 runs)
 
 > **Budget**: ≤ 55,000ms (suite) | **Tags**: `security`, `cpu` | **Level**: 3
 
 <!-- SETUP_PROXY_TABLE_START -->
-
-> Performance improved — recent optimizations or cache warming likely effective.  
-> **Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1311,22 +1360,12 @@ xychart-beta
 ║                       File: tests/benchmarks/setup-proxy.test.ts                        ║
 ║Measures cold-start initialization latency and proxy header parsing overhead for enterprise deployments.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start                     │        0.628 ms │ p95:        1.248 ms │ RPS:          0 ║
-║ Proxy Header Parsing           │        0.259 ms │ p95:        0.406 ms │ RPS:      3,494 ║
+║ Cold Start                     │        0.672 ms │ p95:        1.398 ms │ RPS:          0 ║
+║ Proxy Header Parsing           │        0.729 ms │ p95:        1.323 ms │ RPS:      1,324 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Commit Latency                                 │        0.297 ms       ║
-║ Rollback Verification                              │        0.158 ms       ║
-║ Transaction Stability                              │     VERIFIED          ║
-║ Peak Throughput                                    │     2523.000 tx/s     ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
+<!-- SUMMARY_PLACEHOLDER -->
 <!-- SETUP_PROXY_TABLE_END -->
 
 ### 📦 Database Adapter Efficiency — Raw CRUD operations and ACID transaction guarantees
@@ -1344,14 +1383,14 @@ xychart-beta
 
 <!-- DB_RAW_P95_TABLE_END -->
 
-### 🏷️ ACID Transaction Overhead 🟢 avg -22% p95 -12% rps +36% (43 runs)
+### 🏷️ ACID Transaction Overhead ⚪ avg 0% p95 +15% rps -23% (45 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `disk`, `cpu` | **Level**: 1
 
 <!-- ACID_TABLE_START -->
 
 > Within normal variance — no action needed.  
-> **Check**: `src/components/*.svelte` · `src/routes/(app)/config/collections/`
+> **Check**: `src/services/MediaService.ts` · `src/databases/media/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1359,8 +1398,8 @@ xychart-beta
 ║                     File: tests/benchmarks/transaction-acid.test.ts                     ║
 ║  Measures transaction commit latencies and rollback overhead across database adapters   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                      │        0.231 ms │ p95:        0.396 ms │ RPS:      3,676 ║
-║ TX Rollback Integrity          │        0.161 ms │ p95:        0.269 ms │ RPS:      6,195 ║
+║ TX Commit                      │        0.297 ms │ p95:        0.522 ms │ RPS:      2,094 ║
+║ TX Rollback Integrity          │        0.163 ms │ p95:        0.210 ms │ RPS:      6,140 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1368,10 +1407,9 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Commit Latency                                 │        0.231 ms       ║
-║ Rollback Verification                              │        0.161 ms       ║
-║ Transaction Stability                              │     VERIFIED          ║
-║ Peak Throughput                                    │     3676.000 tx/s     ║
+║ Timezones Tested                                   │        3.000 zones    ║
+║ Failures                                           │        0.000          ║
+║ Temporal Health                                    │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1379,14 +1417,14 @@ xychart-beta
 
 ### 📦 Widget & Domain Workloads — Server-side processing cost of widgets, media, AI, and relations
 
-### 🏷️ AI Bus & Inference Overhead ⚪ avg 0% (50 runs)
+### 🏷️ AI Bus & Inference Overhead ⚪ avg 0% rps -6% (50 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
 <!-- AI_OVERHEAD_TABLE_START -->
 
-> Within normal variance — no action needed.  
-> **Check**: `src/services/MediaService.ts` · `src/databases/media/`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> **Check**: `src/databases/<db>/relational-utils.ts` · `src/content/relation-service.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1394,8 +1432,8 @@ xychart-beta
 ║                      File: tests/benchmarks/ai-performance.test.ts                      ║
 ║ Measures the latency tax of internal CMS logic for AI enrichment and layout generation. ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ AI Text Enrichment             │        0.001 ms │ p95:        0.001 ms │ RPS:  1,752,848 ║
-║ AI Layout Spec Generation      │        0.000 ms │ p95:        0.001 ms │ RPS:  2,467,105 ║
+║ AI Text Enrichment             │        0.001 ms │ p95:        0.001 ms │ RPS:  1,590,247 ║
+║ AI Layout Spec Generation      │        0.000 ms │ p95:        0.001 ms │ RPS:  2,311,248 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1403,10 +1441,9 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Enrichment Overhead                            │        0.001 ms       ║
-║ Avg Layout Spec Overhead                           │        0.000 ms       ║
-║ Total AI Bus Tax                                   │          0.0 ms       ║
-║ Rating                                             │    EXCELLENT          ║
+║ Schema Resolution (8f)                             │        1.649 ms       ║
+║ Collection List (11 cols)                          │        2.443 ms       ║
+║ UX Performance Tier                                │     PLATINUM          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1418,8 +1455,10 @@ xychart-beta
 
 <!-- TEMPORAL_TABLE_START -->
 
-> Within normal variance — no action needed.  
-> **Check**: `src/databases/<db>/relational-utils.ts` · `src/content/relation-service.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 23% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+32%) — review recent commits immediately.  
+> **Check**: `src/services/OpenAPIService.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1427,7 +1466,7 @@ xychart-beta
 ║                    File: tests/benchmarks/temporal-integrity.test.ts                    ║
 ║Validates deterministic UTC normalization of ISO date strings across timezone offsets for consistent persistence.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Timezone Ingestion             │        1.389 ms │ p95:        1.389 ms │ RPS:        720 ║
+║ Timezone Ingestion             │        1.586 ms │ p95:        1.586 ms │ RPS:        630 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1435,9 +1474,12 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Timezones Tested                                   │        3.000 zones    ║
-║ Failures                                           │        0.000          ║
-║ Temporal Health                                    │    EXCELLENT          ║
+║ SDK Processing Latency                             │        0.779 ms       ║
+║ HTTP Pipeline Latency                              │        2.473 ms       ║
+║ SDK Throughput                                     │      984.000 images/s ║
+║ HTTP Throughput                                    │      388.000 images/s ║
+║ HTTP p95 Latency                                   │        3.337 ms       ║
+║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1455,14 +1497,14 @@ xychart-beta
 
 <!-- WIDGETS_TABLE_END -->
 
-### 🏷️ Simulated Admin UX Vitality ⚪ avg +3% p95 +7% (43 runs)
+### 🏷️ Simulated Admin UX Vitality 🔴 avg +58% p95 +35% rps -40% (45 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
 <!-- UX_VITALITY_TABLE_START -->
 
 > Within normal variance — no action needed.  
-> **Check**: `src/services/OpenAPIService.ts`
+> **Check**: `src/hooks/handle-authentication.ts` · `src/databases/auth/session-service.ts` · `src/services/sdk/namespaces/auth-namespace.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1470,8 +1512,8 @@ xychart-beta
 ║                    File: tests/benchmarks/admin-ux-vitality.test.ts                     ║
 ║             Forms and widget registry performance via real HTTP endpoints.              ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Schema Resolution (8f)         │        1.061 ms │ p95:        1.829 ms │ RPS:        907 ║
-║ Collection List (11 cols)      │        1.023 ms │ p95:        1.665 ms │ RPS:        955 ║
+║ Schema Resolution (8f)         │        1.649 ms │ p95:        2.323 ms │ RPS:        542 ║
+║ Collection List (11 cols)      │        2.443 ms │ p95:        3.087 ms │ RPS:        384 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1479,15 +1521,16 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Schema Resolution (8f)                             │        1.061 ms       ║
-║ Collection List (11 cols)                          │        1.023 ms       ║
-║ UX Performance Tier                                │     PLATINUM          ║
+║ Shallow Query Latency                              │        4.103 ms       ║
+║ Deep Query Latency                                 │        2.406 ms       ║
+║ Peak Throughput                                    │      234.000 req/s    ║
+║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- UX_VITALITY_TABLE_END -->
 
-### 🏷️ Media Engine & DAM Overhead ⚪ avg -1% p95 +12% (19 runs)
+### 🏷️ Media Engine & DAM Overhead ⚪ avg 0% p95 +25% (21 runs)
 
 > **Budget**: ≤ 50,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -1502,8 +1545,8 @@ xychart-beta
 ║                   File: tests/benchmarks/media-upload-stress.test.ts                    ║
 ║Measures throughput for large file uploads, concurrent transfers, and streaming efficiency.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Upload (10MB)           │       23.502 ms │ p95:       37.665 ms │ RPS:         43 ║
-║ Small Upload (1MB)             │        6.195 ms │ p95:       12.873 ms │ RPS:        161 ║
+║ Single Upload (10MB)           │       23.702 ms │ p95:       42.221 ms │ RPS:         42 ║
+║ Small Upload (1MB)             │        7.208 ms │ p95:       15.494 ms │ RPS:        139 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1511,23 +1554,25 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Upload 10MB                                        │       23.502 ms       ║
-║ Upload 1MB                                         │        6.195 ms       ║
-║ Throughput                                         │        425.5 MB/s     ║
-║ Small RPS                                          │      161.000 req/s    ║
+║ Upload 10MB                                        │       23.702 ms       ║
+║ Upload 1MB                                         │        7.208 ms       ║
+║ Throughput                                         │        421.9 MB/s     ║
+║ Small RPS                                          │      139.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- MEDIA_TABLE_END -->
 
-### 🏷️ Relational & Nested Queries ⚪ avg 0% (37 runs)
+### 🏷️ Relational & Nested Queries 🟠 avg +11% p95 +12% rps -9% (39 runs)
 
 > **Budget**: ≤ 35,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
 <!-- RELATIONAL_TABLE_START -->
 
-> Within normal variance — no action needed.  
-> **Check**: `src/routes/api/[...path]/+server.ts` · `src/services/AuditLogService.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 52% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+106%) — review recent commits immediately.  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1535,8 +1580,8 @@ xychart-beta
 ║                  File: tests/benchmarks/relational-performance.test.ts                  ║
 ║Measures GraphQL resolver performance for shallow and deep relational queries including joins and nested population.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Relational Query       │        3.693 ms │ p95:        5.957 ms │ RPS:        246 ║
-║ Deep Relational Query          │        2.741 ms │ p95:        4.553 ms │ RPS:        323 ║
+║ Shallow Relational Query       │        4.103 ms │ p95:        6.527 ms │ RPS:        234 ║
+║ Deep Relational Query          │        2.406 ms │ p95:        3.470 ms │ RPS:        393 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1544,10 +1589,10 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Query Latency                              │        3.693 ms       ║
-║ Deep Query Latency                                 │        2.741 ms       ║
-║ Peak Throughput                                    │      246.000 req/s    ║
-║ Rating                                             │    EXCELLENT          ║
+║ Auth Latency (1c)                                  │        0.389 ms       ║
+║ Auth Pipeline (8c)                                 │        1.464 ms       ║
+║ Peak Auth RPS                                      │      615.000 req/s    ║
+║ Auth Memory RSS Δ                                  │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1555,14 +1600,15 @@ xychart-beta
 
 ### 📦 API Dispatcher & Security — REST, GraphQL, Auth, WebSocket, SEO, and OpenAPI performance
 
-### 🏷️ OpenAPI Specification Performance ⚪ avg +0% (33 runs)
+### 🏷️ OpenAPI Specification Performance 🔴 avg +32% p95 +28% rps -23% (35 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
 <!-- OPENAPI_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.  
-> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 17% — check connection pool saturation or lock contention.  
+> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1570,80 +1616,8 @@ xychart-beta
 ║                   File: tests/benchmarks/openapi-performance.test.ts                    ║
 ║Measures dynamic OpenAPI spec generation speed and cached documentation endpoint performance.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold OpenAPI Generation        │        1.501 ms │ p95:        1.501 ms │ RPS:        666 ║
-║ Warm OpenAPI Hit (Cached)      │        0.941 ms │ p95:        1.173 ms │ RPS:        949 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
-```
-
-```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Cold Generation                                    │        1.501 ms       ║
-║ Warm Cached Hit                                    │        0.941 ms       ║
-║ Cache Speedup                                      │          1.6 x        ║
-║ Peak Throughput                                    │      949.000 req/s    ║
-║ Rating                                             │    EXCELLENT          ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
-<!-- OPENAPI_TABLE_END -->
-
-### 🏷️ Auth & RBAC Performance 🟢 avg -6% p95 -10% rps +6% (37 runs)
-
-> **Budget**: ≤ 18,000ms (suite) | **Tags**: `security` | **Level**: 4
-
-<!-- AUTH_TRACE_TABLE_START -->
-
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-> **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
-
-```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
-║                     File: tests/benchmarks/auth-performance.test.ts                     ║
-║Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Auth Validation @ 1c           │        0.358 ms │ p95:        0.410 ms │ RPS:      2,525 ║
-║ HTTP Auth Pipeline @ 8c        │        1.403 ms │ p95:        2.710 ms │ RPS:        636 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
-```
-
-```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Auth Latency (1c)                                  │        0.358 ms       ║
-║ Auth Pipeline (8c)                                 │        1.403 ms       ║
-║ Peak Auth RPS                                      │      636.000 req/s    ║
-║ Auth Memory RSS Δ                                  │         0.00 MB       ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
-<!-- AUTH_TRACE_TABLE_END -->
-
-### 🏷️ Security Hardening & Audit ⚪ avg 0% (35 runs)
-
-> **Budget**: ≤ 20,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
-
-<!-- SECURITY_TABLE_START -->
-
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-> Throughput dropped 15% — check connection pool saturation or lock contention.  
-> **Check**: `src/services/SEOService.ts` · `src/hooks/handle-seo.ts`
-
-```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                        SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT                        ║
-║                      File: tests/benchmarks/security-audit.test.ts                      ║
-║Measures overhead of WAF request analysis, audit log persistence, Argon2id password hashing, and RBAC permission checks.║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ WAF Deep Analysis              │        0.004 ms │ p95:        0.007 ms │ RPS:    210,493 ║
-║ Audit Log Persistence          │        0.000 ms │ p95:        0.001 ms │ RPS:  2,304,590 ║
-║ Argon2id Password Hashing      │        0.562 ms │ p95:        0.753 ms │ RPS:      1,780 ║
-║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 11,622,501 ║
-║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS: 11,215,792 ║
-║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 16,474,465 ║
+║ Cold OpenAPI Generation        │        2.117 ms │ p95:        2.117 ms │ RPS:        473 ║
+║ Warm OpenAPI Hit (Cached)      │        1.239 ms │ p95:        1.490 ms │ RPS:        734 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1653,7 +1627,7 @@ xychart-beta
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ WAF Analysis                                       │        0.004 ms       ║
 ║ Audit Logging                                      │        0.000 ms       ║
-║ Password Hashing                                   │        0.562 ms       ║
+║ Password Hashing                                   │        0.514 ms       ║
 ║ Dispatcher Check                                   │        0.000 ms       ║
 ║ Full Defense-in-Depth                              │        0.000 ms       ║
 ║ Admin Verification                                 │        0.000 ms       ║
@@ -1662,27 +1636,25 @@ xychart-beta
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- SECURITY_TABLE_END -->
+<!-- OPENAPI_TABLE_END -->
 
-### 🏷️ REST API Performance 🟡 avg +6% p95 -7% rps -6% (44 runs)
+### 🏷️ Auth & RBAC Performance ⚪ avg +2% p95 +4% rps -5% (39 runs)
 
-> **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
+> **Budget**: ≤ 18,000ms (suite) | **Tags**: `security` | **Level**: 4
 
-<!-- REST_TABLE_START -->
+<!-- AUTH_TRACE_TABLE_START -->
 
-> Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
-> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
+> Performance improved — recent optimizations or cache warming likely effective.  
+> **Check**: `src/services/SEOService.ts` · `src/hooks/handle-seo.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                          SVELTYCMS — ENTERPRISE REST API AUDIT                          ║
-║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
-║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
+║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
+║                     File: tests/benchmarks/auth-performance.test.ts                     ║
+║Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.700 ms │ p95:        1.295 ms │ RPS:      1,429 ║
-║ Collection Schema              │        4.343 ms │ p95:        6.157 ms │ RPS:        230 ║
-║ Collection Find (List)         │        4.060 ms │ p95:        4.955 ms │ RPS:        246 ║
-║ Collection Search              │        3.895 ms │ p95:        4.617 ms │ RPS:        257 ║
+║ Auth Validation @ 1c           │        0.389 ms │ p95:        0.472 ms │ RPS:      2,251 ║
+║ HTTP Auth Pipeline @ 8c        │        1.464 ms │ p95:        2.712 ms │ RPS:        615 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1690,16 +1662,90 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.700 ms       ║
-║ Collection Schema                                  │        4.343 ms       ║
-║ Collection Find (List)                             │        4.060 ms       ║
-║ Collection Search                                  │        3.895 ms       ║
+║ Health Check                                       │        1.384 ms       ║
+║ Collection Schema                                  │        5.489 ms       ║
+║ Collection Find (List)                             │        5.416 ms       ║
+║ Collection Search                                  │        4.227 ms       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- AUTH_TRACE_TABLE_END -->
+
+### 🏷️ Security Hardening & Audit ⚪ avg 0% rps -7% (37 runs)
+
+> **Budget**: ≤ 20,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
+
+<!-- SECURITY_TABLE_START -->
+
+> Within normal variance — no action needed.  
+> **Check**: `src/databases/core/base-adapter.ts` · `src/widgets/*/index.ts`
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                        SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT                        ║
+║                      File: tests/benchmarks/security-audit.test.ts                      ║
+║Measures overhead of WAF request analysis, audit log persistence, Argon2id password hashing, and RBAC permission checks.║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ WAF Deep Analysis              │        0.004 ms │ p95:        0.007 ms │ RPS:    203,708 ║
+║ Audit Log Persistence          │        0.000 ms │ p95:        0.001 ms │ RPS:  2,323,330 ║
+║ Argon2id Password Hashing      │        0.514 ms │ p95:        0.532 ms │ RPS:      1,945 ║
+║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 12,152,145 ║
+║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS: 10,777,023 ║
+║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 15,241,579 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Health Check                                       │        1.119 ms       ║
+║ Collection List                                    │        6.450 ms       ║
+║ Entries Query                                      │        5.800 ms       ║
+║ Peak RPS                                           │      893.400 req/s    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- SECURITY_TABLE_END -->
+
+### 🏷️ REST API Performance 🔴 avg +106% p95 +90% rps -52% (46 runs)
+
+> **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
+
+<!-- REST_TABLE_START -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 37% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+57%) — review recent commits immediately.  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/databases/<db>/crud-methods.ts`
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS — ENTERPRISE REST API AUDIT                          ║
+║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
+║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Health Check                   │        1.384 ms │ p95:        2.673 ms │ RPS:        723 ║
+║ Collection Schema              │        5.489 ms │ p95:        8.031 ms │ RPS:        182 ║
+║ Collection Find (List)         │        5.416 ms │ p95:        7.888 ms │ RPS:        185 ║
+║ Collection Search              │        4.227 ms │ p95:        6.274 ms │ RPS:        237 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Redirect Lookup (301)                              │        0.545 ms       ║
+║ Dynamic Sitemap XML                                │        2.106 ms       ║
+║ Robots.txt Generation                              │        0.175 ms       ║
+║ Missing Path (404 Log)                             │        0.797 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- REST_TABLE_END -->
 
-### 🏷️ GraphQL API Performance 🟢 avg -29% p95 -32% rps +36% (29 runs)
+### 🏷️ GraphQL API Performance 🟢 avg -11% p95 +14% rps +14% (31 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
@@ -1714,13 +1760,13 @@ xychart-beta
 ║                      File: tests/benchmarks/graphql-stress.test.ts                      ║
 ║  Discovers the server's maximum sustainable GraphQL throughput by ramping concurrency   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        2.937 ms │ p95:        4.262 ms │ RPS:        315 ║
-║ GQL: 10c Light                 │        5.713 ms │ p95:        9.386 ms │ RPS:        172 ║
-║ GQL: 20c Moderate              │       10.519 ms │ p95:       16.311 ms │ RPS:         94 ║
-║ GQL: 40c Heavy                 │       20.480 ms │ p95:       31.844 ms │ RPS:         49 ║
-║ GQL: 60c Stress                │       28.057 ms │ p95:       43.787 ms │ RPS:         36 ║
-║ GQL: 80c Extreme               │       28.075 ms │ p95:       55.925 ms │ RPS:         35 ║
-║ GQL: 100c Max                  │       42.360 ms │ p95:       74.964 ms │ RPS:         24 ║
+║ GQL: 5c Warmup                 │        3.665 ms │ p95:        7.132 ms │ RPS:        267 ║
+║ GQL: 10c Light                 │        7.444 ms │ p95:       14.966 ms │ RPS:        133 ║
+║ GQL: 20c Moderate              │       10.013 ms │ p95:       20.333 ms │ RPS:        100 ║
+║ GQL: 40c Heavy                 │       19.133 ms │ p95:       36.565 ms │ RPS:         52 ║
+║ GQL: 60c Stress                │       26.066 ms │ p95:       48.116 ms │ RPS:         38 ║
+║ GQL: 80c Extreme               │       36.870 ms │ p95:       66.530 ms │ RPS:         27 ║
+║ GQL: 100c Max                  │       52.971 ms │ p95:       94.909 ms │ RPS:         19 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1729,20 +1775,20 @@ xychart-beta
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Max Sustainable Concurrency                        │      100.000 connections ║
-║ Max Sustainable Throughput                         │      315.000 req/s    ║
+║ Max Sustainable Throughput                         │      267.000 req/s    ║
 ║ Capacity Rating                                    │   ENTERPRISE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- GRAPHQL_TABLE_END -->
 
-### 🏷️ Enterprise SEO Suite Audit 🟠 avg +17% p95 +9% rps -15% (14 runs)
+### 🏷️ Enterprise SEO Suite Audit 🟢 avg -13% p95 -3% (16 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
 <!-- SEO_TABLE_START -->
 
-> Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
 > **Check**: `src/databases/<db>/migrations.ts` · `src/content/migration-service.ts`
 
 ```text
@@ -1751,10 +1797,10 @@ xychart-beta
 ║                     File: tests/benchmarks/seo-performance.test.ts                      ║
 ║Measures redirect lookup latency, dynamic sitemap.xml generation, robots.txt serving, and 404 logging performance.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Redirect Lookup (301)          │        0.737 ms │ p95:        1.220 ms │ RPS:      1,358 ║
-║ Dynamic Sitemap XML            │        2.624 ms │ p95:        4.407 ms │ RPS:        381 ║
-║ Robots.txt Generation          │        0.209 ms │ p95:        0.323 ms │ RPS:      4,792 ║
-║ Missing Path (404 Log)         │        0.979 ms │ p95:        2.073 ms │ RPS:      1,022 ║
+║ Redirect Lookup (301)          │        0.545 ms │ p95:        1.058 ms │ RPS:      1,834 ║
+║ Dynamic Sitemap XML            │        2.106 ms │ p95:        3.587 ms │ RPS:        475 ║
+║ Robots.txt Generation          │        0.175 ms │ p95:        0.260 ms │ RPS:      5,705 ║
+║ Missing Path (404 Log)         │        0.797 ms │ p95:        1.344 ms │ RPS:      1,254 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1762,10 +1808,11 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Redirect Lookup (301)                              │        0.737 ms       ║
-║ Dynamic Sitemap XML                                │        2.624 ms       ║
-║ Robots.txt Generation                              │        0.209 ms       ║
-║ Missing Path (404 Log)                             │        0.979 ms       ║
+║ Average Latency                                    │        3.919 ms       ║
+║ p95 Latency                                        │        6.490 ms       ║
+║ Effective Throughput                               │      244.000 req/s    ║
+║ Memory Growth                                      │          0.0 MB       ║
+║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1809,7 +1856,7 @@ xychart-beta
 
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
-### 🏷️ Revision & History Growth 🟢 avg -7% p95 -6% (6 runs)
+### 🏷️ Revision & History Growth 🔴 avg +60% p95 +41% rps -41% (8 runs)
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -1824,8 +1871,8 @@ xychart-beta
 ║                     File: tests/benchmarks/revision-stress.test.ts                      ║
 ║Measures read and history list latency degradation under heavy revision history growth (100 revisions per entry).║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Latest Read (High Revision Count) │        0.993 ms │ p95:        1.758 ms │ RPS:      1,007 ║
-║ History List Retrieval         │        0.838 ms │ p95:        1.251 ms │ RPS:      1,194 ║
+║ Latest Read (High Revision Count) │        1.815 ms │ p95:        2.770 ms │ RPS:        551 ║
+║ History List Retrieval         │        1.079 ms │ p95:        1.872 ms │ RPS:        927 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1833,12 +1880,10 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Requests                                     │   814842.000          ║
-║ Average RPS                                        │    14942.000 req/s    ║
-║ RSS Growth                                         │        13.69 MB       ║
-║ Heap Growth                                        │       199.84 MB       ║
-║ Leak Slope                                         │       -21.52 MB/min   ║
-║ Stability                                          │       STABLE          ║
+║ Total Migration Time                               │          0.5 s        ║
+║ Ingestion Throughput                               │    21905.000 entries/s ║
+║ Post-Migration Read                                │        3.321 ms       ║
+║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1850,7 +1895,9 @@ xychart-beta
 
 <!-- MEMORY_TABLE_START -->
 
-> Within normal variance — no action needed.  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 43% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+50%) — review recent commits immediately.  
 > **Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
 ```text
@@ -1859,7 +1906,7 @@ xychart-beta
 ║                     File: tests/benchmarks/memory-stability.test.ts                     ║
 ║Tracks RSS, heap, and external memory growth under sustained load with automated leak detection.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     14,942 ║
+║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:      6,503 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1867,11 +1914,9 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Latency                                    │        1.908 ms       ║
-║ p95 Latency                                        │        3.888 ms       ║
-║ Effective Throughput                               │      484.000 req/s    ║
-║ Memory Growth                                      │          0.0 MB       ║
-║ Rating                                             │    EXCELLENT          ║
+║ Sorted Query (p95)                                 │        1.399 ms       ║
+║ Filtered Query (p95)                               │        1.587 ms       ║
+║ Index Health                                       │      OPTIMAL          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1889,7 +1934,7 @@ xychart-beta
 
 <!-- TENANCY_TABLE_END -->
 
-### 🏷️ Realistic Mixed Workload 🟢 avg -23% p95 -29% rps +24% (9 runs)
+### 🏷️ Realistic Mixed Workload 🔴 avg +57% p95 +18% rps -37% (11 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `network`, `disk` | **Level**: 5
 
@@ -1904,7 +1949,7 @@ xychart-beta
 ║                      File: tests/benchmarks/mixed-workload.test.ts                      ║
 ║Simulates real-world traffic with a weighted mix of reads, searches, GraphQL queries, and metadata requests.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Mixed Workload                 │        1.908 ms │ p95:        3.888 ms │ RPS:        484 ║
+║ Mixed Workload                 │        3.919 ms │ p95:        6.490 ms │ RPS:        244 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1912,10 +1957,9 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Migration Time                               │          0.5 s        ║
-║ Ingestion Throughput                               │    22030.000 entries/s ║
-║ Post-Migration Read                                │        1.436 ms       ║
-║ Memory Growth                                      │          0.0 MB       ║
+║ Cold Scan Latency                                  │        0.040 ms       ║
+║ Warm Scan Latency                                  │        0.003 ms       ║
+║ Scale Efficiency                                   │        ELITE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1933,14 +1977,12 @@ xychart-beta
 
 <!-- GQL_STRESS_TABLE_END -->
 
-### 🏷️ Bulk Migration & Scale 🟡 avg +8% rps -7% (7 runs)
+### 🏷️ Bulk Migration & Scale 🟡 avg +6% p95 +7% rps -6% (9 runs)
 
 > **Budget**: ≤ 120,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- MIGRATION_TABLE_START -->
-
-> Performance improved — recent optimizations or cache warming likely effective.  
-> **Check**: `src/databases/<db>/crud-methods.ts` · `src/databases/<db>/schema.ts`
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1948,8 +1990,8 @@ xychart-beta
 ║                     File: tests/benchmarks/migration-scale.test.ts                      ║
 ║Measures bulk ingestion throughput for 10,000 entries and post-migration random lookup performance.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Bulk Migration (10k)           │       22.696 ms │ p95:       32.210 ms │ RPS:         44 ║
-║ Post-Migration Read            │        1.436 ms │ p95:        2.602 ms │ RPS:        696 ║
+║ Bulk Migration (10k)           │       22.826 ms │ p95:       34.146 ms │ RPS:         44 ║
+║ Post-Migration Read            │        3.321 ms │ p95:        5.048 ms │ RPS:        301 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1957,22 +1999,21 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Sorted Query (p95)                                 │        0.658 ms       ║
-║ Filtered Query (p95)                               │        0.634 ms       ║
-║ Index Health                                       │      OPTIMAL          ║
+║ Total Journey Latency (Avg)                        │       15.803 ms       ║
+║ Total Journey Latency (p95)                        │       19.901 ms       ║
+║ Cumulative Throughput                              │       63.000 journey/s ║
+║ Error Rate                                         │         0.00 %        ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- MIGRATION_TABLE_END -->
 
-### 🏷️ Million-Row Index Pressure 🟢 avg -82% p95 -86% rps +461% (16 runs)
+### 🏷️ Million-Row Index Pressure 🟢 avg -76% p95 -66% rps +268% (18 runs)
 
 > **Budget**: ≤ 180,000ms (suite) | **Tags**: `cpu`, `disk` | **Level**: 5
 
 <!-- INDEX_PRESSURE_TABLE_START -->
-
-> Performance improved — recent optimizations or cache warming likely effective.  
-> **Check**: `src/databases/<db>/crud-methods.ts` · `src/databases/<db>/schema.ts`
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1980,8 +2021,8 @@ xychart-beta
 ║                      File: tests/benchmarks/index-pressure.test.ts                      ║
 ║                     Enterprise Index Pressure audit for SveltyCMS.                      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Sorted List (25k rows)         │        0.567 ms │ p95:        0.693 ms │ RPS:      1,764 ║
-║ Filtered Query (25k rows)      │        0.632 ms │ p95:        1.007 ms │ RPS:      1,582 ║
+║ Sorted List (25k rows)         │        0.766 ms │ p95:        1.399 ms │ RPS:      1,305 ║
+║ Filtered Query (25k rows)      │        0.883 ms │ p95:        1.587 ms │ RPS:      1,132 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1989,15 +2030,16 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Sorted Query (p95)                                 │        0.693 ms       ║
-║ Filtered Query (p95)                               │        1.007 ms       ║
-║ Index Health                                       │      OPTIMAL          ║
+║ Total Duration                                     │      125.545 ms       ║
+║ Successful Writes                                  │      100.000 /100     ║
+║ Database Lockup                                    │         NONE          ║
+║ Concurrency Health                                 │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- INDEX_PRESSURE_TABLE_END -->
 
-### 🏷️ Content Scale Stress ⚪ avg 0% p95 +33% (11 runs)
+### 🏷️ Content Scale Stress 🔴 avg +50% p95 +233% rps -43% (13 runs)
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -2010,8 +2052,8 @@ xychart-beta
 ║                   File: tests/benchmarks/content-scale-stress.test.ts                   ║
 ║Measures file-scanning and content discovery performance at extreme scale (1,000+ collections)║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Stress Scan (1k)          │        0.033 ms │ p95:        0.070 ms │ RPS:     30,656 ║
-║ Warm Stress Scan (1k)          │        0.002 ms │ p95:        0.004 ms │ RPS:    645,578 ║
+║ Cold Stress Scan (1k)          │        0.040 ms │ p95:        0.087 ms │ RPS:     24,820 ║
+║ Warm Stress Scan (1k)          │        0.003 ms │ p95:        0.010 ms │ RPS:    379,219 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2019,16 +2061,17 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Journey Latency (Avg)                        │       21.788 ms       ║
-║ Total Journey Latency (p95)                        │       23.024 ms       ║
-║ Cumulative Throughput                              │       46.000 journey/s ║
-║ Error Rate                                         │         0.00 %        ║
+║ Database                                           │       SQLITE          ║
+║ 10 docs × 10 RPS                                   │      393.692 req/s    ║
+║ 100 docs × 1 RPS                                   │      440.208 req/s    ║
+║ 1000 docs × 1 RPS                                  │      413.136 req/s    ║
+║ Scaling (1000÷10)                                  │         1.0×          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- CONTENT_STRESS_TABLE_END -->
 
-### 🏷️ Full Client Journey Simulation 🟢 avg -10% p95 -14% rps +12% (7 runs)
+### 🏷️ Full Client Journey Simulation 🟢 avg -31% p95 -24% rps +46% (9 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -2041,7 +2084,7 @@ xychart-beta
 ║                      File: tests/benchmarks/client-journey.test.ts                      ║
 ║Measures cumulative latency of a realistic editorial user workflow: Auth → List → View → Edit → Save.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Full Journey @ 4c              │       21.788 ms │ p95:       23.024 ms │ RPS:         46 ║
+║ Full Journey @ 4c              │       15.803 ms │ p95:       19.901 ms │ RPS:         63 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2049,10 +2092,11 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Duration                                     │      139.204 ms       ║
-║ Successful Writes                                  │        0.000 /100     ║
-║ Database Lockup                                    │     DETECTED          ║
-║ Concurrency Health                                 │       FAILED          ║
+║ Database                                           │       SQLITE          ║
+║ Total Writes                                       │     1000.000 writes   ║
+║ Duration                                           │     1623.017 ms       ║
+║ Throughput                                         │      616.137 RPS      ║
+║ Success Rate                                       │    1000/1000          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2067,13 +2111,11 @@ xychart-beta
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                         SVELTYCMS — THROUGHPUT SCALING (SQLITE)                         ║
-║                  File: tests/benchmarks/concurrency-throughput.test.ts                  ║
-║         100 writes across 10, 100, 1000 docs. Same work, different parallelism.         ║
+║                           SVELTYCMS — MAX THROUGHPUT (SQLITE)                           ║
+║                     File: tests/benchmarks/concurrency-max.test.ts                      ║
+║                       Max Throughput — no semaphore, full blast.                        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        508 ║
-║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        455 ║
-║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        435 ║
+║ Full Blast                     │        1.623 ms │ p95:        1.623 ms │ RPS:        616 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2081,11 +2123,9 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Database                                           │       SQLITE          ║
-║ 10 docs × 10 RPS                                   │      507.731 req/s    ║
-║ 100 docs × 1 RPS                                   │      454.621 req/s    ║
-║ 1000 docs × 1 RPS                                  │      435.210 req/s    ║
-║ Scaling (1000÷10)                                  │         0.9×          ║
+║ Fallback Latency                                   │        0.844 ms       ║
+║ Failover Stability                                 │       STABLE          ║
+║ Recovery Posture                                   │      GRADUAL          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2103,15 +2143,12 @@ xychart-beta
 
 <!-- FAST_FAIL_TABLE_END -->
 
-### 🏷️ Chaos & Infrastructure Resilience ⚪ avg +1% (13 runs)
+### 🏷️ Chaos & Infrastructure Resilience 🟡 avg +8% rps -6% (15 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 4
 
 <!-- RESILIENCE_TABLE_START -->
-
-> Performance improved — recent optimizations or cache warming likely effective.  
-> Throughput dropped 53% — check connection pool saturation or lock contention.  
-> **Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2119,7 +2156,7 @@ xychart-beta
 ║                     File: tests/benchmarks/chaos-resilience.test.ts                     ║
 ║Simulates infrastructure brownouts and measures system stability and graceful degradation under stress.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Chaos Resilience (Brownout)    │      184.809 ms │ p95:      722.589 ms │ RPS:          5 ║
+║ Chaos Resilience (Brownout)    │      197.883 ms │ p95:      732.318 ms │ RPS:          5 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2127,9 +2164,10 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Throughput (RPS)                                   │     1183.000 req/s    ║
-║ Limiter Consistency                                │       STABLE          ║
-║ Backoff Policy                                     │       ACTIVE          ║
+║ Avg Latency (with jitter)                          │      197.883 ms       ║
+║ p95 Latency                                        │      732.318 ms       ║
+║ Availability                                       │        100.0 %        ║
+║ Resilience Rating                                  │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2154,9 +2192,7 @@ xychart-beta
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
 <!-- CIRCUIT_BREAKER_TABLE_START -->
-
-> Performance improved — recent optimizations or cache warming likely effective.  
-> **Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2164,11 +2200,20 @@ xychart-beta
 ║                 File: tests/benchmarks/circuit-breaker-failover.test.ts                 ║
 ║Simulates external service failures and measures system graceful degradation via circuit breaker patterns.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Circuit Breaker Fallback       │        0.296 ms │ p95:        1.458 ms │ RPS:      3,373 ║
+║ Circuit Breaker Fallback       │        0.844 ms │ p95:        2.502 ms │ RPS:      1,184 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- SUMMARY_PLACEHOLDER -->
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Throughput (RPS)                                   │      483.000 req/s    ║
+║ Limiter Consistency                                │       STABLE          ║
+║ Backoff Policy                                     │       ACTIVE          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
 <!-- CIRCUIT_BREAKER_TABLE_END -->
 
 ### 📦 Security & Compliance Enforcement — Rate limiting, data residency, and throttling boundaries
@@ -2186,7 +2231,7 @@ xychart-beta
 ║                File: tests/benchmarks/throttling-backoff-stress.test.ts                 ║
 ║Simulates high-velocity traffic from a single client IP to verify rate-limiting enforcement and backoff consistency.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Throttling Enforcement         │        0.846 ms │ p95:        3.191 ms │ RPS:      1,183 ║
+║ Throttling Enforcement         │        2.071 ms │ p95:        5.763 ms │ RPS:        483 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

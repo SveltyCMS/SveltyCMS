@@ -72,6 +72,49 @@ export async function runBroadcastAudit() {
       }),
     );
 
+    // 🚀 Pre-flight: verify publish/subscribe round-trip before running the full benchmark.
+    // In dev-mode benchmark servers (vite dev), the uWS platform may not be initialized,
+    // so WebSocket publish won't reach clients. This check avoids 200s of timeouts.
+    const preflightOk = await new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => resolve(false), 3000);
+      const handler = (data: any) => {
+        try {
+          const msg = JSON.parse(data.toString());
+          if (msg.type === "event" || msg.type === "create") {
+            clearTimeout(timeout);
+            realtimeWs.off("message", handler);
+            resolve(true);
+          }
+        } catch {
+          // Ignore parse errors from non-JSON messages
+        }
+      };
+      realtimeWs.on("message", handler);
+
+      fetch(`${baseUrl}/api/testing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+        },
+        body: JSON.stringify({
+          action: "emit-event",
+          event: "benchmark.preflight",
+          data: { timestamp: Date.now() },
+        }),
+      }).catch(() => {});
+    });
+
+    if (!preflightOk) {
+      realtimeWs.close();
+      logger.warn(
+        "Realtime broadcast not available — skipping benchmark (WebSocket publish unreachable)",
+      );
+      console.warn("   ⚠️  Realtime broadcast not available — skipping benchmark");
+      return;
+    }
+
     const realtimeResult = await runBenchmark({
       name: "svelte-realtime Stream",
       iterations: ITERATIONS,

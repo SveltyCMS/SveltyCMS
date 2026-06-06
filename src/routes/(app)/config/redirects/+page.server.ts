@@ -3,11 +3,10 @@
  * @description Server-side logic for global redirect management.
  */
 
-import type { RequestEvent, Actions } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
 import { LocalCMS } from "@src/services/sdk";
 import { dbAdapter } from "@src/databases/db";
 import { error } from "@sveltejs/kit";
-import { saveRedirect, deleteRedirect } from "./redirects.server";
 
 export const load = async ({ locals }: RequestEvent) => {
   const { user, tenantId } = locals;
@@ -23,23 +22,4 @@ export const load = async ({ locals }: RequestEvent) => {
   return {
     redirects: result.success ? result.data : [],
   };
-};
-
-export const actions: Actions = {
-  save: async ({ request, locals }) => {
-    const fd = await request.formData();
-    return saveRedirect(locals as any, {
-      id: fd.get("id")?.toString(),
-      from: fd.get("from")?.toString() || "",
-      to: fd.get("to")?.toString() || "",
-      type: parseInt(fd.get("type")?.toString() || "301"),
-      active: fd.get("active") === "true",
-      isRegex: fd.get("isRegex") === "on",
-    });
-  },
-
-  delete: async ({ request, locals }) => {
-    const fd = await request.formData();
-    return deleteRedirect(locals as any, fd.get("id")?.toString() || "");
-  },
 };

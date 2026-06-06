@@ -48,32 +48,32 @@ SveltyCMS implements a **Top-Level Security Guard** in `hooks.server.ts` that wr
 
 The pipeline is **dynamically dispatched** based on system state, with **two cached sequences**:
 
-- **READY pipeline** (18 hooks): Full production middleware chain
-- **SETUP pipeline** (4 hooks): Minimal bootstrap chain during installation
+- **READY pipeline** (16 hooks): Full production middleware chain
+- **SETUP pipeline** (3 hooks): Minimal bootstrap chain during installation
 
 ```typescript
 // READY Pipeline (production order):
 const pipeline = [
   handleHyperTurbo, //  1. BENCHMARK AUTH (Env-gated + secret + CSPRNG nonce; auth paths excluded)
-  handleTurboPipeline, //  2. CONSOLIDATED GATEWAY (Classify, State, Setup, Health, CORS)
-  handleSecurityHeaders, //  3. DEFENSE-IN-DEPTH (Essential Security Headers)
-  handleTestIsolation, //  4. CI ISOLATION (Triple-lock: env + localhost + crypto secret)
-  handleStaticAssetCaching, //  5. Dedicated Asset Cache Layer (1-year immutable)
-  handleSecurity, //  6. Firewall, Rate Limit, GraphQL Shield, Load Shedding
-  handleSystemState, //  7. AUTHORITATIVE GATEKEEPER (Boot, Setup, MAINTENANCE)
-  handleRedirects, //  8. SEO Redirects (Materialized View + Negative Cache)
-  handleCompression, //  9. ESM-Native Streaming (zlib + Web Streams fallback)
-  handleTurboGet, // 10. 🚀 TURBO GET FAST-PATH (Session auth cache + pre-encoded response skip)
-  handleUserPreferences, // 11. i18n + SSR Theme (skip transformPageChunk for non-dark)
-  handleAuthentication, // 12. Identity, Sessions, API Tokens, Multi-Tenancy
-  handleAuthorization, // 13. Role-Based Access Control (cached dynamic imports)
-  handleLocalSdk, // 14. Zero-Latency CMS Bridge (LocalCMS injection)
-  handleContentInitialization, // 15. Content Manager per Tenant + Fresh Install Redirects
-  handleAuditLogging, // 16. Async Audit Trails (mutation-only)
-  handleApiRequests, // 17. API Caching (ETags, 2-Layer Cache, SWR Pre-warming)
-  handleTokenResolution, // 18. RBAC Token Replacement in API responses
+  handleTurboPipeline, //  2. CONSOLIDATED GATEWAY (Classify, State, Setup, Health, CORS, Security Headers, Static Cache)
+  handleTestIsolation, //  3. CI ISOLATION (Triple-lock: env + localhost + crypto secret)
+  handleSecurity, //  4. Firewall, Rate Limit, GraphQL Shield, Load Shedding
+  handleSystemState, //  5. AUTHORITATIVE GATEKEEPER (Boot, Setup, MAINTENANCE)
+  handleTurboGet, //  6. 🚀 TURBO GET FAST-PATH (Session auth cache + pre-encoded response skip — BEFORE auth)
+  handleRedirects, //  7. SEO Redirects (Materialized View + Negative Cache)
+  handleCompression, //  8. ESM-Native Streaming (zlib + Web Streams fallback)
+  handleUserPreferences, //  9. i18n + SSR Theme (skip transformPageChunk for non-dark)
+  handleAuthentication, // 10. Identity, Sessions, API Tokens, Multi-Tenancy
+  handleAuthorization, // 11. Role-Based Access Control (cached dynamic imports)
+  handleLocalSdk, // 12. Zero-Latency CMS Bridge (LocalCMS injection)
+  handleContentInitialization, // 13. Content Manager per Tenant + Fresh Install Redirects
+  handleAuditLogging, // 14. Async Audit Trails (mutation-only)
+  handleApiRequests, // 15. API Caching (ETags, 2-Layer Cache, SWR Pre-warming)
+  handleTokenResolution, // 16. RBAC Token Replacement in API responses
 ];
 ```
+
+> **2026-06-05 Consolidation**: `handleSecurityHeaders` and `handleStaticAssetCaching` are now inlined into `handleTurboPipeline`'s post-resolve phase, reducing Promise chain depth by 2 hooks. `handleTurboGet` moved earlier — right after security gates, before auth/authz — maximizing its cache-hit fast-path coverage.
 
 ### handleHyperTurbo - Benchmark Auth (Security-Gated)
 

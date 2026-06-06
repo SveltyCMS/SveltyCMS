@@ -74,7 +74,10 @@ export const forgotPW = command("unchecked", async (data: any) => {
     if (isRedirect(err)) {
       return { success: true, redirectPath: err.location };
     }
-    return { success: false, message: err.message || "Failed to process request" };
+    return {
+      success: false,
+      message: err.message || "Failed to process request",
+    };
   }
 });
 
@@ -86,8 +89,121 @@ export const resetPW = command("unchecked", async (data: any) => {
     if (isRedirect(err)) {
       return { success: true, redirectPath: err.location };
     }
-    return { success: false, message: err.message || "Failed to reset password" };
+    return {
+      success: false,
+      message: err.message || "Failed to reset password",
+    };
   }
+});
+
+export const verify2FA = command(
+  "unchecked",
+  async ({ userId, code }: { userId: string; code: string }) => {
+    const event = getRequestEvent();
+    await dbInitPromise;
+    if (!auth) return { success: false, message: "Authentication system is not ready." };
+
+    if (!userId || !code) return { success: false, message: "User ID and code required." };
+
+    const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
+    const twoFactorService = getDefaultTwoFactorAuthService(auth as any);
+    if (!twoFactorService) return { success: false, message: "2FA service unavailable." };
+
+    const twoFaResult = await twoFactorService.verify2FA(userId as any as DatabaseId, code);
+    if (!twoFaResult.success) {
+      return {
+        success: false,
+        message: twoFaResult.message || "Invalid 2FA code.",
+      };
+    }
+
+    const user = await auth.getUserById(userId);
+    if (!user) return { success: false, message: "User not found." };
+
+    const sessionCookie = auth.createSessionCookie(userId as any as DatabaseId);
+    event.cookies.set(sessionCookie.name, sessionCookie.value, {
+      ...(sessionCookie.attributes as Record<string, unknown>),
+      path: "/",
+    });
+
+    auth
+      .updateUserAttributes(
+        userId as any,
+        {
+          lastAuthMethod: "security",
+          lastActiveAt: new Date().toISOString() as ISODateString,
+        },
+        { bypassTenantCheck: true },
+      )
+      .catch(() => {});
+
+    let finalCollectionPath: string | null = null;
+    try {
+      finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
+    } catch {}
+
+    throw redirect(303, finalCollectionPath ?? "/config/collectionbuilder");
+  },
+);
+
+export const resetSetup = command("unchecked", async (_payload?: {}) => {
+  const { getSystemState } = await import("@src/stores/system/state.svelte.ts");
+  const { shutdownSystem } = await import("@src/databases/db");
+  const { invalidateSetupCache } = await import("@src/utils/setup-check");
+  const { logger } = await import("@utils/logger");
+  const event = getRequestEvent();
+
+  const systemState = getSystemState();
+  const isAdmin = event.locals.user?.role === "admin";
+  const isSystemFailed = systemState.overallState === "FAILED";
+  const isTestMode = process.env.TEST_MODE === "true";
+
+  // Database health check: try a simple auth query
+  await dbInitPromise;
+  let isDbUnhealthy = false;
+  try {
+    if (auth) {
+      await auth.getUserCount({}, { bypassTenantCheck: true });
+    } else {
+      isDbUnhealthy = true;
+    }
+  } catch {
+    isDbUnhealthy = true;
+  }
+
+  if (!(isAdmin || isSystemFailed || isTestMode || isDbUnhealthy)) {
+    return {
+      success: false,
+      message: "You do not have permission to reset the setup.",
+    };
+  }
+
+  if (!isTestMode) {
+    const path = await import("node:path");
+    const fs = await import("node:fs/promises");
+    const configPath = path.join(process.cwd(), "config", "private.ts");
+    try {
+      await fs.unlink(configPath);
+    } catch (e: any) {
+      if (e.code !== "ENOENT") {
+        logger.warn(`Could not delete private.ts (${e.code}). Attempting to clear it instead.`);
+        try {
+          await fs.writeFile(configPath, "");
+        } catch {
+          throw e;
+        }
+      }
+    }
+  }
+
+  try {
+    await shutdownSystem();
+  } catch (shutdownErr) {
+    logger.error("Failed to shutdown database system during setup reset:", shutdownErr);
+  }
+
+  invalidateSetupCache(true);
+  return { success: true, message: "Setup has been reset." };
 });
 
 export const prefetchFirstCollection = query("unchecked", async () => {

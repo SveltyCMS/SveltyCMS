@@ -62,11 +62,9 @@ import { Form } from "@utils/form.svelte.ts";
 import { forgotFormSchema, loginFormSchema, resetFormSchema } from "@utils/schemas";
 import { browser } from "$app/environment";
 import { goto, preloadData } from "$app/navigation";
-import { signIn as remoteSignIn, forgotPW as remoteForgotPW, resetPW as remoteResetPW } from "../auth.remote";
-import type { ActionResult } from "@sveltejs/kit";
+import { signIn as remoteSignIn, forgotPW as remoteForgotPW, resetPW as remoteResetPW, verify2FA } from "../auth.remote";
 // Stores
 import { page } from "$app/state";
-import { enhance } from "$app/forms";
 import type { PageData } from "../$types";
 import SigninIcon from "./icons/signin-icon.svelte";
 import OauthLogin from "./oauth-login.svelte";
@@ -100,7 +98,6 @@ let showPassword = $state(false);
 let loginFormElement: HTMLFormElement | null = $state(null);
 let forgotFormElement: HTMLFormElement | null = $state(null);
 let resetFormElement: HTMLFormElement | null = $state(null);
-let twoFAFormElement: HTMLFormElement | null = $state(null);
 
 const tabIndex = $state(1);
 
@@ -295,40 +292,7 @@ async function handleResetSubmit(event: Event) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// 2FA — uses a hidden form with use:enhance for CSRF safety.
-// Raw fetch bypasses SvelteKit's CSRF pipeline and loses typed ActionResult data.
-// ---------------------------------------------------------------------------
-
-const verify2FASubmit = () => ({
-	onSubmit: () => {
-		isVerifying2FA = true;
-	},
-	onResult: async ({ result }: { result: ActionResult }) => {
-		isVerifying2FA = false;
-
-		if (result.type === "redirect") {
-			toast.success({ title: "Verification Successful", description: "Redirecting…" });
-			window.location.href = result.location!;
-			return;
-		}
-
-		if (result.type === "failure") {
-			toast.error({
-				description: result.data?.message || twofa_error_invalid_code(),
-			});
-			twoFACode = "";
-		}
-
-		if (result.type === "error") {
-			toast.error({
-				description: result.error?.message || "An unexpected error occurred",
-			});
-		}
-	},
-});
-
-function submitTwoFA() {
+async function submitTwoFA() {
 	if (!twoFACode.trim() || isVerifying2FA) return;
 
 	if (!useBackupCode && twoFACode.length !== 6) {
@@ -340,7 +304,19 @@ function submitTwoFA() {
 		return;
 	}
 
-	twoFAFormElement?.requestSubmit();
+	isVerifying2FA = true;
+	try {
+		await verify2FA({ userId: twoFAUserId, code: twoFACode });
+	} catch (e: any) {
+		isVerifying2FA = false;
+		if (e?.location) {
+			toast.success({ title: "Verification Successful", description: "Redirecting…" });
+			window.location.href = e.location;
+		} else {
+			toast.error({ description: e?.message || twofa_error_invalid_code() });
+			twoFACode = "";
+		}
+	}
 }
 
 function handle2FAInput(event: Event) {
@@ -667,20 +643,6 @@ $effect(() => {
 						</div>
 					{/if}
 				{/if}
-
-				<!-- Hidden 2FA form — uses enhance for CSRF safety and proper redirect handling -->
-				<form
-					method="POST"
-					action="?/verify2FA"
-					use:enhance={verify2FASubmit as any}
-					bind:this={twoFAFormElement}
-					class="sr-only"
-					aria-hidden="true"
-					inert
-				>
-					<input type="hidden" name="userId" value={twoFAUserId} />
-					<input type="hidden" name="code" value={twoFACode} />
-				</form>
 
 				<!-- --------------------------------------------------------- -->
 				<!-- Forgotten Password form                                   -->

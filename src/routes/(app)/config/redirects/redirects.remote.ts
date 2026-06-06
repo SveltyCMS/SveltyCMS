@@ -1,45 +1,36 @@
 /**
  * @file src/routes/(app)/config/redirects/redirects.remote.ts
- * @description Redirect Manager Remote Functions — isomorphic fetch wrappers for client-side use.
+ * @description Redirect Manager Remote Functions — SvelteKit command wrappers.
  *
  * ### Features:
- * - save (upsert) a redirect rule via SvelteKit form action
- * - delete a redirect rule via SvelteKit form action
+ * - saveRedirect — upsert a redirect rule
+ * - deleteRedirect — delete a redirect rule
  *
- * @remarks All exports must be plain async functions (no RequestEvent, no server imports).
+ * @remarks All exports are SvelteKit remote functions (command wrappers).
  */
 
-export interface RedirectResult {
-  success: boolean;
-  error?: string;
-}
+import { command } from "$app/server";
 
-export async function saveRedirectRemote(rule: {
-  id?: string;
-  from: string;
-  to: string;
-  type: number;
-  active: boolean;
-  isRegex: boolean;
-}): Promise<RedirectResult> {
-  const fd = new FormData();
-  if (rule.id) fd.set("id", rule.id);
-  fd.set("from", rule.from);
-  fd.set("to", rule.to);
-  fd.set("type", String(rule.type));
-  fd.set("active", String(rule.active));
-  if (rule.isRegex) fd.set("isRegex", "on");
+export const saveRedirect = command(
+  "unchecked",
+  async (rule: {
+    id?: string;
+    from: string;
+    to: string;
+    type: number;
+    active: boolean;
+    isRegex: boolean;
+  }) => {
+    const { saveRedirect: fn } = await import("./redirects.server");
+    const { getRequestEvent } = await import("$app/server");
+    const event = getRequestEvent();
+    return fn(event.locals as App.Locals, rule);
+  },
+);
 
-  const r = await fetch("?/save", { method: "POST", body: fd });
-  const d = await r.json().catch(() => ({}));
-  return r.ok ? { success: true } : { success: false, error: d?.message ?? "Save failed" };
-}
-
-export async function deleteRedirectRemote(id: string): Promise<RedirectResult> {
-  const fd = new FormData();
-  fd.set("id", id);
-
-  const r = await fetch("?/delete", { method: "POST", body: fd });
-  const d = await r.json().catch(() => ({}));
-  return r.ok ? { success: true } : { success: false, error: d?.message ?? "Delete failed" };
-}
+export const deleteRedirect = command("unchecked", async (id: string) => {
+  const { deleteRedirect: fn } = await import("./redirects.server");
+  const { getRequestEvent } = await import("$app/server");
+  const event = getRequestEvent();
+  return fn(event.locals as App.Locals, id);
+});

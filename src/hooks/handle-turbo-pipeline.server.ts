@@ -26,6 +26,7 @@ import {
   boundaryResponse,
 } from "@src/utils/hook-utils";
 import { BASE_HEADERS } from "@src/utils/security-constants";
+import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { logger } from "@src/utils/logger";
 // Hook is initialized lazily
 let cachedDbAdapter: any = null;
@@ -549,6 +550,15 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     // ── 9. FINAL RESOLVE ───────────────────────────────────────────────────
     const response = await resolve(event);
+
+    // ── 10. POST-RESOLVE: Security Headers + Static Asset Caching ──────────
+    // Consolidated here to reduce Promise chain depth by 2 hooks.
+    if (!STATIC_ASSET_REGEX.test(pathname)) {
+      applyAllSecurityHeaders(response.headers, isHttps, origin, pathname);
+    } else {
+      response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    }
+
     if (dev) logRequest(event, performance.now() - requestStart, response.status);
     return response;
   } catch (err: any) {

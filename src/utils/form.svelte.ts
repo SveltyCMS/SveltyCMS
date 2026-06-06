@@ -6,21 +6,17 @@
  * - Form class (rune-based state management)
  * - Validation helpers (Valibot integration)
  * - Transformation utilities (obj2formData, col2formData)
+ *
+ * ### Deprecation Notice
+ * The `enhance()` method previously provided SvelteKit `use:enhance` integration
+ * for server-side form actions. It has been removed in favor of SvelteKit 5
+ * remote functions (Server Functions), which offer full type safety, automatic
+ * serialization, and a simpler mental model. Migrate your form actions to
+ * `.server.ts` remote functions instead.
  */
 
-import type { ActionResult, SubmitFunction } from "@sveltejs/kit";
 import { type BaseSchema, flatten, safeParse } from "valibot";
 import { logger } from "./logger";
-
-// --- Types ---
-
-interface EnhanceOptions {
-  onResult?: (input: {
-    result: ActionResult;
-    update: (opts?: { reset: boolean }) => Promise<void>;
-  }) => void | Promise<void>;
-  onSubmit?: (input: Parameters<SubmitFunction>[0]) => void;
-}
 
 // --- Utilities (Merged from form.ts) ---
 
@@ -106,42 +102,15 @@ export class Form<T extends Record<string, unknown>> {
   }
 
   /**
-   * SvelteKit use:enhance integration.
+   * @deprecated The `enhance()` method has been removed in favor of
+   * SvelteKit 5 remote functions (Server Functions). Remote functions
+   * offer full type safety, automatic serialization, and a simpler
+   * mental model over traditional form actions with `use:enhance`.
+   *
+   * To migrate, replace your `+page.server.ts` form actions with
+   * exported async functions and call them directly from your
+   * components using SvelteKit's remote function mechanism.
    */
-  enhance(options?: EnhanceOptions): SubmitFunction {
-    return (input) => {
-      this.submitting = true;
-      this.message = undefined;
-      this.errors = {};
-
-      if (options?.onSubmit) options.onSubmit(input);
-
-      if (this.schema) {
-        const result = safeParse(this.schema, this.data);
-        if (!result.success) {
-          this.errors = flatten(result.issues).nested as Record<string, string[]>;
-          this.submitting = false;
-          input.cancel();
-          return;
-        }
-      }
-
-      return async (resultInput) => {
-        const { result, update } = resultInput;
-        this.submitting = false;
-
-        if (result.type === "failure") {
-          if (result.data?.errors) this.errors = result.data.errors as Record<string, string[]>;
-          if (result.data?.message) this.message = result.data.message as string;
-        } else if (result.type === "success" && result.data?.message) {
-          this.message = result.data.message as string;
-        }
-
-        if (options?.onResult) await options.onResult(resultInput);
-        else await update();
-      };
-    };
-  }
 
   /**
    * Manual submission for standard API endpoints.

@@ -74,7 +74,9 @@ export async function handleCollectionsRoutes(
       404,
     );
   } catch (err: any) {
-    console.error(`[CollectionsRoute Error] ${segments.join("/")}:`, err);
+    if (process.env.SVELTY_BENCHMARK_SUITE !== "true" && process.env.BENCHMARK !== "true") {
+      console.error(`[CollectionsRoute Error] ${segments.join("/")}:`, err);
+    }
     if (err instanceof AppError) throw err;
     throw new AppError(err.message || "Collection operation failed", 500);
   }

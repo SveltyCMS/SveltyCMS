@@ -60,7 +60,7 @@ To stay ahead: Implement cleaner features (e.g., isomorphic plugins > Payload's 
 ## Technical Standards
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
-- **Code Quality**: Ensure 100% CI parity by running `bun run format && bun run lint && bun run check && bun run test:unit && bun run test:unit:bun` before every push. This performs comprehensive formatting (oxfmt), linting (oxlint), type checking (svelte-check), and executes all 741+ unit tests in both Vitest (exhaustive jsdom) and Bun (fast native).
+- **Code Quality**: Ensure 100% CI parity by running `bun run format && bun run lint && bun run check && bun run test:unit` before every push. This performs comprehensive formatting (oxfmt), linting (oxlint), type checking (svelte-check), and executes all 915+ unit tests via Vitest with full jsdom environment for white-box testing.
 
 | Category          | Convention           | Examples                                                 |
 | :---------------- | :------------------- | :------------------------------------------------------- |
@@ -411,15 +411,14 @@ bun remove drizzle-orm && bun add drizzle-orm
 | Code Quality  | `bun run check`                                                                                                                     | Type checking                                              |
 |               | `bun run lint`                                                                                                                      | Fast Lint (oxlint)                                         |
 |               | `bun run format`                                                                                                                    | Fast Format (oxfmt)                                        |
-| Testing       | `bun run test:unit`                                                                                                                 | Unit tests (Vitest/jsdom) — 854 tests                      |
-|               | `bun run test:unit:bun`                                                                                                             | Unit tests (Bun Native)                                    |
+| Testing       | `bun run test:unit`                                                                                                                 | Unit tests (Vitest/jsdom) — 915 tests                      |
 |               | `bun run test:integration`                                                                                                          | Integration (DB required)                                  |
 |               | `bun run test:e2e`                                                                                                                  | E2E (Playwright)                                           |
 | **Security**  | `bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts` | Fast security regression check (69 tests)                  |
 | DB Operations | `bun run db:push`                                                                                                                   | Push schema changes (Drizzle)                              |
 | i18n          | `bun run paraglide`                                                                                                                 | Compile messages                                           |
 | Diagnostics   | `bun run check:mongodb`                                                                                                             | Test MongoDB connection                                    |
-| **CI Parity** | `bun run format && bun run lint && bun run check && bun run test:unit && bun run test:unit:bun`                                     | **Mandatory before commit** (performs full local CI check) |
+| **CI Parity** | `bun run format && bun run lint && bun run check && bun run test:unit`                                                              | **Mandatory before commit** (performs full local CI check) |
 
 ## Architecture Overview
 
@@ -578,7 +577,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 - Branches: `next` (dev), `main` (stable).
 - **Commit Attribution**: **NEVER** include `Co-Authored-By` or any AI-attribution lines in commit messages unless explicitly requested by the USER for a specific commit. All work should appear as the USER's own work for seamless integration into enterprise workflows.
 - Commits: Conventional (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `security:`, `perf:`).
-- Pre-commit: `bun run format && bun run lint && bun run check && bun run test:unit && bun run test:unit:bun` (100% CI parity).
+- Pre-commit: `bun run format && bun run lint && bun run check && bun run test:unit` (100% CI parity).
 - **Roadmap Checklist**: Add Universal Accessibility Auditing to CI/CD pipeline.
 
 ---
