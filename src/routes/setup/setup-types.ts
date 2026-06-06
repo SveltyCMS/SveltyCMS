@@ -16,6 +16,7 @@ export interface DbConfig {
 }
 export interface SystemSettings {
   preset?: string | null;
+  hostProd?: string;
   multiTenant?: boolean;
   demoMode?: boolean;
   siteName?: string;
@@ -24,10 +25,16 @@ export interface SystemSettings {
   redisPort?: string;
   redisPassword?: string;
   defaultSystemLanguage?: string;
+  systemLanguages?: string[];
+  defaultContentLanguage?: string;
+  contentLanguages?: string[];
   mediaStorageType?: string;
   mediaFolder?: string;
   timezone?: string;
   passwordMinLength?: number;
+  cfApiToken?: string;
+  cfZoneId?: string;
+  cfPurgeMode?: string;
 }
 export interface AdminUser {
   username: string;
