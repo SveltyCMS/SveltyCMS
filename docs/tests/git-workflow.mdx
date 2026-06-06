@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/git-workflow.mdx"
 title: "Git Workflow & Automated Testing"
-description: "Complete guide to branching strategy, commit conventions, automated testing with Bun and Playwright, and semantic releases with GitHub Actions."
+description: "Complete guide to branching strategy, commit conventions, automated testing with Vitest and Playwright, and semantic releases with GitHub Actions."
 order: 3
 icon: "mdi:git"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-03-27"
+updated: "2026-06-06"
 tags:
   - "git"
   - "workflow"
@@ -25,10 +25,10 @@ SveltyCMS uses a comprehensive Git workflow with automated testing and semantic 
 Our CI/CD and Local pipeline uses:
 
 - **Native Git Hooks**: Zero-dependency quality gate (`.githooks/pre-commit`).
-- **Dual Unit Test Suites**: Vitest (jsdom) for components + Bun (Native) for logic.
+- **Vitest (jsdom)**: Unified unit testing for components, stores, services, and API handlers.
 - **Unified Formatting**: oxfmt-powered `bun run format` for lightning-fast cleanup.
-- **Bun Tests**: Fast unit & integration testing (~741 tests).
-- **Playwright**: Comprehensive E2E testing (~40 tests).
+- **Vitest Unit Suite**: Fast unit testing (~915 tests in under 5 seconds for the full suite).
+- **Playwright**: Comprehensive E2E testing across multiple database backends.
 - **Semantic Release**: Automated versioning on `main`.
 - **Standardized Network**: Always use `127.0.0.1` for local consistency.
 
@@ -46,12 +46,12 @@ git config core.hooksPath .githooks
 
 The pre-commit chain uses a **Parallel TypeScript Orchestrator** to run checks efficiently.
 
-The gate runs the full unit test suites (both Vitest and Bun Native) and the Production Build locally before every commit to ensure zero CI regressions. SQLite Integration Tests are also run locally on staged changes.
+The gate runs the full unit test suite (915 tests via Vitest with jsdom) and the Production Build locally before every commit to ensure zero CI regressions. SQLite Integration Tests are also run locally on staged changes.
 
 Key features:
 
 - **Parallel Execution**: Linting, Type-Checking, and Testing run simultaneously.
-- **Full Test Suite & Build Verification**: Runs the complete unit test suites (Vitest & Bun Native) and the Production Build locally to prevent broken builds in CI.
+- **Full Test Suite & Build Verification**: Runs the complete 915-test unit suite (Vitest) and the Production Build locally to prevent broken builds in CI.
 - **Local Integration Verification**: Automatically runs SQLite Integration Tests locally when relevant code changes are staged.
 - **Safe Staging Isolation**: The hook only re-stages files that were **already staged** before formatting/linting auto-fixes ran, respecting the developer's selective staging (e.g. `git commit -p`) instead of blindly staging everything.
 
@@ -60,7 +60,7 @@ Key features:
 The hook orchestrates the following checks:
 
 1.  **Global Lint & Format**: Fast `oxfmt` + `oxlint` check.
-2.  **Full Unit Testing**: Runs Vitest (`bun run test:unit --run`) and Bun Native (`bun run test:unit:bun`) suites.
+2.  **Full Unit Testing**: Runs the complete Vitest suite via `bun run test:unit`.
 3.  **Mandatory Codegen & Check**: `paraglide` compilation and type-checking via `svelte-check`.
 4.  **Build & Integration Check**: Verifies Production Build compiles and runs SQLite Integration Tests.
 
@@ -75,7 +75,7 @@ We have two primary, long-lived branches: `main` and `next`.
 - **Purpose**: Production-ready, stable code. This branch represents the latest official release.
 - **Protection**: Protected branch requiring pull request reviews.
 - **Automated Actions**:
-  - ✅ Runs full Playwright + Bun test suite.
+  - ✅ Runs full Playwright + Vitest test suite.
   - ✅ Only releases if tests pass.
   - ✅ Creates stable semantic version (e.g., `v1.3.0`).
   - ✅ Generates changelog and release notes.
@@ -123,18 +123,26 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 
 ## Automated Testing Architecture
 
-### 🧪 Bun Tests (Unit & Integration)
+### 🧪 Vitest Unit Tests (915 tests)
 
-- **Speed**: ⚡ Lightning fast (<10s for full dual-suite).
+- **Speed**: ⚡ Lightning fast (under 5 seconds for the full 915-test suite).
 - **Location**: `tests/unit/`
-- **Native**: `bun run test:unit:bun` (Logic & Utils)
-- **jsdom**: `bun run test:unit` (Components & DOM)
+- **Runner**: Vitest with jsdom for components, stores, services, and API logic.
+- **Command**: `bun run test:unit`
 
 ### 🎭 Playwright Tests (E2E)
 
 - **Purpose**: Browser automation for critical user journeys.
 - **Standard**: Always point to `127.0.0.1:4173` via `TEST_MODE=true`.
 - **Location**: `tests/e2e/`
+
+### Integration Tests
+
+- **Purpose**: Multi-database verification of the full middleware chain (Firewall → Auth → RBAC → Handler → DB).
+- **Runner**: `scripts/run-integration-tests.ts` — orchestrates build, preview server, DB seeding, test execution, and cleanup.
+- **Databases**: SQLite, MongoDB, PostgreSQL, MariaDB (same suite against all 4 engines).
+- **Command**: `bun run test:integration`
+- **Isolation**: Generates `config/private.test.ts` with isolated credentials. Never touches production data.
 
 ---
 
@@ -154,6 +162,22 @@ If the pre-commit hook is taking too long or you want to run checks manually:
 ```bash
 # Run the high-performance parallel quality gate
 bun run scripts/quality-gate.ts
+```
+
+### CI Parity Before Every Push
+
+Run the full local CI parity check to ensure zero regressions:
+
+```bash
+bun run format && bun run lint && bun run check && bun run test:unit
+```
+
+### Security Regression Check
+
+For changes touching auth, middleware, or API routes, also run:
+
+```bash
+bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
 ```
 
 > [!NOTE]
@@ -181,5 +205,4 @@ Ensure you are using `127.0.0.1` in your `config/private.test.ts` and that the t
 
 - [Test Status Report](/docs/tests/test-status)
 - [API Testing](/docs/tests/api-testing)
-- [Black-Box Testing Architecture](/docs/tests/black-box-testing)
 - [Testing Strategy](/docs/tests/testing-strategy)

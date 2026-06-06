@@ -288,7 +288,7 @@ flowchart LR
 4. **Audit & CI parity**: Run the full check suite and Audit matrix (if code changed).
 
    ```bash
-   # Run quality gate (1030+ tests)
+   # Run quality gate (915+ tests)
    bun run lint ; bun run check ; bun run test
 
    # Run performance audit (if applicable)
@@ -330,8 +330,8 @@ Before opening a PR, verify every item:
 - [ ] Tags are lowercase and kebab-case
 - [ ] Internal links use correct canonical paths
 - [ ] Linter passes: `bun ./tests/lint-docs.ts`
-- [ ] **1030+ Test Suite passes**: All unit and integration tests are green.
-- [ ] **Audit Budget verified**: No regressions in `enterprise-matrix.ts`.
+- [ ] **915+ Test Suite passes**: All unit tests are green (`bun run test:unit`).
+- [ ] **Audit Budget verified**: No regressions in benchmark matrix.
 - [ ] **If `src/routes/api/widgets/` or `src/stores/widget-store.svelte.ts` changed**: `Widget_API.mdx` updated in this same PR.
 - [ ] Rendered correctly in the CMS preview.
 

@@ -19,11 +19,11 @@ tags:
 
 ## Executive Summary
 
-**Total Suite:** 753 highly performant unit tests (consolidated)
+**Total Suite:** 915 unit tests (consolidated)
 **Total Store Tests:** 95 tests across 6 core files
 **Coverage:** 100% Logic Coverage (Svelte 5 Runes)
 **Status:** ✅ All tests passing
-**Framework:** Vitest 4.0 / Bun 1.3.11 + Svelte 5 Runes
+**Framework:** Vitest + Svelte 5 Runes
 
 ---
 
@@ -122,11 +122,11 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 
 ```bash
 # Run all store tests
-bun run vitest run tests/unit/stores
+bun run test:unit -- tests/unit/stores
 
 # Run specific store tests
-bun run vitest run tests/unit/stores/system
-bun run vitest run tests/unit/stores/loading-store
+bun run test:unit -- tests/unit/stores/system
+bun run test:unit -- tests/unit/stores/loading-store
 ```
 
 ---
