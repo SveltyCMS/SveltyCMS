@@ -78,7 +78,10 @@ export async function handleCollectionsRoutes(
       console.error(`[CollectionsRoute Error] ${segments.join("/")}:`, err);
     }
     if (err instanceof AppError) throw err;
-    throw new AppError(err.message || "Collection operation failed", 500);
+    throw new AppError(
+      err instanceof Error ? err.message : String(err) || "Collection operation failed",
+      500,
+    );
   }
 }
 

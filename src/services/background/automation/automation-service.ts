@@ -295,8 +295,8 @@ export class AutomationService {
           logEntry.status = "skipped";
           break;
         }
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
+      } catch (err: any) {
+        const errorMsg = err.message;
         logEntry.operationResults.push({
           operationId: operation.id,
           type: operation.type,
@@ -315,7 +315,9 @@ export class AutomationService {
     logEntry.duration = Date.now() - startTime;
 
     // Update flow stats (fire-and-forget)
-    this.updateFlowStats(flow.id, logEntry.status, flow.tenantId).catch(() => {});
+    this.updateFlowStats(flow.id, logEntry.status, flow.tenantId).catch(() => {
+      logger.debug("Flow stats update failed silently");
+    });
 
     // Store log entry
     this.addLogEntry(logEntry);
@@ -649,7 +651,9 @@ export class AutomationService {
             scope: "system",
             tenantId: tenantId as any,
           })
-          .catch(() => {});
+          .catch(() => {
+            logger.debug("Automation config persistence failed silently");
+          });
       }
     }
   }

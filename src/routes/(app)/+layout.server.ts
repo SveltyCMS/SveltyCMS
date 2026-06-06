@@ -59,9 +59,9 @@ async function refreshUser(
       userId: sessionUser._id,
     });
     return sessionUser;
-  } catch (err) {
+  } catch (err: any) {
     logger.warn("Failed to fetch fresh user data in layout, using session data", {
-      error: err instanceof Error ? err.message : String(err),
+      error: err.message,
       userId: sessionUser._id,
     });
     return sessionUser;
@@ -133,10 +133,10 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
         first ? JSON.parse(JSON.stringify(first)) : null,
       ),
     };
-  } catch (err) {
+  } catch (err: any) {
     logger.error("Failed to load layout data", {
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
+      error: err.message,
+      stack: err.stack,
       user: sessionUser?._id,
     });
 

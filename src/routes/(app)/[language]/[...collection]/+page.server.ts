@@ -146,7 +146,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         tenantId,
         isUUID,
       });
-      const { error } = await import("@sveltejs/kit");
       throw error(404, "Not Found");
     }
 

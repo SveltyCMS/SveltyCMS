@@ -80,8 +80,8 @@ export class TwoFactorAuthService {
 
       logger.info("2FA setup initiated successfully", { userId, tenantId });
       return response;
-    } catch (error) {
-      const message = `Failed to initiate 2FA setup: ${error instanceof Error ? error.message : String(error)}`;
+    } catch (error: any) {
+      const message = `Failed to initiate 2FA setup: ${error.message}`;
       logger.error(message, { userId, tenantId });
       throw new Error(message);
     }
@@ -135,8 +135,8 @@ export class TwoFactorAuthService {
 
       logger.info("2FA setup completed successfully", { userId, tenantId });
       return true;
-    } catch (error) {
-      const message = `Failed to complete 2FA setup: ${error instanceof Error ? error.message : String(error)}`;
+    } catch (error: any) {
+      const message = `Failed to complete 2FA setup: ${error.message}`;
       logger.error(message, { userId, tenantId });
       throw new Error(message);
     }
@@ -251,8 +251,8 @@ export class TwoFactorAuthService {
         success: false,
         message: "Invalid 2FA code",
       };
-    } catch (error) {
-      const message = `2FA verification error: ${error instanceof Error ? error.message : String(error)}`;
+    } catch (error: any) {
+      const message = `2FA verification error: ${error.message}`;
       logger.error(message, { userId, tenantId });
       return {
         success: false,
@@ -284,8 +284,8 @@ export class TwoFactorAuthService {
 
       logger.info("2FA disabled successfully", { userId, tenantId });
       return true;
-    } catch (error) {
-      const message = `Failed to disable 2FA: ${error instanceof Error ? error.message : String(error)}`;
+    } catch (error: any) {
+      const message = `Failed to disable 2FA: ${error.message}`;
       logger.error(message, { userId, tenantId });
       throw new Error(message);
     }
@@ -328,8 +328,8 @@ export class TwoFactorAuthService {
         tenantId,
       });
       return newBackupCodes; // Return plain codes to user
-    } catch (error) {
-      const message = `Failed to regenerate backup codes: ${error instanceof Error ? error.message : String(error)}`;
+    } catch (error: any) {
+      const message = `Failed to regenerate backup codes: ${error.message}`;
       logger.error(message, { userId, tenantId });
       throw new Error(message);
     }
@@ -361,8 +361,8 @@ export class TwoFactorAuthService {
         backupCodesCount: user.backupCodes ? user.backupCodes.length : 0,
         lastVerification: user.last2FAVerification,
       };
-    } catch (error) {
-      const message = `Failed to get 2FA status: ${error instanceof Error ? error.message : String(error)}`;
+    } catch (error: any) {
+      const message = `Failed to get 2FA status: ${error.message}`;
       logger.error(message, { userId, tenantId });
       throw new Error(message);
     }

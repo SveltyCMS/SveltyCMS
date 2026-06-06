@@ -96,8 +96,15 @@ async function checkDatabaseHealth(): Promise<{
     _dbHealthCache = { healthy: true, timestamp: now };
     return { healthy: true };
   } catch (err: any) {
-    _dbHealthCache = { healthy: false, reason: err.message, timestamp: now };
-    return { healthy: false, reason: err.message };
+    _dbHealthCache = {
+      healthy: false,
+      reason: err.message,
+      timestamp: now,
+    };
+    return {
+      healthy: false,
+      reason: err.message,
+    };
   }
 }
 
@@ -307,7 +314,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
                 sitename,
               },
               languageTag: userLanguage,
-            }).catch(() => {});
+            }).catch(() => {
+              logger.debug("Welcome email sending failed silently");
+            });
           }
         }
 
@@ -331,7 +340,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
               },
               { bypassTenantCheck: true },
             )
-            .catch(() => {});
+            .catch(() => {
+              logger.debug("Google user attribute update failed silently");
+            });
 
           let finalCollectionPath: string | null = null;
           try {
@@ -373,7 +384,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
   } catch (err: any) {
     if (isRedirect(err)) throw err;
     logger.error("Load error:", err.message);
-    return { ...errorDefaults, error: err.message };
+    return {
+      ...errorDefaults,
+      error: err.message,
+    };
   }
 };
 

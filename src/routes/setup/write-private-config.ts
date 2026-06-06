@@ -159,11 +159,9 @@ export const privateEnv = {
     }
 
     logger.info("Private configuration file written and validated successfully");
-  } catch (error) {
+  } catch (error: any) {
     logger.error("Failed to write private config:", error);
-    throw new Error(
-      `Failed to write private configuration: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    throw new Error(`Failed to write private configuration: ${error.message}`);
   }
 }
 

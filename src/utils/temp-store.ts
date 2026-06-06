@@ -1,45 +1,62 @@
 /**
  * @file src/utils/temp-store.ts
- * @description Simple file-based temporary store for large job payloads with TTL cleanup.
+ * @description Redis-backed temporary store for large job payloads with native TTL.
+ * Replaces file-based disk I/O with in-memory Redis — no filesystem pollution, no cleanup cron.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
 import { generateUUID } from "@utils/native-utils";
 import { logger } from "./logger";
 
-const TEMP_DIR = path.join(process.cwd(), "tmp", "job-payloads");
+const TTL_SECONDS = 3600; // 1 hour
+
+/** Lazy-load Redis client to avoid init-time dependency issues */
+async function getRedis() {
+  const { createClient } = await import("redis");
+  const client = createClient({
+    url: process.env.REDIS_URL || "redis://127.0.0.1:6379",
+  });
+  await client.connect();
+  return client;
+}
 
 /**
- * Ensures the temporary directory exists.
+ * Saves a payload and returns its ID. Redis auto-expires after TTL.
  */
-async function ensureDir() {
+export async function saveTempPayload(data: any): Promise<string> {
   try {
-    await fs.mkdir(TEMP_DIR, { recursive: true });
-  } catch {
-    // Ignore
+    const redis = await getRedis();
+    const id = `job-payload:${generateUUID()}`;
+    await redis.set(id, JSON.stringify(data), { EX: TTL_SECONDS });
+    await redis.quit();
+    return id;
+  } catch (err) {
+    logger.error("[TempStore] Redis save failed, falling back to in-memory:", err);
+    // Fallback: return a prefixed ID with the data embedded (for import-jobs to detect)
+    const id = `inline:${generateUUID()}`;
+    (globalThis as any).__tempPayloads = (globalThis as any).__tempPayloads || new Map();
+    (globalThis as any).__tempPayloads.set(id, data);
+    return id;
   }
 }
 
 /**
- * Saves a payload to a temporary file and returns its ID.
- */
-export async function saveTempPayload(data: any): Promise<string> {
-  await ensureDir();
-  const id = generateUUID();
-  const filePath = path.join(TEMP_DIR, `${id}.json`);
-  await fs.writeFile(filePath, JSON.stringify(data));
-  return id;
-}
-
-/**
- * Retrieves a payload from the temporary store.
+ * Retrieves a payload by ID.
  */
 export async function getTempPayload(id: string): Promise<any | null> {
-  const filePath = path.join(TEMP_DIR, `${id}.json`);
+  // Inline fallback
+  if (id.startsWith("inline:")) {
+    const map = (globalThis as any).__tempPayloads;
+    if (!map) return null;
+    const data = map.get(id);
+    map.delete(id);
+    return data ?? null;
+  }
+
   try {
-    const data = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(data);
+    const redis = await getRedis();
+    const raw = await redis.get(id);
+    await redis.quit();
+    return raw ? JSON.parse(raw) : null;
   } catch (err) {
     logger.error(`[TempStore] Failed to read payload ${id}:`, err);
     return null;
@@ -47,34 +64,26 @@ export async function getTempPayload(id: string): Promise<any | null> {
 }
 
 /**
- * Deletes a payload from the temporary store.
+ * Deletes a payload by ID.
  */
 export async function deleteTempPayload(id: string): Promise<void> {
-  const filePath = path.join(TEMP_DIR, `${id}.json`);
+  if (id.startsWith("inline:")) {
+    (globalThis as any).__tempPayloads?.delete(id);
+    return;
+  }
+
   try {
-    await fs.unlink(filePath);
+    const redis = await getRedis();
+    await redis.del(id);
+    await redis.quit();
   } catch {
-    // Ignore
+    // Non-critical — Redis will auto-expire
   }
 }
 
 /**
- * Cleans up payloads older than the specified TTL (default 1 hour).
+ * No-op: Redis handles TTL natively. Kept for API compatibility.
  */
-export async function cleanupTempStore(ttlMs = 3600000) {
-  await ensureDir();
-  const now = Date.now();
-  try {
-    const files = await fs.readdir(TEMP_DIR);
-    for (const file of files) {
-      const filePath = path.join(TEMP_DIR, file);
-      const stats = await fs.stat(filePath);
-      if (now - stats.mtimeMs > ttlMs) {
-        await fs.unlink(filePath);
-        logger.debug(`[TempStore] Cleaned up expired payload: ${file}`);
-      }
-    }
-  } catch (err) {
-    logger.error("[TempStore] Cleanup error:", err);
-  }
+export async function cleanupTempStore(_ttlMs?: number) {
+  // Redis auto-expires keys — no cleanup needed
 }

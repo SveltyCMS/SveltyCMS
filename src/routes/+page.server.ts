@@ -9,7 +9,7 @@ import { contentSystem } from "@src/content/index.server";
 import type { Role, User } from "@src/databases/auth/types";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { error, redirect } from "@sveltejs/kit";
+import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
 // Roles
@@ -97,8 +97,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       throw redirect(302, "/user/profile");
     }
   } catch (err) {
-    // Re-throw SvelteKit's internal redirect and error exceptions
-    const { isRedirect, isHttpError } = await import("@sveltejs/kit");
     if (isRedirect(err) || isHttpError(err)) {
       throw err;
     }

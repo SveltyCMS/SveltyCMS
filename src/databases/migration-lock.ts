@@ -109,7 +109,7 @@ async function trySQLiteLock(): Promise<boolean> {
     fs.closeSync(fd);
     return true;
   } catch (err: any) {
-    if (err?.code === "EEXIST") return false; // Lock file already exists
+    if (err.code === "EEXIST") return false; // Lock file already exists
     return true; // Lock not supported — run anyway
   }
 }
@@ -130,7 +130,7 @@ async function tryMongoLock(adapter: DatabaseAdapter): Promise<boolean> {
     });
     return true;
   } catch (err: any) {
-    if (err?.code === 11000) return false; // Duplicate key — lock already held
+    if (err.code === 11000) return false; // Duplicate key — lock already held
     return true; // Lock not supported — run anyway
   }
 }

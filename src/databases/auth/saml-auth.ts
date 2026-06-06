@@ -135,7 +135,10 @@ export async function processSAMLResponse(samlResponse: string, relayState: stri
   // JIT Provisioning
   // 1. Find user by email
   const authAdapter = dbAdapter!.auth;
-  const findResult = await authAdapter.getUserByEmail({ email: profile.email, tenantId: null });
+  const findResult = await authAdapter.getUserByEmail({
+    email: profile.email,
+    tenantId: null,
+  });
 
   let user = findResult.success ? findResult.data : null;
 
@@ -202,7 +205,13 @@ export async function handleSAMLACS(request: Request, cookies?: any) {
     return response;
   } catch (err: any) {
     logger.error("SAML Authentication Failed", err);
-    return json({ success: false, message: err.message }, { status: 401 });
+    return json(
+      {
+        success: false,
+        message: err.message,
+      },
+      { status: 401 },
+    );
   }
 }
 

@@ -64,7 +64,6 @@ import { logger } from "@utils/logger";
 import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
 import { afterNavigate, goto, invalidate } from "$app/navigation";
-import { saveContentStructure, deleteContentNodes, installPreset } from "./collectionbuilder.remote";
 import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount } from "svelte";
 import { page } from "$app/state";
@@ -183,6 +182,7 @@ function getDescendantIds(categoryId: string, flat: ContentNode[]): string[] {
 
 async function doDelete(idsToDelete: string[]) {
 	try {
+		const { deleteContentNodes } = await import("./collectionbuilder.remote");
 		const result = await deleteContentNodes(idsToDelete);
 		if ("success" in result && result.success) {
 			const idSet = new SvelteSet(idsToDelete);
@@ -352,6 +352,7 @@ async function handleSave() {
 	try {
 		isLoading = true;
 
+		const { saveContentStructure } = await import("./collectionbuilder.remote");
 		const result = await saveContentStructure(items as any);
 
 		if ("success" in result && result.success && result.contentStructure) {
@@ -525,6 +526,7 @@ function modalLoadPreset(): void {
 			try {
 				isLoading = true;
 
+				const { installPreset } = await import("./collectionbuilder.remote");
 				const result = await installPreset(response.presetId);
 
 				if ("success" in result && result.success) {

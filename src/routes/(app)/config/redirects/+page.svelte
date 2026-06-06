@@ -95,7 +95,7 @@
 										<iconify-icon icon="mdi:pencil"></iconify-icon>
 									</button>
 									<button class="btn-icon btn-icon-sm preset-outlined-error-500" aria-label="Delete Redirect" onclick={async () => {
-																				const { deleteRedirect } = await import('./redirects.remote');
+																				const { deleteRedirect } = await import('./redirects-actions.server');
 																				await deleteRedirect(redirect._id);
 																				toast.success('Redirect deleted');
 																				// Reload to reflect changes
@@ -121,7 +121,7 @@
 			<form onsubmit={async (e) => {
 								e.preventDefault();
 								const fd = new FormData(e.currentTarget as HTMLFormElement);
-								const { saveRedirect } = await import('./redirects.remote');
+								const { saveRedirect } = await import('./redirects-actions.server');
 								await saveRedirect({
 									id: fd.get('id')?.toString() || undefined,
 									from: fd.get('from')?.toString() || '',

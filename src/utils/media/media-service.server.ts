@@ -13,6 +13,7 @@ import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
 import type {
   IDBAdapter,
+  DatabaseError,
   DatabaseId,
   DatabaseResult,
   MediaItem as DbMediaItem,
@@ -183,7 +184,11 @@ export class MediaService {
         )) as any;
       }
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as DatabaseError,
+      };
     }
   }
 
@@ -231,8 +236,13 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<MediaItem>> {
     try {
-      validateEgressUrl(url, { allowHttp: process.env.NODE_ENV === "development" });
-      const resp = await safeFetch(url, { timeoutMs: 30000, maxSizeBytes: 100 * 1024 * 1024 });
+      validateEgressUrl(url, {
+        allowHttp: process.env.NODE_ENV === "development",
+      });
+      const resp = await safeFetch(url, {
+        timeoutMs: 30000,
+        maxSizeBytes: 100 * 1024 * 1024,
+      });
       if (!resp.success || !resp.body || (resp.status && resp.status >= 400))
         throw new Error(`Failed to fetch remote media: ${resp.error || resp.status}`);
       const blob = new Blob([resp.body], { type: "application/octet-stream" });
@@ -241,7 +251,11 @@ export class MediaService {
 
       return await this.saveMedia(file, userId, access as any, tenantId);
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as DatabaseError,
+      };
     }
   }
 
@@ -367,7 +381,7 @@ export class MediaService {
       }
 
       return references;
-    } catch (err: any) {
+    } catch (err) {
       logger.error(`[MediaService] Error scanning usage references:`, err);
       return [];
     }
@@ -527,14 +541,16 @@ export class MediaService {
       throw new Error("Failed to retrieve updated media item");
     } catch (err: any) {
       logger.error(`[MediaService] Error uploading new version:`, err);
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as DatabaseError,
+      };
     }
   }
 
   /**
    * Restores an existing file version to be the active one.
-   * Creates a new version entry for the currently active state, and updates
-   * the active properties with the restored version properties.
    */
   public async restoreVersion(
     mediaId: string,
@@ -610,7 +626,11 @@ export class MediaService {
       throw new Error("Failed to retrieve restored media item");
     } catch (err: any) {
       logger.error(`[MediaService] Error restoring version:`, err);
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as DatabaseError,
+      };
     }
   }
 }

@@ -444,7 +444,7 @@ function createSetupStore() {
 
         return true;
       }
-      wizard.errorMessage = data?.error || "Database connection failed.";
+      wizard.errorMessage = (data as any)?.error || "Database connection failed.";
       wizard.dbTestPassed = false;
       wizard.successMessage = "";
       wizard.showDbDetails = true;
@@ -702,7 +702,7 @@ function createSetupStore() {
       // Silently handle all probe failures — Redis detection is a best-effort optimization hint.
       // Common failures include: HTML error page returned as JSON (SyntaxError), network error,
       // or server not ready yet. None of these should be surfaced to the user.
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = e.message;
       if (msg.includes("Unexpected token") || msg.includes("not valid JSON")) {
         logger.debug(
           "[Setup] Redis probe: server returned non-JSON (may still be initializing). Skipping.",

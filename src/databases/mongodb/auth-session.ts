@@ -271,9 +271,9 @@ export class SessionAdapter {
 
       await session.commitTransaction();
       return { success: true, data: newId };
-    } catch (err) {
+    } catch (err: any) {
       await session.abortTransaction();
-      const message = `Token rotation failed: ${err instanceof Error ? err.message : String(err)}`;
+      const message = `Token rotation failed: ${err.message}`;
       logger.error(message, err);
       return {
         success: false,
@@ -287,7 +287,9 @@ export class SessionAdapter {
 
   async deleteExpiredSessions(): Promise<DatabaseResult<number>> {
     try {
-      const res = await this.SessionModel.deleteMany({ expires: { $lt: new Date() } } as any);
+      const res = await this.SessionModel.deleteMany({
+        expires: { $lt: new Date() },
+      } as any);
       return { success: true, data: res.deletedCount };
     } catch (err) {
       return {

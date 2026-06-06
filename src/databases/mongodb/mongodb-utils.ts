@@ -33,8 +33,8 @@ export function createDatabaseError(
   message: string,
   silent = false,
 ): DatabaseError {
-  let details = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? error.stack : undefined;
+  let details = (error as any)?.message || String(error);
+  const stack = (error as any)?.stack;
   const originalCode = (error as any)?.code;
 
   // Detect MongoDB Case Sensitivity Conflict

@@ -8,6 +8,7 @@
 
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { logger } from "@utils/logger";
 import { databaseConfigSchema } from "@src/databases/schemas";
 import { setupAdminSchema, smtpConfigSchema } from "@utils/schemas";
 import { safeParse } from "valibot";
@@ -122,8 +123,10 @@ export async function testDatabaseConnection(
       latencyMs: Math.round(performance.now() - start),
     };
   } catch (err: any) {
+    const errMsg = err.message;
     if (
-      (err.message?.includes("does not exist") ||
+      (errMsg.includes("does not exist") ||
+        errMsg.includes("Unknown database") ||
         err.code === "ER_BAD_DB_ERROR" ||
         err.code === "3D000") &&
       createIfMissing
@@ -143,7 +146,10 @@ export async function testDatabaseConnection(
           };
         }
       } catch (ce: any) {
-        return { success: false, error: ce.message };
+        return {
+          success: false,
+          error: ce.message,
+        };
       }
     }
     const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
@@ -209,7 +215,7 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
     return {
       success: false,
       error: err.message,
-      code: err.message?.includes("Cannot overwrite") ? "SETUP_ALREADY_COMPLETE" : undefined,
+      code: err.message.includes("Cannot overwrite") ? "SETUP_ALREADY_COMPLETE" : undefined,
     };
   }
 }
@@ -490,7 +496,10 @@ export async function testEmailConnection(cfg: {
     });
     return { success: true, message: "Test email sent!" };
   } catch (e: any) {
-    return { success: false, error: e.message };
+    return {
+      success: false,
+      error: e.message,
+    };
   }
 }
 
@@ -509,7 +518,10 @@ export async function testRedisConnection(host = "localhost", port = 6379, passw
     await c.destroy();
     return { success: true, message: "Redis connected!", latencyMs: latency };
   } catch (e: any) {
-    return { success: false, error: e.message };
+    return {
+      success: false,
+      error: e.message,
+    };
   }
 }
 
@@ -549,7 +561,9 @@ async function dropDatabase(db: any) {
     });
     await s
       .unsafe(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${db.name}'`)
-      .catch(() => {});
+      .catch(() => {
+        logger.debug("PG terminate backend failed silently during database drop");
+      });
     try {
       await s.unsafe(`DROP DATABASE IF EXISTS "${db.name}" WITH (FORCE)`);
     } catch {

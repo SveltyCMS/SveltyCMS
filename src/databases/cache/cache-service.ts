@@ -140,7 +140,9 @@ export class CacheService {
       config = await loadPrivateConfig();
     }
     // Pre-warm metrics for sync recording
-    this.getMetrics().catch(() => {});
+    this.getMetrics().catch(() => {
+      logger.debug("Cache metrics pre-warm failed during initialization");
+    });
     return this.initializeL2(config);
   }
 
@@ -164,14 +166,20 @@ export class CacheService {
         disableOfflineQueue: true,
       };
 
-      if (this.l2) await this.l2.destroy().catch(() => {});
+      if (this.l2)
+        await this.l2.destroy().catch(() => {
+          logger.debug("L2 cache destroy failed during initialization");
+        });
       this.l2 = createClient(redisOptions);
       this.l2.on("error", (err: any) => logger.error("Redis L2 Error:", err.message));
       await this.l2
         .connect()
         .catch((err: any) => logger.error("❌ L2 Cache Initial Connection Failed", err.message));
 
-      if (this.subscriber) await this.subscriber.destroy().catch(() => {});
+      if (this.subscriber)
+        await this.subscriber.destroy().catch(() => {
+          logger.debug("Subscriber destroy failed during initialization");
+        });
       this.subscriber = createClient(redisOptions);
       this.subscriber.on("error", (err: any) =>
         logger.error("Redis Subscriber Error:", err.message),
@@ -578,7 +586,10 @@ export class CacheService {
     if (pendingLock) {
       this.pendingRequests.delete(lockReleaseKey);
       pendingLock.then((ownerId) => {
-        if (ownerId) this.releaseLock(fullKey, ownerId).catch(() => {});
+        if (ownerId)
+          this.releaseLock(fullKey, ownerId).catch(() => {
+            logger.debug("Lock release failed after cache population");
+          });
       });
     }
   }
@@ -881,14 +892,24 @@ export class CacheService {
       this.negativeRotationTimer = null;
     }
     if (this.l2) {
-      if (typeof this.l2.disconnect === "function") await this.l2.disconnect().catch(() => {});
-      else if (typeof this.l2.destroy === "function") await this.l2.destroy().catch(() => {});
+      if (typeof this.l2.disconnect === "function")
+        await this.l2.disconnect().catch(() => {
+          logger.debug("L2 cache disconnect failed during cleanup");
+        });
+      else if (typeof this.l2.destroy === "function")
+        await this.l2.destroy().catch(() => {
+          logger.debug("L2 cache destroy failed during cleanup");
+        });
     }
     if (this.subscriber) {
       if (typeof this.subscriber.disconnect === "function")
-        await this.subscriber.disconnect().catch(() => {});
+        await this.subscriber.disconnect().catch(() => {
+          logger.debug("Subscriber disconnect failed during cleanup");
+        });
       else if (typeof this.subscriber.destroy === "function")
-        await this.subscriber.destroy().catch(() => {});
+        await this.subscriber.destroy().catch(() => {
+          logger.debug("Subscriber destroy failed during cleanup");
+        });
     }
     this.l2 = null;
     this.subscriber = null;

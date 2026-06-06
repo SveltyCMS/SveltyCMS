@@ -386,7 +386,7 @@ xychart-beta
 
 <!-- CACHE_EFFICIENCY_TABLE_START -->
 
-### 🏷️ Cache Hit/Miss Ratio & Efficiency ⚪ —
+### 🏷️ Cache Hit/Miss Ratio & Efficiency ⚪ avg 0% rps -53% (2 runs)
 
 > 📂 **Source**: [tests/benchmarks/cache-hit-ratio.test.ts](../../../tests/benchmarks/cache-hit-ratio.test.ts)
 > 🎯 **Proves**: Measures Redis cache hit/miss ratio, cold vs warm read speedup, and invalidation performance.
@@ -399,9 +399,34 @@ xychart-beta
 
 <!-- MEDIA_UPLOAD_TABLE_START -->
 
-> **Measures**: Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.
-> **Code**: `src/services/MediaService.ts`, `src/databases/media/`
-> **Why**: Media processing is CPU-intensive. Bottlenecks block uploads and degrade DAM experience.
+> Within normal variance — no action needed.  
+> Throughput dropped 53% — check connection pool saturation or lock contention.  
+> (suspected — single test run, needs cross-validation with related benchmarks)  
+> **Check**: `src/services/MediaService.ts` · `src/databases/media/`
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                            SVELTYCMS — MEDIA PIPELINE AUDIT                             ║
+║                    File: tests/benchmarks/media-performance.test.ts                     ║
+║           Measures full upload, processing, and storage pipeline via HTTP E2E           ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ SDK: Media Processing          │        8.875 ms │ p95:       12.471 ms │ RPS:        109 ║
+║ HTTP: Media Upload             │       11.613 ms │ p95:       15.597 ms │ RPS:         85 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ SDK Processing Latency                             │        8.875 ms       ║
+║ HTTP Pipeline Latency                              │       11.613 ms       ║
+║ SDK Throughput                                     │      109.000 images/s ║
+║ HTTP Throughput                                    │       85.000 images/s ║
+║ HTTP p95 Latency                                   │       15.597 ms       ║
+║ Memory Growth                                      │          0.0 MB       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- MEDIA_UPLOAD_TABLE_END -->
 
@@ -551,13 +576,16 @@ xychart-beta
 
 ### 📦 Core System Readiness — Fast, low-intensity tests verifying basic system health and network overhead
 
-### 🏷️ API LAYER LATENCY 🟢 avg -5% p95 -4% (3 runs)
+### 🏷️ API LAYER LATENCY 🔴 avg +207% p95 +137% rps -68% (4 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Within normal variance — no action needed.  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 68% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+207%) — review recent commits immediately.  
+> (suspected — single test run, needs cross-validation with related benchmarks)  
 > **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```text
@@ -566,7 +594,7 @@ xychart-beta
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │        1.773 ms │ p95:        3.280 ms │ RPS:        553 ║
+║ HTTP: findById @ 8c            │        5.792 ms │ p95:        8.188 ms │ RPS:        171 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -574,8 +602,8 @@ xychart-beta
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │        1.773 ms       ║
-║ Peak Throughput                                    │      553.000 req/s    ║
+║ HTTP Latency (findById)                            │        5.792 ms       ║
+║ Peak Throughput                                    │      171.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -740,9 +768,27 @@ xychart-beta
 
 <!-- CACHE_TABLE_START -->
 
-> **Measures**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
-> **Code**: `src/databases/cache/cache-service.ts`, `src/databases/cache/l1-cache.ts`
-> **Why**: Cache hit ratio directly determines response latency. Misses trigger expensive DB round-trips.
+> Performance improved — recent optimizations or cache warming likely effective.  
+> (suspected — single test run, needs cross-validation with related benchmarks)  
+> **Check**: `src/hooks/handle-authentication.ts` · `src/databases/auth/session-service.ts` · `src/services/sdk/namespaces/auth-namespace.ts`
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                           SVELTYCMS — CACHE EFFICIENCY AUDIT                            ║
+║                    File: tests/benchmarks/cache-performance.test.ts                     ║
+║  Measures cache hit vs miss latency and efficiency via real HTTP end-to-end requests.   ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Cache Miss (Bypass)            │        1.286 ms │ p95:        1.795 ms │ RPS:        673 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Cache Miss                                         │        1.286 ms       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- CACHE_TABLE_END -->
 
@@ -869,15 +915,37 @@ xychart-beta
 
 <!-- WIDGETS_TABLE_END -->
 
-### 🏷️ Simulated Admin UX Vitality ⚪ —
+### 🏷️ Simulated Admin UX Vitality ⚪ avg 0% rps -92% (2 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
 <!-- UX_VITALITY_TABLE_START -->
 
-> **Measures**: Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.
-> **Code**: `src/components/*.svelte`, `src/routes/(app)/config/collections/`
-> **Why**: Admin UX is the primary user interface. Sluggish forms hurt content editor productivity.
+> Within normal variance — no action needed.  
+> Throughput dropped 92% — check connection pool saturation or lock contention.  
+> (suspected — single test run, needs cross-validation with related benchmarks)  
+> **Check**: `src/components/*.svelte` · `src/routes/(app)/config/collections/`
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS  —  ADMIN UX VITALITY AUDIT                          ║
+║                    File: tests/benchmarks/admin-ux-vitality.test.ts                     ║
+║             Forms and widget registry performance via real HTTP endpoints.              ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Schema Resolution (8f)         │        4.214 ms │ p95:        7.730 ms │ RPS:        232 ║
+║ Collection List (11 cols)      │        2.450 ms │ p95:        3.410 ms │ RPS:        386 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Schema Resolution (8f)                             │        4.214 ms       ║
+║ Collection List (11 cols)                          │        2.450 ms       ║
+║ UX Performance Tier                                │     PLATINUM          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- UX_VITALITY_TABLE_END -->
 
@@ -919,16 +987,34 @@ xychart-beta
 
 <!-- OPENAPI_TABLE_END -->
 
-### 🏷️ Auth & RBAC Performance ⚪ —
+### 🏷️ Auth & RBAC Performance 🟢 avg -10% (2 runs)
 
 > **Budget**: ≤ 18,000ms (suite) | **Tags**: `security` | **Level**: 4
 
 <!-- AUTH_TRACE_TABLE_START -->
+<!-- INSIGHT_PLACEHOLDER -->
 
-> **Measures**: Measures JWT verification, session retrieval, and permission matrix resolution overhead.
-> **Code**: `src/hooks/handle-authentication.ts`, `src/databases/auth/session-service.ts`, `src/services/sdk/namespaces/auth-namespace.ts`
-> **Why**: Auth runs on every authenticated request. A 10ms degradation compounds across all API traffic.
-> **Correlates**: `hooks-performance`, `rest-api-performance`
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
+║                     File: tests/benchmarks/auth-performance.test.ts                     ║
+║Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Auth Validation @ 1c           │        1.370 ms │ p95:        1.976 ms │ RPS:        611 ║
+║ HTTP Auth Pipeline @ 8c        │        4.769 ms │ p95:        8.646 ms │ RPS:        209 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Auth Latency (1c)                                  │        1.370 ms       ║
+║ Auth Pipeline (8c)                                 │        4.769 ms       ║
+║ Peak Auth RPS                                      │      209.000 req/s    ║
+║ Auth Memory RSS Δ                                  │         0.00 MB       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- AUTH_TRACE_TABLE_END -->
 

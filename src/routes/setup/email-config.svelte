@@ -424,7 +424,7 @@
 				testError = data.error || 'Connection failed';
 				toast.error(`${setup_email_test_failed()}: ${testError}`);
 			}
-		} catch (error: any) {
+		} catch (error: unknown) {
 			testError = error instanceof Error ? error.message : 'Unknown error occurred';
 			toast.error(`${setup_email_test_failed()}: ${testError}`);
 		} finally {

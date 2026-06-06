@@ -204,10 +204,10 @@ export class SettingsService {
           const configPath = "../../config/" + (isTest ? "private.test" : "private");
           const module = await import(/* @vite-ignore */ configPath).catch(() => ({}));
           privateConfig = (module.privateEnv || module) as PrivateEnv;
-        } catch (error) {
+        } catch (error: any) {
           logger.trace("Private config not found during setup", {
             tenantId,
-            error: error instanceof Error ? error.message : String(error),
+            error: error.message,
           });
           privateConfig = {} as PrivateEnv;
         }
@@ -264,7 +264,9 @@ export class SettingsService {
       logger.debug(`Settings cache manually invalidated for tenant ${tenantId}`);
       if (typeof window === "undefined" && import.meta.env.SSR) {
         import("@src/databases/cache/cache-service").then(({ cacheService }) => {
-          cacheService.delete(`settings:cache:${tenantId}`, tenantId).catch(() => {});
+          cacheService.delete(`settings:cache:${tenantId}`, tenantId).catch(() => {
+            logger.debug("Settings cache delete failed during invalidation");
+          });
         });
       }
     } else {
@@ -272,7 +274,9 @@ export class SettingsService {
       logger.debug("All settings caches manually invalidated");
       if (typeof window === "undefined" && import.meta.env.SSR) {
         import("@src/databases/cache/cache-service").then(({ cacheService }) => {
-          cacheService.clearByPattern("settings:cache:*").catch(() => {});
+          cacheService.clearByPattern("settings:cache:*").catch(() => {
+            logger.debug("Settings cache clearByPattern failed during invalidation");
+          });
         });
       }
     }

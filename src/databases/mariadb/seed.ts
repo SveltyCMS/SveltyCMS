@@ -119,8 +119,8 @@ export async function seedDatabase(
 
     logger.info("Database seeding completed successfully");
     return { success: true };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  } catch (error: any) {
+    const message = error.message;
     logger.error("Database seeding failed:", message);
     return { success: false, error: message };
   }

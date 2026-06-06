@@ -182,9 +182,8 @@ export class Auth {
         throw error(500, "User creation failed");
       }
       return result.data;
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      throw error(500, `Failed to create user: ${errMsg}`);
+    } catch (err: any) {
+      throw error(500, `Failed to create user: ${err.message}`);
     }
   }
 
@@ -696,8 +695,8 @@ export class Auth {
       await this.sessionStore.set(session._id, user, expiresAt);
 
       return { user, sessionId: session._id };
-    } catch (err) {
-      logger.error(`Authentication error: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (err: any) {
+      logger.error(`Authentication error: ${err.message}`);
       return null;
     }
   }
@@ -810,14 +809,12 @@ export class Auth {
         data: [],
         message: "Failed to retrieve active sessions",
       };
-    } catch (err) {
-      logger.error(
-        `Error getting active sessions: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    } catch (err: any) {
+      logger.error(`Error getting active sessions: ${err.message}`);
       return {
         success: false,
         data: [],
-        message: err instanceof Error ? err.message : "Unknown error",
+        message: err.message || "Unknown error",
       };
     }
   }
@@ -835,14 +832,12 @@ export class Auth {
         data: [],
         message: "Failed to retrieve all active sessions",
       };
-    } catch (err) {
-      logger.error(
-        `Error getting all active sessions: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    } catch (err: any) {
+      logger.error(`Error getting all active sessions: ${err.message}`);
       return {
         success: false,
         data: [],
-        message: err instanceof Error ? err.message : "Unknown error",
+        message: err.message || "Unknown error",
       };
     }
   }

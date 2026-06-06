@@ -115,7 +115,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       logger.debug(`Private config loaded and frozen successfully (DB_TYPE: ${validated.DB_TYPE})`);
 
       return privateEnv;
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Unexpected error during config loading:", error);
       return null;
     }

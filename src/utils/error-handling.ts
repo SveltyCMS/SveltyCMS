@@ -4,7 +4,14 @@
  * Defines the standard error response shape and utilities for processing errors.
  */
 
-import { type HttpError, isRedirect, json, type RequestEvent } from "@sveltejs/kit";
+import {
+  error as svelteKitError,
+  type HttpError,
+  isHttpError as svelteKitIsHttpError,
+  isRedirect,
+  json,
+  type RequestEvent,
+} from "@sveltejs/kit";
 import { logger } from "./logger.ts";
 import type { GenericSchema, ValiError } from "valibot";
 
@@ -16,6 +23,56 @@ const isDev = (() => {
     return false;
   }
 })();
+
+// --- Unified Error Throwing ---
+
+/** Maps HTTP status codes to semantic error codes */
+function statusToCode(status: number): string {
+  const map: Record<number, string> = {
+    400: "BAD_REQUEST",
+    401: "UNAUTHORIZED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    409: "CONFLICT",
+    422: "UNPROCESSABLE",
+    429: "TOO_MANY_REQUESTS",
+    500: "INTERNAL_ERROR",
+    502: "BAD_GATEWAY",
+    503: "SERVICE_UNAVAILABLE",
+  };
+  return map[status] || `HTTP_${status}`;
+}
+
+/**
+ * Unified error throwing. Drop-in replacement for SvelteKit's `error()`.
+ * Works for page loads (SvelteKit renders +error.svelte) AND API routes
+ * (handleApiError extracts the structured code from the body).
+ *
+ * @example
+ * throw raise(404, "User not found");
+ * throw raise(500, "DB write failed", "DB_WRITE_FAILED");
+ */
+export function raise(status: number, message: string, code?: string): never {
+  throw svelteKitError(status, {
+    message,
+    __sveltyCode: code || statusToCode(status),
+  } as any);
+}
+
+/**
+ * Re-throws SvelteKit Redirects and HttpErrors so the framework can handle them.
+ * Call at the TOP of every catch block before custom error handling.
+ *
+ * @example
+ * try { await doWork(); }
+ * catch (err) {
+ *     rethrow(err);
+ *     throw raise(500, "Work failed");
+ * }
+ */
+export function rethrow(err: unknown): void {
+  if (isRedirect(err) || svelteKitIsHttpError(err)) throw err;
+}
 
 // --- Standardized Response Types ---
 
@@ -141,12 +198,13 @@ export function handleApiError(err: unknown, event: RequestEvent) {
       }
     }
   }
-  // 4. Handle SvelteKit HttpErrors (thrown via error())
+  // 4. Handle SvelteKit HttpErrors (thrown via error() or raise())
   else if (isHttpError(err)) {
     const httpErr = err as HttpError;
+    const body = httpErr.body as { message?: string; __sveltyCode?: string } | undefined;
     status = httpErr.status;
-    message = (httpErr.body as { message?: string })?.message || "HTTP Error";
-    code = `HTTP_${status}`;
+    message = body?.message || "HTTP Error";
+    code = body?.__sveltyCode || `HTTP_${status}`;
 
     if (status === 401) {
       logger.debug(`HttpError [${event.url.pathname}]: ${message}`, { status });

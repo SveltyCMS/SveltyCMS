@@ -98,8 +98,8 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 
 			succeeded = true;
 			onSuccess?.(result.paymentIntent.id);
-		} catch (err: any) {
-			error = err.message || 'Payment failed';
+		} catch (err: unknown) {
+			error = err instanceof Error ? err.message : String(err) || 'Payment failed';
 			onError?.(error);
 		} finally {
 			processing = false;

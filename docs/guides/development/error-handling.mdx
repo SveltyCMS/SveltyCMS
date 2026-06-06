@@ -536,3 +536,19 @@ export function apiHandler(handler: ApiHandlerCallback): RequestHandler;
 export function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>>;
 export interface ApiResponse<T> { ... }
 ```
+
+---
+
+## Operational Debugging
+
+Structured error codes enable fast log filtering in production:
+
+```bash
+# Before: grep for generic message strings
+cat production.log | grep "User creation failed"
+
+# After: filter by structured code
+cat production.log | grep USER_CREATE_FAILED
+```
+
+Each `raise()` call auto-generates semantic codes (`NOT_FOUND`, `UNAUTHORIZED`, etc.) or accepts custom codes (`USER_CREATE_FAILED`). The `handleError` hook attaches userId, tenantId, and request path to every error log.

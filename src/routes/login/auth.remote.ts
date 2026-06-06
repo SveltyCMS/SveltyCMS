@@ -21,6 +21,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
+import { logger } from "@utils/logger";
 import { redirect, isRedirect } from "@sveltejs/kit";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -50,7 +51,10 @@ export const signIn = command("unchecked", async (data: any) => {
     if (isRedirect(err)) {
       return { success: true, redirectPath: err.location };
     }
-    return { success: false, message: err.message || "Sign in failed" };
+    return {
+      success: false,
+      message: err.message || "Sign in failed",
+    };
   }
 });
 
@@ -62,7 +66,10 @@ export const signUp = command("unchecked", async (data: any) => {
     if (isRedirect(err)) {
       return { success: true, redirectPath: err.location };
     }
-    return { success: false, message: err.message || "Sign up failed" };
+    return {
+      success: false,
+      message: err.message || "Sign up failed",
+    };
   }
 });
 
@@ -135,7 +142,9 @@ export const verify2FA = command(
         },
         { bypassTenantCheck: true },
       )
-      .catch(() => {});
+      .catch(() => {
+        logger.debug("2FA verify user attribute update failed silently");
+      });
 
     let finalCollectionPath: string | null = null;
     try {
@@ -250,7 +259,9 @@ async function signInInternal(event: RequestEvent, input: any) {
     const tu = await auth.checkUser({ email: e }, { bypassTenantCheck: true });
     if (!tu) {
       const { verify } = await import("argon2");
-      await verify("$argon2id$dummy", p).catch(() => {});
+      await verify("$argon2id$dummy", p).catch(() => {
+        logger.debug("Argon2id dummy verify for timing defense failed silently");
+      });
       return { success: false, message: "Invalid credentials." };
     }
     const tr = await auth.consumeToken(p, tu._id);
@@ -277,7 +288,9 @@ async function signInInternal(event: RequestEvent, input: any) {
       });
     } else {
       const { verify, hash } = await import("argon2");
-      await verify(await hash("dummy-password-for-timing-defense"), p).catch(() => {});
+      await verify(await hash("dummy-password-for-timing-defense"), p).catch(() => {
+        logger.debug("Argon2id dummy hash-verify for timing defense failed silently");
+      });
     }
   }
 
@@ -304,7 +317,9 @@ async function signInInternal(event: RequestEvent, input: any) {
       },
       { bypassTenantCheck: true },
     )
-    .catch(() => {});
+    .catch(() => {
+      logger.debug("User attribute update after login failed silently");
+    });
   auditLogService
     .log(
       "User logged in",
@@ -314,12 +329,16 @@ async function signInInternal(event: RequestEvent, input: any) {
       "low",
       { method: isToken ? "token" : "security" },
     )
-    .catch(() => {});
+    .catch(() => {
+      logger.debug("Audit log write after login failed silently");
+    });
 
   // Trigger telemetry check in background (non-blocking)
   import("@src/services/observability/telemetry-service")
     .then(({ telemetryService }) => telemetryService.checkUpdateStatus())
-    .catch(() => {});
+    .catch(() => {
+      logger.debug("Telemetry background check failed silently");
+    });
 
   const path = await getCachedFirstCollectionPath("en" as any).catch(() => null);
   throw redirect(303, path ?? "/config/collectionbuilder");
@@ -403,8 +422,13 @@ async function signUpInternal(event: RequestEvent, input: any) {
 
   invalidateUserCountCache();
   if (mt && !t && tid)
-    tenantService.createTenant(u || "My Organisation", ur.data.user._id, tid).catch(() => {});
-  if (invited && t) auth.consumeRegistrationToken(t).catch(() => {});
+    tenantService.createTenant(u || "My Organisation", ur.data.user._id, tid).catch(() => {
+      logger.debug("Tenant creation failed silently during signup");
+    });
+  if (invited && t)
+    auth.consumeRegistrationToken(t).catch(() => {
+      logger.debug("Registration token consumption failed silently during signup");
+    });
 
   throw redirect(303, "/config/collectionbuilder");
 }
@@ -437,7 +461,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
           { type: "user", id: user._id },
           AuditEventType.PASSWORD_RESET_REQUESTED,
         )
-        .catch(() => {});
+        .catch(() => {
+          logger.debug("Audit log write for password reset request failed silently");
+        });
       const baseUrl = publicEnv.HOST_PROD || `https://${event.request.headers.get("host")}`;
       sendMail({
         recipientEmail: result.output.email,
@@ -450,7 +476,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
           resetLink: `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`,
         },
         languageTag: "en" as any,
-      }).catch(() => {});
+      }).catch(() => {
+        logger.debug("Password reset email sending failed silently");
+      });
     }
   } catch {}
 
@@ -493,7 +521,9 @@ async function resetPWInternal(event: RequestEvent, input: any) {
       { type: "user", id: user._id },
       AuditEventType.PASSWORD_RESET_SUCCESS,
     )
-    .catch(() => {});
+    .catch(() => {
+      logger.debug("Audit log write for password reset success failed silently");
+    });
 
   throw redirect(303, "/login?reset=success");
 }

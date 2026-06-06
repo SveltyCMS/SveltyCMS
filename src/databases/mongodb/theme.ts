@@ -66,10 +66,8 @@ themeSchema.statics = {
         theme.updatedAt = toISOString(theme.updatedAt);
       }
       return theme;
-    } catch (error) {
-      logger.error(
-        `Error retrieving active theme: ${error instanceof Error ? error.message : String(error)}`,
-      );
+    } catch (error: any) {
+      logger.error(`Error retrieving active theme: ${error.message}`);
       throw error;
     }
   },
@@ -83,10 +81,8 @@ themeSchema.statics = {
         theme.updatedAt = toISOString(theme.updatedAt);
       }
       return theme;
-    } catch (error) {
-      logger.error(
-        `Error retrieving theme by name: ${error instanceof Error ? error.message : String(error)}`,
-      );
+    } catch (error: any) {
+      logger.error(`Error retrieving theme by name: ${error.message}`);
       throw error;
     }
   },
@@ -123,10 +119,8 @@ themeSchema.statics = {
         `Stored ${themes.length} themes via bulk operation ` +
           `(${result.upsertedCount} inserted, ${result.modifiedCount} updated)`,
       );
-    } catch (error) {
-      logger.error(
-        `Error storing themes: ${error instanceof Error ? error.message : String(error)}`,
-      );
+    } catch (error: any) {
+      logger.error(`Error storing themes: ${error.message}`);
       throw error;
     }
   },
@@ -140,10 +134,8 @@ themeSchema.statics = {
         theme.updatedAt = toISOString(theme.updatedAt);
         return theme;
       });
-    } catch (error) {
-      logger.error(
-        `Error retrieving all themes: ${error instanceof Error ? error.message : String(error)}`,
-      );
+    } catch (error: any) {
+      logger.error(`Error retrieving all themes: ${error.message}`);
       throw error;
     }
   },

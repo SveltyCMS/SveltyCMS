@@ -31,7 +31,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       !allowedPlatforms.includes(parsed.platform)
     ) {
       return json(
-        { success: false, error: `Platform '${parsed.platform}' is not allowed for this field.` },
+        {
+          success: false,
+          error: `Platform '${parsed.platform}' is not allowed for this field.`,
+        },
         { status: 403 },
       );
     }
@@ -50,6 +53,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     return json({ success: true, data });
   } catch (err: any) {
-    return json({ success: false, error: err.message || "Internal server error" }, { status: 500 });
+    return json(
+      {
+        success: false,
+        error: err.message || "Internal server error",
+      },
+      { status: 500 },
+    );
   }
 };

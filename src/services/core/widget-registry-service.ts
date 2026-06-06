@@ -62,7 +62,7 @@ class WidgetRegistryService {
       );
 
       this._updateServiceHealth("healthy");
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error("WidgetRegistryService initialization failed", err);
       this._updateServiceHealth("unhealthy");
       throw err;
@@ -145,8 +145,8 @@ class WidgetRegistryService {
           logger.debug(`Marketplace widget skipped: ${entry.name}`, err);
         }
       }
-    } catch (err: any) {
-      if (err.code !== "ENOENT") {
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
         logger.warn("Marketplace widget scan failed", err);
       }
     }
@@ -161,7 +161,9 @@ class WidgetRegistryService {
         .then(({ updateServiceHealth }) => {
           updateServiceHealth("widgets", status, `Widgets: ${this.widgets.size}`);
         })
-        .catch(() => {});
+        .catch(() => {
+          logger.debug("Service health update for widgets failed silently");
+        });
     } catch {}
   }
 

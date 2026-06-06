@@ -561,7 +561,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     if (dev) logRequest(event, performance.now() - requestStart, response.status);
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (isRedirect(err) || isHttpError(err)) throw err;
     logger.error(`[Turbo] Pipeline error:`, err);
     const fallback = boundaryResponse(err, isHttps);

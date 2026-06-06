@@ -62,7 +62,6 @@ import { Form } from "@utils/form.svelte.ts";
 import { forgotFormSchema, loginFormSchema, resetFormSchema } from "@utils/schemas";
 import { browser } from "$app/environment";
 import { goto, preloadData } from "$app/navigation";
-import { signIn as remoteSignIn, forgotPW as remoteForgotPW, resetPW as remoteResetPW, verify2FA } from "../auth.remote";
 // Stores
 import { page } from "$app/state";
 import type { PageData } from "../$types";
@@ -166,6 +165,7 @@ async function handleLoginSubmit(event: Event) {
 	globalLoadingStore.startLoading(loadingOperations.authentication);
 
 	try {
+		const { signIn: remoteSignIn } = await import("../auth.remote");
 		const result = (await remoteSignIn({
 			email: loginForm.data.email,
 			password: loginForm.data.password,
@@ -236,6 +236,7 @@ async function handleForgotSubmit(event: Event) {
 	isSubmitting = true;
 
 	try {
+		const { forgotPW: remoteForgotPW } = await import("../auth.remote");
 		await remoteForgotPW({ email: forgotForm.data.email });
 		isSubmitting = false;
 		P_WRESET = true;
@@ -266,6 +267,7 @@ async function handleResetSubmit(event: Event) {
 	isSubmitting = true;
 	globalLoadingStore.startLoading(loadingOperations.authentication);
 	try {
+		const { resetPW: remoteResetPW } = await import("../auth.remote");
 		const result = (await remoteResetPW({
 			password: resetForm.data.password,
 			token: resetForm.data.token,
@@ -306,6 +308,7 @@ async function submitTwoFA() {
 
 	isVerifying2FA = true;
 	try {
+		const { verify2FA } = await import("../auth.remote");
 		await verify2FA({ userId: twoFAUserId, code: twoFACode });
 	} catch (e: any) {
 		isVerifying2FA = false;

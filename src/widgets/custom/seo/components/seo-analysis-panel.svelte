@@ -50,8 +50,8 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 
 			const data = await response.json();
 			linkSuggestions = data.suggestions || [];
-		} catch (err: any) {
-			if (err.name === 'AbortError') {
+		} catch (err: unknown) {
+			if ((err as any).name === 'AbortError') {
 				console.log('Fetch aborted');
 			} else {
 				console.error('Failed to fetch link suggestions', err);
@@ -63,7 +63,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 	}
 </script>
 
-<div class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-[500px]' : 'h-16'}">
+<div class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-125' : 'h-16'}">
 	<button
 		type="button"
 		class="flex items-center gap-4 w-full p-3 bg-surface-100-800-token hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-left"
@@ -190,8 +190,8 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 				<div class="pt-2 border-t border-surface-500/10">
 					<div class="flex items-center justify-between mb-2">
 						<h4 class="text-xs font-bold uppercase opacity-50">Internal Linking</h4>
-						<button 
-							class="btn btn-sm preset-tonal-primary py-0.5 px-2 text-[10px]" 
+						<button
+							class="btn btn-sm preset-tonal-primary py-0.5 px-2 text-[10px]"
 							onclick={fetchLinkSuggestions}
 							disabled={isFetchingLinks}
 						>
@@ -207,7 +207,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 										<div class="font-bold truncate">{link.title}</div>
 										<div class="opacity-50 text-[10px] truncate">{link.url}</div>
 									</div>
-									<button 
+									<button
 										class="btn btn-sm preset-ghost-surface-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
 										title="Copy relative URL"
 										onclick={() => {

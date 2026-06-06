@@ -93,12 +93,12 @@ export const load: PageServerLoad = async ({ locals }) => {
       allPermissions,
       isAdmin,
     };
-  } catch (err) {
-    if (err instanceof Error && "status" in err) {
+  } catch (err: any) {
+    if (err && typeof err === "object" && "status" in err) {
       // This is likely a redirect or an error we've already handled
       throw err;
     }
-    const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
+    const message = `Error in load function: ${err.message}`;
     logger.error(message);
     throw error(500, message);
   }

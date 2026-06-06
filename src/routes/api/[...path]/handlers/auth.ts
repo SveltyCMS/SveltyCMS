@@ -207,7 +207,7 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
   let userResult;
   try {
     userResult = await cms.auth.getUserByEmail(requestedEmail, { tenantId });
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (!(e instanceof AppError && e.status === 404)) {
       console.error("🔥 Error in getUserByEmail during test login:", e);
     }

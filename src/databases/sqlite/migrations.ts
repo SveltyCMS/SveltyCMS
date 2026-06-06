@@ -18,12 +18,10 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       if (typeof db.exec === "function") db.exec(sql);
       else if (typeof db.run === "function") db.run(sql);
       else if (typeof db.query === "function") db.query(sql).run();
-    } catch (err: any) {
-      if (
-        !err.message.includes("already exists") &&
-        !err.message.includes("duplicate column name")
-      ) {
-        logger.error(`[SQLite Migration] FAILED: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!message.includes("already exists") && !message.includes("duplicate column name")) {
+        logger.error(`[SQLite Migration] FAILED: ${message}`);
         throw err;
       }
     }

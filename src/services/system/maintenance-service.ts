@@ -60,7 +60,7 @@ export class MaintenanceService {
       }
     } catch (err: any) {
       // Suppress HMR race condition errors (Vite module runner closed during hot reload)
-      if (err?.message?.includes("module runner has been closed")) return;
+      if (err.message.includes("module runner has been closed")) return;
       logger.warn("[Maintenance] Database cleanup failed:", err);
     }
   }

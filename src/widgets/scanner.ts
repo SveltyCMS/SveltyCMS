@@ -87,7 +87,7 @@ function initBunFallback() {
 
     Object.assign(coreModules, scan(corePath, "core"));
     Object.assign(customModules, scan(customPath, "custom"));
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Scanner] Fallback error:", err);
   }
 }

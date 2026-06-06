@@ -141,7 +141,7 @@ export async function getSetupDatabaseAdapter(
             }
             await dbAdapter.crud.count("system_content_structure", {});
           } catch (probeErr: any) {
-            const probeMsg = probeErr.message || String(probeErr);
+            const probeMsg = probeErr.message;
             if (probeMsg.includes("already exists with different case")) throw probeErr;
             logger.warn(`⚠️ Auth probe warning (non-fatal if DB is empty): ${probeMsg}`);
             if (
@@ -238,8 +238,13 @@ export async function getSetupDatabaseAdapter(
 
     return { dbAdapter: dbAdapter!, connectionString };
   } catch (err: any) {
-    logger.error(`getSetupDatabaseAdapter failed: ${err.message}`, { correlationId });
-    if (dbAdapter) await dbAdapter.disconnect().catch(() => {});
+    logger.error(`getSetupDatabaseAdapter failed: ${err.message}`, {
+      correlationId,
+    });
+    if (dbAdapter)
+      await dbAdapter.disconnect().catch(() => {
+        logger.debug("DB adapter disconnect failed during setup error");
+      });
     throw new Error(
       `Module initialization failed: ${err instanceof Error ? err.message : "Unknown error"}`,
     );

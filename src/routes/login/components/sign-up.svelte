@@ -51,7 +51,6 @@ import { signUpFormSchema } from "@utils/schemas";
 import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
 import { preloadData } from "$app/navigation";
-import { signUp as remoteSignUp } from "../auth.remote";
 // Stores
 import { page } from "$app/state";
 import type { PageData } from "../$types";
@@ -130,6 +129,7 @@ async function handleSignUpSubmit(event: Event) {
 	isSubmitting = true;
 
 	try {
+		const { signUp: remoteSignUp } = await import("../auth.remote");
 		const result = (await remoteSignUp({
 			email: signUpForm.data.email,
 			username: signUpForm.data.username,

@@ -270,7 +270,11 @@ export async function handleMediaUpload(
             ? { fileName: file.name, success: true, data: res.data }
             : { fileName: file.name, success: false, message: res.message };
         } catch (err: any) {
-          return { fileName: file.name, success: false, message: err.message };
+          return {
+            fileName: file.name,
+            success: false,
+            message: err.message,
+          };
         }
       }),
     );

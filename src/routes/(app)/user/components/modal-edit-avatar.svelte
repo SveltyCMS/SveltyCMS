@@ -278,10 +278,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			// Show success toast
 			toast.success('Avatar updated successfully!');
 			modalState.close();
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('Avatar upload failed:', error);
 			imageLoadError = true;
-			toast.error(error.message || 'Failed to update avatar');
+			toast.error(
+				error instanceof Error ? error.message : String(error) ||
+					'Failed to update avatar',
+			);
 			// Revert preview on error
 			previewUrl = null;
 		} finally {
@@ -334,7 +337,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					} else {
 						throw new Error(result.error || 'Delete failed');
 					}
-				} catch (error: any) {
+				} catch (error: unknown) {
 					logger.error('Error deleting avatar:', error);
 
 					const msg = error instanceof Error ? error.message : 'Failed to delete avatar';

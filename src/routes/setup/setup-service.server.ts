@@ -24,12 +24,19 @@ import { SetupDatabaseError } from "./error-classifier";
 export async function testAndCreateDatabase(
   dbConfig: DatabaseConfig,
   createIfMissing: boolean,
-): Promise<{ success: boolean; message?: string; latencyMs?: number; error?: string }> {
+): Promise<{
+  success: boolean;
+  message?: string;
+  latencyMs?: number;
+  error?: string;
+}> {
   const start = performance.now();
 
   try {
     // Silent connection check
-    const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing });
+    const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
+      createIfMissing,
+    });
 
     // Silent health check
     const health = await dbAdapter.getConnectionHealth();
@@ -37,7 +44,10 @@ export async function testAndCreateDatabase(
     if (!health.success) {
       logger.error("❌ Database ping failed:", health.message);
       await dbAdapter.disconnect();
-      return { success: false, error: health.message || "Database ping failed" };
+      return {
+        success: false,
+        error: health.message || "Database ping failed",
+      };
     }
 
     // Ping successful (silent)
@@ -60,7 +70,7 @@ export async function testAndCreateDatabase(
       message: "Database connected successfully! ✨",
       latencyMs: Math.round(performance.now() - start),
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     const isMissing = err instanceof SetupDatabaseError && err.classification === "DB_NOT_FOUND";
 
     if (isMissing && createIfMissing) {
@@ -95,7 +105,9 @@ export async function testAndCreateDatabase(
         }
 
         // Retry connection
-        const retry = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
+        const retry = await getSetupDatabaseAdapter(dbConfig, {
+          createIfMissing: true,
+        });
         await retry.dbAdapter.disconnect();
         return {
           success: true,
@@ -116,6 +128,9 @@ export async function testAndCreateDatabase(
     }
 
     logger.error("❌ Database test failed critically:", err);
-    return { success: false, error: err.message || String(err) };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }

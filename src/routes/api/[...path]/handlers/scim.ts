@@ -354,8 +354,8 @@ async function handleScimBulk(
       if (resJson) opResult.response = resJson;
 
       results.push(opResult);
-    } catch (err: any) {
-      const statusCode = err.status || 500;
+    } catch (err: unknown) {
+      const statusCode = (err as any).status || 500;
       results.push({
         method: op.method,
         bulkId: op.bulkId || undefined,
@@ -363,7 +363,7 @@ async function handleScimBulk(
         response: {
           schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
           status: String(statusCode),
-          detail: err.message || "Bulk operation failed",
+          detail: err instanceof Error ? err.message : String(err) || "Bulk operation failed",
         },
       });
 

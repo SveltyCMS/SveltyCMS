@@ -198,8 +198,8 @@ class JobQueueService {
         progress: 100,
       });
       logger.info(`[JobQueue] Job ${job._id} completed successfully`);
-    } catch (error) {
-      const errMessage = error instanceof Error ? error.message : String(error);
+    } catch (error: any) {
+      const errMessage = error.message;
       logger.error(`[JobQueue] Job ${job._id} failed:`, error);
 
       const isPermanent = errMessage.includes("PERMANENT_FAILURE");

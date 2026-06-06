@@ -69,7 +69,7 @@ export class ThemeManager {
       this.initialized = true;
       // Removed logger.info here - will be combined with timing in system init
     } catch (err) {
-      const message = `Error in ThemeManager.initialize: ${err instanceof Error ? err.message : String(err)}`;
+      const message = `Error in ThemeManager.initialize: ${(err as any)?.message || String(err)}`;
       logger.error(message);
       throw error(500, message);
     }
@@ -182,8 +182,8 @@ export class ThemeManager {
       logger.info(`Theme updated to: ${theme.name}`, {
         tenantId: tenantId || "global",
       });
-    } catch (err) {
-      const message = `Error in ThemeManager.setTheme: ${err instanceof Error ? err.message : String(err)}`;
+    } catch (err: any) {
+      const message = `Error in ThemeManager.setTheme: ${err.message}`;
       logger.error(message, { tenantId });
       throw error(500, message);
     }

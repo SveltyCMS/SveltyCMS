@@ -75,8 +75,8 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
     // These will never succeed on retry (e.g. invalid API key, wrong URL).
     // We throw a special error that the JobQueue should recognize as PERMANENT.
     throw new Error(`PERMANENT_FAILURE: HTTP ${status} - Routing to DLQ.`);
-  } catch (error) {
-    const errMessage = error instanceof Error ? error.message : String(error);
+  } catch (error: any) {
+    const errMessage = error.message;
 
     // If it's a network timeout or connection refused, it's retryable
     if (errMessage.includes("aborted") || errMessage.includes("fetch failed")) {

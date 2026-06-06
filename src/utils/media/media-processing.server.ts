@@ -21,11 +21,14 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
     const hash = await sha256(arr);
     const display = hash.slice(0, 12);
 
-    logger.debug("File hashed", { size: buffer.byteLength, hash: display + "..." });
+    logger.debug("File hashed", {
+      size: buffer.byteLength,
+      hash: display + "...",
+    });
 
     return hash;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+  } catch (err: any) {
+    const msg = err.message;
     logger.error("Hashing failed", { size: buffer.byteLength, error: msg });
     throw error(500, `Hashing error: ${msg}`);
   }
@@ -47,7 +50,10 @@ export async function hashStream(stream: ReadableStream | Readable): Promise<str
 export async function extractMetadata(buffer: Buffer): Promise<any> {
   try {
     const sharp = (await import("sharp")).default;
-    const pipeline = sharp(buffer, { limitInputPixels: 100_000_000, failOn: "none" }).rotate();
+    const pipeline = sharp(buffer, {
+      limitInputPixels: 100_000_000,
+      failOn: "none",
+    }).rotate();
     const meta = await pipeline.metadata();
 
     logger.debug("Metadata extracted", {
@@ -58,8 +64,8 @@ export async function extractMetadata(buffer: Buffer): Promise<any> {
     });
 
     return meta;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+  } catch (err: any) {
+    const msg = err.message;
     logger.error("Metadata extraction failed", {
       size: buffer.length,
       error: msg,

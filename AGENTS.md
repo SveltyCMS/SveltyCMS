@@ -503,7 +503,11 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
    - **Why**: Prevents "Ghost Column" bugs where minifiers mangle property names and ORM reflection fails in production chunks.
    - **Pattern**: `const columns = new Set(["_id", "path", "translations", ...])`.
 5. **Type Safety & Validation**: Valibot schemas.
-6. **Error Handling & Logging**: Try-catch with structured logger.
+6. **Error Handling & Logging**:
+   - **Unified throwing**: Always use `raise(status, message, code?)` from `@utils/error-handling`. Never use SvelteKit's raw `error()` or manual `throw new AppError()`.
+   - **Catch blocks**: Start every catch block with `rethrow(err)` to let SvelteKit handle redirects/HTTP errors.
+   - **Global logging**: The `handleError` hook in `hooks.server.ts` catches ALL unhandled errors with structured context (code, user, tenant, path).
+   - **Observability**: Never silently swallow errors. At minimum, log with `logger.debug()`.
 7. **Permissions**: `hasPermissionWithRoles()`.
 8. **i18n**: Paraglide messages.
 9. **API Responses**: Consistent `{ data, message }` or `{ error, code }`.

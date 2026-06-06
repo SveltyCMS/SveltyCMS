@@ -242,7 +242,13 @@ export async function handleTestingRoutes(
         ]);
         return rawResponse({ success: true, checks });
       } catch (err: any) {
-        return rawResponse({ success: false, message: err.message }, 500);
+        return rawResponse(
+          {
+            success: false,
+            message: err.message,
+          },
+          500,
+        );
       }
     }
 
@@ -301,7 +307,11 @@ export async function handleTestingRoutes(
           results.push({ id: collectionId, success: true });
         } catch (e: any) {
           logger.error(`[testing] Failed to provision ${collectionId}:`, e.message);
-          results.push({ id: collectionId, success: false, error: e.message });
+          results.push({
+            id: collectionId,
+            success: false,
+            error: e.message,
+          });
         }
       }
 
@@ -412,7 +422,13 @@ export async function handleTestingRoutes(
 
         return rawResponse({ success: true });
       } catch (err: any) {
-        return rawResponse({ success: false, message: err.message }, 500);
+        return rawResponse(
+          {
+            success: false,
+            message: err.message,
+          },
+          500,
+        );
       }
     }
 
@@ -456,9 +472,17 @@ export async function handleTestingRoutes(
           success: true,
           message: `Collection ${collectionId} cleared from ${tableName}.`,
         });
-      } catch (err: any) {
-        logger.error(`[TestingHandler] clear-collection error for ${collectionId}: ${err.message}`);
-        return rawResponse({ success: false, message: err.message }, 200);
+      } catch (err: unknown) {
+        logger.error(
+          `[TestingHandler] clear-collection error for ${collectionId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return rawResponse(
+          {
+            success: false,
+            message: err instanceof Error ? err.message : String(err),
+          },
+          200,
+        );
       }
     }
 

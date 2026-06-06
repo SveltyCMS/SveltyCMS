@@ -71,7 +71,11 @@ class SetupManager {
         throw error;
       }
     })();
-    this._criticalQueue = this._criticalQueue.then(() => promise).catch(() => {});
+    this._criticalQueue = this._criticalQueue
+      .then(() => promise)
+      .catch(() => {
+        logger.debug("Critical queue task failed silently");
+      });
   }
 
   // Returns a promise that resolves when all currently queued CRITICAL background work is done.
@@ -99,7 +103,11 @@ class SetupManager {
         logger.error("❌ Non-critical background task failed:", error);
       }
     })();
-    this._backgroundQueue = this._backgroundQueue.then(() => promise).catch(() => {});
+    this._backgroundQueue = this._backgroundQueue
+      .then(() => promise)
+      .catch(() => {
+        logger.debug("Background queue task failed silently");
+      });
   }
 
   /**

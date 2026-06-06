@@ -3,17 +3,21 @@
 @component
 **Animated SVG Background Pattern Component**
 
-Creates a dynamic animated background with SVG paths that draw themselves
-with varying widths, opacities, and colors. Replicates the svelte-motion
-behavior using native Svelte 5 $state and requestAnimationFrame.
+Creates a dynamic animated background with SVG paths using native
+Svelte 5 $state and requestAnimationFrame. Each path has independent
+random timing (duration + phase offset) so they never synchronize,
+creating organic layered motion from the first frame.
 
 @example
 <FloatingPaths />
+<FloatingPaths position={-1} background="dark" mirrorAnimation />
 
 @features
-- Automatic contrasting colors based on background
-- Customizable background color (white or dark)
-- Smooth path drawing animations
+- Per-path random phase offset (organic de-synchronization)
+- Triangle-wave pathOffset (smooth back-and-forth, no sawtooth jump)
+- Static stroke opacity + animated element opacity (depth layering)
+- Seeded pseudo-random prevents SSR hydration flash
+- respects prefers-reduced-motion
 - Responsive design
 -->
 
@@ -28,33 +32,45 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 
 	const { background = 'white', position = 1, mirrorAnimation = false }: Props = $props();
 
-	// Generate paths with their animation configs
-	const pathConfigs = Array.from({ length: 36 }, (_, i) => ({
-		id: i,
-		d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${
-			152 - i * 5 * position
-		} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
-		width: 0.05 + i * 0.01,
-		duration: 20 + (i % 15) * 0.7, // Duration in seconds (matching original)
-		baseOpacity: 0.1 + i * 0.03
-	}));
+	/**
+	 * Deterministic pseudo-random from index — prevents SSR hydration flash.
+	 * Math.random() would produce different server vs client values, causing
+	 * paths to jump positions on mount.
+	 */
+	function seededRandom(seed: number): number {
+		const x = Math.sin(seed) * 10000;
+		return x - Math.floor(x);
+	}
 
-	// Reactive array: config + animation state combined so the {#each} re-renders
+	const pathConfigs = Array.from({ length: 36 }, (_, i) => {
+		const r1 = seededRandom(i + 1);
+		const r2 = seededRandom(i + 50);
+
+		return {
+			id: i,
+			d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${
+				152 - i * 5 * position
+			} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
+			width: 0.05 + i * 0.01,
+			duration: 19 + r1 * 16,
+			phaseOffset: r2,
+			strokeOpacity: 0.1 + i * 0.03,
+		};
+	});
+
+	// Svelte 5 deep reactivity: mutate in place to avoid per-frame GC
 	let paths = $state(
 		pathConfigs.map((config) => ({
 			config,
 			pathLength: 0.3,
 			opacity: 0.3,
-			pathOffset: mirrorAnimation ? 1 : 0,
+			pathOffset: 0,
 		})),
 	);
 
 	onMount(() => {
-		// Check for reduced motion preference
 		const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		if (prefersReducedMotion) {
-			return;
-		}
+		if (prefersReducedMotion) return;
 
 		let animationId: number;
 		const startTime = performance.now();
@@ -62,23 +78,24 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 		const animate = (currentTime: number) => {
 			const elapsed = (currentTime - startTime) / 1000;
 
-			paths = paths.map((p) => {
-				const duration = p.config.duration;
-				const progress = (elapsed / duration) % 1;
-				const wave = 0.5 * (1 - Math.cos(progress * Math.PI * 2));
-				return {
-					...p,
-					pathLength: 0.3 + wave * 0.7,
-					opacity: 0.3 + wave * 0.3,
-					pathOffset: mirrorAnimation ? 1 - progress : progress,
-				};
-			});
+			// Mutate in place — no new array, no new objects, no GC per frame.
+			// Svelte 5 tracks deep $state mutations natively.
+			for (let i = 0; i < paths.length; i++) {
+				const p = paths[i];
+				const { duration, phaseOffset } = p.config;
+				const progress = ((elapsed / duration) + phaseOffset) % 1;
+				const cosWave = 0.5 * (1 - Math.cos(progress * Math.PI * 2));
+				const triangleWave = progress < 0.5 ? progress * 2 : 2 - progress * 2;
+
+				p.pathLength = 0.3 + cosWave * 0.7;
+				p.opacity = 0.3 + cosWave * 0.3;
+				p.pathOffset = mirrorAnimation ? 1 - triangleWave : triangleWave;
+			}
 
 			animationId = requestAnimationFrame(animate);
 		};
 
 		animationId = requestAnimationFrame(animate);
-
 		return () => cancelAnimationFrame(animationId);
 	});
 </script>
@@ -96,7 +113,8 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 				d={path.config.d}
 				stroke="currentColor"
 				stroke-width={path.config.width}
-				stroke-opacity={path.opacity}
+				stroke-opacity={path.config.strokeOpacity}
+				opacity={path.opacity}
 				pathLength="1"
 				stroke-dasharray={path.pathLength}
 				stroke-dashoffset={path.pathOffset}

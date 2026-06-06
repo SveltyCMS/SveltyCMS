@@ -149,7 +149,9 @@ export const contentSystem = {
     // 🛡️ DEADLOCK PROTECTION: Only await DB init if we don't already have an adapter.
     // Background tasks (which run DURING init) provide the adapter to avoid waiting on themselves.
     if (!adapter) {
-      await getDbInitPromise(false, "CORE").catch(() => {});
+      await getDbInitPromise(false, "CORE").catch(() => {
+        logger.debug("DB init promise resolution failed during benchmark init");
+      });
     }
 
     const db: DatabaseAdapter | undefined = adapter || getDb() || undefined;

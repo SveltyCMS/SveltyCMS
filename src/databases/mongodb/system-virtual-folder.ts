@@ -79,14 +79,9 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
           });
           await newFolder.save();
           return { success: true, data: newFolder };
-        } catch (error: unknown) {
+        } catch (error: any) {
           // Handle duplicate key error specifically
-          if (
-            typeof error === "object" &&
-            error !== null &&
-            "code" in error &&
-            (error as { code: number }).code === 11_000
-          ) {
+          if (error?.code === 11_000) {
             const message = "Folder with this path already exists";
             return {
               success: false,

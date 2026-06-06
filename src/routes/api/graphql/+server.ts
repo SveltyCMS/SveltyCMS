@@ -108,7 +108,9 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
       },
       onPing: {
         subscribe: (_: any, __: any, { pubSub }: any) => pubSub.subscribe("entryUpdated"),
-        resolve: (payload: any) => ({ timestamp: payload.timestamp || Date.now() }),
+        resolve: (payload: any) => ({
+          timestamp: payload.timestamp || Date.now(),
+        }),
       },
     },
   };
@@ -254,10 +256,15 @@ async function handleRequest(event: RequestEvent) {
     });
   } catch (err: any) {
     logger.error("GraphQL Request Error:", err);
-    return new Response(JSON.stringify({ errors: [{ message: err.message }] }), {
-      status: err.status || 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        errors: [{ message: err.message }],
+      }),
+      {
+        status: err.status || 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
 

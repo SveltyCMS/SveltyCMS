@@ -87,11 +87,11 @@ export function classifyDatabaseError(
   engine: "mongodb" | "postgres" | "mysql" | "sqlite",
   dbConfig?: { user?: string; password?: string; host?: string; name?: string },
 ): ClassifiedError {
-  const raw = err instanceof Error ? err.message : String(err);
+  const raw = (err as any)?.message || String(err);
   const lower = raw.toLowerCase();
 
   // MongoDB specific code 13297
-  const code = (err as { code?: string | number })?.code ?? "";
+  const code = (err as any)?.code ?? "";
 
   logger.error("🔍 Classifying database error:", { raw, code, engine });
 

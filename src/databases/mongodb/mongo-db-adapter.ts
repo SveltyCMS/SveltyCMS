@@ -4,6 +4,7 @@
  */
 
 import { MongoAdapterCore } from "./adapter-core";
+import { logger } from "@utils/logger";
 import type {
   IDBAdapter,
   DatabaseResult,
@@ -107,7 +108,9 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
       const cols = await db.listCollections().toArray();
       for (const c of cols) {
         if (!c.name.startsWith("system.")) {
-          await db.dropCollection(c.name).catch(() => {});
+          await db.dropCollection(c.name).catch(() => {
+            logger.debug("Failed to drop MongoDB collection during clearDatabase");
+          });
         }
       }
     }

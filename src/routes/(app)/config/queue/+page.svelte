@@ -155,14 +155,14 @@ function getFilterUrl(status?: string) {
 			<button class="btn btn-sm preset-ghost-surface-500" disabled={isClearing} onclick={async () => {
 				isClearing = true;
 				try {
-					const { clearCompleted } = await import('./queue.remote');
+					const { clearCompleted } = await import('./queue-actions.server');
 					const result = await clearCompleted();
 					if (result.success) {
 						toast.success('Completed jobs cleared.');
 						invalidateAll();
 					}
-				} catch (e: any) {
-					toast.error(e.message || 'Failed to clear completed jobs.');
+				} catch (e: unknown) {
+					toast.error(e instanceof Error ? e.message || String(e) : 'Failed to clear completed jobs.');
 				} finally {
 					isClearing = false;
 				}
@@ -227,14 +227,14 @@ function getFilterUrl(status?: string) {
 										<button class="btn btn-sm preset-tonal-primary-500" title="Retry Job" disabled={isRetrying} onclick={async () => {
 											isRetrying = true;
 											try {
-												const { retryJob } = await import('./queue.remote');
+												const { retryJob } = await import('./queue-actions.server');
 												const result = await retryJob(job._id);
 												if (result.success) {
 													toast.success('Job rescheduled.');
 													invalidateAll();
 												}
-											} catch (e: any) {
-												toast.error(e.message || 'Failed to retry job.');
+											} catch (e: unknown) {
+												toast.error(e instanceof Error ? e.message || String(e) : 'Failed to retry job.');
 											} finally {
 												isRetrying = false;
 											}
@@ -247,14 +247,14 @@ function getFilterUrl(status?: string) {
 										if (!confirm('Are you sure you want to delete this job?')) return;
 										isDeleting = true;
 										try {
-											const { deleteJob } = await import('./queue.remote');
+											const { deleteJob } = await import('./queue-actions.server');
 											const result = await deleteJob(job._id);
 											if (result.success) {
 												toast.success('Job deleted.');
 												invalidateAll();
 											}
-										} catch (e: any) {
-											toast.error(e.message || 'Failed to delete job.');
+										} catch (e: unknown) {
+											toast.error(e instanceof Error ? e.message || String(e) : 'Failed to delete job.');
 										} finally {
 											isDeleting = false;
 										}

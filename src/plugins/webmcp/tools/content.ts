@@ -45,7 +45,15 @@ export function registerContentTools() {
         };
       } catch (err: any) {
         logger.error("[WebMCP] get_collections failed", { error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err.message,
+            },
+          ],
+        };
       }
     },
   });
@@ -59,9 +67,18 @@ export function registerContentTools() {
       type: "object",
       properties: {
         collectionId: { type: "string", description: "Collection ID or slug" },
-        limit: { type: "number", description: "Max entries to return (default: 25, max: 100)" },
-        offset: { type: "number", description: "Number of entries to skip (default: 0)" },
-        sortField: { type: "string", description: "Field to sort by (default: updatedAt)" },
+        limit: {
+          type: "number",
+          description: "Max entries to return (default: 25, max: 100)",
+        },
+        offset: {
+          type: "number",
+          description: "Number of entries to skip (default: 0)",
+        },
+        sortField: {
+          type: "string",
+          description: "Field to sort by (default: updatedAt)",
+        },
         sortDirection: {
           type: "string",
           enum: ["asc", "desc"],
@@ -108,10 +125,23 @@ export function registerContentTools() {
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
         const data = await res.json();
-        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-      } catch (err: any) {
-        logger.error("[WebMCP] list_entries failed", { collectionId, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (err: unknown) {
+        logger.error("[WebMCP] list_entries failed", {
+          collectionId,
+          error: err,
+        });
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+        };
       }
     },
   });
@@ -129,7 +159,10 @@ export function registerContentTools() {
           type: "string",
           description: "Comma-separated collection IDs to search (omit to search all)",
         },
-        limit: { type: "number", description: "Max results (default: 25, max: 50)" },
+        limit: {
+          type: "number",
+          description: "Max results (default: 25, max: 50)",
+        },
       },
       required: ["query"],
     },
@@ -157,10 +190,20 @@ export function registerContentTools() {
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
         const data = await res.json();
-        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-      } catch (err: any) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (err: unknown) {
         logger.error("[WebMCP] search_entries failed", { query, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+        };
       }
     },
   });
@@ -201,9 +244,20 @@ export function registerContentTools() {
             },
           ],
         };
-      } catch (err: any) {
-        logger.error("[WebMCP] create_entry failed", { collectionId, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+      } catch (err: unknown) {
+        logger.error("[WebMCP] create_entry failed", {
+          collectionId,
+          error: err,
+        });
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+        };
       }
     },
   });
@@ -229,10 +283,24 @@ export function registerContentTools() {
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
         const data = await res.json();
-        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-      } catch (err: any) {
-        logger.error("[WebMCP] get_entry failed", { collectionId, entryId, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (err: unknown) {
+        logger.error("[WebMCP] get_entry failed", {
+          collectionId,
+          entryId,
+          error: err,
+        });
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+        };
       }
     },
   });
@@ -247,7 +315,10 @@ export function registerContentTools() {
       properties: {
         collectionId: { type: "string", description: "Collection ID or slug" },
         entryId: { type: "string", description: "Entry ID to update" },
-        data: { type: "object", description: "Fields to update (partial update supported)" },
+        data: {
+          type: "object",
+          description: "Fields to update (partial update supported)",
+        },
       },
       required: ["collectionId", "entryId", "data"],
     },
@@ -282,9 +353,21 @@ export function registerContentTools() {
             },
           ],
         };
-      } catch (err: any) {
-        logger.error("[WebMCP] update_entry failed", { collectionId, entryId, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+      } catch (err: unknown) {
+        logger.error("[WebMCP] update_entry failed", {
+          collectionId,
+          entryId,
+          error: err,
+        });
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+        };
       }
     },
   });
@@ -321,9 +404,21 @@ export function registerContentTools() {
             },
           ],
         };
-      } catch (err: any) {
-        logger.error("[WebMCP] delete_entry failed", { collectionId, entryId, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+      } catch (err: unknown) {
+        logger.error("[WebMCP] delete_entry failed", {
+          collectionId,
+          entryId,
+          error: err,
+        });
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+        };
       }
     },
   });
@@ -389,9 +484,21 @@ export function registerContentTools() {
             },
           ],
         };
-      } catch (err: any) {
-        logger.error("[WebMCP] score_content failed", { collectionId, entryId, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+      } catch (err: unknown) {
+        logger.error("[WebMCP] score_content failed", {
+          collectionId,
+          entryId,
+          error: err,
+        });
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+        };
       }
     },
   });

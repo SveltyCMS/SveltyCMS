@@ -26,15 +26,28 @@ export function registerNavigationTools() {
     },
     execute: async ({ path }: { path: string }) => {
       if (!path.startsWith("/")) {
-        return { isError: true, content: [{ type: "text", text: "Path must start with /" }] };
+        return {
+          isError: true,
+          content: [{ type: "text", text: "Path must start with /" }],
+        };
       }
 
       try {
         await goto(path);
-        return { content: [{ type: "text", text: `Successfully navigated to ${path}` }] };
-      } catch (err: any) {
+        return {
+          content: [{ type: "text", text: `Successfully navigated to ${path}` }],
+        };
+      } catch (err: unknown) {
         logger.error("[WebMCP] navigate_to failed", { path, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+        };
       }
     },
   });

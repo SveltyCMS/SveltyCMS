@@ -47,10 +47,8 @@ function safelySetLanguage(
     setter(cookieValue);
     logger.trace(`${cookieName} set to: ${cookieValue}`);
     return true;
-  } catch (err) {
-    logger.error(
-      `Failed to set ${cookieName} store: ${err instanceof Error ? err.message : String(err)}`,
-    );
+  } catch (err: any) {
+    logger.error(`Failed to set ${cookieName} store: ${err.message}`);
     return false;
   }
 }

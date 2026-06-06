@@ -111,13 +111,13 @@ const rawActions = {
           });
         }
         return result;
-      } catch (err) {
+      } catch (err: any) {
         logger.error("Failed to send email via Local API during preview", {
           error: err,
         });
         return {
           success: false,
-          error: err instanceof Error ? err.message : String(err),
+          error: err.message || String(err),
         };
       }
     },

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/json-editor/input.svelte
 @component
 **Premium JSON Editor with syntax validation**
@@ -15,7 +15,7 @@
 	}
 
 	let { field, value = $bindable(null) }: Props = $props();
-	
+
 	let jsonString = $state(value ? JSON.stringify(value, null, 2) : '');
 	let parseError = $state<string | null>(null);
 	const fieldName = $derived(getFieldName(field));
@@ -23,7 +23,7 @@
 	function handleInput(e: Event) {
 		const target = e.target as HTMLTextAreaElement;
 		jsonString = target.value;
-		
+
 		try {
 			if (!jsonString.trim()) {
 				value = null;
@@ -33,8 +33,8 @@
 				parseError = null;
 			}
 			validationStore.setError(fieldName, '');
-		} catch (err: any) {
-			parseError = `Invalid JSON: ${err.message}`;
+		} catch (err: unknown) {
+			parseError = `Invalid JSON: ${err instanceof Error ? err.message : String(err)}`;
 			validationStore.setError(fieldName, parseError);
 		}
 	}
@@ -54,8 +54,8 @@
 <div class="relative group">
 	<div class="flex items-center justify-between mb-2 px-1">
 		<span class="text-[10px] uppercase tracking-widest text-surface-400 font-bold">JSON Data</span>
-		<button 
-			type="button" 
+		<button
+			type="button"
 			class="text-[10px] h-6 px-2.5 rounded bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-400 font-semibold transition-all disabled:opacity-50 disabled:pointer-events-none"
 			onclick={formatJson}
 			disabled={!!parseError}

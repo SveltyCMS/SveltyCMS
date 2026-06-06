@@ -227,8 +227,8 @@ class ToastStore {
       });
 
       return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+    } catch (err: any) {
+      const errorMessage = err.message;
 
       this.update(id, {
         type: "error",

@@ -33,8 +33,8 @@ export async function runMigrations(
 
     logger.info("✅ PostgreSQL database migrations completed successfully");
     return { success: true };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  } catch (error: any) {
+    const message = error.message;
     logger.error("PostgreSQL Migration failed:", message);
     return { success: false, error: message };
   }
@@ -519,8 +519,8 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed (v0.0.8 compatibility)
     try {
       const columns = await sql`
-        SELECT column_name 
-        FROM information_schema.columns 
+        SELECT column_name
+        FROM information_schema.columns
         WHERE table_name = 'auth_users' AND column_name = 'security'
       `;
       if (columns.length > 0) {
@@ -534,8 +534,8 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     // 🚀 MIGRATION: Ensure 'isDeleted' column exists in all dynamic collections
     try {
       const tables = await sql`
-        SELECT table_name 
-        FROM information_schema.tables 
+        SELECT table_name
+        FROM information_schema.tables
         WHERE table_name LIKE 'collection_%'
       `;
       for (const row of tables) {

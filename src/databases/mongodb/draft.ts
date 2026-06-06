@@ -59,11 +59,9 @@ draftSchema.statics = {
         .lean()
         .exec();
       return { success: true, data: drafts };
-    } catch (error) {
+    } catch (error: any) {
       const message = `Failed to retrieve drafts for content ID: ${contentId}`;
-      logger.error(
-        `Error retrieving drafts for content ID: ${contentId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      logger.error(`Error retrieving drafts for content ID: ${contentId}: ${error.message}`);
       return {
         success: false,
         message,
@@ -85,11 +83,9 @@ draftSchema.statics = {
         `Bulk deleted ${result.deletedCount} drafts for content IDs: ${contentIds.join(", ")}`,
       );
       return { success: true, data: result.deletedCount };
-    } catch (error) {
+    } catch (error: any) {
       const message = "Failed to bulk delete drafts";
-      logger.error(
-        `Error bulk deleting drafts for content IDs: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      logger.error(`Error bulk deleting drafts for content IDs: ${error.message}`);
       return {
         success: false,
         message,
@@ -113,11 +109,9 @@ draftSchema.statics = {
         success: true,
         data: newDraft.toObject() as unknown as ContentDraft,
       };
-    } catch (error) {
+    } catch (error: any) {
       const message = "Failed to create draft";
-      logger.error(
-        `Error creating draft: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      logger.error(`Error creating draft: ${error.message}`);
       return {
         success: false,
         message,
@@ -147,11 +141,9 @@ draftSchema.statics = {
       }
       logger.info(`Draft "${draftId}" updated successfully.`);
       return { success: true, data: undefined };
-    } catch (error) {
+    } catch (error: any) {
       const message = `Failed to update draft "${draftId}"`;
-      logger.error(
-        `Error updating draft "${draftId}": ${error instanceof Error ? error.message : String(error)}`,
-      );
+      logger.error(`Error updating draft "${draftId}": ${error.message}`);
       return {
         success: false,
         message,
@@ -181,11 +173,9 @@ draftSchema.statics = {
       }
       logger.info(`Draft "${draftId}" deleted successfully.`);
       return { success: true, data: undefined };
-    } catch (error) {
+    } catch (error: any) {
       const message = `Failed to delete draft "${draftId}"`;
-      logger.error(
-        `Error deleting draft "${draftId}": ${error instanceof Error ? error.message : String(error)}`,
-      );
+      logger.error(`Error deleting draft "${draftId}": ${error.message}`);
       return {
         success: false,
         message,

@@ -58,7 +58,10 @@ class InMemorySessionManager implements SessionStore {
 
   async set(sessionId: string, user: User, expiration: ISODateString): Promise<void> {
     const expirationDate = isoDateStringToDate(expiration);
-    this.sessions.set(sessionId, { user: new WeakRef(user), expiresAt: expirationDate });
+    this.sessions.set(sessionId, {
+      user: new WeakRef(user),
+      expiresAt: expirationDate,
+    });
   }
 
   async delete(sessionId: string): Promise<void> {
@@ -136,10 +139,8 @@ class RedisSessionManager implements SessionStore {
           return parsed.user;
         }
       }
-    } catch (err) {
-      logger.warn(
-        `Redis session get failed, falling back to memory: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    } catch (err: any) {
+      logger.warn(`Redis session get failed, falling back to memory: ${err.message}`);
     } // Fallback to in-memory manager
 
     return await this.fallbackManager.get(sessionId);
@@ -157,10 +158,8 @@ class RedisSessionManager implements SessionStore {
           return;
         }
       }
-    } catch (err) {
-      logger.warn(
-        `Redis session set failed, falling back to memory: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    } catch (err: any) {
+      logger.warn(`Redis session set failed, falling back to memory: ${err.message}`);
     } // Fallback to in-memory manager
 
     await this.fallbackManager.set(sessionId, user, expiration);
@@ -171,10 +170,8 @@ class RedisSessionManager implements SessionStore {
       if (this.redisClient) {
         await this.redisClient.del(sessionId);
       }
-    } catch (err) {
-      logger.warn(
-        `Redis session delete failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    } catch (err: any) {
+      logger.warn(`Redis session delete failed: ${err.message}`);
     } // Also delete from fallback manager
 
     await this.fallbackManager.delete(sessionId);
@@ -190,10 +187,8 @@ class RedisSessionManager implements SessionStore {
           deletedCount = await this.redisClient.del(...keys);
         }
       }
-    } catch (err) {
-      logger.warn(
-        `Redis pattern delete failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    } catch (err: any) {
+      logger.warn(`Redis pattern delete failed: ${err.message}`);
     } // Also delete from fallback manager
 
     const fallbackDeleted = await this.fallbackManager.deletePattern(pattern);
@@ -205,8 +200,8 @@ class RedisSessionManager implements SessionStore {
       if (this.redisClient && typeof this.redisClient.quit === "function") {
         await this.redisClient.quit();
       }
-    } catch (err) {
-      logger.warn(`Redis close failed: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (err: any) {
+      logger.warn(`Redis close failed: ${err.message}`);
     }
 
     await this.fallbackManager.close();

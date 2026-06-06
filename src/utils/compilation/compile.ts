@@ -18,7 +18,6 @@ import {
   widgetTransformer,
 } from "./transformers.ts";
 import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types";
-
 const defaultLogger: Logger = {
   info: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m ${msg}`),
   success: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m \x1b[32m${msg}\x1b[0m`),
@@ -157,7 +156,9 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     if (!options.targetFile) {
       for (const [jsPath] of manifest) {
         if (!processedJsPaths.has(jsPath)) {
-          await fs.unlink(jsPath).catch(() => {});
+          await fs.unlink(jsPath).catch(() => {
+            logger.warn("Failed to unlink orphaned compiled file");
+          });
           result.orphanedFiles.push(jsPath);
           manifest.delete(jsPath);
         }

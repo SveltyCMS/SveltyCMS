@@ -74,8 +74,8 @@ async function runEnrichment() {
 		logger.info(
 			`[AIEnrichment] Successfully enriched from ${field.sourceField}`,
 		);
-	} catch (err: any) {
-		error = err.message || "AI Enrichment failed";
+	} catch (err: unknown) {
+		error = err instanceof Error ? err.message : String(err) || "AI Enrichment failed";
 		logger.error("[AIEnrichment] Error:", err);
 	} finally {
 		loading = false;
@@ -106,7 +106,7 @@ async function runEnrichment() {
 			{/if}
 		</button>
 	</div>
-	
+
 	{#if error}
 		<span id={errorId} class="text-xs text-error-500" role="alert">{error}</span>
 	{/if}
@@ -135,7 +135,7 @@ async function runEnrichment() {
 				required={field.required}
 			></textarea>
 		{/if}
-		
+
 		<div class="absolute bottom-2 right-2 flex items-center gap-1 text-[10px] text-surface-400 select-none pointer-events-none">
 			<Icon icon="mdi:robot" />
 			{field.action.toUpperCase()}

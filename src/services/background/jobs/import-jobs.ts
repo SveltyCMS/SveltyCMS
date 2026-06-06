@@ -103,10 +103,10 @@ export const importDataHandler: JobHandler = async (
               tenantId,
             });
           }
-        } catch (innerError: any) {
+        } catch (innerError: unknown) {
           errors++;
           logger.error(`[ImportJob] Unexpected error importing document`, {
-            error: innerError.message,
+            error: innerError instanceof Error ? innerError.message : String(innerError),
             tenantId,
           });
         }

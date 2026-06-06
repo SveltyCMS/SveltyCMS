@@ -592,7 +592,9 @@ export class SecurityResponseService {
         logger.info(`[Security] Rate limiter state loaded (${count} pending restores)`);
       }
       // Clean up file after loading to prevent stale restores on crash
-      await fs.unlink(this.DUMP_PATH).catch(() => {});
+      await fs.unlink(this.DUMP_PATH).catch(() => {
+        logger.debug("Rate limiter state dump file cleanup failed");
+      });
     } catch (err) {
       logger.error("[Security] Failed to restore rate limiter state", err);
     }

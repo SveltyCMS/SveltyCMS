@@ -24,7 +24,7 @@ import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 
 // Remote Functions
-import { loadSettingsGroup, saveSettingsGroup, resetSettingsGroup } from "./settings.remote";
+// Remote Functions — loaded dynamically for code splitting
 
 // Types and Utilities
 import type { SettingField, SettingGroup } from "./settings-groups";
@@ -159,6 +159,7 @@ async function loadSettings(bypassCache = false) {
 
 	try {
 		// Load values via Remote Function
+		const { loadSettingsGroup } = await import("./settings.remote");
 		const data = await loadSettingsGroup({ groupId: group.id, bypassCache });
 
 		if (data.success && data.values) {
@@ -460,6 +461,7 @@ async function saveSettings() {
 	error = null;
 
 	try {
+		const { saveSettingsGroup } = await import("./settings.remote");
 		const data = await saveSettingsGroup({ groupId: group.id, values });
 
 		if (data.success) {
@@ -541,6 +543,7 @@ async function resetToDefaults() {
 				error = null;
 
 				try {
+					const { resetSettingsGroup } = await import("./settings.remote");
 					const data = await resetSettingsGroup(group.id);
 
 					if (data.success) {

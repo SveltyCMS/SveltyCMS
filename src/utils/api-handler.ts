@@ -36,9 +36,8 @@ export const apiHandler = (handler: ApiHandlerCallback): RequestHandler => {
     } catch (err: any) {
       if (process.env.BENCHMARK_DEBUG === "true") {
         const duration = performance.now() - start;
-        const msg = err instanceof Error ? err.message : String(err);
         console.log(
-          `[API] ERROR ${event.request.method} ${event.url.pathname} after ${duration.toFixed(2)}ms: ${msg}`,
+          `[API] ERROR ${event.request.method} ${event.url.pathname} after ${duration.toFixed(2)}ms: ${err.message}`,
         );
         if (err.stack) console.log(err.stack);
       }

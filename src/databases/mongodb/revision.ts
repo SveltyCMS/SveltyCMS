@@ -86,11 +86,9 @@ revisionSchema.statics = {
         `Bulk deleted ${result.deletedCount} revisions for content IDs: ${contentIds.join(", ")}`,
       );
       return { success: true, data: result.deletedCount };
-    } catch (error) {
+    } catch (error: any) {
       const message = "Failed to bulk delete revisions";
-      logger.error(
-        `Error bulk deleting revisions for content IDs: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      logger.error(`Error bulk deleting revisions for content IDs: ${error.message}`);
       return {
         success: false,
         message,

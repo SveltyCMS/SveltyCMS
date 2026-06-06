@@ -152,7 +152,9 @@ export async function deleteFile(url: string): Promise<void> {
 
   const fs = await import("node:fs/promises");
   const fullPath = path.join(process.cwd(), MEDIA_ROOT, rel);
-  await fs.unlink(fullPath).catch(() => {}); // best effort
+  await fs.unlink(fullPath).catch(() => {
+    logger.debug("Best-effort file deletion failed silently");
+  }); // best effort
 }
 
 /** Alias for backward compatibility */

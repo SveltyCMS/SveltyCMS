@@ -120,9 +120,9 @@ export async function withCache<T>(
     }
 
     return result;
-  } catch (error) {
+  } catch (error: any) {
     logger.warn(`Cache wrapper error for ${cacheKey}, falling back to direct query:`, {
-      error: error instanceof Error ? error.message : String(error),
+      error: error.message,
       category,
       tenantId,
     });

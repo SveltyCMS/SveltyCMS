@@ -82,6 +82,9 @@ export async function handleStripeWebhook(
 
     return { received: true };
   } catch (err: any) {
-    return { received: false, error: err.message };
+    return {
+      received: false,
+      error: err.message,
+    };
   }
 }

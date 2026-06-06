@@ -46,13 +46,13 @@ export const load: PageServerLoad = async ({ locals }) => {
       roles: tenantRoles, // Already cached and loaded by handleAuthorization hook
       permissions,
     };
-  } catch (err) {
+  } catch (err: any) {
     // Differentiate between intentional redirects/errors and unexpected server errors
     if (err && typeof err === "object" && "status" in err) {
       // This is likely a redirect or an error we've already thrown (e.g., 403, 302)
       throw err;
     }
-    const message = `Error in load function for Access Management: ${err instanceof Error ? err.message : String(err)}`;
+    const message = `Error in load function for Access Management: ${err.message}`;
     logger.error(message, { tenantId: locals.tenantId });
     throw error(500, message); // Generic 500 for unhandled server errors
   }

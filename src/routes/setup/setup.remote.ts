@@ -186,6 +186,9 @@ export const installDatabaseDriver = command("unchecked", async (dbType: string)
     };
   } catch (error: any) {
     logger.error("Driver installation failed:", error);
-    return { success: false, error: `Installation failed: ${error.message}` };
+    return {
+      success: false,
+      error: `Installation failed: ${error.message}`,
+    };
   }
 });

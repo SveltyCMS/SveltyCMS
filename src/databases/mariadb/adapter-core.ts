@@ -213,7 +213,7 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         const isMissingDb =
           err.code === "ER_BAD_DB_ERROR" ||
           err.errno === 1049 ||
-          err.message?.includes("Unknown database");
+          err.message.includes("Unknown database");
 
         if (isMissingDb) {
           const dbName = this.activeDatabaseName;
@@ -254,7 +254,9 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
       return { success: true, data: undefined };
     } catch (error) {
       if (this.pool) {
-        await this.pool.end().catch(() => {});
+        await this.pool.end().catch(() => {
+          logger.debug("MariaDB pool end failed during connection error cleanup");
+        });
         this.pool = null;
       }
       this.connected = false;
@@ -1373,11 +1375,11 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
               this._returningSupported = true;
               return utils.convertDatesToISO(rows[0]) as Record<string, unknown>;
             }
-          } catch (err) {
+          } catch (err: any) {
             // MariaDB version doesn't support RETURNING — cache to skip future attempts
             this._returningSupported = false;
             logger.debug(
-              `MariaDB INSERT...RETURNING not supported, using inline SELECT fallback: ${err instanceof Error ? err.message : String(err)}`,
+              `MariaDB INSERT...RETURNING not supported, using inline SELECT fallback: ${err.message}`,
             );
           }
         }

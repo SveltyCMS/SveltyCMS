@@ -176,7 +176,9 @@ export class TelemetryService {
           }
 
           if (dbAdapter.ensureMonitoring) {
-            await dbAdapter.ensureMonitoring().catch(() => {});
+            await dbAdapter.ensureMonitoring().catch(() => {
+              logger.debug("Monitoring ensure failed silently");
+            });
           }
 
           if (dbAdapter.ensureAuth) {
@@ -319,8 +321,8 @@ export class TelemetryService {
         globalWithCache.__SVELTY_TELEMETRY_LAST_CHECK__ = this.lastCheckTime;
 
         return this.cachedUpdateInfo;
-      } catch (err) {
-        logger.warn("[Telemetry] Check failed:", err instanceof Error ? err.message : String(err));
+      } catch (err: any) {
+        logger.warn("[Telemetry] Check failed:", err.message);
         this.lastCheckTime = Date.now();
         this.cachedUpdateInfo = {
           status: "error",

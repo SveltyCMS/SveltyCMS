@@ -1352,7 +1352,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   public configureReplicas(urls: string[] | string): void {
     const replicaUrls = typeof urls === "string" ? (JSON.parse(urls) as string[]) : urls;
     if (!Array.isArray(replicaUrls)) return;
-    for (const sql of this.allReplicaSqls) sql.end().catch(() => {});
+    for (const sql of this.allReplicaSqls)
+      sql.end().catch(() => {
+        logger.debug("Failed to end PostgreSQL replica SQL during reconfiguration");
+      });
     this.allReplicaSqls = [];
     this.replicaSqls.clear();
     if (replicaUrls.length === 0) return;

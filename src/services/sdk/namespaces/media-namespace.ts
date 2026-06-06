@@ -61,7 +61,10 @@ export class MediaNamespace {
   private mediaService: MediaService;
 
   // Mirror the pattern used in CollectionsNamespace: static LRU for request-level dedup
-  private static _requestCache = new LRUCache<string, any>({ max: 500, ttl: 60_000 });
+  private static _requestCache = new LRUCache<string, any>({
+    max: 500,
+    ttl: 60_000,
+  });
 
   constructor(private _dbAdapter: IDBAdapter) {
     this.mediaService = new MediaService(_dbAdapter);
@@ -88,7 +91,12 @@ export class MediaNamespace {
 
     const result = await this._dbAdapter.media.files.getByFolder(
       folderId as DatabaseId,
-      { pageSize: limit, page: 1, sortField: "updatedAt", sortDirection: "desc" },
+      {
+        pageSize: limit,
+        page: 1,
+        sortField: "updatedAt",
+        sortDirection: "desc",
+      },
       recursive,
       tenantId as DatabaseId,
     );
@@ -181,7 +189,11 @@ export class MediaNamespace {
       this.invalidateCache(tenantId);
       return result;
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 
@@ -201,7 +213,11 @@ export class MediaNamespace {
       this.invalidateCache(tenantId);
       return result;
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 
@@ -218,7 +234,11 @@ export class MediaNamespace {
       this.invalidateCache(options.tenantId, mediaId);
       return { success: true, data: undefined };
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 
@@ -231,7 +251,11 @@ export class MediaNamespace {
       this.invalidateCache(options.tenantId, fileId);
       return { success: true, data: undefined };
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 
@@ -252,8 +276,12 @@ export class MediaNamespace {
         tenantId as DatabaseId,
       );
       return { success: true, data: result };
-    } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+    } catch (err: unknown) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : String(err),
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 
@@ -271,7 +299,11 @@ export class MediaNamespace {
       );
       return { success: true, data: result };
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 
@@ -284,7 +316,11 @@ export class MediaNamespace {
       );
       return { success: true, data: refs };
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 
@@ -307,8 +343,12 @@ export class MediaNamespace {
       );
       this.invalidateCache(tenantId, mediaId);
       return result;
-    } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+    } catch (err: unknown) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : String(err),
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 
@@ -332,7 +372,11 @@ export class MediaNamespace {
       this.invalidateCache(tenantId, mediaId);
       return result;
     } catch (err: any) {
-      return { success: false, message: err.message, error: err };
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
     }
   }
 }

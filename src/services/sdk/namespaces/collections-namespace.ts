@@ -24,7 +24,10 @@ export class CollectionsNamespace {
   private _proxy: CollectionProxy;
 
   // 🚀 OPTIMIZATION: Move caches to static to avoid per-request allocation overhead
-  private static _requestCache = new LRUCache<string, any>({ max: 2000, ttl: 60_000 });
+  private static _requestCache = new LRUCache<string, any>({
+    max: 2000,
+    ttl: 60_000,
+  });
   private static _schemaCache = new LRUCache<string, Schema>({ max: 500 });
   private static _batchLoaders = new Map<
     string,
@@ -48,10 +51,16 @@ export class CollectionsNamespace {
                 return () => ({
                   findOne: () => Promise.resolve(null),
                   aggregate: () => Promise.resolve([]),
-                  find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
+                  find: () => ({
+                    lean: () => ({ exec: () => Promise.resolve([]) }),
+                  }),
                 });
               }
-              return () => Promise.resolve({ success: false, message: "Interface initializing" });
+              return () =>
+                Promise.resolve({
+                  success: false,
+                  message: "Interface initializing",
+                });
             },
           },
         );
@@ -160,16 +169,36 @@ export class CollectionsNamespace {
       const fields =
         idLower === "benchmarkstable"
           ? [
-              { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
-              { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
-              { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
+              {
+                db_fieldName: "_id",
+                label: "ID",
+                widget: { Name: "Input" },
+                type: "string",
+              },
+              {
+                db_fieldName: "title",
+                label: "Title",
+                widget: { Name: "Input" },
+                type: "string",
+              },
+              {
+                db_fieldName: "slug",
+                label: "Slug",
+                widget: { Name: "Input" },
+                type: "string",
+              },
               {
                 db_fieldName: "content",
                 label: "Content",
                 widget: { Name: "RichText" },
                 type: "string",
               },
-              { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+              {
+                db_fieldName: "count",
+                label: "Count",
+                widget: { Name: "Input" },
+                type: "number",
+              },
               {
                 db_fieldName: "author",
                 label: "Author",
@@ -186,7 +215,12 @@ export class CollectionsNamespace {
             ]
           : idLower === "benchmark_posts"
             ? [
-                { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
+                {
+                  db_fieldName: "_id",
+                  label: "ID",
+                  widget: { Name: "Input" },
+                  type: "string",
+                },
                 {
                   db_fieldName: "title",
                   label: "Title",
@@ -242,7 +276,11 @@ export class CollectionsNamespace {
   }
 
   async list(
-    options: { tenantId?: DatabaseId | null; includeFields?: boolean; includeStats?: boolean } = {},
+    options: {
+      tenantId?: DatabaseId | null;
+      includeFields?: boolean;
+      includeStats?: boolean;
+    } = {},
   ) {
     const { tenantId, includeFields = false, includeStats = false } = options;
 
@@ -288,7 +326,9 @@ export class CollectionsNamespace {
         const now = new Date().toISOString() as ISODateString;
         if (col.label) col.label = await replaceTokens(col.label, { system: { now } });
         if (col.description)
-          col.description = await replaceTokens(col.description, { system: { now } });
+          col.description = await replaceTokens(col.description, {
+            system: { now },
+          });
 
         return col;
       }),
@@ -345,7 +385,9 @@ export class CollectionsNamespace {
         .filter((id): id is string => id !== undefined);
     }
 
-    const baseFilter: any = this.normalizeRelationshipFilter({ ...additionalFilter });
+    const baseFilter: any = this.normalizeRelationshipFilter({
+      ...additionalFilter,
+    });
     if (!isAdmin) {
       baseFilter.status = status || "published";
     } else if (status) {
@@ -632,7 +674,10 @@ export class CollectionsNamespace {
     const { tenantId, filter = {} } = options;
     const schema = await this.getSchema(collectionId, tenantId);
     const normalizedFilter = this.normalizeRelationshipFilter(filter);
-    const query = { ...normalizedFilter, ...(tenantId && { tenantId: tenantId as DatabaseId }) };
+    const query = {
+      ...normalizedFilter,
+      ...(tenantId && { tenantId: tenantId as DatabaseId }),
+    };
 
     return this._dbAdapter.crud.count(this.getCollectionName(schema._id as string), query as any, {
       tenantId: tenantId as DatabaseId,
@@ -781,7 +826,9 @@ export class CollectionsNamespace {
     if (result.success) {
       try {
         const { workflowService } = await import("@src/services/background/workflow-service");
-        const insertedIds = Array.from({ length: (result.data as any[]).length }) as string[];
+        const insertedIds = Array.from({
+          length: (result.data as any[]).length,
+        }) as string[];
         const resultsData = result.data as any[];
         for (let i = 0; i < resultsData.length; i++) {
           insertedIds[i] = resultsData[i]._id as string;
@@ -884,7 +931,11 @@ export class CollectionsNamespace {
       } catch {}
     }
 
-    return this.enqueueBatchLoad(schema, entryId, { ...options, tenantId, bypassCache });
+    return this.enqueueBatchLoad(schema, entryId, {
+      ...options,
+      tenantId,
+      bypassCache,
+    });
   }
 
   private async enqueueBatchLoad(schema: Schema, entryId: string, options: any) {
@@ -893,7 +944,10 @@ export class CollectionsNamespace {
     const loaderKey = `${collectionId}:${tenantId || "global"}`;
 
     if (!CollectionsNamespace._batchLoaders.has(loaderKey)) {
-      CollectionsNamespace._batchLoaders.set(loaderKey, { ids: new Set(), promises: new Map() });
+      CollectionsNamespace._batchLoaders.set(loaderKey, {
+        ids: new Set(),
+        promises: new Map(),
+      });
       Promise.resolve().then(() => this.executeBatch(schema, loaderKey, options));
     }
 
@@ -1220,7 +1274,9 @@ export class CollectionsNamespace {
     for (const pattern of patterns) {
       await cacheService
         .clearByPattern(pattern, (tenantId || undefined) as string | undefined)
-        .catch(() => {});
+        .catch(() => {
+          logger.debug("Cache clearByPattern failed silently");
+        });
     }
   }
 

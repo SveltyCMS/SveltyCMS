@@ -211,8 +211,8 @@ $effect(() => {
 					} else {
 						repairResult = { success: false, error: result.error || 'Repair failed' };
 					}
-				} catch (e: any) {
-					repairResult = { success: false, error: e.message || 'Repair failed' };
+				} catch (e: unknown) {
+					repairResult = { success: false, error: e instanceof Error ? e.message || String(e) : 'Repair failed' };
 				} finally {
 					isRepairing = false;
 				}

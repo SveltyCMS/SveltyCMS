@@ -68,7 +68,9 @@ class Mutex {
             reject(err);
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          logger.debug("SQLite mutex queue handler failed silently");
+        });
     });
   }
 }
@@ -1191,10 +1193,8 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
           if (Array.isArray(rows) && rows.length > 0) {
             return utils.convertDatesToISO(rows[0]) as Record<string, unknown>;
           }
-        } catch (err) {
-          logger.debug(
-            `SQLite RETURNING failed, using inline SELECT fallback: ${err instanceof Error ? err.message : String(err)}`,
-          );
+        } catch (err: any) {
+          logger.debug(`SQLite RETURNING failed, using inline SELECT fallback: ${err.message}`);
         }
 
         // 🔄 FALLBACK: Standard UPDATE + inline SELECT (pre-3.35 SQLite)

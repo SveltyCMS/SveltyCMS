@@ -27,8 +27,8 @@ export async function runMigrations(
 
     logger.info("✅ Database migrations completed successfully");
     return { success: true };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  } catch (error: any) {
+    const message = error.message;
     logger.error("Migration failed:", message);
     return { success: false, error: message };
   }

@@ -74,8 +74,8 @@ export async function cleanupExpiredSessions(): Promise<{
     }
 
     return { expiredSessions, rotatedSessions, totalCleaned };
-  } catch (error) {
-    const message = `Session cleanup failed: ${error instanceof Error ? error.message : String(error)}`;
+  } catch (error: any) {
+    const message = `Session cleanup failed: ${error.message}`;
     logger.error(message);
     throw new Error(message);
   }
@@ -99,10 +99,8 @@ export function startSessionCleanup(): void {
   cleanupInterval = setInterval(async () => {
     try {
       await cleanupExpiredSessions();
-    } catch (error) {
-      logger.error(
-        `Scheduled session cleanup failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+    } catch (error: any) {
+      logger.error(`Scheduled session cleanup failed: ${error.message}`);
     }
   }, CLEANUP_INTERVAL);
 

@@ -41,9 +41,15 @@ export class ApiSpecService {
         { name: "Collections", description: "Dynamic content operations" },
         { name: "Media", description: "Asset management and processing" },
         { name: "System", description: "Health, telemetry, and settings" },
-        { name: "Search", description: "Global and collection-specific search" },
+        {
+          name: "Search",
+          description: "Global and collection-specific search",
+        },
         { name: "Tokens", description: "API and Website token management" },
-        { name: "SCIM", description: "System for Cross-domain Identity Management (v2.0)" },
+        {
+          name: "SCIM",
+          description: "System for Cross-domain Identity Management (v2.0)",
+        },
       ],
       paths: {},
       components: {
@@ -60,7 +66,10 @@ export class ApiSpecService {
           HealthResponse: {
             type: "object",
             properties: {
-              status: { type: "string", enum: ["healthy", "degraded", "initializing"] },
+              status: {
+                type: "string",
+                enum: ["healthy", "degraded", "initializing"],
+              },
               database: { type: "string" },
               latency: { type: "number" },
               uptime: { type: "number" },
@@ -210,7 +219,7 @@ export class ApiSpecService {
       const { logger } = await import("@utils/logger");
       logger.error("Failed to generate full API spec", {
         tenantId,
-        error: err.message || String(err),
+        error: err.message,
       });
       return this.generateSpec([], tenantId);
     }
@@ -231,8 +240,16 @@ export class ApiSpecService {
                 type: "object",
                 required: ["email", "security"],
                 properties: {
-                  email: { type: "string", format: "email", example: "admin@example.com" },
-                  password: { type: "string", format: "security", example: "********" },
+                  email: {
+                    type: "string",
+                    format: "email",
+                    example: "admin@example.com",
+                  },
+                  password: {
+                    type: "string",
+                    format: "security",
+                    example: "********",
+                  },
                 },
               },
             },
@@ -279,8 +296,16 @@ export class ApiSpecService {
         summary: "List Users",
         security: [{ bearerAuth: [] }],
         parameters: [
-          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
-          { name: "limit", in: "query", schema: { type: "integer", default: 10 } },
+          {
+            name: "page",
+            in: "query",
+            schema: { type: "integer", default: 1 },
+          },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", default: 10 },
+          },
         ],
         responses: {
           200: { description: "List of users" },
@@ -299,7 +324,9 @@ export class ApiSpecService {
           200: {
             description: "System is healthy",
             content: {
-              "application/json": { schema: { $ref: "#/components/schemas/HealthResponse" } },
+              "application/json": {
+                schema: { $ref: "#/components/schemas/HealthResponse" },
+              },
             },
           },
         },
@@ -313,7 +340,11 @@ export class ApiSpecService {
         summary: "Get Performance Metrics",
         security: [{ bearerAuth: [] }],
         parameters: [
-          { name: "detailed", in: "query", schema: { type: "boolean", default: false } },
+          {
+            name: "detailed",
+            in: "query",
+            schema: { type: "boolean", default: false },
+          },
         ],
         responses: {
           200: { description: "Performance report" },
@@ -334,7 +365,13 @@ export class ApiSpecService {
             "application/json": {
               schema: {
                 type: "object",
-                properties: { type: { type: "string", enum: ["content", "all"], default: "all" } },
+                properties: {
+                  type: {
+                    type: "string",
+                    enum: ["content", "all"],
+                    default: "all",
+                  },
+                },
               },
             },
           },
@@ -364,7 +401,11 @@ export class ApiSpecService {
         summary: "List Assets",
         security: [{ bearerAuth: [] }],
         parameters: [
-          { name: "limit", in: "query", schema: { type: "integer", default: 100 } },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", default: 100 },
+          },
           { name: "folderId", in: "query", schema: { type: "string" } },
         ],
         responses: {
@@ -385,7 +426,10 @@ export class ApiSpecService {
               schema: {
                 type: "object",
                 properties: {
-                  files: { type: "array", items: { type: "string", format: "binary" } },
+                  files: {
+                    type: "array",
+                    items: { type: "string", format: "binary" },
+                  },
                 },
               },
             },
@@ -406,7 +450,12 @@ export class ApiSpecService {
         summary: "Global Search",
         security: [{ bearerAuth: [] }],
         parameters: [
-          { name: "q", in: "query", required: true, schema: { type: "string" } },
+          {
+            name: "q",
+            in: "query",
+            required: true,
+            schema: { type: "string" },
+          },
           {
             name: "type",
             in: "query",
@@ -447,8 +496,16 @@ export class ApiSpecService {
         operationId: `collections.${name}.list`,
         summary: `List ${name} entries`,
         parameters: [
-          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
-          { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
+          {
+            name: "page",
+            in: "query",
+            schema: { type: "integer", default: 1 },
+          },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", default: 50 },
+          },
           {
             name: "filter",
             in: "query",
@@ -465,7 +522,10 @@ export class ApiSpecService {
                   type: "object",
                   properties: {
                     success: { type: "boolean" },
-                    data: { type: "array", items: { $ref: `#/components/schemas/${schemaName}` } },
+                    data: {
+                      type: "array",
+                      items: { $ref: `#/components/schemas/${schemaName}` },
+                    },
                   },
                 },
               },
@@ -503,7 +563,9 @@ export class ApiSpecService {
           200: {
             description: "Success",
             content: {
-              "application/json": { schema: { $ref: `#/components/schemas/${schemaName}` } },
+              "application/json": {
+                schema: { $ref: `#/components/schemas/${schemaName}` },
+              },
             },
           },
         },
@@ -515,7 +577,9 @@ export class ApiSpecService {
         security: [{ bearerAuth: [] }],
         requestBody: {
           content: {
-            "application/json": { schema: { $ref: `#/components/schemas/${schemaName}` } },
+            "application/json": {
+              schema: { $ref: `#/components/schemas/${schemaName}` },
+            },
           },
         },
         responses: {
@@ -536,12 +600,24 @@ export class ApiSpecService {
 
   private mapFieldsToSchema(fields: FieldInstance[], depth = 0): any {
     if (depth > 5) {
-      return { type: "object", description: "Recursion Limit Reached", additionalProperties: true };
+      return {
+        type: "object",
+        description: "Recursion Limit Reached",
+        additionalProperties: true,
+      };
     }
 
     const properties: any = {
-      _id: { type: "string", format: "uuid", example: "67f8c9d2e1b3a4f5c6d7e8f9" },
-      status: { type: "string", enum: ["published", "draft", "archived"], default: "published" },
+      _id: {
+        type: "string",
+        format: "uuid",
+        example: "67f8c9d2e1b3a4f5c6d7e8f9",
+      },
+      status: {
+        type: "string",
+        enum: ["published", "draft", "archived"],
+        default: "published",
+      },
       createdAt: { type: "string", format: "date-time" },
       updatedAt: { type: "string", format: "date-time" },
     };

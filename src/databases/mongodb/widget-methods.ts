@@ -64,9 +64,9 @@ export class MongoWidgetMethods {
       });
 
       return { success: true, data: result as Widget };
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`[WidgetMethods] Failed to register widget "${widgetData.name}"`, {
-        error: error instanceof Error ? error.message : String(error),
+        error: error.message,
         collection: this.widgetModel.collection.name,
       });
       return {
@@ -197,7 +197,9 @@ export class MongoWidgetMethods {
       });
 
       const result = await this.widgetModel
-        .findByIdAndUpdate(widgetId, { $set: widgetData } as any, { returnDocument: "after" })
+        .findByIdAndUpdate(widgetId, { $set: widgetData } as any, {
+          returnDocument: "after",
+        })
         .lean()
         .exec();
 
@@ -216,10 +218,10 @@ export class MongoWidgetMethods {
         invalidateCategoryCache(CacheCategory.WIDGET, tenantId),
       ]);
       return { success: true, data: result as Widget };
-    } catch (error) {
+    } catch (error: any) {
       logger.error("[widget-methods.update] Update failed", {
         widgetId,
-        error: error instanceof Error ? error.message : String(error),
+        error: error.message,
       });
       return {
         success: false,

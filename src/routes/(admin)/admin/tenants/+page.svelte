@@ -91,7 +91,7 @@ function formatBytes(bytes: number, decimals = 2) {
 							<button
 								class="btn btn-sm {tenant.status === 'active' ? 'variant-soft-error' : 'variant-filled-success'}"
 								onclick={async () => {
-									const { toggleTenantStatus } = await import('./tenants.remote');
+									const { toggleTenantStatus } = await import('./tenants-actions.server');
 									await toggleTenantStatus({
 										tenantId: tenant._id,
 										status: tenant.status === 'active' ? 'suspended' : 'active',

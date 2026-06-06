@@ -199,8 +199,8 @@ async function getUserFromSession(
       setSessionInCache(sessionId, redisCached);
       return redisCached.user;
     }
-  } catch (err) {
-    logger.warn(`Redis session read failed: ${err instanceof Error ? err.message : String(err)}`);
+  } catch (err: any) {
+    logger.warn(`Redis session read failed: ${err.message}`);
   }
 
   const lastAttempt = lastRefreshAttempt.get(sessionId);
@@ -246,9 +246,9 @@ async function getUserFromSession(
       );
       return null;
     }
-  } catch (err) {
+  } catch (err: any) {
     lastRefreshAttempt.delete(sessionId);
-    logger.error(`Session validation crashed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error(`Session validation crashed: ${err.message}`);
   }
   return null;
 }
@@ -269,11 +269,9 @@ async function handleSessionRotation(
   const limiter = initRotationRateLimiter();
   try {
     if (await limiter.isLimited(event)) return;
-  } catch (err) {
+  } catch (err: any) {
     if (dev) {
-      logger.debug(
-        `[Auth] Skipping session rotation rate limit check: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      logger.debug(`[Auth] Skipping session rotation rate limit check: ${err.message}`);
     } else {
       throw err;
     }
@@ -310,8 +308,8 @@ async function handleSessionRotation(
       lastRotationAttempt.set(newSessionId, now);
       event.locals.session_id = newSessionId;
     }
-  } catch (err) {
-    logger.error(`Session rotation failed: ${err instanceof Error ? err.message : String(err)}`);
+  } catch (err: any) {
+    logger.error(`Session rotation failed: ${err.message}`);
   }
 }
 

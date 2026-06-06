@@ -1,19 +1,13 @@
 /**
  * @file src/routes/(app)/config/queue/queue.remote.ts
- * @description Queue Observability Remote Functions — SvelteKit command/query wrappers.
- *
- * ### Features:
- * - retryJob — reschedule a failed job
- * - deleteJob — remove a job from the queue
- * - clearCompleted — clear all completed jobs
+ * @description Queue Observability Remote Functions.
  */
 
-import { command } from "$app/server";
-
-export const retryJob = command("unchecked", async (jobId: string) => {
+export const retryJob = async (data: any) => {
   const { getDb } = await import("@src/databases/db");
-  const { logger } = await import("@utils/logger");
   const { error } = await import("@sveltejs/kit");
+  const { logger } = await import("@utils/logger");
+  const jobId = String(data);
 
   if (!jobId) throw error(400, "Job ID is required");
 
@@ -31,14 +25,14 @@ export const retryJob = command("unchecked", async (jobId: string) => {
     logger.error("Failed to retry job:", result.message);
     throw error(500, result.message);
   }
-
   return { success: true };
-});
+};
 
-export const deleteJob = command("unchecked", async (jobId: string) => {
+export const deleteJob = async (data: any) => {
   const { getDb } = await import("@src/databases/db");
-  const { logger } = await import("@utils/logger");
   const { error } = await import("@sveltejs/kit");
+  const { logger } = await import("@utils/logger");
+  const jobId = String(data);
 
   if (!jobId) throw error(400, "Job ID is required");
 
@@ -51,14 +45,13 @@ export const deleteJob = command("unchecked", async (jobId: string) => {
     logger.error("Failed to delete job:", result.message);
     throw error(500, result.message);
   }
-
   return { success: true };
-});
+};
 
-export const clearCompleted = command("unchecked", async (_payload?: {}) => {
+export const clearCompleted = async (_data?: any) => {
   const { getDb } = await import("@src/databases/db");
-  const { logger } = await import("@utils/logger");
   const { error } = await import("@sveltejs/kit");
+  const { logger } = await import("@utils/logger");
 
   const db = getDb();
   if (!db?.system?.jobs) throw error(500, "Database adapter not ready or jobs not supported.");
@@ -69,6 +62,5 @@ export const clearCompleted = command("unchecked", async (_payload?: {}) => {
     logger.error("Failed to clear completed jobs:", result.message);
     throw error(500, result.message);
   }
-
   return { success: true, count: result.data };
-});
+};

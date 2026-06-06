@@ -543,6 +543,27 @@ export const handle: Handle = async ({ event, resolve }) => {
   );
 };
 
+// --- Global Error Handler (SvelteKit v3 compatible) ---
+/**
+ * Catches ALL unhandled errors from page loads, API routes, and server functions.
+ * Extracts structured codes from raise() calls via `__sveltyCode` in the error body.
+ * Single source of truth for production error logging.
+ */
+export const handleError = async ({ error, event, status }: any) => {
+  const body = (error as any)?.body;
+  const code = body?.__sveltyCode || `HTTP_${status}`;
+  const message = body?.message || error?.message || String(error);
+
+  logger.error(`[GlobalError] ${code} — ${message}`, {
+    path: event?.url?.pathname,
+    method: event?.request?.method,
+    userId: event?.locals?.user?._id,
+    tenantId: event?.locals?.tenantId,
+    status,
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+};
+
 // --- Utility Functions for External Use ---
 export const getHealthMetrics = () => metricsService.getReport();
 

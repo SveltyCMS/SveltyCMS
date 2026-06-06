@@ -116,13 +116,9 @@ async function handleTestDatabase(event: RequestEvent) {
     if (!healthCheck.success) {
       throw new AppError(`Connection failed: ${healthCheck.message}`, 400, "DB_CONNECT_FAILED");
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error("Database setup test error:", e);
-    throw new AppError(
-      `Failed to connect/test DB: ${e instanceof Error ? e.message : String(e)}`,
-      400,
-      "DB_CONNECT_ERROR",
-    );
+    throw new AppError(`Failed to connect/test DB: ${e.message}`, 400, "DB_CONNECT_ERROR");
   } finally {
     if (adapterWrapper?.dbAdapter?.disconnect) {
       await adapterWrapper.dbAdapter.disconnect();

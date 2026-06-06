@@ -115,7 +115,7 @@ export class WorkflowService {
       return workflows.data[0] as WorkflowDefinition;
     } catch (err: any) {
       // If table doesn't exist yet, just assume no workflow
-      if (err.message?.includes("no such table")) return null;
+      if (err.message.includes("no such table")) return null;
       throw err;
     }
   }
@@ -136,7 +136,7 @@ export class WorkflowService {
       );
       return instances.success ? (instances.data[0] as WorkflowInstance) : null;
     } catch (err: any) {
-      if (err.message?.includes("no such table")) return null;
+      if (err.message.includes("no such table")) return null;
       throw err;
     }
   }

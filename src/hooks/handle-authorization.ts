@@ -96,10 +96,8 @@ async function getCachedUserCount(
     userCountCache = cacheData;
     await cacheService.set("userCount", cacheData, USER_COUNT_CACHE_TTL_S, tenantId ?? undefined);
     return count;
-  } catch (err) {
-    logger.warn(
-      `User count cache or query failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+  } catch (err: any) {
+    logger.warn(`User count cache or query failed: ${err.message}`);
     return -1;
   }
 }
@@ -125,8 +123,8 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
     rolesCache.set(key.toString(), cacheData);
     await cacheService.set(`roles:${key}`, cacheData, USER_PERM_CACHE_TTL_S, tenantId ?? undefined);
     return data;
-  } catch (err) {
-    logger.error(`Failed to fetch roles: ${err instanceof Error ? err.message : String(err)}`);
+  } catch (err: any) {
+    logger.error(`Failed to fetch roles: ${err.message}`);
     return [];
   }
 }

@@ -67,7 +67,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       });
       if (!res.ok) throw new Error("Save failed");
       toast.success("Your preferences saved. Reload to apply fully.");
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 
   async function clearMyOverrides() {
@@ -79,7 +79,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       });
       myDensity = ""; myVariant = ""; myReducedMotion = false; myHighContrast = false;
       toast.success("Overrides cleared. Reload to apply.");
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 
   // ── Live theme context (for preview) ──
@@ -200,7 +200,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       hasChanges = false;
       await loadThemes();
       toast.success(`Activated "${a.name}"`);
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 
   async function handleCreate() {
@@ -215,7 +215,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       newThemeName = "";
       await loadThemes();
       toast.success(`"${n}" created`);
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 
   async function handleClone(id: string) {
@@ -230,7 +230,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       cloneName = "";
       await loadThemes();
       toast.success(`"${n}" cloned`);
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 
   async function handleDelete(id: string) {
@@ -247,7 +247,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       }
       await loadThemes();
       toast.success("Theme deleted");
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 
   // ── Save / Reset / Import / Export ──
@@ -266,7 +266,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       if (!res.ok) throw new Error("Save failed");
       toast.success("Theme saved");
       hasChanges = false;
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
     finally { saving = false; }
   }
 
@@ -279,7 +279,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       customCss = "";
       hasChanges = false;
       toast.success("Reset to defaults");
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 
   async function importPreset() {
@@ -304,7 +304,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       if (imported.customCss) customCss = imported.customCss;
       importPresetJson = "";
       toast.success("Preset imported");
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
     finally { saving = false; }
   }
 
@@ -538,7 +538,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                 Create at <a href="https://themes.skeleton.dev/themes/create" target="_blank" rel="noopener" class="text-tertiary-500 dark:text-primary-500 underline">themes.skeleton.dev</a>, export as JSON, paste below.
               </p>
               <div class="space-y-3">
-                <textarea bind:value={importPresetJson} class="input min-h-[120px] font-mono text-xs"
+                <textarea bind:value={importPresetJson} class="input min-h-30 font-mono text-xs"
                   placeholder={'{"name":"My Theme","properties":{...}}'}></textarea>
                 <Button variant="tertiary" onclick={importPreset} loading={saving}>Import Preset</Button>
               </div>
@@ -669,7 +669,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                   Injected into admin panel. Dangerous constructs stripped.
                 </p>
                 <textarea id="admin-custom-css" bind:value={customCss}
-                  class="input min-h-[200px] font-mono text-xs"
+                  class="input min-h-50 font-mono text-xs"
                   placeholder={'/* Custom admin styles */\n.admin-special-header { border-color: oklch(65% 0.2 260deg); }'}></textarea>
               </div>
 

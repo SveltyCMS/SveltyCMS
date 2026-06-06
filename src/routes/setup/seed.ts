@@ -436,9 +436,14 @@ export async function seedPresetCollections(
   for (const schema of schemas) {
     try {
       await dbAdapter.collection.createModel(schema, false, options);
-    } catch (err: any) {
-      if (!err.message?.includes("already exists") && !err.message?.includes("duplicate")) {
-        logger.warn(`Preset collection "${schema._id}" createModel warning: ${err.message}`);
+    } catch (err: unknown) {
+      if (
+        (err instanceof Error ? err.message : String(err)).includes("already exists") ||
+        (err instanceof Error ? err.message : String(err)).includes("duplicate")
+      ) {
+        logger.warn(
+          `Preset collection "${schema._id}" createModel warning: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   }
@@ -749,10 +754,10 @@ export async function seedCollectionsForSetup(
           );
         }
       }
-    } catch (structError: any) {
+    } catch (structError: unknown) {
       logger.warn(
         "⚠️ Error building/persisting content structure:",
-        structError?.message || JSON.stringify(structError),
+        structError instanceof Error ? structError.message : JSON.stringify(structError),
       );
     }
 

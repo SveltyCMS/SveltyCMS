@@ -6,7 +6,7 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
-import { redirect } from "@sveltejs/kit";
+import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
@@ -18,7 +18,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     await import("@src/services/core/settings-service")
   ).getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
   if (!availableLanguages.includes(language)) {
-    const { error } = await import("@sveltejs/kit");
     throw error(404, "Not Found");
   }
 
@@ -40,8 +39,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     logger.warn("[Language Redirect] No collections found for redirection, using builder fallback");
     throw redirect(302, "/config/collectionbuilder");
   } catch (err) {
-    // Re-throw SvelteKit's internal redirect and error exceptions
-    const { isRedirect, isHttpError } = await import("@sveltejs/kit");
     if (isRedirect(err) || isHttpError(err)) {
       throw err;
     }

@@ -164,7 +164,10 @@ export const actions: Actions = {
       };
     } catch (error: any) {
       logger.error("Driver installation failed:", error);
-      return { success: false, error: `Installation failed: ${error.message}` };
+      return {
+        success: false,
+        error: `Installation failed: ${error.message}`,
+      };
     }
   },
 };
