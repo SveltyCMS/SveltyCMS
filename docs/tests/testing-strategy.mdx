@@ -1,122 +1,168 @@
 ---
 path: "docs/tests/testing-strategy.mdx"
-title: "Testing Strategy: Black-Box vs White-Box"
-description: "Detailed explanation of the SveltyCMS dual testing strategy: Black-Box for Integration/E2E and Bun-powered White-Box for Unit tests."
+title: "Testing Strategy: Three-Layer Architecture"
+description: "SveltyCMS testing strategy — White-Box unit tests, Black-Box integration tests, and E2E Playwright tests."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-04-03"
+updated: "2026-06-06"
 tags:
   - "testing"
   - "strategy"
   - "white-box"
   - "black-box"
-  - "fail-closed"
+  - "e2e"
 ---
 
-# Testing Strategy: The Hybrid Pyramid
+# Testing Strategy: Three-Layer Architecture
 
-SveltyCMS employs a pragmatic, modern testing strategy that leverages the strengths of both **Black-Box** and **White-Box** testing methods. This hybrid approach ensures we deliver a secure, database-agnostic CMS without sacrificing developer velocity or code quality.
+SveltyCMS uses a **three-layer testing pyramid** where each layer is optimized for what it does best. No layer duplicates another — pure algorithms get unit tests, API contracts get integration tests, and user journeys get E2E tests.
 
-## The Dual Strategy
+## Layer Boundaries
 
-We use a layered approach where each method is applied to the domain where it shines most:
+| Layer         | Scope       | Tooling                    | Tests What                                                              | Doesn't Test                    |
+| ------------- | ----------- | -------------------------- | ----------------------------------------------------------------------- | ------------------------------- |
+| **White-Box** | Unit        | Vitest (jsdom)             | Pure algorithms, schemas, data transforms, state machines               | I/O, DB, filesystem, network    |
+| **Black-Box** | Integration | `run-integration-tests.ts` | Real server + real DB — API contracts, middleware, RBAC, DB agnosticism | UI, browser rendering           |
+| **E2E**       | Browser     | Playwright                 | User journeys, accessibility, keyboard nav, visual flows                | Internal implementation details |
 
-| Method        | Scope                 | Tooling                 | Focus                                                                                   |
-| :------------ | :-------------------- | :---------------------- | :-------------------------------------------------------------------------------------- |
-| **White-Box** | **Unit Tests**        | **Vitest**              | Logic correctness, edge cases, internal consistency, **Target: 100% Branch Coverage**.  |
-| **Black-Box** | **Integration & E2E** | **Vitest / Playwright** | Real-world behavior, security posture, API contracts, Fail-Closed RBAC, DB agnosticism. |
+---
 
-### 1. White-Box Testing (Unit)
+## 1. White-Box Testing (Unit)
 
-**"Test the code knowing how it works."**
+**"Test pure logic knowing how it works."**
 
-We use **Vitest** for white-box unit testing. These tests presume full knowledge of the internal code structure, classes, and logic paths. Following our recent optimization, we have consolidated our unit suite into **753 highly performant tests (part of our 1113+ total)** in `tests/unit/`.
+Files: `tests/unit/**/*.test.ts` | Runner: `bun run test:unit` | Tests: 915
 
-**What we test here:**
+These tests have full access to internal code structure. They're fast (milliseconds), parallelizable, and catch logic regressions immediately.
 
-- **Pure Functions & Utilities**: Formatters, validators, crypto helpers.
-- **Services (DI-Hardened)**: Business logic that uses **Dependency Injection** to avoid global module state issues.
-- **Svelte Stores**: State management logic and reactivity via Runes.
-- **Widgets**: Component logic and validation schemas.
+**What belongs here:**
 
-**Why White-Box?**
+- Pure functions (date formatting, crypto, validation schemas)
+- Data transforms (tree adapters, logic builders, pluralization)
+- Svelte 5 rune stores (state transitions, derived values)
+- Widget validation schemas (Valibot, defaults, edge cases)
+- Security utilities (Argon2id, CSPRNG tokens, SHA-256 checksums)
 
-- **Speed**: Vitest unit tests run in milliseconds (total suite < 10s).
-- **Thoroughness**: We can hit every `if/else` branch and edge case that might be hard to trigger via an API call.
-- **Stability**: Refactoring internal implementation details might break these tests, which is good—it ensures the _unit_ still behaves correctly in isolation.
+**What does NOT belong here:**
 
-### 2. Black-Box Testing (Integration & E2E)
+- Database adapter calls (mock the adapter, test at integration layer)
+- Filesystem operations (real filesystem = integration test)
+- Cloud SDK wrappers (S3, Cloudinary — integration/E2E only)
+- Form submission flows (use E2E Playwright)
 
-**"Test the system as a consumer sees it."**
+---
 
-We use **Black-Box API testing** for all integration and end-to-end scenarios. These tests treat the entire running server as an opaque box.
+## 2. Black-Box Testing (Integration)
 
-**What we test here:**
+**"Test the API as a consumer sees it."**
 
-- **API Endpoints**: REST and GraphQL request/response cycles via the **Fail-Closed Dispatcher**.
-- **Authentication & Authorization**: Real login flows, token exchanges, and mandatory RBAC enforcement.
-- **Database Operations**: CRUD actions across different database adapters (MongoDB, SQLite, PostgreSQL).
-- **Middleware Chains**: Ensuring hooks (firewall, rate-limit, auth) execute in the correct order.
+Files: `tests/unit/api/*.test.ts` | Runner: `bun run test:integration` | Tests: ~450
 
-**Why Black-Box?**
+The integration runner (`scripts/run-integration-tests.ts`) orchestrates the full lifecycle:
 
-- **Security**: Tests must pass through real security guards. There are no "test backdoors" or mocked permission checks.
-- **Fail-Closed Enforcement**: All API requests are verified against `ENDPOINT_PERMISSIONS`. Unmapped routes are blocked by default.
-- **Database Agnosticism**: The test suite doesn't care if the backend is SQLite or PostgreSQL; it only cares about the JSON response. This allows us to run the exact same suite against all supported databases.
-- **Production Parity**: Tests run against a production-like build (`vite preview`), catching issues related to headers, serialization, and SSR that unit tests miss.
-- **Resilience**: Internal refactors (e.g., changing from Mongoose to Drizzle) generally don't break these tests as long as the API contract remains the same.
+1. Generates `config/private.test.ts` with isolated DB credentials
+2. Builds the production server (`bun run build`)
+3. Starts preview server on a free port
+4. Seeds the database via `/api/testing`
+5. Runs tests against real HTTP endpoints
+6. Tears down the server and cleans up
 
-### 3. Audit (High-Frequency Edition)
+**What belongs here:**
 
-**"Reality simulation with extreme stress and chaos resilience."**
+- API endpoint contracts (REST, GraphQL)
+- Authentication flows (login, session, 2FA, token rotation)
+- RBAC enforcement (admin/editor/viewer permission boundaries)
+- Database CRUD across all 4 adapters (SQLite, MongoDB, PostgreSQL, MariaDB)
+- Middleware chain verification (firewall, rate-limit, auth, CSP headers)
+- Media upload/download with SSRF protection
 
-The April 2026 Audit update transformed our benchmarking into a "Full Image" reality simulator:
+**Key hardening:**
 
-- **Chaos Resilience**: Injects 500ms database "brownouts" during load tests to prove system stability under infrastructure stress.
-- **Index Pressure**: Stress-tests read performance on **100,000+ entry** collections with complex filtering and sorting.
-- **Bulk Migration**: Verified stable ingestion at **6,625 entries/s**, proving SveltyCMS is ready for massive legacy data imports.
-- **5-Layer Truth Model**: Isolates latency from Pure Logic through SDK and Dispatcher up to Real HTTP (Cold/Warm).
-- **SLA Thresholds**: Mandatory performance budgets for p95 latency (Target: **0.35ms** for REST read).
-- **Master Leaderboard**: A side-by-side comparison of all 4 database engines in `docs/project/benchmarks/README.mdx`.
+- **Fail-Closed by default**: Unmapped API routes return 403
+- **No backdoors**: Tests authenticate via real login, not header bypasses
+- **Database agnostic**: Same suite runs against all 4 databases
+- **Isolation**: Each test run uses its own temp database, never touches production
 
-## Beyond Functional: The Road to 100% Confidence
+---
 
-To truly aim for "100%" system reliability, we go beyond simple functional tests:
+## 3. E2E Testing (Browser)
 
-### 3. Static Analysis & Type Safety (Continuous)
+**"Test the full user journey in a real browser."**
 
-- **TypeScript**: Strict mode enabled (`strict: true`) for 100% type safety.
-- **oxlint / oxfmt**: Enforce consistent code style and best practices with ultra-high performance (<100ms for the entire project).
-- **Svelte Check**: Validates Svelte templates and reactivity graph (Runes).
+Files: `tests/e2e/*.spec.ts` | Runner: `npx playwright test` | Scenarios: ~40
 
-### 4. Advanced Verification (Future Scope)
+Playwright drives Chromium, Firefox, and WebKit against the running server. These tests verify that UI, accessibility, and visual flows work end-to-end.
 
-To reach the "100%" ambition, we are planning:
+**What belongs here:**
 
-- **Mutation Testing (Stryker)**: "Testing the tests" by introducing random bugs to ensure tests catch them.
-- **Fuzz Testing**: Throwing random/garbage data at API endpoints to find crashes/leaks.
-- **Visual Regression**: Pixel-perfect UI verification.
-- **Dependency Auditing**: Automated `npm audit` checks in CI.
+- Setup wizard flow (all 4 databases)
+- Login → Dashboard → Content creation → Publish
+- RBAC enforcement in the UI (admin sees X, editor doesn't)
+- Media library interactions (upload, search, share, version history)
+- Keyboard navigation and focus traps
+- Accessibility audits (Axe-Core, RTL mirroring)
+- Collection builder drag-and-drop
 
-## Continuous Integration (CI) Architecture
+**What does NOT belong here:**
 
-SveltyCMS uses a performance-optimized CI pipeline designed for maximum reliability and fast feedback.
+- API contract validation (use integration tests — faster, more reliable)
+- Database adapter verification (use integration tests — covers all 4 DBs)
+- Pure algorithm edge cases (use unit tests — milliseconds vs seconds)
 
-### 1. High-Performance Quality Gate (`scripts/quality-gate.ts`)
+---
 
-In April 2026, we replaced serial shell scripts with a **Parallel TypeScript Orchestrator**.
+## 4. Benchmark Audit
 
-- **4.4x Speedup**: Local validation dropped from ~150s to **~34s**.
-- **Impact-Aware**: Only runs tests **related** to your staged files.
-- **Blazing Fast**: Uses Rust-powered `oxlint` and `oxfmt` in parallel with `svelte-check`.
+**"Prove performance under stress."**
 
-### 2. Consolidated Database Matrix
+Runner: `bun run scripts/benchmark-matrix/index.ts` | Metrics: 50+ across 4 databases
 
-Integration and E2E tests are grouped by database engine (MongoDB, MariaDB, PostgreSQL, SQLite).
+Not a functional test layer — this validates SRE-grade resilience:
 
-- **One Leg, Dual Suite**: Each matrix leg starts its database service once and runs both Integration and E2E tests sequentially.
-- **Cross-Browser Coverage**: E2E tests validate against Chromium, Firefox, and Webkit.
+- Cold start time (< 1s target)
+- REST p95 latency (< 0.6ms SQLite, < 0.7ms others)
+- Chaos resilience (500ms DB brownouts)
+- Migration throughput (> 6,600 entries/s)
+- Index pressure (100,000+ entries with complex filters)
 
-## Summary
+---
 
-By combining **Vitest-powered White-Box unit tests** for speed and logic depth with **Black-Box API testing** for Fail-Closed security and integration reliability, SveltyCMS achieves a robust quality assurance posture. our goal is **100% System Confidence**.
+## Layer Selection Guide
+
+| If you're testing...                      | Use this layer                                    |
+| ----------------------------------------- | ------------------------------------------------- |
+| A validation schema (Valibot)             | Unit — `safeParse()` with edge cases              |
+| A date formatting function                | Unit — fast, deterministic                        |
+| An API endpoint returning JSON            | Integration — real HTTP, real DB                  |
+| Whether an editor can access admin routes | Integration — RBAC through real middleware        |
+| The setup wizard flow                     | E2E — Playwright fills real forms                 |
+| Keyboard tab order through a modal        | E2E — Playwright `page.keyboard.press("Tab")`     |
+| File upload with SSRF protection          | Integration — real server, real file I/O          |
+| S3 upload actually works                  | Integration — real SDK call                       |
+| A CSS class changes on hover              | Not worth testing — visual regression if critical |
+| A store's derived value computation       | Unit — Svelte 5 runes, in-memory                  |
+
+---
+
+## Continuous Integration
+
+```bash
+# Local pre-commit (fast path — related tests only)
+bun run scripts/quality-gate.ts
+
+# Full CI pipeline (all 4 databases)
+# - Unit: Vitest (915 tests, ~15s)
+# - Integration: SQLite → MongoDB → PostgreSQL → MariaDB
+# - E2E: Playwright (Chromium, Firefox, WebKit)
+# - Benchmarks: On main branch only
+```
+
+---
+
+## Related Documentation
+
+- [Test Status Report](./test-status.mdx)
+- [Utility Test Coverage](./utility-test-coverage.mdx)
+- [API Testing](./api-testing.mdx)
+- [E2E Testing Guide](./e2e-testing-guide.mdx)
+- [Black-Box Testing Architecture](./black-box-testing.mdx)

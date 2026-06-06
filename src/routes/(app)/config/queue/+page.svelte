@@ -102,7 +102,7 @@ function getFilterUrl(status?: string) {
 			</div>
 		</a>
 
-		<a href={getFilterUrl('running')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
+		<a href={getFilterUrl('running')} class="card p-4 border border-surface-200 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
 			<div class="flex items-center gap-3">
 				<div class="p-2 rounded-lg preset-tonal-primary">
 					<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>

@@ -593,7 +593,7 @@ $effect(() => {
 									<button
 										type="button"
 										onclick={toggle2FACodeType}
-										class="text-sm text-tertiary-500 dark:text-primary-500 underline hover:text-tertiary-600 dark:text-primary-600"
+										class="text-sm text-tertiary-500  underline hover:text-tertiary-600 dark:text-primary-600"
 										aria-label={useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
 									>
 										{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}

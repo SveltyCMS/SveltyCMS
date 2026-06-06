@@ -26,22 +26,10 @@ tags:
 
 The testing suite has reached a major milestone with **100% Core Widget Logic Coverage**. All 12 core widgets are now triply-verified for validation, defaults, and aggregations.
 
-- **Unit Tests:** 888 (Vitest) / 108 (Bun) across 108 test files — 100% pass under both runners
-- **Widget Suite:** 100% Pass Rate for all core and custom portable widgets.
-- **Defense-in-Depth Security:** 51 new tests verifying 4-layer security model (Middleware → Dispatcher → Handler → Page Action).
-- **Admin Theme System:** 26 consolidated white-box + SSR tests covering AdminTheme derived values (density scaling, radii, shadows, borders), feature merge strategy, user preference overrides, CSS sanitization, and SSR component variable propagation. (Replaces legacy `theme-context.test.ts`)
-- **CSP Headers Tested:** 9 tests verifying Content-Security-Policy on all responses — `default-src`, `object-src`, frame/script restrictions.
-- **AI Co-Pilot Tested:** 11 tests for `suggestFields()` schema suggestions and `scoreContent()` quality scoring.
-- **Version Channels Tested:** 7 tests for LTS/Stable/Next channel detection.
-- **ETag + API Versioning Tested:** 7 tests for SHA-256 conditional requests and `X-API-Version` header.
-- **SAML 2.0 / SSO:** Hardened CSRF State validation comparing secure Lax cookies to RelayState payloads.
-- **SCIM 2.0 (v1.1):** Added native POST /Bulk operation processing with recursive bulkId references resolution.
-- **Integration Tests:** Passing under proper runner isolations across all 4 databases (SQLite, MongoDB, MariaDB, PostgreSQL). Dedicated adapter-level tests now exist for all supported databases.
-- **E2E Tests:** All critical flows verified across all databases with parallel worker support (40 scenarios).
-- **Enterprise Benchmarks**: 50 high-fidelity metrics verified across 9 dimensions. SQLite (0.074ms DB raw, 0.59ms REST p95), MongoDB (0.63ms REST p95), PostgreSQL (0.67ms REST p95).
-- **Performance Grade**: **ULTRA ELITE (High-Frequency Grade)**
-- **Truth Model**: 5-Layer Production Reality Audit implemented.
-- **Security Persistence**: Verified stateful DoS protection across restarts.
+- **Unit Tests:** 915 (Vitest/jsdom across 109 files) — 100% pass
+- **Integration Tests:** Passing across all 4 databases (SQLite, MongoDB, MariaDB, PostgreSQL)
+- **E2E Tests:** All critical flows verified (40 scenarios) with parallel worker support
+- **Benchmarks:** 50+ metrics across 9 dimensions, SQLite 0.074ms DB raw, 0.59ms REST p95
 
 ### 🚀 Enterprise Performance Matrix (Audit)
 
@@ -145,5 +133,5 @@ bun run test:unit
 ```
 
 Last Updated: 2026-06-04
-Current Pass Rate: 100% (Vitest: 888/888 in 7.2s, Bun: 108/108)
+Current Pass Rate: 100% (Vitest: 915/915 in ~15s)
 Current State: DI-Hardened / Fail-Closed / 4-Layer Defense-in-Depth / CSP-Protected / AI Co-Pilot / Version Channels / ETag + API Versioning / Parallel Optimized / Svelte 5 / SAML CSRF-Protected / SCIM Bulk-Enabled / Admin-Theme-Tested / Lint-Zero-Warnings / Node-Default-Env (44% faster)

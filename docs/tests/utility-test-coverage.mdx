@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/utility-test-coverage.mdx"
 title: "Utility Function Test Coverage"
-description: "Comprehensive test coverage documentation for SveltyCMS utility functions"
+description: "Coverage status for SveltyCMS utility functions — what gets unit-tested vs covered by integration/E2E."
 order: 7
 icon: "mdi:tools"
-author: "Test Suite"
+author: "SveltyCMS Team"
 created: "2025-01-20"
-updated: "2026-04-03"
+updated: "2026-06-06"
 tags: ["testing", "utilities", "coverage", "unit-tests", "vitest"]
 ---
 
@@ -14,408 +14,98 @@ tags: ["testing", "utilities", "coverage", "unit-tests", "vitest"]
 
 ## Executive Summary
 
-**Total Tests:** 753 unit tests (consolidated)
-**Test Files:** 91 files
-**Coverage:** Services, Utilities, Stores, Widgets, Hooks
-**Status:** ✅ All tests passing
-**Framework**: Vitest 4.0 / Bun 1.3.11
-
-### ⚡ High-Performance Quality Gate
-
-Verified via `scripts/quality-gate.ts`, achieving a **4.4x speedup** in local verification cycles.
-
-This document provides comprehensive test coverage information for SveltyCMS utility functions.
+**Unit Tests:** 915 (Vitest/jsdom across 109 files)
+**Strategy:** Pure algorithms get white-box unit tests. I/O-heavy modules are covered by black-box integration and E2E Playwright tests. Every function is verified — the difference is _where_.
 
 ---
 
-## Test Coverage by Category
+## Coverage by Layer
 
-### 1. Date Utilities (`date.ts`)
+### ✅ White-Box Unit Tests (Vitest — pure logic, no I/O)
 
-**Tests:** 18 | **Status:** ✅ Passing
+| File                              | Tests   | What's Tested                                              |
+| --------------------------------- | ------- | ---------------------------------------------------------- |
+| `utils/date.test.ts`              | 18      | ISO validation, conversions, formatting, leap years        |
+| `utils/security.test.ts`          | 39      | Argon2id, CSPRNG tokens, SHA-256 checksums, timing attacks |
+| `utils/error-handling.test.ts`    | 22      | AppError class, type guards, message extraction, wrapping  |
+| `utils/language-utils.test.ts`    | 11      | Intl.DisplayNames, 30+ languages, RTL fallbacks            |
+| `utils/cn.test.ts`                | 6       | Tailwind class merging                                     |
+| `utils/pluralize.test.ts`         | 5       | Pluralization rules                                        |
+| `utils/transformers.test.ts`      | 6       | Data transformation pipelines                              |
+| `utils/logic-builder.test.ts`     | 5       | Query builder logic                                        |
+| `utils/tree-view-adapter.test.ts` | 14      | Tree data structure transforms                             |
+| `utils/navigation.test.ts`        | 3       | Navigation utilities                                       |
+| `utils/file-uploading.test.ts`    | 11      | File upload validation                                     |
+| `utils/status-toggle.test.ts`     | 7       | Entry status state machine                                 |
+| `utils/preview.test.ts`           | 3       | Preview message handling                                   |
+| `utils/api.test.ts`               | 12      | API helper utilities                                       |
+| `utils/utils.test.ts`             | 22      | General utilities, form data conversion                    |
+| **Total Utility Unit Tests**      | **184** | All pure functions across 15+ files                        |
 
-#### Type Guards & Validation (4 tests)
+### 🔵 Black-Box Integration Tests (API layer — real server, real DB)
 
-- ✅ ISO date string validation
-- ✅ Date to ISO string conversion
-- ✅ String to ISO string conversion
-- ✅ Invalid date string handling
+| Module                       | Covered By                               | What's Verified                                      |
+| ---------------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| `entry-actions.ts`           | `tests/unit/api/collections.test.ts`     | CRUD operations, batch mutations, status transitions |
+| `media-service.server.ts`    | `tests/unit/api/media-security*.test.ts` | Upload, delete, SSRF protection, MIME validation     |
+| `bulk-download.ts`           | Integration runner (real filesystem)     | TAR.GZ archive creation, streaming, cleanup          |
+| `cloud-storage.ts`           | Integration + E2E                        | S3/R2/Cloudinary upload, URL construction, metadata  |
+| `media-processing.server.ts` | `media-performance` benchmark            | Sharp image processing, EXIF parsing, hashing        |
+| `collection-utils.server.ts` | `tests/unit/api/collections.test.ts`     | Collection path resolution, caching                  |
+| `settings-sync.ts`           | `tests/unit/stores/system.test.ts`       | Pub/sub synchronization, state transitions           |
+| `restart-required.ts`        | `tests/unit/stores/system.test.ts`       | State flag toggling (trivial 23-line module)         |
 
-#### Date Conversions (4 tests)
+### 🟡 E2E Playwright Tests (full browser — user journeys)
 
-- ✅ Multiple input type conversions (Date, string, timestamp)
-- ✅ Date input normalization
-- ✅ Current time as ISO string
-- ✅ ISO string to Date conversion
-
-#### Formatting (6 tests)
-
-- ✅ Default display date formatting
-- ✅ Locale-specific formatting
-- ✅ Custom formatting options
-- ✅ Relative date formatting
-- ✅ Timestamp input formatting
-- ✅ String input formatting
-
-#### Edge Cases (4 tests)
-
-- ✅ Leap year date handling
-- ✅ Timezone-aware conversions
-- ✅ Unix epoch handling
-- ✅ Far future dates
-
----
-
-### 2. Cryptography (`security.ts`)
-
-**Tests:** 25 | **Status:** ✅ Passing
-
-#### Password Hashing (8 tests)
-
-- ✅ Argon2id password hashing
-- ✅ Unique hash generation (different salts)
-- ✅ Password verification (correct password)
-- ✅ Password rejection (incorrect password)
-- ✅ Empty password handling
-- ✅ Long password support (1000+ chars)
-- ✅ Special character handling
-- ✅ Unicode password support
-
-#### Random Token Generation (6 tests)
-
-- ✅ Default length tokens (64 hex chars)
-- ✅ Custom length tokens
-- ✅ Token uniqueness
-- ✅ Hexadecimal format validation
-- ✅ Small token sizes (1 byte)
-- ✅ Large token sizes (256 bytes)
-
-#### Checksum Generation (8 tests)
-
-- ✅ String checksum creation
-- ✅ Object checksum creation
-- ✅ Consistent checksum generation
-- ✅ Different data produces different checksums
-- ✅ Object property order sensitivity
-- ✅ Nested object support
-- ✅ Array support
-- ✅ Null value handling
-
-#### Security Properties (3 tests)
-
-- ✅ Argon2id algorithm usage
-- ✅ Computational expense (timing)
-- ✅ Timing attack resistance
+| Module                        | Covered By             | What's Verified                                    |
+| ----------------------------- | ---------------------- | -------------------------------------------------- |
+| `logger.ts` (client)          | All E2E specs          | Console output, error reporting in browser         |
+| `form.svelte.ts` (Form class) | Login/setup E2E flows  | Form submission, validation, reset                 |
+| `schemas.ts` (Valibot)        | Login/setup E2E flows  | Validation error display, field-level messages     |
+| `global-search-index.ts`      | Collection builder E2E | Search filtering, index population                 |
+| `media-utils.ts`              | Media library E2E      | URL construction, MIME display, file validation UI |
+| `advanced-search.ts`          | Media library E2E      | Filter UI, suggestions, duplicate detection        |
+| `sharing.ts`                  | Media library E2E      | Share link creation, expiry, access logging        |
+| `storage-analytics.ts`        | Media library E2E      | Storage breakdown charts, insights display         |
+| `version-history.ts`          | Media library E2E      | Version comparison, diff display, restore flow     |
 
 ---
 
-### 3. Error Handling (`error-handling.ts`)
+## Why Not Unit-Test Everything?
 
-**Tests:** 22 | **Status:** ✅ Passing
+Unit tests excel at **pure algorithms** — deterministic functions with clear inputs/outputs. They're fast (milliseconds), parallelizable, and catch logic regressions immediately.
 
-#### AppError Class (4 tests)
+I/O-heavy modules (filesystem, cloud SDKs, database adapters) are verified at the **integration and E2E layers** because:
 
-- ✅ Error creation with message and status
-- ✅ Error wrapping with original error
-- ✅ Error with additional details
-- ✅ Proper error name
-
-#### Type Guards (2 tests)
-
-- ✅ AppError instance identification
-- ✅ HttpError object identification
-
-#### Error Message Extraction (6 tests)
-
-- ✅ Extract from Error objects
-- ✅ Extract from AppError objects
-- ✅ Extract from HttpError objects
-- ✅ Handle string errors
-- ✅ Handle objects with message property
-- ✅ Handle unknown error types
-- ✅ Stringify complex objects
-
-#### Error Wrapping (7 tests)
-
-- ✅ Wrap Error in AppError
-- ✅ Preserve existing AppError
-- ✅ Wrap HttpError
-- ✅ Custom default messages
-- ✅ Default message for unknown errors
-- ✅ Custom default status codes
-- ✅ String error wrapping
-
-#### Integration (3 tests)
-
-- ✅ Error chain handling
-- ✅ Message extraction from chain
+1. **Real behavior**: Mocking `@aws-sdk/client-s3` doesn't prove the upload actually works
+2. **Security gates**: Only integration tests exercise the full middleware chain (Firewall → Auth → RBAC → Handler)
+3. **Database agnosticism**: The same integration suite runs against SQLite, MongoDB, PostgreSQL, and MariaDB
+4. **No false confidence**: A passing unit test with a mocked DB adapter gives zero confidence the real adapter works
 
 ---
 
-### 4. Language Utilities (`languageUtils.ts`)
-
-**Tests:** 11 | **Status:** ✅ Passing
-
-#### Basic Functionality (6 tests)
-
-- ✅ Get language names
-- ✅ Get names in specific display locale
-- ✅ Extended language code support (zh-CN, en-US)
-- ✅ Invalid code handling
-- ✅ Empty string handling
-- ✅ Case-insensitive code handling
-
-#### Common Languages (2 tests)
-
-- ✅ Support for 30+ ISO 639-1 languages
-- ✅ Language names in different locales
-
-#### Edge Cases (3 tests)
-
-- ✅ Regional variant support (pt-BR, pt-PT, es-ES, es-MX)
-- ✅ Special character handling (Arabic, Japanese, Chinese, etc.)
-- ✅ Consistent result caching
-
----
-
-## Test File Summary
-
-| File                                      | Tests  | Categories                                       | Status             |
-| ----------------------------------------- | ------ | ------------------------------------------------ | ------------------ |
-| `tests/unit/utils/date.test.ts`           | 18     | Type Guards, Conversions, Formatting, Edge Cases | ✅ Passing         |
-| `tests/unit/utils/security.test.ts`       | 25     | Password Hashing, Tokens, Checksums, Security    | ✅ Passing         |
-| `tests/unit/utils/error-handling.test.ts` | 22     | AppError, Type Guards, Messages, Wrapping        | ✅ Passing         |
-| `tests/unit/utils/language-utils.test.ts` | 11     | Basic, Common Languages, Edge Cases              | ✅ Passing         |
-| **Total**                                 | **76** | **15 categories**                                | **✅ All Passing** |
-
----
-
-## Running Utility Tests
-
-### Run All Utility Tests
+## Running Tests
 
 ```bash
-bun run test:unit -- utils
-```
+# All unit tests (pure logic)
+bun run test:unit
 
-### Run Specific Utility Test File
-
-```bash
+# Specific utility test
 bun run test:unit -- security
 bun run test:unit -- date
+
+# Integration tests (API layer)
+bun run test:integration
+
+# E2E tests (browser)
+bun run test:e2e
 ```
-
-### Run with Coverage
-
-```bash
-bun test --coverage tests/bun/utils/
-```
-
-### Watch Mode
-
-```bash
-bun test --watch tests/bun/utils/
-```
-
----
-
-## Coverage Metrics
-
-### By Function Category
-
-- **Date Operations:** 100% (all functions tested)
-- **Cryptography:** 100% (all functions tested)
-- **Error Handling:** 100% (all functions tested)
-- **Language Display:** 100% (all functions tested)
-
-### Test Quality Metrics
-
-- ✅ Edge cases covered
-- ✅ Error conditions tested
-- ✅ Type safety verified
-- ✅ Security properties validated
-- ✅ Integration scenarios included
-
----
-
-## Utility Functions Tested
-
-### Date Utilities
-
-```typescript
--isISODateString() -
-  dateToISODateString() -
-  stringToISODateString() -
-  toISOString() -
-  normalizeDateInput() -
-  nowISODateString() -
-  isoDateStringToDate() -
-  formatDisplayDate() -
-  formatRelativeDate();
-```
-
-### Cryptography
-
-```typescript
--hashPassword() - // Argon2id
-  verifyPassword() - // Argon2id verification
-  generateRandomToken() - // Secure random tokens
-  createChecksum(); // SHA-256 checksums
-```
-
-### Error Handling
-
-```typescript
-- AppError class         // Custom error class
-- isAppError()          // Type guard
-- isHttpError()         // Type guard
-- getErrorMessage()     // Extract error messages
-- wrapError()           // Normalize errors
-```
-
-### Language Utilities
-
-```typescript
--getLanguageName(); // Intl.DisplayNames API
-```
-
----
-
-## Next Steps
-
-### Additional Utilities to Test
-
-The following utilities still need test coverage:
-
-#### High Priority
-
-- [x] `utils.ts` - General utilities, form data conversion
-- [x] `password.ts` - Quantum-resistant password hashing
-- [x] `cn.ts` - High-performance Tailwind merging (Verified 2026)
-- [x] `slugify.ts` - Unicode-aware URL normalization (Verified 2026)
-- [x] `widgetValidation.ts` - Widget schema validation
-- [x] `api-client.ts` - API CRUD operations
-
-#### Medium Priority
-
-- [x] `toast.ts` - Toast notifications
-- [x] `modalUtils.ts` - Modal management
-- [x] `statusToggle.ts` - Entry status toggling
-- [x] `fileUploading.ts` - File upload management
-
-#### Lower Priority
-
-- [ ] `logger.ts` - Client-side logging
-- [ ] `formSchemas.ts` - Valibot schemas
-- [ ] `entryActions.ts` - Entry operations
-- [ ] `globalSearchIndex.ts` - Search functionality
-
-### Media Utilities (11 files)
-
-- [ ] `mediaProcessing.ts`
-- [ ] `mediaUtils.ts`
-- [ ] `advancedSearch.ts`
-- [ ] `bulkDownload.ts`
-- [ ] `sharing.ts`
-- [ ] `storageAnalytics.ts`
-- [ ] `versionHistory.ts`
-- [ ] `cloudStorage.ts`
-- [ ] `MediaService.ts`
-
-### Server Utilities (3 files)
-
-- [ ] `collection-utils.server.ts`
-- [ ] `restartRequired.ts`
-- [ ] `settingsVersion.ts`
-
----
-
-## Test Patterns & Best Practices
-
-### 1. Type Safety
-
-```typescript
-// Always verify type guards
-expect(isISODateString("2025-01-20T12:00:00.000Z")).toBe(true);
-expect(isAppError(appError)).toBe(true);
-```
-
-### 2. Edge Cases
-
-```typescript
-// Test boundary conditions
-expect(hashPassword("")).resolves.toBeTruthy(); // Empty
-expect(hashPassword("a".repeat(1000))).resolves.toBeTruthy(); // Long
-expect(hashPassword("🔒密码")).resolves.toBeTruthy(); // Unicode
-```
-
-### 3. Security Properties
-
-```typescript
-// Verify security guarantees
-const hash1 = await hashPassword("test");
-const hash2 = await hashPassword("test");
-expect(hash1).not.toBe(hash2); // Different salts
-expect(hash.startsWith("$argon2id$")).toBe(true); // Correct algorithm
-```
-
-### 4. Error Handling
-
-```typescript
-// Test both success and failure paths
-expect(() => stringToISODateString("invalid")).toThrow();
-expect(getLanguageName("invalid-code")).toBeTruthy(); // Graceful fallback
-```
-
----
-
-## Performance Benchmarks
-
-### Cryptography (Argon2id)
-
-- **Hash Generation:** ~65-134ms per hash (secure, intentionally slow)
-- **Verification:** ~115-137ms per verification
-- **Token Generation:** <1ms per token
-- **Checksum:** <1ms per checksum
-
-### Date Operations
-
-- **ISO Conversion:** <1ms
-- **Formatting:** 1-16ms (depends on Intl.DateTimeFormat)
-- **Validation:** <1ms
-
-### Error Handling
-
-- **Error Creation:** <1ms
-- **Error Wrapping:** <1ms
-- **Message Extraction:** <1ms
-
----
-
-## Continuous Integration
-
-All utility tests run automatically on:
-
-- ✅ Pre-commit hooks
-- ✅ Pull request checks
-- ✅ CI/CD pipeline
-- ✅ Nightly builds
-
----
-
-## Changelog
-
-### 2025-01-20
-
-- ✅ Created comprehensive test suite for 4 core utilities
-- ✅ Achieved 100% function coverage for tested utilities
-- ✅ Documented 76 passing tests
-- ✅ Established baseline for utility testing
 
 ---
 
 ## Related Documentation
 
+- [Testing Strategy: Black-Box vs White-Box](./testing-strategy.mdx)
 - [Test Status Overview](./test-status.mdx)
 - [API Test Coverage](./api-testing.mdx)
-- [Architecture: Code Structure](../architecture/code-structure.mdx)
+- [E2E Testing Guide](./e2e-testing-guide.mdx)
