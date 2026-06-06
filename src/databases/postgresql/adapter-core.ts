@@ -48,6 +48,12 @@ import postgres from "postgres";
 import { sql as drizzleSql, type SQL } from "drizzle-orm";
 import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import * as utils from "../core/relational-utils";
+import { RelationalAuthModule } from "../core/relational-auth";
+import { RelationalContentModule } from "../core/relational-content";
+import { RelationalMediaModule } from "../core/relational-media";
+import { RelationalSystemModule } from "../core/relational-system";
+import { BatchModule } from "../core/batch-module";
+import { CollectionModule } from "../core/collection-module";
 
 export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAdapter {
   public type = "postgresql";
@@ -101,7 +107,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   // Domain module getters
   public get auth(): any {
     if (!this._auth) {
-      const { RelationalAuthModule } = require("../core/relational-auth");
       this._auth = new RelationalAuthModule(this as any, this.schema);
     }
     return this._auth;
@@ -109,7 +114,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
   public get content(): any {
     if (!this._content) {
-      const { RelationalContentModule } = require("../core/relational-content");
       this._content = new RelationalContentModule(this as any, this.schema);
     }
     return this._content;
@@ -117,7 +121,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
   public get media(): any {
     if (!this._media) {
-      const { RelationalMediaModule } = require("../core/relational-media");
       this._media = new RelationalMediaModule(this as any, this.schema);
     }
     return this._media;
@@ -125,7 +128,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
   public get system(): any {
     if (!this._system) {
-      const { RelationalSystemModule } = require("../core/relational-system");
       this._system = new RelationalSystemModule(this as any, this.schema);
     }
     return this._system;
@@ -133,7 +135,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
   public get batch(): any {
     if (!this._batch) {
-      const { BatchModule } = require("../core/batch-module");
       this._batch = new BatchModule(this as any);
     }
     return this._batch;
@@ -141,7 +142,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
   public get collection(): any {
     if (!this._collection) {
-      const { CollectionModule } = require("../core/collection-module");
       this._collection = new CollectionModule(this as any);
     }
     return this._collection;
