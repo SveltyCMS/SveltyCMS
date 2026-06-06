@@ -442,6 +442,9 @@ jobs:
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 2000 || (cat preview.log && exit 1)
 
           # Run the consolidated Wizard suite
+          # baseURL must point at the CI preview server (4173); export so it reaches the
+          # test process — an inline prefix on the server line above does NOT propagate here.
+          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
           bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
 
       - uses: actions/upload-artifact@v7
@@ -560,6 +563,7 @@ jobs:
           sleep 5
           cat preview.log || true
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 2000
+          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
           bun x playwright test --project=auth-setup
 
       - uses: actions/upload-artifact@v7
@@ -648,6 +652,7 @@ jobs:
           PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173 \
           node build/index.js > preview.log 2>&1 &
 
+          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}
 
