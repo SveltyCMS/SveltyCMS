@@ -95,7 +95,7 @@ function validateCustomName(name: string): boolean {
 		<button type="button" class="preset-outlined-surface-500 btn" onclick={handleCancel}>Cancel</button>
 		<button
 			type="button"
-			class="preset-filled-primary-500 btn"
+			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
 			onclick={handleConfirm}
 			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}
 		>

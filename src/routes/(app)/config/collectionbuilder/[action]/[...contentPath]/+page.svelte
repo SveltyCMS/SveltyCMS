@@ -210,7 +210,7 @@ $effect(() => {
 					<StickyActions>
 					<button
 						onclick={() => handleCollectionSave()}
-						class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]"
+						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]"
 						disabled={isLoading}
 					>
 						{#if isLoading}

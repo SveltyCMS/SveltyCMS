@@ -159,7 +159,7 @@ function handleDelete() {
 				<button type="button" onclick={handleBack} class="preset-outlined-secondary-500 btn">
 					{currentStep === 0 ? button_cancel() : button_previous()}
 				</button>
-				<button type="button" onclick={handleNext} class="preset-filled-primary-500 btn">
+				<button type="button" onclick={handleNext} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">
 					{currentStep === steps.length - 1 ? button_save() : button_next()}
 				</button>
 			</div>

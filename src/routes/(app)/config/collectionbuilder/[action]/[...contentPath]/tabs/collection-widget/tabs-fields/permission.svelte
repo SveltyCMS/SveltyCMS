@@ -158,7 +158,7 @@ function toggleRoleWrite(roleId: string) {
 							<button
 								type="button"
 								class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors {(permissions.readRoles ?? []).includes(role._id)
-									? 'preset-filled-primary-500'
+									? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
 									: 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}"
 								onclick={() => toggleRoleRead(role._id)}
 							>
@@ -177,7 +177,7 @@ function toggleRoleWrite(roleId: string) {
 							<button
 								type="button"
 								class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors {(permissions.writeRoles ?? []).includes(role._id)
-									? 'preset-filled-primary-500'
+									? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
 									: 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}"
 								onclick={() => toggleRoleWrite(role._id)}
 							>

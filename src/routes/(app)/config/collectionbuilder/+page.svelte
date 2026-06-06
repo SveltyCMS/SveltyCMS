@@ -568,7 +568,7 @@ $effect(() => {
 {#snippet saveButton(isHeader = false)}
 	<button
 		onclick={handleSave}
-		class="btn flex items-center gap-1 {isHeader ? 'btn-sm sm:btn-md preset-filled-primary-500' : 'preset-filled-primary-500'}"
+		class="btn flex items-center gap-1 {isHeader ? 'btn-sm sm:btn-md preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-filled-tertiary-500 dark:preset-filled-primary-500'}"
 		disabled={isLoading || Object.keys(nodesToSave).length === 0}
 		title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
 		aria-keyshortcuts="mod+s"
