@@ -1,18 +1,26 @@
 <!--
 @file: src/components/image-editor/editor-sidebar.svelte
 @component
-**Left sidebar with vertical tool layout**
-Provides easy access to all editing tools with clean, minimal design
-and proper active state indication.
+**Accessible editing tool sidebar**
+
+Horizontal toolbar with keyboard-driven navigation, ARIA announcements,
+and proper focus management. Renders tools from the auto-discovered registry.
 
 #### Props
 - `activeState`: Currently active tool state
 - `onToolSelect`: Function called when a tool is selected
 - `hasImage`: Whether an image is loaded for conditional tool availability
+- `onCancel`: Function called when the cancel button is clicked
+
+#### Features:
+- Keyboard navigation (arrow keys, Enter/Space)
+- ARIA live region for tool selection announcements
+- Focus management with active tool tracking
+- Responsive layout (horizontal on mobile, wraps on desktop)
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { type EditorWidget, editorWidgets } from './widgets/registry';
 
 	// Props
@@ -39,37 +47,70 @@ and proper active state indication.
 		}))
 	);
 
-	// Keyboard navigation
+	// Accessibility: announce tool changes to screen readers
+	let announcement = $state('');
+
+	// Keyboard navigation with column-aware grid layout
 	let focusedIndex = $state(0);
 	let sidebarRef: HTMLDivElement | undefined = $state(undefined);
-	function handleToolClick(tool: any) {
-		if (!hasImage) {
-			return;
-		}
-		onToolSelect(tool.id);
+	let gridColumns = $state(1);
+
+	// Detect number of visible columns for grid-based keyboard nav
+	function updateGridColumns() {
+		if (!sidebarRef) return;
+		const toolsContainer = sidebarRef.querySelector('.sidebar-tools') as HTMLElement;
+		if (!toolsContainer) return;
+		const style = getComputedStyle(toolsContainer);
+		gridColumns = style.gridTemplateColumns.split(' ').length || 1;
 	}
 
-	function isToolActive(tool: any): boolean {
+	function handleToolClick(tool: { id: string; name: string }) {
+		if (!hasImage) return;
+		const isSame = activeState === tool.id;
+		onToolSelect(tool.id);
+		announcement = isSame
+			? `Deselected ${tool.name} tool`
+			: `${tool.name} tool activated. Adjust settings in the toolbar below.`;
+	}
+
+	function isToolActive(tool: { id: string }): boolean {
 		return activeState === tool.id;
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (!hasImage) {
-			return;
-		}
+		if (!hasImage) return;
+		const total = tools.length;
 
 		switch (e.key) {
 			case 'ArrowRight':
-			case 'ArrowDown':
 				e.preventDefault();
-				focusedIndex = (focusedIndex + 1) % tools.length;
+				focusedIndex = (focusedIndex + 1) % total;
 				focusToolButton(focusedIndex);
 				break;
 			case 'ArrowLeft':
+				e.preventDefault();
+				focusedIndex = (focusedIndex - 1 + total) % total;
+				focusToolButton(focusedIndex);
+				break;
 			case 'ArrowUp':
 				e.preventDefault();
-				focusedIndex = (focusedIndex - 1 + tools.length) % tools.length;
+				focusedIndex = (focusedIndex - gridColumns + total) % total;
 				focusToolButton(focusedIndex);
+				break;
+			case 'ArrowDown':
+				e.preventDefault();
+				focusedIndex = (focusedIndex + gridColumns) % total;
+				focusToolButton(focusedIndex);
+				break;
+			case 'Home':
+				e.preventDefault();
+				focusedIndex = 0;
+				focusToolButton(0);
+				break;
+			case 'End':
+				e.preventDefault();
+				focusedIndex = total - 1;
+				focusToolButton(total - 1);
 				break;
 			case 'Enter':
 			case ' ':
@@ -79,19 +120,30 @@ and proper active state indication.
 		}
 	}
 
-	function focusToolButton(index: number) {
+	async function focusToolButton(index: number) {
+		await tick();
 		const buttons = sidebarRef?.querySelectorAll<HTMLButtonElement>('.tool-item');
 		if (buttons?.[index]) {
 			(buttons[index] as HTMLElement).focus();
 		}
 	}
 
+	// Exposed method for parent to focus the first tool
+	export function focusFirstTool() {
+		focusedIndex = 0;
+		focusToolButton(0);
+	}
+
 	onMount(() => {
-		// Set initial focus to active tool
+		updateGridColumns();
 		const activeIndex = tools.findIndex((t) => t.id === activeState);
 		if (activeIndex !== -1) {
 			focusedIndex = activeIndex;
 		}
+		// Recalculate columns on resize
+		const observer = new ResizeObserver(() => updateGridColumns());
+		if (sidebarRef) observer.observe(sidebarRef);
+		return () => observer.disconnect();
 	});
 </script>
 
@@ -104,31 +156,48 @@ and proper active state indication.
 	onkeydown={handleKeyDown}
 	tabindex="0"
 >
+	<!-- Screen reader announcements -->
+	<div class="sr-only" aria-live="assertive" aria-atomic="true">
+		{announcement}
+	</div>
+
 	<div class="sidebar-header hidden items-center justify-between gap-2 border-b px-3 py-3 lg:flex lg:px-4">
-		<button type="button" class="cancel-btn" onclick={onCancel} title="Cancel editing">
-			<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+		<button
+			type="button"
+			class="cancel-btn"
+			onclick={onCancel}
+			title="Cancel editing (Esc)"
+			aria-label="Cancel editing — discards all changes"
+			aria-keyshortcuts="Escape"
+		>
+			<iconify-icon icon="mdi:close" width="16" aria-hidden="true"></iconify-icon>
 			<span>Discard changes</span>
 		</button>
 	</div>
 
 	<div class="sidebar-tools flex flex-1 flex-row flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overflow-y-hidden px-2 py-2 lg:gap-2 lg:p-3">
-		{#each tools as tool (tool.id)}
+		{#each tools as tool, idx (tool.id)}
 			<button
 				class="tool-item group relative flex min-w-[3.35rem] flex-none items-center justify-center gap-2 rounded-xl px-2 py-2 text-center transition-all duration-200 lg:min-w-[5.75rem] lg:px-3 lg:py-2.5"
 				class:tool-active={isToolActive(tool)}
 				class:cursor-not-allowed={!hasImage}
 				class:opacity-50={!hasImage}
 				onclick={() => handleToolClick(tool)}
-				aria-label={tool.name}
-				aria-pressed={isToolActive(tool)}
+				role="radio"
+				aria-checked={isToolActive(tool)}
+				aria-label="{tool.name}{tool.description ? ' — ' + tool.description : ''}"
+				aria-posinset={idx + 1}
+				aria-setsize={tools.length}
 				disabled={!hasImage}
 			>
-				<div class="tool-icon flex items-center justify-center"><iconify-icon icon={tool.icon} width="20"></iconify-icon></div>
+				<div class="tool-icon flex items-center justify-center" aria-hidden="true">
+					<iconify-icon icon={tool.icon} width="20"></iconify-icon>
+				</div>
 				<span class="tool-label text-xs font-medium leading-none lg:text-sm">{tool.name}</span>
 
 				<!-- Tooltip -->
 				<div
-					class="tooltip pointer-events-none absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:bg-surface-50 shadow-lg"
+					class="tooltip pointer-events-none absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 dark:bg-surface-50 shadow-lg"
 				>
 					<div class="font-medium">{tool.name}</div>
 					{#if tool.description}
@@ -137,15 +206,13 @@ and proper active state indication.
 					<!-- Arrow -->
 					<div class="absolute left-1/2 top-full -mt-1 h-2 w-2 -translate-x-1/2 -rotate-45 bg-surface-900 dark:bg-surface-50"></div>
 				</div>
-
-				<!-- coming soon badge removed; driven by registry now -->
 			</button>
 		{/each}
 	</div>
 
 	<div class="sidebar-footer hidden border-t px-3 py-2 lg:block">
 		{#if !hasImage}
-			<div class="no-image-hint flex flex-col items-center gap-1 p-2 text-center">
+			<div class="no-image-hint flex flex-col items-center gap-1 p-2 text-center" aria-hidden="true">
 				<iconify-icon icon="mdi:information-outline" width="16" class="text-surface-400"></iconify-icon>
 				<span class="text-xs text-surface-500 dark:text-surface-50"> Upload an image to enable tools </span>
 			</div>

@@ -19,21 +19,18 @@ Features:
 		isSaving,
 		onZoomIn = () => {},
 		onZoomOut = () => {},
-		onZoomReset = () => {},
-		onCompareToggle = () => {},
-		isComparing = false
+		onZoomReset = () => {}
 	}: {
 		onsave: () => void;
 		isSaving: boolean;
 		onZoomIn?: () => void;
 		onZoomOut?: () => void;
 		onZoomReset?: () => void;
-		onCompareToggle?: () => void;
-		isComparing?: boolean;
 	} = $props();
 
 	const canUndo = $derived(imageEditorStore.canUndoState);
 	const canRedo = $derived(imageEditorStore.canRedoState);
+	const isComparing = $derived(imageEditorStore.compareSliderPosition > 0);
 
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
@@ -79,13 +76,13 @@ Features:
 			<button
 				type="button"
 				class="toolbar-btn toolbar-btn-compare"
-				onclick={onCompareToggle}
+				onclick={() => imageEditorStore.compareSliderPosition = imageEditorStore.compareSliderPosition > 0 ? 0 : 50}
 				title="Compare before / after"
 				aria-pressed={isComparing}
-				aria-label="Compare original and edited version"
+				aria-label="Toggle split-screen compare mode"
 			>
 				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
-				<span class="text-xs font-medium">{isComparing ? 'After' : 'Before'}</span>
+				<span class="text-xs font-medium">{isComparing ? 'On' : 'Compare'}</span>
 			</button>
 			<div class="mr-2 flex items-center gap-1 rounded-full border border-white/10 bg-black/40 px-2 py-1 max-md:mr-0 max-md:flex-1 max-md:justify-between">
 				<button

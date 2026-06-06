@@ -68,7 +68,7 @@ export interface ImageEditorState {
   watermarks: any[];
   zoom: number;
   saveBehavior: "new" | "rotate" | "overwrite";
-  compareMode: boolean;
+  compareSliderPosition: number; // 0 = off, 1-100 = split position
 }
 
 // Create image editor store
@@ -112,7 +112,7 @@ function createImageEditorStore() {
     blurRegions: [],
     watermarks: [],
     saveBehavior: "new",
-    compareMode: false,
+    compareSliderPosition: 0, // 0 = off, 1-100 = slider position
   });
 
   // Constants
@@ -182,10 +182,6 @@ function createImageEditorStore() {
     state.error = error;
   }
 
-  function setCompareMode(value: boolean) {
-    state.compareMode = value;
-  }
-
   function takeSnapshot() {
     const snapshot = {
       zoom: state.zoom,
@@ -240,38 +236,25 @@ function createImageEditorStore() {
   }
 
   function undoState(peek = false): string | null {
-    if (!(peek || canUndoState)) {
-      return null;
+    if (peek) {
+      const idx = state.currentHistoryIndex;
+      if (idx < 0 || idx >= state.stateHistory.length) return null;
+      return state.stateHistory[idx];
     }
-    if (peek && state.currentHistoryIndex < 0) {
-      return null;
-    }
+    if (state.currentHistoryIndex <= 0 || state.stateHistory.length <= 1) return null;
 
-    let targetIndex = state.currentHistoryIndex;
-    if (!peek) {
-      targetIndex--;
-      state.currentHistoryIndex = targetIndex;
-    }
-
-    if (targetIndex < 0 || targetIndex >= state.stateHistory.length) {
-      return null;
-    }
-
-    const stateData = state.stateHistory[targetIndex];
-    if (!peek) {
-      restoreFromSnapshot(stateData);
-    }
-    return stateData;
+    state.currentHistoryIndex--;
+    restoreFromSnapshot(state.stateHistory[state.currentHistoryIndex]);
+    return state.stateHistory[state.currentHistoryIndex];
   }
 
   function redoState(): string | null {
-    if (!canRedoState) {
-      return null;
-    }
-    state.currentHistoryIndex++;
-    const stateData = state.stateHistory[state.currentHistoryIndex];
-    restoreFromSnapshot(stateData);
-    return stateData;
+    const nextIdx = state.currentHistoryIndex + 1;
+    if (nextIdx >= state.stateHistory.length) return null;
+
+    state.currentHistoryIndex = nextIdx;
+    restoreFromSnapshot(state.stateHistory[nextIdx]);
+    return state.stateHistory[nextIdx];
   }
 
   function reset() {
@@ -284,6 +267,8 @@ function createImageEditorStore() {
     state.translateX = 0;
     state.translateY = 0;
     state.crop = null;
+    state.compareSliderPosition = 0;
+    state.activeState = "";
   }
 
   function switchTool(tool: string) {
@@ -395,7 +380,12 @@ function createImageEditorStore() {
     set imageElement(value: HTMLImageElement | null) {
       state.imageElement = value;
     },
-    setCompareMode,
+    get compareSliderPosition() {
+      return state.compareSliderPosition;
+    },
+    set compareSliderPosition(value: number) {
+      state.compareSliderPosition = Math.max(0, Math.min(100, value));
+    },
   };
 }
 

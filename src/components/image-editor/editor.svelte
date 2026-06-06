@@ -82,6 +82,10 @@ Comprehensive image editing interface with svelte-canvas integration.
 	registerHotkey('mod+z', () => imageEditorStore.handleUndo(), 'Undo last edit');
 	registerHotkey('mod+shift+z', () => imageEditorStore.handleRedo(), 'Redo last edit');
 	registerHotkey('escape', () => oncancel(), 'Cancel editing');
+	registerHotkey('=', () => { imageEditorStore.state.zoom = Math.min(5, imageEditorStore.state.zoom * 1.15); }, 'Zoom in');
+	registerHotkey('+', () => { imageEditorStore.state.zoom = Math.min(5, imageEditorStore.state.zoom * 1.15); }, 'Zoom in');
+	registerHotkey('-', () => { imageEditorStore.state.zoom = Math.max(0.1, imageEditorStore.state.zoom / 1.15); }, 'Zoom out');
+	registerHotkey('0', () => { imageEditorStore.state.zoom = 1; imageEditorStore.state.translateX = 0; imageEditorStore.state.translateY = 0; }, 'Reset zoom');
 
 	onMount(() => {
 		imageEditorStore.reset();
@@ -243,7 +247,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 
 	// --- RENDER LOGIC (For Canvas Preview) ---
-	// Client-side rendering functions (normalizeCropRect, buildFilterString, etc.) 
+	// Client-side rendering functions (normalizeCropRect, buildFilterString, etc.)
 	// have been removed as part of the Server-Side Baking strategy.
 	// Sharp.js on the server now handles all image processing.
 

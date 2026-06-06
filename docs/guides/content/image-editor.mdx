@@ -1,161 +1,326 @@
 ---
 path: "docs/guides/content/image-editor.mdx"
 title: "Image Editor: Non-Destructive Canvas Editing"
-description: "Complete guide to the SveltyCMS Image Editor, including architecture, widget system, and non-destructive workflow."
+description: "Complete guide to the SveltyCMS Image Editor — covering the editing workflow for creators, widget integration for developers, Web Worker offloading, compare slider, touch gestures, and the server-side Sharp.js baking pipeline."
 order: 15
 icon: "mdi:image-edit"
 author: "SveltyCMS Team"
 created: "2025-11-16"
-updated: "2026-03-27"
+updated: "2026-06-06"
 tags:
   - "image-editor"
-  - "konva"
+  - "svelte-canvas"
+  - "web-worker"
   - "canvas"
   - "non-destructive"
-  - "architecture"
+  - "sharp"
+  - "accessibility"
+  - "touch-gestures"
 ---
 
 # Image Editor
 
-The SveltyCMS Image Editor is a professional-grade, canvas-based tool for media manipulation. It follows a **non-destructive workflow**, ensuring that original assets are always preserved while allowing for complex edits and variants.
+The SveltyCMS Image Editor gives you professional-grade media manipulation directly inside the CMS. Every edit you make is applied to a **high-resolution original** on the server — never to a degraded browser preview. Your original files always stay safe.
 
 ---
 
-## 🏗️ Architecture
+## 👤 For Content Creators & Admins
 
-The editor is built on a modular widget system, allowing each tool (Crop, Blur, FineTune) to operate independently.
+### The Goal
 
-```mermaid
-graph TB
-    subgraph "Editor Core"
-        IE[editor.svelte]
-        IES[image-editor-store.svelte]
-        CV[editor-canvas.svelte]
-    end
+You need to crop, adjust, annotate, or filter an image that's already been uploaded to the Media Gallery — or that's attached to a content entry via the MediaUpload widget.
 
-    subgraph "Widget Registry"
-        CROP[Crop Widget]
-        BLUR[Blur Widget]
-        FT[FineTune Widget]
-        ANN[Annotate Widget]
-        WM[Watermark Widget]
-    end
+### How to Edit an Image
 
-    IE --> IES
-    IE --> CV
-    CV --> CROP
-    CV --> BLUR
-    CV --> FT
+#### From the Media Gallery
+
+1.  Go to **Media Gallery** in the main navigation.
+2.  Hover over any image thumbnail — action buttons appear in the top-right corner.
+3.  Click the **pencil icon** (✏️) to launch the Image Editor with that image pre-loaded.
+4.  Make your edits using the tools in the bottom toolbar.
+5.  Click **Save** (or press `Ctrl+S` / `⌘S`) — your edits are sent to the server and applied.
+
+#### From a Content Entry (Widget)
+
+1.  In any content form, upload or select an image using the **MediaUpload widget**.
+2.  Click the **Edit** button on the preview to open the editor.
+3.  After saving, the edited version replaces the displayed image in that entry.
+
+### Core Editing Tools
+
+| Tool          | What It Does                                                                                     |
+| :------------ | :----------------------------------------------------------------------------------------------- |
+| **Crop**      | Trim edges, lock to 1:1 / 4:3 / 16:9 ratios, or free-form. Rule-of-thirds grid overlay built-in. |
+| **Focal**     | Set the "focus point" of your image — ensures key subjects stay visible in responsive layouts.   |
+| **Rotate**    | Rotate 90° left/right or flip horizontally/vertically.                                           |
+| **FineTune**  | Adjust brightness, contrast, saturation, temperature, and more.                                  |
+| **Blur**      | Paint blur regions over sensitive information or backgrounds.                                    |
+| **Annotate**  | Draw arrows, rectangles, or add text directly onto the image.                                    |
+| **Watermark** | Apply a preset watermark with adjustable opacity and position.                                   |
+
+### Keyboard Shortcuts
+
+| Shortcut          | Action                                                             |
+| :---------------- | :----------------------------------------------------------------- |
+| `Mod + S`         | **Save Changes**: Finalizes edits and triggers server-side baking. |
+| `Mod + Z`         | **Undo**: Reverts the last state change.                           |
+| `Mod + Shift + Z` | **Redo**: Re-applies the next state change.                        |
+| `Escape`          | **Cancel**: Discards current edits and closes the editor.          |
+| `+` / `=`         | **Zoom in**: Increase canvas magnification.                        |
+| `-`               | **Zoom out**: Decrease canvas magnification.                       |
+| `0`               | **Reset zoom**: Return to 100% and center the image.               |
+
+All shortcuts are displayed on buttons via `aria-keyshortcuts` and are discoverable through tooltips.
+
+### Compare Mode
+
+Click the **Compare** button in the toolbar to toggle a split-screen view — **original on the left, edited on the right** — so you can see exactly what changed.
+
+---
+
+## 🛠️ For Developers & Engineers
+
+### Architecture
+
+The editor is built on a modular widget system where each tool registers itself via `import.meta.glob` auto-discovery. Pixel-level processing runs on a Web Worker; server-side baking runs via Sharp.js.
+
+```
+┌─ Browser (Svelte 5) ──────────────────────────────────────────┐
+│  editor.svelte  ←──  image-editor-store.svelte.ts             │
+│       │                                                       │
+│  editor-canvas.svelte  ←──  filter.worker.ts (Web Worker)     │
+│       │                                                       │
+│  ┌────┴──────────────────────────────────────────┐            │
+│  │ Crop │ Blur │ FineTune │ Annotate │ Watermark │            │
+│  │ FocalPoint │ Rotate │ Zoom       (8 widgets)  │            │
+│  └───────────────────────────────────────────────┘            │
+└──────────────────────┬────────────────────────────────────────┘
+                       │ JSON instructions (POST /api/media/manipulate/:id)
+┌─ Server (Sharp.js) ──┴────────────────────────────────────────┐
+│  Sharp.js Pipeline  →  WebP + AVIF variants  →  Media Store   │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### Canvas Engine: Modern & Lightweight
 
 - **Engine**: Powered by [**svelte-canvas**](https://github.com/dnass/svelte-canvas), a thin reactive wrapper for the native Web Canvas API.
-- **Bundle Optimization**: Removed the 500KB+ Konva.js dependency, resulting in a **90%+ reduction** in editor overhead.
-- **Svelte 5 Powered**: Uses **Runes** (`$state`, `$derived`) for a single source of truth between the UI and the rendering loop.
+- **Bundle Size**: ~8KB gzipped — a **90%+ reduction** vs. the 500KB+ Konva.js dependency.
+- **Svelte 5 Runes**: Uses `$state()` for deep reactivity, `$derived()` for computed values, and `$effect()` for side effects. No legacy stores.
 
----
+### Web Worker: Offloaded Pixel Processing
 
-## 💡 Smart Workflow: Server-Side Baking
+Sharpness and blur convolution (3×3 kernel) run on a dedicated **Web Worker thread** to keep the main UI at 60fps during slider adjustments. The worker lives at `src/components/image-editor/workers/filter.worker.ts` and is initialized automatically on canvas mount.
 
-SveltyCMS implements a "Smart Saving" strategy that outperforms traditional client-side editors:
+- **What it handles**: `applySharpness()` — unsharp mask sharpening and box blur softening. `buildFilterString()` — CSS filter string assembly.
+- **Zero-copy transfer**: Processed `ImageData` buffers are transferred via `postMessage(buffer, [buffer])` for minimal latency.
+- **Graceful fallback**: If worker creation fails (e.g., CSP restrictions), processing falls back to the main thread silently.
+- **Performance**: A 1024×768 image with sharpness = 36 processes in **~42ms** on the worker thread vs. ~120ms on the main thread.
 
-1.  **Direct Entry**: From the Media Gallery, click the **Edit** icon on any image thumbnail to launch the editor instantly with that asset pre-loaded.
-2.  **Instruction Set**: Edits (crop, rotate, filters) are stored as a JSON instruction object.
-3.  **Zero-Loss Quality**: Instead of exporting a lossy blob from the browser, the editor sends these instructions to the server.
-4.  **Sharp.js Pipeline**: The server applies the transformations to the **original, uncompressed asset** using the high-performance Sharp.js library.
-5.  **Non-Destructive**: The original file remains untouched; edited versions are saved as linked variants with their own version history.
+### Touch Gestures: Mobile-First Canvas Control
 
----
+The canvas supports native multi-touch gestures for zoom and pan on tablets and phones:
 
-## ♿ Accessibility & Usability (WCAG 2.2 AA)
+- **Pinch-to-zoom**: Two fingers scale the viewport around the midpoint (1.5px dead zone to prevent jitter).
+- **Two-finger pan**: Translates the canvas simultaneously during pinch.
+- **Single-finger tool delegation**: Routes touch events to the active tool's mouse handlers (e.g., drag crop handles).
 
-Designed for both power users and creators with accessibility needs:
+### Compare Slider: Split-Screen Preview
 
-- **Keyboard Control**: Full navigation support for tool selection and precision cropping.
-- **ARIA Integration**: Every tool and handle includes proper ARIA roles and live status updates.
-- **Mobile First**: Touch-optimized handles and gesture-based panning/zooming for a "Pintura-like" experience on tablets and phones.
+Toggle a vertical split-screen view to compare the **original** (left half) vs. **edited** (right half).
 
----
+- **Activate**: Click the "Compare" button in the bottom toolbar.
+- **Divider**: A dashed white line separates the two halves.
+- **State**: Stored as `imageEditorStore.compareSliderPosition` — auto-clamps to the 0–100 range (0 = off, 1–100 = split percentage).
+- **Programmatic access**: Set `imageEditorStore.compareSliderPosition = 50` to enable at 50%.
 
-## ⌨️ Keyboard Shortcuts
+### Widget System: Auto-Discovery
 
-The Image Editor is optimized for a keyboard-driven workflow, providing high-efficiency controls for power users.
+Tools are automatically discovered from `src/components/image-editor/widgets/` using `import.meta.glob`. Each tool exports an `EditorWidget` shape:
 
-| Shortcut          | Action                                                             |
-| :---------------- | :----------------------------------------------------------------- |
-| `Mod + S`         | **Save Changes**: Finalizes edits and triggers server-side baking. |
-| `Mod + Z`         | **Undo**: Reverts the last state change (stored in JSON history).  |
-| `Mod + Shift + Z` | **Redo**: Re-applies the next state change in the stack.           |
-| `Escape`          | **Cancel**: Discards current edits and closes the editor shell.    |
-| `+` / `-`         | **Zoom**: Incremental zooming of the canvas workspace.             |
+```typescript
+// src/components/image-editor/widgets/crop/index.ts
+import type { Component } from "svelte";
+import Tool from "./tool.svelte";
 
----
-
-## ✨ Core Tools
-
-### 1. Crop & Focal Point
-
-- **Smart Cropping**: Set a **Focal Point** (x,y percentage) to guide the automated cropping in responsive layouts.
-- **Aspect Ratios**: Presets for 1:1, 4:3, 16:9, and free-form.
-
-### 2. FineTune & Filters
-
-- **Adjustments**: Brightness, contrast, saturation, exposure, and temperature.
-- **Filters**: Grayscale, sepia, and custom pixel-level filters.
-
-### 3. Annotate & Blur
-
-- **Vector Shapes**: Add arrows, rectangles, and text annotations.
-- **Privacy**: Selective region blur/pixelation for sensitive content.
-
-### 4. Watermark Presets
-
-- **Automatic Loading**: Collection-level watermark presets (defined in schemas) auto-load when the editor is opened for a specific field.
-- **Positioning**: 9-point snap positioning with opacity and scale control.
-
----
-
-## ⚡ Enterprise Media Pipeline
-
-SveltyCMS 2026 includes a high-performance media pipeline that goes beyond simple editing:
-
-### 🌈 Progressive Loading (Smart Shimmer)
-
-For every processed image, the server automatically extracts:
-
-- **Dominant Color**: The primary RGB color of the asset, used as a shimmer background in the Media Gallery.
-- **Tiny Placeholder**: A 32x32px ultra-low-quality WebP base64 string for instant progressive previews.
-
-### 📦 Multi-Format Variants
-
-The server-side Sharp pipeline automatically generates **WebP** and **AVIF** variants for all resized assets, ensuring optimal performance for modern browsers while maintaining original compatibility.
-
-### 🎯 Refined Focal Point
-
-The focal point picker provides a high-precision visual target with glassmorphism-styled coordinates. This metadata is utilized by the frontend to ensure that critical subjects are never cropped out during responsive resizing.
-
----
-
-## 🔧 Developer Integration
-
-### Widget Discovery
-
-Tools are automatically discovered from the `src/components/imageEditor/widgets/` directory via `import.meta.glob`.
-
-### API Integration
-
-The editor communicates with the server via the manipulate endpoint:
-
-```http
-POST /api/media/manipulate/[id]
+export default {
+  key: "crop",
+  title: "Crop",
+  icon: "mdi:crop",
+  tool: Tool as unknown as Component<Record<string, unknown>>,
+};
 ```
 
-This triggers the server-side Sharp.js pipeline to generate the edited variant.
+**Adding a new tool**:
+
+1. Create a folder in `src/components/image-editor/widgets/your-tool/`.
+2. Add an `index.ts` with the default export matching the `EditorWidget` interface.
+3. Create `tool.svelte` for the canvas interaction logic.
+4. It appears automatically in the editor sidebar — no manual registration.
+
+### Server-Side Baking (Sharp.js)
+
+Instead of exporting a lossy blob from the browser, the editor sends a **JSON instruction set** to the server:
+
+```http
+POST /api/media/manipulate/:mediaId
+Content-Type: application/json
+
+{
+  "rotation": 90,
+  "flipH": false,
+  "flipV": false,
+  "crop": { "x": 100, "y": 50, "width": 800, "height": 600 },
+  "filters": { "brightness": 10, "contrast": 5, "saturation": 0 },
+  "focalPoint": { "x": 35, "y": 65 },
+  "saveBehavior": "new",
+  "blurRegions": [],
+  "watermarks": [],
+  "annotations": []
+}
+```
+
+The server uses **Sharp.js** to apply these transformations to the **original, uncompressed** asset and returns the new variant. This guarantees:
+
+- **Zero-loss quality**: No browser canvas recompression artifacts.
+- **Non-destructive**: The original is never modified — edited versions are saved as linked variants.
+- **Multi-format**: WebP and AVIF variants are generated automatically.
+
+### Integration: MediaUpload Widget
+
+The `MediaUpload` widget (in `src/widgets/core/media-upload/`) embeds the editor directly:
+
+```svelte
+<!-- Inside media-upload.svelte -->
+{#if showEditor}
+  <ImageEditorModal
+    image={value}
+    {watermarkPreset}
+    onsave={handleEditorSave}
+    close={() => (showEditor = false)}
+  />
+{/if}
+```
+
+To integrate the editor in a custom widget:
+
+```svelte
+<script lang="ts">
+  import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
+  let showEditor = $state(false);
+
+  async function handleEditorSave(detail: any) {
+    const { mediaId, manipulations } = detail;
+    const response = await fetch(`/api/media/manipulate/${mediaId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(manipulations)
+    });
+    const result = await response.json();
+    // Update your local state with result.data
+  }
+</script>
+
+<button onclick={() => (showEditor = true)}>Edit Image</button>
+
+{#if showEditor}
+  <ImageEditorModal
+    image={someMediaObject}   <!-- MediaImage | File | string -->
+    onsave={handleEditorSave}
+    close={() => (showEditor = false)}
+  />
+{/if}
+```
+
+#### ImageEditorModal Props
+
+| Prop              | Type                           | Required | Description                                                                  |
+| :---------------- | :----------------------------- | :------- | :--------------------------------------------------------------------------- |
+| `image`           | `MediaImage \| File \| string` | Yes      | The image to edit. Pass a URL string, File object, or MediaImage with `_id`. |
+| `watermarkPreset` | `WatermarkOptions \| null`     | No       | Pre-configured watermark to auto-apply.                                      |
+| `onsave`          | `(detail: SaveDetail) => void` | Yes      | Called with `{ mediaId, manipulations, focalPoint, saveBehavior }`.          |
+| `close`           | `() => void`                   | Yes      | Called when the user cancels or closes the editor.                           |
+
+### State Management
+
+The `image-editor-store.svelte.ts` manages all editor state with Svelte 5 runes:
+
+```typescript
+import { imageEditorStore } from "@src/stores/image-editor-store.svelte";
+
+// Core state (reactive via $state)
+imageEditorStore.state.zoom; // number (0.1–5)
+imageEditorStore.state.rotation; // number (degrees)
+imageEditorStore.state.crop; // { x, y, width, height } | null
+imageEditorStore.state.filters; // Record<string, number>
+imageEditorStore.state.focalPoint; // { x: number, y: number }
+imageEditorStore.state.activeState; // string — current tool key
+
+// Compare slider (0 = off, 1–100 = split position)
+imageEditorStore.compareSliderPosition; // number (get/set, auto-clamped)
+
+// Derived
+imageEditorStore.canUndoState; // boolean
+imageEditorStore.canRedoState; // boolean
+
+// Actions
+imageEditorStore.setImageElement(img); // Set the source image
+imageEditorStore.switchTool("crop"); // Activate a tool
+imageEditorStore.takeSnapshot(); // Save undo point
+imageEditorStore.handleUndo(); // Undo
+imageEditorStore.handleRedo(); // Redo
+imageEditorStore.reset(); // Clear all state
+```
+
+### Progressive Loading & Smart Shimmer
+
+For every processed image, the server pipeline extracts:
+
+- **Dominant Color**: The primary RGB color, used as a shimmer background in the Media Gallery.
+- **Tiny Placeholder**: A 32×32px ultra-low-quality WebP base64 string for instant previews before the full image loads.
+
+These are stored in `media.metadata` and consumed by the `MediaGrid` component.
+
+---
+
+## ♿ Accessibility (WCAG 2.2 AA / WCAG 3.0)
+
+The Image Editor is built for creators of all abilities:
+
+- **Keyboard Navigation**: Arrow keys navigate between tool buttons. Enter/Space activates a tool. All crop handles are focusable and adjustable via arrow keys. Home/End jump to first/last tool. Zoom shortcuts: `+`/`-`/`0`.
+- **ARIA Integration**: The editor root uses `role="application"`. Tool buttons use `role="radio"` with `aria-checked` and `aria-posinset`/`aria-setsize`. The sidebar toolbar uses `role="toolbar"` with `aria-orientation`. Status changes are announced via `aria-live="assertive"`.
+- **Focus Management**: When the editor opens, focus moves to the first tool button. TAB loops inside the modal (focus trap). When closing, focus returns to the trigger button (Media Gallery or widget).
+- **High Contrast**: All UI elements meet 4.5:1 contrast ratio. Tooltip text and shortcut hints are displayed at legible sizes.
+- **Touch Accessibility**: Pinch-to-zoom and two-finger pan support on mobile/tablet devices.
+
+### ATAG 2.0 Compliance (Authoring Tools)
+
+Since SveltyCMS is an authoring tool:
+
+1.  **Accessible UI**: The editor interface itself is keyboard-navigable (WCAG 2.2 AA).
+2.  **Support Accessible Content**: The MediaUpload widget prompts for alt text when `altText: true` is configured in the field schema. Edited images retain their alt text through the manipulation pipeline.
+
+---
+
+## 🧪 Testing
+
+The image editor is covered by 38 unit tests across two test files:
+
+| Test File                                      | Tests | Coverage                                                                                                |
+| :--------------------------------------------- | :---- | :------------------------------------------------------------------------------------------------------ |
+| `tests/unit/stores/image-editor-store.test.ts` | 26    | Undo/redo, tool switching, compare slider, zoom, rotation, reset, save behavior, error handling         |
+| `tests/unit/stores/filter-worker.test.ts`      | 12    | `buildFilterString()`, `applySharpness()` (no-op, sharpen, blur, edge cases, 1×1, 1024×768 performance) |
+
+Run with:
+
+```bash
+bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-worker.test.ts
+```
 
 ---
 
 ## 📚 Related Documentation
 
-- [**Media Reference**](../../api/media.mdx) - Technical details on the manipulation API.
-- [**Project Roadmap**](../../project/roadmap-2026.mdx) - Future canvas migration details.
+- [**Media API Reference**](../api/media.mdx) — Full technical spec for the `/api/media/manipulate` endpoint.
+- [**MediaUpload Widget**](../../src/widgets/core/media-upload/mediaupload.mdx) — Widget documentation with field configuration examples.
+- [**Accessibility Guide**](../contributing/accessibility.mdx) — WCAG compliance requirements and testing procedures.
+- [**Contributing Docs**](../contributing/contributing-docs.mdx) — Documentation standards and PR workflow.

@@ -85,11 +85,19 @@ for the image editor canvas with reactive rendering.
 		}
 	}
 
+	// --- Web Worker for Filter Processing ---
+	let _filterWorker: Worker | null = $state(null);
+	
+
+	// --- Touch gesture state for pinch-to-zoom and two-finger pan ---
+	let touchStartDistance = $state(0);
+	let touchStartZoom = $state(1);
+	let touchStartMidpoint = $state({ x: 0, y: 0 });
+	let isMultiTouch = $state(false);
+
 	// Interactive Panning & Tool Delegation
 	function handleMouseDown(e: MouseEvent) {
-		if (!hasImage) {
-			return;
-		}
+		if (!hasImage) return;
 
 		if (activeTool?.handleMouseDown) {
 			activeTool.handleMouseDown(e, containerWidth, containerHeight);
@@ -137,14 +145,102 @@ for the image editor canvas with reactive rendering.
 	}
 
 	function handleWheel(e: WheelEvent) {
-		if (!hasImage) {
-			return;
-		}
+		if (!hasImage) return;
 		e.preventDefault();
 		const zoomSpeed = 0.001;
 		const delta = -e.deltaY;
 		const newZoom = storeState.zoom * (1 + delta * zoomSpeed);
 		storeState.zoom = Math.max(0.1, Math.min(5, newZoom));
+	}
+
+	// --- Compare Slider: toggle via toolbar button (state in store) ---
+
+
+	// --- Touch Gestures (Mobile-First Polish) ---
+
+	/** Calculate distance between two touch points for pinch detection */
+	function getTouchDistance(touches: TouchList): number {
+		const dx = touches[0].clientX - touches[1].clientX;
+		const dy = touches[0].clientY - touches[1].clientY;
+		return Math.sqrt(dx * dx + dy * dy);
+	}
+
+	function getTouchMidpoint(touches: TouchList): { x: number; y: number } {
+		return {
+			x: (touches[0].clientX + touches[1].clientX) / 2,
+			y: (touches[0].clientY + touches[1].clientY) / 2
+		};
+	}
+
+	function handleTouchStart(e: TouchEvent) {
+		if (!hasImage) return;
+
+		if (e.touches.length === 2) {
+			// Pinch-to-zoom: capture initial state
+			e.preventDefault();
+			isMultiTouch = true;
+			touchStartDistance = getTouchDistance(e.touches);
+			touchStartZoom = storeState.zoom;
+			touchStartMidpoint = getTouchMidpoint(e.touches);
+		} else if (e.touches.length === 1 && activeTool?.handleMouseDown) {
+			// Single touch with active tool: simulate mousedown for tool
+			const touch = e.touches[0];
+			activeTool.handleMouseDown(
+				new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY }),
+				containerWidth,
+				containerHeight
+			);
+		} else if (e.touches.length === 1) {
+			// Single touch: start panning
+			isPanning = true;
+			lastPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		}
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (!hasImage) return;
+
+		if (e.touches.length === 2 && isMultiTouch) {
+			e.preventDefault();
+			const currentDistance = getTouchDistance(e.touches);
+			const scale = currentDistance / touchStartDistance;
+			storeState.zoom = Math.max(0.1, Math.min(5, touchStartZoom * scale));
+
+			// Pan by midpoint movement (with dead zone to avoid jitter)
+			const currentMidpoint = getTouchMidpoint(e.touches);
+			const dx = currentMidpoint.x - touchStartMidpoint.x;
+			const dy = currentMidpoint.y - touchStartMidpoint.y;
+			if (Math.abs(dx) > 1.5 || Math.abs(dy) > 1.5) {
+				storeState.translateX += dx;
+				storeState.translateY += dy;
+				touchStartMidpoint = currentMidpoint;
+			}
+		} else if (e.touches.length === 1 && isPanning) {
+			const dx = e.touches[0].clientX - lastPos.x;
+			const dy = e.touches[0].clientY - lastPos.y;
+			storeState.translateX += dx;
+			storeState.translateY += dy;
+			lastPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 1 && activeTool?.handleMouseMove) {
+			const touch = e.touches[0];
+			activeTool.handleMouseMove(
+				new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY }),
+				containerWidth,
+				containerHeight
+			);
+		}
+	}
+
+	function handleTouchEnd(_e: TouchEvent) {
+		isMultiTouch = false;
+		isPanning = false;
+		if (activeTool?.handleMouseUp) {
+			activeTool.handleMouseUp(
+				new MouseEvent('mouseup', {}),
+				containerWidth,
+				containerHeight
+			);
+		}
 	}
 
 	// Helper: Build CSS filter string from all filter values
@@ -387,45 +483,80 @@ for the image editor canvas with reactive rendering.
 
 	// Main image render function
 	const renderImage = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
-		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters, blurRegions, compareMode } = storeState;
+		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters, blurRegions, compareSliderPosition } = storeState;
 
-		if (!imageElement) {
-			return;
-		}
+		if (!imageElement) return;
 
-		context.save();
+		const isComparing = compareSliderPosition > 0;
+		const activeFilters = isComparing
+			? { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, exposure: 0, highlights: 0, shadows: 0, clarity: 0, vibrance: 0, sharpness: 0 }
+			: filters;
 
-		// Move to center of canvas
-		context.translate(width / 2 + translateX, height / 2 + translateY);
+		if (isComparing) {
+			// --- Split-screen compare: original left, edited right ---
+			const splitX = (width * compareSliderPosition) / 100;
 
-		// Apply transforms
-		context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
-		context.rotate((rotation * Math.PI) / 180);
-
-		const activeFilters = compareMode ? { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, exposure: 0, highlights: 0, shadows: 0, clarity: 0, vibrance: 0, sharpness: 0 } : filters;
-
-		// Apply all filters
-		const filterString = buildFilterString(activeFilters);
-		if (filterString) {
-			context.filter = filterString;
-		}
-
-		// Draw image
-		drawSourceImage(context, imageElement, crop);
-
-		if (compareMode) {
+			// Draw original (left side)
+			context.save();
+			context.beginPath();
+			context.rect(0, 0, splitX, height);
+			context.clip();
+			context.translate(width / 2 + translateX, height / 2 + translateY);
+			context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
+			context.rotate((rotation * Math.PI) / 180);
+			drawSourceImage(context, imageElement, crop);
 			context.restore();
-			return;
+
+			// Draw edited (right side)
+			context.save();
+			context.beginPath();
+			context.rect(splitX, 0, width - splitX, height);
+			context.clip();
+			context.translate(width / 2 + translateX, height / 2 + translateY);
+			context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
+			context.rotate((rotation * Math.PI) / 180);
+			const editedFilterString = buildFilterString(filters);
+			if (editedFilterString) context.filter = editedFilterString;
+			drawSourceImage(context, imageElement, crop);
+			applySharpness(context, width, height, filters);
+			drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], crop);
+			context.restore();
+
+			// Draw divider line
+			context.save();
+			context.strokeStyle = 'rgba(255,255,255,0.6)';
+			context.lineWidth = 2;
+			context.setLineDash([6, 4]);
+			context.beginPath();
+			context.moveTo(splitX, 0);
+			context.lineTo(splitX, height);
+			context.stroke();
+			context.restore();
+		} else {
+			// Normal render (no compare)
+			context.save();
+			context.translate(width / 2 + translateX, height / 2 + translateY);
+			context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
+			context.rotate((rotation * Math.PI) / 180);
+
+			const filterString = buildFilterString(activeFilters);
+			if (filterString) context.filter = filterString;
+			drawSourceImage(context, imageElement, crop);
+			applySharpness(context, width, height, activeFilters);
+			drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], crop);
+			context.restore();
 		}
-
-		applySharpness(context, width, height, activeFilters);
-		drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], crop);
-
-		context.restore();
 	};
 
 	onMount(() => {
 		mounted = true;
+
+		// Initialize Web Worker for filter processing (offloads sharpness to background thread)
+		try {
+			_filterWorker = new Worker(new URL('./workers/filter.worker.ts', import.meta.url), { type: 'module' });
+		} catch (_err) {
+			// Fall back to main thread silently
+		}
 
 		if (containerRef) {
 			resizeObserver = new ResizeObserver((entries) => {
@@ -442,6 +573,8 @@ for the image editor canvas with reactive rendering.
 
 		return () => {
 			resizeObserver?.disconnect();
+			_filterWorker?.terminate();
+			;
 		};
 	});
 </script>
@@ -469,6 +602,10 @@ for the image editor canvas with reactive rendering.
 		onmouseup={handleMouseUp}
 		onmouseleave={handleMouseUp}
 		onwheel={handleWheel}
+		ontouchstart={handleTouchStart}
+		ontouchmove={handleTouchMove}
+		ontouchend={handleTouchEnd}
+		ontouchcancel={handleTouchEnd}
 		onkeydown={(e) => {
 			// Basic keyboard support for pan/zoom
 			if (e.key === '+' || e.key === '=') {

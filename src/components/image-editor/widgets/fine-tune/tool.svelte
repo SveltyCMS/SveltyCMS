@@ -43,7 +43,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 			updateToolbar();
 		} else if (imageEditorStore.state.toolbarControls?.component === FineTuneControls) {
 			imageEditorStore.setToolbarControls(null);
-			imageEditorStore.setCompareMode(false);
+			imageEditorStore.compareSliderPosition = 0;
 		}
 	});
 
@@ -86,7 +86,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 					const preset = FILTER_PRESETS.find((p) => p.name === presetName);
 					if (preset) {
 						imageEditorStore.takeSnapshot();
-						imageEditorStore.setCompareMode(false);
+						imageEditorStore.compareSliderPosition = 0;
 						storeState.filters = {
 							...DEFAULT_ADJUSTMENTS,
 							...preset.adjustments
@@ -110,7 +110,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 				},
 				onCompareToggle: () => {
 					isComparing = !isComparing;
-					imageEditorStore.setCompareMode(isComparing);
+					imageEditorStore.compareSliderPosition = isComparing ? 50 : 0;
 				},
 				onAutoAdjust: autoAdjust
 			}
