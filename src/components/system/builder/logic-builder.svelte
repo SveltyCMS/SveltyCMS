@@ -91,7 +91,7 @@
 				<button
 					class="btn btn-sm font-mono font-bold tracking-wider px-4
 						{value.type === 'AND' 
-							? 'preset-filled-primary-500' 
+							? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' 
 							: 'preset-filled-secondary-500'}"
 					onclick={() => toggleGroupType(value!)}
 				>

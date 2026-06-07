@@ -167,7 +167,7 @@ const cForm = "border border-surface-500 p-4 space-y-4 rounded-xl";
 			<button type="button" aria-label={button_cancel()} class="btn preset-outlined-secondary-500" onclick={() => modalState.close()}>
 				{button_cancel()}
 			</button>
-			<button type="button" aria-label={button_save()} class="btn preset-filled-primary-500" onclick={onFormSubmit}>{button_save()}</button>
+			<button type="button" aria-label={button_save()} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onFormSubmit}>{button_save()}</button>
 		</div>
 	</footer>
 </div>

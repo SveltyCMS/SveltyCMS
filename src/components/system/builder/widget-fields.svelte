@@ -217,7 +217,7 @@
 
 			<div class="flex gap-2">
 				<!-- Save Button -->
-				<button class="preset-filled-primary-500 btn" aria-label="Save" onclick={handleSave}>Save</button>
+				<button class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" aria-label="Save" onclick={handleSave}>Save</button>
 				<!-- Cancel Button -->
 				<button class="preset-outlined-secondary-500 btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
 					<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>

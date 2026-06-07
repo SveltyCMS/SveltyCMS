@@ -255,7 +255,8 @@ function handleKeyDown(e: KeyboardEvent) {
 			<button
 				type="button"
 				class="drag-handle btn-icon preset-tonal-surface-500 rounded cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 flex items-center justify-center hover:bg-surface-300 dark:hover:bg-surface-600 transition-all duration-200 hover:scale-110"
-				class:preset-filled-primary-500={keyboardReorderMode}
+				class:preset-filled-tertiary-500={keyboardReorderMode}
+				class:dark:preset-filled-primary-500={keyboardReorderMode}
 				onclick={(e) => {
 					e.stopPropagation();
 					if (keyboardReorderMode) {

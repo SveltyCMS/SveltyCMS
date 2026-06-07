@@ -150,7 +150,7 @@ function selectNode(id: string) {
 		<div class="flex gap-2">
 			<button class="btn preset-tonal-surface" onclick={addState}>+ Add State</button>
 			<button class="btn preset-tonal-surface" onclick={addTransition}>+ Add Transition</button>
-			<button class="btn preset-filled-primary-500" onclick={saveWorkflow}>Save Workflow</button>
+			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={saveWorkflow}>Save Workflow</button>
 		</div>
 	</div>
 
@@ -202,7 +202,7 @@ function selectNode(id: string) {
 				{const node = states.find(s => s.id === selectedNodeId)}
 				{#if node}
 					<div class="space-y-6" in:fade>
-                        <div class="badge preset-filled-primary-500 text-[10px]">State: {node.id}</div>
+                        <div class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500 text-[10px]">State: {node.id}</div>
 						<div class="space-y-2">
 							<label for="state-name" class="label text-xs font-bold">Display Label</label>
 							<input id="state-name" bind:value={node.label} class="input input-sm" />
