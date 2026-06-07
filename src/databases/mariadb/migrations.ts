@@ -380,11 +380,13 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			userAgent TEXT,
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX timestamp_idx (timestamp),
-			INDEX event_type_idx (eventType),
-			INDEX tenant_idx (tenantId)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+			      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			      previousHash VARCHAR(64),
+			      chainHash VARCHAR(64),
+			      INDEX timestamp_idx (timestamp),
+			      INDEX event_type_idx (eventType),
+			      INDEX tenant_idx (tenantId)
+			    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
     // Svelty Jobs
     `CREATE TABLE IF NOT EXISTS svelty_jobs (
@@ -456,7 +458,10 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			INDEX entry_idx (entryId, collectionId)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Full-text search indexes (not auto-created by Drizzle ORM)
+    `CREATE FULLTEXT INDEX IF NOT EXISTS content_nodes_fts_idx ON content_nodes (title, content, description)`,
   ];
 
   for (const query of queries) {

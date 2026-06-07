@@ -26,6 +26,56 @@ The loading system consists of two core components:
 1. **`loading-store.svelte.ts`** - Core state manager with reactive store
 2. **`global-loading.svelte`** - UI component displaying full-screen loading overlay
 
+```mermaid
+flowchart TB
+    subgraph Consumers["Loading Triggers"]
+        NAV[Navigation]
+        FETCH[Data Fetch]
+        AUTH[Authentication]
+        CONFIG[Config Save]
+        UPLOAD[Image Upload]
+        ROLE[Role Management]
+        INIT[Initialization]
+    end
+
+    subgraph Store["loading-store.svelte.ts"]
+        MAP["SvelteMap&lt;string, LoadingEntry&gt;"]
+        IS_LOADING["isLoading ($state)"]
+        TIMEOUT["Auto-Timeout (30s)"]
+        SSR_GUARD["Browser Guard"]
+    end
+
+    subgraph UI["global-loading.svelte"]
+        OVERLAY["Full-Screen Overlay"]
+        RINGS["4 Animated Loader Rings"]
+        LOGO["SveltyCMSLogo"]
+        TEXT["Contextual Paraglide Messages"]
+        PROGRESS["Progress Bar"]
+        ELAPSED["Elapsed Time"]
+    end
+
+    subgraph Lifecycle["When This Runs"]
+        POST_BOOT["Post-Boot Operations<br/>App is running, user is active"]
+    end
+
+    subgraph WarmingUp["Pre-Boot State"]
+        WU_PAGE["warming-up/+page.svelte<br/>Shown during INITIALIZING"]
+        WU_POLL["Polls /api/health every 1s"]
+        WU_SERVICES["Shows service health status"]
+    end
+
+    Consumers --> Store
+    Store --> UI
+    UI --> POST_BOOT
+
+    WU_PAGE --> WU_POLL
+    WU_PAGE --> WU_SERVICES
+
+    WU_PAGE -.->|"Same visual identity<br/>(Logo, Rings, Typography)"| UI
+```
+
+> **Two loading screens, one visual identity:** `global-loading.svelte` handles post-boot operations (navigation, data fetching, form submission) with contextual messages. The **Warming-Up Dashboard** handles pre-boot initialization with service health status. Both share the SveltyCMSLogo component, animated loader rings, and typography patterns for brand consistency.
+
 ### Key Features
 
 - **Stack-based Concurrent Operations** - Handles multiple simultaneous loading states
@@ -397,8 +447,10 @@ await globalLoadingStore.withLoading(
   loadingOperations.dataFetch,
   "context", // Optional but must be provided if using timeout
 );
+) ;
 
 // With custom timeout
+
 globalLoadingStore.startLoading(
   loadingOperations.dataFetch,
   "MyComponent.load",
@@ -406,15 +458,91 @@ globalLoadingStore.startLoading(
 );
 ```
 
-## Future Enhancements
+## Progress Tracking
 
-Potential improvements for the loading system:
+Report granular progress for long-running operations using `withProgress`. The operation receives an `updateProgress` callback that accepts values 0–100:
 
-- **Progress Tracking**: Percentage-based progress indicators
-- **Queue Management**: Priority-based operation queuing
-- **Analytics Integration**: Loading time tracking and reporting
-- **Cancellation Support**: AbortController integration for operation cancellation
-- **Custom Animations**: Per-operation loading animation variants
+```typescript
+await globalLoadingStore.withProgress(
+  loadingOperations.imageUpload,
+  async (updateProgress) => {
+    for (const batch of batches) {
+      await uploadBatch(batch);
+      updateProgress((processedCount / totalCount) * 100);
+    }
+    return result;
+  },
+  "Uploading media files",
+);
+```
+
+The global-loading overlay displays a progress bar when progress data is available. The `setProgress()` method can also update progress directly for manual loading control.
+
+## Priority Queue Management
+
+Operations can be assigned priorities (`high`, `normal`, `low`) via `startLoadingWith`. When multiple operations are active, the UI displays context from the highest-priority operation:
+
+```typescript
+// High-priority operation (displays immediately in UI)
+globalLoadingStore.startLoadingWith(loadingOperations.authentication, {
+  priority: "high",
+  context: "Verifying credentials",
+});
+
+// Low-priority background sync
+globalLoadingStore.startLoadingWith(loadingOperations.collectionLoad, {
+  priority: "low",
+  context: "Syncing collections",
+});
+```
+
+## Cancellation Support
+
+Cancel long-running operations with `AbortController` integration. The Cancel button in the loading overlay is automatically wired:
+
+```typescript
+const result = await globalLoadingStore.withCancellable(
+  loadingOperations.dataFetch,
+  async (signal) => {
+    const res = await fetch("/api/large-dataset", { signal });
+    if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
+    return res.json();
+  },
+  { context: "Exporting report", cancellable: true },
+);
+```
+
+## Analytics
+
+Track loading performance over time with `getAnalytics()`:
+
+```typescript
+const stats = globalLoadingStore.getAnalytics();
+// {
+//   totalOperations: 1423,
+//   avgDuration: 245,
+//   byOperation: {
+//     "data-fetch": { count: 890, avgDuration: 180, failures: 3 },
+//     "image-upload": { count: 45, avgDuration: 3200, failures: 0 }
+//   },
+//   recentOperations: [{ operation, duration, success, timestamp }, ...]
+// }
+```
+
+The store maintains a rolling window of 200 metrics entries. Failures are tracked separately from successes for accurate reliability monitoring.
+
+## Connection Awareness
+
+`src/utils/connection-detector.ts` provides reactive network quality detection. The loading store integrates with it to adapt behavior based on connection speed:
+
+```typescript
+import { shouldSkipPreload, shouldDisableRealtime } from "@utils/connection-detector";
+
+if (shouldSkipPreload()) return; // Don't preload on 2G or Save-Data
+if (shouldDisableRealtime()) return; // Don't stream on degraded connections
+```
+
+The global-loading component handles post-boot operations. For the pre-boot screen during system initialization, see the Warming-Up Dashboard which shares the same visual identity (SveltyCMSLogo, loader rings) but displays service health status.
 
 ## Related Documentation
 

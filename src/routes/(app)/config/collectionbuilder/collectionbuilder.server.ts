@@ -103,3 +103,109 @@ export async function installPreset(event: RequestEvent, presetId: string) {
   await contentSystem.refresh(tenantId);
   return { success: true, message: `Preset ${presetId} installed` };
 }
+
+/**
+ * Installs collection templates from a Quick-Start preset by creating
+ * collection definition files and registering them with the content system.
+ */
+export async function installTemplateCollections(event: RequestEvent, presetId: string) {
+  requirePermission(event);
+  const tenantId = (event.locals as any).tenantId;
+
+  if (!presetId || presetId === "blank" || presetId === "demo")
+    return fail(400, { message: "Invalid preset ID" });
+
+  // Dynamically import the preset definitions
+  const { PRESETS } = await import("@src/routes/setup/presets");
+  const preset = PRESETS.find((p) => p.id === presetId);
+
+  if (!preset || !preset.collections || preset.collections.length === 0) {
+    return fail(404, {
+      message: `No collections defined for preset "${presetId}"`,
+    });
+  }
+
+  const collectionsDir = tenantId
+    ? path.resolve(process.cwd(), "config", tenantId, "collections")
+    : path.resolve(process.cwd(), "config", "collections");
+
+  fs.mkdirSync(collectionsDir, { recursive: true });
+
+  const created: string[] = [];
+
+  for (const collection of preset.collections) {
+    const tsContent = generateCollectionTemplate(collection);
+    const filePath = path.join(collectionsDir, `${collection.name}.ts`);
+    fs.writeFileSync(filePath, tsContent, "utf-8");
+    created.push(collection.name);
+    logger.info(`Created collection template: ${collection.name}`);
+  }
+
+  // Trigger content system refresh to pick up the new collections
+  await contentSystem.refresh(tenantId);
+
+  return {
+    success: true,
+    message: `Created ${created.length} collections: ${created.join(", ")}`,
+    collections: created,
+  };
+}
+
+/**
+ * Generates a TypeScript collection definition file from a CollectionPreset template.
+ */
+function generateCollectionTemplate(collection: {
+  name: string;
+  label: string;
+  description: string;
+  fields: Array<{
+    db_fieldName: string;
+    label: string;
+    widget: string;
+    required: boolean;
+    translated: boolean;
+    helper: string;
+    default?: unknown;
+    options?: string[];
+  }>;
+}): string {
+  const fieldEntries = collection.fields
+    .map((f) => {
+      const parts: string[] = [];
+      parts.push(`      ${f.db_fieldName}: widgets.${f.widget}({`);
+      parts.push(`        label: "${f.label}",`);
+      if (f.required) parts.push(`        required: true,`);
+      if (f.translated) parts.push(`        translated: true,`);
+      parts.push(`        helper: "${f.helper}",`);
+      if (f.default !== undefined)
+        parts.push(
+          `        default: ${typeof f.default === "string" ? `"${f.default}"` : f.default},`,
+        );
+      if (f.options && f.options.length > 0) {
+        if (f.options.includes("multiple")) {
+          parts.push(`        multiple: true,`);
+        }
+      }
+      parts.push(`      }),`);
+      return parts.join("\n");
+    })
+    .join("\n");
+
+  return `/**
+ * @file config/collections/${collection.name}.ts
+ * @description ${collection.label} — ${collection.description}
+ * Auto-generated from Quick-Start Template.
+ */
+
+import { widgets } from "@src/widgets";
+
+export default {
+  name: "${collection.name}",
+  label: "${collection.label}",
+  description: "${collection.description}",
+  fields: [
+${fieldEntries}
+  ],
+};
+`;
+}

@@ -245,6 +245,16 @@ onMount(() => {
 		}, 100);
 	}
 
+	// Register audit history slot for entry edit sidebar
+	import('@src/plugins/slot-registry').then(({ slotRegistry }) => {
+		slotRegistry.register({
+			id: 'audit-history',
+			zone: 'entry_edit_sidebar',
+			component: () => import('@components/audit/audit-history.svelte'),
+			position: 100,
+		});
+	});
+
 	isMounted = true;
 
 	// Hide cold-start splash screen after hydration

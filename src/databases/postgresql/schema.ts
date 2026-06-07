@@ -487,6 +487,43 @@ export const pluginMigrations = pgTable(
   }),
 );
 
+// Audit Logs Table
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    action: varchar("action", { length: 255 }).notNull(),
+    actorEmail: varchar("actorEmail", { length: 255 }),
+    actorId: varchar("actorId", { length: 36 }),
+    actorRole: varchar("actorRole", { length: 50 }),
+    correlationId: varchar("correlationId", { length: 36 }),
+    details: jsonb("details").notNull(),
+    errorDetails: text("errorDetails"),
+    eventType: varchar("eventType", { length: 100 }).notNull(),
+    ipAddress: varchar("ipAddress", { length: 45 }),
+    result: varchar("result", { length: 50 }).notNull(),
+    sessionId: varchar("sessionId", { length: 36 }),
+    severity: varchar("severity", { length: 20 }).notNull(),
+    targetId: varchar("targetId", { length: 255 }),
+    targetType: varchar("targetType", { length: 100 }),
+    timestamp: timestamp("timestamp")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    userAgent: text("userAgent"),
+    tenantId: tenantField(),
+    previousHash: varchar("previousHash", { length: 64 }),
+    chainHash: varchar("chainHash", { length: 64 }),
+    ...timestamps,
+  },
+  (table) => ({
+    timestampIdx: index("audit_timestamp_idx").on(table.timestamp),
+    eventTypeIdx: index("audit_event_type_idx").on(table.eventType),
+    tenantIdx: index("audit_tenant_idx").on(table.tenantId),
+  }),
+);
+
 // Tenants Table
 export const tenants = pgTable(
   "tenants",
@@ -539,5 +576,6 @@ export const schema = {
   pluginPagespeedResults,
   pluginStates,
   pluginMigrations,
+  auditLogs,
   tenants,
 };

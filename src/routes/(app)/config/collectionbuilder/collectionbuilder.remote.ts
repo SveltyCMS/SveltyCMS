@@ -29,3 +29,9 @@ export const installPreset = query("unchecked", async (presetId: string) => {
   const event = (await import("$app/server")).getRequestEvent();
   return fn(event, presetId);
 });
+
+export const installTemplateCollections = query("unchecked", async (presetId: string) => {
+  const { installTemplateCollections: fn } = await import("./collectionbuilder.server");
+  const event = (await import("$app/server")).getRequestEvent();
+  return fn(event, presetId);
+});

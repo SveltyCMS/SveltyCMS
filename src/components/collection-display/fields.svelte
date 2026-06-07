@@ -8,7 +8,8 @@
 - **Reactivity**: Binds form data to the `collectionValue` store with real-time sync.
 - **Revision History**: Displays entry revisions with compare and revert functionality.
 - **Validation**: Performs field-level validation based on schema constraints.
-- **Translation Aware**: Manages multilingual data input through widget-integrated language context.
+- **Per-Field Localization**: Each translated field stores a `Record<Locale, string>`, with inline locale switching and AI translation per field.
+- **AI Translation**: One-click AI translation button per field using the `/api/ai/translate` endpoint.
 
 ### Props
 - `fields` (Array): The array of field instances from the collection schema.
@@ -133,6 +134,89 @@
   // Track current content language for reactivity
   let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
 
+  // --- PER-FIELD LOCALE STATE ---
+  // Maps field dbFieldName -> currently displayed locale for that field
+  let fieldLocaleOverrides = $state(new Map<string, Locale>());
+  // Tracks which fields have been manually overridden by the user
+  let manuallyOverridden = $state(new Set<string>());
+  // AI translate loading state per field
+  let aiTranslatingFields = $state(new Set<string>());
+
+  /**
+   * Cycles a translated field's locale to the next available language.
+   */
+  function cycleFieldLocale(fieldName: string, currentLocale: Locale) {
+    const langs = availableLanguages;
+    if (langs.length <= 1) return;
+    const currentIdx = langs.indexOf(currentLocale);
+    const nextIdx = (currentIdx + 1) % langs.length;
+    const nextLocale = langs[nextIdx];
+    fieldLocaleOverrides.set(fieldName, nextLocale);
+    manuallyOverridden.add(fieldName);
+  }
+
+  /**
+   * AI-translates a field's value from source locale to target locale.
+   */
+  async function aiTranslateField(field: any, fieldName: string, sourceLocale: Locale, targetLocale: Locale) {
+    if (aiTranslatingFields.has(fieldName)) return;
+    const currentValue = currentCollectionValue[fieldName];
+    let sourceText = "";
+    if (typeof currentValue === "object" && currentValue !== null && !Array.isArray(currentValue)) {
+      sourceText = (currentValue as Record<string, string>)[sourceLocale] || "";
+    } else if (typeof currentValue === "string") {
+      sourceText = currentValue;
+    }
+    if (!sourceText.trim()) {
+      toast.warning(`No source text in ${sourceLocale.toUpperCase()} to translate from`);
+      return;
+    }
+
+    aiTranslatingFields.add(fieldName);
+    try {
+      const res = await fetch("/api/ai/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: sourceText,
+          sourceLang: sourceLocale,
+          targetLang: targetLocale,
+          field: field.label || fieldName,
+          collection: collection.value?.name || "unknown",
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.message || `Translation failed (${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      if (data.translatedText) {
+        // Update the per-field locale value
+        let fieldValue = currentCollectionValue[fieldName];
+        if (typeof fieldValue === "object" && fieldValue !== null && !Array.isArray(fieldValue)) {
+          fieldValue = { ...fieldValue as Record<string, string> };
+        } else {
+          fieldValue = { [sourceLocale]: typeof fieldValue === "string" ? fieldValue : "" };
+        }
+        (fieldValue as Record<string, string>)[targetLocale] = data.translatedText;
+        currentCollectionValue[fieldName] = fieldValue;
+        // Update store and track translation progress
+        setCollectionValue({ ...currentCollectionValue });
+        const fieldPath = `${collection.value?.name}.${fieldName}`;
+        translationProgress.markFieldTranslated(targetLocale, fieldPath);
+        toast.success(`Translated to ${targetLocale.toUpperCase()}`);
+      } else {
+        toast.warning(data.message || "AI translation unavailable");
+      }
+    } catch (err) {
+      logger.error("[AI Translate] Error:", err);
+      toast.error("AI translation failed. Check if Ollama is running.");
+    } finally {
+      aiTranslatingFields.delete(fieldName);
+    }
+  }
+
   // React to contentLanguage store changes and update local state
   // This ensures widgets remount with the correct language
   $effect(() => {
@@ -145,6 +229,12 @@
       );
       // Update immediately to trigger {#key} block
       currentContentLanguage = newLang;
+      // Also update per-field locale overrides for fields NOT manually overridden
+      for (const [fieldName] of fieldLocaleOverrides) {
+        if (!manuallyOverridden.has(fieldName)) {
+          fieldLocaleOverrides.set(fieldName, newLang);
+        }
+      }
       logger.debug(
         "Updated currentContentLanguage to:",
         currentContentLanguage,
@@ -161,9 +251,6 @@
 
   // --- 4. SIMPLIFIED LOGIC ---
   let derivedFields = $derived(fields || []);
-
-  // Get translation progress
-  let currentTranslationProgress = $derived(translationProgress.value);
 
   // Track changes to translation progress for debugging
   $effect(() => {
@@ -184,42 +271,6 @@
     }
     return languages as Locale[];
   });
-
-  // Helper to get field translation percentage across all languages
-  function getFieldTranslationPercentage(field: any): number {
-    if (!field.translated) {
-      return 100; // Not a translatable field
-    }
-
-    const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
-    const allLangs = availableLanguages; // Use the new derived state
-
-    // Avoid division by zero if no languages are configured
-    if (allLangs.length === 0) {
-      return 100;
-    }
-
-    let translatedCount = 0;
-
-    // Count how many languages have this field translated
-    for (const lang of allLangs) {
-      const langProgress = currentTranslationProgress?.[lang as Locale];
-      if (langProgress?.translated.has(fieldName)) {
-        translatedCount++;
-      }
-    }
-
-    // Calculate the overall percentage for this field
-    return Math.round((translatedCount / allLangs.length) * 100);
-  }
-
-  // Helper to get text color based on translation status
-  function getTranslationTextColor(percentage: number): string {
-    if (percentage === 100) {
-      return "text-tertiary-500 dark:text-primary-500";
-    }
-    return "text-error-500";
-  }
 
   function ensureFieldProperties(field: any) {
     if (!field) {
@@ -550,20 +601,52 @@
                         ></iconify-icon>
                       </button>
                     </SystemTooltip>
-                    <!-- Translation status -->
+                    <!-- Per-Field Locale Badge + AI Translate -->
                     {#if field.translated}
-                      {const percentage = getFieldTranslationPercentage(field)}
-                      {const textColor = getTranslationTextColor(percentage)}
-                      <div class="flex items-center gap-1 text-xs">
-                        <iconify-icon icon="bi:translate" width="16"
-                        ></iconify-icon>
-                        <span
-                          class="font-medium text-tertiary-500 dark:text-primary-500"
-                          >{currentContentLanguage.toUpperCase()}</span
+                      {@const fieldName = getFieldName(field, false)}
+                      {@const currentFieldLocale = (() => {
+                        // Determine the current locale for this field
+                        if (fieldLocaleOverrides.has(fieldName)) {
+                          return fieldLocaleOverrides.get(fieldName)!;
+                        }
+                        // Initialize from global contentLanguage
+                        fieldLocaleOverrides.set(fieldName, currentContentLanguage);
+                        return currentContentLanguage;
+                      })()}
+                      {@const sourceLocale = contentLanguage.value as Locale}
+                      {@const isTranslating = aiTranslatingFields.has(fieldName)}
+                      <div class="flex items-center gap-1">
+                        <!-- Locale badge / switcher -->
+                        <button
+                          type="button"
+                          class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-tertiary-100 dark:hover:bg-primary-500/20"
+                          style="background: var(--color-surface-200, #e5e7eb); color: var(--color-tertiary-500, #6b7280)"
+                          onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
+                          aria-label="Switch locale for {field.label || fieldName}. Current: {currentFieldLocale.toUpperCase()}"
                         >
-                        <span class="font-medium {textColor}"
-                          >({percentage}%)</span
-                        >
+                          <iconify-icon icon="bi:translate" width="14" aria-hidden="true"></iconify-icon>
+                          <span class="text-tertiary-600 dark:text-primary-400">{currentFieldLocale.toUpperCase()}</span>
+                          {#if availableLanguages.length > 1}
+                            <iconify-icon icon="mdi:chevron-down" width="10" aria-hidden="true"></iconify-icon>
+                          {/if}
+                        </button>
+                        <!-- AI Translate button -->
+                        {#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
+                          <button
+                            type="button"
+                            class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-purple-100 dark:hover:bg-purple-500/20"
+                            style="color: var(--color-purple-500, #a855f7)"
+                            onclick={() => aiTranslateField(field, fieldName, sourceLocale, currentFieldLocale)}
+                            disabled={isTranslating}
+                            aria-label="AI translate {field.label || fieldName} from {sourceLocale.toUpperCase()} to {currentFieldLocale.toUpperCase()}"
+                          >
+                            {#if isTranslating}
+                              <iconify-icon icon="svg-spinners:3-dots-scale" width="14" aria-hidden="true"></iconify-icon>
+                            {:else}
+                              <iconify-icon icon="mdi:auto-fix" width="14" aria-hidden="true"></iconify-icon>
+                            {/if}
+                          </button>
+                        {/if}
                       </div>
                     {/if}
                     <!-- Icon for field type -->
@@ -647,17 +730,48 @@
 
                   {#if loadedWidget}
                     {const fieldName = getFieldName(field, false)}
-                    {#key currentContentLanguage}
-                      <!-- Widget remounts when currentContentLanguage changes -->
-                      <WidgetLoader
-                        loader={loadedWidget}
-                        {field}
-                        WidgetData={{}}
-                        bind:value={currentCollectionValue[fieldName]}
-                        {tenantId}
-                        collectionName={collection.value?.name}
-                      />
-                    {/key}
+                    {#if field.translated}
+                      <!-- Per-field localization: determine locale, handle legacy migration -->
+                      {@const fieldLocale = (() => {
+                        if (fieldLocaleOverrides.has(fieldName)) {
+                          return fieldLocaleOverrides.get(fieldName)!;
+                        }
+                        fieldLocaleOverrides.set(fieldName, currentContentLanguage);
+                        return currentContentLanguage;
+                      })()}
+                      <!-- Legacy migration: wrap plain string in locale record -->
+                      {#if typeof currentCollectionValue[fieldName] === "string"}
+                        {@const migrated = { [currentContentLanguage]: currentCollectionValue[fieldName] }}
+                        {currentCollectionValue[fieldName] = migrated}
+                      {/if}
+                      <!-- Ensure it's an object for per-locale access -->
+                      {#if typeof currentCollectionValue[fieldName] !== "object" || currentCollectionValue[fieldName] === null}
+                        {currentCollectionValue[fieldName] = { [fieldLocale]: "" }}
+                      {/if}
+                      {#key fieldName + ":" + fieldLocale}
+                        <!-- Widget remounts when per-field locale changes -->
+                        <WidgetLoader
+                          loader={loadedWidget}
+                          field={{ ...field, translated: false }}
+                          WidgetData={{}}
+                          bind:value={currentCollectionValue[fieldName][fieldLocale]}
+                          {tenantId}
+                          collectionName={collection.value?.name}
+                        />
+                      {/key}
+                    {:else}
+                      {#key currentContentLanguage}
+                        <!-- Widget remounts when currentContentLanguage changes -->
+                        <WidgetLoader
+                          loader={loadedWidget}
+                          {field}
+                          WidgetData={{}}
+                          bind:value={currentCollectionValue[fieldName]}
+                          {tenantId}
+                          collectionName={collection.value?.name}
+                        />
+                      {/key}
+                    {/if}
                   {:else}
                     <p class="text-error-500">
                       {Fields_no_widgets_found({ name: widgetName })}

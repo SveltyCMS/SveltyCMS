@@ -90,6 +90,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   },
   version: { handler: "version", fn: "handleVersionRoutes" },
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
+  "system-jobs": { handler: "system", fn: "handleSystemJobRoutes" },
 };
 
 // Fail-closed mapping of namespaces/methods to core SveltyCMS permission IDs
@@ -139,6 +140,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   version: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   permission: "system:admin",
+  "system-jobs": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
 };
 
 /**

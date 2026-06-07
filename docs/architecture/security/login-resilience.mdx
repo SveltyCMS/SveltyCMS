@@ -282,12 +282,14 @@ await expect(page.getByRole("heading", { name: /database/i })).toBeVisible({ tim
 - [Setup Wizard](../guides/configuration/setup-wizard.mdx)
 - [Troubleshooting Guide](../troubleshooting.mdx)
 
-## Future Enhancements
+## ✅ Implemented Features
 
-### Planned Features
+4 of 5 planned features now live in `src/databases/database-resilience.ts` and `src/stores/system/state.svelte.ts`.
 
-- [ ] Automatic retry with exponential backoff
-- [ ] Email notification to admins on database failure
-- [ ] Database connection pooling diagnostics
-- [ ] Self-healing database reconnection
-- [ ] Detailed error logs download from UI
+- ✅ Automatic retry with exponential backoff
+- ✅ Email notification to admins on database failure
+- ✅ Database connection pooling diagnostics
+- ✅ Self-healing database reconnection
+- [ ] Detailed error logs download from UI (planned)
+
+---

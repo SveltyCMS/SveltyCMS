@@ -305,7 +305,7 @@ SveltyCMS ships with an enterprise-grade benchmark intelligence system — 48 te
 | **Differential execution**    | `--differential` runs only tests affected by recent code changes                  |
 | **8 educational reports**     | `docs/project/benchmarks/benchmark_<db>.mdx` with Measures/Budget/Code/Why        |
 
-### Latest Results (June 2026)
+### Latest Results
 
 | Metric                           | Value          | Budget  |
 | -------------------------------- | -------------- | ------- |

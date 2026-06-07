@@ -151,6 +151,37 @@
 		});
 	}
 
+	// Creates a job in svelty_jobs for scheduled publishing
+	async function createScheduleJob(entryData: Record<string, unknown>, scheduledTs: number) {
+		try {
+			const payload = {
+				collectionId: currentCollection?._id as string,
+				entryId: entryData._id as string,
+				targetStatus: (entryData._scheduledAction as string) || StatusTypes.publish,
+				entryPath: (entryData as any).path || undefined,
+			};
+
+			const res = await fetch('/api/system-jobs', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					taskType: 'status-transition',
+					payload,
+					runAt: new Date(scheduledTs).toISOString(),
+				}),
+			});
+
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				logger.error('[HeaderEdit] Failed to create schedule job:', err);
+			} else {
+				logger.info('[HeaderEdit] Schedule job created successfully');
+			}
+		} catch (err) {
+			logger.error('[HeaderEdit] Error creating schedule job:', err);
+		}
+	}
+
 	async function save(): Promise<void> {
 		if (!isFormValid) {
 			toast.warning(validation_fix_before_save());
@@ -165,11 +196,12 @@
 
 		const dataToSave = { ...currentEntry! };
 
-		// Use status from store
-		dataToSave.status = statusStore.getStatusForSave();
+		// Set status: schedule if timestamp present, otherwise use store status
 		if (scheduleTimestamp) {
+			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = scheduleTimestamp;
 		} else {
+			dataToSave.status = statusStore.getStatusForSave();
 			dataToSave._scheduled = undefined;
 		}
 
@@ -182,6 +214,11 @@
 		const success = await saveEntry(dataToSave);
 		if (!success) {
 			return;
+		}
+
+		// If scheduling, create a svelty_jobs record
+		if (dataToSave.status === StatusTypes.schedule && scheduleTimestamp) {
+			await createScheduleJob(dataToSave, scheduleTimestamp);
 		}
 
 		await navigationManager.toList();

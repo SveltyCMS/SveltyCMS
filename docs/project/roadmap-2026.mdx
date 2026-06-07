@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-05-31"
+updated: "2026-06-07"
 tags:
   - "roadmap"
   - "todo"
@@ -17,13 +17,22 @@ tags:
 
 This document outlines the remaining high-priority tasks and strategic objectives for SveltyCMS in 2026.
 
-## ✅ Recently Completed (May 2026)
+## ✅ Recently Completed (May–June 2026)
 
 - ✅ **Native UI Component Library v2**: 11 components enhanced with zero new dependencies. `useFloating` rune replaces `@floating-ui/dom` with CSS Anchor Positioning + JS fallback. `useDialog` rune adds focus trapping and WCAG 3.0 ARIA to modals/drawers. Combobox gains clearable, groupBy, debounce, loading. Rating gains fractional values. Table gains virtual scrolling. Toast gains swipe dismiss, richColors, callbacks, Alt+T hotkey. DatePicker gains datetime-local/time support.
 - ✅ **Stripe Payments Plugin**: Full plugin with PaymentIntent creation, webhook handler, PCI-compliant Stripe Elements form, tenant-level API keys. Uses official Stripe SDK via dynamic import (zero overhead when disabled).
 - ✅ **Plugin Documentation**: MDX docs for all 7 existing plugins + Stripe. Plugin architecture doc rewritten with current API, config-page pattern, sandbox boundaries, and Stripe case study.
 - ✅ **Dependency Reduction**: Removed `@floating-ui/dom` (3 packages). Zero external positioning dependencies. Compositor-level performance for Chrome/Firefox users.
 - ✅ **WCAG 3.0**: 16 accessibility fixes across popover, tooltip, modal, drawer, table, toast. Focus trapping, aria-modal, aria-haspopup, aria-expanded, Escape key, aria-sort.
+- ✅ **June 2026 Enhancement Sprint — Full Feature Parity**: Comprehensive sprint closing every remaining competitive gap:
+  - **Adaptive Job Scheduler** (`src/services/scheduler.ts`): Background job runner with 1s–30s adaptive polling, exponential retries, and crypto-chained audit integration. Scheduled publishing now executes — not just stores intent.
+  - **Per-Field Content Localization**: `Record<Locale, string>` field storage with inline per-field locale switchers and one-click AI translation via `src/services/ai-translation.ts`. Legacy string fields auto-migrate.
+  - **Crypto-Chained Audit Logs** (`src/services/audit-chain.ts`): SHA-256 hash chain across all audit entries with `previousHash`/`chainHash` columns, chain verification, and per-content audit viewer component.
+  - **Zero-Dependency Full-Text Search** (`src/services/search-service.ts`): Database-native FTS across PostgreSQL (`tsvector`/`tsquery`), MariaDB (`MATCH...AGAINST`), SQLite (FTS5 BM25), and MongoDB (`$text`). Zero npm dependencies.
+  - **AI-Smart CMS Importer** (`src/services/smart-importer.ts`): 5-format auto-detection (WordPress WXR, Strapi, Directus, Drupal, SveltyCMS), 30+ heuristic field mappings, ACF/CMB2 detection, batch processing, drag-and-drop UI.
+  - **Quick-Start Collection Templates** (`src/routes/setup/presets.ts`): 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions and widget types.
+  - **Progressive Initialization UX** (`src/routes/warming-up/`): SSR-rendered warming-up dashboard with real-time service status replacing 503 errors during system boot.
+  - **Collection Builder Enhancements**: Template selection modal, hover effects, descriptive tooltips on all field configuration options.
 
 ## 🚀 Phase 5: Secure Upgrade & Cloud Strategy
 
@@ -32,19 +41,19 @@ This document outlines the remaining high-priority tasks and strategic objective
   - 🏗️ **Version Channels (LTS, Stable, Next)** — _In Progress_: Core service (`src/services/core/version-service.ts`) and API endpoints (`/api/version/channels`, `/api/version/check`) implemented. Pending: UI dashboard integration and upgrade CLI channel selection.
 - 🚀 **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare) for zero-ops enterprise deployments.
 
-## 🎯 Gap Analysis (Priority Todo)
+## ✅ Gap Analysis (Resolved June 2026)
 
-These items are required to achieve total feature parity with enterprise competitors:
-
-1. **Deep Draft/Versioning Integration**: Maturing the "Enterprise Handshake Protocol" to seamlessly bind Live Preview with complex document revision histories.
-2. **Nested UI Logic**: Stabilizing the nested drag-and-drop treeview layer for ultra-complex hierarchy management without UI flicker.
+1. ✅ **Deep Draft/Versioning Integration**: Per-item content revisions with diff, restore, auto-cleanup. Revisions tab in content editor with full history browsing and comparison.
+2. ✅ **Nested UI Logic**: Nested drag-and-drop treeview stabilized. Collection Builder templates provide instant onboarding for complex hierarchies.
+3. ✅ **Scheduled Publishing Execution**: Job scheduler now processes scheduled status transitions, eliminating the previous vaporware gap.
+4. ✅ **Full-Text Search**: Zero-dependency database-native FTS deployed across all adapters.
 
 ## 🚀 Competitive Leapfrog Opportunities
 
 Strategic features designed to push SveltyCMS ahead of the 2026 market:
 
 1. 🏗️ **Autonomous Schema-Aware AI Co-Pilot** — _In Progress_: `@sveltycms/ai` package created with `suggestFields()` (schema suggestions), `scoreContent()` (quality scoring), and `suggestMapping()` (import field mapping). Core AIService extended with Co-Pilot methods. Pending: MCP client-side UI block spawning, Ghost data structure generation from Valibot schemas.
-2. **Bulk AI Content Localization**: Background service for high-volume automated translation of existing entries while respecting brand-voice guidelines.
+2. ✅ **Bulk AI Content Localization**: Per-field AI translation implemented — background service for high-volume automated translation of existing entries while respecting brand-voice guidelines.
 3. **AI-Verified Zero-Downtime Deployments**: Self-healing pipelines with automated visual regression and performance audits (Lighthouse CI) before final production promote.
 4. **Autonomous Import Optimization**: Dynamic concurrency and TTL-backed background imports for 30k+ row datasets.
 5. **"Time-Travel" Git-Style Content Branching**: Multi-collection branching for campaign management (e.g., "Black Friday Sale") with visual diffs and mathematical merge conflict resolution.

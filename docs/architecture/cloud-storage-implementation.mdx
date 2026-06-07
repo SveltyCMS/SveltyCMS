@@ -512,36 +512,58 @@ async function getS3Client() {
 
 - Implement signed URLs for private files
 - Add batch upload/delete operations
-- Optimize for large files (multipart upload)
-- Add progress tracking
+- Optimize for large files (S3 multipart upload)
+- Add upload progress tracking
 
-## Future Enhancements
+## Streaming Upload
 
-### Potential Features
-
-1. **Multiple Storage Backends**: Different storage types for different file types
-2. **Hybrid Storage**: Recent files on fast storage, archive on cheap storage
-3. **Automatic Migration**: Background job to migrate local files to cloud
-4. **Advanced Cloudinary**: Use transformation URLs for on-the-fly resizing
-5. **Signed URLs**: Temporary access to private files
-6. **Multipart Upload**: For large files (>5MB)
-7. **Storage Analytics**: Track usage, costs, performance
-8. **Backup Strategy**: Automatic backups to secondary storage
-
-### Proposed Architecture
+For multi-gigabyte uploads, `src/utils/media/streaming-upload.ts` provides a Web Streams-based multipart parser that processes file data without buffering the entire file into memory:
 
 ```typescript
-interface StorageStrategy {
-  primary: StorageConfig;
-  backup?: StorageConfig;
-  rules?: {
-    fileType?: string[];
-    minSize?: number;
-    maxSize?: number;
-    storage: StorageType;
-  }[];
-}
+import { parseMultipartStream } from "@utils/media/streaming-upload";
+
+await parseMultipartStream(request, {
+  onFile: async (info) => {
+    // info contains: name, filename, contentType, stream (ReadableStream)
+    await uploadToStorage(info.stream, info.filename, info.contentType);
+  },
+  onField: (name, value) => {
+    console.log(`Field: ${name} = ${value}`);
+  },
+});
 ```
+
+The parser works with Bun, Node.js, and Edge runtimes using the standard Web Streams API. Boundary detection and chunked processing keep memory usage constant regardless of file size.
+
+## Storage Analytics
+
+`src/utils/media/storage-analytics.ts` provides detailed insights into media usage across the entire system:
+
+```typescript
+import { analyze, getInsights, getTrends } from "@utils/media/storage-analytics";
+
+const files = await db.media.findMany({});
+const breakdown = analyze(files);
+// breakdown.byType   → { "image/png": { count, size, pct }, ... }
+// breakdown.byFolder → { "uploads/2026": { count, size, pct }, ... }
+// breakdown.byUser   → { userId: { count, size, pct }, ... }
+// breakdown.byMonth  → { "2026-06": { count, size }, ... }
+// breakdown.total    → { files, size, avgSize }
+
+const insights = getInsights(breakdown);
+// Returns actionable Insight[] cards: success/info/warning with descriptions
+// Example: "PNG files consume 45% of storage. Consider WebP conversion."
+
+const trends = getTrends(breakdown);
+// Returns month-over-month Trend[] with growthPct and totalSize
+```
+
+### Planned
+
+- **Signed URLs** — Temporary access tokens for private files with configurable TTL
+- **S3 Multipart Upload** — Full S3 multipart API with resume support for files >5MB
+- **Backup Strategy** — Automated nightly backups to secondary storage with retention policies
+- **Hybrid Storage** — Route recent files to fast storage, archive older files to cold storage
 
 ## Troubleshooting Guide
 

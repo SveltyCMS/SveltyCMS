@@ -320,7 +320,9 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "userAgent" TEXT,
         "tenantId" TEXT,
         "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "previousHash" TEXT,
+        "chainHash" TEXT
       );
 
       CREATE TABLE IF NOT EXISTS "workflow_definitions" (
@@ -384,6 +386,13 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_system_themes_name_tenant" ON "themes" ("name", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_states_unique" ON "plugin_states" ("pluginId", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
+
+      -- Full-text search virtual table (not auto-created by Drizzle ORM)
+      CREATE VIRTUAL TABLE IF NOT EXISTS "content_nodes_fts" USING fts5(title, content, description, content='content_nodes', content_rowid='_id');
+      -- Triggers to keep FTS5 in sync
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_ai" AFTER INSERT ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"(rowid, title, content, description) VALUES (new._id, new.title, new.content, new.description); END;
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_ad" AFTER DELETE ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"("content_nodes_fts", rowid, title, content, description) VALUES('delete', old._id, old.title, old.content, old.description); END;
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_au" AFTER UPDATE ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"("content_nodes_fts", rowid, title, content, description) VALUES('delete', old._id, old.title, old.content, old.description); INSERT INTO "content_nodes_fts"(rowid, title, content, description) VALUES (new._id, new.title, new.content, new.description); END;
     `);
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed

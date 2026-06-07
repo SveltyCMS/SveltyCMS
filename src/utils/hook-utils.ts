@@ -43,6 +43,7 @@ export const PUBLIC_ROUTES = [
   "/setup",
   "/api/settings/public",
   "/api/system/health",
+  "/api/health",
   "/api/system/version",
   "/api/user/login",
   "/api/auth/login",
@@ -223,6 +224,9 @@ export function isBootstrapRoute(pathname: string): boolean {
   }
 
   // 5. Localized versions of core routes (using pre-compiled regex)
+  if (pathname === "/warming-up" || pathname.startsWith("/warming-up")) {
+    return true;
+  }
   return LOCALIZED_BOOTSTRAP_REGEX.test(pathname);
 }
 

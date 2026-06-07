@@ -1,18 +1,20 @@
 ---
 path: "docs/guides/content/smart-importer.mdx"
 title: "Smart CMS Importer"
-description: "Guide to using the AI-powered external importer for migrating from WordPress, Drupal, and Sveltia CMS."
+description: "AI-powered CMS migration with auto-detection of 5 formats — WordPress WXR, Strapi, Directus, Drupal, and SveltyCMS — plus heuristic field mapping and drag-and-drop UI."
 order: 20
 icon: "mdi:import"
 author: "SveltyCMS Team"
 created: "2026-03-17"
-updated: "2026-04-01"
+updated: "2026-06-07"
 tags:
   - "migration"
   - "import"
   - "wordpress"
   - "drupal"
-  - "sveltia"
+  - "strapi"
+  - "directus"
+  - "sveltycms"
   - "ai"
 ---
 
@@ -21,23 +23,20 @@ tags:
 ```mermaid
 sequenceDiagram
     participant User as Admin (UI)
-    participant AIS as AI Service
-    participant Adapter as Source Adapter
+    participant SI as SmartImporter Service
     participant Media as Media Service
     participant DB as Database
 
-    User->>Adapter: Connect to Drupal/WP/Sveltia
-    Adapter-->>User: Return Raw Schema & Items
-    User->>AIS: Request Mapping Suggestion
-    AIS-->>User: Return JSON Mapping (AI-Matched)
-    User->>User: Review & Override Mapping
-    User->>DB: "Start Import"
+    User->>SI: Upload export file (WXR/JSON/YAML)
+    SI->>SI: Auto-detect format (5 formats)
+    SI-->>User: Format detected + field mapping suggestions
+    User->>User: Review & adjust mappings
+    User->>SI: Start Import (or Dry Run)
 
-    loop Batch Fetching
-        Adapter->>Media: Extract Image URLs / Local Paths
-        Media->>Media: Download & Process Assets
-        Media-->>DB: Save Media + Return IDs
-        DB->>DB: Insert Entry with Linked Media
+    loop Batch Processing (100 items)
+        SI->>Media: Extract & download images
+        Media-->>DB: Save media
+        SI->>DB: Insert entries with linked media
     end
 
     User-->>User: Migration Complete 🎉
@@ -45,61 +44,85 @@ sequenceDiagram
 
 ## 🚀 Key Features
 
-- **AI-Powered Mapping**: Automatically suggests which SveltyCMS widgets should match your external source fields.
-- **Media Auto-Download**: Automatically fetches remote images from your old site (Drupal/WP) or parses local Git paths (Sveltia) and stores them in the SveltyCMS Media Gallery.
-- **One-Click Sveltia Migration**: Native support for parsing Sveltia `config.yml` and Git-based Markdown/JSON content to instantly scaffold collections.
-- **One-Click Connect**: Connect directly to Drupal (JSON:API) or WordPress (REST API) endpoints.
-- **Instant Scaffold**: Automatically analyze the remote structure and generate a matching SveltyCMS `.ts` collection schema with appropriate widget suggestions.
-- **Dry-Run Mode**: Preview your mapping and data before committing to the database.
+- **5-Format Auto-Detection**: Automatically identifies WordPress WXR XML, Strapi JSON, Directus JSON, Drupal YAML, and SveltyCMS JSON exports — no manual format selection needed.
+- **AI-Powered Field Mapping**: 30+ heuristic field mappings with format-specific lookup tables (e.g., `post_title→title`, `body→content`, ACF fields→widget types). Confidence levels (high/medium/low) for each suggestion.
+- **Drag-and-Drop UI**: Upload any supported export file via `src/components/admin/smart-importer.svelte` — the importer auto-detects the format and shows an editable field mapping preview before import.
+- **ACF/CMB2 Detection**: Automatically detects Advanced Custom Fields and Custom Meta Boxes in WordPress exports and maps them to corresponding widget types.
+- **Media Handling**: Extracts image URLs from exports, offers to download and import or reference externally.
+- **Batch Processing**: 100 items per batch with event-loop yielding via `setTimeout` — handles 10,000+ item datasets without server starvation.
+- **Dry-Run Mode**: Validates the entire import without inserting — see exactly what will be created before committing.
+- **Progress Tracking**: Real-time progress bar with item-by-item status during import.
 
 ---
 
 ## 🛠 How to Use
 
-### Step 1: Source Configuration
+### Step 1: Upload Your Export File
 
-Navigate to **Config > Smart Importer** (`/config/importer`).
+Access the Smart Importer via the admin panel. The component is at `src/components/admin/smart-importer.svelte`.
 
-1. **Source Type**: Select "Drupal", "WordPress", or "Sveltia CMS".
-2. **Source URL / Path**:
-   - For **Drupal/WP**: Enter the base URL (e.g., `https://my-old-blog.com`).
-   - For **Sveltia**: Enter the path to your `config.yml` or upload it.
-3. **API Key / Token**: If your source is protected, enter the required credentials.
-4. **Content Type**: Enter the machine name of the content type (e.g., `article`, `posts`, or the Sveltia collection name).
-5. **Target Collection**: Choose the SveltyCMS collection where you want the data to land.
-   > [!TIP]
-   > **Instant Scaffold**: If you haven't created the target collection yet, use the **Scaffold** button to auto-generate a new collection based on the external fields.
+1. **Drag and Drop** your export file onto the upload area.
+2. **Auto-Detection**: The `SmartImporter.detectFormat()` method instantly identifies the format from file structure:
+   - **WordPress**: WXR XML files (`.xml` with `<rss>` / `<channel>` / `<item>` structure)
+   - **Strapi**: JSON export files with `data` / `contentTypes` structure
+   - **Directus**: JSON schema + data exports with `collections` / `fields` structure
+   - **Drupal**: Content export YAML with migration templates
+   - **SveltyCMS**: Native JSON export format with `metadata` / `collections` structure
+3. **Target Collection**: Select an existing collection or let the importer scaffold a new one based on detected fields.
 
-### Step 2: Field Mapping
+### Step 2: Review Field Mappings
 
-Once you click "Next", the AI will analyze both your source and target schemas.
+The heuristic engine (`mapFields()`) analyzes both schemas and suggests mappings with confidence levels:
 
-- **Automatic Suggestions**: The AI will fill in the mappings for you.
-- **Manual Overrides**: You can manually change the target field or apply a **Media Transform** if the source field is a URL to an image.
-- **✨ AI Re-Map**: If you've changed your target collection, click this to get fresh suggestions.
+- **🟢 High confidence**: Direct name match (e.g., `title→title`, `slug→slug`, `createdAt→createdAt`)
+- **🟡 Medium confidence**: Semantic match (e.g., `post_content→content`, `post_excerpt→excerpt`, `featured_image→featuredImage`)
+- **🔴 Low confidence**: Best guess via alias lookup — review carefully
 
-### Step 3: Execution
+You can **manually adjust** any mapping by selecting a different target field. The editable mapping preview updates in real-time.
 
-Review the summary and click **Start Import**. The system will:
+### Step 3: Execute or Dry-Run
 
-1. Fetch the data in batches.
-2. Download and process any remote media.
-3. Link the media to your new entries.
-4. Insert the records into your database.
+- **Dry Run**: Click "Validate" to process all mappings without inserting data. Detects schema mismatches and validation errors early.
+- **Full Import**: Click "Start Import" to begin the migration. A progress bar shows real-time status including items processed, errors, and estimated time remaining.
 
 ---
 
 ## 🔒 Security & Performance (v2026 Enhanced)
 
-- **Tenant Isolation**: Imports are strictly scoped to your current `tenantId`.
-- **Validation**: All imported data is run through your widget's Valibot schemas to ensure integrity.
-- **Durable Batch Processing**: Large migrations use the **JobQueueService** to process items in background chunks.
-- **Progress Feedback**: Editors get real-time status updates (0-100%) as the migration worker moves through the dataset.
-- **Concurrency Protection**: The importer automatically yields if the server's `IMPORT_CONCURRENT_MAX` limit is reached, ensuring site stability for other users.
+- **Tenant Isolation**: Imports are strictly scoped to your current `tenantId` via `dbAdapter` injection.
+- **Validation**: All imported data is run through your widget's Valibot schemas to ensure integrity before insert.
+- **Batch Processing**: 100 items per batch with `setTimeout(0)` event-loop yielding to keep the server responsive during large migrations.
+- **Progress Tracking**: `onProgress` callback fires per-batch with `{ percentage, current, total, phase }`.
+- **Graceful Error Handling**: Failed items are collected and reported — successful items are committed. No partial-corruption scenarios.
 
-## 📡 API Reference
+## 📡 API & Service Reference
 
-The importer is powered by the following endpoint:
-`POST /api/importer/external`
+The importer is a **service + UI component** — no dedicated REST endpoint needed:
 
-Refer to the [System API Documentation](../../api/system.mdx) for programmatic usage details.
+```typescript
+import { SmartImporter } from "@services/smart-importer";
+
+const importer = new SmartImporter(dbAdapter, tenantId);
+
+// Auto-detect format
+const format = await importer.detectFormat(file);
+// → 'wordpress' | 'strapi' | 'directus' | 'drupal' | 'sveltycms'
+
+// Dry-run validation
+const preview = await importer.import(file, {
+  dryRun: true,
+  onProgress: (p) => console.log(`${p.percentage}% complete`),
+});
+
+// Full import
+const result = await importer.import(file, {
+  dryRun: false,
+  targetCollection: "posts",
+  fieldMapping: adjustedMappings, // optional overrides
+  onProgress: (p) => console.log(`Imported ${p.current}/${p.total}`),
+});
+
+console.log(`Imported: ${result.imported}, Skipped: ${result.skipped}, Errors: ${result.errors}`);
+```
+
+Refer to `src/services/smart-importer.ts` for the full API.

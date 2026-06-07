@@ -67,7 +67,9 @@ export const authUsers = sqliteTable(
     is2FAEnabled: integer("is2FAEnabled", { mode: "boolean" }).notNull().default(false),
     totpSecret: text("totpSecret"),
     backupCodes: text("backupCodes").$type<string[]>(),
-    last2FAVerification: integer("last2FAVerification", { mode: "timestamp_ms" }),
+    last2FAVerification: integer("last2FAVerification", {
+      mode: "timestamp_ms",
+    }),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -526,6 +528,8 @@ export const auditLogs = sqliteTable(
     timestamp: integer("timestamp", { mode: "timestamp_ms" }).notNull(),
     userAgent: text("userAgent"),
     tenantId: tenantField(),
+    previousHash: text("previousHash"),
+    chainHash: text("chainHash"),
     ...timestamps,
   },
   (table) => ({

@@ -190,6 +190,37 @@
 		});
 	}
 
+	// Creates a job in svelty_jobs for scheduled publishing
+	async function createScheduleJob(entryData: Record<string, unknown>, scheduledTs: number) {
+		try {
+			const payload = {
+				collectionId: currentCollection?._id as string,
+				entryId: entryData._id as string,
+				targetStatus: entryData._scheduledAction || StatusTypes.publish,
+				entryPath: (entryData as any).path || undefined,
+			};
+
+			const res = await fetch('/api/system-jobs', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					taskType: 'status-transition',
+					payload,
+					runAt: new Date(scheduledTs).toISOString(),
+				}),
+			});
+
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				logger.error('[RightSidebar] Failed to create schedule job:', err);
+			} else {
+				logger.info('[RightSidebar] Schedule job created successfully');
+			}
+		} catch (err) {
+			logger.error('[RightSidebar] Error creating schedule job:', err);
+		}
+	}
+
 	async function save() {
 		if (!isFormValid) {
 			toast.warning(validation_fix_before_save());
@@ -228,6 +259,11 @@
 		const success = await saveEntry(dataToSave);
 		if (!success) {
 			return;
+		}
+
+		// If scheduling, create a svelty_jobs record
+		if (dataToSave.status === StatusTypes.schedule && scheduleTimestamp) {
+			await createScheduleJob(dataToSave, scheduleTimestamp);
 		}
 
 		ui.forceUpdate();
@@ -311,18 +347,33 @@
 				</div>
 
 				<div class="space-y-2">
-					{#if scheduleTimestamp}
-						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">{sidebar_will_publish_on()}</p>
-					{/if}
-					<button
-						onclick={openSchedule}
-						class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-left transition-colors"
-					>
-						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
-						<span class="text-sm text-tertiary-500 dark:text-primary-500">
-							{scheduleTimestamp ? new Date(scheduleTimestamp).toLocaleString(getLocale()) : 'Schedule publication...'}
-						</span>
-					</button>
+						{#if scheduleTimestamp}
+							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">{sidebar_will_publish_on()}</p>
+							<p class="text-xs font-semibold text-tertiary-500 dark:text-primary-500">
+								{new Date(scheduleTimestamp).toLocaleString(getLocale())}
+							</p>
+						{/if}
+						<button
+							onclick={openSchedule}
+							class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-left transition-colors"
+						>
+							<iconify-icon icon="bi:clock" width="16"></iconify-icon>
+							<span class="text-sm text-tertiary-500 dark:text-primary-500">
+								{scheduleTimestamp ? 'Change schedule...' : 'Schedule publication...'}
+							</span>
+						</button>
+						{#if scheduleTimestamp}
+							<button
+								onclick={() => {
+									collectionValue.value = { ...currentEntry!, _scheduled: undefined, status: StatusTypes.draft };
+									toast.success('Schedule cancelled');
+								}}
+								class="btn preset-filled-error-500 w-full justify-start gap-2 text-left text-sm transition-colors"
+							>
+								<iconify-icon icon="material-symbols:cancel" width="16"></iconify-icon>
+								<span>Cancel Schedule</span>
+							</button>
+						{/if}
 				</div>
 
 				<div class="space-y-3">

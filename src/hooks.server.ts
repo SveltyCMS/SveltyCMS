@@ -193,36 +193,46 @@ if (!building) {
             import("@src/services/background/automation"),
             import("@src/services/system/watchdog"),
             import("@src/services/observability/telemetry-service"),
+            import("@src/services/scheduler"),
           ])
-            .then(([{ jobQueue }, { automationService }, { watchdog }, { telemetryService }]) => {
-              jobQueue.startPolling();
-              automationService.init();
-              watchdog.start();
+            .then(
+              ([
+                { jobQueue },
+                { automationService },
+                { watchdog },
+                { telemetryService },
+                scheduler,
+              ]) => {
+                jobQueue.startPolling();
+                automationService.init();
+                watchdog.start();
+                scheduler.startScheduler();
 
-              // Telemetry check
-              const globalWithTelemetry = globalThis as typeof globalThis & {
-                __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
-              };
+                // Telemetry check
+                const globalWithTelemetry = globalThis as typeof globalThis & {
+                  __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
+                };
 
-              if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-                clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
-              }
+                if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
+                  clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
+                }
 
-              setTimeout(() => {
-                telemetryService
-                  .checkUpdateStatus()
-                  .catch((err) => logger.error("Initial telemetry check failed", err));
-              }, 10_000);
-
-              globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
-                () => {
+                setTimeout(() => {
                   telemetryService
                     .checkUpdateStatus()
-                    .catch((err) => logger.error("Periodic telemetry check failed", err));
-                },
-                1000 * 60 * 60 * 12, // 12 hours
-              );
-            })
+                    .catch((err) => logger.error("Initial telemetry check failed", err));
+                }, 10_000);
+
+                globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+                  () => {
+                    telemetryService
+                      .checkUpdateStatus()
+                      .catch((err) => logger.error("Periodic telemetry check failed", err));
+                  },
+                  1000 * 60 * 60 * 12, // 12 hours
+                );
+              },
+            )
             .catch((err) => logger.error("[System] Parallel initialization failed:", err));
         } else {
           logger.info("🛡️ Background Services DISABLED (Benchmark Mode)");

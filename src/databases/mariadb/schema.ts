@@ -348,6 +348,8 @@ export const auditLogs = mysqlTable(
       .default(sql`CURRENT_TIMESTAMP`),
     userAgent: text("userAgent"),
     tenantId: tenantField(),
+    previousHash: varchar("previousHash", { length: 64 }),
+    chainHash: varchar("chainHash", { length: 64 }),
     ...timestamps,
   },
   (table) => ({

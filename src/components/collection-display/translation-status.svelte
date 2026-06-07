@@ -7,6 +7,7 @@ FIXES:
 1. Multi-field support - tracks all translatable fields in a collection
 2. Widget-aware - properly handles widgets with multiple inputs (like SEO)
 3. Field-level granularity - individual field progress tracking
+4. Per-field locale records - supports `Record<Locale, string>` format with legacy string migration
 
 @example
 <TranslationStatus />
@@ -256,7 +257,19 @@ FIXES:
 							const langData = (fieldValue as Record<string, any>)[lang];
 							valueToCheck = langData?.[subFieldName];
 						} else if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) {
-							valueToCheck = (fieldValue as Record<string, any>)[lang];
+							// Per-field locale record: { en: "Hello", de: "Hallo" }
+							const localeRecord = fieldValue as Record<string, any>;
+							// Check if this looks like a locale-keyed object
+							const hasLocaleKeys = availableLanguages.some((l) => l in localeRecord);
+							if (hasLocaleKeys) {
+								valueToCheck = localeRecord[lang];
+							} else {
+								// Non-locale object (e.g., complex widget data)
+								valueToCheck = fieldValue;
+							}
+						} else if (typeof fieldValue === 'string') {
+							// Legacy format: plain string → only translated for the first locale
+							valueToCheck = lang === availableLanguages[0] ? fieldValue : '';
 						} else {
 							valueToCheck = fieldValue;
 						}

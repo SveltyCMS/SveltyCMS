@@ -13,13 +13,14 @@ import {
 import { fade, scale } from "svelte/transition";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 
-interface Props {
-	onAddCollection: () => void;
-	onAddCategory: () => void;
-	onLoadPreset?: () => void;
-}
+	interface Props {
+		onAddCollection: () => void;
+		onAddCategory: () => void;
+		onLoadPreset?: () => void;
+		onQuickStart?: () => void;
+	}
 
-let { onAddCollection, onAddCategory, onLoadPreset }: Props = $props();
+	let { onAddCollection, onAddCategory, onLoadPreset, onQuickStart }: Props = $props();
 </script>
 
 <div class="flex flex-col items-center justify-center p-8 py-16 text-center" in:fade={{ duration: 400 }}>
@@ -69,6 +70,13 @@ let { onAddCollection, onAddCategory, onLoadPreset }: Props = $props();
 				<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
 				<span>{collection_add()}</span>
 			</Button>
+
+			{#if onQuickStart}
+				<Button onclick={onQuickStart} variant="secondary" rounded={true} size="lg" class="group">
+					<iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
+					<span>Quick Start</span>
+				</Button>
+			{/if}
 
 			{#if onLoadPreset}
 				<Button onclick={onLoadPreset} variant="warning" rounded={true} size="lg" class="group">

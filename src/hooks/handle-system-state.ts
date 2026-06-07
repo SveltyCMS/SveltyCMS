@@ -63,6 +63,37 @@ const IS_GK_TEST_MODE =
 // HELPERS
 // ──────────────────────────────────────────────────────────────
 
+/**
+ * Renders an appropriate response for restricted system states.
+ * - API requests: returns 503 JSON error
+ * - Page requests: redirects to /warming-up with the original URL as a query param
+ */
+function renderRestrictedResponse(
+  event: RequestEvent,
+  state: SystemState,
+  pathname: string,
+  msg: string,
+): Response {
+  logger.warn(`[handleSystemState] Request blocked: ${pathname} | System state: ${state}`);
+
+  // API requests: keep the 503 error for machine clients
+  if (pathname.startsWith("/api/")) {
+    throw new AppError(msg, 503, `SYSTEM_${state}`);
+  }
+
+  // Non-warming-up page requests: redirect to friendly warming-up page
+  if (pathname !== "/warming-up") {
+    const redirectUrl = encodeURIComponent(event.url.pathname + event.url.search);
+    return new Response(null, {
+      status: 302,
+      headers: { Location: `/warming-up?redirect=${redirectUrl}` },
+    });
+  }
+
+  // Already on warming-up page — throw so SvelteKit renders the error page
+  throw new AppError(msg, 503, `SYSTEM_${state}`);
+}
+
 function colorState(state: string): string {
   const colors: Record<string, string> = {
     READY: "\x1b[32m",
@@ -302,26 +333,24 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         // Re-query one more time after secondary wait
         const postWaitState = getSystemState();
         if (restricted.includes(postWaitState.overallState as any)) {
-          const msg =
+          return renderRestrictedResponse(
+            event,
+            postWaitState.overallState,
+            pathname,
             postWaitState.overallState === "SETUP"
               ? "System is in Setup Mode. Please complete configuration."
-              : `System is currently in ${postWaitState.overallState} mode. Non-bootstrap access is restricted.`;
-
-          logger.warn(
-            `[handleSystemState] Request blocked: ${pathname} | System state: ${postWaitState.overallState}`,
+              : `System is currently in ${postWaitState.overallState} mode. Non-bootstrap access is restricted.`,
           );
-          throw new AppError(msg, 503, `SYSTEM_${postWaitState.overallState}`);
         }
       } else {
-        const msg =
+        return renderRestrictedResponse(
+          event,
+          activeSystemState.overallState,
+          pathname,
           activeSystemState.overallState === "SETUP"
             ? "System is in Setup Mode. Please complete configuration."
-            : `System is currently in ${activeSystemState.overallState} mode. Non-bootstrap access is restricted.`;
-
-        logger.warn(
-          `[handleSystemState] Request blocked: ${pathname} | System state: ${activeSystemState.overallState}`,
+            : `System is currently in ${activeSystemState.overallState} mode. Non-bootstrap access is restricted.`,
         );
-        throw new AppError(msg, 503, `SYSTEM_${activeSystemState.overallState}`);
       }
     }
 

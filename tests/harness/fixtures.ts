@@ -85,12 +85,7 @@ export const ROLES = {
     _id: "role_developer",
     name: "developer",
     isAdmin: false,
-    permissions: [
-      "manage:collection",
-      "manage:media",
-      "manage:widget",
-      "read:system",
-    ] as const,
+    permissions: ["manage:collection", "manage:media", "manage:widget", "read:system"] as const,
   },
   editor: {
     _id: "role_editor",
@@ -140,12 +135,9 @@ export const COLLECTIONS = {
 // ---------------------------------------------------------------------------
 
 export const TOKENS = {
-  validApiKey:
-    "tkn_test_0000000000000000000000000000000000000000000000000000000000000001",
-  expiredApiKey:
-    "tkn_test_expired00000000000000000000000000000000000000000000000000001",
-  invalidApiKey:
-    "tkn_test_invalid00000000000000000000000000000000000000000000000000001",
+  validApiKey: "tkn_test_0000000000000000000000000000000000000000000000000000000000000001",
+  expiredApiKey: "tkn_test_expired00000000000000000000000000000000000000000000000000001",
+  invalidApiKey: "tkn_test_invalid00000000000000000000000000000000000000000000000000001",
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -301,6 +301,13 @@ From the 2026 roadmap (target A++ grade), prioritize these for parity/leadership
 - [x] **Negative Caching Engine**: Implemented Bloom-filter style missing-key cache achieving a verified **2392x speedup** for repeated misses.
 - [x] **Zero-Tax SDK Dispatcher**: Refactored `LocalCMS` with Hot-Swap self-overwriting getters, achieving **0% middleware overhead**.
 - [x] **Universal Accessibility Auditing**: Implemented automated Axe-Core E2E test suites, RTL directionality layout mirroring audits, build-time Widget Accessibility Static Analysis Validator, and documented State-Bound Focus Restoration.
+- [x] **Adaptive Job Scheduler**: Background job runner executing scheduled publishing, status transitions with exponential retries and audit integration.
+- [x] **Per-Field Content Localization**: Record<Locale, string> field storage with inline locale switchers and one-click AI translation.
+- [x] **Crypto-Chained Audit Logs**: SHA-256 hash chain across audit entries with chain verification and per-content viewer.
+- [x] **Zero-Dependency Full-Text Search**: DB-native FTS (PostgreSQL tsvector, MariaDB FULLTEXT, SQLite FTS5, MongoDB $text) — zero npm dependencies.
+- [x] **AI-Smart CMS Importer**: 5-format auto-detection (WordPress, Strapi, Directus, Drupal, SveltyCMS), heuristic field mapping, ACF detection.
+- [x] **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions.
+- [x] **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
 
 ## Upgrading SveltyCMS
 
@@ -586,4 +593,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-05-24_
+_Last Updated: 2026-06-07_

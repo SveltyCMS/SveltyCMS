@@ -133,6 +133,8 @@ export const contentLanguage = {
   },
 };
 
+import { SvelteSet } from "svelte/reactivity";
+
 let _transProgress = $state<any>(null);
 export const translationProgress = {
   get value() {
@@ -143,6 +145,34 @@ export const translationProgress = {
   },
   set(v: any) {
     _transProgress = v;
+  },
+  /**
+   * Mark a specific field as translated for a given locale.
+   * Used for per-field localization tracking.
+   */
+  markFieldTranslated(locale: string, fieldPath: string) {
+    if (!_transProgress) return;
+    const langProgress = _transProgress[locale];
+    if (!langProgress) return;
+    if (!langProgress.translated) {
+      langProgress.translated = new SvelteSet<string>();
+    }
+    langProgress.translated.add(fieldPath);
+    if (!langProgress.total) {
+      langProgress.total = new SvelteSet<string>();
+    }
+    langProgress.total.add(fieldPath);
+  },
+  /**
+   * Mark a specific field as untranslated (empty) for a given locale.
+   */
+  markFieldUntranslated(locale: string, fieldPath: string) {
+    if (!_transProgress) return;
+    const langProgress = _transProgress[locale];
+    if (!langProgress) return;
+    if (langProgress.translated) {
+      langProgress.translated.delete(fieldPath);
+    }
   },
 };
 

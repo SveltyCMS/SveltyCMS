@@ -981,22 +981,74 @@ All dashboard interactions are logged through the audit system:
 
 ---
 
-## Future Enhancements
+## Real-Time Data Streaming
 
-### Planned Features
+Dashboard widgets receive live updates via svelte-realtime, which provides WebSocket-based streaming with SSE fallback. The integration lives in `src/live/`:
 
-1. **Custom Widget Builder**: Visual widget creation interface
-2. **Alert Management**: Sophisticated notification routing
-3. **Export Capabilities**: Dashboard screenshot and data export
-4. **Mobile App**: Dedicated mobile dashboard application
-5. **Third-Party Integrations**: Webhook support for external monitoring
+- **`system.ts`** — Bridges the internal `EventBus` to connected WebSocket clients with tenant isolation. System events (content changes, user activity, cache invalidations) stream to all authorized dashboard widgets.
+- **`chat.ts`** — Real-time AI chat for the dashboard co-pilot. Uses per-room streaming with individual access controls.
+- **`ws-platform.ts`** — Shared WebSocket platform reference for global broadcasting. Initialized by `src/hooks.ws.ts` during server startup.
 
-### Performance Improvements
+```typescript
+// Dashboard widget subscribing to real-time events
+import { events } from "$live/system";
 
-1. **WebSocket Integration**: Real-time data streaming
-2. **Service Worker Caching**: Offline capability and performance
-3. **CDN Integration**: Optimized asset delivery
-4. **Micro-frontend Architecture**: Independent widget deployment
+$effect(() => {
+  const stream = events();
+  stream.subscribe((event) => {
+    // event contains: type, payload, timestamp, tenantId
+    updateWidgetData(event);
+  });
+});
+```
+
+## CDN Cache Purging
+
+When content is published or media is updated, `src/services/cdn/cdn-service.ts` automatically purges the Cloudflare CDN cache to ensure global edge consistency:
+
+```typescript
+import { cdnService } from "@services/cdn/cdn-service";
+
+// Purge specific content by tags (surgical invalidation)
+await cdnService.purge({ tags: ["collection:posts", "entry:abc123"] });
+
+// Purge entire zone (use sparingly)
+await cdnService.purge({ everything: true });
+```
+
+The service reads credentials from `config/private.ts` (`CF_API_TOKEN`, `CF_ZONE_ID`, `CF_PURGE_MODE`) and operates non-blocking — purge calls fire in the background without delaying the API response.
+
+## Security Alerting & SIEM Integration
+
+`src/services/security/monitoring-service.ts` provides real-time anomaly detection with webhook-based alerting for external security systems:
+
+```typescript
+import { securityMonitor } from "@services/security/monitoring-service";
+
+// Start monitoring (called during server boot)
+securityMonitor.start();
+
+// Configure SIEM webhook (JSON, CEF, or LEEF format)
+securityMonitor.configureWebhook({
+  url: "https://siem.company.com/ingest",
+  secret: "webhook-signing-key",
+  format: "cef",
+  enabled: true,
+});
+
+// Check monitoring status for dashboard widget
+const status = securityMonitor.getStatus();
+// { isMonitoring, alertCount, unacknowledgedCount, activeRules, eventCounts }
+```
+
+Five anomaly detection rules run automatically: brute force detection, unusual access patterns, permission escalation attempts, rapid session creation, and token abuse detection. Each rule has configurable thresholds and cooldown periods to prevent alert fatigue.
+
+## Planned Enhancements
+
+- **Custom Widget Builder** — Visual widget creation interface for non-developers
+- **Export Capabilities** — Dashboard screenshot and CSV/JSON data export
+- **PWA Support** — Installable mobile dashboard with offline capability
+- **Service Worker Caching** — Offline access to static dashboard assets
 
 ---
 

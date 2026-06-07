@@ -400,7 +400,9 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"userAgent" TEXT,
 			"tenantId" VARCHAR(36),
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"previousHash" VARCHAR(64),
+			"chainHash" VARCHAR(64)
 		)`,
     `CREATE INDEX IF NOT EXISTS audit_logs_timestamp_idx ON audit_logs ("timestamp")`,
     `CREATE INDEX IF NOT EXISTS audit_logs_event_type_idx ON audit_logs ("eventType")`,
@@ -477,6 +479,9 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
     `CREATE INDEX IF NOT EXISTS workflow_instances_entry_idx ON workflow_instances ("entryId", "collectionId")`,
+
+    // Full-text search indexes (not auto-created by Drizzle ORM)
+    `CREATE INDEX IF NOT EXISTS content_nodes_fts_idx ON content_nodes USING GIN (to_tsvector('english', coalesce("title", '') || ' ' || coalesce("content", '') || ' ' || coalesce("description", '')))`,
   ];
 
   for (const query of queries) {

@@ -231,15 +231,10 @@ describe("handleSystemState - State Machine Logic", () => {
     it("should block non-setup routes during IDLE state", async () => {
       const event = createMockEvent("/dashboard");
 
-      try {
-        await handleSystemState({ event, resolve: mockResolve });
-        expect(true).toBe(false); // Should not reach here
-      } catch (err: any) {
-        // SvelteKit error() can throw an object with status and body, or just status/message in some environments
-        expect(err.status).toBe(503);
-        const msg = err.body?.message || err.message || "";
-        expect(msg).toMatch(/IDLE|restricted/i);
-      }
+      // Page requests now redirect to warming-up instead of throwing 503
+      const response = await handleSystemState({ event, resolve: mockResolve });
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toContain("/warming-up");
     });
 
     it("should block API routes (non-setup) during IDLE state", async () => {
@@ -340,15 +335,11 @@ describe("handleSystemState - State Machine Logic", () => {
     it("should block all other routes when FAILED", async () => {
       const event = createMockEvent("/dashboard");
 
-      try {
-        await handleSystemState({ event, resolve: mockResolve });
-        expect(true).toBe(false);
-      } catch (err: unknown) {
-        const error = err as { status: number; body: { message: string } };
-        expect(error.status).toBe(503);
-        // Accept any 503 message - the exact wording varies
-        expect(error.body.message).toBeDefined();
-      }
+      // Page requests now redirect to warming-up instead of throwing 503
+      const response = await handleSystemState({ event, resolve: mockResolve });
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toContain("/warming-up");
+      expect(response.headers.get("Location")).toContain("redirect=");
     });
 
     it("should block setup routes when FAILED", async () => {

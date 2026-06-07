@@ -51,6 +51,8 @@ export async function handleSystemRoutes(
       return handleSetupRoutes(event, cms, tenantId, segments);
     case "health":
       return handleHealthRoutes(event, cms, tenantId, segments);
+    case "system-jobs":
+      return handleSystemJobRoutes(event, cms, tenantId, segments);
   }
 
   throw new AppError(`System endpoint /api/${segments.join("/")} not implemented`, 404);
@@ -328,6 +330,94 @@ export async function handleSystemMgmtRoutes(
 }
 
 /**
+ * --- SYSTEM JOBS ---
+ */
+export async function handleSystemJobRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const { request } = event;
+  const action = segments[1];
+
+  // GET /api/system-jobs — list scheduled jobs
+  if (request.method === "GET") {
+    const db = _cms.db;
+    if (!db.system?.jobs) {
+      throw new AppError("Jobs system not available", 501, "NOT_IMPLEMENTED");
+    }
+
+    const statusParam = new URL(request.url).searchParams.get("status");
+    const listOptions: { status?: string } = {};
+    if (statusParam) {
+      listOptions.status = statusParam;
+    }
+    const result = await db.system.jobs.list(listOptions);
+
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to list jobs", 500);
+    }
+    return successResponse(event, result.data || []);
+  }
+
+  // POST /api/system-jobs — create a new scheduled job
+  if (request.method === "POST") {
+    const db = _cms.db;
+    if (!db.system?.jobs) {
+      throw new AppError("Jobs system not available", 501, "NOT_IMPLEMENTED");
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { taskType, payload, runAt } = body;
+
+    if (!taskType || !payload) {
+      throw new AppError("taskType and payload are required", 400);
+    }
+
+    const nextRunAt = runAt ? new Date(runAt) : new Date();
+
+    const result = await db.system.jobs.create({
+      taskType,
+      payload,
+      status: "pending",
+      attempts: 0,
+      maxAttempts: 3,
+      nextRunAt,
+      tenantId: tenantId as any,
+    });
+
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to create job", 500);
+    }
+
+    return successResponse(event, result.data, 201);
+  }
+
+  // DELETE /api/system-jobs/:jobId — cancel/delete a scheduled job
+  if (request.method === "DELETE") {
+    const jobId = action;
+    if (!jobId) {
+      throw new AppError("jobId is required", 400);
+    }
+
+    const db = _cms.db;
+    if (!db.system?.jobs) {
+      throw new AppError("Jobs system not available", 501, "NOT_IMPLEMENTED");
+    }
+
+    const result = await db.system.jobs.delete(jobId as DatabaseId);
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to delete job", 500);
+    }
+
+    return successResponse(event, { deleted: true });
+  }
+
+  throw new AppError(`Method ${request.method} not allowed for system-jobs`, 405);
+}
+
+/**
  * --- AI ---
  */
 export async function handleAiRoutes(
@@ -410,6 +500,33 @@ export async function handleAiRoutes(
       availableWidgets || [],
     );
     return successResponse(event, fields);
+  }
+
+  if (action === "translate" && request.method === "POST") {
+    const { text, sourceLang, targetLang, field, collection } = body;
+    if (!text?.trim()) throw new AppError("text is required", 400);
+    if (!sourceLang) throw new AppError("sourceLang is required", 400);
+    if (!targetLang) throw new AppError("targetLang is required", 400);
+
+    const { aiTranslationService } = await import("@src/services/ai-translation");
+    const user = locals.user;
+    const translatedText = await aiTranslationService.translateField(text, sourceLang, targetLang, {
+      field: field || "unknown",
+      collection: collection || "unknown",
+      userId: user?._id ?? null,
+      userEmail: user?.email,
+      userRole: user?.role,
+      tenantId: tenantId as any,
+    });
+
+    if (translatedText === null) {
+      return successResponse(event, {
+        translatedText: null,
+        message: "AI translation unavailable",
+      });
+    }
+
+    return successResponse(event, { translatedText });
   }
 
   if (action === "translate-collection" && request.method === "POST") {

@@ -158,9 +158,13 @@ Content-Type: application/json
 }
 ```
 
+### Per-Field AI Translation
+
+Each translated field now has an inline **✨ AI Translate** button for one-click field translation. Uses `POST /api/ai/translate` with caching (30min TTL), rate limiting (50/min/user), audit logging, and graceful degradation. Service at `src/services/ai-translation.ts`.
+
 ### Bulk AI Content Localization
 
-SveltyCMS features a dedicated background utility for translating entire collections:
+SveltyCMS also offers a bulk endpoint for translating entire collections:
 
 ```
 POST /api/ai/translate-collection

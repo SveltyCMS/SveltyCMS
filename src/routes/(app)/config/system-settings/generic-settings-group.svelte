@@ -873,7 +873,7 @@ onMount(() => {
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500"
 												placeholder="Search..."
 												bind:value={languageSearch[availableLangsField.key]}
 											/>
@@ -1033,7 +1033,7 @@ onMount(() => {
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 "
 												placeholder="Search..."
 												bind:value={languageSearch[localesField.key]}
 											/>
@@ -1282,7 +1282,7 @@ onMount(() => {
 											tabindex="-1"
 										>
 											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 dark:border-slate-600"
+												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 "
 												placeholder="Search..."
 												bind:value={languageSearch[field.key]}
 											/>

@@ -82,6 +82,7 @@ onMount(() => {
 
 import ModalCategory from "./nested-content/modal-category.svelte";
 import ModalPreset from "./nested-content/modal-preset.svelte";
+import ModalQuickStart from "./nested-content/modal-quick-start.svelte";
 import EmptyState from "./nested-content/empty-state.svelte";
 import { fade } from "svelte/transition";
 
@@ -553,16 +554,30 @@ function modalLoadPreset(): void {
 	);
 }
 
-$effect(() => {
-	untrack(() => {
-		setRouteContext({ isCollectionBuilder: true });
-	});
-	return () => {
+	function modalQuickStart(): void {
+		modalState.trigger(
+			ModalQuickStart as any,
+			{
+				title: "Quick-Start Templates",
+				body: "Choose a template to instantly create collections.",
+			},
+			async (response: { installed: boolean; collections?: string[] } | null) => {
+				if (!response || !response.installed) return;
+				window.location.reload();
+			},
+		);
+	}
+
+	$effect(() => {
 		untrack(() => {
-			setRouteContext({ isCollectionBuilder: false });
+			setRouteContext({ isCollectionBuilder: true });
 		});
-	};
-});
+		return () => {
+			untrack(() => {
+				setRouteContext({ isCollectionBuilder: false });
+			});
+		};
+	});
 </script>
 
 {#snippet saveButton(isHeader = false)}
@@ -593,6 +608,11 @@ $effect(() => {
 	{#if currentConfig.length > 0}
 		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
 		<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
+		<Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group" disabled={isLoading}>
+			<iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
+			<span>Quick Start</span>
+		</Button>
+
 		<Button onclick={() => modalAddCategory()} variant="tertiary" rounded={true} size="lg" class="group" disabled={isLoading}>
 			<iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
 			<span>{collection_addcategory()}</span>
@@ -645,6 +665,6 @@ $effect(() => {
 	</div>
 	</div>
 {:else}
-	<EmptyState onAddCollection={handleAddCollectionClick} onAddCategory={() => modalAddCategory()} onLoadPreset={modalLoadPreset} />
+	<EmptyState onAddCollection={handleAddCollectionClick} onAddCategory={() => modalAddCategory()} onLoadPreset={modalLoadPreset} onQuickStart={modalQuickStart} />
 {/if}
 </div>

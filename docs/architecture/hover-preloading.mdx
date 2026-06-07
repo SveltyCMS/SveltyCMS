@@ -181,9 +181,9 @@ const PRELOAD_HOVER_DELAY = 600; // 600ms
 const PRELOAD_CACHE_TTL = 30000; // 30 seconds
 ```
 
-### User Connection Detection
+### User Connection Detection ✅
 
-**Future Enhancement**: Disable on slow connections:
+Connection-aware preloading via `src/utils/connection-detector.ts` — detects slow-2g/2g/3g/4g, Save-Data mode, RTT latency, and online status. Also provides `shouldDisableRealtime()`, `shouldReduceMotion()`, `getRecommendedImageQuality()`, `getRecommendedBatchSize()`.
 
 ```typescript
 // Detect slow connections (future implementation)
