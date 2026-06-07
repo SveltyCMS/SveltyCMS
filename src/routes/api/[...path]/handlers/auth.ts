@@ -15,7 +15,7 @@ import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, ISODateString } from "@src/content/types";
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { SESSION_COOKIE_NAME, getSessionCookieName } from "@src/databases/auth/constants";
 import { TwoFactorAuthService } from "@src/databases/auth/two-factor-auth";
 import {
   handleSAMLResponse,
@@ -101,6 +101,8 @@ export async function handleAuthUserRoutes(
           : notAllowed();
 
       // Sub-routes
+      case "sessions":
+        return handleSessionsRoutes(event, cms, tenantId, user);
       case "2fa":
         return handle2FARoutes(event, cms, tenantId, user, segments);
       case "saml":
@@ -126,7 +128,7 @@ export async function handleAuthUserRoutes(
 function getCookieConfig(event: RequestEvent): CookieConfig {
   const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
   return {
-    name: isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME,
+    name: getSessionCookieName(isSecure),
     isSecure,
   };
 }
@@ -271,6 +273,8 @@ export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenan
 
 /**
  * Updates user attributes (email, password, profile fields, etc.).
+ * When a password change is detected, ALL other active sessions are immediately
+ * invalidated across all devices for security.
  */
 export async function handleUpdateUserAttributesRoute(
   event: RequestEvent,
@@ -283,12 +287,31 @@ export async function handleUpdateUserAttributesRoute(
 
   if (!targetId) throw new AppError("User ID is required", 400);
 
-  const result = await cms.auth.updateUserAttributes(
-    targetId,
-    Object.keys(newUserData).length > 0 ? newUserData : body,
-    { tenantId },
-  );
+  const updates = Object.keys(newUserData).length > 0 ? newUserData : body;
+  const result = await cms.auth.updateUserAttributes(targetId, updates, {
+    tenantId,
+  });
   if (!result.success) throw new AppError(result.message || "Update failed", 400);
+
+  // 🔐 Password change: Invalidate all other sessions across all devices
+  const hasPasswordField = "password" in updates || "password" in (body as any);
+  if (hasPasswordField) {
+    const currentSessionId = event.locals.session_id as DatabaseId | undefined;
+    // 1. Get active sessions before invalidation so we can identify which to clean
+    const sessionsResult = await cms.auth.getActiveSessions(targetId, {
+      tenantId,
+    });
+    const otherSessions = ((sessionsResult as any).data || sessionsResult || []).filter(
+      (s: any) => s._id !== currentSessionId,
+    );
+    // 2. Delete all user sessions from the database (L2) and session store (L0/L1)
+    await cms.auth.invalidateAllUserSessions(targetId, { tenantId });
+    // 3. Purge each invalidated session from the 3-layer cache
+    for (const s of otherSessions) {
+      invalidateSessionCache(s._id, tenantId);
+    }
+  }
+
   return successResponse(event, result.data);
 }
 
@@ -356,6 +379,51 @@ export async function handleUpdateRoles(
   const roles = await event.request.json();
   const result = await cms.auth.updateRoles(roles, { user, tenantId });
   return successResponse(event, result);
+}
+
+// ─── Session Management Handlers ─────────────────────────────────────────────
+
+/**
+ * Handles active session management for the current user:
+ * - GET  → list all active sessions with device info
+ * - DELETE /:sessionId → revoke a specific session
+ */
+export async function handleSessionsRoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+
+  // Split by / to check for sessionId sub-route
+  const pathParts = event.url.pathname.split("/").filter(Boolean);
+  // Expected: ["api", "user", "sessions"] or ["api", "user", "sessions", "<sessionId>"]
+  const sessionId = pathParts.length > 3 ? pathParts[3] : null;
+
+  if (sessionId && event.request.method === "DELETE") {
+    // Revoke a specific session
+    await cms.auth.logout(sessionId);
+    invalidateSessionCache(sessionId, tenantId);
+    return successResponse(event, { message: "Session revoked successfully" });
+  }
+
+  if (event.request.method === "GET") {
+    // List all active sessions for the current user
+    const result = await cms.auth.getActiveSessions(user._id, { tenantId });
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to retrieve sessions", 500);
+    }
+    // Mark the current session
+    const currentSessionId = event.locals.session_id;
+    const sessions = (result.data || []).map((s: any) => ({
+      ...s,
+      isCurrent: s._id === currentSessionId,
+    }));
+    return successResponse(event, { sessions });
+  }
+
+  throw notAllowed();
 }
 
 // ─── 2FA Handlers ────────────────────────────────────────────────────────────

@@ -55,7 +55,12 @@ export const saveToken = query(
   "unchecked",
   async (
     data: Record<string, unknown>,
-  ): Promise<{ success: boolean; token?: string; message?: string; error?: string }> => {
+  ): Promise<{
+    success: boolean;
+    token?: string;
+    message?: string;
+    error?: string;
+  }> => {
     const isEdit = !!data.token;
     const endpoint = isEdit ? `/api/token/${data.token}` : "/api/token/createToken";
     const method = isEdit ? "PUT" : "POST";
@@ -94,5 +99,31 @@ export const deleteTokenAction = query(
     });
     const d = await r.json();
     return r.ok ? { success: true, message: "Deleted" } : { success: false, error: d.message };
+  },
+);
+
+export const getActiveSessions = query(
+  "unchecked",
+  async (): Promise<{ sessions?: any[]; error?: string }> => {
+    const r = await fetch("/api/user/sessions", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    const d = await r.json();
+    return r.ok ? { sessions: d.sessions || [] } : { error: d.message };
+  },
+);
+
+export const revokeSession = query(
+  "unchecked",
+  async (sessionId: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    const r = await fetch(`/api/user/sessions/${sessionId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+    const d = await r.json();
+    return r.ok
+      ? { success: true, message: d.message || "Revoked" }
+      : { success: false, error: d.message };
   },
 );

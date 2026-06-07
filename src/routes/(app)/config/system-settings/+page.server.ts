@@ -17,6 +17,9 @@ import { error, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
+// Side-effect import: registers remote command with SvelteKit metadata for client build
+import "./admin.remote";
+
 export const load: PageServerLoad = async ({ locals }) => {
   try {
     const { user, isAdmin, roles: tenantRoles } = locals;

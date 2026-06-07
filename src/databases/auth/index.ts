@@ -791,8 +791,27 @@ export class Auth {
     };
   }
 
-  async invalidateAllUserSessions(userId: DatabaseId, options?: BaseQueryOptions): Promise<void> {
+  async invalidateAllUserSessions(
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
+    currentSessionId?: DatabaseId,
+  ): Promise<DatabaseId[]> {
+    // 1. Get all active sessions for this user so we can clean L0/L1 caches
+    const { data: activeSessions } = await this.getActiveSessions(userId, options);
+
+    // 2. Delete each session from the session store (in-memory/Redis L0/L1)
+    const invalidatedIds: DatabaseId[] = [];
+    for (const session of activeSessions || []) {
+      // Skip the current session if specified (keep the password-changer logged in)
+      if (currentSessionId && session._id === currentSessionId) continue;
+      await this.sessionStore.delete(session._id).catch(() => {});
+      invalidatedIds.push(session._id);
+    }
+
+    // 3. Delete all user sessions from the database (L2)
     await this.db.auth.invalidateAllUserSessions(userId, options);
+
+    return invalidatedIds;
   }
 
   async getActiveSessions(
@@ -846,7 +865,12 @@ export class Auth {
     email: string,
     password: string,
     options?: BaseQueryOptions,
-  ): Promise<{ status: boolean; message?: string }> {
+    currentSessionId?: DatabaseId,
+  ): Promise<{
+    status: boolean;
+    message?: string;
+    invalidatedSessions?: DatabaseId[];
+  }> {
     const user = await this.getUserByEmail({ email, tenantId: options?.tenantId }, options);
     if (!user) {
       return { status: false, message: "User not found" };
@@ -854,7 +878,16 @@ export class Auth {
 
     // We don't hash here because updateUser() handles hashing and validation
     await this.updateUser(user._id, { password }, options);
-    return { status: true };
+
+    // Invalidate all other sessions across all devices for security
+    // Skip the current session so the password-changer stays logged in
+    const invalidatedIds = await this.invalidateAllUserSessions(
+      user._id,
+      options,
+      currentSessionId,
+    );
+
+    return { status: true, invalidatedSessions: invalidatedIds };
   }
 
   /**

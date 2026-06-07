@@ -24,7 +24,7 @@
 import type { ISODateString } from "@databases/db-interface";
 import { BloomFilter } from "@utils/bloom-filter";
 import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { SESSION_COOKIE_NAME, getSessionCookieName } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
@@ -291,7 +291,7 @@ async function handleSessionRotation(
       const isProd = !dev && process.env.TEST_MODE !== "true";
       const isSecure =
         event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
-      const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+      const cookieName = getSessionCookieName(isSecure);
 
       event.cookies.set(cookieName, newSessionId, {
         path: "/",
@@ -383,7 +383,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // ── Compute cookie config once (used by turbo check + normal flow) ─────
   const isProd = !dev && process.env.TEST_MODE !== "true";
   const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
-  const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+  const cookieName = getSessionCookieName(isSecure);
 
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
   // dynamic imports, tenant resolution, or CSRF work. On a warm cache hit,

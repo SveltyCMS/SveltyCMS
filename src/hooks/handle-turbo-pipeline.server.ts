@@ -16,6 +16,7 @@ import { dev } from "$app/environment";
 import { getSetupState, SetupState, isSetupComplete, getTestSecret } from "@src/utils/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
+import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import {
   isApiLike,
   isBootstrapRoute,
@@ -212,7 +213,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
       // 🛡️ HARDENING: Resolve real user from session if possible to maintain test state
       const sessionId =
-        event.cookies.get("auth_sessions") || event.cookies.get("__Host-auth_sessions");
+        event.cookies.get(SESSION_COOKIE_NAME) ||
+        event.cookies.get(`__Host-${SESSION_COOKIE_NAME}`);
       if (sessionId) {
         // Using globalThis access for the auth service to ensure we don't trigger recursive imports
         const authService = (globalThis as any).__AUTH_INSTANCE__;

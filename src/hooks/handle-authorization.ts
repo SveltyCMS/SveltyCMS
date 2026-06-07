@@ -12,6 +12,7 @@
 import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
 import { SetupState } from "@utils/setup-check";
+import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 
 // 🚀 Module-level cached env flags
 const IS_BUN_TEST = !!process.env.BUN_TEST;
@@ -283,9 +284,9 @@ function _populateTurboAuth(
 ): void {
   try {
     const sessionId =
-      event.cookies.get("auth_sessions") ||
-      event.cookies.get("__Host-auth_sessions") ||
-      event.cookies.get("__Secure-auth_sessions");
+      event.cookies.get(SESSION_COOKIE_NAME) ||
+      event.cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
+      event.cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
 
     if (!sessionId) return;
 

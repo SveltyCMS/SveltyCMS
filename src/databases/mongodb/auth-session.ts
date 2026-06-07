@@ -19,6 +19,8 @@ export const SessionSchema = new Schema(
     rotated: { type: Boolean, default: false },
     rotatedTo: { type: String },
     lastActiveAt: { type: Date, default: Date.now },
+    userAgent: { type: String }, // Device tracking (browser/OS info)
+    ipAddress: { type: String }, // Security auditing (client IP)
   },
   {
     timestamps: true,

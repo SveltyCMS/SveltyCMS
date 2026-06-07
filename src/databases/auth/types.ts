@@ -109,6 +109,9 @@ export interface Session {
   rotatedTo?: DatabaseId; // ID of the new session this was rotated to
   tenantId?: DatabaseId | null; // Identifier for the tenant the session belongs to (in multi-tenant mode)
   user_id: DatabaseId; // The ID of the user who owns the session
+  userAgent?: string; // User-Agent string captured at session creation (device tracking)
+  ipAddress?: string; // IP address captured at session creation (security auditing)
+  lastActiveAt?: ISODateString; // Last time this session was actively used
 }
 
 // Token Interface

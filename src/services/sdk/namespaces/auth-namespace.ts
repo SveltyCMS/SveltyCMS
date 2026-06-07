@@ -232,7 +232,9 @@ export class AuthNamespace {
       throw new AppError("Tenant ID required for login", 400);
     }
 
-    const userLookup: { email: string; tenantId?: DatabaseId | null } = { email };
+    const userLookup: { email: string; tenantId?: DatabaseId | null } = {
+      email,
+    };
     if (getPrivateSettingSync("MULTI_TENANT") === true)
       userLookup.tenantId = tenantId as DatabaseId;
 
@@ -244,7 +246,9 @@ export class AuthNamespace {
 
     const user = result.data;
     if (user.blocked || !user.password) {
-      logger.debug("Login failed: User blocked or no password", { userId: user._id });
+      logger.debug("Login failed: User blocked or no password", {
+        userId: user._id,
+      });
       throw new AppError("Account suspended or incomplete", 401);
     }
 
@@ -276,6 +280,22 @@ export class AuthNamespace {
     const auth = await this.getAuth();
     if (!auth) throw new AppError("Authentication system not initialized", 500);
     return auth.deleteSession(sessionId as DatabaseId);
+  }
+
+  async getActiveSessions(userId: string, options: LocalApiOptions = {}) {
+    const auth = await this.getAuth();
+    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return auth.getActiveSessions(userId as DatabaseId, {
+      tenantId: options.tenantId as DatabaseId,
+    });
+  }
+
+  async invalidateAllUserSessions(userId: string, options: LocalApiOptions = {}) {
+    const auth = await this.getAuth();
+    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return auth.invalidateAllUserSessions(userId as DatabaseId, {
+      tenantId: options.tenantId as DatabaseId,
+    });
   }
 
   async updateRoles(roles: Role[], options: { user: any; tenantId?: DatabaseId | null }) {
@@ -377,11 +397,17 @@ export class AuthNamespace {
 
     switch (action) {
       case "delete":
-        return auth.deleteUsers(userIds as DatabaseId[], { tenantId: tenantId as DatabaseId });
+        return auth.deleteUsers(userIds as DatabaseId[], {
+          tenantId: tenantId as DatabaseId,
+        });
       case "block":
-        return auth.blockUsers(userIds as DatabaseId[], { tenantId: tenantId as DatabaseId });
+        return auth.blockUsers(userIds as DatabaseId[], {
+          tenantId: tenantId as DatabaseId,
+        });
       case "unblock":
-        return auth.unblockUsers(userIds as DatabaseId[], { tenantId: tenantId as DatabaseId });
+        return auth.unblockUsers(userIds as DatabaseId[], {
+          tenantId: tenantId as DatabaseId,
+        });
       default:
         throw new AppError("Invalid action", 400);
     }

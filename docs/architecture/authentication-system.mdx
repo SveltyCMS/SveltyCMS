@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-05-25"
+updated: "2026-06-07"
 tags:
   - "security"
   - "auth"
@@ -41,7 +41,7 @@ SveltyCMS uses high-entropy, cryptographically secure random tokens for session 
 
 - **32 characters** (alphanumeric), generated via `generateRandomToken()` using `crypto.getRandomValues()`
 - **Stored directly** in cookies and database — no additional hashing required due to CSPRNG source
-- **Rotated automatically** on sensitive actions (login, password change)
+- **Rotated automatically** on login. On password change, all other active sessions across all devices are immediately invalidated.
 
 ### Multi-Tenancy 2.0
 
@@ -127,6 +127,14 @@ To ensure comprehensive access termination and prevent orphaned data, SveltyCMS 
 - **Session Invalidation**: All active sessions (L0, L1, and L2) are immediately purged from memory, Redis, and the database.
 - **Token Cleanup**: All pending cryptographic tokens (invites, resets, API keys) associated with the user are permanently deleted to prevent unauthorized reuse.
 
+### Cascading Password Change
+
+When a user changes their password, all active sessions (L0, L1, and L2) except the current one are immediately purged to terminate any potentially compromised sessions. This ensures that if an attacker had a valid session cookie, they are immediately logged out upon password change.
+
+- **3-Layer Purge**: Sessions are removed from in-memory cache, Redis, and the database.
+- **Turbo Auth Invalidation**: Any cached auth contexts in the Turbo GET fast-path are also cleared.
+- **Current Session Preserved**: The session making the password change remains active so the legitimate user stays logged in.
+
 ### Hardened Token Validation
 
 The token validation system enforces strict metadata checks to prevent exploitation:
@@ -139,6 +147,7 @@ The token validation system enforces strict metadata checks to prevent exploitat
 
 ## Related Documentation
 
+- [Login Security](./security/login-security.mdx) — Session & device tracking, 2FA accessibility, OAuth hardening
 - [Cache System Architecture](./cache-system.mdx)
 - [Multi-Tenant Isolation](./multi-tenancy.mdx)
 - [Audit Logging & Compliance](./user-management-overview.mdx)

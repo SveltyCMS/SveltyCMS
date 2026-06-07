@@ -9,6 +9,44 @@
 export const SESSION_COOKIE_NAME = "auth_sessions";
 
 /**
+ * Returns the session cookie name with the correct security prefix.
+ *
+ * - On secure connections (HTTPS or production non-localhost), uses the
+ *   `__Host-` prefix per RFC 6265bis for subdomain isolation.
+ * - On insecure connections (localhost/dev), uses the raw cookie name.
+ *
+ * **DO NOT hardcode cookie names anywhere else.** Use this function or
+ * `SESSION_COOKIE_NAME` directly with the secure-prefix pattern.
+ *
+ * @param isSecure - Whether the connection is HTTPS or production
+ * @returns The correctly prefixed session cookie name
+ */
+export function getSessionCookieName(isSecure: boolean): string {
+  return isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+}
+
+/**
+ * Reads the session cookie value from an event's cookies, trying both the
+ * __Host- prefixed and unprefixed variants in the correct security order.
+ *
+ * - Secure connections: ONLY accept __Host- prefixed cookie (prevents subdomain cookie tossing)
+ * - Insecure connections: ONLY accept unprefixed cookie (never fall back to __Host-)
+ *
+ * @param cookies - The event's Cookies object
+ * @param isSecure - Whether the connection is secure
+ * @returns The session ID string, or undefined if not found
+ */
+export function readSessionCookie(
+  cookies: { get: (name: string) => string | undefined },
+  isSecure: boolean,
+): string | undefined {
+  if (isSecure) {
+    return cookies.get(`__Host-${SESSION_COOKIE_NAME}`);
+  }
+  return cookies.get(SESSION_COOKIE_NAME);
+}
+
+/**
  * Generates a cryptographically secure random alphanumeric token with zero bias.
  *
  * Uses rejection sampling to eliminate the modulo bias present in simpler
