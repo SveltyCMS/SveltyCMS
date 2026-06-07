@@ -280,14 +280,14 @@ function getActionBadgeClass(action: string) {
 
 	<div class="sticky top-0 z-10 mb-6 flex items-center justify-between">
 		<div class="relative w-full">
-			<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-surface-400">
+			<div class="absolute inset-y-0 inset-s-0 ps-3.5 flex items-center pointer-events-none text-surface-400">
 				<iconify-icon icon="material-symbols:search-rounded" width="20"></iconify-icon>
 			</div>
 			<input
 				type="text"
 				bind:value={searchTerm}
 				placeholder="Search Permissions..."
-				class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-surface-200  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
+				class="w-full ps-11 pe-4 py-2.5 rounded-xl border border-surface-200  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
 				aria-label="Search permissions"
 			/>
 		</div>
@@ -316,6 +316,7 @@ function getActionBadgeClass(action: string) {
 								class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500  dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 								onclick={() => handleSort('name')}
 								title="Click to sort by permission name"
+								aria-label="Sort by permission name"
 							>
 								Permission Name
 								{#if sortBy === 'name' && sortOrder !== 0}
@@ -333,6 +334,7 @@ function getActionBadgeClass(action: string) {
 								class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:text-primary-600 dark:hover:text-tertiary-500 transition-colors mx-auto"
 								onclick={() => handleSort('action')}
 								title="Click to sort by action"
+								aria-label="Sort by action"
 							>
 								Action
 								{#if sortBy === 'action' && sortOrder !== 0}

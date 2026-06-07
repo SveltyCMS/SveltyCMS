@@ -197,14 +197,14 @@ and proper focus management. Renders tools from the auto-discovered registry.
 
 				<!-- Tooltip -->
 				<div
-					class="tooltip pointer-events-none absolute left-1/2 top-0 z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 dark:bg-surface-50 shadow-lg"
+					class="tooltip pointer-events-none absolute inset-s-1/2 top-0 z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 dark:bg-surface-50 shadow-lg"
 				>
 					<div class="font-medium">{tool.name}</div>
 					{#if tool.description}
 						<div class="text-[10px] text-surface-300">{tool.description}</div>
 					{/if}
 					<!-- Arrow -->
-					<div class="absolute left-1/2 top-full -mt-1 h-2 w-2 -translate-x-1/2 -rotate-45 bg-surface-900 dark:bg-surface-50"></div>
+					<div class="absolute inset-s-1/2 top-full -mt-1 h-2 w-2 -translate-x-1/2 -rotate-45 bg-surface-900 dark:bg-surface-50"></div>
 				</div>
 			</button>
 		{/each}

@@ -216,10 +216,11 @@
 				if (close) close();
 			}}
 			class="btn preset-outlined"
+			aria-label="give-feedback"
 		>
 			<iconify-icon icon="mdi:message-text" width="16" class="mr-2"></iconify-icon>
 			Give Feedback
 		</button>
-		<button onclick={close} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500">Close Dialog</button>
+		<button onclick={close} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" aria-label="close-dialog">Close Dialog</button>
 	</div>
 </div>

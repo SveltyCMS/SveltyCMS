@@ -872,7 +872,7 @@ bulk actions, and predictive preloading.
 					type="button"
 					onkeydown={() => {}}
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
-					aria-label="Open Sidebar"
+					aria-label="open-sidebar"
 					class="preset-outlined-surface-500 btn-icon mt-1"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width={24}></iconify-icon>
@@ -906,7 +906,7 @@ bulk actions, and predictive preloading.
 				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
 				class="preset-outlined-surface-500 btn-icon p-1 sm:hidden"
-				aria-label="Expand/Collapse Filters"
+				aria-label="expand-collapse-filters"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width={24}></iconify-icon>
 			</button>
@@ -955,12 +955,12 @@ bulk actions, and predictive preloading.
 			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
 				<div class="flex items-center gap-2">
 					<label class="flex items-center">
-						<input type="checkbox" bind:checked={selectAllColumns.value} class="mr-1" />
+						<input type="checkbox" bind:checked={selectAllColumns.value} class="mr-1" aria-label="select-all-columns" />
 
 						{entrylist_all()}
 					</label>
 
-					<button class="bg-surface-400 btn text-white" onclick={resetViewSettings}>
+					<button class="bg-surface-400 btn text-white" onclick={resetViewSettings} aria-label="reset-view">
 						<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
 						Reset View
 					</button>
@@ -979,6 +979,7 @@ bulk actions, and predictive preloading.
 									? 'dark:preset-filled-primary-500 preset-filled-tertiary-500'
 									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
 								onclick={() => handleColumnVisibilityToggle(header)}
+								aria-label="toggle-column-visibility"
 							>
 								{#if header.visible}
 									<iconify-icon icon="fa:check" width={24} class="mr-1"></iconify-icon>
@@ -1016,7 +1017,7 @@ bulk actions, and predictive preloading.
 											urlUpdates.page = '1';
 											updateURL(urlUpdates);
 										}}
-										aria-label="Clear All Filters"
+										aria-label="clear-all-filters"
 										class="preset-outlined-surface-500 btn-icon"
 									>
 										<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
@@ -1069,7 +1070,8 @@ bulk actions, and predictive preloading.
 										? 'text-tertiary-500 dark:text-primary-500'
 										: 'text-tertiary-500 dark:text-primary-500'}"
 									onclick={() => onSortChange((header as TableHeader).name || '')}
-								>
+																		aria-label="sort-column"
+																	>
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
 										{const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
@@ -1229,7 +1231,7 @@ bulk actions, and predictive preloading.
 		</div>
 		<!-- Pagination -->
 		<div
-			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-secondary-100 dark:text-surface-50 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			class="sticky bottom-0 start-0 end-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-secondary-100 dark:text-surface-50 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
 		>
 			<TablePagination
 				currentPage={serverPagination.currentPage}

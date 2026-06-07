@@ -85,7 +85,7 @@ function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
 		>
 			{#each items as item, index (item.id)}
 				<div animate:flip={{ duration: flipDurationMs }}>
-					<button onclick={() => onSelectField(item, index)} class="group relative w-full text-left">
+					<button onclick={() => onSelectField(item, index)} class="group relative w-full text-left" aria-label="Select field">
 						<!-- Selection Indicator -->
 						{#if selectedFieldId === item.id}
 							<div class="absolute -left-1 -top-1 -right-1 -bottom-1 rounded-xl border-2 border-primary-500 ring-4 ring-primary-500/10"></div>

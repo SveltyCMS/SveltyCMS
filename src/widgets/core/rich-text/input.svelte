@@ -519,6 +519,7 @@
 												? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
 												: 'preset-tonal'} flex items-center gap-2"
 											onclick={(e) => toggleDropdown(btn.label, e)}
+											aria-label={btn.label}
 										>
 											{#if btn.icon}
 												<iconify-icon icon="mdi:{btn.icon}" width="20"></iconify-icon>
@@ -531,7 +532,7 @@
 									</SystemTooltip>
 									{#if activeDropdown === btn.label}
 										<div
-											class="absolute top-full left-0 mt-1 min-w-45 rounded-lg border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
+											class="absolute top-full inset-s-0 mt-1 min-w-45 rounded-lg border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
@@ -554,6 +555,7 @@
 																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
 																		? 'bg-blue-100 border-blue-500 dark:bg-blue-600 dark:border-blue-400'
 																		: 'bg-surface-50 border-surface-200 dark:bg-surface-700 dark:border-surface-600'}"
+																	aria-label="{r + 1} by {c + 1} table"
 																	onmouseover={() => {
 																		hoverRows = r + 1;
 																		hoverCols = c + 1;
@@ -571,7 +573,6 @@
 																			.run();
 																		closeDropdowns();
 																	}}
-																	aria-label="{r + 1} by {c + 1} table"
 																></button>
 															{/each}
 														{/each}
@@ -585,7 +586,7 @@
 															editor?.chain().focus().unsetColor().run();
 															closeDropdowns();
 														}}
-													>
+													aria-label="reset-color">
 														<iconify-icon icon="mdi:format-color-clear" width="18"></iconify-icon>
 														Reset Color
 													</button>
@@ -636,8 +637,8 @@
 															onkeydown={(e) => e.key === 'Enter' && setLink()}
 														/>
 														<div class="flex justify-end gap-2">
-															<Button variant="secondary" size="sm" onclick={closeDropdowns}>Cancel</Button>
-															<Button variant="primary" size="sm" onclick={setLink}>Set Link</Button>
+															<Button variant="secondary" size="sm" onclick={closeDropdowns} aria-label="cancel-link-setup">Cancel</Button>
+															<Button variant="primary" size="sm" onclick={setLink} aria-label="set-link">Set Link</Button>
 														</div>
 													</div>
 												</div>
@@ -653,8 +654,8 @@
 															onkeydown={(e) => e.key === 'Enter' && setVideo()}
 														/>
 														<div class="flex justify-end gap-2">
-															<Button variant="secondary" size="sm" onclick={closeDropdowns}>Cancel</Button>
-															<Button variant="primary" size="sm" onclick={setVideo}>Embed</Button>
+															<Button variant="secondary" size="sm" onclick={closeDropdowns} aria-label="cancel-video-embed">Cancel</Button>
+															<Button variant="primary" size="sm" onclick={setVideo} aria-label="embed-video">Embed</Button>
 														</div>
 													</div>
 												</div>
@@ -664,6 +665,7 @@
 														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
 															? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
 															: 'text-surface-700 dark:text-white'}"
+														aria-label={item.label}
 														onclick={(e) => {
 															e.stopPropagation();
 															item.cmd();
@@ -854,7 +856,7 @@
 							editor?.chain().focus().setHardBreak().run();
 							showSlashMenu = false;
 						}}
-					>
+					aria-label="insert-hard-break">
 						<iconify-icon icon="mdi:arrow-down-bold" width="22"></iconify-icon>
 						<div class="text-left">
 							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
@@ -868,7 +870,7 @@
 								editor?.chain().focus().insertContent('/ai ');
 								showSlashMenu = false;
 							}}
-						>
+						aria-label="ask-ai">
 							<iconify-icon icon="mdi:sparkles" width="22"></iconify-icon>
 							<div class="text-left">
 								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>

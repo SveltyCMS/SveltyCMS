@@ -94,6 +94,7 @@
 							? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
 							: 'preset-filled-secondary-500'}"
 					onclick={() => toggleGroupType(value!)}
+					aria-label="toggle-condition-type"
 				>
 					{value.type}
 				</button>
@@ -106,6 +107,7 @@
 				<button
 					class="btn btn-sm preset-tonal-surface flex items-center gap-1.5"
 					onclick={() => addRule(value!)}
+					aria-label="add-rule"
 				>
 					<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 					<span class="hidden sm:inline">Rule</span>
@@ -114,6 +116,7 @@
 				<button
 					class="btn btn-sm preset-tonal-surface flex items-center gap-1.5"
 					onclick={() => addGroup(value!)}
+					aria-label="add-sub-group"
 				>
 					<iconify-icon icon="mdi:group" width="16"></iconify-icon>
 					<span class="hidden sm:inline">Sub-group</span>
@@ -127,7 +130,7 @@
 				<div transition:slide={{ duration: 180 }}>
 					{#if isGroup(item)}
 						<!-- Recursive Sub-Group -->
-						<div class="ml-8 border-l-2 border-primary-400/30 pl-5 pt-1">
+						<div class="ml-8 border-l-2 border-primary-400/30 ps-5 pt-1">
 							<LogicBuilder bind:value={value.rules[i] as LogicGroup} {fields} />
 						</div>
 					{:else}
@@ -136,6 +139,7 @@
 							<select
 								bind:value={item.field}
 								class="select select-sm flex-1 min-w-35"
+								aria-label="select-field"
 							>
 								{#each uniqueFields as f}
 									<option value={f.db_fieldName || f.name}>
@@ -147,6 +151,7 @@
 							<select
 								bind:value={item.operator}
 								class="select select-sm w-40"
+								aria-label="select-operator"
 							>
 								{#each operators as op}
 									<option value={op.value}>{op.label}</option>
@@ -158,12 +163,13 @@
 								bind:value={item.value}
 								class="input input-sm flex-1 min-w-30"
 								placeholder="Value (for 'in' use comma-separated)"
+								aria-label="condition-value"
 							/>
 
 							<button
 								class="btn-icon btn-icon-sm text-error-600 hover:bg-error-500/10 dark:text-error-500"
 								onclick={() => removeItem(value!, i)}
-								aria-label="Remove condition"
+								aria-label="remove-condition"
 							>
 								<iconify-icon icon="mdi:trash-can-outline" width="19"></iconify-icon>
 							</button>

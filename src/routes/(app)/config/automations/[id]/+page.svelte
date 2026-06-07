@@ -321,6 +321,7 @@ const steps = [
 						}}
 						disabled={step.number > activeStep + 1}
 						aria-current={activeStep === step.number ? 'step' : undefined}
+						aria-label={step.label}
 					>
 						<iconify-icon icon={step.icon}></iconify-icon>
 						<span>{step.label}</span>
@@ -348,11 +349,11 @@ const steps = [
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<label class="label">
 								<span class="font-medium">Automation Name <span class="text-error-500">*</span></span>
-								<input type="text" class="input" placeholder="e.g. Notify editors on publish" bind:value={flow.name} />
+								<input type="text" class="input" placeholder="e.g. Notify editors on publish" bind:value={flow.name} aria-label="Automation name" />
 							</label>
 							<label class="label">
 								<span class="font-medium">Description</span>
-								<input type="text" class="input" placeholder="What does this automation do?" bind:value={flow.description} />
+								<input type="text" class="input" placeholder="What does this automation do?" bind:value={flow.description} aria-label="Automation description" />
 							</label>
 						</div>
 
@@ -371,6 +372,7 @@ const steps = [
 										class:border-surface-200={flow.trigger.type !== triggerOption.type}
 										class:dark:border-surface-700={flow.trigger.type !== triggerOption.type}
 										onclick={() => setTriggerType(triggerOption.type as 'event' | 'schedule' | 'manual')}
+										aria-label="Select {triggerOption.label} trigger"
 									>
 										<iconify-icon icon={triggerOption.icon} class="text-2xl mb-1"></iconify-icon>
 										<p class="font-medium text-sm">{triggerOption.label}</p>
@@ -399,11 +401,12 @@ const steps = [
 												class="checkbox"
 												checked={flow.trigger.events?.includes(eventMeta.event)}
 												onchange={() => toggleEvent(eventMeta.event)}
+												aria-label="Select event: {eventMeta.label}"
 											/>
 											<iconify-icon icon={eventMeta.icon} class="text-lg"></iconify-icon>
 											<div>
 												<span class="text-sm font-medium">{eventMeta.label}</span>
-												<span class="badge preset-tonal-surface text-[10px] ml-1">{eventMeta.category}</span>
+												<span class="badge preset-tonal-surface text-[10px] ms-1">{eventMeta.category}</span>
 											</div>
 										</label>
 									{/each}
@@ -416,14 +419,14 @@ const steps = [
 							<div class="space-y-3" transition:slide>
 								<label class="label">
 									<span class="font-medium">Cron Expression</span>
-									<input type="text" class="input font-mono" placeholder="*/5 * * * *" bind:value={flow.trigger.cron} />
+									<input type="text" class="input font-mono" placeholder="*/5 * * * *" bind:value={flow.trigger.cron} aria-label="Cron expression" />
 									<p class="text-xs opacity-60 mt-1">
 										Examples: <code>0 9 * * 1-5</code> (weekdays at 9am), <code>*/15 * * * *</code> (every 15 min)
 									</p>
 								</label>
 								<label class="label">
 									<span class="font-medium">Description</span>
-									<input type="text" class="input" placeholder="e.g. Every weekday at 9 AM" bind:value={flow.trigger.cronLabel} />
+									<input type="text" class="input" placeholder="e.g. Every weekday at 9 AM" bind:value={flow.trigger.cronLabel} aria-label="Cron description" />
 								</label>
 							</div>
 						{/if}
@@ -443,7 +446,7 @@ const steps = [
 
 						<!-- Active Toggle -->
 						<label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors">
-							<input type="checkbox" class="checkbox" bind:checked={flow.active} />
+							<input type="checkbox" class="checkbox" bind:checked={flow.active} aria-label="Toggle active" />
 							<div>
 								<span class="font-medium">Active</span>
 								<p class="text-xs opacity-60">Only active automations will be triggered by events.</p>
@@ -482,19 +485,19 @@ const steps = [
 									transition:slide
 								>
 									<!-- Drag Handle -->
-									<div class="absolute left-1 top-1/2 -translate-y-1/2 opacity-20 hover:opacity-100 cursor-grab active:cursor-grabbing">
+									<div class="absolute inset-s-1 top-1/2 -translate-y-1/2 opacity-20 hover:opacity-100 cursor-grab active:cursor-grabbing">
 										<iconify-icon icon="mdi:drag-vertical" class="text-xl"></iconify-icon>
 									</div>
 
 									<!-- Operation Header -->
-									<div class="flex items-center justify-between mb-3 ml-4">
+									<div class="flex items-center justify-between mb-3 ms-4">
 										<div class="flex items-center gap-2">
 											<span class="badge preset-tonal-primary text-xs">{i + 1}</span>
 											<iconify-icon icon={meta?.icon || 'mdi:cog'} class="text-lg"></iconify-icon>
 											<span class="font-bold">{meta?.label || op.type}</span>
 										</div>
 										<div class="flex items-center gap-1">
-											<button class="btn btn-sm variant-ghost-surface" onclick={() => moveOperation(i, -1)} disabled={i === 0} title="Move Up">
+											<button class="btn btn-sm variant-ghost-surface" onclick={() => moveOperation(i, -1)} disabled={i === 0} title="Move Up" aria-label="Move operation up">
 												<iconify-icon icon="mdi:chevron-up"></iconify-icon>
 											</button>
 											<button
@@ -502,10 +505,11 @@ const steps = [
 												onclick={() => moveOperation(i, 1)}
 												disabled={i === flow.operations.length - 1}
 												title="Move Down"
+												aria-label="Move operation down"
 											>
 												<iconify-icon icon="mdi:chevron-down"></iconify-icon>
 											</button>
-											<button class="btn btn-sm preset-tonal-error" onclick={() => removeOperation(i)} title="Remove">
+											<button class="btn btn-sm preset-tonal-error" onclick={() => removeOperation(i)} title="Remove" aria-label="Remove operation">
 												<iconify-icon icon="mdi:close"></iconify-icon>
 											</button>
 										</div>
@@ -518,11 +522,11 @@ const steps = [
 											<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 												<label class="label md:col-span-2">
 													<span class="text-sm">Payload URL</span>
-													<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={cfg.url} />
+													<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={cfg.url} aria-label="Webhook URL" />
 												</label>
 												<label class="label">
 													<span class="text-sm">Method</span>
-													<select class="select" bind:value={cfg.method}>
+													<select class="select" bind:value={cfg.method} aria-label="HTTP method">
 														<option value="POST">POST</option>
 														<option value="PUT">PUT</option>
 														<option value="PATCH">PATCH</option>
@@ -533,15 +537,16 @@ const steps = [
 												<label class="label">
 													<span class="text-sm">Body Template <span class="text-xs opacity-50">(supports tokens)</span></span>
 													<textarea
-														class="textarea font-mono text-xs pr-10"
+														class="textarea font-mono text-xs pe-10"
 														rows="3"
 														placeholder={'{{ JSON.stringify(entry) }}'}
 														bind:value={cfg.body}
+														aria-label="Webhook body"
 													></textarea>
 												</label>
-												<div class="absolute right-2 bottom-2 flex gap-1">
+												<div class="absolute inset-e-2 bottom-2 flex gap-1">
 													<div class="dropdown">
-														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
+														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token" aria-label="Insert token into body">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
@@ -561,7 +566,7 @@ const steps = [
 											{#if cfg.url?.startsWith('https')}
 												<label class="label" transition:slide>
 													<span class="text-sm">Secret (HMAC-SHA256)</span>
-													<input type="security" class="input font-mono text-xs" placeholder="Optional signing secret" bind:value={cfg.secret} />
+													<input type="security" class="input font-mono text-xs" placeholder="Optional signing secret" bind:value={cfg.secret} aria-label="Webhook secret" />
 												</label>
 											{/if}
 										</div>
@@ -574,11 +579,11 @@ const steps = [
 											<div class="relative">
 												<label class="label">
 													<span class="text-sm">To <span class="text-xs opacity-50">(supports tokens)</span></span>
-													<input type="text" class="input pr-10" placeholder={'editor@example.com or {{ entry.author_email }}'} bind:value={cfg.to} />
+													<input type="text" class="input pe-10" placeholder={'editor@example.com or {{ entry.author_email }}'} bind:value={cfg.to} aria-label="Email recipient" />
 												</label>
-												<div class="absolute right-2 bottom-1.5 flex gap-1">
+												<div class="absolute inset-e-2 bottom-1.5 flex gap-1">
 													<div class="dropdown">
-														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
+														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token" aria-label="Insert token into recipient">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
@@ -598,11 +603,11 @@ const steps = [
 											<div class="relative">
 												<label class="label">
 													<span class="text-sm">Subject <span class="text-xs opacity-50">(supports tokens)</span></span>
-													<input type="text" class="input pr-10" placeholder={'New article published: {{ entry.title }}'} bind:value={cfg.subject} />
+													<input type="text" class="input pe-10" placeholder={'New article published: {{ entry.title }}'} bind:value={cfg.subject} aria-label="Email subject" />
 												</label>
-												<div class="absolute right-2 bottom-1.5 flex gap-1">
+												<div class="absolute inset-e-2 bottom-1.5 flex gap-1">
 													<div class="dropdown">
-														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
+														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token" aria-label="Insert token into subject">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
@@ -611,6 +616,7 @@ const steps = [
 																	type="button"
 																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'subject', token.value)}
+																	aria-label="Insert token {token.label}"
 																>
 																	{token.label}
 																</button>
@@ -623,15 +629,16 @@ const steps = [
 												<label class="label">
 													<span class="text-sm">Body (HTML) <span class="text-xs opacity-50">(supports tokens)</span></span>
 													<textarea
-														class="textarea text-xs pr-10"
+														class="textarea text-xs pe-10"
 														rows="4"
 														placeholder={'<p>Entry <strong>{{ entry.title }}</strong> was {{ trigger.event }}.</p>'}
 														bind:value={cfg.body}
+														aria-label="Email body"
 													></textarea>
 												</label>
-												<div class="absolute right-2 bottom-2 flex gap-1">
+												<div class="absolute inset-e-2 bottom-2 flex gap-1">
 													<div class="dropdown">
-														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
+														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token" aria-label="Insert token into email body">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
@@ -640,18 +647,19 @@ const steps = [
 																	type="button"
 																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'body', token.value)}
+																	aria-label="Insert body token {token.label}"
 																>
 																	{token.label}
-																</button>
-															{/each}
-														</div>
+															</button>
+														{/each}
 													</div>
 												</div>
 											</div>
-										</div>
-									{/if}
+									</div>
+								</div>
+							{/if}
 
-									<!-- Log Config -->
+							<!-- Log Config -->
 									{#if op.type === 'log'}
 										{const cfg = op.config as LogOperationConfig}
 										<div class="space-y-3">
@@ -659,11 +667,11 @@ const steps = [
 												<div class="relative md:col-span-2">
 													<label class="label">
 														<span class="text-sm">Message <span class="text-xs opacity-50">(supports tokens)</span></span>
-														<input type="text" class="input pr-10" placeholder={'{{ trigger.event }}: {{ entry.title }}'} bind:value={cfg.message} />
+														<input type="text" class="input pe-10" placeholder={'{{ trigger.event }}: {{ entry.title }}'} bind:value={cfg.message} aria-label="Log message" />
 													</label>
-													<div class="absolute right-2 bottom-1.5 flex gap-1">
+													<div class="absolute inset-e-2 bottom-1.5 flex gap-1">
 														<div class="dropdown">
-															<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
+															<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token" aria-label="Insert token into message">
 																<iconify-icon icon="mdi:code-braces"></iconify-icon>
 															</button>
 															<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
@@ -682,7 +690,7 @@ const steps = [
 												</div>
 												<label class="label">
 													<span class="text-sm">Level</span>
-													<select class="select" bind:value={cfg.level}>
+													<select class="select" bind:value={cfg.level} aria-label="Log level">
 														<option value="info">Info</option>
 														<option value="warn">Warning</option>
 														<option value="error">Error</option>
@@ -698,14 +706,14 @@ const steps = [
 										<div class="grid grid-cols-2 gap-3">
 											<label class="label">
 												<span class="text-sm">Field Name</span>
-												<input type="text" class="input" placeholder="status" bind:value={cfg.field} />
+												<input type="text" class="input" placeholder="status" bind:value={cfg.field} aria-label="Set field name" />
 											</label>
 											<div class="relative">
 												<label class="label">
 													<span class="text-sm">Value <span class="text-xs opacity-50">(supports tokens)</span></span>
-													<input type="text" class="input pr-10" placeholder="reviewed" bind:value={cfg.value} />
+													<input type="text" class="input pe-10" placeholder="reviewed" bind:value={cfg.value} aria-label="Set field value" />
 												</label>
-												<div class="absolute right-2 bottom-1.5 flex gap-1">
+												<div class="absolute inset-e-2 bottom-1.5 flex gap-1">
 													<div class="dropdown">
 														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
@@ -716,6 +724,7 @@ const steps = [
 																	type="button"
 																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'value', token.value)}
+																	aria-label="Insert value token {token.label}"
 																>
 																	{token.label}
 																</button>
@@ -733,11 +742,11 @@ const steps = [
 										<div class="grid grid-cols-3 gap-3">
 											<label class="label">
 												<span class="text-sm">Field</span>
-												<input type="text" class="input" placeholder="status" bind:value={cfg.field} />
+												<input type="text" class="input" placeholder="status" bind:value={cfg.field} aria-label="Condition field" />
 											</label>
 											<label class="label">
 												<span class="text-sm">Operator</span>
-												<select class="select" bind:value={cfg.operator}>
+												<select class="select" bind:value={cfg.operator} aria-label="Condition operator">
 													<option value="equals">Equals</option>
 													<option value="not_equals">Not Equals</option>
 													<option value="contains">Contains</option>
@@ -748,7 +757,7 @@ const steps = [
 											</label>
 											<label class="label">
 												<span class="text-sm">Value</span>
-												<input type="text" class="input" placeholder="publish" bind:value={cfg.value} />
+												<input type="text" class="input" placeholder="publish" bind:value={cfg.value} aria-label="Condition value" />
 											</label>
 										</div>
 									{/if}
@@ -765,6 +774,7 @@ const steps = [
 								<button
 									class="card p-3 text-center border border-surface-300 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded-lg hover:scale-105"
 									onclick={() => addOperation(opType.type)}
+									aria-label="Add {opType.label} operation"
 								>
 									<iconify-icon icon={opType.icon} class="text-xl mb-1"></iconify-icon>
 									<p class="text-xs font-medium">{opType.label}</p>
@@ -841,14 +851,14 @@ const steps = [
 					<!-- Test Execution -->
 					<div class="space-y-3">
 						<div class="flex items-center gap-3">
-							<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={testFlow} disabled={isTesting || isNew}>
+							<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={testFlow} disabled={isTesting || isNew} aria-label="Run test">
 								{#if isTesting}
 									<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 									<span>Testing...</span>
 								{:else}
 									<iconify-icon icon="mdi:play-outline"></iconify-icon>
 									<span>Run Test</span>
-									<span class="text-[10px] opacity-60 ml-1 hidden sm:inline">(Ctrl+Enter)</span>
+									<span class="text-[10px] opacity-60 ms-1 hidden sm:inline">(Ctrl+Enter)</span>
 								{/if}
 							</button>
 							{#if isNew}
@@ -973,31 +983,31 @@ const steps = [
 		<div class="flex items-center justify-between mt-6 p-4 border-t border-surface-200 dark:border-surface-700">
 			<div>
 				{#if activeStep > 1}
-					<button class="btn preset-tonal-surface" onclick={() => (activeStep -= 1)}>
+					<button class="btn preset-tonal-surface" onclick={() => (activeStep -= 1)} aria-label="Go back">
 						<iconify-icon icon="mdi:chevron-left"></iconify-icon>
 						Back
 					</button>
 				{:else}
-					<button class="btn preset-tonal-surface" onclick={() => goto('/config/automations')}>Cancel</button>
+					<button class="btn preset-tonal-surface" onclick={() => goto('/config/automations')} aria-label="Cancel and go back">Cancel</button>
 				{/if}
 			</div>
 
 			<div class="flex items-center gap-2">
 				{#if activeStep < 3}
-					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => (activeStep += 1)} disabled={!canProceed}>
+					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => (activeStep += 1)} disabled={!canProceed} aria-label="Go to next step">
 						Next
 						<iconify-icon icon="mdi:chevron-right"></iconify-icon>
 					</button>
 				{:else}
 					<StickyActions>
-					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={save} disabled={isSaving}>
+					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={save} disabled={isSaving} aria-label="Save automation">
 						{#if isSaving}
 							<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 							Saving...
 						{:else}
 							<iconify-icon icon="mdi:content-save"></iconify-icon>
 							{isNew ? 'Create Automation' : 'Save Changes'}
-							<span class="text-[10px] opacity-60 ml-1 hidden sm:inline">(Ctrl+S)</span>
+							<span class="text-[10px] opacity-60 ms-1 hidden sm:inline">(Ctrl+S)</span>
 						{/if}
 					</button>
 					</StickyActions>

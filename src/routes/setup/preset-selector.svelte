@@ -135,7 +135,7 @@ Default value is 'blank'.
 	<!-- Scroll track -->
 	<div class="relative min-w-0">
 		<div
-			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 left-0 bg-linear-to-r from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollLeft
+			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 start-0 bg-linear-to-r from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollLeft
 				? 'opacity-100'
 				: ''}"
 		></div>
@@ -159,6 +159,7 @@ Default value is 'blank'.
 					type="button"
 					role="option"
 					aria-selected={selected === preset.id}
+					aria-label={preset.title}
 					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-left cursor-pointer snap-start bg-white  dark:backdrop-blur-md border border-black/10  rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-tertiary-500 dark:bg-primary-500/5 dark:hover:bg-primary-300/5 hover:border-tertiary-500 dark:border-primary-500/30 dark:hover:border-primary-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
 					preset.id
 						? 'bg-tertiary-500 dark:bg-primary-500! border-tertiary-500 dark:border-primary-500!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.2),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.1)]! -translate-y-1!'
@@ -171,7 +172,7 @@ Default value is 'blank'.
 
 						{#if preset.complexity}
 							<div
-								class="absolute top-1 right-1 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
+								class="absolute top-1 end-1 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
 								'simple'
 									? 'text-tertiary-600 dark:text-primary-600 bg-tertiary-600 dark:bg-primary-600/10 border-primary-600/30 dark:border-primary-400/40'
 									: preset.complexity === 'moderate'
@@ -201,13 +202,13 @@ Default value is 'blank'.
 					</div>
 
 					{#if selected === preset.id}
-						<iconify-icon icon="mdi:check-circle" width="24" class="absolute right-1 bottom-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" width="24" class="absolute end-1 bottom-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					{/if}
 				</button>
 			{/each}
 		</div>
 		<div
-			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 right-0 bg-linear-to-l from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollRight
+			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 end-0 bg-linear-to-l from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollRight
 				? 'opacity-100'
 				: ''}"
 		></div>

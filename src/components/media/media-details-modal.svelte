@@ -376,31 +376,35 @@
       <button
         onclick={() => activeTab = 'info'}
         class="px-4 py-2 border-b-2 transition-all {activeTab === 'info' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
+        aria-label="info-tags-tab"
       >
         Info & Tags
       </button>
       <button
         onclick={() => activeTab = 'versions'}
         class="px-4 py-2 border-b-2 transition-all {activeTab === 'versions' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
+        aria-label="versions-tab"
       >
         Versions ({file.versions?.length || 0})
       </button>
       <button
         onclick={() => activeTab = 'references'}
         class="px-4 py-2 border-b-2 transition-all {activeTab === 'references' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
+        aria-label="usage-tab"
       >
         Usage
       </button>
       <button
         onclick={() => activeTab = 'share'}
         class="px-4 py-2 border-b-2 transition-all {activeTab === 'share' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
+        aria-label="share-links-tab"
       >
         Share Links ({file.metadata?.sharedLinks?.length || 0})
       </button>
     </div>
 
     <!-- Tab Contents (Scrollable) -->
-    <div class="tab-content flex-1 overflow-y-auto pr-1">
+    <div class="tab-content flex-1 overflow-y-auto pe-1">
       {#if activeTab === 'info'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
           <!-- Metadata Table -->
@@ -426,7 +430,7 @@
                   <button
                     onclick={() => handleRemoveTag(tag)}
                     class="hover:text-error-500"
-                    aria-label="Remove tag {tag}"
+                    aria-label={`remove-tag-${tag}`}
                   >
                     <iconify-icon icon="mdi:close-circle" width="12"></iconify-icon>
                   </button>
@@ -444,11 +448,13 @@
                 placeholder="Add tag..."
                 class="input text-sm py-1.5"
                 disabled={isSavingTags}
+                aria-label="add-tag"
               />
               <button
                 onclick={handleAddTag}
                 class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs py-1.5 px-3"
                 disabled={isSavingTags || !newTagInput.trim()}
+                aria-label="add-tag-button"
               >
                 Add
               </button>
@@ -471,11 +477,13 @@
               bind:this={fileInputEl}
               onchange={handleVersionUpload}
               class="hidden"
+              aria-label="upload-new-version"
             />
             <button
               onclick={triggerFileInput}
               class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs px-4"
               disabled={isUploadingVersion}
+              aria-label="upload-new-version-button"
             >
               {#if isUploadingVersion}
                 <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
@@ -535,6 +543,7 @@
                       onclick={() => handleRestoreVersion(ver.versionNumber)}
                       class="btn preset-tonal-secondary text-[10px] py-1 px-2.5 flex items-center gap-1"
                       disabled={isRestoringVersion}
+                      aria-label="restore-version"
                     >
                       Restore
                     </button>
@@ -608,6 +617,7 @@
                   id="share-password"
                   placeholder="Set password..."
                   class="input text-xs py-1.5 w-full"
+                  aria-label="share-password"
                 />
               </div>
             </div>
@@ -616,6 +626,7 @@
               onclick={handleGenerateShareLink}
               class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs py-1.5 w-full mt-2"
               disabled={isCreatingShare}
+              aria-label="generate-sharing-link"
             >
               {#if isCreatingShare}
                 <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
@@ -651,11 +662,13 @@
                       value={getShareLinkUrl(link.token)}
                       readonly
                       class="input text-[10px] py-1 font-mono flex-1 bg-surface-200 dark:bg-surface-950 border border-surface-300 dark:border-surface-800 rounded"
+                      aria-label="share-link-url"
                     />
                     <button
                       onclick={() => copyToClipboard(getShareLinkUrl(link.token))}
                       class="btn preset-tonal-primary text-[10px] py-1 px-2.5"
                       title="Copy Share Link"
+                      aria-label="copy-share-link"
                     >
                       Copy
                     </button>
@@ -663,6 +676,7 @@
                       onclick={() => handleRevokeShareLink(link.token)}
                       class="btn preset-tonal-error text-[10px] py-1 px-2.5"
                       title="Revoke Share Link"
+                      aria-label="revoke-share-link"
                     >
                       Revoke
                     </button>

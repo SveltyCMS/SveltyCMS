@@ -120,7 +120,7 @@ onMount(() => {
 
 <!-- Command Palette Container -->
 <div
-	class="fixed left-1/2 top-[15%] z-101 w-full max-w-2xl -translate-x-1/2 overflow-hidden rounded-xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900"
+	class="fixed inset-s-1/2 top-[15%] z-101 w-full max-w-2xl -translate-x-1/2 overflow-hidden rounded-xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900"
 	transition:fly={{ y: -20, duration: 200 }}
 	onkeydown={handleKeydown}
 	role="dialog"
@@ -136,7 +136,7 @@ onMount(() => {
 			bind:value={searchQuery}
 			type="text"
 			placeholder="Type a command or search..."
-			class="w-full border-none bg-transparent py-4 pl-3 pr-4 text-lg outline-hidden ring-0 focus:ring-0 dark:text-white"
+			class="w-full border-none bg-transparent py-4 ps-3 pe-4 text-lg outline-hidden ring-0 focus:ring-0 dark:text-white"
 			aria-label="Command search"
 		/>
 		<div class="flex items-center gap-1 rounded-md border border-surface-200 bg-surface-50 px-2 py-0.5 text-xs font-medium text-surface-400 dark:border-surface-700 dark:bg-surface-800">
@@ -149,6 +149,7 @@ onMount(() => {
 		{#if filteredResults.length > 0}
 			{#each filteredResults as item, i}
 				<button
+					id="command-result-{i}"
 					role="option"
 					aria-selected={i === selectedIndex}
 					class="group flex w-full items-center justify-between rounded-lg px-3 py-3 text-left transition-colors {i === selectedIndex ? 'bg-tertiary-500 text-white' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}"
@@ -187,6 +188,7 @@ onMount(() => {
 				<p class="text-sm text-surface-400">Try searching for collections, media, or settings.</p>
 
 				<button
+					id="ai-assistant-fallback"
 					class="mt-6 rounded-lg bg-tertiary-500 px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-105 active:scale-95"
 					onclick={() => {/* AI Action Fallback */}}
 				>

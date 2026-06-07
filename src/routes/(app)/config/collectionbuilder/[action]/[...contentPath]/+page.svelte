@@ -202,6 +202,7 @@ $effect(() => {
 							onclick={handleCollectionDelete}
 							class="preset-filled-error-500 btn flex items-center gap-1"
 							disabled={isLoading}
+							aria-label="Delete collection"
 						>
 							<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
 							<span class="hidden sm:inline">{button_delete()}</span>
@@ -212,6 +213,7 @@ $effect(() => {
 						onclick={() => handleCollectionSave()}
 						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn flex items-center gap-1 min-w-25"
 						disabled={isLoading}
+						aria-label="Save collection"
 					>
 						{#if isLoading}
 							<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>

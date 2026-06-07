@@ -398,10 +398,11 @@ Features:
 				<!-- Min Password Length moved to system settings page -->
 				<div class="hidden">
 					<input
-						id="password-min-length"
-						bind:value={systemSettings.passwordMinLength}
-						type="number"
-					/>
+												id="password-min-length"
+												bind:value={systemSettings.passwordMinLength}
+												type="number"
+												aria-label="password-min-length"
+											/>
 				</div>
 			</div>
 
@@ -498,7 +499,7 @@ Features:
 							</SystemTooltip>
 						</div>
 
-						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2 pr-16">
+						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2 pe-16">
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<span
 									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
@@ -519,9 +520,10 @@ Features:
 							{#if systemAvailable.length}
 								<button
 									type="button"
-									class="preset-filled-surface-500 badge absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
+									class="preset-filled-surface-500 badge absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full"
 									onclick={openSystemPicker}
-									aria-haspopup="dialog"
+																		aria-label="add-system-language"
+																		aria-haspopup="dialog"
 									aria-expanded={showSystemPicker}
 									aria-controls="system-lang-picker"
 								>
@@ -532,7 +534,7 @@ Features:
 							{#if showSystemPicker}
 								<div
 									id="system-lang-picker"
-									class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 p-2 shadow-xl"
+									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded-md border border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 p-2 shadow-xl"
 									role="dialog"
 									aria-label="Add system language"
 									tabindex="-1"
@@ -540,6 +542,7 @@ Features:
 								>
 									<input
 										id="system-lang-search"
+									aria-label="search-system-languages"
 										class="mb-2 w-full rounded border border-surface-200  bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:focus:border-tertiary-500 dark:border-primary-500"
 										placeholder="Search..."
 										bind:value={systemPickerSearch}
@@ -555,6 +558,7 @@ Features:
 												onclick={() => addSystemLanguage(sug)}
 											>
 												<span class="text-black dark:text-white">{displayLang(sug)}</span>
+										aria-label="add-language-{displayLang(sug)}"
 												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 												></iconify-icon>
 											</button>
@@ -579,6 +583,7 @@ Features:
 					</div>
 					<p class="text-[10px] text-slate-500 dark:text-white/40" id="system-lang-help">Select the primary language for your content.</p>
 					<select
+					id="default-content-lang"
 						bind:value={systemSettings.defaultContentLanguage}
 						onblur={() => handleBlur('defaultContentLanguage')}
 						class="input w-full rounded {displayErrors.defaultContentLanguage ? 'border-error-500' : ''}"
@@ -604,7 +609,7 @@ Features:
 						</div>
 
 						<div
-							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
+							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 pe-16 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 								: 'border-surface-200 dark:border-white/5 '}"
 						>
@@ -627,8 +632,9 @@ Features:
 							{/each}
 							<button
 								type="button"
-								class="preset-filled-surface-500 badge absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
+								class="preset-filled-surface-500 badge absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full"
 								onclick={openContentPicker}
+							aria-label="add-content-language"
 								aria-haspopup="dialog"
 								aria-expanded={showContentPicker}
 								aria-controls="content-lang-picker"
@@ -639,7 +645,7 @@ Features:
 							{#if showContentPicker}
 								<div
 									id="content-lang-picker"
-									class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl"
+									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl"
 									role="dialog"
 									aria-label="Add content language"
 									tabindex="-1"
@@ -647,6 +653,7 @@ Features:
 								>
 									<input
 										id="content-lang-search"
+								aria-label="search-content-languages"
 										class="mb-2 w-full rounded border border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500"
 										placeholder="Search languages..."
 										bind:value={contentPickerSearch}
@@ -660,6 +667,7 @@ Features:
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
 												onclick={() => addContentLanguage(sug.code)}
+										aria-label="add-content-language-{sug.name}"
 											>
 												<span class="text-black dark:text-white"
 													>{sug.name} ({sug.code.toUpperCase()}) <span class="text-slate-500 dark:text-white/40">- {sug.native}</span></span
@@ -784,6 +792,7 @@ Features:
 							type="button"
 							class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 rounded flex items-center gap-2"
 							onclick={setupStore.testRedisConnection}
+						aria-label="test-redis-connection"
 							disabled={setupStore.wizard.isLoading}
 						>
 							{#if setupStore.wizard.isLoading}
@@ -818,6 +827,7 @@ Features:
 				onclick={() => (showScaling = !showScaling)}
 			>
 				<iconify-icon icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'} width="18"></iconify-icon>
+			aria-label="toggle-enterprise-scaling"
 				Advanced: Enterprise Scaling (Cloudflare CDN)
 			</button>
 

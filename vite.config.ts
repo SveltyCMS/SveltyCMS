@@ -433,6 +433,19 @@ function stubServerModulesPlugin(): Plugin {
     load(id, options) {
       if (id.startsWith("\0virtual:stub:")) {
         return `export default {};
+export const Schema = { Types: {} };
+export const Model = {};
+export const Connection = {};
+export const Document = {};
+export const Types = { ObjectId: String };
+export const QueryFilter = {};
+export const createPool = () => ({ end: () => {}, promise: () => ({ query: async () => [[]], execute: async () => [[]] }) });
+export const createConnection = () => ({ end: () => {}, query: async () => [] });
+export const Pool = class { end() {}; connect() { return { query: async () => ({ rows: [] }), release: () => {} }; } };
+export const Client = class { connect() {}; end() {}; query = async () => ({ rows: [] }) };
+export const MongoClient = { connect: async () => ({ db: () => ({ collection: () => ({ find: () => ({ toArray: async () => [] }) }) }), close: () => {} }) };
+export const ObjectId = String;
+export const createClient = () => ({ connect: async () => {}, disconnect: async () => {}, get: async () => null, set: async () => {}, del: async () => {} });
 export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
 export const verify = async () => false;
 export const hash = async () => "";

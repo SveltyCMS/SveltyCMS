@@ -255,7 +255,7 @@ Features:
 							AI / Pending Tags
 						</span>
 						{#if !file.metadata?.aiTags?.length}
-							<button class="btn btn-sm variant-filled-secondary" onclick={handleAITagging} disabled={isGenerating}>
+							<button class="btn btn-sm variant-filled-secondary" onclick={handleAITagging} disabled={isGenerating} aria-label="generate-ai-tags">
 								{#if isGenerating}
 									<iconify-icon icon="eos-icons:loading" class="animate-spin"></iconify-icon>
 								{:else}
@@ -280,13 +280,15 @@ Features:
 											if (e.key === 'Escape') editingTag = null;
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'ai')}
-										use:autofocus
-									/>
+																				use:autofocus
+																				aria-label="edit-ai-tag"
+																			/>
 								{:else}
 									<button
 										class="badge variant-filled-secondary flex items-center gap-1 cursor-pointer hover:ring-2 hover:ring-secondary-300"
 										onclick={() => (editingTag = { type: 'ai', index: i, value: tag })}
-									>
+																			aria-label="edit-ai-tag"
+																		>
 										{tag}
 										<span
 											role="button"
@@ -315,6 +317,7 @@ Features:
 							placeholder="Add tag manually..."
 							bind:value={newTagInput}
 							onkeydown={(e) => e.key === 'Enter' && addManualTag()}
+							aria-label="add-tag-manually"
 						/>
 						<button class="btn btn-sm variant-filled-surface" onclick={addManualTag} disabled={!newTagInput.trim()} aria-label="Add Tag">
 							<iconify-icon icon="mdi:plus"></iconify-icon>
@@ -323,7 +326,7 @@ Features:
 
 					{#if file.metadata?.aiTags?.length}
 						<div class="mt-3 pt-3 border-t border-tertiary-500 dark:border-primary-500/20">
-							<button class="btn btn-sm variant-filled-success w-full" onclick={saveAITags} disabled={isSaving}>
+							<button class="btn btn-sm variant-filled-success w-full" onclick={saveAITags} disabled={isSaving} aria-label="save-all-tags">
 								<iconify-icon icon="mdi:check-all"></iconify-icon>
 								<span>Save All to Media Tags</span>
 							</button>
@@ -348,13 +351,15 @@ Features:
 											if (e.key === 'Escape') editingTag = null;
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'user')}
-										use:autofocus
-									/>
+																			use:autofocus
+																			aria-label="edit-saved-tag"
+																		/>
 								{:else}
 									<button
 										class="badge variant-filled-surface flex items-center gap-1 cursor-pointer hover:ring-2 hover:ring-surface-400"
 										onclick={() => (editingTag = { type: 'user', index: i, value: tag })}
-									>
+																			aria-label="edit-saved-tag"
+																		>
 										{tag}
 										<span
 											role="button"

@@ -153,7 +153,7 @@ onMount(loadWebhooks);
 			</h1>
 			<p class="text-sm opacity-50 font-medium">Manage webhook endpoints and event subscriptions</p>
 		</div>
-		<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={openAddModal}>
+		<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={openAddModal} aria-label="Add webhook">
 			<iconify-icon icon="mdi:plus"></iconify-icon>
 			<span>Add Webhook</span>
 		</button>
@@ -171,7 +171,7 @@ onMount(loadWebhooks);
 			<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
 			<h3 class="h3 font-bold">No Webhooks Configured</h3>
 			<p class="mb-6 opacity-60">Add a webhook to start integrating with external systems.</p>
-			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={openAddModal}>Get Started</button>
+			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={openAddModal} aria-label="Add webhook">Get Started</button>
 		</div>
 	{:else}
 		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fade>
@@ -252,19 +252,19 @@ onMount(loadWebhooks);
 			<section class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
 				<label class="label">
 					<span>Webhook Name</span>
-					<input type="text" class="input" placeholder="e.g. My External API" bind:value={activeWebhook.name} />
+					<input type="text" class="input" placeholder="e.g. My External API" bind:value={activeWebhook.name} aria-label="Webhook name" />
 				</label>
 
 				<label class="label">
 					<span>Payload URL</span>
-					<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={activeWebhook.url} />
+					<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={activeWebhook.url} aria-label="Webhook URL" />
 				</label>
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<label class="label text-sm">
 						<span>Secret Key (HMAC-SHA256)</span>
 						<div class="flex gap-1">
-							<input type="text" class="input font-mono text-xs" bind:value={activeWebhook.secret} />
+							<input type="text" class="input font-mono text-xs" bind:value={activeWebhook.secret} aria-label="Secret key" />
 							<button
 								class="btn preset-ghost-surface-500 btn-sm"
 								onclick={() => activeWebhook && (activeWebhook.secret = crypto.randomUUID().replace(/-/g, ''))}
@@ -279,7 +279,7 @@ onMount(loadWebhooks);
 					<div class="space-y-2">
 						<span class="block text-sm">Status</span>
 						<label class="flex items-center gap-2 cursor-pointer">
-							<input type="checkbox" class="checkbox" bind:checked={activeWebhook.active} />
+							<input type="checkbox" class="checkbox" bind:checked={activeWebhook.active} aria-label="Webhook active" />
 							<span>Active (Enabled)</span>
 						</label>
 					</div>
@@ -293,7 +293,7 @@ onMount(loadWebhooks);
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 						{#each eventTypes as event (event)}
 							<label class="flex items-center gap-2 cursor-pointer hover:bg-surface-200 dark:hover:bg-surface-700 p-2 rounded transition-colors">
-								<input type="checkbox" class="checkbox" checked={activeWebhook.events?.includes(event as any)} onchange={() => toggleEvent(event)} />
+								<input type="checkbox" class="checkbox" checked={activeWebhook.events?.includes(event as any)} onchange={() => toggleEvent(event)} aria-label="Select event: {event}" />
 								<span class="text-sm">{event}</span>
 							</label>
 						{/each}
@@ -302,8 +302,8 @@ onMount(loadWebhooks);
 			</section>
 
 			<footer class="p-4 border-t border-surface-300 dark:border-surface-700 flex justify-end gap-2 bg-surface-50 dark:bg-surface-900">
-				<button class="btn preset-ghost-surface-500" onclick={() => (showModal = false)}>Cancel</button>
-				<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" disabled={isSaving} onclick={saveWebhook}>
+				<button class="btn preset-ghost-surface-500" onclick={() => (showModal = false)} aria-label="Cancel editing">Cancel</button>
+				<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" disabled={isSaving} onclick={saveWebhook} aria-label="Save webhook">
 					{#if isSaving}
 						<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 						<span>Saving...</span>

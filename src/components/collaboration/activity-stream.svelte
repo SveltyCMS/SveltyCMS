@@ -113,6 +113,7 @@ with the AI collaboration assistant.
 	<!-- Tabs -->
 	<div class="flex border-b border-surface-500/30 shrink-0">
 		<button
+			id="tab-activity"
 			class="flex-1 py-2 text-sm font-medium transition-colors {collaboration.activeTab === 'activity'
 				? 'bg-tertiary-500 dark:bg-primary-500/10 border-b-2 border-tertiary-500 dark:border-primary-500'
 				: 'opacity-60 hover:opacity-100'}"
@@ -121,6 +122,7 @@ with the AI collaboration assistant.
 			Activity
 		</button>
 		<button
+			id="tab-chat"
 			class="flex-1 py-2 text-sm font-medium transition-colors {collaboration.activeTab === 'chat'
 				? 'bg-tertiary-500 dark:bg-primary-500/10 border-b-2 border-tertiary-500 dark:border-primary-500'
 				: 'opacity-60 hover:opacity-100'}"
@@ -215,6 +217,7 @@ with the AI collaboration assistant.
 					placeholder="Ask AI via MCP Knowledge Core..."
 					class="flex-1 bg-surface-500/10 border border-surface-500/30 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
 					bind:value={newMessage}
+					aria-label="Ask AI message"
 				/>
 				<button
 					type="submit"

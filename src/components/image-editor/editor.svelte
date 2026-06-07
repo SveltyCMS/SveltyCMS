@@ -360,7 +360,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 	{/if}
 
 	{#if hasImage}
-		<div class="pointer-events-none absolute right-3 top-3 z-40 md:right-4 md:top-4">
+		<div class="pointer-events-none absolute inset-e-3 top-3 z-40 md:inset-e-4 md:top-4">
 			<button
 				type="button"
 				class="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-primary-400/35 bg-[linear-gradient(180deg,rgba(42,108,255,0.24),rgba(17,33,77,0.9))] px-3 py-2 text-sm font-medium text-white shadow-[0_14px_30px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:border-primary-300/50 hover:bg-[linear-gradient(180deg,rgba(56,129,255,0.34),rgba(20,39,92,0.96))] disabled:cursor-not-allowed disabled:opacity-50 md:px-4"

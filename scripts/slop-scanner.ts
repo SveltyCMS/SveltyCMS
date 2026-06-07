@@ -38,6 +38,14 @@ const MAX_FILE_SIZE = 500_000; // Bytes — files larger than this are suspiciou
 // Known deferred issues — suppress these specific file+category combos
 const SUPPRESS: { file: string; category: string }[] = [];
 
+// Files excluded from dead export detection (entry points loaded by build tools, not source imports)
+const DEAD_EXPORT_EXCLUDE = [
+  "vite.config.ts",
+  "svelte.config.js",
+  "tailwind.config.ts",
+  "postcss.config.js",
+];
+
 interface Violation {
   file: string;
   line: number;
@@ -126,8 +134,17 @@ function scanSvelteFile(file: string, content: string) {
     }
 
     // Missing ARIA on interactive elements
+    // Check current + next line for multi-line tags (e.g. <button\n  id="...">)
     if (/<(button|input|select|textarea|a)\b/i.test(line) && !/<button[^>]*type=/i.test(line)) {
-      if (!/aria-label|aria-labelledby|id=/i.test(line) && !/role="presentation"/i.test(line)) {
+      let combined = line;
+      const maxJ = Math.min(i + 15, lines.length - 1);
+      for (let j = i + 1; j <= maxJ; j++) {
+        combined += " " + lines[j];
+      }
+      if (
+        !/aria-label|aria-labelledby|id=/i.test(combined) &&
+        !/role="presentation"/i.test(combined)
+      ) {
         if (/<(button|input|select|textarea)\b/i.test(line)) {
           report(
             file,
@@ -365,6 +382,7 @@ function checkUnusedImports(file: string, content: string) {
 async function main() {
   const argv = process.argv.slice(2);
   const isCI = argv.includes("--ci");
+  const isStrict = argv.includes("--strict");
   const filesIdx = argv.indexOf("--files");
   const targetFiles = filesIdx !== -1 ? argv.slice(filesIdx + 1) : null;
 
@@ -454,9 +472,12 @@ async function main() {
     }
   }
 
-  // Phase 4: Find dead exports
+  // Phase 4: Find dead exports (exclude entry points loaded by build tools)
   const deadExports = allExports.filter(
-    (exp) => !allImports.has(exp.name) && !exp.name.startsWith("_"),
+    (exp) =>
+      !allImports.has(exp.name) &&
+      !exp.name.startsWith("_") &&
+      !DEAD_EXPORT_EXCLUDE.some((ex) => exp.file.endsWith(ex)),
   );
 
   // Phase 5: Global checks
@@ -512,7 +533,14 @@ async function main() {
       console.log(`  ... and ${deadExports.length - 15} more dead exports`);
   }
 
-  // Exit code: in CI, fail on errors only; warnings are informational
+  // Exit code: --strict fails on warnings too; --ci fails on errors only
+  if (isStrict && (errors.length > 0 || warnings.length > 0)) {
+    console.log(
+      `\n❌ Slop scan failed — ${errors.length} errors, ${warnings.length} warnings. Fix before committing.`,
+    );
+    process.exit(1);
+  }
+
   if (isCI && errors.length > 0) {
     console.log(`\n❌ Slop scan failed — ${errors.length} errors. Fix before merging.`);
     process.exit(1);

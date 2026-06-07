@@ -223,7 +223,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 
 				<!-- Connected Status Pulse -->
 				<span
-					class="absolute bottom-1 right-1 h-3 w-3 rounded-full border-2 border-white {collaboration.isConnected
+					class="absolute bottom-1 inset-e-1 h-3 w-3 rounded-full border-2 border-white {collaboration.isConnected
 						? 'bg-tertiary-500 dark:bg-primary-500 shadow-[0_0_5px_rgba(var(--color-primary-500),0.8)]'
 						: 'bg-error-500'}"
 					title={collaboration.isConnected ? 'SveltyCMS Knowledge Core: Connected' : 'AI Assistant Offline'}

@@ -170,6 +170,7 @@ const statuses = Object.values(StatusTypes);
 				label={collection_name()}
 				placeholder={collection_name_placeholder()}
 				required
+				aria-label={collection_name()}
 			/>
 			{#if name}
 				<p class="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-50 -mt-2">
@@ -181,13 +182,14 @@ const statuses = Object.values(StatusTypes);
 				<label for="slug" class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50">{collection_slug()}</label>
 				<div class="flex gap-2">
 					<div class="relative flex-1">
-						<iconify-icon icon="mdi:link" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" width="18"></iconify-icon>
+						<iconify-icon icon="mdi:link" class="absolute inset-s-3 top-1/2 -translate-y-1/2 text-surface-500" width="18"></iconify-icon>
 						<input
 							type="text"
 							id="slug"
 							bind:value={slug}
 							placeholder={collection_slug_input()}
-							class="flex h-10 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 pl-10 pr-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+							class="flex h-10 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 ps-10 pe-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+							aria-label="Collection slug"
 						/>
 					</div>
 					<Button
@@ -195,6 +197,7 @@ const statuses = Object.values(StatusTypes);
 						size="sm"
 						onclick={() => (autoUpdateSlug = !autoUpdateSlug)}
 						title="Toggle Auto-update"
+						aria-label={autoUpdateSlug ? 'Disable auto-update' : 'Enable auto-update'}
 					>
 						<iconify-icon icon={autoUpdateSlug ? 'mdi:sync' : 'mdi:sync-off'} width="18"></iconify-icon>
 					</Button>
@@ -207,6 +210,7 @@ const statuses = Object.values(StatusTypes);
 					id="status"
 					bind:value={status}
 					class="flex h-10 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 appearance-none cursor-pointer"
+					aria-label="Collection status"
 				>
 					{#each statuses as statusOption}
 						<option value={statusOption}>{statusOption}</option>
@@ -234,6 +238,7 @@ const statuses = Object.values(StatusTypes);
 					bind:value={description}
 					placeholder={collection_description_placeholder()}
 					class="flex-1 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-30"
+					aria-label="Collection description"
 				></textarea>
 			</div>
 		</Card>

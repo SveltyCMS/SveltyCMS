@@ -276,12 +276,13 @@ async function handleOpenFileDetails(file: any) {
 					<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 					<span class="hidden md:inline">Upload</span>
 					<input
-						type="file"
-						multiple
-						class="hidden"
-						onchange={handleUpload}
-						accept="image/*,video/*,audio/*,application/pdf"
-					/>
+										type="file"
+										multiple
+										class="hidden"
+										onchange={handleUpload}
+										accept="image/*,video/*,audio/*,application/pdf"
+										aria-label="upload-files"
+									/>
 				</label>
 			</div>
 		{/snippet}
@@ -290,13 +291,13 @@ async function handleOpenFileDetails(file: any) {
 	<!-- Toolbar -->
 	<div class="flex flex-wrap items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 p-4 rounded shadow-sm border border-surface-200 dark:border-surface-700">
 		<div class="flex-1 min-w-75 relative">
-			<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
+			<iconify-icon icon="mdi:magnify" class="absolute inset-s-3 top-1/2 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
 			<input
 				bind:this={searchInput}
 				bind:value={globalSearchValue}
 				type="text"
 				placeholder="Search media... (Mod+F)"
-				class="input pl-10 w-full"
+				class="input ps-10 w-full"
 				aria-label="Search media assets"
 			/>
 		</div>
@@ -326,11 +327,12 @@ async function handleOpenFileDetails(file: any) {
 			</div>
 
 			<button
-				onclick={() => isSelectionMode = !isSelectionMode}
-				class="btn {isSelectionMode ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
-			>
-				{isSelectionMode ? 'Exit Selection' : 'Select'}
-			</button>
+								onclick={() => isSelectionMode = !isSelectionMode}
+								class="btn {isSelectionMode ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
+								aria-label="toggle-selection-mode"
+							>
+								{isSelectionMode ? 'Exit Selection' : 'Select'}
+							</button>
 		</div>
 	</div>
 

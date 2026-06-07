@@ -195,28 +195,28 @@ onMount(loadFlows);
 	>
 		<div class="flex flex-col md:flex-row items-center gap-4">
 			<div class="relative flex-1 w-full">
-				<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-40"></iconify-icon>
-				<input type="text" class="input pl-10 w-full" placeholder="Search automations..." bind:value={searchQuery} />
+				<iconify-icon icon="mdi:magnify" class="absolute inset-s-3 top-1/2 -translate-y-1/2 opacity-40"></iconify-icon>
+				<input type="text" class="input ps-10 w-full" placeholder="Search automations..." bind:value={searchQuery} aria-label="Search automations" />
 			</div>
 
 			<div class="flex items-center gap-2 w-full md:w-auto">
 				<label
 					class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-surface-200 dark:hover:bg-surface-700 rounded transition-colors mr-auto"
 				>
-					<input type="checkbox" class="checkbox" checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
+					<input type="checkbox" class="checkbox" checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} aria-label="Select all automations" />
 					<span class="text-xs font-medium uppercase opacity-60">Select All</span>
 				</label>
 
 				{#if selectedIds.length > 0}
 					<div class="flex items-center gap-1" transition:slide={{ axis: 'x' }}>
-						<span class="text-xs font-bold mr-2">{selectedIds.length} Selected</span>
-						<button class="btn btn-sm preset-tonal-surface" onclick={() => bulkToggle(true)} title="Activate Selected">
+						<span class="text-xs font-bold me-2">{selectedIds.length} Selected</span>
+						<button class="btn btn-sm preset-tonal-surface" onclick={() => bulkToggle(true)} title="Activate Selected" aria-label="Activate selected">
 							<iconify-icon icon="mdi:play" class="text-success-600"></iconify-icon>
 						</button>
-						<button class="btn btn-sm preset-tonal-surface" onclick={() => bulkToggle(false)} title="Pause Selected">
+						<button class="btn btn-sm preset-tonal-surface" onclick={() => bulkToggle(false)} title="Pause Selected" aria-label="Pause selected">
 							<iconify-icon icon="mdi:pause" class="text-warning-600"></iconify-icon>
 						</button>
-						<button class="btn btn-sm preset-tonal-error" onclick={bulkDelete} title="Delete Selected">
+						<button class="btn btn-sm preset-tonal-error" onclick={bulkDelete} title="Delete Selected" aria-label="Delete selected">
 							<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 						</button>
 					</div>
@@ -254,7 +254,7 @@ onMount(loadFlows);
 					>
 						<!-- Checkbox -->
 						<div class="shrink-0">
-							<input type="checkbox" class="checkbox" checked={selectedIds.includes(flow.id)} onchange={() => toggleSelect(flow.id)} />
+							<input type="checkbox" class="checkbox" checked={selectedIds.includes(flow.id)} onchange={() => toggleSelect(flow.id)} aria-label="Select automation" />
 						</div>
 
 						<div class="flex flex-col md:flex-row items-start md:items-center gap-4 flex-1 min-w-0">
@@ -311,7 +311,7 @@ onMount(loadFlows);
 								class="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-surface-200 dark:border-surface-700"
 							>
 								<!-- Stats -->
-								<div class="hidden lg:flex items-center gap-4 text-xs opacity-60 mr-4">
+								<div class="hidden lg:flex items-center gap-4 text-xs opacity-60 me-4">
 									<span title="Total runs">
 										<iconify-icon icon="mdi:play-circle-outline"></iconify-icon>
 										{flow.triggerCount ?? 0}
@@ -331,7 +331,7 @@ onMount(loadFlows);
 										class="btn btn-sm preset-tonal-surface"
 										onclick={() => toggleFlow(flow)}
 										title={flow.active ? 'Pause' : 'Activate'}
-										aria-label="Toggle Active"
+										aria-label={flow.active ? 'Pause automation' : 'Activate automation'}
 									>
 										<iconify-icon icon={flow.active ? 'mdi:pause' : 'mdi:play'}></iconify-icon>
 									</button>

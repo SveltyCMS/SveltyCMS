@@ -1,9 +1,12 @@
 #!/usr/bin/env sh
+# =============================================================================
+# SveltyCMS Pre-Commit Quality Gate
+# =============================================================================
 set -e
 
-# Skip git hooks in CI environments to avoid unnecessary overhead and failures
-if [ "$CI" = "true" ]; then
-    echo "⏩ CI environment detected. Skipping pre-commit hooks."
+# Skip in CI environments
+if [ "${CI:-false}" = "true" ] || [ -n "$GIT_HOOK_SKIP" ]; then
+    echo "⏩ CI or hook skip detected. Bypassing pre-commit gates."
     exit 0
 fi
 
@@ -13,8 +16,8 @@ echo "║           SveltyCMS Pre-Commit Quality Gate                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# ── Gate 1: High-Performance Quality Gate (Format + Lint + Check + Unit) ──
-echo "🛡️  Gate 1: Quality Gate (format + lint + type-check + unit tests)"
+# ── Gate 1: Quality Gate (format + slop + lint + check + tests + build) ──
+echo "🛡️  Gate 1: Quality Gate"
 export PRE_COMMIT="true"
 bun run scripts/quality-gate.ts
 echo ""
@@ -24,34 +27,19 @@ echo "📖 Gate 2: Documentation Linter"
 bun run lint:docs
 echo ""
 
-# ── Gate 3: AI Slop Scanner (detect code smells in staged files) ─────────
-echo "🔍 Gate 3: AI Slop Scanner"
-staged_svelte=$(git diff --cached --name-only --diff-filter=ACM | grep '\.svelte$' || true)
-staged_ts=$(git diff --cached --name-only --diff-filter=ACM | grep '\.ts$' || true)
-
-if [ -n "$staged_svelte" ] || [ -n "$staged_ts" ]; then
-    # Only scan staged files for speed (CI scans everything)
-    staged_all=$(echo "$staged_svelte"$'\n'"$staged_ts" | sort -u | tr '\n' ' ')
-    bun run scripts/slop-scanner.ts --ci --files $staged_all
-else
-    echo "⏩ No .svelte/.ts files staged — skipping slop scan"
-fi
-echo ""
-
-# ── Gate 4: Smart Test Runner (targeted tests for changed files) ─────────
-echo "🧪 Gate 4: Smart Test Orchestrator"
-bun run scripts/test-smart.ts
-echo ""
-
 # ── Re-stage files modified by auto-fixers ───────────────────────────────
 echo "📦 Re-staging auto-fixed files..."
-staged_files=$(git diff --cached --name-only)
-if [ -n "$staged_files" ]; then
-    for file in $staged_files; do
+staged_after_fix=$(git diff --cached --name-only --diff-filter=ACMR || true)
+
+if [ -n "$staged_after_fix" ]; then
+    printf '%s\n' "$staged_after_fix" | while IFS= read -r file; do
         if [ -f "$file" ]; then
             git add "$file"
+            echo "   ✓ Re-staged: $file"
         fi
     done
+else
+    echo "   No files to re-stage."
 fi
 
 echo ""

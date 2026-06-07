@@ -297,7 +297,7 @@ functionality for image editing and basic file information display.
 							{/if}
 						</div>
 					{:else}
-						<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
+						<div class="col-span-11 ms-2 grid grid-cols-2 gap-1 text-left">
 							<p class="">{widget_ImageUpload_Type()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).type}</p>
 							<p class="">Path:</p>
@@ -346,7 +346,7 @@ functionality for image editing and basic file information display.
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${getFieldName(field)}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${getFieldName(field)}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert">
 			{validationError}
 		</p>
 	{/if}

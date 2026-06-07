@@ -535,7 +535,7 @@ Advanced icon picker with search, pagination, and favorites.
 					? 'pointer-events-none'
 					: ''}"
 				aria-expanded={hideSearchInput ? showDropdown : undefined}
-				aria-label={hideSearchInput ? 'Change icon (click to browse)' : undefined}
+				aria-label={hideSearchInput ? 'Change icon (click to browse)' : 'Selected icon'}
 			>
 				<iconify-icon
 					icon={iconselected}
@@ -607,7 +607,7 @@ Advanced icon picker with search, pagination, and favorites.
 				role="combobox"
 				bind:value={searchQuery}
 				placeholder={iconselected ? `Replace: ${iconselected}` : iconpicker_placeholder()}
-				class="input w-full pr-10 transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
+				class="input w-full pe-10 transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
 				oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
 				onfocus={handleFocus}
 				aria-label="Search icons"
@@ -620,7 +620,7 @@ Advanced icon picker with search, pagination, and favorites.
 			{#if searchQuery}
 				<button
 					type="button"
-					class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
+					class="absolute inset-e-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
 					onclick={() => {
 						searchQuery = '';
 						debouncedSearch('', selectedLibrary);
@@ -661,6 +661,7 @@ Advanced icon picker with search, pagination, and favorites.
 			<!-- Tabs -->
 			<div class="flex border-b border-surface-200 dark:text-surface-50" role="tablist">
 				<button
+					id="icon-tab-search"
 					role="tab"
 					aria-selected={activeTab === 'search'}
 					onclick={() => switchTab('search')}
@@ -672,6 +673,7 @@ Advanced icon picker with search, pagination, and favorites.
 				</button>
 				{#if showFavorites && hasFavorites}
 					<button
+						id="icon-tab-favorites"
 						role="tab"
 						aria-selected={activeTab === 'favorites'}
 						onclick={() => switchTab('favorites')}
@@ -684,6 +686,7 @@ Advanced icon picker with search, pagination, and favorites.
 				{/if}
 				{#if hasRecent}
 					<button
+						id="icon-tab-recent"
 						role="tab"
 						aria-selected={activeTab === 'recent'}
 						onclick={() => switchTab('recent')}
@@ -766,7 +769,7 @@ Advanced icon picker with search, pagination, and favorites.
 											e.stopPropagation();
 											toggleFavorite(icon);
 										}}
-										class="absolute right-0 top-0 opacity-0 transition-opacity group-hover:opacity-100"
+										class="absolute inset-e-0 top-0 opacity-0 transition-opacity group-hover:opacity-100"
 										aria-label="Remove from favorites"
 									>
 										<iconify-icon icon="mdi:close-circle" width="16" class="text-error-500"></iconify-icon>
