@@ -178,7 +178,8 @@ function scanSvelteFile(file: string, content: string) {
   }
 
   // Directional Tailwind (pl-*/pr-* instead of ps-*/pe-*)
-  const directionalRegex = /\b(pl|pr|ml|mr|left|right)-\d+\b/g;
+  // RTL: detect directional Tailwind classes (but not variant prefixes like file:mr-4)
+  const directionalRegex = /(?:^|\s)(pl|pr|ml|mr|left|right)-\d+\b/g;
   let directionalMatch;
   while ((directionalMatch = directionalRegex.exec(content)) !== null) {
     const lineIdx = content.substring(0, directionalMatch.index).split("\n").length;
@@ -494,14 +495,16 @@ async function main() {
       console.log(`  ... and ${deadExports.length - 15} more dead exports`);
   }
 
-  // Exit code
+  // Exit code: in CI, fail on errors only; warnings are informational
   if (isCI && errors.length > 0) {
-    console.log("\n❌ Slop scan failed — fix errors before merging.");
+    console.log(`\n❌ Slop scan failed — ${errors.length} errors. Fix before merging.`);
     process.exit(1);
   }
 
   if (errors.length === 0 && warnings.length === 0) {
     console.log("\n✅ No slop detected. Codebase is clean.");
+  } else if (errors.length === 0) {
+    console.log(`\n⚠️  ${warnings.length} warnings (review above). Only errors block commits.`);
   }
 }
 

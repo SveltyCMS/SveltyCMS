@@ -165,14 +165,13 @@
 		<div class="mb-8 flex justify-center">
 			<div class="flex space-x-2">
 				{#each welcomeSteps as step, index (index)}
-					<button
+					<button aria-label="Go to step {index + 1}: {step.title}"
 						class="h-3 w-3 rounded-full transition-colors duration-200 {index === currentStep
 							? 'bg-blue-600'
 							: step.completed
 								? 'bg-green-500'
 								: 'bg-gray-300 dark:bg-gray-600'}"
 						onclick={() => (currentStep = index)}
-						aria-label="Go to step {index + 1}: {step.title}"
 					></button>
 				{/each}
 			</div>
@@ -192,8 +191,8 @@
 
 				<!-- Step Action -->
 				<div class="mb-6 text-center">
-					<Button onclick={() => handleStepAction(step)} variant="primary" size="lg" class="px-8">
-						<iconify-icon icon={step.icon} width="20" class="mr-2"></iconify-icon>
+					<Button onclick={() => handleStepAction(step)} variant="primary" size="lg" class="px-8" aria-label={step.action}>
+						<iconify-icon icon={step.icon} width="20" class="me-2"></iconify-icon>
 						{step.action}
 					</Button>
 				</div>
@@ -242,24 +241,24 @@
 	<!-- Footer -->
 	<div class="flex w-full items-center justify-between">
 		<div class="flex space-x-2">
-			<Button onclick={previousStep} variant="ghost" disabled={currentStep === 0}>
-				<iconify-icon icon="mdi:chevron-left" width={16} class="mr-1"></iconify-icon>
+			<Button onclick={previousStep} variant="ghost" disabled={currentStep === 0} aria-label="Previous step">
+				<iconify-icon icon="mdi:chevron-left" width={16} class="me-1"></iconify-icon>
 				Previous
 			</Button>
 		</div>
 
 		<div class="flex space-x-2">
-			<Button onclick={dismissWelcome} variant="ghost">Skip Tour</Button>
+			<Button onclick={dismissWelcome} variant="ghost" aria-label="Skip tour">Skip Tour</Button>
 
 			{#if currentStep < welcomeSteps.length - 1}
-				<Button onclick={nextStep} variant="secondary">
+				<Button onclick={nextStep} variant="secondary" aria-label="Next step">
 					Next
-					<iconify-icon icon="mdi:chevron-right" width={16} class="ml-1"></iconify-icon>
+					<iconify-icon icon="mdi:chevron-right" width={16} class="ms-1"></iconify-icon>
 				</Button>
 			{:else}
-				<Button onclick={goToDashboard} variant="primary">
+				<Button onclick={goToDashboard} variant="primary" aria-label="Go to dashboard">
 					Go to Dashboard
-					<iconify-icon icon="mdi:view-dashboard" width={16} class="ml-2"></iconify-icon>
+					<iconify-icon icon="mdi:view-dashboard" width={16} class="ms-2"></iconify-icon>
 				</Button>
 			{/if}
 		</div>
@@ -281,11 +280,11 @@
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
-					<iconify-icon icon="mdi:shield-check" width={16} class="mr-1 inline"></iconify-icon>
+					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2">
-					<Button
+					<Button aria-label="Done with import/export"
 						onclick={() => {
 							showImportExport = false;
 							markStepCompleted('data-management');

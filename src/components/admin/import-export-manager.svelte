@@ -343,12 +343,12 @@
 		</div>
 
 		<div class="flex gap-3">
-			<button onclick={() => (showExportModal = true)} class="preset-outlined-secondary-500 btn" disabled={loading}>
+			<button onclick={() => (showExportModal = true)} class="preset-outlined-secondary-500 btn" disabled={loading} aria-label="Export data">
 				<iconify-icon icon="mdi:export" width={24}></iconify-icon>
 				Export Data
 			</button>
 
-			<button onclick={() => (showImportModal = true)} class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn" disabled={loading}>
+			<button onclick={() => (showImportModal = true)} class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn" disabled={loading} aria-label="Import data">
 				<iconify-icon icon="mdi:import" width={24}></iconify-icon>
 				Import Data
 			</button>
@@ -358,19 +358,19 @@
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-tertiary-500 btn-icon mr-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
+				<div class="preset-filled-tertiary-500 btn-icon me-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">Export all collections to file</p>
 				</div>
 			</div>
 
-			<button onclick={exportAllData} disabled={loading} class="preset-outline-secondary-500 btn mt-4 w-full">Export Everything</button>
+			<button onclick={exportAllData} disabled={loading} class="preset-outline-secondary-500 btn mt-4 w-full" aria-label="Export all collections">Export Everything</button>
 		</div>
 
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-icon mr-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
+				<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-icon me-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">
@@ -409,7 +409,7 @@
 			<div class="alert preset-filled-success-500">
 				<div class="flex items-center justify-between">
 					<span>Export completed successfully!</span>
-					<button onclick={downloadExport}>
+					<button onclick={downloadExport} aria-label="Download export file">
 						<iconify-icon icon="mdi:download" width={24}></iconify-icon>
 						Download
 					</button>
@@ -446,8 +446,8 @@
 					<div class="mb-3 flex items-center justify-between">
 						<p class="block text-sm font-medium">Select Collections</p>
 						<div class="space-x-2">
-							<button onclick={selectAllCollections} class="preset-outlined-secondary-500 btn">Select All</button>
-							<button onclick={clearCollectionSelection} class="preset-outlined-secondary-500 btn">Clear All</button>
+							<button onclick={selectAllCollections} class="preset-outlined-secondary-500 btn" aria-label="Select all collections">Select All</button>
+							<button onclick={clearCollectionSelection} class="preset-outlined-secondary-500 btn" aria-label="Clear collection selection">Clear All</button>
 						</div>
 					</div>
 
@@ -455,19 +455,13 @@
 						{#each collections as collection (collection.id)}
 							{const inputId = `export-collection-${collection.id}`}
 							<label for={inputId} class="flex cursor-pointer items-center space-x-3 py-2">
-								<input
-									id={inputId}
-									type="checkbox"
-									checked={exportOptions.collections.includes(String(collection.id))}
-									onchange={() => toggleCollectionSelection(String(collection.id))}
-									class="rounded"
-								/>
+								<input id={inputId} type="checkbox" checked={exportOptions.collections.includes(String(collection.id))} onchange={() => toggleCollectionSelection(String(collection.id))} class="rounded" />
 
 								<div class="font-medium">
 									{collection.label}
 
 									{#if collection.description}
-										<span class="ml-2 text-sm text-gray-500">{collection.description}</span>
+										<span class="ms-2 text-sm text-gray-500">{collection.description}</span>
 									{/if}
 								</div>
 							</label>
@@ -479,14 +473,14 @@
 					<Toggle bind:value={exportOptions.includeMetadata} label="Include Metadata" />
 					<div>
 						<label for="export-limit" class="mb-2 block text-sm font-medium">Limit (optional)</label>
-						<Input type="text" bind:value={exportLimitString} placeholder="Leave empty for all records" />
+						<Input id="export-limit" type="text" bind:value={exportLimitString} placeholder="Leave empty for all records" />
 					</div>
 				</div>
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showExportModal = false)} class="preset-outlined-secondary-500 btn">Cancel</button>
-				<button
+				<button onclick={() => (showExportModal = false)} class="preset-outlined-secondary-500 btn" aria-label="Cancel export">Cancel</button>
+				<button aria-label="Export selected collections"
 					onclick={exportSelectedCollections}
 					class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
 					disabled={loading || exportOptions.collections.length === 0}
@@ -515,13 +509,7 @@
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
 					<label for="import-file" class="mb-2 block text-sm font-medium">Select File</label>
-					<input
-						id="import-file"
-						type="file"
-						bind:files={importFiles}
-						accept=".json,.csv"
-						class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
-					/>
+					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100" />
 					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
 				</div>
 
@@ -539,14 +527,14 @@
 					<Toggle bind:value={importOptions.skipInvalid} label="Skip Invalid Entries" />
 					<div>
 						<label for="import-batch-size" class="mb-2 block text-sm font-medium">Batch Size</label>
-						<Input type="text" bind:value={importBatchSizeString} placeholder="100" />
+						<Input id="import-batch-size" type="text" bind:value={importBatchSizeString} placeholder="100" />
 					</div>
 				</div>
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showImportModal = false)} class="preset-outlined-secondary-500 btn">Cancel</button>
-				<button onclick={handleImport} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" disabled={loading || !importFiles}>Import Data</button>
+				<button onclick={() => (showImportModal = false)} class="preset-outlined-secondary-500 btn" aria-label="Cancel import">Cancel</button>
+				<button onclick={handleImport} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" disabled={loading || !importFiles} aria-label="Import data from file">Import Data</button>
 			</div>
 		</div>
 	</div>
@@ -619,7 +607,7 @@
 			</div>
 
 			<div class="flex justify-end border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showResultsModal = false)} class="variant-primary">Close</button>
+				<button onclick={() => (showResultsModal = false)} class="variant-primary" aria-label="Close import results">Close</button>
 			</div>
 		</div>
 	</div>
