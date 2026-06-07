@@ -108,7 +108,7 @@ reveal after position calculation prevents layout flash.
 			id="tooltip-content"
 			role="tooltip"
 			class={cn(
-				"z-[300] card px-2.5 py-1.5 text-xs font-medium shadow-xl fixed",
+				"z-300 card px-2.5 py-1.5 text-xs font-medium shadow-xl fixed",
 				"bg-surface-900 dark:bg-white text-white dark:text-surface-900",
 				"transition duration-150 animate-in fade-in zoom-in-95 scale-95",
 				!floating.positionCalculated ? "opacity-0" : "opacity-100",

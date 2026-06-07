@@ -233,7 +233,7 @@ const statuses = Object.values(StatusTypes);
 					id="description"
 					bind:value={description}
 					placeholder={collection_description_placeholder()}
-					class="flex-1 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-[120px]"
+					class="flex-1 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-30"
 				></textarea>
 			</div>
 		</Card>

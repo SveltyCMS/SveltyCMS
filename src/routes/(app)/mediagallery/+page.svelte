@@ -144,7 +144,7 @@ async function handleEditorSave(detail: any) {
 		if (response.ok) {
 			const { data: updatedMedia } = await response.json();
 			toast.success("Image processed and saved");
-			
+
 			// 🚀 SPA-Friendly Update: Update local state instead of full reload
 			if (updatedMedia) {
 				const index = files.findIndex(f => f._id === updatedMedia._id);
@@ -254,16 +254,16 @@ async function handleOpenFileDetails(file: any) {
 </script>
 
 <div class="flex flex-col gap-4 px-2">
-	<PageTitle 
-		name="Media Gallery" 
-		icon="bi:images" 
-		showBackButton={true} 
-		backUrl="/" 
+	<PageTitle
+		name="Media Gallery"
+		icon="bi:images"
+		showBackButton={true}
+		backUrl="/"
 
 	>
 		{#snippet children()}
 			<div class="flex items-center gap-2">
-				<button 
+				<button
 					onclick={handleCreateFolder}
 					class="btn preset-tonal-secondary"
 					aria-label="Create new virtual folder"
@@ -275,10 +275,10 @@ async function handleOpenFileDetails(file: any) {
 				<label class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 cursor-pointer">
 					<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 					<span class="hidden md:inline">Upload</span>
-					<input 
-						type="file" 
-						multiple 
-						class="hidden" 
+					<input
+						type="file"
+						multiple
+						class="hidden"
 						onchange={handleUpload}
 						accept="image/*,video/*,audio/*,application/pdf"
 					/>
@@ -289,13 +289,13 @@ async function handleOpenFileDetails(file: any) {
 
 	<!-- Toolbar -->
 	<div class="flex flex-wrap items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 p-4 rounded shadow-sm border border-surface-200 dark:border-surface-700">
-		<div class="flex-1 min-w-[300px] relative">
+		<div class="flex-1 min-w-75 relative">
 			<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
-			<input 
+			<input
 				bind:this={searchInput}
 				bind:value={globalSearchValue}
-				type="text" 
-				placeholder="Search media... (Mod+F)" 
+				type="text"
+				placeholder="Search media... (Mod+F)"
 				class="input pl-10 w-full"
 				aria-label="Search media assets"
 			/>
@@ -309,15 +309,15 @@ async function handleOpenFileDetails(file: any) {
 			</select>
 
 			<div class="flex border border-surface-300 dark:border-surface-600 rounded overflow-hidden">
-				<button 
-					onclick={() => view = 'grid'} 
+				<button
+					onclick={() => view = 'grid'}
 					class="p-2 transition-colors {view === 'grid' ? 'bg-tertiary-500 dark:bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
 					aria-label="Grid view"
 				>
 					<iconify-icon icon="mdi:grid-large" width="20"></iconify-icon>
 				</button>
-				<button 
-					onclick={() => view = 'table'} 
+				<button
+					onclick={() => view = 'table'}
 					class="p-2 transition-colors {view === 'table' ? 'bg-tertiary-500 dark:bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
 					aria-label="Table view"
 				>
@@ -325,7 +325,7 @@ async function handleOpenFileDetails(file: any) {
 				</button>
 			</div>
 
-			<button 
+			<button
 				onclick={() => isSelectionMode = !isSelectionMode}
 				class="btn {isSelectionMode ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
 			>
@@ -335,21 +335,21 @@ async function handleOpenFileDetails(file: any) {
 	</div>
 
 	<!-- Content -->
-	<div class="relative min-h-[400px]">
+	<div class="relative min-h-100">
 		{#if view === 'grid'}
 			{#if useVirtualScrolling}
-				<VirtualMediaGrid 
-					filteredFiles={filteredFiles} 
-					{gridSize} 
+				<VirtualMediaGrid
+					filteredFiles={filteredFiles}
+					{gridSize}
 					{isSelectionMode}
 					bind:selectedFiles={selectedFiles}
-					onEditImage={handleEditImage} 
+					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
 				/>
 			{:else}
-				<MediaGrid 
-					filteredFiles={filteredFiles} 
-					{gridSize} 
+				<MediaGrid
+					filteredFiles={filteredFiles}
+					{gridSize}
 					{isSelectionMode}
 					bind:selectedFiles={selectedFiles}
 					onEditImage={handleEditImage}
@@ -357,8 +357,8 @@ async function handleOpenFileDetails(file: any) {
 				/>
 			{/if}
 		{:else}
-			<MediaTable 
-				filteredFiles={filteredFiles} 
+			<MediaTable
+				filteredFiles={filteredFiles}
 				{isSelectionMode}
 				bind:selectedFiles={selectedFiles}
 				onEditImage={handleEditImage}

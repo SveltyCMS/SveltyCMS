@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/media/media-details-modal.svelte
 @component
 **Interactive asset control center for Media Details, Versioning, Usage References, and Share management**
@@ -305,24 +305,24 @@
 
 <div class="media-details-container flex flex-col md:flex-row gap-6 max-h-[90vh] overflow-hidden text-surface-900 dark:text-surface-100 p-4">
   <!-- Left Side: Asset Preview -->
-  <div class="preview-section flex-1 flex flex-col justify-center items-center bg-surface-100/50 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800 rounded-2xl p-4 min-h-[300px] md:min-h-[500px] relative">
+  <div class="preview-section flex-1 flex flex-col justify-center items-center bg-surface-100/50 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800 rounded-2xl p-4 min-h-75 md:min-h-125 relative">
     {#if file.type === 'image'}
-      <div 
+      <div
         class="preview-image-box w-full h-full flex items-center justify-center rounded-xl overflow-hidden relative"
         style:background-color={file.metadata?.dominantColor || 'transparent'}
       >
-        <img 
-          src={mediaUrl(file)} 
+        <img
+          src={mediaUrl(file)}
           alt={file.filename}
-          class="max-w-full max-h-[420px] object-contain rounded-lg shadow-lg"
+          class="max-w-full max-h-105 object-contain rounded shadow-lg"
           style:object-position={file.metadata?.focalPoint ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%` : 'center'}
         />
       </div>
     {:else if file.type === 'video'}
-      <video 
-        src={mediaUrl(file)} 
-        controls 
-        class="max-w-full max-h-[420px] rounded-lg shadow-lg"
+      <video
+        src={mediaUrl(file)}
+        controls
+        class="max-w-full max-h-105 rounded shadow-lg"
       >
         <track kind="captions" />
       </video>
@@ -343,9 +343,9 @@
     {/if}
 
     <div class="mt-4 flex gap-2">
-      <a 
-        href={mediaUrl(file)} 
-        download={file.filename} 
+      <a
+        href={mediaUrl(file)}
+        download={file.filename}
         class="btn preset-tonal-primary text-xs"
         target="_blank"
         rel="noopener noreferrer"
@@ -373,25 +373,25 @@
 
     <!-- Navigation Tabs -->
     <div class="tabs-container flex border-b border-surface-200 dark:border-surface-800 mb-4 text-sm font-semibold">
-      <button 
+      <button
         onclick={() => activeTab = 'info'}
         class="px-4 py-2 border-b-2 transition-all {activeTab === 'info' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
       >
         Info & Tags
       </button>
-      <button 
+      <button
         onclick={() => activeTab = 'versions'}
         class="px-4 py-2 border-b-2 transition-all {activeTab === 'versions' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
       >
         Versions ({file.versions?.length || 0})
       </button>
-      <button 
+      <button
         onclick={() => activeTab = 'references'}
         class="px-4 py-2 border-b-2 transition-all {activeTab === 'references' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
       >
         Usage
       </button>
-      <button 
+      <button
         onclick={() => activeTab = 'share'}
         class="px-4 py-2 border-b-2 transition-all {activeTab === 'share' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
       >
@@ -418,13 +418,13 @@
           <!-- Tags Area -->
           <div class="tags-section">
             <h3 class="font-bold text-sm mb-2">Asset Tags</h3>
-            
+
             <div class="flex flex-wrap gap-1.5 mb-3">
               {#each file.metadata?.tags || [] as tag}
-                <span class="tag-badge bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-600 dark:text-primary-600 dark:text-primary-500 border border-tertiary-500 dark:border-primary-500/20 px-2 py-0.5 rounded-md text-xs flex items-center gap-1">
+                <span class="tag-badge bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-600 dark:text-primary-600 border border-tertiary-500 dark:border-primary-500/20 px-2 py-0.5 rounded-md text-xs flex items-center gap-1">
                   <span>{tag}</span>
-                  <button 
-                    onclick={() => handleRemoveTag(tag)} 
+                  <button
+                    onclick={() => handleRemoveTag(tag)}
                     class="hover:text-error-500"
                     aria-label="Remove tag {tag}"
                   >
@@ -437,15 +437,15 @@
             </div>
 
             <div class="flex gap-2">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 bind:value={newTagInput}
                 onkeydown={handleAddTag}
-                placeholder="Add tag..." 
+                placeholder="Add tag..."
                 class="input text-sm py-1.5"
                 disabled={isSavingTags}
               />
-              <button 
+              <button
                 onclick={handleAddTag}
                 class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs py-1.5 px-3"
                 disabled={isSavingTags || !newTagInput.trim()}
@@ -465,15 +465,15 @@
               <h4 class="font-bold text-sm">Replace or Update File</h4>
               <p class="text-xs opacity-60 mt-0.5">Upload a new file. The current name will be preserved, and the old version will be stored in history.</p>
             </div>
-            
-            <input 
-              type="file" 
-              bind:this={fileInputEl} 
+
+            <input
+              type="file"
+              bind:this={fileInputEl}
               onchange={handleVersionUpload}
-              class="hidden" 
+              class="hidden"
             />
-            <button 
-              onclick={triggerFileInput} 
+            <button
+              onclick={triggerFileInput}
               class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs px-4"
               disabled={isUploadingVersion}
             >
@@ -512,7 +512,7 @@
                       v{ver.versionNumber}
                     </div>
                     <div>
-                      <p class="font-semibold text-ellipsis max-w-[200px] overflow-hidden whitespace-nowrap" title={ver.filename}>{ver.filename}</p>
+                      <p class="font-semibold text-ellipsis max-w-50 overflow-hidden whitespace-nowrap" title={ver.filename}>{ver.filename}</p>
                       <p class="opacity-60 mt-0.5 font-mono">
                         {formatBytes(ver.size)} • {new Date(ver.updatedAt).toLocaleString()}
                         {#if ver.updatedBy}
@@ -523,15 +523,15 @@
                   </div>
 
                   <div class="flex gap-2">
-                    <a 
-                      href={mediaUrl({ url: ver.path } as any)} 
-                      download={ver.filename} 
-                      class="btn-icon btn-icon-sm bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-750" 
+                    <a
+                      href={mediaUrl({ url: ver.path } as any)}
+                      download={ver.filename}
+                      class="btn-icon btn-icon-sm bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-750"
                       title="Download Version"
                     >
                       <iconify-icon icon="mdi:download-outline" width="14"></iconify-icon>
                     </a>
-                    <button 
+                    <button
                       onclick={() => handleRestoreVersion(ver.versionNumber)}
                       class="btn preset-tonal-secondary text-[10px] py-1 px-2.5 flex items-center gap-1"
                       disabled={isRestoringVersion}
@@ -556,7 +556,7 @@
             <div class="references-list">
               <h3 class="font-bold text-sm mb-2">Usage Scanner</h3>
               <p class="text-xs opacity-60 mb-4">Lists all content entries where this media asset is referenced.</p>
-              
+
               <div class="flex flex-col gap-2">
                 {#each references as ref}
                   <div class="reference-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl p-3 flex justify-between items-center text-xs">
@@ -566,8 +566,8 @@
                       <p class="opacity-60 mt-0.5 font-mono">Entry ID: {ref.entryId}</p>
                     </div>
 
-                    <a 
-                      href="/content/{ref.collection}/{ref.entryId}" 
+                    <a
+                      href="/content/{ref.collection}/{ref.entryId}"
                       class="btn preset-tonal-primary text-[10px] py-1 px-2.5"
                     >
                       Go to Entry
@@ -589,7 +589,7 @@
           <!-- Generate Share Link Form -->
           <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded-xl p-4 flex flex-col gap-3 text-xs">
             <h4 class="font-bold text-sm">Create Expiring Public Link</h4>
-            
+
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block opacity-60 mb-1" for="expiry-hours">Expiration (Hours):</label>
@@ -602,17 +602,17 @@
               </div>
               <div>
                 <label class="block opacity-60 mb-1" for="share-password">Password (Optional):</label>
-                <input 
-                  type="password" 
-                  bind:value={sharePassword} 
+                <input
+                  type="password"
+                  bind:value={sharePassword}
                   id="share-password"
-                  placeholder="Set password..." 
+                  placeholder="Set password..."
                   class="input text-xs py-1.5 w-full"
                 />
               </div>
             </div>
 
-            <button 
+            <button
               onclick={handleGenerateShareLink}
               class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs py-1.5 w-full mt-2"
               disabled={isCreatingShare}
@@ -646,20 +646,20 @@
                   </div>
 
                   <div class="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={getShareLinkUrl(link.token)} 
-                      readonly 
+                    <input
+                      type="text"
+                      value={getShareLinkUrl(link.token)}
+                      readonly
                       class="input text-[10px] py-1 font-mono flex-1 bg-surface-200 dark:bg-surface-950 border border-surface-300 dark:border-surface-800 rounded"
                     />
-                    <button 
+                    <button
                       onclick={() => copyToClipboard(getShareLinkUrl(link.token))}
                       class="btn preset-tonal-primary text-[10px] py-1 px-2.5"
                       title="Copy Share Link"
                     >
                       Copy
                     </button>
-                    <button 
+                    <button
                       onclick={() => handleRevokeShareLink(link.token)}
                       class="btn preset-tonal-error text-[10px] py-1 px-2.5"
                       title="Revoke Share Link"

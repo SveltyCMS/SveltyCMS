@@ -1,4 +1,4 @@
-<!-- 
+<!--
  @file src/components/system/builder/logic-builder.svelte
  @description Visual Conditional Logic Builder (Recursive)
 -->
@@ -90,8 +90,8 @@
 			<div class="flex items-center gap-3">
 				<button
 					class="btn btn-sm font-mono font-bold tracking-wider px-4
-						{value.type === 'AND' 
-							? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' 
+						{value.type === 'AND'
+							? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
 							: 'preset-filled-secondary-500'}"
 					onclick={() => toggleGroupType(value!)}
 				>
@@ -135,7 +135,7 @@
 						<div class="rule-row flex flex-wrap items-center gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-surface-800">
 							<select
 								bind:value={item.field}
-								class="select select-sm flex-1 min-w-[140px]"
+								class="select select-sm flex-1 min-w-35"
 							>
 								{#each uniqueFields as f}
 									<option value={f.db_fieldName || f.name}>
@@ -156,7 +156,7 @@
 							<input
 								type="text"
 								bind:value={item.value}
-								class="input input-sm flex-1 min-w-[120px]"
+								class="input input-sm flex-1 min-w-30"
 								placeholder="Value (for 'in' use comma-separated)"
 							/>
 

@@ -1066,7 +1066,7 @@ bulk actions, and predictive preloading.
 									type="button"
 									class="flex w-full items-center justify-center font-bold uppercase focus:outline-none {(header as TableHeader).name ===
 									entryListPaginationSettings.sorting.sortedBy
-										? 'text-tertiary-500 dark:text-primary-500 dark:text-secondary-400'
+										? 'text-tertiary-500 dark:text-primary-500'
 										: 'text-tertiary-500 dark:text-primary-500'}"
 									onclick={() => onSortChange((header as TableHeader).name || '')}
 								>
@@ -1084,7 +1084,7 @@ bulk actions, and predictive preloading.
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
 							<tr
-								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-tertiary-500 dark:bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
+								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-tertiary-500 dark:bg-primary-500' : ''}"
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 							>

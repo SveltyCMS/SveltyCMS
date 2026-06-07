@@ -281,7 +281,7 @@ functionality for image editing and basic file information display.
 							<img
 								src={value instanceof File ? URL.createObjectURL(value) : value.thumbnails?.sm?.url || value.url}
 								alt={value instanceof File ? value.name : (value.metadata?.altText || value.originalFilename || 'Media preview')}
-								class="max-h-[200px] max-w-[500px] rounded"
+								class="max-h-50 max-w-125 rounded"
 							/>
 							{#if value && !(value instanceof File)}
 								<div

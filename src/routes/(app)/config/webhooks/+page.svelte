@@ -178,7 +178,7 @@ onMount(loadWebhooks);
 			<div class="grid gap-4">
 				{#each webhooks as webhook (webhook.id)}
 					<div
-						class="card p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-tertiary-500 dark:border-primary-500 transition-colors"
+						class="card p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 hover:border-tertiary-500 dark:border-primary-500 transition-colors"
 					>
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2 mb-1">

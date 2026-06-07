@@ -531,7 +531,7 @@
 									</SystemTooltip>
 									{#if activeDropdown === btn.label}
 										<div
-											class="absolute top-full left-0 mt-1 min-w-[180px] rounded-lg border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
+											class="absolute top-full left-0 mt-1 min-w-45 rounded-lg border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">

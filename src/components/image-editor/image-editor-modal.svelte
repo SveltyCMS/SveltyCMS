@@ -183,7 +183,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 {#if image}
     <div
         bind:this={modalContainer}
-        class="relative flex h-[calc(100dvh-0.75rem)] min-h-[640px] w-full flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,_rgba(31,31,31,0.98),_rgba(12,12,12,0.98))] shadow-[0_28px_90px_rgba(0,0,0,0.45)] md:h-[calc(100dvh-1.5rem)] md:min-h-[720px]"
+        class="relative flex h-[calc(100dvh-0.75rem)] min-h-160 w-full flex-col overflow-hidden rounded border border-white/10 bg-[linear-gradient(180deg,rgba(31,31,31,0.98),rgba(12,12,12,0.98))] shadow-[0_28px_90px_rgba(0,0,0,0.45)] md:h-[calc(100dvh-1.5rem)] md:min-h-180"
         role="dialog"
         aria-modal="true"
         aria-label="Image Editor — edit and transform your image"

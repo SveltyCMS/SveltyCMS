@@ -218,7 +218,7 @@ with the AI collaboration assistant.
 				/>
 				<button
 					type="submit"
-					class="bg-tertiary-500 dark:bg-primary-500 hover:bg-tertiary-600 dark:bg-primary-600 text-white rounded-lg p-1.5 transition-colors disabled:opacity-50"
+					class="bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-600 text-white rounded-lg p-1.5 transition-colors disabled:opacity-50"
 					disabled={!newMessage.trim() || (collaboration.isTyping && !collaboration.currentRoom)}
 					aria-label="Send message"
 				>

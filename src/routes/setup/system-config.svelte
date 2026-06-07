@@ -540,7 +540,7 @@ Features:
 								>
 									<input
 										id="system-lang-search"
-										class="mb-2 w-full rounded border border-surface-200 dark:border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:focus:border-tertiary-500 dark:border-primary-500"
+										class="mb-2 w-full rounded border border-surface-200  bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:focus:border-tertiary-500 dark:border-primary-500"
 										placeholder="Search..."
 										bind:value={systemPickerSearch}
 									/>

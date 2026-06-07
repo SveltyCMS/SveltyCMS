@@ -305,7 +305,7 @@ const steps = [
 {#if isLoading}
 	<div class="flex items-center justify-center py-20"><iconify-icon icon="mdi:loading" class="text-4xl animate-spin opacity-50"></iconify-icon></div>
 {:else}
-	<div class="wrapper mx-auto max-w-[900px] p-4">
+	<div class="wrapper mx-auto max-w-225 p-4">
 		<!-- Stepper Header -->
 		<div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-8">
 			{#each steps as step (step.number)}
@@ -544,7 +544,7 @@ const steps = [
 														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-[150px]">
+														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
 															{#each availableTokens as token}
 																<button
 																	type="button"
@@ -581,7 +581,7 @@ const steps = [
 														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-[150px]">
+														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
 															{#each availableTokens as token}
 																<button
 																	type="button"
@@ -605,7 +605,7 @@ const steps = [
 														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-[150px]">
+														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
 															{#each availableTokens as token}
 																<button
 																	type="button"
@@ -634,7 +634,7 @@ const steps = [
 														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-[150px]">
+														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
 															{#each availableTokens as token}
 																<button
 																	type="button"
@@ -666,7 +666,7 @@ const steps = [
 															<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
 																<iconify-icon icon="mdi:code-braces"></iconify-icon>
 															</button>
-															<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-[150px]">
+															<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
 																{#each availableTokens as token}
 																	<button
 																		type="button"
@@ -710,7 +710,7 @@ const steps = [
 														<button type="button" class="btn btn-sm p-1 opacity-40 hover:opacity-100" title="Insert Token">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-[150px]">
+														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
 															{#each availableTokens as token}
 																<button
 																	type="button"
@@ -763,7 +763,7 @@ const steps = [
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 							{#each OPERATION_TYPES as opType (opType.type)}
 								<button
-									class="card p-3 text-center border border-surface-300 dark:border-surface-600 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded-lg hover:scale-105"
+									class="card p-3 text-center border border-surface-300 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded-lg hover:scale-105"
 									onclick={() => addOperation(opType.type)}
 								>
 									<iconify-icon icon={opType.icon} class="text-xl mb-1"></iconify-icon>

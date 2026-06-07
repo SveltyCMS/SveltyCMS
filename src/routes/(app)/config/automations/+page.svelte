@@ -248,7 +248,7 @@ onMount(loadFlows);
 			<div class="grid gap-4">
 				{#each filteredFlows as flow (flow.id)}
 					<div
-						class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded-lg flex items-center gap-4"
+						class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 hover:border-tertiary-500 dark:border-primary-600 transition-all duration-200 rounded-lg flex items-center gap-4"
 						class:opacity-50={!flow.active}
 						transition:slide
 					>

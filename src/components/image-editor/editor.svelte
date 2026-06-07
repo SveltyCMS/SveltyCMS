@@ -406,7 +406,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 				{const Component = toolbarControls.component}
 				<div class="toolbar-dock row-start-2 px-0 xl:col-start-2 xl:row-start-1 xl:flex xl:h-full xl:min-h-0">
 					<div
-						class="mx-auto flex w-full max-w-[1100px] flex-col rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(44,44,44,0.96),rgba(24,24,24,0.96))] p-2 shadow-[0_14px_34px_rgba(0,0,0,0.26)] backdrop-blur-xl max-h-[24vh] overflow-auto xl:mx-0 xl:h-full xl:max-h-none xl:min-h-0 xl:max-w-none xl:rounded-[22px] xl:p-3"
+						class="mx-auto flex w-full max-w-275 flex-col rounded border border-white/10 bg-[linear-gradient(180deg,rgba(44,44,44,0.96),rgba(24,24,24,0.96))] p-2 shadow-[0_14px_34px_rgba(0,0,0,0.26)] backdrop-blur-xl max-h-[24vh] overflow-auto xl:mx-0 xl:h-full xl:max-h-none xl:min-h-0 xl:max-w-none xl:rounded-[22px] xl:p-3"
 					>
 						<Component {...toolbarControls.props} />
 					</div>

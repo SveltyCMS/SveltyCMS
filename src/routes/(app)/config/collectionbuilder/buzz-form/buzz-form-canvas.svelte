@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/collectionbuilder/BuzzForm/BuzzFormCanvas.svelte
 @component
 **This component handles the canvas for the BuzzForms**
@@ -81,7 +81,7 @@ function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
 			use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
 			onconsider={handleDndConsider}
 			onfinalize={handleDndFinalize}
-			class="min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] space-y-4 rounded-2xl border-2 border-dashed border-surface-200-800 p-4 sm:p-6 lg:p-8 transition-colors hover:border-primary-500/20"
+			class="min-h-75 sm:min-h-100 lg:min-h-125 space-y-4 rounded-2xl border-2 border-dashed border-surface-200-800 p-4 sm:p-6 lg:p-8 transition-colors hover:border-primary-500/20"
 		>
 			{#each items as item, index (item.id)}
 				<div animate:flip={{ duration: flipDurationMs }}>
@@ -125,7 +125,7 @@ function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
 			{/each}
 
 			{#if items.length === 0}
-				<div class="flex min-h-[280px] sm:min-h-[360px] flex-col items-center justify-center text-surface-400 px-4">
+				<div class="flex min-h-70 sm:min-h-90 flex-col items-center justify-center text-surface-400 px-4">
 					<div class="relative mb-4 sm:mb-6">
 						<iconify-icon icon="fluent:design-ideas-24-regular" width="80" class="opacity-10"></iconify-icon>
 						<iconify-icon icon="mdi:plus" width="32" class="absolute -bottom-2 -right-2 text-primary-500 animate-pulse"></iconify-icon>

@@ -189,7 +189,7 @@ $effect(() => {
 	<!-- Main Workspace -->
 	<main class="flex-1 flex flex-col min-w-0 bg-surface-50 dark:bg-surface-950/50 overflow-hidden relative">
 		<!-- Studio Header -->
-		<header class="flex items-center justify-between px-2 py-2 sm:px-6 lg:px-10 border-b border-surface-200/60 dark:border-surface-800/60 bg-white/50 dark:bg-surface-900/50 backdrop-blur-md z-10 shrink-0 min-h-[72px]">
+		<header class="flex items-center justify-between px-2 py-2 sm:px-6 lg:px-10 border-b border-surface-200/60 dark:border-surface-800/60 bg-white/50 dark:bg-surface-900/50 backdrop-blur-md z-10 shrink-0 min-h-18">
 				<PageTitle
 					name={action === 'edit' ? `Edit ${collection.value?.name}` : (collection.value?.name && collection.value.name !== 'new' ? `Create ${collection.value.name}` : 'Create Collection')}
 					icon={collection.value?.icon || 'ic:baseline-build'}
@@ -210,7 +210,7 @@ $effect(() => {
 					<StickyActions>
 					<button
 						onclick={() => handleCollectionSave()}
-						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]"
+						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn flex items-center gap-1 min-w-25"
 						disabled={isLoading}
 					>
 						{#if isLoading}

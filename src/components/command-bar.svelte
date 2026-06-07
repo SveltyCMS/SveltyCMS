@@ -108,8 +108,8 @@ onMount(() => {
 </script>
 
 <!-- Backdrop -->
-<div 
-	class="fixed inset-0 z-[100] bg-surface-900/40 backdrop-blur-xs transition-opacity"
+<div
+	class="fixed inset-0 z-100 bg-surface-900/40 backdrop-blur-xs transition-opacity"
 	onclick={() => ui.isCommandBarVisible = false}
 	onkeydown={(e) => e.key === 'Escape' && (ui.isCommandBarVisible = false)}
 	role="button"
@@ -119,8 +119,8 @@ onMount(() => {
 ></div>
 
 <!-- Command Palette Container -->
-<div 
-	class="fixed left-1/2 top-[15%] z-[101] w-full max-w-2xl -translate-x-1/2 overflow-hidden rounded-xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900"
+<div
+	class="fixed left-1/2 top-[15%] z-101 w-full max-w-2xl -translate-x-1/2 overflow-hidden rounded-xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900"
 	transition:fly={{ y: -20, duration: 200 }}
 	onkeydown={handleKeydown}
 	role="dialog"
@@ -145,7 +145,7 @@ onMount(() => {
 	</div>
 
 	<!-- Results Area -->
-	<div class="max-h-[400px] overflow-y-auto p-2" role="listbox">
+	<div class="max-h-100 overflow-y-auto p-2" role="listbox">
 		{#if filteredResults.length > 0}
 			{#each filteredResults as item, i}
 				<button
@@ -168,7 +168,7 @@ onMount(() => {
 							{/if}
 						</div>
 					</div>
-					
+
 					{#if item.shortcut}
 						<div class="flex gap-1">
 							{#each item.shortcut.split(' ') as key}
@@ -185,8 +185,8 @@ onMount(() => {
 				<Icon icon="mdi:robot-confused" class="mb-4 text-5xl text-surface-300" />
 				<div class="text-lg font-medium dark:text-white">No results found</div>
 				<p class="text-sm text-surface-400">Try searching for collections, media, or settings.</p>
-				
-				<button 
+
+				<button
 					class="mt-6 rounded-lg bg-tertiary-500 px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-105 active:scale-95"
 					onclick={() => {/* AI Action Fallback */}}
 				>

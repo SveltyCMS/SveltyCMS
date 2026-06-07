@@ -44,8 +44,8 @@ function onKeydown(e: KeyboardEvent) {
 
 <svelte:window onkeydown={onKeydown} />
 
-<div 
-    class="flex flex-col h-[80vh] w-full max-w-5xl bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-800 overflow-hidden" 
+<div
+    class="flex flex-col h-[80vh] w-full max-w-5xl bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-800 overflow-hidden"
     in:fade
     role="dialog"
     aria-modal="true"
@@ -94,17 +94,17 @@ function onKeydown(e: KeyboardEvent) {
         {:else}
             <div class="grid grid-cols-1 gap-4">
                 {#each filteredDiffs as diff (diff.fieldName)}
-                    <div class="group border border-surface-200 dark:border-surface-800 rounded-xl overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50" in:slide>
+                    <div class="group border border-surface-200  rounded-xl overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50" in:slide>
                         <!-- Field Header -->
                         <div class="px-4 py-2 bg-surface-50 dark:bg-surface-950 flex items-center justify-between border-b border-surface-200 dark:border-surface-800">
                             <div class="flex flex-col">
                                 <span class="text-xs font-bold opacity-40 uppercase tracking-tighter">{diff.fieldName}</span>
-                                <span class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-600 dark:text-primary-500">{diff.label}</span>
+                                <span class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-600 ">{diff.label}</span>
                             </div>
-                            <span class="badge 
-                                {diff.type === 'added' ? 'preset-filled-success-500' : 
-                                 diff.type === 'removed' ? 'preset-filled-error-500' : 
-                                 diff.type === 'modified' ? 'preset-filled-warning-500' : 
+                            <span class="badge
+                                {diff.type === 'added' ? 'preset-filled-success-500' :
+                                 diff.type === 'removed' ? 'preset-filled-error-500' :
+                                 diff.type === 'modified' ? 'preset-filled-warning-500' :
                                  'preset-tonal-surface'} text-[10px] uppercase font-bold">
                                 {diff.type}
                             </span>
@@ -115,15 +115,15 @@ function onKeydown(e: KeyboardEvent) {
                             <!-- Left: Old Value -->
                             <div class="p-4 bg-surface-50/30 dark:bg-surface-900/30">
                                 <p class="text-[10px] uppercase font-bold opacity-30 mb-2">{oldLabel}</p>
-                                <pre class="text-xs font-mono whitespace-pre-wrap break-all 
+                                <pre class="text-xs font-mono whitespace-pre-wrap break-all
                                     {diff.type === 'removed' || diff.type === 'modified' ? 'text-error-600 dark:text-error-500' : 'opacity-40'}">
                                     {formatValue(diff.oldValue)}
                                 </pre>
                             </div>
                             <!-- Right: New Value -->
-                            <div class="p-4 bg-tertiary-500 dark:bg-primary-500/5 dark:bg-primary-500/5">
+                            <div class="p-4 bg-tertiary-500 dark:bg-primary-500">
                                 <p class="text-[10px] uppercase font-bold opacity-30 mb-2">{newLabel}</p>
-                                <pre class="text-xs font-mono whitespace-pre-wrap break-all 
+                                <pre class="text-xs font-mono whitespace-pre-wrap break-all
                                     {diff.type === 'added' || diff.type === 'modified' ? 'text-success-600 dark:text-success-400' : 'opacity-40'}">
                                     {formatValue(diff.newValue)}
                                 </pre>

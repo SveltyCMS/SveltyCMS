@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/iconify-icons-picker.svelte
 @component
 **Enhanced IconifyIconsPicker - Svelte 5 Optimized**
@@ -589,7 +589,7 @@ Advanced icon picker with search, pagination, and favorites.
 				showDropdown = true;
 				handleFocus();
 			}}
-			class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-surface-300 p-4 text-surface-500 transition-colors hover:border-tertiary-500 dark:border-primary-500 hover:text-tertiary-500 dark:text-primary-500 dark:border-surface-600 dark:text-surface-400 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:text-tertiary-500 dark:text-primary-500"
+			class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-surface-300 p-4 text-surface-500 transition-colors hover:border-tertiary-500 hover:text-tertiary-500 dark:text-primary-500  dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:text-tertiary-500 "
 			aria-expanded={showDropdown}
 			aria-controls="icon-dropdown"
 			aria-label="Choose icon"
