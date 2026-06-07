@@ -30,8 +30,9 @@ staged_svelte=$(git diff --cached --name-only --diff-filter=ACM | grep '\.svelte
 staged_ts=$(git diff --cached --name-only --diff-filter=ACM | grep '\.ts$' || true)
 
 if [ -n "$staged_svelte" ] || [ -n "$staged_ts" ]; then
-    bun run scripts/slop-scanner.ts --ci
-    echo "✅ Slop scan passed"
+    # Only scan staged files for speed (CI scans everything)
+    staged_all=$(echo "$staged_svelte"$'\n'"$staged_ts" | sort -u | tr '\n' ' ')
+    bun run scripts/slop-scanner.ts --ci --files $staged_all
 else
     echo "⏩ No .svelte/.ts files staged — skipping slop scan"
 fi

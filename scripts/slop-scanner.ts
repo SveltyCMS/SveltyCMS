@@ -16,12 +16,13 @@
  * - Inconsistent file naming (PascalCase in kebab-case directories)
  *
  * Usage:
- *   bun run scripts/slop-scanner.ts           # scan everything
- *   bun run scripts/slop-scanner.ts --ci      # exit code 1 on violations
- *   bun run scripts/slop-scanner.ts --fix     # auto-fix where possible
+ *   bun run scripts/slop-scanner.ts                           # scan everything
+ *   bun run scripts/slop-scanner.ts --ci                      # exit code 1 on errors
+ *   bun run scripts/slop-scanner.ts --ci --files a.ts b.svelte # targeted scan
+ *   bun run scripts/slop-scanner.ts --fix                     # auto-fix where possible
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, basename } from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -364,19 +365,35 @@ function checkUnusedImports(file: string, content: string) {
 async function main() {
   const argv = process.argv.slice(2);
   const isCI = argv.includes("--ci");
+  const filesIdx = argv.indexOf("--files");
+  const targetFiles = filesIdx !== -1 ? argv.slice(filesIdx + 1) : null;
 
   console.log("🔍 AI Slop Scanner — detecting code smells...\n");
 
-  // Phase 1: Collect all files
+  // Phase 1: Collect files (targeted if --files provided, else full scan)
   const svelteFiles: string[] = [];
   const tsFiles: string[] = [];
 
-  for (const file of walkFiles(SRC, [".svelte", ".ts"])) {
-    if (file.endsWith(".svelte")) svelteFiles.push(file);
-    else tsFiles.push(file);
+  if (targetFiles && targetFiles.length > 0) {
+    // Targeted mode: only scan specified files
+    for (const f of targetFiles) {
+      const full = join(ROOT, f);
+      if (existsSync(full)) {
+        if (f.endsWith(".svelte")) svelteFiles.push(full);
+        else if (f.endsWith(".ts")) tsFiles.push(full);
+      }
+    }
+    console.log(
+      `🎯 Targeted scan: ${svelteFiles.length} Svelte, ${tsFiles.length} TS (${targetFiles.length} requested)`,
+    );
+  } else {
+    // Full scan mode
+    for (const file of walkFiles(SRC, [".svelte", ".ts"])) {
+      if (file.endsWith(".svelte")) svelteFiles.push(file);
+      else tsFiles.push(file);
+    }
+    console.log(`📂 Found ${svelteFiles.length} Svelte files, ${tsFiles.length} TS files`);
   }
-
-  console.log(`📂 Found ${svelteFiles.length} Svelte files, ${tsFiles.length} TS files`);
 
   // Phase 2: First pass — collect exports/imports
   for (const file of tsFiles) {
