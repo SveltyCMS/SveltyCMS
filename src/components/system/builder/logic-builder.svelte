@@ -130,7 +130,7 @@
 				<div transition:slide={{ duration: 180 }}>
 					{#if isGroup(item)}
 						<!-- Recursive Sub-Group -->
-						<div class="ml-8 border-l-2 border-primary-400/30 ps-5 pt-1">
+						<div class="ml-8 border-s-2 border-primary-400/30 ps-5 pt-1">
 							<LogicBuilder bind:value={value.rules[i] as LogicGroup} {fields} />
 						</div>
 					{:else}

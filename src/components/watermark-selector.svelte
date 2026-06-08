@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src\components\watermark-selector.svelte
 @component
 **Enhanced WatermarkSelector component for selecting watermark images**

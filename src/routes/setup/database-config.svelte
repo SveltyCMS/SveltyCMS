@@ -284,7 +284,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 <div class="fade-in">
 	<div class="mb-4 sm:mb-6">
-		<p class="text-center md:text-left text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_database_intro()}</p>
+		<p class="text-center md:text-start text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_database_intro()}</p>
 	</div>
 
 	<!-- MongoDB Atlas Helper Message -->
@@ -295,7 +295,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				onclick={() => (showAtlasHelper = !showAtlasHelper)}
 				aria-expanded={showAtlasHelper}
 				aria-controls="atlas-helper-content"
-				class="flex w-full items-center justify-between p-4 text-left text-blue-900 dark:text-blue-200"
+				class="flex w-full items-center justify-between p-4 text-start text-blue-900 dark:text-blue-200"
 			>
 				<div class="flex items-center gap-3">
 					<iconify-icon icon="mdi:information" width="20" class="shrink-0" aria-hidden="true"></iconify-icon>
@@ -353,7 +353,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							type="button"
 							tabindex="-1"
 							aria-label="Help: Database Type"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500  "
+							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500  "
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -405,7 +405,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							type="button"
 							tabindex="-1"
 							aria-label="Help: Host"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -462,7 +462,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								type="button"
 								tabindex="-1"
 								aria-label="Help: Port"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
@@ -495,7 +495,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							type="button"
 							tabindex="-1"
 							aria-label="Help: Database Name"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -534,7 +534,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								type="button"
 								tabindex="-1"
 								aria-label="Help: Database User"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
@@ -573,7 +573,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								type="button"
 								tabindex="-1"
 								aria-label="Help: Database Password"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
@@ -603,7 +603,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<button
 							type="button"
 							onclick={toggleDbPassword}
-							class="absolute inset-y-0 right-0 flex min-w-10 items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
+							class="absolute inset-y-0 end-0 flex min-w-10 items-center pe-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
 							aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
 						>
 							<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
@@ -657,7 +657,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							</div>
 						{/each}
 
-						<button
+						<button>
 							type="button"
 							class="btn btn-sm variant-soft-tertiary dark:variant-soft-primary w-fit mt-2"
 							onclick={() => {

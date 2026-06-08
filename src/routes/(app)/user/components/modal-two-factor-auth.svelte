@@ -272,13 +272,13 @@ This component provides a user interface for managing 2FA settings:
 		<!-- Status Section -->
 		<div class="mb-4 flex items-center justify-between rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
-				<div class="rounded-lg bg-tertiary-500 dark:bg-primary-500/10 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
+				<div class="rounded-lg bg-tertiary-500 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
 				<div>
 					<p class="text-sm font-semibold">{twofa_title()}</p>
 					<p class="text-xs text-surface-600 dark:text-surface-300">{twofa_description()}</p>
 				</div>
 			</div>
-			<!-- Status badge - aligned right -->
+			<!-- Status badge - aligned end -->
 			<span class="badge {is2FAEnabled ? 'preset-filled-success-500' : 'preset-filled-surface-500'}">
 				<iconify-icon icon="mdi:{is2FAEnabled ? 'check-circle' : 'circle-outline'}" width={24}></iconify-icon>
 				{is2FAEnabled ? twofa_status_enabled() : twofa_status_disabled()}

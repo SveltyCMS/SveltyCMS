@@ -93,7 +93,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 	<!-- Group Header -->
 	{#if field.groupTitle || field.collapsible}
 		{#if field.collapsible}
-			<button
+			<button>
 				type="button"
 				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
 					? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700'

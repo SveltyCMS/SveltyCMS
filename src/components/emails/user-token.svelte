@@ -86,8 +86,7 @@
 						href={tokenLink || '#'}
 						pX={24}
 						pY={12}
-						style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;"
-					>
+						style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;">
 						Accept Invitation & Create Account
 					</Button>
 				</center>

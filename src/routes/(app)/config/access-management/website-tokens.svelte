@@ -371,14 +371,14 @@ $effect(() => {
 				<!-- Name -->
 				<label class="label">
 					<span>Token Name</span>
-					<input type="text" class="input" placeholder="e.g. Production Website" bind:value={newTokenName} />
+					<input type="text" class="input" placeholder="e.g. Production Website" bind:value={newTokenName}  aria-label="Input" />
 				</label>
 
 				<!-- Expiration -->
 				<div class="flex flex-col gap-2">
 					<label class="label">
 						<span>Expiration</span>
-						<select class="select" bind:value={expirationOption}>
+						<select class="select" bind:value={expirationOption} aria-label="Select">
 							<option value="30d">30 Days</option>
 							<option value="90d">90 Days</option>
 							<option value="1y">1 Year</option>
@@ -425,7 +425,7 @@ $effect(() => {
 										class="checkbox"
 										checked={selectedPermissions.includes(permission._id)}
 										onchange={() => togglePermission(permission._id)}
-									/>
+									 aria-label="Input" />
 									<span class="text-sm">
 										<span class="font-bold">{permission.name}</span>
 										<span class="text-xs opacity-70 block">{permission.action}</span>
@@ -441,7 +441,7 @@ $effect(() => {
 
 			<div class="mt-4 flex justify-end">
 				<button class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" onclick={generateToken}>
-					<iconify-icon icon="mdi:key-plus" class="mr-2"></iconify-icon>
+					<iconify-icon icon="mdi:key-plus" class="me-2"></iconify-icon>
 					Generate Token
 				</button>
 			</div>
@@ -466,8 +466,8 @@ $effect(() => {
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 					<div class="text-white dark:text-primary-500">Drag and drop to reorder columns</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
-						<label class="mr-2">
-							<input type="checkbox" bind:checked={selectAllColumns} onchange={handleCheckboxChange} />
+						<label class="me-2">
+							<input type="checkbox" bind:checked={selectAllColumns} onchange={handleCheckboxChange}  aria-label="Input" />
 							All
 						</label>
 
@@ -481,7 +481,7 @@ $effect(() => {
 								<button
 									class="chip {header.visible
 										? 'preset-filled-secondary-500'
-										: 'preset-ghost-secondary-500'} w-100 mr-2 flex items-center justify-center"
+										: 'preset-ghost-secondary-500'} w-100 me-2 flex items-center justify-center"
 									animate:flip={{ duration: 300 }}
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
@@ -491,7 +491,7 @@ $effect(() => {
 									{#if header.visible}
 										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
 									{/if}
-									<span class="ml-2 capitalize">{header.label}</span>
+									<span class="ms-2 capitalize">{header.label}</span>
 								</button>
 							{/each}
 						</section>
@@ -511,7 +511,7 @@ $effect(() => {
 											class="input"
 											placeholder={`Filter by ${header.label}...`}
 											oninput={(e) => handleInputChange(e.currentTarget.value, header.key)}
-										/>
+										 aria-label="Input" />
 									</th>
 								{/each}
 								<th></th>
@@ -544,7 +544,7 @@ $effect(() => {
 											<iconify-icon
 												icon={sorting.isSorted === 1 ? 'material-symbols:arrow-upward-rounded' : 'material-symbols:arrow-downward-rounded'}
 												width={22}
-												class="ml-1 origin-center duration-300 ease-in-out"
+												class="ms-1 origin-center duration-300 ease-in-out"
 												aria-hidden="true"
 											></iconify-icon>
 										{/if}

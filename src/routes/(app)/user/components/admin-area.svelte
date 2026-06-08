@@ -92,6 +92,7 @@
 	import { showConfirm } from '@utils/modal.svelte';
 	import { debounce } from '@utils/utils';
 	import { untrack } from 'svelte';
+	// @ts-ignore - flip is used in template via animate:flip directive
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
@@ -731,8 +732,8 @@
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 					<div class="text-white dark:text-primary-500">{entrylist_dnd()}</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
-						<label class="mr-2">
-							<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange} />
+						<label class="me-2">
+							<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange}  aria-label="Input" />
 							{entrylist_all()}
 						</label>
 
@@ -743,11 +744,11 @@
 							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 						>
 							{#each displayTableHeaders as header (header.id)}
-								<button
+								<button>
 									type="button"
 									class="chip {header.visible
 										? 'preset-filled-secondary-500'
-										: 'preset-ghost-secondary-500'} w-100 mr-2 flex items-center justify-center"
+										: 'preset-ghost-secondary-500'} w-100 me-2 flex items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
@@ -757,7 +758,7 @@
 									{#if header.visible}
 										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
 									{/if}
-									<span class="ml-2 capitalize">{header.label}</span>
+									<span class="ms-2 capitalize">{header.label}</span>
 								</button>
 							{/each}
 						</section>
@@ -969,7 +970,7 @@
 													<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
 														{remainingTime}
 														{#if isTokenExpired}
-															<iconify-icon icon="material-symbols:warning" width={24} class="ml-1 text-error-500"></iconify-icon>
+															<iconify-icon icon="material-symbols:warning" width={24} class="ms-1 text-error-500"></iconify-icon>
 														{/if}
 													</span>
 												{:else}

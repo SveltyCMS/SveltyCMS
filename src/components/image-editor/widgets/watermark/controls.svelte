@@ -197,6 +197,7 @@ Professional watermark controls with text, image, and advanced options
 					class:preset-outlined-surface-500={!isTiled}
 					onclick={onTileToggle}
 					title="Tile watermark across image"
+					aria-label="Tile watermark across image"
 				>
 					<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
 				</button>

@@ -58,7 +58,7 @@
 				bind:value={searchQuery}
 				placeholder="Search by path..."
 				class="input"
-			/>
+			 aria-label="Input" />
 		</div>
 
 		<div class="table-container">
@@ -135,22 +135,22 @@
 								// Reload to reflect changes
 								window.location.reload();
 							}} class="space-y-4">
-				<input type="hidden" name="id" value={selectedRedirect._id || ''} />
+				<input type="hidden" name="id" value={selectedRedirect._id || ''}  aria-label="Input" />
 
 				<label class="label">
 					<span>From Path (e.g. /old-blog)</span>
-					<input type="text" name="from" bind:value={selectedRedirect.from} class="input" required />
+					<input type="text" name="from" bind:value={selectedRedirect.from} class="input" required  aria-label="Input" />
 				</label>
 
 				<label class="label">
 					<span>To Path (e.g. /new-blog or https://example.com/new)</span>
-					<input type="text" name="to" bind:value={selectedRedirect.to} class="input" required />
+					<input type="text" name="to" bind:value={selectedRedirect.to} class="input" required  aria-label="Input" />
 				</label>
 
 				<div class="grid grid-cols-2 gap-4">
 					<label class="label">
 						<span>Redirect Type</span>
-						<select name="type" bind:value={selectedRedirect.type} class="select">
+						<select name="type" bind:value={selectedRedirect.type} class="select" aria-label="Select">
 							<option value={301}>301 Permanent</option>
 							<option value={302}>302 Temporary</option>
 						</select>
@@ -158,7 +158,7 @@
 
 					<label class="label">
 						<span>Status</span>
-						<select name="active" bind:value={selectedRedirect.active} class="select">
+						<select name="active" bind:value={selectedRedirect.active} class="select" aria-label="Select">
 							<option value={true}>Active</option>
 							<option value={false}>Inactive</option>
 						</select>
@@ -166,7 +166,7 @@
 				</div>
 
 				<label class="flex items-center space-x-2">
-					<input type="checkbox" name="isRegex" bind:checked={selectedRedirect.isRegex} class="checkbox" />
+					<input type="checkbox" name="isRegex" bind:checked={selectedRedirect.isRegex} class="checkbox"  aria-label="Input" />
 					<span>Is Regex / Pattern</span>
 				</label>
 

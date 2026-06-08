@@ -642,21 +642,21 @@ onMount(() => {
 						aria-expanded={dropdownOpen}
 						aria-label="Add Widget"
 					>
-						<iconify-icon icon="mdi:plus" width={18} class="mr-2"></iconify-icon>
+						<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
 						Add Widget
 					</button>
 				{/if}
 				{#if dropdownOpen}
 					<div
-						class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+						class="widget-dropdown absolute end-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
 						role="menu"
 					>
-						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} /></div>
+						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery}  aria-label="Input" /></div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
 								{const widgetInfo = widgetComponentRegistry[widgetName]}
 								<button
-									class="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
+									class="flex w-full items-center gap-2 px-4 py-2 text-start transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
 									onclick={() => addNewWidget(widgetName)}
 									title={widgetInfo?.description}
 									role="menuitem"
@@ -769,7 +769,7 @@ onMount(() => {
 								onclick={() => (dropdownOpen = true)}
 								aria-label="Add first widget"
 							>
-								<iconify-icon icon="mdi:plus" width={22} class="mr-2"></iconify-icon>
+								<iconify-icon icon="mdi:plus" width={22} class="me-2"></iconify-icon>
 								Add Widget
 							</button>
 						</div>
@@ -798,7 +798,7 @@ onMount(() => {
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
-					<iconify-icon icon="mdi:shield-check" width={16} class="mr-1 inline"></iconify-icon>
+					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2"><button onclick={() => (showImportExport = false)} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">Done</button></div>

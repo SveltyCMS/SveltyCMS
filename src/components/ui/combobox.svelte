@@ -263,13 +263,13 @@ $effect(() => {
 
 <div class={cn('relative w-full space-y-1.5', className)}>
 	{#if label}
-		<label for={id} class="block text-sm font-bold text-surface-700 dark:text-surface-300 ml-1">
+		<label for={id} class="block text-sm font-bold text-surface-700 dark:text-surface-300 ms-1">
 			{label}
 		</label>
 	{/if}
 
 	<div class="group relative">
-		<input
+		<input aria-label="Input"
 			bind:this={inputElement}
 			{id}
 			type="text"
@@ -298,7 +298,7 @@ $effect(() => {
 		{#if clearable && value !== undefined && !disabled}
 			<button
 				type="button"
-				class="absolute right-9 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
+				class="absolute end-9 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
 				onclick={handleClear}
 				aria-label="Clear selection"
 			>
@@ -309,7 +309,7 @@ $effect(() => {
 		<!-- Chevron / loading -->
 		<button
 			type="button"
-			class="absolute right-2 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
+			class="absolute end-2 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
 			onclick={toggleDropdown}
 			{disabled}
 			aria-label={isOpen ? "Close selection" : "Open selection"}
@@ -332,7 +332,7 @@ $effect(() => {
 	</div>
 
 	{#if error}
-		<p class="text-xs text-error-500 ml-1 font-medium">{error}</p>
+		<p class="text-xs text-error-500 ms-1 font-medium">{error}</p>
 	{/if}
 
 	{#if isOpen && !disabled}
@@ -346,7 +346,7 @@ $effect(() => {
 			<!-- Loading state -->
 			{#if loading && filteredOptions.length === 0}
 				<div class="flex items-center justify-center px-4 py-6 text-surface-400">
-					<iconify-icon icon="mdi:loading" width="24" class="animate-spin mr-2"></iconify-icon>
+					<iconify-icon icon="mdi:loading" width="24" class="animate-spin me-2"></iconify-icon>
 					<span class="text-sm">Loading...</span>
 				</div>
 
@@ -370,7 +370,7 @@ $effect(() => {
 							role="option"
 							aria-selected={selected}
 							class={cn(
-								"w-full text-left px-4 py-2 flex items-center gap-3 transition-colors",
+								"w-full text-start px-4 py-2 flex items-center gap-3 transition-colors",
 								active ? "bg-tertiary-500 dark:bg-primary-500/10" : "hover:bg-surface-100 dark:hover:bg-surface-700/50",
 								selected && "text-tertiary-500 dark:text-primary-500 font-bold",
 								opt.disabled && "opacity-50 cursor-not-allowed"
@@ -405,7 +405,7 @@ $effect(() => {
 						role="option"
 						aria-selected={selected}
 						class={cn(
-							"w-full text-left px-4 py-2 flex items-center gap-3 transition-colors",
+							"w-full text-start px-4 py-2 flex items-center gap-3 transition-colors",
 							active ? "bg-tertiary-500 dark:bg-primary-500/10" : "hover:bg-surface-100 dark:hover:bg-surface-700/50",
 							selected && "text-tertiary-500 dark:text-primary-500 font-bold",
 							opt.disabled && "opacity-50 cursor-not-allowed"

@@ -93,7 +93,7 @@ let P_WRESET = $state(false);
 // password-visibility toggle silently broke.
 let showPassword = $state(false);
 
-// FIX: Separate formElement refs per form so wiggle targets the right one.
+// FIX: Separate formElement refs per form so wiggle targets the end one.
 let loginFormElement: HTMLFormElement | null = $state(null);
 let forgotFormElement: HTMLFormElement | null = $state(null);
 let resetFormElement: HTMLFormElement | null = $state(null);
@@ -196,7 +196,7 @@ async function handleLoginSubmit(event: Event) {
 				JSON.stringify({
 					type: "success",
 					title: "Welcome Back!",
-					description: `<iconify-icon icon="mdi:party-popper" width="24" class="mr-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
+					description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
 					duration: 4000,
 				})
 			);
@@ -420,7 +420,7 @@ $effect(() => {
 					<FloatingPaths position={-1} background="white" />
 				</div>
 			{/if}
-			<div class="absolute left-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
+			<div class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />
 			</div>
 			<div
@@ -445,10 +445,10 @@ $effect(() => {
 				</div>
 
 				<!-- Required label + Back button -->
-				<!-- FIX: Icon was ri:arrow-right-line (→); corrected to ← -->
+				<!-- FIX: Icon was ri:arrow-end-line (→); corrected to ← -->
 				<div class="-mt-8 mb-4 relative flex items-center justify-center text-xs text-error-500">
 					{form_required()}
-					<div class="absolute right-0">
+					<div class="absolute inset-e-0">
 						<SystemTooltip title="Go Back">
 							<Button
 								onclick={handleBack}
@@ -610,7 +610,7 @@ $effect(() => {
 										class="btn preset-tonal-surface-500 flex-1"
 										aria-label={button_back()}
 									>
-										<iconify-icon icon="mdi:arrow-left" width={20} class="mr-2" aria-hidden="true"></iconify-icon>
+										<iconify-icon icon="mdi:arrow-left" width={20} class="me-2" aria-hidden="true"></iconify-icon>
 										{button_back()}
 									</button>
 
@@ -626,10 +626,10 @@ $effect(() => {
 									>
 										{#if isVerifying2FA}
 											<!-- FIX: alt="" + aria-hidden on spinner image -->
-											<img src="/Spinner.svg" alt="" aria-hidden="true" class="mr-2 h-5 invert filter" />
+											<img src="/Spinner.svg" alt="" aria-hidden="true" class="me-2 h-5 invert filter" />
 											{twofa_verifying()}
 										{:else}
-											<iconify-icon icon="mdi:check" width={20} class="mr-2" aria-hidden="true"></iconify-icon>
+											<iconify-icon icon="mdi:check" width={20} class="me-2" aria-hidden="true"></iconify-icon>
 											{twofa_verify_button()}
 										{/if}
 									</button>
@@ -683,7 +683,7 @@ $effect(() => {
 							>
 								{form_resetpassword()}
 								{#if isSubmitting}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ms-4 h-6 invert filter" />
 								{/if}
 							</button>
 
@@ -765,11 +765,11 @@ $effect(() => {
 							<button
 								type="submit"
 								aria-label={signin_savenewpassword()}
-								class="btn preset-filled-surface-500 ml-2 mt-6 text-white"
+								class="btn preset-filled-surface-500 ms-2 mt-6 text-white"
 							>
 								{signin_savenewpassword()}
 								{#if isSubmitting}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ms-4 h-6" />
 								{/if}
 							</button>
 

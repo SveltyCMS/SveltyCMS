@@ -42,6 +42,7 @@
 	const itemRefs: Array<HTMLButtonElement | null> = [];
 
 	// Action to capture each item's button element reference
+	// @ts-expect-error - used in template via use:captureItem directive
 	function captureItem(node: HTMLButtonElement, index: number) {
 		itemRefs[index] = node;
 		return {
@@ -146,10 +147,10 @@
 </script>
 
 <div class={twMerge('relative', className)} class:hidden={!show} bind:this={dropdownRef}>
-	<button
+	<button>
 		bind:this={buttonRef}
 		onclick={toggleExpanded}
-		onkeydown={(e) => {
+		onkeydown={(e: KeyboardEvent) => {
 			if (e.key === 'ArrowDown') {
 				open(0);
 				e.preventDefault();
@@ -212,16 +213,16 @@
 			}}
 		>
 			{#each items as item, i (item.name || item.title || i)}
-				<button
+				<button>
 					use:captureItem={i}
-					onclick={(e) => selectItem(item, e)}
-					onkeydown={(e) => {
+					onclick={(e: MouseEvent) => selectItem(item, e)}
+					onkeydown={(e: KeyboardEvent) => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							selectItem(item, e);
 							e.preventDefault();
 						}
 					}}
-					class="flex w-full items-center gap-2 px-3 py-2 text-left text-surface-700 hover:bg-surface-200/70 focus:bg-tertiary-500/20 focus:outline-none dark:text-white dark:hover:bg-surface-600/60 dark:focus:bg-tertiary-400/25"
+					class="flex w-full items-center gap-2 px-3 py-2 text-start text-surface-700 hover:bg-surface-200/70 focus:bg-tertiary-500/20 focus:outline-none dark:text-white dark:hover:bg-surface-600/60 dark:focus:bg-tertiary-400/25"
 					class:active={item.active && item.active()}
 					role="menuitem"
 					tabindex={i === focusedIndex ? 0 : -1}
@@ -243,7 +244,5 @@
 </div>
 
 <style>
-	button.active {
-		color: rgb(0, 255, 123);
-	}
+
 </style>

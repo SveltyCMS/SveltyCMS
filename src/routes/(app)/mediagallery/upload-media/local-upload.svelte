@@ -393,7 +393,7 @@ async function uploadLocalFiles() {
 				</p>
 
                 <label class="flex items-center gap-2 cursor-pointer justify-center mt-2">
-                    <input type="checkbox" bind:checked={optimizeBeforeUpload} class="checkbox checkbox-sm" />
+                    <input type="checkbox" bind:checked={optimizeBeforeUpload} class="checkbox checkbox-sm"  aria-label="Input" />
                     <span class="text-xs font-bold opacity-75">Optimize Images before upload (WebGPU)</span>
                 </label>
 
@@ -414,10 +414,10 @@ async function uploadLocalFiles() {
 		</div>
 
 		<!-- File Input -->
-		<input bind:this={input} type="file" class="sr-only" hidden multiple onchange={onChange} aria-hidden="true" tabindex="-1" />
+		<input bind:this={input} type="file" class="sr-only" hidden multiple onchange={onChange} aria-hidden="true" tabindex="-1"  aria-label="Input" />
 	</div>
 {:else}
-	<div class="mb-5 text-center sm:text-left">
+	<div class="mb-5 text-center sm:text-start">
 		<p class="text-center text-tertiary-500 dark:text-primary-500">
 			This area facilitates the queuing and previewing of media files before they are officially uploaded to the gallery. Verify your selection below,
 			then confirm to complete the transfer.
@@ -434,7 +434,7 @@ async function uploadLocalFiles() {
 
 				<div class="group relative overflow-hidden rounded border border-surface-200 shadow-sm transition-all hover:shadow-md dark:border-surface-50">
 					<!-- Delete button -->
-					<div class="absolute right-1 top-1 z-10 flex cursor-pointer shadow-sm">
+					<div class="absolute end-1 top-1 z-10 flex cursor-pointer shadow-sm">
 						<SystemTooltip title="Remove file" positioning={{ placement: 'top' }}>
 							<button type="button" onclick={() => handleDeleteFile(file)} class="btn-icon bg-error-500 rounded-full" aria-label="Remove file">
 								<iconify-icon icon="material-symbols:delete" width={24} class="text-white"></iconify-icon>
@@ -490,7 +490,7 @@ async function uploadLocalFiles() {
 		</div>
 
 		<!-- Hidden Input for Add Card -->
-		<input bind:this={input} type="file" class="hidden" multiple onchange={onChange} />
+		<input bind:this={input} type="file" class="hidden" multiple onchange={onChange}  aria-label="Input" />
 
 		<!-- Actions Footer -->
 		<div class="flex items-center justify-between border-t border-surface-200 pt-4 dark:border-surface-700">

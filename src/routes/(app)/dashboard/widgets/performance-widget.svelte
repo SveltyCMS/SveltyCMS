@@ -159,7 +159,7 @@ export const widgetMeta = {
 							</div>
 							
 							{#if errorHistory.length > 1}
-								<div class="w-[110px] h-[32px] overflow-visible pb-1 pr-1 shrink-0">
+								<div class="w-[110px] h-[32px] overflow-visible pb-1 pe-1 shrink-0">
 									<svg viewBox="0 0 110 24" class="w-full h-full overflow-visible">
 										<path
 											d={linePath}

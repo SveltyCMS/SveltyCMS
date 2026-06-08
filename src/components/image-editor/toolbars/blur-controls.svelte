@@ -165,7 +165,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 				aria-pressed={pattern === 'blur'}
 			>
 				<iconify-icon icon="mdi:blur" width="18"></iconify-icon>
-				<span class="hidden md:inline ml-1">Blur</span>
+				<span class="hidden md:inline ms-1">Blur</span>
 			</button>
 			<button
 				class="btn btn-sm"
@@ -176,7 +176,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 				aria-pressed={pattern === 'pixelate'}
 			>
 				<iconify-icon icon="mdi:grid" width="18"></iconify-icon>
-				<span class="hidden md:inline ml-1">Pixelate</span>
+				<span class="hidden md:inline ms-1">Pixelate</span>
 			</button>
 		</div>
 	</div>
@@ -184,7 +184,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	<div class="divider-vertical hidden lg:block"></div>
 
 	<!-- Strength Slider -->
-	<div class="control-group flex-1 min-w-[200px] max-w-[300px]">
+	<div class="control-group flex-1 min-w-50 max-w-75">
 		<label class="control-label" for="blur-strength-slider"> {strengthLabel}: </label>
 		<div class="flex items-center gap-2">
 			<input
@@ -249,17 +249,17 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 
 	<!-- Action Buttons -->
 	<div class="action-buttons flex gap-2 ml-auto">
-		<button onclick={onReset} class="btn btn-sm preset-outlined-surface-500">
+		<button onclick={onReset} class="btn btn-sm preset-outlined-surface-500" aria-label="Reset blur">
 			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
 			<span class="hidden sm:inline">Reset</span>
 		</button>
 
-		<button onclick={onCancel} class="btn btn-sm preset-outlined-error-500">
+		<button onclick={onCancel} class="btn btn-sm preset-outlined-error-500" aria-label="Cancel blur">
 			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			<span class="hidden sm:inline">Cancel</span>
 		</button>
 
-		<button class="btn btn-sm preset-filled-success-500" onclick={onApply}>
+		<button class="btn btn-sm preset-filled-success-500" onclick={onApply} aria-label="Apply blur">
 			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 			<span class="hidden sm:inline">Apply</span>
 		</button>

@@ -228,7 +228,7 @@ Visual password strength indicator with match validation and accessibility featu
 							<button
 								type="button"
 								onclick={toggleRequirements}
-								class="text-xs text-tertiary-500 dark:text-primary-500 hover:text-tertiary-600 dark:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded"
+								class="text-xs text-tertiary-500  hover:text-tertiary-600 dark:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded"
 								aria-expanded={showRequirementsList}
 								aria-controls="password-requirements"
 							>

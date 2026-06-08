@@ -212,7 +212,7 @@ export const widgetMeta = {
 					{const isOpen = expandedId === logId}
 					<button
 						onclick={() => toggleExpand(logId)}
-						class="w-full text-left group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+						class="w-full text-start group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 					>
 						<iconify-icon
 							icon={levelIcon(log.level)}

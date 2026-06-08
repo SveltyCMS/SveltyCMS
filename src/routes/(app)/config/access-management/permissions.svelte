@@ -307,7 +307,7 @@ function getActionBadgeClass(action: string) {
 			</div>
 		{/if}
 		<div class="permission overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-800/80 shadow-sm bg-white dark:bg-surface-900">
-			<table class="w-full text-left border-collapse table-auto">
+			<table class="w-full text-start border-collapse table-auto">
 				<!-- Header -->
 				<thead class="bg-surface-50 dark:bg-surface-950 border-b border-surface-200 dark:border-surface-800/80">
 					<tr>

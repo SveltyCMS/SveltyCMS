@@ -81,7 +81,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 									<button
 										type="button"
 										onclick={() => selectLanguage(lang)}
-										class="flex w-full items-center justify-between px-3 py-2 text-left rounded-md cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors"
+										class="flex w-full items-center justify-between px-3 py-2 text-start rounded-md cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors"
 									>
 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
 										<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
@@ -122,7 +122,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 								<button
 									type="button"
 									onclick={() => selectLanguage(lang)}
-									class="flex w-full items-center justify-between px-3 py-2 text-left rounded-md cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors"
+									class="flex w-full items-center justify-between px-3 py-2 text-start rounded-md cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors"
 								>
 									<span class="text-sm font-medium">{getLanguageName(lang)}</span>
 									<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>

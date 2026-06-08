@@ -87,13 +87,13 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 					<th class="p-4 text-right">Actions</th>
 				</tr>
 			</thead>
-			
+
 			<tbody class="divide-y divide-surface-100 dark:divide-surface-800">
 				{#each paginatedFiles as file (file._id || file.filename)}
 					{const fileId = file._id?.toString() || file.filename}
 					{const isSelected = selectedFiles.has(fileId)}
-					
-					<tr 
+
+					<tr
 						class="transition-colors cursor-pointer {isSelected ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-primary-500/5' : 'hover:bg-surface-50 dark:hover:bg-surface-800/50'}"
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}
@@ -101,8 +101,8 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 						aria-selected={isSelected}
 					>
 						<td class="text-center p-4">
-							<input 
-								type="checkbox" 
+							<input aria-label="Input"
+								type="checkbox"
 								checked={isSelected}
 								onchange={() => toggleSelection(file)}
 								class="checkbox"
@@ -130,14 +130,14 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 						<td class="p-4 text-xs font-mono opacity-70">{formatBytes(file.size)}</td>
 						<td class="p-4 text-right">
 							<div class="flex justify-end gap-1">
-								<button 
+								<button
 									onclick={(e) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
 									class="btn-icon btn-icon-sm preset-ghost-surface hover:preset-filled-tertiary-500 dark:preset-filled-primary-500"
 									aria-label="Edit"
 								>
 									<iconify-icon icon="mdi:pencil" width="16"></iconify-icon>
 								</button>
-								<button 
+								<button
 									onclick={(e) => { e.stopPropagation(); ondeleteImage(file); }}
 									class="btn-icon btn-icon-sm preset-ghost-surface hover:preset-filled-error-500"
 									aria-label="Delete"
@@ -154,10 +154,10 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 
 	<!-- Footer -->
 	<div class="p-4 bg-surface-50 dark:bg-surface-800 border-t border-surface-200 dark:border-surface-700">
-		<TablePagination 
-			bind:currentPage 
-			bind:rowsPerPage 
-			{pagesCount} 
+		<TablePagination
+			bind:currentPage
+			bind:rowsPerPage
+			{pagesCount}
 			totalItems={filteredFiles.length}
 			onUpdatePage={(p: number) => currentPage = p}
 			onUpdateRowsPerPage={(r: number) => { rowsPerPage = r; currentPage = 1; }}

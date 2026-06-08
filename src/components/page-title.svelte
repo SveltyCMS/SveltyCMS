@@ -120,7 +120,7 @@
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 		{/if}
-		<div class="flex flex-col ml-2 min-w-0">
+		<div class="flex flex-col ms-2 min-w-0">
 			<h1
 				class="transition-max-width h1 relative flex items-center gap-1 font-bold"
 				style="font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);"

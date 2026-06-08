@@ -318,17 +318,17 @@
 
 		{#if mode === 'list'}
 			<div class="relative mb-4">
-				<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
-				<input bind:value={search} class="input pl-10" type="search" placeholder="Search tokens..." />
+				<iconify-icon icon="mdi:magnify" class="absolute inset-s-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
+				<input bind:value={search} class="input ps-10" type="search" placeholder="Search tokens..."  aria-label="Input" />
 			</div>
 
-			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pr-1">
+			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pe-1">
 				{#each Object.entries(filteredGroups) as [cat, tokens] (cat)}
 					<div class="card preset-tonal p-2">
 						<button
 							onclick={() => (openCategories[cat] = !openCategories[cat])}
 							class="flex w-full items-center justify-between text-sm font-bold uppercase opacity-70 hover:opacity-100"
-						>
+						 aria-label="Toggle {cat} category">
 							<div class="flex items-center gap-2">
 								<iconify-icon icon={icons[cat]}></iconify-icon>
 								<span>{cat}</span>
@@ -347,7 +347,7 @@
 										role="button"
 									>
 										<div class="flex items-start justify-between gap-2">
-											<div class="flex-1 text-left">
+											<div class="flex-1 text-start">
 												<div class="text-sm font-medium">{t.name}</div>
 												<code class="code text-[10px] opacity-70">{t.token}</code>
 											</div>
@@ -378,7 +378,7 @@
 				{/each}
 			</div>
 		{:else if selectedToken}
-			<div class="flex-1 space-y-4 overflow-y-auto pr-2">
+			<div class="flex-1 space-y-4 overflow-y-auto pe-2">
 				<!-- Token Info -->
 				<div class="card variant-soft-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
 					<div class="mb-2 flex items-center justify-between">
@@ -411,15 +411,15 @@
 											<label class="label text-xs">
 												<span class="opacity-70">{arg.name}</span>
 												{#if arg.type === 'select'}
-													<select bind:value={mod.args[argIdx]} class="select select-sm">
+													<select bind:value={mod.args[argIdx]} class="select select-sm" aria-label="Select">
 														{#each arg.options ?? [] as opt (opt)}
 															<option value={opt}>{opt}</option>
 														{/each}
 													</select>
 												{:else if arg.type === 'number'}
-													<input type="number" bind:value={mod.args[argIdx]} class="input input-sm" />
+													<input type="number" bind:value={mod.args[argIdx]} class="input input-sm"  aria-label="Input" />
 												{:else}
-													<input type="text" bind:value={mod.args[argIdx]} class="input input-sm" />
+													<input type="text" bind:value={mod.args[argIdx]} class="input input-sm"  aria-label="Input" />
 												{/if}
 											</label>
 										{/each}
@@ -435,7 +435,7 @@
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m (m.name)}
-							<button onclick={() => addModifier(m)} class="chip preset-filled-surface-500 hover:variant-filled-secondary transition-colors">
+							<button onclick={() => addModifier(m)} class="chip preset-filled-surface-500 hover:variant-filled-secondary transition-colors" aria-label="Add {m.label} modifier">
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}
 							</button>
@@ -456,7 +456,7 @@
 						rows="3"
 						class="textarea rounded bg-surface-900 p-3 font-mono text-sm text-secondary-400"
 						placeholder="Edit token syntax here..."
-					></textarea>
+					 aria-label="Textarea"></textarea>
 				</div>
 
 				<div>
@@ -469,10 +469,10 @@
 				</div>
 
 				<div class="flex gap-2">
-					<button onclick={deleteToken} class="btn variant-soft-error" title="Clear input">
+					<button onclick={deleteToken} class="btn variant-soft-error" title="Clear input" aria-label="Clear token">
 						<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 					</button>
-					<button onclick={addAnotherToken} class="btn preset-tonal-surface flex-1">
+					<button onclick={addAnotherToken} class="btn preset-tonal-surface flex-1" aria-label="Add another token">
 						<iconify-icon icon="mdi:plus"></iconify-icon>
 						Add Another
 					</button>

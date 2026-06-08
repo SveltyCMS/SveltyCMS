@@ -19,7 +19,7 @@ and transparent browser indicator trick for consistent cross-browser appearance.
 - `onchange` (function): Callback with new date/time string.
 
 ### Features:
-- native `<input type="date">` for maximum platform accessibility
+- native `<input type="date" aria-label="Input">` for maximum platform accessibility
 - decorative calendar icon with focus-animation
 - cross-browser calendar picker indicator transparency
 - full Svelte 5 runes: $props, $bindable, $derived
@@ -74,7 +74,7 @@ const classes = $derived(cn(
 
 <div class="space-y-1 w-full">
 	{#if label}
-		<label class="block text-sm font-bold opacity-80 pl-1" for={id}>
+		<label class="block text-sm font-bold opacity-80 ps-1" for={id}>
 			{label}
 		</label>
 	{/if}
@@ -96,17 +96,17 @@ const classes = $derived(cn(
 		/>
 
 		<!-- Decorative Calendar Icon (Internal to input area if possible, or overlay) -->
-		<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+		<div class="absolute inset-e-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
 		<iconify-icon icon={type === 'time' ? 'mdi:clock-outline' : 'mdi:calendar'} width="20"></iconify-icon>
 		</div>
 	</div>
 
 	{#if description && !error}
-		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400 pl-1">{description}</p>
+		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400 ps-1">{description}</p>
 	{/if}
 
 	{#if error}
-		<p id={errorId} class="text-xs text-error-500 font-medium pl-1" role="alert">{error}</p>
+		<p id={errorId} class="text-xs text-error-500 font-medium ps-1" role="alert">{error}</p>
 	{/if}
 </div>
 

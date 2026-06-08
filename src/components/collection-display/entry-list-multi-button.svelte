@@ -466,7 +466,7 @@
 			<button
 				type="button"
 				onclick={() => (showDeleted = !showDeleted)}
-				class="mt-1 btn rounded-full mr-2 transition-all duration-200 active:scale-90 {!showDeleted
+				class="mt-1 btn rounded-full me-2 transition-all duration-200 active:scale-90 {!showDeleted
 					? 'preset-outlined-surface-500 '
 					: 'preset-filled-error-500 text-white ring-2 ring-error-500 animate-pulse'}"
 				aria-label={showDeleted ? entrylist_multibutton_viewing_archived() : entrylist_multibutton_viewing_active()}
@@ -492,7 +492,7 @@
 				class="h-10 min-w-15 md:min-w-35 rtl:rotate-180 font-bold transition-all duration-200
 					{hasSelections ? 'active:scale-95' : 'pointer-events-none'}
 					{currentConfig.gradient} {currentConfig.textColor}
-					rounded-l-full rounded-r-none px-6 flex items-center gap-2 border-r border-white
+					rounded-l-full rounded-r-none px-6 flex items-center gap-2 border-e border-white
 					disabled:opacity-50 disabled:cursor-not-allowed"
 				aria-label={dynamicLabel}
 				aria-busy={isProcessing}
@@ -508,7 +508,7 @@
 			<!-- Selection Badge -->
 			{#if hasSelections && selectedCount > 0}
 				<span
-					class="absolute -top-2 left-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-900 border border-white/20 text-[10px] font-bold text-white shadow-xl z-20 px-1"
+					class="absolute -top-2 inset-s-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-900 border border-white/20 text-[10px] font-bold text-white shadow-xl z-20 px-1"
 					transition:scale={{ duration: 200, easing: quintOut }}
 				>
 					{selectedCount}
@@ -521,7 +521,7 @@
 					type="button"
 					onclick={hasSelections ? toggleDropdown : undefined}
 					disabled={!hasSelections || isProcessing}
-					class="h-10 w-8 border-l border-white/20 transition-all duration-200 text-white flex items-center justify-center shadow-inner
+					class="h-10 w-8 border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center shadow-inner
 						{hasSelections && !isProcessing
 						? 'bg-surface-500 hover:bg-surface-400 active:scale-95 cursor-pointer'
 						: currentConfig.gradient + ' pointer-events-none opacity-90'}"
@@ -542,7 +542,7 @@
 			<!-- Dropdown Menu -->
 			{#if isDropdownOpen}
 				<div
-					class="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
+					class="absolute inset-e-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
 					role="menu"
 					aria-label={entrylist_multibutton_available_actions()}
 					transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
@@ -560,7 +560,7 @@
 										type="button"
 										onclick={(e) => handleOptionClick(e, config.type)}
 										role="menuitem"
-										class="group/item relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-white transition-all duration-200 hover:bg-white/5"
+										class="group/item relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start text-white transition-all duration-200 hover:bg-white/5"
 										aria-label="{config.label} {config.shortcut ? `(${config.shortcut})` : ''}"
 									>
 										<!-- Icon -->

@@ -291,12 +291,12 @@
 			</button>
 		{/if}
 
-		<div class="shrink-0 flex items-center ml-2">
+		<div class="shrink-0 flex items-center ms-2">
 			<iconify-icon icon={currentCollection?.icon ?? 'mdi:file-document'} width="24" class="text-error-500"></iconify-icon>
 		</div>
 
 		{#if currentCollection?.name && currentMode !== 'view'}
-			<div class="ml-2 flex-1 min-w-0">
+			<div class="ms-2 flex-1 min-w-0">
 				<div class="text-xs uppercase opacity-70 dark:opacity-100 dark:text-white leading-none">{currentMode}</div>
 				<div class="text-sm font-bold capitalize truncate leading-tight">
 					<span class="text-tertiary-500 dark:text-primary-500">{currentCollection.name}</span>

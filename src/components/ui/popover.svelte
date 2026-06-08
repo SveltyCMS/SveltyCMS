@@ -137,7 +137,7 @@ focus restoration.
 			{#if arrow}
 				<div
 					bind:this={arrowEl}
-					class="absolute size-3 bg-surface-100 dark:bg-surface-900 border-l border-t border-surface-200 dark:border-surface-800 rotate-45"
+					class="absolute size-3 bg-surface-100 dark:bg-surface-900 border-s border-t border-surface-200 dark:border-surface-800 rotate-45"
 					style="
 						left: {floating.arrowX != null ? `${floating.arrowX}px` : ''};
 						top: {floating.arrowY != null ? `${floating.arrowY}px` : ''};

@@ -237,7 +237,7 @@ Part of the Three Pillars Architecture for widget system.
 	<SystemTooltip title={error || fetchError || ''} wFull={true}>
 		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900" role="group">
 			<!-- Platform Icon -->
-			<div class="flex items-center px-3 border-r border-surface-400/30">
+			<div class="flex items-center px-3 border-e border-surface-400/30">
 				<iconify-icon icon={PLATFORM_ICONS[currentPlatform]} width="20"></iconify-icon>
 			</div>
 
@@ -278,7 +278,7 @@ Part of the Three Pillars Architecture for widget system.
 	</SystemTooltip>
 
 	{#if error || fetchError}
-		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert">
 			{error || fetchError}
 		</p>
 	{/if}

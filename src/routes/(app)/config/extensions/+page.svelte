@@ -54,7 +54,7 @@ const tabs = [
 							<span>{tab.label}</span>
 						</div>
 						{#if activeTab === tab.id}
-							<div class="absolute bottom-0 left-0 h-0.5 w-full bg-tertiary-500 dark:bg-primary-500"></div>
+							<div class="absolute bottom-0 start-0 h-0.5 w-full bg-tertiary-500 dark:bg-primary-500"></div>
 						{/if}
 					</button>
 				{/each}

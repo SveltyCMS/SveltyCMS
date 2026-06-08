@@ -157,7 +157,7 @@ Features:
       >
         <!-- Selection UI -->
         {#if isSelectionMode || isSelected}
-          <div class="absolute left-3 top-3 z-20" in:scale={{ duration: 200 }}>
+          <div class="absolute inset-s-3 top-3 z-20" in:scale={{ duration: 200 }}>
             <input
               type="checkbox"
               checked={isSelected}
@@ -170,7 +170,7 @@ Features:
 
         <!-- Actions overlay (visible on hover or focus) -->
         <div
-          class="absolute right-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+          class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
         >
           <SystemTooltip title="Edit" positioning={{ placement: "left" }}>
             <button
@@ -200,13 +200,13 @@ Features:
 
         <!-- Image / Icon -->
         <button
-          class="relative aspect-square w-full overflow-hidden bg-surface-100 dark:bg-surface-800 text-left"
+          class="relative aspect-square w-full overflow-hidden bg-surface-100 dark:bg-surface-800 text-start"
           onclick={() => handleItemClick(file)}
           onkeydown={(e) => handleKeyDown(e, file)}
           aria-label="Preview {file.filename}"
         >
           {#if file.type === "image"}
-            <div 
+            <div
               class="h-full w-full bg-surface-100 dark:bg-surface-800 transition-colors duration-500"
               style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
             >
@@ -240,7 +240,7 @@ Features:
           {/if}
 
           <div
-            class="absolute bottom-0 left-0 right-0 h-1/2 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            class="absolute bottom-0 inset-s-0 inset-e-0 h-1/2 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
           ></div>
         </button>
 

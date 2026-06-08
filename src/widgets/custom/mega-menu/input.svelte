@@ -7,7 +7,7 @@ Provides hierarchical menu management with drag-and-drop reordering and modal ed
 Part of the Three Pillars Architecture for enterp				</div>
 
 				{#if item.children.length > 0 && item._expanded !== false}
-					<div class="ml-8 space-y-2 border-l-2 border-surface-200 pl-4">
+					<div class="ms-8 space-y-2 border-s-2 border-surface-200 ps-4">
 						{#each item.children as child (child._id)}
 							<MegaMenuInput bind:value={item.children} {field} {error} />
 						{/each}
@@ -276,7 +276,7 @@ Interactive menu builder with add/edit/reorder capabilities
 								{(item._fields as any)?.title?.[lang] || (item._fields as any)?.title?.en || 'Untitled Item'}
 							</span>
 							{#if item.children.length > 0}
-								<span class=" ml-2 text-xs text-surface-500 dark:text-surface-50">({item.children.length} children)</span>
+								<span class=" ms-2 text-xs text-surface-500 dark:text-surface-50">({item.children.length} children)</span>
 							{/if}
 						</div>
 
@@ -304,7 +304,7 @@ Interactive menu builder with add/edit/reorder capabilities
 					</div>
 
 					{#if item.children.length > 0 && item._expanded !== false}
-						<div class="ml-8 border-l-2 border-surface-200 pl-4 dark:text-surface-50">
+						<div class="ms-8 border-s-2 border-surface-200 ps-4 dark:text-surface-50">
 							<MegaMenuInput bind:value={item.children} {field} {error} />
 						</div>
 					{/if}

@@ -553,7 +553,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'body', token.value)}
 																>
 																	{token.label}
@@ -590,7 +590,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'to', token.value)}
 																>
 																	{token.label}
@@ -614,7 +614,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'subject', token.value)}
 																	aria-label="Insert token {token.label}"
 																>
@@ -645,7 +645,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'body', token.value)}
 																	aria-label="Insert body token {token.label}"
 																>
@@ -678,7 +678,7 @@ const steps = [
 																{#each availableTokens as token}
 																	<button
 																		type="button"
-																		class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																		class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																		onclick={() => insertToken(i, 'message', token.value)}
 																	>
 																		{token.label}
@@ -722,7 +722,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'value', token.value)}
 																	aria-label="Insert value token {token.label}"
 																>

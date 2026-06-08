@@ -108,7 +108,7 @@ function handleKeyDown(e: KeyboardEvent, index: number) {
 	aria-label={rest['aria-label'] || 'Segmented Control'}
 	{...rest}
 >
-	<input type="hidden" {name} {value} />
+	<input type="hidden" {name} {value}  aria-label="Input" />
 
 	{#each options as option, i}
 		{const active = value === option.value}

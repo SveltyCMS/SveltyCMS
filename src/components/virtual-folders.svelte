@@ -192,7 +192,7 @@
 			href="/"
 			onclick={handleReturnToCollections}
 			aria-label="Return to Collections"
-			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
+			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 ps-2 text-white dark:bg-surface-500"
 			data-sveltekit-preload-data="hover"
 		>
 			<iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon>
@@ -234,7 +234,7 @@
 							data-sveltekit-preload-data="hover"
 						>
 							<iconify-icon icon="bi:folder" width="28" class="text-yellow-500"></iconify-icon>
-							<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{folder.name}</span>
+							<span class="flex-1 overflow-hidden text-ellipsis text-start text-sm">{folder.name}</span>
 						</a>
 					</div>
 				{:else}

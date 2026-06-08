@@ -64,7 +64,7 @@ function setPage(page: number) {
 
         <div class="flex items-center gap-2">
             <span class="hidden sm:inline">Rows:</span>
-            <select
+            <select aria-label="Select">
                 bind:value={rowsPerPage}
                 onchange={() => {
                     currentPage = 1;

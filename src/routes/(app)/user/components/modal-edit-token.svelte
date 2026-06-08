@@ -303,7 +303,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				errorMessage={tokenForm.errors.email?.[0]}
 			/>
 			<!-- Token field (hidden but still submitted with form) -->
-			<input bind:value={tokenForm.data.token} type="hidden" name="token" />
+			<input bind:value={tokenForm.data.token} type="hidden" name="token"  aria-label="Input" />
 
 			<!-- User Role -->
 			<div class="flex flex-col gap-2 sm:flex-row items-center">
@@ -312,7 +312,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 					<div class="flex flex-wrap gap-2">
 						{#if roles && roles.length > 0}
 							{#each roles as r (r._id)}
-								<button
+								<button>
 									type="button"
 									class="chip {tokenForm.data.role === r._id
 										? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
@@ -359,7 +359,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 					{#if tokenForm.data.token}
 						<button type="button" onclick={deleteToken} class="btn variant-filled-error">
 							<iconify-icon icon="icomoon-free:bin" width={20}></iconify-icon>
-							<span class="hidden sm:block ml-2">{button_delete()}</span>
+							<span class="hidden sm:block ms-2">{button_delete()}</span>
 						</button>
 					{/if}
 				</div>

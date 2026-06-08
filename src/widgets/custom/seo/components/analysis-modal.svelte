@@ -42,7 +42,7 @@ Displays detailed SEO analysis results in a modal overlay.
 
 	<!-- Modal -->
 	<div
-		class="fixed left-1/2 top-1/2 z-1000 -translate-x-1/2 -translate-y-1/2 shadow-xl"
+		class="fixed start-1/2 top-1/2 z-1000 -translate-x-1/2 -translate-y-1/2 shadow-xl"
 		transition:scale={{ duration: 200, start: 0.95 }}
 		role="dialog"
 		aria-modal="true"
@@ -77,7 +77,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							</div>
 							<p class="mt-2 font-bold text-surface-600 dark:text-surface-300">Overall Score</p>
 						</div>
-						<div class="ml-8 grid grid-cols-2 gap-4 text-sm">
+						<div class="ms-8 grid grid-cols-2 gap-4 text-sm">
 							<div class="flex flex-col">
 								<span class="opacity-70">Keywords</span>
 								<span class="font-bold {analysisResult.score.keywords >= 80 ? 'text-success-500' : 'text-warning-500'}"
@@ -114,7 +114,7 @@ Displays detailed SEO analysis results in a modal overlay.
 								{const suggestionIcon =
 									suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 								<div
-									class="card border-l-4 p-4 {suggestion.type === 'error'
+									class="card border-s-4 p-4 {suggestion.type === 'error'
 										? 'border-error-500 bg-error-500/10'
 										: suggestion.type === 'warning'
 											? 'border-warning-500 bg-warning-500/10'
@@ -148,8 +148,8 @@ Displays detailed SEO analysis results in a modal overlay.
 							{/each}
 						</div>
 					{:else}
-						<div class="card border-l-4 border-success-500 bg-success-500/10 p-4 flex items-center">
-							<iconify-icon icon="mdi:check-circle" class="text-2xl mr-2 text-success-500"></iconify-icon>
+						<div class="card border-s-4 border-success-500 bg-success-500/10 p-4 flex items-center">
+							<iconify-icon icon="mdi:check-circle" class="text-2xl me-2 text-success-500"></iconify-icon>
 							<span class="text-success-800 dark:text-success-200 font-medium">Great job! No specific issues found.</span>
 						</div>
 					{/if}

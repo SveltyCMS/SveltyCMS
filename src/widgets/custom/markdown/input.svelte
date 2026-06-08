@@ -77,7 +77,7 @@
 		{/if}
 
 		{#if previewMode !== 'edit'}
-			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-l border-surface-200 dark:border-surface-700">
+			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-s border-surface-200 dark:border-surface-700">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html parseMD(rawText)}
 			</div>

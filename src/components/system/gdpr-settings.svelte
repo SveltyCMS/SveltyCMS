@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/system/gdpr-settings.svelte
 @component
 **GDPR settings component for managing user data export and anonymization**
@@ -107,7 +107,7 @@
 	</div>
 
 	<!-- Info Alert -->
-	<div class="alert preset-filled-tertiary-500 dark:preset-filled-primary-500/10 border-l-4 border-tertiary-500 dark:border-primary-500 rounded-lg p-4 mb-6">
+	<div class="alert preset-filled-tertiary-500 dark:preset-filled-primary-500/10 border-s-4 border-tertiary-500 dark:border-primary-500 rounded-lg p-4 mb-6">
 		<div class="flex items-start gap-3">
 			<iconify-icon icon="mdi:shield-check" width="24" class="text-tertiary-500 dark:text-primary-500 mt-0.5"></iconify-icon>
 			<div>
@@ -132,12 +132,12 @@
 
 			<label class="label">
 				<span class="label-text text-sm font-medium">User ID</span>
-				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdExport} />
+				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdExport}  aria-label="Input" />
 			</label>
 
 			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full" disabled={!userIdExport || loadingExport} onclick={handleExport}>
 				{#if loadingExport}
-					<iconify-icon icon="mdi:loading" class="animate-spin mr-2"></iconify-icon>
+					<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
 					Exporting...
 				{:else}
 					Download JSON
@@ -157,7 +157,7 @@
 
 			<label class="label">
 				<span class="label-text text-sm font-medium">User ID</span>
-				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdAnonymize} />
+				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdAnonymize}  aria-label="Input" />
 			</label>
 
 			<button
@@ -166,7 +166,7 @@
 				onclick={handleAnonymize}
 			>
 				{#if loadingAnonymize}
-					<iconify-icon icon="mdi:loading" class="animate-spin mr-2"></iconify-icon>
+					<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
 					Processing...
 				{:else if confirmAnonymize}
 					⚠️ Confirm Anonymization?

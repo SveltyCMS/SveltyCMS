@@ -238,7 +238,7 @@ export const widgetMeta = {
 							</div>
 
 							<!-- Time -->
-							<div class="shrink-0 text-right text-[11px] font-medium text-surface-400 dark:text-surface-500">
+							<div class="shrink-0 text-end text-[11px] font-medium text-surface-400 dark:text-surface-500">
 								{user.onlineTime
 									? new Date(user.onlineTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 									: '—'}

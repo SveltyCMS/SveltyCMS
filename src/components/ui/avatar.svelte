@@ -42,7 +42,7 @@ let {
 	alt = '',
 	initials,
 	fallback,
-	size = 'size-10',
+	size = 'size-8',
 	rounded = 'rounded-full',
 	class: className,
 	...restProps

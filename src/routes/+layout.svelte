@@ -433,7 +433,7 @@ onMount(() => {
 				</p>
 			</div>
 
-			<div class="max-w-md rounded-lg border border-surface-200 bg-surface-100 p-4 text-left text-sm font-mono dark:border-surface-800 dark:bg-surface-800">
+			<div class="max-w-md rounded-lg border border-surface-200 bg-surface-100 p-4 text-start text-sm font-mono dark:border-surface-800 dark:bg-surface-800">
 				<p class="text-error-600 dark:text-error-500">{error.message}</p>
 			</div>
 
@@ -458,7 +458,7 @@ onMount(() => {
 <!-- Progressive Session Timeout Warning Overlay/Banners -->
 {#if sessionPhase === 'warning'}
 	<div
-		class="fixed bottom-4 right-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-warning-500/30 bg-surface-100/80 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
+		class="fixed bottom-4 end-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-warning-500/30 bg-surface-100/80 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
 		role="status"
 		aria-live="polite"
 	>

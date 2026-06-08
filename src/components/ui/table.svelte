@@ -185,7 +185,7 @@ function onVirtualScroll() {
                 aria-rowcount={data.length}
                 aria-colcount={columns.length + (selectable ? 1 : 0)}
             >
-                <table class="w-full text-left border-collapse min-w-full table-fixed">
+                <table class="w-full text-start border-collapse min-w-full table-fixed">
                     <thead class="sticky top-0 z-10">
                         <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                             {#if selectable}
@@ -255,7 +255,7 @@ function onVirtualScroll() {
             </div>
         {:else}
             <!-- Normal (non-virtualized) table -->
-            <table class="w-full text-left border-collapse min-w-full table-fixed">
+            <table class="w-full text-start border-collapse min-w-full table-fixed">
                 <thead class="sticky top-0 z-10">
                     <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                         {#if selectable}

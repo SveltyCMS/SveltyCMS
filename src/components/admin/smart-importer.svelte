@@ -305,7 +305,7 @@ format auto-detection, field mapping preview, and progress tracking.**
 						bind:checked={dryRun}
 						class="h-4 w-4 rounded border-surface-300 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:focus:ring-primary-500"
 						disabled={isImporting}
-					/>
+					 />
 					<span>Dry Run (preview only)</span>
 				</label>
 			</SystemTooltip>
@@ -404,10 +404,10 @@ format auto-detection, field mapping preview, and progress tracking.**
 								<table class="w-full text-sm" aria-label="Field mapping table showing source to target field conversions">
 									<thead class="sticky top-0 bg-surface-50 dark:bg-surface-800">
 										<tr>
-											<th class="px-3 py-2 text-left text-xs font-medium text-surface-500">Source Field</th>
-											<th class="px-3 py-2 text-left text-xs font-medium text-surface-500">→</th>
-											<th class="px-3 py-2 text-left text-xs font-medium text-surface-500">Target Field</th>
-											<th class="px-3 py-2 text-left text-xs font-medium text-surface-500">Confidence</th>
+											<th class="px-3 py-2 text-start text-xs font-medium text-surface-500">Source Field</th>
+											<th class="px-3 py-2 text-start text-xs font-medium text-surface-500">→</th>
+											<th class="px-3 py-2 text-start text-xs font-medium text-surface-500">Target Field</th>
+											<th class="px-3 py-2 text-start text-xs font-medium text-surface-500">Confidence</th>
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-surface-100 dark:divide-surface-700">

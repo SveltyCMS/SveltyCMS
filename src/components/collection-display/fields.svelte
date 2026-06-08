@@ -793,7 +793,7 @@
           </p>
         {:else}
           <div class="mb-4 flex items-center justify-between gap-4">
-            <select class="select grow" bind:value={selectedRevisionId}>
+            <select class="select grow" bind:value={selectedRevisionId} aria-label="Select">
               <option value="" disabled
                 >-- Select a revision to compare --</option
               >
@@ -810,7 +810,7 @@
               class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
               onclick={handleRevert}
               disabled={!selectedRevision?.data}
-            >
+             aria-label="Revert revision">
               <iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
               {applayout_version()}
             </button>
@@ -818,7 +818,7 @@
               class="preset-tonal-primary btn"
               onclick={() => (isDiffModalOpen = true)}
               disabled={!selectedRevision?.data}
-            >
+             aria-label="Show diff">
               <iconify-icon icon="mdi:compare" class="mr-1"></iconify-icon>
               Compare
             </button>
@@ -920,7 +920,7 @@
     <Tabs.Content value="3" class="w-full">
       <div class="space-y-4 p-4">
         <div class="flex items-center gap-2">
-          <input type="text" class="input grow" readonly value={apiUrl} />
+          <input type="text" class="input grow" readonly value={apiUrl}  aria-label="Input" />
           <button
             class="preset-outline-surface-500 btn"
             onclick={() => {

@@ -77,7 +77,7 @@ function handleUpdate(detail: { value: any }, property: string) {
 }
 </script>
 
-<div class="flex h-full flex-col border-l border-surface-200-800 bg-surface-50-950 w-80">
+<div class="flex h-full flex-col border-s border-surface-200-800 bg-surface-50-950 w-80">
 	{#if !target || !target.widget}
 		<div class="flex h-full flex-col items-center justify-center p-8 text-center text-surface-500">
 			<iconify-icon icon="mdi:form-select" width="48" class="mb-4 opacity-20"></iconify-icon>
@@ -105,10 +105,10 @@ function handleUpdate(detail: { value: any }, property: string) {
 					</div>
 				</div>
 				<div class="flex flex-col gap-1">
-					<button onclick={onDuplicate} class="btn-icon btn-icon-sm preset-ghost-tertiary-500 hover:preset-filled-tertiary-500 transition-all" title="Duplicate Field">
+					<button onclick={onDuplicate} class="btn-icon btn-icon-sm preset-ghost-tertiary-500 hover:preset-filled-tertiary-500 transition-all" title="Duplicate Field" aria-label="Duplicate field">
 						<iconify-icon icon="mdi:content-copy" width={18}></iconify-icon>
 					</button>
-					<button onclick={onDelete} class="btn-icon btn-icon-sm preset-ghost-error-500 hover:preset-filled-error-500 transition-all" title="Delete Field">
+					<button onclick={onDelete} class="btn-icon btn-icon-sm preset-ghost-error-500 hover:preset-filled-error-500 transition-all" title="Delete Field" aria-label="Delete field">
 						<iconify-icon icon="mdi:trash-can" width={18}></iconify-icon>
 					</button>
 				</div>

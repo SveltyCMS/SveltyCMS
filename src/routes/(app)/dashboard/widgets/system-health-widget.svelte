@@ -171,7 +171,7 @@ export const widgetMeta = {
 							></iconify-icon>
 							<div>
 								<span class="font-semibold capitalize {overallColor}">{healthData.overallStatus}</span>
-								<span class="text-surface-500 dark:text-surface-400 ml-1">Uptime: {formatUptime(healthData.uptime)}</span>
+								<span class="text-surface-500 dark:text-surface-400 ms-1">Uptime: {formatUptime(healthData.uptime)}</span>
 							</div>
 						</div>
 
@@ -220,7 +220,7 @@ export const widgetMeta = {
 						</div>
 
 						<!-- Services Cards Feed -->
-						<div class="flex-1 overflow-y-auto pr-1 space-y-2 custom-scroll max-h-55">
+						<div class="flex-1 overflow-y-auto pe-1 space-y-2 custom-scroll max-h-55">
 							{#each Object.entries(healthData.components) as [name, service] (name)}
 								{const latency = service.performance?.latency}
 								{const history = latencyHistory[name] || []}

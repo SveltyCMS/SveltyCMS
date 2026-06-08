@@ -181,7 +181,7 @@ function formatUptime(seconds: number): string {
                 {#if data.security?.recentIncidents?.length > 0}
                     {#each data.security.recentIncidents as incident}
                         {const inc = incident as any}
-                        <div class="flex items-center gap-4 p-3 rounded-lg bg-surface-50 dark:bg-surface-800 border-l-4 border-error-500">
+                        <div class="flex items-center gap-4 p-3 rounded-lg bg-surface-50 dark:bg-surface-800 border-s-4 border-error-500">
                             <iconify-icon icon="mdi:alert-decagram" class="text-error-500 text-xl"></iconify-icon>
                             <div class="flex-1">
                                 <p class="text-sm font-bold">{inc.type}</p>

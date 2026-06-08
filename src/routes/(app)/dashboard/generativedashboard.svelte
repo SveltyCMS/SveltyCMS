@@ -80,17 +80,17 @@ async function handleRegenerate() {
 				</div>
 
 				<div class="flex-1 max-w-xl relative">
-					<input
+					<input aria-label="Input"
 						type="text"
 						bind:value={prompt}
 						placeholder="Prompt AI to change this layout..."
-						class="input w-full pr-24 rounded-full"
+						class="input w-full pe-24 rounded-full"
 						onkeydown={(e) => e.key === 'Enter' && handleRegenerate()}
 					/>
 					<button
 						onclick={handleRegenerate}
 						disabled={isRegenerating}
-						class="absolute right-1 top-1 bottom-1 px-4 btn btn-sm rounded-full preset-filled-tertiary-500 dark:preset-filled-primary-500 font-bold"
+						class="absolute end-1 top-1 bottom-1 px-4 btn btn-sm rounded-full preset-filled-tertiary-500 dark:preset-filled-primary-500 font-bold"
 					>
 						{#if isRegenerating}
 							<iconify-icon icon="mdi:loading" class="animate-spin" width="18"></iconify-icon>

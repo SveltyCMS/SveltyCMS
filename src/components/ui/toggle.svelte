@@ -85,7 +85,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 
 <div class={cn('flex items-start gap-3', className)} {...rest}>
 	<div class="relative flex h-full items-center">
-		<input
+		<input aria-label="Input"
 			type="checkbox"
 			class="peer sr-only"
 			bind:checked={value}

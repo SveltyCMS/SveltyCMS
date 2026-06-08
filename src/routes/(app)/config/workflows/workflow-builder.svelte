@@ -130,7 +130,7 @@ function selectNode(id: string) {
 				<p class="text-sm opacity-50 font-medium">Visual Lifecycle Management (FSM)</p>
 			</div>
             
-            <div class="divider-vertical h-10 border-l border-surface-200 dark:border-surface-800"></div>
+            <div class="divider-vertical h-10 border-s border-surface-200 dark:border-surface-800"></div>
 
             <div class="flex flex-col gap-1">
                 <label for="collection-select" class="text-[10px] font-bold uppercase opacity-50">Target Collection</label>
@@ -168,23 +168,23 @@ function selectNode(id: string) {
 						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectNode(state.id); }}
 					>
 						{#if state.isInitial}
-							<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-500 text-white text-[8px] px-2 py-0.5 rounded-full font-bold uppercase">Initial</span>
+							<span class="absolute -top-3 start-1/2 -translate-x-1/2 bg-primary-500 text-white text-[8px] px-2 py-0.5 rounded-full font-bold uppercase">Initial</span>
 						{/if}
 						<div class="flex items-center justify-between mb-2">
 							<div class="h-3 w-3 rounded-full" style:background-color={state.color}></div>
 							<button class="text-error-500 opacity-0 group-hover:opacity-100" onclick={() => removeState(state.id)}>×</button>
 						</div>
-						<input bind:value={state.label} class="bg-transparent border-none font-bold text-sm w-full focus:ring-0" />
+						<input bind:value={state.label} class="bg-transparent border-none font-bold text-sm w-full focus:ring-0"  aria-label="Input" />
 						
 						<!-- Outgoing Transitions -->
 						<div class="mt-4 space-y-1">
 							{#each transitions.filter(t => t.from === state.id) as trans}
 								<button 
-                                    class="text-[10px] w-full text-left bg-surface-50 dark:bg-surface-900 p-1.5 rounded flex items-center justify-between border 
+                                    class="text-[10px] w-full text-start bg-surface-50 dark:bg-surface-900 p-1.5 rounded flex items-center justify-between border 
                                            {selectedTransitionId === trans.id ? 'border-primary-500 ring-1 ring-primary-500/50' : 'border-surface-200/50 hover:border-surface-400'}"
                                     onclick={(e) => { e.stopPropagation(); selectTransition(trans.id); }}
                                 >
-									<span class="truncate pr-2">➔ {states.find(s => s.id === trans.to)?.label}</span>
+									<span class="truncate pe-2">➔ {states.find(s => s.id === trans.to)?.label}</span>
 									<span class="text-[8px] opacity-40">{trans.label}</span>
 								</button>
 							{/each}
@@ -213,7 +213,7 @@ function selectNode(id: string) {
 						</div>
 						<div class="flex flex-col gap-3">
 							<label class="flex items-center gap-2 text-xs font-bold">
-								<input type="checkbox" bind:checked={node.isInitial} class="checkbox checkbox-sm" onchange={() => { if(node.isInitial) states.forEach(s => { if(s.id !== node.id) s.isInitial = false }) }} />
+								<input type="checkbox" bind:checked={node.isInitial} class="checkbox checkbox-sm" onchange={() => { if(node.isInitial) states.forEach(s => { if(s.id !== node.id) s.isInitial = false }) }}  aria-label="Input" />
 								Initial State
 							</label>
 							<label class="flex items-center gap-2 text-xs font-bold">

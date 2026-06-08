@@ -155,20 +155,20 @@
 				<div class="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
 				<button
 					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
-					onclick={() => (activeTab = 'local')}
-				>
+										onclick={() => (activeTab = 'local')}
+									>
 					Local Upload
 				</button>
 				<button
 					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
-					onclick={() => (activeTab = 'library')}
-				>
+										onclick={() => (activeTab = 'library')}
+									>
 					Library
 				</button>
 				<button
 					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
-					onclick={() => (activeTab = 'remote')}
-				>
+										onclick={() => (activeTab = 'remote')}
+									>
 					Remote Upload
 				</button>
 				</div>
@@ -211,7 +211,7 @@
 								{const isSelected = selectedFiles.has(fileId)}
 								<button
 									type="button"
-									class="group relative flex min-h-75] flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-85 {isSelected
+									class="group relative flex min-h-75] flex-col overflow-hidden rounded-2xl border bg-white text-start shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-85 {isSelected
 										? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
 										: 'border-surface-200 dark:border-surface-800'}"
 									onclick={() => {
@@ -250,7 +250,7 @@
 
 										<div class="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
 										{#if isSelected}
-											<div class="absolute right-2 top-2 rounded-full bg-tertiary-500 dark:bg-primary-500 px-2 py-1 text-[10px] font-bold text-white shadow-md">
+											<div class="absolute inset-e-2 top-2 rounded-full bg-tertiary-500 dark:bg-primary-500 px-2 py-1 text-[10px] font-bold text-white shadow-md">
 												Selected
 											</div>
 										{/if}

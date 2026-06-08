@@ -20,7 +20,10 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       else if (typeof db.query === "function") db.query(sql).run();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      if (!message.includes("already exists") && !message.includes("duplicate column name")) {
+      if (
+        !message.includes("already exists") &&
+        !message.includes("duplicate column name")
+      ) {
         logger.error(`[SQLite Migration] FAILED: ${message}`);
         throw err;
       }
@@ -387,12 +390,13 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_states_unique" ON "plugin_states" ("pluginId", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
 
-      -- Full-text search virtual table (not auto-created by Drizzle ORM)
-      CREATE VIRTUAL TABLE IF NOT EXISTS "content_nodes_fts" USING fts5(title, content, description, content='content_nodes', content_rowid='_id');
-      -- Triggers to keep FTS5 in sync
-      CREATE TRIGGER IF NOT EXISTS "content_nodes_ai" AFTER INSERT ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"(rowid, title, content, description) VALUES (new._id, new.title, new.content, new.description); END;
-      CREATE TRIGGER IF NOT EXISTS "content_nodes_ad" AFTER DELETE ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"("content_nodes_fts", rowid, title, content, description) VALUES('delete', old._id, old.title, old.content, old.description); END;
-      CREATE TRIGGER IF NOT EXISTS "content_nodes_au" AFTER UPDATE ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"("content_nodes_fts", rowid, title, content, description) VALUES('delete', old._id, old.title, old.content, old.description); INSERT INTO "content_nodes_fts"(rowid, title, content, description) VALUES (new._id, new.title, new.content, new.description); END;
+      -- Clean up any previously-created broken FTS5 triggers that reference non-existent
+      -- columns (title, content) on content_nodes. content_nodes is a structural tree table;
+      -- FTS should be applied per-collection on actual content tables instead.
+      DROP TRIGGER IF EXISTS "content_nodes_ai";
+      DROP TRIGGER IF EXISTS "content_nodes_ad";
+      DROP TRIGGER IF EXISTS "content_nodes_au";
+      DROP TABLE IF EXISTS "content_nodes_fts";
     `);
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed
@@ -404,11 +408,31 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       const hasPassword = tableInfo.some((c: any) => c.name === "password");
 
       if (hasSecurity && !hasPassword) {
-        logger.info("[SQLite] Migrating 'security' column to 'password' in auth_users...");
-        execute('ALTER TABLE "auth_users" RENAME COLUMN "security" TO "password"');
+        logger.info(
+          "[SQLite] Migrating 'security' column to 'password' in auth_users...",
+        );
+        execute(
+          'ALTER TABLE "auth_users" RENAME COLUMN "security" TO "password"',
+        );
       }
     } catch {
       // Ignore
+    }
+
+    // 🚀 MIGRATION: Add 'type' column to website_tokens if missing (v0.0.9+)
+    try {
+      const wtInfo = (db as any).prepare
+        ? (db as any).prepare('PRAGMA table_info("website_tokens")').all()
+        : [];
+      const hasTypeCol = wtInfo.some((c: any) => c.name === "type");
+      if (!hasTypeCol) {
+        logger.info("[SQLite] Adding 'type' column to website_tokens...");
+        execute(
+          'ALTER TABLE "website_tokens" ADD COLUMN "type" TEXT DEFAULT \'content-api\'',
+        );
+      }
+    } catch {
+      // Ignore — table may not exist yet
     }
 
     logger.info("SQLite migrations completed successfully.");

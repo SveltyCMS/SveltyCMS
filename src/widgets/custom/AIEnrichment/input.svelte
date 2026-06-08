@@ -90,7 +90,7 @@ async function runEnrichment() {
 			{#if field.required}<span class="text-error-500">*</span>{/if}
 		</label>
 
-		<button
+		<button>
 			type="button"
 			class="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-all bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-400 disabled:opacity-50 disabled:pointer-events-none"
 			onclick={runEnrichment}
@@ -136,7 +136,7 @@ async function runEnrichment() {
 			></textarea>
 		{/if}
 
-		<div class="absolute bottom-2 right-2 flex items-center gap-1 text-[10px] text-surface-400 select-none pointer-events-none">
+		<div class="absolute bottom-2 end-2 flex items-center gap-1 text-[10px] text-surface-400 select-none pointer-events-none">
 			<Icon icon="mdi:robot" />
 			{field.action.toUpperCase()}
 		</div>
