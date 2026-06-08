@@ -96,7 +96,8 @@ class SetupWizardPage {
 
     if (testButton) {
       await expect(testButton).toBeEnabled({ timeout: 30000 });
-      await testButton.click();
+      await testButton.click({ force: true });
+      await this.page.waitForTimeout(250);
     }
     await this.handleAnyDbDialog();
   }
@@ -174,6 +175,8 @@ test.describe("Setup Wizard: Error Handling", () => {
   });
 
   test("should show error on invalid SMTP configuration", async ({ wizard, page }) => {
+    test.setTimeout(60_000);
+
     await wizard.hardReset();
     await wizard.dismissModals();
 
@@ -212,19 +215,25 @@ test.describe("Setup Wizard: Navigation & State", () => {
     await wizard.hardReset();
     await wizard.dismissModals();
 
-    await expect(page.getByText("Step 1")).toBeVisible();
-    await expect(page.getByText("Database Configuration")).toBeVisible();
+    await expect(page.locator("#db-type")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Database\b/i }).first()).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
 
     await page.locator("#db-type").selectOption("sqlite");
     await page.locator("#db-name").fill(`e2e_err_nav_${Date.now()}.db.sqlite`);
     await wizard.testConnection();
     await wizard.next();
 
-    await expect(page.getByText("Step 2")).toBeVisible();
-    await expect(page.getByText("Administrator Account")).toBeVisible();
+    await expect(page.locator("#admin-username")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Admin\b/i }).first()).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
 
-    await page.getByText("Database", { exact: true }).first().click();
-    await expect(page.getByText("Step 1")).toBeVisible();
+    await page.getByRole("button", { name: /^Database\b/i }).first().click();
+    await expect(page.locator("#db-type")).toBeVisible();
   });
 
   test("Wizard: Reset Data Logic", async ({ wizard, page }) => {

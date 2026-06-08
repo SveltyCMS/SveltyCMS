@@ -38,7 +38,7 @@ function getFreePort(): Promise<number> {
   });
 }
 
-type IntegrationSuite = "all" | "db" | "api";
+type IntegrationSuite = "all" | "db" | "api" | "internal-db";
 
 const loadHardenedConfig = async () => {
   const isCI = process.env.CI === "true";
@@ -137,37 +137,68 @@ function normalizePath(file: string) {
   return file.replace(/\\/g, "/");
 }
 
+const INTERNAL_DB_TESTS = new Set([
+  "tests/integration/databases/cache-integration.test.ts",
+  "tests/integration/databases/db-interface.test.ts",
+  "tests/integration/databases/mariadb-adapter.test.ts",
+  "tests/integration/databases/mongodb-adapter.test.ts",
+  "tests/integration/databases/postgresql-adapter.test.ts",
+  "tests/integration/databases/resilience-load.test.ts",
+  "tests/integration/databases/sqlite-adapter.test.ts",
+]);
+
+function isInternalDbTest(path: string) {
+  return INTERNAL_DB_TESTS.has(path);
+}
+
+function isBlackBoxIntegrationTest(path: string) {
+  if (path.includes("tests/integration/databases/")) {
+    return path.endsWith("tests/integration/databases/contract.test.ts");
+  }
+
+  return (
+    path.includes("tests/integration/api/") ||
+    path.includes("tests/integration/routes/") ||
+    path.includes("tests/integration/sdk/") ||
+    path.endsWith("tests/integration/setup-presets.test.ts") ||
+    path.endsWith("tests/integration/setup-wizard.test.ts")
+  );
+}
+
+function matchesActiveDb(path: string, dbType: string) {
+  if (!path.includes("tests/integration/databases/")) return true;
+
+  if (path.endsWith("mongodb-adapter.test.ts")) return dbType === "mongodb";
+  if (path.endsWith("mariadb-adapter.test.ts")) return dbType === "mariadb";
+  if (path.endsWith("postgresql-adapter.test.ts")) return dbType === "postgresql";
+  if (path.endsWith("sqlite-adapter.test.ts")) return dbType === "sqlite";
+
+  return true;
+}
+
 function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType: string) {
-  // First, always filter out db tests that don't match the current dbType
-  let filtered = testFiles.filter((file) => {
-    const path = normalizePath(file);
-    if (!path.includes("tests/integration/databases/")) return true;
+  // Default runner is intentionally black-box only.
+  const filtered = testFiles.filter((file) => matchesActiveDb(normalizePath(file), dbType));
 
-    if (path.endsWith("mongodb-adapter.test.ts")) return dbType === "mongodb";
-    if (path.endsWith("mariadb-adapter.test.ts")) return dbType === "mariadb";
-    if (path.endsWith("postgresql-adapter.test.ts")) return dbType === "postgresql";
-    if (path.endsWith("sqlite-adapter.test.ts")) return dbType === "sqlite";
-    // Contract test runs for all DBs (it auto-detects the active adapter internally)
-
-    return true;
-  });
+  if (suite === "internal-db") {
+    return filtered.filter((file) => isInternalDbTest(normalizePath(file)));
+  }
 
   if (suite === "db") {
-    return filtered.filter((file) => normalizePath(file).includes("tests/integration/databases/"));
+    return filtered.filter((file) => {
+      const path = normalizePath(file);
+      return path.includes("tests/integration/databases/") && isBlackBoxIntegrationTest(path);
+    });
   }
 
   if (suite === "api") {
     return filtered.filter((file) => {
       const path = normalizePath(file);
-      return (
-        path.includes("tests/integration/api/") ||
-        path.includes("tests/integration/routes/") ||
-        path.includes("tests/integration/sdk/")
-      );
+      return isBlackBoxIntegrationTest(path) && !path.includes("tests/integration/databases/");
     });
   }
 
-  return filtered;
+  return filtered.filter((file) => isBlackBoxIntegrationTest(normalizePath(file)));
 }
 
 async function waitForPortToBeFree(port: number, maxAttempts = 30) {

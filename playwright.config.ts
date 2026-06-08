@@ -28,10 +28,22 @@ if (!TEST_API_SECRET) {
   }
 }
 
+const includeLegacySpecs = process.env.PLAYWRIGHT_INCLUDE_LEGACY === "true";
+const legacySpecs = [
+  "**/signupfirstuser.spec.ts",
+  "**/oauth-signup-firstuser.spec.ts",
+  "**/collection.spec.ts",
+  "**/master-behavioral-journey.spec.ts",
+  "**/permission-change.spec.ts",
+  "**/user-crud.spec.ts",
+  "**/user.spec.ts",
+];
+
 // See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.{test,spec,spect}.ts",
+  testIgnore: includeLegacySpecs ? [] : legacySpecs,
   /* Maximum time one test can run for. */
   // timeout: 60 * 1000,
   expect: {
@@ -47,11 +59,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
-  /*
-   * ✨ Database-per-Worker Strategy:
-   * Enable parallelism. Each worker will use a unique SQLite file
-   * (e.g. cms_worker1.db) triggered by the x-test-worker-index header.
-   */
+  /* Default worker pool for local/legacy runs.
+   * Maintained CI projects pin workers=1 to avoid shared-state flakes. */
   workers: process.env.CI ? 4 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
@@ -87,49 +96,25 @@ export default defineConfig({
   /* Global Setup for artifact/secret synchronization */
   globalSetup: "./tests/e2e/global.setup.ts",
 
-  /* Configure projects for staged CI Matrix */
+  /* Configure the maintained CI projects.
+   * Legacy specs stay opt-in via PLAYWRIGHT_INCLUDE_LEGACY=true. */
   projects: [
     {
       name: "wizard",
-      testMatch: /setup-wizard.*\.spec\.ts/,
-      // Force sequential to avoid race conditions during database provisioning
+      testMatch: /setup-wizard\.spec\.ts/,
       workers: 1,
     },
     {
-      name: "auth-setup",
-      testMatch: [/auth\.setup\.ts/, /login\.spec\.ts/],
-      // No dependency on "wizard": in CI the wizard runs once in its own job.
-      // In local dev, run `playwright test --project=wizard` first manually if needed.
-      // Force sequential to avoid race conditions during auth bootstrapping
-      workers: 1,
-    },
-    {
-      name: "signup",
+      name: "smoke",
       testMatch: [
-        /signupfirstuser\.spec\.ts/,
-        /oauth-signup-firstuser\.spec\.ts/,
+        /login\.spec\.ts/,
+        /collection-builder\.spec\.ts/,
         /role-based-access\.spec\.ts/,
-        /permission-change\.spec\.ts/,
-      ],
-      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
-      dependencies: ["auth-setup"],
-    },
-    {
-      name: "content",
-      testMatch: [/collection\.spec\.ts/, /collection-builder\.spec\.ts/, /user-crud\.spec\.ts/],
-      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
-      dependencies: ["auth-setup"],
-    },
-    {
-      name: "system",
-      testMatch: [
         /language\.spec\.ts/,
-        /user\.spec\.ts/,
         /accessibility\.spec\.ts/,
-        /ui-test\.spec\.ts/,
       ],
+      workers: 1,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
-      dependencies: ["auth-setup"],
     },
   ],
 

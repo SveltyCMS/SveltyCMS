@@ -6,7 +6,7 @@ order: 12
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-01-20"
-updated: "2026-03-27"
+updated: "2026-06-08"
 tags:
   - "testing"
   - "e2e"
@@ -20,9 +20,10 @@ tags:
 
 SveltyCMS uses **Playwright** for End-to-End (E2E) testing. Our strategy is optimized for speed and reliability:
 
-1.  **API-Based Seeding:** We do NOT run the Setup Wizard via UI in tests. We seed the database via API.
-2.  **Auth Helper:** We use a helper to log in programmatically, bypassing the login UI for most tests.
-3.  **Critical Flows Only:** E2E tests focus on critical user journeys (Login, Content Creation, Settings). Logic is tested in Unit/Integration layers.
+1.  **Built-App First:** CI runs Playwright against `node build/index.js`, not the dev server.
+2.  **Dedicated Wizard Coverage:** The `/setup` wizard is covered by its own `wizard` smoke suite.
+3.  **API-Based Seeding for Most Specs:** Outside the wizard flow, tests seed/reset state via `/api/testing`.
+4.  **Critical Flows Only:** The maintained `smoke` project covers login, content management, RBAC, language switching, and accessibility.
 
 ## Running Tests
 
@@ -34,6 +35,30 @@ bun run test:e2e
 
 # Run specific test file
 bun run test:e2e -- tests/e2e/login.spec.ts
+
+# Run only the maintained built-app projects
+bun x playwright test --project=wizard
+bun x playwright test --project=smoke
+```
+
+### Built-App Local Validation
+
+This mirrors GitHub Actions most closely:
+
+```bash
+bun run build
+TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt) \
+TEST_MODE=true HOST=127.0.0.1 PORT=4173 node build/index.js
+
+PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173 bun x playwright test --project=smoke
+```
+
+### Legacy Specs
+
+Older exploratory Playwright specs remain in the repo, but they are excluded from the default maintained suite.
+
+```bash
+PLAYWRIGHT_INCLUDE_LEGACY=true bun x playwright test
 ```
 
 ### 🧠 Smart Testing
@@ -67,13 +92,13 @@ test("Admin can access dashboard", async ({ page }) => {
 });
 ```
 
-### 2. Database State & Worker Isolation
+### 2. Database State
 
-In April 2026, we implemented **Parallel Worker Isolation** to eliminate "Database is locked" errors and speed up the E2E suite.
+The maintained `wizard` and `smoke` projects run **single-worker in CI**. This is deliberate: the curated browser flows share one built app instance and several specs reset/seed the database through `/api/testing`.
 
-- **Unique Database per Worker**: Each Playwright worker operates on its own dedicated SQLite file (e.g., `cms_worker_1.db`).
-- **Header-Based Routing**: The system uses the `x-test-worker-index` header to automatically route requests to the correct isolated database.
-- **Seeding**: Handled automatically before each worker starts via the `/api/testing` endpoint.
+- **Wizard**: runs alone against a clean setup-mode instance.
+- **Smoke**: runs serially against one built app instance.
+- **Legacy/experimental specs**: may opt into broader worker pools, but they are excluded from the default CI path.
 
 ### 3. Use `data-testid` Selectors
 
@@ -101,9 +126,10 @@ Avoid using:
 
 ### 4. CI/CD
 
-In GitHub Actions, E2E tests run in parallel with Unit and Integration tests.
+In GitHub Actions, E2E runs only against the built application.
 
-- **Job:** `e2e-tests`
+- **Job:** `e2e-wizard`
+- **Job:** `e2e-smoke`
 - **Artifacts:** Screenshots and traces are uploaded on failure.
 
 ## Troubleshooting

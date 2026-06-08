@@ -4,7 +4,7 @@ title: "Testing Strategy: Four-Gate Architecture"
 description: "SveltyCMS testing strategy — Contracts, White-Box unit, Black-Box integration, and E2E with Smart Orchestrator."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-06-06"
+updated: "2026-06-08"
 tags:
   - "testing"
   - "strategy"
@@ -64,7 +64,7 @@ tests/harness/
 
 **"Prove every database behaves identically."**
 
-File: `tests/integration/databases/contract.test.ts` | Runner: `bun run test:integration`
+File: `tests/integration/databases/contract.test.ts` | Runner: `bun run scripts/run-integration-tests.ts --db=<adapter> tests/integration/databases/contract.test.ts`
 
 The Contract Test is the single source of truth for cross-database behavioral parity. It runs the same assertions against whichever adapter is active:
 
@@ -96,9 +96,15 @@ These tests have full access to internal code structure. They're fast (milliseco
 
 **"Test the API as a consumer sees it."**
 
-Runner: `bun run test:integration` | Tests: ~450
+Runner: `bun run test:integration` | Maintained scope: API, routes, SDK, setup integration, and the DB contract
 
 Real HTTP requests against a running server. Verifies middleware chain, RBAC enforcement, and DB agnosticism.
+
+**CI split**:
+
+- `integration-api` runs the maintained black-box HTTP suite on SQLite.
+- `db-contracts` runs `contract.test.ts` across SQLite, MongoDB, MariaDB, and PostgreSQL.
+- Direct adapter/import-heavy DB specs are opt-in via `--suite=internal-db` and are not part of PR CI.
 
 ---
 
@@ -106,7 +112,9 @@ Real HTTP requests against a running server. Verifies middleware chain, RBAC enf
 
 **"Test the full user journey in a real browser."**
 
-Files: `tests/e2e/*.spec.ts` | Runner: `npx playwright test` | Scenarios: ~40
+Files: `tests/e2e/*.spec.ts` | Runner: `npx playwright test` | Maintained projects: `wizard`, `smoke`
+
+CI executes Playwright against the built app (`node build/index.js`), not the dev server. The maintained `smoke` project validates login, content management, RBAC, language switching, and accessibility.
 
 ---
 

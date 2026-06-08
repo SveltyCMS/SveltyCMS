@@ -11,14 +11,14 @@
  */
 
 import { expect, type Page, test } from "@playwright/test";
-import { loginAsAdmin, loginAs } from "./helpers/auth";
+import { ADMIN_CREDENTIALS, loginAsAdmin, loginAs } from "./helpers/auth";
 import { seedTestUsers, TEST_USERS } from "./helpers/seed";
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {
   admin: {
-    email: "admin@example.com",
-    password: "Admin123!",
+    email: ADMIN_CREDENTIALS.email,
+    password: ADMIN_CREDENTIALS.password,
   },
   ...TEST_USERS,
 };
@@ -48,6 +48,20 @@ test.describe("Role-Based Access Control", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
+      const resetResponse = await page.request.post("/api/testing", {
+        data: { action: "reset" },
+      });
+      expect(resetResponse.ok()).toBeTruthy();
+
+      const seedResponse = await page.request.post("/api/testing", {
+        data: {
+          action: "seed",
+          email: USERS.admin.email,
+          password: USERS.admin.password,
+        },
+      });
+      expect(seedResponse.ok()).toBeTruthy();
+
       // seedTestUsers now uses /api/testing which is whitelisted
       await seedTestUsers(page);
     } catch (error) {

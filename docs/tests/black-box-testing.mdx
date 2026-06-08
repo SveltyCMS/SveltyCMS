@@ -4,7 +4,7 @@ title: "Black-Box Testing Architecture"
 description: "SveltyCMS strategic shift to 100% black-box integration testing for maximum security and database agnosticism."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-04-03"
+updated: "2026-06-08"
 tags:
   - "testing"
   - "architecture"
@@ -56,6 +56,18 @@ Internal imports often carry database-specific assumptions (e.g., Mongoose schem
 - The same test suite works bit-for-bit across **MongoDB, PostgreSQL, MariaDB, and SQLite**.
 - Tests only care about the JSON response, not the underlying SQL or NoSQL implementation.
 
+### 2.1. Default Runner Scope
+
+`bun run test:integration` now defaults to the maintained black-box surface only:
+
+- `tests/integration/api/**`
+- `tests/integration/routes/**`
+- `tests/integration/sdk/**`
+- `tests/integration/setup-*.test.ts`
+- `tests/integration/databases/contract.test.ts`
+
+Legacy adapter/import-heavy database specs are still available for local investigation, but they are **opt-in** via `--suite=internal-db` and are not part of pull request CI.
+
 ### 3. ⚡ Integrated Performance Auditing
 
 Testing over HTTP allows us to measure real-world latency:
@@ -105,11 +117,21 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 ## Test Execution Flow
 
 1. **Build**: `bun run build` generates the production bundle.
-2. **Preview**: `TEST_MODE=true bun run vite preview --port 4173` starts the server.
+2. **Preview**: `TEST_MODE=true HOST=127.0.0.1 PORT=4173 node build/index.js` starts the built app.
 3. **Orchestrate**: Test helper calls `/api/testing` (with secure handshake) to prepare the database.
 4. **Login**: Test helper calls `/api/auth/login` to obtain a session cookie.
 5. **Execute**: Bun/Playwright performs HTTP requests against the live endpoints.
 6. **Verify**: Assertions are made on JSON responses and HTTP status codes.
+
+### Canonical CI Commands
+
+```bash
+# Maintained black-box API/routes/sdk/setup suite
+bun run scripts/run-integration-tests.ts --suite=api --db=sqlite
+
+# Cross-database behavioral parity
+bun run scripts/run-integration-tests.ts --db=postgresql tests/integration/databases/contract.test.ts
+```
 
 ## Security Matrix Testing
 

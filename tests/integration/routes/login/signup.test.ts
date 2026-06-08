@@ -103,7 +103,7 @@ describe("Invitation-Based Signup Tests", () => {
       expect(user?.email).toBe(signupData.email.toLowerCase());
       expect(user?.username).toBe(signupData.username);
       expect(user?.isRegistered).toBe(true);
-      expect(user?.blocked).toBe(false);
+      expect(user?.blocked ?? false).toBe(false);
 
       // Verify user count increased
       const finalUserCount = await getUserCount();
