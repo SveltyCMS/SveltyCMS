@@ -1,6 +1,6 @@
 {
   "name": "sveltycms",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "description": "A powerful Headless CMS with sveltekit power",
   "keywords": [
     "AI-Powered CMS",
