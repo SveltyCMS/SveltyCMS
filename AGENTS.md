@@ -174,7 +174,7 @@ To maintain our **A++ Security Grade**, agents must adhere to these strictly enf
 ### 4. Account Protection & Lockout
 
 - **Password Strength**: Minimum 8 characters (default, configurable via `PASSWORD_MIN_LENGTH` in `src/databases/schemas.ts`), including uppercase, lowercase, numbers, and special characters. Enforced via `Auth.validatePasswordStrength`.
-- **Brute-Force Prevention**: Accounts are automatically locked for 15 minutes after 5 consecutive failed attempts.
+- **Brute-Force Prevention**: Accounts are automatically locked for 15 minutes after 5 consecutive failed attempts. Enforced in both `Auth.authenticate()` (direct DB path) and `AuthNamespace.login()` (REST/GraphQL login path).
 - **Tracking**: `failedAttempts` and `lockoutUntil` are tracked on the `User` object and reset upon successful authentication.
 
 ### 5. Secure Session Management

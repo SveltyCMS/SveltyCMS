@@ -45,6 +45,15 @@ All endpoints utilizing the `RateLimiter` now correctly inject the `Retry-After:
 
 To prevent resource exhaustion during demo environments, a strict cap of 100 users per tenant is enforced during the `signUp` action. This leverages the `getUserCount` method from the authentication adapter to provide an early exit if the limit is reached.
 
+### 6. Account Lockout & Brute-Force Prevention
+
+Accounts are locked for 15 minutes after 5 consecutive failed login attempts. This is enforced in `AuthNamespace.login()` (`src/services/sdk/namespaces/auth-namespace.ts`) which gates the REST and GraphQL login paths, and redundantly in `Auth.authenticate()` (`src/databases/auth/index.ts`) for direct database authentication calls.
+
+- **Lockout check**: Before password verification, `lockoutUntil` is checked. Active lockouts return 403 with remaining time.
+- **Failed attempt tracking**: Each failed attempt increments `failedAttempts`. At 5 failures, `lockoutUntil` is set to `now + 15 minutes`.
+- **Auto-reset**: Lockout state is cleared on successful login or when the lockout expires.
+- **Consistent error messages**: Both "user not found" and "wrong password" return identical `"Invalid credentials"` to prevent user enumeration.
+
 ## Accessibility Fixes (WCAG 2.2 AA)
 
 To ensure the authentication pages are accessible to all users, the following fixes were implemented on `sign-in.svelte` and `sign-up.svelte`:

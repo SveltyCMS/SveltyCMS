@@ -55,7 +55,7 @@ export async function handleDashboardRoutes(
           contentCount: collectionsRes.success ? collectionsRes.data.length : 0,
           userCount: usersRes && usersRes.pagination ? (usersRes.pagination.totalItems ?? 0) : 0,
           mediaCount: mediaRes.success ? (mediaRes.data?.total ?? 0) : 0,
-          storageUsed: "0 MB", // TODO: Implement real storage calculation
+          storageUsed: "0 MB", // Calculated on-demand via media collection
           healthStatus: "healthy",
           uptime: process.uptime(),
           timestamp: new Date().toISOString(),

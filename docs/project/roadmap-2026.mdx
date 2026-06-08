@@ -32,7 +32,10 @@ This document outlines the remaining high-priority tasks and strategic objective
   - **AI-Smart CMS Importer** (`src/services/smart-importer.ts`): 5-format auto-detection (WordPress WXR, Strapi, Directus, Drupal, SveltyCMS), 30+ heuristic field mappings, ACF/CMB2 detection, batch processing, drag-and-drop UI.
   - **Quick-Start Collection Templates** (`src/routes/setup/presets.ts`): 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions and widget types.
   - **Progressive Initialization UX** (`src/routes/warming-up/`): SSR-rendered warming-up dashboard with real-time service status replacing 503 errors during system boot.
-  - **Collection Builder Enhancements**: Template selection modal, hover effects, descriptive tooltips on all field configuration options.
+  - ✅ **Collection Builder Enhancements**: Template selection modal, hover effects, descriptive tooltips on all field configuration options.
+  - ✅ **June 2026 Security Hardening**: Full audit remediation — 16 code fixes, account lockout wired to login path (5 attempts → 15-min lock, HTTP 423), GraphQL depth (7) + alias (15) limits via envelop plugin, MongoDB NoSQL injection protection (`sanitizeMongoQuery` blocks `$where`/`$function`/`$expr`), session rotation 60→15 min, SAML CSRF dual-cookie protection, soft-delete filter enforcement, bulk operation size limits (1000 items), email endpoint wired to `sendMail()`, port validation (1–65535).
+  - ✅ **Enterprise Content System**: Schema field validation (duplicate `db_fieldName` detection), hardened `isSafeCollectionPath` (path traversal + special char blocking), incremental change-set tracking (`_changedFiles` Set), native `worker_threads` module pool (`module-worker-pool.server.ts`), content plugin system (`onSchemaLoad`/`onReconcile`/`onNodeChange` hooks), lightweight performance tracing (`traceStart`/`getTraceStats`).
+  - ✅ **Enterprise Security Audit v2.0**: OWASP-mapped automated auditor with authenticated testing (`--auth`), GraphQL DoS detection, NoSQL injection probes, cookie security attribute checks, CORS preflight verification, timing side-channel detection.
 
 ## 🚀 Phase 5: Secure Upgrade & Cloud Strategy
 

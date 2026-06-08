@@ -70,8 +70,9 @@ export function safeQuery<T extends Record<string, any>>(
     hasChanges = true;
   }
 
-  // 3. Enforce Soft Delete boundary
-  if (!options.includeDeleted && query.isDeleted === undefined) {
+  // 3. Enforce Soft Delete boundary — always applies unless explicitly opted out
+  // Note: overriding any caller-set isDeleted to prevent soft-delete bypass
+  if (!options.includeDeleted) {
     if (!hasChanges) secureQuery = { ...query };
     // MongoDB syntax: match where isDeleted is not true (exists and is false, or doesn't exist)
     secureQuery.isDeleted = { $ne: true };

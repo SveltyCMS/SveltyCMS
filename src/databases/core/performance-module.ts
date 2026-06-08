@@ -13,7 +13,7 @@ export class PerformanceModule extends DatabaseModule<ISqlAdapter> {
       success: true,
       data: {
         queryCount: stats.queryCount,
-        slowQueries: [], // TODO: Implement slow query tracking in SQLiteAdapterCore
+        slowQueries: (this.adapter as any)._slowQueries || [],
         averageQueryTime: stats.lastLatency,
         cacheHitRate: stats.cacheHits / (stats.cacheHits + stats.cacheMisses || 1),
         connectionPoolUsage: 1,

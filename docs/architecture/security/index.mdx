@@ -110,7 +110,7 @@ SveltyCMS security architecture includes:
 **Features:**
 
 - ✅ Argon2id password hashing (125ms+ computational cost)
-- ✅ Automatic session rotation every 60 minutes for active users
+- ✅ Automatic session rotation every 15 minutes for active users (industry best practice)
 - ✅ 3-layer session caching (memory, Redis, database)
 - ✅ Two-factor authentication (TOTP)
 - ✅ Account lockout after failed attempts
@@ -166,6 +166,7 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ Path traversal prevention
 - ✅ **Safe Query Mapping & Parameterization**: All JSON/RichText queries are strictly mapped to whitelisted database columns and natively parameterized (via Drizzle ORM) protecting against SQL Injection and blind SQL attacks out-of-the-box.
 - ✅ ReDoS prevention (input length limits)
+- ✅ **NoSQL Injection Protection**: MongoDB `$where`, `$function`, `$expr`, and `$accumulator` operators blocked at `mapQuery` level in `src/utils/security/mongo-sanitize.ts`; `$regex` patterns validated for ReDoS
 
 **Implementation:**
 
@@ -225,6 +226,8 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ Resource-level permissions
 - ✅ Admin privilege separation
 - ✅ Automated Setup Guard (blocks installation endpoints after initialization)
+- ✅ **GraphQL DoS Protection**: Query depth limited to 7 levels and aliases capped at 15 via `securityValidationPlugin` envelop plugin
+- ✅ **Account Lockout**: 5 consecutive failed logins lock the account for 15 minutes; enforced in both `Auth.authenticate()` and `AuthNamespace.login()`
 
 **Implementation:**
 
@@ -263,7 +266,7 @@ To prevent accidental exposure or exploitation of testing features, we employ a 
 
 1.  **Environment Gating**: Testing and benchmarking code paths are only active when explicit environment variables (`TEST_MODE=true`, `BENCHMARK=true`) are set at the OS level — impossible to enable via HTTP requests. In production, these paths return 401 Unauthorized.
 2.  **Cryptographic Handshake**: The `/api/testing` endpoint uses `timingSafeEqual()` from `node:crypto` for constant-time secret comparison, preventing timing side-channel attacks. The HyperTurbo hook uses standard comparison gated behind the `BENCHMARK=true` environment check.
-3.  **Auth Path Exclusion**: The HyperTurbo hook permanently excludes `/api/auth/login` and `/api/auth/logout` paths — these always use real credentials, real session creation, and real audit trails regardless of environment.
+3.  **Auth Path Exclusion**: Authentication paths (`/api/auth/login`, `/api/auth/logout`) always use real password verification with full account lockout enforcement. No test bypass exists for login — tests must seed a user via `/api/testing` and authenticate with real credentials. Audit trails are always populated.
 
 ### 🧪 Secure Testing Approach
 

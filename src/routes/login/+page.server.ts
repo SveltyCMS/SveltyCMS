@@ -387,7 +387,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       // so this only flags lapsed sessions → default to the Sign In form (no extra cookie needed).
       returningUser: Boolean(
         locals.returningUser ??
-          readSessionCookie(cookies, url.protocol === "https:" || url.hostname !== "localhost"),
+        readSessionCookie(cookies, url.protocol === "https:" || url.hostname !== "localhost"),
       ),
     };
   } catch (err: any) {

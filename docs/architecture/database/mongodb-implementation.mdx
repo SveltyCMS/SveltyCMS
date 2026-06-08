@@ -135,7 +135,8 @@ To maintain strict parity with SQL engines, the MongoDB adapter no longer intera
 1. **Raw Query**: `{ status: 'active', tags: { $in: ['news'] } }`
 2. **IR Map**: Decouples MongoDB-specific operators into a standard `LogicalGroup`.
 3. **Security Injection**: Automatically injects `tenantId` and `isDeleted: false` filters.
-4. **Native Compilation**: The `mapQuery` utility compiles the IR back into an optimized MongoDB filter.
+4. **NoSQL Injection Protection**: `sanitizeMongoQuery()` recursively blocks dangerous operators (`$where`, `$function`, `$expr`, `$accumulator`) and validates `$regex` patterns against ReDoS attacks before the query reaches the database.
+5. **Native Compilation**: The `mapQuery` utility compiles the IR back into an optimized MongoDB filter, with sanitization applied as the final security layer.
 
 This ensures that security audits only need to verify the `mapQuery` utility rather than every individual CRUD module.
 
@@ -1524,6 +1525,12 @@ The MongoDB implementation provides:
 3. **Field Selection**: List views load only necessary fields (5-7 instead of 20+)
 4. **Cache Warming**: Zero-restart setup with pre-cached first load
 5. **Combined Impact**: 10x-160x faster operations depending on cache state
+
+### Security Hardening (June 2026)
+
+1. **NoSQL Injection Protection**: `sanitizeMongoQuery()` in `src/utils/security/mongo-sanitize.ts` recursively blocks dangerous MongoDB operators (`$where`, `$function`, `$expr`, `$accumulator`) at the `mapQuery` level — every query, including fast-path ID lookups, is sanitized before reaching the database.
+2. **ReDoS Prevention**: `$regex` patterns validated to maximum 500 characters, preventing catastrophic backtracking attacks.
+3. **Soft-Delete Filter Enforcement**: `safeQuery()` now always applies the `isDeleted: { $ne: true }` filter unless explicitly opted out — closing a gap where callers could bypass soft-deletion by setting `isDeleted` in their query.
 
 ### Performance Summary
 

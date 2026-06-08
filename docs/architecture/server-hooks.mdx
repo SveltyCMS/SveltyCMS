@@ -665,7 +665,7 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
 - **Session Validation**: Verifies the `session_id` cookie against the database/cache.
 - **Tenant Isolation**: Ensures the authenticated user belongs to the resolved `tenantId`.
 - **Global Administrator**: Recognizes and preserves the global administrator (`tenantId: null`), who is exempted from automated cleanup processes.
-- **Session Rotation**: Rotates session tokens every 60 minutes for active users (optimized for DB impact).
+- **Session Rotation**: Rotates session tokens every 15 minutes for active users (industry standard).
 - **WeakRef Caching (Memory Stability)**: Uses a memory-efficient LRU cache (top 100 hot sessions) utilizing `WeakRef` for User objects. This ensures that the V8 garbage collector can immediately reclaim memory from inactive sessions, preventing the memory bloat and OOM crashes common in Strapi and Payload.
 
 ```typescript

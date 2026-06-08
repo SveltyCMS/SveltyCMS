@@ -151,7 +151,7 @@
     "google-auth-library": "^10.7.0",
     "graphql": "^16.14.1",
     "graphql-jit": "^0.8.8",
-    "graphql-yoga": "^5.21.1",
+    "graphql-yoga": "^5.21.2",
     "iconify-icon": "^3.0.2",
     "json-render-svelte": "^0.6.1",
     "lru-cache": "^11.5.1",

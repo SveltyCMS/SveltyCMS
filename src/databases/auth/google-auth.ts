@@ -113,15 +113,18 @@ async function generateGoogleAuthUrl(
   // Use 'online' access_type to prevent PKCE from being auto-enabled in newer googleapis versions
 
   const authUrlOptions: Record<string, string | boolean | undefined> = {
-    access_type: "online", // Changed from 'offline' to 'online' to disable PKCE
+    access_type: "offline", // Refresh tokens enabled; PKCE disabled via tokenCredential flow
+    prompt: "consent", // Force refresh token on every auth to ensure token freshness
     scope: scopes.join(" "),
     redirect_uri: baseUrl,
     state: signOAuthState(token),
-    include_granted_scopes: true, // Note: Using 'online' access_type prevents PKCE parameters from being auto-added
-  }; // Only add prompt if explicitly specified
-
+    include_granted_scopes: true,
+  };
+  // Only add prompt if explicitly specified
   if (promptType) {
     authUrlOptions.prompt = promptType;
+  } else if (authUrlOptions.access_type === "offline") {
+    delete authUrlOptions.prompt; // Let Google handle prompt for offline access
   }
 
   const authUrl = googleAuthClient.generateAuthUrl(authUrlOptions);

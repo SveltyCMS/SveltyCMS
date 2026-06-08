@@ -85,7 +85,11 @@ describe("SAML API Unit Tests", () => {
       formData: vi.fn().mockResolvedValue(formData),
     };
     (event as any).cookies = {
-      get: vi.fn((name) => (name === "saml_state" ? "valid-state-token" : null)),
+      get: vi.fn((name) => {
+        if (name === "saml_state") return "valid-state-token";
+        if (name === "saml_csrf") return "mock-csrf-token";
+        return null;
+      }),
       delete: vi.fn(),
     };
 
@@ -94,7 +98,11 @@ describe("SAML API Unit Tests", () => {
     const jacksonApi = await jacksonModule.getJackson();
     jacksonApi.saml = {
       parseSAMLResponse: vi.fn().mockResolvedValue({
-        profile: { email: "user@test.com", firstName: "Test", lastName: "User" },
+        profile: {
+          email: "user@test.com",
+          firstName: "Test",
+          lastName: "User",
+        },
       }),
     };
 
@@ -104,12 +112,17 @@ describe("SAML API Unit Tests", () => {
       success: true,
       data: { _id: "user123", email: "user@test.com" },
     });
-    db.auth.createSession.mockResolvedValue({ success: true, data: { _id: "session123" } });
+    db.auth.createSession.mockResolvedValue({
+      success: true,
+      data: { _id: "session123" },
+    });
 
     const response = await dispatcherPOST(event as any);
     const result = await response!.json();
     expect(result.success).toBe(true);
-    expect(event.cookies.delete).toHaveBeenCalledWith("saml_state", { path: "/" });
+    expect(event.cookies.delete).toHaveBeenCalledWith("saml_state", {
+      path: "/",
+    });
   });
 
   it("should block SAML ACS callback with 403 when state mismatched (CSRF Protection)", async () => {
@@ -124,7 +137,11 @@ describe("SAML API Unit Tests", () => {
       formData: vi.fn().mockResolvedValue(formData),
     };
     (event as any).cookies = {
-      get: vi.fn((name) => (name === "saml_state" ? "victim-state" : null)),
+      get: vi.fn((name) => {
+        if (name === "saml_state") return "victim-state";
+        if (name === "saml_csrf") return "mock-csrf-token";
+        return null;
+      }),
       delete: vi.fn(),
     };
 

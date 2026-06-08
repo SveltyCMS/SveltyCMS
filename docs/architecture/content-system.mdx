@@ -1,12 +1,12 @@
 ---
 path: "docs/architecture/content-system.mdx"
 title: "Content System Architecture"
-description: "The 5-pillar content architecture: Reactive, Incremental, and Real-time."
+description: "The 5-pillar content architecture: Reactive, Incremental, and Real-time — with worker pool, plugin system, and tracing."
 order: 1
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-04-02"
+updated: "2026-06-08"
 tags:
   - "architecture"
   - "performance"
@@ -16,7 +16,7 @@ tags:
 
 # Content System Architecture (2026 Edition)
 
-The SveltyCMS Content System is a high-performance, reactive engine responsible for managing collection schemas and the content navigation tree. The 2026 refactor emphasizes **incremental updates**, **zero-restart development**, and **real-time synchronization** while maintaining strong separation of concerns.
+The SveltyCMS Content System is a high-performance, reactive engine. The June 2026 security audit added **worker pool sandboxing**, **plugin hooks**, and **performance tracing**.
 
 ## 🏗️ The 5 Pillars
 
@@ -61,8 +61,20 @@ By using these native methods instead of a generic abstraction, SveltyCMS achiev
 
 ### 4. Smart Module Processing (Server)
 
-**File**: `src/content/module-processor.server.ts` (or inline in service)  
-Safe sandboxed parsing of compiled collection modules with widget proxy support. Only executed when mtime changes.
+**File**: `src/content/module-processor.server.ts`  
+**NEW**: `src/content/module-worker.server.ts` + `module-worker-pool.server.ts`
+
+Safe sandboxed parsing of compiled collection modules with widget proxy support. Now backed by a **native `worker_threads` pool** (zero dependencies — Node.js built-in only). Each worker runs in its own V8 isolate — a crashed schema file never affects the main process.
+
+**Worker Pool Features**:
+
+- Fixed-size pool (CPU cores / 2, minimum 2)
+- Automatic worker replacement on crash/timeout
+- Per-task 10s timeout guard
+- Idle worker cleanup after 30s (keeps 1 alive)
+- `getModuleWorkerPool()` singleton + `shutdownWorkerPool()`
+
+**Security Benefit**: Process isolation prevents supply-chain attacks from malicious collection files.
 
 ### 5. Real-time Synchronization
 
@@ -138,6 +150,70 @@ Replaced heavy cryptographic MD5 with a lightweight, numeric string hash in `mod
 | **Warm Scan (120 files)**   | 2.46ms            | **0.014ms**          | 🟢 **ULTRA ELITE** |
 | **Warm Scan (1,000 files)** | 14.23ms           | **0.048ms**          | 🟢 **ULTRA ELITE** |
 | **Cold Scan (1,000 files)** | 23.76ms           | **9.16ms**           | 🟢 **-61.4%**      |
+
+---
+
+## 🔌 Plugin System (June 2026)
+
+**File**: `src/content/content-service.server.ts`
+
+The content system exposes lifecycle hooks for third-party plugins:
+
+```typescript
+import { registerContentPlugin } from "@src/content/content-service.server";
+
+registerContentPlugin({
+  name: "my-plugin",
+  onSchemaLoad(schema, filePath) {
+    // Enrich, validate, or transform schema before caching
+    return schema;
+  },
+  onReconcile(operations, prunedPaths) {
+    // React to schema sync — notify external systems
+  },
+  onNodeChange(node, action) {
+    // Track content tree changes — audit logging
+  },
+});
+```
+
+**Features**:
+
+- `onSchemaLoad` → runs after validation, before caching — plug in transforms
+- `onReconcile` → fires when collection schemas are synced to DB
+- `onNodeChange` → tracks individual node creates/deletes in the content tree
+- Duplicate plugin names are rejected with a warning
+
+## 🛡️ Schema Validation & Path Hardening (June 2026)
+
+**Schema Validation** (`validateSchemaFields`):
+
+- Rejects schemas with missing `name` or empty `fields` array
+- Detects duplicate `db_fieldName` values (prevents silent data corruption)
+- Invalid schemas are logged and skipped — never reach cache or database
+
+**Path Security** (`isSafeCollectionPath` — 3-layer check):
+
+1. Must be within `.compiledCollections` directory and end with `.js`
+2. Blocks `..` traversal (absolute path or relative escape)
+3. Rejects special characters beyond `\w\-./\\`
+
+## 📊 Lightweight Tracing (June 2026)
+
+Zero-dependency performance tracking using `performance.now()`:
+
+```typescript
+import { traceStart, getTraceStats } from "@src/content/content-service.server";
+
+const done = traceStart("scanCompiledCollections");
+// ... work ...
+done();
+
+const stats = getTraceStats();
+// → { "scanCompiledCollections": { avg: 0.004, p95: 0.006, count: 150 } }
+```
+
+Internal traces track `scanCompiledCollections`, `reconcile`, and `loadSchemaNative` — keeping the last 100 samples per label.
 
 ---
 
