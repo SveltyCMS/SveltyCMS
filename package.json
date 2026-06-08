@@ -1,6 +1,6 @@
 {
   "name": "sveltycms",
-  "version": "0.0.8",
+  "version": "0.0.6",
   "description": "A powerful Headless CMS with sveltekit power",
   "keywords": [
     "AI-Powered CMS",
@@ -47,9 +47,6 @@
     "type": "git",
     "url": "https://github.com/SveltyCMS/SveltyCMS"
   },
-  "workspaces": [
-    "packages/*"
-  ],
   "type": "module",
   "sideEffects": [
     "*.css",
