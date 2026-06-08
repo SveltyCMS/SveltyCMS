@@ -9,6 +9,7 @@
 import { generateGoogleAuthUrl, googleAuth } from "@src/databases/auth/google-auth";
 import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
+import { readSessionCookie } from "@src/databases/auth/constants";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import type { PageServerLoad } from "./$types";
@@ -380,6 +381,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       hasExistingOAuthUsers: false,
       firstCollectionPath,
       pkgVersion,
+      // Returning user: handle-authentication sets locals.returningUser when a session cookie was
+      // present but invalid/expired (then deletes the dead cookie). Fall back to raw cookie presence
+      // for any path that bypasses that branch. A valid session is already redirected away by hooks,
+      // so this only flags lapsed sessions → default to the Sign In form (no extra cookie needed).
+      returningUser: Boolean(
+        locals.returningUser ??
+          readSessionCookie(cookies, url.protocol === "https:" || url.hostname !== "localhost"),
+      ),
     };
   } catch (err: any) {
     if (isRedirect(err)) throw err;
