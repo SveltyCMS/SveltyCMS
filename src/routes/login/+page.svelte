@@ -58,12 +58,15 @@ const { data } = $props();
 
 // Derive firstUserExists to make it reactive (fixes state_referenced_locally warning)
 const firstUserExists = $derived(data.firstUserExists);
+const returningUser = $derived(data.returningUser);
 
 // Check for reset password URL parameters (initially false, updated by effect)
 let hasResetParams = $state(false);
 
-// Set Initial active state - always starts undefined, will be set by user interaction
+// Initial active state: returning users (a session cookie is present — see +page.server.ts)
+// land on the Sign In form directly; new visitors start at the Sign In / Sign Up chooser.
 let active: undefined | 0 | 1 = $state(undefined);
+$effect(() => { active = returningUser ? 0 : undefined; });
 
 // Update active state when URL parameters are detected
 $effect(() => {
@@ -338,7 +341,7 @@ function handleSignUpPointerEnter() {
 									}
 								}
 							}}
-							class="preset-filled-warning-500 btn"
+							class="preset-filled-warning-500 btn" aria-label={db_error_reset_setup()}
 						>
 							{db_error_reset_setup()}
 						</button>
@@ -374,7 +377,7 @@ function handleSignUpPointerEnter() {
 		{#if data.demoMode}
 			<!-- DEMO MODE -->
 			<div
-				class="absolute bottom-2.75 left-1/2 flex min-w-87.5 -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
+				class="absolute bottom-2.75 inset-s-1/2 flex min-w-87.5 -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
 				class:opacity-50={isTransitioning}
 				aria-live="polite"
 				aria-atomic="true"
@@ -395,7 +398,7 @@ function handleSignUpPointerEnter() {
 
 		<!-- CMS Logo -->
 		<div
-			class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center transition-[filter] duration-300"
+			class="absolute inset-s-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center transition-[filter] duration-300"
 			style="filter: drop-shadow(0 6px 10px {background === 'white' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.85)'});"
 		>
 			<SveltyCMSLogoFull />
@@ -403,7 +406,7 @@ function handleSignUpPointerEnter() {
 
 		<!-- Language Select -->
 		<div
-			class="language-selector absolute bottom-1/4 left-0 right-0 flex justify-center transition-opacity duration-300"
+			class="language-selector absolute bottom-1/4 inset-x-0 flex justify-center transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
 			<Dropdown position="bottom" closeOnSelect={false} class="p-3! w-60 bg-black/90! border-white/10! dark:bg-black/90! dark:border-white/10! backdrop-blur-md! rounded-2xl! shadow-2xl">
@@ -438,8 +441,8 @@ function handleSignUpPointerEnter() {
 							{const selected = lang === currentLanguage}
 							<button
 								type="button"
-								onclick={() => handleLanguageSelection(lang)}
-								class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
+								onclick={() => handleLanguageSelection(lang)} aria-label={getLanguageName(lang)}
+								class="flex w-full items-center justify-between px-3 py-2 text-start rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
 							>
 								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
 									{getLanguageName(lang)}
@@ -447,7 +450,7 @@ function handleSignUpPointerEnter() {
 										<iconify-icon icon="mdi:check" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{/if}
 								</span>
-								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
 							</button>
 						{/each}
 					</div>
@@ -457,8 +460,8 @@ function handleSignUpPointerEnter() {
 							{const selected = lang === currentLanguage}
 							<button
 								type="button"
-								onclick={() => handleLanguageSelection(lang)}
-								class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
+								onclick={() => handleLanguageSelection(lang)} aria-label={getLanguageName(lang)}
+								class="flex w-full items-center justify-between px-3 py-2 text-start rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
 							>
 								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
 									{getLanguageName(lang)}
@@ -466,7 +469,7 @@ function handleSignUpPointerEnter() {
 										<iconify-icon icon="mdi:check" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{/if}
 								</span>
-								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
+								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
 							</button>
 						{/each}
 					</div>
@@ -474,7 +477,7 @@ function handleSignUpPointerEnter() {
 			</Dropdown>
 		</div>
 		<!-- CMS Version -->
-		<div class="absolute bottom-5 left-1/2 -translate-x-1/2"><VersionCheck transparent={true} /></div>
+		<div class="absolute bottom-5 inset-s-1/2 -translate-x-1/2"><VersionCheck transparent={true} /></div>
 	{/if}
 </div>
 

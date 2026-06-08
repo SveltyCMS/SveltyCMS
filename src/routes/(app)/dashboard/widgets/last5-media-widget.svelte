@@ -192,7 +192,7 @@ export const widgetMeta = {
 							</div>
 
 							<!-- Date -->
-							<div class="shrink-0 text-right text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
+							<div class="shrink-0 text-end text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
 								{fileDate(f)}
 							</div>
 						</a>

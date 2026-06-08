@@ -554,7 +554,7 @@ Features:
 										{#each systemAvailable as sug (sug)}
 											<button
 												type="button"
-												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
+												class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
 												onclick={() => addSystemLanguage(sug)}
 											>
 												<span class="text-black dark:text-white">{displayLang(sug)}</span>
@@ -665,7 +665,7 @@ Features:
 										{#each contentAvailable as sug (sug.code)}
 											<button
 												type="button"
-												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
+												class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
 												onclick={() => addContentLanguage(sug.code)}
 										aria-label="add-content-language-{sug.name}"
 											>

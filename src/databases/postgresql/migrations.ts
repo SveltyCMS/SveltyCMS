@@ -480,8 +480,11 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 		)`,
     `CREATE INDEX IF NOT EXISTS workflow_instances_entry_idx ON workflow_instances ("entryId", "collectionId")`,
 
-    // Full-text search indexes (not auto-created by Drizzle ORM)
-    `CREATE INDEX IF NOT EXISTS content_nodes_fts_idx ON content_nodes USING GIN (to_tsvector('english', coalesce("title", '') || ' ' || coalesce("content", '') || ' ' || coalesce("description", '')))`,
+    // Full-text search on content_nodes skipped — content_nodes is a structural tree table.
+    // title/content columns do not exist as top-level columns (stored in JSON data field).
+    // FTS should be applied per-collection on actual content tables instead.
+    // Previously-created broken indexes are dropped below.
+    `DROP INDEX IF EXISTS content_nodes_fts_idx`,
   ];
 
   for (const query of queries) {

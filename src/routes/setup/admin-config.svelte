@@ -103,7 +103,7 @@
 
 <div class="fade-in">
 	<div class="mb-4">
-		<p class="text-sm text-center md:text-left text-tertiary-500 dark:text-primary-500 sm:text-base">
+		<p class="text-sm text-center md:text-start text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{setup_help_admin_username?.() || 'Create your administrator account with full access to manage content, users, and system settings.'}
 		</p>
 	</div>
@@ -120,7 +120,7 @@
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_username?.() || 'Help: Username'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500 "
+							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500 "
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -160,7 +160,7 @@
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_email?.() || 'Help: Email'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -200,7 +200,7 @@
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_password?.() || 'Help: Password'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -216,7 +216,7 @@
 						type={showAdminPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 pr-8 {displayErrors.password ? 'border-error-500' : ''}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600 pe-8 {displayErrors.password ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.password}
 						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
 						aria-required="true"
@@ -225,7 +225,7 @@
 						type="button"
 						tabindex="-1"
 						onclick={() => (showAdminPassword = !showAdminPassword)}
-						class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+						class="absolute inset-y-0 end-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 					>
 						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
@@ -266,7 +266,7 @@
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_confirm_password?.() || 'Help: Confirm Password'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -282,7 +282,7 @@
 						type={showConfirmPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 pr-8 {displayErrors.confirmPassword ? 'border-error-500' : ''}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600 pe-8 {displayErrors.confirmPassword ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.confirmPassword}
 						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
 						aria-required="true"
@@ -291,7 +291,7 @@
 						type="button"
 						tabindex="-1"
 						onclick={() => (showConfirmPassword = !showConfirmPassword)}
-						class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+						class="absolute inset-y-0 end-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
 					>
 						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
@@ -315,7 +315,7 @@
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
+						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
 							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -332,7 +332,7 @@
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
+						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
 							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -349,7 +349,7 @@
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
+						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
 							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -366,7 +366,7 @@
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
+						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
 							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -383,7 +383,7 @@
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
-						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
+						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
 							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
@@ -395,7 +395,7 @@
 					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li class="mt-2 flex items-center justify-center border-t border-slate-700 pt-2 font-bold dark:border-slate-200 dark:text-white">
-					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
+					<span class="me-2 inline-flex h-5 w-5 items-center justify-center">
 						<iconify-icon icon="mdi:shield-check" width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 					</span>
 					{setup_help_admin_password_requirements_account_note?.() || 'This account will have full administrative privileges'}

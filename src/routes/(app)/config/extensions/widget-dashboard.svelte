@@ -249,7 +249,7 @@ async function uninstallWidget(widgetName: string) {
 	{#if isLoading}
 		<div class="flex items-center justify-center p-8">
 			<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-			<span class="ml-3 text-lg">Loading widgets...</span>
+			<span class="ms-3 text-lg">Loading widgets...</span>
 		</div>
 	{:else if error}
 		<div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:bg-red-900/20">
@@ -321,7 +321,7 @@ async function uninstallWidget(widgetName: string) {
 				<!-- Total Widgets -->
 				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-blue-600 dark:text-blue-400"
+						class="btn-icon btn-icon-sm absolute end-2 top-2 text-blue-600 dark:text-blue-400"
 						aria-label="Information about total widgets"
 						title="All registered widgets in the system (core + custom)"
 					>
@@ -339,7 +339,7 @@ async function uninstallWidget(widgetName: string) {
 				<!-- Active Widgets -->
 				<div class="relative rounded-lg bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-tertiary-500 dark:text-primary-500"
+						class="btn-icon btn-icon-sm absolute end-2 top-2 text-tertiary-500 dark:text-primary-500"
 						aria-label="Information about active widgets"
 						title="Widgets currently enabled and available for use in collections"
 					>
@@ -357,7 +357,7 @@ async function uninstallWidget(widgetName: string) {
 				<!-- Core Widgets -->
 				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-blue-600 dark:text-blue-400"
+						class="btn-icon btn-icon-sm absolute end-2 top-2 text-blue-600 dark:text-blue-400"
 						aria-label="Information about core widgets"
 						title="Essential system widgets that are always active and cannot be disabled"
 					>
@@ -377,7 +377,7 @@ async function uninstallWidget(widgetName: string) {
 					class="relative rounded-lg bg-yellow-50 p-4 shadow-sm transition-all hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
 				>
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-yellow-600 dark:text-yellow-400"
+						class="btn-icon btn-icon-sm absolute end-2 top-2 text-yellow-600 dark:text-yellow-400"
 						aria-label="Information about custom widgets"
 						title="Optional widgets that can be toggled on/off as needed"
 					>
@@ -399,13 +399,13 @@ async function uninstallWidget(widgetName: string) {
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
 					<div class="relative flex-1">
-						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-gray-400"
 						></iconify-icon>
-						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 pl-10 pr-10 dark:text-white" />
+						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 ps-10 pe-10 dark:text-white" />
 						{#if searchQuery}
 							<button
 								onclick={() => (searchQuery = '')}
-								class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+								class="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
 								aria-label="Clear search"
 								title="Clear search (Esc)"
 							>
@@ -483,7 +483,7 @@ async function uninstallWidget(widgetName: string) {
 						The Widget Marketplace will allow you to discover, install, and manage premium and community widgets to extend your SveltyCMS
 						functionality.
 					</p>
-					<div class="mt-6 space-y-2 text-left">
+					<div class="mt-6 space-y-2 text-start">
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
 							<iconify-icon icon="mdi:check" width="20" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Browse hundreds of widgets across multiple categories</span>

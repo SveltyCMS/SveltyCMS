@@ -152,7 +152,7 @@ onMount(() => {
 					id="command-result-{i}"
 					role="option"
 					aria-selected={i === selectedIndex}
-					class="group flex w-full items-center justify-between rounded-lg px-3 py-3 text-left transition-colors {i === selectedIndex ? 'bg-tertiary-500 text-white' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}"
+					class="group flex w-full items-center justify-between rounded-lg px-3 py-3 text-start transition-colors {i === selectedIndex ? 'bg-tertiary-500 text-white' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}"
 					onclick={() => executeAction(item)}
 					onmouseenter={() => selectedIndex = i}
 				>

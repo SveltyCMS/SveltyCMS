@@ -581,7 +581,7 @@
 											{:else if btn.label === 'Color'}
 												<div class="p-2 w-48">
 													<button
-														class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition text-surface-700 dark:text-white"
+														class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition text-surface-700 dark:text-white"
 														onclick={() => {
 															editor?.chain().focus().unsetColor().run();
 															closeDropdowns();
@@ -662,7 +662,7 @@
 											{:else if btn.items}
 												{#each btn.items as item (item.label)}
 													<button
-														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
+														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
 															? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
 															: 'text-surface-700 dark:text-white'}"
 														aria-label={item.label}
@@ -858,7 +858,7 @@
 						}}
 					aria-label="insert-hard-break">
 						<iconify-icon icon="mdi:arrow-down-bold" width="22"></iconify-icon>
-						<div class="text-left">
+						<div class="text-start">
 							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
 							<div class="text-sm text-surface-500 dark:text-surface-50">Insert line break</div>
 						</div>
@@ -872,7 +872,7 @@
 							}}
 						aria-label="ask-ai">
 							<iconify-icon icon="mdi:sparkles" width="22"></iconify-icon>
-							<div class="text-left">
+							<div class="text-start">
 								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>
 								<div class="text-sm text-surface-500 dark:text-surface-50">Generate or rewrite with AI</div>
 							</div>

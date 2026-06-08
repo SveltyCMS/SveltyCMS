@@ -270,7 +270,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{#if !isOwnProfile && user?.isAdmin}
 				<div class="mb-4 rounded-md bg-warning-50 p-3 text-sm text-warning-800 dark:bg-warning-900/20 dark:text-warning-200">
 					<div class="flex">
-						<iconify-icon icon="mdi:information" width={16} class="mr-2 mt-0.5 shrink-0"></iconify-icon>
+						<iconify-icon icon="mdi:information" width={16} class="me-2 mt-0.5 shrink-0"></iconify-icon>
 						<div>
 							<strong>Admin Password Reset:</strong>
 							You are setting a new password for this user. Leave empty to keep current password unchanged.
@@ -344,8 +344,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 			</div>
 
 			{#if isOwnProfile && !isCurrentPasswordValidated}
-				<div class="text-xs text-center text-surface-500 dark:text-surface-50 pl-1">
-					<iconify-icon icon="mdi:lock" class="inline-block align-text-bottom mr-1"></iconify-icon>
+				<div class="text-xs text-center text-surface-500 dark:text-surface-50 ps-1">
+					<iconify-icon icon="mdi:lock" class="inline-block align-text-bottom me-1"></iconify-icon>
 					Enter your current password correctly to unlock new password fields.
 				</div>
 			{/if}
@@ -354,19 +354,19 @@ Efficiently manages user data updates with validation, role selection, and delet
 		<PermissionGuard config={modaleEditFormConfig} silent={true}>
 			{#if !isOwnProfile}
 				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">Role</div>
+					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
 							{#if roles && roles.length > 0}
 								{#each roles as r (r._id)}
-									<button
+									<button>
 										type="button"
 										role="radio"
 										aria-checked={editForm.data.role === r._id}
 										tabindex={editForm.data.role === r._id ? 0 : -1}
 										class="chip {editForm.data.role === r._id ? 'preset-filled-tertiary-500' : 'preset-ghost-secondary-500'}"
 										onclick={() => (editForm.data.role = r._id)}
-										onkeydown={(e) => {
+										onkeydown={(e: KeyboardEvent) => {
 											if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
 												e.preventDefault();
 												const next = (roles.indexOf(r) + 1) % roles.length;
@@ -392,11 +392,11 @@ Efficiently manages user data updates with validation, role selection, and delet
 				</div>
 			{:else}
 				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">Role</div>
+					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
 					<div class="flex-auto">
 						<div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
 							<div class="flex items-center">
-								<iconify-icon icon="mdi:information" width={16} class="mr-2 shrink-0"></iconify-icon>
+								<iconify-icon icon="mdi:information" width={16} class="me-2 shrink-0"></iconify-icon>
 								<div>
 									<strong>Current Role:</strong>
 									{roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role}

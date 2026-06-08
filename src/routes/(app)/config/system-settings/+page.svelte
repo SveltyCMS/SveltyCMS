@@ -246,7 +246,7 @@ $effect(() => {
 
 		<!-- Mobile Navigation Tabs & Search -->
 		<div class="mb-6 space-y-4 md:hidden">
-			<input bind:value={searchTerm} placeholder="Search settings..." class="input w-full" />
+			<input bind:value={searchTerm} placeholder="Search settings..." class="input w-full" aria-label="Search settings" />
 
 			<div class="flex gap-2 overflow-x-auto pb-2 snap-x scrollbar-hide">
 				{#each filteredGroups as g}

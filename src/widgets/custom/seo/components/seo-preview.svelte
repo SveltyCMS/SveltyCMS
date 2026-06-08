@@ -161,9 +161,9 @@
 			{#if heatmapMode}
 				<h3 class="relative text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500">
 					{#each heatmapDataTitle as { word, color }, i (i)}
-						<span class="relative inline-block mr-1">
+						<span class="relative inline-block me-1">
 							<span
-								class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
+								class="absolute start-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
 								style="background-color: {color}; width: 120%; height: 120%; z-index: 0;"
 							></span>
 							<span class="relative z-10">{word}</span>
@@ -180,9 +180,9 @@
 			{#if heatmapMode}
 				<p class="text-sm leading-normal text-surface-600 dark:text-surface-300">
 					{#each heatmapDataDesc as { word, color }, i (i)}
-						<span class="relative inline-block mr-1">
+						<span class="relative inline-block me-1">
 							<span
-								class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
+								class="absolute start-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
 								style="background-color: {color}; width: 140%; height: 140%; z-index: 0;"
 							></span>
 							<span class="relative z-10">{word}</span>

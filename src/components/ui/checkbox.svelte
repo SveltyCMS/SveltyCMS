@@ -22,7 +22,7 @@ keyboard navigation, and motion-respecting transitions.
 - `onchange` (function): Callback invoked with the new boolean state.
 
 ### Accessibility Features (WCAG 3.0)
-- Native `<input type="checkbox">` for maximum assistive tech compatibility
+- Native `<input type="checkbox" aria-label="Input">` for maximum assistive tech compatibility
 - 24px minimum touch target on all size variants
 - `aria-invalid` + `aria-describedby` error linkage
 - `aria-checked="mixed"` for indeterminate state
@@ -238,7 +238,7 @@ keyboard navigation, and motion-respecting transitions.
 						<span class={cn('font-medium text-surface-900 dark:text-surface-100 leading-tight', sizeTokens.text)}>
 							{label}
 							{#if required}
-								<span class="text-error-500 ml-0.5" aria-hidden="true">*</span>
+								<span class="text-error-500 ms-0.5" aria-hidden="true">*</span>
 							{/if}
 						</span>
 					{/if}

@@ -22,7 +22,7 @@ configurable step size, numeric value display, and full keyboard accessibility.
 
 ### Features:
 - fractional fill via CSS overflow clip (any step: 0.5, 0.1, etc.)
-- half-star precision on click and hover (left half = x.5, right half = x.0)
+- half-star precision on click and hover (start half = x.5, end half = x.0)
 - hover state preview with real-time partial fill
 - WCAG 3.0: role="slider", aria-valuemin/max/now, keyboard nav
 - keyboard: Arrow keys (adjust by step), Home/End (min/max)
@@ -139,8 +139,8 @@ function starFill(displayVal: number, index: number): number {
 				const rect = e.currentTarget.getBoundingClientRect();
 				const x = e.clientX - rect.left;
 				const half = x < rect.width / 2 ? step : (step >= 1 ? 1 : Math.ceil(1 / step) * step / Math.ceil(1 / step));
-				// For step=0.5: left half adds 0.5, right half adds 1.0
-				// For step=1: left half adds 0.5 rounded to 1, right half adds 1
+				// For step=0.5: start half adds 0.5, end half adds 1.0
+				// For step=1: start half adds 0.5 rounded to 1, end half adds 1
 				const nearestStep = Math.round((i + half) / step) * step;
 				setValue(nearestStep);
 			}}

@@ -122,8 +122,8 @@
 				<caption id="keyboard-table-desc" class="sr-only"> Keyboard shortcuts available in SveltyCMS </caption>
 				<thead class="bg-surface-100 dark:bg-surface-800">
 					<tr>
-						<th scope="col" class="px-4 py-3 text-left font-semibold dark:text-white">Key / Combination</th>
-						<th scope="col" class="px-4 py-3 text-left font-semibold dark:text-white">Action</th>
+						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white">Key / Combination</th>
+						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white">Action</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-200 dark:divide-surface-700">

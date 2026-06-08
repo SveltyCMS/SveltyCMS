@@ -1231,7 +1231,7 @@ bulk actions, and predictive preloading.
 		</div>
 		<!-- Pagination -->
 		<div
-			class="sticky bottom-0 start-0 end-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-secondary-100 dark:text-surface-50 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			class="sticky bottom-0 inset-s-0 inset-e-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-secondary-100 dark:text-surface-50 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
 		>
 			<TablePagination
 				currentPage={serverPagination.currentPage}

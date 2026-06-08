@@ -392,7 +392,7 @@ accessibility -->
 			/>
 
 			{#if isSearching}
-				<div class="absolute right-4 top-1/2 -translate-y-1/2" role="status" aria-label="Searching">
+				<div class="absolute end-4 top-1/2 -translate-y-1/2" role="status" aria-label="Searching">
 					<svg
 						class="h-5 w-5 animate-spin text-tertiary-500 dark:text-primary-500"
 						xmlns="http://www.w3.org/2000/svg"
@@ -434,7 +434,7 @@ accessibility -->
 							{const trigger = result.triggers[triggerKey]}
 							<button
 								type="button"
-								class="w-full px-4 py-3 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"
+								class="w-full px-4 py-3 text-start transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"
 								onclick={(e) => handleResultClick(result, triggerKey, e)}
 								aria-label={`${result.title}: ${result.description}. Path: ${trigger?.path ?? 'Unknown'}`}
 							>
@@ -469,7 +469,7 @@ accessibility -->
 									{#if trigger?.path}
 										<button
 											type="button"
-											class="flex items-center justify-between px-6 py-2 text-left transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"
+											class="flex items-center justify-between px-6 py-2 text-start transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"
 											onclick={(e) => handleResultClick(result, triggerKey, e)}
 											aria-label={`${result.title} - ${triggerKey}: Path ${trigger.path}`}
 										>
@@ -477,7 +477,7 @@ accessibility -->
 												<HighlightedText text={triggerKey} term={sanitizedQuery} />
 											</span>
 											<span
-												class="ml-4 rounded bg-surface-200 dark:bg-surface-700 px-2 py-1 text-xs font-medium text-tertiary-500 dark:text-primary-500"
+												class="ms-4 rounded bg-surface-200 dark:bg-surface-700 px-2 py-1 text-xs font-medium text-tertiary-500 dark:text-primary-500"
 											>
 												{trigger.path}
 											</span>

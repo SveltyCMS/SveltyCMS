@@ -97,10 +97,10 @@
 
 	<div class="relative">
 		{#if type === 'textarea'}
-			<textarea
+			<textarea aria-label="Textarea"
 				bind:this={inputRef as HTMLTextAreaElement}
 				{id}
-				class="textarea pr-12 resize-y"
+				class="textarea pe-12 resize-y"
 				{rows}
 				{placeholder}
 				bind:value
@@ -108,11 +108,11 @@
 				use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection as string }}
 			></textarea>
 		{:else}
-			<input
+			<input aria-label="Input"
 				bind:this={inputRef as HTMLInputElement}
 				{id}
 				type="text"
-				class="input pr-12"
+				class="input pe-12"
 				{placeholder}
 				bind:value
 				oninput={(e) => onUpdate((e.currentTarget as HTMLInputElement).value)}

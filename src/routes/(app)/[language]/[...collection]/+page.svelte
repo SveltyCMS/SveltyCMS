@@ -533,7 +533,7 @@ beforeNavigate(async ({ cancel }) => {
 <div class="content h-full">
 	<!-- Auto-save indicator -->
 	{#if isSavingDraft}
-		<div class="fixed right-4 top-20 z-50 flex items-center gap-2 rounded-lg bg-warning-500 px-4 py-2 text-white shadow-lg">
+		<div class="fixed end-4 top-20 z-50 flex items-center gap-2 rounded-lg bg-warning-500 px-4 py-2 text-white shadow-lg">
 			<div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
 			<span class="text-sm font-medium">Auto-saving draft...</span>
 		</div>

@@ -1,5 +1,5 @@
 <!--
-@file src/components/right-sidebar.svelte
+@file src/components/end-sidebar.svelte
 @component RightSidebar – Collection entry management (save, status, schedule, metadata)
 
 @features
@@ -76,7 +76,7 @@
 	// --- Permissions & UI logic ---
 	let showSidebar = $derived(['edit', 'create'].includes(currentMode) && canWrite);
 
-	// Theme-aware: show collections in right sidebar?
+	// Theme-aware: show collections in end sidebar?
 	const themeCtx = getThemeContext();
 	const showCollectionsHere = $derived(
 		(themeCtx?.features?.layoutRegions?.collections === 'right' ||
@@ -273,7 +273,7 @@
 
 {#if showSidebar || showCollectionsHere}
 	<div class="flex h-full flex-col justify-between px-3 py-4">
-		<!-- Collections tree (when theme moves it to right sidebar) -->
+		<!-- Collections tree (when theme moves it to end sidebar) -->
 		{#if showCollectionsHere}
 			<div class="mb-3">
 				<Collections />
@@ -341,7 +341,7 @@
 
 			<Slot name="entry_edit_sidebar" props={{ collection, currentEntry }} />
 
-			<main class="mt-6 flex w-full flex-col gap-4 text-left">
+			<main class="mt-6 flex w-full flex-col gap-4 text-start">
 				<div class="border-b border-surface-300 pb-2 dark:border-surface-600">
 					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500">{siedabar_publish_options()}</h3>
 				</div>
@@ -355,7 +355,7 @@
 						{/if}
 						<button
 							onclick={openSchedule}
-							class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-left transition-colors"
+							class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-start transition-colors"
 						>
 							<iconify-icon icon="bi:clock" width="16"></iconify-icon>
 							<span class="text-sm text-tertiary-500 dark:text-primary-500">
@@ -368,7 +368,7 @@
 									collectionValue.value = { ...currentEntry!, _scheduled: undefined, status: StatusTypes.draft };
 									toast.success('Schedule cancelled');
 								}}
-								class="btn preset-filled-error-500 w-full justify-start gap-2 text-left text-sm transition-colors"
+								class="btn preset-filled-error-500 w-full justify-start gap-2 text-start text-sm transition-colors"
 							>
 								<iconify-icon icon="material-symbols:cancel" width="16"></iconify-icon>
 								<span>Cancel Schedule</span>

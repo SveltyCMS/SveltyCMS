@@ -283,7 +283,7 @@ latest version available on GitHub with comprehensive status reporting.
 			href={GITHUB_RELEASES_URL}
 			target="_blank"
 			rel="noopener noreferrer"
-			class={`absolute bottom-5 left-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full ${transparentClasses} px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`}
+			class={`absolute bottom-5 inset-s-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full ${transparentClasses} px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`}
 			aria-label={statusAriaLabel}
 			aria-live="polite"
 		>
@@ -342,7 +342,7 @@ latest version available on GitHub with comprehensive status reporting.
 	<!-- Error toast/message (optional - only shown if critical) -->
 	{#if error && statusSeverity === 'critical' && !compact && !transparent}
 		<div
-			class="mt-2 rounded border-l-4 border-error-500 bg-error-50 p-2 text-xs text-error-700 dark:bg-error-900/20 dark:text-error-300"
+			class="mt-2 rounded border-s-4 border-error-500 bg-error-50 p-2 text-xs text-error-700 dark:bg-error-900/20 dark:text-error-300"
 			role="alert"
 		>
 			<strong>Version check failed:</strong>

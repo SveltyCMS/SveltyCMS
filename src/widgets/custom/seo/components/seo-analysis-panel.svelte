@@ -142,7 +142,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						{const suggestionIcon =
 							suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 						<div
-							class="card border-l-4 p-3 {suggestion.type === 'error'
+							class="card border-s-4 p-3 {suggestion.type === 'error'
 								? 'border-error-500 bg-error-500/10'
 								: suggestion.type === 'warning'
 									? 'border-warning-500 bg-warning-500/10'
@@ -207,7 +207,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 										<div class="font-bold truncate">{link.title}</div>
 										<div class="opacity-50 text-[10px] truncate">{link.url}</div>
 									</div>
-									<button
+									<button>
 										class="btn btn-sm preset-ghost-surface-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
 										title="Copy relative URL"
 										onclick={() => {

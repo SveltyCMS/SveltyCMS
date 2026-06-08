@@ -544,13 +544,13 @@ Provides an organized interface for navigating hierarchical content structures.
 			type="text"
 			bind:value={search}
 			placeholder={collections_search()}
-			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pr-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
+			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pe-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
 				? 'h-12 py-3'
 				: 'h-10 py-2'}"
 			aria-label="Search collections"
 		/>
 
-		<div class="absolute right-0 top-0 flex h-full items-center">
+		<div class="absolute inset-e-0 top-0 flex h-full items-center">
 			{#if isSearching}
 				<div class="flex h-12 w-12 items-center justify-center">
 					<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
@@ -567,7 +567,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			{:else}
 				<!-- Search with icon -->
 				<div
-					class="flex items-center justify-center rounded-r bg-secondary-100 dark:bg-surface-700 {isFullSidebar
+					class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 {isFullSidebar
 						? 'h-11 w-11 mt-px mr-px'
 						: 'h-8 w-8'}"
 				>
@@ -611,7 +611,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		>
 			<button
 				type="button"
-				class="btn-icon btn-icon-xs absolute top-4 right-4 rounded-full hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-500"
+				class="btn-icon btn-icon-xs absolute top-4 inset-e-4 rounded-full hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-500"
 				onclick={() => showTagModal = false}
 				aria-label="Close dialog"
 			>

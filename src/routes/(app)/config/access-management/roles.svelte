@@ -224,7 +224,7 @@ function handleFinalize(e: CustomEvent) {
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-2">
 				<button onclick={() => openModal(null, '')} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">
-					<iconify-icon icon="mdi:plus-circle-outline" class="mr-2"></iconify-icon>
+					<iconify-icon icon="mdi:plus-circle-outline" class="me-2"></iconify-icon>
 					Create Role
 				</button>
 				<button onclick={deleteSelectedRoles} class="preset-filled-error-500 btn" disabled={selectedRoles.size === 0}>
@@ -233,8 +233,8 @@ function handleFinalize(e: CustomEvent) {
 			</div>
 
 			<div class="relative w-full max-w-sm">
-				<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
-				<input type="text" placeholder="Search roles..." class="input pl-10" bind:value={roleSearchTerm} aria-label="Search roles" />
+				<iconify-icon icon="mdi:magnify" class="absolute start-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
+				<input type="text" placeholder="Search roles..." class="input ps-10" bind:value={roleSearchTerm} aria-label="Search roles" />
 			</div>
 		</div>
 
@@ -286,7 +286,7 @@ function handleFinalize(e: CustomEvent) {
 										<span class="flex items-center text-lg font-bold text-tertiary-500 dark:text-primary-500">
 											{role.name}
 											{#if role.isAdmin}
-												<span class="ml-2 badge variant-filled-secondary text-xs">Admin</span>
+												<span class="ms-2 badge variant-filled-secondary text-xs">Admin</span>
 											{/if}
 										</span>
 										<span class="text-xs opacity-60 md:hidden">{role.description || 'No description'}</span>
@@ -294,12 +294,12 @@ function handleFinalize(e: CustomEvent) {
 								</div>
 
 								<!-- Description for larger screens -->
-								<p class="mt-2 hidden text-sm opacity-70 md:ml-4 md:mt-0 md:block flex-1">{role.description}</p>
+								<p class="mt-2 hidden text-sm opacity-70 md:ms-4 md:mt-0 md:block flex-1">{role.description}</p>
 
 								<!-- Actions -->
 								<div class="flex gap-2">
 									<button onclick={() => openModal(role)} aria-label={`Edit role ${role.name}`} class="btn btn-sm variant-soft-secondary">
-										<iconify-icon icon="mdi:pencil" width={18} class="mr-1"></iconify-icon>
+										<iconify-icon icon="mdi:pencil" width={18} class="me-1"></iconify-icon>
 										Edit
 									</button>
 								</div>

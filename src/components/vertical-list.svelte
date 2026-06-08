@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/vertical-list.svelte
 @component
 **VerticalList component for displaying items in a vertical list with drag-and-drop functionality**
@@ -30,7 +30,7 @@
 	const { items, headers = [], flipDurationMs, handleDndConsider, handleDndFinalize, children }: Props = $props();
 
 	const gridClass = $derived(
-		`grid grid-cols-${headers.length + 1} preset-outlined-tertiary-500 dark:preset-outlined-primary-500 w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`
+		`grid grid-cols-${headers.length + 1} preset-outlined-tertiary-500 dark:preset-outlined-primary-500 w-full items-start justify-start p-1 py-2 ps-3 text-center font-semibold`
 	);
 </script>
 
@@ -40,7 +40,7 @@
 		<div role="rowgroup">
 			<div class={gridClass} role="row">
 				{#each headers as header, index (index)}
-					<div class="ml-2 text-left" role="columnheader">{header}:</div>
+					<div class="ms-2 text-start" role="columnheader">{header}:</div>
 				{/each}
 			</div>
 		</div>

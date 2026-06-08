@@ -531,7 +531,7 @@ Advanced icon picker with search, pagination, and favorites.
 						if (showDropdown) handleFocus();
 					}
 				}}
-				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg bg-surface-100 p-2 text-left transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
+				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg bg-surface-100 p-2 text-start transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
 					? 'pointer-events-none'
 					: ''}"
 				aria-expanded={hideSearchInput ? showDropdown : undefined}
@@ -637,7 +637,7 @@ Advanced icon picker with search, pagination, and favorites.
 	{#if searchError}
 		<div
 			id="search-error"
-			class="mt-2 rounded-lg border-l-4 border-error-500 bg-error-50 p-3 text-sm text-error-700 dark:bg-error-900/20 dark:text-error-300"
+			class="mt-2 rounded-lg border-s-4 border-error-500 bg-error-50 p-3 text-sm text-error-700 dark:bg-error-900/20 dark:text-error-300"
 			role="alert"
 			in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>

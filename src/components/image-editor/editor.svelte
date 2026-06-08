@@ -339,7 +339,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 	aria-busy={isProcessing}
 >
 	{#if error}
-		<div class="error-banner bg-error-50 border-l-4 border-error-500 p-4 text-error-700 dark:bg-error-900/20 dark:text-error-300" role="alert">
+		<div class="error-banner bg-error-50 border-s-4 border-error-500 p-4 text-error-700 dark:bg-error-900/20 dark:text-error-300" role="alert">
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
 				<span>{error}</span>

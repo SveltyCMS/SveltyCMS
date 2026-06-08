@@ -292,7 +292,7 @@ Advanced permission management interface with bulk actions and presets.
 
 {#if error}
 	<div
-		class="rounded-lg border-l-4 border-error-500 bg-error-50 p-4 text-error-700 dark:bg-error-900/20 dark:text-error-300"
+		class="rounded-lg border-s-4 border-error-500 bg-error-50 p-4 text-error-700 dark:bg-error-900/20 dark:text-error-300"
 		role="alert"
 		transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 	>

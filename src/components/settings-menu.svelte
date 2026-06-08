@@ -57,12 +57,12 @@ Sidebar navigation for System Settings
 			type="text"
 			bind:value={searchTerm}
 			placeholder={isFullSidebar ? 'Search settings...' : 'Search'}
-			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pr-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
+			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pe-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
 				? 'h-12 py-3'
 				: 'h-10 py-2'}"
 			aria-label="Search settings"
 		/>
-		<div class="absolute right-0 top-0 flex h-full items-center pr-3 pointer-events-none text-surface-400">
+		<div class="absolute end-0 top-0 flex h-full items-center pe-3 pointer-events-none text-surface-400">
 			<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 		</div>
 	</div>
@@ -75,7 +75,7 @@ Sidebar navigation for System Settings
 					href={`/config/system-settings?group=${group.id}`}
 					data-sveltekit-preload-data="hover"
 					class="relative w-full cursor-pointer rounded-lg p-2 transition-colors flex items-center {isFullSidebar
-						? 'justify-between text-left'
+						? 'justify-between text-start'
 						: 'justify-center text-center'} {selectedGroupId === group.id
 						? 'bg-tertiary-500 dark:bg-primary-500 text-white'
 						: 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
@@ -95,7 +95,7 @@ Sidebar navigation for System Settings
 						</div>
 					{:else if groupsNeedingConfig.has(group.id)}
 						<!-- Dot for collapsed state -->
-						<div class="w-2 h-2 rounded-full bg-warning-500 absolute top-1 right-1"></div>
+						<div class="w-2 h-2 rounded-full bg-warning-500 absolute top-1 end-1"></div>
 					{/if}
 				</a>
 			</SystemTooltip>

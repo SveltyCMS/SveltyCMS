@@ -182,9 +182,9 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 					{const id = entry._id || entry.id}
 					{const idStr = id.toString()}
 					{const isSelected = selected.has(idStr)}
-					<button
+					<button>
 						type="button"
-						class="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus:ring-2 focus:ring-primary-500"
+						class="flex w-full items-center gap-3 rounded-lg p-3 text-start transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus:ring-2 focus:ring-primary-500"
 						class:bg-tertiary-500={isSelected} class:dark:bg-primary-500={isSelected}
 						class:text-white={isSelected}
 						onclick={() => toggleSelection(idStr)}

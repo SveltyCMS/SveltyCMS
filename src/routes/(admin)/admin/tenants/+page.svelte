@@ -88,7 +88,7 @@ function formatBytes(bytes: number, decimals = 2) {
 						<td class="uppercase text-xs font-bold opacity-70">{tenant.plan}</td>
 						<td>{new Date(tenant.createdAt).toLocaleDateString()}</td>
 						<td>
-							<button
+							<button>
 								class="btn btn-sm {tenant.status === 'active' ? 'variant-soft-error' : 'variant-filled-success'}"
 								onclick={async () => {
 									const { toggleTenantStatus } = await import('./tenants-actions.server');

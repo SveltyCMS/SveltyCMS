@@ -87,7 +87,7 @@ export const widgetMeta = {
 			{const limit = size.h === 1 ? 1 : 5}
 			<div class="flex flex-col h-full overflow-hidden" role="region" aria-label="Recent content items">
 				<div 
-					class="flex-1 overflow-y-auto pr-1 space-y-1.5 custom-scroll" 
+					class="flex-1 overflow-y-auto pe-1 space-y-1.5 custom-scroll" 
 					role="list"
 					aria-label="Recent content"
 				>
@@ -120,7 +120,7 @@ export const widgetMeta = {
 
 								<!-- Creator email abbreviation -->
 								{#if size.w >= 2 || size.h >= 2}
-									<div class="text-right text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap shrink-0 pt-0.5" title="Author: {item.createdBy}">
+									<div class="text-end text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap shrink-0 pt-0.5" title="Author: {item.createdBy}">
 										{item.createdBy?.split('@')[0] || '—'}
 									</div>
 								{/if}

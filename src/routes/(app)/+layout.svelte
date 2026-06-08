@@ -390,7 +390,7 @@ afterNavigate(() => {
 					<aside
 						class="max-h-dvh {ui.state.leftSidebar === 'full'
 							? ''
-							: 'w-fit'} relative border-r bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>
@@ -430,7 +430,7 @@ afterNavigate(() => {
 
 				{#if ui.state.rightSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh w-60 border-l bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh w-60 border-s bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						aria-label="Right sidebar"
 					>
 						<RightSidebar />

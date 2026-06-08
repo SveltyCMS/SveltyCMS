@@ -494,6 +494,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           tenantId: locals.tenantId,
         });
         metricsService.incrementAuthFailures();
+        // Returning user: a session cookie was present but is no longer valid → this browser has
+        // signed in before. Flag it (the login page defaults to the Sign In form) before deleting
+        // the dead cookie.
+        (locals as any).returningUser = true;
         cookies.delete(cookieName, { path: "/" });
       }
     }

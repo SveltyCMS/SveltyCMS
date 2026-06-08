@@ -75,9 +75,9 @@
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="video-dialog-title"
-		class="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform rounded-lg bg-white p-6 shadow-xl"
+		class="fixed start-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform rounded-lg bg-white p-6 shadow-xl"
 	>
-		<button type="button" class="btn-icon btn-icon-sm absolute right-4 top-4" onclick={close} aria-label="Close">
+		<button type="button" class="btn-icon btn-icon-sm absolute end-4 top-4" onclick={close} aria-label="Close">
 			<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
 		</button>
 

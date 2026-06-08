@@ -403,7 +403,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			bind:value={keyword}
 			{placeholder}
 			{disabled}
-			class="input {className} px-3 py-1.5 pr-20 transition-all duration-200 placeholder:text-surface-600 dark:placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+			class="input {className} px-3 py-1.5 pe-20 transition-all duration-200 placeholder:text-surface-600 dark:placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}
@@ -418,7 +418,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 		/>
 
 		<!-- Action buttons -->
-		<div class="absolute right-2 top-1/2 flex -translate-y-1/2 gap-1">
+		<div class="absolute inset-e-2 top-1/2 flex -translate-y-1/2 gap-1">
 			<!-- Clear button -->
 			{#if keyword && !disabled}
 				<button
@@ -476,7 +476,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 							id={`option-${index}`}
 							role="option"
 							aria-selected={isSelected}
-							class="cursor-pointer border-b border-surface-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:text-surface-50 {isSelected
+							class="cursor-pointer border-b border-surface-100 px-4 py-3 text-start transition-colors last:border-b-0 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:text-surface-50 {isSelected
 								? 'bg-tertiary-500 dark:bg-primary-500/20'
 								: ''} {isCreateOption ? 'font-medium text-tertiary-500 dark:text-primary-500' : 'text-surface-900 dark:text-surface-100'}"
 							onmousedown={(e) => handleOptionMouseDown(option, e)}

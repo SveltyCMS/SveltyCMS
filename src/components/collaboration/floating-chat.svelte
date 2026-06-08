@@ -41,7 +41,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 
 		// Prefer expanding UP if there's more space or if it fits better
 		const expandUp = spaceAbove >= spaceBelow || spaceBelow < DESKTOP_PANEL_HEIGHT;
-		// Prefer expanding LEFT if there's more space on the left
+		// Prefer expanding LEFT if there's more space on the start
 		const expandLeft = spaceLeft >= spaceRight || spaceRight < DESKTOP_PANEL_WIDTH;
 
 		const availableHeight = expandUp ? spaceAbove : spaceBelow;
@@ -153,7 +153,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 	// Handle mobile layout: center the panel if screen is small
 	const panelStyle = $derived.by(() => {
 		if (screen.isMobile) {
-			return `position: fixed; bottom: 80px; left: 10px; right: 10px; width: calc(100% - 20px); height: 70vh;`;
+			return `position: fixed; bottom: 80px; start: 10px; right: 10px; width: calc(100% - 20px); height: 70vh;`;
 		}
 		// Desktop constraints
 		return `transform: translateY(${layoutInfo.expandUp ? '0' : '0'}); height: ${layoutInfo.maxHeight}px; width: ${DESKTOP_PANEL_WIDTH}px; flex-direction: column; display: flex;`;
@@ -163,7 +163,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 	const containerStyle = $derived.by(() => {
 		if (screen.isMobile && isOpen) return '';
 
-		const commonStyle = `left: ${pos.x}px; width: ${BUTTON_RADIUS * 2}px; display: flex; align-items: ${layoutInfo.expandLeft ? 'flex-end' : 'flex-start'};`;
+		const commonStyle = `start: ${pos.x}px; width: ${BUTTON_RADIUS * 2}px; display: flex; align-items: ${layoutInfo.expandLeft ? 'flex-end' : 'flex-start'};`;
 
 		if (!screen.isMobile && isOpen && layoutInfo.expandUp) {
 			return `${commonStyle} bottom: ${window.innerHeight - (pos.y + BUTTON_RADIUS * 2)}px; flex-direction: column-reverse;`;
@@ -192,7 +192,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 		{#if isOpen}
 			<div
 				transition:scale={{ duration: 200, start: 0.9 }}
-				class={screen.isMobile ? '' : `${layoutInfo.expandUp ? 'origin-bottom' : 'origin-top'}-${layoutInfo.expandLeft ? 'right' : 'left'} mb-2`}
+				class={screen.isMobile ? '' : `${layoutInfo.expandUp ? 'origin-bottom' : 'origin-top'}-${layoutInfo.expandLeft ? 'right' : 'start'} mb-2`}
 				style={panelStyle}
 			>
 				<ActivityStream ondrag={drag} />

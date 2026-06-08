@@ -108,7 +108,7 @@ export const widgetMeta = {
 						aria-label="Select disk drive"
 					>
 						{#each disks as d}
-							<button
+							<button>
 								type="button"
 								role="tab"
 								aria-selected={disk.key === d.key}
