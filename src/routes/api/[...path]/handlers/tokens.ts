@@ -129,6 +129,19 @@ export async function handleTokenRoutes(
     const body = await request.json().catch(() => ({}));
 
     if (action === "create-token") {
+      // Rate limit password reset token creation (1 per 60s per IP)
+      if (body.type === "reset") {
+        const clientIp =
+          event.request.headers.get("x-forwarded-for") || event.getClientAddress?.() || "unknown";
+        const resetKey = `rate:reset:${clientIp}`;
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const recent = await cacheService.get(resetKey);
+        if (recent) {
+          throw new AppError("Password reset already requested. Please wait 60 seconds.", 429);
+        }
+        await cacheService.set(resetKey, "1", 60);
+      }
+
       if (isWebsite) {
         if (!body.name) throw new AppError("Name is required", 400);
         const result = await cms.system.websiteTokens.create({
@@ -224,8 +237,10 @@ export async function handleTokenRoutes(
     const updateData = body.newTokenData || body.data || body;
 
     if (isWebsite) {
-      // NOTE: websiteTokens module might not have update implemented yet, returning success for now if missing
-      throw new AppError("Update not implemented for website tokens", 400);
+      // Website token update: delegate to websiteTokens module
+      const result = await (cms.system.websiteTokens as any).update(tokenId, updateData);
+      if (!result) throw new AppError("Website token not found", 404);
+      return successResponse(event, result);
     }
 
     const result = await cms.auth.tokens.update(tokenId, updateData, {

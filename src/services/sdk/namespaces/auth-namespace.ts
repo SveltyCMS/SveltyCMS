@@ -7,6 +7,7 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/security";
 import { parseSessionDuration } from "@utils/auth-utils";
+import { isoDateStringToDate, dateToISODateString } from "@utils/date";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
@@ -252,15 +253,52 @@ export class AuthNamespace {
       throw new AppError("Account suspended or incomplete", 401);
     }
 
+    // ACCOUNT LOCKOUT: check before verifying password
+    if (user.lockoutUntil) {
+      const lockoutDate = isoDateStringToDate(user.lockoutUntil);
+      if (lockoutDate > new Date()) {
+        const remainingMinutes = Math.ceil((lockoutDate.getTime() - Date.now()) / 60000);
+        logger.warn("Login attempt on locked account", { email });
+        throw new AppError(
+          `Account temporarily locked. Try again in ${remainingMinutes} minutes.`,
+          423, // HTTP 423 Locked — semantically correct for account lockout
+        );
+      }
+      // Lockout expired, clear it
+      await auth.updateUserAttributes(user._id as DatabaseId, {
+        lockoutUntil: null,
+        failedAttempts: 0,
+      });
+    }
+
+    // PASSWORD VERIFICATION with failed-attempt tracking
     if (password) {
       const isValid = await verifyPassword(user.password, password);
       if (!isValid) {
-        logger.debug("Login failed: Password mismatch", {
-          userId: user._id,
-          email: user.email,
+        const failedAttempts = (user.failedAttempts || 0) + 1;
+        const updates: Record<string, any> = { failedAttempts };
+        if (failedAttempts >= 5) {
+          const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000);
+          updates.lockoutUntil = dateToISODateString(lockoutUntil);
+          logger.error("Account locked due to multiple failed attempts", {
+            email,
+          });
+        }
+        await auth.updateUserAttributes(user._id as DatabaseId, updates);
+        logger.warn("Password authentication failed", {
+          email,
+          failedAttempts,
         });
         throw new AppError("Invalid credentials", 401);
       }
+    }
+
+    // SUCCESS: reset lockout state
+    if (user.failedAttempts || user.lockoutUntil) {
+      await auth.updateUserAttributes(user._id as DatabaseId, {
+        failedAttempts: 0,
+        lockoutUntil: null,
+      });
     }
 
     const sessionResult = await auth.createSession({

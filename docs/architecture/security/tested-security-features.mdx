@@ -108,12 +108,12 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 ## No Backdoor Policy
 
-All tests adhere to strict no-backdoor principles:
+SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test support:
 
-- ✅ **No test API keys** - Tests use real authentication flows
-- ✅ **No bypass headers** - All requests go through standard auth
-- ✅ **No mocked permissions** - RBAC tested with real role checks
-- ✅ **No shortcuts** - Encryption tested with real key derivation
+- ✅ **Cryptographically-gated test bypass** — The `__testBypass` flag requires a timing-safe `timingSafeEqual()` cryptographic handshake against a runtime-generated secret, gated behind `TEST_MODE`/`BENCHMARK` environment variables. In production builds without these env vars, the bypass path is unconditionally blocked.
+- ✅ **No static test API keys** — Test secrets are generated at runtime via CSPRNG and never hardcoded.
+- ✅ **No mocked permissions** — RBAC tested with real role checks; the bypass only skips middleware when cryptographically verified in test environments.
+- ✅ **No shortcuts** — Encryption tested with real key derivation; auth paths excluded from turbo bypass, always using real credentials.
 
 ---
 

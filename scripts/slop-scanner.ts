@@ -11,13 +11,7 @@
  *   bun run scripts/slop-scanner.ts --files src/routes/+page.svelte
  */
 
-import {
-  existsSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -50,8 +44,7 @@ function report(
   fixable = false,
 ) {
   const nf = file.replace(/\\/g, "/");
-  if (SUPPRESS.some((s) => nf.includes(s.file) && s.category === category))
-    return;
+  if (SUPPRESS.some((s) => nf.includes(s.file) && s.category === category)) return;
   violations.push({ file, line, category, message, severity, fixable });
 }
 
@@ -64,14 +57,7 @@ function* walkFiles(dir: string, extensions: string[]): Generator<string> {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (
-          [
-            "node_modules",
-            ".svelte-kit",
-            ".git",
-            "paraglide",
-            "dist",
-            "build",
-          ].includes(entry.name)
+          ["node_modules", ".svelte-kit", ".git", "paraglide", "dist", "build"].includes(entry.name)
         )
           continue;
         yield* walkFiles(full, extensions);
@@ -119,9 +105,7 @@ function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
     if (inCodeBlock) continue;
 
     // Legacy $: reactivity
-    if (
-      /\$\s*:(?!.*(\$state|\$derived|\$effect|\$props|\$bindable))/.test(line)
-    ) {
+    if (/\$\s*:(?!.*(\$state|\$derived|\$effect|\$props|\$bindable))/.test(line)) {
       report(
         relPath,
         i + 1,
@@ -138,9 +122,7 @@ function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
       const afterLt = line.slice(line.indexOf("<") + 1, line.indexOf("<") + 10);
       if (/^[A-Z]/.test(afterLt)) continue;
       const combined = lines.slice(i, Math.min(i + 10, lines.length)).join(" ");
-      if (
-        !/(aria-label|aria-labelledby|id\s*=|for\s*=|role\s*=)/i.test(combined)
-      ) {
+      if (!/(aria-label|aria-labelledby|id\s*=|for\s*=|role\s*=)/i.test(combined)) {
         report(
           relPath,
           i + 1,
@@ -199,13 +181,7 @@ function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
     )
       continue;
     const lineNo = content.substring(0, m.index!).split("\n").length;
-    report(
-      relPath,
-      lineNo,
-      "security-html",
-      `Unsafe {@html ${expr.slice(0, 50)}...}`,
-      "error",
-    );
+    report(relPath, lineNo, "security-html", `Unsafe {@html ${expr.slice(0, 50)}...}`, "error");
   }
 
   // Apply RTL fixes
@@ -221,13 +197,7 @@ function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
 function scanTodos(relPath: string, content: string) {
   const matches = content.match(/\/\/\s*(TODO|FIXME|HACK|XXX)/gi);
   if (matches && matches.length >= MAX_TODOS_PER_FILE) {
-    report(
-      relPath,
-      0,
-      "slop-accumulation",
-      `${matches.length} TODO/FIXME comments`,
-      "info",
-    );
+    report(relPath, 0, "slop-accumulation", `${matches.length} TODO/FIXME comments`, "info");
   }
 }
 
@@ -257,13 +227,7 @@ function checkDuplicateContent(relPath: string, content: string) {
 
 function checkFileNaming(relPath: string) {
   if (/[A-Z]/.test(basename(relPath)) && relPath.endsWith(".svelte")) {
-    report(
-      relPath,
-      0,
-      "naming",
-      "Prefer kebab-case for .svelte files",
-      "warning",
-    );
+    report(relPath, 0, "naming", "Prefer kebab-case for .svelte files", "warning");
   }
 }
 
@@ -295,9 +259,7 @@ async function main() {
     }
   }
 
-  console.log(
-    `📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files\n`,
-  );
+  console.log(`📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files\n`);
 
   // Svelte files
   for (const file of svelteFiles) {
@@ -348,9 +310,7 @@ async function main() {
     console.log("━".repeat(60) + "\n❌ ERRORS:\n" + "━".repeat(60));
     errors
       .slice(0, 30)
-      .forEach((v) =>
-        console.log(` ${v.file}:${v.line} [${v.category}] ${v.message}`),
-      );
+      .forEach((v) => console.log(` ${v.file}:${v.line} [${v.category}] ${v.message}`));
     if (errors.length > 30) console.log(` ... +${errors.length - 30} more`);
   }
 
@@ -358,9 +318,7 @@ async function main() {
     console.log("\n" + "━".repeat(60) + "\n⚠️ WARNINGS:\n" + "━".repeat(60));
     warnings
       .slice(0, 20)
-      .forEach((v) =>
-        console.log(` ${v.file}:${v.line} [${v.category}] ${v.message}`),
-      );
+      .forEach((v) => console.log(` ${v.file}:${v.line} [${v.category}] ${v.message}`));
     if (warnings.length > 20) console.log(` ... +${warnings.length - 20} more`);
   }
 

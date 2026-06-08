@@ -11,7 +11,7 @@
  * - **Metrics Integration**: Comprehensive tracking via metrics-service *
  *
  * ### Features
- * - Session rotation every 60 minutes for active users (optimized)
+ * - Session rotation every 15 minutes for active users (industry best practice)
  * - WeakRef cache with LRU eviction (top 100 hot sessions)
  * - Tenant isolation enforcement (prevents cross-tenant access)
  * - Rate-limited refresh attempts (100/min per IP)
@@ -107,7 +107,7 @@ const lastRotationAttempt = new Map<string, number>();
  * Session rotation interval: 60 minutes
  * Balances security (regular token refresh) with reduced database write impact.
  */
-const SESSION_ROTATION_INTERVAL_MS = 60 * 60 * 1000;
+const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes — per industry best practice
 
 const pendingDemoTenants = new Map<string, string>();
 const negativeCache = new BloomFilter(100000, 0.0001); // 2392x speedup for repeat misses

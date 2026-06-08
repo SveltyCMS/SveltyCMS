@@ -131,10 +131,10 @@
 					return user.email.split('@')[0];
 				}
 			}
-			// TODO: Add lookup for other users if needed (requires a user store or API call)
-			// For now, if it's a UUID and not the current user, it falls back to showing the UUID relative to the context,
-			// or we could show "User ..."
-			// But returning the raw UUID is better than "system".
+			// UUID fallback: show truncated ID instead of raw UUID for non-current users
+			if (isUUID(value) && user && user._id !== value) {
+				return `User ${value.substring(0, 8)}...`;
+			}
 		}
 
 		return value;

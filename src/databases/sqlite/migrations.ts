@@ -20,10 +20,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       else if (typeof db.query === "function") db.query(sql).run();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      if (
-        !message.includes("already exists") &&
-        !message.includes("duplicate column name")
-      ) {
+      if (!message.includes("already exists") && !message.includes("duplicate column name")) {
         logger.error(`[SQLite Migration] FAILED: ${message}`);
         throw err;
       }
@@ -408,12 +405,8 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       const hasPassword = tableInfo.some((c: any) => c.name === "password");
 
       if (hasSecurity && !hasPassword) {
-        logger.info(
-          "[SQLite] Migrating 'security' column to 'password' in auth_users...",
-        );
-        execute(
-          'ALTER TABLE "auth_users" RENAME COLUMN "security" TO "password"',
-        );
+        logger.info("[SQLite] Migrating 'security' column to 'password' in auth_users...");
+        execute('ALTER TABLE "auth_users" RENAME COLUMN "security" TO "password"');
       }
     } catch {
       // Ignore
@@ -427,9 +420,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       const hasTypeCol = wtInfo.some((c: any) => c.name === "type");
       if (!hasTypeCol) {
         logger.info("[SQLite] Adding 'type' column to website_tokens...");
-        execute(
-          'ALTER TABLE "website_tokens" ADD COLUMN "type" TEXT DEFAULT \'content-api\'',
-        );
+        execute('ALTER TABLE "website_tokens" ADD COLUMN "type" TEXT DEFAULT \'content-api\'');
       }
     } catch {
       // Ignore — table may not exist yet

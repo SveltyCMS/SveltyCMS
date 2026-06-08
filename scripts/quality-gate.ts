@@ -62,9 +62,7 @@ async function main() {
     api: stagedFiles.some((f) => f.startsWith("src/routes/api/")),
     services: stagedFiles.some((f) => f.startsWith("src/services/")),
     config: stagedFiles.some((f) => f.startsWith("config/")),
-    integrationTests: stagedFiles.some((f) =>
-      f.startsWith("tests/integration/"),
-    ),
+    integrationTests: stagedFiles.some((f) => f.startsWith("tests/integration/")),
     scripts: stagedFiles.some((f) => f.startsWith("scripts/")),
   };
 
@@ -79,16 +77,8 @@ async function main() {
     {
       name: "Slop Scanner",
       skip: () => !stagedFiles.some((f) => /\.(svelte|ts)$/.test(f)),
-      run: () => {
-        const targets = stagedFiles.filter((f) => /\.(svelte|ts)$/.test(f));
-        return runCommand("bun", [
-          "run",
-          "scripts/slop-scanner.ts",
-          "--strict",
-          "--files",
-          ...targets,
-        ]);
-      },
+      // Full scan is fast (~2s) and avoids Windows command-line length limits
+      run: () => runCommand("bun", ["run", "scripts/slop-scanner.ts", "--strict"]),
     },
     {
       name: "Lint (oxlint)",
@@ -111,8 +101,7 @@ async function main() {
         const ok = runCommand("bun", ["audit", "--level", "critical"], {
           silent: true,
         });
-        if (!ok)
-          console.warn("   ⚠️  Critical vulnerabilities (CI will block PR)");
+        if (!ok) console.warn("   ⚠️  Critical vulnerabilities (CI will block PR)");
         return true;
       },
     },
@@ -147,8 +136,7 @@ async function main() {
   );
 
   for (const task of tasks) {
-    const shouldSkip =
-      typeof task.skip === "function" ? task.skip() : task.skip;
+    const shouldSkip = typeof task.skip === "function" ? task.skip() : task.skip;
     if (shouldSkip) continue;
 
     console.log(`▶️  ${task.name}`);
@@ -165,9 +153,7 @@ async function main() {
 
     const elapsed = (performance.now() - start).toFixed(0);
     if (!success) {
-      console.error(
-        `\n❌ ${task.name} failed (${elapsed}ms). Fix above before committing.`,
-      );
+      console.error(`\n❌ ${task.name} failed (${elapsed}ms). Fix above before committing.`);
       process.exit(1);
     }
 

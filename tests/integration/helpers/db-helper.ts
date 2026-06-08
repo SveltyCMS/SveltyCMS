@@ -26,6 +26,9 @@ export async function dropDatabase(): Promise<void> {
     const text = await response.text();
     throw new Error(`Failed to drop database: ${response.status} ${text}`);
   }
+
+  // Wait for system state to reflect reset (MongoDB async propagation)
+  await new Promise((resolve) => setTimeout(resolve, 200));
 }
 
 /**

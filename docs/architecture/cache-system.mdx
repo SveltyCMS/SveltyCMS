@@ -157,7 +157,7 @@ Specialized caching for the entire CMS collection tree. managed by `src/content/
 
 - **Storage**: Persisted to L1/L2 under the `cms:content_structure` key, scoped by `tenantId`.
 - **Warming**: Automatically populated during system initialization (IDLE → READY).
-- **Invalidation**: Triggered immediately when a collection schema is modified or a new collection is created.
+- **Invalidation**: Triggered immediately when a collection schema is modified, a new collection is created, or a media item is deleted (June 2026: media cache now invalidated via `invalidateByCategory("media")` after file deletion).
 - **Payload**: Contains the complete `nodes` map and system `version` for atomic state synchronization across nodes.
 
 ### Monitoring & Debugging

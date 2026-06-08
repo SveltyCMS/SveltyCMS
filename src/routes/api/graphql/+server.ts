@@ -7,7 +7,16 @@ import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
 import { pubSub } from "@src/services/background/pub-sub";
+import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
+
+// GraphQL validation plugin: enforces query depth (max 7) and alias count (max 15)
+const securityValidationPlugin = {
+  onValidate({ addValidationRule }: { addValidationRule: (rule: any) => void }) {
+    addValidationRule(createDepthLimitRule(7));
+    addValidationRule(createMaxAliasesRule(15));
+  },
+};
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
 import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
@@ -140,7 +149,7 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
         const schema = createSchema({ typeDefs, resolvers });
 
-        const plugins = [];
+        const plugins: any[] = [securityValidationPlugin];
         if (process.env.USE_GRAPHQL_JIT === "true" || process.env.BENCHMARK === "true") {
           const { useGraphQlJit } = await import("@envelop/graphql-jit");
           plugins.push(useGraphQlJit());

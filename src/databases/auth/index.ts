@@ -386,14 +386,24 @@ export class Auth {
   }
 
   async rotateToken(oldToken: string, expires: ISODateString): Promise<string> {
-    if (!this.db.auth.rotateToken) {
-      throw error(500, "Token rotation not supported");
+    // Try adapter-level rotation first
+    if (this.db.auth.rotateToken) {
+      const result = await this.db.auth.rotateToken(oldToken, expires);
+      if (result?.success) return result.data;
     }
-    const result = await this.db.auth.rotateToken(oldToken, expires);
-    if (result?.success) {
-      return result.data;
-    }
-    throw error(500, "Token rotation failed");
+
+    // Fallback: generate new token, copy metadata from old, delete old
+    const old = await this.getTokenByValue(oldToken);
+    if (!old) throw error(404, "Token not found");
+
+    const newToken = await this.createToken({
+      user_id: old.user_id as DatabaseId,
+      type: old.type || "access",
+      expires: expires,
+    });
+
+    await this.db.auth.deleteTokens([old._id]);
+    return newToken;
   }
 
   async getAllRoles(options?: BaseQueryOptions): Promise<Role[]> {
@@ -628,7 +638,7 @@ export class Auth {
             lockoutUntil: user.lockoutUntil,
           });
           throw error(
-            403,
+            423,
             `Account is temporarily locked. Please try again in ${remainingMinutes} minutes.`,
           );
         }
