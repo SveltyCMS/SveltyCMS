@@ -24,6 +24,49 @@ import type {
 } from "../db-interface";
 import * as utils from "./relational-utils";
 
+function looksJsonEncoded(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return (
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("[") ||
+    trimmed.startsWith('"') ||
+    trimmed === "null" ||
+    trimmed === "true" ||
+    trimmed === "false" ||
+    /^-?\d+(\.\d+)?$/.test(trimmed)
+  );
+}
+
+function decodePreferenceValue<T>(value: unknown): T {
+  let current = value;
+
+  for (let depth = 0; depth < 2; depth++) {
+    if (typeof current !== "string" || !looksJsonEncoded(current)) {
+      break;
+    }
+
+    try {
+      current = JSON.parse(current);
+    } catch {
+      break;
+    }
+  }
+
+  return current as T;
+}
+
+function encodePreferenceValue(adapterType: string, value: unknown): unknown {
+  const usesNativeJson =
+    adapterType === "mariadb" || adapterType === "mysql" || adapterType === "postgresql";
+
+  if (usesNativeJson) {
+    return value;
+  }
+
+  return value !== null && typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
 export class RelationalSystemModule implements ISystemAdapter {
   protected readonly adapter: ISqlAdapter;
   protected readonly schema: any;
@@ -74,11 +117,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .limit(1);
 
         if (!result) return null;
-        try {
-          return JSON.parse(result.value) as T;
-        } catch {
-          return result.value as T;
-        }
+        return decodePreferenceValue<T>(result.value);
       }, "GET_PREFERENCE_FAILED");
     },
 
@@ -112,11 +151,7 @@ export class RelationalSystemModule implements ISystemAdapter {
 
         const prefs: Record<string, T> = {};
         for (const result of results) {
-          try {
-            prefs[result.key] = JSON.parse(result.value) as T;
-          } catch {
-            prefs[result.key] = result.value as T;
-          }
+          prefs[result.key] = decodePreferenceValue<T>(result.value);
         }
         return prefs;
       }, "GET_PREFERENCES_FAILED");
@@ -151,11 +186,7 @@ export class RelationalSystemModule implements ISystemAdapter {
 
         const prefs: Record<string, T> = {};
         for (const result of results) {
-          try {
-            prefs[result.key] = JSON.parse(result.value) as T;
-          } catch {
-            prefs[result.key] = result.value as T;
-          }
+          prefs[result.key] = decodePreferenceValue<T>(result.value);
         }
         return prefs;
       }, "GET_BY_CATEGORY_FAILED");
@@ -184,7 +215,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         // 🚀 HARDENING: Use primitives for all values to avoid driver binding errors
         const data = {
           key: String(key),
-          value: typeof value === "object" ? JSON.stringify(value) : String(value),
+          value: encodePreferenceValue(this.adapter.type, value),
           scope: String(scope),
           userId: uid ? String(uid) : null,
           visibility: String(category || "private"),

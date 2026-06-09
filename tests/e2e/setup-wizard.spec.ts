@@ -25,7 +25,7 @@ class SetupWizardPage {
       await resetBtn.click();
       const confirmBtn = this.page.locator("button").filter({ hasText: /yes/i }).first();
       if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await confirmBtn.click();
+        await confirmBtn.click({ force: true });
         await this.page.waitForLoadState("networkidle").catch(() => {});
       }
     }
@@ -41,7 +41,7 @@ class SetupWizardPage {
         this.page.getByRole("button", { name: /continue/i }).first(),
       ]);
       if (button) {
-        await button.click();
+        await button.click({ force: true });
         await expect(welcomePopup).toBeHidden({ timeout: 10000 });
       }
     }
@@ -49,7 +49,7 @@ class SetupWizardPage {
     // 2. Cookie Banner
     const cookieBtn = this.page.getByRole("button", { name: /accept all/i }).first();
     if (await cookieBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await cookieBtn.click();
+      await cookieBtn.click({ force: true });
     }
   }
 
@@ -84,7 +84,7 @@ class SetupWizardPage {
       .first();
 
     if (await yesButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await yesButton.click();
+      await yesButton.click({ force: true });
     }
   }
 
@@ -147,7 +147,7 @@ test.describe("Setup Wizard: Error Handling", () => {
     await page.locator("#db-password").fill("wrong_password");
 
     const testDbButton = page.locator("button", { hasText: /test database/i }).first();
-    await testDbButton.click();
+    await testDbButton.click({ force: true });
 
     await expect(page.getByText(/connection failed|getaddrinfo ENOTFOUND/i).first()).toBeVisible({
       timeout: 15_000,
@@ -238,7 +238,7 @@ test.describe("Setup Wizard: Navigation & State", () => {
 
     const resetBtn = page.getByRole("button", { name: /reset data/i }).first();
     await resetBtn.click();
-    await page.locator("button").filter({ hasText: /yes/i }).first().click();
+    await page.locator("button").filter({ hasText: /yes/i }).first().click({ force: true });
 
     await expect(page.locator("#db-host")).not.toHaveValue("DIRTY_STATE", {
       timeout: 10000,

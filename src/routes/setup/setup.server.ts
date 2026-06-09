@@ -231,7 +231,11 @@ export async function completeSetup(
 
   // Wait for critical background seeding to complete
   const { setupManager } = await import("./setup-manager");
-  await setupManager.waitTillDone();
+  if (process.env.TEST_MODE === "true" || database.type === "sqlite") {
+    await setupManager.waitAll();
+  } else {
+    await setupManager.waitTillDone();
+  }
 
   if (setupManager.seedingError) {
     return {
