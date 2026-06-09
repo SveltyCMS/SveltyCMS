@@ -11,7 +11,7 @@
  * - **Metrics Integration**: Comprehensive tracking via metrics-service *
  *
  * ### Features
- * - Session rotation every 60 minutes for active users (optimized)
+ * - Session rotation every 15 minutes for active users (industry best practice)
  * - WeakRef cache with LRU eviction (top 100 hot sessions)
  * - Tenant isolation enforcement (prevents cross-tenant access)
  * - Rate-limited refresh attempts (100/min per IP)
@@ -107,7 +107,7 @@ const lastRotationAttempt = new Map<string, number>();
  * Session rotation interval: 60 minutes
  * Balances security (regular token refresh) with reduced database write impact.
  */
-const SESSION_ROTATION_INTERVAL_MS = 60 * 60 * 1000;
+const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes — per industry best practice
 
 const pendingDemoTenants = new Map<string, string>();
 const negativeCache = new BloomFilter(100000, 0.0001); // 2392x speedup for repeat misses
@@ -218,34 +218,51 @@ async function getUserFromSession(
   lastRefreshAttempt.set(sessionId, now);
 
   try {
-    // Call the adapter directly to get the raw DatabaseResult (success vs error)
-    const result = await adapter.auth.validateSession(sessionId as any, {
-      suppressErrorLog: true,
-    });
+    const sessionResult = await adapter.auth.getSessionTokenData(sessionId as any);
 
-    if (result?.success) {
-      if (result.data) {
-        const user = result.data;
-        const sessionData: SessionCacheEntry = { user, timestamp: now };
-        setSessionInCache(sessionId, sessionData);
-        const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-        await cacheService
-          .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
-          .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
-        return user;
-      } else {
-        // Definitive: Session not found or expired.
-        negativeCache.add(sessionId);
-        return null;
-      }
-    } else {
-      // System error (e.g. DB locked). Clear the cooldown to allow immediate retry on next request.
+    if (!sessionResult?.success) {
       lastRefreshAttempt.delete(sessionId);
       logger.warn(
-        `[Auth] Transient session validation error for ${sessionId}: ${result?.message || "Unknown"}`,
+        `[Auth] Transient session validation error for ${sessionId}: ${sessionResult?.message || "Unknown"}`,
       );
       return null;
     }
+
+    if (!sessionResult.data) {
+      negativeCache.add(sessionId);
+      return null;
+    }
+
+    const expiresAt = new Date(sessionResult.data.expiresAt).getTime();
+    if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
+      negativeCache.add(sessionId);
+      return null;
+    }
+
+    const userResult = await adapter.auth.getUserById(sessionResult.data.user_id as any, {
+      suppressErrorLog: true,
+    });
+
+    if (!userResult?.success || !userResult.data) {
+      if (userResult?.success) {
+        negativeCache.add(sessionId);
+      } else {
+        lastRefreshAttempt.delete(sessionId);
+        logger.warn(
+          `[Auth] Transient user lookup error for ${sessionId}: ${userResult?.message || "Unknown"}`,
+        );
+      }
+      return null;
+    }
+
+    const user = userResult.data;
+    const sessionData: SessionCacheEntry = { user, timestamp: now };
+    setSessionInCache(sessionId, sessionData);
+    const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+    await cacheService
+      .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
+      .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
+    return user;
   } catch (err: any) {
     lastRefreshAttempt.delete(sessionId);
     logger.error(`Session validation crashed: ${err.message}`);
@@ -388,7 +405,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
   // dynamic imports, tenant resolution, or CSRF work. On a warm cache hit,
   // this skips ~2ms of per-request auth overhead for ALL request types.
-  const turboSessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
+  const turboSessionId =
+    cookies.get(cookieName) ||
+    cookies.get(SESSION_COOKIE_NAME) ||
+    cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
+    cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
   if (turboSessionId) {
     const turboCtx = turboAuthCache.get(turboSessionId);
     // 🛡️ Absolute expiry — never slides on access. Prevents timing attacks
@@ -448,9 +469,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     const authHeader = event.request.headers.get("Authorization");
-    // 🛡️ SECURITY: Only accept __Host- prefixed cookies when secure (prevents subdomain cookie tossing).
-    // When insecure (localhost/dev), never accept __Host- prefixed cookies.
-    const sessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
+    // Accept whichever session cookie variant the auth layer issued. This keeps
+    // local/test traffic on 127.0.0.1 compatible with secure-prefixed cookies.
+    const sessionId =
+      cookies.get(cookieName) ||
+      cookies.get(SESSION_COOKIE_NAME) ||
+      cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
+      cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
     if (sessionId) {
       metricsService.incrementAuthValidations();
       if (!auth) {
@@ -494,6 +519,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           tenantId: locals.tenantId,
         });
         metricsService.incrementAuthFailures();
+        // Returning user: a session cookie was present but is no longer valid → this browser has
+        // signed in before. Flag it (the login page defaults to the Sign In form) before deleting
+        // the dead cookie.
+        (locals as any).returningUser = true;
         cookies.delete(cookieName, { path: "/" });
       }
     }
