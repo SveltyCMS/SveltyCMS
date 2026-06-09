@@ -5,8 +5,8 @@ description: "Complete testing guide for SveltyCMS including Unit tests (Vitest/
 order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
-created: "2509-28"
-updated: "2026-06-06"
+created: "2025-09-28"
+updated: "2026-06-09"
 tags:
   - "testing"
   - "documentation"
@@ -19,13 +19,13 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** June 6, 2026
-**Total Tests:** 1,553+ (Unit: 1,063 + Integration: ~490 + E2E: ~40)
-**Pass Rate:** 100%
-**Smart Runner:** ✅ `bun run test:smart` — git-diff-aware orchestration
-**Contract Tests:** ✅ Universal adapter parity across 4 databases
-**Slop Scanner:** ✅ 0 errors — XSS, legacy patterns, dead exports
-**Mutation Testing:** ✅ 100% effective kill rate on critical utilities
+**Last Updated:** June 9, 2026
+**Source of Truth:** GitHub Actions on the current branch or pull request
+**Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E
+**Primary Safety Rule:** Local and CI tests must never use live credentials or production data
+
+> [!IMPORTANT]
+> Historical totals and pass rates drift quickly. Treat GitHub Actions as the only current status board for counts, pass rate, and branch health.
 
 ## Quick Links
 
@@ -46,6 +46,20 @@ tags:
 ### Running Tests Locally
 
 ```bash
+# White-box gate
+bun run test:unit
+bun run check
+
+# Production build used by integration and most E2E jobs
+bun run build
+
+# Black-box integration runner (choose DB)
+bun run scripts/run-integration-tests.ts --db=sqlite
+
+# Wizard E2E against the production build
+TEST_MODE=true node build/index.js
+bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
+
 # Smart test runner — auto-detects what to test from git diff
 bun run test:smart
 
@@ -66,6 +80,18 @@ bun test tests/benchmarks/api-latency.test.ts
 
 > [!TIP]
 > SveltyCMS benchmarks are **Environment-Aware**. If you execute a benchmark file with `bun run`, the system will automatically inform you and reroute the execution through the **Bun Test Engine** to ensure accurate micro-latency measurements and proper cleanup of background services.
+
+## Current GitHub Actions Gate
+
+The `next` branch workflow currently validates changes in this order:
+
+1. `bootstrap` — Bun install, codegen verification, E2E secret generation.
+2. `lint`, `check`, `unit` — White-box quality gates.
+3. `build` — Production bundle generation.
+4. `db-tests` — Black-box integration matrix across SQLite, MongoDB, MariaDB, and PostgreSQL.
+5. `e2e-wizard`, `e2e-auth`, `e2e-app` — Playwright browser validation.
+
+This matters because integration and E2E failures are not just "test" failures. They also validate production build output, redirect logic, auth cookies, and database bootstrap behavior.
 
 ## Enterprise TQA (Total Quality Assurance) Methodology
 
@@ -168,7 +194,7 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 
 ## Test Architecture & Isolation
 
-SveltyCMS uses a strict isolation strategy to ensure tests **never** touch production data, user configuration, or user-defined collections. Every test pillar has verified isolation guarantees backed by code-level enforcement.
+SveltyCMS uses a strict isolation strategy to ensure tests **never** touch production data, live credentials, or user-defined collections. Every test pillar has verified isolation guarantees backed by code-level enforcement.
 
 ```mermaid
 graph TD
@@ -180,8 +206,8 @@ graph TD
     end
 
     subgraph "Config"
-        PC["<b>config/private.ts</b><br/>YOUR FILE - never read or written"]
-        PT["<b>config/private.test.ts</b><br/>Auto-generated, TEST_MODE only"]
+        PC["<b>config/private.ts</b><br/>Live file must never be used by tests"]
+        PT["<b>config/private.test.ts</b><br/>Generated TEST_MODE config"]
     end
 
     subgraph "Collections"
@@ -202,12 +228,15 @@ graph TD
 
 | Artifact                   |       Unit        |  Integration   |      E2E      |       Benchmark       |
 | :------------------------- | :---------------: | :------------: | :-----------: | :-------------------: |
-| **config/private.ts**      |   Never touched   | Never touched  | Never touched |     Never touched     |
-| **config/private.test.ts** | bun-preload mocks | Auto-generated | Setup wizard  |    writeTestConfig    |
+| **config/private.ts**      |   Never touched   | Ephemeral TEST_MODE mirror only when required for build/runtime parity | Ephemeral TEST_MODE mirror only | Never touched |
+| **config/private.test.ts** | bun-preload mocks | Auto-generated | Setup wizard or generated test config | writeTestConfig |
 | **config/collections/**    |    Never reads    |  Never reads   |  Never reads  | Never writes or reads |
 | **.compiledCollections/**  |    Never reads    |  Never reads   |  Never reads  |    Read-only scan     |
 | **User database**          |  In-memory mocks  |  Temp DB only  | Temp DB only  |     bench_tmp_PID     |
 | **Content Store**          | Mocked singleton  |  Per-process   |  Per-browser  |   Per child process   |
+
+> [!IMPORTANT]
+> Integration and E2E tooling may generate a temporary `config/private.ts` by mirroring `config/private.test.ts` inside a disposable `TEST_MODE` workspace. That mirror must always point to test-only databases and secrets, never live infrastructure.
 
 ### How Benchmarks Create Collections Without Touching Your Files
 
@@ -231,7 +260,10 @@ Benchmark collections (`BenchmarkStable`, `benchmark_authors`, etc.) use a **pur
 
 ---
 
-### 🔬 The Four-Pillar Test Status
+### 🔬 The Four-Pillar Coverage Model
+
+> [!NOTE]
+> The counts and pass/fail labels below are illustrative coverage snapshots, not a live CI dashboard.
 
 ### 🟢 1. Unit Test Breakdown (White-Box)
 
