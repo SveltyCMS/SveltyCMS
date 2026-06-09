@@ -99,6 +99,22 @@ export class RelationalAuthModule implements IAuthAdapter {
     } as unknown as Role;
   }
 
+  protected isSQLiteAdapter(): boolean {
+    return this.adapter.constructor?.name?.toLowerCase().includes("sqlite") || false;
+  }
+
+  protected activeSessionCondition() {
+    return this.isSQLiteAdapter()
+      ? sql`${this.schema.authSessions.expires} > ${Date.now()}`
+      : gt(this.schema.authSessions.expires, new Date());
+  }
+
+  protected expiredSessionCondition() {
+    return this.isSQLiteAdapter()
+      ? sql`${this.schema.authSessions.expires} < ${Date.now()}`
+      : lt(this.schema.authSessions.expires, new Date());
+  }
+
   async setupAuthModels(): Promise<void> {
     logger.debug("Auth models setup (no-op for SQL)");
   }
@@ -422,7 +438,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         const db = this.getDb(options);
         const conditions = [
           eq(this.schema.authSessions._id, sessionId as string),
-          gt(this.schema.authSessions.expires, isoDateStringToDate(nowISODateString())),
+          this.activeSessionCondition(),
         ];
         if (options?.tenantId !== undefined) {
           conditions.push(
@@ -513,7 +529,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(async () => {
       await this.getDb()
         .delete(this.schema.authSessions)
-        .where(lt(this.schema.authSessions.expires, new Date()));
+        .where(this.expiredSessionCondition());
       return 0;
     }, "DELETE_EXPIRED_SESSIONS_FAILED");
   }
@@ -549,7 +565,7 @@ export class RelationalAuthModule implements IAuthAdapter {
       async () => {
         const conditions = [
           eq(this.schema.authSessions.user_id, userId as string),
-          gt(this.schema.authSessions.expires, new Date()),
+          this.activeSessionCondition(),
         ];
         if (options?.tenantId !== undefined)
           conditions.push(
@@ -572,7 +588,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   async getAllActiveSessions(options?: BaseQueryOptions): Promise<DatabaseResult<Session[]>> {
     return this.adapter.wrap(
       async () => {
-        const conditions = [gt(this.schema.authSessions.expires, new Date())];
+        const conditions = [this.activeSessionCondition()];
         if (options?.tenantId !== undefined)
           conditions.push(
             options.tenantId === null
