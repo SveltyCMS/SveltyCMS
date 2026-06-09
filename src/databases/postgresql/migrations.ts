@@ -481,7 +481,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     `CREATE INDEX IF NOT EXISTS workflow_instances_entry_idx ON workflow_instances ("entryId", "collectionId")`,
 
     // Full-text search indexes (not auto-created by Drizzle ORM)
-    `CREATE INDEX IF NOT EXISTS content_nodes_fts_idx ON content_nodes USING GIN (to_tsvector('english', coalesce("title", '') || ' ' || coalesce("content", '') || ' ' || coalesce("description", '')))`,
+    `CREATE INDEX IF NOT EXISTS content_nodes_fts_idx ON content_nodes USING GIN (to_tsvector('english', coalesce("name", '') || ' ' || coalesce("description", '') || ' ' || coalesce(CAST("data" AS text), '')))`,
   ];
 
   for (const query of queries) {
