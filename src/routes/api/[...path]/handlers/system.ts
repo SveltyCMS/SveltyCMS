@@ -100,16 +100,45 @@ export async function handleWidgetRoutes(
       throw new AppError("Security validation failed for widget", 422);
     }
 
+    const registeredWidgets = await cms.db.system.widgets.findAll();
+    if (!registeredWidgets.success) {
+      throw new AppError(registeredWidgets.message || "Failed to load registered widgets", 500);
+    }
+
+    const registeredWidget =
+      registeredWidgets.data?.find((widget: any) => widget.name === target) || null;
+
+    if (action === "install") {
+      if (!registeredWidget) {
+        const installResult = await cms.db.system.widgets.register({
+          name: target,
+          isActive: false,
+          dependencies: [],
+          instances: {},
+        } as any);
+
+        if (!installResult.success) {
+          throw new AppError(installResult.message || "Failed to install widget", 500);
+        }
+      }
+
+      return successResponse(event, { widgetId: target });
+    }
+
     const widgetList = await cms.widgets.list({ tenantId: tenantId as any });
     const exists = widgetList.some((w: any) => w.name === target);
-    if (!exists && action !== "install") {
+    if (!exists) {
+      throw new AppError(`Widget ${target} not found`, 404);
+    }
+
+    if (!registeredWidget?._id) {
       throw new AppError(`Widget ${target} not found`, 404);
     }
 
     const result =
       action === "activate" || (action === "status" && body.isActive)
-        ? await cms.widgets.activate(target)
-        : await cms.widgets.deactivate(target);
+        ? await cms.widgets.activate(registeredWidget._id as string)
+        : await cms.widgets.deactivate(registeredWidget._id as string);
     return successResponse(event, result);
   }
 

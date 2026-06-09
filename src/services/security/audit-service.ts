@@ -81,6 +81,38 @@ export class AuditService {
     this.flushTimer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
   }
 
+  private isMissingAuditStoreError(error: unknown) {
+    const candidates = [
+      error,
+      (error as any)?.cause,
+      (error as any)?.error,
+      (error as any)?.originalError,
+    ].filter(Boolean);
+
+    return candidates.some((candidate) => {
+      const message = [
+        (candidate as any)?.message,
+        (candidate as any)?.sqlMessage,
+        (candidate as any)?.errmsg,
+        String(candidate),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const code = String((candidate as any)?.code || "").toLowerCase();
+      return (
+        message.includes("audit_logs") &&
+        (message.includes("doesn't exist") ||
+          message.includes("does not exist") ||
+          message.includes("no such table") ||
+          message.includes("namespacenotfound")) ||
+        code === "er_no_such_table" ||
+        code === "namespace_not_found"
+      );
+    });
+  }
+
   public async flush() {
     if (this.buffer.length === 0) return;
     if (process.env.DISABLE_AUDIT_LOGS === "true") {
@@ -106,6 +138,13 @@ export class AuditService {
       const logData = entriesToFlush.map((e) => JSON.stringify(e)).join("\n") + "\n";
       await appendFile(this.logFile, logData);
     } catch (error) {
+      if (this.isMissingAuditStoreError(error)) {
+        logger.warn("[Audit] Audit store unavailable during flush; dropping buffered entries");
+        const logData = entriesToFlush.map((e) => JSON.stringify(e)).join("\n") + "\n";
+        await appendFile(this.logFile, logData).catch(() => {});
+        return;
+      }
+
       logger.error("[Audit] Flush failed, restoring buffer", error);
       // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
       const combined = [...entriesToFlush, ...this.buffer];
