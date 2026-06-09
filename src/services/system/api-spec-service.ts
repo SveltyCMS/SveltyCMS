@@ -6,7 +6,7 @@
  */
 
 import { version } from "../../../package.json";
-import type { Schema, FieldInstance } from "@src/content/types";
+import type { Schema, FieldInstance, DatabaseId } from "@src/content/types";
 import { CacheCategory } from "@src/databases/cache/types";
 
 export class ApiSpecService {
@@ -235,7 +235,7 @@ export class ApiSpecService {
       const { getDb } = await import("@src/databases/db");
       const db = await getDb();
       const listSchemasResult = db?.collection?.listSchemas
-        ? await db.collection.listSchemas(tenantId)
+        ? await db.collection.listSchemas(tenantId as DatabaseId | null | undefined)
         : null;
       const dbSchemas = Array.isArray(listSchemasResult)
         ? listSchemasResult

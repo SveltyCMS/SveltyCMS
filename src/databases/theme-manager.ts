@@ -175,10 +175,14 @@ export class ThemeManager {
 
   public async setTheme(theme: Theme, tenantId?: string | null): Promise<void> {
     await this.ensureReady();
+    const db = this.db;
+    if (!db) {
+      throw new Error("ThemeManager is not initialized.");
+    }
 
     try {
       // Update database to set this theme as default
-      const setDefaultResult = await this.db.system.themes.setDefault(theme._id);
+      const setDefaultResult = await db.system.themes.setDefault(theme._id);
 
       if (!setDefaultResult.success) {
         throw new Error(setDefaultResult.error?.message || "Failed to set theme as default");
