@@ -5,13 +5,14 @@
  */
 
 import { expect, type Page } from "@playwright/test";
+import { TEST_API_HEADERS } from "./test-api";
 
 /**
  * Login credentials that match the setup wizard defaults
  */
 export const ADMIN_CREDENTIALS = {
   email: process.env.ADMIN_EMAIL || "admin@example.com",
-  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Admin123!",
+  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Password123!",
 };
 
 /**
@@ -87,6 +88,7 @@ export async function loginAs(
     // CRITICAL FIX: Seed database via Testing API when empty
     try {
       await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
         data: {
           action: "seed",
           email: ADMIN_CREDENTIALS.email,
@@ -96,8 +98,12 @@ export async function loginAs(
       console.log("[Auth] ✓ Database seeded successfully");
     } catch (seedError) {
       console.log("[Auth] ⚠️ Seeding failed, trying reset first...", seedError);
-      await page.request.post("/api/testing", { data: { action: "reset" } });
       await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "reset" },
+      });
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
         data: {
           action: "seed",
           email: ADMIN_CREDENTIALS.email,
