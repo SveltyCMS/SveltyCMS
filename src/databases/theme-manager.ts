@@ -55,13 +55,14 @@ export class ThemeManager {
   }
 
   public async initialize(db: IDBAdapter): Promise<void> {
-    if (this.initialized) {
+    if (this.initialized && this.db === db) {
       logger.debug("ThemeManager already initialized, skipping.");
       return;
     }
 
     try {
       this.db = db;
+      this.themeCache.clear();
 
       // Load and cache the default theme
       await this.loadAndCacheDefaultTheme();
@@ -72,6 +73,23 @@ export class ThemeManager {
       const message = `Error in ThemeManager.initialize: ${(err as any)?.message || String(err)}`;
       logger.error(message);
       throw error(500, message);
+    }
+  }
+
+  private async ensureReady(): Promise<void> {
+    const activeDb = this.db?.isConnected()
+      ? this.db
+      : ((await import("./db")).getDb() as IDBAdapter | null);
+
+    if (!activeDb) {
+      throw new Error("ThemeManager is not initialized.");
+    }
+
+    if (!this.initialized || this.db !== activeDb) {
+      this.db = activeDb;
+      this.themeCache.clear();
+      await this.loadAndCacheDefaultTheme();
+      this.initialized = true;
     }
   }
 
@@ -120,9 +138,7 @@ export class ThemeManager {
   }
 
   public async getTheme(tenantId?: string | null): Promise<Theme> {
-    if (!(this.initialized && this.db)) {
-      throw new Error("ThemeManager is not initialized.");
-    }
+    await this.ensureReady();
 
     const cacheKey = tenantId || "global";
 
@@ -158,9 +174,7 @@ export class ThemeManager {
   }
 
   public async setTheme(theme: Theme, tenantId?: string | null): Promise<void> {
-    if (!(this.initialized && this.db)) {
-      throw new Error("ThemeManager is not initialized.");
-    }
+    await this.ensureReady();
 
     try {
       // Update database to set this theme as default
@@ -193,9 +207,7 @@ export class ThemeManager {
    * Clear cache and reload themes from database
    */
   public async refresh(): Promise<void> {
-    if (!(this.initialized && this.db)) {
-      throw new Error("ThemeManager is not initialized.");
-    }
+    await this.ensureReady();
 
     this.themeCache.clear();
     try {

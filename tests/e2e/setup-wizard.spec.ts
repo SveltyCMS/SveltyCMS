@@ -213,7 +213,7 @@ test.describe("Setup Wizard: Navigation & State", () => {
     await wizard.dismissModals();
 
     await expect(page.getByText("Step 1")).toBeVisible();
-    await expect(page.getByText("Database Configuration")).toBeVisible();
+    await expect(page.locator("#db-type")).toBeVisible();
 
     await page.locator("#db-type").selectOption("sqlite");
     await page.locator("#db-name").fill(`e2e_err_nav_${Date.now()}.db.sqlite`);
@@ -221,7 +221,7 @@ test.describe("Setup Wizard: Navigation & State", () => {
     await wizard.next();
 
     await expect(page.getByText("Step 2")).toBeVisible();
-    await expect(page.getByText("Administrator Account")).toBeVisible();
+    await expect(page.locator("#admin-username")).toBeVisible();
 
     await page.getByText("Database", { exact: true }).first().click();
     await expect(page.getByText("Step 1")).toBeVisible();

@@ -37,7 +37,9 @@ describe("Theme API Endpoints", () => {
     });
 
     it("should fail without authentication", async () => {
-      const response = await safeFetch(`${API_BASE_URL}/api/theme/get-current-theme`);
+      const response = await safeFetch(`${API_BASE_URL}/api/theme/get-current-theme`, {
+        skipTestSecret: true,
+      });
       expect(response.status).toBe(401);
     });
   });
