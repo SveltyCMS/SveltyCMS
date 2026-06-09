@@ -11,10 +11,27 @@
 -->
 
 <script lang="ts">
-	import { auditChainService, type ChainVerificationResult } from '@services/audit-chain';
-	import { auditLogService, type AuditLogEntry } from '@services/security/audit-service';
+	import { queryAuditLogs, verifyAuditChain } from '@src/routes/(app)/audit-history.remote';
 	import { collectionValue } from '@src/stores/collection-store.svelte';
-	import { page } from '$app/state';
+
+	interface AuditLogEntry {
+		_id?: string;
+		action: string;
+		timestamp?: string;
+		actorEmail?: string;
+		actorRole?: string;
+		details?: Record<string, unknown>;
+		previousHash?: string;
+		chainHash?: string;
+	}
+
+	interface ChainVerificationResult {
+		valid: boolean;
+		brokenAt: number | null;
+		totalEntries: number;
+		tamperedEntries: number;
+		details?: string[];
+	}
 
 	interface Props {
 		/** Optional content entry ID to filter audit logs for */
@@ -36,8 +53,6 @@
 		entryId ?? (collectionValue.value as Record<string, unknown>)?._id as string | undefined,
 	);
 
-	let tenantId = $derived((page.data.tenantId as string) ?? undefined);
-
 	/** Load audit logs for the current/target entry */
 	async function loadLogs() {
 		if (!targetId) return;
@@ -46,12 +61,7 @@
 		error = null;
 
 		try {
-			const filters: Record<string, unknown> = {
-				targetId,
-			};
-			if (tenantId) filters.tenantId = tenantId;
-
-			const result = await auditLogService.queryLogs({ filters, limit });
+			const result = await queryAuditLogs({ targetId, limit });
 			if (result.success) {
 				logs = (result.data ?? []) as AuditLogEntry[];
 			} else {
@@ -69,7 +79,7 @@
 		isVerifying = true;
 		verifyResult = null;
 		try {
-			verifyResult = await auditChainService.verifyChain(tenantId);
+			verifyResult = await verifyAuditChain({});
 		} catch (err) {
 			verifyResult = {
 				valid: false,
