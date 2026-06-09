@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { TEST_API_HEADERS } from "./test-api";
 
 export const TEST_USERS = {
   developer: {
@@ -23,6 +24,7 @@ export async function seedTestUsers(page: Page) {
 
     // Use the Testing API bypass
     const response = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: {
         action: "create-user",
         email: user.email,
