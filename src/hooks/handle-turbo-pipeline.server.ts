@@ -403,6 +403,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         }
         // Deep check only if config is missing (unlikely here) or we need to know if admin is missing
         setupState = await getSetupState();
+      } else if (isTestMode) {
+        // Test resets intentionally keep config/private.ts but wipe auth/content state.
+        // Re-check the full setup state so black-box tests still see /setup gating.
+        setupState = await getSetupState();
       } else {
         // 🚀 CRITICAL: If config exists, we are NOT in MISSING_CONFIG.
         // We might be MISSING_ADMIN, but we should NOT redirect back to /setup
