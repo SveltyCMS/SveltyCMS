@@ -35,6 +35,8 @@ import {
 
 const API_BASE = getApiBaseUrl();
 const TEST_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+const PRIMARY_TENANT_DB = PRIMARY_TENANT.replace(/^tenant_/, "");
+const SECONDARY_TENANT_DB = SECONDARY_TENANT.replace(/^tenant_/, "");
 
 function headers(
   extra: Record<string, string> = {},
@@ -96,15 +98,17 @@ describe("Adapter Contract", () => {
       _id: testId,
       key: `test_${testId}`,
       value: { data: "contract-test" },
-      scope: "test",
+      scope: "system",
       visibility: "private",
-      tenantId: PRIMARY_TENANT,
     };
 
     // Create
     const insertRes = await safeFetch(`${API_BASE}/api/testing`, {
       method: "POST",
-      headers: headers({ Cookie: adminCookie }),
+      headers: headers({
+        Cookie: adminCookie,
+        "x-tenant-id": PRIMARY_TENANT_DB,
+      }),
       body: JSON.stringify({
         action: "insert",
         collection,
@@ -153,7 +157,10 @@ describe("Adapter Contract", () => {
     // Write as Tenant A
     const writeRes = await safeFetch(`${API_BASE}/api/testing`, {
       method: "POST",
-      headers: headers({ Cookie: adminCookie }),
+      headers: headers({
+        Cookie: adminCookie,
+        "x-tenant-id": PRIMARY_TENANT_DB,
+      }),
       body: JSON.stringify({
         action: "insert",
         collection: "system_preferences",
@@ -161,7 +168,6 @@ describe("Adapter Contract", () => {
           _id: `tenant_isolation_${Date.now()}`,
           key: "tenant_isolation_test",
           value: { secret: "tenant-a-only" },
-          tenantId: PRIMARY_TENANT,
         },
       }),
     });
@@ -170,7 +176,7 @@ describe("Adapter Contract", () => {
     // Attempt to read as Tenant B (via x-tenant-id header)
     const readRes = await safeFetch(`${API_BASE}/api/settings/tenant_isolation_test`, {
       headers: headers({
-        "x-tenant-id": SECONDARY_TENANT,
+        "x-tenant-id": SECONDARY_TENANT_DB,
       }),
     });
     // Must NOT return Tenant A's data — should be 404 or empty
