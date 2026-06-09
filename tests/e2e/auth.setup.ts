@@ -6,6 +6,7 @@
 import { test as setup, expect } from "@playwright/test";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "./helpers/auth";
 import { readFileSync } from "node:fs";
+import { TEST_API_HEADERS } from "./helpers/test-api";
 
 const ADMIN_AUTH_FILE = "tests/e2e/.auth/admin.json";
 const EDITOR_AUTH_FILE = "tests/e2e/.auth/editor.json";
@@ -16,6 +17,7 @@ setup.describe("E2E Role-Based Setup", () => {
     // 1. Reset Database for a clean slate
     console.log("[Setup] Resetting database via Testing API...");
     const resetResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: { action: "reset" },
     });
     expect(resetResponse.status()).toBe(200);
@@ -23,6 +25,7 @@ setup.describe("E2E Role-Based Setup", () => {
     // 2. Seed system
     console.log(`[Setup] Seeding database with ${ADMIN_CREDENTIALS.email}...`);
     const seedResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: {
         action: "seed",
         email: ADMIN_CREDENTIALS.email,
@@ -49,6 +52,7 @@ setup.describe("E2E Role-Based Setup", () => {
       const password = "Password123!";
 
       const signupResponse = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
         data: {
           action: "create-user",
           email,
