@@ -35,6 +35,34 @@ useContent();
 
 let originalName = $state("");
 let isLoading = $state(false);
+let lastCollectionSyncKey = $state<string | null>(null);
+
+function createDraftCollection(contentPath?: string): Schema {
+	const urlName = contentPath
+		? contentPath.split("/").filter(Boolean).pop()
+		: "";
+	const defaultName = urlName && urlName !== "new" ? urlName : "new";
+
+	return {
+		name: defaultName,
+		icon: "bi:collection",
+		status: "unpublished",
+		fields: [],
+		slug:
+			defaultName !== "new"
+				? defaultName
+						.toLowerCase()
+						.replace(/\s+/g, "-")
+						.replace(/[^a-z0-9-]/g, "")
+				: "",
+	} as Schema;
+}
+
+const editorSyncKey = $derived(
+	action === "edit"
+		? `edit:${String(data.collection?._id ?? data.collection?.path ?? page.params.contentPath ?? "")}`
+		: `new:${String(page.params.contentPath ?? "")}`,
+);
 
 // Studio Mode Stepper sync
 let activeStep = $derived(collections.stepper.activeStep);
@@ -131,47 +159,34 @@ function handleCollectionDelete() {
 
 // Effect: Synchronize URL params with Collection Store (Svelte 5 style)
 $effect(() => {
-	const params = page.params;
-	const action = params.action;
-	const contentPath = params.contentPath;
+	const syncKey = editorSyncKey;
+	const currentAction = page.params.action;
 
-	if (action === "edit" && data.collection) {
+	if (syncKey === lastCollectionSyncKey) {
+		return;
+	}
+
+	if (currentAction === "edit" && data.collection) {
 		setCollection(data.collection);
 		originalName = String(data.collection.name || "");
 		if (!collections.stepper.completedSteps.has(0)) {
 			collections.stepper.completedSteps.add(0);
 		}
-	} else if (action === "new") {
-		// Extract name from contentPath (e.g., /new/testcollection -> testcollection)
-		const urlName = contentPath
-			? contentPath.split("/").filter(Boolean).pop()
-			: "";
-		const defaultName = urlName && urlName !== "new" ? urlName : "new";
-
-		// Only update if it's different to avoid loops
-		if (collection.value?.name !== defaultName) {
-			setCollection({
-				name: defaultName,
-				icon: "bi:collection",
-				status: "unpublished",
-				fields: [],
-				slug:
-					defaultName !== "new"
-						? defaultName
-								.toLowerCase()
-								.replace(/\s+/g, "-")
-								.replace(/[^a-z0-9-]/g, "")
-						: "",
-			} as any);
-		}
-
+	} else if (currentAction === "new") {
+		const draftCollection = createDraftCollection(page.params.contentPath);
+		setCollection(draftCollection);
 		originalName = "";
-		if (defaultName !== "new" && !collections.stepper.completedSteps.has(0)) {
+		if (
+			draftCollection.name !== "new" &&
+			!collections.stepper.completedSteps.has(0)
+		) {
 			collections.stepper.completedSteps.add(0);
-		} else if (defaultName === "new") {
+		} else if (draftCollection.name === "new") {
 			collections.stepper.completedSteps.delete(0);
 		}
 	}
+
+	lastCollectionSyncKey = syncKey;
 });
 </script>
 
@@ -232,7 +247,7 @@ $effect(() => {
 			<div class="h-full {activeStep === 1 ? 'mx-auto max-w-5xl p-4 sm:p-6 lg:p-10' : 'p-0'}">
 				{#if activeStep === 1}
 					<div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
-						<CollectionForm data={collection.value || {}} handlePageTitleUpdate={(t: string) => collection.value && (collection.value.name = t)} />
+						<CollectionForm data={collection.value} syncKey={editorSyncKey} />
 					</div>
 				{:else if activeStep === 2}
 					<div class="h-full animate-in fade-in slide-in-from-right-4 duration-700">

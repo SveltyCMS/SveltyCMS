@@ -5,7 +5,6 @@
 
 ### Props:
 - `collection` {object} - Collection object
-- `handlePageTitleUpdate` {function} - Function to update the page title
 
 ### Features:
 - Collection Name
@@ -42,7 +41,7 @@ import Card from "@src/components/ui/card.svelte";
 import { StatusTypes } from "@src/content/types";
 
 // Props from parent
-let { data = $bindable(null), handlePageTitleUpdate } = $props();
+let { data = $bindable(null), syncKey = "" } = $props();
 
 //action
 
@@ -56,24 +55,18 @@ let name = $state(data?.name ?? "");
 let slug = $state(data?.slug ?? "");
 let description = $state(data?.description ?? "");
 let status = $state(data?.status ?? "unpublished");
-// Only sync from server data when collection identity changes (navigation/load), not on every store update (so typing in Name works)
-let lastSyncedId = $state<string | null>(null);
+// Only sync from route-loaded data when the route target changes, not on each keystroke.
+let lastSyncedKey = $state<string | null>(null);
 
-// Update form fields when we switch to a different collection (by _id/path) so load data applies; don't overwrite while user is typing.
-// Only set selectedIcon when syncing a new collection to avoid effect loop with IconifyIconsPicker (effect_update_depth_exceeded).
+// Update form fields when we switch to a different route target.
+// This avoids booting the form from an empty placeholder object and prevents effect loops.
 $effect(() => {
 	const fromData = data;
 	const fromStore = collection.value;
+	const currentSyncKey = syncKey;
 
-	const id =
-		fromData?._id ??
-		fromData?.path ??
-		fromStore?._id ??
-		fromStore?.path ??
-		null;
-	const idStr = id != null ? String(id) : "";
-	if (fromData && idStr !== lastSyncedId) {
-		lastSyncedId = idStr;
+	if (fromData && currentSyncKey && currentSyncKey !== lastSyncedKey) {
+		lastSyncedKey = currentSyncKey;
 		name = fromData.name ?? "";
 		slug = fromData.slug ?? "";
 		description = fromData.description ?? "";
@@ -136,7 +129,6 @@ $effect(() => {
 
 function handleNameInput() {
 	if (typeof name === "string" && name) {
-		handlePageTitleUpdate(name);
 		if (autoUpdateSlug) {
 			slug = name.toLowerCase().replace(/\s+/g, "_");
 		}
@@ -150,7 +142,6 @@ $effect(() => {
 	if (autoUpdateSlug && currentName) {
 		slug = currentName.toLowerCase().replace(/ /g, "_");
 	}
-	handlePageTitleUpdate(currentName || "");
 });
 
 const statuses = Object.values(StatusTypes);
