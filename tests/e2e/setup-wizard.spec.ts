@@ -89,6 +89,9 @@ class SetupWizardPage {
   }
 
   async testConnection() {
+    await this.dismissModals();
+    await this.handleAnyDbDialog();
+
     const testButton = await this.firstVisible([
       this.page.getByRole("button", { name: /test database connection/i }).first(),
       this.page.getByRole("button", { name: /test connection/i }).first(),
@@ -96,7 +99,7 @@ class SetupWizardPage {
 
     if (testButton) {
       await expect(testButton).toBeEnabled({ timeout: 30000 });
-      await testButton.click();
+      await testButton.click({ force: true });
     }
     await this.handleAnyDbDialog();
   }
