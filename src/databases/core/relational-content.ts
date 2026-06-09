@@ -49,7 +49,7 @@ export class RelationalContentModule implements IContentAdapter {
   protected prepareContentNodeValues(
     node: Partial<ContentNode>,
     options: {
-      id?: DatabaseId;
+      id?: DatabaseId | string;
       tenantId?: DatabaseId | null;
     } = {},
   ) {
