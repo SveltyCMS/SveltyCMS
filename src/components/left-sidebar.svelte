@@ -53,6 +53,7 @@
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
+		import Avatar from '@components/ui/avatar.svelte';
 	// Removed axios import
 	import { browser } from '$app/environment';
 	// Import necessary utilities and types
@@ -435,7 +436,7 @@
 							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
 							: 'h-8 w-8 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
 						>
-							<img src={avatarUrl} alt="User Avatar" class="mx-auto h-full w-full overflow-hidden rounded-full object-cover {isSidebarFull ? 'size-8' : 'size-8'}" />
+							<Avatar src={avatarUrl} alt="User Avatar" size={isSidebarFull ? 'size-12' : 'size-10'} rounded="rounded-full" class="mx-auto" />
 						{#if isSidebarFull && user?.username}
 							<div
 								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-xs font-semibold leading-tight"

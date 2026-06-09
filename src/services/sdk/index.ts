@@ -12,10 +12,7 @@
  */
 
 import type { IDBAdapter } from "@src/databases/db-interface";
-import type {
-  AuthNamespace,
-  TokensNamespace,
-} from "./namespaces/auth-namespace";
+import type { AuthNamespace, TokensNamespace } from "./namespaces/auth-namespace";
 import type { CollectionsNamespace } from "./namespaces/collections-namespace";
 import type { MediaNamespace } from "./namespaces/media-namespace";
 import type {
@@ -220,15 +217,11 @@ export class LocalCMS {
 
     defineLazyNamespace(this, "tokens", async () => {
       const { TokensNamespace } = await import("./namespaces/auth-namespace");
-      return instrumentNamespace(
-        "tokens",
-        new TokensNamespace(this._dbAdapter),
-      );
+      return instrumentNamespace("tokens", new TokensNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(this, "collections", async () => {
-      const { CollectionsNamespace } =
-        await import("./namespaces/collections-namespace");
+      const { CollectionsNamespace } = await import("./namespaces/collections-namespace");
       return instrumentNamespace(
         "collections",
         new CollectionsNamespace(this._dbAdapter, this._contentSystem),
@@ -242,51 +235,32 @@ export class LocalCMS {
 
     defineLazyNamespace(this, "widgets", async () => {
       const { WidgetsNamespace } = await import("./namespaces/misc-namespaces");
-      return instrumentNamespace(
-        "widgets",
-        new WidgetsNamespace(this._dbAdapter),
-      );
+      return instrumentNamespace("widgets", new WidgetsNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(
       this,
       "system",
       async () => {
-        const { SystemNamespace } =
-          await import("./namespaces/misc-namespaces");
-        return instrumentNamespace(
-          "system",
-          new SystemNamespace(this._dbAdapter),
-        );
+        const { SystemNamespace } = await import("./namespaces/misc-namespaces");
+        return instrumentNamespace("system", new SystemNamespace(this._dbAdapter));
       },
       { settings: true, importer: true, websiteTokens: true },
     );
 
     defineLazyNamespace(this, "automation", async () => {
-      const { AutomationNamespace } =
-        await import("./namespaces/misc-namespaces");
-      return instrumentNamespace(
-        "automation",
-        new AutomationNamespace(this._dbAdapter),
-      );
+      const { AutomationNamespace } = await import("./namespaces/misc-namespaces");
+      return instrumentNamespace("automation", new AutomationNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(this, "telemetry", async () => {
-      const { TelemetryNamespace } =
-        await import("./namespaces/misc-namespaces");
-      return instrumentNamespace(
-        "telemetry",
-        new TelemetryNamespace(this._dbAdapter),
-      );
+      const { TelemetryNamespace } = await import("./namespaces/misc-namespaces");
+      return instrumentNamespace("telemetry", new TelemetryNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(this, "websiteTokens", async () => {
-      const { WebsiteTokensNamespace } =
-        await import("./namespaces/misc-namespaces");
-      return instrumentNamespace(
-        "websiteTokens",
-        new WebsiteTokensNamespace(this._dbAdapter),
-      );
+      const { WebsiteTokensNamespace } = await import("./namespaces/misc-namespaces");
+      return instrumentNamespace("websiteTokens", new WebsiteTokensNamespace(this._dbAdapter));
     });
   }
 

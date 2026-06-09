@@ -148,7 +148,7 @@ When database issues are detected, users see a comprehensive error dialog:
 
 Best for temporary issues:
 
-- MongoDB was restarting
+- Database was restarting
 - Network hiccup resolved
 - Database just came back online
 
@@ -244,13 +244,13 @@ await expect(page.getByRole("heading", { name: /database/i })).toBeVisible({ tim
 
 ## Troubleshooting
 
-### Scenario 1: "Database is empty" error but MongoDB is running
+### Scenario 1: "Database is empty" error but database is running
 
 **Cause:** Database was manually dropped or setup didn't complete
 
 **Solution:**
 
-1. Check if roles collection exists: `db.roles.find()`
+1. Check if users exist in the database
 2. If empty, click "Reset Setup" to run wizard again
 3. Or restore from backup
 
@@ -260,7 +260,7 @@ await expect(page.getByRole("heading", { name: /database/i })).toBeVisible({ tim
 
 **Solutions:**
 
-1. Check MongoDB is running: `systemctl status mongod`
+1. Check your database is running
 2. Verify connection in config: `config/private.ts`
 3. Check logs: Look for database connection errors
 4. Last resort: Reset setup

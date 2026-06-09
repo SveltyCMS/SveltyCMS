@@ -211,6 +211,7 @@ async function getUserFromSession(
   const { getDb } = await import("@src/databases/db");
   const adapter = getDb();
   if (!adapter) {
+    logger.warn(`[Auth] No DB adapter available for session validation: ${sessionId}`);
     return null;
   }
 
@@ -226,6 +227,9 @@ async function getUserFromSession(
     if (result?.success) {
       if (result.data) {
         const user = result.data;
+        logger.debug(
+          `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${(user as any).email}`,
+        );
         const sessionData: SessionCacheEntry = { user, timestamp: now };
         setSessionInCache(sessionId, sessionData);
         const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
@@ -235,6 +239,7 @@ async function getUserFromSession(
         return user;
       } else {
         // Definitive: Session not found or expired.
+        logger.debug(`[Auth] Session not found in DB: ${sessionId.slice(0, 8)}...`);
         negativeCache.add(sessionId);
         return null;
       }
@@ -242,7 +247,7 @@ async function getUserFromSession(
       // System error (e.g. DB locked). Clear the cooldown to allow immediate retry on next request.
       lastRefreshAttempt.delete(sessionId);
       logger.warn(
-        `[Auth] Transient session validation error for ${sessionId}: ${result?.message || "Unknown"}`,
+        `[Auth] Session validation error for ${sessionId.slice(0, 8)}...: ${result?.message || "Unknown"}`,
       );
       return null;
     }
@@ -605,6 +610,16 @@ export function clearAllSessionCaches(): void {
   negativeCache.clear();
   multiTenantCached = null;
   demoModeCached = null;
+}
+
+/**
+ * Prime the in-memory session cache directly — bypasses Redis and validateSession.
+ * Used by setup wizard and sign-in to ensure getUserFromSession gets an instant hit.
+ */
+export function primeSessionMemoryCache(sessionId: string, user: User): void {
+  negativeCache.clear();
+  const entry: SessionCacheEntry = { user, timestamp: Date.now() };
+  setSessionInCache(sessionId, entry);
 }
 
 export function getSessionCacheStats() {

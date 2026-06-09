@@ -60,32 +60,32 @@ Navigate to `http://localhost:5173`. The system will automatically detect the ab
 
 ## 2. First Steps (For Admins & Editors)
 
-### Access the Admin Studio
+### Access the CMS
 
-Once setup completes, navigate to `http://localhost:5173/admin` and login with your admin credentials.
+Once setup completes, you will be automatically redirected to the CMS dashboard. If you need to log in again, navigate to `http://localhost:5173/login` and use your admin credentials.
 
-### Understanding the Dashboard Layout
+### Understanding the CMS Layout
 
-The Studio is designed for clarity and speed.
+The CMS is designed for clarity and speed.
 
 ```
 ┌─────────────────────────────────────────────┐
 │ 🏠 SveltyCMS            [Search] 👤 Admin ▼ │
 ├──────────┬──────────────────────────────────┤
 │          │                                   │
-│ Dashboard│   📊 Dashboard Overview           │
+│ 🏠 Home  │   📊 Dashboard Overview           │
 │ 📚 Collections                              │
 │ 📁 Media │   • System Health                │
 │ 👥 Users │   • Recent Content               │
-│ 🔌 Widgets   • Online Users                │
-│ ⚙️ Settings  • Storage Usage                │
+│ ⚙️ Config    • Online Users                │
+│          │   • Storage Usage                │
 │          │                                   │
 └──────────┴──────────────────────────────────┘
 ```
 
 ### Key Editorial Tasks
 
-1.  **Configure Settings**: Go to **⚙️ Settings** to set your Site Name, Default Language, and Theme.
+1.  **Configure Settings**: Go to **⚙️ Config** to set your Site Name, Default Language, and Theme.
 2.  **Create a Collection**: Collections define your content structure. Go to **📚 Collections** → **+ New Collection**.
     - _Example_: Create a "posts" collection with fields for Title (text), Content (richtext), and Status (select).
 3.  **Add Your First Entry**: Open your new collection and click **+ New Entry**. Fill in the fields and click **Save**.
@@ -108,7 +108,7 @@ The Studio is designed for clarity and speed.
 
 ### Workflow 3: Multi-Language Sites
 
-1.  **Enable i18n**: Go to **⚙️ Settings** → **Languages** and add your target languages.
+1.  **Enable i18n**: Go to **⚙️ Config** → **Languages** and add your target languages.
 2.  **Translate**: Open any entry and use the language switcher to enter localized content. Paraglide JS handles the compile-time switching.
 
 ---
@@ -120,7 +120,7 @@ SveltyCMS uses a granular **Role-Based Access Control (RBAC)** system.
 - **Admin**: Full access.
 - **Editor**: Can manage all content and media.
 - **Contributor**: Can create content but cannot publish without approval.
-- **Custom Roles**: Create these in **⚙️ Settings** → **Roles & Permissions** to define field-level access.
+- **Custom Roles**: Create these in **⚙️ Config** → **Roles & Permissions** to define field-level access.
 
 ---
 

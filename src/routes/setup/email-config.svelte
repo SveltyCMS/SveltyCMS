@@ -443,13 +443,13 @@
 	<!-- Why SMTP is Needed -->
 	<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
-		<button>
-			type="button"
-			class="flex w-full items-start gap-3 text-start"
-			onclick={() => (showWhySmtp = !showWhySmtp)}
-			aria-expanded={showWhySmtp}
-			aria-controls="why-smtp-content"
-		>
+		<button
+				type="button"
+				class="flex w-full items-start gap-3 text-start"
+				onclick={() => (showWhySmtp = !showWhySmtp)}
+				aria-expanded={showWhySmtp}
+				aria-controls="why-smtp-content"
+			>
 			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true"></iconify-icon>
 			<div class="flex-1">
 				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{setup_email_why_title()}</h3>

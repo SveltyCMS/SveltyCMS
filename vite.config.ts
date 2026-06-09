@@ -379,7 +379,7 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 function stubServerModulesPlugin(): Plugin {
   // Pre-compiled regex for high-performance pattern matching (Vite 8 / Rolldown optimization)
   const serverOnlyRegex =
-    /\.(server\.|mongodb|mariadb|postgresql|sqlite|redis|argon2|mongoose|better-sqlite3|mysql2|pg|aws-sdk|googleapis)/i;
+    /\.(server\.|mongodb|mariadb|postgresql|sqlite|redis|argon2|mongoose|mysql2|pg|aws-sdk|googleapis)/i;
 
   const serverOnlyPackages = [
     "argon2",
@@ -388,7 +388,6 @@ function stubServerModulesPlugin(): Plugin {
     "mongodb",
     "postgres",
     "mysql2",
-    "better-sqlite3",
     "bun:sqlite",
     "node-os-utils",
   ];
@@ -433,6 +432,7 @@ function stubServerModulesPlugin(): Plugin {
     load(id, options) {
       if (id.startsWith("\0virtual:stub:")) {
         return `export default {};
+export const Database = class {};
 export const Schema = { Types: {} };
 export const Model = {};
 export const Connection = {};
@@ -1005,16 +1005,7 @@ export default defineConfig((): any => {
         "svelte-awesome-color-picker",
         "json-render-svelte",
       ],
-      external: [
-        "bun:sqlite",
-        "bun:test",
-        "redis",
-        "better-sqlite3",
-        "mongoose",
-        "mongodb",
-        "postgres",
-        "mysql2",
-      ],
+      external: ["bun:sqlite", "bun:test", "redis", "mongoose", "mongodb", "postgres", "mysql2"],
     },
     resolve: {
       alias: [
@@ -1183,7 +1174,6 @@ export default defineConfig((): any => {
           ...builtinModules.map((m) => `node:${m}`),
           "typescript",
           "ts-node",
-          "better-sqlite3",
           "mongoose",
           "mongodb",
           "postgres",

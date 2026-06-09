@@ -25,23 +25,27 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (06/06/2026, 12:05:56)
+## 📊 Latest Performance Audit (09/06/2026, 09:26:10)
 
-**Status:** ❌ FAIL
+> [!WARNING]
+> **Performance Regressions Detected for SQLITE**:
+>
+> - **Hooks/Middleware**: 2.971ms (was 0.000ms, delta: +48.6%) - _Exceeded budget: 2.971ms > 2ms_
+>
+> _Please investigate potential database adapter performance bottlenecks or environment variance._
 
-> [!CAUTION]
-> **Anomalies Detected**: Fail-fast See console for stack trace.
+**Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
 
 | Scenario               | Avg Latency | Trend        | Target Budget | Result  |
 | :--------------------- | :---------- | :----------- | :------------ | :------ |
-| **Cold Start**         | 553ms       | ⚪ (+58.5%)  | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 2.700ms     | ⚪ (+300.0%) | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | 8.268ms     | ⚪           | < 2ms         | 🔴 FAIL |
-| **GraphQL (Avg)**      | 4.268ms     | ⚪ (-2.9%)   | < 5ms         | 🟢 PASS |
+| **Cold Start**         | 280ms       | ⚪ (-13.9%)  | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 2.700ms     | ⚪ (+156.9%) | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | 2.971ms     | ⚪           | < 2ms         | 🔴 FAIL |
+| **GraphQL (Avg)**      | 3.191ms     | ⚪ (-22.7%)  | < 5ms         | 🟢 PASS |
 | **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.100ms     | ⚪           | < 50ms        | 🟢 PASS |
+| **DB Raw (p95)**       | 0.050ms     | ⚪           | < 50ms        | 🟢 PASS |
 | **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
@@ -57,20 +61,20 @@ xychart-beta
   title "SQLITE Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.675, 0.675, 0.675, 0.675, 0.675, 0.675, 0.675, 0.675, 0.675, 0.675]
+  line "p95 Latency" : [0.675, 0.675, 0.675, 0.675, 0.675, 0.675, 0.675, 0.675, 2.700, 2.700]
 ```
 
 ## 📈 Core Infrastructure Trends
 
 ### 🏷️ Database Adapter Performance {#dbRaw}
 
-**Raw Adapter p95:** 0.100ms | **Target:** < 50ms | **Trend:** ⚪ (+78.7%)
+**Raw Adapter p95:** 0.050ms | **Target:** < 50ms | **Trend:** ⚪ (-9.1%)
 
 > Direct database access latency (bypass CMS logic).
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 8.268ms | **Target:** < 2ms | **Trend:** ⚪ (+330.6%)
+**Middleware p95:** 2.971ms | **Target:** < 2ms | **Trend:** ⚪ (+40.8%)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -96,7 +100,7 @@ xychart-beta
 
 ### 🏷️ Telemetry & Update Performance {#telemetryAvg}
 
-**Telemetry p95:** 0.001ms | **Trend:** ⚪ (-99.9%)
+**Telemetry p95:** 0.001ms | **Trend:** ⚪ (-100.0%)
 
 > Measures overhead of telemetry collection and cryptographic signing.
 
@@ -172,7 +176,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Content Scan (Self-Healing)    │        0.009 ms │ p95:        0.015 ms │ RPS:     49,432 ║
+║ Content Scan (Self-Healing)    │        0.004 ms │ p95:        0.006 ms │ RPS:    167,598 ║
 ```
 
 <!-- SCAN_TABLE_END -->
@@ -236,8 +240,8 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Telemetry (Happy Path)         │        0.001 ms │ p95:        0.001 ms │ RPS:    975,293 ║
-║ Telemetry (Failure Path)       │        0.002 ms │ p95:        0.006 ms │ RPS:    542,005 ║
+║ Cache L1 Hit                   │        0.001 ms │ p95:        0.001 ms │ RPS:  1,623,201 ║
+║ Pattern Invalidation (1k items @ 200k noise) │        1.616 ms │ p95:        1.823 ms │ RPS:        619 ║
 ```
 
 <!-- TELEMETRY_TABLE_END -->
@@ -289,7 +293,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache Miss (Bypass)            │        2.076 ms │ p95:        3.398 ms │ RPS:        451 ║
+║ Cache Miss (Bypass)            │        0.556 ms │ p95:        0.739 ms │ RPS:      1,640 ║
 ```
 
 <!-- CACHE_TABLE_END -->
@@ -448,12 +452,12 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ WAF Deep Analysis              │        0.005 ms │ p95:        0.009 ms │ RPS:    175,306 ║
-║ Audit Log Persistence          │        0.154 ms │ p95:        0.279 ms │ RPS:      6,508 ║
-║ Argon2id Password Hashing      │        8.478 ms │ p95:       31.936 ms │ RPS:        118 ║
-║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  9,359,790 ║
-║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS:  7,900,142 ║
-║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 15,163,002 ║
+║ WAF Deep Analysis              │        0.004 ms │ p95:        0.007 ms │ RPS:    222,739 ║
+║ Audit Log Persistence          │        0.079 ms │ p95:        0.067 ms │ RPS:     12,682 ║
+║ Argon2id Password Hashing      │        0.566 ms │ p95:        0.769 ms │ RPS:      1,767 ║
+║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 13,561,161 ║
+║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS:  9,877,519 ║
+║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 13,511,688 ║
 ```
 
 <!-- SECURITY_TABLE_END -->
@@ -467,10 +471,10 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.700 ms │ p95:        1.295 ms │ RPS:      1,429 ║
-║ Collection Schema              │        4.343 ms │ p95:        6.157 ms │ RPS:        230 ║
-║ Collection Find (List)         │        4.060 ms │ p95:        4.955 ms │ RPS:        246 ║
-║ Collection Search              │        3.895 ms │ p95:        4.617 ms │ RPS:        257 ║
+║ Health Check                   │        1.566 ms │ p95:        3.044 ms │ RPS:        639 ║
+║ Collection Schema              │        4.769 ms │ p95:        6.882 ms │ RPS:        210 ║
+║ Collection Find (List)         │        4.241 ms │ p95:        5.309 ms │ RPS:        236 ║
+║ Collection Search              │        3.991 ms │ p95:        5.429 ms │ RPS:        251 ║
 ```
 
 <!-- REST_TABLE_END -->
@@ -484,13 +488,9 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        2.937 ms │ p95:        4.262 ms │ RPS:        315 ║
-║ GQL: 10c Light                 │        5.713 ms │ p95:        9.386 ms │ RPS:        172 ║
-║ GQL: 20c Moderate              │       10.519 ms │ p95:       16.311 ms │ RPS:         94 ║
-║ GQL: 40c Heavy                 │       20.480 ms │ p95:       31.844 ms │ RPS:         49 ║
-║ GQL: 60c Stress                │       28.057 ms │ p95:       43.787 ms │ RPS:         36 ║
-║ GQL: 80c Extreme               │       28.075 ms │ p95:       55.925 ms │ RPS:         35 ║
-║ GQL: 100c Max                  │       42.360 ms │ p95:       74.964 ms │ RPS:         24 ║
+║ GQL: System Health             │        0.890 ms │ p95:        1.685 ms │ RPS:      1,124 ║
+║ GQL: Collection List           │        3.191 ms │ p95:        5.183 ms │ RPS:        313 ║
+║ GQL: Concurrent Load           │        2.668 ms │ p95:        4.110 ms │ RPS:        375 ║
 ```
 
 <!-- GRAPHQL_TABLE_END -->
@@ -684,7 +684,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache Miss (Bypass)            │        2.076 ms │ p95:        3.398 ms │ RPS:        451 ║
+║ Cache Miss (Bypass)            │        0.556 ms │ p95:        0.739 ms │ RPS:      1,640 ║
 ```
 
 <!-- CACHE_EFFICIENCY_TABLE_END -->

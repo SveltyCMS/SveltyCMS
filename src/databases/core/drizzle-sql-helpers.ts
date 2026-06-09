@@ -32,11 +32,7 @@ import {
   asc,
   desc,
 } from "drizzle-orm";
-import {
-  queryTranslator,
-  type LogicalGroup,
-  type QueryCondition,
-} from "../core/query-ir";
+import { queryTranslator, type LogicalGroup, type QueryCondition } from "../core/query-ir";
 import type { FindOptions } from "../db-interface";
 import { safeDate } from "./relational-utils";
 
@@ -170,14 +166,7 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
-  authSessions: [
-    "_id",
-    "user_id",
-    "expires",
-    "tenantId",
-    "createdAt",
-    "updatedAt",
-  ],
+  authSessions: ["_id", "user_id", "expires", "tenantId", "createdAt", "updatedAt"],
   authTokens: [
     "_id",
     "user_id",
@@ -455,24 +444,14 @@ export const FIXED_COLUMNS = new Set([
 
 export function isSystemTable(collection: string): boolean {
   if (typeof collection !== "string") return false;
-  const cleanName = collection.startsWith("collection_")
-    ? collection.slice(11)
-    : collection;
-  return (
-    SYSTEM_COLLECTIONS.has(cleanName) || SYSTEM_COLLECTIONS.has(collection)
-  );
+  const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+  return SYSTEM_COLLECTIONS.has(cleanName) || SYSTEM_COLLECTIONS.has(collection);
 }
 
 export function resolveSystemTableName(collection: string): string {
   if (typeof collection !== "string") return "";
-  const cleanName = collection.startsWith("collection_")
-    ? collection.slice(11)
-    : collection;
-  return (
-    SYSTEM_NAME_MAP.get(cleanName) ||
-    SYSTEM_NAME_MAP.get(collection) ||
-    collection
-  );
+  const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+  return SYSTEM_NAME_MAP.get(cleanName) || SYSTEM_NAME_MAP.get(collection) || collection;
 }
 
 export function getColumnHelper(
@@ -484,8 +463,7 @@ export function getColumnHelper(
 ): Column | undefined {
   if (!table) return undefined;
 
-  let cols =
-    table === lastRef.table ? lastRef.cols : tableColumnsCache.get(table);
+  let cols = table === lastRef.table ? lastRef.cols : tableColumnsCache.get(table);
 
   if (!cols) {
     try {
@@ -515,17 +493,11 @@ export function getColumnHelper(
 export function translateCondition(col: Column, cond: QueryCondition): SQL {
   let val = cond.value;
 
-  if (
-    val !== null &&
-    typeof val === "object" &&
-    typeof (val as any).getTime === "function"
-  ) {
+  if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
     val = safeDate(val);
   } else if (Array.isArray(val)) {
     val = val.map((v) =>
-      v !== null &&
-      typeof v === "object" &&
-      typeof (v as any).getTime === "function"
+      v !== null && typeof v === "object" && typeof (v as any).getTime === "function"
         ? safeDate(v)
         : v,
     );
@@ -562,12 +534,7 @@ export function mapIRToSQL(
 
   for (const cond of group.conditions) {
     if ("conditions" in cond) {
-      const sub = mapIRToSQL(
-        table,
-        cond as LogicalGroup,
-        getColumn,
-        getJsonField,
-      );
+      const sub = mapIRToSQL(table, cond as LogicalGroup, getColumn, getJsonField);
       if (sub) conditions.push(sub);
     } else {
       const column = getColumn(table, cond.field);
@@ -577,9 +544,7 @@ export function mapIRToSQL(
         const dataCol = getColumn(table, "data");
         if (dataCol) {
           const jsonField = getJsonField(cond.field);
-          conditions.push(
-            translateCondition(jsonField as any, cond as QueryCondition),
-          );
+          conditions.push(translateCondition(jsonField as any, cond as QueryCondition));
         }
       }
     }
@@ -606,15 +571,9 @@ export function mapQuery(
     if (idCol) {
       const conditions = [eq(idCol, query._id as any)];
       const tenantCol = getColumn(table, "tenantId");
-      if (
-        options.tenantId !== undefined &&
-        options.tenantId !== "global" &&
-        tenantCol
-      ) {
+      if (options.tenantId !== undefined && options.tenantId !== "global" && tenantCol) {
         conditions.push(
-          options.tenantId === null
-            ? isNull(tenantCol)
-            : eq(tenantCol, options.tenantId as string),
+          options.tenantId === null ? isNull(tenantCol) : eq(tenantCol, options.tenantId as string),
         );
       }
       return and(...conditions);
@@ -631,11 +590,7 @@ export function mapQuery(
     const tenantId = options.tenantId;
     const tenantCol = getColumn(table, "tenantId");
     if (tenantId !== undefined && tenantId !== "global" && tenantCol) {
-      conditions.push(
-        tenantId === null
-          ? isNull(tenantCol)
-          : eq(tenantCol, tenantId as string),
-      );
+      conditions.push(tenantId === null ? isNull(tenantCol) : eq(tenantCol, tenantId as string));
     }
   }
 
@@ -709,11 +664,7 @@ const tableSelectionCache = new WeakMap<any, any>();
 export function getPhysicalSelection(
   table: any,
   selectionCache: Map<string, any>,
-  getColumn: (
-    table: any,
-    name: string,
-    forcePhysical?: boolean,
-  ) => Column | undefined,
+  getColumn: (table: any, name: string, forcePhysical?: boolean) => Column | undefined,
 ): any {
   let cached = tableSelectionCache.get(table);
   if (cached) return cached;
@@ -751,21 +702,10 @@ export function getPhysicalSelection(
 
   if (isSystem && SYSTEM_LITERAL_COLUMNS[systemName]) {
     columnNames = SYSTEM_LITERAL_COLUMNS[systemName];
-  } else if (
-    systemName === "contentNodes" ||
-    lowerName.includes("content_nodes")
-  ) {
+  } else if (systemName === "contentNodes" || lowerName.includes("content_nodes")) {
     columnNames = SYSTEM_LITERAL_COLUMNS.contentNodes;
   } else {
-    columnNames = [
-      "_id",
-      "data",
-      "status",
-      "tenantId",
-      "createdAt",
-      "updatedAt",
-      "isDeleted",
-    ];
+    columnNames = ["_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
   }
 
   for (let i = 0; i < columnNames.length; i++) {

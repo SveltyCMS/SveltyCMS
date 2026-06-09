@@ -4,14 +4,14 @@
 **Authentication Form Component handles both SignIn and SignUp functionality for the SveltyCMS**
 
 ### Props:
- - `data`: { firstUserExists: boolean, demoMode: boolean, showDatabaseError: boolean }
+ - `data`: { hasAdminUser: boolean, demoMode: boolean, showDatabaseError: boolean }
  - `dev`: boolean
 
 ### Features:
  - Dual SignIn and SignUp functionality with dynamic form switching
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
  - Demo mode support with auto-reset timer displayed when active
- - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
+ - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `hasAdminUser`)
  - Reset state functionality for easy return to initial screen
  - Accessibility features for language selection and form navigation
 -->
@@ -56,8 +56,8 @@ import SignUp from "./components/sign-up.svelte";
 // Props
 const { data } = $props();
 
-// Derive firstUserExists to make it reactive (fixes state_referenced_locally warning)
-const firstUserExists = $derived(data.firstUserExists);
+// Derive hasAdminUser to make it reactive (fixes state_referenced_locally warning)
+const hasAdminUser = $derived(data.hasAdminUser);
 const returningUser = $derived(data.returningUser);
 
 // Check for reset password URL parameters (initially false, updated by effect)
@@ -96,7 +96,7 @@ $effect(() => {
 			background = "#242728";
 		} else if (publicEnv.SEASONS) {
 			background = "white";
-		} else if (firstUserExists) {
+		} else if (hasAdminUser) {
 			background = "white";
 		} else {
 			background = "#242728";
@@ -218,7 +218,7 @@ function resetToInitialState() {
 		? "#242728"
 		: getPublicSetting("SEASONS")
 			? "#242728"
-			: firstUserExists
+			: hasAdminUser
 				? "white"
 				: "#242728";
 	setTimeout(() => {
@@ -236,7 +236,7 @@ function handleSignInClick(event?: Event) {
 	}
 	isTransitioning = true;
 
-	if (firstUserExists) {
+	if (hasAdminUser) {
 		active = 0; // Show SignIn for existing users
 		background = "white";
 	} else {

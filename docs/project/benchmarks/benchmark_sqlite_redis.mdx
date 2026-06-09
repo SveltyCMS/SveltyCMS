@@ -25,12 +25,12 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 11:40:36)
+## 📊 Latest Performance Audit (09/06/2026, 09:26:10)
 
 > [!WARNING]
 > **Performance Regressions Detected for SQLITE+REDIS**:
 >
-> - **Hooks/Middleware**: 3.052ms (was 0.000ms, delta: +52.6%) - _Exceeded budget: 3.052ms > 2ms_
+> - **REST/Collections p95**: 1033.235ms (was 0.000ms, delta: +20564.7%) - _Exceeded budget: 1033.235ms > 5ms_
 >
 > _Please investigate potential database adapter performance bottlenecks or environment variance._
 
@@ -38,15 +38,15 @@ tags:
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
-| :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 257ms       | ⚪ (-27.6%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 2.021ms     | 🟢 (+0.0%)  | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | 3.052ms     | ⚪          | < 2ms         | 🔴 FAIL |
-| **GraphQL (Avg)**      | 6.004ms     | ⚪ (+2.5%)  | < 5ms         | 🔴 FAIL |
-| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.051ms     | ⚪          | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
+| :--------------------- | :---------- | :----------- | :------------ | :------ |
+| **Cold Start**         | 280ms       | ⚪ (-3.4%)   | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1033.235ms  | ⚪ (+433.9%) | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | N/A         | ⚪           | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | N/A         | ⚪ (—)       | < 5ms         | ⚪ N/A  |
+| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | 0.051ms     | ⚪           | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -61,7 +61,7 @@ xychart-beta
   title "SQLITE+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 2.021]
+  line "p95 Latency" : [2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 1033.235, 1033.235]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -74,7 +74,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 3.052ms | **Target:** < 2ms | **Trend:** ⚪ (-0.0%)
+**Middleware p95:** 0.000ms | **Target:** < 2ms | **Trend:** ⚪ (—)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -123,7 +123,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.070 ms │ p95:        0.167 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.071 ms │ p95:        0.166 ms │ RPS:          0 ║
 ```
 
 <!-- COLD_START_TABLE_END -->
@@ -305,7 +305,7 @@ xychart-beta
 
 > **Measures**: Long-running soak test to identify memory leaks and GC pressure.
 > **Code**: `src/databases/core/base-adapter.ts`, `src/widgets/*/index.ts`
-> **Why**: Memory leaks cause OOM crashes in production. Native addon leaks (sharp, better-sqlite3) are common.
+> **Why**: Memory leaks cause OOM crashes in production. Native addon leaks (sharp, argon2) are common.
 > **Correlates**: `media-performance` | **Anti-correlates**: `hooks-performance`, `database-performance`
 
 <!-- MEMORY_TABLE_END -->
@@ -914,7 +914,7 @@ xychart-beta
 
 > **Measures**: Long-running soak test to identify memory leaks and GC pressure.
 > **Code**: `src/databases/core/base-adapter.ts`, `src/widgets/*/index.ts`
-> **Why**: Memory leaks cause OOM crashes in production. Native addon leaks (sharp, better-sqlite3) are common.
+> **Why**: Memory leaks cause OOM crashes in production. Native addon leaks (sharp, argon2) are common.
 > **Correlates**: `media-performance` | **Anti-correlates**: `hooks-performance`, `database-performance`
 
 <!-- MEMORY_TABLE_END -->
