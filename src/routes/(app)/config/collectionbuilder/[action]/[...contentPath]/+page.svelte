@@ -5,7 +5,7 @@
 <script lang="ts">
 import PageTitle from "@src/components/page-title.svelte";
 import StickyActions from "@components/ui/sticky-actions.svelte";
-import type { FieldInstance, Schema } from "@src/content/types";
+import { StatusTypes, type FieldInstance, type Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import { button_delete, button_save } from "@src/paraglide/messages";
 import {
@@ -46,7 +46,7 @@ function createDraftCollection(contentPath?: string): Schema {
 	return {
 		name: defaultName,
 		icon: "bi:collection",
-		status: "unpublished",
+		status: StatusTypes.unpublish,
 		fields: [],
 		slug:
 			defaultName !== "new"

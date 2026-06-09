@@ -54,7 +54,7 @@ let selectedIcon = $state(data?.icon || "");
 let name = $state(data?.name ?? "");
 let slug = $state(data?.slug ?? "");
 let description = $state(data?.description ?? "");
-let status = $state(data?.status ?? "unpublished");
+let status = $state(data?.status ?? StatusTypes.unpublish);
 // Only sync from route-loaded data when the route target changes, not on each keystroke.
 let lastSyncedKey = $state<string | null>(null);
 
@@ -70,7 +70,7 @@ $effect(() => {
 		name = fromData.name ?? "";
 		slug = fromData.slug ?? "";
 		description = fromData.description ?? "";
-		status = fromData.status ?? "unpublished";
+		status = fromData.status ?? StatusTypes.unpublish;
 		// Prefer load data over store so edit page always shows latest icon (no stale cache)
 		const iconValue =
 			(fromData?.icon != null && String(fromData.icon).trim()) ||
