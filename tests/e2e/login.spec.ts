@@ -8,6 +8,7 @@
  */
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin, logout, ADMIN_CREDENTIALS } from "./helpers/auth";
+import { TEST_API_HEADERS } from "./helpers/test-api";
 
 test.describe("Login and Logout Flow", () => {
   // Ensure we start with a clean state for the login test
@@ -17,12 +18,14 @@ test.describe("Login and Logout Flow", () => {
   test.beforeEach(async ({ page }) => {
     console.log("[Login Test] Resetting database via Testing API...");
     const resetResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: { action: "reset" },
     });
     expect(resetResponse.ok()).toBeTruthy();
 
     console.log("[Login Test] Seeding database with admin@example.com...");
     const seedResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: {
         action: "seed",
         email: ADMIN_CREDENTIALS.email,
