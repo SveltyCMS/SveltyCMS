@@ -603,7 +603,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<button
 							type="button"
 							onclick={toggleDbPassword}
-							class="absolute inset-y-0 end-0 flex min-w-10 items-center pe-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
+							class="absolute inset-y-0 inset-e-0 flex min-w-10 items-center pe-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
 							aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
 						>
 							<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
