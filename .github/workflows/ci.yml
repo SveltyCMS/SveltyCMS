@@ -432,6 +432,7 @@ jobs:
           HOST=127.0.0.1 \
           PORT=4173 \
           PASSWORD_MIN_LENGTH=8 \
+          STRICT_SETUP_CHECK=true \
           TEST_MODE=true \
           TEST_API_SECRET="$TEST_API_SECRET" \
           PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173 \
@@ -639,6 +640,7 @@ jobs:
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
+          ADMIN_PASSWORD: Password123!
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
 
