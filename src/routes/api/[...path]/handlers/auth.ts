@@ -282,12 +282,20 @@ export async function handleUpdateUserAttributesRoute(
   tenantId: DatabaseId,
 ) {
   const body = await event.request.json();
-  const { user_id, ...newUserData } = body;
-  const targetId = user_id === "self" ? event.locals.user?._id : user_id;
+  const { user_id, newUserData, ...directUpdates } = body;
+  const targetId = !user_id || user_id === "self" ? event.locals.user?._id : user_id;
 
   if (!targetId) throw new AppError("User ID is required", 400);
 
-  const updates = Object.keys(newUserData).length > 0 ? newUserData : body;
+  const updates =
+    newUserData && typeof newUserData === "object"
+      ? { ...directUpdates, ...newUserData }
+      : directUpdates;
+
+  if (Object.keys(updates).length === 0) {
+    throw new AppError("At least one user attribute is required", 400);
+  }
+
   const result = await cms.auth.updateUserAttributes(targetId, updates, {
     tenantId,
   });
@@ -349,7 +357,10 @@ export async function handleSaveAvatarRoute(
       folder: "avatars",
       skipResizing: true,
     });
-    finalAvatarUrl = (uploadResult as any).url || (uploadResult as any).path;
+    if (!uploadResult.success || !uploadResult.data) {
+      throw new AppError(uploadResult.message || "Failed to upload avatar", 400);
+    }
+    finalAvatarUrl = uploadResult.data.url || uploadResult.data.path;
   } else {
     finalAvatarUrl = avatarValue;
   }
