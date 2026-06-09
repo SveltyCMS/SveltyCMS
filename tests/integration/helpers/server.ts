@@ -29,9 +29,15 @@ export async function checkServer(): Promise<boolean> {
     const payload = data?.data && typeof data.data === "object" ? data.data : data;
 
     const status = payload?.overallStatus || payload?.status || "";
-    const isHealthy = ["READY", "SETUP", "WARMED", "WARMING", "DEGRADED", "HEALTHY"].includes(
-      status.toUpperCase(),
-    );
+    const isHealthy = [
+      "READY",
+      "SETUP",
+      "WARMED",
+      "WARMING",
+      "DEGRADED",
+      "HEALTHY",
+      "IDLE",
+    ].includes(status.toUpperCase());
 
     if (!isHealthy) {
       console.log(`[checkServer] Unhealthy state: ${status} (HTTP ${response.status})`);

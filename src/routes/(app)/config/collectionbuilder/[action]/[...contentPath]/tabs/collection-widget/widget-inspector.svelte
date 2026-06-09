@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget/widget-inspector.svelte
 @component
 **Persistent Inspector panel for widget configuration**
@@ -54,11 +54,11 @@ function closeInspector() {
 </script>
 
 {#if localWidget}
-	<aside class="w-80 xl:w-96 flex flex-col border-l border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-xl overflow-hidden animate-in slide-in-from-right duration-300">
+	<aside class="w-80 xl:w-96 flex flex-col border-s border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-xl overflow-hidden animate-in slide-in-from-right duration-300">
 		<!-- Inspector Header -->
 		<header class="p-4 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50/50 dark:bg-surface-800/50">
 			<div class="flex items-center gap-3 min-w-0">
-				<div class="h-8 w-8 rounded-lg bg-primary-500/10 flex items-center justify-center text-primary-500 shrink-0">
+				<div class="h-8 w-8 rounded bg-primary-500/10 flex items-center justify-center text-primary-500 shrink-0">
 					<iconify-icon icon={localWidget.icon || 'mdi:widgets'} width="18"></iconify-icon>
 				</div>
 				<div class="min-w-0">
@@ -66,7 +66,7 @@ function closeInspector() {
 					<p class="text-[10px] text-surface-500 dark:text-surface-50 uppercase tracking-tighter truncate">{(localWidget.widget as any)?.key || 'Generic'}</p>
 				</div>
 			</div>
-			<Button variant="ghost" size="sm" onclick={closeInspector}>
+			<Button variant="ghost" size="sm" onclick={closeInspector} aria-label="Close inspector">
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</Button>
 		</header>
@@ -80,15 +80,15 @@ function closeInspector() {
 		<div class="flex-1 overflow-y-auto p-4 space-y-6">
 			{#if activeTab === 'general'}
 				<div class="space-y-4">
-					<Input label="Field Label" bind:value={localWidget.label} placeholder="e.g. Profile Picture" />
-					<Input label="Database Field Name" bind:value={localWidget.db_fieldName} placeholder="e.g. profile_pic" />
-					
-					<div class="flex items-center justify-between p-3 rounded-xl bg-surface-50 dark:bg-surface-950/50 border border-surface-200 dark:border-surface-800">
+					<Input label="Field Label" bind:value={localWidget.label} placeholder="e.g. Profile Picture"  aria-label="Input" />
+					<Input label="Database Field Name" bind:value={localWidget.db_fieldName} placeholder="e.g. profile_pic"  aria-label="Input" />
+
+					<div class="flex items-center justify-between p-3 rounded bg-surface-50 dark:bg-surface-950/50 border border-surface-200 dark:border-surface-800">
 						<div>
 							<p class="text-sm font-bold text-surface-900 dark:text-white">Required Field</p>
 							<p class="text-[10px] text-surface-500 dark:text-surface-50">Must be filled to save content</p>
 						</div>
-						<input type="checkbox" bind:checked={localWidget.required} class="h-5 w-5 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-900 dark:border-surface-700" />
+						<input type="checkbox" bind:checked={localWidget.required} class="h-5 w-5 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-900 dark:border-surface-700"  aria-label="Input" />
 					</div>
 				</div>
 			{:else if activeTab === 'special'}
@@ -100,9 +100,9 @@ function closeInspector() {
 				<div class="space-y-4">
 					<p class="text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-50">Role Access</p>
 					{#each roles as role}
-						<div class="flex items-center justify-between p-2 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
+						<div class="flex items-center justify-between p-2 rounded hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
 							<span class="text-sm">{role.name}</span>
-							<input type="checkbox" checked={true} class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-900 dark:border-surface-700" />
+							<input type="checkbox" checked={true} class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-900 dark:border-surface-700"  aria-label="Input" />
 						</div>
 					{/each}
 				</div>

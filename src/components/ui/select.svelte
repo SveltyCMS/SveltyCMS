@@ -3,7 +3,7 @@
 @component
 **SveltyCMS Select Primitive — WCAG 3.0 Ready**
 
-A native `<select>` wrapper with floating label, error state, helper text,
+A native `<select aria-label="Select">` wrapper with floating label, error state, helper text,
 and full accessibility. For search/filterable selects, use Combobox instead.
 
 ### Props
@@ -22,7 +22,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 - `onchange` (function): Callback with the new string value.
 
 ### Accessibility Features (WCAG 3.0)
-- Native `<select>` for maximum assistive technology support
+- Native `<select aria-label="Select">` for maximum assistive technology support
 - Proper `<label>` association via `for`/`id`
 - `aria-invalid` + `aria-describedby` for error + description linkage
 - Focus ring with minimum 3:1 contrast ratio
@@ -112,7 +112,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-describedby={describedBy}
 				aria-required={required}
 				class={cn(
-					'peer block w-full appearance-none rounded-xl border bg-surface-50 dark:bg-surface-900 transition-all',
+					'peer block w-full appearance-none rounded border bg-surface-50 dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
@@ -132,7 +132,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 			<label
 				for={generatedId}
 				class={cn(
-					'pointer-events-none absolute left-3 origin-left transition-all duration-200',
+					'pointer-events-none absolute inset-s-3 origin-start transition-all duration-200',
 					'peer-focus:-translate-y-3.5 peer-focus:scale-75 peer-focus:text-tertiary-500 dark:text-primary-500',
 					value
 						? '-translate-y-3.5 scale-75 text-tertiary-500 dark:text-primary-500'
@@ -151,7 +151,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 			<iconify-icon
 				icon="mdi:chevron-down"
 				width={sizeTokens.icon}
-				class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 transition-transform peer-focus:rotate-180"
+				class="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-surface-400 transition-transform peer-focus:rotate-180"
 				aria-hidden="true"
 			></iconify-icon>
 		</div>
@@ -161,7 +161,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 			<label for={generatedId} class="text-sm font-semibold text-surface-700 dark:text-surface-300">
 				{label}
 				{#if required}
-					<span class="text-error-500 ml-0.5" aria-hidden="true">*</span>
+					<span class="text-error-500 ms-0.5" aria-hidden="true">*</span>
 				{/if}
 			</label>
 		{/if}
@@ -177,7 +177,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-describedby={describedBy}
 				aria-required={required}
 				class={cn(
-					'block w-full appearance-none rounded-xl border bg-surface-50 dark:bg-surface-900 transition-all',
+					'block w-full appearance-none rounded border bg-surface-50 dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
@@ -198,7 +198,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 			<iconify-icon
 				icon="mdi:chevron-down"
 				width={sizeTokens.icon}
-				class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-surface-400"
+				class="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-surface-400"
 				aria-hidden="true"
 			></iconify-icon>
 		</div>

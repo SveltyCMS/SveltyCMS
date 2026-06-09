@@ -24,7 +24,7 @@ SveltyCMS implements a **Zero-Trust Runtime Enforcement** model for field-level 
 
 FLAC is integrated directly into the `modifyRequest` pipeline, ensuring that every piece of data — whether retrieved via REST, GraphQL, or the Local SDK — is sanitized based on the user's active role context.
 
-```mermaid
+````mermaid
 graph TD
     A[Incoming Request] --> B[Middleware: Identity & Roles]
     B --> C[API Handler / Local SDK]
@@ -39,7 +39,7 @@ graph TD
     F --> H[Sanitized JSON Response]
     G -- "Unauthorized" --> I[403 Forbidden + Audit Log]
     G -- "Authorized" --> J[Proceed to Database]
-```
+```text
 
 ---
 
@@ -83,7 +83,7 @@ FLAC is configured per-field in the **Collection Builder** under the **Permissio
         writeRoles: ["admin"]
     }
 }
-```
+```text
 
 ### Permission Matrix
 
@@ -111,3 +111,12 @@ The FLAC engine is optimized for high-throughput environments:
 - [Security Overview](./index.mdx)
 - [Role-Based Access Control (RBAC)](../admin-user-management.mdx)
 - [Audit Log System](../user-management-overview.mdx)
+````
+
+---
+
+## Related
+
+- [Security Overview](./index.mdx)
+- [API Security & Token Hardening](../api-security.mdx)
+- [Architecture Overview](../index.mdx)

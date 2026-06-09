@@ -120,7 +120,7 @@
 			<!-- Action Select -->
 			<label class="label">
 				<span>Action</span>
-				<select class="select" bind:value={action} aria-label="Action">
+				<select class="select" bind:value={action} aria-label="Schedule action">
 					{#each actionOptions as opt (opt.value)}
 						<option value={opt.value}>{opt.label}</option>
 					{/each}

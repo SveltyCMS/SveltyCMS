@@ -335,7 +335,7 @@ const steps = [
 		</div>
 
 		<!-- Step Content -->
-		<div class="card bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+		<div class="card bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded overflow-hidden">
 			<!-- STEP 1: Trigger -->
 			{#if activeStep === 1}
 				<div class="p-6 space-y-6" transition:fade>
@@ -365,7 +365,7 @@ const steps = [
 							<div class="grid grid-cols-3 gap-3">
 								{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption (triggerOption.type)}
 									<button
-										class="card p-3 text-center border-2 transition-all duration-200 rounded-lg"
+										class="card p-3 text-center border-2 transition-all duration-200 rounded"
 										class:border-tertiary-500={flow.trigger.type === triggerOption.type} class:dark:border-primary-500={flow.trigger.type === triggerOption.type}
 										class:bg-primary-50={flow.trigger.type === triggerOption.type}
 										class:dark:bg-primary-950={flow.trigger.type === triggerOption.type}
@@ -390,7 +390,7 @@ const steps = [
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 									{#each AUTOMATION_EVENTS as eventMeta (eventMeta.event)}
 										<label
-											class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-surface-200 dark:hover:bg-surface-700 border"
+											class="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors hover:bg-surface-200 dark:hover:bg-surface-700 border"
 											class:border-primary-400={flow.trigger.events?.includes(eventMeta.event)}
 											class:bg-primary-50={flow.trigger.events?.includes(eventMeta.event)}
 											class:dark:bg-primary-950={flow.trigger.events?.includes(eventMeta.event)}
@@ -433,7 +433,7 @@ const steps = [
 
 						<!-- Manual trigger info -->
 						{#if flow.trigger.type === 'manual'}
-							<div class="preset-tonal-surface p-4 rounded-lg" transition:slide>
+							<div class="preset-tonal-surface p-4 rounded" transition:slide>
 								<div class="flex items-center gap-2 mb-2">
 									<iconify-icon icon="mdi:information-outline" class="text-lg text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									<span class="font-medium">Manual Trigger</span>
@@ -445,7 +445,7 @@ const steps = [
 						{/if}
 
 						<!-- Active Toggle -->
-						<label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors">
+						<label class="flex items-center gap-3 cursor-pointer p-3 rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors">
 							<input type="checkbox" class="checkbox" bind:checked={flow.active} aria-label="Toggle active" />
 							<div>
 								<span class="font-medium">Active</span>
@@ -481,7 +481,7 @@ const steps = [
 							{#each flow.operations as op, i (op.id)}
 								{const meta = getOperationMeta(op.type)}
 								<div
-									class="card p-4 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-900 relative"
+									class="card p-4 border border-surface-300 dark:border-surface-600 rounded bg-surface-50 dark:bg-surface-900 relative"
 									transition:slide
 								>
 									<!-- Drag Handle -->
@@ -553,7 +553,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'body', token.value)}
 																>
 																	{token.label}
@@ -590,7 +590,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'to', token.value)}
 																>
 																	{token.label}
@@ -614,7 +614,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'subject', token.value)}
 																	aria-label="Insert token {token.label}"
 																>
@@ -645,7 +645,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'body', token.value)}
 																	aria-label="Insert body token {token.label}"
 																>
@@ -678,7 +678,7 @@ const steps = [
 																{#each availableTokens as token}
 																	<button
 																		type="button"
-																		class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																		class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																		onclick={() => insertToken(i, 'message', token.value)}
 																	>
 																		{token.label}
@@ -722,7 +722,7 @@ const steps = [
 															{#each availableTokens as token}
 																<button
 																	type="button"
-																	class="block w-full text-left p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
+																	class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded"
 																	onclick={() => insertToken(i, 'value', token.value)}
 																	aria-label="Insert value token {token.label}"
 																>
@@ -767,12 +767,12 @@ const steps = [
 					{/if}
 
 					<!-- Add Operation Buttons -->
-					<div class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded-lg p-4">
+					<div class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded p-4">
 						<p class="text-sm font-medium mb-3 opacity-70">Add Operation</p>
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 							{#each OPERATION_TYPES as opType (opType.type)}
 								<button
-									class="card p-3 text-center border border-surface-300 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded-lg hover:scale-105"
+									class="card p-3 text-center border border-surface-300 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded hover:scale-105"
 									onclick={() => addOperation(opType.type)}
 									aria-label="Add {opType.label} operation"
 								>
@@ -794,7 +794,7 @@ const steps = [
 					</h3>
 
 					<!-- Flow Summary -->
-					<div class="card preset-tonal-surface p-4 rounded-lg space-y-3">
+					<div class="card preset-tonal-surface p-4 rounded space-y-3">
 						<div class="flex items-center justify-between">
 							<h4 class="font-bold text-lg">{flow.name || 'Untitled'}</h4>
 							{#if flow.active}
@@ -869,7 +869,7 @@ const steps = [
 						<!-- Test Results -->
 						{#if testResult}
 							<div
-								class="card p-4 rounded-lg border"
+								class="card p-4 rounded border"
 								class:border-success-400={testResult.status === 'success'}
 								class:bg-success-50={testResult.status === 'success'}
 								class:dark:bg-success-950={testResult.status === 'success'}
@@ -944,7 +944,7 @@ const steps = [
 					</style>
 
 					<!-- Token Reference -->
-					<details class="preset-tonal-surface rounded-lg">
+					<details class="preset-tonal-surface rounded">
 						<summary class="p-3 cursor-pointer font-medium text-sm flex items-center gap-2">
 							<iconify-icon icon="mdi:code-braces"></iconify-icon>
 							Available Tokens Reference

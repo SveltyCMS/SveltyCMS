@@ -68,7 +68,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 
 #### Relational Tables (14 total)
 
-```typescript
+````typescript
 - auth_users: User accounts with roles
 - auth_sessions: Active user sessions
 - auth_tokens: Verification/reset tokens
@@ -83,7 +83,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 - system_preferences: System/user settings
 - website_tokens: API tokens
 - tenants: Multi-tenant management (name, owner, plan, quota, usage, settings)
-```
+```text
 
 ---
 
@@ -101,7 +101,7 @@ MariaDB/MySQL packages are included as `optionalDependencies`:
     "drizzle-orm": "^0.45.1"
   }
 }
-```
+```text
 
 Packages are auto-installed when MariaDB is selected in the setup wizard.
 
@@ -153,7 +153,7 @@ export const authUsers = mysqlTable(
     emailTenantUnique: unique("email_tenant_unique").on(table.email, table.tenantId),
   }),
 );
-```
+```text
 
 ### Key Design Principles
 
@@ -187,7 +187,7 @@ export const authUsers = mysqlTable(
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
 }
-```
+```text
 
 ### Health Monitoring
 
@@ -196,7 +196,7 @@ The adapter provides connection health checking:
 ```typescript
 const health = await dbAdapter.getConnectionHealth();
 // Returns: { healthy: boolean, latency: number, activeConnections: number }
-```
+```text
 
 ---
 
@@ -219,7 +219,7 @@ sequenceDiagram
     D-->>M: Tables Created/Verified
     M-->>A: { success: true }
     A-->>S: Ready
-```
+```text
 
 ```typescript
 // migrations.ts
@@ -227,7 +227,7 @@ sequenceDiagram
 - Adds proper indexes and constraints
 - Uses InnoDB engine with utf8mb4 charset
 - Ensures idempotent operations (CREATE TABLE IF NOT EXISTS)
-```
+```text
 
 ### Future Migration Management
 
@@ -239,7 +239,7 @@ npm run db:push
 
 # View in Drizzle Studio
 npm run db:studio
-```
+```text
 
 ---
 
@@ -254,7 +254,7 @@ The seeding system creates essential data during setup:
 - **Admin User**: Created with credentials from setup wizard, assigned Admin role, email verified automatically.
 - **Default Theme**: SveltyCMS Default theme, active and set as default.
 - **Root Virtual Folder**: Media folder organization, named "mediaFolder", parent for all media.
-```
+```text
 
 ---
 
@@ -267,7 +267,7 @@ All tables include nullable `tenantId` columns:
 ```typescript
 // Queries automatically filter by tenantId when provided
 const users = await db.select().from(authUsers).where(eq(authUsers.tenantId, currentTenantId));
-```
+```text
 
 ### Cross-Tenant Operations
 
@@ -275,7 +275,7 @@ const users = await db.select().from(authUsers).where(eq(authUsers.tenantId, cur
 // Admin operations can work across tenants
 const allUsers = await db.select().from(authUsers);
 // No tenantId filter = all tenants
-```
+```text
 
 ---
 
@@ -304,7 +304,7 @@ const allUsers = await db.select().from(authUsers);
 utils.dateToISO(date); // Date → ISODateString
 utils.isoToDate(isoString); // ISODateString → Date
 utils.convertDatesToISO(row); // Convert all dates in object
-```
+```text
 
 ---
 
@@ -339,7 +339,7 @@ await db
 
 // Delete
 await db.delete(authUsers).where(eq(authUsers._id, userId));
-```
+```text
 
 ### Complex Queries
 
@@ -364,7 +364,7 @@ const usersWithRoles = await db
   })
   .from(authUsers)
   .leftJoin(roles, eq(authUsers.roleIds, roles._id));
-```
+```text
 
 ---
 
@@ -389,7 +389,7 @@ INDEX status_idx (status)
 
 -- Date range queries (reporting)
 INDEX created_at_idx (createdAt)
-```
+```text
 
 ### Connection Pooling Benefits
 
@@ -420,7 +420,7 @@ await db.select().from(authUsers).where(eq(authUsers.email, userInput)); // Auto
 
 // ❌ Never do this
 await db.execute(sql`SELECT * FROM users WHERE email = '${userInput}'`);
-```
+```text
 
 ### Password Security
 
@@ -430,7 +430,7 @@ import argon2 from "argon2";
 
 const hashedPassword = await argon2.hash(plainPassword);
 const isValid = await argon2.verify(hashedPassword, plainPassword);
-```
+```text
 
 ### Tenant Isolation
 
@@ -442,7 +442,7 @@ const applyTenantFilter = (conditions, tenantId) => {
   }
   return conditions;
 };
-```
+```text
 
 ---
 
@@ -454,7 +454,7 @@ const applyTenantFilter = (conditions, tenantId) => {
 // Test database connection
 const { success, latency } = await testConnection();
 console.log(`Connection ${success ? "OK" : "Failed"} (${latency}ms)`);
-```
+```text
 
 ### Data Validation
 
@@ -469,7 +469,7 @@ if (!result.success) {
   // Handle validation errors
   console.error(result.issues);
 }
-```
+```text
 
 ---
 
@@ -479,31 +479,31 @@ if (!result.success) {
 
 **Connection Refused**
 
-```
+```text
 Error: connect ECONNREFUSED 127.0.0.1:3306
 Solution: Ensure MariaDB is running and port 3306 is accessible
-```
+```text
 
 **Authentication Failed**
 
-```
+```text
 Error: ER_ACCESS_DENIED_ERROR
 Solution: Verify username/password and user has proper grants
-```
+```text
 
 **Table Already Exists**
 
-```
+```text
 Warning: Table already exists
 Solution: This is normal - migrations are idempotent
-```
+```text
 
 **Date Format Issues**
 
-```
+```text
 Error: Invalid date format
 Solution: Ensure using utils.dateToISO() for date conversions
-```
+```text
 
 ### Debug Mode
 
@@ -515,7 +515,7 @@ const db = drizzle(connection, {
   mode: "default",
   logger: true, // Logs all SQL queries
 });
-```
+```text
 
 ---
 
@@ -560,7 +560,7 @@ See `MARIADB_IMPLEMENTATION.md` in repository root for detailed implementation g
 
 ## Performance Benchmarks
 
-The MariaDB adapter is optimized for relational data integrity and high-concurrency connection pooling. For detailed performance metrics and comparisons, please refer to the [Performance Benchmarks](/docs/project/benchmarks) document.
+The MariaDB adapter is optimized for relational data integrity and high-concurrency connection pooling. For detailed performance metrics and comparisons, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
 
 Key MariaDB optimizations include:
 
@@ -615,3 +615,12 @@ This module is considered feature-complete (`v1.0`). Future contributions should
 1. Performance optimization (indexing, query caching)
 2. Advanced features (connection pooling tweaking)
 3. Extended testing coverage
+````
+
+---
+
+## Related
+
+- [Database Architecture](./index.mdx)
+- [Performance Benchmarks](../../project/benchmarks/index.mdx)
+- [Architecture Overview](../index.mdx)

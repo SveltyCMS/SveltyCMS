@@ -203,7 +203,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
         <!-- Error Banner with ARIA live announcement -->
         {#if error}
             <div class="absolute top-16 inset-s-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4" role="alert" aria-live="assertive">
-                <div class="bg-error-900/90 border border-error-700/50 rounded-lg p-4 shadow-lg backdrop-blur-sm">
+                <div class="bg-error-900/90 border border-error-700/50 rounded p-4 shadow-lg backdrop-blur-sm">
                     <div class="flex items-start gap-3">
                         <iconify-icon icon="mdi:alert-circle" width="24" class="text-error-500 shrink-0" aria-hidden="true"></iconify-icon>
                         <div class="flex-1">

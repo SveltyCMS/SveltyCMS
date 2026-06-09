@@ -70,46 +70,79 @@ export const importDataHandler: JobHandler = async (
     for (let i = 0; i < total; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
 
-      for (const doc of chunk) {
-        try {
-          // Check for duplicates if strategy is skip
-          if (duplicateStrategy === "skip" && doc._id) {
-            const existing = await dbAdapter.crud.findOne(
-              collectionName,
-              { _id: doc._id },
-              { tenantId: tenantId as DatabaseId },
-            );
-            if (existing.success && existing.data) {
-              skipped++;
-              continue;
+      // High-Performance Bulk Processing Path
+      const itemsToUpsert: any[] = [];
+      const itemsToInsert: any[] = [];
+
+      try {
+        // Optimize duplicate checking: fetch all existing IDs in one query
+        const docsWithIds = chunk.filter((doc) => doc._id);
+        const existingIds = new Set<string>();
+
+        if (duplicateStrategy === "skip" && docsWithIds.length > 0) {
+          const ids = docsWithIds.map((doc) => doc._id);
+          const existing = await dbAdapter.crud.findByIds(collectionName, ids, {
+            tenantId: tenantId as DatabaseId,
+            fields: ["_id"] as any,
+          });
+          if (existing.success && existing.data) {
+            for (const item of existing.data) {
+              if (item._id) {
+                existingIds.add(item._id as string);
+                skipped++;
+              }
             }
           }
+        }
 
-          // Insert or update document
-          const result = doc._id
-            ? await dbAdapter.crud.upsert(collectionName, { _id: doc._id }, doc, {
-                tenantId: tenantId as DatabaseId,
-              })
-            : await dbAdapter.crud.insert(collectionName, doc, {
-                tenantId: tenantId as DatabaseId,
-              });
+        // Segregate chunk into inserts vs upserts
+        for (const doc of chunk) {
+          if (doc._id && existingIds.has(doc._id)) continue;
 
-          if (result.success) {
-            imported++;
+          if (doc._id) {
+            itemsToUpsert.push({ query: { _id: doc._id }, data: doc });
           } else {
-            errors++;
-            logger.warn(`[ImportJob] Failed to import document in ${collectionName}`, {
-              error: result.error,
+            itemsToInsert.push(doc);
+          }
+        }
+
+        // Execute bulk insertMany
+        if (itemsToInsert.length > 0) {
+          const insertResult = await dbAdapter.crud.insertMany(collectionName, itemsToInsert, {
+            tenantId: tenantId as DatabaseId,
+          });
+          if (insertResult.success) {
+            imported += itemsToInsert.length;
+          } else {
+            errors += itemsToInsert.length;
+            logger.warn(`[ImportJob] Failed to bulk insert in ${collectionName}`, {
+              error: insertResult.error,
               tenantId,
             });
           }
-        } catch (innerError: unknown) {
-          errors++;
-          logger.error(`[ImportJob] Unexpected error importing document`, {
-            error: innerError instanceof Error ? innerError.message : String(innerError),
-            tenantId,
-          });
         }
+
+        // Execute bulk upsertMany
+        if (itemsToUpsert.length > 0) {
+          const upsertResult = await dbAdapter.crud.upsertMany(collectionName, itemsToUpsert, {
+            tenantId: tenantId as DatabaseId,
+          });
+          if (upsertResult.success) {
+            imported += itemsToUpsert.length;
+          } else {
+            errors += itemsToUpsert.length;
+            logger.warn(`[ImportJob] Failed to bulk upsert in ${collectionName}`, {
+              error: upsertResult.error,
+              tenantId,
+            });
+          }
+        }
+      } catch (innerError: unknown) {
+        errors += chunk.length;
+        logger.error(`[ImportJob] Unexpected error during bulk import`, {
+          error: innerError instanceof Error ? innerError.message : String(innerError),
+          tenantId,
+        });
       }
 
       // Update progress in DB

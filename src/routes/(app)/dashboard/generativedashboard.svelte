@@ -65,9 +65,9 @@ async function handleRegenerate() {
 	{#if currentSpec}
 		<!-- AI Driven Layout Header -->
 		<div class="flex flex-col gap-4 mb-6">
-			<div class="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-100-900 border border-surface-200-800 shadow-sm">
+			<div class="flex items-center justify-between gap-4 p-4 rounded bg-surface-100-900 border border-surface-200-800 shadow-sm">
 				<div class="flex items-center gap-3">
-					<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 p-2 rounded-lg shadow-inner">
+					<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 p-2 rounded shadow-inner">
 						<iconify-icon icon="mdi:robot-outline" width="24" class="text-white"></iconify-icon>
 					</div>
 					<div>
@@ -80,17 +80,17 @@ async function handleRegenerate() {
 				</div>
 
 				<div class="flex-1 max-w-xl relative">
-					<input
+					<input aria-label="Input"
 						type="text"
 						bind:value={prompt}
 						placeholder="Prompt AI to change this layout..."
-						class="input w-full pr-24 rounded-full"
+						class="input w-full pe-24 rounded-full"
 						onkeydown={(e) => e.key === 'Enter' && handleRegenerate()}
 					/>
 					<button
 						onclick={handleRegenerate}
 						disabled={isRegenerating}
-						class="absolute right-1 top-1 bottom-1 px-4 btn btn-sm rounded-full preset-filled-tertiary-500 dark:preset-filled-primary-500 font-bold"
+						class="absolute end-1 top-1 bottom-1 px-4 btn btn-sm rounded-full preset-filled-tertiary-500 dark:preset-filled-primary-500 font-bold"
 					>
 						{#if isRegenerating}
 							<iconify-icon icon="mdi:loading" class="animate-spin" width="18"></iconify-icon>

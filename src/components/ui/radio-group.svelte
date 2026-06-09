@@ -134,7 +134,7 @@ card variants, and full keyboard navigation per ARIA radiogroup pattern.
 		<legend id={legendId} class="text-sm font-semibold text-surface-900 dark:text-surface-100 mb-1">
 			{label}
 			{#if required}
-				<span class="text-error-500 ml-0.5" aria-hidden="true">*</span>
+				<span class="text-error-500 ms-0.5" aria-hidden="true">*</span>
 			{/if}
 		</legend>
 	{/if}

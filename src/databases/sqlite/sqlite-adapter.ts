@@ -8,7 +8,7 @@
  * - Clearing collections and system database tables resiliently.
  *
  * ### Features:
- * - support for Bun native and better-sqlite3 drivers
+ * - support for Bun native and node:sqlite drivers
  * - system and collection table cleanups
  */
 
@@ -53,7 +53,7 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
   public async clearDatabase(): Promise<DatabaseResult<void>> {
     return SQLiteAdapterCore.writeMutex.runExclusive(() =>
       this.wrap(async () => {
-        // Support both Bun (query) and Node/better-sqlite3 (prepare)
+        // Support both Bun (query) and Node/node:sqlite (prepare)
         let tables: { name: string }[];
         if (this.sqlite.query) {
           tables = this.sqlite

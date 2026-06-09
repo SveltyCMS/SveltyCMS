@@ -449,8 +449,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         process.env.TEST_MODE === "true" ||
         process.env.VITE_TEST_MODE === "true" ||
         process.env.BENCHMARK === "true";
-      const shouldEnforceCompletedSetupRedirect =
-        !isTestMode || IS_STRICT_SETUP_CHECK;
+      const shouldEnforceCompletedSetupRedirect = !isTestMode || IS_STRICT_SETUP_CHECK;
 
       if (
         isSetupRoute &&

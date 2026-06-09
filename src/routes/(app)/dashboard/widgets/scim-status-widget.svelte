@@ -167,7 +167,7 @@ export const widgetMeta = {
 						</div>
 
 						{#if scim.lastError}
-							<div class="text-xs text-red-500 bg-red-50 dark:bg-red-950/50 p-2.5 rounded-xl border border-red-250 dark:border-red-900/60 mt-1">
+							<div class="text-xs text-red-500 bg-red-50 dark:bg-red-950/50 p-2.5 rounded border border-red-250 dark:border-red-900/60 mt-1">
 								{scim.lastError}
 							</div>
 						{/if}

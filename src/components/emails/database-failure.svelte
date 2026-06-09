@@ -247,8 +247,7 @@
 					href="{hostLink}/dashboard"
 					pX={32}
 					pY={14}
-					style="background-color: #dc2626; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 16px; text-decoration: none; display: inline-block;"
-				>
+					style="background-color: #dc2626; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 16px; text-decoration: none; display: inline-block;">
 					Go to Dashboard
 				</Button>
 			</Section>

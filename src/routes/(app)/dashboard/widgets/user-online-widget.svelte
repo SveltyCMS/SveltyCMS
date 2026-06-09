@@ -193,7 +193,7 @@ export const widgetMeta = {
 							type="text"
 							bind:value={searchTerm}
 							placeholder="Filter users..."
-							class="w-full rounded-xl border border-surface-200 bg-surface-50 py-1.5 pe-9 ps-3 text-sm text-surface-800 placeholder-surface-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:placeholder-surface-500"
+							class="w-full rounded border border-surface-200 bg-surface-50 py-1.5 pe-9 ps-3 text-sm text-surface-800 placeholder-surface-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:placeholder-surface-500"
 							aria-label="Filter online users"
 						/>
 						<iconify-icon
@@ -238,7 +238,7 @@ export const widgetMeta = {
 							</div>
 
 							<!-- Time -->
-							<div class="shrink-0 text-right text-[11px] font-medium text-surface-400 dark:text-surface-500">
+							<div class="shrink-0 text-end text-[11px] font-medium text-surface-400 dark:text-surface-500">
 								{user.onlineTime
 									? new Date(user.onlineTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 									: '—'}

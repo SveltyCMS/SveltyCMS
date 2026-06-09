@@ -96,7 +96,7 @@
 
 	<button 
 		type="button" 
-		class="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all preset-filled-tertiary-500 dark:preset-filled-primary-500 shadow-md shadow-primary-500/20 disabled:opacity-50 disabled:pointer-events-none"
+		class="w-full flex items-center justify-center gap-2 py-2.5 rounded text-sm font-semibold transition-all preset-filled-tertiary-500 dark:preset-filled-primary-500 shadow-md shadow-primary-500/20 disabled:opacity-50 disabled:pointer-events-none"
 		onclick={getCurrentLocation}
 		disabled={isLocating}
 	>
@@ -111,7 +111,7 @@
 
 	<!-- Visual Feedback -->
 	{#if value}
-		<div class="p-3 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 text-xs font-mono text-center">
+		<div class="p-3 bg-surface-100 dark:bg-surface-800 rounded border border-surface-200 dark:border-surface-700 text-xs font-mono text-center">
 			GeoJSON: {JSON.stringify(value)}
 		</div>
 	{/if}

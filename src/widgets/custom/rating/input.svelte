@@ -68,7 +68,7 @@ Interactive star rating with hover states and click selection
 </script>
 
 <div
-	class="relative flex flex-col gap-2 rounded-lg border p-3 border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900 transition-all"
+	class="relative flex flex-col gap-2 rounded border p-3 border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900 transition-all"
 	class:ring-2={!!error}
 	class:ring-error-500={!!error}
 	class:border-error-500={!!error}
@@ -94,7 +94,7 @@ Interactive star rating with hover states and click selection
 		{#if !field.required || (value !== null && value !== undefined)}
 			<button
 				type="button"
-				class="p-1.5 rounded-md bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-all flex items-center justify-center"
+				class="p-1.5 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-all flex items-center justify-center"
 				onclick={handleClear}
 				title="Reset Rating"
 			>

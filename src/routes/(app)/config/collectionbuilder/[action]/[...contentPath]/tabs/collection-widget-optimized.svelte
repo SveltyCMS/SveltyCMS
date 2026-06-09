@@ -302,7 +302,7 @@ const viewOptions = [
 		</div>
 	</div>
 
-	<div class="flex-1 overflow-y-auto min-h-0 pr-1">
+	<div class="flex-1 overflow-y-auto min-h-0 pe-1">
 		{#if builderView === 'buzz'}
 			<BuzzForm />
 		{:else if builderView === 'preview'}
@@ -316,7 +316,7 @@ const viewOptions = [
 						Experience the exact layout rendered by our AI-Native engine. Perfect parity between builder and live CMS.
 					</p>
 
-					<div class="max-w-3xl border border-surface-200 dark:border-surface-700 rounded-xl p-8 bg-surface-50 dark:bg-surface-900 shadow-inner">
+					<div class="max-w-3xl border border-surface-200 dark:border-surface-700 rounded p-8 bg-surface-50 dark:bg-surface-900 shadow-inner">
 						{#key items}
 							<JSONUIProvider initialState={mockData}>
 								<Renderer registry={sveltyRegistry} spec={generatePreviewSpec(items)} />
@@ -334,9 +334,9 @@ const viewOptions = [
 			<div class="space-y-6">
 				<!-- Add Bar -->
 				<Card class="p-4 flex flex-wrap items-center gap-2 bg-surface-50/50 dark:bg-surface-900/50 border-dashed">
-					<span class="text-xs font-bold text-surface-500 dark:text-surface-50 mr-2 uppercase tracking-tight">Quick Add:</span>
+					<span class="text-xs font-bold text-surface-500 dark:text-surface-50 me-2 uppercase tracking-tight">Quick Add:</span>
 					{#each quickWidgets as qw}
-						<Button
+						<Button>
 							variant="outline"
 							size="sm"
 							onclick={() => addQuickWidget(qw.key)}
@@ -346,7 +346,7 @@ const viewOptions = [
 							{qw.label}
 						</Button>
 					{/each}
-					<Button
+					<Button>
 						variant="primary"
 						size="sm"
 						onclick={addField}
@@ -366,19 +366,19 @@ const viewOptions = [
 				>
 					{#each items as item (item._dragId)}
 						<div animate:flip={{ duration: flipDurationMs }} class="group relative">
-							<Card class="flex items-center gap-4 p-3 pr-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
+							<Card class="flex items-center gap-4 p-3 pe-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
 								<!-- Drag Handle -->
 								<div class="cursor-grab text-surface-300 active:cursor-grabbing group-hover:text-primary-500 transition-colors">
 									<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
 								</div>
 
 								<!-- Field Icon & Index -->
-								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700">
+								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700">
 									<iconify-icon icon={item.icon || 'mdi:widgets'} width="20" class="text-primary-500"></iconify-icon>
 								</div>
 
 								<!-- Field Info -->
-								<div class="flex-1 min-w-0 pr-4">
+								<div class="flex-1 min-w-0 pe-4">
 									<div class="flex items-center gap-2 mb-0.5">
 										<span class="font-bold truncate text-sm sm:text-base">{item.label}</span>
 										<span class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider uppercase bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400">

@@ -84,6 +84,9 @@ declare global {
       tenantId?: DatabaseId | null;
       theme: Theme | null;
       user: User | null;
+      // Set by handle-authentication when a session cookie was present but invalid/expired:
+      // the browser has signed in before, so the login page can default to the Sign In form.
+      returningUser?: boolean;
 
       // Tracing and Metrics
       requestStart: number;

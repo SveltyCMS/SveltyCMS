@@ -22,7 +22,7 @@ SveltyCMS features a robust, enterprise-grade plugin architecture for deep custo
 
 ## System Overview
 
-```mermaid
+````mermaid
 graph TD
     subgraph "Plugin System"
         Registry["Plugin Registry"]
@@ -50,7 +50,7 @@ graph TD
     HookRunner -->|reads/writes via| Content
     Sandbox -->|wraps| HookRunner
     Migrations -->|provisions| MV
-```
+```text
 
 ## System Discovery & Autoloading
 
@@ -67,7 +67,7 @@ This allows any custom or optional plugin to be added to or deleted from the `sr
 
 Every plugin lives in `src/plugins/{plugin-id}/` and follows this structure:
 
-```
+```text
 src/plugins/my-plugin/
 ├── index.ts                  ← Plugin definition + metadata
 ├── index.server.ts           ← Server-only: hooks, migrations (optional)
@@ -76,7 +76,7 @@ src/plugins/my-plugin/
 ├── ui/                       ← Svelte components (optional)
 │   └── MyComponent.svelte
 └── my-plugin.mdx             ← Plugin documentation
-```
+```text
 
 ---
 
@@ -105,7 +105,7 @@ export interface Plugin {
   /** Optional: restrict plugin to specific collections */
   enabledCollections?: string[];
 }
-```
+```text
 
 ---
 
@@ -141,7 +141,7 @@ hooks: {
   /** Cleanup related data after deletion. */
   afterDelete: async (context, collection, id) => {},
 }
-```
+```text
 
 ---
 
@@ -163,7 +163,7 @@ All plugin hooks execute within a sandbox (`src/plugins/sandbox.ts`):
 
 The recommended architecture for admin-facing plugins uses TWO layers:
 
-```
+```text
 ┌──────────────────────────────────────────┐
 │  Config Page (routes/(app)/config/...)    │  ← Admin UI
 │  +page.svelte, +page.server.ts            │     CRUD forms, list views
@@ -171,7 +171,7 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 │  Plugin (src/plugins/...)                 │  ← Business logic
 │  hooks, migrations, services              │     Auto-behaviors, cache sync
 └──────────────────────────────────────────┘
-```
+```text
 
 **Example: Redirect Manager**
 
@@ -217,7 +217,7 @@ config: {
     webhookSecret: "",    // Webhook signing secret
   },
 }
-```
+```text
 
 ### 2. Migrations
 
@@ -234,12 +234,12 @@ beforeSave: async (context, _collection, data) => {
   }
   return data;
 };
-```
+```text
 
 ### 4. UI Components
 
-- `PaymentForm.svelte` — Stripe Elements card input (PCI-compliant iframe)
-- `PaymentStatus.svelte` — Payment status badge in entry lists
+- `payment-form.svelte` — Stripe Elements card input (PCI-compliant iframe)
+- `payment-status.svelte` — Payment status badge in entry lists
 - Server endpoints for intent creation and webhook handling
 
 ### 5. Optional Dependency
@@ -257,3 +257,12 @@ The `stripe` npm package is dynamically imported only when the plugin is enabled
 5. **Optional Dependencies**: Dynamic import server-side deps so plugins are truly optional.
 6. **Documentation**: Every plugin must have an `.mdx` file in its directory.
 7. **Config Page Pattern**: Admin-facing plugins should pair with a config page for CRUD.
+````
+
+---
+
+## Related
+
+- [Development Guides](../index.mdx)
+- [Widget System](../../../architecture/index.mdx)
+- [Security Overview](../../../architecture/security/index.mdx)

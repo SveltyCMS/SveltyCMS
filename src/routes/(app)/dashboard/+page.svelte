@@ -642,21 +642,21 @@ onMount(() => {
 						aria-expanded={dropdownOpen}
 						aria-label="Add Widget"
 					>
-						<iconify-icon icon="mdi:plus" width={18} class="mr-2"></iconify-icon>
+						<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
 						Add Widget
 					</button>
 				{/if}
 				{#if dropdownOpen}
 					<div
-						class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+						class="widget-dropdown absolute end-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
 						role="menu"
 					>
-						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} /></div>
+						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery}  aria-label="Input" /></div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
 								{const widgetInfo = widgetComponentRegistry[widgetName]}
 								<button
-									class="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
+									class="flex w-full items-center gap-2 px-4 py-2 text-start transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
 									onclick={() => addNewWidget(widgetName)}
 									title={widgetInfo?.description}
 									role="menuitem"
@@ -692,7 +692,7 @@ onMount(() => {
 						<!-- Grid drop indicator -->
 						{#if gridDropIndicator}
 							<div
-								class="pointer-events-none absolute z-30 rounded-lg border-2 border-dashed border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/20"
+								class="pointer-events-none absolute z-30 rounded border-2 border-dashed border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/20"
 								style:grid-column="span {gridDropIndicator.width}"
 								style:grid-row="span {gridDropIndicator.height}"
 								style:grid-column-start={gridDropIndicator.col + 1}
@@ -709,7 +709,7 @@ onMount(() => {
 								role="article"
 								aria-label="{widgetName} widget. Press Ctrl + Arrow keys to reorder."
 								tabindex="0"
-								class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+								class="widget-container group relative select-none overflow-hidden rounded border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 								data-widget-id={item.id}
 								style:grid-column="span {item.size.w}"
 								style:grid-row="span {item.size.h}"
@@ -769,7 +769,7 @@ onMount(() => {
 								onclick={() => (dropdownOpen = true)}
 								aria-label="Add first widget"
 							>
-								<iconify-icon icon="mdi:plus" width={22} class="mr-2"></iconify-icon>
+								<iconify-icon icon="mdi:plus" width={22} class="me-2"></iconify-icon>
 								Add Widget
 							</button>
 						</div>
@@ -786,7 +786,7 @@ onMount(() => {
 <!-- Import/Export Modal -->
 {#if showImportExport}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
 				<button onclick={() => (showImportExport = false)} class="preset-ghost btn-sm" aria-label="Close import/export modal">
@@ -798,7 +798,7 @@ onMount(() => {
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
-					<iconify-icon icon="mdi:shield-check" width={16} class="mr-1 inline"></iconify-icon>
+					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2"><button onclick={() => (showImportExport = false)} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">Done</button></div>

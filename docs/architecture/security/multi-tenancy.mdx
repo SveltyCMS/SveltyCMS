@@ -41,7 +41,8 @@ SveltyCMS prevents "Schema Leakage" by maintaining isolated `YogaServer` instanc
 
 Furthermore, SveltyCMS protects the GraphQL interface with:
 
-- **AST Depth Limitation**: Limits query depth (default 7) to prevent nested relation Denial of Service (DoS) attacks.
+- **AST Depth Limitation**: Limits query depth to 7 via `createDepthLimitRule` wired into the Yoga `onValidate` hook, preventing nested relation Denial of Service (DoS) attacks.
+- **Max Aliases Limitation**: Limits query aliases to 15 via `createMaxAliasesRule`, preventing alias-based batching DoS attacks.
 - **Strict Tenant Enforcement**: All GraphQL resolvers strictly check that the request's context `tenantId` precisely matches the entity's `tenantId`. Mismatches result in immediate query termination and an audit log event, unless triggered by a Super-Admin with `bypassTenantIsolation`.
 - **Tenant-Scoped Rate Limits**: Leverages Redis-backed rate-limiters scoped directly to `rate:tenant:${tenantId}:graphql:minute` ensuring fair usage and protecting infrastructure from tenant-specific floods.
 
@@ -78,3 +79,11 @@ The import system validates the scope of incoming settings. It dynamically looks
 | **Infrastructure** | Super-Admin Restrictons         | RBAC Middleware   |
 
 This architecture ensures that SveltyCMS remains secure, compliant, and performant even when hosting thousands of isolated customers on a single installation.
+
+---
+
+## Related
+
+- [Security Overview](./index.mdx)
+- [API Security & Token Hardening](../api-security.mdx)
+- [Architecture Overview](../index.mdx)

@@ -30,13 +30,7 @@ export async function handleTokenRoutes(
   let tokenId = segments[2];
 
   // If segments[1] is NOT a known action, and it exists, it might be the tokenId
-  const KNOWN_ACTIONS = [
-    "list",
-    "create-token",
-    "validate-token",
-    "batch",
-    "resolve",
-  ];
+  const KNOWN_ACTIONS = ["list", "create-token", "validate-token", "batch", "resolve"];
   if (action && !KNOWN_ACTIONS.includes(action)) {
     tokenId = action;
     if (request.method === "DELETE") {
@@ -99,7 +93,7 @@ export async function handleTokenRoutes(
     if (!result.success) return successResponse(event, result);
 
     if (url.searchParams.get("raw") === "true") {
-      return rawResponse(event, { success: true, data: result.data });
+      return rawResponse(event, result.data);
     }
 
     return rawResponse(event, {
@@ -171,10 +165,7 @@ export async function handleTokenRoutes(
         tenantId,
       });
       if (!(result as any).success)
-        throw new AppError(
-          (result as any).message || "Failed to create token",
-          400,
-        );
+        throw new AppError((result as any).message || "Failed to create token", 400);
 
       // Test expects { success: true, token: { value: ... } }
       return rawResponse(event, {
@@ -197,27 +188,17 @@ export async function handleTokenRoutes(
             if (isWebsite) {
               results.push(await cms.websiteTokens.delete(String(id), { tenantId }));
             } else {
-              results.push(
-                await cms.auth.tokens.delete(String(id), { tenantId }),
-              );
+              results.push(await cms.auth.tokens.delete(String(id), { tenantId }));
             }
           }
           return successResponse(event, { deletedCount: results.length });
         }
         case "block":
-          if (isWebsite)
-            throw new AppError("Block not supported for website tokens", 400);
-          return successResponse(
-            event,
-            await cms.auth.tokens.block(ids, { tenantId }),
-          );
+          if (isWebsite) throw new AppError("Block not supported for website tokens", 400);
+          return successResponse(event, await cms.auth.tokens.block(ids, { tenantId }));
         case "unblock":
-          if (isWebsite)
-            throw new AppError("Unblock not supported for website tokens", 400);
-          return successResponse(
-            event,
-            await cms.auth.tokens.unblock(ids, { tenantId }),
-          );
+          if (isWebsite) throw new AppError("Unblock not supported for website tokens", 400);
+          return successResponse(event, await cms.auth.tokens.unblock(ids, { tenantId }));
         default:
           throw new AppError(`Unsupported batch operation: ${op}`, 400);
       }
@@ -227,15 +208,9 @@ export async function handleTokenRoutes(
   if (request.method === "DELETE" && action === "delete") {
     if (!tokenId) throw new AppError("Token ID is required", 400);
     if (isWebsite) {
-      return successResponse(
-        event,
-        await cms.websiteTokens.delete(tokenId, { tenantId }),
-      );
+      return successResponse(event, await cms.websiteTokens.delete(tokenId, { tenantId }));
     }
-    return successResponse(
-      event,
-      await cms.auth.tokens.delete(tokenId, { tenantId }),
-    );
+    return successResponse(event, await cms.auth.tokens.delete(tokenId, { tenantId }));
   }
 
   if (request.method === "PUT" && action === "update") {
@@ -257,8 +232,5 @@ export async function handleTokenRoutes(
     return successResponse(event, result);
   }
 
-  throw new AppError(
-    `Method ${request.method} or action ${action} not implemented`,
-    404,
-  );
+  throw new AppError(`Method ${request.method} or action ${action} not implemented`, 404);
 }

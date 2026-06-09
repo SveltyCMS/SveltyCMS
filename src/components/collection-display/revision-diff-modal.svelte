@@ -94,7 +94,7 @@ function onKeydown(e: KeyboardEvent) {
         {:else}
             <div class="grid grid-cols-1 gap-4">
                 {#each filteredDiffs as diff (diff.fieldName)}
-                    <div class="group border border-surface-200  rounded-xl overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50" in:slide>
+                    <div class="group border border-surface-200  rounded overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50" in:slide>
                         <!-- Field Header -->
                         <div class="px-4 py-2 bg-surface-50 dark:bg-surface-950 flex items-center justify-between border-b border-surface-200 dark:border-surface-800">
                             <div class="flex flex-col">

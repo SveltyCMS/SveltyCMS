@@ -32,11 +32,11 @@
 </script>
 
 <!-- CSS Logo - Removed <a> tag to prevent navigation interference -->
-<div class="absolute left-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
+<div class="absolute start-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
 	<!--White Inner Background -->
 	<div class="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white">
 		<!-- Red circle -->
-		<svg aria-hidden="true" width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+		<svg aria-hidden="true" width="160" height="160" class="absolute start-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle
 				cx="80"
 				cy="80"
@@ -61,7 +61,7 @@
 		</svg>
 
 		<!-- Black circle -->
-		<svg aria-hidden="true" width="170" height="170" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+		<svg aria-hidden="true" width="170" height="170" class="absolute start-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle
 				cx="85"
 				cy="85"
@@ -84,7 +84,7 @@
 			/>
 		</svg>
 
-		<div class="absolute left-1/2 top-[70px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
+		<div class="absolute start-1/2 top-[70px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 			<!-- Logo -->
 			<Logo fill="red" className="w-14 h-14" />
 

@@ -56,7 +56,7 @@ function formatUptime(seconds: number): string {
         <!-- Security Card -->
         <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fly={{ y: 20, delay: 100 }}>
             <div class="flex items-center justify-between">
-                <div class="bg-tertiary-500 dark:bg-primary-500/10 p-2 rounded-lg">
+                <div class="bg-tertiary-500 dark:bg-primary-500/10 p-2 rounded">
                     <iconify-icon icon="mdi:shield-lock" class="text-tertiary-500 dark:text-primary-500 text-2xl"></iconify-icon>
                 </div>
                 <span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">Active</span>
@@ -74,7 +74,7 @@ function formatUptime(seconds: number): string {
         <!-- System State Card -->
         <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fly={{ y: 20, delay: 200 }}>
             <div class="flex items-center justify-between">
-                <div class="bg-tertiary-500/10 p-2 rounded-lg">
+                <div class="bg-tertiary-500/10 p-2 rounded">
                     <iconify-icon icon="mdi:server-network" class="text-tertiary-500 text-2xl"></iconify-icon>
                 </div>
                 <span class="badge preset-filled-tertiary-500">{systemState?.services?.length || 0} Services</span>
@@ -92,7 +92,7 @@ function formatUptime(seconds: number): string {
         <!-- Webhooks Card -->
         <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fly={{ y: 20, delay: 300 }}>
             <div class="flex items-center justify-between">
-                <div class="bg-secondary-500/10 p-2 rounded-lg">
+                <div class="bg-secondary-500/10 p-2 rounded">
                     <iconify-icon icon="mdi:webhook" class="text-secondary-500 text-2xl"></iconify-icon>
                 </div>
                 <div class="flex gap-1 items-center">
@@ -113,7 +113,7 @@ function formatUptime(seconds: number): string {
         <!-- Quick Actions Card -->
         <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fly={{ y: 20, delay: 400 }}>
             <div class="flex items-center justify-between">
-                <div class="bg-warning-500/10 p-2 rounded-lg">
+                <div class="bg-warning-500/10 p-2 rounded">
                     <iconify-icon icon="mdi:flash" class="text-warning-500 text-2xl"></iconify-icon>
                 </div>
             </div>
@@ -181,7 +181,7 @@ function formatUptime(seconds: number): string {
                 {#if data.security?.recentIncidents?.length > 0}
                     {#each data.security.recentIncidents as incident}
                         {const inc = incident as any}
-                        <div class="flex items-center gap-4 p-3 rounded-lg bg-surface-50 dark:bg-surface-800 border-l-4 border-error-500">
+                        <div class="flex items-center gap-4 p-3 rounded bg-surface-50 dark:bg-surface-800 border-s-4 border-error-500">
                             <iconify-icon icon="mdi:alert-decagram" class="text-error-500 text-xl"></iconify-icon>
                             <div class="flex-1">
                                 <p class="text-sm font-bold">{inc.type}</p>

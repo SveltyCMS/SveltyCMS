@@ -31,7 +31,7 @@ The unified error handling system consists of three core modules:
 | **apiHandler.ts**     | `src/utils/apiHandler.ts`     | Higher-order function for API route protection |
 | **apiClient.ts**      | `src/utils/apiClient.ts`      | Client-side fetch wrapper with error handling  |
 
-```mermaid
+````mermaid
 graph TD
     subgraph Server Side
         API[API Route] --> Handler[apiHandler]
@@ -48,7 +48,7 @@ graph TD
     end
 
     ErrorResponse -.-> Fetch
-```
+```text
 
 ---
 
@@ -67,7 +67,7 @@ interface ApiErrorResponse {
   status?: number; // HTTP status code (for logging)
   stack?: string; // Stack trace (development only)
 }
-```
+```text
 
 ### AppError Class
 
@@ -81,7 +81,7 @@ throw new AppError("User not found", 404, "NOT_FOUND");
 
 // With details
 throw new AppError("Validation failed", 400, "VALIDATION_ERROR", { fields: ["email", "password"] });
-```
+```text
 
 #### Constructor Parameters
 
@@ -134,7 +134,7 @@ export async function handleUserRoutes(event, cms, segments) {
 
   return json({ success: true, data: user });
 }
-```
+```text
 
 ### Handling Different Error Types
 
@@ -158,7 +158,7 @@ throw new AppError("Custom message", 400, "CUSTOM_CODE");
 // Unknown errors
 throw new Error("Something went wrong");
 // ➜ Wrapped with INTERNAL_ERROR code
-```
+```text
 
 ---
 
@@ -180,7 +180,7 @@ if (response.success) {
   console.error("Error:", response.message);
   console.error("Code:", response.code);
 }
-```
+```text
 
 ### ApiResponse Interface
 
@@ -192,7 +192,7 @@ interface ApiResponse<T> {
   code?: string; // Error code when success: false
   issues?: string[]; // Validation issues when applicable
 }
-```
+```text
 
 ### Making Requests
 
@@ -215,7 +215,7 @@ const updateResult = await fetchApi<User>(`/api/users/${id}`, {
 const deleteResult = await fetchApi(`/api/users/${id}`, {
   method: "DELETE",
 });
-```
+```text
 
 ### Error Handling Patterns
 
@@ -248,7 +248,7 @@ async function createUser(data: UserInput) {
 
   return response.data;
 }
-```
+```text
 
 ---
 
@@ -274,7 +274,7 @@ async function validateInput() {
   // Result contains { valid, message, issues }
   return result.valid;
 }
-```
+```text
 
 ### ValidationStore API
 
@@ -295,7 +295,7 @@ if (validationStore.isValid) {
 
 // Get specific error
 const emailError = validationStore.getError("email");
-```
+```text
 
 ---
 
@@ -314,7 +314,7 @@ try {
   const message = getErrorMessage(error);
   console.error("Operation failed:", message);
 }
-```
+```text
 
 ### isAppError
 
@@ -327,7 +327,7 @@ if (isAppError(error)) {
   console.log("Status:", error.status);
   console.log("Code:", error.code);
 }
-```
+```text
 
 ### wrapError
 
@@ -341,7 +341,7 @@ try {
 } catch (error) {
   throw wrapError(error, "External API call failed", 502);
 }
-```
+```text
 
 ---
 
@@ -380,7 +380,7 @@ describe("getErrorMessage", () => {
     expect(getErrorMessage(null)).toBe("An unknown error occurred");
   });
 });
-```
+```text
 
 ### Integration Testing API Endpoints
 
@@ -412,7 +412,7 @@ describe("API Error Handling", () => {
     expect(data.code).toBe("NOT_FOUND");
   });
 });
-```
+```text
 
 ### Running Tests with Bun
 
@@ -425,7 +425,7 @@ bun test --grep "error"
 
 # Run with coverage
 bun test --coverage
-```
+```text
 
 ---
 
@@ -466,7 +466,7 @@ throw new AppError("Invalid input", 400);
 
 // ✅ Good: Specific
 throw new AppError("Email address is not valid", 400, "INVALID_EMAIL");
-```
+```text
 
 ---
 
@@ -522,20 +522,20 @@ export function wrapError(err: unknown, message?: string, status?: number): AppE
 
 // Types
 export interface ApiErrorResponse { ... }
-```
+```text
 
 ### Exports from apiHandler.ts
 
 ```typescript
 export function apiHandler(handler: ApiHandlerCallback): RequestHandler;
-```
+```text
 
 ### Exports from apiClient.ts
 
 ```typescript
 export function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>>;
 export interface ApiResponse<T> { ... }
-```
+```text
 
 ---
 
@@ -549,6 +549,7 @@ cat production.log | grep "User creation failed"
 
 # After: filter by structured code
 cat production.log | grep USER_CREATE_FAILED
-```
+```text
 
 Each `raise()` call auto-generates semantic codes (`NOT_FOUND`, `UNAUTHORIZED`, etc.) or accepts custom codes (`USER_CREATE_FAILED`). The `handleError` hook attaches userId, tenantId, and request path to every error log.
+````

@@ -92,6 +92,7 @@
 	import { showConfirm } from '@utils/modal.svelte';
 	import { debounce } from '@utils/utils';
 	import { untrack } from 'svelte';
+	// @ts-ignore - flip is used in template via animate:flip directive
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
@@ -731,8 +732,8 @@
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 					<div class="text-white dark:text-primary-500">{entrylist_dnd()}</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
-						<label class="mr-2">
-							<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange} />
+						<label class="me-2">
+							<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange}  aria-label="Input" />
 							{entrylist_all()}
 						</label>
 
@@ -740,14 +741,14 @@
 							use:dndzone={{ items: displayTableHeaders, flipDurationMs }}
 							onconsider={handleDndConsider}
 							onfinalize={handleDndFinalize}
-							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
+							class="flex flex-wrap justify-center gap-1 rounded p-2"
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<button
 									type="button"
 									class="chip {header.visible
 										? 'preset-filled-secondary-500'
-										: 'preset-ghost-secondary-500'} w-100 mr-2 flex items-center justify-center"
+										: 'preset-ghost-secondary-500'} w-100 me-2 flex items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
@@ -757,7 +758,7 @@
 									{#if header.visible}
 										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
 									{/if}
-									<span class="ml-2 capitalize">{header.label}</span>
+									<span class="ms-2 capitalize">{header.label}</span>
 								</button>
 							{/each}
 						</section>
@@ -866,7 +867,7 @@
 												<button
 													type="button"
 													onclick={() => isUser(row) && toggleUserBlocked(row)}
-													class="btn-sm cursor-pointer rounded-md p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
+													class="btn-sm cursor-pointer rounded p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
 													aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
 													title={row.blocked ? 'Click to unblock user' : 'Click to block user'}
 												>
@@ -879,7 +880,7 @@
 														event.stopPropagation();
 														if (isToken(row)) toggleTokenBlocked(row);
 													}}
-													class="btn-sm cursor-pointer rounded-md p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
+													class="btn-sm cursor-pointer rounded p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
 													aria-label={row.blocked ? 'Click to unblock token' : 'Click to block token'}
 													title={row.blocked ? 'Click to unblock token' : 'Click to block token'}
 												>
@@ -969,7 +970,7 @@
 													<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
 														{remainingTime}
 														{#if isTokenExpired}
-															<iconify-icon icon="material-symbols:warning" width={24} class="ml-1 text-error-500"></iconify-icon>
+															<iconify-icon icon="material-symbols:warning" width={24} class="ms-1 text-error-500"></iconify-icon>
 														{/if}
 													</span>
 												{:else}
@@ -979,8 +980,7 @@
 												-
 											{/if}
 										{:else}
-											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html getDisplayValue(row, header)}
+											{getDisplayValue(row, header)}
 										{/if}
 									</td>
 								{/each}

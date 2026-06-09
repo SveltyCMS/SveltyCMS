@@ -76,9 +76,9 @@ Displays a preview of the shared link for different platforms.
 	</div>
 
 	<!-- Preview Card Area -->
-	<div class="bg-surface-50 dark:bg-surface-900 rounded-lg p-4 md:p-8 flex justify-center border border-surface-200 dark:text-surface-50">
+	<div class="bg-surface-50 dark:bg-surface-900 rounded p-4 md:p-8 flex justify-center border border-surface-200 dark:text-surface-50">
 		<!-- Dynamic Preview Styling based on Platform -->
-		<div class="w-full max-w-[500px] bg-white text-black overflow-hidden shadow-lg rounded-lg transition-all duration-300">
+		<div class="w-full max-w-[500px] bg-white text-black overflow-hidden shadow-lg rounded transition-all duration-300">
 			<!-- Image Area -->
 			<div class="relative bg-gray-100 aspect-[1.91/1] flex items-center justify-center overflow-hidden">
 				{#if displayImage}

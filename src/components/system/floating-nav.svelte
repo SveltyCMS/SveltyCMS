@@ -326,7 +326,13 @@
 			}
 
 			node.onpointermove = null;
-			node.releasePointerCapture(e.pointerId);
+			try {
+				if (node.hasPointerCapture(e.pointerId)) {
+					node.releasePointerCapture(e.pointerId);
+				}
+			} catch (err) {
+				// Ignore if already released
+			}
 
 			if (!moved) {
 				return;
@@ -490,13 +496,13 @@
 </SystemTooltip>
 
 {#if showRoutes}
-	<button out:keepAlive|local onclick={closeMenu} class="fixed left-0 top-0 z-9999999" aria-label="Close navigation overlay">
+	<button out:keepAlive|local onclick={closeMenu} class="fixed inset-s-0 top-0 z-9999999" aria-label="Close navigation overlay">
 		<svg
 			bind:this={svg}
 			xmlns="http://www.w3.org/2000/svg"
 			use:setDash
 			aria-hidden="true"
-			class="pointer-events-none fixed left-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
+			class="pointer-events-none fixed inset-s-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
 		>
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
 			{#each endpointsWithPos.slice(1) as endpoint (endpoint.tooltip)}
@@ -507,7 +513,7 @@
 		<div
 			transition:fade
 			aria-hidden="true"
-			class="absolute left-1/2 top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
+			class="absolute inset-s-1/2 top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
 			style="top:{center.y}px;
 			       left:{center.x}px;
 			       width:{MENU_RADIUS * 2}px;

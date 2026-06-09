@@ -269,12 +269,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   }
 
   // 🛡️ SECURITY BYPASS: skip for local test/dev environments
-  if (
-    isLocal &&
-    (IS_TEST_MODE || hasValidTestSecret) &&
-    !forceSecurity
-  )
-    return resolve(event);
+  if (isLocal && (IS_TEST_MODE || hasValidTestSecret) && !forceSecurity) return resolve(event);
 
   // ✨ ENTERPRISE: Load Shedding (Self-Healing)
   // Force GC if available and memory is high

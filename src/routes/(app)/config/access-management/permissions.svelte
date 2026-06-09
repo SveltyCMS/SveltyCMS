@@ -287,27 +287,27 @@ function getActionBadgeClass(action: string) {
 				type="text"
 				bind:value={searchTerm}
 				placeholder="Search Permissions..."
-				class="w-full ps-11 pe-4 py-2.5 rounded-xl border border-surface-200  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
+				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-200  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
 				aria-label="Search permissions"
 			/>
 		</div>
 	</div>
 
 	{#if filteredPermissions.length === 0}
-		<div class="text-center py-8 border border-dashed border-surface-200 dark:border-surface-800 rounded-xl bg-surface-50/50 dark:bg-surface-900/25">
+		<div class="text-center py-8 border border-dashed border-surface-200 dark:border-surface-800 rounded bg-surface-50/50 dark:bg-surface-900/25">
 			<iconify-icon icon="material-symbols:search-off-rounded" width="32" class="text-surface-400 mb-2"></iconify-icon>
 			<p class="text-surface-500 dark:text-surface-400 text-sm">{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}</p>
 		</div>
 	{:else}
 		<!-- Admin Notice -->
 		{#if adminRole}
-			<div class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-50 dark:bg-surface-900/30 border border-surface-200/60 dark:border-surface-800/55 py-2 px-4 rounded-lg w-max mx-auto shadow-xs">
+			<div class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-50 dark:bg-surface-900/30 border border-surface-200/60 dark:border-surface-800/55 py-2 px-4 rounded w-max mx-auto shadow-xs">
 				<span class="font-extrabold text-error-500">*</span>
 				<span><span class="font-semibold text-tertiary-600 dark:text-primary-600">{adminRole.name}</span> Role has all permissions by default.</span>
 			</div>
 		{/if}
-		<div class="permission overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-800/80 shadow-sm bg-white dark:bg-surface-900">
-			<table class="w-full text-left border-collapse table-auto">
+		<div class="permission overflow-x-auto rounded border border-surface-200 dark:border-surface-800/80 shadow-sm bg-white dark:bg-surface-900">
+			<table class="w-full text-start border-collapse table-auto">
 				<!-- Header -->
 				<thead class="bg-surface-50 dark:bg-surface-950 border-b border-surface-200 dark:border-surface-800/80">
 					<tr>

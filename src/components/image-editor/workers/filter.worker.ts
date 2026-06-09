@@ -106,22 +106,66 @@ function applySharpness(
 
   const { data } = imageData;
   const output = new Uint8ClampedArray(data.length);
+  const w4 = width * 4;
 
   if (strength < 0) {
     // Softening (box blur)
     const amount = Math.min(1, Math.abs(strength));
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const idx = (y * width + x) * 4;
+        const idx = y * w4 + x * 4;
+
+        // Fast path for inner pixels (no bounds checking)
+        if (y > 0 && y < height - 1 && x > 0 && x < width - 1) {
+          const r =
+            data[idx - w4 - 4] +
+            data[idx - w4] +
+            data[idx - w4 + 4] +
+            data[idx - 4] +
+            data[idx] +
+            data[idx + 4] +
+            data[idx + w4 - 4] +
+            data[idx + w4] +
+            data[idx + w4 + 4];
+          const g =
+            data[idx - w4 - 3] +
+            data[idx - w4 + 1] +
+            data[idx - w4 + 5] +
+            data[idx - 3] +
+            data[idx + 1] +
+            data[idx + 5] +
+            data[idx + w4 - 3] +
+            data[idx + w4 + 1] +
+            data[idx + w4 + 5];
+          const b =
+            data[idx - w4 - 2] +
+            data[idx - w4 + 2] +
+            data[idx - w4 + 6] +
+            data[idx - 2] +
+            data[idx + 2] +
+            data[idx + 6] +
+            data[idx + w4 - 2] +
+            data[idx + w4 + 2] +
+            data[idx + w4 + 6];
+
+          output[idx] = clamp(data[idx] * (1 - amount) + (r / 9) * amount);
+          output[idx + 1] = clamp(data[idx + 1] * (1 - amount) + (g / 9) * amount);
+          output[idx + 2] = clamp(data[idx + 2] * (1 - amount) + (b / 9) * amount);
+          output[idx + 3] = data[idx + 3];
+          continue;
+        }
+
+        // Slow path for edge pixels
         let r = 0,
           g = 0,
           b = 0,
           n = 0;
         for (let ky = -1; ky <= 1; ky++) {
-          const py = Math.max(0, Math.min(height - 1, y + ky));
+          const py = y + ky < 0 ? 0 : y + ky >= height ? height - 1 : y + ky;
+          const py_w4 = py * w4;
           for (let kx = -1; kx <= 1; kx++) {
-            const px = Math.max(0, Math.min(width - 1, x + kx));
-            const si = (py * width + px) * 4;
+            const px = x + kx < 0 ? 0 : x + kx >= width ? width - 1 : x + kx;
+            const si = py_w4 + px * 4;
             r += data[si];
             g += data[si + 1];
             b += data[si + 2];
@@ -147,17 +191,38 @@ function applySharpness(
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
+      const idx = y * w4 + x * 4;
+      const alpha = data[idx + 3];
+
+      // Fast path for inner pixels
+      if (y > 0 && y < height - 1 && x > 0 && x < width - 1) {
+        const r =
+          data[idx] * centerW +
+          (data[idx - w4] + data[idx + w4] + data[idx - 4] + data[idx + 4]) * sideW;
+        const g =
+          data[idx + 1] * centerW +
+          (data[idx - w4 + 1] + data[idx + w4 + 1] + data[idx - 3] + data[idx + 5]) * sideW;
+        const b =
+          data[idx + 2] * centerW +
+          (data[idx - w4 + 2] + data[idx + w4 + 2] + data[idx - 2] + data[idx + 6]) * sideW;
+
+        output[idx] = clamp(r / norm);
+        output[idx + 1] = clamp(g / norm);
+        output[idx + 2] = clamp(b / norm);
+        output[idx + 3] = alpha;
+        continue;
+      }
+
+      // Slow path for edge pixels
       let r = 0,
         g = 0,
         b = 0;
-      const alpha = data[idx + 3];
-
       for (let ky = -1; ky <= 1; ky++) {
-        const py = Math.max(0, Math.min(height - 1, y + ky));
+        const py = y + ky < 0 ? 0 : y + ky >= height ? height - 1 : y + ky;
+        const py_w4 = py * w4;
         for (let kx = -1; kx <= 1; kx++) {
-          const px = Math.max(0, Math.min(width - 1, x + kx));
-          const si = (py * width + px) * 4;
+          const px = x + kx < 0 ? 0 : x + kx >= width ? width - 1 : x + kx;
+          const si = py_w4 + px * 4;
           const w = kx === 0 && ky === 0 ? centerW : kx === 0 || ky === 0 ? sideW : 0;
           r += data[si] * w;
           g += data[si + 1] * w;

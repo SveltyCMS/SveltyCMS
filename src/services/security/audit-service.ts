@@ -102,11 +102,11 @@ export class AuditService {
 
       const code = String((candidate as any)?.code || "").toLowerCase();
       return (
-        message.includes("audit_logs") &&
-        (message.includes("doesn't exist") ||
-          message.includes("does not exist") ||
-          message.includes("no such table") ||
-          message.includes("namespacenotfound")) ||
+        (message.includes("audit_logs") &&
+          (message.includes("doesn't exist") ||
+            message.includes("does not exist") ||
+            message.includes("no such table") ||
+            message.includes("namespacenotfound"))) ||
         code === "er_no_such_table" ||
         code === "namespace_not_found"
       );

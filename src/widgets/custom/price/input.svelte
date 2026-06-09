@@ -69,17 +69,17 @@ Renders a currency selector and a number input side-by-side.
 
 <div class="price-widget flex flex-col gap-1">
 	<div 
-		class="flex items-center gap-0 rounded-lg border overflow-hidden transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
+		class="flex items-center gap-0 rounded border overflow-hidden transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
 	>
 		<!-- Currency Select -->
-		<div class="relative border-r border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800">
+		<div class="relative border-e border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800">
 			<select 
 				bind:value={value!.currency} 
 				onchange={handleUpdate}
-				class="select border-none bg-transparent py-2 pl-3 pr-8 text-sm font-medium focus:ring-0 cursor-pointer"
+				class="select border-none bg-transparent py-2 ps-3 pe-8 text-sm font-medium focus:ring-0 cursor-pointer"
 				disabled={(field as any).readonly}
 				aria-label="{field.label} currency"
 			>
@@ -87,14 +87,14 @@ Renders a currency selector and a number input side-by-side.
 					<option value={code}>{code}</option>
 				{/each}
 			</select>
-			<div class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-surface-400">
+			<div class="pointer-events-none absolute inset-y-0 end-2 flex items-center text-surface-400">
 				<iconify-icon icon="mdi:chevron-down" width="16"></iconify-icon>
 			</div>
 		</div>
 
 		<!-- Amount Input -->
 		<div class="relative grow flex items-center px-3">
-			<span class="text-surface-400 font-mono mr-2" aria-hidden="true">{currencySymbol}</span>
+			<span class="text-surface-400 font-mono me-2" aria-hidden="true">{currencySymbol}</span>
 			<input
 				type="number"
 				bind:value={value!.amount}

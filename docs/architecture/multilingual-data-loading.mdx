@@ -32,7 +32,7 @@ Traditional approaches to multilingual content management face scalability issue
 
 ### The Solution: Two-Tier SSR
 
-```
+````text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    TIER 1: entry-list (View Mode)                │
 │                                                                 │
@@ -62,7 +62,7 @@ Traditional approaches to multilingual content management face scalability issue
 │  • Enables simultaneous translation editing                     │
 │  • Per-field translation progress calculation                   │
 └─────────────────────────────────────────────────────────────────┘
-```
+```text
 
 ## Implementation
 
@@ -93,7 +93,7 @@ if (mode === "view") {
     }
   }
 }
-```
+```text
 
 ### Cache Key Strategy
 
@@ -101,7 +101,7 @@ Cache keys include language for view mode, enabling language-specific caching:
 
 ```typescript
 const cacheKey = `collection:${currentCollection._id}:page:${page}:lang:${language}:tenant:${tenantId}`;
-```
+```text
 
 **Benefits:**
 
@@ -148,7 +148,7 @@ The language switcher dropdown:
 >
 	{selectedLanguage.toUpperCase()}
 </a>
-```
+```text
 
 **Alternative: Programmatic Navigation** (use only when needed for complex logic)
 
@@ -168,7 +168,7 @@ async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
   // SvelteKit navigation with SSR reload
   await goto(newPath, { invalidateAll: true });
 }
-```
+```text
 
 **Why anchor tags are better:**
 
@@ -205,7 +205,7 @@ await invalidateAll(); // Invalidates all collection:* keys
 
 // Pagination
 // → Natural cache miss (different page param in key)
-```
+```text
 
 ## Translation Progress Tracking
 
@@ -240,7 +240,7 @@ function getFieldTranslationPercentage(fieldName: string): number {
 
   return Math.round((translated.length / allLanguages.length) * 100);
 }
-```
+```text
 
 ## Database Structure
 
@@ -268,7 +268,7 @@ const entry = {
     // fr missing (untranslated)
   },
 };
-```
+```text
 
 ### Storage Implementation by Adapter
 
@@ -323,7 +323,7 @@ const entry = {
   slug: "hello-world",
   description: "A simple post",
 };
-```
+```text
 
 - No language projection needed
 - Data displayed as-is in all language routes
@@ -348,7 +348,7 @@ const entry = {
     // fr missing - shows as untranslated
   },
 };
-```
+```text
 
 - Language projection applied in view mode
 - Full multilingual data available in edit mode
@@ -363,7 +363,7 @@ const entry = {
 	translated: true,  // ← Enables multilingual storage
 	// ...
 }
-```
+```text
 
 ## Troubleshooting
 
@@ -397,3 +397,4 @@ const entry = {
 - [Cache System](./cache-system.mdx) - Redis caching implementation
 - [Content Type System](./content-type-system.mdx) - Field types and translation configuration
 - [Database Methods](./database/database-methods.mdx) - Database query patterns
+````

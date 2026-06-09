@@ -25,7 +25,7 @@ The SveltyCMS Media system is a decoupled, performance-first engine. Built with 
 
 The system follows a strict 4-layer architecture to ensure storage and framework portability.
 
-```mermaid
+````mermaid
 graph TB
     subgraph "Client Layer (Svelte 5 Runes)"
         UI[Media Gallery UI]
@@ -67,7 +67,7 @@ graph TB
     MS --> JOBS
     MS --> DB
     CS --> STORE
-```
+```text
 
 ---
 
@@ -131,3 +131,12 @@ For comprehensive performance details regarding media hashing, metadata extracti
 ## 📚 API Reference
 
 For detailed developer endpoints (upload, transform, job polling, focal points), read the comprehensive [**Media Reference**](../api/media.mdx).
+````
+
+---
+
+## Related
+
+- [Architecture Overview](./index.mdx)
+- [Security Overview](./security/index.mdx)
+- [State Management](./state-management.mdx)

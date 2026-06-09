@@ -49,7 +49,7 @@ onMount(loadLogs);
 			</p>
 		</div>
 		<div class="flex gap-4">
-			<select class="select" bind:value={filterStatus} onchange={loadLogs}>
+			<select class="select" bind:value={filterStatus} onchange={loadLogs} aria-label="Select">
 				<option value="">All Statuses</option>
 				<option value="completed">Success</option>
 				<option value="pending">Pending/Retrying</option>

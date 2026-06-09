@@ -114,7 +114,7 @@ export const widgetMeta = {
 			</div>
 		{:else if error}
 			<!-- Error State -->
-			<div class="rounded-lg border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
+			<div class="rounded border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
 				<p class="text-sm text-error-800 dark:text-error-200">{error}</p>
 			</div>
 		{:else if diagnostics}
@@ -129,25 +129,25 @@ export const widgetMeta = {
 			<!-- Statistics Grid -->
 			<div class="mb-6 grid grid-cols-2 gap-4">
 				<!-- Total Connections -->
-				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700/50">
+				<div class="rounded bg-surface-100 p-3 dark:bg-surface-700/50">
 					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Total</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.totalConnections}</div>
 				</div>
 
 				<!-- Active Connections -->
-				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700/50">
+				<div class="rounded bg-surface-100 p-3 dark:bg-surface-700/50">
 					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Active</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.activeConnections}</div>
 				</div>
 
 				<!-- Idle Connections -->
-				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700/50">
+				<div class="rounded bg-surface-100 p-3 dark:bg-surface-700/50">
 					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Idle</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.idleConnections}</div>
 				</div>
 
 				<!-- Waiting Requests -->
-				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700/50">
+				<div class="rounded bg-surface-100 p-3 dark:bg-surface-700/50">
 					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Waiting</div>
 					<div class="text-2xl font-bold {diagnostics.waitingRequests > 0 ? 'text-warning-600' : 'text-surface-900 dark:text-white'}">
 						{diagnostics.waitingRequests}

@@ -76,7 +76,7 @@ Renders a color input with label, helper, and validation
 
 <div class="color-picker-widget flex flex-col gap-1">
 	<div
-		class="flex items-center gap-2 rounded-lg border p-1 transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
+		class="flex items-center gap-2 rounded border p-1 transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
@@ -108,7 +108,7 @@ Renders a color input with label, helper, and validation
 
 		<button
 			type="button"
-			class="p-1 mr-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center"
+			class="p-1 me-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center"
 			onclick={handleReset}
 			title="Reset to default"
 		>

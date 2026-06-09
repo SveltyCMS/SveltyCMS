@@ -314,7 +314,7 @@
 						/>
 					</div>
 
-					<div class="rounded-xl border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-700 dark:bg-surface-800">
+					<div class="rounded border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-700 dark:bg-surface-800">
 						{#if wizard.currentStep === 0}
 							<DatabaseConfig
 								bind:dbConfig={wizard.dbConfig}
@@ -358,7 +358,7 @@
 
 						{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
 							<div
-								class="mt-6 flex flex-col rounded-md border-s-4 p-0 text-sm overflow-hidden"
+								class="mt-6 flex flex-col rounded border-s-4 p-0 text-sm overflow-hidden"
 								class:border-primary-400={!!wizard.successMessage}
 								class:border-error-400={!!wizard.errorMessage}
 								aria-live="polite"

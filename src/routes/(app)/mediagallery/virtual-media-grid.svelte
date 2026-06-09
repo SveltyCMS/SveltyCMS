@@ -88,28 +88,28 @@ onMount(() => {
 });
 </script>
 
-<div 
+<div
 	bind:this={container}
 	class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative scroll-smooth"
 	onscroll={(e) => scrollTop = (e.target as HTMLElement).scrollTop}
 >
-	<div 
-		class="w-full relative" 
+	<div
+		class="w-full relative"
 		style:height="{totalRows * itemHeight}px"
 	>
-		<div 
-			class="absolute top-0 left-0 w-full grid gap-4 p-4"
+		<div
+			class="absolute top-0 start-0 w-full grid gap-4 p-4"
 			style:transform="translateY({startRow * itemHeight}px)"
 			style:grid-template-columns="repeat({itemsPerRow}, 1fr)"
 		>
 			{#each visibleItems as file (file._id || file.filename)}
 				{const isSelected = selectedFiles.has(file._id?.toString() || file.filename)}
-				
-				<div 
+
+				<div
 					role="button"
 					tabindex="0"
-					class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-surface-900 shadow-sm transition-all duration-200 
-                        hover:z-10 hover:-translate-y-1 hover:shadow-lg focus:ring-4 focus:ring-primary-500 text-left cursor-pointer
+					class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-surface-900 shadow-sm transition-all duration-200
+                        hover:z-10 hover:-translate-y-1 hover:shadow-lg focus:ring-4 focus:ring-primary-500 text-start cursor-pointer
                         {isSelected ? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
 					style:height="{itemHeight - 32}px"
 					onclick={() => isSelectionMode ? toggleSelection(file) : onOpenFileDetails(file)}
@@ -127,10 +127,10 @@ onMount(() => {
 				>
 					<!-- Selection Overlay -->
 					{#if isSelectionMode || isSelected}
-						<div class="absolute left-2 top-2 z-20">
+						<div class="absolute start-2 top-2 z-20">
 							<div class="h-6 w-6 rounded-full bg-white shadow-md flex items-center justify-center">
-								<input 
-									type="checkbox" 
+								<input aria-label="Input"
+									type="checkbox"
 									checked={isSelected}
 									onchange={() => toggleSelection(file)}
 									class="checkbox h-4 w-4"
@@ -149,10 +149,10 @@ onMount(() => {
 								<iconify-icon icon="mdi:file-document-outline" width={48}></iconify-icon>
 							</div>
 						{/if}
-						
+
 						<!-- Action Dock (Hover) -->
-						<div class="absolute right-2 top-2 z-30 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-							<button 
+						<div class="absolute end-2 top-2 z-30 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+							<button
 								onclick={(e) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
 								class="btn-icon btn-icon-sm bg-white/90 dark:bg-surface-800/90 shadow-sm"
 								aria-label="Edit {file.filename}"

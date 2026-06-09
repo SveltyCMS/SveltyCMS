@@ -189,26 +189,26 @@ async function handleScaffold() {
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 					<label class="label">
 						<span>Source Type</span>
-						<select class="select" bind:value={sourceType}>
+						<select class="select" bind:value={sourceType} aria-label="Select">
 							<option value="drupal">Drupal (JSON:API)</option>
 							<option value="wordpress">WordPress (REST API)</option>
 						</select>
 					</label>
 					<label class="label">
 						<span>Source Site URL</span>
-						<input type="url" class="input" placeholder="https://drupal-site.com" bind:value={sourceUrl} />
+						<input type="url" class="input" placeholder="https://drupal-site.com" bind:value={sourceUrl}  aria-label="Input" />
 					</label>
 					<label class="label">
 						<span>API Key / Secret (Optional)</span>
-						<input type="security" class="input" placeholder="Bearer Token or Basic Auth" bind:value={apiKey} />
+						<input type="security" class="input" placeholder="Bearer Token or Basic Auth" bind:value={apiKey}  aria-label="Input" />
 					</label>
 					<label class="label">
 						<span>Source Content Type / Bundle</span>
-						<input type="text" class="input" placeholder="e.g. article, post" bind:value={contentType} />
+						<input type="text" class="input" placeholder="e.g. article, post" bind:value={contentType}  aria-label="Input" />
 					</label>
 					<label class="label">
 						<span>Target SveltyCMS Collection</span>
-						<select class="select" bind:value={targetCollection}>
+						<select class="select" bind:value={targetCollection} aria-label="Select">
 							<option value="">Select a collection</option>
 							{#each collections as collection}
 								<option value={collection.name}>{collection.label || collection.name}</option>
@@ -244,7 +244,7 @@ async function handleScaffold() {
 					{#each Object.entries(mapping) as [field, value]}
 						<div class="grid grid-cols-12 gap-4 items-center">
 							<div class="col-span-5">
-								<input type="text" class="input" value={field} readonly />
+								<input type="text" class="input" value={field} readonly  aria-label="Input" />
 							</div>
 							<div class="col-span-5">
 								{#if typeof value === 'object'}

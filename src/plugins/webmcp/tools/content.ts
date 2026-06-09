@@ -13,7 +13,7 @@ import { contentStore } from "@src/stores/content-store.svelte";
 import { logger } from "@utils/logger";
 
 function getModelContext() {
-  return (window.navigator as any)?.modelContext;
+  return (window.document as any)?.modelContext;
 }
 
 export function registerContentTools() {

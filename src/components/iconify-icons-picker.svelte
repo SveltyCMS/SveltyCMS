@@ -531,7 +531,7 @@ Advanced icon picker with search, pagination, and favorites.
 						if (showDropdown) handleFocus();
 					}
 				}}
-				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg bg-surface-100 p-2 text-left transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
+				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded bg-surface-100 p-2 text-start transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
 					? 'pointer-events-none'
 					: ''}"
 				aria-expanded={hideSearchInput ? showDropdown : undefined}
@@ -589,7 +589,7 @@ Advanced icon picker with search, pagination, and favorites.
 				showDropdown = true;
 				handleFocus();
 			}}
-			class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-surface-300 p-4 text-surface-500 transition-colors hover:border-tertiary-500 hover:text-tertiary-500 dark:text-primary-500  dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:text-tertiary-500 "
+			class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border-2 border-dashed border-surface-300 p-4 text-surface-500 transition-colors hover:border-tertiary-500 hover:text-tertiary-500 dark:text-primary-500  dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:text-tertiary-500 "
 			aria-expanded={showDropdown}
 			aria-controls="icon-dropdown"
 			aria-label="Choose icon"
@@ -637,7 +637,7 @@ Advanced icon picker with search, pagination, and favorites.
 	{#if searchError}
 		<div
 			id="search-error"
-			class="mt-2 rounded-lg border-l-4 border-error-500 bg-error-50 p-3 text-sm text-error-700 dark:bg-error-900/20 dark:text-error-300"
+			class="mt-2 rounded border-s-4 border-error-500 bg-error-50 p-3 text-sm text-error-700 dark:bg-error-900/20 dark:text-error-300"
 			role="alert"
 			in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
@@ -652,7 +652,7 @@ Advanced icon picker with search, pagination, and favorites.
 	{#if showDropdown}
 		<div
 			id="icon-dropdown"
-			class="mt-2 overflow-hidden rounded-lg border border-surface-200 bg-surface-50 shadow-2xl dark:text-surface-50 dark:bg-surface-800"
+			class="mt-2 overflow-hidden rounded border border-surface-200 bg-surface-50 shadow-2xl dark:text-surface-50 dark:bg-surface-800"
 			role="region"
 			aria-label="Icon picker dropdown"
 			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.95, opacity: 0 }}
@@ -753,7 +753,7 @@ Advanced icon picker with search, pagination, and favorites.
 								role="option"
 								aria-selected={iconselected === fullIconName || index === selectedIndex}
 								tabindex="0"
-								class="group relative flex cursor-pointer items-center justify-center rounded-lg p-3 transition-all duration-200 hover:scale-110 hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-500 active:scale-95 {index ===
+								class="group relative flex cursor-pointer items-center justify-center rounded p-3 transition-all duration-200 hover:scale-110 hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-500 active:scale-95 {index ===
 								selectedIndex
 									? 'ring-2 ring-primary-500'
 									: ''}"

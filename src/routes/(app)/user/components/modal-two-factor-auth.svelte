@@ -259,7 +259,7 @@ This component provides a user interface for managing 2FA settings:
 
 	// Base Classes for modal
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-3 space-y-3 rounded-xl overflow-y-auto flex-1';
+	const cForm = 'border border-surface-500 p-3 space-y-3 rounded overflow-y-auto flex-1';
 </script>
 
 <!-- Main Modal Component -->
@@ -270,15 +270,15 @@ This component provides a user interface for managing 2FA settings:
 
 	<form class="modal-form {cForm} max-h-[60vh]">
 		<!-- Status Section -->
-		<div class="mb-4 flex items-center justify-between rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
+		<div class="mb-4 flex items-center justify-between rounded bg-surface-100 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
-				<div class="rounded-lg bg-tertiary-500 dark:bg-primary-500/10 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
+				<div class="rounded bg-tertiary-500 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
 				<div>
 					<p class="text-sm font-semibold">{twofa_title()}</p>
 					<p class="text-xs text-surface-600 dark:text-surface-300">{twofa_description()}</p>
 				</div>
 			</div>
-			<!-- Status badge - aligned right -->
+			<!-- Status badge - aligned end -->
 			<span class="badge {is2FAEnabled ? 'preset-filled-success-500' : 'preset-filled-surface-500'}">
 				<iconify-icon icon="mdi:{is2FAEnabled ? 'check-circle' : 'circle-outline'}" width={24}></iconify-icon>
 				{is2FAEnabled ? twofa_status_enabled() : twofa_status_disabled()}
@@ -304,7 +304,7 @@ This component provides a user interface for managing 2FA settings:
 						<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setup_step_1()}</p>
 
 						<!-- QR Code -->
-						<div class="flex justify-center rounded-lg bg-white p-4 dark:bg-white">
+						<div class="flex justify-center rounded bg-white p-4 dark:bg-white">
 							{#if setupData.otpauthUrl}
 								<QrCode value={setupData.otpauthUrl} size={150} color="#000000" backgroundColor="#ffffff" />
 							{:else}
@@ -322,7 +322,7 @@ This component provides a user interface for managing 2FA settings:
 							{twofa_show_secret()}
 						</h4>
 						<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_manual_entry_description()}</p>
-						<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700"><code class="break-all text-sm">{setupData.secret}</code></div>
+						<div class="rounded bg-surface-100 p-3 dark:bg-surface-700"><code class="break-all text-sm">{setupData.secret}</code></div>
 					</div>
 
 					<!-- Step 3: Verify -->

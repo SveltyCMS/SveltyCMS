@@ -308,7 +308,7 @@
   <div class="preview-section flex-1 flex flex-col justify-center items-center bg-surface-100/50 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800 rounded-2xl p-4 min-h-75 md:min-h-125 relative">
     {#if file.type === 'image'}
       <div
-        class="preview-image-box w-full h-full flex items-center justify-center rounded-xl overflow-hidden relative"
+        class="preview-image-box w-full h-full flex items-center justify-center rounded overflow-hidden relative"
         style:background-color={file.metadata?.dominantColor || 'transparent'}
       >
         <img
@@ -408,7 +408,7 @@
       {#if activeTab === 'info'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
           <!-- Metadata Table -->
-          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded-xl p-4 font-mono text-xs flex flex-col gap-2">
+          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded p-4 font-mono text-xs flex flex-col gap-2">
             <div class="flex justify-between"><span class="opacity-60">Mime-Type:</span><span>{file.mimeType}</span></div>
             <div class="flex justify-between"><span class="opacity-60">File Size:</span><span>{formatBytes(file.size)}</span></div>
             {#if file.width && file.height}
@@ -425,7 +425,7 @@
 
             <div class="flex flex-wrap gap-1.5 mb-3">
               {#each file.metadata?.tags || [] as tag}
-                <span class="tag-badge bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-600 dark:text-primary-600 border border-tertiary-500 dark:border-primary-500/20 px-2 py-0.5 rounded-md text-xs flex items-center gap-1">
+                <span class="tag-badge bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-600 dark:text-primary-600 border border-tertiary-500 dark:border-primary-500/20 px-2 py-0.5 rounded text-xs flex items-center gap-1">
                   <span>{tag}</span>
                   <button
                     onclick={() => handleRemoveTag(tag)}
@@ -465,7 +465,7 @@
       {:else if activeTab === 'versions'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
           <!-- Upload New Version -->
-          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded-xl p-4 flex flex-col items-center gap-3">
+          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded p-4 flex flex-col items-center gap-3">
             <iconify-icon icon="mdi:cloud-upload-outline" width="32" class="opacity-60"></iconify-icon>
             <div class="text-center">
               <h4 class="font-bold text-sm">Replace or Update File</h4>
@@ -500,7 +500,7 @@
             <h3 class="font-bold text-sm mb-2">Version History</h3>
             <div class="flex flex-col gap-2">
               <!-- Current Active Version -->
-              <div class="version-item bg-tertiary-500 dark:bg-primary-500/5 border border-tertiary-500 dark:border-primary-500/20 rounded-xl p-3 flex justify-between items-center text-xs">
+              <div class="version-item bg-tertiary-500 dark:bg-primary-500/5 border border-tertiary-500 dark:border-primary-500/20 rounded p-3 flex justify-between items-center text-xs">
                 <div class="flex items-center gap-3">
                   <div class="version-badge bg-tertiary-500 dark:bg-primary-500 text-white font-bold px-2 py-0.5 rounded text-[10px]">
                     ACTIVE
@@ -514,7 +514,7 @@
 
               <!-- History versions -->
               {#each file.versions || [] as ver}
-                <div class="version-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl p-3 flex justify-between items-center text-xs">
+                <div class="version-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex justify-between items-center text-xs">
                   <div class="flex items-center gap-3">
                     <div class="version-badge bg-surface-300 dark:bg-surface-700 text-surface-800 dark:text-surface-200 font-bold px-2 py-0.5 rounded text-[10px]">
                       v{ver.versionNumber}
@@ -568,7 +568,7 @@
 
               <div class="flex flex-col gap-2">
                 {#each references as ref}
-                  <div class="reference-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl p-3 flex justify-between items-center text-xs">
+                  <div class="reference-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex justify-between items-center text-xs">
                     <div>
                       <span class="font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-[10px]">{ref.collection}</span>
                       <p class="font-semibold mt-0.5">Field: <span class="font-mono">{ref.field}</span></p>
@@ -583,7 +583,7 @@
                     </a>
                   </div>
                 {:else}
-                  <div class="bg-surface-50 dark:bg-surface-900/40 border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-xl p-6 text-center">
+                  <div class="bg-surface-50 dark:bg-surface-900/40 border-2 border-dashed border-surface-200 dark:border-surface-800 rounded p-6 text-center">
                     <iconify-icon icon="mdi:link-variant-off" width="32" class="opacity-40 mb-2"></iconify-icon>
                     <p class="text-xs opacity-60">This asset is not referenced in any collections.</p>
                   </div>
@@ -596,7 +596,7 @@
       {:else if activeTab === 'share'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
           <!-- Generate Share Link Form -->
-          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded-xl p-4 flex flex-col gap-3 text-xs">
+          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded p-4 flex flex-col gap-3 text-xs">
             <h4 class="font-bold text-sm">Create Expiring Public Link</h4>
 
             <div class="grid grid-cols-2 gap-3">
@@ -644,7 +644,7 @@
             <div class="flex flex-col gap-2">
               {#each file.metadata?.sharedLinks || [] as link}
                 {const expired = isExpired(link.expiry)}
-                <div class="share-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl p-3 flex flex-col gap-2 text-xs">
+                <div class="share-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex flex-col gap-2 text-xs">
                   <div class="flex justify-between items-center">
                     <div class="flex gap-2 items-center">
                       <span class="status-dot h-2.5 w-2.5 rounded-full {expired ? 'bg-error-500' : 'bg-success-500'}"></span>

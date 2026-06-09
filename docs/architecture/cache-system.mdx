@@ -26,7 +26,7 @@ SveltyCMS implements a **dual-layer caching system** combining **Redis** (L1: in
 
 ### Dual-Layer Strategy
 
-```mermaid
+````mermaid
 graph TD
     subgraph Browser["🖥️ Client"]
         A["Application Request"]
@@ -56,7 +56,7 @@ graph TD
     D --> C
     C --> B
     B --> A
-```
+```text
 
 ### Cache Hierarchy
 
@@ -104,7 +104,7 @@ export enum CacheCategory {
 
 // Example usage
 await cacheService.setWithCategory("user:123", userData, CacheCategory.USER, tenantId);
-```
+```text
 
 ### Performance Hardening (Audit)
 
@@ -149,7 +149,7 @@ await cacheService.set("key", data, 3600);
 
 // Pattern invalidation
 await cacheService.deletePattern("query:collections:*");
-```
+```text
 
 ### Content Structure Cache (`cms:content_structure`)
 
@@ -157,7 +157,7 @@ Specialized caching for the entire CMS collection tree. managed by `src/content/
 
 - **Storage**: Persisted to L1/L2 under the `cms:content_structure` key, scoped by `tenantId`.
 - **Warming**: Automatically populated during system initialization (IDLE → READY).
-- **Invalidation**: Triggered immediately when a collection schema is modified or a new collection is created.
+- **Invalidation**: Triggered immediately when a collection schema is modified, a new collection is created, or a media item is deleted (June 2026: media cache now invalidated via `invalidateByCategory("media")` after file deletion).
 - **Payload**: Contains the complete `nodes` map and system `version` for atomic state synchronization across nodes.
 
 ### Monitoring & Debugging
@@ -189,6 +189,7 @@ Typical production metrics (Steady State):
 - [Database Methods](./database/database-methods.mdx) - Low-level DB interactions
 - [Multi-Tenancy](./multi-tenancy.mdx) - Tenant isolation in cache keys
 
-```
+```text
 
-```
+```text
+````

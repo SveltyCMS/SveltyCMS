@@ -9,6 +9,7 @@
 import { generateGoogleAuthUrl, googleAuth } from "@src/databases/auth/google-auth";
 import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
+import { readSessionCookie } from "@src/databases/auth/constants";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import type { PageServerLoad } from "./$types";
@@ -152,7 +153,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
   const isOpenSignup = !!(multiTenant && demoMode);
 
   const errorDefaults = {
-    firstUserExists: true,
+    hasAdminUser: true,
     showGoogleOAuth: false,
     showGithubOAuth: false,
     hasExistingOAuthUsers: false,
@@ -236,7 +237,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       if (tokenData.isValid && tokenData.details) {
         return {
           ...errorDefaults,
-          firstUserExists: locals.isFirstUser === false,
+          hasAdminUser: locals.isFirstUser === false,
           showGoogleOAuth: await shouldShowGoogleOAuth(true),
           showGithubOAuth: await shouldShowGithubOAuth(true),
           isInviteFlow: true,
@@ -247,7 +248,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       }
       return {
         ...errorDefaults,
-        firstUserExists: locals.isFirstUser === false,
+        hasAdminUser: locals.isFirstUser === false,
         showGoogleOAuth: await shouldShowGoogleOAuth(true),
         showGithubOAuth: await shouldShowGithubOAuth(true),
         inviteError: "This invitation token appears to be invalid, expired, or already used.",
@@ -255,7 +256,19 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       };
     }
 
-    const firstUserExists = locals.isFirstUser === false;
+    // Authoritative check: at least one admin user must exist for the CMS to be usable.
+    // Uses a fresh DB query (bypasses the stale locals.isFirstUser cache).
+    let hasAdminUser = false;
+    if (auth && typeof auth.getUserCount === "function") {
+      try {
+        const adminCount = await auth.getUserCount({ role: "admin" }, { bypassTenantCheck: true });
+        hasAdminUser = adminCount > 0;
+      } catch {
+        // Fall back to DB health check if role filter fails
+        const dbHealth = await checkDatabaseHealth();
+        hasAdminUser = dbHealth.healthy;
+      }
+    }
 
     // Google OAuth callback
     const code = url.searchParams.get("code");
@@ -374,12 +387,20 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     return {
       ...errorDefaults,
-      firstUserExists,
+      hasAdminUser,
       showGoogleOAuth,
       showGithubOAuth,
       hasExistingOAuthUsers: false,
       firstCollectionPath,
       pkgVersion,
+      // Returning user: handle-authentication sets locals.returningUser when a session cookie was
+      // present but invalid/expired (then deletes the dead cookie). Fall back to raw cookie presence
+      // for any path that bypasses that branch. A valid session is already redirected away by hooks,
+      // so this only flags lapsed sessions → default to the Sign In form (no extra cookie needed).
+      returningUser: Boolean(
+        locals.returningUser ??
+        readSessionCookie(cookies, url.protocol === "https:" || url.hostname !== "localhost"),
+      ),
     };
   } catch (err: any) {
     if (isRedirect(err)) throw err;

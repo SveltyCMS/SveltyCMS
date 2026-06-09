@@ -157,7 +157,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded';
 </script>
 
 <div class="modal-example-form {cBase}">
@@ -173,14 +173,14 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				<div class="text-center">
 					<!-- QR Code -->
 					<div class="mb-4 flex justify-center">
-						<div class="rounded-lg bg-white p-4 shadow-sm">
+						<div class="rounded bg-white p-4 shadow-sm">
 							<QrCode value={qrCodeUrl} size={192} color="#000000" backgroundColor="#ffffff" />
 						</div>
 					</div>
 				</div>
 
 				<!-- Manual Entry Section (Always Visible) -->
-				<div class="rounded-xl bg-surface-100 p-4 dark:bg-surface-700">
+				<div class="rounded bg-surface-100 p-4 dark:bg-surface-700">
 					<p class="mb-3 text-sm font-medium text-surface-700 dark:text-surface-300">{twofa_manual_entry_description()}</p>
 					<div class="flex items-center gap-2">
 						<code class="flex-1 rounded bg-surface-200 p-3 font-mono text-sm dark:bg-surface-600"> {formatSecret(secret)} </code>
@@ -234,7 +234,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 			<!-- Backup Codes (Always Visible) -->
 			{#if backupCodes.length > 0}
-				<div class="preset-ghost-warning-500 rounded-lg border p-4">
+				<div class="preset-ghost-warning-500 rounded border p-4">
 					<div class="mb-3 flex items-start gap-3">
 						<iconify-icon icon="mdi:information" width="24"></iconify-icon>
 						<div class="flex-1">

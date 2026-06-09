@@ -217,6 +217,7 @@ async function waitForServerReady(maxAttempts = 60) {
     "degraded",
     "initializing",
     "operational",
+    "idle",
   ];
 
   for (let i = 0; i < maxAttempts; i++) {

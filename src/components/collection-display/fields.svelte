@@ -545,7 +545,7 @@
         {form_required()}
       </div>
       <div
-        class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900"
+        class="rounded border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900"
       >
         <div
           class="flex flex-wrap items-center justify-center gap-1 overflow-auto"
@@ -793,7 +793,7 @@
           </p>
         {:else}
           <div class="mb-4 flex items-center justify-between gap-4">
-            <select class="select grow" bind:value={selectedRevisionId}>
+            <select class="select grow" bind:value={selectedRevisionId} aria-label="Select">
               <option value="" disabled
                 >-- Select a revision to compare --</option
               >
@@ -810,7 +810,7 @@
               class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
               onclick={handleRevert}
               disabled={!selectedRevision?.data}
-            >
+             aria-label="Revert revision">
               <iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
               {applayout_version()}
             </button>
@@ -818,7 +818,7 @@
               class="preset-tonal-primary btn"
               onclick={() => (isDiffModalOpen = true)}
               disabled={!selectedRevision?.data}
-            >
+             aria-label="Show diff">
               <iconify-icon icon="mdi:compare" class="mr-1"></iconify-icon>
               Compare
             </button>
@@ -850,7 +850,7 @@
             </Portal>
           {/if}
 
-          <div class="rounded-lg border p-4 dark:text-surface-50">
+          <div class="rounded border p-4 dark:text-surface-50">
             <h3 class="mb-3 text-lg font-bold">Quick Preview</h3>
 
             {#if selectedRevision}
@@ -920,7 +920,7 @@
     <Tabs.Content value="3" class="w-full">
       <div class="space-y-4 p-4">
         <div class="flex items-center gap-2">
-          <input type="text" class="input grow" readonly value={apiUrl} />
+          <input type="text" class="input grow" readonly value={apiUrl}  aria-label="Input" />
           <button
             class="preset-outline-surface-500 btn"
             onclick={() => {

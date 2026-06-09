@@ -55,8 +55,8 @@ function isClickable(index: number) {
 		<div class="step-item flex-1 relative group">
 			<button
 				type="button"
-				class="w-full flex {orientation === 'vertical' ? 'items-start text-left' : 'flex-col items-center text-center'} {compact ? 'p-1 justify-center' : 'p-3'} gap-4 rounded-xl transition-all
-					{i === currentStep ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-primary-500/20 ring-1 ring-primary-500' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}
+				class="w-full flex {orientation === 'vertical' ? 'items-start text-start' : 'flex-col items-center text-center'} {compact ? 'p-1 justify-center' : 'p-3'} gap-4 rounded transition-all
+					{i === currentStep ? 'bg-tertiary-500 dark:bg-primary-500/20 ring-1 ring-primary-500' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}
 					{isClickable(i) ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}"
 				onclick={() => isClickable(i) && onStepClick(i)}
 				disabled={!isClickable(i)}
@@ -79,7 +79,7 @@ function isClickable(index: number) {
 				<!-- Step Text -->
 				{#if !compact}
 					<div class="min-w-0">
-						<p class="font-bold text-sm {i === currentStep ? 'text-tertiary-600 dark:text-primary-600 dark:text-primary-500' : 'text-surface-900 dark:text-surface-100'}">
+						<p class="font-bold text-sm {i === currentStep ? 'text-tertiary-600 dark:text-primary-600' : 'text-surface-900 dark:text-surface-100'}">
 							{step.label}
 						</p>
 						{#if step.description && orientation === 'vertical'}
@@ -91,7 +91,7 @@ function isClickable(index: number) {
 
 			<!-- Connecting Line -->
 			{#if i < steps.length - 1}
-				<div class="{orientation === 'vertical' ? 'absolute left-7 top-11 w-0.5 h-6' : 'hidden'}
+				<div class="{orientation === 'vertical' ? 'absolute inset-s-7 top-11 w-0.5 h-6' : 'hidden'}
 					-z-10 {completedSteps.has(i) ? 'bg-success-500' : 'bg-surface-200 dark:bg-surface-700'}"></div>
 			{/if}
 		</div>

@@ -120,14 +120,14 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 
 ### Run Commands
 
-```bash
+````bash
 # Run all store tests
 bun run test:unit -- tests/unit/stores
 
 # Run specific store tests
 bun run test:unit -- tests/unit/stores/system
 bun run test:unit -- tests/unit/stores/loading-store
-```
+```text
 
 ---
 
@@ -154,7 +154,7 @@ export const systemStore = {
     /* controlled updates */
   },
 };
-```
+```text
 
 ---
 
@@ -179,3 +179,4 @@ Verifies state persistence and UI reflections in real user workflows across mult
 - [Test Status Overview](./test-status.mdx)
 - [System State Architecture](../architecture/state-management.mdx)
 - [Security Architecture](../architecture/security/index.mdx)
+````

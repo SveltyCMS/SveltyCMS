@@ -153,7 +153,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	</div>
 
 	<!-- List -->
-	<div class="list-container relative flex-1 min-h-[300px] overflow-y-auto rounded-xl border border-surface-500/20 bg-surface-50/50 p-2 dark:bg-surface-900/50">
+	<div class="list-container relative flex-1 min-h-[300px] overflow-y-auto rounded border border-surface-500/20 bg-surface-50/50 p-2 dark:bg-surface-900/50">
 		{#if loading}
 			<div class="flex h-full items-center justify-center py-12" in:fade>
 				<div class="flex flex-col items-center gap-4">
@@ -182,9 +182,9 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 					{const id = entry._id || entry.id}
 					{const idStr = id.toString()}
 					{const isSelected = selected.has(idStr)}
-					<button
+					<button>
 						type="button"
-						class="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus:ring-2 focus:ring-primary-500"
+						class="flex w-full items-center gap-3 rounded p-3 text-start transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus:ring-2 focus:ring-primary-500"
 						class:bg-tertiary-500={isSelected} class:dark:bg-primary-500={isSelected}
 						class:text-white={isSelected}
 						onclick={() => toggleSelection(idStr)}

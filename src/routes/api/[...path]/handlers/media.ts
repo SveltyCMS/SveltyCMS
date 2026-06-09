@@ -301,6 +301,13 @@ export async function handleMediaProcess(
 
   if (!processType) throw new AppError("processType is required", 400);
 
+  // 🛡️ Defense-in-depth: Require media:write for metadata and batch processing
+  if (["metadata", "batch"].includes(processType)) {
+    if (!user || !hasPermissionWithRoles(user, "media:write", event.locals.roles || [])) {
+      throw new AppError("Insufficient permissions for media processing", 403, "FORBIDDEN");
+    }
+  }
+
   switch (processType) {
     case "metadata": {
       const file = formData.get("file") as File;
@@ -312,6 +319,10 @@ export async function handleMediaProcess(
       return handleMediaUpload(event, cms, tenantId, user);
 
     case "delete": {
+      // 🛡️ Defense-in-depth permission check
+      if (!user || !hasPermissionWithRoles(user, "media:delete", event.locals.roles || [])) {
+        throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
+      }
       const mediaId = formData.get("mediaId") as string;
       if (!mediaId) throw new AppError("mediaId is required", 400);
       await cms.media.delete(mediaId, { tenantId });
@@ -347,6 +358,11 @@ export async function handleMediaRemote(
   tenantId: DatabaseId,
   user: any,
 ) {
+  // 🛡️ Defense-in-depth permission check
+  if (!user || !hasPermissionWithRoles(user, "media:write", event.locals.roles || [])) {
+    throw new AppError("Insufficient permissions for remote media ingestion", 403, "FORBIDDEN");
+  }
+
   const body = await event.request.json().catch(() => ({}));
   const { url: remoteUrl, access } = body;
 
@@ -425,6 +441,11 @@ export async function handleMediaManipulate(
   user: any,
   segments: string[],
 ) {
+  // 🛡️ Defense-in-depth permission check
+  if (!user || !hasPermissionWithRoles(user, "media:write", event.locals.roles || [])) {
+    throw new AppError("Insufficient permissions for media manipulation", 403, "FORBIDDEN");
+  }
+
   const contentType = event.request.headers.get("content-type") || "";
   let id = segments[2];
   let body: any = {};

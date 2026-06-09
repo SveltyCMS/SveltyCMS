@@ -129,10 +129,7 @@ export class MongoWebsiteTokenMethods {
     return { success: true, data: undefined };
   }
 
-  async getByName(
-    name: string,
-    tenantId?: string,
-  ): Promise<DatabaseResult<WebsiteToken | null>> {
+  async getByName(name: string, tenantId?: string): Promise<DatabaseResult<WebsiteToken | null>> {
     const filter: QueryFilter<WebsiteToken> = tenantId
       ? ({ name, tenantId } as QueryFilter<WebsiteToken>)
       : ({ name } as QueryFilter<WebsiteToken>);

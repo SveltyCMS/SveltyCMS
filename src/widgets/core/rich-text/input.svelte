@@ -532,7 +532,7 @@
 									</SystemTooltip>
 									{#if activeDropdown === btn.label}
 										<div
-											class="absolute top-full inset-s-0 mt-1 min-w-45 rounded-lg border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
+											class="absolute top-full inset-s-0 mt-1 min-w-45 rounded border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
@@ -581,7 +581,7 @@
 											{:else if btn.label === 'Color'}
 												<div class="p-2 w-48">
 													<button
-														class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition text-surface-700 dark:text-white"
+														class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition text-surface-700 dark:text-white"
 														onclick={() => {
 															editor?.chain().focus().unsetColor().run();
 															closeDropdowns();
@@ -662,7 +662,7 @@
 											{:else if btn.items}
 												{#each btn.items as item (item.label)}
 													<button
-														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
+														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
 															? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
 															: 'text-surface-700 dark:text-white'}"
 														aria-label={item.label}
@@ -851,28 +851,28 @@
 				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">Command Menu</h3>
 				<div class="space-y-2">
 					<button
-						class="flex w-full items-center gap-4 rounded-xl px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
+						class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
 						onclick={() => {
 							editor?.chain().focus().setHardBreak().run();
 							showSlashMenu = false;
 						}}
 					aria-label="insert-hard-break">
 						<iconify-icon icon="mdi:arrow-down-bold" width="22"></iconify-icon>
-						<div class="text-left">
+						<div class="text-start">
 							<div class="font-medium text-surface-900 dark:text-white">Hard Break</div>
 							<div class="text-sm text-surface-500 dark:text-surface-50">Insert line break</div>
 						</div>
 					</button>
 					{#if field.aiEnabled}
 						<button
-							class="flex w-full items-center gap-4 rounded-xl px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
+							class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
 							onclick={() => {
 								editor?.chain().focus().insertContent('/ai ');
 								showSlashMenu = false;
 							}}
 						aria-label="ask-ai">
 							<iconify-icon icon="mdi:sparkles" width="22"></iconify-icon>
-							<div class="text-left">
+							<div class="text-start">
 								<div class="font-medium text-surface-900 dark:text-white">Ask AI</div>
 								<div class="text-sm text-surface-500 dark:text-surface-50">Generate or rewrite with AI</div>
 							</div>

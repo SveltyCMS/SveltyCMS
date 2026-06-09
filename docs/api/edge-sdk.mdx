@@ -37,14 +37,14 @@ Deliver content with ultra-low latency by fetching data directly from the networ
 
 ### Initialization
 
-```typescript
+````typescript
 import { createEdgeClient } from "@utils/sdk/edge-sdk";
 
 const cms = createEdgeClient({
   host: "https://cms.yourproject.com",
   apiKey: "your_secret_api_key",
 });
-```
+```text
 
 ### Fetching Content
 
@@ -53,7 +53,7 @@ const posts = await cms.getEntries("posts", {
   limit: 10,
   filter: { status: "published" },
 });
-```
+```text
 
 ---
 
@@ -74,7 +74,7 @@ sequenceDiagram
     DB-->>Origin: JSON Data
     Origin-->>Edge: Gzip Encrypted Response
     Edge-->>User: Rendered HTML
-```
+```text
 
 ### Performance Features
 
@@ -85,3 +85,4 @@ sequenceDiagram
 ---
 
 **Next Steps**: For real-time updates at the edge, see the [Content & Search Reference](./content.mdx).
+````

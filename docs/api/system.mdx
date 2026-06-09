@@ -94,14 +94,14 @@ Migrate data from external sources or scaffold new environments.
 
 The `system.ts` handler acts as a master router, delegating specialized logic to internal services like `webhookService`, `settingsService`, and the `automationEngine`.
 
-```mermaid
+````mermaid
 graph TD
     A[System API Handler] --> B[Settings Manager]
     A --> C[Widget Registry]
     A --> D[Webhook Service]
     A --> E[AI / Automation Engine]
     A --> F[CORS / Health Checks]
-```
+```text
 
 ### Resource Isolation
 
@@ -114,3 +114,4 @@ All system operations are strictly scoped to the `tenantId` resolved from the re
 - [Collections Reference (collections.ts)](./collections.mdx)
 - [Content Reference (content.ts)](./content.mdx)
 - [Dashboard Reference (dashboard.ts)](./dashboard.mdx)
+````

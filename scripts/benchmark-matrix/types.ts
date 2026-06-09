@@ -204,7 +204,7 @@ export type MetricCategory =
   | "latency"
   | "throughput"
   | "js_memory" // V8 heap (GC-managed)
-  | "native_memory" // RSS, external (sharp, better-sqlite3)
+  | "native_memory" // RSS, external (sharp, argon2)
   | "startup"
   | "scale";
 

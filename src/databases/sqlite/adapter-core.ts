@@ -44,7 +44,7 @@ import { CollectionModule } from "../core/collection-module";
 
 // --- Types ---
 export type SQLiteConfig = { connectionString?: string; readonly?: boolean };
-export type SQLiteClient = any; // Union of bun:sqlite Database, better-sqlite3 Database, node:sqlite DatabaseSync
+export type SQLiteClient = any; // bun:sqlite Database | node:sqlite DatabaseSync
 export type SQLiteDB = any; // Drizzle instance
 
 // Isolation for multi-threaded testing
@@ -1876,12 +1876,10 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
     const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
     const options = readonly ? { readonly } : {};
 
-    // 🚀 If in Bun, use Bun's native driver exclusively.
+    // 🚀 Bun native — fastest, zero deps, ESM-friendly
     if (isBun) {
       try {
-        const driverName = "bun" + ":sqlite";
-        const { Database } = await import(/* @vite-ignore */ driverName);
-        logger.debug(`[SQLite] Bun detected. Attempting to use native 'bun:sqlite'...`);
+        const { Database } = await import("bun:sqlite");
 
         // 🚀 WINDOWS RESILIENCE: Retry on "SQLITE_MISUSE" or "busy" which often indicates
         // a transient file lock or path access issue on Windows.
@@ -1893,11 +1891,10 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
             // We'll try the normalizedPath first, then raw dbPath.
             const target = i >= 3 ? dbPath.replace(/\\/g, "/") : normalizedPath;
 
-            if (Object.keys(options).length > 0) {
-              sqlite = new Database(target, options);
-            } else {
-              sqlite = new Database(target);
-            }
+            sqlite =
+              Object.keys(options).length > 0
+                ? new Database(target, options)
+                : new Database(target);
             break;
           } catch (e: any) {
             lastErr = e;
@@ -1916,7 +1913,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         }
         if (!sqlite) throw lastErr;
 
-        const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
+        const { drizzle } = await import("drizzle-orm/bun-sqlite");
         const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
 
         // 🚀 AGNOSTIC SILENCE: Only log success once per process to keep benchmarks clean
@@ -1927,158 +1924,95 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
 
         return { sqlite, db };
       } catch (e: any) {
-        logger.warn(`[SQLite] ⚠️ Bun driver probe failed: ${e.message}. Falling back...`);
+        logger.warn(`[SQLite] Bun driver failed: ${e.message}. Falling back to node:sqlite...`);
 
         // 🚀 WINDOWS OPTIMIZATION: On Windows Bun, if bun:sqlite fails,
-        // we likely have a serious environment issue. better-sqlite3 is
-        // even more likely to fail due to native bindings.
+        // we likely have a serious environment issue.
         if (process.platform === "win32") {
-          const isMisuse =
-            e.message?.includes("misuse") || e.code === "SQLITE_MISUSE" || e.errno === 21;
-
-          if (isMisuse && process.env.BENCHMARK_DEBUG !== "true") {
-            // Silently continue to fallbacks if misuse (expected in some path formats)
-          } else {
-            logger.error(`[SQLite] Native 'bun:sqlite' failed on Windows: ${e.message}`);
-          }
-
-          // Don't fall through to better-sqlite3 on Windows Bun to avoid extreme noise
-          // unless explicitly requested via an environment variable.
+          // Fail fast on Windows Bun issues unless forced
           if (process.env.FORCE_SQLITE_FALLBACK !== "true") throw e;
         }
       }
     }
 
-    try {
-      // 🔌 NODE FALLBACK 1: Try better-sqlite3 (Legacy Node)
-      const req = await getRequire();
-      if (req) {
-        // Suppress noisy binding errors on Windows if we're just checking drivers
+    // 🔌 Node.js native (Node >=22.5) — via drizzle-orm/sqlite-proxy
+    if (nodeVersion) {
+      const v = nodeVersion.replace("v", "");
+      const [major, minor] = v.split(".").map(Number);
+
+      if (major > 22 || (major === 22 && minor >= 5)) {
         try {
-          const sqlite = req("better-sqlite3")(normalizedPath, options);
-          const { drizzle } = await import("drizzle-orm/better-sqlite3");
-          const db = drizzle(sqlite, { schema });
-          logger.info(`[SQLite] Using 'better-sqlite3' driver.`);
-          return { sqlite, db };
-        } catch (bindingError: any) {
-          if (process.platform === "win32" && bindingError.message.includes("bindings")) {
-            throw new Error("BETTER_SQLITE3_BINDINGS_MISSING");
-          }
-          throw bindingError;
-        }
-      } else {
-        throw new Error("requireFunc not available for better-sqlite3");
-      }
-    } catch (e: any) {
-      // If we're on Windows and it's just missing bindings, log a concise warning instead of a stack trace
-      if (e.message === "BETTER_SQLITE3_BINDINGS_MISSING") {
-        logger.debug(
-          "[SQLite] better-sqlite3 bindings missing (Expected on Windows without build tools).",
-        );
-      } else {
-        logger.debug(`[SQLite] better-sqlite3 fallback failed: ${e.message}`);
-      }
+          const req = await getRequire();
+          if (!req) throw new Error("requireFunc not available");
 
-      // 🔌 NODE FALLBACK 2: Try native node:sqlite (Node 22.5+) via shim
-      if (nodeVersion) {
-        const v = nodeVersion.replace("v", "");
-        const [major, minor] = v.split(".").map(Number);
+          const { DatabaseSync } = req("node:sqlite");
+          const sqlite = new DatabaseSync(normalizedPath);
 
-        if (major > 22 || (major === 22 && minor >= 5)) {
-          try {
-            const req = await getRequire();
-            if (!req) throw new Error("requireFunc not available for node:sqlite");
-            const { DatabaseSync } = req("node:sqlite");
-            // 🚀 WINDOWS HARDENING: Use normalized path (absolute/file URI) for native driver
-            const sqlite = new DatabaseSync(normalizedPath);
+          this.applyPragmas({ exec: (cmd: string) => sqlite.exec(cmd) });
 
-            // 🚀 PERFORMANCE: Apply all pragmas (including mmap_size for Windows) to the proxy driver
-            this.applyPragmas({
-              exec: (cmd: string) => sqlite.exec(cmd),
-            });
+          // drizzle-orm/node-sqlite not yet exported in v0.45.2 — use sqlite-proxy shim
+          const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");
 
-            // 🚀 Shim node:sqlite using drizzle-orm/sqlite-proxy
-            const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");
+          const db = proxyDrizzle(
+            async (sqlText, params = [], method) => {
+              const serializedParams = (params || []).map((p) => {
+                if (typeof p === "boolean") return p ? 1 : 0;
+                return p !== null && typeof p === "object" ? JSON.stringify(p) : p;
+              });
 
-            const db = proxyDrizzle(
-              async (sqlText, params = [], method) => {
-                const serializedParams = (params || []).map((p) => {
-                  if (typeof p === "boolean") return p ? 1 : 0;
-                  return p !== null && typeof p === "object" ? JSON.stringify(p) : p;
-                });
+              const isWrite =
+                /^\s*(insert|update|delete|create|drop|alter|replace|begin|commit|rollback|savepoint)/i.test(
+                  sqlText,
+                );
 
-                // 🚀 HARDENING: Detect transactions as writes to prevent mutex deadlocks
-                const isWrite =
-                  /^\s*(insert|update|delete|create|drop|alter|replace|begin|commit|rollback|savepoint)/i.test(
-                    sqlText,
-                  );
-
-                const execute = async () => {
-                  let stmt = this._statementCache.get(sqlText);
-                  if (!stmt) {
-                    stmt = sqlite.prepare(sqlText);
-                    if (this._statementCache.size < 1000) {
-                      this._statementCache.set(sqlText, stmt);
-                    }
+              const execute = async () => {
+                let stmt = this._statementCache.get(sqlText);
+                if (!stmt) {
+                  stmt = sqlite.prepare(sqlText);
+                  if (this._statementCache.size < 1000) {
+                    this._statementCache.set(sqlText, stmt);
                   }
-
-                  try {
-                    if (method === "all") {
-                      const result = stmt.all(...serializedParams);
-                      const rows = (result || []).map((row: any) => Object.values(row));
-                      return { rows };
-                    } else if (method === "get") {
-                      const result = stmt.get(...serializedParams);
-                      const rows = result ? Object.values(result) : undefined;
-                      return { rows };
-                    } else if (method === "run") {
-                      const result = stmt.run(...serializedParams);
-                      return {
-                        rows: [],
-                        lastInsertRowid: result.lastInsertRowid,
-                        changes: result.changes,
-                      };
-                    } else if (method === "values") {
-                      const result = stmt.all(...serializedParams);
-                      const rows = (result || []).map((row: any) => Object.values(row));
-                      return { rows };
-                    } else {
-                      const result = stmt.run(...serializedParams);
-                      return {
-                        rows: [],
-                        lastInsertRowid: result.lastInsertRowid,
-                        changes: result.changes,
-                      };
-                    }
-                  } catch (execErr: any) {
-                    logger.error(
-                      `[SQLite Proxy] Execution failed for ${method}: ${sqlText}`,
-                      execErr,
-                    );
-                    throw execErr;
-                  }
-                };
-
-                if (isWrite) {
-                  return SQLiteAdapterCore.writeMutex.runExclusive(execute);
                 }
-                return execute();
-              },
-              { schema },
-            );
 
-            logger.info(`[SQLite] Using native 'node:sqlite' driver (Shimmed).`);
-            return { sqlite: sqlite as any, db };
-          } catch (nodeSqliteErr: any) {
-            logger.error(`[SQLite] node:sqlite fallback failed: ${nodeSqliteErr.message}`);
-          }
+                if (method === "all") {
+                  const result = stmt.all(...serializedParams);
+                  const rows = (result || []).map((row: any) => Object.values(row));
+                  return { rows };
+                } else if (method === "get") {
+                  const result = stmt.get(...serializedParams);
+                  const rows = result ? Object.values(result) : undefined;
+                  return { rows };
+                } else if (method === "values") {
+                  const result = stmt.all(...serializedParams);
+                  const rows = (result || []).map((row: any) => Object.values(row));
+                  return { rows };
+                } else {
+                  const result = stmt.run(...serializedParams);
+                  return {
+                    rows: [],
+                    lastInsertRowid: result.lastInsertRowid,
+                    changes: result.changes,
+                  };
+                }
+              };
+
+              if (isWrite) {
+                return SQLiteAdapterCore.writeMutex.runExclusive(execute);
+              }
+              return execute();
+            },
+            { schema },
+          );
+
+          logger.info(`[SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy).`);
+          return { sqlite: sqlite as any, db };
+        } catch (nodeErr: any) {
+          logger.error(`[SQLite] node:sqlite failed: ${nodeErr.message}`);
         }
       }
-
-      throw new Error(
-        `No compatible SQLite driver found. Tried bun:sqlite, better-sqlite3, and node:sqlite. Error: ${e.message}`,
-      );
     }
+
+    throw new Error(`No compatible SQLite driver found (bun:sqlite or node:sqlite).`);
   }
 
   private applyPragmas(client: SQLiteClient) {

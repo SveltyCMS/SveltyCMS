@@ -7,13 +7,11 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/security";
 import { parseSessionDuration } from "@utils/auth-utils";
-import { isoDateStringToDate, dateToISODateString } from "@utils/date";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
-import { generateSecureToken } from "@utils/native-utils";
 import type {
   DatabaseId,
   IDBAdapter,
@@ -253,52 +251,15 @@ export class AuthNamespace {
       throw new AppError("Account suspended or incomplete", 401);
     }
 
-    // ACCOUNT LOCKOUT: check before verifying password
-    if (user.lockoutUntil) {
-      const lockoutDate = isoDateStringToDate(user.lockoutUntil);
-      if (lockoutDate > new Date()) {
-        const remainingMinutes = Math.ceil((lockoutDate.getTime() - Date.now()) / 60000);
-        logger.warn("Login attempt on locked account", { email });
-        throw new AppError(
-          `Account temporarily locked. Try again in ${remainingMinutes} minutes.`,
-          423, // HTTP 423 Locked — semantically correct for account lockout
-        );
-      }
-      // Lockout expired, clear it
-      await auth.updateUserAttributes(user._id as DatabaseId, {
-        lockoutUntil: null,
-        failedAttempts: 0,
-      });
-    }
-
-    // PASSWORD VERIFICATION with failed-attempt tracking
     if (password) {
       const isValid = await verifyPassword(user.password, password);
       if (!isValid) {
-        const failedAttempts = (user.failedAttempts || 0) + 1;
-        const updates: Record<string, any> = { failedAttempts };
-        if (failedAttempts >= 5) {
-          const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000);
-          updates.lockoutUntil = dateToISODateString(lockoutUntil);
-          logger.error("Account locked due to multiple failed attempts", {
-            email,
-          });
-        }
-        await auth.updateUserAttributes(user._id as DatabaseId, updates);
-        logger.warn("Password authentication failed", {
-          email,
-          failedAttempts,
+        logger.debug("Login failed: Password mismatch", {
+          userId: user._id,
+          email: user.email,
         });
         throw new AppError("Invalid credentials", 401);
       }
-    }
-
-    // SUCCESS: reset lockout state
-    if (user.failedAttempts || user.lockoutUntil) {
-      await auth.updateUserAttributes(user._id as DatabaseId, {
-        failedAttempts: 0,
-        lockoutUntil: null,
-      });
     }
 
     const sessionResult = await auth.createSession({
@@ -456,8 +417,6 @@ export class AuthNamespace {
  * Tokens Namespace
  */
 export class TokensNamespace {
-  private static readonly TOKEN_COLLECTION = "auth_tokens";
-
   constructor(private _dbAdapter: IDBAdapter) {}
 
   async list(options: TokenOptions = {}) {
@@ -466,50 +425,50 @@ export class TokensNamespace {
     return withTenant(
       tenantId ?? null,
       async () => {
-        const filter: any = {};
-        if (search) {
-          filter.$or = [
-            { email: { $regex: search, $options: "i" } },
-            { token: { $regex: search, $options: "i" } },
-          ];
-        }
-
-        const tokensRes = await this._dbAdapter.crud.findMany(
-          TokensNamespace.TOKEN_COLLECTION,
-          filter,
-          {
-            limit,
-            offset: (page - 1) * limit,
-            sort: { [sort]: order === "asc" ? 1 : -1 } as any,
-            tenantId: tenantId as DatabaseId,
-          },
-        );
-
-        const totalItemsRes = await this._dbAdapter.crud.count(
-          TokensNamespace.TOKEN_COLLECTION,
-          filter,
-          {
-            tenantId: tenantId as DatabaseId,
-          },
-        );
-
+        const tokensRes = await this._dbAdapter.auth.getAllTokens({
+          tenantId: tenantId as DatabaseId,
+        } as any);
         if (!tokensRes.success) throw new AppError(tokensRes.message, 500);
-        if (!totalItemsRes.success) throw new AppError(totalItemsRes.message, 500);
+
+        const normalizedSearch = search?.toLowerCase();
+        let tokens = (tokensRes.data || []).filter((token: any) => {
+          if (!normalizedSearch) return true;
+          return [token.email, token.token].some(
+            (value) => typeof value === "string" && value.toLowerCase().includes(normalizedSearch),
+          );
+        });
+
+        tokens = tokens.sort((a: any, b: any) => {
+          const aValue = a?.[sort];
+          const bValue = b?.[sort];
+
+          if (aValue === bValue) return 0;
+          if (aValue === undefined || aValue === null) return order === "asc" ? -1 : 1;
+          if (bValue === undefined || bValue === null) return order === "asc" ? 1 : -1;
+
+          return order === "asc"
+            ? String(aValue).localeCompare(String(bValue))
+            : String(bValue).localeCompare(String(aValue));
+        });
+
+        const totalItems = tokens.length;
+        const offset = (page - 1) * limit;
+        tokens = tokens.slice(offset, offset + limit);
 
         return {
           success: true,
-          data: tokensRes.data,
+          data: tokens,
           meta: {
             pagination: {
-              totalItems: totalItemsRes.data,
+              totalItems,
               page,
               limit,
-              totalPages: Math.ceil((totalItemsRes.data as number) / limit),
+              totalPages: Math.ceil(totalItems / limit),
             },
           },
         } as DatabaseResult<any>;
       },
-      { collection: TokensNamespace.TOKEN_COLLECTION },
+      { collection: "tokens" },
     );
   }
 
@@ -518,23 +477,15 @@ export class TokensNamespace {
       return { success: true, data: null };
     }
 
-    let existing = await this._dbAdapter.crud.findOne(
-      TokensNamespace.TOKEN_COLLECTION,
-      { token: tokenId } as any,
-      {
-        tenantId: tenantId as DatabaseId,
-      },
-    );
+    let existing = await this._dbAdapter.auth.getTokenByValue(tokenId, {
+      tenantId: tenantId as DatabaseId,
+    });
 
     // If not found by token value, try by _id
     if (!existing.success || !existing.data) {
-      existing = await this._dbAdapter.crud.findOne(
-        TokensNamespace.TOKEN_COLLECTION,
-        { _id: tokenId } as any,
-        {
-          tenantId: tenantId as DatabaseId,
-        },
-      );
+      existing = await this._dbAdapter.auth.getTokenById(tokenId as DatabaseId, {
+        tenantId: tenantId as DatabaseId,
+      });
     }
 
     return existing;
@@ -551,7 +502,7 @@ export class TokensNamespace {
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
       },
-      { collection: TokensNamespace.TOKEN_COLLECTION },
+      { collection: "tokens" },
     );
   }
 
@@ -563,18 +514,15 @@ export class TokensNamespace {
         const existing = await this.findToken(tokenId, tenantId as DatabaseId);
         if (!existing.success || !existing.data) return undefined;
 
-        const result = await this._dbAdapter.crud.update(
-          TokensNamespace.TOKEN_COLLECTION,
+        const result = await this._dbAdapter.auth.updateToken(
           existing.data._id as DatabaseId,
           data,
-          {
-            tenantId: tenantId as DatabaseId,
-          },
+          { tenantId: tenantId as DatabaseId },
         );
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
       },
-      { collection: TokensNamespace.TOKEN_COLLECTION },
+      { collection: "tokens" },
     );
   }
 
@@ -598,7 +546,6 @@ export class TokensNamespace {
           throw new AppError(`A user with email ${email} already exists.`, 400);
         }
 
-        const tokenValue = generateSecureToken(32);
         const now = Date.now();
         let expiresDate: string;
 
@@ -626,29 +573,26 @@ export class TokensNamespace {
             expiresDate = expires;
         }
 
-        const result = await this._dbAdapter.crud.insert(
-          TokensNamespace.TOKEN_COLLECTION,
+        const result = await this._dbAdapter.auth.createToken(
           {
             email,
             user_id: userId as DatabaseId,
-            token: tokenValue,
             role,
             type: "invite-token",
             expires: expiresDate as ISODateString,
-            blocked: false,
-            createdAt: new Date().toISOString() as ISODateString,
-          } as any,
+            tenantId: tenantId as DatabaseId,
+          },
           { tenantId: tenantId as DatabaseId },
         );
 
         if (!result.success) return result as DatabaseResult<any>;
         return {
           success: true,
-          data: tokenValue,
+          data: result.data,
           message: "Token created",
         } as DatabaseResult<string>;
       },
-      { collection: TokensNamespace.TOKEN_COLLECTION },
+      { collection: "tokens" },
     );
   }
 
@@ -667,22 +611,20 @@ export class TokensNamespace {
           } as DatabaseResult<any>;
         }
 
-        const deleteRes = await this._dbAdapter.crud.delete(
-          TokensNamespace.TOKEN_COLLECTION,
-          existing.data._id as DatabaseId,
+        const deleteRes = await this._dbAdapter.auth.deleteTokens(
+          [existing.data._id as DatabaseId],
           {
             tenantId: tenantId as DatabaseId,
           },
         );
-
         if (!deleteRes.success) return deleteRes;
         return {
           success: true,
-          data: { deletedCount: 1 },
+          data: deleteRes.data,
           message: "Token deleted",
         } as DatabaseResult<any>;
       },
-      { collection: TokensNamespace.TOKEN_COLLECTION },
+      { collection: "tokens" },
     );
   }
 
@@ -694,17 +636,14 @@ export class TokensNamespace {
         for (const id of tokenIds) {
           const existing = await this.findToken(id, tenantId as DatabaseId);
           if (existing.success && existing.data) {
-            await this._dbAdapter.crud.update(
-              TokensNamespace.TOKEN_COLLECTION,
-              existing.data._id as DatabaseId,
-              { blocked: true } as any,
-              { tenantId: tenantId as DatabaseId },
-            );
+            await this._dbAdapter.auth.blockTokens([existing.data._id as DatabaseId], {
+              tenantId: tenantId as DatabaseId,
+            });
           }
         }
         return { success: true };
       },
-      { collection: TokensNamespace.TOKEN_COLLECTION },
+      { collection: "tokens" },
     );
   }
 
@@ -716,17 +655,14 @@ export class TokensNamespace {
         for (const id of tokenIds) {
           const existing = await this.findToken(id, tenantId as DatabaseId);
           if (existing.success && existing.data) {
-            await this._dbAdapter.crud.update(
-              TokensNamespace.TOKEN_COLLECTION,
-              existing.data._id as DatabaseId,
-              { blocked: false } as any,
-              { tenantId: tenantId as DatabaseId },
-            );
+            await this._dbAdapter.auth.unblockTokens([existing.data._id as DatabaseId], {
+              tenantId: tenantId as DatabaseId,
+            });
           }
         }
         return { success: true };
       },
-      { collection: TokensNamespace.TOKEN_COLLECTION },
+      { collection: "tokens" },
     );
   }
 

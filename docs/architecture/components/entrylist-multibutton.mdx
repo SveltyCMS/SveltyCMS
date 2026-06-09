@@ -23,7 +23,7 @@ The `entry-list_MultiButton` is an enterprise-grade component for managing bulk 
 
 ## Quick Start
 
-```typescript
+````typescript
 <entry-listMultiButton
   hasSelections={true}
   selectedCount={5}
@@ -37,7 +37,7 @@ The `entry-list_MultiButton` is an enterprise-grade component for managing bulk 
   clone={onClone}
   delete={onDelete}
 />
-```
+```text
 
 ---
 
@@ -83,7 +83,7 @@ flowchart TB
     EA --> API
     EA --> MS
     API --> TS
-```
+```text
 
 ---
 
@@ -106,7 +106,7 @@ interface QueuedAction {
   maxRetries?: number; // Default: 3
   optimisticId?: string; // Links to optimistic update
 }
-```
+```text
 
 **Benefits:**
 
@@ -120,14 +120,14 @@ interface QueuedAction {
 
 Instant visual feedback before server confirmation.
 
-```
+```text
 1. User clicks action
 2. Create optimistic update (instant UI change)
 3. Add to action queue
 4. Execute server API call
 5. On success: commit optimistic update
 6. On error: revert optimistic update + show retry
-```
+```text
 
 ---
 
@@ -243,7 +243,7 @@ sequenceDiagram
         Q->>OU: Revert update
         Q->>T: Error toast + retry
     end
-```
+```text
 
 ---
 
@@ -264,7 +264,7 @@ interface Props {
   clone: () => Promise<void> | void;
   delete: (permanent: boolean) => Promise<void> | void;
 }
-```
+```text
 
 ---
 
@@ -290,3 +290,4 @@ interface Props {
 - [schedule-modal Component](./schedule-modal.mdx)
 - [Collection Store Dataflow](/docs/architecture/collection-store-dataflow.mdx)
 - [Hover Preloading](/docs/architecture/hover-preloading.mdx)
+````

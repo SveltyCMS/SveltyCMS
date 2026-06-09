@@ -284,7 +284,7 @@ registerTestMeta(
   "tests/benchmarks/memory-stability.test.ts",
   "Long-running soak test for memory leaks and GC pressure",
   ["src/databases/core/base-adapter.ts", "src/widgets/*/index.ts"],
-  "Memory leaks cause OOM crashes in production. Native addon leaks (sharp, better-sqlite3) are common.",
+  "Memory leaks cause OOM crashes in production. Native addon leaks (sharp, argon2) are common.",
 );
 
 registerTestMeta(

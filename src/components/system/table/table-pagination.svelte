@@ -103,7 +103,7 @@
 			disabled={isFirstPage}
 			type="button"
 			aria-label="Go to first page"
-			class="btn h-8 w-8 rounded-none border-r border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
+			class="btn h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
 			aria-disabled={isFirstPage}
 		>
 			<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -117,7 +117,7 @@
 			disabled={isFirstPage}
 			type="button"
 			aria-label="Go to previous page"
-			class="btn h-8 w-8 rounded-none border-r border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
+			class="btn h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
 			aria-disabled={isFirstPage}
 		>
 			<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -148,7 +148,7 @@
 			disabled={isLastPage}
 			type="button"
 			aria-label="Go to next page"
-			class="btn h-8 w-8 rounded-none border-l border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
+			class="btn h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
 			aria-disabled={isLastPage}
 		>
 			<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -162,7 +162,7 @@
 			disabled={isLastPage}
 			type="button"
 			aria-label="Go to last page"
-			class="btn h-8 w-8 rounded-none border-l border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
+			class="btn h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
 			aria-disabled={isLastPage}
 		>
 			<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>

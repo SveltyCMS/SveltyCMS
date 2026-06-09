@@ -10,6 +10,16 @@ import type { CmsMediaMetadata } from "./media-models";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 
+/** Global lazy-loaded sharp instance to eliminate module resolution overhead */
+let _sharp: any = null;
+async function getSharp(): Promise<any> {
+  if (!_sharp) {
+    const mod = await import("sharp");
+    _sharp = mod.default || mod;
+  }
+  return _sharp;
+}
+
 /** Hash file content (SHA-256, full 64-char hex) */
 export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<string> {
   if (!buffer || buffer.byteLength === 0) {
@@ -49,7 +59,7 @@ export async function hashStream(stream: ReadableStream | Readable): Promise<str
 /** Extract standard image metadata with Sharp */
 export async function extractMetadata(buffer: Buffer): Promise<any> {
   try {
-    const sharp = (await import("sharp")).default;
+    const sharp = await getSharp();
     const pipeline = sharp(buffer, {
       limitInputPixels: 100_000_000,
       failOn: "none",
@@ -98,7 +108,7 @@ export class MediaProcessingService {
     options: { fastPath?: boolean } = {},
   ): Promise<CmsMediaMetadata> {
     try {
-      const sharp = (await import("sharp")).default;
+      const sharp = await getSharp();
       const instance = sharp(buffer);
       const meta = await instance.metadata();
 
@@ -138,7 +148,7 @@ export class MediaProcessingService {
           .resize(32, 32, { fit: "inside" })
           .webp({ quality: 20 })
           .toBuffer()
-          .then((b) => `data:image/webp;base64,${b.toString("base64")}`),
+          .then((b: Buffer) => `data:image/webp;base64,${b.toString("base64")}`),
       };
 
       // Extract common DAM fields for easy searching

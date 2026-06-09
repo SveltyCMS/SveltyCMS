@@ -20,7 +20,7 @@ SveltyCMS features an isomorphic plugin system that runs on both server and clie
 
 ## Architecture Overview
 
-```mermaid
+````mermaid
 graph TB
     subgraph "Plugin System"
         R["Plugin Registry"]
@@ -57,7 +57,7 @@ graph TB
     R --> MG
     R --> SR --> SB
     S --> R
-```
+```text
 
 ## Quick Start: Minimal Plugin
 
@@ -77,7 +77,7 @@ export const myPlugin: Plugin = {
     icon: "mdi:star",
   },
 };
-```
+```text
 
 Because SveltyCMS features **System Discovery & Autoloading**, there is no need to manually register or import your plugin inside any central files. Simply saving your plugin code inside the `src/plugins/` directory is enough for the CMS to automatically scan, register, and boot your plugin.
 
@@ -93,7 +93,7 @@ interface Plugin {
   migrations?: PluginMigration[]; // DB schema migrations
   enabledCollections?: string[]; // Restrict to specific collections
 }
-```
+```text
 
 ## Lifecycle Hooks
 
@@ -127,7 +127,7 @@ hooks: {
     // Cleanup related plugin data
   }
 }
-```
+```text
 
 ## SSR Data Enrichment
 
@@ -142,7 +142,7 @@ ssrHook: async (context, entries) => {
     data: { score: Math.random() * 100 },
   }));
 };
-```
+```text
 
 ## UI Injection Zones
 
@@ -167,7 +167,7 @@ export interface PluginSlot {
   props?: Record<string, any>;
   zone: InjectionZone;
 }
-```
+```text
 
 ## Database Migrations
 
@@ -189,7 +189,7 @@ migrations: [
     },
   },
 ];
-```
+```text
 
 ## Security Boundaries (Sandbox)
 
@@ -213,7 +213,7 @@ await pluginRegistry.togglePlugin("my-plugin", true, tenantId, userId);
 
 // Check state
 const state = await pluginRegistry.getPluginState("my-plugin", tenantId);
-```
+```text
 
 ## Existing Plugins
 
@@ -232,3 +232,12 @@ const state = await pluginRegistry.getPluginState("my-plugin", tenantId);
 4. **Use migrations** for DB schema — don't create collections in hooks
 5. **Keep hooks fast** — stay under the 5s timeout
 6. **Test independently** — mock the `PluginContext` for unit tests
+````
+
+---
+
+## Related
+
+- [Development Guides](../index.mdx)
+- [Widget System](../../../architecture/index.mdx)
+- [Security Overview](../../../architecture/security/index.mdx)

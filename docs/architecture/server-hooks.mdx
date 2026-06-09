@@ -51,7 +51,7 @@ The pipeline is **dynamically dispatched** based on system state, with **two cac
 - **READY pipeline** (16 hooks): Full production middleware chain
 - **SETUP pipeline** (3 hooks): Minimal bootstrap chain during installation
 
-```typescript
+````typescript
 // READY Pipeline (production order):
 const pipeline = [
   handleHyperTurbo, //  1. BENCHMARK AUTH (Env-gated + secret + CSPRNG nonce; auth paths excluded)
@@ -71,7 +71,7 @@ const pipeline = [
   handleApiRequests, // 15. API Caching (ETags, 2-Layer Cache, SWR Pre-warming)
   handleTokenResolution, // 16. RBAC Token Replacement in API responses
 ];
-```
+```text
 
 > **2026-06-05 Consolidation**: `handleSecurityHeaders` and `handleStaticAssetCaching` are now inlined into `handleTurboPipeline`'s post-resolve phase, reducing Promise chain depth by 2 hooks. `handleTurboGet` moved earlier — right after security gates, before auth/authz — maximizing its cache-hit fast-path coverage.
 
@@ -108,7 +108,7 @@ We respect user privacy. Telemetry can be completely disabled by setting the fol
 SVELTY_TELEMETRY_DISABLED=true
 # OR use the universal standard
 DO_NOT_TRACK=1
-```
+```text
 
 ## 🚀 Server Startup & Initialization Flow
 
@@ -158,7 +158,7 @@ sequenceDiagram
     end
 
     Hooks-->>Server: Continue request processing
-```
+```text
 
 ### First-Time Installation Flow (Zero Restart Required)
 
@@ -203,7 +203,7 @@ sequenceDiagram
     Setup->>User: Redirect to /login
 
     Note over User,State: ✅ System fully operational<br/>NO SERVER RESTART NEEDED
-```
+```text
 
 ### Key Implementation: hooks.server.ts
 
@@ -228,7 +228,7 @@ if (!building) {
     process.exit(0);
   });
 }
-```
+```text
 
 **Why Dynamic Import?**
 
@@ -262,7 +262,7 @@ export async function initializeWithConfig(config: PrivateEnv): Promise<{ status
     throw error;
   }
 }
-```
+```text
 
 **Called by:** `completeSetup` Server Function in `src/routes/setup/+page.server.ts` after writing `config/private.ts`.
 
@@ -299,7 +299,7 @@ classifyRequest(pathname, event.locals);
 // In any downstream hook:
 const flags = getRequestFlags(event.locals);
 if (flags.isStatic) return resolve(event); // 0 redundant computes
-```
+```text
 
 ### 🔒 Security Hardening
 
@@ -433,7 +433,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 **Architecture**:
 
-```
+```text
 Request → ... → compression → ⚡ TURBO GET ⚡
   ├─ Gate 1: GET/HEAD/OPTIONS only (no mutation bypass)
   ├─ Gate 2: Cacheable API path? (8 prefixes: collections, content, settings, system, schema, navigation, themes, config)
@@ -442,7 +442,7 @@ Request → ... → compression → ⚡ TURBO GET ⚡
   ├─ Gate 5: Response in L1 memory cache?
   ├─ HIT  → Return pre-encoded response + security headers (skip auth/authz entirely)
   └─ MISS → Inject auth context into locals → passthrough to normal pipeline
-```
+```text
 
 **Universal Auth Context Cache**:
 
@@ -511,7 +511,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
   return resolve(event);
 };
-```
+```text
 
 **Performance**: Full pipeline p95 is **1.214ms** (measured via `tests/benchmarks/hooks-performance.test.ts`). Early exit for legitimate traffic skips payload scanning; GraphQL complexity pre-filter catches attacks in <0.01ms. See [SQLite Benchmark Ledger](../project/benchmarks/benchmark_sqlite.mdx#hooks) for historical trends.
 
@@ -596,7 +596,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   // No collections found - stay on root
   return { user, permissions: locals.permissions };
 };
-```
+```text
 
 **Why Root Path is Always Allowed**:
 
@@ -646,7 +646,7 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
       html.replace('<html lang="en" dir="ltr">', '<html lang="en" dir="ltr" class="dark">'),
   });
 };
-```
+```text
 
 ---
 
@@ -665,7 +665,7 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
 - **Session Validation**: Verifies the `session_id` cookie against the database/cache.
 - **Tenant Isolation**: Ensures the authenticated user belongs to the resolved `tenantId`.
 - **Global Administrator**: Recognizes and preserves the global administrator (`tenantId: null`), who is exempted from automated cleanup processes.
-- **Session Rotation**: Rotates session tokens every 60 minutes for active users (optimized for DB impact).
+- **Session Rotation**: Rotates session tokens every 15 minutes for active users (industry standard).
 - **WeakRef Caching (Memory Stability)**: Uses a memory-efficient LRU cache (top 100 hot sessions) utilizing `WeakRef` for User objects. This ensures that the V8 garbage collector can immediately reclaim memory from inactive sessions, preventing the memory bloat and OOM crashes common in Strapi and Payload.
 
 ```typescript
@@ -689,7 +689,7 @@ if (multiTenant) {
     }
     locals.tenantId = tenantId;
 }
-```
+```text
 
 **Key Features**:
 
@@ -754,7 +754,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
   return resolve(event);
 };
-```
+```text
 
 **Key Features**:
 
@@ -800,7 +800,7 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
   return resolve(event);
 };
-```
+```text
 
 ---
 
@@ -877,7 +877,7 @@ etag = `"${crypto.createHash("sha1").update(responseBody).digest("hex").substrin
 if (request.headers.get("if-none-match") === etag) {
   return new Response(null, { status: 304, headers: { etag } });
 }
-```
+```text
 
 **Key Features**:
 
@@ -980,7 +980,7 @@ sequenceDiagram
     Static-->>Test: Response
     Test-->>Headers: Response
     Headers-->>SvelteKit: Final Response
-```
+```text
 
 ---
 
@@ -1024,7 +1024,7 @@ Complex hooks with intricate state machines and security logic receive dedicated
 
 ```bash
 bun test tests/bun/hooks/system-state.test.ts  # 26 tests
-```
+```text
 
 #### 2. handleFirewall (27 tests)
 
@@ -1044,7 +1044,7 @@ bun test tests/bun/hooks/system-state.test.ts  # 26 tests
 
 ```bash
 bun test tests/bun/hooks/firewall.test.ts      # 27 tests
-```
+```text
 
 ### Indirect Integration Coverage (9 hooks)
 
@@ -1089,7 +1089,7 @@ bun test tests/bun/hooks/ tests/bun/api/ tests/bun/services/
 
 # Full test suite
 bun test
-```
+```text
 
 ---
 
@@ -1109,7 +1109,7 @@ export {
   forceSessionRotation,
   getSessionCacheStats,
 } from "./hooks/handleAuthentication";
-```
+```text
 
 ---
 
@@ -1130,6 +1130,7 @@ The middleware architecture provides:
 - [Security Plugin](./security-plugin.mdx) - SecurityResponseService integration
 - [Initialization Workflow](./initialization-workflow.mdx) - System startup sequence
 
-```
+```text
 
-```
+```text
+````

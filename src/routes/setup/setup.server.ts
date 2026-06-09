@@ -377,6 +377,17 @@ export async function completeSetup(
         });
       }
 
+      // Update architectural modes in private.ts based on final wizard state
+      try {
+        const { updatePrivateConfigMode } = await import("./write-private-config");
+        await updatePrivateConfigMode({
+          multiTenant: system.multiTenant,
+          demoMode: system.demoMode,
+        });
+      } catch (modeError) {
+        logger.error("Failed to update architectural modes in private.ts:", modeError);
+      }
+
       // Invalidate the cache to ensure the new settings are picked up instantly
       const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
       invalidateSettingsCache();

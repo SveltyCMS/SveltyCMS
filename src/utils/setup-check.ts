@@ -67,17 +67,21 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
     if (typeof dbAdapter.isConnected === "function" && !dbAdapter.isConnected()) return false;
 
-    // Check Users/Roles
-    const [userResult, roles] = await Promise.all([
-      dbAdapter.auth.getAllUsers({ limit: 1 }, { bypassTenantCheck: true }),
+    // Check Admin Users & Roles — use getUserCount which is more reliable than getAllUsers
+    const [adminCount, roles] = await Promise.all([
+      dbAdapter.auth.getUserCount({ role: "admin" }, { bypassTenantCheck: true }),
       dbAdapter.auth.getAllRoles({ bypassTenantCheck: true }),
     ]);
 
-    const hasUsers = userResult.success && userResult.data && userResult.data.length > 0;
+    const hasAdmin = (adminCount as unknown as number) > 0;
     const hasRoles = Array.isArray(roles) && roles.length > 0;
 
-    if (!hasUsers || !hasRoles) {
-      logger.channel("setupCheck").warn("Config exists but DB is missing USERS/ROLES");
+    if (!hasAdmin || !hasRoles) {
+      logger
+        .channel("setupCheck")
+        .warn(
+          `Config exists but DB is missing ${!hasAdmin ? "ADMIN" : ""}${!hasAdmin && !hasRoles ? "/" : ""}${!hasRoles ? "ROLES" : ""}`,
+        );
       setupDbStatus = false;
       setupStatusCheckedDb = true;
       return false;

@@ -7,6 +7,8 @@
 import type { RequestEvent, RequestHandler } from "@sveltejs/kit";
 import { handleApiError } from "./error-handling";
 
+const MAX_BODY_SIZE = 15 * 1024 * 1024; // 15MB — DoS prevention (allows 10MB multipart uploads)
+
 type ApiHandlerCallback = (event: RequestEvent) => Promise<Response> | Response;
 
 /**
@@ -24,6 +26,19 @@ type ApiHandlerCallback = (event: RequestEvent) => Promise<Response> | Response;
 export const apiHandler = (handler: ApiHandlerCallback): RequestHandler => {
   return async (event) => {
     const start = performance.now();
+
+    // 🛡️ DoS Prevention: reject requests with oversized bodies before parsing
+    const contentLength = event.request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
+      return new Response(
+        JSON.stringify({
+          error: "Request body too large",
+          code: "PAYLOAD_TOO_LARGE",
+        }),
+        { status: 413, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     try {
       const response = await handler(event);
       if (process.env.BENCHMARK_DEBUG === "true") {

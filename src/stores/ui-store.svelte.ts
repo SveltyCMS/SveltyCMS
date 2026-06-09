@@ -157,7 +157,7 @@ class UIStore {
 
     // Mobile
     if (size === ScreenSize.XS || size === ScreenSize.SM) {
-      this.state.leftSidebar = "hidden";
+      this.state.leftSidebar = "collapsed";
       this.state.rightSidebar = "hidden";
       this.state.pageheader = showPageHeader ? "full" : "hidden";
       this.state.pagefooter = "hidden";

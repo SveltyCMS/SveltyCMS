@@ -53,7 +53,7 @@
 	}
 </script>
 
-<div class="flex flex-col border border-surface-400 dark:border-surface-600 rounded-lg overflow-hidden">
+<div class="flex flex-col border border-surface-400 dark:border-surface-600 rounded overflow-hidden">
 	<!-- Toolbar -->
 	<div class="flex items-center justify-between bg-surface-100 dark:bg-surface-800 p-2 border-b border-surface-200 dark:border-surface-700">
 		<div class="flex gap-1">
@@ -77,7 +77,7 @@
 		{/if}
 
 		{#if previewMode !== 'edit'}
-			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-l border-surface-200 dark:border-surface-700">
+			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-s border-surface-200 dark:border-surface-700">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html parseMD(rawText)}
 			</div>

@@ -109,7 +109,7 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 
 <div class="space-y-4">
 	{#if succeeded}
-		<div class="flex items-center gap-3 p-4 rounded-xl bg-success-500/10 border border-success-500/20">
+		<div class="flex items-center gap-3 p-4 rounded bg-success-500/10 border border-success-500/20">
 			<iconify-icon icon="mdi:check-circle" class="text-success-500 text-2xl"></iconify-icon>
 			<div>
 				<p class="font-bold text-success-600 dark:text-success-400">Payment successful!</p>
@@ -117,7 +117,7 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 			</div>
 		</div>
 	{:else}
-		<div bind:this={cardElement} class="min-h-11 p-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 transition-all focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-tertiary-500"></div>
+		<div bind:this={cardElement} class="min-h-11 p-3 rounded border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 transition-all focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-tertiary-500"></div>
 
 		{#if error}
 			<p class="text-xs text-error-500 font-medium" role="alert">{error}</p>

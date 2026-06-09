@@ -101,7 +101,7 @@
 			class="card p-5 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700 hover:border-tertiary-500 dark:border-primary-500/50 transition-colors"
 		>
 			<div class="flex items-start gap-4">
-				<div class="p-3 rounded-lg bg-secondary-500/10 text-secondary-500">
+				<div class="p-3 rounded bg-secondary-500/10 text-secondary-500">
 					<iconify-icon icon="mdi:database-export" width="24"></iconify-icon>
 				</div>
 				<div class="flex-1">
@@ -124,7 +124,7 @@
 				class="card p-5 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700 hover:border-error-500/50 transition-colors"
 			>
 				<div class="flex items-start gap-4">
-					<div class="p-3 rounded-lg bg-error-500/10 text-error-500">
+					<div class="p-3 rounded bg-error-500/10 text-error-500">
 						<iconify-icon icon="mdi:account-remove" width="24"></iconify-icon>
 					</div>
 					<div class="flex-1">

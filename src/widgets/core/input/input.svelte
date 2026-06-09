@@ -281,7 +281,7 @@
 			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
 				<div class="flex items-center bg-surface-100 px-2 dark:bg-surface-800" role="status" aria-live="polite">
 					{#if field?.count || field?.minLength || field?.maxLength}
-						<span class="badge mr-1 rounded-full {badgeClass}" aria-label="Character count">
+						<span class="badge me-1 rounded-full {badgeClass}" aria-label="Character count">
 							{#if field?.count && field?.minLength && field?.maxLength}
 								{count}/{field?.maxLength}
 							{:else if field?.count && field?.maxLength}
@@ -320,7 +320,7 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p id={`${fieldName}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{validationError}
 		</p>
 	{/if}

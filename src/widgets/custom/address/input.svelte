@@ -447,7 +447,7 @@ Part of the Three Pillars Architecture for the widget system.
 	}
 </script>
 
-<div class="address-widget flex flex-col gap-4 rounded-xl border p-4 border-surface-300 dark:border-surface-600 bg-surface-50/30 dark:bg-surface-800/20">
+<div class="address-widget flex flex-col gap-4 rounded border p-4 border-surface-300 dark:border-surface-600 bg-surface-50/30 dark:bg-surface-800/20">
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2 font-bold text-surface-900 dark:text-surface-50">
 			<iconify-icon icon="mdi:map-marker-radius" width="20"></iconify-icon>
@@ -469,27 +469,27 @@ Part of the Three Pillars Architecture for the widget system.
 						<input 
 							id="search-address"
 							type="text" 
-							class="input pr-10" 
+							class="input pe-10" 
 							value={searchQuery}
 							oninput={googleMapsApiKey ? undefined : handleSearchInput}
 							onfocus={googleMapsApiKey ? undefined : () => showSuggestions = true}
 							placeholder={googleMapsApiKey ? "Search address via Google Places..." : "Type to search address (Photon)..."}
 						/>
 						{#if isLoadingSearch}
-							<div class="absolute right-3 top-1/2 -translate-y-1/2">
+							<div class="absolute end-3 top-1/2 -translate-y-1/2">
 								<iconify-icon icon="line-md:loading-loop" width="18"></iconify-icon>
 							</div>
 						{/if}
 					</div>
 					
 					{#if !googleMapsApiKey && showSuggestions && suggestions.length > 0}
-						<div class="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
+						<div class="absolute z-50 start-0 end-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
 							<ul class="list-none p-0 m-0">
 								{#each suggestions as sug}
 									<li>
 										<button 
 											type="button" 
-											class="w-full text-left px-4 py-2 text-sm hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex flex-col gap-0.5 border-b border-surface-200/50 dark:border-surface-700/50"
+											class="w-full text-start px-4 py-2 text-sm hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex flex-col gap-0.5 border-b border-surface-200/50 dark:border-surface-700/50"
 											onclick={() => selectSuggestion(sug)}
 										>
 											<span class="font-medium text-surface-900 dark:text-surface-50">{sug.label}</span>
@@ -559,7 +559,7 @@ Part of the Three Pillars Architecture for the widget system.
 						{googleMapsApiKey ? 'Google Maps' : 'MapLibre Free'}
 					</span>
 				</div>
-				<div bind:this={mapElement} class="h-80 lg:h-full min-h-[300px] w-full rounded-lg border border-surface-300 bg-surface-100 dark:border-surface-700 relative overflow-hidden">
+				<div bind:this={mapElement} class="h-80 lg:h-full min-h-[300px] w-full rounded border border-surface-300 bg-surface-100 dark:border-surface-700 relative overflow-hidden">
 				</div>
 			</div>
 		{/if}

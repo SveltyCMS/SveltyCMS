@@ -131,14 +131,43 @@ export async function handleWidgetRoutes(
       throw new AppError(`Widget ${target} not found`, 404);
     }
 
-    if (!registeredWidget?._id) {
-      throw new AppError(`Widget ${target} not found`, 404);
+    // Auto-register widget in DB if it exists in the scanner but not yet in the system registry
+    let effectiveWidget = registeredWidget;
+    if (!effectiveWidget?._id) {
+      const registerResult = await cms.db.system.widgets.register({
+        name: target,
+        isActive: false,
+        dependencies: [],
+        instances: {},
+      } as any);
+
+      if (!registerResult.success) {
+        throw new AppError(registerResult.message || "Failed to register widget", 500);
+      }
+
+      // Re-fetch after registration to get the _id
+      const refreshed = await cms.db.system.widgets.findAll();
+      effectiveWidget = refreshed.success
+        ? refreshed.data?.find((w: any) => w.name === target) || null
+        : null;
+
+      if (!effectiveWidget?._id) {
+        throw new AppError(`Widget ${target} not found after registration`, 404);
+      }
+    }
+
+    if (widgetId && action !== "status") {
+      const result =
+        action === "activate"
+          ? await cms.widgets.activate(widgetId)
+          : await cms.widgets.deactivate(widgetId);
+      return successResponse(event, result);
     }
 
     const result =
       action === "activate" || (action === "status" && body.isActive)
-        ? await cms.widgets.activate(registeredWidget._id as string)
-        : await cms.widgets.deactivate(registeredWidget._id as string);
+        ? await cms.widgets.activate(effectiveWidget._id as string)
+        : await cms.widgets.deactivate(effectiveWidget._id as string);
     return successResponse(event, result);
   }
 

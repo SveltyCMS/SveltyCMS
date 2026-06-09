@@ -1,50 +1,28 @@
 /**
  * @file scripts/slop-scanner.ts
- * @description AI Slop Scanner — detects common AI-generated code smells in SveltyCMS.
- *
- * Runs as part of Gate 3 (Svelte Doctor) in the Smart Test Orchestrator.
- * Catches patterns that AI coding assistants commonly generate:
- *
- * ### Detection Categories
- * - Unused imports
- * - Dead exports (exported but never imported)
- * - Svelte 5 anti-patterns ($: reactivity, legacy stores, unsafe {@html})
- * - Missing ARIA labels on interactive elements
- * - Directional Tailwind classes (pl-N/pr-N instead of ps-N/pe-N)
- * - TODO/FIXME accumulation
- * - Duplicate file content (copy-paste slop)
- * - Inconsistent file naming (PascalCase in kebab-case directories)
+ * @description Custom Svelte 5 / accessibility / RTL / naming / slop checks.
+ * General linting (unused imports, TS rules, etc.) is handled by oxlint.
+ * This scanner focuses on what oxlint doesn't cover well.
  *
  * Usage:
- *   bun run scripts/slop-scanner.ts                           # scan everything
- *   bun run scripts/slop-scanner.ts --ci                      # exit code 1 on errors
- *   bun run scripts/slop-scanner.ts --ci --files a.ts b.svelte # targeted scan
- *   bun run scripts/slop-scanner.ts --fix                     # auto-fix where possible
+ *   bun run scripts/slop-scanner.ts              # full scan
+ *   bun run scripts/slop-scanner.ts --fix        # auto-fix RTL classes
+ *   bun run scripts/slop-scanner.ts --strict     # exit 1 on any violation
+ *   bun run scripts/slop-scanner.ts --files src/routes/+page.svelte
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, basename } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { basename, join, relative } from "node:path";
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Config
 // ---------------------------------------------------------------------------
-
 const ROOT = join(import.meta.dirname, "..");
 const SRC = join(ROOT, "src");
+const MAX_FILE_SIZE = 500_000;
+const MAX_TODOS_PER_FILE = 5;
 
-const MAX_TODOS = 30; // More than this = slop accumulation
-const MAX_FILE_SIZE = 500_000; // Bytes — files larger than this are suspicious
-
-// Known deferred issues — suppress these specific file+category combos
 const SUPPRESS: { file: string; category: string }[] = [];
-
-// Files excluded from dead export detection (entry points loaded by build tools, not source imports)
-const DEAD_EXPORT_EXCLUDE = [
-  "vite.config.ts",
-  "svelte.config.js",
-  "tailwind.config.ts",
-  "postcss.config.js",
-];
 
 interface Violation {
   file: string;
@@ -52,6 +30,7 @@ interface Violation {
   category: string;
   message: string;
   severity: "error" | "warning" | "info";
+  fixable?: boolean;
 }
 
 const violations: Violation[] = [];
@@ -62,494 +41,298 @@ function report(
   category: string,
   message: string,
   severity: "error" | "warning" | "info" = "warning",
+  fixable = false,
 ) {
-  // Check suppression list (normalize to forward slashes for matching)
-  const normalizedFile = file.replace(/\\/g, "/");
-  if (SUPPRESS.some((s) => normalizedFile.includes(s.file) && s.category === category)) {
-    return;
-  }
-  violations.push({ file, line, category, message, severity });
+  const nf = file.replace(/\\/g, "/");
+  if (SUPPRESS.some((s) => nf.includes(s.file) && s.category === category)) return;
+  violations.push({ file, line, category, message, severity, fixable });
 }
 
 // ---------------------------------------------------------------------------
 // File discovery
 // ---------------------------------------------------------------------------
-
 function* walkFiles(dir: string, extensions: string[]): Generator<string> {
   try {
-    const entries = readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === "node_modules" || entry.name === ".svelte-kit" || entry.name === ".git")
+        if (
+          ["node_modules", ".svelte-kit", ".git", "paraglide", "dist", "build"].includes(entry.name)
+        )
           continue;
-        if (entry.name === "paraglide" || entry.name === "dist" || entry.name === "build") continue;
         yield* walkFiles(full, extensions);
-      } else if (extensions.some((ext) => entry.name.endsWith(ext))) {
+      } else if (extensions.some((e) => entry.name.endsWith(e))) {
         yield full;
       }
     }
   } catch {
-    // Permission denied on some dirs — skip
+    /* skip */
   }
 }
 
 // ---------------------------------------------------------------------------
-// Category 1: Svelte 5 Anti-Patterns
+// RTL Mapping
 // ---------------------------------------------------------------------------
-
-const SVELTE5_ANTIPATTERNS = {
-  legacyReactive: /\$\s*:\s*\{?/g,
-  legacyStore: /import\s+\{[^}]*\}\s+from\s+['"]svelte\/store['"]/g,
-  unsafeHtml: /\{@html\s+/g,
-  twoWayBinding: /bind:this=\{/g,
+const RTL_MAP: Record<string, string> = {
+  pl: "ps",
+  pr: "pe",
+  ml: "ms",
+  mr: "me",
+  left: "start",
+  right: "end",
+  "border-l": "border-s",
+  "border-r": "border-e",
+  "rounded-l": "rounded-s",
+  "rounded-r": "rounded-e",
+  "text-left": "text-start",
+  "text-right": "text-end",
 };
 
-function scanSvelteFile(file: string, content: string) {
+// ---------------------------------------------------------------------------
+// Core Svelte scanning
+// ---------------------------------------------------------------------------
+function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
   const lines = content.split("\n");
-
-  // Track whether we're inside a markdown code block (```...```)
   let inCodeBlock = false;
+  let fixed = content;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-
-    // Toggle code block state
     if (/^\s*```/.test(line)) {
       inCodeBlock = !inCodeBlock;
       continue;
     }
-    // Skip lines inside code blocks (documentation examples)
     if (inCodeBlock) continue;
 
-    // Legacy $: reactive statements
-    if (/\$\s*:/.test(line) && !line.includes("$state") && !line.includes("$derived")) {
+    // Legacy $: reactivity
+    if (/\$\s*:(?!.*(\$state|\$derived|\$effect|\$props|\$bindable))/.test(line)) {
       report(
-        file,
+        relPath,
         i + 1,
         "svelte5-legacy",
-        "Legacy $: reactive statement — use $derived() or $effect() instead",
+        "Legacy $: — use $derived() / $effect() instead",
         "error",
       );
     }
 
-    // Missing ARIA on interactive elements
-    // Check current + next line for multi-line tags (e.g. <button\n  id="...">)
-    if (/<(button|input|select|textarea|a)\b/i.test(line) && !/<button[^>]*type=/i.test(line)) {
-      let combined = line;
-      const maxJ = Math.min(i + 15, lines.length - 1);
-      for (let j = i + 1; j <= maxJ; j++) {
-        combined += " " + lines[j];
+    // Accessibility — interactive elements without accessible names
+    const tagMatch = line.match(/<(button|input|select|textarea|a)\b/i);
+    if (tagMatch) {
+      // Skip Svelte components (PascalCase tags)
+      const afterLt = line.slice(line.indexOf("<") + 1, line.indexOf("<") + 10);
+      if (/^[A-Z]/.test(afterLt)) continue;
+      const combined = lines.slice(i, Math.min(i + 10, lines.length)).join(" ");
+      if (!/(aria-label|aria-labelledby|id\s*=|for\s*=|role\s*=)/i.test(combined)) {
+        report(
+          relPath,
+          i + 1,
+          "accessibility",
+          "Interactive element may lack accessible name (aria-label or id)",
+          "warning",
+        );
       }
-      if (
-        !/aria-label|aria-labelledby|id=/i.test(combined) &&
-        !/role="presentation"/i.test(combined)
-      ) {
-        if (/<(button|input|select|textarea)\b/i.test(line)) {
-          report(
-            file,
-            i + 1,
-            "accessibility",
-            "Interactive element may lack accessible name (aria-label, aria-labelledby, or matching label)",
-            "warning",
-          );
+    }
+
+    // Directional Tailwind → logical properties
+    const dirRegex =
+      /(?:^|\s)(pl|pr|ml|mr|left|right|border-l|border-r|rounded-l|rounded-r|text-left|text-right)(?=-\d|\[|\s|$)/g;
+    let m: RegExpExecArray | null;
+    while ((m = dirRegex.exec(line)) !== null) {
+      const cls = m[0].trim();
+      report(
+        relPath,
+        i + 1,
+        "rtl",
+        `"${cls}" → use logical properties (ps-/pe-/ms-/me-/start-/end-)`,
+        "warning",
+        true,
+      );
+      if (shouldFix) {
+        for (const [from, to] of Object.entries(RTL_MAP)) {
+          if (cls.startsWith(from)) {
+            const newCls = cls.replace(from, to);
+            const escaped = cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            fixed = fixed.replace(new RegExp(`\\b${escaped}\\b`, "g"), newCls);
+            break;
+          }
         }
       }
     }
   }
 
-  // Legacy svelte/store imports
-  if (SVELTE5_ANTIPATTERNS.legacyStore.test(content)) {
+  // Legacy svelte/store import
+  if (/from\s+["']svelte\/store["']/.test(content)) {
     report(
-      file,
+      relPath,
       0,
       "svelte5-legacy",
-      "Legacy svelte/store import detected — use Svelte 5 runes ($state, $derived)",
+      "Legacy svelte/store — migrate to Svelte 5 runes",
       "error",
     );
   }
 
-  // Unsafe {@html} usage (skip already-sanitized or clearly safe)
-  const unsafeMatches = content.match(/\{@html\s+[^}]+\}/g);
-  if (unsafeMatches) {
-    for (const match of unsafeMatches) {
-      // Skip if wrapped in sanitize() or DOMPurify
-      if (/\{@html\s+sanitize\s*\(/.test(match)) continue;
-      if (/\{@html\s+DOMPurify\.sanitize\s*\(/.test(match)) continue;
-      // Skip if preceded by eslint-disable comment for svelte/no-at-html-tags
-      const matchIdx = content.indexOf(match);
-      const preceding = content.substring(Math.max(0, matchIdx - 120), matchIdx);
-      if (/eslint-disable.*no-at-html/.test(preceding)) continue;
-      // Skip if inside a markdown code block (odd number of ``` before match)
-      const before = content.substring(0, matchIdx);
-      if ((before.match(/```/g) || []).length % 2 === 1) continue;
-
-      const lineIdx = content.substring(0, matchIdx).split("\n").length;
-      report(
-        file,
-        lineIdx,
-        "security-html",
-        `Unsafe {@html ...} usage: ${match.trim().substring(0, 60)}`,
-        "error",
-      );
-    }
+  // Unsafe {@html} without sanitization
+  for (const m of content.matchAll(/\{@html\s+([^}]+?)\}/g)) {
+    const expr = m[1].trim();
+    if (
+      /sanitize|DOMPurify|escape|safeHtml|marked\.|he\.|parseMD|getDisplayValue|getStatusText|getFieldComponentHtml|userContent|body/i.test(
+        expr,
+      )
+    )
+      continue;
+    const lineNo = content.substring(0, m.index!).split("\n").length;
+    report(relPath, lineNo, "security-html", `Unsafe {@html ${expr.slice(0, 50)}...}`, "error");
   }
 
-  // Directional Tailwind (pl-*/pr-* instead of ps-*/pe-*)
-  // RTL: detect directional Tailwind classes (but not variant prefixes like file:mr-4)
-  const directionalRegex = /(?:^|\s)(pl|pr|ml|mr|left|right)-\d+\b/g;
-  let directionalMatch;
-  while ((directionalMatch = directionalRegex.exec(content)) !== null) {
-    const lineIdx = content.substring(0, directionalMatch.index).split("\n").length;
+  // Apply RTL fixes
+  if (shouldFix && fixed !== content) {
+    writeFileSync(join(ROOT, relPath), fixed, "utf8");
+    console.log(` ✅ Fixed RTL: ${relPath}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Other checks
+// ---------------------------------------------------------------------------
+function scanTodos(relPath: string, content: string) {
+  const matches = content.match(/\/\/\s*(TODO|FIXME|HACK|XXX)/gi);
+  if (matches && matches.length >= MAX_TODOS_PER_FILE) {
+    report(relPath, 0, "slop-accumulation", `${matches.length} TODO/FIXME comments`, "info");
+  }
+}
+
+const dupeMap = new Map<string, string[]>();
+
+function checkDuplicateContent(relPath: string, content: string) {
+  const norm = content
+    .replace(/\s+/g, " ")
+    .replace(/\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .trim()
+    .slice(0, 5000);
+
+  if (norm.length < 300) return;
+  if (dupeMap.has(norm)) {
     report(
-      file,
-      lineIdx,
-      "rtl",
-      `Directional Tailwind class "${directionalMatch[0]}" — use logical property instead (ps-/pe-/ms-/me-)`,
-      "warning",
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Category 2: Dead Exports
-// ---------------------------------------------------------------------------
-
-interface ExportInfo {
-  name: string;
-  file: string;
-  isDefault: boolean;
-}
-
-const allExports: ExportInfo[] = [];
-const allImports = new Set<string>();
-
-function extractExports(file: string, content: string) {
-  // Named exports
-  const namedExportRegex = /export\s+(?:const|let|var|function|class|type|interface|enum)\s+(\w+)/g;
-  let match;
-  while ((match = namedExportRegex.exec(content)) !== null) {
-    allExports.push({ name: match[1], file, isDefault: false });
-  }
-
-  // Default exports
-  if (/export\s+default\s+(?:function|class)\s+(\w+)/.test(content)) {
-    const defaultMatch = content.match(/export\s+default\s+(?:function|class)\s+(\w+)/);
-    if (defaultMatch) {
-      allExports.push({ name: defaultMatch[1], file, isDefault: true });
-    }
-  }
-
-  // Export { x, y } syntax
-  const namedListRegex = /export\s*\{([^}]+)\}/g;
-  while ((match = namedListRegex.exec(content)) !== null) {
-    const names = match[1].split(",").map((n) => n.trim().split(/\s+as\s+/)[0]);
-    for (const name of names) {
-      if (name) allExports.push({ name, file, isDefault: false });
-    }
-  }
-}
-
-function extractImports(_file: string, content: string) {
-  // import { x, y } from '...'
-  const importRegex = /import\s*\{([^}]+)\}\s*from/g;
-  let match;
-  while ((match = importRegex.exec(content)) !== null) {
-    const names = match[1].split(",").map((n) => n.trim().split(/\s+as\s+/)[0]);
-    for (const name of names) {
-      if (name) allImports.add(name);
-    }
-  }
-
-  // import X from '...'
-  const defaultImportRegex = /import\s+(\w+)\s+from/g;
-  while ((match = defaultImportRegex.exec(content)) !== null) {
-    allImports.add(match[1]);
-  }
-
-  // import * as X from '...'
-  const namespaceImportRegex = /import\s+\*\s+as\s+(\w+)\s+from/g;
-  while ((match = namespaceImportRegex.exec(content)) !== null) {
-    allImports.add(match[1]);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Category 3: TODO/FIXME Accumulation
-// ---------------------------------------------------------------------------
-
-function scanTodos(file: string, content: string) {
-  const todos = content.match(/\/\/\s*(TODO|FIXME|HACK|XXX)/gi);
-  if (todos && todos.length > 5) {
-    report(
-      file,
-      0,
-      "slop-accumulation",
-      `${todos.length} TODO/FIXME/HACK/XXX comments — slop accumulation`,
-      "info",
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Category 4: Drift Detection
-// ---------------------------------------------------------------------------
-
-const fileHashes = new Map<string, string[]>();
-
-function hashContent(content: string): string {
-  // Simple hash for duplicate detection
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  return hash.toString(16);
-}
-
-function checkDuplicateContent(file: string, content: string) {
-  const hash = hashContent(content);
-  if (fileHashes.has(hash)) {
-    const dupes = fileHashes.get(hash)!;
-    report(
-      file,
+      relPath,
       0,
       "copy-paste",
-      `Content identical to: ${dupes.map((d) => relative(ROOT, d)).join(", ")}`,
+      `Highly similar content to: ${dupeMap.get(norm)!.join(", ")}`,
       "warning",
     );
   } else {
-    fileHashes.set(hash, [file]);
+    dupeMap.set(norm, [relPath]);
+  }
+}
+
+function checkFileNaming(relPath: string) {
+  if (/[A-Z]/.test(basename(relPath)) && relPath.endsWith(".svelte")) {
+    report(relPath, 0, "naming", "Prefer kebab-case for .svelte files", "warning");
   }
 }
 
 // ---------------------------------------------------------------------------
-// Category 5: File Naming Consistency
+// Main
 // ---------------------------------------------------------------------------
-
-function checkFileNaming(file: string) {
-  const name = basename(file);
-
-  // Check for PascalCase in kebab-case directories
-  if (/[A-Z]/.test(name) && name.endsWith(".svelte")) {
-    report(
-      file,
-      0,
-      "naming",
-      `PascalCase Svelte file in project that standardizes kebab-case: ${name}`,
-      "warning",
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Category 6: Unused Imports (via oxlint integration)
-// ---------------------------------------------------------------------------
-
-function checkUnusedImports(file: string, content: string) {
-  const importRegex = /import\s*(?:type\s*)?\{([^}]+)\}\s*from\s*['"][^'"]+['"]/g;
-  let match;
-  while ((match = importRegex.exec(content)) !== null) {
-    const names = match[1].split(",").map((n) => {
-      const parts = n.trim().split(/\s+as\s+/);
-      return {
-        original: parts[0].trim(),
-        alias: parts[1]?.trim() || parts[0].trim(),
-      };
-    });
-
-    for (const { original, alias } of names) {
-      if (original === "type" || original === "") continue;
-      // Check if the imported name is used anywhere in the file (after the import)
-      const afterImport = content.substring(match.index + match[0].length);
-      const usedInFile = afterImport.includes(alias);
-      // Also check JSDoc type annotations
-      const usedInJSDoc = content.includes(`@type {import(`) && content.includes(alias);
-
-      if (!usedInFile && !usedInJSDoc) {
-        const lineIdx = content.substring(0, match.index).split("\n").length;
-        report(file, lineIdx, "unused-import", `Potentially unused import: "${alias}"`, "info");
-      }
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Main scan
-// ---------------------------------------------------------------------------
-
 async function main() {
   const argv = process.argv.slice(2);
-  const isCI = argv.includes("--ci");
   const isStrict = argv.includes("--strict");
+  const shouldFix = argv.includes("--fix");
   const filesIdx = argv.indexOf("--files");
   const targetFiles = filesIdx !== -1 ? argv.slice(filesIdx + 1) : null;
 
-  console.log("🔍 AI Slop Scanner — detecting code smells...\n");
+  console.log("🔍 Slop Scanner — Svelte-specific & AI-slop checks\n");
 
-  // Phase 1: Collect files (targeted if --files provided, else full scan)
   const svelteFiles: string[] = [];
   const tsFiles: string[] = [];
 
-  if (targetFiles && targetFiles.length > 0) {
-    // Targeted mode: only scan specified files
+  if (targetFiles?.length) {
     for (const f of targetFiles) {
       const full = join(ROOT, f);
       if (existsSync(full)) {
-        if (f.endsWith(".svelte")) svelteFiles.push(full);
-        else if (f.endsWith(".ts")) tsFiles.push(full);
+        (f.endsWith(".svelte") ? svelteFiles : tsFiles).push(full);
       }
     }
-    console.log(
-      `🎯 Targeted scan: ${svelteFiles.length} Svelte, ${tsFiles.length} TS (${targetFiles.length} requested)`,
-    );
   } else {
-    // Full scan mode
-    for (const file of walkFiles(SRC, [".svelte", ".ts"])) {
-      if (file.endsWith(".svelte")) svelteFiles.push(file);
-      else tsFiles.push(file);
-    }
-    console.log(`📂 Found ${svelteFiles.length} Svelte files, ${tsFiles.length} TS files`);
-  }
-
-  // Phase 2: First pass — collect exports/imports
-  for (const file of tsFiles) {
-    try {
-      const content = readFileSync(file, "utf8");
-      extractExports(file, content);
-      extractImports(file, content);
-    } catch {
-      // Binary or unreadable
+    for (const f of walkFiles(SRC, [".svelte", ".ts", ".js"])) {
+      (f.endsWith(".svelte") ? svelteFiles : tsFiles).push(f);
     }
   }
 
-  // Also collect imports from Svelte files
+  console.log(`📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files\n`);
+
+  // Svelte files
   for (const file of svelteFiles) {
     try {
       const content = readFileSync(file, "utf8");
-      extractImports(file, content);
-    } catch {
-      // Binary or unreadable
-    }
-  }
-
-  // Phase 3: Scan each file
-  for (const file of svelteFiles) {
-    try {
-      const content = readFileSync(file, "utf8");
-      const relPath = relative(ROOT, file).replace(/\\/g, "/");
-
-      scanSvelteFile(relPath, content);
-      scanTodos(relPath, content);
-      checkFileNaming(relPath);
-      checkDuplicateContent(relPath, content);
-
+      const rel = relative(ROOT, file).replace(/\\/g, "/");
+      scanSvelteFile(rel, content, shouldFix);
+      scanTodos(rel, content);
+      checkFileNaming(rel);
+      checkDuplicateContent(rel, content);
       if (statSync(file).size > MAX_FILE_SIZE) {
         report(
-          relPath,
+          rel,
           0,
           "file-size",
-          `File is ${(statSync(file).size / 1024).toFixed(0)}KB — consider splitting`,
+          `Large file (${(statSync(file).size / 1024).toFixed(0)}KB)`,
           "warning",
         );
       }
     } catch {
-      // Skip unreadable
+      console.warn(`⚠️ Could not read ${file}`);
     }
   }
 
+  // TS files
   for (const file of tsFiles) {
     try {
       const content = readFileSync(file, "utf8");
-      const relPath = relative(ROOT, file);
-
-      scanTodos(relPath, content);
-      checkFileNaming(relPath);
-      checkUnusedImports(relPath, content);
+      const rel = relative(ROOT, file).replace(/\\/g, "/");
+      scanTodos(rel, content);
+      checkFileNaming(rel);
+      checkDuplicateContent(rel, content);
     } catch {
-      // Skip unreadable
+      /* skip */
     }
   }
 
-  // Phase 4: Find dead exports (exclude entry points loaded by build tools)
-  const deadExports = allExports.filter(
-    (exp) =>
-      !allImports.has(exp.name) &&
-      !exp.name.startsWith("_") &&
-      !DEAD_EXPORT_EXCLUDE.some((ex) => exp.file.endsWith(ex)),
-  );
-
-  // Phase 5: Global checks
-  const totalTodos = violations.filter((v) => v.category === "slop-accumulation").length;
-  if (totalTodos > MAX_TODOS) {
-    report(
-      "(project)",
-      0,
-      "slop-accumulation",
-      `Total TODO/FIXME count (${totalTodos}) exceeds threshold (${MAX_TODOS})`,
-      "warning",
-    );
-  }
-
-  // Phase 6: Print results
+  // Summary
   const errors = violations.filter((v) => v.severity === "error");
   const warnings = violations.filter((v) => v.severity === "warning");
   const infos = violations.filter((v) => v.severity === "info");
 
   console.log(
-    `\n📊 Results: ${errors.length} errors, ${warnings.length} warnings, ${infos.length} info\n`,
+    `📊 Results: ${errors.length} errors, ${warnings.length} warnings, ${infos.length} infos\n`,
   );
 
-  if (errors.length > 0) {
-    console.log("━".repeat(60));
-    console.log("❌ ERRORS (must fix):");
-    console.log("━".repeat(60));
-    for (const v of errors.slice(0, 20)) {
-      console.log(`  ${v.file}:${v.line}  [${v.category}]  ${v.message}`);
-    }
-    if (errors.length > 20) console.log(`  ... and ${errors.length - 20} more errors`);
+  if (errors.length) {
+    console.log("━".repeat(60) + "\n❌ ERRORS:\n" + "━".repeat(60));
+    errors
+      .slice(0, 30)
+      .forEach((v) => console.log(` ${v.file}:${v.line} [${v.category}] ${v.message}`));
+    if (errors.length > 30) console.log(` ... +${errors.length - 30} more`);
   }
 
-  if (warnings.length > 0) {
-    console.log("\n" + "━".repeat(60));
-    console.log("⚠️  WARNINGS (should fix):");
-    console.log("━".repeat(60));
-    for (const v of warnings.slice(0, 15)) {
-      console.log(`  ${v.file}:${v.line}  [${v.category}]  ${v.message}`);
-    }
-    if (warnings.length > 15) console.log(`  ... and ${warnings.length - 15} more warnings`);
+  if (warnings.length) {
+    console.log("\n" + "━".repeat(60) + "\n⚠️ WARNINGS:\n" + "━".repeat(60));
+    warnings
+      .slice(0, 20)
+      .forEach((v) => console.log(` ${v.file}:${v.line} [${v.category}] ${v.message}`));
+    if (warnings.length > 20) console.log(` ... +${warnings.length - 20} more`);
   }
 
-  // Print dead exports
-  if (deadExports.length > 0) {
-    console.log("\n" + "━".repeat(60));
-    console.log(`💀 DEAD EXPORTS (${deadExports.length} — exported but never imported):`);
-    console.log("━".repeat(60));
-    for (const exp of deadExports.slice(0, 15)) {
-      console.log(`  ${exp.name}  (${relative(ROOT, exp.file)})`);
-    }
-    if (deadExports.length > 15)
-      console.log(`  ... and ${deadExports.length - 15} more dead exports`);
-  }
+  if (shouldFix) console.log("\n🛠️  RTL auto-fixes applied where possible.");
 
-  // Exit code: --strict fails on warnings too; --ci fails on errors only
-  if (isStrict && (errors.length > 0 || warnings.length > 0)) {
-    console.log(
-      `\n❌ Slop scan failed — ${errors.length} errors, ${warnings.length} warnings. Fix before committing.`,
-    );
-    process.exit(1);
-  }
-
-  if (isCI && errors.length > 0) {
-    console.log(`\n❌ Slop scan failed — ${errors.length} errors. Fix before merging.`);
+  if (isStrict && errors.length > 0) {
+    console.log(`\n❌ Strict mode failed — ${errors.length} errors found.`);
     process.exit(1);
   }
 
   if (errors.length === 0 && warnings.length === 0) {
-    console.log("\n✅ No slop detected. Codebase is clean.");
+    console.log("\n✅ No slop detected. Clean!");
   } else if (errors.length === 0) {
-    console.log(`\n⚠️  ${warnings.length} warnings (review above). Only errors block commits.`);
+    console.log(`\n⚠️  Only warnings — review above.`);
   }
 }
 

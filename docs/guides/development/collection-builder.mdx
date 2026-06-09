@@ -19,11 +19,13 @@ tags:
 
 # Collection Builder Guide
 
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+
 ## Overview
 
 The Collection Builder is a visual tool for creating and managing content collections in SveltyCMS. It provides an intuitive interface for defining content structures, organizing collections into categories, and configuring fields using the modern widget system.
 
-```mermaid
+````mermaid
 flowchart TB
     subgraph "Collection Builder Architecture"
         GUI["Visual Builder<br/>(GUI)"]
@@ -59,7 +61,7 @@ flowchart TB
     style CODE fill:#2196F3,color:#fff
     style MODAL fill:#FF5722,color:#fff
     style WARN fill:#FFC107,color:#000
-```
+```text
 
 > **Note**: The Collection Builder is currently in **beta** and under active development. Some features may not be fully functional yet. Report issues on [GitHub](https://github.com/SveltyCMS/SveltyCMS/issues).
 
@@ -482,9 +484,9 @@ const widget = createWidget({
     /* configuration */
   },
 });
-```
+```text
 
-See [Widget Architecture](/docs/architecture/widgets/architecture) for details.
+See [Widget Architecture](/docs/guides/development/widgets/development) for details.
 
 ## Best Practices
 
@@ -633,7 +635,7 @@ Content-Type: application/json
     }
   ]
 }
-```
+```text
 
 ### Collection Schema
 
@@ -660,7 +662,7 @@ interface FieldInstance {
   permissions?: FieldPermissions;
   // Widget-specific properties...
 }
-```
+```text
 
 ## Data Loss Warnings
 
@@ -696,7 +698,7 @@ const result = analyzeSchemaChanges(oldSchema, newSchema);
 if (result.hasDataLoss) {
   console.warn("⚠️ Data loss detected:", result.summary);
 }
-```
+```text
 
 ---
 
@@ -742,7 +744,7 @@ SveltyCMS uses a 3-pillar widget architecture:
 
 **🚀 Automated Upgrades (Codemods):**
 
-SveltyCMS is the only CMS that uses **AST-based codemods** (`ts-morph`) to automatically migrate your custom TypeScript schemas when you upgrade. If a new version introduces a breaking change, our upgrade tool "performs surgery" on your source code to keep it compatible, preserving your comments and formatting.
+SveltyCMS is one of the few CMS platforms that uses **AST-based codemods** (`ts-morph`) to automatically migrate your custom TypeScript schemas when you upgrade. If a new version introduces a breaking change, our upgrade tool "performs surgery" on your source code to keep it compatible, preserving your comments and formatting.
 
 **vs WordPress/Drupal** (Traditional CMS):
 
@@ -785,7 +787,7 @@ SveltyCMS is the only CMS that uses **AST-based codemods** (`ts-morph`) to autom
 
 ### Widgets
 
-- [Widget Architecture](/docs/architecture/widgets/architecture) - Modern widget system design
+- [Widget Architecture](/docs/guides/development/widgets/development) - Modern widget system design
 - [Widget Management](/docs/guides/development/widgets/index) - Managing widgets
 
 ### Guides
@@ -797,3 +799,4 @@ SveltyCMS is the only CMS that uses **AST-based codemods** (`ts-morph`) to autom
 ---
 
 **Feedback**: Report issues on [GitHub](https://github.com/SveltyCMS/SveltyCMS/issues)
+````

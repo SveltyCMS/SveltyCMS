@@ -88,18 +88,18 @@ function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
 					<button onclick={() => onSelectField(item, index)} class="group relative w-full text-left" aria-label="Select field">
 						<!-- Selection Indicator -->
 						{#if selectedFieldId === item.id}
-							<div class="absolute -left-1 -top-1 -right-1 -bottom-1 rounded-xl border-2 border-primary-500 ring-4 ring-primary-500/10"></div>
+							<div class="absolute -left-1 -top-1 -right-1 -bottom-1 rounded border-2 border-primary-500 ring-4 ring-primary-500/10"></div>
 						{/if}
 
 						<div
-							class="flex items-center gap-4 rounded-xl border border-surface-200-800 bg-white dark:bg-surface-800 p-5 shadow-sm transition-all hover:shadow-md
+							class="flex items-center gap-4 rounded border border-surface-200-800 bg-white dark:bg-surface-800 p-5 shadow-sm transition-all hover:shadow-md
                                 {selectedFieldId === item.id ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}"
 						>
 							<div class="cursor-grab p-1 text-surface-400 hover:text-primary-500 active:cursor-grabbing">
 								<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
 							</div>
 
-							<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-100 dark:bg-surface-700">
+							<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-surface-100 dark:bg-surface-700">
 								<iconify-icon icon={item.icon || 'mdi:widgets'} width="28" class="text-primary-500"></iconify-icon>
 							</div>
 

@@ -80,7 +80,7 @@ menu item at a specific level. Uses the standard widget loading system.
 							{/await}
 						{:else}
 							<div
-								class="p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg text-error-700 dark:text-error-500 flex items-center gap-3"
+								class="p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded text-error-700 dark:text-error-500 flex items-center gap-3"
 							>
 								<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
 								<div>
@@ -94,7 +94,7 @@ menu item at a specific level. Uses the standard widget loading system.
 			</div>
 		{:else}
 			<div
-				class="p-12 text-center bg-surface-100/50 rounded-xl dark:bg-surface-800/50 border-2 border-dashed border-surface-200 dark:border-surface-700"
+				class="p-12 text-center bg-surface-100/50 rounded dark:bg-surface-800/50 border-2 border-dashed border-surface-200 dark:border-surface-700"
 			>
 				<iconify-icon icon="mdi:form-select" width="48" class="mx-auto block text-surface-300 dark:text-surface-600"></iconify-icon>
 				<p class="mt-4 text-surface-600 dark:text-surface-300 font-medium">No fields configured for this level.</p>

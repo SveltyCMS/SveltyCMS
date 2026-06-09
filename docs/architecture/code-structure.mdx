@@ -39,7 +39,7 @@ This document provides a comprehensive overview of the SveltyCMS codebase organi
 
 ## 📁 Directory Structure
 
-```
+````text
 SveltyCMS/
 ├── config/                 # Core configuration
 │   ├── collections/        # Collection schema definitions
@@ -84,7 +84,7 @@ SveltyCMS/
 │
 ├── static/                 # Static assets
 └── build/                  # Production build output
-```
+```text
 
 ---
 
@@ -271,7 +271,7 @@ interface IDBAdapter {
 type DatabaseResult<T> =
   | { success: true; data: T; meta?: QueryMeta }
   | { success: false; error: DatabaseError; message: string };
-```
+```text
 
 **Supported Adapters:**
 
@@ -310,7 +310,7 @@ login() → validateCredentials() → generateJWT() → createSession()
 
 // Authorization flow
 checkPermission() → getUserRole() → validatePermission() → allow/deny
-```
+```text
 
 **Security Measures:**
 
@@ -328,7 +328,7 @@ Reusable UI components following **Atomic Design** principles. Standardized stri
 
 **Structure:**
 
-```
+```text
 components/
 ├── atoms/              # Basic building blocks
 │   ├── button.svelte
@@ -344,7 +344,7 @@ components/
     ├── header.svelte
     ├── sidebar.svelte
     └── data-table.svelte
-```
+```text
 
 **Svelte 5 Patterns:**
 
@@ -362,7 +362,7 @@ components/
 <button onclick={increment}>
 	Count: {count} (doubled: {doubled})
 </button>
-```
+```text
 
 ---
 
@@ -382,7 +382,7 @@ export const publicConfig = {
   mediaUploadLimit: 10485760, // 10MB
   // ... More public settings
 };
-```
+```text
 
 **`config/private.ts`** - Private, sensitive settings (gitignored):
 
@@ -393,7 +393,7 @@ export const privateConfig = {
   oauthClientId: process.env.OAUTH_CLIENT_ID,
   // ... API keys, secrets, etc.
 };
-```
+```text
 
 **Global Settings Store:**
 
@@ -405,7 +405,7 @@ export class GlobalSettings {
 }
 
 export const globalSettings = new GlobalSettings();
-```
+```text
 
 ---
 
@@ -436,7 +436,7 @@ const post = await contentSystem.create("posts", {
   content: "My first post",
   author: userId,
 });
-```
+```text
 
 ---
 
@@ -462,7 +462,7 @@ interface Widget {
   schema: WidgetSchema;
   validate: (value: any) => ValidationResult;
 }
-```
+```text
 
 **Multilingual Widget Pattern:**
 
@@ -501,7 +501,7 @@ Widgets automatically handle translated content by reading the current language 
 </script>
 
 <input type="text" value={safeValue} oninput={(e) => updateValue(e.currentTarget.value)} />
-```
+```text
 
 **Database-Agnostic Multilingual Data:**
 
@@ -526,7 +526,7 @@ db.insertOne("users", fieldData);
 //   4 | user_1 | lastName  | de | Schmidt
 
 // Adapter reconstructs: { firstName: { en: "John", de: "Johann" }, ... }
-```
+```text
 
 **Widget Language Behavior:**
 
@@ -565,7 +565,7 @@ export async function GET({ locals }) {
   const items = await db.find("posts", {});
   return json(items);
 }
-```
+```text
 
 **Benefits:**
 
@@ -594,7 +594,7 @@ class ContentRepository {
     });
   }
 }
-```
+```text
 
 ---
 
@@ -624,7 +624,7 @@ class ContentService {
     return content;
   }
 }
-```
+```text
 
 ---
 
@@ -653,7 +653,7 @@ events.on("content:created", async (content) => {
   // Send notification
   await notifications.send("New content created", content);
 });
-```
+```text
 
 ---
 
@@ -683,7 +683,7 @@ class PluginManager {
     if (plugin.widgets) this.registerWidgets(plugin.widgets);
   }
 }
-```
+```text
 
 ---
 
@@ -715,7 +715,7 @@ function createCounter() {
 }
 
 export const counter = createCounter();
-```
+```text
 
 ### Language State Management
 
@@ -743,7 +743,7 @@ export class AppStore {
 }
 
 export const app = new AppStore();
-```
+```text
 
 **Language Synchronization Flow:**
 
@@ -767,7 +767,7 @@ export const app = new AppStore();
 		}
 	});
 </script>
-```
+```text
 
 ### 2. Server-Side State (SvelteKit Load Functions)
 
@@ -781,7 +781,7 @@ export async function load({ locals, params }) {
     post,
   };
 }
-```
+```text
 
 **Language-Aware Server Loading:**
 
@@ -805,7 +805,7 @@ export async function load({ params, url, locals }) {
     contentLanguage: language, // Synced to client store
   };
 }
-```
+```text
 
 ### 3. Cache Layers
 
@@ -833,7 +833,7 @@ class CacheService {
     });
   }
 }
-```
+```text
 
 ---
 
@@ -857,15 +857,15 @@ export const publicConfig = {
   AVAILABLE_CONTENT_LANGUAGES: ["en", "de", "fr", "es"],
   BASE_LOCALE: "en", // System UI language
 };
-```
+```text
 
 ### Content Language Flow
 
-```
+```text
 User Action → Singleton Update → Server Request → Cache Lookup → Widget Render
                     ↓              ↓               ↓              ↓
              app.contentLanguage   /:lang/:path   :lang:cache   value[lang]
-```
+```text
 
 **1. User Toggles Language:**
 
@@ -887,7 +887,7 @@ User Action → Singleton Update → Server Request → Cache Lookup → Widget 
 </script>
 
 <button onclick={() => switchLanguage('de')}> 🇩🇪 Deutsch </button>
-```
+```text
 
 **2. Server Returns Language-Specific Data:**
 
@@ -904,7 +904,7 @@ export async function load({ params }) {
     contentLanguage: language, // Passed to client
   };
 }
-```
+```text
 
 **3. Client Syncs Store with Server:**
 
@@ -921,7 +921,7 @@ export async function load({ params }) {
 		}
 	});
 </script>
-```
+```text
 
 **4. Widgets Display Current Language:**
 
@@ -933,7 +933,7 @@ export async function load({ params }) {
 </script>
 
 <input bind:value={displayValue} />
-```
+```text
 
 ### Multilingual Data Model
 
@@ -957,7 +957,7 @@ const fields: FieldInstance[] = [
     required: true,
   },
 ];
-```
+```text
 
 **Data Storage (Database-Agnostic):**
 
@@ -987,7 +987,7 @@ db.collection("posts").insertOne(entry);
 //   - post_id='post_123', field='title', lang='fr', value='Bonjour le monde'
 //
 // Adapter reads from DB and reconstructs: { title: { en: "...", de: "..." } }
-```
+```text
 
 **entry-list Display:**
 
@@ -1000,7 +1000,7 @@ db.collection("posts").insertOne(entry);
 		{entry[fieldName] || '-'}
 	{/if}
 </td>
-```
+```text
 
 ### Translation Workflow
 
@@ -1033,7 +1033,7 @@ db.collection("posts").insertOne(entry);
 		fr: 0 // No translations yet
 	}}
 />
-```
+```text
 
 ### Best Practices
 
@@ -1088,7 +1088,7 @@ for (const entry of mongoEntries) {
     }
   }
 }
-```
+```text
 
 **3. Adapter Read/Write:**
 
@@ -1109,7 +1109,7 @@ async findOne(collection: string, id: string) {
 
 	return reconstructed;  // Widgets expect this format
 }
-```
+```text
 
 ---
 
@@ -1117,7 +1117,7 @@ async findOne(collection: string, id: string) {
 
 SvelteKit file-based routing with clear separation and multilingual support:
 
-```
+```text
 src/routes/
 ├── (app)/                       # Main application (grouped route)
 │   ├── [language]/              # Language parameter (en, de, fr, etc.)
@@ -1146,17 +1146,17 @@ src/routes/
 ├── +layout.svelte               # Root layout
 └── [slug]/                      # Dynamic content pages
     └── +page.server.ts          # Server-side rendering
-```
+```text
 
 **Multilingual Route Examples:**
 
-```
+```text
 /en/posts                        → English posts list
 /de/posts                        → German posts list
 /en/posts/create                 → Create post in English context
 /de/6f8a3c2b-1234-5678-90ab     → View collection by UUID in German
 /fr/categories/blog/posts        → French posts under blog category
-```
+```text
 
 **Route Protection:**
 
@@ -1174,7 +1174,7 @@ export async function handle({ event, resolve }) {
 
   return resolve(event);
 }
-```
+```text
 
 **Language-Aware Server Load:**
 
@@ -1197,7 +1197,7 @@ export async function load({ params, url, locals }) {
     contentLanguage: language, // Synced to client store
   };
 }
-```
+```text
 
 ---
 
@@ -1216,7 +1216,7 @@ export async function load({ params, url, locals }) {
 
 <!-- For multilingual routes -->
 <a href={`/${contentLanguage.value}/posts`} data-sveltekit-preload-data="hover"> View Posts </a>
-```
+```text
 
 **Benefits:**
 
@@ -1232,7 +1232,7 @@ export async function load({ params, url, locals }) {
 ```svelte
 <!-- Anti-pattern: No preloading, worse accessibility -->
 <button onclick={() => goto('/collection/posts/edit')}> Edit Post </button>
-```
+```text
 
 ### When to Use `goto()`
 
@@ -1263,7 +1263,7 @@ Only use programmatic navigation when you need to:
 
 <!-- But use <a> tag for simple navigation -->
 <a href="/cancel" data-sveltekit-preload-data="hover"> Cancel </a>
-```
+```text
 
 ### Side Effects with Navigation
 
@@ -1280,14 +1280,14 @@ Combine anchor tags with onclick handlers for side effects:
 
 <!-- Anchor handles navigation, onclick handles side effects -->
 <a href="/dashboard" data-sveltekit-preload-data="hover" onclick={handleSideEffects}> Go to Dashboard </a>
-```
+```text
 
 ### External Links
 
 ```svelte
 <!-- External links should NOT use preload -->
 <a href="https://external-site.com" target="_blank" rel="noopener noreferrer"> External Link </a>
-```
+```text
 
 For more details, see [Hover Preloading Architecture](./hover-preloading.mdx).
 
@@ -1336,7 +1336,7 @@ export default defineConfig({
     },
   },
 });
-```
+```text
 
 ### 2. Lazy Loading
 
@@ -1355,7 +1355,7 @@ export default defineConfig({
 {#if HeavyComponent}
 	<svelte:component this={HeavyComponent} />
 {/if}
-```
+```text
 
 ### 3. Database Optimization
 
@@ -1375,7 +1375,7 @@ export default defineConfig({
 
   // ❌ Wrong: Missing language - will serve wrong language data
   const cacheKey = `entries:${collectionId}:page:${page}`;
-  ```
+````
 
 - **Redis** for distributed caching (optional)
 - **HTTP caching** headers for static assets
@@ -1383,7 +1383,7 @@ export default defineConfig({
 
 **Cache Invalidation for Multilingual Content:**
 
-```typescript
+````typescript
 // When updating translated content, invalidate all language variants
 async function updateEntry(entryId: string, data: any) {
   await db.update("entries", entryId, data);
@@ -1393,7 +1393,7 @@ async function updateEntry(entryId: string, data: any) {
     await cache.delete(`entry:${entryId}:lang:${lang}`);
   }
 }
-```
+```text
 
 ---
 
@@ -1444,7 +1444,7 @@ npm run lint
 
 # Format code
 npm run format
-```
+```text
 
 ### Production Build
 
@@ -1454,7 +1454,7 @@ npm run build
 
 # Preview production build
 npm run preview
-```
+```text
 
 ### Deployment Options
 
@@ -1468,7 +1468,7 @@ npm run preview
    COPY . .
    RUN npm run build
    CMD ["node", "build"]
-   ```
+````
 
 2. **Vercel/Netlify**
    - Automatic deployments from Git
@@ -1490,7 +1490,7 @@ When working with multilingual content in SveltyCMS:
 
 **For Widget Development:**
 
-```typescript
+````typescript
 // ✅ Read current language from store
 import { contentLanguage } from "@stores/store.svelte";
 const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
@@ -1506,7 +1506,7 @@ function updateValue(newVal: string) {
     value = newVal;
   }
 }
-```
+```text
 
 **For API Endpoints:**
 
@@ -1521,7 +1521,7 @@ return { data, contentLanguage: params.language };
 if (!AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
   throw error(404, "Language not available");
 }
-```
+```text
 
 **For Components:**
 
@@ -1540,7 +1540,7 @@ $effect(() => {
 
 // ✅ Navigate with language
 await goto(`/${contentLanguage.value}/${path}`, { invalidateAll: true });
-```
+```text
 
 **For Collection Schemas:**
 
@@ -1558,7 +1558,7 @@ await goto(`/${contentLanguage.value}/${path}`, { invalidateAll: true });
 	db_fieldName: 'slug',
 	translated: false,  // ← Single value across languages
 }
-```
+```text
 
 ---
 
@@ -1582,3 +1582,12 @@ When contributing code:
 4. **Document**: Update relevant MDX docs in `docs/`.
 
 See [Contributing Guide](../../CONTRIBUTING.md) for detailed guidelines.
+````
+
+---
+
+## Related
+
+- [Architecture Overview](./index.mdx)
+- [Security Overview](./security/index.mdx)
+- [State Management](./state-management.mdx)

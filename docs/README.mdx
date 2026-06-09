@@ -1,13 +1,13 @@
 ---
 path: "docs/README.mdx"
 title: "SveltyCMS Documentation"
-description: "The complete technical and editorial map for SveltyCMS — a powerful, modern Headless CMS built for high-performance content delivery."
+description: "Complete technical and editorial map for SveltyCMS — the fastest, most secure headless CMS with compiled zero-overhead performance."
 icon: "mdi:book-open-variant"
 published: true
 order: 1
 author: "SveltyCMS Team"
 created: "2025-08-05"
-updated: "2026-03-27"
+updated: "2026-06-10"
 tags:
   - "documentation"
   - "guide"
@@ -17,10 +17,10 @@ tags:
 
 # 📚 SveltyCMS Documentation Hub
 
-Welcome to the SveltyCMS Documentation. This site serves two primary audiences:
+Welcome. This site serves two audiences:
 
-- **Content Creators & Admins**: Who need to manage collections, media, and security without touching code.
-- **Engineers & Developers**: Who need to extend the core, build custom widgets, or integrate via REST/GraphQL.
+- **Content Creators & Admins** — Manage collections, media, and users without code.
+- **Engineers & Developers** — Extend the core, build widgets, integrate via REST/GraphQL.
 
 ---
 
@@ -28,62 +28,86 @@ Welcome to the SveltyCMS Documentation. This site serves two primary audiences:
 
 ### 👥 For Administrators & Editors
 
-Focus on **Features & Security Confidence**.
-
-- [🚀 **Getting Started**](./getting-started.mdx) — Quick tour of the Studio and first steps.
-- [🛡️ **User Management**](./guides/configuration/user-registration.mdx) — Handling roles, permissions, and 2FA.
-- [🖼️ **Media Hub**](./architecture/media-system.mdx) — Managing assets and video transcoding.
+| Guide                                                              | What You'll Learn                                           |
+| ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| [🚀 Getting Started](./getting-started.mdx)                        | Install, run the Setup Wizard, create your first collection |
+| [🛡️ Security Overview](./architecture/security/index.mdx)          | RBAC, 2FA, audit logs, account lockout                      |
+| [🖼️ Media Hub](./architecture/media-system.mdx)                    | Upload images, video transcoding, cloud storage             |
+| [👥 User Management](./guides/configuration/user-registration.mdx) | Roles, permissions, 2FA enforcement                         |
 
 ### 🛠️ For Developers & Engineers
 
-Focus on **Architecture & Implementation**.
-
-- [🏗️ **Architecture Overview**](./architecture/index.mdx) — Svelte 5 Runes, adapters, and setup.
-- [📡 **API Reference**](./api/index.mdx) — Exhaustive REST and GraphQL documentation.
-- [🧩 **Widget Development**](./guides/development/widgets/index.mdx) — Building custom UI components.
-
----
-
-## 🚀 Key Feature Highlights
-
-SveltyCMS is designed for speed, security, and developer ergonomics.
-
-- **⚡ Sub-1ms Performance**: Dual-layer caching (Redis + DB) and Svelte 5 no-runtime reactivity.
-- **🛡️ Secure by Design**: JWT + OAuth, SCIM 2.0 provisioning, and crypto-chained audit logs.
-- **🌍 Global Ready**: Compiled zero-runtime i18n via Paraglide JS and multi-tenant isolation.
-- **🤖 AI-First**: Automated CMS migration (Drupal/WP), local RAG support, and AI-assisted content.
-- **🔗 Flexible Schema**: Hybrid Code+GUI collection builder with bi-directional sync.
+| Guide                                                           | What You'll Learn                                 |
+| --------------------------------------------------------------- | ------------------------------------------------- |
+| [🏗️ Architecture Overview](./architecture/index.mdx)            | Svelte 5 Runes, DB adapters, boot pipeline        |
+| [📡 API Reference](./api/index.mdx)                             | REST, GraphQL, Local SDK, SCIM 2.0                |
+| [🧩 Widget Development](./guides/development/widgets/index.mdx) | Build custom field types with the 3-pillar system |
+| [⚡ Performance Benchmarks](./project/benchmarks/index.mdx)     | 48 tests across 4 databases, trend analysis       |
 
 ---
 
-## 🏆 Competitive Awareness
+## 🚀 Key Features
 
-How SveltyCMS compares to traditional and modern CMS platforms:
-
-| Feature           | SveltyCMS Approach                 | Why Better than Competitors                              |
-| ----------------- | ---------------------------------- | -------------------------------------------------------- |
-| **Core Tech**     | SvelteKit + Svelte 5 (Runes)       | No VDOM/hydration tax vs. React-based (Payload, Strapi). |
-| **Cold Start**    | **<1s (Phased, Self-Healing)**     | Multi-stage boot only loads what's needed for the task.  |
-| **Resilience**    | **Autonomous Watchdog**            | Self-heals from DB/Auth failures without downtime.       |
-| **i18n**          | Paraglide (Compiled, zero-runtime) | Type-safe, no runtime lookups vs. i18next in rivals.     |
-| **Multi-Tenancy** | Native (tenantId isolation)        | Core/free vs. enterprise-gated in Strapi/Contentful.     |
-| **SCIM 2.0**      | Native endpoints (RFC 7644)        | Automated provisioning vs. manual/enterprise in others.  |
-| **Audit Logs**    | Crypto-chained (SHA-256)           | Compliance-ready vs. basic/manual in competitors.        |
-| **Accessibility** | WCAG 3.0 Functional Perf           | High-precision hotkeys vs. basic ARIA in rivals.         |
+| Feature               | Detail                                                                                        |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| **Performance**       | Sub-millisecond API responses, Svelte 5 zero-runtime reactivity, Local SDK at 41K RPS         |
+| **Security**          | 4-layer defense-in-depth, Argon2id, AES-256-GCM, 0 CVEs, crypto-chained audit logs            |
+| **Database Agnostic** | MongoDB, PostgreSQL, MariaDB, SQLite — all production-ready with Drizzle ORM                  |
+| **i18n**              | Paraglide JS — compiled, type-safe, zero-runtime translations                                 |
+| **Multi-Tenant**      | Native `tenantId` isolation at the database adapter level                                     |
+| **AI Integration**    | Local Ollama + hosted MCP knowledge core, AI translation, smart CMS migration                 |
+| **Accessibility**     | WCAG 2.2 AA + ATAG 2.0, Svelte 5 native components, keyboard shortcuts                        |
+| **Editorial Tools**   | Scheduled publishing, per-field localization, version history with diff, collection templates |
 
 ---
 
-## 🏗️ Technical Stack (2026+)
+## 🏆 Competitive Context
 
-- **Frontend**: SvelteKit / Svelte 5 (Runes) / Tailwind CSS v4
-- **Backend**: Node.js 24+ or Bun (3-4x faster runtime).
-- **Adapters**: MongoDB, PostgreSQL, MariaDB, SQLite (Official Support).
-- **Communication**: REST API / GraphQL / SSE Real-time Streams.
+SveltyCMS is designed for teams that prioritize **performance, security, and developer experience**. For a detailed, EU-compliant comparison against Payload, Strapi, Directus, and WordPress:
+
+→ **[Full Competitive Comparison](./project/competitive-comparison.mdx)**
+
+> All comparisons based on publicly available documentation as of June 2026.
+
+---
+
+## 🏗️ Technical Stack
+
+| Layer         | Technology                                       |
+| ------------- | ------------------------------------------------ |
+| **Frontend**  | SvelteKit 2 + Svelte 5 (Runes) + Tailwind CSS v4 |
+| **Runtime**   | Node.js ≥24 or Bun (3-4x faster)                 |
+| **Toolchain** | VoidZero (Rust): oxlint in 47ms, oxfmt in ~2s    |
+| **Databases** | MongoDB, PostgreSQL, MariaDB, SQLite             |
+| **ORM**       | Drizzle ORM — parameterized, type-safe queries   |
+| **API**       | REST + GraphQL Yoga + Local SDK + SCIM 2.0       |
+
+---
+
+## 🔐 Security at a Glance
+
+| Score | 0 CVEs | [Full Report →](./architecture/security/index.mdx) |
+| ----- | ------ | -------------------------------------------------- |
+
+- **4 Defense Layers**: Middleware → Dispatcher → Handler → Page Action
+- **Auth**: Argon2id (64MB), CSPRNG tokens, `__Host-` cookies, 2FA TOTP, 5-attempt lockout
+- **Encryption**: AES-256-GCM, SHA-256 crypto-chained audit logs
+- **Headers**: CSP `script-src 'self'`, COOP/COEP/CORP, HSTS, X-Frame-Options DENY
+- **Reporting**: [security@sveltycms.com](mailto:security@sveltycms.com) · [GitHub Advisories](https://github.com/SveltyCMS/SveltyCMS/security/advisories) · [security.txt](/.well-known/security.txt)
 
 ---
 
 ## 🤝 Community & Support
 
-- **Bug Reports**: [GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
-- **Discussions**: [Community Forums](https://github.com/SveltyCMS/SveltyCMS/discussions)
-- **Contribution**: [Documentation Standards](./contributing/contributing-docs.mdx)
+- **Bugs**: [GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+- **Contribute**: [Documentation Standards](./contributing/contributing-docs.mdx)
+- **Security**: [Reporting a Vulnerability](./architecture/security/index.mdx#reporting-a-vulnerability)
+
+---
+
+## Related
+
+- [Getting Started](./getting-started.mdx)
+- [Architecture Overview](./architecture/index.mdx)
+- [Security Overview](./architecture/security/index.mdx)

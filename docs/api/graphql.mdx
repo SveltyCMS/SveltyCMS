@@ -17,6 +17,8 @@ tags:
 
 # GraphQL API Reference
 
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+
 The GraphQL API provides a powerful, flexible query language for accessing and manipulating data in SveltyCMS. It features dynamic schema generation based on your collections, widgets, and content structure, optimized with a Just-In-Time (JIT) execution engine. Powered by **GraphQL Yoga**, it supports the latest incremental delivery standards and high-performance server-sent events.
 
 ---
@@ -48,7 +50,7 @@ Use standard GraphQL syntax to retrieve exactly the fields you need. This is man
 **Endpoint**: `POST /api/graphql`
 **Example Query**:
 
-```graphql
+````graphql
 query GetPosts {
   posts(limit: 5, filter: { status: "published" }) {
     _id
@@ -59,7 +61,7 @@ query GetPosts {
     }
   }
 }
-```
+```text
 
 ### B. Local SDK (Internal Server-Side API) **(Recommended)**
 
@@ -73,7 +75,7 @@ const posts = await locals.cms
   .select(["title", "author"])
   .limit(5)
   .execute();
-```
+```text
 
 ---
 
@@ -90,7 +92,7 @@ graph TD
     E --> F[JIT Compiler: Compile to JS Function]
     F --> G[Execute with Database Adapter]
     G --> H[JSON Response]
-```
+```text
 
 ### Security Throttling
 
@@ -113,3 +115,4 @@ For real-time data, use the dedicated [GraphQL Subscriptions](./graphql-subscrip
 - [Collection API](./collections.mdx)
 - [Local SDK vs HTTP API](./local-vs-http-api.mdx)
 - [GraphQL Subscriptions](./graphql-subscriptions.mdx)
+````

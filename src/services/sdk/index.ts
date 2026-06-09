@@ -245,7 +245,7 @@ export class LocalCMS {
         const { SystemNamespace } = await import("./namespaces/misc-namespaces");
         return instrumentNamespace("system", new SystemNamespace(this._dbAdapter));
       },
-      { settings: true, importer: true },
+      { settings: true, importer: true, websiteTokens: true },
     );
 
     defineLazyNamespace(this, "automation", async () => {

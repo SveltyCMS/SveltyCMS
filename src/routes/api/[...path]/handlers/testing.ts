@@ -497,10 +497,7 @@ export async function handleTestingRoutes(
             message: result.message,
           };
 
-      return rawResponse(
-        responseBody,
-        result.success ? 200 : 400,
-      );
+      return rawResponse(responseBody, result.success ? 200 : 400);
     }
 
     if (action === "update") {
@@ -528,10 +525,7 @@ export async function handleTestingRoutes(
             message: result.message,
           };
 
-      return rawResponse(
-        responseBody,
-        result.success ? 200 : 400,
-      );
+      return rawResponse(responseBody, result.success ? 200 : 400);
     }
 
     if (action === "delete") {

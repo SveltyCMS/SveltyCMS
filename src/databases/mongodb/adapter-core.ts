@@ -10,6 +10,7 @@ if (typeof (globalThis as any).require === "undefined") {
 
 import mongoose from "mongoose";
 import { queryTranslator } from "../core/query-ir";
+import { sanitizeMongoQuery } from "@src/utils/security/mongo-sanitize";
 import { logger } from "@utils/logger";
 import { BaseAdapter } from "../core/base-adapter";
 import type { DatabaseCapabilities, DatabaseResult, ConnectionPoolOptions } from "../db-interface";
@@ -185,6 +186,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     }
 
     if (isSimple && count > 0) {
+      // Fast-path: _id/token/tenantId-only queries are inherently safe — no operator injection possible
       return query;
     }
 
@@ -194,7 +196,8 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     const ir = queryTranslator.translate("temp", query);
 
     // 2. Map IR back to Mongo Filter (Ensures operator consistency)
-    return this.mapIRToMongo(ir.filter);
+    const result = this.mapIRToMongo(ir.filter);
+    return sanitizeMongoQuery(result);
   }
 
   /**

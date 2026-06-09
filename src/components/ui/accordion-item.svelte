@@ -77,7 +77,7 @@ $effect(() => {
 		{#snippet trigger()}
 			<div
 				class={cn(
-					'flex items-center justify-between w-full p-4 text-left transition-colors focus:outline-none focus:ring-1 focus:ring-primary-500',
+					'flex items-center justify-between w-full p-4 text-start transition-colors focus:outline-none focus:ring-1 focus:ring-primary-500',
 					open ? 'bg-surface-100 dark:bg-surface-800/50' : 'hover:bg-surface-50 dark:hover:bg-surface-800/20',
 					disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
 				)}

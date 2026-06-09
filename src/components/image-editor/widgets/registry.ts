@@ -123,16 +123,19 @@ export function isWidgetAvailable(widget: EditorWidget): boolean {
 
 // Development mode logging
 if (import.meta.env.DEV) {
-  console.log("[Widget Registry] Loaded widgets:", editorWidgets.length);
-  console.table(
-    editorWidgets.map((w) => ({
-      key: w.key,
-      title: w.title,
-      category: w.category,
-      order: w.order,
-      experimental: w.experimental,
-    })),
-  );
+  // Only log widgets in development/benchmark mode if needed
+  if (typeof process !== "undefined" && process.env && process.env.BENCHMARK_DEBUG === "true") {
+    console.log("[Widget Registry] Loaded widgets:", editorWidgets.length);
+    console.table(
+      editorWidgets.map((w) => ({
+        key: w.key,
+        title: w.title,
+        category: w.category,
+        order: w.order,
+        experimental: w.experimental,
+      })),
+    );
+  }
 }
 
 // Export count for external use

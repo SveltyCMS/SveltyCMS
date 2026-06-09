@@ -17,7 +17,7 @@
 ### Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
  - Demo mode support with auto-reset timer
- - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
+ - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `hasAdminUser`)
  - Reset state functionality for easy return to initial screen
  - Accessibility features for language selection and form navigation
 -->
@@ -72,7 +72,7 @@ const {
 const siteName = $derived(publicEnv.SITE_NAME || "SveltyCMS");
 
 const pageData = page.data as PageData;
-const firstUserExists = pageData.firstUserExists;
+const hasAdminUser = pageData.hasAdminUser;
 const showGoogleOAuth = pageData.showGoogleOAuth;
 const showGithubOAuth = pageData.showGithubOAuth;
 const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
@@ -285,8 +285,8 @@ $effect(() => {
 				</div>
 			{/if}
 			<!-- CSS Logo -->
-			<div class="absolute left-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
-			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
+			<div class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
 				<a href="#signup-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-up form</a>
 				<div class="flex flex-row gap-3 items-center">
 					<SveltyCMSLogo size={68} className="w-14" fill="red" />
@@ -309,7 +309,7 @@ $effect(() => {
 				<div class="relative mb-2 flex h-10 items-center justify-center text-xs text-error-500">
 					{form_required()}
 
-					<div class="absolute right-0">
+					<div class="absolute inset-e-0">
 						<SystemTooltip title="Go Back">
 							<Button
 								onclick={handleBack}
@@ -459,7 +459,7 @@ $effect(() => {
 						{/if}
 					{:else if isInviteFlow}
 						<!-- Hidden token field for invite flow -->
-						<input type="hidden" name="token" value={token} />
+						<input type="hidden" name="token" value={token}  aria-label="Input" />
 						<span class="text-xs text-tertiary-500 dark:text-primary-500">Using invitation token</span>
 					{/if}
 
@@ -524,7 +524,7 @@ $effect(() => {
 							</div>
 						</div>
 
-						{#if !isInviteFlow && firstUserExists && !hasExistingOAuthUsers}
+						{#if !isInviteFlow && hasAdminUser && !hasExistingOAuthUsers}
 							<p class="mt-2 text-xs text-surface-400">
 								?? Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
 							</p>

@@ -26,7 +26,7 @@ The Collection Builder operates on a **Canonical Flat List** architecture. Inste
 
 The following diagram illustrates the reconciliation flow:
 
-```mermaid
+````mermaid
 graph TD
     subgraph Filesystem ["Filesystem (Config Truth)"]
         FS_Collections["/config/collections/**/*.ts"]
@@ -72,7 +72,7 @@ graph TD
     CM_Reconcile --> Tree_Validation
     FS_Compiler --> Drift_Detection
     Drift_Detection --> Migration_Engine
-```
+```text
 
 ## Key Components
 
@@ -152,3 +152,4 @@ The Collection Builder is designed for rapid iteration using a unified hotkey sy
 ## Related Architecture
 
 - [Collection Store Data Flow](./collection-store-dataflow.mdx) - Explains how the _content_ within these collections is loaded, cached, and managed via SSR.
+````

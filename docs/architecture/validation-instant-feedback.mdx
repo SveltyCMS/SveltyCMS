@@ -22,7 +22,7 @@ tags:
 
 When creating a new entry with **required fields**, the save button should be **disabled instantly** to prevent invalid submissions. However, traditional validation systems only validate on user interaction (blur/input), which means:
 
-```
+````text
 User clicks "Create New Post"
   ↓
 Form loads with empty required field "Title"
@@ -34,11 +34,11 @@ User clicks Save
 Validation runs → Error: "Title is required"
   ↓
 User frustrated 😞
-```
+```text
 
 **Expected Behavior:**
 
-```
+```text
 User clicks "Create New Post"
   ↓
 Form loads with empty required field "Title"
@@ -52,7 +52,7 @@ User fills in "Title"
 Validation runs on input (debounced)
   ↓
 Save button becomes ENABLED ✅
-```
+```text
 
 ---
 
@@ -81,7 +81,7 @@ let {
   validateOnBlur = true,
   debounceMs = 300,
 }: Props = $props();
-```
+```text
 
 **Logic:**
 
@@ -112,7 +112,7 @@ let {
 		}
 	});
 </script>
-```
+```text
 
 **Lifecycle:**
 
@@ -174,7 +174,7 @@ let {
 		handleInput(); // ✅ Triggers debounced validation
 	}}
 />
-```
+```text
 
 **User Types "H":**
 
@@ -206,7 +206,7 @@ let {
 </script>
 
 <input onblur={handleBlur} />
-```
+```text
 
 **User Clicks Away:**
 
@@ -219,7 +219,7 @@ let {
 
 ## Validation Flow Diagram
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Step 1: Component Mount                                              │
 │                                                                       │
@@ -285,7 +285,7 @@ let {
 │   ↓                                                                   │
 │ Error message (if any) displays instantly                             │
 └─────────────────────────────────────────────────────────────────────┘
-```
+```text
 
 ---
 
@@ -295,17 +295,17 @@ let {
 
 **Before Enhancement:**
 
-```
+```text
 Create new entry → Required field empty → Save button ENABLED → Click Save → Error shows
 Time to feedback: 5-10 seconds ❌
-```
+```text
 
 **After Enhancement:**
 
-```
+```text
 Create new entry → Required field empty → Save button DISABLED instantly
 Time to feedback: 0 seconds ✅
-```
+```text
 
 ---
 
@@ -355,7 +355,7 @@ widgets.Input({
   required: true,
   validateOnMount: false, // ✅ Override: Don't validate on mount
 });
-```
+```text
 
 **Use Cases:**
 
@@ -404,7 +404,7 @@ export const validationStore = (() => {
     },
   };
 })();
-```
+```text
 
 **Key Features:**
 
@@ -449,7 +449,7 @@ export const validationStore = (() => {
 >
 	Save
 </button>
-```
+```text
 
 **Visual States:**
 
@@ -555,13 +555,13 @@ describe("Input Widget - Instant Validation", () => {
     expect(validationStore.isValid).toBe(true);
   });
 });
-```
+```text
 
 **Run Tests:**
 
 ```bash
 bun test tests/bun/widgets/input-validation.test.ts
-```
+```text
 
 ---
 
@@ -621,21 +621,21 @@ bun test tests/bun/widgets/input-validation.test.ts
 
 **Before Enhancement (No Mount Validation):**
 
-```
+```text
 Mount: 0 validations
 Input (100 chars): 100 validations (no debounce)
 Blur: 10 validations
 Total: 110 validations ❌
-```
+```text
 
 **After Enhancement (With Debounce + Mount):**
 
-```
+```text
 Mount: 10 validations (instant, required fields only)
 Input (100 chars): ~10 validations (debounced)
 Blur: 10 validations
 Total: 30 validations ✅ (73% reduction)
-```
+```text
 
 **Performance Gain:**
 
@@ -652,7 +652,7 @@ Total: 30 validations ✅ (73% reduction)
 ```svelte
 <!-- Edit mode with existing data -->
 <Input field={{ label: 'Title', required: true }} value={{ en: 'Existing Title' }} />
-```
+```text
 
 **Behavior:**
 
@@ -667,7 +667,7 @@ Total: 30 validations ✅ (73% reduction)
 
 ```svelte
 <Input field={{ label: 'Title', required: true, translated: true }} value={{ en: 'Hello', fr: '' }} />
-```
+```text
 
 **Behavior:**
 
@@ -690,7 +690,7 @@ const validationSchema = pipe(
     return available;
   }, "Username already taken"),
 );
-```
+```text
 
 **Behavior:**
 
@@ -713,7 +713,7 @@ const validationSchema = pipe(
   field={{ label: 'Title', required: true }}
   validateOnMount={true} <!-- Manually specified -->
 />
-```
+```text
 
 ---
 
@@ -731,7 +731,7 @@ const validationSchema = pipe(
   field={{ label: 'Title', required: true }}
   validateOnMount={false} <!-- Explicit override -->
 />
-```
+```text
 
 **No Breaking Changes:**
 
@@ -745,11 +745,11 @@ const validationSchema = pipe(
 
 The **Instant Validation Feedback System** provides:
 
-✅ **Instant UX:** Save button disabled immediately for invalid forms  
-✅ **Smooth Typing:** Debounced validation (no lag)  
-✅ **Smart Defaults:** `validateOnMount = field.required`  
-✅ **Configurable:** Per-field override support  
-✅ **Performant:** 73% fewer validation runs  
+✅ **Instant UX:** Save button disabled immediately for invalid forms
+✅ **Smooth Typing:** Debounced validation (no lag)
+✅ **Smart Defaults:** `validateOnMount = field.required`
+✅ **Configurable:** Per-field override support
+✅ **Performant:** 73% fewer validation runs
 ✅ **Decoupled:** Widgets report to store, UI observes store
 
 **User Impact:**
@@ -771,3 +771,4 @@ The **Instant Validation Feedback System** provides:
 - [Enterprise Widget System Architecture](../guides/development/widgets/architecture.mdx)
 - [Validation Store API](../api/index.mdx)
 - [Widget Development Guide](../guides/development/widgets/development.mdx)
+````
