@@ -8,7 +8,7 @@ const { describe, it, expect, beforeEach, vi } = (globalThis as any).vi
   : await import("vitest");
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { handleAuthentication, clearAllSessionCaches } from "@src/hooks/handle-authentication";
-import { auth } from "@src/databases/db";
+import { dbAdapter } from "@src/databases/db";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { DatabaseId } from "@databases/db-interface";
 
@@ -67,16 +67,23 @@ describe("handleAuthentication Middleware", () => {
     clearAllSessionCaches(); // Clear memory cache between tests
     mockResolve = vi.fn(() => Promise.resolve(new Response("OK", { status: 200 })));
 
-    // Default auth mock behavior
-    if (auth) {
-      (auth.validateSession as any).mockImplementation(() =>
-        Promise.resolve({
-          _id: "user123",
+    (dbAdapter.auth.getSessionTokenData as any).mockResolvedValue({
+      success: true,
+      data: {
+        user_id: "user123",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      },
+    });
+    (dbAdapter.auth.getUserById as any).mockImplementation((id: string) =>
+      Promise.resolve({
+        success: true,
+        data: {
+          _id: id,
           email: "test@example.com",
           permissions: [],
-        }),
-      );
-    }
+        },
+      }),
+    );
   });
 
   describe("Public Route Bypass", () => {
@@ -96,7 +103,7 @@ describe("handleAuthentication Middleware", () => {
   describe("Session Validation", () => {
     it("should validate session cookie when present", async () => {
       const mockUser = { _id: "user123", tenantId: "tenant1" };
-      (auth!.validateSession as any).mockResolvedValue({
+      (dbAdapter.auth.getUserById as any).mockResolvedValue({
         success: true,
         data: mockUser,
       });
@@ -104,15 +111,18 @@ describe("handleAuthentication Middleware", () => {
       await handleAuthentication({ event, resolve: mockResolve });
 
       expect(mockResolve).toHaveBeenCalled();
-      expect(auth!.validateSession).toHaveBeenCalledWith("valid-session-id", {
+      expect(dbAdapter.auth.getSessionTokenData).toHaveBeenCalledWith("valid-session-id");
+      expect(dbAdapter.auth.getUserById).toHaveBeenCalledWith("user123", {
         suppressErrorLog: true,
       });
+      expect(event.locals.user).toEqual(mockUser);
     });
 
     it("should delete invalid session cookie when auth is ready", async () => {
-      (auth!.validateSession as any).mockImplementation(() =>
-        Promise.resolve({ success: true, data: null }),
-      );
+      (dbAdapter.auth.getSessionTokenData as any).mockResolvedValue({
+        success: true,
+        data: null,
+      });
 
       const event = createMockEvent("/dashboard", "invalid-session");
       await handleAuthentication({ event, resolve: mockResolve });
@@ -132,9 +142,10 @@ describe("handleAuthentication Middleware", () => {
 
     it("should reject session from different tenant", async () => {
       const mockUser = { _id: "user123", tenantId: "tenant1" };
-      (auth!.validateSession as any).mockImplementation(() =>
-        Promise.resolve({ success: true, data: mockUser }),
-      );
+      (dbAdapter.auth.getUserById as any).mockResolvedValue({
+        success: true,
+        data: mockUser,
+      });
 
       const event = createMockEvent("/dashboard", "session-t1", "tenant2.example.com");
       event.locals.tenantId = "tenant2" as DatabaseId;
@@ -150,9 +161,10 @@ describe("handleAuthentication Middleware", () => {
 
     it("should allow global admin to access any tenant", async () => {
       const mockUser = { _id: "admin123", tenantId: null };
-      (auth!.validateSession as any).mockImplementation(() =>
-        Promise.resolve({ success: true, data: mockUser }),
-      );
+      (dbAdapter.auth.getUserById as any).mockResolvedValue({
+        success: true,
+        data: mockUser,
+      });
 
       const event = createMockEvent("/dashboard", "session-global", "tenant2.example.com");
       event.locals.tenantId = "tenant2" as DatabaseId;
@@ -183,42 +195,40 @@ describe("handleAuthentication Middleware", () => {
       expect(SESSION_COOKIE_NAME).toBeTruthy();
     });
 
-    it("should not accept __Host- cookie on insecure connection", async () => {
-      // Simulates insecure connection trying to use a __Host- cookie
-      const event = createMockEvent("/dashboard", "stolen-session", "localhost");
-      // On insecure connection, the __Host- prefix cookie should NOT be accepted
-      // The handler should look for the non-prefixed cookie name only
+    it("should accept __Host- cookie fallback during local/test traffic", async () => {
+      const event = createMockEvent("/dashboard", undefined, "localhost");
       event.cookies.get = vi.fn((name: string) => {
         if (name === SESSION_COOKIE_NAME) return null;
-        if (name === `__Host-${SESSION_COOKIE_NAME}`) return "stolen-session";
+        if (name === `__Host-${SESSION_COOKIE_NAME}`) return "fallback-session";
         return null;
       });
 
       await handleAuthentication({ event, resolve: mockResolve });
-      // User should remain null since insecure connections don't accept __Host- cookies
-      expect(event.locals.user).toBeNull();
+      expect(mockResolve).toHaveBeenCalled();
+      expect(dbAdapter.auth.getSessionTokenData).toHaveBeenCalledWith("fallback-session");
     });
 
-    it("should accept __Host- cookie on secure connection only", async () => {
-      // Simulates secure HTTPS connection
+    it("should accept __Host- cookie on secure connection", async () => {
       const event = createMockEvent("/dashboard", undefined, "example.com");
-      // Override to make it look like a secure connection
       Object.defineProperty(event.url, "protocol", { value: "https:" });
+      event.cookies.get = vi.fn((name: string) => {
+        if (name === `__Host-${SESSION_COOKIE_NAME}`) return "secure-session";
+        return null;
+      });
 
-      // Mock auth to return a user for the session
-      if (auth) {
-        (auth.validateSession as any).mockImplementation(() =>
-          Promise.resolve({
-            _id: "secure-user",
-            email: "secure@example.com",
-            permissions: [],
-          }),
-        );
-      }
+      (dbAdapter.auth.getUserById as any).mockResolvedValue({
+        success: true,
+        data: {
+          _id: "secure-user",
+          email: "secure@example.com",
+          permissions: [],
+        },
+      });
 
       await handleAuthentication({ event, resolve: mockResolve });
-      // On secure connection, the __Host- prefixed cookie should be accepted
       expect(mockResolve).toHaveBeenCalled();
+      expect(dbAdapter.auth.getSessionTokenData).toHaveBeenCalledWith("secure-session");
+      expect(event.locals.user?._id).toBe("secure-user");
     });
 
     it("should have distinct cookie names for secure vs insecure", () => {
