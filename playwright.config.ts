@@ -103,29 +103,19 @@ export default defineConfig({
     },
     {
       name: "signup",
-      testMatch: [
-        /signupfirstuser\.spec\.ts/,
-        /oauth-signup-firstuser\.spec\.ts/,
-        /role-based-access\.spec\.ts/,
-        /permission-change\.spec\.ts/,
-      ],
+      testMatch: [/account-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "content",
-      testMatch: [/collection\.spec\.ts/, /collection-builder\.spec\.ts/, /user-crud\.spec\.ts/],
+      testMatch: [/content-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "system",
-      testMatch: [
-        /language\.spec\.ts/,
-        /user\.spec\.ts/,
-        /accessibility\.spec\.ts/,
-        /ui-test\.spec\.ts/,
-      ],
+      testMatch: [/system-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },

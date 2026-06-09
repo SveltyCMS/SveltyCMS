@@ -117,6 +117,18 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 5. **Execute**: Bun/Playwright performs HTTP requests against the live endpoints.
 6. **Verify**: Assertions are made on JSON responses and HTTP status codes.
 
+### Playwright CI Scope
+
+The GitHub Actions E2E matrix is intentionally curated around maintained smoke coverage:
+
+- `wizard`: setup provisioning and post-setup redirect contract
+- `auth-setup`: authenticated bootstrap and login/logout state generation
+- `signup`: authenticated account/profile smoke
+- `content`: collection-builder content management smoke
+- `system`: dynamic system settings smoke
+
+Legacy exploratory Playwright specs remain in `tests/e2e/`, but they are not PR-gating until their routes, selectors, and redirect expectations are rewritten against the current admin UI.
+
 ## Security Matrix Testing
 
 Every core endpoint is now triply-verified:
