@@ -111,6 +111,7 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 
 1. **Build**: `bun run build` generates the production bundle.
 2. **Preview**: `TEST_MODE=true node build/index.js` starts the production build used by CI black-box jobs. The auth-setup E2E bootstrap is the main exception and still uses a dev server for first-run setup state generation.
+   When the suite must mimic production setup gating, `STRICT_SETUP_CHECK=true` is enabled so completed `/setup` routes redirect the same way they do outside test mode.
 3. **Orchestrate**: Test helper calls `/api/testing` (with secure handshake) to prepare the database.
 4. **Login**: Test helper calls `/api/auth/login` to obtain a session cookie.
 5. **Execute**: Bun/Playwright performs HTTP requests against the live endpoints.
@@ -171,6 +172,8 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 
 > [!IMPORTANT]
 > **Safety Protocol**: Black-box tests must use test-only configuration. `config/private.test.ts` is the source of truth, and any temporary `config/private.ts` created during CI/runtime parity must be an ephemeral mirror of that test config only. Live credentials and production data are never valid in `TEST_MODE`.
+>
+> For SQLite-based black-box jobs, database names must be obviously isolated test names such as `*_test*`, `*_bench*`, or `e2e_*`. Reusing the server's active SQLite file is forbidden because it breaks setup isolation and can corrupt the runtime under concurrent access.
 
 > [!IMPORTANT]
 > **No Backdoor Policy**: SveltyCMS has a zero-backdoor policy for security. Integration tests do NOT bypass authentication via:

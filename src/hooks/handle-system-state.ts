@@ -58,6 +58,7 @@ const IS_GK_TEST_MODE =
   process.env.NODE_ENV === "test" ||
   process.env.VITEST === "true" ||
   !!process.env.BUN_TEST;
+const IS_STRICT_SETUP_CHECK = process.env.STRICT_SETUP_CHECK === "true";
 
 // ──────────────────────────────────────────────────────────────
 // HELPERS
@@ -244,7 +245,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
       // 🛡️ Redirect/Block setup routes if setup is already complete (except in test environment)
       if (
-        !IS_GK_TEST_MODE &&
+        (!IS_GK_TEST_MODE || IS_STRICT_SETUP_CHECK) &&
         setupComplete &&
         (pathname === "/setup" ||
           pathname.startsWith("/setup/") ||

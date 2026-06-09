@@ -232,7 +232,13 @@ function getEnvOverrides() {
 async function enforceTestSafety(config: any) {
   if ((process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test") && config?.DB_NAME) {
     const dbName = String(config.DB_NAME).toLowerCase();
-    if (!dbName.includes("test") && !dbName.includes("bench") && !dbName.endsWith("_functional")) {
+    const looksIsolatedTestDb =
+      dbName.includes("test") ||
+      dbName.includes("bench") ||
+      dbName.includes("e2e") ||
+      dbName.endsWith("_functional");
+
+    if (!looksIsolatedTestDb) {
       const msg = `SAFETY VIOLATION: Test mode DB_NAME '${config.DB_NAME}' does not indicate a test database.`;
       logger.error(msg);
       throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");

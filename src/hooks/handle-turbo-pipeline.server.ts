@@ -164,6 +164,8 @@ const IS_TEST_MODE =
     String(process.env.VITE_TEST_MODE) === "true" ||
     process.env.NODE_ENV === "test");
 const DB_TYPE = typeof process !== "undefined" ? process.env.DB_TYPE : "unknown";
+const IS_STRICT_SETUP_CHECK =
+  typeof process !== "undefined" && process.env.STRICT_SETUP_CHECK === "true";
 
 // Main Turbo Pipeline Hook
 export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
@@ -447,11 +449,14 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         process.env.TEST_MODE === "true" ||
         process.env.VITE_TEST_MODE === "true" ||
         process.env.BENCHMARK === "true";
+      const shouldEnforceCompletedSetupRedirect =
+        !isTestMode || IS_STRICT_SETUP_CHECK;
+
       if (
         isSetupRoute &&
         setupState === SetupState.COMPLETE &&
-        !isTestMode &&
-        isSystemOperationallyReady
+        shouldEnforceCompletedSetupRedirect &&
+        (isSystemOperationallyReady || IS_STRICT_SETUP_CHECK)
       ) {
         if (
           !(

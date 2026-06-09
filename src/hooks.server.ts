@@ -326,10 +326,10 @@ export function getHookTimings(): Record<
 }
 
 function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
-  const resolvedHandle = handleFnRef();
   return async (input) => {
     const start = performance.now();
     try {
+      const resolvedHandle = handleFnRef();
       return await traceSpan(`hook:${name}`, async () => await resolvedHandle(input));
     } finally {
       const elapsed = performance.now() - start;
@@ -403,10 +403,14 @@ export const handle: Handle = async ({ event, resolve }) => {
   if (setupComplete !== currentSetupState) {
     logger.info(`🔄 System setup state change detected: ${setupComplete} -> ${currentSetupState}`);
     setupComplete = currentSetupState;
+    cachedPipelineReady = null;
+    cachedPipelineSetup = null;
     if (setupComplete) {
-      ensureFullMiddleware().catch((err) =>
-        logger.error("Failed to lazy-load full middleware:", err),
-      );
+      try {
+        await ensureFullMiddleware();
+      } catch (err) {
+        logger.error("Failed to lazy-load full middleware:", err);
+      }
     }
   }
 
