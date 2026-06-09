@@ -5,6 +5,22 @@
 
 import { describe, it, expect, vi } from "vitest";
 
+vi.mock("@node-saml/node-saml", () => ({
+  SAML: vi.fn(function (this: any) {
+    this.getAuthorizeUrlAsync = vi
+      .fn()
+      .mockResolvedValue("https://idp.example.com/sso?SAMLRequest=...");
+    this.validatePostResponseAsync = vi.fn().mockResolvedValue({
+      profile: {
+        nameID: "user@test.com",
+        attributes: {
+          "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "user@test.com",
+        },
+      },
+    });
+  }),
+}));
+
 import { beforeAll } from "vitest";
 let dispatcherGET: any, dispatcherPOST: any;
 beforeAll(async () => {
@@ -93,20 +109,7 @@ describe("SAML API Unit Tests", () => {
       delete: vi.fn(),
     };
 
-    // Mock parseSAMLResponse behavior
-    const jacksonModule = await import("@src/databases/auth/saml-auth");
-    const jacksonApi = await jacksonModule.getJackson();
-    jacksonApi.saml = {
-      parseSAMLResponse: vi.fn().mockResolvedValue({
-        profile: {
-          email: "user@test.com",
-          firstName: "Test",
-          lastName: "User",
-        },
-      }),
-    };
-
-    // Mock DB operations using the global mock adapter
+    // DB operations use the global mock adapter (already set up in setup.ts)
     const db = (globalThis as any).mockDbAdapter;
     db.auth.getUserByEmail.mockResolvedValue({
       success: true,

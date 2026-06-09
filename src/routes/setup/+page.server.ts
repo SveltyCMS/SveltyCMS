@@ -37,9 +37,15 @@ const DRIVER_PACKAGES = {
 type DatabaseType = keyof typeof DRIVER_PACKAGES;
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
-  // Clear any existing session cookies to ensure fresh start
+  // Clear ALL existing auth session cookie variants to ensure fresh start
   const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
-  cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+  for (const name of [
+    SESSION_COOKIE_NAME,
+    `__Host-${SESSION_COOKIE_NAME}`,
+    `__Secure-${SESSION_COOKIE_NAME}`,
+  ]) {
+    cookies.delete(name, { path: "/" });
+  }
 
   const availableLanguages: string[] = inlangSettings.locales || ["en", "de"];
 
@@ -78,14 +84,13 @@ export const actions: Actions = {
       payload.emailSettings || {},
     );
     if (result.sessionCookie) {
+      const { getSessionCookieName } = await import("@src/databases/auth/constants");
       const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
-      const cookieName = isSecure
-        ? `__Host-${result.sessionCookie.name}`
-        : result.sessionCookie.name;
+      const cookieName = getSessionCookieName(isSecure);
       cookies.set(cookieName, result.sessionCookie.value, {
         ...result.sessionCookie.attributes,
         secure: isSecure,
-        sameSite: isSecure ? "strict" : (result.sessionCookie.attributes as any).sameSite || "lax",
+        sameSite: isSecure ? "strict" : "lax",
       } as any);
     }
     return result;

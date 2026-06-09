@@ -393,7 +393,11 @@ export class RelationalAuthModule implements IAuthAdapter {
       },
       "CREATE_SESSION_FAILED",
       undefined,
-      { isWrite: true, transaction: options?.transaction, bypassSafeQuery: true }, // 🛡️ INTERNAL BYPASS
+      {
+        isWrite: true,
+        transaction: options?.transaction,
+        bypassSafeQuery: true,
+      }, // 🛡️ INTERNAL BYPASS
     );
   }
 
@@ -419,6 +423,21 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
+        const nowMs = Date.now();
+        // Bypass Drizzle proxy — use direct SQL to avoid sqlite-proxy shim issues
+        try {
+          const rows = await this.adapter.raw.execute(
+            `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = ? AND s.expires > ? LIMIT 1`,
+            [sessionId, nowMs],
+          );
+          if (rows && rows.length > 0) {
+            return this.mapUser(rows[0]);
+          }
+          return null;
+        } catch {
+          // Fall back to Drizzle query if direct SQL fails
+        }
+
         const db = this.getDb(options);
         const conditions = [
           eq(this.schema.authSessions._id, sessionId as string),
@@ -490,7 +509,10 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const db = this.getDb();
-        const updateData = { expires: new Date(newExpiry), updatedAt: new Date() };
+        const updateData = {
+          expires: new Date(newExpiry),
+          updatedAt: new Date(),
+        };
         const preparedUpdate = utils.convertISOToDates(updateData as any);
         await db
           .update(this.schema.authSessions)
@@ -601,7 +623,10 @@ export class RelationalAuthModule implements IAuthAdapter {
         .where(eq(this.schema.authSessions._id, sessionId as string))
         .limit(1);
       if (!res) return null;
-      return { expiresAt: toISOString(res.expires), user_id: res.user_id as DatabaseId };
+      return {
+        expiresAt: toISOString(res.expires),
+        user_id: res.user_id as DatabaseId,
+      };
     }, "GET_SESSION_DATA_FAILED");
   }
   async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
@@ -1078,13 +1103,22 @@ export class RelationalAuthModule implements IAuthAdapter {
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
     const runWork = async (tx: any) => {
-      await this.invalidateAllUserSessions(userId, { ...options, transaction: tx });
-      const result = await this.deleteUser(userId, { ...options, transaction: tx });
+      await this.invalidateAllUserSessions(userId, {
+        ...options,
+        transaction: tx,
+      });
+      const result = await this.deleteUser(userId, {
+        ...options,
+        transaction: tx,
+      });
       if (!result.success) throw new Error(result.message);
       return {
         success: true,
         data: { deletedUser: true, deletedSessionCount: 1 },
-      } as DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>;
+      } as DatabaseResult<{
+        deletedUser: boolean;
+        deletedSessionCount: number;
+      }>;
     };
 
     if (options?.transaction) {

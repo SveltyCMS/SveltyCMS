@@ -17,7 +17,7 @@
 ### Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
  - Demo mode support with auto-reset timer
- - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
+ - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `hasAdminUser`)
  - Reset state functionality for easy return to initial screen
  - Accessibility features for language selection and form navigation
 -->
@@ -72,7 +72,7 @@ const {
 const siteName = $derived(publicEnv.SITE_NAME || "SveltyCMS");
 
 const pageData = page.data as PageData;
-const firstUserExists = pageData.firstUserExists;
+const hasAdminUser = pageData.hasAdminUser;
 const showGoogleOAuth = pageData.showGoogleOAuth;
 const showGithubOAuth = pageData.showGithubOAuth;
 const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
@@ -524,7 +524,7 @@ $effect(() => {
 							</div>
 						</div>
 
-						{#if !isInviteFlow && firstUserExists && !hasExistingOAuthUsers}
+						{#if !isInviteFlow && hasAdminUser && !hasExistingOAuthUsers}
 							<p class="mt-2 text-xs text-surface-400">
 								?? Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
 							</p>

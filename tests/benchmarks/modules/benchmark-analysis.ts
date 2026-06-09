@@ -325,7 +325,7 @@ export function runAnalysis(
       if (prevMem > 0) {
         const memDelta = ((result.memoryRssMb - prevMem) / prevMem) * 100;
         if (memDelta > 10) {
-          fullInsight += `  \n**Memory Pressure**: RSS +${memDelta.toFixed(0)}% (${result.memoryRssMb.toFixed(1)}MB vs ${prevMem.toFixed(1)}MB baseline) — possible native leak. Check sharp, better-sqlite3, or recent allocations.`;
+          fullInsight += `  \n**Memory Pressure**: RSS +${memDelta.toFixed(0)}% (${result.memoryRssMb.toFixed(1)}MB vs ${prevMem.toFixed(1)}MB baseline) — possible native leak. Check sharp, argon2, or recent allocations.`;
         }
       }
     }

@@ -16,7 +16,7 @@ tags:
 
 # SQLite Implementation
 
-SQLite support is the default for local development, testing, and edge environments. It provides a zero-config database experience using **Drizzle ORM** with the `better-sqlite3` or `bun:sqlite` driver.
+SQLite support is the default for local development, testing, and edge environments. It provides a zero-config database experience using **Drizzle ORM** with the `node:sqlite` or `bun:sqlite` driver.
 
 ## 🎯 Implementation Architecture
 
@@ -53,11 +53,11 @@ Key SQLite highlights:
 
 - **Cache L1 hit at 0.000 ms**, miss at 0.338 ms. INSERT 0.107 ms, FIND ONE 0.076 ms.
 - **WAL Mode** enabled by default for concurrent read/write performance.
-- **Runtime Agnostic**: Optimized for both `bun:sqlite` and `better-sqlite3`.
+- **Runtime Agnostic**: Optimized for both `bun:sqlite` and `node:sqlite`.
 
 ### Key Optimizations
 
-- **Runtime Agnostic**: Automatically switches between `bun:sqlite` and `better-sqlite3` based on environment.
+- **Runtime Agnostic**: Automatically switches between `bun:sqlite` and `node:sqlite` based on environment.
 - **Zero-Config**: Single file database (`SveltyCMS.db`) - perfect for development.
 - **WAL Mode**: Write-Ahead Logging enabled by default for concurrent read/write performance.
 - **Performance PRAGMAs**: 7 optimized PRAGMAs applied on connect:
@@ -103,7 +103,7 @@ The SQLite adapter implements a robust provisioning system that handles the comp
 To comply with SvelteKit 5's strict ESM requirements and avoid "require is not defined" errors:
 
 - The adapter uses **Dynamic Imports** to load binary drivers.
-- It detects the runtime environment (`Bun` vs `Node.js`) and imports the appropriate library (`bun:sqlite` or `better-sqlite3`) at runtime.
+- It detects the runtime environment (`Bun` vs `Node.js`) and imports the appropriate library (`bun:sqlite` or `node:sqlite`) at runtime.
 - This allows a single codebase to run seamlessly across local development (Bun) and production (Node.js) environments.
 
 ### WAL Mode & Performance PRAGMAs

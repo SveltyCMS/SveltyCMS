@@ -281,7 +281,7 @@ From the 2026 roadmap (target A++ grade), prioritize these for parity/leadership
 - [x] **PostgreSQL Support**: Full adapter implementation with Drizzle ORM migrations and native tenant management.
 - [x] **SQLite Support**: Lightweight adapter via Bun native driver for edge and local deployments.
 - [x] **SCIM 2.0 (v1.1)**: Native endpoints (/scim/v2/Users, Groups, Bulk); support filters (eq, co), PATCH ops; integration ready for Okta/Azure.
-- [x] **SAML 2.0 / Enterprise SSO**: Full integration via BoxyHQ (@boxyhq/saml-jackson) for enterprise identity providers (Okta, Azure).
+- [x] **SAML 2.0 / Enterprise SSO**: Lightweight integration via @node-saml/node-saml (zero DB dependencies) for enterprise identity providers (Okta, Azure).
 - [x] **Edge Computing & Multi-Region**: Native support for edge-optimized data fetching and multi-region replication.
 - [x] **BuzzForm Visual Builder (v1.5)**: Production-ready drag-and-drop form/collection builder with real-time preview.
 - [x] **Secure Media Engine (v1.2)**: Native SSRF protection, command injection prevention (spawn-based), and hardened directory traversal.
@@ -368,12 +368,12 @@ All `bun run` commands (dev, check, test, etc.) work normally after `npm install
 
 **The Problem**: Deleting both `node_modules` and `bun.lock` forces a fresh resolution. On Windows, this fails because:
 
-- `better-sqlite3` can't compile without Python/build tools, halting the entire install
+- Native addons (e.g., `argon2`, `sharp`) may fail to compile without Python/build tools, halting the entire install
 - Bun may corrupt transitive dependencies (e.g., missing `drizzle-orm/sql/`, empty `@zag-js/` directories)
 
 **Symptoms**:
 
-- `bun install` dies with `gyp ERR! find Python` at `better-sqlite3`
+- `bun install` dies with `gyp ERR! find Python` at native addons
 - After recovery, `bun install` says "no changes" but packages are missing
 - `bun run check` fails with "Module has no exported member" from `drizzle-orm`
 

@@ -101,7 +101,7 @@ export class PerformanceIntelligence {
       adapter_bottleneck:
         "Database adapter bottleneck — check connection pool, indexes, query plans",
       middleware: "Request pipeline overhead — middleware runs on every request",
-      native: "Native bindings / memory management — check sharp, better-sqlite3",
+      native: "Native bindings / memory management — check sharp, argon2",
       scale: "High-load bottleneck — connection pool saturation or lock contention",
       cold_start: "Cold start overhead — imports, schema loading, cache warming",
       gc_pause: "GC pause — check memory allocation patterns",

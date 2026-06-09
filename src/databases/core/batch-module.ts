@@ -211,7 +211,7 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
             .where(eq((table as any)._id, update.id as string))
             .run()) as any;
 
-          // Support Bun/Better-SQLite3 (.changes) and LibSQL (.rowsAffected)
+          // Support Bun and node:sqlite (.changes) and LibSQL (.rowsAffected)
           modifiedCount += result?.changes ?? result?.rowsAffected ?? 0;
         }
       });

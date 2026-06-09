@@ -66,12 +66,17 @@ export const completeSetup = command(
     if (result.success && result.sessionCookie) {
       try {
         const event = getRequestEvent();
+        const { getSessionCookieName } = await import("@src/databases/auth/constants");
         const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
-        event.cookies.set(result.sessionCookie.name, result.sessionCookie.value, {
+        const cookieName = getSessionCookieName(isSecure);
+        event.cookies.set(cookieName, result.sessionCookie.value, {
           ...result.sessionCookie.attributes,
           secure: isSecure,
           path: "/",
         } as any);
+        // Also invalidate setup cache immediately so handleSystemState allows requests
+        const { invalidateSetupCache } = await import("@src/utils/setup-check");
+        invalidateSetupCache(false, true);
       } catch (err) {
         const { logger } = await import("@src/utils/logger");
         logger.error("Failed to set session cookie in setup.remote.ts:", err);
@@ -146,7 +151,7 @@ export const installDatabaseDriver = command("unchecked", async (dbType: string)
 
   try {
     try {
-      await import(packageName);
+      await import(/* @vite-ignore */ packageName);
       return {
         success: true,
         message: `Driver ${packageName} is already installed.`,

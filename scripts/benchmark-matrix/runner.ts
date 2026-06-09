@@ -210,7 +210,11 @@ async function executeWithTimeout(
       }
     });
 
-    proc.stderr?.on("data", (data) => process.stderr.write(data));
+    proc.stderr?.on("data", (data) => {
+      // On Windows, PowerShell wraps stderr in NativeCommandError noise.
+      // All useful bun output goes to stdout, so suppress stderr on win32.
+      if (process.platform !== "win32") process.stderr.write(data);
+    });
 
     let resolved = false;
     const timer = setTimeout(() => {
