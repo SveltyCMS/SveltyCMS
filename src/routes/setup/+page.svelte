@@ -263,7 +263,7 @@
 
 	<div class="flex flex-1 overflow-hidden">
 		<!-- Left Sidebar: Stepper -->
-		<aside class="hidden lg:flex w-80 xl:w-96 flex-col border-r border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 overflow-hidden h-full">
+		<aside class="hidden lg:flex w-80 xl:w-96 flex-col border-e border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 overflow-hidden h-full">
 			<div class="flex-1">
 				<SetupStepper
 					{steps}
@@ -358,7 +358,7 @@
 
 						{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
 							<div
-								class="mt-6 flex flex-col rounded-md border-l-4 p-0 text-sm overflow-hidden"
+								class="mt-6 flex flex-col rounded-md border-s-4 p-0 text-sm overflow-hidden"
 								class:border-primary-400={!!wizard.successMessage}
 								class:border-error-400={!!wizard.errorMessage}
 								aria-live="polite"
