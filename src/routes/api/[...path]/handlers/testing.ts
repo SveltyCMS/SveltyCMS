@@ -131,6 +131,8 @@ export async function handleTestingRoutes(
       // ✨ Fix: Reset system state store so the system transitions back to SETUP/INITIALIZING
       const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
       resetSystemState();
+      const { resetInitializationState } = await import("@src/hooks/handle-system-state");
+      resetInitializationState();
 
       return rawResponse({
         success: true,
