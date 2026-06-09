@@ -57,16 +57,16 @@ export const authUsers = sqliteTable(
     firstName: text("firstName", { length: 255 }),
     lastName: text("lastName", { length: 255 }),
     avatar: text("avatar"),
-    roleIds: text("roleIds")
+    roleIds: text("roleIds", { mode: "json" })
       .$type<string[]>()
       .notNull()
-      .default("[]" as any),
+      .default([] as any),
     role: text("role", { length: 50 }).notNull().default("user"),
     isAdmin: integer("isAdmin", { mode: "boolean" }).notNull().default(false),
     isRegistered: integer("isRegistered", { mode: "boolean" }).notNull().default(false),
     is2FAEnabled: integer("is2FAEnabled", { mode: "boolean" }).notNull().default(false),
     totpSecret: text("totpSecret"),
-    backupCodes: text("backupCodes").$type<string[]>(),
+    backupCodes: text("backupCodes", { mode: "json" }).$type<string[]>(),
     last2FAVerification: integer("last2FAVerification", {
       mode: "timestamp_ms",
     }),
@@ -131,7 +131,7 @@ export const roles = sqliteTable(
     _id: uuidPk(),
     name: text("name", { length: 255 }).notNull(),
     description: text("description"),
-    permissions: text("permissions")
+    permissions: text("permissions", { mode: "json" })
       .$type<string[]>()
       .notNull()
       .default([] as any),
@@ -383,7 +383,7 @@ export const websiteTokens = sqliteTable(
     _id: uuidPk(),
     name: text("name", { length: 255 }).notNull(),
     token: text("token", { length: 255 }).notNull(),
-    permissions: text("permissions")
+    permissions: text("permissions", { mode: "json" })
       .$type<string[]>()
       .notNull()
       .default([] as any),
@@ -478,7 +478,7 @@ export const tenants = sqliteTable(
     ownerId: text("ownerId", { length: 36 }).notNull(),
     status: text("status", { length: 20 }).notNull().default("active"),
     plan: text("plan", { length: 20 }).notNull().default("free"),
-    quota: text("quota")
+    quota: text("quota", { mode: "json" })
       .$type<TenantQuota>()
       .notNull()
       .default({
@@ -487,7 +487,7 @@ export const tenants = sqliteTable(
         maxCollections: 20,
         maxApiRequestsPerMonth: 10_000,
       } as any),
-    usage: text("usage")
+    usage: text("usage", { mode: "json" })
       .$type<TenantUsage>()
       .notNull()
       .default({
@@ -497,7 +497,7 @@ export const tenants = sqliteTable(
         apiRequestsMonth: 0,
         lastUpdated: new Date(),
       } as any),
-    settings: text("settings").default("{}" as any),
+    settings: text("settings", { mode: "json" }).default({} as any),
     ...timestamps,
   },
   (table) => ({

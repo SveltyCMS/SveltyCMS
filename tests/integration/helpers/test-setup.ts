@@ -8,6 +8,7 @@
 import { getApiBaseUrl, safeFetch } from "./server";
 
 const API_BASE_URL = getApiBaseUrl();
+const HEALTHY_SYSTEM_STATES = ["READY", "HEALTHY", "SETUP", "WARMED", "WARMING", "OPERATIONAL"];
 
 // Hardened secret resolution
 const TEST_API_SECRET =
@@ -116,8 +117,8 @@ export async function prepareAuthenticatedContext(
     }
   }
 
-  // 🚀  Wait for system to settle and reach a READY state
-  console.log("⏳ Waiting for system to settle and reach READY state...");
+  // Wait for the system to settle into any serviceable state before logging in.
+  console.log("⏳ Waiting for system to settle before login...");
   let isReady = false;
   for (let i = 0; i < 10; i++) {
     const health = await safeFetch(`${API_BASE_URL}/api/system/health`, {
@@ -126,7 +127,7 @@ export async function prepareAuthenticatedContext(
     if (health.ok) {
       const data = await health.json();
       const status = (data.overallStatus || data.status || "").toUpperCase();
-      if (["READY", "WARMED", "HEALTHY"].includes(status)) {
+      if (HEALTHY_SYSTEM_STATES.includes(status)) {
         isReady = true;
         break;
       }
@@ -136,7 +137,7 @@ export async function prepareAuthenticatedContext(
   }
 
   if (!isReady) {
-    console.warn("⚠️ System did not reach READY state, attempting login anyway...");
+    console.warn("⚠️ System did not reach a serviceable state, attempting login anyway...");
   }
 
   // 🚀  Obtain CSRF token first

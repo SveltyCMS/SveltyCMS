@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/test-status.mdx"
 title: "Test Suite Status Report"
-description: "Comprehensive status report of all SveltyCMS tests including unit, integration, and E2E tests with current pass rates and known issues."
+description: "Current PR-gating test suites, safety rules, and where to verify the latest SveltyCMS test results."
 order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-04"
+updated: "2026-06-09"
 tags:
   - "testing"
   - "status"
@@ -18,125 +18,68 @@ tags:
 
 # SveltyCMS Test Suite Status
 
-> **Last Updated:** June 6, 2026
-> **Unit Tests:** 1,063 (Vitest/jsdom across 118 files) — 100% pass
-> **Total Tests:** 1,550+ (Unit + Integration + E2E + Audit)
+> **Last Updated:** June 9, 2026
+> **Source of Truth:** GitHub Actions and PR checks
+> **Scope of This Page:** The maintained gates and safety rules, not hard-coded pass totals
 
 ## Executive Summary
 
-The testing suite delivers the highest test intelligence of any headless CMS in 2026.
+SveltyCMS validates pull requests with a layered test pipeline:
 
-- **Unit Tests:** 1,063 (118 files) — +148 from original 915
-- **Contract Tests:** Universal adapter parity across all 4 databases + performance budgets
-- **Slop Scanner:** 0 errors — 17 undetected issues found and fixed (3 XSS critical)
-- **Mutation Testing:** 100% effective kill rate on sanitizer
-- **Property-Based Fuzz:** 500 random inputs per property across 3 files
-- **Smart Runner:** `bun run test:smart` — git-diff-aware 4-gate orchestration
-- **Integration Tests:** ~490 across all 4 DBs (SQLite, MongoDB, MariaDB, PostgreSQL)
-- **E2E Tests:** ~40 scenarios with parallel worker + pre-seeded state support
+- **Bootstrap / Build Gates:** install, lint, type-check, dependency audit, and production build
+- **White-Box Unit Tests:** fast logic tests with Vitest
+- **Black-Box Integration Tests:** real HTTP contract tests across SQLite, MongoDB, MariaDB, and PostgreSQL
+- **Playwright E2E:** staged browser coverage for `wizard`, `auth-setup`, `signup`, `content`, and `system`
 
-### 🚀 Enterprise Performance Matrix (Audit)
+Do not treat documentation totals as the live status signal. The current branch verdict belongs to the latest workflow run.
 
-| Metric Area                   | Baseline 2025 | Current (May 2026) | % Improvement        |
-| :---------------------------- | :------------ | :----------------- | :------------------- |
-| **REST p95 (SQLite)**         | ~0.612 ms     | **~0.59 ms**       | **Stable**           |
-| **DB Raw p95 (SQLite)**       | ~0.007 ms     | **~0.074 ms**      | —                    |
-| **Cold Start**                | ~363 ms       | **~381 ms**        | **Stable**           |
-| **Content Scan (1k)**         | ~14.23 ms     | **~0.75 ms**       | **94.7% Gain**       |
-| **Real-Time Broadcast (SSE)** | ~8.50 ms      | **~1.60 ms**       | **81.1% Gain**       |
-| **Real-Time Latency (WS)**    | ~5.20 ms      | **~0.3 - 1.2 ms**  | **94.2% Gain (uWS)** |
-| **REST p95 (MongoDB)**        | —             | **~0.63 ms**       | **Excellent**        |
-| **REST p95 (PostgreSQL)**     | —             | **~0.67 ms**       | **Excellent**        |
+## PR-Gating Suites
 
-### Test Coverage by Category
+| Layer               | Job / Command                     | Purpose                                                   |
+| ------------------- | --------------------------------- | --------------------------------------------------------- |
+| **Bootstrap**       | GitHub Actions `bootstrap`        | Lockfile install, workspace metadata, shared test secret  |
+| **Static Checks**   | `lint`, `type-check`, `build`     | Lint, compile, and production-build safety                |
+| **Unit**            | `bun run test:unit`               | White-box logic and component-adjacent behavior           |
+| **Integration**     | `bun run test:integration`        | Black-box HTTP contracts and DB parity                    |
+| **E2E Wizard**      | Playwright `wizard`               | First-run provisioning and redirect contract              |
+| **E2E Auth Setup**  | Playwright `auth-setup`           | Auth bootstrap and reusable browser state                 |
+| **E2E App Smokes**  | Playwright `signup/content/system`| Maintained browser smoke coverage for the admin UI        |
 
-| Category                      | Status       | Pass Rate | Tests      |
-| ----------------------------- | ------------ | --------- | ---------- |
-| **Migration (Ingestion)**     | ✅ Verified  | 100%      | Scale      |
-| **Revision Stability**        | ✅ Verified  | 100%      | History    |
-| **Chaos Resilience**          | ✅ Verified  | 100%      | Brownout   |
-| **Security Persistence**      | ✅ Verified  | 100%      | DoS        |
-| **Index Pressure (100k)**     | ✅ Verified  | 100%      | Filtering  |
-| **Health Probe Caching**      | ✅ Active    | 100%      | Monitoring |
-| **SRE Truth Audit**           | ✅ Verified  | 100%      | SRE        |
-| **Contract Tests**            | ✅ Verified  | 100%      | 5 Gates    |
-| **Smart Orchestrator**        | ✅ Active    | 100%      | 4 Gates    |
-| **Defense-in-Depth**          | ✅ Verified  | 100%      | 51/51      |
-| **Triple-Lock Security**      | ✅ Verified  | 100%      | 12/12      |
-| **Parallel Isolation**        | ✅ Verified  | 100%      | 8/8        |
-| **Server Hooks (Latencies)**  | ✅ Excellent | 100%      | 287/287    |
-| **Database Micro-Telemetry**  | ✅ Verified  | 100%      | 8/8        |
-| **API - User & Management**   | ✅ Complete  | 100%      | 72/72      |
-| **Encryption & Cryptography** | ✅ Excellent | 100%      | 14/14      |
-| **Auth & Lockout Security**   | ✅ Excellent | 100%      | 32/32      |
-| **Admin Theme System**        | ✅ Complete  | 100%      | 26/26      |
-| **WebSocket & Realtime**      | ✅ Hardened  | 100%      | 0.3ms uWS  |
+## Safety Rules
 
----
+- `config/private.test.ts` is the source of truth for black-box and E2E jobs.
+- Any temporary `config/private.ts` created by CI must mirror the test config only.
+- `TEST_MODE=true` and `TEST_API_SECRET` are required for `/api/testing`.
+- Local loopback should remain `127.0.0.1` for consistent cross-platform behavior.
+- SQLite test databases must use isolated names and must never reuse active runtime data.
 
-## ✅ Passing Tests (Latest Wins)
+## Current Maintenance Policy
 
-### 1. Database & Adapter Resilience 🗄️
+- Legacy exploratory Playwright specs may exist in `tests/e2e/`, but only the maintained smoke projects are PR-gating.
+- Integration tests should validate behavior through HTTP and authenticated session cookies, not through privileged internal imports.
+- When endpoint response shapes change, update the black-box tests and the route contract together.
 
-- ✅ **Drizzle SQLite-Proxy Bridge**: Hardened query execution mapping when running Vitest on Node.js. Automatically wraps rows returned by Node's native `DatabaseSync` as arrays of values to perfectly align with Drizzle's `sqlite-proxy` contract, preventing dynamic schema-drift serialization failures.
-- ✅ **Agnostic Bundling Integration**: Dynamic loading of the `"bun:sqlite"` driver inside the SQLite adapter to bypass Vitest's static analyzer and prevent built-in bundling errors while keeping `vitest.config.ts` database-agnostic.
-- ✅ **Resilience Boot Validation**: Added test module unmocking in `integration-resilience.test.ts` to allow authentic configuration verification during startup and boot sequence validation, achieving 100% pass rates.
-- ✅ **Clean Code Quality Gate**: Standardized catch blocks to parameterless catches to resolve all unused catch parameter lint errors.
-
-### 2. Svelte 5 & UI Compilation ⚡
-
-- ✅ **Store Effect Hardening**: Wrapped internal state variables in browser-safe checks (`!(globalThis as any).$effect`) in `src/stores/ui-store.svelte.ts`, eliminating `rune_missing_parentheses` compilation errors in modern Svelte 5 versions.
-
-### 3. OpenAPI 3.1.0 Contract Verification 📖
-
-- ✅ **Instant Generation**: Verified cached spec generation in **< 1 ms**, eliminating API discovery lag.
-- ✅ **Dynamic Discovery**: Confirmed that new collections are automatically added to the spec.
-- ✅ **Multilingual Mapping**: Verified translated fields as JSON Schema objects.
-
-### 4. Dependency Injection (DI) Architecture 🏗️
-
-- ✅ **SettingsService DI**: Successfully refactored `loadSettingsCache` to allow synthetic environment injection.
-- ✅ **LocalCMS DI**: Hardened internal SDK testing by enabling `contentSystem` overrides.
-- ✅ **Infrastructure Unblocking**: Resolved `bun-preload.ts` and `vite.config.ts` stubbing conflicts, allowing unit tests to run against real code while keeping client bundles slim.
-
-### 5. Database-per-Worker Isolation ⚡
-
-- ✅ **Parallel Speed**: E2E tests now run with `workers: 4` without SQLite locking issues.
-- ✅ **Atomic State**: Each worker operates on a unique `.db` file, ensuring total data isolation.
-
-### 6. Admin Theme System 🎨
-
-- ✅ **Derived Values**: All AdminTheme density-based derived values verified (densityScale, spacingScale, sidebarWidth, headerHeight, stickyBarHeight, radii for card/input/button).
-- ✅ **Visual Variant Logic**: cardShadow and cardBorder correctly synthesize per variant (flat → none, bordered → elevation, elevated → elevated shadow).
-- ✅ **Feature Merge Strategy**: DEFAULT_THEME_FEATURES correctly merged with partial overrides; layoutRegions default to collections:left.
-- ✅ **User Preference Overrides**: Tenant theme defaults preserved when user has no preference; user density/variant/features override tenant when set.
-- ✅ **CSS Sanitization**: url(), @import, javascript:, <script>, and HTML tags stripped; safe CSS passes through unchanged.
-- ✅ **SSR Component Propagation**: Compact and spacious densities correctly propagate CSS variables to Button, Card, Input, and Badge in server-rendered HTML.
-- ✅ **Consolidation**: Replaced legacy `theme-context.test.ts` (5 tests) with 26-test suite in `admin-theme.test.ts`.
-
-### 7. Enterprise Identity & SAML SSO / SCIM 2.0 🔐
-
-- ✅ **SAML 2.0 CSRF State Hardening**: Modified authorization flow to generate dynamic, cryptographically secure 16-byte state tokens, storing them in a secure `saml_state` cookie (`SameSite: Lax`, `HttpOnly`) and validating them against the IdP's returned `RelayState` on the ACS endpoint to prevent OAuth/SAML CSRF.
-- ✅ **SCIM 2.0 Bulk Endpoint**: Implemented support for the SCIM `POST /Bulk` endpoint, handling multi-operation payloads, `failOnErrors` constraints, and resolving nested `bulkId:<id>` references dynamically to link newly created users with group/role associations in a single request.
-
----
-
-## 🚀 Running Tests
-
-### Parallel E2E Suite
+## Local Commands
 
 ```bash
-# Run with 4 concurrent workers
-npx playwright test --workers=4
-```
-
-### Unit Tests (Unified Suite)
-
-```bash
-# Component, Service & Browser logic (jsdom)
+# White-box unit suite
 bun run test:unit
+
+# Black-box API suite
+bun run test:integration
+
+# Local Playwright convenience flow
+bun run test:e2e
+
+# Focused Playwright projects
+bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
+bun x playwright test --project=auth-setup
+bun x playwright test --project=signup
+bun x playwright test --project=content
+bun x playwright test --project=system
 ```
 
-Last Updated: 2026-06-06
-Current Pass Rate: 100% (Vitest: 1063/1063 in ~12s)
-Current State: DI-Hardened / Fail-Closed / 4-Layer Defense-in-Depth / Slop-Scanned / Mutation-Proven (100%) / Property-Fuzzed / Smart-Orchestrated / Svelte 5 / SAML CSRF-Protected / SCIM Bulk-Enabled / Lint-Zero-Warnings
+## Verify Live Status
+
+- Use the latest GitHub Actions run on the branch or pull request.
+- Treat this page as the description of the maintained gates, not a live dashboard.

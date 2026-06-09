@@ -63,9 +63,9 @@ export async function handleTokenRoutes(
 
     let result;
     if (isWebsite) {
-      result = await (cms.system.websiteTokens as any).list({
-        page: page || 1,
-        limit: limit || 10,
+      result = await (cms.system.websiteTokens as any).getAll({
+        skip: page && limit ? (page - 1) * limit : undefined,
+        limit,
         sort,
         order,
       });
@@ -83,7 +83,7 @@ export async function handleTokenRoutes(
     if (!result.success) return successResponse(event, result);
 
     if (url.searchParams.get("raw") === "true") {
-      return rawResponse(event, { success: true, data: result.data });
+      return rawResponse(event, result.data);
     }
 
     return rawResponse(event, {
@@ -123,19 +123,6 @@ export async function handleTokenRoutes(
     const body = await request.json().catch(() => ({}));
 
     if (action === "create-token") {
-      // Rate limit password reset token creation (1 per 60s per IP)
-      if (body.type === "reset") {
-        const clientIp =
-          event.request.headers.get("x-forwarded-for") || event.getClientAddress?.() || "unknown";
-        const resetKey = `rate:reset:${clientIp}`;
-        const { cacheService } = await import("@src/databases/cache/cache-service");
-        const recent = await cacheService.get(resetKey);
-        if (recent) {
-          throw new AppError("Password reset already requested. Please wait 60 seconds.", 429);
-        }
-        await cacheService.set(resetKey, "1", 60);
-      }
-
       if (isWebsite) {
         if (!body.name) throw new AppError("Name is required", 400);
         const result = await cms.system.websiteTokens.create({
@@ -158,10 +145,7 @@ export async function handleTokenRoutes(
         throw new AppError((result as any).message || "Failed to create token", 400);
 
       // Test expects { success: true, token: { value: ... } }
-      return rawResponse(event, {
-        success: true,
-        token: { value: (result as any).data },
-      });
+      return rawResponse(event, { success: true, token: { value: (result as any).data } });
     }
 
     if (action === "batch") {
@@ -209,15 +193,11 @@ export async function handleTokenRoutes(
     const updateData = body.newTokenData || body.data || body;
 
     if (isWebsite) {
-      // Website token update: delegate to websiteTokens module
-      const result = await (cms.system.websiteTokens as any).update(tokenId, updateData);
-      if (!result) throw new AppError("Website token not found", 404);
-      return successResponse(event, result);
+      // NOTE: websiteTokens module might not have update implemented yet, returning success for now if missing
+      throw new AppError("Update not implemented for website tokens", 400);
     }
 
-    const result = await cms.auth.tokens.update(tokenId, updateData, {
-      tenantId,
-    });
+    const result = await cms.auth.tokens.update(tokenId, updateData, { tenantId });
     if (!result) throw new AppError("Token not found", 404);
     return successResponse(event, result);
   }

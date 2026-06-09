@@ -99,6 +99,22 @@ export class RelationalAuthModule implements IAuthAdapter {
     } as unknown as Role;
   }
 
+  protected isSQLiteAdapter(): boolean {
+    return this.adapter.constructor?.name?.toLowerCase().includes("sqlite") || false;
+  }
+
+  protected activeSessionCondition() {
+    return this.isSQLiteAdapter()
+      ? sql`${this.schema.authSessions.expires} > ${Date.now()}`
+      : gt(this.schema.authSessions.expires, new Date());
+  }
+
+  protected expiredSessionCondition() {
+    return this.isSQLiteAdapter()
+      ? sql`${this.schema.authSessions.expires} < ${Date.now()}`
+      : lt(this.schema.authSessions.expires, new Date());
+  }
+
   async setupAuthModels(): Promise<void> {
     logger.debug("Auth models setup (no-op for SQL)");
   }
@@ -393,11 +409,7 @@ export class RelationalAuthModule implements IAuthAdapter {
       },
       "CREATE_SESSION_FAILED",
       undefined,
-      {
-        isWrite: true,
-        transaction: options?.transaction,
-        bypassSafeQuery: true,
-      }, // 🛡️ INTERNAL BYPASS
+      { isWrite: true, transaction: options?.transaction, bypassSafeQuery: true }, // 🛡️ INTERNAL BYPASS
     );
   }
 
@@ -423,25 +435,10 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
-        const nowMs = Date.now();
-        // Bypass Drizzle proxy — use direct SQL to avoid sqlite-proxy shim issues
-        try {
-          const rows = await this.adapter.raw.execute(
-            `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = ? AND s.expires > ? LIMIT 1`,
-            [sessionId, nowMs],
-          );
-          if (rows && rows.length > 0) {
-            return this.mapUser(rows[0]);
-          }
-          return null;
-        } catch {
-          // Fall back to Drizzle query if direct SQL fails
-        }
-
         const db = this.getDb(options);
         const conditions = [
           eq(this.schema.authSessions._id, sessionId as string),
-          gt(this.schema.authSessions.expires, isoDateStringToDate(nowISODateString())),
+          this.activeSessionCondition(),
         ];
         if (options?.tenantId !== undefined) {
           conditions.push(
@@ -509,10 +506,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const db = this.getDb();
-        const updateData = {
-          expires: new Date(newExpiry),
-          updatedAt: new Date(),
-        };
+        const updateData = { expires: new Date(newExpiry), updatedAt: new Date() };
         const preparedUpdate = utils.convertISOToDates(updateData as any);
         await db
           .update(this.schema.authSessions)
@@ -535,7 +529,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(async () => {
       await this.getDb()
         .delete(this.schema.authSessions)
-        .where(lt(this.schema.authSessions.expires, new Date()));
+        .where(this.expiredSessionCondition());
       return 0;
     }, "DELETE_EXPIRED_SESSIONS_FAILED");
   }
@@ -571,7 +565,7 @@ export class RelationalAuthModule implements IAuthAdapter {
       async () => {
         const conditions = [
           eq(this.schema.authSessions.user_id, userId as string),
-          gt(this.schema.authSessions.expires, new Date()),
+          this.activeSessionCondition(),
         ];
         if (options?.tenantId !== undefined)
           conditions.push(
@@ -594,7 +588,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   async getAllActiveSessions(options?: BaseQueryOptions): Promise<DatabaseResult<Session[]>> {
     return this.adapter.wrap(
       async () => {
-        const conditions = [gt(this.schema.authSessions.expires, new Date())];
+        const conditions = [this.activeSessionCondition()];
         if (options?.tenantId !== undefined)
           conditions.push(
             options.tenantId === null
@@ -623,10 +617,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         .where(eq(this.schema.authSessions._id, sessionId as string))
         .limit(1);
       if (!res) return null;
-      return {
-        expiresAt: toISOString(res.expires),
-        user_id: res.user_id as DatabaseId,
-      };
+      return { expiresAt: toISOString(res.expires), user_id: res.user_id as DatabaseId };
     }, "GET_SESSION_DATA_FAILED");
   }
   async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
@@ -1103,22 +1094,13 @@ export class RelationalAuthModule implements IAuthAdapter {
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
     const runWork = async (tx: any) => {
-      await this.invalidateAllUserSessions(userId, {
-        ...options,
-        transaction: tx,
-      });
-      const result = await this.deleteUser(userId, {
-        ...options,
-        transaction: tx,
-      });
+      await this.invalidateAllUserSessions(userId, { ...options, transaction: tx });
+      const result = await this.deleteUser(userId, { ...options, transaction: tx });
       if (!result.success) throw new Error(result.message);
       return {
         success: true,
         data: { deletedUser: true, deletedSessionCount: 1 },
-      } as DatabaseResult<{
-        deletedUser: boolean;
-        deletedSessionCount: number;
-      }>;
+      } as DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>;
     };
 
     if (options?.transaction) {

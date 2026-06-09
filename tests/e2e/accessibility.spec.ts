@@ -10,18 +10,21 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { loginAsAdmin, ADMIN_CREDENTIALS } from "./helpers/auth";
+import { TEST_API_HEADERS } from "./helpers/test-api";
 
 test.describe("Universal Accessibility Audits", () => {
   // Reset and seed the database to ensure a clean state
   test.beforeEach(async ({ page }) => {
     console.log("[A11y Test] Resetting database via Testing API...");
     const resetResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: { action: "reset" },
     });
     expect(resetResponse.ok()).toBeTruthy();
 
     console.log("[A11y Test] Seeding database with admin...");
     const seedResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: {
         action: "seed",
         email: ADMIN_CREDENTIALS.email,

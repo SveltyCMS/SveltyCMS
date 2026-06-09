@@ -58,6 +58,7 @@ const IS_GK_TEST_MODE =
   process.env.NODE_ENV === "test" ||
   process.env.VITEST === "true" ||
   !!process.env.BUN_TEST;
+const IS_STRICT_SETUP_CHECK = process.env.STRICT_SETUP_CHECK === "true";
 
 // ──────────────────────────────────────────────────────────────
 // HELPERS
@@ -186,7 +187,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
   // Global Test Bypass (CI/Playwright) - Only if explicitly requested to skip
   if (process.env.TEST_MODE === "true" && process.env.SKIP_GATEKEEPER === "true") {
     if (!testModeWarned) {
-      logger.debug(
+      logger.warn(
         `[Gatekeeper] SKIP_GATEKEEPER=true → bypassing firewall, rate-limit, and state checks (benchmark/CI mode — raw performance measurement)`,
       );
       testModeWarned = true;
@@ -244,7 +245,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
       // 🛡️ Redirect/Block setup routes if setup is already complete (except in test environment)
       if (
-        !IS_GK_TEST_MODE &&
+        (!IS_GK_TEST_MODE || IS_STRICT_SETUP_CHECK) &&
         setupComplete &&
         (pathname === "/setup" ||
           pathname.startsWith("/setup/") ||

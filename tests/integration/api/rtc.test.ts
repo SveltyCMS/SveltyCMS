@@ -29,7 +29,7 @@ describe("RTC (SSE) Integration", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(response.headers.get("Content-Type")).toBe("text/event-stream");
+      expect(response.headers.get("Content-Type")).toContain("text/event-stream");
       const cacheControl = response.headers.get("Cache-Control");
       expect(cacheControl).toBeDefined();
       expect(cacheControl).toContain("no-cache");

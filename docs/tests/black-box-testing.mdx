@@ -1,10 +1,10 @@
 ---
 path: "docs/tests/black-box-testing.mdx"
 title: "Black-Box Testing Architecture"
-description: "SveltyCMS strategic shift to 100% black-box integration testing for maximum security and database agnosticism."
+description: "SveltyCMS black-box integration and E2E testing architecture, safety rules, and CI execution model."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-04-03"
+updated: "2026-06-09"
 tags:
   - "testing"
   - "architecture"
@@ -14,7 +14,9 @@ tags:
 
 # Black-Box Testing Architecture
 
-SveltyCMS has pivoted to a **100% Black-Box Testing** strategy for all integration and E2E tests. This transition removes the reliance on internal code imports (`@src/*`) within test files, ensuring that the CMS is tested exactly as a user or API consumer would experience it.
+SveltyCMS is standardizing on a **Black-Box Testing** strategy for integration and E2E suites. The goal is to remove reliance on internal code imports (`@src/*`) from black-box tests so the CMS is validated the way a real user or API consumer experiences it.
+
+Some legacy tests still need migration. The CI contract, however, is already clear: integration and E2E suites should exercise the app through HTTP, browser automation, and production-like runtime boot paths rather than privileged in-process shortcuts.
 
 ```mermaid
 graph TD
@@ -46,7 +48,7 @@ By removing "backdoor" imports like `dbAdapter` or `Auth` from tests, we guarant
 
 - **No Side-Loading**: Tests cannot bypass security hooks or permission guards.
 - **Authentic RBAC**: Authentication is performed via real API calls (`/api/auth/login`), verifying the entire security handshake.
-- **Production Parity**: Tests run against a production-built `preview` server, catching SSR and build-specific issues that unit tests miss.
+- **Production Parity**: Tests run against a production-built server entry (`node build/index.js`) for integration and most E2E jobs, catching SSR and build-specific issues that unit tests miss.
 - **Network Consistency**: Standardization on **`127.0.0.1:4173`** for all local testing avoids IPv6/IPv4 resolution inconsistencies across different OS environments.
 
 ### 2. 🧪 100% Database Agnosticism
@@ -96,6 +98,9 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 | `reset`          | Wipes the database (clears all collections/tables).                      |
 | `seed`           | Initializes default roles, permissions, and an Admin user.               |
 | `create-user`    | Idempotently creates test users with specific roles (Editor, Developer). |
+| `insert`         | Inserts a test document into a specific collection for contract checks.   |
+| `update`         | Updates a test document by `_id` inside a specific collection.            |
+| `delete`         | Permanently deletes a test document by `_id` from a specific collection.  |
 | `get-user`       | Fetches a user by email for state verification.                          |
 | `get-user-count` | Returns the total number of registered users.                            |
 | `cleanup`        | Surgically wipes specific users or data without resetting the system.    |
@@ -105,11 +110,24 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 ## Test Execution Flow
 
 1. **Build**: `bun run build` generates the production bundle.
-2. **Preview**: `TEST_MODE=true bun run vite preview --port 4173` starts the server.
+2. **Preview**: `TEST_MODE=true node build/index.js` starts the production build used by CI black-box jobs. The auth-setup E2E bootstrap is the main exception and still uses a dev server for first-run setup state generation.
+   When the suite must mimic production setup gating, `STRICT_SETUP_CHECK=true` is enabled so completed `/setup` routes redirect the same way they do outside test mode.
 3. **Orchestrate**: Test helper calls `/api/testing` (with secure handshake) to prepare the database.
 4. **Login**: Test helper calls `/api/auth/login` to obtain a session cookie.
 5. **Execute**: Bun/Playwright performs HTTP requests against the live endpoints.
 6. **Verify**: Assertions are made on JSON responses and HTTP status codes.
+
+### Playwright CI Scope
+
+The GitHub Actions E2E matrix is intentionally curated around maintained smoke coverage:
+
+- `wizard`: setup provisioning and post-setup redirect contract
+- `auth-setup`: authenticated bootstrap and login/logout state generation
+- `signup`: authenticated account/profile smoke
+- `content`: collection-builder content management smoke
+- `system`: dynamic system settings smoke
+
+Legacy exploratory Playwright specs remain in `tests/e2e/`, but they are not PR-gating until their routes, selectors, and redirect expectations are rewritten against the current admin UI.
 
 ## Security Matrix Testing
 
@@ -165,7 +183,9 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 ---
 
 > [!IMPORTANT]
-> **Safety Protocol**: Black-Box tests MUST use `config/private.test.ts`. The system includes hard-coded safety logic in `db.ts` that will terminate execution if a test attempt is detected against a production database.
+> **Safety Protocol**: Black-box tests must use test-only configuration. `config/private.test.ts` is the source of truth, and any temporary `config/private.ts` created during CI/runtime parity must be an ephemeral mirror of that test config only. Live credentials and production data are never valid in `TEST_MODE`.
+>
+> For SQLite-based black-box jobs, database names must be obviously isolated test names such as `*_test*`, `*_bench*`, or `e2e_*`. Reusing the server's active SQLite file is forbidden because it breaks setup isolation and can corrupt the runtime under concurrent access.
 
 > [!IMPORTANT]
 > **No Backdoor Policy**: SveltyCMS has a zero-backdoor policy for security. Integration tests do NOT bypass authentication via:

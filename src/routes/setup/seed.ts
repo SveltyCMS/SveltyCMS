@@ -966,6 +966,8 @@ export async function initSystemFast(
   criticalPromise: Promise<void>;
   backgroundTask: () => Promise<void>;
 }> {
+  let contentPreloaded = false;
+
   // Critical: Settings, Default Theme, Roles, Preset Collections
   const criticalPromise = (async () => {
     if (!adapter) throw new Error("Database adapter not available.");
@@ -1023,7 +1025,8 @@ export async function initSystemFast(
       const cs = mod.contentSystem || mod.default || mod;
 
       if (cs && typeof cs.initialize === "function") {
-        await cs.initialize(tenantId, { force: true }, adapter);
+        await cs.initialize(tenantId, { force: true, skipApiSpec: true }, adapter);
+        contentPreloaded = true;
       } else {
         logger.warn("⚠️ contentSystem.initialize is not a function or module not found", {
           hasMod: !!mod,
@@ -1042,14 +1045,14 @@ export async function initSystemFast(
 
   // Background: Heavy content seeding (can happen after redirect)
   const backgroundTask = async () => {
-    if (!adapter) {
+    if (!adapter || contentPreloaded) {
       return;
     }
     try {
       const mod = await import("@src/content/index.server");
       const cs = mod.contentSystem || mod.default || mod;
       if (cs && typeof cs.initialize === "function") {
-        await cs.initialize(tenantId, { force: true }, adapter);
+        await cs.initialize(tenantId, { force: true, skipApiSpec: true }, adapter);
       } else {
         logger.error("❌ Background task: contentSystem.initialize is not a function");
       }

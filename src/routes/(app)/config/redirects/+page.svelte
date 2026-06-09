@@ -5,6 +5,7 @@
 
 <script lang="ts">
 	import { fade, fly } from "svelte/transition";
+	import { deleteRedirect, saveRedirect } from "./redirects.remote";
 	import { toast } from '@src/stores/toast.svelte';
 	import { button_save } from '@src/paraglide/messages';
 
@@ -95,7 +96,6 @@
 										<iconify-icon icon="mdi:pencil"></iconify-icon>
 									</button>
 									<button class="btn-icon btn-icon-sm preset-outlined-error-500" aria-label="Delete Redirect" onclick={async () => {
-																				const { deleteRedirect } = await import('./redirects-actions.server');
 																				await deleteRedirect(redirect._id);
 																				toast.success('Redirect deleted');
 																				// Reload to reflect changes
@@ -121,7 +121,6 @@
 			<form onsubmit={async (e) => {
 								e.preventDefault();
 								const fd = new FormData(e.currentTarget as HTMLFormElement);
-								const { saveRedirect } = await import('./redirects-actions.server');
 								await saveRedirect({
 									id: fd.get('id')?.toString() || undefined,
 									from: fd.get('from')?.toString() || '',

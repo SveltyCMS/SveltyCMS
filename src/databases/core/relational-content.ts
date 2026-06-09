@@ -46,6 +46,53 @@ export class RelationalContentModule implements IContentAdapter {
     return this.db;
   }
 
+  protected prepareContentNodeValues(
+    node: Partial<ContentNode>,
+    options: {
+      id?: DatabaseId | string;
+      tenantId?: DatabaseId | null;
+    } = {},
+  ) {
+    const table = this.schema.contentNodes;
+    const now = isoDateStringToDate(nowISODateString());
+    const id = (options.id || (node as any)._id || (node as any).id || utils.generateId()) as
+      | string
+      | undefined;
+    const tenantId = options.tenantId !== undefined ? options.tenantId : (node as any).tenantId;
+    const preparedValues = (this.adapter as any).prepareValues(
+      table,
+      {
+        ...node,
+        _id: id,
+        tenantId,
+      },
+      id,
+      now,
+      { tenantId },
+    );
+
+    return { preparedValues, id, tenantId };
+  }
+
+  protected async executeContentNodeUpsert(db: any, values: Record<string, unknown>) {
+    const insert = db.insert(this.schema.contentNodes).values(values) as any;
+
+    if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {
+      await insert.onDuplicateKeyUpdate({
+        set: values,
+      });
+      return;
+    }
+
+    const conflictTarget =
+      this.adapter.type === "sqlite" ? this.schema.contentNodes._id : [this.schema.contentNodes._id];
+
+    await insert.onConflictDoUpdate({
+      target: conflictTarget,
+      set: values,
+    });
+  }
+
   // ============================================================
   // DRAFTS
   // ============================================================
@@ -173,31 +220,14 @@ export class RelationalContentModule implements IContentAdapter {
     ): Promise<DatabaseResult<ContentNode>> => {
       const tenantId = (node as any).tenantId;
 
-      // 🚀 NATIVE PERFORMANCE: Use engine-specific upsert if available (SQLite, Postgres, MariaDB)
-      if (this.adapter.type !== "mongodb" && (this.adapter as any).upsertNative) {
+      if (this.adapter.type !== "mongodb" && (this.adapter as any).prepareValues) {
         return this.adapter.wrap(
           async () => {
-            const now = new Date();
-            const table = this.schema.contentNodes;
+            const { preparedValues } = this.prepareContentNodeValues(node, {
+              tenantId: (node as any).tenantId,
+            });
 
-            // 🚀 Ensure data is correctly mapped to columns vs JSON data field
-            const preparedValues = (this.adapter as any).prepareValues(
-              table,
-              node,
-              (node as any)._id,
-              now,
-              { tenantId },
-            );
-
-            // Conflict columns for content_nodes is the primary key _id
-            const conflictCols = [table._id];
-
-            if (process.env.BENCHMARK_DEBUG === "true") {
-              console.log(
-                `[RelationalContent] Upserting structure node: ${(node as any)._id}, type: ${node.nodeType}, tenant: ${node.tenantId}`,
-              );
-            }
-            await (this.adapter as any).upsertNative(table, preparedValues, conflictCols);
+            await this.executeContentNodeUpsert(this.db, preparedValues);
 
             return utils.convertDatesToISO(preparedValues) as unknown as ContentNode;
           },
@@ -243,17 +273,22 @@ export class RelationalContentModule implements IContentAdapter {
       return this.adapter.wrap(
         async () => {
           const db = options.tx?.db || options.tx || this.db;
-          const now = isoDateStringToDate(nowISODateString());
+          const { preparedValues } = this.prepareContentNodeValues(
+            {
+              ...changes,
+              path: changes.path || path,
+            },
+            {
+              id: (changes as any)._id || (changes as any).id,
+            },
+          );
+          delete (preparedValues as any)._id;
+          delete (preparedValues as any).createdAt;
 
           // Use dialect-specific returning if supported
           const query = db
             .update(this.schema.contentNodes)
-            .set(
-              utils.convertISOToDates({
-                ...changes,
-                updatedAt: now,
-              }) as any,
-            )
+            .set(preparedValues as any)
             .where(eq(this.schema.contentNodes.path, path));
 
           if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
@@ -263,7 +298,7 @@ export class RelationalContentModule implements IContentAdapter {
 
           // Fallback for MariaDB or missing returning
           await query;
-          const [updated] = await this.db
+          const [updated] = await db
             .select(this.adapter.getPhysicalSelection(this.schema.contentNodes))
             .from(this.schema.contentNodes)
             .where(eq(this.schema.contentNodes.path, path))
@@ -279,22 +314,36 @@ export class RelationalContentModule implements IContentAdapter {
 
     bulkUpdate: async (
       updates: { path: string; id?: string; changes: Partial<ContentNode> }[],
-      _options?: {
-        tenantId?: string | null;
-        bypassTenantCheck?: boolean;
-        bypassCache?: boolean;
-      },
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.adapter.transaction(async (tx: any) => {
+      const persistUpdates = async (tx: any): Promise<DatabaseResult<ContentNode[]>> => {
         const results: ContentNode[] = [];
+        const db = tx.db || tx;
+
         for (const update of updates) {
-          const res = await this.nodes.update(update.path, update.changes, {
-            tx: (tx as any).db || tx,
-          });
-          if (res.success && res.data) results.push(res.data);
+          const { preparedValues } = this.prepareContentNodeValues(
+            {
+              ...update.changes,
+              path: update.path,
+            },
+            {
+              id: update.id,
+              tenantId: options?.tenantId,
+            },
+          );
+
+          await this.executeContentNodeUpsert(db, preparedValues);
+          results.push(utils.convertDatesToISO(preparedValues) as unknown as ContentNode);
         }
+
         return { success: true, data: results };
-      });
+      };
+
+      if (options?.transaction) {
+        return persistUpdates(options.transaction);
+      }
+
+      return this.adapter.transaction(persistUpdates);
     },
 
     delete: async (path: string): Promise<DatabaseResult<void>> => {

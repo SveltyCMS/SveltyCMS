@@ -6,7 +6,7 @@
  */
 
 import { version } from "../../../package.json";
-import type { Schema, FieldInstance } from "@src/content/types";
+import type { Schema, FieldInstance, DatabaseId } from "@src/content/types";
 import { CacheCategory } from "@src/databases/cache/types";
 
 export class ApiSpecService {
@@ -209,12 +209,44 @@ export class ApiSpecService {
     try {
       const { contentService } = await import("@src/content/content-service.server");
       const collections = await contentService.getContentStructureFromDatabase("flat", tenantId);
-      // Filter to only include collections
+      const schemaMap = new Map<string, Schema>();
+
+      const mergeSchema = (candidate?: Schema | null) => {
+        if (!candidate) return;
+        const key = (candidate._id || candidate.name || "").toString().trim().toLowerCase();
+        if (!key) return;
+
+        const existing = schemaMap.get(key);
+        if (!existing || (existing.fields?.length ?? 0) < (candidate.fields?.length ?? 0)) {
+          schemaMap.set(key, candidate);
+        }
+      };
+
+      // Prefer the content structure because it reflects builder metadata and route shape.
       const schemaOnly = collections
         .filter((n) => n.nodeType === "collection" && n.collectionDef)
         .map((n) => n.collectionDef as Schema);
+      for (const schema of schemaOnly) {
+        mergeSchema(schema);
+      }
 
-      return this.generateSpec(schemaOnly, tenantId);
+      // Some adapters can materialize schemas before content nodes are fully persisted.
+      // Fall back to the DB schema registry so /api/openapi.json remains adapter-agnostic.
+      const { getDb } = await import("@src/databases/db");
+      const db = await getDb();
+      const listSchemasResult = db?.collection?.listSchemas
+        ? await db.collection.listSchemas(tenantId as DatabaseId | null | undefined)
+        : null;
+      const dbSchemas = Array.isArray(listSchemasResult)
+        ? listSchemasResult
+        : listSchemasResult?.success
+          ? (listSchemasResult.data ?? [])
+          : [];
+      for (const schema of dbSchemas) {
+        mergeSchema(schema);
+      }
+
+      return this.generateSpec(Array.from(schemaMap.values()), tenantId);
     } catch (err: any) {
       const { logger } = await import("@utils/logger");
       logger.error("Failed to generate full API spec", {

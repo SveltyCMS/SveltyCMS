@@ -118,6 +118,12 @@ export async function handleTestingRoutes(
         // Invalidate OpenAPI spec cache
         const { apiSpecService } = await import("@services/system/api-spec-service");
         await apiSpecService.invalidateCache(tenantId);
+
+        const { ThemeManager } = await import("@src/databases/theme-manager");
+        const themeManager = ThemeManager.getInstance();
+        if (themeManager.isInitialized()) {
+          await themeManager.refresh();
+        }
       } catch (err) {
         console.warn(`[TestingHandler] Failed to invalidate authorization/api-spec caches: ${err}`);
       }
@@ -125,6 +131,8 @@ export async function handleTestingRoutes(
       // ✨ Fix: Reset system state store so the system transitions back to SETUP/INITIALIZING
       const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
       resetSystemState();
+      const { resetInitializationState } = await import("@src/hooks/handle-system-state");
+      resetInitializationState();
 
       return rawResponse({
         success: true,
@@ -170,6 +178,12 @@ export async function handleTestingRoutes(
       // 🚀 HARDENING: Ensure all DEFAULT_THEME properties are strings or null (no undefined)
       const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
       await cms.db.system.themes.ensure(safeTheme);
+
+      const { ThemeManager } = await import("@src/databases/theme-manager");
+      const themeManager = ThemeManager.getInstance();
+      if (themeManager.isInitialized()) {
+        await themeManager.refresh();
+      }
 
       // Seed dynamic collection schemas from the filesystem into the database
       try {
@@ -430,6 +444,88 @@ export async function handleTestingRoutes(
           500,
         );
       }
+    }
+
+    if (action === "insert") {
+      const collectionId = params.collectionId || params.collection;
+      const data = params.data;
+
+      if (!collectionId) throw new AppError("collection or collectionId required", 400);
+      if (!data || typeof data !== "object") throw new AppError("data payload required", 400);
+
+      const result = await initializedAdapter.crud.insert(collectionId, data, {
+        tenantId,
+        bypassTenantCheck: true,
+      });
+
+      const responseBody = result.success
+        ? {
+            success: true,
+            data: result.data,
+            message: "Insert successful",
+          }
+        : {
+            success: false,
+            message: result.message,
+          };
+
+      return rawResponse(
+        responseBody,
+        result.success ? 200 : 400,
+      );
+    }
+
+    if (action === "update") {
+      const collectionId = params.collectionId || params.collection;
+      const id = params.id;
+      const data = params.data;
+
+      if (!collectionId) throw new AppError("collection or collectionId required", 400);
+      if (!id) throw new AppError("id required", 400);
+      if (!data || typeof data !== "object") throw new AppError("data payload required", 400);
+
+      const result = await initializedAdapter.crud.update(collectionId, id, data, {
+        tenantId,
+        bypassTenantCheck: true,
+      });
+
+      const responseBody = result.success
+        ? {
+            success: true,
+            data: result.data,
+            message: "Update successful",
+          }
+        : {
+            success: false,
+            message: result.message,
+          };
+
+      return rawResponse(
+        responseBody,
+        result.success ? 200 : 400,
+      );
+    }
+
+    if (action === "delete") {
+      const collectionId = params.collectionId || params.collection;
+      const id = params.id;
+
+      if (!collectionId) throw new AppError("collection or collectionId required", 400);
+      if (!id) throw new AppError("id required", 400);
+
+      const result = await initializedAdapter.crud.delete(collectionId, id, {
+        tenantId,
+        bypassTenantCheck: true,
+        permanent: true,
+      });
+
+      return rawResponse(
+        {
+          success: result.success,
+          message: result.success ? "Delete successful" : result.message,
+        },
+        result.success ? 200 : 400,
+      );
     }
 
     if (action === "clear-collection") {

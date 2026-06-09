@@ -1227,6 +1227,15 @@ const mockAuditLog = {
 const mockDbAdapter = {
   auth: {
     getUserById: mock((id: string) => Promise.resolve({ success: true, data: { _id: id } })),
+    getSessionTokenData: mock(() =>
+      Promise.resolve({
+        success: true,
+        data: {
+          user_id: "user123",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+      }),
+    ),
     getUserBySamlId: mock(() => Promise.resolve(null)),
     getUserByEmail: mock(() => Promise.resolve(null)),
     createUser: mock(() => Promise.resolve({ success: true, data: { _id: "new-user" } })),
@@ -1521,24 +1530,17 @@ moduleMock("@src/widgets/scanner", () => ({
   getWidgetNameFromPath: (path: string) => path.split("/").at(-2) || null,
 }));
 
-moduleMock("@node-saml/node-saml", () => ({
-  SAML: mock(function (this: any) {
-    this.getAuthorizeUrlAsync = mock(() =>
-      Promise.resolve("https://idp.example.com/sso?SAMLRequest=..."),
-    );
-    this.validatePostResponseAsync = mock(() =>
-      Promise.resolve({
-        profile: {
-          nameID: "user@test.com",
-          attributes: {
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "user@test.com",
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname": "Test",
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname": "User",
-          },
-        },
-      }),
-    );
-  }),
+moduleMock("@boxyhq/saml-jackson", () => ({
+  default: mock(() =>
+    Promise.resolve({
+      oauthController: {
+        authorize: mock(() => Promise.resolve({ redirect_url: "https://idp.example.com/sso" })),
+      },
+      connectionAPIController: {
+        createSAMLConnection: mock(() => Promise.resolve({ id: "conn_123" })),
+      },
+    }),
+  ),
 }));
 
 // Node built-ins mocks for Bun
