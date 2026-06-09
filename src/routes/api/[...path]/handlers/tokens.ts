@@ -83,7 +83,7 @@ export async function handleTokenRoutes(
     if (!result.success) return successResponse(event, result);
 
     if (url.searchParams.get("raw") === "true") {
-      return rawResponse(event, { success: true, data: result.data });
+      return rawResponse(event, result.data);
     }
 
     return rawResponse(event, {
