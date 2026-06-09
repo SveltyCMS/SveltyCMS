@@ -15,9 +15,9 @@ test.describe("Content Smoke", () => {
       timeout: 10_000,
     });
 
-    const addCollectionLink = page.getByRole("link", { name: /add collection/i });
-    await expect(addCollectionLink).toBeVisible({ timeout: 10_000 });
-    await addCollectionLink.click();
+    const addCollectionButton = page.getByRole("button", { name: /add collection/i });
+    await expect(addCollectionButton).toBeVisible({ timeout: 10_000 });
+    await addCollectionButton.click();
 
     await expect(page).toHaveURL(/\/config\/collectionbuilder\/new/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: /create collection/i })).toBeVisible({
