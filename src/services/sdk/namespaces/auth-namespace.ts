@@ -12,7 +12,6 @@ import { getAllPermissions } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
-import { generateSecureToken } from "@utils/native-utils";
 import type {
   DatabaseId,
   IDBAdapter,
@@ -426,37 +425,46 @@ export class TokensNamespace {
     return withTenant(
       tenantId ?? null,
       async () => {
-        const filter: any = {};
-        if (search) {
-          filter.$or = [
-            { email: { $regex: search, $options: "i" } },
-            { token: { $regex: search, $options: "i" } },
-          ];
-        }
-
-        const tokensRes = await this._dbAdapter.crud.findMany("tokens", filter, {
-          limit,
-          offset: (page - 1) * limit,
-          sort: { [sort]: order === "asc" ? 1 : -1 } as any,
+        const tokensRes = await this._dbAdapter.auth.getAllTokens({
           tenantId: tenantId as DatabaseId,
-        });
-
-        const totalItemsRes = await this._dbAdapter.crud.count("tokens", filter, {
-          tenantId: tenantId as DatabaseId,
-        });
-
+        } as any);
         if (!tokensRes.success) throw new AppError(tokensRes.message, 500);
-        if (!totalItemsRes.success) throw new AppError(totalItemsRes.message, 500);
+
+        const normalizedSearch = search?.toLowerCase();
+        let tokens = (tokensRes.data || []).filter((token: any) => {
+          if (!normalizedSearch) return true;
+          return [token.email, token.token].some(
+            (value) =>
+              typeof value === "string" && value.toLowerCase().includes(normalizedSearch),
+          );
+        });
+
+        tokens = tokens.sort((a: any, b: any) => {
+          const aValue = a?.[sort];
+          const bValue = b?.[sort];
+
+          if (aValue === bValue) return 0;
+          if (aValue === undefined || aValue === null) return order === "asc" ? -1 : 1;
+          if (bValue === undefined || bValue === null) return order === "asc" ? 1 : -1;
+
+          return order === "asc"
+            ? String(aValue).localeCompare(String(bValue))
+            : String(bValue).localeCompare(String(aValue));
+        });
+
+        const totalItems = tokens.length;
+        const offset = (page - 1) * limit;
+        tokens = tokens.slice(offset, offset + limit);
 
         return {
           success: true,
-          data: tokensRes.data,
+          data: tokens,
           meta: {
             pagination: {
-              totalItems: totalItemsRes.data,
+              totalItems,
               page,
               limit,
-              totalPages: Math.ceil((totalItemsRes.data as number) / limit),
+              totalPages: Math.ceil(totalItems / limit),
             },
           },
         } as DatabaseResult<any>;
@@ -470,13 +478,13 @@ export class TokensNamespace {
       return { success: true, data: null };
     }
 
-    let existing = await this._dbAdapter.crud.findOne("tokens", { token: tokenId } as any, {
+    let existing = await this._dbAdapter.auth.getTokenByValue(tokenId, {
       tenantId: tenantId as DatabaseId,
     });
 
     // If not found by token value, try by _id
     if (!existing.success || !existing.data) {
-      existing = await this._dbAdapter.crud.findOne("tokens", { _id: tokenId } as any, {
+      existing = await this._dbAdapter.auth.getTokenById(tokenId as DatabaseId, {
         tenantId: tenantId as DatabaseId,
       });
     }
@@ -507,13 +515,10 @@ export class TokensNamespace {
         const existing = await this.findToken(tokenId, tenantId as DatabaseId);
         if (!existing.success || !existing.data) return undefined;
 
-        const result = await this._dbAdapter.crud.update(
-          "tokens",
+        const result = await this._dbAdapter.auth.updateToken(
           existing.data._id as DatabaseId,
           data,
-          {
-            tenantId: tenantId as DatabaseId,
-          },
+          { tenantId: tenantId as DatabaseId },
         );
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
@@ -542,7 +547,6 @@ export class TokensNamespace {
           throw new AppError(`A user with email ${email} already exists.`, 400);
         }
 
-        const tokenValue = generateSecureToken(32);
         const now = Date.now();
         let expiresDate: string;
 
@@ -570,25 +574,22 @@ export class TokensNamespace {
             expiresDate = expires;
         }
 
-        const result = await this._dbAdapter.crud.insert(
-          "tokens",
+        const result = await this._dbAdapter.auth.createToken(
           {
             email,
             user_id: userId as DatabaseId,
-            token: tokenValue,
             role,
             type: "invite-token",
             expires: expiresDate as ISODateString,
-            blocked: false,
-            createdAt: new Date().toISOString() as ISODateString,
-          } as any,
+            tenantId: tenantId as DatabaseId,
+          },
           { tenantId: tenantId as DatabaseId },
         );
 
         if (!result.success) return result as DatabaseResult<any>;
         return {
           success: true,
-          data: tokenValue,
+          data: result.data,
           message: "Token created",
         } as DatabaseResult<string>;
       },
@@ -611,18 +612,13 @@ export class TokensNamespace {
           } as DatabaseResult<any>;
         }
 
-        const deleteRes = await this._dbAdapter.crud.delete(
-          "tokens",
-          existing.data._id as DatabaseId,
-          {
-            tenantId: tenantId as DatabaseId,
-          },
-        );
-
+        const deleteRes = await this._dbAdapter.auth.deleteTokens([existing.data._id as DatabaseId], {
+          tenantId: tenantId as DatabaseId,
+        });
         if (!deleteRes.success) return deleteRes;
         return {
           success: true,
-          data: { deletedCount: 1 },
+          data: deleteRes.data,
           message: "Token deleted",
         } as DatabaseResult<any>;
       },
@@ -638,12 +634,9 @@ export class TokensNamespace {
         for (const id of tokenIds) {
           const existing = await this.findToken(id, tenantId as DatabaseId);
           if (existing.success && existing.data) {
-            await this._dbAdapter.crud.update(
-              "tokens",
-              existing.data._id as DatabaseId,
-              { blocked: true } as any,
-              { tenantId: tenantId as DatabaseId },
-            );
+            await this._dbAdapter.auth.blockTokens([existing.data._id as DatabaseId], {
+              tenantId: tenantId as DatabaseId,
+            });
           }
         }
         return { success: true };
@@ -660,12 +653,9 @@ export class TokensNamespace {
         for (const id of tokenIds) {
           const existing = await this.findToken(id, tenantId as DatabaseId);
           if (existing.success && existing.data) {
-            await this._dbAdapter.crud.update(
-              "tokens",
-              existing.data._id as DatabaseId,
-              { blocked: false } as any,
-              { tenantId: tenantId as DatabaseId },
-            );
+            await this._dbAdapter.auth.unblockTokens([existing.data._id as DatabaseId], {
+              tenantId: tenantId as DatabaseId,
+            });
           }
         }
         return { success: true };
