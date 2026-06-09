@@ -244,20 +244,23 @@ export async function completeSetup(
     };
   }
 
-  const {
-    ensureFullInitialization,
-    dbAdapter: ga,
-    getBootPhase,
-    reinitializeSystem,
-  } = await import("@src/databases/db");
+  const { initializeWithConfig, dbAdapter: ga } = await import("@src/databases/db");
   let dbAdapter: any;
   try {
-    if (
-      getBootPhase() === "SETUP" ||
-      (await import("@src/stores/system/state.svelte.ts")).getSystemState().overallState === "SETUP"
-    )
-      await reinitializeSystem();
-    dbAdapter = (await ensureFullInitialization())?.adapter || ga;
+    dbAdapter =
+      (
+        await initializeWithConfig({
+          DB_TYPE: database.type,
+          DB_HOST: database.host,
+          DB_PORT: Number(database.port),
+          DB_NAME: database.name,
+          DB_USER: database.user || "",
+          DB_PASSWORD: database.password || "",
+          USE_REDIS: system.useRedis,
+          REDIS_HOST: system.redisHost,
+          REDIS_PORT: Number(system.redisPort),
+        })
+      )?.adapter || ga;
   } catch {
     dbAdapter = (
       await (
