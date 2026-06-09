@@ -471,6 +471,7 @@ $effect(() => {
 					<div class:hidden={requires2FA}>
 						<form
 							id="signin-form"
+							method="POST"
 							onsubmit={handleLoginSubmit}
 							bind:this={loginFormElement}
 							class="flex w-full flex-col gap-3"
