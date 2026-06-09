@@ -389,7 +389,6 @@ export const websiteTokens = sqliteTable(
       .default([] as any),
     expiresAt: integer("expiresAt", { mode: "timestamp_ms" }),
     createdBy: text("createdBy", { length: 36 }).notNull(),
-    type: text("type", { length: 50 }).default("content-api"),
     tenantId: tenantField(),
     ...timestamps,
   },

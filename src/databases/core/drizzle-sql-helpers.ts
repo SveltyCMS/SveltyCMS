@@ -302,7 +302,6 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "permissions",
     "expiresAt",
     "createdBy",
-    "type",
     "tenantId",
     "createdAt",
     "updatedAt",
