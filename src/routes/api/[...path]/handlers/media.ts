@@ -375,19 +375,36 @@ export async function handleMediaPostDelete(
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
-  // 🛡️ Defense-in-depth permission check
-  if (
-    !event.locals.user ||
-    !hasPermissionWithRoles(event.locals.user, "media:delete", event.locals.roles || [])
-  ) {
+  const body = await event.request.json().catch(() => ({}));
+  const id = typeof body.id === "string" ? body.id.trim() : "";
+  const legacyUrl = typeof body.url === "string" ? body.url.trim() : "";
+
+  if (!id && !legacyUrl) {
+    throw new AppError("Media ID or URL is required for deletion", 400);
+  }
+
+  if (!event.locals.user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  if (!hasPermissionWithRoles(event.locals.user, "media:delete", event.locals.roles || [])) {
     throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
   }
 
-  const body = await event.request.json().catch(() => ({}));
-  const { id } = body;
-  if (!id) throw new AppError("Media ID is required for deletion", 400);
+  let targetId = id;
+  if (!targetId && legacyUrl) {
+    const mediaFilter = cms.db.type === "mongodb" ? { url: legacyUrl } : { path: legacyUrl };
+    const mediaResult = await cms.db.crud.findOne<any>("media", mediaFilter, { tenantId });
+    const mediaId = mediaResult.success ? mediaResult.data?._id : null;
 
-  const result = await cms.media.delete(id, { tenantId });
+    if (!mediaId) {
+      throw new AppError("Media not found", 404);
+    }
+
+    targetId = String(mediaId);
+  }
+
+  const result = await cms.media.delete(targetId, { tenantId });
   if (!result.success) {
     throw result.error || new AppError(result.message || "Deletion failed", 500);
   }
