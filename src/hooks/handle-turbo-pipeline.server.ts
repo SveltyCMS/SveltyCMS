@@ -422,7 +422,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     {
       const isSetupRouteDeep =
         pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-      if (isSetupRouteDeep || isTestMode) {
+      const shouldForceDeepSetupCheck =
+        isSetupRouteDeep || process.env.STRICT_SETUP_CHECK === "true";
+      if (shouldForceDeepSetupCheck) {
         setupState = await getSetupState();
       }
     }
@@ -505,7 +507,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         (event.url.pathname + event.url.search).includes("/completeSetup");
       if (isFinalization) return await resolve(event);
 
-      const destination = setupState === SetupState.MISSING_CONFIG ? "/setup" : "/setup/admin";
+      const destination = "/setup";
 
       if (isApiRoute) {
         return new Response(
