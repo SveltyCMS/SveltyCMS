@@ -80,8 +80,9 @@ export async function safeFetch(
     headers.set("Referer", `${BASE_URL}/`);
   }
 
-  // Inject test secret by default to bypass security middleware (unless explicitly skipped)
-  if (!init?.skipTestSecret) {
+  // Use the testing secret for bootstrap/setup calls, but keep cookie-authenticated
+  // requests black-box once we have a real session.
+  if (!init?.skipTestSecret && !headers.has("Cookie") && !headers.has("cookie")) {
     const testSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     headers.set("x-test-secret", testSecret);
   }
