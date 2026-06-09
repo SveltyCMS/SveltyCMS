@@ -98,6 +98,9 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 | `reset`          | Wipes the database (clears all collections/tables).                      |
 | `seed`           | Initializes default roles, permissions, and an Admin user.               |
 | `create-user`    | Idempotently creates test users with specific roles (Editor, Developer). |
+| `insert`         | Inserts a test document into a specific collection for contract checks.   |
+| `update`         | Updates a test document by `_id` inside a specific collection.            |
+| `delete`         | Permanently deletes a test document by `_id` from a specific collection.  |
 | `get-user`       | Fetches a user by email for state verification.                          |
 | `get-user-count` | Returns the total number of registered users.                            |
 | `cleanup`        | Surgically wipes specific users or data without resetting the system.    |

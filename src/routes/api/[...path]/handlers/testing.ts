@@ -432,6 +432,74 @@ export async function handleTestingRoutes(
       }
     }
 
+    if (action === "insert") {
+      const collectionId = params.collectionId || params.collection;
+      const data = params.data;
+
+      if (!collectionId) throw new AppError("collection or collectionId required", 400);
+      if (!data || typeof data !== "object") throw new AppError("data payload required", 400);
+
+      const result = await initializedAdapter.crud.insert(collectionId, data, {
+        tenantId,
+        bypassTenantCheck: true,
+      });
+
+      return rawResponse(
+        {
+          success: result.success,
+          data: result.data,
+          message: result.success ? "Insert successful" : result.message,
+        },
+        result.success ? 200 : 400,
+      );
+    }
+
+    if (action === "update") {
+      const collectionId = params.collectionId || params.collection;
+      const id = params.id;
+      const data = params.data;
+
+      if (!collectionId) throw new AppError("collection or collectionId required", 400);
+      if (!id) throw new AppError("id required", 400);
+      if (!data || typeof data !== "object") throw new AppError("data payload required", 400);
+
+      const result = await initializedAdapter.crud.update(collectionId, id, data, {
+        tenantId,
+        bypassTenantCheck: true,
+      });
+
+      return rawResponse(
+        {
+          success: result.success,
+          data: result.data,
+          message: result.success ? "Update successful" : result.message,
+        },
+        result.success ? 200 : 400,
+      );
+    }
+
+    if (action === "delete") {
+      const collectionId = params.collectionId || params.collection;
+      const id = params.id;
+
+      if (!collectionId) throw new AppError("collection or collectionId required", 400);
+      if (!id) throw new AppError("id required", 400);
+
+      const result = await initializedAdapter.crud.delete(collectionId, id, {
+        tenantId,
+        bypassTenantCheck: true,
+        permanent: true,
+      });
+
+      return rawResponse(
+        {
+          success: result.success,
+          message: result.success ? "Delete successful" : result.message,
+        },
+        result.success ? 200 : 400,
+      );
+    }
+
     if (action === "clear-collection") {
       const collectionId = params.collectionId || event.url.searchParams.get("collectionId");
       if (!collectionId) throw new AppError("collectionId required", 400);

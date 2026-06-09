@@ -36,11 +36,27 @@ import {
 const API_BASE = getApiBaseUrl();
 const TEST_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
-function headers(extra: Record<string, string> = {}) {
-  return {
+function headers(
+  extra: Record<string, string> = {},
+  options: {
+    includeTestSecret?: boolean;
+  } = {},
+) {
+  const baseHeaders = {
     "Content-Type": "application/json",
-    "x-test-secret": TEST_SECRET,
     Origin: API_BASE,
+  };
+
+  if (options.includeTestSecret !== false) {
+    return {
+      ...baseHeaders,
+      "x-test-secret": TEST_SECRET,
+      ...extra,
+    };
+  }
+
+  return {
+    ...baseHeaders,
     ...extra,
   };
 }
@@ -184,7 +200,8 @@ describe("Auth Contract", () => {
   it("should login with valid credentials", async () => {
     const res = await safeFetch(`${API_BASE}/api/user/login`, {
       method: "POST",
-      headers: headers(),
+      headers: headers({}, { includeTestSecret: false }),
+      skipTestSecret: true,
       body: JSON.stringify({
         email: USERS.admin.email,
         password: TEST_PASSWORD,
@@ -199,7 +216,8 @@ describe("Auth Contract", () => {
   it("should reject login with bad credentials", async () => {
     const res = await safeFetch(`${API_BASE}/api/user/login`, {
       method: "POST",
-      headers: headers(),
+      headers: headers({}, { includeTestSecret: false }),
+      skipTestSecret: true,
       body: JSON.stringify({
         email: USERS.admin.email,
         password: "wrong_password_123",
@@ -210,7 +228,8 @@ describe("Auth Contract", () => {
 
   it("should reject requests without auth", async () => {
     const res = await safeFetch(`${API_BASE}/api/user`, {
-      headers: headers(),
+      headers: headers({}, { includeTestSecret: false }),
+      skipTestSecret: true,
     });
     // Must be 401 — unauthenticated
     expect(res.status).toBe(401);
@@ -221,7 +240,8 @@ describe("Auth Contract", () => {
     for (let i = 0; i < 6; i++) {
       await safeFetch(`${API_BASE}/api/user/login`, {
         method: "POST",
-        headers: headers(),
+        headers: headers({}, { includeTestSecret: false }),
+        skipTestSecret: true,
         body: JSON.stringify({
           email: USERS.admin.email,
           password: "wrong_password_123",
@@ -232,7 +252,8 @@ describe("Auth Contract", () => {
     // 7th attempt with correct password should be locked out (423 or 429)
     const lockedRes = await safeFetch(`${API_BASE}/api/user/login`, {
       method: "POST",
-      headers: headers(),
+      headers: headers({}, { includeTestSecret: false }),
+      skipTestSecret: true,
       body: JSON.stringify({
         email: USERS.admin.email,
         password: TEST_PASSWORD,
@@ -262,7 +283,8 @@ describe("Permission Contract (RBAC)", () => {
 
     for (const endpoint of endpoints) {
       const res = await safeFetch(`${API_BASE}${endpoint}`, {
-        headers: headers(),
+        headers: headers({}, { includeTestSecret: false }),
+        skipTestSecret: true,
       });
       // Public requests without auth MUST be 401
       expect([401, 403]).toContain(res.status);
@@ -271,7 +293,8 @@ describe("Permission Contract (RBAC)", () => {
 
   it("should return 403 for unknown API namespaces (fail-closed)", async () => {
     const res = await safeFetch(`${API_BASE}/api/nonexistent_namespace_xyz`, {
-      headers: headers(),
+      headers: headers({}, { includeTestSecret: false }),
+      skipTestSecret: true,
     });
     // Unknown namespace must fail closed with 403
     // (may also be 401 if auth check runs first — both are secure)
@@ -288,7 +311,8 @@ describe("Setup Gating Contract", () => {
     // If the system is already set up, these should be blocked
     const res = await safeFetch(`${API_BASE}/api/setup/complete`, {
       method: "POST",
-      headers: headers(),
+      headers: headers({}, { includeTestSecret: false }),
+      skipTestSecret: true,
       body: JSON.stringify({}),
     });
 
@@ -328,7 +352,8 @@ describe("Resilience Contract", () => {
 
   it("should return valid JSON on all error responses", async () => {
     const res = await safeFetch(`${API_BASE}/api/user/nonexistent_123`, {
-      headers: headers(),
+      headers: headers({}, { includeTestSecret: false }),
+      skipTestSecret: true,
     });
 
     // Should return parseable JSON even on errors
