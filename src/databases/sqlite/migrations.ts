@@ -388,11 +388,34 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
 
       -- Full-text search virtual table (not auto-created by Drizzle ORM)
-      CREATE VIRTUAL TABLE IF NOT EXISTS "content_nodes_fts" USING fts5(title, content, description, content='content_nodes', content_rowid='_id');
+      -- Keep an internal mirror keyed by _id so we don't depend on nonexistent title/content columns
+      -- or SQLite rowid semantics for the text primary key.
+      DROP TRIGGER IF EXISTS "content_nodes_ai";
+      DROP TRIGGER IF EXISTS "content_nodes_ad";
+      DROP TRIGGER IF EXISTS "content_nodes_au";
+      DROP TABLE IF EXISTS "content_nodes_fts";
+      CREATE VIRTUAL TABLE IF NOT EXISTS "content_nodes_fts" USING fts5(
+        "_id" UNINDEXED,
+        "name",
+        "description",
+        "data"
+      );
       -- Triggers to keep FTS5 in sync
-      CREATE TRIGGER IF NOT EXISTS "content_nodes_ai" AFTER INSERT ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"(rowid, title, content, description) VALUES (new._id, new.title, new.content, new.description); END;
-      CREATE TRIGGER IF NOT EXISTS "content_nodes_ad" AFTER DELETE ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"("content_nodes_fts", rowid, title, content, description) VALUES('delete', old._id, old.title, old.content, old.description); END;
-      CREATE TRIGGER IF NOT EXISTS "content_nodes_au" AFTER UPDATE ON "content_nodes" BEGIN INSERT INTO "content_nodes_fts"("content_nodes_fts", rowid, title, content, description) VALUES('delete', old._id, old.title, old.content, old.description); INSERT INTO "content_nodes_fts"(rowid, title, content, description) VALUES (new._id, new.title, new.content, new.description); END;
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_ai" AFTER INSERT ON "content_nodes" BEGIN
+        INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
+        VALUES (new._id, COALESCE(new.name, ''), COALESCE(new.description, ''), COALESCE(new.data, ''));
+      END;
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_ad" AFTER DELETE ON "content_nodes" BEGIN
+        DELETE FROM "content_nodes_fts" WHERE "_id" = old._id;
+      END;
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_au" AFTER UPDATE ON "content_nodes" BEGIN
+        DELETE FROM "content_nodes_fts" WHERE "_id" = old._id;
+        INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
+        VALUES (new._id, COALESCE(new.name, ''), COALESCE(new.description, ''), COALESCE(new.data, ''));
+      END;
+      INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
+      SELECT "_id", COALESCE("name", ''), COALESCE("description", ''), COALESCE("data", '')
+      FROM "content_nodes";
     `);
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed
