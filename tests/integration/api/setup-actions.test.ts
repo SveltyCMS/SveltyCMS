@@ -63,8 +63,7 @@ const testDbConfig: DatabaseConfig = {
   type: dbType,
   host: process.env.DB_HOST || "localhost",
   port: Number.parseInt(process.env.DB_PORT || defaultPort, 10),
-  name:
-    process.env.DB_NAME || (dbType === "sqlite" ? sqliteTestDbName : "sveltycms_test"),
+  name: process.env.DB_NAME || (dbType === "sqlite" ? sqliteTestDbName : "sveltycms_test"),
   user: process.env.DB_USER || "",
   password: process.env.DB_PASSWORD || "",
 };

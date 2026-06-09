@@ -632,6 +632,16 @@ export function clearAllSessionCaches(): void {
   demoModeCached = null;
 }
 
+/**
+ * Prime the in-memory session cache directly — bypasses Redis and validateSession.
+ * Used by setup wizard and sign-in to ensure getUserFromSession gets an instant hit.
+ */
+export function primeSessionMemoryCache(sessionId: string, user: User): void {
+  negativeCache.clear();
+  const entry: SessionCacheEntry = { user, timestamp: Date.now() };
+  setSessionInCache(sessionId, entry);
+}
+
 export function getSessionCacheStats() {
   return {
     weakRefs: sessionCache.size,

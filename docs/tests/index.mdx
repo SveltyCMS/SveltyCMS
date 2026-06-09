@@ -226,14 +226,14 @@ graph TD
 
 ### Isolation Guarantees by Artifact
 
-| Artifact                   |       Unit        |  Integration   |      E2E      |       Benchmark       |
-| :------------------------- | :---------------: | :------------: | :-----------: | :-------------------: |
-| **config/private.ts**      |   Never touched   | Ephemeral TEST_MODE mirror only when required for build/runtime parity | Ephemeral TEST_MODE mirror only | Never touched |
-| **config/private.test.ts** | bun-preload mocks | Auto-generated | Setup wizard or generated test config | writeTestConfig |
-| **config/collections/**    |    Never reads    |  Never reads   |  Never reads  | Never writes or reads |
-| **.compiledCollections/**  |    Never reads    |  Never reads   |  Never reads  |    Read-only scan     |
-| **User database**          |  In-memory mocks  |  Temp DB only  | Temp DB only  |     bench_tmp_PID     |
-| **Content Store**          | Mocked singleton  |  Per-process   |  Per-browser  |   Per child process   |
+| Artifact                   |       Unit        |                              Integration                               |                  E2E                  |       Benchmark       |
+| :------------------------- | :---------------: | :--------------------------------------------------------------------: | :-----------------------------------: | :-------------------: |
+| **config/private.ts**      |   Never touched   | Ephemeral TEST_MODE mirror only when required for build/runtime parity |    Ephemeral TEST_MODE mirror only    |     Never touched     |
+| **config/private.test.ts** | bun-preload mocks |                             Auto-generated                             | Setup wizard or generated test config |    writeTestConfig    |
+| **config/collections/**    |    Never reads    |                              Never reads                               |              Never reads              | Never writes or reads |
+| **.compiledCollections/**  |    Never reads    |                              Never reads                               |              Never reads              |    Read-only scan     |
+| **User database**          |  In-memory mocks  |                              Temp DB only                              |             Temp DB only              |     bench_tmp_PID     |
+| **Content Store**          | Mocked singleton  |                              Per-process                               |              Per-browser              |   Per child process   |
 
 > [!IMPORTANT]
 > Integration and E2E tooling may generate a temporary `config/private.ts` by mirroring `config/private.test.ts` inside a disposable `TEST_MODE` workspace. That mirror must always point to test-only databases and secrets, never live infrastructure.

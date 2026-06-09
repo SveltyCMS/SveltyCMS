@@ -301,7 +301,8 @@ export const _handler = async (event: RequestEvent) => {
       if (resolvedUser) {
         user = resolvedUser;
         locals.user = resolvedUser;
-        tenantId = (locals.tenantId as string) || ((resolvedUser as any).tenantId as string) || null;
+        tenantId =
+          (locals.tenantId as string) || ((resolvedUser as any).tenantId as string) || null;
         locals.tenantId = tenantId as any;
       }
     }

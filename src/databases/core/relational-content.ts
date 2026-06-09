@@ -85,7 +85,9 @@ export class RelationalContentModule implements IContentAdapter {
     }
 
     const conflictTarget =
-      this.adapter.type === "sqlite" ? this.schema.contentNodes._id : [this.schema.contentNodes._id];
+      this.adapter.type === "sqlite"
+        ? this.schema.contentNodes._id
+        : [this.schema.contentNodes._id];
 
     await insert.onConflictDoUpdate({
       target: conflictTarget,

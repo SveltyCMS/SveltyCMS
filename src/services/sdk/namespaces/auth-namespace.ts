@@ -434,8 +434,7 @@ export class TokensNamespace {
         let tokens = (tokensRes.data || []).filter((token: any) => {
           if (!normalizedSearch) return true;
           return [token.email, token.token].some(
-            (value) =>
-              typeof value === "string" && value.toLowerCase().includes(normalizedSearch),
+            (value) => typeof value === "string" && value.toLowerCase().includes(normalizedSearch),
           );
         });
 
@@ -612,9 +611,12 @@ export class TokensNamespace {
           } as DatabaseResult<any>;
         }
 
-        const deleteRes = await this._dbAdapter.auth.deleteTokens([existing.data._id as DatabaseId], {
-          tenantId: tenantId as DatabaseId,
-        });
+        const deleteRes = await this._dbAdapter.auth.deleteTokens(
+          [existing.data._id as DatabaseId],
+          {
+            tenantId: tenantId as DatabaseId,
+          },
+        );
         if (!deleteRes.success) return deleteRes;
         return {
           success: true,

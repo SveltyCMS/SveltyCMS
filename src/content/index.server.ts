@@ -127,8 +127,7 @@ export const contentSystem = {
             }
           }
 
-          const shouldGenerateApiSpec =
-            !options.skipReconciliation && options.skipApiSpec !== true;
+          const shouldGenerateApiSpec = !options.skipReconciliation && options.skipApiSpec !== true;
           if (shouldGenerateApiSpec) {
             const apiSpecTask = this.generateApiSpec(tenantId || "global", true);
             if (options.awaitApiSpec === true) {
