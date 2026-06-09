@@ -357,7 +357,7 @@ export async function handleSaveAvatarRoute(
       folder: "avatars",
       skipResizing: true,
     });
-    if (!uploadResult.success || !uploadResult.data) {
+    if (!uploadResult.success) {
       throw new AppError(uploadResult.message || "Failed to upload avatar", 400);
     }
     finalAvatarUrl = uploadResult.data.url || uploadResult.data.path;
