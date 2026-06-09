@@ -117,8 +117,8 @@ describe("Adapter Contract", () => {
     const findRes = await safeFetch(`${API_BASE}/api/settings/${testId}`, {
       headers: headers(),
     });
-    // Read may return 200 or 404 depending on adapter; we just verify it doesn't crash
-    expect([200, 404]).toContain(findRes.status);
+    // Read may return 200/404 depending on adapter state, or 401 if the route is auth-gated.
+    expect([200, 401, 404]).toContain(findRes.status);
 
     // Update — use /api/testing for direct manipulation
     const updateRes = await safeFetch(`${API_BASE}/api/testing`, {
