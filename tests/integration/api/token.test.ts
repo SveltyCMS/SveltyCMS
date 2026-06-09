@@ -494,14 +494,6 @@ describe("Token API Endpoints", () => {
     // Note: These tests require MULTI_TENANT to be enabled in the test environment
     // They verify that tenants cannot access each other's resources
 
-    beforeAll(async () => {
-      await waitForServer();
-    });
-
-    afterAll(async () => {
-      await cleanupTestDatabase();
-    });
-
     it("should prevent cross-tenant data access (list, update, delete)", async () => {
       // Step 1: Create a token in Tenant A
       const tenantAEmail = `tenant-a-${Date.now()}@example.com`;
