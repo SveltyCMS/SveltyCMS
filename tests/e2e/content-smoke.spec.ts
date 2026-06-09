@@ -20,7 +20,7 @@ test.describe("Content Smoke", () => {
     await addCollectionButton.click();
 
     await expect(page).toHaveURL(/\/config\/collectionbuilder\/new/, { timeout: 10_000 });
-    await expect(page.getByRole("heading", { name: /basic information/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /save collection/i })).toBeVisible({
       timeout: 10_000,
     });
   });
