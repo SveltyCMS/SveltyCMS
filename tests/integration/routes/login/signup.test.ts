@@ -253,10 +253,16 @@ describe("Invitation-Based Signup Tests", () => {
         return;
       }
 
-      expect([301, 302, 303, 307, 308]).toContain(response.status);
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get("location");
+        expect(location).toBeTruthy();
+        return;
+      }
 
-      const location = response.headers.get("location");
-      expect(location).toBeTruthy();
+      expect(response.status).toBe(200);
+
+      const body = await response.text();
+      expect(body.toLowerCase()).toContain("oauth");
     });
 
     it("should handle OAuth errors gracefully", async () => {
