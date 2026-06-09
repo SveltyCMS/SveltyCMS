@@ -118,6 +118,12 @@ export async function handleTestingRoutes(
         // Invalidate OpenAPI spec cache
         const { apiSpecService } = await import("@services/system/api-spec-service");
         await apiSpecService.invalidateCache(tenantId);
+
+        const { ThemeManager } = await import("@src/databases/theme-manager");
+        const themeManager = ThemeManager.getInstance();
+        if (themeManager.isInitialized()) {
+          await themeManager.refresh();
+        }
       } catch (err) {
         console.warn(`[TestingHandler] Failed to invalidate authorization/api-spec caches: ${err}`);
       }
@@ -170,6 +176,12 @@ export async function handleTestingRoutes(
       // 🚀 HARDENING: Ensure all DEFAULT_THEME properties are strings or null (no undefined)
       const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
       await cms.db.system.themes.ensure(safeTheme);
+
+      const { ThemeManager } = await import("@src/databases/theme-manager");
+      const themeManager = ThemeManager.getInstance();
+      if (themeManager.isInitialized()) {
+        await themeManager.refresh();
+      }
 
       // Seed dynamic collection schemas from the filesystem into the database
       try {
