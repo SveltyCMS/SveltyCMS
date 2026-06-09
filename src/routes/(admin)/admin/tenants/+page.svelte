@@ -14,6 +14,7 @@
 
 <script lang="ts">
 import type { PageData } from "./$types";
+import { toggleTenantStatus } from "./tenants.remote";
 
 let { data } = $props<{ data: PageData }>();
 
@@ -87,22 +88,20 @@ function formatBytes(bytes: number, decimals = 2) {
 						<td>{tenant.usage.collectionsCount} / {tenant.quota.maxCollections}</td>
 						<td class="uppercase text-xs font-bold opacity-70">{tenant.plan}</td>
 						<td>{new Date(tenant.createdAt).toLocaleDateString()}</td>
-						<td>
-							<button
-								class="btn btn-sm {tenant.status === 'active' ? 'variant-soft-error' : 'variant-filled-success'}"
-								onclick={async () => {
-									const { toggleTenantStatus } = await import('./tenants-actions.server');
-									await toggleTenantStatus({
-										tenantId: tenant._id,
-										status: tenant.status === 'active' ? 'suspended' : 'active',
-									});
-									// Reload to reflect changes
-									window.location.reload();
-								}}
-							>
-								{tenant.status === 'active' ? 'Suspend' : 'Activate'}
-							</button>
-						</td>
+							<td>
+								<button
+									class="btn btn-sm {tenant.status === 'active' ? 'variant-soft-error' : 'variant-filled-success'}"
+									onclick={async () => {
+										await toggleTenantStatus({
+											tenantId: tenant._id,
+											status: tenant.status === 'active' ? 'suspended' : 'active',
+										});
+										window.location.reload();
+									}}
+								>
+									{tenant.status === 'active' ? 'Suspend' : 'Activate'}
+								</button>
+							</td>
 					</tr>
 				{/each}
 				{#if tenants.length === 0}
