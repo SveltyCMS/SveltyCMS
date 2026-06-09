@@ -461,7 +461,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
     // Full-text search indexes (not auto-created by Drizzle ORM)
-    `CREATE FULLTEXT INDEX IF NOT EXISTS content_nodes_fts_idx ON content_nodes (title, content, description)`,
+    `CREATE FULLTEXT INDEX IF NOT EXISTS content_nodes_fts_idx ON content_nodes (name, description)`,
   ];
 
   for (const query of queries) {
