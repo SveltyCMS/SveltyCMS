@@ -123,7 +123,7 @@ export class MongoWebsiteTokenMethods {
   async delete(tokenId: DatabaseId, tenantId?: string): Promise<DatabaseResult<void>> {
     const result = await this.crud.delete(
       tokenId,
-      tenantId ? { tenantId: tenantId as DatabaseId } : {},
+      tenantId ? { tenantId: tenantId as DatabaseId, permanent: true } : { permanent: true },
     );
     if (!result.success) return result as DatabaseResult<void>;
     return { success: true, data: undefined };

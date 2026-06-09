@@ -20,6 +20,22 @@ interface DashboardQuery {
   limit?: number;
 }
 
+function normalizeDashboardLog(log: any) {
+  const message =
+    typeof log.message === "string" && log.message.length > 0
+      ? log.message
+      : [log.action, log.targetType, log.targetId].filter(Boolean).join(" ") ||
+        log.eventType ||
+        "Audit log entry";
+
+  return {
+    ...log,
+    level: log.level || log.severity || "info",
+    message,
+    messageHtml: typeof log.messageHtml === "string" ? log.messageHtml : message,
+  };
+}
+
 export async function handleDashboardRoutes(
   event: RequestEvent,
   cms: LocalCMS,
@@ -202,24 +218,31 @@ export async function handleDashboardRoutes(
         const result = await auditLogService.queryLogs({
           limit,
           offset: (page - 1) * limit,
-          severity: level as any,
+          filters: level ? { severity: level } : undefined,
           tenantId: tenantId || undefined,
         });
 
         if (!result.success) throw new AppError(result.message, 500);
 
-        let logs = result.data || [];
+        let logs = (result.data || []).map(normalizeDashboardLog);
+        if (level) {
+          const expectedLevel = level.toLowerCase();
+          logs = logs.filter((l) => String(l.level || "").toLowerCase() === expectedLevel);
+        }
         if (search) {
           const searchLower = search.toLowerCase();
           logs = logs.filter(
             (l) =>
               l.message?.toLowerCase().includes(searchLower) ||
-              l.action.toLowerCase().includes(searchLower),
+              l.action.toLowerCase().includes(searchLower) ||
+              String(l.eventType || "")
+                .toLowerCase()
+                .includes(searchLower),
           );
         }
 
         return rawResponse(event, {
-          logs: logs.map((l) => ({ ...l, messageHtml: l.message })),
+          logs,
           total: logs.length,
           page,
           hasMore: logs.length === limit,
