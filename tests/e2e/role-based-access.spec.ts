@@ -11,15 +11,12 @@
  */
 
 import { expect, type Page, test } from "@playwright/test";
-import { loginAsAdmin, loginAs } from "./helpers/auth";
+import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "./helpers/auth";
 import { seedTestUsers, TEST_USERS } from "./helpers/seed";
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {
-  admin: {
-    email: "admin@example.com",
-    password: "Admin123!",
-  },
+  admin: ADMIN_CREDENTIALS,
   ...TEST_USERS,
 };
 
