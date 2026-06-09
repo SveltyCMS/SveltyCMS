@@ -194,6 +194,7 @@ async function handleContentStructureAction(
  */
 async function handleContentEventsStream(event: RequestEvent, tenantId: DatabaseId) {
   const { eventBus } = await import("@utils/event-bus");
+  const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     start(controller) {
@@ -202,8 +203,13 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
       // Initial connection confirmation
       try {
         controller.enqueue(
-          `event: connected\ndata: ${JSON.stringify({ status: "active", timestamp: Date.now() })}\n\n`,
+          encoder.encode(
+            `event: connected\ndata: ${JSON.stringify({ status: "active", timestamp: Date.now() })}\n\n`,
+          ),
         );
+        // adapter-uws flushes streaming responses after it has seen a second chunk,
+        // so emit an immediate comment frame to keep SSE responsive in production.
+        controller.enqueue(encoder.encode(": connected\n\n"));
       } catch {
         isClosed = true;
         return;
@@ -214,7 +220,7 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
         if (isClosed) return;
         if (tenantId && ev.tenantId && ev.tenantId !== tenantId) return;
         try {
-          controller.enqueue(`data: ${JSON.stringify(ev)}\n\n`);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
         } catch {
           isClosed = true;
           eventBus.off("*", handler);
@@ -227,7 +233,7 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
       const keepAlive = setInterval(() => {
         if (!isClosed) {
           try {
-            controller.enqueue(": keep-alive\n\n");
+            controller.enqueue(encoder.encode(": keep-alive\n\n"));
           } catch {
             isClosed = true;
             clearInterval(keepAlive);
