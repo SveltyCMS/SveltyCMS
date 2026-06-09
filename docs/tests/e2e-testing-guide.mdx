@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/e2e-testing-guide.mdx"
 title: "E2E Testing Guide"
-description: "Guide for writing and running Playwright E2E tests with auth helper"
+description: "Guide for running the maintained Playwright smoke suites and staged CI matrix."
 order: 12
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-01-20"
-updated: "2026-03-27"
+updated: "2026-06-09"
 tags:
   - "testing"
   - "e2e"
@@ -20,39 +20,48 @@ tags:
 
 SveltyCMS uses **Playwright** for End-to-End (E2E) testing. Our strategy is optimized for speed and reliability:
 
-1.  **API-Based Seeding:** We do NOT run the Setup Wizard via UI in tests. We seed the database via API.
-2.  **Auth Helper:** We use a helper to log in programmatically, bypassing the login UI for most tests.
-3.  **Critical Flows Only:** E2E tests focus on critical user journeys (Login, Content Creation, Settings). Logic is tested in Unit/Integration layers.
+1. **Wizard Coverage:** The setup wizard is tested directly in the dedicated `wizard` project so fresh-install flows stay PR-gating.
+2. **Auth Bootstrap:** The `auth-setup` project provisions authenticated state once and persists it for the maintained app smoke projects.
+3. **Maintained Smoke Scope:** PR-gating browser coverage is intentionally focused on `signup`, `content`, and `system`.
+4. **Black-Box Safety:** State setup happens through `/api/testing` plus `TEST_API_SECRET`; browser flows still navigate the real app and assert real redirects.
 
 ## Running Tests
 
-The `test:e2e` command handles everything: starts the server, seeds the DB, and runs Playwright.
+`bun run test:e2e` is the local convenience entrypoint. It starts the dev server and runs Playwright against `127.0.0.1`.
 
 ```bash
-# Run E2E tests (Auto-starts server & seeds DB)
+# Run the maintained local E2E flow
 bun run test:e2e
 
-# Run specific test file
-bun run test:e2e -- tests/e2e/login.spec.ts
+# Run the setup wizard contract
+bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
+
+# Generate auth state for downstream smoke suites
+bun x playwright test --project=auth-setup
+
+# Run maintained app smoke suites
+bun x playwright test --project=signup
+bun x playwright test --project=content
+bun x playwright test --project=system
 ```
 
 ### 🧠 Smart Testing
 
-We also provide a smart runner that adapts to your environment:
+We also provide a smart runner for local iteration:
 
 ```bash
 bun run scripts/test-smart.ts
 ```
 
-- **Fresh Environment:** Runs only Setup Wizard tests.
-- **Configured Environment:** Runs full test suite (skipping setup tests).
-- **Auto-Server:** Starts `bun run dev` if not running.
+- **Fresh Environment:** Biases toward setup coverage first.
+- **Configured Environment:** Runs the suites that match the working tree.
+- **Local Helper Only:** GitHub Actions does not depend on the smart runner for PR gating.
 
 ## Writing Tests
 
-### 1. Use the Auth Helper
+### 1. Use the Auth Helper or Stored State
 
-Avoid logging in via UI in every test. Use `loginAsAdmin` from `helpers/auth.ts`.
+Avoid repeating the login UI in every spec. Use `loginAsAdmin` from `helpers/auth.ts` for targeted tests, or depend on the `auth-setup` project when a suite should consume persisted browser state.
 
 ```typescript
 import { test, expect } from "@playwright/test";
@@ -69,11 +78,12 @@ test("Admin can access dashboard", async ({ page }) => {
 
 ### 2. Database State & Worker Isolation
 
-In April 2026, we implemented **Parallel Worker Isolation** to eliminate "Database is locked" errors and speed up the E2E suite.
+Playwright uses **database-per-worker isolation** to eliminate SQLite locking issues and keep E2E runs reproducible.
 
 - **Unique Database per Worker**: Each Playwright worker operates on its own dedicated SQLite file (e.g., `cms_worker_1.db`).
 - **Header-Based Routing**: The system uses the `x-test-worker-index` header to automatically route requests to the correct isolated database.
-- **Seeding**: Handled automatically before each worker starts via the `/api/testing` endpoint.
+- **Secret Handshake**: `/api/testing` calls must include the shared `TEST_API_SECRET`.
+- **Safety Rule**: `config/private.test.ts` is the source of truth. Any `config/private.ts` present in CI is only a temporary mirror of the test config and must never point at live data.
 
 ### 3. Use `data-testid` Selectors
 
@@ -101,22 +111,27 @@ Avoid using:
 
 ### 4. CI/CD
 
-In GitHub Actions, E2E tests run in parallel with Unit and Integration tests.
+GitHub Actions runs Playwright in staged jobs:
 
-- **Job:** `e2e-tests`
-- **Artifacts:** Screenshots and traces are uploaded on failure.
+- **`e2e-wizard`**: validates fresh setup and post-setup redirects against the production build.
+- **`e2e-auth`**: provisions auth state and uploads `tests/e2e/.auth/` as a short-lived artifact.
+- **`e2e-app`**: fans out `signup`, `content`, and `system` smoke projects in parallel.
+
+Failure artifacts include Playwright HTML reports, traces, video, and preview server logs.
 
 ## Troubleshooting
 
 **"Server did not start in time"**
 
 - Check if port 4173 is already in use.
-- Run `bun run test:integration` manually to see errors.
+- Verify that `PLAYWRIGHT_TEST_BASE_URL` points at `http://127.0.0.1:4173`.
+- Run `bun run test:integration` if the preview build is failing before the browser starts.
 
 **"Login failed"**
 
-- Ensure `scripts/seed-test-db.ts` ran successfully.
-- Check `config/private.test.ts` exists (Isolated testing enforced).
+- Ensure the `auth-setup` project completed and wrote state into `tests/e2e/.auth/`.
+- Check `config/private.test.ts` exists and contains only test credentials.
+- Verify `TEST_API_SECRET` matches the value in `tests/e2e/.auth/test-secret.txt`.
 
 ## Remote Playwright Testing
 

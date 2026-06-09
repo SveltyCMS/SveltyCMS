@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/api-testing.mdx"
 title: "API Testing & Coverage Report"
-description: "Comprehensive API endpoint testing strategy, coverage report, and historical results for SveltyCMS"
+description: "Black-box API testing strategy, isolation rules, and CI execution model for SveltyCMS."
 order: 5
 icon: "mdi:api-check"
 author: "SveltyCMS Team"
 created: "2026-02-17"
-updated: "2026-04-23"
+updated: "2026-06-09"
 tags:
   - "testing"
   - "api"
@@ -16,87 +16,82 @@ tags:
 
 # API Testing & Coverage Report
 
-SveltyCMS employs a rigorous **Black-Box Testing** strategy for its API layer, ensuring that all endpoints are verified for security, performance, and database agnosticism. All requests are managed by a central **Fail-Closed Dispatcher**.
+SveltyCMS validates its API layer with **black-box integration tests**. The suite talks to a live server over HTTP, verifies the full middleware chain, and runs the same contracts across SQLite, MongoDB, MariaDB, and PostgreSQL.
 
 > [!NOTE]
-> This document consolidates our coverage reporting and historical testing summaries into a single source of truth.
+> The source of truth for the latest pass/fail state is GitHub Actions. This guide explains the contract the API suite is expected to enforce.
 
 ## 🛡️ Test Isolation & Safety
 
-SveltyCMS is designed for maximum safety. Running tests will **never** influence or overwrite your live production data. This is achieved through three layers of isolation:
+SveltyCMS is designed so test runs never touch live data. The safety contract is:
 
-1.  **Filename Isolation**: Integration tests use `sveltycms_test.db` (configured in `private.test.ts`), while production uses `test.db` (or your configured `DB_NAME`).
-2.  **Environment Isolation**: Tests require `TEST_MODE=true`. This flag switches the configuration from `private.ts` to `private.test.ts` and changes the database path to `./config/database`.
-3.  **API Gatekeeping**: The God-Mode `/api/testing` endpoint is hard-coded to be **inactive** unless the server is explicitly started with the `TEST_MODE` flag. In a production build, these endpoints are automatically disabled.
-4.  **Network Lockdown**: Tests are restricted to `127.0.0.1` to ensure consistent behavior across different Operating Systems.
+1. **Config Isolation**: `config/private.test.ts` is the source of truth for integration and E2E jobs.
+2. **Ephemeral Mirror Only**: If CI creates `config/private.ts`, it must be a short-lived mirror of the test config only.
+3. **Test Mode Gate**: `/api/testing` is inactive unless `TEST_MODE=true` and a valid `TEST_API_SECRET` is provided.
+4. **Loopback Lockdown**: Local black-box jobs use `127.0.0.1` to avoid IPv4/IPv6 drift and to keep the test API loopback-only.
+5. **Database Isolation**: SQLite jobs must use obvious test database names such as `*_test*` or `e2e_*`; service-backed jobs use disposable CI containers.
 
-## 📊 Coverage at a Glance
+## Coverage at a Glance
 
-- **Endpoints Verified**: ~115 (100%)
-- **Total Tests**: 1400+ (915 Unit + ~450 Integration/E2E)
-- **Strategy**: 100% Black-Box (via `/api/testing`) + Audit Integration
-- **Dependency Injection (DI)**: Deterministic isolation for core services (`SettingsService`, `LocalCMS`).
-- **Security Posture**: 100% Fail-Closed (Mandatory Authorization)
-- **Multi-DB Validation**: Verified across MongoDB, PostgreSQL, MariaDB, and SQLite.
+- **Execution Style**: Real HTTP requests against a running SvelteKit server
+- **Primary Concerns**: Authentication, RBAC, setup gating, CRUD contracts, and DB parity
+- **Database Matrix**: SQLite, MongoDB, MariaDB, PostgreSQL
+- **Security Posture**: Fail-closed, loopback-only test API with shared secret
+- **Runtime Parity**: Production build preview for CI integration and most E2E jobs
 
 ---
 
 ## 🏗️ Testing Architecture
 
-Our API tests operate at the **Integration** level. Unlike unit tests, these interact with a fully running server instance, verifying the entire middleware chain (Firewall → Auth → Logic → DB).
+Our API tests operate at the **integration** level. Unlike unit tests, they boot a real server process and verify the complete request path:
+
+`Request -> Hooks -> Auth -> Route Handler -> Adapter -> Response`
 
 ### Key Components
 
-1.  **Fail-Closed Gatekeeper (`+server.ts`)**: Central dispatcher that enforces mandatory authorization for EVERY endpoint. Unmapped routes are denied by default (403 Forbidden).
-2.  **God-Mode API (`/api/testing`)**: Allows tests to programmatically reset the database and seed specific fixtures without direct DB access.
-3.  **Mock Isolation**: Integration tests use real databases (isolated per run) while Unit tests use `tests/unit/bun-preload.ts` for deep internal mocking.
-4.  **Authentication Helpers**: Programmatic login and session management via `tests/unit/api/rbac.test.ts`.
+1. **Fail-Closed Dispatcher**: Unmapped or unauthorized routes must reject by default.
+2. **Testing API (`/api/testing`)**: Handles reset, seed, and isolated fixture orchestration without direct adapter imports inside black-box tests.
+3. **Integration Runner**: `scripts/run-integration-tests.ts` provisions the target database, starts the preview server, and executes the suite.
+4. **Real Authentication**: Tests obtain cookies via `/api/auth/login` and then hit the same endpoints a browser or API consumer would use.
 
 ---
 
-## ✅ Verified API Endpoints
+## Verified API Areas
 
-### 🔐 Authentication & Security (52 tests)
+### Authentication & Security
 
 - **2FA System**: Setup, TOTP verification, backup codes, and session recovery.
 - **Security Management**: IP blocking, incident resolving, and CSP report processing.
 - **Registration**: Verification of invitation token consumption and role assignment.
-- **Files**: `tests/unit/api/auth-2fa.test.ts`, `security.test.ts`, `signup.test.ts`
 
-### 👤 User & Token Management (72 tests)
+### User & Token Management
 
 - **User Lifecycle**: Creation, login/logout, multi-tenant isolation, and role-based access.
 - **Token System**: JWT creation, rotation, and revocation.
 - **State Verification**: Usage of `get-user` action to verify post-registration database state.
-- **Files**: `tests/unit/api/user.test.ts`, `token.test.ts`
 
-### 📦 Content & Relational (102 tests)
+### Content & Relational APIs
 
 - **Collections**: CRUD operations, complex relations, and schema validation.
 - **Relational Benchmarks**: Dedicated performance testing for Depth 2-3 populations and JOINs.
-- **Bulk Migration**: Verified stable ingestion at **6,625 entries/s** (10,000 entry test).
-- **Files**: `tests/unit/api/collections.test.ts`, `tests/benchmarks/migration-scale.test.ts`
 
-### ⚙️ System & Dashboard (150 tests)
+### System & Dashboard APIs
 
-- **REST Read Latency**: Achieved **0.35ms** entry retrieval via SDK `getSchema` caching.
-- **Health Probe Efficiency**: **83% reduction** in monitoring overhead (0.45ms) via 10s request caching.
-- **Admin UX Vitality**: Proved **0.15ms** server prep time for 50-field forms.
-- **Memory Stability**: RSS and Heap growth detection across sustained decentralized loads.
-- **Files**: `tests/unit/api/dashboard.test.ts`, `tests/benchmarks/admin-ux-vitality.test.ts`
+- **Health and Settings**: Critical admin endpoints are exercised through the same route dispatcher used in production.
+- **Dynamic Config**: Setup-state and system settings flows are validated alongside the browser smoke coverage.
 
 ---
 
-## 🏛️ Historical Context & Evolution
+## CI Execution Model
 
-Initially, SveltyCMS faced issues with error status codes (returning 500 instead of 401) and complex OAuth mocks. Through our **Fail-Closed Gatekeeper** and specialized integration runner, we have achieved:
+The GitHub Actions matrix runs the API suite once per supported database:
 
-- **Fail-Closed Authorization**: All routes are now protected by a central gatekeeper, returning 401/403 properly.
-- **High-Frequency Performance**: Optimized the shared core to reach sub-millisecond response times (0.35ms) for all supported database engines.
-- **Infrastructure Stability**: Resolved mocking conflicts in core services via Dependency Injection, achieving a 100% pass rate.
-- **SDK Velocity**: Reduced SDK Read latency to **0.35ms**, ensuring internal lookups are near-instant.
-- **Distributed Consistency**: Integrated **Redis Pub/Sub** invalidation bridge for real-time cache parity across global nodes.
-- **Audit**: Implemented a comprehensive enterprise audit matrix covering Chaos Resilience, Bulk Ingestion, and AI Logic Tax.
+- **SQLite**: File-backed local parity and reset semantics
+- **MongoDB**: Adapter parity and auth coverage
+- **MariaDB**: SQL adapter parity and relational flows
+- **PostgreSQL**: SQL adapter parity and relational flows
+
+Each job reuses the shared test secret, provisions an isolated database, boots the app in test mode, and runs the same HTTP contract suite.
 
 ---
 
@@ -105,24 +100,28 @@ Initially, SveltyCMS faced issues with error status codes (returning 500 instead
 ### Run All Integration Tests
 
 ```bash
-bun run test:unit -- api
+bun run test:integration
 ```
 
 ### Targeted Testing
 
 ```bash
-# Verify specific feature (e.g., Security)
-bun run test:unit -- security
+# Explicitly select a database
+bun run scripts/run-integration-tests.ts --db=sqlite
+
+# CI parity for SQL adapters
+bun run scripts/run-integration-tests.ts --db=postgresql
+bun run scripts/run-integration-tests.ts --db=mariadb
 ```
 
 ---
 
-## 🔮 Future Roadmap
+## Maintenance Notes
 
-- **100% Coverage**: Targeting the remaining 6 utility endpoints.
-- **Performance Auditing**: Automated latency regression checks within the CI pipeline.
-- **E2E Synchronization**: Tighter integration between API integration tests and Playwright browser flows.
+- Keep raw-response contracts aligned with endpoint tests. If `raw=true` returns a bare array or object for one route, tests should enforce that shape consistently across adapters.
+- Continue migrating legacy integration files away from internal imports so black-box suites do not rely on privileged runtime access.
+- Keep setup-state and auth helpers synchronized with the Playwright smoke suites.
 
 ---
 
-_Last Updated: April 23, 2026_
+_Last Updated: June 9, 2026_
