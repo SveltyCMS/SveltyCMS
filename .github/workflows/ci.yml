@@ -3,12 +3,14 @@ name: CI
 on:
   push:
     branches: [main, next]
+    # Docs-only pushes skip CI to keep the matrix focused on code changes.
     paths-ignore:
       - "**.md"
       - "docs/**"
       - ".vscode/**"
   pull_request:
     branches: [main, next]
+    # PRs that only change docs use the docs pipeline instead of the full test matrix.
     paths-ignore:
       - "**.md"
       - "docs/**"
