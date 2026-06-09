@@ -131,6 +131,14 @@ export async function handleWidgetRoutes(
       throw new AppError(`Widget ${target} not found`, 404);
     }
 
+    if (widgetId && action !== "status") {
+      const result =
+        action === "activate"
+          ? await cms.widgets.activate(widgetId)
+          : await cms.widgets.deactivate(widgetId);
+      return successResponse(event, result);
+    }
+
     if (!registeredWidget?._id) {
       throw new AppError(`Widget ${target} not found`, 404);
     }
