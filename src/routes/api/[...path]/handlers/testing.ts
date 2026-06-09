@@ -444,12 +444,19 @@ export async function handleTestingRoutes(
         bypassTenantCheck: true,
       });
 
+      const responseBody = result.success
+        ? {
+            success: true,
+            data: result.data,
+            message: "Insert successful",
+          }
+        : {
+            success: false,
+            message: result.message,
+          };
+
       return rawResponse(
-        {
-          success: result.success,
-          data: result.data,
-          message: result.success ? "Insert successful" : result.message,
-        },
+        responseBody,
         result.success ? 200 : 400,
       );
     }
@@ -468,12 +475,19 @@ export async function handleTestingRoutes(
         bypassTenantCheck: true,
       });
 
+      const responseBody = result.success
+        ? {
+            success: true,
+            data: result.data,
+            message: "Update successful",
+          }
+        : {
+            success: false,
+            message: result.message,
+          };
+
       return rawResponse(
-        {
-          success: result.success,
-          data: result.data,
-          message: result.success ? "Update successful" : result.message,
-        },
+        responseBody,
         result.success ? 200 : 400,
       );
     }
