@@ -18,5 +18,5 @@ Hiring: https://sveltycms.com/careers
 # Architecture: 4-Layer Defense-in-Depth (Middleware → Dispatcher → Handler → Page Action)
 # Auth: Argon2id (64MB, 3 iter), AES-256-GCM, CSPRNG tokens, __Host- cookie prefix
 # Audit: SHA-256 crypto-chained logs with tamper verification
-# Score: ~99/100 weighted security (internal assessment, June 2026)
+# Score: ~95/100 weighted security (self-assessed, June 2026)
 # Zero published CVEs — 0 known vulnerabilities
