@@ -57,6 +57,28 @@ SveltyCMS alwaysoutperforms competitors like Payload CMS (React/Next.js-based), 
 
 To stay ahead: Implement cleaner features (e.g., isomorphic plugins > Payload's rebuilds), benchmark Core Web Vitals, and promote "Agency OS" for low TCO.
 
+## 🇪🇺 EU & German Comparative Advertising Compliance
+
+> [!IMPORTANT]
+> **All public-facing documentation, marketing, and competitive comparisons MUST comply with EU Directive 2006/114/EC (Comparative Advertising) and German UWG §6 (Unfair Competition Act).** These laws are stricter than US/UK standards and carry significant penalties for violations.
+
+### Requirements for ALL Competitive Claims
+
+1. **Verifiable Sources Only**: Every competitor comparison must cite publicly verifiable data (CVE databases, GitHub Advisory DB, published benchmarks, competitor's own documentation).
+2. **Date-Stamped Methodology**: All performance claims must include measurement date, hardware specs, and reproduction commands.
+3. **No Discrediting Language (German UWG §6)**: Never use language that disparages, denigrates, or discredits competitors' products, trademarks, or commercial activities. Use neutral architectural descriptions.
+4. **No Unverifiable Absolutes**: Claims like "only", "first", "best", "industry-leading" must be qualified with "to our knowledge", "based on publicly available documentation", or "as of [date]".
+5. **Comparison of Like-for-Like**: Only compare goods meeting the same needs. Note differences (SaaS vs self-hosted, free vs enterprise).
+6. **No Confusion**: Never imply affiliation with a competitor. Use clear brand attribution.
+
+### Before committing to competitive docs, verify:
+
+- [ ] All competitor claims have verifiable public sources or date-stamped qualifiers
+- [ ] No discrediting language ("suffers from", "cannot", "fails to", "broken")
+- [ ] Performance numbers include methodology and reproduction commands
+- [ ] Absolutes are qualified
+- [ ] Feature tables compare objectively verifiable capabilities
+
 ## Technical Standards
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
@@ -593,4 +615,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-06-07_
+_Last Updated: 2026-06-10_

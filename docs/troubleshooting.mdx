@@ -1,12 +1,12 @@
 ---
 path: "docs/troubleshooting.mdx"
 title: "Troubleshooting Guide"
-description: "Solutions to common issues — from Setup Wizard hangs to database connection failures."
+description: "Solutions to common SveltyCMS issues — Setup Wizard, database connections, authentication, performance."
 order: 2
 icon: "mdi:wrench"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-03-27"
+updated: "2026-06-10"
 tags:
   - "troubleshooting"
   - "debugging"
@@ -16,116 +16,132 @@ tags:
 
 # Troubleshooting Guide
 
-This guide provides solutions for common issues encountered during installation, configuration, and daily operation.
+Solutions for common installation, configuration, and operational issues.
 
 ---
 
-## 🚀 Setup & Installation Issues
+## 🚀 Setup & Installation
 
-### Goal: Fix "Initializing System" Hang
+### "Initializing System" hangs
 
-**The Problem**: The splash screen stays on "Initializing System" indefinitely or throws a MIME type error (`text/html` instead of `javascript`).
+**Symptoms**: Splash screen stays on "Initializing System" indefinitely, or MIME type error (text/html instead of JavaScript).
 
-**🛠️ The Solution:**
+**Fix**:
 
-1.  **Check `config/private.ts`**: If the file is empty or corrupted, the Setup Wizard cannot move to `READY`. Delete the file and restart `bun run dev`.
-2.  **Verify Vite Cache**: Vite's dependency optimization can sometimes desync.
-    ```bash
-    rm -rf node_modules/.vite
-    bun run dev
-    ```
-3.  **Check Middleware Logic**: Ensure `hooks.server.ts` is not crashing before the `handleSystemState` stage.
-
----
-
-### Goal: Fix Database Connection Failures
-
-**The Problem**: Error message: `Check your credentials` or `ECONNREFUSED`.
-
-**🛠️ The Solution:**
-
-- **MongoDB**: Ensure your cluster hostname is correct and your IP is whitelisted in Atlas.
-- **PostgreSQL/MariaDB**: Ensure the database exists _before_ running the wizard. SveltyCMS scopes by `database_name`.
-- **SQLite**: Ensure the directory for the `.db` file has write permissions.
-
-**⚙️ Mechanics:**
-Check `src/databases/db.ts` to see how the adapter probes the connection. Use `bun run check:mongodb` (if available) for isolated testing.
+1. Delete `config/private.ts` if corrupted or empty, then restart `bun run dev`
+2. Clear Vite cache:
+   ```bash
+   rm -rf node_modules/.vite
+   bun run dev
+   ```
+3. Verify `hooks.server.ts` isn't crashing before `handleSystemState`
 
 ---
 
-## 🔐 Authentication & Session Issues
+### Database connection failed
 
-### Goal: Resolve "Unauthorized" or "Session Expired"
+**Symptoms**: `Check your credentials` or `ECONNREFUSED`.
 
-**The Problem**: Getting logged out immediately or seeing `401 Unauthorized` on all API calls.
+**Fix**:
 
-**🛠️ The Solution:**
+| Database                 | Action                                                    |
+| ------------------------ | --------------------------------------------------------- |
+| **MongoDB**              | Verify cluster hostname, whitelist your IP in Atlas       |
+| **PostgreSQL / MariaDB** | Database must exist before running wizard                 |
+| **SQLite**               | Ensure the directory for `.db` file has write permissions |
 
-1.  **Clear Browser Storage**: Sessions are tied to cookies. Clear cookies for your domain and try again.
-2.  **Verify `JWT_SECRET`**: If you manually edited `config/private.ts` and changed the secret, all active sessions are invalidated.
-3.  **Check Node.js Time**: Ensure your server's system time is synchronized. Divergent times can cause JWT expiration errors.
-
----
-
-## 🧩 Widget & Collection Issues
-
-### Goal: Fix Missing Widgets in Dashboard
-
-**The Problem**: You added a widget to `src/widgets/core/`, but it doesn't appear in the Studio Dashboard.
-
-**🛠️ The Solution:**
-
-- Use the **"Sync Widgets"** button in the `System Settings` → `Widgets` panel.
-- **Mechanics**: The SveltyCMS scanner (`collectionScanner.ts`) runs on HMR, but the database registry needs a manual trigger to update for new custom widgets.
+> Mechanics: `src/databases/db.ts` probes the connection. Use `bun run check:mongodb` for isolated testing.
 
 ---
 
-## 📈 Performance & Memory
+### Windows `bun install` corruption
 
-### Goal: Fix "JavaScript heap out of memory"
+**Symptoms**: `bun install` v1.3.11+ on Windows may write null bytes into `package.json` files or leave directories empty. Results in `ParserError` for `@sveltejs/kit` or `esbuild`.
 
-**The Problem**: The build process fails on large media libraries or complex collections.
-
-**🛠️ The Solution:**
-Increase the Node.js memory limit:
+**Fix**: Use `npm install` instead.
 
 ```bash
-# Set limit to 4GB
+npm install    # Works reliably on Windows
+bun run dev    # Bun's runtime works fine after npm install
+```
+
+> This only affects the Bun **installer** on Windows. Bun's runtime and `bun run` commands work normally.
+
+---
+
+## 🔐 Authentication & Sessions
+
+### "Unauthorized" or session expired immediately
+
+**Symptoms**: Logged out immediately after login, 401 on all API calls.
+
+**Fix**:
+
+1. Clear browser cookies for your domain and retry
+2. If you manually edited `config/private.ts` and changed `JWT_SECRET_KEY`, all sessions are invalidated — log in again
+3. Ensure server system time is synchronized — divergent times cause JWT expiration
+
+### Account locked (HTTP 423)
+
+**Symptoms**: `Account locked` after multiple failed login attempts.
+
+**Fix**: Wait 15 minutes for automatic unlock. This is a security feature — 5 failed attempts trigger a temporary lockout.
+
+---
+
+## 🧩 Widgets & Collections
+
+### New widget doesn't appear in Dashboard
+
+**Fix**: Use the **"Sync Widgets"** button in ⚙️ Config → System Settings → Widgets. The scanner runs on HMR, but the database registry needs a manual trigger for new custom widgets.
+
+### Collection Builder field not saving
+
+**Fix**: Ensure `db_fieldName` values are unique within a collection — duplicate names are rejected. Check the browser console for validation errors.
+
+---
+
+## 📈 Performance
+
+### "JavaScript heap out of memory"
+
+**Symptoms**: Build fails on large media libraries or complex collections.
+
+**Fix**: Increase Node.js memory limit:
+
+```bash
 export NODE_OPTIONS="--max-old-space-size=4096"
 bun run build
 ```
+
+### Slow API responses in production
+
+**Fix**:
+
+1. Verify Redis is configured and running (check `config/private.ts`)
+2. Check `MEDIA_STORAGE_TYPE` — local storage is faster than cloud for small deployments
+3. Run benchmarks to identify bottlenecks:
+   ```bash
+   bun test tests/benchmarks/database-performance.test.ts
+   ```
 
 ---
 
 ## 🆘 Still Stuck?
 
-1.  **View logs**: Check the terminal output where `bun run dev` is running.
-2.  **Run Diagnostics**:
-    ```bash
-    bun run check
-    bun run test:unit
-    ```
-3.  **Ask the Community**: Join our **[Discord](https://discord.gg/VrvZF6e2sC)** or open a **[GitHub Discussion](https://github.com/SveltyCMS/SveltyCMS/discussions)**.
+1. **View logs**: Check the terminal where `bun run dev` runs
+2. **Run diagnostics**:
+   ```bash
+   bun run check
+   bun run test:unit
+   ```
+3. **Community**: [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions) · [Discord](https://discord.gg/VrvZF6e2sC)
 
 ---
 
-## 💻 Environment & OS-Specific Issues
+## Related
 
-### Goal: Fix Windows `bun install` Corruption
-
-**The Problem**: `bun install` version 1.3.11+ on Windows may result in corrupted `node_modules`. This is an upstream bug where the installer writes null bytes into `package.json` files and leaves package directories empty.
-
-**Symptoms**:
-
-- `bun install` fails with a `ParserError` for packages like `@sveltejs/kit` or `esbuild`.
-- After a seemingly successful install, `bun run dev` fails with `Error: Invalid package config`.
-- Checking `node_modules` shows many `package.json` files containing only null bytes or empty directories.
-
-**🛠️ The Solution**: Use `npm install` instead of `bun install`.
-
-```bash
-npm install    # Works reliably on Windows
-bun run dev    # bun's runtime/runner works fine once packages are installed
-```
-
-_Note: This only affects the Bun installer on Windows; Bun's runtime and other commands remain fully functional._
+- [Security Overview](./architecture/security/index.mdx)
+- [State Management Architecture](./architecture/state-management.mdx)
+- [Database Architecture](./architecture/database/index.mdx)
+- [Login Resilience & Recovery](./architecture/security/login-resilience.mdx)

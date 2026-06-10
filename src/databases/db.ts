@@ -351,7 +351,7 @@ export async function initializeWithConfig(config: any): Promise<any> {
   // older bootstrap adapter. Force a full reconnect against the freshly written config.
   clearConfigStateCache(false);
   const baseConfig = (await loadConfig(true).catch(() => null)) ?? {};
-  const nextConfig = { ...baseConfig, ...(config ?? {}) };
+  const nextConfig = { ...baseConfig, ...config };
 
   setPrivateEnv(nextConfig as any);
   setGlobal("__CACHED_CONFIG__", nextConfig);

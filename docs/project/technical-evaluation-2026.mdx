@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-06-07"
+updated: "2026-06-10"
 tags:
   - "evaluation"
   - "technical"
@@ -18,6 +18,9 @@ tags:
 # Technical Evaluation of SveltyCMS in the 2026 CMS Landscape
 
 **A Comparative Analysis of Architecture, Performance, and Enterprise Readiness**
+
+> [!NOTE]
+> **Methodology**: All SveltyCMS metrics are self-measured via reproducible benchmark suites (`bun test tests/benchmarks/`). Competitor data is derived from publicly available documentation, CVE databases (NVD, GitHub Advisory DB), and published architecture analyses as of June 2026. We encourage independent verification. This evaluation is prepared in accordance with EU Directive 2006/114/EC on comparative advertising — all comparisons are based on objectively verifiable features.
 
 ## 1. Introduction: The Post-Monolithic Era of Content Management
 
@@ -95,6 +98,15 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
     - **Cross-Origin Isolation Headers**: All API responses enforce `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin`, preventing Spectre/Meltdown side-channel attacks.
     - **Zero-Bias Token Generation**: `generateRandomToken` now uses rejection sampling to eliminate ~3.125% modulo bias, guaranteeing uniform CSPRNG distribution for session tokens and API keys.
     - **Setup Cookie Prefix Consistency**: Setup handler now uses consistent `__Host-` cookie prefix logic, closing the gap between runtime and initialization session cookie naming.
+  - **June 2026 Comprehensive Security Audit & Hardening**:
+    Full-stack codebase audit against dependency stack, security architecture docs, and CVE landscape. Closed 6 gaps:
+    - **SVG Polyglot Upload Sanitization**: Server-side `sanitizeSvg()` strips scripts, foreignObject, event handlers, `javascript:`/`data:` URIs, CDATA, XML PIs, and DOCTYPE from uploaded SVG files.
+    - **S3 Endpoint SSRF Prevention**: `validateS3Endpoint()` blocks private IPs (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16), cloud metadata hosts, and non-HTTP protocols before S3Client creation.
+    - **Ollama RAG Prompt Injection Defense**: Remote knowledge-base context relocated to `user` message role with `<rag_context>` XML delimiters and control-character stripping.
+    - **GraphQL Introspection Explicit Blocking**: `NoSchemaIntrospectionCustomRule` applied in production, preventing unauthenticated `__schema` enumeration.
+    - **Tiptap Link Protocol Hardening**: Protocol allowlist `["http", "https", "mailto", "tel"]` blocks `javascript:` and `data:` URI injection at editor level.
+    - **Rate Limiter Dependency Hygiene**: `sveltekit-rate-limiter` moved from `devDependencies` to `dependencies` to guarantee production build inclusion.
+      All 64 defense-in-depth security regression tests pass. 0 lint errors. 0 type errors.
   - **4-Layer Defense-in-Depth Authorization**:
     Most CMS platforms (Payload, Strapi, Directus) rely on a **perimeter security model**: authenticate at the gate, then assume internal trust. This creates dangerous gaps where an authenticated user with low privileges can exploit deeper vulnerabilities. SveltyCMS eliminates this assumption through **4-layer zero-trust re-validation**:
     - **Layer 1 — Middleware**: `__Host-` cookie prefix enforcement (RFC 6265bis), setup completion gating, CSRF protection.
@@ -378,7 +390,7 @@ To cement its position as the undisputed category leader against platforms like 
 
 ### 5.5 Native Soft Deletes (Trash System)
 
-- **The Gap:** Accidental deletions in enterprise CMS environments often lead to permanent data loss or manual database restoration. Standard soft-deletes often suffer from "Unique Index Collisions" when trying to re-use slugs of deleted items.
+- **The Gap:** Accidental deletions in enterprise CMS environments often lead to permanent data loss or manual database restoration. Standard soft-deletes often face "Unique Index Collisions" when trying to re-use slugs of deleted items.
 - **The Solution:** A native trash system with "Mangle-on-Delete" logic. Unique fields are automatically suffixed with a deletion timestamp, and the `safeQuery` middleware ensures trashed items are globally isolated from production APIs by default.
 - **Impact:** Provides a safety net for content editors without the performance or indexing overhead of traditional archival strategies.
 
@@ -459,3 +471,11 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)
 - [Database Performance](../../tests/benchmarks/database-performance.test.ts)
 - [Live Preview Architecture](../architecture/live-preview-architecture.mdx)
+
+---
+
+## Related
+
+- [Project Roadmap](./roadmap-2026.mdx)
+- [Performance Benchmarks](./benchmarks/index.mdx)
+- [Getting Started](../getting-started.mdx)

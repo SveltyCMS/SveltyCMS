@@ -20,7 +20,7 @@ import GDPRSettings from "@src/components/system/gdpr-settings.svelte";
 import { groupsNeedingConfig } from "@src/stores/config-store.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
-import StickyActions from "@components/ui/sticky-actions.svelte";
+	import PageTitle from '@components/page-title.svelte';
 import { onMount, untrack } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { fade } from "svelte/transition";
@@ -58,7 +58,13 @@ let isRepairing = $state(false);
 let repairResult = $state<{ success: boolean; message?: string; error?: string } | null>(null);
 
 // Derived selection from URL
-const selectedGroupId = $derived(page.url.searchParams.get("group"));
+	const selectedGroupId = $derived(page.url.searchParams.get("group"));
+
+	// Reset save button state when switching groups
+	$effect(() => {
+		void selectedGroupId; // track dependency for Svelte 5 reactivity
+		hasUnsavedChanges = false;
+	});
 
 // Track which groups need configuration
 const unconfiguredCount = $derived(groupsNeedingConfig.size);
@@ -160,72 +166,71 @@ $effect(() => {
 </script>
 
 <div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<div class="flex items-center justify-between" in:fade>
-		<div>
-			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:cog-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				Dynamic System Settings
-			</h1>
-			<p class="text-sm opacity-50 font-medium">Configure global system settings</p>
+	<!-- Header (sticky so save button stays visible while scrolling) -->
+		<div in:fade class="sticky top-0 z-10 -mx-6 -mt-6 px-6 pt-6 pb-4 bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-sm">
+			<PageTitle
+				name="System Settings"
+				icon="mdi:cog-outline"
+				description="Configure global system settings"
+				showBackButton={true}
+				backUrl="/config"
+			>
+				{#if selectedGroupId && selectedGroupId !== 'gdpr'}
+					<button
+						onclick={() => saveTrigger.fire()}
+						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+						disabled={saving || !hasUnsavedChanges}
+					>
+						{#if saving}
+							<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+							<span>Saving...</span>
+						{:else}
+							<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+							<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
+						{/if}
+					</button>
+				{/if}
+			</PageTitle>
 		</div>
-		<div class="flex items-center gap-2">
-			<a href="/config" class="btn preset-ghost-surface-500 btn-sm" data-sveltekit-preload-data="hover">
-				<iconify-icon icon="ri:arrow-left-line" width="18"></iconify-icon>
-				<span class="hidden sm:inline">Back</span>
-			</a>
-		</div>
-	</div>
 
 	<!-- Content -->
 	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
 		<!-- Action Buttons -->
-		<div class="mb-6 flex flex-wrap items-center gap-2">
-			{#if selectedGroupId && selectedGroupId !== 'gdpr'}
-				<StickyActions>
+			<div class="mb-6 flex flex-wrap items-center gap-2">
 				<button
-					onclick={() => saveTrigger.fire()}
-					class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex items-center gap-1.5 min-w-30"
-					disabled={saving || !hasUnsavedChanges}
+					disabled={isRepairing}
+					class="preset-tonal-warning w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+					onclick={async () => {
+						isRepairing = true;
+						repairResult = null;
+						try {
+							const { repairContentCache } = await import('./admin.remote');
+							const result = await repairContentCache();
+							if (result.success) {
+								repairResult = { success: true, message: result.message };
+								setTimeout(() => { repairResult = null; }, 5000);
+							} else {
+								repairResult = { success: false, error: result.error || 'Repair failed' };
+							}
+						} catch (e: unknown) {
+							repairResult = { success: false, error: e instanceof Error ? e.message || String(e) : 'Repair failed' };
+						} finally {
+							isRepairing = false;
+						}
+					}}
 				>
-					{#if saving}
-						<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
-						<span>Saving...</span>
-					{:else}
-						<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
-						<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
-					{/if}
+					<iconify-icon icon="mdi:wrench" width="18" class={isRepairing ? 'animate-spin' : ''}></iconify-icon>
+					<span>{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
 				</button>
-				</StickyActions>
-			{/if}
 
-			<button disabled={isRepairing} class="btn preset-filled-warning-500 w-full flex items-center justify-center gap-1.5" onclick={async () => {
-				isRepairing = true;
-				repairResult = null;
-				try {
-					const { repairContentCache } = await import('./admin.remote');
-					const result = await repairContentCache();
-					if (result.success) {
-						repairResult = { success: true, message: result.message };
-						setTimeout(() => { repairResult = null; }, 5000);
-					} else {
-						repairResult = { success: false, error: result.error || 'Repair failed' };
-					}
-				} catch (e: unknown) {
-					repairResult = { success: false, error: e instanceof Error ? e.message || String(e) : 'Repair failed' };
-				} finally {
-					isRepairing = false;
-				}
-			}}>
-				<span>{isRepairing ? '⏳' : '🛠️'}</span>
-				<span>{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
-			</button>
-
-			<button onclick={exportAll} class="btn preset-filled-surface-500 w-full sm:w-auto flex items-center justify-center gap-1.5">
-				<span>📤</span>
-				<span>Export All JSON</span>
-			</button>
-		</div>
+				<button
+					onclick={exportAll}
+					class="preset-tonal-surface w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+				>
+					<iconify-icon icon="mdi:export" width="18"></iconify-icon>
+					<span>Export All JSON</span>
+				</button>
+			</div>
 
 		<p class="text-surface-600 dark:text-surface-300 text-sm mb-6">
 			These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with
@@ -253,7 +258,7 @@ $effect(() => {
 					<a
 						href={`?group=${g.id}`}
 						data-sveltekit-preload-data="hover"
-						class="btn {selectedGroupId === g.id ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'} whitespace-nowrap snap-start flex items-center justify-center gap-2"
+						class="{selectedGroupId === g.id ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'} whitespace-nowrap snap-start flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
 					>
 						<span>{g.icon}</span>
 						<span>{g.name}</span>

@@ -27,7 +27,7 @@ SveltyCMS supports PostgreSQL as an alternative to MongoDB and MariaDB through t
 
 The PostgreSQL adapter follows a modular pattern, leveraging Drizzle ORM for schema-agnostic operations and raw SQL for initial schema setup.
 
-```mermaid
+````mermaid
 graph TD
     A[SveltyCMS Core] --> B(IDBAdapter Interface)
     B --> C{PostgreSQLAdapter}
@@ -36,11 +36,11 @@ graph TD
     D --> F[(PostgreSQL DB)]
     E --> F
     C --> G[Schema Definitions]
-```
+```text
 
 ### File Structure
 
-```
+```text
 src/databases/postgresql/
 ├── postgresAdapter.ts      # Entry point (re-exports adapter)
 ├── migrations.ts           # Automatic "CREATE TABLE IF NOT EXISTS" logic
@@ -50,7 +50,7 @@ src/databases/postgresql/
 │   └── adapterCore.ts     # Core functionality (connect, disconnect, health)
 └── schema/
     └── index.ts           # Drizzle ORM schema definitions
-```
+```text
 
 ## Schema Initialization (Migrations)
 
@@ -69,7 +69,7 @@ sequenceDiagram
     D-->>M: Tables Created/Verified
     M-->>A: { success: true }
     A-->>S: Ready
-```
+```text
 
 ## Connection Configuration
 
@@ -85,7 +85,7 @@ PostgreSQL connections are configured in `config/private.ts` or during the setup
     user: 'postgres',
     password: 'your_password'
 }
-```
+```text
 
 ## Drizzle Schema
 
@@ -147,11 +147,11 @@ public readonly crud = {
     }, 'CRUD_FIND_ONE_FAILED');
   }
 };
-```
+```text
 
 ## Performance Benchmarks
 
-The PostgreSQL adapter is optimized for relational efficiency and JSONB search performance. For detailed performance metrics and comparisons, please refer to the [Performance Benchmarks](/docs/project/benchmarks) document.
+The PostgreSQL adapter is optimized for relational efficiency and JSONB search performance. For detailed performance metrics and comparisons, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
 
 Key PostgreSQL highlights:
 
@@ -172,3 +172,12 @@ Key PostgreSQL highlights:
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)
 - [postgres.js GitHub](https://github.com/porsager/postgres)
 - [MariaDB Implementation](./mariadb-implementation.mdx)
+````
+
+---
+
+## Related
+
+- [Database Architecture](./index.mdx)
+- [Performance Benchmarks](../../project/benchmarks/index.mdx)
+- [Architecture Overview](../index.mdx)

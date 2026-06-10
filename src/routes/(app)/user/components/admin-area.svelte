@@ -980,8 +980,7 @@
 												-
 											{/if}
 										{:else}
-											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html getDisplayValue(row, header)}
+											{getDisplayValue(row, header)}
 										{/if}
 									</td>
 								{/each}

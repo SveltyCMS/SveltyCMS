@@ -8,6 +8,7 @@
 
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { Body, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
+	import Sanitize from '@src/utils/sanitize.svelte';
 	import { dev } from '$app/environment';
 
 	interface Props {
@@ -43,10 +44,9 @@
 			</Section>
 
 			<Section class="p-6">
-				<!-- Custom body injected here -->
+				<!-- Custom body — sanitized via DOMPurify for defense-in-depth -->
 				<div class="prose prose-slate max-w-none">
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html body}
+					<Sanitize html={body} profile="rich-text" />
 				</div>
 			</Section>
 

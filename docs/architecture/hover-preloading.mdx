@@ -32,10 +32,10 @@ For an **enterprise CMS**, hover preloading must balance:
 
 ### Core Parameters
 
-```typescript
+````typescript
 const PRELOAD_HOVER_DELAY = 600; // ms - Intent detection threshold
 const PRELOAD_CACHE_TTL = 30000; // ms - 30 second freshness window
-```
+```text
 
 ## How It Works
 
@@ -68,7 +68,7 @@ function handleRowHoverEnd() {
     clearTimeout(hoverPreloadTimeout);
   }
 }
-```
+```text
 
 ### 2. Deduplication
 
@@ -90,7 +90,7 @@ const cached = preloadedEntries.get(entryId);
 if (cached && Date.now() - cached.timestamp < PRELOAD_CACHE_TTL) {
   return; // Skip preload
 }
-```
+```text
 
 ### 3. Cache Integration
 
@@ -106,7 +106,7 @@ if (cached && Date.now() - cached.timestamp < PRELOAD_CACHE_TTL) {
 // From +page.server.ts
 const cacheKey = `collection:${collectionId}:...:edit:${entryId}:...`;
 const cachedData = await cacheService.get(cacheKey);
-```
+```text
 
 ### 4. Automatic Cleanup
 
@@ -127,7 +127,7 @@ $effect(() => {
 
   return () => clearInterval(cleanupInterval);
 });
-```
+```text
 
 ## Performance Characteristics
 
@@ -179,7 +179,7 @@ const PRELOAD_CACHE_TTL = 10000; // 10 seconds
 // Balanced (default - recommended)
 const PRELOAD_HOVER_DELAY = 600; // 600ms
 const PRELOAD_CACHE_TTL = 30000; // 30 seconds
-```
+```text
 
 ### User Connection Detection ✅
 
@@ -197,7 +197,7 @@ const isSlowConnection =
 if (isSlowConnection) {
   return; // Skip preload on slow connections
 }
-```
+```text
 
 ## Integration with Existing Systems
 
@@ -216,7 +216,7 @@ if (editEntryId) {
   // Skip language projection (need full multilingual data)
   // Cache with edit-specific key
 }
-```
+```text
 
 ### Client-Side Navigation (Standardized)
 
@@ -231,7 +231,7 @@ Recommended for table rows and entry lists:
 <a href={`?edit=${originalEntry._id}`} data-sveltekit-preload-data="hover" class="table-row">
 	<!-- Row content -->
 </a>
-```
+```text
 
 #### 2. Dashboard Widgets (Speculative)
 
@@ -244,7 +244,7 @@ For "At-a-glance" productivity, dashboard widgets use semantic links to prefetch
         <!-- Content preview -->
     </a>
 </li>
-```
+```text
 
 > [!IMPORTANT]
 > **Accessibility (A11y)**: When using anchors within a list, always wrap the `<a>` tag inside an `<li>` element. Avoid applying `role="listitem"` directly to the anchor, as it conflicts with its interactive nature.
@@ -261,7 +261,7 @@ Even complex builders like the **Collection Builder** utilize anchor preloading 
 >
     <iconify-icon icon="mdi:pencil"></iconify-icon>
 </a>
-```
+```text
 
 **Alternative**: Programmatic navigation (when needed for complex interactions):
 
@@ -270,7 +270,7 @@ Even complex builders like the **Collection Builder** utilize anchor preloading 
 const newUrl = new URL(page.url);
 newUrl.searchParams.set("edit", originalEntry._id);
 goto(newUrl, { keepFocus: true });
-```
+```text
 
 ## Monitoring & Debugging
 
@@ -280,7 +280,7 @@ Preload events are logged for debugging:
 
 ```javascript
 console.log(`[Preload] Entry ${entryId.substring(0, 8)} preloaded`);
-```
+```text
 
 ### Metrics to Track
 
@@ -381,3 +381,4 @@ console.log(`[Preload] Entry ${entryId.substring(0, 8)} preloaded`);
 - [SvelteKit Preloading](https://kit.svelte.dev/docs/link-options#data-sveltekit-preload-data)
 - [Web Vitals: INP](https://web.dev/inp/): Interaction to Next Paint
 - [Navigation Timing API](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_timing_API)
+````

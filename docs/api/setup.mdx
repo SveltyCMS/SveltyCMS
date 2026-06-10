@@ -48,7 +48,7 @@ Before persisting the configuration, the system validates the provided database 
 **Endpoint**: `POST /api/setup/test-db`
 **Payload**:
 
-```json
+````json
 {
   "type": "mongodb",
   "host": "localhost",
@@ -58,7 +58,7 @@ Before persisting the configuration, the system validates the provided database 
   "password": "...",
   "directConnection": true
 }
-```
+```text
 
 ### Schema Provisioning
 
@@ -89,7 +89,7 @@ sequenceDiagram
     API->>FS: writePrivateConfig()
     API->>DB: Build Collections & Roles
     API-->>User: 200 OK (Seeding Started)
-```
+```text
 
 ---
 
@@ -99,3 +99,4 @@ sequenceDiagram
 - [System Reference (system.ts)](./system.mdx)
 - [Authentication & Identity (auth.ts)](./auth.mdx)
 - [Server Hooks Architecture](../architecture/server-hooks.mdx)
+````

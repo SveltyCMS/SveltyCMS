@@ -18,7 +18,7 @@ SveltyCMS is standardizing on a **Black-Box Testing** strategy for integration a
 
 Some legacy tests still need migration. The CI contract, however, is already clear: integration and E2E suites should exercise the app through HTTP, browser automation, and production-like runtime boot paths rather than privileged in-process shortcuts.
 
-```mermaid
+````mermaid
 graph TD
     classDef testBed fill:#2c3e50,stroke:#34495e,stroke-width:2px,color:white;
     classDef internal fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:white;
@@ -38,7 +38,7 @@ graph TD
     GodMode -.-> DB
     Login -.->|Generates State & Cookie| DB
     App -.-> DB
-```
+```text
 
 ## Why Black-Box Testing?
 
@@ -71,7 +71,7 @@ Testing over HTTP allows us to measure real-world latency:
 
 To allow automated tests to manage state without internal imports, we expose a secure orchestration endpoint:
 
-**Endpoint**: `/api/testing`  
+**Endpoint**: `/api/testing`
 **Guard**: Strictly enabled ONLY when `TEST_MODE=true` environment variable is set.
 
 ### 🔒 Triple-Lock Security Guard
@@ -195,3 +195,12 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 > - ❌ Hardcoded credentials
 >
 > Tests authenticate like real users by calling `/api/auth/login` with seeded test credentials. The `/api/testing` endpoint is used only for state orchestration and is removed in production builds.
+````
+
+---
+
+## Related
+
+- [Test Documentation](./index.mdx)
+- [Security Testing](./security-testing.mdx)
+- [Architecture Overview](../architecture/index.mdx)

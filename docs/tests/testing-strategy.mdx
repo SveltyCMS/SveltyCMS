@@ -17,7 +17,7 @@ tags:
 
 SveltyCMS uses a **four-gate testing architecture** enforced by a Smart Test Orchestrator. Every changed file triggers exactly the tests that verify it. Unknown changes fail closed into the full core suite.
 
-```mermaid
+````mermaid
 graph TD
     classDef gate1 fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:white;
     classDef gate2 fill:#2980b9,stroke:#3498db,stroke-width:2px,color:white;
@@ -32,7 +32,7 @@ graph TD
     SmartOrch -->|"*.svelte"| Gate3[Gate 3: Doctor]:::gate3
     SmartOrch -->|"setup/*"| Gate4[Gate 4: E2E]:::gate4
     SmartOrch -->|"unknown"| FullCore[Full Core Suite<br>FAIL-CLOSED]:::runner
-```
+```text
 
 ## The Four Gates
 
@@ -49,12 +49,12 @@ graph TD
 
 All tests use a **single source of truth** for fixtures and contracts:
 
-```
+```text
 tests/harness/
   fixtures.ts    — Fixed tenants, users, roles, tokens (no Math.random()/Date.now())
   contracts.ts   — AdapterContract, AuthContract, PermissionContract, SetupGatingContract
   index.ts       — Barrel export
-```
+```text
 
 **Rule**: No test file invents its own tenant ID, user fixture, or mock data. Import from `@tests/harness`.
 
@@ -117,7 +117,7 @@ bun run test:smart              # reads git diff, runs only needed suites
 bun run test:smart --all        # runs everything
 bun run test:smart --list       # previews without executing
 bun run test:smart --suite=auth # filters by suite name
-```
+```text
 
 **Fail-Closed Policy**: If changed files don't match any rule → runs full core suite. Flaky = unstable core. No automatic retries.
 
@@ -155,3 +155,4 @@ bun run test:smart --suite=auth # filters by suite name
 - [API Testing](./api-testing.mdx)
 - [E2E Testing Guide](./e2e-testing-guide.mdx)
 - [Black-Box Testing Architecture](./black-box-testing.mdx)
+````

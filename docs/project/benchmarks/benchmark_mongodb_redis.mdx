@@ -1,4 +1,5 @@
 ---
+description: "Database performance benchmarks with trend analysis and competitive context."
 path: docs/project/benchmarks/benchmark_mongodb_redis.mdx
 title: MongoDB + Redis Performance Audit
 order: 12
@@ -12,7 +13,11 @@ tags:
   - mongodb_redis
 ---
 
+description: "Database performance benchmarks with trend analysis and competitive context."
+
 # 🚀 MongoDB+Redis Performance Ledger
+
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. All SveltyCMS metrics self-measured via `bun test tests/benchmarks/`.
 
 > [!IMPORTANT]
 > **Console-only by default.** Use `BENCHMARK_RECORD=1` to write results to this report.
@@ -49,13 +54,13 @@ tags:
 
 ### 📈 Historical Latency Trends
 
-```mermaid
+````mermaid
 xychart-beta
   title "MONGODB+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95 Latency" : [0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572]
-```
+```text
 
 ## 📈 Core Infrastructure Trends
 
@@ -117,7 +122,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cold Start (IDLE → READY)      │        0.068 ms │ p95:        0.163 ms │ RPS:          0 ║
-```
+```text
 
 <!-- COLD_START_TABLE_END -->
 
@@ -133,7 +138,7 @@ xychart-beta
 ║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,538,071 ║
 ║ Local SDK (Full)               │        0.004 ms │ p95:        0.008 ms │ RPS:    230,823 ║
 ║ HTTP End-to-End                │        0.498 ms │ p95:        0.572 ms │ RPS:      2,009 ║
-```
+```text
 
 <!-- TRUTH_AUDIT_TABLE_END -->
 
@@ -147,7 +152,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ State Transition (READY -> IDLE -> READY) │       34.858 ms │ p95:       53.164 ms │ RPS:         29 ║
-```
+```text
 
 <!-- STATE_MACHINE_TABLE_END -->
 
@@ -171,7 +176,7 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ TX Commit                      │        0.002 ms │ p95:        0.003 ms │ RPS:    507,400 ║
 ║ TX Rollback Integrity          │        0.880 ms │ p95:        2.244 ms │ RPS:      1,136 ║
-```
+```text
 
 <!-- ACID_TABLE_END -->
 
@@ -185,7 +190,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Timezone Ingestion             │        3.046 ms │ p95:        3.046 ms │ RPS:        328 ║
-```
+```text
 
 <!-- TEMPORAL_TABLE_END -->
 
@@ -200,7 +205,7 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Shallow Relational Query       │        3.986 ms │ p95:        5.868 ms │ RPS:        246 ║
 ║ Deep Relational Query          │        2.595 ms │ p95:        3.590 ms │ RPS:        370 ║
-```
+```text
 
 <!-- RELATIONAL_TABLE_END -->
 
@@ -226,7 +231,7 @@ xychart-beta
 ║ Collection Schema              │        4.431 ms │ p95:        8.242 ms │ RPS:        226 ║
 ║ Collection Find (List)         │        4.585 ms │ p95:        8.533 ms │ RPS:        218 ║
 ║ Collection Search              │        4.095 ms │ p95:        7.778 ms │ RPS:        244 ║
-```
+```text
 
 <!-- REST_TABLE_END -->
 
@@ -246,7 +251,7 @@ xychart-beta
 ║ GQL: 60c Stress                │       46.227 ms │ p95:       72.589 ms │ RPS:         22 ║
 ║ GQL: 80c Extreme               │       45.968 ms │ p95:       91.088 ms │ RPS:         21 ║
 ║ GQL: 100c Max                  │       68.463 ms │ p95:      123.153 ms │ RPS:         15 ║
-```
+```text
 
 <!-- GRAPHQL_TABLE_END -->
 
@@ -263,7 +268,7 @@ xychart-beta
 ║ Dynamic Sitemap XML            │        2.649 ms │ p95:        5.309 ms │ RPS:        377 ║
 ║ Robots.txt Generation          │        0.191 ms │ p95:        0.332 ms │ RPS:      5,238 ║
 ║ Missing Path (404 Log)         │        0.768 ms │ p95:        1.355 ms │ RPS:      1,302 ║
-```
+```text
 
 <!-- SEO_TABLE_END -->
 
@@ -294,7 +299,7 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ First Miss (DB)                │       14.879 ms │ p95:       14.879 ms │ RPS:         67 ║
 ║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    547,920 ║
-```
+```text
 
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
@@ -308,7 +313,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     17,409 ║
-```
+```text
 
 <!-- MEMORY_TABLE_END -->
 
@@ -323,7 +328,7 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Tenant Baseline         │        1.518 ms │ p95:        2.584 ms │ RPS:        659 ║
 ║ Multi-Tenant Context Switching │        1.456 ms │ p95:        2.464 ms │ RPS:        687 ║
-```
+```text
 
 <!-- TENANCY_TABLE_END -->
 
@@ -337,7 +342,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Mixed Workload                 │        1.787 ms │ p95:        3.612 ms │ RPS:        520 ║
-```
+```text
 
 <!-- MIXED_TABLE_END -->
 
@@ -360,7 +365,7 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Bulk Migration (10k)           │       39.165 ms │ p95:       80.146 ms │ RPS:         26 ║
 ║ Post-Migration Read            │        3.306 ms │ p95:        4.241 ms │ RPS:        302 ║
-```
+```text
 
 <!-- MIGRATION_TABLE_END -->
 
@@ -375,7 +380,7 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Sorted List (25k rows)         │        2.388 ms │ p95:        3.463 ms │ RPS:        419 ║
 ║ Filtered Query (25k rows)      │        0.980 ms │ p95:        1.536 ms │ RPS:      1,021 ║
-```
+```text
 
 <!-- INDEX_PRESSURE_TABLE_END -->
 
@@ -398,7 +403,7 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Upload (10MB)           │       23.477 ms │ p95:       29.532 ms │ RPS:         43 ║
 ║ Small Upload (1MB)             │        6.881 ms │ p95:       14.117 ms │ RPS:        145 ║
-```
+```text
 
 <!-- MEDIA_UPLOAD_TABLE_END -->
 
@@ -420,7 +425,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Concurrent PATCH Bomb          │        1.073 ms │ p95:        1.073 ms │ RPS:        932 ║
-```
+```text
 
 <!-- CONCURRENCY_TABLE_END -->
 
@@ -434,7 +439,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Local SDK                      │        0.306 ms │ p95:        0.306 ms │ RPS:      3,273 ║
-```
+```text
 
 <!-- THROUGHPUT_TABLE_END -->
 
@@ -462,7 +467,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Circuit Breaker Fallback       │        0.906 ms │ p95:        2.853 ms │ RPS:      1,104 ║
-```
+```text
 
 <!-- CIRCUIT_BREAKER_TABLE_END -->
 
@@ -476,7 +481,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Throttling Enforcement         │        2.970 ms │ p95:       13.072 ms │ RPS:        337 ║
-```
+```text
 
 <!-- THROTTLING_TABLE_END -->
 
@@ -490,7 +495,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Deep Deletion Speed            │        2.262 ms │ p95:        4.430 ms │ RPS:        442 ║
-```
+```text
 
 <!-- GDPR_TABLE_END -->
 
@@ -511,6 +516,7 @@ xychart-beta
 <!-- PROD_DAY_TABLE_END -->
 
 ---
+description: "Database performance benchmarks with trend analysis and competitive context."
 
 ## 🔬 Host Environment
 
@@ -521,6 +527,7 @@ xychart-beta
 <!-- BENCHMARK_END -->
 
 ---
+description: "Database performance benchmarks with trend analysis and competitive context."
 
 ## 🔬 Detailed Performance Ledger — 48 tests across 9 dimensions
 
@@ -1136,29 +1143,30 @@ xychart-beta
 
 ```bash
 bun test tests/benchmarks/api-latency.test.ts
-```
+```text
 
 **Single test (record to this report):**
 
 ```bash
 BENCHMARK_RECORD=1 bun test tests/benchmarks/api-latency.test.ts
-```
+```text
 
 **Full SQLite matrix:**
 
 ```bash
 bun run scripts/benchmark-matrix/index.ts --sql
-```
+```text
 
 **History-only (no MDX mutation, useful in CI):**
 
 ```bash
 BENCHMARK_RECORD=1 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
-```
+```text
 
 Each recorded run updates its section immediately with a truth table, trend label, and root cause insight. The label shows change vs a rolling median baseline.
 
 ---
+description: "Database performance benchmarks with trend analysis and competitive context."
 
 ## 🖥️ Host Environment
 
@@ -1175,3 +1183,11 @@ Each recorded run updates its section immediately with a truth table, trend labe
 - **Test metadata**: `tests/benchmarks/benchmark-meta.ts`
 - **Per-DB budgets**: `tests/benchmarks/benchmark-mdx.ts` → `PER_DIMENSION_BUDGETS`
 - **Report template**: This file — updated on each `BENCHMARK_RECORD=1` run
+````
+
+---
+
+## Related
+
+- [All Benchmarks](./index.mdx)
+- [Competitive Comparison](../../competitive-comparison.mdx)

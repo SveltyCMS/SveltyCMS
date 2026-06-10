@@ -737,7 +737,7 @@ onMount(() => {
 
 	<!-- Loading State -->
 	{#if loading}
-		<div class="card preset-tonal -surface-500 rounded-xl p-6 text-center">
+		<div class="card preset-tonal-surface-500 rounded-xl p-6 text-center">
 			<p>Loading settings...</p>
 		</div>
 	{:else}
@@ -826,7 +826,7 @@ onMount(() => {
 											{const languages = values[availableLangsField.key] as string[]}
 											{#each languages as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !availableLangsField.readonly}
@@ -846,9 +846,9 @@ onMount(() => {
 										{/if}
 
 										{#if !availableLangsField.readonly}
-											<button>
+											<button
 												type="button"
-												class="preset-filled-surface-500 badge absolute inset-e-2 top-2 rounded-full"
+												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[availableLangsField.key] = true;
 													languageSearch[availableLangsField.key] = '';
@@ -885,9 +885,9 @@ onMount(() => {
 																.toLowerCase()
 																.includes(search) || lang.code.toLowerCase().includes(search));
 												}) as lang (lang.code)}
-													<button>
+													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(availableLangsField.key, lang.code);
 															showLanguagePicker[availableLangsField.key] = false;
@@ -978,7 +978,7 @@ onMount(() => {
 											{const locales = values[localesField.key] as string[]}
 											{#each locales as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !localesField.readonly}
@@ -1006,9 +1006,9 @@ onMount(() => {
 										{/if}
 
 										{#if !localesField.readonly && allowedLocales.filter((code) => !((values[localesField.key] as string[]) || []).includes(code)).length > 0}
-											<button>
+											<button
 												type="button"
-												class="preset-filled-surface-500 badge absolute inset-e-2 top-2 rounded-full"
+												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[localesField.key] = true;
 													languageSearch[localesField.key] = '';
@@ -1044,9 +1044,9 @@ onMount(() => {
 													const langName = displayLanguage(code).toLowerCase();
 													return !currentValues.includes(code) && (search === '' || langName.includes(search) || code.toLowerCase().includes(search));
 												}) as code (code)}
-													<button>
+													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(localesField.key, code);
 															showLanguagePicker[localesField.key] = false;
@@ -1235,7 +1235,7 @@ onMount(() => {
 											{const languages = values[field.key] as string[]}
 											{#each languages as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !field.readonly}
@@ -1255,9 +1255,9 @@ onMount(() => {
 										{/if}
 
 										{#if !field.readonly}
-											<button>
+											<button
 												type="button"
-												class="preset-filled-surface-500 badge absolute inset-e-2 top-2 rounded-full"
+												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[field.key] = true;
 													languageSearch[field.key] = '';
@@ -1294,9 +1294,9 @@ onMount(() => {
 																.toLowerCase()
 																.includes(search) || lang.code.toLowerCase().includes(search));
 												}) as lang (lang.code)}
-													<button>
+													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(field.key, lang.code);
 															showLanguagePicker[field.key] = false;
@@ -1327,7 +1327,7 @@ onMount(() => {
 											{const levels = values[field.key] as LogLevel[]}
 											{#each levels as level (level)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
 												>
 													<span class="text-sm font-medium">{level}</span>
 													{#if !field.readonly}
@@ -1347,9 +1347,9 @@ onMount(() => {
 										{/if}
 
 										{#if !field.readonly}
-											<button>
+											<button
 												type="button"
-												class="preset-filled-surface-500 badge absolute inset-e-2 top-2 rounded-full"
+												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => (showLogLevelPicker[field.key] = true)}
 												aria-haspopup="dialog"
 												aria-expanded={showLogLevelPicker[field.key]}
@@ -1374,9 +1374,9 @@ onMount(() => {
 												{#each LOG_LEVELS as level (level)}
 													{const currentValues = (values[field.key] as LogLevel[]) || []}
 													{#if !currentValues.includes(level)}
-														<button>
+														<button
 															type="button"
-															class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs capitalize hover:bg-tertiary-500 dark:bg-primary-500/10"
+															class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs capitalize hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 															onclick={() => {
 																toggleLogLevel(field.key, level);
 																showLogLevelPicker[field.key] = false;
@@ -1406,29 +1406,45 @@ onMount(() => {
 			{/if}
 
 			<!-- Local Group Actions -->
-			<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
-				<div class="flex flex-wrap items-center justify-start gap-3">
-					<button
-						type="button"
-						class="btn preset-tonal-error flex items-center gap-1.5"
-						onclick={resetToDefaults}
-						disabled={saving}
-					>
-						<span>🔄</span>
-						<span>Reset to Defaults</span>
-					</button>
+				<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<div class="flex flex-wrap items-center gap-2">
+							<button
+								type="button"
+								class="preset-tonal-error inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+								onclick={resetToDefaults}
+								disabled={saving}
+							>
+								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
+								<span>Reset to Defaults</span>
+							</button>
 
-					<button
-						type="button"
-						class="btn preset-tonal-surface flex items-center gap-1.5"
-						onclick={exportGroup}
-						disabled={loading}
-					>
-						<span>📤</span>
-						<span>Export Group JSON</span>
-					</button>
+							<button
+								type="button"
+								class="preset-tonal-surface inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+								onclick={exportGroup}
+								disabled={loading}
+							>
+								<iconify-icon icon="mdi:export" width="16"></iconify-icon>
+								<span>Export Group JSON</span>
+							</button>
+						</div>
+
+						<button
+							type="submit"
+							class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
+						>
+							{#if saving}
+								<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+								<span>Saving...</span>
+							{:else}
+								<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+								<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
+							{/if}
+						</button>
+					</div>
 				</div>
-			</div>
 		</form>
 	{/if}
 </div>

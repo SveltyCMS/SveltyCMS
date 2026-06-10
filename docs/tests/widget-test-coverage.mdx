@@ -68,7 +68,7 @@ Inspired by the **Drupal Module Pattern**, custom widgets are now self-contained
 
 We test widgets without mounting Svelte components to keep the CI pipeline extremely fast. We validate the `validationSchema` returned by the `createWidget` factory.
 
-```typescript
+````typescript
 import { safeParse } from "valibot";
 import EmailWidget from "@widgets/core/email";
 
@@ -79,7 +79,7 @@ test("Email Widget Validation", () => {
   expect(safeParse(schema, "test@example.com").success).toBe(true);
   expect(safeParse(schema, "invalid-email").success).toBe(false);
 });
-```
+```text
 
 ### Multilingual Support
 
@@ -97,19 +97,19 @@ Verified via unit tests ensuring that `filters` and `sorts` return valid MongoDB
 
 ```bash
 bun run test:unit
-```
+```text
 
 ### Run Specific Core Test
 
 ```bash
 bun test tests/unit/widgets/core/input.test.ts
-```
+```text
 
 ### Run Portable Custom Test
 
 ```bash
 bun test src/widgets/custom/address/tests/address.test.ts
-```
+```text
 
 ---
 
@@ -119,3 +119,12 @@ bun test src/widgets/custom/address/tests/address.test.ts
 - ✅ **Schema Validation**: 100%
 - ✅ **Portable Pattern**: Fully Implemented
 - ✅ **Bun Runner Stability**: Verified
+````
+
+---
+
+## Related
+
+- [Test Documentation](./index.mdx)
+- [Security Testing](./security-testing.mdx)
+- [Architecture Overview](../architecture/index.mdx)

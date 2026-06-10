@@ -40,7 +40,7 @@ SveltyCMS uses **SvelteKit Remote Functions** (`.server.ts` files) for type-safe
 
 ### File Structure
 
-```
+````text
 src/routes/
 ├── login/
 │   ├── +page.server.ts     ← load, OAuth redirects, 2FA, resetSetup
@@ -51,7 +51,7 @@ src/routes/
 └── (app)/user/
     ├── +page.server.ts     ← load
     └── user.server.ts      ← uploadAvatar, updateUserProfile, createToken, exportUserData, anonymizeAccount
-```
+```text
 
 ### Enterprise Gains (Measured)
 
@@ -125,14 +125,15 @@ All REST endpoints follow a unified response shape:
 
 ```json
 { "success": true, "data": { ... } }
-```
+```text
 
 ### Error (4xx / 5xx)
 
 ```json
 { "success": false, "error": "UNAUTHORIZED", "message": "Invalid Bearer token." }
-```
+```text
 
 ---
 
 **Next Steps**: Start with the [Collections Reference](./collections.mdx) for data fetching. For real-time updates, see [Content & Search](./content.mdx). For type-safe client-server calls, use [Remote Functions](#remote-functions).
+````

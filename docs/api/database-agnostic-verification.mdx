@@ -49,13 +49,13 @@ Ensure that the SveltyCMS API remains 100% portable across all supported databas
 
 ### The Adapter Pattern
 
-```mermaid
+````mermaid
 graph TD
     A[API / SDK Call] --> B{DB Adapter}
     B -->|SQL Dialect| C[(PostgreSQL / MySQL)]
     B -->|BSON / JSON| D[(MongoDB)]
     B -->|Native Driver| E[(SQLite / Bun)]
-```
+```text
 
 ### Implementation Checklist
 
@@ -69,3 +69,4 @@ Every API endpoint is verified against these four non-negotiable rules:
 ---
 
 **Next Steps**: Review the [Database Methods Architecture](../architecture/database/index.mdx) for instructions on building custom adapters.
+````

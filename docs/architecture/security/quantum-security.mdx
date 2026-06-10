@@ -105,7 +105,7 @@ It's crucial to understand that **classical** and **quantum** algorithms operate
 
 **Why Memory-Hard Algorithms Resist Quantum Attacks:**
 
-```
+````text
 Classical Computer:
 - Fast computation: ⚡⚡⚡⚡⚡
 - Limited by memory: 🐌
@@ -114,7 +114,7 @@ Quantum Computer:
 - Even faster computation: ⚡⚡⚡⚡⚡⚡⚡
 - STILL limited by memory: 🐌
 - No quantum advantage for memory access!
-```
+```text
 
 **Technical Explanation:**
 
@@ -148,7 +148,7 @@ Open-source code reveals every env var and header name. SveltyCMS counters this 
 
 ### Security Timeline
 
-```
+```text
 Year 2025 (Now):           ████████████████████████████████ 100% Secure
 Year 2030 (+5 years):      ███████████████████████████████▓ 98% Secure
 Year 2035 (+10 years):     ██████████████████████████████░░ 95% Secure
@@ -159,7 +159,7 @@ Year 2055 (+30 years):     ████████████████░�
 
 * Assumes large-scale quantum computers are available
 * Migration to post-quantum cryptography recommended before this point
-```
+```text
 
 ### Quantum Computer Development Status (2026)
 
@@ -211,11 +211,11 @@ The U.S. National Institute of Standards and Technology (NIST) has finalized the
 
 **Security Levels:**
 
-```
+```text
 Kyber-512:  ~AES-128 security (quantum)
 Kyber-768:  ~AES-192 security (quantum)
 Kyber-1024: ~AES-256 security (quantum)
-```
+```text
 
 **Implementation Status:**
 
@@ -244,11 +244,11 @@ Kyber-1024: ~AES-256 security (quantum)
 
 **Security Levels:**
 
-```
+```text
 Dilithium-2: ~AES-128 security (quantum)
 Dilithium-3: ~AES-192 security (quantum)
 Dilithium-5: ~AES-256 security (quantum)
-```
+```text
 
 #### 3. SLH-DSA (formerly SPHINCS+)
 
@@ -293,7 +293,7 @@ export const cryptoConfig = {
   keyDerivation: "argon2id",
   checksums: "sha256",
 };
-```
+```text
 
 ### Phase 2: Hybrid Transition (2028-2035)
 
@@ -340,7 +340,7 @@ async function hybridDecrypt(encrypted: HybridCiphertext, password: string, secr
   // Verify both methods agree (defense in depth)
   return classicalData;
 }
-```
+```text
 
 **Benefits:**
 
@@ -370,7 +370,7 @@ export const cryptoConfig = {
   keyDerivation: "argon2id", // Still optimal
   fallback: "aes-256-gcm", // For legacy support
 };
-```
+```text
 
 ### Phase 4: PQC-Only (2045+)
 
@@ -399,7 +399,7 @@ const hashedPassword = await hashPassword("userPassword123!");
 
 // ❌ BAD: Weak hashing
 const weakHash = crypto.createHash("md5").update(password).digest("hex");
-```
+```text
 
 #### 2. Implement Key Rotation
 
@@ -421,7 +421,7 @@ async function rotateEncryptionKeys() {
   setCurrentKey(newKey);
   archiveKey(oldKey); // Keep for recovery
 }
-```
+```text
 
 #### 3. Plan for Long-Term Data
 
@@ -448,7 +448,7 @@ async function encryptForLongTerm(data: object, password: string): Promise<LongT
     postQuantumReady: true,
   };
 }
-```
+```text
 
 ### For System Administrators
 
@@ -468,7 +468,7 @@ async function encryptForLongTerm(data: object, password: string): Promise<LongT
 
 #### 2. Implement Defense in Depth
 
-```
+```text
 Layer 1: Strong Password Policies
          └─> Argon2id hashing
 
@@ -486,7 +486,7 @@ Layer 5: Access Controls
 
 Layer 6: Monitoring & Auditing
          └─> Security Event Logging
-```
+```text
 
 #### 3. Hardware Security Modules (HSM)
 
@@ -665,9 +665,9 @@ For high-security deployments, consider HSM with PQC support:
 
 SveltyCMS's cryptographic implementation is well-positioned for the quantum computing era:
 
-✅ **Currently secure** with Argon2id and AES-256-GCM  
-✅ **Quantum-resistant** for next 15-30 years  
-✅ **Clear migration path** to post-quantum cryptography  
+✅ **Currently secure** with Argon2id and AES-256-GCM
+✅ **Quantum-resistant** for next 15-30 years
+✅ **Clear migration path** to post-quantum cryptography
 ✅ **Active monitoring** of quantum computing developments
 
 **Key Recommendations:**
@@ -680,3 +680,12 @@ SveltyCMS's cryptographic implementation is well-positioned for the quantum comp
 **Remember**: Security is a journey, not a destination. Regular updates, monitoring, and adaptation are essential for long-term cryptographic security.
 
 ---
+````
+
+---
+
+## Related
+
+- [Security Overview](./index.mdx)
+- [API Security & Token Hardening](../api-security.mdx)
+- [Architecture Overview](../index.mdx)

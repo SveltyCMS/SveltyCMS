@@ -26,7 +26,7 @@ SveltyCMS implements a **dual-layer caching system** combining **Redis** (L1: in
 
 ### Dual-Layer Strategy
 
-```mermaid
+````mermaid
 graph TD
     subgraph Browser["🖥️ Client"]
         A["Application Request"]
@@ -56,7 +56,7 @@ graph TD
     D --> C
     C --> B
     B --> A
-```
+```text
 
 ### Cache Hierarchy
 
@@ -104,7 +104,7 @@ export enum CacheCategory {
 
 // Example usage
 await cacheService.setWithCategory("user:123", userData, CacheCategory.USER, tenantId);
-```
+```text
 
 ### Performance Hardening (Audit)
 
@@ -149,7 +149,7 @@ await cacheService.set("key", data, 3600);
 
 // Pattern invalidation
 await cacheService.deletePattern("query:collections:*");
-```
+```text
 
 ### Content Structure Cache (`cms:content_structure`)
 
@@ -189,6 +189,7 @@ Typical production metrics (Steady State):
 - [Database Methods](./database/database-methods.mdx) - Low-level DB interactions
 - [Multi-Tenancy](./multi-tenancy.mdx) - Tenant isolation in cache keys
 
-```
+```text
 
-```
+```text
+````

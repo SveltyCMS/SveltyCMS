@@ -50,7 +50,7 @@ Complete test coverage for all user-related API endpoints in SveltyCMS, now secu
 
 ### Run Commands
 
-```bash
+````bash
 # Run all user API tests
 bun run test:unit -- user
 
@@ -60,7 +60,7 @@ bun run test:unit -- security
 
 # Run with coverage
 bun run test:unit -- user --coverage
-```
+```text
 
 ### Expected Results
 
@@ -102,7 +102,7 @@ function createMockEvent(pathname: string, method: string = "GET"): RequestEvent
     },
   } as unknown as RequestEvent;
 }
-```
+```text
 
 ---
 
@@ -115,3 +115,4 @@ function createMockEvent(pathname: string, method: string = "GET"): RequestEvent
   overage in related endpoints
 
 4. Contribute improvements via pull requests
+````

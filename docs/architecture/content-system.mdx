@@ -90,7 +90,7 @@ In production: Server-Sent Events push updates to connected clients, replacing p
 
 ## 🔄 Data Flow & Lifecycle
 
-```mermaid
+````mermaid
 graph TD
     subgraph Filesystem
         SC[config/collections/*.ts]
@@ -114,7 +114,7 @@ graph TD
     RS -->|Broadcast (eventBus + Redis)| SSE
     SSE -->|Push update| CS
     CS -->|Reactive update| UI
-```
+```text
 
 ---
 
@@ -175,7 +175,7 @@ registerContentPlugin({
     // Track content tree changes — audit logging
   },
 });
-```
+```text
 
 **Features**:
 
@@ -211,7 +211,7 @@ done();
 
 const stats = getTraceStats();
 // → { "scanCompiledCollections": { avg: 0.004, p95: 0.006, count: 150 } }
-```
+```text
 
 Internal traces track `scanCompiledCollections`, `reconcile`, and `loadSchemaNative` — keeping the last 100 samples per label.
 
@@ -231,3 +231,4 @@ Internal traces track `scanCompiledCollections`, `reconcile`, and `loadSchemaNat
 - [Server Hooks](./server-hooks.mdx)
 - [State Management & Readiness](./state-management.mdx)
 - [Cache System](./cache-system.mdx)
+````

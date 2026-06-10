@@ -24,7 +24,7 @@ Both access patterns are derived from a single, **unified OpenAPI 3.1.0 contract
 
 **Recommendation**: In all server-side code (`+page.server.ts`, actions, hooks, etc.), **prefer the Local SDK** unless you have a specific reason to test the full HTTP stack.
 
-```mermaid
+````mermaid
 graph TB
     subgraph Client["Client Tier (Slowest)"]
         CB[Browser / App]
@@ -76,7 +76,7 @@ graph TB
     style SDK fill:#4ade80,stroke:#166534,stroke-width:2px,color:#000
     style Logic fill:#fef08a,stroke:#854d0e,stroke-width:2px,color:#000
     style Network fill:#fecaca,stroke:#991b1b,stroke-dasharray: 5 5,color:#000
-```
+```text
 
 ---
 
@@ -129,7 +129,7 @@ await locals.cms.graphql("{ posts { title } }");
 await locals.cms.transaction(async (tx) => {
   /* ... */
 });
-```
+```text
 
 ---
 
@@ -148,14 +148,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   return { posts };
 };
-```
+```text
 
 ## Example: Bulk Creation
 
 ```typescript
 // Create 1000 items in a single high-performance database call
 const result = await locals.cms.bulkCreate("products", largeDataArray);
-```
+```text
 
 ## Example: Database Transactions
 
@@ -165,7 +165,7 @@ await locals.cms.transaction(async (tx) => {
   await tx.collections.update("orders", orderId, { status: "paid" });
   await tx.collections.create("audit_log", { event: "payment_received" });
 });
-```
+```text
 
 ---
 
@@ -199,3 +199,11 @@ await locals.cms.transaction(async (tx) => {
 2. **Avoid `fetch('/api/cms/...')`** inside server code — it adds unnecessary latency and stack depth.
 3. **Use `locals.cms`** (injected via hooks) for clean, typed access throughout your app.
 4. **Leverage `event.fetch`** only when you specifically need the full HTTP context of an internal route.
+````
+
+---
+
+## Related
+
+- [API Reference](./index.mdx)
+- [Getting Started](../getting-started.mdx)

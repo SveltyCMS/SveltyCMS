@@ -57,13 +57,13 @@ The specification is not static. Whenever you create a new collection in the **C
 
 For collections with **translated fields**, the specification accurately describes the multilingual object structure, enabling seamless integration with frontend translation libraries:
 
-```json
+````json
 "title": {
   "type": "object",
   "additionalProperties": { "type": "string" },
   "description": "Title (Multilingual)"
 }
-```
+```text
 
 ### 🛡️ Security Definitions
 
@@ -87,7 +87,7 @@ npx @openapitools/openapi-generator-cli generate \
   -i https://your-cms.com/api/openapi.json \
   -g typescript-axios \
   -o ./src/generated-sdk
-```
+```text
 
 ### B. Interactive Documentation
 
@@ -115,3 +115,4 @@ The `ApiSpecService` introspects your system at runtime:
 - [📚 **Collections Reference**](./collections.mdx)
 - [🔐 **API Access Tokens**](./tokens.mdx)
 - [⚡ **Local SDK vs HTTP API**](./local-vs-http-api.mdx)
+````

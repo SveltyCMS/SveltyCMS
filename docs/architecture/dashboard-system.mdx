@@ -30,7 +30,7 @@ The dashboard is built on a flexible, grid-based widget system that allows admin
 
 ### Core Architecture
 
-```mermaid
+````mermaid
 %%{ init: { 'theme': 'neutral' } }%%
 graph TD
     subgraph "🖥️ Dashboard Frontend"
@@ -74,7 +74,7 @@ graph TD
     H --> M
     H --> N
     H --> O
-```
+```text
 
 ---
 
@@ -115,7 +115,7 @@ async function loadWidgetRegistry() {
 
   return registry;
 }
-```
+```text
 
 ### Widget Metadata Schema
 
@@ -129,7 +129,7 @@ export const widgetMeta = {
   defaultSize: { w: 2, h: 2 }, // Grid units
   category: "monitoring" | "logs" | "content" | "static",
 };
-```
+```text
 
 ---
 
@@ -308,7 +308,7 @@ function handleDrop(event) {
   // Update widget positions in system-preferences
   // Persist new layout configuration
 }
-```
+```text
 
 ### Widget Sizing
 
@@ -356,7 +356,7 @@ async function loadWidgetData() {
     isLoading = false;
   }
 }
-```
+```text
 
 ### Performance Optimizations
 
@@ -396,7 +396,7 @@ function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
   observer.observe(element);
   return { destroy: () => observer.disconnect() };
 }
-```
+```text
 
 **Benefits of Direct Integration:**
 
@@ -447,7 +447,7 @@ export const WIDGET_DEFAULTS = {
     retryDelay: 1000,
   },
 };
-```
+```text
 
 ---
 
@@ -471,7 +471,7 @@ if (isAdmin && !showPersonalOnly) {
   // All system events
   const events = await queryAuditLogs({ limit: 10 });
 }
-```
+```text
 
 #### **Regular User View**
 
@@ -481,7 +481,7 @@ const personalEvents = await queryAuditLogs({
   actorId: currentUser.id,
   limit: 10,
 });
-```
+```text
 
 ### Security Event Categories
 
@@ -503,7 +503,7 @@ if (suspiciousEvents.length > 0) {
   // Highlight critical events in timeline
   // Trigger browser notifications (if permitted)
 }
-```
+```text
 
 ### Integration Points
 
@@ -534,7 +534,7 @@ if (!session?.user) {
 // Tenant-scoped queries
 const tenantId = getTenantFromUrl(url);
 const data = await db.query({ tenantId });
-```
+```text
 
 ### Endpoint Reference
 
@@ -556,7 +556,7 @@ Public health check endpoint for load balancers and monitoring systems.
 		"cache": { "status": "healthy" }
 	}
 }
-```
+```text
 
 **Status Codes**:
 
@@ -591,7 +591,7 @@ Performance metrics from the MetricsService.
     "uptime": 3600000
   }
 }
-```
+```text
 
 **Use Case**: performance-widget, unified-metrics-widget
 
@@ -641,7 +641,7 @@ Comprehensive system information: CPU, memory, disk, network, OS, processes.
     ]
   }
 }
-```
+```text
 
 **Use Case**: cpu-widget, memory-widget, disk-widget, system-health-widget
 
@@ -685,7 +685,7 @@ System logs with ANSI color conversion to HTML.
   "page": 1,
   "totalPages": 31
 }
-```
+```text
 
 **Use Case**: logs-widget
 
@@ -721,7 +721,7 @@ Recent content from all collections.
     "status": "published"
   }
 ]
-```
+```text
 
 **Use Case**: last5-content-widget
 
@@ -751,7 +751,7 @@ Recent media files from the media library.
     "url": "/media/hero-image.jpg"
   }
 ]
-```
+```text
 
 **Use Case**: last5-media-widget
 
@@ -784,7 +784,7 @@ Currently online users with session duration.
     }
   ]
 }
-```
+```text
 
 **Use Case**: user-online-widget
 
@@ -820,7 +820,7 @@ System messages from log files.
     "type": "system"
   }
 ]
-```
+```text
 
 **Use Case**: system-messages-widget
 
@@ -859,7 +859,7 @@ Cache performance metrics from CacheMetrics service.
   "recentMisses": [{ "key": "content:post-123", "timestamp": "2025-01-20T10:30:00Z" }],
   "timestamp": "2025-01-20T10:30:15Z"
 }
-```
+```text
 
 **Use Case**: cache-monitor-widget
 
@@ -889,7 +889,7 @@ Dashboard APIs have comprehensive integration test coverage (48 tests):
 # Requires running development server
 npm run dev  # In terminal 1
 bun test tests/bun/api/dashboard.test.ts  # In terminal 2
-```
+```text
 
 **Authentication in Tests**:
 
@@ -903,7 +903,7 @@ beforeAll(async () => {
   const cookies = loginRes.headers.get("set-cookie");
   authCookie = cookies?.split(";")[0] || "";
 });
-```
+```text
 
 ---
 
@@ -938,7 +938,7 @@ beforeAll(async () => {
     <!-- Widget content -->
   {/snippet}
 </base-widget>
-```
+```text
 
 ### Configuration Persistence
 
@@ -957,7 +957,7 @@ system-preferences: {
 		}
 	];
 }
-```
+```text
 
 ---
 
@@ -1000,7 +1000,7 @@ $effect(() => {
     updateWidgetData(event);
   });
 });
-```
+```text
 
 ## CDN Cache Purging
 
@@ -1014,7 +1014,7 @@ await cdnService.purge({ tags: ["collection:posts", "entry:abc123"] });
 
 // Purge entire zone (use sparingly)
 await cdnService.purge({ everything: true });
-```
+```text
 
 The service reads credentials from `config/private.ts` (`CF_API_TOKEN`, `CF_ZONE_ID`, `CF_PURGE_MODE`) and operates non-blocking — purge calls fire in the background without delaying the API response.
 
@@ -1039,7 +1039,7 @@ securityMonitor.configureWebhook({
 // Check monitoring status for dashboard widget
 const status = securityMonitor.getStatus();
 // { isMonitoring, alertCount, unacknowledgedCount, activeRules, eventCounts }
-```
+```text
 
 Five anomaly detection rules run automatically: brute force detection, unusual access patterns, permission escalation attempts, rapid session creation, and token abuse detection. Each rule has configurable thresholds and cooldown periods to prevent alert fatigue.
 
@@ -1057,3 +1057,12 @@ Five anomaly detection rules run automatically: brute force detection, unusual a
 The SveltyCMS dashboard system provides a powerful, flexible foundation for monitoring and managing all aspects of the CMS platform. With the addition of comprehensive audit logging capabilities, administrators and users have unprecedented visibility into system operations, security events, and content management activities.
 
 The modular widget architecture ensures the dashboard can evolve with changing requirements while maintaining optimal performance and user experience across all device types and user roles.
+````
+
+---
+
+## Related
+
+- [Architecture Overview](./index.mdx)
+- [Security Overview](./security/index.mdx)
+- [State Management](./state-management.mdx)

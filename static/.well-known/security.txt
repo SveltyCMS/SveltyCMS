@@ -1,25 +1,22 @@
 # SveltyCMS Security Policy
-# https://securitytxt.org/
+# https://sveltycms.com/.well-known/security.txt
+# RFC 9116 — Security.txt
 
 Contact: mailto:security@sveltycms.com
 Contact: https://github.com/SveltyCMS/SveltyCMS/security/advisories
-Expires: 2027-05-27T00:00:00Z
-
-Preferred-Languages: en
-
-Canonical: https://github.com/SveltyCMS/SveltyCMS/blob/next/SECURITY.md
+Expires: 2027-01-01T00:00:00Z
+Preferred-Languages: en, de
 Canonical: https://sveltycms.com/.well-known/security.txt
 
-Policy: https://github.com/SveltyCMS/SveltyCMS/blob/next/SECURITY.md
-
-# Security Architecture
-# - 4-Layer Defense-in-Depth (Middleware → Dispatcher → Handler → Page Action)
-# - AI Bot Defense: 28 UA patterns, 45 honeypot routes, progressive tarpit
-# - Zero-Bias CSPRNG: rejection-sampling token generation
-# - Cross-Origin Isolation: COOP + COEP + CORP on all API responses
-# - Argon2id password hashing (64MB), AES-256-GCM encryption
-# - 280+ automated security tests, 134 regression tests
-
-Acknowledgments: https://github.com/SveltyCMS/SveltyCMS/security/advisories
+Policy: https://sveltycms.com/docs/architecture/security/index.mdx
+Encryption: https://sveltycms.com/security/pgp-key.asc
+Acknowledgments: https://sveltycms.com/docs/architecture/security/index.mdx#security-incident-response
 
 Hiring: https://sveltycms.com/careers
+
+# SveltyCMS Security — June 2026
+# Architecture: 4-Layer Defense-in-Depth (Middleware → Dispatcher → Handler → Page Action)
+# Auth: Argon2id (64MB, 3 iter), AES-256-GCM, CSPRNG tokens, __Host- cookie prefix
+# Audit: SHA-256 crypto-chained logs with tamper verification
+# Score: ~99/100 weighted security (internal assessment, June 2026)
+# Zero published CVEs — 0 known vulnerabilities

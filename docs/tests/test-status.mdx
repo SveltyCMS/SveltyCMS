@@ -61,7 +61,7 @@ Do not treat documentation totals as the live status signal. The current branch 
 
 ## Local Commands
 
-```bash
+````bash
 # White-box unit suite
 bun run test:unit
 
@@ -77,9 +77,18 @@ bun x playwright test --project=auth-setup
 bun x playwright test --project=signup
 bun x playwright test --project=content
 bun x playwright test --project=system
-```
+```text
 
 ## Verify Live Status
 
 - Use the latest GitHub Actions run on the branch or pull request.
 - Treat this page as the description of the maintained gates, not a live dashboard.
+````
+
+---
+
+## Related
+
+- [Test Documentation](./index.mdx)
+- [Security Testing](./security-testing.mdx)
+- [Architecture Overview](../architecture/index.mdx)

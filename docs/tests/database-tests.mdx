@@ -65,7 +65,7 @@ SveltyCMS enforces a hard boundary between production and testing:
 
 ### Database Test Sequence
 
-```mermaid
+````mermaid
 sequenceDiagram
     participant Runner as Playwright Worker
     participant Server as Preview Server
@@ -76,7 +76,7 @@ sequenceDiagram
     Runner->>Server: POST /api/testing (Action: seed, Header: index=X)
     Server->>DB: Initialize schema & Insert Admin
     Note over Runner,DB: Execute Isolated Parallel Tests
-```
+```text
 
 ---
 
@@ -111,7 +111,7 @@ This is the recommended way to test locally:
 
 ```bash
 bun run test:integration
-```
+```text
 
 ### 2. Parallel E2E Testing
 
@@ -119,7 +119,7 @@ Run the full browser suite with 4 workers:
 
 ```bash
 npx playwright test --workers=4
-```
+```text
 
 ---
 
@@ -156,3 +156,4 @@ We use the **Enterprise Benchmark Matrix** to validate database adapter performa
 - [Testing Index](./index.mdx)
 - [API Testing](./api-testing.mdx)
 - [Black-Box Testing Architecture](./black-box-testing.mdx)
+````

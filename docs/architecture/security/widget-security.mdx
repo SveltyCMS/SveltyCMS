@@ -42,14 +42,14 @@ All critical security vulnerabilities identified in the widget system have been 
 
 **Client-Side Validation** (`input.svelte:58-65`):
 
-```typescript
+````typescript
 const ALLOWED_PLATFORMS = [
   /^https:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+$/,
   /^https:\/\/(www\.)?vimeo\.com\/\d+$/,
   /^https:\/\/(www\.)?twitch\.tv\/videos\/\d+$/,
   /^https:\/\/(www\.)?tiktok\.com\/@[\w.]+\/video\/\d+$/,
 ];
-```
+```text
 
 **Server-Side Validation** (`index.ts:29-44`):
 
@@ -66,7 +66,7 @@ const SAFE_VIDEO_URL_PATTERNS = [
 // - Private IP addresses (10.x, 172.16-31.x, 192.168.x)
 // - Cloud metadata endpoints (169.254.169.254)
 // - Non-HTTPS protocols
-```
+```text
 
 **Protection Against**:
 
@@ -97,7 +97,7 @@ export async function aggregations(field: FieldInstance, tenantId?: string) {
     },
   });
 }
-```
+```text
 
 **Protection Against**:
 
@@ -128,7 +128,7 @@ const MAX_INPUT_LENGTH = 100000; // 100,000 characters
 if (value && value.length > MAX_INPUT_LENGTH) {
   value = value.substring(0, MAX_INPUT_LENGTH);
 }
-```
+```text
 
 **Protection Against**:
 
@@ -173,7 +173,7 @@ const schema = object({
   ogTitle: pipe(string(), transform(escapeHtml)),
   // ... all fields escaped
 });
-```
+```text
 
 **Protection Against**:
 
@@ -199,7 +199,7 @@ function isValidHex(color: string): boolean {
 }
 
 const safeColor = isValidHex(color) ? color : "#000000";
-```
+```text
 
 **Protection Against**:
 
@@ -247,7 +247,7 @@ const blockDisposableEmail = custom<string>((value) => {
 
 // Applied in validation schema
 const schema = pipe(string(), email(), blockDisposableEmail);
-```
+```text
 
 **Protection Against**:
 
@@ -275,7 +275,7 @@ const phonePattern = /^\+[1-9]\d{1,3}[\d\s-]{4,14}$/;
 // - Country code: 1-4 digits, cannot start with 0
 // - Subscriber number: 4-14 characters (digits, spaces, hyphens)
 // - Total length compliant with E.164 standard
-```
+```text
 
 **Protection Against**:
 
@@ -350,7 +350,7 @@ const schema = object({
     }),
   ),
 });
-```
+```text
 
 **Protection Against**:
 
@@ -382,7 +382,7 @@ const schema = object({
 
 <!-- Menu title with strict sanitization -->
 <Sanitize html={menuItem.title} profile="strict" />
-```
+```text
 
 **Sanitization Profile** (`strict`):
 
@@ -461,7 +461,7 @@ const VALID_EXTENSIONS = [
   ".xls",
   ".xlsx",
 ];
-```
+```text
 
 **Validation Checks** (in order):
 
@@ -510,7 +510,7 @@ function addValidatedFiles(files: MediaFile[]) {
     return true;
   });
 }
-```
+```text
 
 **Protection Against**:
 
@@ -547,7 +547,7 @@ bun test tests/bun/widgets/widget-security.test.ts
 
 # Individual widget security tests
 bun test tests/bun/widgets/custom-widgets.test.ts
-```
+```text
 
 **Test Categories**:
 
@@ -557,6 +557,7 @@ bun test tests/bun/widgets/custom-widgets.test.ts
 - ✅ Injection prevention (SEO, ColorPicker)
 - ✅ XSS prevention (MegaMenu, RichText)
 - ✅ File upload validation (MediaUpload)
+- ✅ SVG sanitization (MediaUpload server-side)
 - ✅ Format validation (Email, PhoneNumber, Currency)
 
 ---
@@ -625,7 +626,7 @@ Use this checklist when creating new widgets:
 
 ```svelte
 <Sanitize html={userContent} profile="strict" />
-```
+```text
 
 **Profiles**:
 
@@ -646,7 +647,7 @@ function escapeHtml(text: string): string {
   };
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
-```
+```text
 
 ### URL Validation
 
@@ -659,7 +660,7 @@ function isValidUrl(url: string, allowedProtocols = ["https"]): boolean {
     return false;
   }
 }
-```
+```text
 
 ---
 
@@ -697,6 +698,7 @@ All implemented security measures comply with:
 
 ---
 
-**Last Updated**: April 10, 2026  
-**Security Review Status**: ✅ All Critical Fixes Implemented & API Dispatch Hardened (April 2026 Assessment)  
-**Next Review**: Quarterly (July 2026)
+**Last Updated**: June 10, 2026
+**Security Review Status**: ✅ All Critical Fixes Implemented & API Dispatch Hardened (June 2026 Audit)
+**Next Review**: Quarterly (September 2026)
+````

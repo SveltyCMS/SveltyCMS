@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-05-27"
+updated: "2026-06-10"
 tags:
   - security
   - testing
@@ -103,6 +103,23 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 **Files**: `src/hooks/handle-security.ts`, `src/hooks/handle-security-headers.ts`, `src/databases/auth/constants.ts`, `src/routes/api/[...path]/handlers/setup.ts`.
 
 **Tests**: All 134 security regression tests pass.
+
+### 7. June 2026 Comprehensive Security Audit & Hardening
+
+**Assessment Outcome**: Closed 6 security gaps identified through full-stack codebase audit against dependency stack, security architecture docs, and CVE landscape.
+
+**Key Implemented Features**:
+
+- ✅ **SVG Polyglot Upload Sanitization**: Server-side `sanitizeSvg()` function strips script tags, foreignObject elements, inline event handlers, javascript:/data: URIs, CDATA blocks, XML PIs, and DOCTYPE declarations from uploaded SVG files before storage (`src/utils/media/media-service.server.ts`).
+- ✅ **S3 Endpoint SSRF Prevention**: `validateS3Endpoint()` blocks private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16), IPv6 loopback/link-local, cloud metadata hosts, and non-HTTP protocols before S3Client creation (`src/utils/media/cloud-storage.ts`).
+- ✅ **Ollama RAG Prompt Injection Defense**: Remote knowledge-base context relocated from `system` to `user` message role with `<rag_context>` XML delimiters. Control characters stripped from RAG results. System prompt hardened with explicit instruction-override rejection (`src/services/core/ai-service.ts`).
+- ✅ **GraphQL Introspection Explicit Blocking**: `NoSchemaIntrospectionCustomRule` added to production validation plugin, preventing unauthenticated schema enumeration (`src/routes/api/graphql/+server.ts`).
+- ✅ **Tiptap Link Protocol Hardening**: `Link.configure()` now enforces protocol allowlist `["http", "https", "mailto", "tel"]`, blocking `javascript:` and `data:` URI injection at editor level (`src/widgets/core/rich-text/tiptap.ts`).
+- ✅ **Rate Limiter Dependency Hygiene**: Moved `sveltekit-rate-limiter` from `devDependencies` to `dependencies` to ensure production build inclusion (`package.json`).
+
+**Files Modified**: `src/utils/media/media-service.server.ts`, `src/utils/media/cloud-storage.ts`, `src/services/core/ai-service.ts`, `src/routes/api/graphql/+server.ts`, `src/widgets/core/rich-text/tiptap.ts`, `package.json`.
+
+**Tests**: All 64 defense-in-depth security regression tests pass. 0 lint errors. 0 type errors.
 
 ---
 
@@ -244,7 +261,7 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 
 ## Test Commands
 
-```bash
+````bash
 # Run all security-related unit tests
 bun test tests/unit/hooks/
 
@@ -270,7 +287,7 @@ bun x playwright test tests/e2e/role-based-access.spec.ts
 
 # Run all tests
 bun run test:all
-```
+```text
 
 ---
 
@@ -296,3 +313,4 @@ bun run test:all
 - **[Black-Box Testing](/docs/tests/black-box-testing.mdx)** - Test architecture
 - **[Widget Security](/docs/architecture/security/widget-security.mdx)** - Widget security guidelines
 - **[RichText Security](/docs/architecture/security/richtext-security.mdx)** - Rich text editor security
+````

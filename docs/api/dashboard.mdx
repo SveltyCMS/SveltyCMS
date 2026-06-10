@@ -48,7 +48,7 @@ Returns a unified snapshot of content, user, and media counts plus system health
 **Endpoint**: `GET /api/dashboard/stats`
 **Response**:
 
-```json
+````json
 {
   "contentCount": 42,
   "userCount": 15,
@@ -57,7 +57,7 @@ Returns a unified snapshot of content, user, and media counts plus system health
   "healthStatus": "healthy",
   "uptime": 12345.678
 }
-```
+```text
 
 ### Metrics Report
 
@@ -90,7 +90,7 @@ Returns OS, CPU, memory, and disk information. Filter by type for specific subsy
   "memoryInfo": { "total": 16384, "free": 8192 },
   "diskInfo": { "root": { "totalGb": 256, "usedGb": 45 } }
 }
-```
+```text
 
 ### Cache Metrics
 
@@ -114,7 +114,7 @@ Returns cache performance statistics including hit rate, operations count, and p
   "byTenant": {},
   "timestamp": 1717298400000
 }
-```
+```text
 
 ---
 
@@ -193,7 +193,7 @@ export const widgetMeta = {
   icon: "mdi:heart-pulse",
   description: "Real-time system health status",
 };
-```
+```text
 
 The `+page.server.ts` load function scans the widgets directory, imports metadata, and passes the available widget list to the dashboard page. Users can configure widget positions, sizes, and visibility — persisted via the `widget-defaults.ts` configuration.
 
@@ -216,7 +216,7 @@ graph TD
     C --> G
     F --> G
     D --> H[(Redis / L1 Cache)]
-```
+```text
 
 ### Performance Impact
 
@@ -229,3 +229,4 @@ Dashboard endpoints use lightweight queries and cached data where possible. The 
 - [System Reference (system.ts)](./system.mdx)
 - [Content Reference (content.ts)](./content.mdx)
 - [API Coverage Report](./api-coverage-report.mdx)
+````

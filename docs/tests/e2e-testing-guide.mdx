@@ -29,7 +29,7 @@ SveltyCMS uses **Playwright** for End-to-End (E2E) testing. Our strategy is opti
 
 `bun run test:e2e` is the local convenience entrypoint. It starts the dev server and runs Playwright against `127.0.0.1`.
 
-```bash
+````bash
 # Run the maintained local E2E flow
 bun run test:e2e
 
@@ -43,7 +43,7 @@ bun x playwright test --project=auth-setup
 bun x playwright test --project=signup
 bun x playwright test --project=content
 bun x playwright test --project=system
-```
+```text
 
 ### 🧠 Smart Testing
 
@@ -51,7 +51,7 @@ We also provide a smart runner for local iteration:
 
 ```bash
 bun run scripts/test-smart.ts
-```
+```text
 
 - **Fresh Environment:** Biases toward setup coverage first.
 - **Configured Environment:** Runs the suites that match the working tree.
@@ -74,7 +74,7 @@ test("Admin can access dashboard", async ({ page }) => {
   // Your test logic
   await expect(page.getByText("Dashboard")).toBeVisible();
 });
-```
+```text
 
 ### 2. Database State & Worker Isolation
 
@@ -94,14 +94,14 @@ For robust tests that don't break when CSS classes change, always use `data-test
 ```svelte
 <button data-testid="signin-submit">Sign In</button>
 <input data-testid="signin-email" />
-```
+```text
 
 **In Playwright Test:**
 
 ```typescript
 await page.getByTestId("signin-email").fill("admin@example.com");
 await page.getByTestId("signin-submit").click();
-```
+```text
 
 Avoid using:
 
@@ -161,6 +161,15 @@ If your remote server is publicly accessible (e.g. `https://dev.example.com` or 
 
 ```bash
 PLAYWRIGHT_TEST_BASE_URL=https://dev.example.com npx playwright test
-```
+```text
 
 > **Note**: Ensure the remote server is running in a mode that accepts connections (e.g. `bun dev --host` or a preview build) and that any firewalls allow traffic on the target port.
+````
+
+---
+
+## Related
+
+- [Test Documentation](./index.mdx)
+- [Security Testing](./security-testing.mdx)
+- [Architecture Overview](../architecture/index.mdx)

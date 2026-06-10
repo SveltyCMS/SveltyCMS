@@ -31,7 +31,7 @@ This "Handshake" architecture solves three critical enterprise challenges:
 | **Stability**   | Sets Server-Side Cookies to ensure A/B tests and draft modes work with SSR (no layout shift)      |
 | **Reliability** | Initializes the session on the correct domain, bypassing 3rd-party cookie restrictions in iframes |
 
-```mermaid
+````mermaid
 sequenceDiagram
     participant Admin as CMS Admin
     participant Middleware as hooks.server.ts
@@ -52,7 +52,7 @@ sequenceDiagram
     Note over Page: SSR Load Function checks Cookies
     Page->>Admin: Fetch Draft Data (Authorized)
     Page->>Page: Render Draft HTML
-```
+```text
 
 ---
 
@@ -74,7 +74,7 @@ export const schema: Schema = {
 
     fields: [ ... ]
 };
-```
+```text
 
 ### Tenant Settings
 
@@ -134,7 +134,7 @@ export async function GET({ url, cookies }) {
   // 4. Redirect to the actual page to render
   throw redirect(307, slug);
 }
-```
+```text
 
 ### Middleware Integration (hooks.server.ts)
 
@@ -150,7 +150,7 @@ export const API_PERMISSIONS = {
   // ... existing permissions ...
   "api:preview": ["*"], // Allow all (guarded by Secret inside the endpoint)
 };
-```
+```text
 
 Or update `handleApiRequests.ts` logic:
 
@@ -163,7 +163,7 @@ function isPublicApiRoute(pathname: string, method?: string): boolean {
 
   return false;
 }
-```
+```text
 
 ---
 
@@ -185,7 +185,7 @@ export const load = async ({ cookies, params }) => {
 
   return { post };
 };
-```
+```text
 
 ---
 
@@ -198,7 +198,7 @@ After the initial load (handled by the handshake + SSR), use the `useLivePreview
 export function useLivePreview<T>(initialData: T) {
   // ... standard postMessage listener implementation ...
 }
-```
+```text
 
 ---
 
@@ -249,3 +249,4 @@ This architecture is superior for A/B testing because the variant is established
 - [fields Component](/docs/architecture/components/fields.mdx) - Dynamic field rendering
 - [Unified Error Handling](/docs/guides/development/error-handling.mdx) - API error handling patterns
 - [Widget System Overview](/docs/guides/development/widgets/widget-system-overview.mdx) - Widget architecture
+````

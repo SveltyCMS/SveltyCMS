@@ -279,7 +279,7 @@ async function main() {
           "warning",
         );
       }
-    } catch (e) {
+    } catch {
       console.warn(`⚠️ Could not read ${file}`);
     }
   }

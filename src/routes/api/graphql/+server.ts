@@ -6,15 +6,23 @@
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
+import { NoSchemaIntrospectionCustomRule } from "graphql";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
 
-// GraphQL validation plugin: enforces query depth (max 7) and alias count (max 15)
+// GraphQL validation plugin: enforces query depth (max 7), alias count (max 15),
+// and blocks schema introspection in production environments
+const isProduction = process.env.NODE_ENV === "production";
+
 const securityValidationPlugin = {
   onValidate({ addValidationRule }: { addValidationRule: (rule: any) => void }) {
     addValidationRule(createDepthLimitRule(7));
     addValidationRule(createMaxAliasesRule(15));
+    // 🛡️ Explicit introspection block in production (belt-and-suspenders with Yoga's default)
+    if (isProduction || process.env.BLOCK_GRAPHQL_INTROSPECTION === "true") {
+      addValidationRule(NoSchemaIntrospectionCustomRule);
+    }
   },
 };
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";

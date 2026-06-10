@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-06-03"
+updated: "2026-06-09"
 tags:
   - "style-guide"
   - "gui"
@@ -98,7 +98,7 @@ Always import from `@components/ui/`. Key components:
 
 All native components follow the same Svelte 5 pattern:
 
-```svelte
+````svelte
 <script>
   import Button from '@components/ui/button.svelte';
   import Modal from '@components/ui/modal.svelte';
@@ -116,7 +116,7 @@ All native components follow the same Svelte 5 pattern:
     <Button variant="primary" onclick={() => open = false}>Save</Button>
   {/snippet}
 </Modal>
-```
+```text
 
 ## Layout & Spacing
 
@@ -131,7 +131,7 @@ All form input widgets (Text, Relation, RichText, etc.) follow a standard layout
 <div class="relative mb-4 w-full pb-6">
   <Input bind:value={field} label="Title" error={fieldError} />
 </div>
-```
+```text
 
 ## ⌨️ Form Inputs
 
@@ -143,7 +143,7 @@ Use native `Input`, `Select`, or `FloatingInput` components. They handle labels,
 <Input bind:value={title} label="Page Title" error={errors.title} required />
 <Select bind:value={status} label="Status" options={statusOptions} />
 <FloatingInput bind:value={email} label="Email" type="email" icon="mdi:email" />
-```
+```text
 
 ### Complex Inputs (RichText, MediaUpload)
 
@@ -161,7 +161,7 @@ For complex inputs that are their own self-contained "app," use a bordered conta
     <!-- editor area -->
   </div>
 </div>
-```
+```text
 
 ## Validation & Error Handling
 
@@ -176,7 +176,7 @@ For most inputs. Error appears below without shifting layout. All native form co
 
 ```svelte
 <Input bind:value={title} label="Title" error="Title is required" />
-```
+```text
 
 ### Pattern 2: Static Error Text
 
@@ -194,7 +194,7 @@ For components where absolute positioning is awkward (radio groups, checkboxes).
 {#if errors.plan}
   <p class="mt-2 text-xs text-error-500" role="alert">{errors.plan}</p>
 {/if}
-```
+```text
 
 ### Pattern 3: Error Banner
 
@@ -210,7 +210,7 @@ For complex, multi-part components where a single line is insufficient.
     {errors.form}
   </div>
 {/if}
-```
+```text
 
 ## 🔘 Buttons & Actions
 
@@ -240,7 +240,7 @@ Use the native `Button` component. It handles variants, sizes, loading state, an
 
 <!-- Icon-only -->
 <Button variant="ghost" leadingIcon="mdi:plus" aria-label="Add item" />
-```
+```text
 
 **Available variants**: `primary`, `secondary`, `tertiary`, `surface`, `success`, `warning`, `error`, `ghost`, `outline`
 **Available sizes**: `sm`, `md` (default), `lg`, `xl`
@@ -259,7 +259,7 @@ Use native overlay components — they handle backdrop, blur, focus trapping, an
     <Button variant="ghost" onclick={() => open = false}>Cancel</Button>
   {/snippet}
 </Modal>
-```
+```text
 
 ### Drawer
 
@@ -270,7 +270,7 @@ Use native overlay components — they handle backdrop, blur, focus trapping, an
     <Button variant="primary">Confirm</Button>
   {/snippet}
 </Drawer>
-```
+```text
 
 ### Popover / Dropdown
 
@@ -282,7 +282,7 @@ Use native overlay components — they handle backdrop, blur, focus trapping, an
     </Button>
   {/snippet}
 </Dropdown>
-```
+```text
 
 ## 💬 Feedback Components
 
@@ -297,7 +297,7 @@ toastStore.success("Settings saved successfully");
 toastStore.error("Failed to save settings");
 toastStore.warning("Your session will expire soon");
 toastStore.info("New update available");
-```
+```text
 
 ### Alerts
 
@@ -306,7 +306,7 @@ For persistent in-page messages:
 ```svelte
 <Alert variant="success" title="Success">Your changes have been saved.</Alert>
 <Alert variant="error" title="Error">Something went wrong. Please try again.</Alert>
-```
+```text
 
 ### Progress & Loaders
 
@@ -315,106 +315,174 @@ For persistent in-page messages:
 <Progress indeterminate color="success" />
 <Loader variant="card" />  <!-- Loading placeholder -->
 <Loader variant="text" lines={3} lastLineWidth="60%" />
-```
+```text
 
-## 🌙 Dark Mode & CMS Page Layout Standard
+## 🌙 Dark Mode
 
 Every class that sets a color, background, or border must have a `dark:` variant using theme colors. Our native components handle this automatically.
 
 When writing custom styles:
 
-- **Borders**: `border-surface-200 dark:border-surface-700`
-- **Backgrounds**: `bg-surface-50 dark:bg-surface-900`
+- **Borders**: `border-surface-200 dark:border-surface-800`
+- **Backgrounds**: `bg-surface-50 dark:bg-surface-950`
 - **Text**: `text-surface-700 dark:text-surface-200`
 
-## 📄 CMS Page Layout Standard
+## 📄 Unified Page Structural Architecture
 
-Every CMS configuration page MUST follow this structure, modeled after `/config/monitor`.
+To stop layout drift and prevent interfaces from looking different across views, every single view in SveltyCMS must match this precise structural layer blueprint exactly. No raw background overrides or variable wrapper styles are permitted.
 
-### Page Shell (Outer Container — Theme-Aware)
+### 1. View Root Shell
+
+Every workspace page must be enclosed within an absolute shell mapping safely to the active admin theme containers. No raw background selections are allowed.
 
 ```svelte
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto admin-theme-container">
-```
+<div class="absolute inset-0 p-6 space-y-6 bg-surface-50 dark:bg-surface-950 overflow-y-auto admin-theme-container">
+  <!-- All page content goes here -->
+</div>
+```text
 
-This provides the unified full-height scrollable container with theme-aware background. The `admin-theme-container` class ensures CSS variable tokens from the active `AdminTheme` are scoped correctly.
+### 2. Standard Page Header
 
-### Page Header
-
-Every page header uses the shared **`PageTitle`** component (`@components/page-title.svelte`).
-Do NOT hand-roll an inline `<h1>` header — `PageTitle` gives every page the same title size,
-icon treatment, subtitle, responsive truncation, sidebar toggle, accessibility (ARIA live
-region) and action-button slot, so all pages look and behave identically.
+Every configuration workspace must invoke the global `<PageTitle>` primitive. Writing custom or inline `<h1>` variants is forbidden. Actions are dropped strictly inside the default layout slot to populate on the trailing edge.
 
 ```svelte
 <script>
   import PageTitle from '@components/page-title.svelte';
 </script>
 
-<PageTitle name="Page Title" icon="mdi:icon-name" description="Descriptive subtitle">
-  <!-- Optional action buttons (rendered on the right) -->
-  <Button variant="primary" leadingIcon="mdi:plus">Create New</Button>
+<PageTitle name="Extension Management" icon="mdi:form-select" description="Install and manage plugins, widgets, and custom workspace extensions">
+  <Button variant="primary" leadingIcon="mdi:plus">Install Extension</Button>
 </PageTitle>
-```
+```text
 
 **Rules**:
 
 - Use `<PageTitle>` for every page header — never an inline `<h1 class="text-3xl …">`.
-- `name` = title; `icon` = leading icon (defaults to `text-tertiary-500 dark:text-primary-500`,
-  i.e. blue in light mode / green in dark — keep this default unless there's a reason not to).
+- `name` = title; `icon` = leading icon (defaults to `text-tertiary-500 dark:text-primary-500`).
 - `description` = optional subtitle (renders as `text-sm font-medium opacity-50`).
-- Action buttons go in the default slot (children) — they render on the right.
-- Use `highlight` to emphasise part of the title, and `showBackButton`/`backUrl` for back nav.
+- Action buttons go in the default slot — they render on the right.
 
-### Content Cards (Theme-Aware)
+### 3. Structural Segmented Containers (The Card Constraint)
 
-All content sections use the unified card class with CSS variable support for border-radius:
+All content grids, data tables, metrics feeds, and system blocks must reside inside an explicit bounding card. No content may lay bare on the application viewport background.
 
 ```svelte
-<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm"
+<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
      style="border-radius: var(--admin-radius-card, 0.75rem);">
-```
+  <!-- Tables, grids, forms, stats — everything goes inside a card -->
+</div>
+```text
 
 **Rules**:
 
-- Always wrap content blocks in cards, never bare `<div>` sections
-- Use `space-y-4` or `space-y-6` inside cards for internal spacing
-- For tables inside cards, use `overflow-x-auto` wrapper
-- Always include `style="border-radius: var(--admin-radius-card, 0.75rem);"` to respect the active admin theme
+- Always wrap content blocks in cards, never bare `<div>` sections.
+- Use `space-y-4` or `space-y-6` inside cards for internal spacing.
+- Always include `style="border-radius: var(--admin-radius-card, 0.75rem);"` to respect the active admin theme.
 
-### Stats Grid (When Applicable)
+## 💎 Enterprise Layout Principles
+
+Three rules for high-density admin interfaces that look professional in both light and dark mode.
+
+### 1. Inactive Controls Should Recede ("Quiet Forms")
+
+When an option isn't selected or a toolbar filter isn't active, blend it into the surface so the user's eye stays pinned on the workspace. Inactive controls should match the surrounding background layer until hovered or engaged.
 
 ```svelte
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-  <!-- stat cards -->
+<!-- ✅ Good: inactive button blends into background -->
+<button class="text-surface-500 hover:text-surface-900 dark:text-surface-500 dark:hover:text-white bg-transparent">
+  Horizontal Toolbar
+</button>
+
+<!-- ❌ Bad: inactive state has full accent styling — competes for attention -->
+<button class="text-primary-500 bg-primary-100 dark:text-primary-400 dark:bg-primary-500/20">
+  Horizontal Toolbar
+</button>
+```text
+
+### 2. Border-First Separation
+
+Use slim, high-contrast borders to separate content regions instead of heavy background fills. This keeps layouts crisp at high data density and anchors user movement across multi-column configurations.
+
+```svelte
+<!-- ✅ Good: border defines the boundary, background stays light -->
+<div class="rounded-xl border border-surface-200 p-4 bg-surface-50/30 dark:border-surface-800 dark:bg-surface-900/20">
+  <!-- grouped content -->
 </div>
-```
 
-### Data Tables
+<!-- ❌ Bad: relies on heavy background tint for separation, no border anchor -->
+<div class="rounded-xl bg-surface-100 p-4 dark:bg-surface-800">
+  <!-- grouped content -->
+</div>
+```text
+
+### 3. Adaptive Accent Saturation
+
+In light mode, use deeply anchored, rich accent tones for crisp visibility. In dark mode, reduce saturation and lift lightness — full-saturation accents that look premium on a light canvas become harsh and cause eye strain against dark backgrounds.
 
 ```svelte
-<div class="overflow-x-auto">
-  <table class="w-full text-sm">
+<!-- ✅ Good: light mode uses rich tertiary tone, dark mode uses subdued primary -->
+<button class="preset-filled-tertiary-500 dark:preset-filled-primary-500">
+  Save Changes
+</button>
+
+<!-- ❌ Bad: same full-saturation accent in both modes -->
+<button class="preset-filled-primary-500">
+  Save Changes
+</button>
+```text
+
+> The preset system already enforces per-mode saturation control. For custom accent utilities, target `oklch` lightness ~55–65% in light mode; step saturation down and lift lightness 5–10 points in dark mode. Never hardcode raw `oklch` values directly in components.
+
+## 📐 Data Presentation Patterns
+
+### Grid Dashboards & Configurations
+
+When presenting menu options or macro parameters, keep items locked into explicit content templates. Avoid vast sizing discrepancies by mapping actions to standard grid columns.
+
+```svelte
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <a href="/config/settings" class="card p-5 hover:border-tertiary-500 dark:hover:border-primary-500 transition-all flex items-start gap-4">
+    <iconify-icon icon="mdi:cog" width="24" class="text-surface-500"></iconify-icon>
+    <div>
+      <h3 class="text-sm font-semibold text-surface-900 dark:text-white">System Settings</h3>
+      <p class="text-xs text-surface-500 mt-1">Configure global platform attributes</p>
+    </div>
+  </a>
+  <!-- Repeat for each grid item -->
+</div>
+```text
+
+### Data Management Tables
+
+Tables must scale natively across view bounds and feature explicit alignment breaks. Rows must feature subtle divider lines rather than bold grid matrices. Always wrap tables in `overflow-x-auto`.
+
+```svelte
+<div class="overflow-x-auto w-full">
+  <table class="w-full text-sm border-collapse">
     <thead>
-      <tr class="border-b border-surface-200 dark:border-surface-700 text-left">
-        <th class="pb-2 font-bold opacity-50 uppercase text-xs">Column</th>
+      <tr class="border-b border-surface-200 dark:border-surface-800 text-left text-xs uppercase tracking-wider text-surface-400">
+        <th class="pb-3 font-semibold">Service Name</th>
+        <th class="pb-3 font-semibold">Status</th>
+        <th class="pb-3 font-semibold text-right">Performance</th>
       </tr>
     </thead>
-    <tbody>
-      <tr class="border-b border-surface-100 dark:border-surface-800">
-        <td class="py-2 font-medium">Data</td>
+    <tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+      <tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30">
+        <td class="py-3 font-medium">database_service</td>
+        <td class="py-3"><span class="badge preset-tonal-primary-500">Active</span></td>
+        <td class="py-3 text-right font-mono text-xs text-surface-400">12ms</td>
       </tr>
     </tbody>
   </table>
 </div>
-```
+```text
 
 ### Status Badges
 
 ```svelte
 <span class="badge text-[10px] preset-filled-success-500">Active</span>
 <span class="badge text-[10px] preset-tonal-primary-500">In Progress</span>
-```
+```text
 
 ### Quick Action Links
 
@@ -423,63 +491,21 @@ All content sections use the unified card class with CSS variable support for bo
   <span>Label</span>
   <iconify-icon icon="mdi:arrow-right"></iconify-icon>
 </a>
-```
+```text
 
-### Full Page Template
+## 🛑 Complete Core Anti-Patterns (DO NOT USE)
 
-```svelte
-<script lang="ts">
-  import { fade, fly } from "svelte/transition";
-  import { onMount } from "svelte";
-
-  let { data } = $props();
-  let isLoading = $state(true);
-  let items = $state([]);
-
-  onMount(async () => {
-    // fetch data
-    isLoading = false;
-  });
-</script>
-
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-  <!-- Header -->
-  <div in:fade>
-    <PageTitle name="Page Title" icon="mdi:icon-name" description="Page description">
-      <button class="btn btn-sm preset-filled-primary-500" onclick={handleCreate}>
-        <iconify-icon icon="mdi:plus" class="mr-1"></iconify-icon>
-        Create New
-      </button>
-    </PageTitle>
-  </div>
-
-  <!-- Content Card -->
-  <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm"
-       style="border-radius: var(--admin-radius-card, 0.75rem);"
-       in:fly={{ y: 20, delay: 200 }}>
-    {#if isLoading}
-      <Loader variant="text" lines={3} />
-    {:else if items.length === 0}
-      <div class="py-12 text-center opacity-30 italic">
-        <iconify-icon icon="mdi:inbox-outline" width="48" class="mb-2"></iconify-icon>
-        <p>No items found.</p>
-      </div>
-    {:else}
-      <!-- Render items -->
-    {/if}
-  </div>
-</div>
-```
-
-### Anti-Patterns (DO NOT USE)
-
-- ❌ `container mx-auto p-4` — use `absolute inset-0 p-6`
-- ❌ Inline `<h1 class="text-3xl font-bold …">` page header — use the `<PageTitle>` component
-- ❌ `h1 text-primary-500` — never hardcode colors on headings
-- ❌ Bare `<div>` content sections — always wrap in a card
-- ❌ `table-container` / `table-hover` classes — use the native table pattern
+- ❌ `container mx-auto p-4` — use `absolute inset-0 p-6` at the layout container entry point
+- ❌ Inline `<h1 class="text-3xl font-bold …">` page header — use the `<PageTitle>` component; no custom inline title variants permitted
+- ❌ Bare `<div>` content sections placed directly on the viewport background — always wrap in a `.card`
+- ❌ `table-container` / `table-hover` classes — use the native `overflow-x-auto` + `divide-y` pattern
 - ❌ `$app/stores` (`$page`) — use `$app/state` (`page`)
 - ❌ `variant-ghost-surface` / `variant-filled-primary` — use `preset-*` classes or native `<Button>`
+- ❌ Raw color assignments (`bg-black`, `bg-neutral-900`, `text-red-500`) — use preset classes or CSS custom properties exclusively
+- ❌ Full-saturation accent buttons in dark mode without a `dark:` variant — combine `preset-filled-tertiary-500 dark:preset-filled-primary-500`
+- ❌ Heavy background fills (`bg-surface-100 dark:bg-surface-800`) for container separation — use `border border-surface-200 dark:border-surface-800` with translucent backgrounds
+- ❌ Active accent styling on unselected/inactive segment controls — use `text-surface-500 bg-transparent` for dormant options
+- ❌ Unbounded table regions placed directly on the page without `overflow-x-auto` wrapper
 
 ---
 
@@ -498,3 +524,12 @@ Before submitting a PR:
 - [ ] **Svelte 5 Runes**: `$state`, `$derived`, `$props`, `$bindable` used. No Svelte 4 legacy syntax.
 - [ ] **Responsiveness**: Mobile-first, tested at 320px width.
 - [ ] **Tailwind v4 & RTL Conventions**: Use suffix exclamation marks (e.g., `py-0!`) and RTL logical properties (e.g., `ps-`, `pe-`).
+````
+
+---
+
+## Related
+
+- [Getting Started](./getting-started.mdx)
+- [Architecture Overview](./architecture/index.mdx)
+- [Security Overview](./architecture/security/index.mdx)

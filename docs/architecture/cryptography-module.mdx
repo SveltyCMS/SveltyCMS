@@ -64,7 +64,7 @@ SveltyCMS uses a two-algorithm approach for maximum security:
 
 **Configuration:**
 
-```typescript
+````typescript
 {
   memory: 65536,      // 64 MB RAM per hash
   time: 3,            // 3 iterations
@@ -72,7 +72,7 @@ SveltyCMS uses a two-algorithm approach for maximum security:
   type: argon2id,     // Hybrid (resistant to side-channel + GPU attacks)
   hashLength: 32      // 256-bit output
 }
-```
+```text
 
 #### 2. AES-256-GCM - Data Encryption
 
@@ -93,7 +93,7 @@ SveltyCMS uses a two-algorithm approach for maximum security:
   saltLength: 32,     // 256 bits for key derivation
   authTagLength: 16   // 128 bits for integrity
 }
-```
+```text
 
 ---
 
@@ -109,7 +109,7 @@ Hashes a plain text password using Argon2id.
 
 ```typescript
 async function hashPassword(password: string): Promise<string>;
-```
+```text
 
 **Parameters:**
 
@@ -133,13 +133,13 @@ await db.users.create({
   email: "user@example.com",
   password: hashedPassword, // $argon2id$v=19$m=65536,t=3,p=4$...
 });
-```
+```text
 
 **Hash Format:**
 
-```
+```text
 $argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
-```
+```text
 
 Where:
 
@@ -161,7 +161,7 @@ Verifies a plain text password against an Argon2id hash.
 
 ```typescript
 async function verifyPassword(password: string, hash: string): Promise<boolean>;
-```
+```text
 
 **Parameters:**
 
@@ -188,7 +188,7 @@ if (isValid) {
   // Password incorrect - reject login
   throw new Error("Invalid credentials");
 }
-```
+```text
 
 **Security Notes:**
 
@@ -209,7 +209,7 @@ Encrypts data using AES-256-GCM with Argon2id key derivation.
 
 ```typescript
 async function encryptData(data: Record<string, unknown>, password: string): Promise<string>;
-```
+```text
 
 **Parameters:**
 
@@ -236,11 +236,11 @@ const encrypted = await encryptData(sensitiveData, "UserPassword123!");
 
 // encrypted = "A1B2C3...base64-encoded-blob"
 // Safe to store or transfer
-```
+```text
 
 **Encryption Process:**
 
-```
+```text
 1. Generate random salt (32 bytes)
 2. Derive key from password using Argon2id (64 MB RAM, 3 iterations)
 3. Generate random IV (16 bytes)
@@ -248,13 +248,13 @@ const encrypted = await encryptData(sensitiveData, "UserPassword123!");
 5. Get authentication tag (16 bytes)
 6. Combine: salt + IV + authTag + encrypted data
 7. Base64 encode result
-```
+```text
 
 **Output Format:**
 
-```
+```text
 [salt:32][iv:16][authTag:16][encryptedData:variable]
-```
+```text
 
 All base64-encoded as single string.
 
@@ -271,7 +271,7 @@ async function decryptData(
   encryptedData: string,
   password: string,
 ): Promise<Record<string, unknown>>;
-```
+```text
 
 **Parameters:**
 
@@ -310,18 +310,18 @@ try {
   // - Data tampered with
   // - Data corrupted
 }
-```
+```text
 
 **Decryption Process:**
 
-```
+```text
 1. Base64 decode encrypted blob
 2. Extract: salt, IV, authTag, encrypted data
 3. Derive same key from password using Argon2id with extracted salt
 4. Decrypt with AES-256-GCM
 5. Verify authentication tag (ensures data integrity)
 6. Parse and return decrypted JSON
-```
+```text
 
 **Security Features:**
 
@@ -342,7 +342,7 @@ Derives a cryptographic key from a password using Argon2id.
 
 ```typescript
 async function deriveKey(password: string, salt: Buffer): Promise<Buffer>;
-```
+```text
 
 **Parameters:**
 
@@ -367,7 +367,7 @@ const key = await deriveKey("UserPassword123!", salt);
 
 // Use key for custom encryption
 const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-```
+```text
 
 **Use Cases:**
 
@@ -461,12 +461,12 @@ const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
 
 **Security Timeline**:
 
-```
+```text
 Current (2025):    ████████████████████████████████ 100% secure
 +10 years (2035):  ██████████████████████████████   ~98% secure (small quantum computers emerging)
 +20 years (2045):  ████████████████████████         ~85% secure (larger quantum computers)
 +30 years (2055):  ████████████████                 ~70% secure (post-quantum migration recommended)
-```
+```text
 
 **Migration Path**: See "Post-Quantum Cryptography Roadmap" section below for future-proofing strategy.
 
@@ -542,7 +542,7 @@ async function hybridEncrypt(data: string, publicKey: string) {
     algorithm: "AES-256-GCM + Kyber-1024",
   };
 }
-```
+```text
 
 **Benefits**:
 
@@ -653,7 +653,7 @@ export async function loginUser(email: string, password: string) {
   const session = await createSession(user._id);
   return { user, session };
 }
-```
+```text
 
 ### Secure Configuration Export/Import
 
@@ -702,7 +702,7 @@ export async function importConfig(password: string) {
     throw new Error("Invalid password or corrupted file");
   }
 }
-```
+```text
 
 ### API Token Encryption
 
@@ -746,7 +746,7 @@ export async function getApiToken(userId: string, masterPassword: string) {
     throw new Error("Failed to decrypt token");
   }
 }
-```
+```text
 
 ---
 
@@ -776,7 +776,7 @@ export function validatePassword(password: string): { valid: boolean; message: s
   }
   return { valid: true, message: "Password is strong" };
 }
-```
+```text
 
 ### Salt Generation
 
@@ -790,7 +790,7 @@ const salt = crypto.randomBytes(32);
 
 // ❌ BAD: Not secure
 const salt = Buffer.from(Math.random().toString());
-```
+```text
 
 ### Key Storage
 
@@ -828,7 +828,7 @@ try {
 } catch (error) {
   throw new Error("Wrong password"); // Reveals password was incorrect
 }
-```
+```text
 
 ---
 
@@ -912,16 +912,16 @@ describe("Cryptography Module", () => {
     });
   });
 });
-```
+```text
 
 ---
 
 ## Related Documentation
 
-- [Build-Time Security Plugin](/docs/dev-guide/security-plugin) - Prevents private settings exposure to client
-- [Authentication System](/docs/dev-guide/authentication-system) - Complete authentication implementation
-- [Import/Export System](/docs/dev-guide/import-export-system) - Uses crypto module for sensitive data
-- [Security Best Practices](/docs/dev-guide/security-best-practices) - General security guidelines
+- [Build-Time Security Plugin](/docs/architecture/security-plugin) - Prevents private settings exposure to client
+- [Authentication System](/docs/architecture/authentication-system) - Complete authentication implementation
+- [Import/Export System](/docs/architecture/import-export-system) - Uses crypto module for sensitive data
+- [Security Best Practices](/docs/architecture/security/index) - General security guidelines
 
 ---
 
@@ -933,5 +933,6 @@ describe("Cryptography Module", () => {
 
 ---
 
-_Last Updated: October 3, 2025_  
+_Last Updated: October 3, 2025_
 _Security Audit: Annual review recommended_
+````

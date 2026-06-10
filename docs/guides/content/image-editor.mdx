@@ -84,7 +84,7 @@ Click the **Compare** button in the toolbar to toggle a split-screen view — **
 
 The editor is built on a modular widget system where each tool registers itself via `import.meta.glob` auto-discovery. Pixel-level processing runs on a Web Worker; server-side baking runs via Sharp.js.
 
-```
+````text
 ┌─ Browser (Svelte 5) ──────────────────────────────────────────┐
 │  editor.svelte  ←──  image-editor-store.svelte.ts             │
 │       │                                                       │
@@ -99,7 +99,7 @@ The editor is built on a modular widget system where each tool registers itself 
 ┌─ Server (Sharp.js) ──┴────────────────────────────────────────┐
 │  Sharp.js Pipeline  →  WebP + AVIF variants  →  Media Store   │
 └───────────────────────────────────────────────────────────────┘
-```
+```text
 
 ### Canvas Engine: Modern & Lightweight
 
@@ -148,7 +148,7 @@ export default {
   icon: "mdi:crop",
   tool: Tool as unknown as Component<Record<string, unknown>>,
 };
-```
+```text
 
 **Adding a new tool**:
 
@@ -177,7 +177,7 @@ Content-Type: application/json
   "watermarks": [],
   "annotations": []
 }
-```
+```text
 
 The server uses **Sharp.js** to apply these transformations to the **original, uncompressed** asset and returns the new variant. This guarantees:
 
@@ -199,7 +199,7 @@ The `MediaUpload` widget (in `src/widgets/core/media-upload/`) embeds the editor
     close={() => (showEditor = false)}
   />
 {/if}
-```
+```text
 
 To integrate the editor in a custom widget:
 
@@ -229,7 +229,7 @@ To integrate the editor in a custom widget:
     close={() => (showEditor = false)}
   />
 {/if}
-```
+```text
 
 #### ImageEditorModal Props
 
@@ -269,7 +269,7 @@ imageEditorStore.takeSnapshot(); // Save undo point
 imageEditorStore.handleUndo(); // Undo
 imageEditorStore.handleRedo(); // Redo
 imageEditorStore.reset(); // Clear all state
-```
+```text
 
 ### Progressive Loading & Smart Shimmer
 
@@ -314,7 +314,7 @@ Run with:
 
 ```bash
 bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-worker.test.ts
-```
+```text
 
 ---
 
@@ -324,3 +324,12 @@ bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-w
 - [**MediaUpload Widget**](../../src/widgets/core/media-upload/mediaupload.mdx) — Widget documentation with field configuration examples.
 - [**Accessibility Guide**](../contributing/accessibility.mdx) — WCAG compliance requirements and testing procedures.
 - [**Contributing Docs**](../contributing/contributing-docs.mdx) — Documentation standards and PR workflow.
+````
+
+---
+
+## Related
+
+- [Getting Started](../../getting-started.mdx)
+- [Architecture Overview](../../architecture/index.mdx)
+- [Security Overview](../../architecture/security/index.mdx)

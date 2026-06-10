@@ -1,0 +1,213 @@
+---
+path: "docs/project/docs-site-plan.mdx"
+title: "docs.sveltycms.com — Implementation Plan"
+description: "How to build a competitive docs site that imports SveltyCMS docs/ 1:1 with zero content changes."
+order: 50
+icon: "mdi:web"
+author: "SveltyCMS Team"
+created: "2026-06-10"
+updated: "2026-06-10"
+tags:
+  - "docs"
+  - "planning"
+  - "site"
+---
+
+# docs.sveltycms.com — Implementation Plan
+
+The docs site imports `docs/` content 1:1. No content changes required. All 7 competitive features are implemented as **shell components** that wrap the rendered MDX.
+
+---
+
+## 1. Architecture: Content-Agnostic Shell
+
+```
+docs.sveltycms.com (SvelteKit app)
+│
+├── reads docs/ at build time ──→ no content modification needed
+├── parses frontmatter ─────────→ title, description, order
+├── converts MDX to HTML ───────→ headings, code blocks, callouts, tables, mermaid
+└── wraps in shell components ──→ sidebar, TOC, edit link, feedback, search
+```
+
+> **Zero content changes**: Every `.mdx` file in `docs/` renders as-is. The shell adds navigation, search, and UX features around the content.
+
+---
+
+## 2. Competitive Feature Implementation
+
+### P0 — Required for Launch
+
+| #   | Feature                   | How (zero changes to docs/)                                                                                         | Effort |
+| --- | ------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **"Edit this page" link** | `+page.server.ts` builds URL from `params.slug`: `https://github.com/SveltyCMS/SveltyCMS/edit/next/docs/{slug}.mdx` | 5 min  |
+| 2   | **Reading time**          | Compute from `body.length / 5` (avg chars per word) / 200 wpm in `+page.server.ts`                                  | 5 min  |
+| 3   | **Next/Previous nav**     | `+page.server.ts` builds sidebar tree from directory scan, flattens it, finds current index → prev/next             | 30 min |
+
+### P1 — Required within 2 weeks
+
+| #   | Feature                 | How (zero changes to docs/)                                                                                                                                                              | Effort |
+| --- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 4   | **Code copy button**    | `onMount` in `+page.svelte`: wrap every `<pre>` in `.code-block-wrapper` div, inject copy button with `navigator.clipboard.writeText()`                                                  | 15 min |
+| 5   | **"Was this helpful?"** | `Feedback.svelte` component: POST to `/api/feedback` with `{ slug, helpful }`. Shows 👍 Yes / 👎 No, confirms on click, auto-resets after 5s                                             | 30 min |
+| 6   | **Search**              | `+server.ts` endpoint at `/api/search`: reads all `.mdx` files, indexes by title + description + first 200 chars, fuzzy-matches query. Already has `SearchBox.svelte` component planned. | 60 min |
+
+### P2 — Post-launch
+
+| #   | Feature            | How                                                                                                                              | Effort |
+| --- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 7   | **API playground** | Embed GraphiQL pointing at production GraphQL endpoint. Embed Swagger UI from OpenAPI spec. Both are iframe-friendly.            | 2h     |
+| 8   | **Version picker** | Dropdown with `next` (default), future versions. Routes: `/docs/v1.0/...`. Reads available versions from git tags at build time. | 2h     |
+
+---
+
+## 3. Page Layout (Single Template)
+
+Every docs page uses the same layout. The content area renders `docs/` MDX verbatim.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ 🏠 SveltyCMS Docs   v0.0.6   🔍 [Search...]        🌙 🔗   │
+├──────────┬──────────────────────────────────┬────────────────┤
+│          │  v0.0.6 · 5 min read  ✏️ Edit   │                │
+│ Sidebar  │  breadcrumb > path > here        │  On this page  │
+│          │                                  │  ────────────  │
+│ 📚 API   │  # Page Title (from frontmatter) │  • Heading 1   │
+│ ├ auth   │  Description (from frontmatter)  │  • Heading 2   │
+│ ├ coll   │                                  │  • Heading 3   │
+│ 🏗️ Arch  │  [rendered MDX content]          │                │
+│ 🔒 Sec   │  [tables, code blocks,           │                │
+│ 📖 Guides│   mermaid diagrams, callouts]    │                │
+│          │                                  │                │
+│          │  ─────────────────────────       │                │
+│          │  👍 Was this helpful? [Yes][No]  │                │
+│          │                                  │                │
+│          │  ← Previous page  │  Next page → │                │
+└──────────┴──────────────────────────────────┴────────────────┘
+```
+
+---
+
+## 4. MDX → HTML Rendering (Server-Side)
+
+No runtime MDX parser dependency needed. Simple regex converter in `+page.server.ts`:
+
+| MDX Feature              | Converter                                        |
+| ------------------------ | ------------------------------------------------ |
+| Frontmatter              | `---\n...\n---` → stripped, parsed into metadata |
+| `# Heading`              | → `<h1 id="slug">`                               |
+| `## Heading`             | → `<h2 id="slug">`                               |
+| `### Heading`            | → `<h3 id="slug">`                               |
+| `` `code` ``             | → `<code>`                                       |
+| ` ```lang\ncode\n``` `   | → `<pre><code class="language-lang">`            |
+| ` ```mermaid\n...\n``` ` | → `<div class="mermaid">`                        |
+| `[text](url)`            | → `<a href="url">`                               |
+| `![alt](url)`            | → `<img src="url" alt="alt" loading="lazy">`     |
+| `**bold**`               | → `<strong>`                                     |
+| `*italic*`               | → `<em>`                                         |
+| `> [!NOTE]`              | → styled `<blockquote>` with icon                |
+| `> [!TIP]`               | → styled `<blockquote>` with icon                |
+| `> [!IMPORTANT]`         | → styled `<blockquote>` with icon                |
+| `> [!WARNING]`           | → styled `<blockquote>` with icon                |
+| `> [!CAUTION]`           | → styled `<blockquote>` with icon                |
+| `\| table \|`            | → `<table><tr><th>` or `<td>`                    |
+| `---`                    | → `<hr>`                                         |
+
+---
+
+## 5. Sidebar Generation
+
+`+page.server.ts` scans `docs/` directory tree at request time:
+
+```
+docs/
+├── getting-started.mdx    → Getting Started
+├── README.mdx             → Documentation Hub
+├── troubleshooting.mdx    → Troubleshooting
+├── api/                   → API (collapsible group)
+│   ├── index.mdx
+│   ├── auth.mdx
+│   └── ...
+├── architecture/          → Architecture (collapsible group)
+│   ├── index.mdx
+│   ├── security/          → Security (nested group)
+│   └── ...
+├── guides/                → Guides (collapsible group)
+├── contributing/          → Contributing (collapsible group)
+├── project/               → Project (collapsible group)
+└── tests/                 → Tests (collapsible group)
+```
+
+- Items sorted by `order` field in frontmatter (if present), then alphabetically
+- Directories become collapsible `<details>` groups
+- Current page highlighted with accent color
+- Active section auto-expanded
+
+---
+
+## 6. Data Flow
+
+```
+Request: GET /docs/architecture/security/index
+  │
+  ▼
++page.server.ts
+  │
+  ├─ Read ../../docs/architecture/security/index.mdx
+  ├─ Parse frontmatter → { title, description, order, updated }
+  ├─ Convert body to HTML
+  ├─ Build sidebar tree (one-time, cached)
+  ├─ Build breadcrumbs from URL segments
+  ├─ Find prev/next from flat sidebar
+  ├─ Compute reading time
+  └─ Return { title, description, html, sidebar, breadcrumbs, prevPage, nextPage, readingTime, version }
+  │
+  ▼
++page.svelte
+  │
+  ├─ Render sidebar
+  ├─ Show version · reading time · edit link
+  ├─ Show breadcrumbs
+  ├─ {@html data.html} (the MDX content)
+  ├─ Inject code copy buttons via onMount
+  ├─ Show feedback widget
+  └─ Show prev/next navigation
+```
+
+---
+
+## 7. Component Requirements
+
+| Component         | Props                                 | Source                             |
+| ----------------- | ------------------------------------- | ---------------------------------- |
+| `DocSidebar`      | `items`, `currentPath`                | Generated from directory scan      |
+| `TableOfContents` | `content: string`, `activeId: string` | Parsed from H2/H3 headings in body |
+| `EditLink`        | `slug: string`                        | Built from `params.slug`           |
+| `ReadingTime`     | `content: string`                     | Computed from word count           |
+| `Feedback`        | `slug: string`                        | POST to `/api/feedback`            |
+| `PrevNextNav`     | `prev`, `next`                        | From flat sidebar index            |
+| `SearchBox`       | —                                     | GET `/api/search?q=`               |
+| `Breadcrumbs`     | `items: Array<{label, href}>`         | From URL segments                  |
+
+---
+
+## 8. Non-Negotiables
+
+> [!IMPORTANT]
+> These must be true for launch:
+
+- [ ] **Zero changes to `docs/` content** — the site must render existing MDX files as-is
+- [ ] **No YAML dependency** — parse frontmatter with regex or colon-delimited parser
+- [ ] **No MDX compiler at runtime** — simple regex-based HTML conversion is sufficient and fast
+- [ ] **All links relative to docs/** — the site resolves `./page.mdx` and `../other/page.mdx` correctly
+- [ ] **Mermaid rendered client-side** — inject `<div class="mermaid">` and let mermaid.js hydrate in browser
+- [ ] **EU-compliant** — all competitive claims already qualified in source content
+- [ ] **0 lint errors** — the docs/ linter passes on every commit
+
+---
+
+## Related
+
+- [Project Roadmap](./roadmap-2026.mdx)
+- [Performance Benchmarks](./benchmarks/index.mdx)
+- [Getting Started](../getting-started.mdx)

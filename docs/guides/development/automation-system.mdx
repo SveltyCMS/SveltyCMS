@@ -64,7 +64,7 @@ Operations are the **actions** that execute when a trigger fires. They run seque
 
 All text fields in operations support **token placeholders** for dynamic values:
 
-```
+````text
 {{ entry.title }}         → Entry title
 {{ entry.status }}        → Entry status
 {{ entry.author }}        → Author name
@@ -77,7 +77,7 @@ All text fields in operations support **token placeholders** for dynamic values:
 {{ user.email }}          → Current user email
 {{ user.username }}       → Current username
 {{ system.now }}          → Current date/time
-```
+```text
 
 ---
 
@@ -116,9 +116,9 @@ All endpoints require admin authentication.
 
 ### List All Automations
 
-```
+```text
 GET /api/automations
-```
+```text
 
 **Response:**
 
@@ -127,11 +127,11 @@ GET /api/automations
   "success": true,
   "data": [{ "id": "...", "name": "...", "active": true, ... }]
 }
-```
+```text
 
 ### Create Automation
 
-```
+```text
 POST /api/automations
 Content-Type: application/json
 
@@ -153,28 +153,28 @@ Content-Type: application/json
     }
   ]
 }
-```
+```text
 
 ### Update Automation
 
-```
+```text
 PATCH /api/automations/:id
 Content-Type: application/json
 
 { "active": false }
-```
+```text
 
 ### Delete Automation
 
-```
+```text
 DELETE /api/automations/:id
-```
+```text
 
 ### Test Automation
 
-```
+```text
 POST /api/automations/:id/test
-```
+```text
 
 **Response:**
 
@@ -187,7 +187,7 @@ POST /api/automations/:id/test
     "operationResults": [{ "type": "email", "status": "success", "duration": 35 }]
   }
 }
-```
+```text
 
 ---
 
@@ -214,7 +214,7 @@ graph TD
     end
 
     F --> F1 & F2 & F3 & F4 & F5
-```
+```text
 
 ### Sequence of Execution
 
@@ -235,7 +235,7 @@ sequenceDiagram
         Note over OP: Log success/failure
     end
     AS-->>DB: Execution complete (async)
-```
+```text
 
 ### Key Files
 
@@ -260,3 +260,12 @@ sequenceDiagram
 | **Token System** | ✅ `{{ }}`         | ⚠️ Limited  | ❌ No        | ❌ No           | ❌ No          |
 | **DB-Agnostic**  | ✅ Yes             | ⚠️ SQL only | ⚠️ SQL only  | ⚠️ SQL only     | N/A (SaaS)     |
 | **Open Source**  | ✅ Free            | ✅ Free     | ✅ Free      | ⚠️ Some gated   | ❌ Proprietary |
+````
+
+---
+
+## Related
+
+- [Getting Started](../../getting-started.mdx)
+- [Architecture Overview](../../architecture/index.mdx)
+- [Security Overview](../../architecture/security/index.mdx)

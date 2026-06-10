@@ -23,7 +23,7 @@ SveltyCMS leverages a **Modular Namespace** pattern to organize its database cap
 
 **Core Principle:** Write once (in the application layer), deploy everywhere (MongoDB, SQL, etc.).
 
-```mermaid
+````mermaid
 graph TD
     SDK[LocalCMS / API] --> Adapter[IDBAdapter]
     Adapter --> Auth[auth.*]
@@ -33,7 +33,7 @@ graph TD
     Adapter --> Media[media.*]
     Adapter --> Syst[system.*]
     Adapter --> Batch[batch.*]
-```
+```text
 
 ---
 
@@ -45,7 +45,7 @@ All methods in the SveltyCMS database layer follow the **`DatabaseResult<T>`** p
 export type DatabaseResult<T> =
   | { success: true; data: T; meta?: QueryMeta }
   | { success: false; error: DatabaseError };
-```
+```text
 
 ---
 
@@ -160,3 +160,4 @@ export type DatabaseResult<T> =
 - [Database Resilience](./database-resilience.mdx) - Error handling and recovery patterns.
 - [SQLite Implementation](./sqlite-implementation.mdx) - Specific optimizations for edge deployments.
 - [PostgreSQL Implementation](./postgresql-implementation.mdx) - Enterprise scaling with JSONB.
+````
