@@ -8,7 +8,7 @@ SveltyCMS is built with **defense-in-depth security** featuring 4-layer zero-tru
 | Cryptography          | 100   | AES-256-GCM, SHA-256 chain, timing-safe, key rotation documented |
 | Auth & Session        | 95    | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, lockout                |
 | Input Validation      | 95    | Valibot + DOMPurify + Drizzle + body limit + SVG                 |
-| Disclosure & Response | 98    | security.txt, incident runbook, bug bounty, EU-compliant         |
+| Disclosure & Response | 98    | security.txt, incident runbook, responsible disclosure |
 | Dependency Hygiene    | 92    | Override-pinned, node-forge-free, osv-scanner/audit:deps         |
 
 **Weighted: ~97/100** — self-assessed (June 2026). Remaining: WebAuthn support, third-party penetration test.
@@ -47,20 +47,15 @@ Open a **private** issue or email security@sveltycms.com (PGP key available on r
 We aim to reply within **48 hours** and fix critical issues within **7 days**.  
 You will be credited in the release notes and SECURITY.md unless you prefer to stay anonymous.
 
-## Bug Bounty Program
+## Responsible Disclosure
 
-SveltyCMS operates a **public bug bounty program** for responsible disclosure:
+SveltyCMS is an open-source project. While we cannot offer monetary bounties, we recognize contributions through:
 
-| Severity | Reward        | Example                                |
-| -------- | ------------- | -------------------------------------- |
-| Critical | $500 — $2,000 | Unauthenticated RCE, data exfiltration |
-| High     | $200 — $500   | Auth bypass, stored XSS, SSRF          |
-| Medium   | $50 — $200    | Information disclosure, DoS            |
-| Low      | $25 — $50     | Best practice violations, hardening    |
+- **Credit**: Named in release notes and SECURITY.md (unless you prefer anonymity)
+- **Hall of Fame**: Listed on [sveltycms.com/security/hall-of-fame](https://sveltycms.com/security/hall-of-fame)
+- **Swag**: SveltyCMS stickers and merchandise for critical findings
 
 **Rules**:
-
-- First reporter receives the reward
 - Vulnerability must be in the `next` branch, not in dependencies or configuration
 - No automated scanning without prior approval — contact security@sveltycms.com first
 - Allow 90 days before public disclosure
