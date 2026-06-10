@@ -20,7 +20,7 @@ tags:
 SveltyCMS implements enterprise-grade security measures across all system components to protect data, prevent vulnerabilities, and ensure compliance with security standards.
 
 > [!IMPORTANT]
-> **A++ Security Grade**: SveltyCMS maintains an A++ security posture through automated threat detection, memory-hard cryptography (Argon2id), and a fail-closed architecture.
+> **~97/100 Self-Assessment** (June 2026). 0 CVEs is verifiable. Dimension scores are code-review-based, not externally audited. [Full scorecard →](#-security-scorecard)
 
 ## 🛡️ Security Overview
 
@@ -32,6 +32,23 @@ SveltyCMS security architecture includes:
 - **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained), threat detection
 - **🚀 Secure Development** - Build-time security checks, vulnerability scanning
 - **⚡ Enterprise Immunity** - Self-healing load shedding, graceful shutdown, and pre-compiled pipelines
+
+---
+
+## 📊 Security Scorecard
+
+| Dimension                 | Weight | Score | Prevents                                              |
+| ------------------------- | :----: | :---: | ----------------------------------------------------- |
+| **CVE Track Record**      |  25%   |  100  | 0 CVEs — verifiable via NVD, GitHub Advisory DB       |
+| **Cryptography**          |  15%   |  100  | AES-256-GCM, SHA-256 chain, key rotation, timing-safe |
+| **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, bug bounty            |
+| **Auth & Session**        |  20%   |  95   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, lockout     |
+| **Input Validation**      |  15%   |  95   | Valibot + DOMPurify + Drizzle + SVG + body limit      |
+| **Dependency Hygiene**    |  15%   |  92   | Override-pinned, node-forge-free, osv-scanner         |
+
+**Weighted**: 100×0.25 + 95×0.20 + 95×0.15 + 100×0.15 + 92×0.15 + 98×0.10 = **~97/100**
+
+> ℹ️ Self-assessed (June 2026). Remaining gap: third-party penetration test, WebAuthn.
 
 ---
 
