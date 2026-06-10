@@ -41,21 +41,21 @@ SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScrip
 
 ## Competitive Awareness (Smarter, Faster, Better)
 
-SveltyCMS alwaysoutperforms competitors like Payload CMS (React/Next.js-based), Strapi (GUI-first, heavier), Directus, Sanity, WordPress, and Drupal by leveraging Svelte 5's no-runtime compilation and unique features. From the 2026 technical evaluation:
+SveltyCMS leverages Svelte 5's no-runtime compilation — a technical advantage over React-based CMS platforms that incur VDOM reconciliation and hydration overhead. Based on publicly available documentation as of June 2026:
 
-| Feature           | SveltyCMS Approach                        | Why Better than Competitors                              |
-| ----------------- | ----------------------------------------- | -------------------------------------------------------- |
-| **Core Tech**     | SvelteKit/Svelte 5 (Runes)                | No VDOM/hydration tax vs. React-based (Payload, Strapi). |
-| **Cold Start**    | <1s (Progressive, self-healing)           | Faster than 3s+ in Payload/Strapi; edge-ready.           |
-| **i18n**          | Paraglide (Compiled, zero-runtime)        | Type-safe, no runtime lookups vs. i18next in rivals.     |
-| **Schemas**       | Hybrid (Code + GUI, bi-directional)       | Flexible vs. code-only (Payload) or GUI-only (Strapi).   |
-| **Multi-Tenancy** | Native (tenantId isolation)               | Core/free vs. enterprise-gated in Strapi/Contentful.     |
-| **SCIM 2.0**      | Native endpoints (RFC 7644, filters/bulk) | Automated provisioning vs. manual/enterprise in others.  |
-| **OpenAPI 3.1.0** | Dynamic Export & SDK Ready                | Generate clients for any language automatically.         |
-| **Audit Logs**    | Crypto-chained (SHA-256 tamper-evident)   | Compliance-ready vs. basic/manual in competitors.        |
-| **Accessibility** | WCAG 2.2 AA / ATAG 2.0                    | Full support vs. partial in Payload/Strapi.              |
+| Feature           | SveltyCMS Approach                        | Architectural Difference                            |
+| ----------------- | ----------------------------------------- | --------------------------------------------------- |
+| **Core Tech**     | SvelteKit/Svelte 5 (Runes)                | No VDOM/hydration tax vs. React-based platforms     |
+| **Cold Start**    | <1s (Progressive, self-healing)           | Measured on Intel i7-13700H, Bun 1.3.14             |
+| **i18n**          | Paraglide (Compiled, zero-runtime)        | Compiled translations vs. runtime lookups           |
+| **Schemas**       | Hybrid (Code + GUI, bi-directional)       | Compare: Payload (code-first), Strapi (GUI-first)   |
+| **Multi-Tenancy** | Native (tenantId isolation)               | Core feature vs. enterprise-tier in some platforms  |
+| **SCIM 2.0**      | Native endpoints (RFC 7644, filters/bulk) | Automated provisioning vs. manual configuration     |
+| **OpenAPI 3.1.0** | Dynamic Export & SDK Ready                | Generate clients for any language automatically     |
+| **Audit Logs**    | Crypto-chained (SHA-256 tamper-evident)   | Verifiable chain integrity vs. basic log storage    |
+| **Accessibility** | WCAG 2.2 AA / ATAG 2.0                    | Documented compliance; compare with competitor docs |
 
-To stay ahead: Implement cleaner features (e.g., isomorphic plugins > Payload's rebuilds), benchmark Core Web Vitals, and promote "Agency OS" for low TCO.
+To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs, and prioritize features that deliver measurable user value.
 
 ## 🇪🇺 EU & German Comparative Advertising Compliance
 
@@ -78,6 +78,7 @@ To stay ahead: Implement cleaner features (e.g., isomorphic plugins > Payload's 
 - [ ] Performance numbers include methodology and reproduction commands
 - [ ] Absolutes are qualified
 - [ ] Feature tables compare objectively verifiable capabilities
+- [ ] **Self-assessments are labeled as such** — never present internal scores as external audits
 
 ## Technical Standards
 
@@ -298,7 +299,7 @@ When generating/modifying code:
 
 ## Roadmap (Missing Features)
 
-From the 2026 roadmap (target A++ grade), prioritize these for parity/leadership (some beta/implemented; harden for production):
+From the 2026 roadmap, prioritize these for parity/leadership (implemented features marked [x]; harden for production):
 
 - [x] **PostgreSQL Support**: Full adapter implementation with Drizzle ORM migrations and native tenant management.
 - [x] **SQLite Support**: Lightweight adapter via Bun native driver for edge and local deployments.

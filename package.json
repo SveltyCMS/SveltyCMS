@@ -86,6 +86,7 @@
     "mutate": "bun run scripts/mutation-test.ts --quick",
     "audit:security": "bun run scripts/security-audit.ts",
     "audit:sbom": "bun run scripts/generate-sbom.ts",
+    "audit:deps": "bash scripts/audit-deps.sh",
     "-- BENCHMARKS ---------------------------------------": "",
     "benchmark": "bun scripts/benchmark-matrix/index.ts",
     "benchmark:ci": "bun scripts/benchmark-matrix/index.ts --ci",
