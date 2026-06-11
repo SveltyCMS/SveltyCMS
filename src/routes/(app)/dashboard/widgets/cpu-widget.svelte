@@ -180,7 +180,7 @@ export const widgetMeta = {
 						{const val = cpu.usage[activeIndex]}
 						{const time = new Date(cpu.timestamps[activeIndex]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 						<div
-							class="absolute pointer-events-none z-20 px-3 py-2 text-xs rounded-xl border shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700"
+							class="absolute pointer-events-none z-20 px-3 py-2 text-xs rounded border shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700"
 							style="left: {Math.max(20, Math.min(points[activeIndex].x - 45, 220))}px; top: {points[activeIndex].y - 58}px;"
 						>
 							<div class="font-mono font-semibold text-lg leading-none tabular-nums text-gray-900 dark:text-white">

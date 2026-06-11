@@ -128,7 +128,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 <div class="currency-widget flex flex-col gap-1">
 	<div 
-		class="flex items-center rounded-lg border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
+		class="flex items-center rounded border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}

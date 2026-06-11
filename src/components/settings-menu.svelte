@@ -62,7 +62,7 @@ Sidebar navigation for System Settings
 				: 'h-10 py-2'}"
 			aria-label="Search settings"
 		/>
-		<div class="absolute end-0 top-0 flex h-full items-center pe-3 pointer-events-none text-surface-400">
+		<div class="absolute inset-e-0 top-0 flex h-full items-center pe-3 pointer-events-none text-surface-400">
 			<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 		</div>
 	</div>
@@ -74,17 +74,15 @@ Sidebar navigation for System Settings
 				<a
 					href={`/config/system-settings?group=${group.id}`}
 					data-sveltekit-preload-data="hover"
-					class="relative w-full cursor-pointer rounded-lg p-2 transition-colors flex items-center {isFullSidebar
+					class="relative w-full cursor-pointer rounded p-2 transition-colors flex items-center {isFullSidebar
 						? 'justify-between text-start'
 						: 'justify-center text-center'} {selectedGroupId === group.id
 						? 'bg-tertiary-500 dark:bg-primary-500 text-white'
 						: 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
 				>
-					<div class="flex items-center {isFullSidebar ? 'gap-3' : 'gap-0'} overflow-hidden">
+					<div class="flex items-center {isFullSidebar ? 'gap-3' : 'gap-2'} overflow-hidden">
 						<span class="text-xl shrink-0">{group.icon}</span>
-						{#if isFullSidebar}
-							<span class="text-sm font-medium truncate">{group.name}</span>
-						{/if}
+						<span class="text-sm font-medium truncate w-full text-start {isFullSidebar ? '' : 'hidden sm:block'}">{group.name}</span>
 					</div>
 
 					{#if isFullSidebar}
@@ -95,7 +93,7 @@ Sidebar navigation for System Settings
 						</div>
 					{:else if groupsNeedingConfig.has(group.id)}
 						<!-- Dot for collapsed state -->
-						<div class="w-2 h-2 rounded-full bg-warning-500 absolute top-1 end-1"></div>
+						<div class="w-2 h-2 rounded-full bg-warning-500 absolute top-1 inset-e-1"></div>
 					{/if}
 				</a>
 			</SystemTooltip>

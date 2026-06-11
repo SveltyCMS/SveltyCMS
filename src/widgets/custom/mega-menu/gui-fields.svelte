@@ -62,7 +62,7 @@ Interactive level configuration with add/remove level capabilities
 	<div class="levels-container space-y-4">
 		{#each value as levelFields, levelIndex (levelIndex)}
 			<div
-				class="level-card rounded-lg border border-surface-200 bg-surface-50/50 dark:text-surface-50 dark:bg-surface-800/50 {levelIndex === 0
+				class="level-card rounded border border-surface-200 bg-surface-50/50 dark:text-surface-50 dark:bg-surface-800/50 {levelIndex === 0
 					? 'border-primary-200! bg-primary-50/30! dark:border-primary-700! dark:bg-primary-900/20!'
 					: ''}"
 			>
@@ -112,7 +112,7 @@ Interactive level configuration with add/remove level capabilities
 
 					{#if levelFields.length === 0}
 						<div
-							class="empty-fields-notice flex flex-col items-center gap-2 rounded-lg border-2 border-dashed border-surface-300 bg-surface-100/50 p-6 text-center dark:border-surface-600 dark:bg-surface-800/50"
+							class="empty-fields-notice flex flex-col items-center gap-2 rounded border-2 border-dashed border-surface-300 bg-surface-100/50 p-6 text-center dark:border-surface-600 dark:bg-surface-800/50"
 						>
 							<iconify-icon icon="mdi:information" width="24" class="text-surface-400"></iconify-icon>
 							<span class="text-sm font-medium text-surface-600 dark:text-surface-300">No fields configured for this level yet.</span>

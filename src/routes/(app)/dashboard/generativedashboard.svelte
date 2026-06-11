@@ -65,9 +65,9 @@ async function handleRegenerate() {
 	{#if currentSpec}
 		<!-- AI Driven Layout Header -->
 		<div class="flex flex-col gap-4 mb-6">
-			<div class="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-100-900 border border-surface-200-800 shadow-sm">
+			<div class="flex items-center justify-between gap-4 p-4 rounded bg-surface-100-900 border border-surface-200-800 shadow-sm">
 				<div class="flex items-center gap-3">
-					<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 p-2 rounded-lg shadow-inner">
+					<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 p-2 rounded shadow-inner">
 						<iconify-icon icon="mdi:robot-outline" width="24" class="text-white"></iconify-icon>
 					</div>
 					<div>

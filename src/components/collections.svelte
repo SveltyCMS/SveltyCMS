@@ -496,10 +496,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		}
 	}
 
-	function clearSearch(): void {
-		search = '';
-		debouncedSearch = '';
-	}
+	
 </script>
 
 <div class="mt-2 space-y-2" role="navigation" aria-label="Collections">
@@ -543,38 +540,35 @@ Provides an organized interface for navigating hierarchical content structures.
 		<input
 			type="text"
 			bind:value={search}
+			size="1"
 			placeholder={collections_search()}
-			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pe-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
-				? 'h-12 py-3'
-				: 'h-10 py-2'}"
+			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pe-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
 			aria-label="Search collections"
 		/>
 
-		<div class="absolute inset-e-0 top-0 flex h-full items-center">
-			{#if isSearching}
-				<div class="flex h-12 w-12 items-center justify-center">
-					<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
-				</div>
-			{:else if search}
-				<button
-					type="button"
-					onclick={clearSearch}
-					class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-11 w-11' : 'h-10 w-10'}"
-					aria-label="Clear search"
-				>
-					<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
-				</button>
-			{:else}
-				<!-- Search with icon -->
-				<div
-					class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 {isFullSidebar
-						? 'h-11 w-11 mt-px mr-px'
-						: 'h-8 w-8'}"
-				>
-					<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
-				</div>
-			{/if}
-		</div>
+		{#if isFullSidebar}
+			<div class="absolute inset-e-0 top-0 flex h-full items-center">
+				{#if isSearching}
+					<div class="flex h-10 w-10 items-center justify-center">
+						<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
+					</div>
+				{:else if search}
+					<button
+						type="button"
+						onclick={() => (search = '')}
+						class="btn rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 mr-0.5"
+						aria-label="Clear search"
+					>
+						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
+					</button>
+				{:else}
+					<!-- Search with icon -->
+					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 mr-0.5">
+						<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<!-- Tree -->
@@ -586,7 +580,9 @@ Provides an organized interface for navigating hierarchical content structures.
 		{:else if treeNodes.length === 0}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
 				<iconify-icon icon="bi:collection" width={24}></iconify-icon>
-				<p class="text-sm text-surface-500 dark:text-surface-50">{collection_no_collections_found()}</p>
+				{#if isFullSidebar}
+					<p class="text-sm text-surface-500 dark:text-surface-50">{collection_no_collections_found()}</p>
+				{/if}
 			</div>
 		{:else}
 			<TreeView nodes={treeNodes} {selectedId} compact={!isFullSidebar} search={debouncedSearch} iconColorClass="text-error-500" showBadges={true} />

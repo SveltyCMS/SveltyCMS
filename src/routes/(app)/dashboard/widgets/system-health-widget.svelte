@@ -212,7 +212,7 @@ export const widgetMeta = {
 
 							<button
 								onclick={reinitializeSystem}
-								class="rounded-xl border border-amber-500/30 px-3 py-1.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/10 dark:text-amber-400 transition-all duration-150 flex items-center gap-1.5"
+								class="rounded border border-amber-500/30 px-3 py-1.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/10 dark:text-amber-400 transition-all duration-150 flex items-center gap-1.5"
 							>
 								<iconify-icon icon="mdi:refresh" width={16}></iconify-icon>
 								Reinitialize

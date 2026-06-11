@@ -444,7 +444,7 @@ FIXES:
 			{const isActive = currentLanguage === lang}
 
 			<button
-				class="w-full text-start px-3 py-2 flex items-center gap-3 rounded-lg transition-colors {isActive ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold' : 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300'}"
+				class="w-full text-start px-3 py-2 flex items-center gap-3 rounded transition-colors {isActive ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold' : 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300'}"
 				onclick={() => handleLanguageChange(lang as Locale)}
 			 aria-label="Close translation panel">
 				<div class="flex w-full items-center justify-between gap-2">

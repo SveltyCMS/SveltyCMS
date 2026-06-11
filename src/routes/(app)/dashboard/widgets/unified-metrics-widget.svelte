@@ -138,19 +138,19 @@ export const widgetMeta = {
 					</div>
 					<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
 					<div class="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-none">
-						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
+						<div class="flex shrink-0 items-center gap-1 rounded bg-surface-50 px-2 py-1 dark:bg-surface-800">
 							<span class="text-[10px] font-medium text-surface-500">Resp</span>
 							<span class="text-xs font-bold tabular-nums {metricCls(m.requests.avgResponseTime, 400, 800)}">{fmtMs(m.requests.avgResponseTime)}</span>
 						</div>
-						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
+						<div class="flex shrink-0 items-center gap-1 rounded bg-surface-50 px-2 py-1 dark:bg-surface-800">
 							<span class="text-[10px] font-medium text-surface-500">Errors</span>
 							<span class="text-xs font-bold tabular-nums {metricCls(m.requests.errorRate, 1, 3)}">{m.requests.errorRate.toFixed(1)}%</span>
 						</div>
-						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
+						<div class="flex shrink-0 items-center gap-1 rounded bg-surface-50 px-2 py-1 dark:bg-surface-800">
 							<span class="text-[10px] font-medium text-surface-500">Auth</span>
 							<span class="text-xs font-bold tabular-nums {m.authentication.successRate > 95 ? 'text-emerald-500' : 'text-amber-500'}">{m.authentication.successRate.toFixed(0)}%</span>
 						</div>
-						<div class="flex shrink-0 items-center gap-1 rounded-lg bg-surface-50 px-2 py-1 dark:bg-surface-800">
+						<div class="flex shrink-0 items-center gap-1 rounded bg-surface-50 px-2 py-1 dark:bg-surface-800">
 							<span class="text-[10px] font-medium text-surface-500">Cache</span>
 							<span class="text-xs font-bold tabular-nums text-blue-500">{avgCache.toFixed(0)}%</span>
 						</div>
@@ -206,22 +206,22 @@ export const widgetMeta = {
 							<div>
 								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Requests</h5>
 								<div class="grid grid-cols-3 gap-2 text-center">
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums">{m.requests.total.toLocaleString()}</div><div class="text-[10px] text-surface-500">Total</div></div>
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-red-500">{m.requests.errors}</div><div class="text-[10px] text-surface-500">Errors</div></div>
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-amber-500">{m.performance.slowRequests}</div><div class="text-[10px] text-surface-500">Slow</div></div>
+									<div class="rounded bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums">{m.requests.total.toLocaleString()}</div><div class="text-[10px] text-surface-500">Total</div></div>
+									<div class="rounded bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-red-500">{m.requests.errors}</div><div class="text-[10px] text-surface-500">Errors</div></div>
+									<div class="rounded bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-amber-500">{m.performance.slowRequests}</div><div class="text-[10px] text-surface-500">Slow</div></div>
 								</div>
 							</div>
 							<div>
 								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Security</h5>
 								<div class="grid grid-cols-3 gap-2 text-center">
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-orange-500">{m.security.rateLimitViolations}</div><div class="text-[10px] text-surface-500">Rate Limits</div></div>
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-purple-500">{m.security.cspViolations}</div><div class="text-[10px] text-surface-500">CSP</div></div>
-									<div class="rounded-xl bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-red-500">{m.security.authFailures}</div><div class="text-[10px] text-surface-500">Auth Fails</div></div>
+									<div class="rounded bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-orange-500">{m.security.rateLimitViolations}</div><div class="text-[10px] text-surface-500">Rate Limits</div></div>
+									<div class="rounded bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-purple-500">{m.security.cspViolations}</div><div class="text-[10px] text-surface-500">CSP</div></div>
+									<div class="rounded bg-surface-50 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-red-500">{m.security.authFailures}</div><div class="text-[10px] text-surface-500">Auth Fails</div></div>
 								</div>
 							</div>
 							<div>
 								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Performance</h5>
-								<div class="rounded-xl bg-surface-50 p-3 dark:bg-surface-800">
+								<div class="rounded bg-surface-50 p-3 dark:bg-surface-800">
 									<div class="flex items-center justify-between"><span class="text-xs text-surface-500">Avg Hook Time</span><span class="font-mono text-sm font-semibold tabular-nums">{fmtMs(m.performance.avgHookExecutionTime)}</span></div>
 								</div>
 							</div>
@@ -230,7 +230,7 @@ export const widgetMeta = {
 									<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Bottlenecks</h5>
 									<div class="space-y-1">
 										{#each m.performance.bottlenecks.slice(0, 3) as item}
-											<div class="rounded-xl bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{item}</div>
+											<div class="rounded bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{item}</div>
 										{/each}
 									</div>
 								</div>

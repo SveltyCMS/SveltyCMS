@@ -178,7 +178,7 @@ and proper focus management. Renders tools from the auto-discovered registry.
 	<div class="sidebar-tools flex flex-1 flex-row flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overflow-y-hidden px-2 py-2 lg:gap-2 lg:p-3">
 		{#each tools as tool, idx (tool.id)}
 			<button
-				class="tool-item group relative flex min-w-[3.35rem] flex-none items-center justify-center gap-2 rounded-xl px-2 py-2 text-center transition-all duration-200 lg:min-w-23 lg:px-3 lg:py-2.5"
+				class="tool-item group relative flex min-w-[3.35rem] flex-none items-center justify-center gap-2 rounded px-2 py-2 text-center transition-all duration-200 lg:min-w-23 lg:px-3 lg:py-2.5"
 				class:tool-active={isToolActive(tool)}
 				class:cursor-not-allowed={!hasImage}
 				class:opacity-50={!hasImage}

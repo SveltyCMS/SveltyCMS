@@ -99,7 +99,7 @@ const availableTransitions = $derived.by(() => {
         </div>
 
         {#if !instance}
-             <div class="p-4 rounded-lg bg-surface-50 dark:bg-surface-950 text-center border-2 border-dashed border-surface-200 dark:border-surface-800">
+             <div class="p-4 rounded bg-surface-50 dark:bg-surface-950 text-center border-2 border-dashed border-surface-200 dark:border-surface-800">
                 <p class="text-xs italic opacity-40 mb-2">No active workflow instance for this entry.</p>
                 <button class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')}>
                                     Start Workflow
@@ -127,7 +127,7 @@ const availableTransitions = $derived.by(() => {
                         <textarea
                             bind:value={comment}
                             placeholder="Add a comment (optional)..."
-                            class="textarea text-xs bg-surface-50 dark:bg-surface-950 border-none rounded-lg focus:ring-primary-500"
+                            class="textarea text-xs bg-surface-50 dark:bg-surface-950 border-none rounded focus:ring-primary-500"
                             rows="2"
                          aria-label="Textarea"></textarea>
                         <div class="flex justify-end gap-2">

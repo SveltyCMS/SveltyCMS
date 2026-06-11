@@ -60,26 +60,26 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 
 	<!-- Call to Action -->
 	<div class="mt-10 flex flex-col items-center" in:fade={{ duration: 400, delay: 600 }}>
-		<div class="flex gap-4">
-			<Button onclick={onAddCategory} variant="tertiary" rounded={true} size="lg" class="group">
+		<div class="flex flex-wrap justify-center gap-4">
+			<Button onclick={onAddCategory} variant="tertiary" rounded={true} size="lg" class="group w-52 justify-center">
 				<iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
 				<span>{collection_addcategory()}</span>
 			</Button>
 
-			<Button onclick={onAddCollection} variant="primary" rounded={true} size="lg" class="group">
+			<Button onclick={onAddCollection} variant="primary" rounded={true} size="lg" class="group w-52 justify-center">
 				<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
 				<span>{collection_add()}</span>
 			</Button>
 
 			{#if onQuickStart}
-				<Button onclick={onQuickStart} variant="secondary" rounded={true} size="lg" class="group">
+				<Button onclick={onQuickStart} variant="secondary" rounded={true} size="lg" class="group w-52 justify-center">
 					<iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
 					<span>Quick Start</span>
 				</Button>
 			{/if}
 
 			{#if onLoadPreset}
-				<Button onclick={onLoadPreset} variant="warning" rounded={true} size="lg" class="group">
+				<Button onclick={onLoadPreset} variant="warning" rounded={true} size="lg" class="group w-52 justify-center">
 					<iconify-icon icon="mdi:magic-staff" width="24" class="text-white transition-transform group-hover:rotate-12"></iconify-icon>
 					<span class="text-white">Load Preset</span>
 				</Button>

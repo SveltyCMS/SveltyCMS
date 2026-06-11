@@ -383,7 +383,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{/if}
 			{#if installError}
 				<div
-					class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-error-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+					class="mt-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-error-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
 					role="alert"
 				>
 					<div class="flex items-center gap-2">
@@ -436,7 +436,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				{/if}
 				{#if showConnectionStringHelper}
 					<div
-						class="mt-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
+						class="mt-2 rounded border border-green-200 bg-green-50 p-3 text-sm text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
 						role="status"
 					>
 						<div class="flex items-center gap-2">
@@ -626,7 +626,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</button>
 
 			{#if showAdvanced}
-				<div class="mt-4 space-y-4 rounded-lg border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
+				<div class="mt-4 space-y-4 rounded border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
 					<div class="flex flex-col gap-2">
 						<label for="replica-urls" class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
 							<iconify-icon icon="mdi:database-import" width="16"></iconify-icon>
@@ -693,7 +693,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		{/if}
 		{#if dbConfigChangedSinceTest}
 			<div
-				class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
+				class="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
 				role="alert"
 			>
 				{setup_help_database_type?.() || 'Database settings changed since last successful test. Please re-test to proceed.'}

@@ -279,7 +279,7 @@ const configItems = [
 				<PermissionGuard config={item.permission}>
 					<a
 						href={item.href}
-						class="flex h-24 flex-col items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl  dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+						class="flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl  dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
 						aria-label={item.label}
 						target={item.target}
 						rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
@@ -302,7 +302,7 @@ const configItems = [
 				<div in:fly={{ y: 20, delay: idx * 50, duration: 300 }}>
 				<a
 					href={item.href}
-					class="group flex h-24 flex-col items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl  dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+					class="group flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl  dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
 					aria-label={item.label}
 					target={item.target}
 					rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}

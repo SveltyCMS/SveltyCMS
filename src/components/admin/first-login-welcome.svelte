@@ -151,7 +151,7 @@
 
 {#if showWelcome && !dismissedWelcome}
 	<!-- Welcome Container -->
-	<div class="welcome-container mx-auto max-w-4xl rounded-lg bg-surface-50 p-6 shadow-lg dark:bg-surface-800">
+	<div class="welcome-container mx-auto max-w-4xl rounded bg-surface-50 p-6 shadow-lg dark:bg-surface-800">
 		<!-- Header -->
 		<div class="mb-8 text-center">
 			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
@@ -199,7 +199,7 @@
 
 				<!-- Special content for data management step -->
 				{#if step.id === 'data-management'}
-					<div class="mb-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+					<div class="mb-6 rounded bg-blue-50 p-4 dark:bg-blue-900/20">
 						<div class="flex items-start space-x-3">
 							<iconify-icon icon="mdi:information" width={20} class="mt-0.5 text-blue-600 dark:text-blue-400"></iconify-icon>
 							<div class="text-sm">
@@ -219,19 +219,19 @@
 
 		<!-- Quick Stats -->
 		<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-			<div class="rounded-lg bg-gray-50 p-4 text-center dark:bg-gray-800">
+			<div class="rounded bg-gray-50 p-4 text-center dark:bg-gray-800">
 				<div class="text-2xl font-bold text-green-600">✓</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Setup Complete</div>
 			</div>
-			<div class="rounded-lg bg-gray-50 p-4 text-center dark:bg-gray-800">
+			<div class="rounded bg-gray-50 p-4 text-center dark:bg-gray-800">
 				<div class="text-2xl font-bold text-blue-600">0</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Collections</div>
 			</div>
-			<div class="rounded-lg bg-gray-50 p-4 text-center dark:bg-gray-800">
+			<div class="rounded bg-gray-50 p-4 text-center dark:bg-gray-800">
 				<div class="text-2xl font-bold text-purple-600">1</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Admin User</div>
 			</div>
-			<div class="rounded-lg bg-gray-50 p-4 text-center dark:bg-gray-800">
+			<div class="rounded bg-gray-50 p-4 text-center dark:bg-gray-800">
 				<div class="text-2xl font-bold text-orange-600">∞</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Possibilities</div>
 			</div>
@@ -268,7 +268,7 @@
 <!-- Import/Export Overlay -->
 {#if showImportExport}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
 				<button onclick={() => (showImportExport = false)} class="preset-outlined-surface-500 btn-sm" aria-label="Close">

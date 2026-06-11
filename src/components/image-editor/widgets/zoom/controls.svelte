@@ -108,7 +108,7 @@ function handleInputChange(e: Event) {
 			max={maxZoom}
 			value={sliderValue.value}
 			onchange={handleInputChange}
-			class="input w-14 rounded-md border border-white/8 bg-white/5 px-1.5 py-1 text-center font-mono text-sm text-surface-100 focus:border-primary-400/50 focus:ring-0 focus:text-white"
+			class="input w-14 rounded border border-white/8 bg-white/5 px-1.5 py-1 text-center font-mono text-sm text-surface-100 focus:border-primary-400/50 focus:ring-0 focus:text-white"
 			style="background: transparent;"
 			aria-label="Zoom level percentage"
 		/>

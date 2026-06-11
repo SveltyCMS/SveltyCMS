@@ -97,12 +97,12 @@ export class AdminThemeService {
 
   /** List all themes with their admin config summaries */
   async listThemes(tenantId?: string | null): Promise<ThemeSummary[]> {
-    const tm = ThemeManager.getInstance();
-    const db = (tm as any).db;
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
     const themes: Theme[] = await db.system.themes.getAllThemes({
-      tenantId: tenantId as string,
+      tenantId: tenantId as unknown as DatabaseId,
     });
     if (!Array.isArray(themes)) return [];
 
@@ -140,14 +140,15 @@ export class AdminThemeService {
     themeId?: string,
   ): Promise<StoredAdminTheme> {
     const tm = ThemeManager.getInstance();
-    const db = (tm as any).db;
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
     // Determine target theme
     let theme: Theme;
     if (themeId) {
       const themes: Theme[] = await db.system.themes.getAllThemes({
-        tenantId: tenantId as string,
+        tenantId: tenantId as unknown as DatabaseId,
       });
       const found = themes.find((t) => String(t._id) === themeId);
       if (!found) throw new Error(`Theme ${themeId} not found`);
@@ -195,7 +196,8 @@ export class AdminThemeService {
     tenantId?: string | null,
   ): Promise<ThemeSummary> {
     const tm = ThemeManager.getInstance();
-    const db = (tm as any).db;
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
     const adminConfig = {
@@ -238,11 +240,12 @@ export class AdminThemeService {
   /** Delete a theme (cannot delete the active/default theme) */
   async deleteTheme(themeId: string, tenantId?: string | null): Promise<void> {
     const tm = ThemeManager.getInstance();
-    const db = (tm as any).db;
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
     const themes: Theme[] = await db.system.themes.getAllThemes({
-      tenantId: tenantId as string,
+      tenantId: tenantId as unknown as DatabaseId,
     });
     const theme = themes.find((t) => String(t._id) === themeId);
     if (!theme) throw new Error("Theme not found");
@@ -258,11 +261,12 @@ export class AdminThemeService {
   /** Activate a theme (deactivates others) */
   async activateTheme(themeId: string, tenantId?: string | null): Promise<StoredAdminTheme> {
     const tm = ThemeManager.getInstance();
-    const db = (tm as any).db;
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
     const themes: Theme[] = await db.system.themes.getAllThemes({
-      tenantId: tenantId as string,
+      tenantId: tenantId as unknown as DatabaseId,
     });
     const target = themes.find((t) => String(t._id) === themeId);
     if (!target) throw new Error("Theme not found");
@@ -282,12 +286,12 @@ export class AdminThemeService {
     newName: string,
     tenantId?: string | null,
   ): Promise<ThemeSummary> {
-    const tm = ThemeManager.getInstance();
-    const db = (tm as any).db;
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
     const themes: Theme[] = await db.system.themes.getAllThemes({
-      tenantId: tenantId as string,
+      tenantId: tenantId as unknown as DatabaseId,
     });
     const source = themes.find((t) => String(t._id) === sourceId);
     if (!source) throw new Error("Source theme not found");

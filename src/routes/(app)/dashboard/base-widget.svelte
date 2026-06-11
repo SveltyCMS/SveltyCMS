@@ -374,7 +374,7 @@ $effect(() => {
 
 <article
 	bind:this={widgetEl}
-	class="widget-base-container group relative flex h-full flex-col rounded-lg border border-surface-200 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
+	class="widget-base-container group relative flex h-full flex-col rounded border border-surface-200 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
 	aria-labelledby="widget-title-{widgetId || label}"
 	style="overflow: visible;"
 >
@@ -414,7 +414,7 @@ $effect(() => {
 				</button>
 				{#if showSizeMenu}
 					<div
-						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded-md border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
+						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
@@ -496,8 +496,8 @@ $effect(() => {
 	{/if}
 
 	{#if isResizing && previewSize}
-		<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-tertiary-500 dark:bg-primary-500/10 backdrop-blur-sm">
-			<div class="rounded-lg bg-tertiary-500 dark:bg-primary-500 px-4 py-2 text-white shadow-lg">Snap to: {getSizeLabel(previewSize)}</div>
+		<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded bg-tertiary-500 dark:bg-primary-500/10 backdrop-blur-sm">
+			<div class="rounded bg-tertiary-500 dark:bg-primary-500 px-4 py-2 text-white shadow-lg">Snap to: {getSizeLabel(previewSize)}</div>
 		</div>
 	{/if}
 </article>

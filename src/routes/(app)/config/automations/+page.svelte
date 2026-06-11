@@ -248,7 +248,7 @@ onMount(loadFlows);
 			<div class="grid gap-4">
 				{#each filteredFlows as flow (flow.id)}
 					<div
-						class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 hover:border-tertiary-500 dark:border-primary-600 transition-all duration-200 rounded-lg flex items-center gap-4"
+						class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 hover:border-tertiary-500 dark:border-primary-600 transition-all duration-200 rounded flex items-center gap-4"
 						class:opacity-50={!flow.active}
 						transition:slide
 					>
@@ -261,7 +261,7 @@ onMount(loadFlows);
 							<!-- Icon & Status -->
 							<div class="flex items-center gap-3 flex-1 min-w-0">
 								<div
-									class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+									class="shrink-0 w-10 h-10 rounded flex items-center justify-center"
 									class:bg-primary-100={flow.active}
 									class:dark:bg-primary-900={flow.active}
 									class:bg-surface-200={!flow.active}

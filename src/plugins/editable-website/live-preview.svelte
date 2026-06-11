@@ -181,7 +181,7 @@
   {#if !shouldRender}
     <!-- Deferred Load State -->
     <div
-      class="flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-surface-400 bg-surface-100/50 dark:bg-surface-900/50"
+      class="flex flex-1 flex-col items-center justify-center gap-4 rounded border border-dashed border-surface-400 bg-surface-100/50 dark:bg-surface-900/50"
     >
       <iconify-icon icon="mdi:eye-outline" width="48" class="text-surface-400"
       ></iconify-icon>
@@ -270,7 +270,7 @@
 
     <!-- Preview Iframe Container -->
     <div
-      class="relative flex-1 overflow-hidden rounded-xl border border-surface-300 bg-surface-100 dark:bg-surface-900"
+      class="relative flex-1 overflow-hidden rounded border border-surface-300 bg-surface-100 dark:bg-surface-900"
     >
       <div
         class="h-full w-full bg-white transition-all duration-300"

@@ -72,7 +72,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 }
 </script>
 
-<div class="w-full overflow-hidden border border-surface-200 dark:border-surface-800 rounded-xl bg-white dark:bg-surface-900 shadow-sm">
+<div class="w-full overflow-hidden border border-surface-200 dark:border-surface-800 rounded bg-white dark:bg-surface-900 shadow-sm">
 	<div class="table-container max-h-[600px] overflow-auto">
 		<table class="table table-hover w-full">
 			<thead class="bg-surface-50 dark:bg-surface-800 sticky top-0 z-10">

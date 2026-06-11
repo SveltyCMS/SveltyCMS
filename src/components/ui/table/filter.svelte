@@ -82,7 +82,7 @@ const densityIcon = $derived.by(() => {
                     bind:value={search}
                     oninput={onfilter}
                     placeholder="Search records..."
-                    class="w-full bg-white border border-surface-200  rounded-xl py-2 ps-10 pe-4 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 outline-none transition-all shadow-xs"
+                    class="w-full bg-white border border-surface-200  rounded py-2 ps-10 pe-4 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 outline-none transition-all shadow-xs"
                 />
                 {#if search}
                     <button

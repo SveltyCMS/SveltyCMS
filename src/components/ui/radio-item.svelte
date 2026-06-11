@@ -80,7 +80,7 @@ via Svelte context. Supports default, card, and button visual variants.
 		aria-checked={checked}
 		disabled={isDisabled}
 		class={cn(
-			'flex items-start gap-3 w-full rounded-xl border-2 p-4 text-start transition-all',
+			'flex items-start gap-3 w-full rounded border-2 p-4 text-start transition-all',
 			checked
 				? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-sm'
 				: 'border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 hover:border-surface-300 dark:hover:border-surface-600',
@@ -122,7 +122,7 @@ via Svelte context. Supports default, card, and button visual variants.
 		aria-checked={checked}
 		disabled={isDisabled}
 		class={cn(
-			'inline-flex items-center justify-center px-4 py-2 rounded-lg border-2 font-medium transition-all',
+			'inline-flex items-center justify-center px-4 py-2 rounded border-2 font-medium transition-all',
 			sizeTokens.text,
 			sizeTokens.touch,
 			checked

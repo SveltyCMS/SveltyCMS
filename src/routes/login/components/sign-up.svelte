@@ -286,7 +286,7 @@ $effect(() => {
 			{/if}
 			<!-- CSS Logo -->
 			<div class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
-			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
+			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
 				<a href="#signup-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-up form</a>
 				<div class="flex flex-row gap-3 items-center">
 					<SveltyCMSLogo size={68} className="w-14" fill="red" />

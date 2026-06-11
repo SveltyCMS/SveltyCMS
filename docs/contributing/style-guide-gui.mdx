@@ -149,11 +149,11 @@ Use native `Input`, `Select`, or `FloatingInput` components. They handle labels,
 
 For complex inputs that are their own self-contained "app," use a bordered container with surface colors:
 
-- **Container**: `relative w-full rounded-xl border border-surface-200 bg-surface-50 shadow-sm dark:border-surface-700 dark:bg-surface-900`
+- **Container**: `relative w-full rounded border border-surface-200 bg-surface-50 shadow-sm dark:border-surface-700 dark:bg-surface-900`
 - **Internal Structure**: Use `border-b border-surface-200 dark:border-surface-700` to separate toolbars and content areas.
 
 ```svelte
-<div class="relative w-full rounded-xl border border-surface-200 bg-surface-50 shadow-sm dark:border-surface-700 dark:bg-surface-900">
+<div class="relative w-full rounded border border-surface-200 bg-surface-50 shadow-sm dark:border-surface-700 dark:bg-surface-900">
   <div class="toolbar flex flex-wrap border-b border-surface-200 dark:border-surface-700 p-2 gap-1">
     <!-- toolbar buttons -->
   </div>
@@ -201,11 +201,11 @@ For components where absolute positioning is awkward (radio groups, checkboxes).
 For complex, multi-part components where a single line is insufficient.
 
 - **When to Use**: Mega menu builder, complex list inputs.
-- **Classes**: `flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300`
+- **Classes**: `flex items-center gap-2 rounded border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300`
 
 ```svelte
 {#if errors.form}
-  <div class="flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300" role="alert">
+  <div class="flex items-center gap-2 rounded border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300" role="alert">
     <iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
     {errors.form}
   </div>
@@ -405,12 +405,12 @@ Use slim, high-contrast borders to separate content regions instead of heavy bac
 
 ```svelte
 <!-- ✅ Good: border defines the boundary, background stays light -->
-<div class="rounded-xl border border-surface-200 p-4 bg-surface-50/30 dark:border-surface-800 dark:bg-surface-900/20">
+<div class="rounded border border-surface-200 p-4 bg-surface-50/30 dark:border-surface-800 dark:bg-surface-900/20">
   <!-- grouped content -->
 </div>
 
 <!-- ❌ Bad: relies on heavy background tint for separation, no border anchor -->
-<div class="rounded-xl bg-surface-100 p-4 dark:bg-surface-800">
+<div class="rounded bg-surface-100 p-4 dark:bg-surface-800">
   <!-- grouped content -->
 </div>
 ```text

@@ -296,7 +296,7 @@ function handleSignUpPointerEnter() {
 	<!-- Database Error Display -->
 	{#if data.showDatabaseError}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="max-w-2xl rounded-lg bg-white p-8 shadow-xl">
+			<div class="max-w-2xl rounded bg-white p-8 shadow-xl">
 				<div class="mb-4 flex items-center gap-3">
 					<svg class="h-8 w-8 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
@@ -311,7 +311,7 @@ function handleSignUpPointerEnter() {
 
 				<p class="mb-4 text-lg">{db_error_description()}</p>
 
-				<div class="mb-4 rounded-lg bg-surface-200 p-4">
+				<div class="mb-4 rounded bg-surface-200 p-4">
 					<p class="font-semibold">{db_error_reason_label()}</p>
 					<p class="text-sm">{data.errorReason}</p>
 				</div>
@@ -377,7 +377,7 @@ function handleSignUpPointerEnter() {
 		{#if data.demoMode}
 			<!-- DEMO MODE -->
 			<div
-				class="absolute bottom-2.75 inset-s-1/2 flex min-w-87.5 -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
+				class="absolute bottom-2.75 inset-s-1/2 flex min-w-87.5 -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
 				class:opacity-50={isTransitioning}
 				aria-live="polite"
 				aria-atomic="true"
@@ -430,7 +430,7 @@ function handleSignUpPointerEnter() {
 							bind:this={searchInput}
 							bind:value={searchQuery}
 							placeholder="Search language..."
-							class="w-full rounded-lg bg-white/10 px-3 py-2 text-sm placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 text-white border-none"
+							class="w-full rounded bg-white/10 px-3 py-2 text-sm placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 text-white border-none"
 							aria-label="Search languages"
 							onclick={(e) => e.stopPropagation()}
 						/>

@@ -8,7 +8,7 @@ SveltyCMS is built with **defense-in-depth security** featuring 4-layer zero-tru
 | Cryptography          | 100   | AES-256-GCM, SHA-256 chain, timing-safe, key rotation documented |
 | Auth & Session        | 95    | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, lockout                |
 | Input Validation      | 95    | Valibot + DOMPurify + Drizzle + body limit + SVG                 |
-| Disclosure & Response | 98    | security.txt, incident runbook, responsible disclosure |
+| Disclosure & Response | 98    | security.txt, incident runbook, responsible disclosure           |
 | Dependency Hygiene    | 92    | Override-pinned, node-forge-free, osv-scanner/audit:deps         |
 
 **Weighted: ~97/100** — self-assessed (June 2026). Remaining: WebAuthn support, third-party penetration test.
@@ -56,6 +56,7 @@ SveltyCMS is an open-source project. While we cannot offer monetary bounties, we
 - **Swag**: SveltyCMS stickers and merchandise for critical findings
 
 **Rules**:
+
 - Vulnerability must be in the `next` branch, not in dependencies or configuration
 - No automated scanning without prior approval — contact security@sveltycms.com first
 - Allow 90 days before public disclosure

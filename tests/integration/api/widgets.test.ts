@@ -5,10 +5,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import {
-  cleanupTestDatabase,
-  prepareAuthenticatedContext,
-} from "../helpers/test-setup";
+import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
@@ -171,9 +168,7 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
       headers: { Cookie: authCookie },
     });
     const listData = await listRes.json();
-    const widget =
-      listData.data.widgets.find((w: any) => !w.isCore) ||
-      listData.data.widgets[0];
+    const widget = listData.data.widgets.find((w: any) => !w.isCore) || listData.data.widgets[0];
 
     if (widget) {
       const response = await safeFetch(`${BASE_URL}/api/widgets/status`, {

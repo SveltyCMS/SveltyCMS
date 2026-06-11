@@ -260,7 +260,7 @@
 	}
 </script>
 
-<div class="min-h-30 rounded-lg border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
+<div class="min-h-30 rounded border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
 		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4" use:dndzone={{ items: dndItems }} onconsider={(e) => syncDndItems(e.detail.items)}>
 			{#each selectedFiles as file (file._id)}

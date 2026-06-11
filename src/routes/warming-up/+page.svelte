@@ -186,7 +186,7 @@ Features:
     {#each Object.entries(services) as [name, svc]}
       {@const displayName = name === "content" ? "Content System" : name.charAt(0).toUpperCase() + name.slice(1)}
       <div
-        class="flex items-center gap-3 rounded-lg border border-surface-200 bg-white/90 p-4 shadow-sm transition-colors backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/90"
+        class="flex items-center gap-3 rounded border border-surface-200 bg-white/90 p-4 shadow-sm transition-colors backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/90"
       >
         <!-- Status dot -->
         <span
@@ -215,7 +215,7 @@ Features:
 
   <!-- Error indicator -->
   {#if pollError}
-    <div class="mt-6 max-w-md rounded-lg border border-red-200 bg-red-50 p-3 text-center dark:border-red-800 dark:bg-red-950" role="alert">
+    <div class="mt-6 max-w-md rounded border border-red-200 bg-red-50 p-3 text-center dark:border-red-800 dark:bg-red-950" role="alert">
       <p class="text-sm text-red-600 dark:text-red-400">{pollError}</p>
     </div>
   {/if}

@@ -212,7 +212,7 @@ async function handleSave() {
 		<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 			{#each fields as field (field.id)}
 				<div
-					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
+					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
 				>
 					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500">{field.id}</div>
 

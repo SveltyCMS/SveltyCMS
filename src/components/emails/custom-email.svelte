@@ -38,7 +38,7 @@
 	<Preview preview="A notification from {sitename}" />
 
 	<Body class="font-sans bg-[#f6f9fc] py-5">
-		<Container class="max-w-150 mx-auto bg-white rounded-lg overflow-hidden shadow-sm">
+		<Container class="max-w-150 mx-auto bg-white rounded overflow-hidden shadow-sm">
 			<Section class="p-8 text-center border-b border-gray-200">
 				<Link href={hostLink}><Img src={logoSrc} alt="{sitename} logo" width="120" height="auto" class="mx-auto block" /></Link>
 			</Section>

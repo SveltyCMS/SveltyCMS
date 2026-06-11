@@ -741,10 +741,10 @@
 							use:dndzone={{ items: displayTableHeaders, flipDurationMs }}
 							onconsider={handleDndConsider}
 							onfinalize={handleDndFinalize}
-							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
+							class="flex flex-wrap justify-center gap-1 rounded p-2"
 						>
 							{#each displayTableHeaders as header (header.id)}
-								<button>
+								<button
 									type="button"
 									class="chip {header.visible
 										? 'preset-filled-secondary-500'
@@ -867,7 +867,7 @@
 												<button
 													type="button"
 													onclick={() => isUser(row) && toggleUserBlocked(row)}
-													class="btn-sm cursor-pointer rounded-md p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
+													class="btn-sm cursor-pointer rounded p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
 													aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
 													title={row.blocked ? 'Click to unblock user' : 'Click to block user'}
 												>
@@ -880,7 +880,7 @@
 														event.stopPropagation();
 														if (isToken(row)) toggleTokenBlocked(row);
 													}}
-													class="btn-sm cursor-pointer rounded-md p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
+													class="btn-sm cursor-pointer rounded p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
 													aria-label={row.blocked ? 'Click to unblock token' : 'Click to block token'}
 													title={row.blocked ? 'Click to unblock token' : 'Click to block token'}
 												>

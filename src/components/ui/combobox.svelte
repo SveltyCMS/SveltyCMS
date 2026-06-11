@@ -277,7 +277,7 @@ $effect(() => {
 			{placeholder}
 			{disabled}
 			class={cn(
-				"input w-full transition-all duration-200 rounded-xl",
+				"input w-full transition-all duration-200 rounded",
 				"focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500",
 				isOpen && "rounded-b-none",
 				error && "border-error-500 ring-error-500/20 focus:border-error-500 focus:ring-error-500/20",

@@ -451,7 +451,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 	<!-- Dropdown -->
 	{#if showDropdown && !disabled}
 		<div
-			class="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800"
+			class="absolute z-50 mt-2 w-full overflow-hidden rounded border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800"
 			transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<!-- Loading state -->

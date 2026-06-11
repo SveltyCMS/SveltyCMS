@@ -447,7 +447,7 @@ Part of the Three Pillars Architecture for the widget system.
 	}
 </script>
 
-<div class="address-widget flex flex-col gap-4 rounded-xl border p-4 border-surface-300 dark:border-surface-600 bg-surface-50/30 dark:bg-surface-800/20">
+<div class="address-widget flex flex-col gap-4 rounded border p-4 border-surface-300 dark:border-surface-600 bg-surface-50/30 dark:bg-surface-800/20">
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2 font-bold text-surface-900 dark:text-surface-50">
 			<iconify-icon icon="mdi:map-marker-radius" width="20"></iconify-icon>
@@ -483,7 +483,7 @@ Part of the Three Pillars Architecture for the widget system.
 					</div>
 					
 					{#if !googleMapsApiKey && showSuggestions && suggestions.length > 0}
-						<div class="absolute z-50 start-0 end-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
+						<div class="absolute z-50 start-0 end-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
 							<ul class="list-none p-0 m-0">
 								{#each suggestions as sug}
 									<li>
@@ -559,7 +559,7 @@ Part of the Three Pillars Architecture for the widget system.
 						{googleMapsApiKey ? 'Google Maps' : 'MapLibre Free'}
 					</span>
 				</div>
-				<div bind:this={mapElement} class="h-80 lg:h-full min-h-[300px] w-full rounded-lg border border-surface-300 bg-surface-100 dark:border-surface-700 relative overflow-hidden">
+				<div bind:this={mapElement} class="h-80 lg:h-full min-h-[300px] w-full rounded border border-surface-300 bg-surface-100 dark:border-surface-700 relative overflow-hidden">
 				</div>
 			</div>
 		{/if}

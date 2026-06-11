@@ -112,7 +112,7 @@ export const widgetMeta = {
 								type="button"
 								role="tab"
 								aria-selected={disk.key === d.key}
-								class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-blue-500 {disk.key === d.key
+								class="px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-blue-500 {disk.key === d.key
 									? 'bg-blue-500 text-white shadow-sm'
 									: theme === 'dark'
 										? 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'

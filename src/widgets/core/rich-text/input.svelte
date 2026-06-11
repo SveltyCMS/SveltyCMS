@@ -532,7 +532,7 @@
 									</SystemTooltip>
 									{#if activeDropdown === btn.label}
 										<div
-											class="absolute top-full inset-s-0 mt-1 min-w-45 rounded-lg border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
+											class="absolute top-full inset-s-0 mt-1 min-w-45 rounded border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
@@ -851,7 +851,7 @@
 				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">Command Menu</h3>
 				<div class="space-y-2">
 					<button
-						class="flex w-full items-center gap-4 rounded-xl px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
+						class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
 						onclick={() => {
 							editor?.chain().focus().setHardBreak().run();
 							showSlashMenu = false;
@@ -865,7 +865,7 @@
 					</button>
 					{#if field.aiEnabled}
 						<button
-							class="flex w-full items-center gap-4 rounded-xl px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
+							class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
 							onclick={() => {
 								editor?.chain().focus().insertContent('/ai ');
 								showSlashMenu = false;

@@ -285,7 +285,7 @@ function onVirtualScroll() {
                         {#each Array(5) as _}
                             <tr class="animate-pulse">
                                 {#if selectable}<td class="p-4"><div class="size-4 bg-surface-200 dark:bg-surface-700 rounded-sm"></div></td>{/if}
-                                {#each columns as _}<td class={densityClass}><div class="h-4 w-full bg-surface-200 dark:bg-surface-700 rounded-lg"></div></td>{/each}
+                                {#each columns as _}<td class={densityClass}><div class="h-4 w-full bg-surface-200 dark:bg-surface-700 rounded"></div></td>{/each}
                             </tr>
                         {/each}
                     {:else if data.length === 0}

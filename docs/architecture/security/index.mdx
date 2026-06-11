@@ -37,14 +37,14 @@ SveltyCMS security architecture includes:
 
 ## 📊 Security Scorecard
 
-| Dimension                 | Weight | Score | Prevents                                              |
-| ------------------------- | :----: | :---: | ----------------------------------------------------- |
-| **CVE Track Record**      |  25%   |  100  | 0 CVEs — verifiable via NVD, GitHub Advisory DB       |
-| **Cryptography**          |  15%   |  100  | AES-256-GCM, SHA-256 chain, key rotation, timing-safe |
-| **Disclosure & Response** | 10% | 98 | security.txt, incident runbook, responsible disclosure program |
-| **Auth & Session**        |  20%   |  95   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, lockout     |
-| **Input Validation**      |  15%   |  95   | Valibot + DOMPurify + Drizzle + SVG + body limit      |
-| **Dependency Hygiene**    |  15%   |  92   | Override-pinned, node-forge-free, osv-scanner         |
+| Dimension                 | Weight | Score | Prevents                                                       |
+| ------------------------- | :----: | :---: | -------------------------------------------------------------- |
+| **CVE Track Record**      |  25%   |  100  | 0 CVEs — verifiable via NVD, GitHub Advisory DB                |
+| **Cryptography**          |  15%   |  100  | AES-256-GCM, SHA-256 chain, key rotation, timing-safe          |
+| **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program |
+| **Auth & Session**        |  20%   |  95   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, lockout              |
+| **Input Validation**      |  15%   |  95   | Valibot + DOMPurify + Drizzle + SVG + body limit               |
+| **Dependency Hygiene**    |  15%   |  92   | Override-pinned, node-forge-free, osv-scanner                  |
 
 **Weighted**: 100×0.25 + 95×0.20 + 95×0.15 + 100×0.15 + 92×0.15 + 98×0.10 = **~97/100**
 

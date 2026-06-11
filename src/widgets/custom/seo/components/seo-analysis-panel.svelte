@@ -178,7 +178,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						</div>
 					{/each}
 				{:else}
-					<div class="flex items-center gap-2 rounded-lg border border-success-200 bg-success-50/50 p-3 text-success-700 dark:border-success-900/30 dark:bg-success-950/20 dark:text-success-300">
+					<div class="flex items-center gap-2 rounded border border-success-200 bg-success-50/50 p-3 text-success-700 dark:border-success-900/30 dark:bg-success-950/20 dark:text-success-300">
 						<iconify-icon icon="mdi:check-circle" class="text-xl"></iconify-icon>
 						<span class="text-sm">No issues found!</span>
 					</div>

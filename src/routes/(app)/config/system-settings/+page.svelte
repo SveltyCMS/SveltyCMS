@@ -118,25 +118,6 @@ async function checkAllGroupsForEmptyFields() {
 	}
 }
 
-async function exportAll() {
-	try {
-		const res = await fetch("/api/settings/all");
-		const data = await res.json();
-		if (data.success) {
-			const blob = new Blob([JSON.stringify(data.groups, null, 2)], {
-				type: "application/json",
-			});
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `sveltycms-settings-${new Date().toISOString().slice(0, 10)}.json`;
-			a.click();
-			URL.revokeObjectURL(url);
-		}
-	} catch (err) {
-		logger.error("Failed to export settings:", err);
-	}
-}
 
 onMount(() => {
 	availableGroups = getSettingGroupsByRole(isAdmin).sort((a, b) =>
@@ -165,72 +146,22 @@ $effect(() => {
 });
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
+<div class="absolute inset-0 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
 	<!-- Header (sticky so save button stays visible while scrolling) -->
-		<div in:fade class="sticky top-0 z-10 -mx-6 -mt-6 px-6 pt-6 pb-4 bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-sm">
+		<div in:fade class="sticky top-0 z-40 bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-sm pt-3 px-6 pb-3 border-b border-surface-200 dark:border-surface-800 mb-6 shadow-sm">
 			<PageTitle
 				name="System Settings"
 				icon="mdi:cog-outline"
-				description="Configure global system settings"
 				showBackButton={true}
 				backUrl="/config"
 			>
-				{#if selectedGroupId && selectedGroupId !== 'gdpr'}
-					<button
-						onclick={() => saveTrigger.fire()}
-						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
-						disabled={saving || !hasUnsavedChanges}
-					>
-						{#if saving}
-							<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
-							<span>Saving...</span>
-						{:else}
-							<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
-							<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
-						{/if}
-					</button>
-				{/if}
 			</PageTitle>
 		</div>
 
 	<!-- Content -->
-	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
-		<!-- Action Buttons -->
-			<div class="mb-6 flex flex-wrap items-center gap-2">
-				<button
-					disabled={isRepairing}
-					class="preset-tonal-warning w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-					onclick={async () => {
-						isRepairing = true;
-						repairResult = null;
-						try {
-							const { repairContentCache } = await import('./admin.remote');
-							const result = await repairContentCache();
-							if (result.success) {
-								repairResult = { success: true, message: result.message };
-								setTimeout(() => { repairResult = null; }, 5000);
-							} else {
-								repairResult = { success: false, error: result.error || 'Repair failed' };
-							}
-						} catch (e: unknown) {
-							repairResult = { success: false, error: e instanceof Error ? e.message || String(e) : 'Repair failed' };
-						} finally {
-							isRepairing = false;
-						}
-					}}
-				>
-					<iconify-icon icon="mdi:wrench" width="18" class={isRepairing ? 'animate-spin' : ''}></iconify-icon>
-					<span>{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
-				</button>
-
-				<button
-					onclick={exportAll}
-					class="preset-tonal-surface w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-				>
-					<iconify-icon icon="mdi:export" width="18"></iconify-icon>
-					<span>Export All JSON</span>
-				</button>
-			</div>
+	<div class="px-6 pb-6 space-y-8">
+		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
+		<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">Configure global system settings</h2>
 
 		<p class="text-surface-600 dark:text-surface-300 text-sm mb-6">
 			These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with
@@ -295,7 +226,7 @@ $effect(() => {
 		<div class="card flex flex-col bg-surface-50-950 border border-surface-200/50 dark:border-surface-700/50">
 			{#if selectedGroupId}
 				{#key selectedGroupId}
-					{const group = availableGroups.find((g) => g.id === selectedGroupId)}
+					{@const group = availableGroups.find((g) => g.id === selectedGroupId)}
 					{#if group}
 						<div class="h-full overflow-y-auto p-6">
 							{#if group.id === 'gdpr'}
@@ -307,7 +238,37 @@ $effect(() => {
 									bind:saveTrigger
 									bind:saving
 									onUnsavedChanges={(val) => (hasUnsavedChanges = val)}
-								/>
+								>
+									{#if selectedGroupId === 'cache'}
+										<button
+											type="button"
+											disabled={isRepairing}
+											class="preset-tonal-warning inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+											onclick={async () => {
+												isRepairing = true;
+												repairResult = null;
+												try {
+													const { repairContentCache } = await import('./admin.remote');
+													const result = await repairContentCache();
+													if (result.success) {
+														repairResult = { success: true, message: result.message };
+														setTimeout(() => { repairResult = null; }, 5000);
+													} else {
+														repairResult = { success: false, error: result.error || 'Repair failed' };
+													}
+												} catch (e: unknown) {
+													repairResult = { success: false, error: e instanceof Error ? e.message || String(e) : 'Repair failed' };
+												} finally {
+													isRepairing = false;
+												}
+											}}
+											aria-label="Repair Cache"
+										>
+											<iconify-icon icon="mdi:wrench" width="16" class={isRepairing ? 'animate-spin' : ''}></iconify-icon>
+											<span class="hidden sm:inline">{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
+										</button>
+									{/if}
+								</GenericSettingsGroup>
 							{/if}
 						</div>
 					{:else}
@@ -326,18 +287,27 @@ $effect(() => {
 
 	<!-- System Status -->
 	<div class="mx-auto mt-8 flex max-w-4xl items-center justify-center">
-		<div class="badge-glass flex items-center gap-3 rounded-full px-6 py-3 text-sm">
-			<span class="text-2xl text-tertiary-500 dark:text-primary-500">●</span>
-			<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
-			<span class="text-dark dark:text-white">|</span>
-			<span class="text-surface-600 dark:text-surface-50">Settings:</span>
-			<span class="font-semibold text-tertiary-500 dark:text-primary-500">Loaded</span>
-			<span class="text-dark dark:text-white">|</span>
-			<span class="text-surface-600 dark:text-surface-50">Groups:</span>
-			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{availableGroups.length}</span>
-			<span class="text-dark dark:text-white">|</span>
-			<span class="text-surface-600 dark:text-surface-50">Environment:</span>
-			<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
+		<div class="badge-glass flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 text-xs sm:text-sm text-center">
+			<div class="flex items-center gap-1.5 shrink-0">
+				<span class="text-2xl text-tertiary-500 dark:text-primary-500 leading-none">●</span>
+				<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
+			</div>
+			<span class="hidden sm:inline text-dark dark:text-white">|</span>
+			<div class="flex items-center gap-1 shrink-0">
+				<span class="text-surface-600 dark:text-surface-50">Settings:</span>
+				<span class="font-semibold text-tertiary-500 dark:text-primary-500">Loaded</span>
+			</div>
+			<span class="hidden sm:inline text-dark dark:text-white">|</span>
+			<div class="flex items-center gap-1 shrink-0">
+				<span class="text-surface-600 dark:text-surface-50">Groups:</span>
+				<span class="font-semibold text-tertiary-500 dark:text-primary-500">{availableGroups.length}</span>
+			</div>
+			<span class="hidden sm:inline text-dark dark:text-white">|</span>
+			<div class="flex items-center gap-1 shrink-0">
+				<span class="text-surface-600 dark:text-surface-50">Environment:</span>
+				<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
+			</div>
+		</div>
 		</div>
 	</div>
 </div>

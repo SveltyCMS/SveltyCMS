@@ -112,7 +112,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-describedby={describedBy}
 				aria-required={required}
 				class={cn(
-					'peer block w-full appearance-none rounded-xl border bg-surface-50 dark:bg-surface-900 transition-all',
+					'peer block w-full appearance-none rounded border bg-surface-50 dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
@@ -177,7 +177,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-describedby={describedBy}
 				aria-required={required}
 				class={cn(
-					'block w-full appearance-none rounded-xl border bg-surface-50 dark:bg-surface-900 transition-all',
+					'block w-full appearance-none rounded border bg-surface-50 dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,

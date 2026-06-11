@@ -22,6 +22,7 @@ import { logger } from "@utils/logger";
 import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
+import StickyActions from "@components/ui/sticky-actions.svelte";
 
 // Remote Functions
 // Remote Functions — loaded dynamically for code splitting
@@ -47,6 +48,7 @@ interface Props {
 	onUnsavedChanges?: (hasChanges: boolean) => void;
 	saveTrigger?: { fire: () => void };
 	saving?: boolean;
+	children?: import("svelte").Snippet;
 }
 
 let {
@@ -54,7 +56,8 @@ let {
 	groupsNeedingConfig,
 	onUnsavedChanges,
 	saveTrigger = $bindable(),
-	saving = $bindable(false)
+	saving = $bindable(false),
+	children
 }: Props = $props();
 
 let loading = $state(false);
@@ -714,7 +717,7 @@ onMount(() => {
 
 	<!-- Restart Warning -->
 	{#if group.requiresRestart}
-		<div class="alert preset-filled-warning-500 mb-4 rounded-xl p-3 md:p-4">
+		<div class="alert preset-filled-warning-500 mb-4 rounded p-3 md:p-4">
 			<div class="alert-message">
 				<strong class="mb-1 block text-sm md:text-base">⚠️ Restart Required</strong>
 				<p class="text-xs md:text-sm">Changes to these settings require a server restart to take effect.</p>
@@ -724,7 +727,7 @@ onMount(() => {
 
 	<!-- Default Values Notice -->
 	{#if hasEmptyRequiredFields}
-		<div class="bordered alert preset-filled-error-500 mb-4 rounded-xl p-3 md:p-4">
+		<div class="bordered alert preset-filled-error-500 mb-4 rounded p-3 md:p-4">
 			<div class="alert-message">
 				<strong class="mb-1 block text-sm md:text-base">ℹ️ Default Values Detected</strong>
 				<p class="text-xs md:text-sm">
@@ -737,13 +740,13 @@ onMount(() => {
 
 	<!-- Loading State -->
 	{#if loading}
-		<div class="card preset-tonal-surface-500 rounded-xl p-6 text-center">
+		<div class="card preset-tonal-surface-500 rounded p-6 text-center">
 			<p>Loading settings...</p>
 		</div>
 	{:else}
 		<!-- Error Message -->
 		{#if error}
-			<div class="alert preset-filled-error-500 mb-4 rounded-xl p-3 md:p-4">
+			<div class="alert preset-filled-error-500 mb-4 rounded p-3 md:p-4">
 				<div class="alert-message">
 					<strong class="mb-1 block text-sm md:text-base">Error</strong>
 					<p class="text-xs md:text-sm">{error}</p>
@@ -763,7 +766,7 @@ onMount(() => {
 			{#if group.id === 'languages'}
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Left Column: Default Content Language + Available Content Languages -->
-					<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 						{#if defaultLangField}
 							<div>
 								<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -867,7 +870,7 @@ onMount(() => {
 									{#if showLanguagePicker[availableLangsField.key]}
 										<div
 											id="{availableLangsField.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -917,7 +920,7 @@ onMount(() => {
 						{/if}
 					</div>
 					<!-- Right Column: Base Locale + Available Locales -->
-					<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 						{#if baseLocaleField}
 							<div>
 								<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -1027,7 +1030,7 @@ onMount(() => {
 									{#if showLanguagePicker[localesField.key]}
 										<div
 											id="{localesField.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -1276,7 +1279,7 @@ onMount(() => {
 									{#if showLanguagePicker[field.key]}
 										<div
 											id="{field.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -1365,7 +1368,7 @@ onMount(() => {
 									{#if showLogLevelPicker[field.key]}
 										<div
 											id="{field.key}-loglevel-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add log level"
 											tabindex="-1"
@@ -1407,11 +1410,16 @@ onMount(() => {
 
 			<!-- Local Group Actions -->
 				<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
-					<div class="flex flex-wrap items-center justify-between gap-3">
+					<StickyActions>
+					<div class="flex flex-wrap items-center justify-between gap-3 w-full">
 						<div class="flex flex-wrap items-center gap-2">
+							{#if children}
+								{@render children()}
+							{/if}
+
 							<button
 								type="button"
-								class="preset-tonal-error inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+								class="preset-tonal-error inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
 								onclick={resetToDefaults}
 								disabled={saving}
 							>
@@ -1421,7 +1429,7 @@ onMount(() => {
 
 							<button
 								type="button"
-								class="preset-tonal-surface inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+								class="preset-tonal-surface inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
 								onclick={exportGroup}
 								disabled={loading}
 							>
@@ -1432,7 +1440,7 @@ onMount(() => {
 
 						<button
 							type="submit"
-							class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+							class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
 						>
 							{#if saving}
@@ -1444,6 +1452,7 @@ onMount(() => {
 							{/if}
 						</button>
 					</div>
+					</StickyActions>
 				</div>
 		</form>
 	{/if}

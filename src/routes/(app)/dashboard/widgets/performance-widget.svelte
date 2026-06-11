@@ -127,19 +127,19 @@ export const widgetMeta = {
 				{#if size.h === 1}
 					<!-- Compact single-row layout -->
 					<div class="grid grid-cols-3 gap-2">
-						<div class="rounded-xl bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
+						<div class="rounded bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
 							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Errors</div>
 							<div class="text-xl font-bold tabular-nums {getErrorColor(errorRate)} mt-0.5">
 								{errorRate.toFixed(1)}%
 							</div>
 						</div>
-						<div class="rounded-xl bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
+						<div class="rounded bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
 							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Cache</div>
 							<div class="text-xl font-bold tabular-nums text-blue-500 mt-0.5">
 								{cacheHitRate.toFixed(1)}%
 							</div>
 						</div>
-						<div class="rounded-xl bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
+						<div class="rounded bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
 							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Sessions</div>
 							<div class="text-xl font-bold tabular-nums text-violet-500 mt-0.5">
 								{metrics.sessions?.active ?? 0}
@@ -204,11 +204,11 @@ export const widgetMeta = {
 						<!-- Requests -->
 						<div class="space-y-2">
 							<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">Requests</h4>
-							<div class="flex justify-between items-center bg-surface-100 dark:bg-surface-800 rounded-xl px-4 py-2.5 border border-transparent dark:border-gray-800">
+							<div class="flex justify-between items-center bg-surface-100 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
 								<span class="text-surface-600 dark:text-surface-400">Total</span>
 								<span class="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">{metrics.requests.total.toLocaleString()}</span>
 							</div>
-							<div class="flex justify-between items-center bg-surface-100 dark:bg-surface-800 rounded-xl px-4 py-2.5 border border-transparent dark:border-gray-800">
+							<div class="flex justify-between items-center bg-surface-100 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
 								<span class="text-surface-600 dark:text-surface-400">Errors</span>
 								<span class="font-mono font-semibold tabular-nums text-red-500">{metrics.requests.errors}</span>
 							</div>
@@ -218,7 +218,7 @@ export const widgetMeta = {
 						{#if metrics.system}
 							<div class="space-y-2">
 								<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">System</h4>
-								<div class="rounded-xl bg-surface-100 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-gray-800">
+								<div class="rounded bg-surface-100 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-gray-800">
 									<div class="flex justify-between">
 										<span class="text-surface-600 dark:text-surface-400">Memory Used</span>
 										<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums">

@@ -191,7 +191,7 @@
 				animate:flip={{ duration: 300 }}
 				in:fly={{ ...animDir, duration: 300 }}
 				out:fade={{ duration: 200 }}
-				class="pointer-events-auto w-full sm:w-80 shadow-lg rounded-lg overflow-hidden border {styles[t.type]}"
+				class="pointer-events-auto w-full sm:w-80 shadow-lg rounded overflow-hidden border {styles[t.type]}"
 				class:mt-2={toastPos.includes('top')}
 				class:mb-2={toastPos.includes('bottom')}
 				onmouseenter={() => handleMouseEnter(t.id)}

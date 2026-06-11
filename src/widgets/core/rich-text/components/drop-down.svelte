@@ -183,7 +183,7 @@
 	{#if expanded}
 		<div
 			id={listboxId}
-			class="absolute z-20 mt-1 w-fit min-w-full overflow-auto rounded-md border border-surface-400/30 bg-surface-50/95 shadow-lg backdrop-blur-sm focus:outline-none dark:border-surface-300/20 dark:bg-surface-800/90"
+			class="absolute z-20 mt-1 w-fit min-w-full overflow-auto rounded border border-surface-400/30 bg-surface-50/95 shadow-lg backdrop-blur-sm focus:outline-none dark:border-surface-300/20 dark:bg-surface-800/90"
 			role="menu"
 			tabindex="-1"
 			aria-labelledby={`${dropdownId}-button`}

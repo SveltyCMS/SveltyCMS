@@ -84,7 +84,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 				{#each steps as step, i (i)}
 					<div class="relative last:pb-0">
 						<button
-							class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[i] || i === currentStep
+							class="flex w-full items-start gap-4 rounded p-4 transition-all {stepClickable[i] || i === currentStep
 								? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
 								: 'cursor-not-allowed opacity-50'}"
 							aria-current={i === currentStep ? 'step' : undefined}

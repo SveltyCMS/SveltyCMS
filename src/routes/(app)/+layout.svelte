@@ -40,6 +40,7 @@ import { initializeDarkMode } from "@src/stores/theme-store.svelte.ts";
 import { ui } from "@src/stores/ui-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import Portal from "@components/ui/portal.svelte";
+import BackToTop from "@components/ui/back-to-top.svelte";
 import Slot from "@components/system/slot.svelte";
 import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
@@ -134,7 +135,9 @@ $effect(() => {
 	if (userTheme?.highContrast) theme.features = { ...theme.features, highContrastMode: true };
 	if (userTheme?.layoutState) {
 		for (const [key, val] of Object.entries(userTheme.layoutState)) {
-			if (val) ui.toggle(key as any, val as any);
+			// Do not restore sidebar states if not on desktop (responsive logic must rule)
+			if ((key === 'leftSidebar' || key === 'rightSidebar') && !screen.isDesktop) continue;
+			if (val) ui.state[key as keyof typeof ui.state] = val as any;
 		}
 	}
 });
@@ -146,7 +149,9 @@ $effect(() => {
 	if (saved && !layoutStateRestored) {
 		for (const key of Object.keys(saved)) {
 			if ((saved as any)[key]) {
-				ui.toggle(key as any, (saved as any)[key]);
+				// Do not restore sidebar states if not on desktop
+				if ((key === 'leftSidebar' || key === 'rightSidebar') && !screen.isDesktop) continue;
+				ui.state[key as keyof typeof ui.state] = (saved as any)[key];
 			}
 		}
 		layoutStateRestored = true;
@@ -168,10 +173,12 @@ $effect(() => {
 	// Debounce 2s to batch rapid toggles
 	clearTimeout(layoutSaveTimer);
 	layoutSaveTimer = setTimeout(async () => {
+		// Only attempt to save to the global theme if the user is an admin
+		if (!data.user?.isAdmin && data.user?.role !== 'admin') return;
 		try {
 			await fetch('/api/theme/admin-theme', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken || '' },
 				body: JSON.stringify({ layoutState: state }),
 			});
 		} catch { /* silent — layout state save is best-effort */ }
@@ -456,5 +463,6 @@ afterNavigate(() => {
 				<FloatingChat />
 			</Portal>
 		{/if}
+		<BackToTop />
 	</div>
 {/if}
