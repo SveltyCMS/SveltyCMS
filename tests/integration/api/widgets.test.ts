@@ -5,7 +5,10 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import {
+  cleanupTestDatabase,
+  prepareAuthenticatedContext,
+} from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
@@ -157,9 +160,9 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
         }),
       });
 
-      // If it's not in DB, it returns 404. We'll accept 200 or 404 for now to avoid blocking the whole suite,
-      // but we'll try to make it 200.
-      expect([200, 404]).toContain(response.status);
+      // Widget found in DB — activation MUST succeed
+      expect(response.status).toBe(200);
+      expect(response.ok).toBe(true);
     }
   });
 
@@ -168,7 +171,9 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
       headers: { Cookie: authCookie },
     });
     const listData = await listRes.json();
-    const widget = listData.data.widgets.find((w: any) => !w.isCore) || listData.data.widgets[0];
+    const widget =
+      listData.data.widgets.find((w: any) => !w.isCore) ||
+      listData.data.widgets[0];
 
     if (widget) {
       const response = await safeFetch(`${BASE_URL}/api/widgets/status`, {
@@ -183,7 +188,9 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
         }),
       });
 
-      expect([200, 400, 404]).toContain(response.status);
+      // Widget found in DB — deactivation MUST succeed
+      expect(response.status).toBe(200);
+      expect(response.ok).toBe(true);
     }
   });
 
