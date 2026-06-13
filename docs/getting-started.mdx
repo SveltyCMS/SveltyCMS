@@ -1,29 +1,30 @@
 ---
 path: "docs/getting-started.mdx"
 title: "Getting Started"
-description: "Quick start guide to begin using SveltyCMS - from installation to creating your first content for all personas."
+description: "Install SveltyCMS, run the self-healing Setup Wizard, and create your first collection — all in under 10 minutes."
 order: 0
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-05-25"
+updated: "2026-06-10"
 tags:
   - "getting-started"
   - "quickstart"
   - "tutorial"
+  - "setup"
 ---
 
 # Getting Started with SveltyCMS
 
-Welcome to SveltyCMS! This guide will help you get up and running in under 10 minutes, whether you are a **Developer** installing the system, an **Administrator** configuring permissions, or a **Content Creator** building your first site.
+Get up and running in under 10 minutes — whether you're a **Developer** installing the system, an **Administrator** configuring permissions, or a **Content Creator** building your first site.
 
 ---
 
 ## 👥 Choose Your Path
 
-- 🛠️ **[Installation Guide](#1-installation-for-developers)** — For developers and DevOps engineers.
-- 🎨 **[First Steps](#2-first-steps-for-admins--editors)** — For administrators and content editors.
-- 📚 **[Common Workflows](#3-common-workflow-templates)** — Examples for blogs, e-commerce, and more.
+- 🛠️ **[Installation](#1-installation-for-developers)** — For developers and DevOps
+- 🎨 **[First Steps](#2-first-steps-for-admins--editors)** — For administrators and content editors
+- 📚 **[Workflow Templates](#3-common-workflow-templates)** — Blog, e-commerce, multi-language
 
 ---
 
@@ -40,21 +41,27 @@ cd SveltyCMS
 
 # 2. Install dependencies (Bun recommended)
 bun install
-#   Note for Windows users: If bun install fails, use npm install instead
+# Windows users: if bun install fails, use `npm install` instead
 
 # 3. Start development server
 bun run dev
 ```
 
-### The Setup Wizard
+### Setup Wizard Flow
 
-Navigate to `http://localhost:5173`. The system will automatically detect the absence of `config/private.ts` via the TurboPipeline hook and launch the wizard:
+Navigate to `http://localhost:5173`. The system detects the absence of `config/private.ts` and launches the wizard:
 
-1.  **Choose Database**: Support for MongoDB, PostgreSQL, MariaDB, and SQLite (fastest for local).
-2.  **Test Connection**: The wizard auto-installs required drivers and validates connectivity.
-3.  **Create Admin**: Set your master credentials with password complexity validation.
-4.  **Configure System**: Set site name, languages, media storage, and optional Redis.
-5.  **Email & Review**: Optionally configure SMTP, then review all settings and complete setup. The system seeds the database automatically and transitions to `READY`.
+| Step                    | What Happens                                                    |
+| ----------------------- | --------------------------------------------------------------- |
+| 1. **Choose Database**  | MongoDB, PostgreSQL, MariaDB, or SQLite (fastest for local dev) |
+| 2. **Test Connection**  | Auto-installs required drivers, validates connectivity          |
+| 3. **Create Admin**     | Set master credentials with Argon2id password hashing           |
+| 4. **Configure System** | Site name, languages, media storage, optional Redis             |
+| 5. **Email & Review**   | Optionally configure SMTP, review all settings, complete setup  |
+
+The system seeds the database and transitions to `READY` — no manual config file editing.
+
+> 💡 After setup, all `/api/setup` endpoints are permanently blocked (403) as a security measure.
 
 ---
 
@@ -68,7 +75,7 @@ Once setup completes, you will be automatically redirected to the CMS dashboard.
 
 The CMS is designed for clarity and speed.
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ 🏠 SveltyCMS            [Search] 👤 Admin ▼ │
 ├──────────┬──────────────────────────────────┤
@@ -83,7 +90,7 @@ The CMS is designed for clarity and speed.
 └──────────┴──────────────────────────────────┘
 ```
 
-### Key Editorial Tasks
+### First Tasks
 
 1.  **Configure Settings**: Go to **⚙️ Config** to set your Site Name, Default Language, and Theme.
 2.  **Create a Collection**: Collections define your content structure. Go to **📚 Collections** → **+ New Collection**.
@@ -94,19 +101,21 @@ The CMS is designed for clarity and speed.
 
 ## 3. Common Workflow Templates
 
-### Workflow 1: Blog Setup
+### Blog
 
-1.  **Collections**: Create `Posts`, `Categories`, and `Tags`.
-2.  **Relationships**: Link `Posts` to `Categories` (Multi-select) and `Users` (Author).
-3.  **Publishing**: Use the built-in `Status` field to manage Draft vs. Published states.
+1. Create collections: `Posts`, `Categories`, `Tags`
+2. Link `Posts` → `Categories` (multi-select) and `Users` (author)
+3. Use the `Status` field for Draft → Published workflow
+4. Enable comments or SEO metadata via widget options
 
-### Workflow 2: E-Commerce Catalog
+### E-Commerce Catalog
 
-1.  **Collections**: Create `Products` (Price, SKU, Description) and `Inventory`.
-2.  **Media**: Upload product images to the **📁 Media Hub** and link them to product entries.
-3.  **API**: Query products via `/api/collections/products` for your frontend.
+1. Create collections: `Products` (Price, SKU, Description), `Inventory`
+2. Upload images to 📁 Media Hub, link to entries
+3. Query via `/api/collections/products` for your frontend
+4. Add Stripe plugin for payment processing
 
-### Workflow 3: Multi-Language Sites
+### Multi-Language
 
 1.  **Enable i18n**: Go to **⚙️ Config** → **Languages** and add your target languages.
 2.  **Translate**: Open any entry and use the language switcher to enter localized content. Paraglide JS handles the compile-time switching.
@@ -115,7 +124,7 @@ The CMS is designed for clarity and speed.
 
 ## 🛡️ User Roles & Permissions
 
-SveltyCMS uses a granular **Role-Based Access Control (RBAC)** system.
+Granular **RBAC** with field-level access control:
 
 - **Admin**: Full access.
 - **Editor**: Can manage all content and media.
@@ -124,23 +133,9 @@ SveltyCMS uses a granular **Role-Based Access Control (RBAC)** system.
 
 ---
 
-## ⚙️ How it Works (The Mechanics)
+## Next Steps
 
-For developers needing to understand the system's resilience:
-
-### The State Machine
-
-SveltyCMS transitions through specific states during boot:
-
-- `IDLE`: Initializing memory and checking `config/private.ts`.
-- `READY` / `WARMED`: Core services (Auth, Media, DB) are successfully connected and cache is warm.
-- `DEGRADED`: System is operational but some non-critical services are unhealthy.
-- `FAILED`: A critical path error occurred (Wizard enters recovery mode).
-
-### Driver Auto-Installation
-
-During the Setup Wizard, SveltyCMS uses `spawn` to dynamically install database drivers (e.g., `mongoose`, `mariadb`) based on your selection, ensuring a lean initial footprint.
-
----
-
-**Next Steps**: Dive into the [API Reference](./api/index.mdx) or learn about [Widget Development](./guides/development/widgets/index.mdx).
+- [API Reference](./api/index.mdx) — REST, GraphQL, Local SDK
+- [Widget Development](./guides/development/widgets/index.mdx) — Build custom field types
+- [Security Overview](./architecture/security/index.mdx) — 4-layer defense-in-depth
+- [Performance Benchmarks](./project/benchmarks/index.mdx) — 48 tests across 4 databases

@@ -55,7 +55,7 @@ All features above are production-ready. The "Planned Features" section later in
 
 ## Quick Start
 
-```ts
+````ts
 import { getDatabaseResilience } from "@src/databases/DatabaseResilience";
 
 const resilience = getDatabaseResilience();
@@ -63,7 +63,7 @@ const resilience = getDatabaseResilience();
 await resilience.executeWithRetry(async () => {
   // e.g. connect to MongoDB or SQL
 }, "Connection step");
-```
+```text
 
 Recommended defaults (in the singleton):
 
@@ -75,7 +75,7 @@ Recommended defaults (in the singleton):
   backoffMultiplier: 2,
   jitterMs: 500
 }
-```
+```text
 
 ---
 
@@ -111,7 +111,7 @@ const resilience = getDatabaseResilience({
   maxDelayMs: 5000,
   jitterMs: 200,
 });
-```
+```text
 
 Use custom configs for time-sensitive operations only; otherwise prefer the defaults for consistency and simpler operations.
 
@@ -159,7 +159,7 @@ const resilience = getDatabaseResilience({
 await resilience.executeWithRetry(async () => {
   await mongoose.connect(connectionString, options);
 }, "MongoDB connection");
-```
+```text
 
 ### Circuit Breaker Pattern
 
@@ -240,7 +240,7 @@ if (status.health.latency > 1000) {
 const successRate = status.metrics.totalRetries
   ? (status.metrics.successfulRetries / status.metrics.totalRetries) * 100
   : 100;
-```
+```text
 
 ---
 
@@ -255,7 +255,7 @@ SMTP_PASS=your-password
 
 # MongoDB
 MONGODB_URI=mongodb://localhost:27017/sveltycms
-```
+```text
 
 ---
 
@@ -280,7 +280,7 @@ const systemState = getSystemState();
 if (!isServiceHealthy("database") || systemState.overallState === "FAILED") {
   // Avoid slow queries; surface failure reason from state
 }
-```
+```text
 
 All reconnection events update centralized state and metrics (uptime %, failure counts, transitions).
 
@@ -293,17 +293,18 @@ All reconnection events update centralized state and metrics (uptime %, failure 
 ```bash
 sudo systemctl stop mongod
 bun run dev
-```
+```text
 
 2. Redis connection retries (expect jittered attempts with clear errors)
 
 ```bash
 sudo systemctl stop redis
 bun run dev
-```
+```text
 
 3. System status endpoint
 
 ```bash
 curl http://localhost:5173/api/system/status
-```
+```text
+````

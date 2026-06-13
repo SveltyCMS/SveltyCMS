@@ -37,6 +37,18 @@ vi.mock("@src/services/metrics/metrics-service", () => ({
   },
 }));
 
+vi.mock("@src/databases/cache/cache-service", () => ({
+  cacheService: {
+    getSync: vi.fn().mockReturnValue(null),
+    setWithCategory: vi.fn().mockResolvedValue(true),
+    delete: vi.fn().mockResolvedValue(true),
+  },
+}));
+
+vi.mock("@src/services/core/settings-service", () => ({
+  getPrivateSettingSync: vi.fn().mockReturnValue(false),
+}));
+
 function createMockEvent(pathname: string, authHeader?: string): RequestEvent {
   const url = new URL(pathname, "http://localhost");
   const headers = new Headers();

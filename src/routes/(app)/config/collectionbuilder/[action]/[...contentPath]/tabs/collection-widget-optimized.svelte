@@ -316,7 +316,7 @@ const viewOptions = [
 						Experience the exact layout rendered by our AI-Native engine. Perfect parity between builder and live CMS.
 					</p>
 
-					<div class="max-w-3xl border border-surface-200 dark:border-surface-700 rounded-xl p-8 bg-surface-50 dark:bg-surface-900 shadow-inner">
+					<div class="max-w-3xl border border-surface-200 dark:border-surface-700 rounded p-8 bg-surface-50 dark:bg-surface-900 shadow-inner">
 						{#key items}
 							<JSONUIProvider initialState={mockData}>
 								<Renderer registry={sveltyRegistry} spec={generatePreviewSpec(items)} />
@@ -373,7 +373,7 @@ const viewOptions = [
 								</div>
 
 								<!-- Field Icon & Index -->
-								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700">
+								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700">
 									<iconify-icon icon={item.icon || 'mdi:widgets'} width="20" class="text-primary-500"></iconify-icon>
 								</div>
 

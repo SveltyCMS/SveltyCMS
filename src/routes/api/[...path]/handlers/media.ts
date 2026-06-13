@@ -22,6 +22,18 @@ import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 
+/**
+ * Media permission gate. Admins bypass granular permissions — consistent with the
+ * `event.locals.isAdmin` gating used by other handlers (e.g. utility). The admin
+ * fast-path in handle-authorization sets `locals.isAdmin` but leaves `locals.roles`
+ * empty, so a bare hasPermissionWithRoles(user, …, locals.roles) check would wrongly
+ * 403 admins. Non-admins still require the explicit role permission.
+ */
+function hasMediaPermission(event: RequestEvent, user: unknown, permission: string): boolean {
+  if (event.locals.isAdmin) return true;
+  return !!user && hasPermissionWithRoles(user as any, permission, event.locals.roles || []);
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleMediaRoutes(
@@ -160,7 +172,7 @@ async function handleDeleteRoutes(
 
   // Delete by media ID in URL
   if (method) {
-    if (!user || !hasPermissionWithRoles(user, "media:delete", event.locals.roles || [])) {
+    if (!hasMediaPermission(event, user, "media:delete")) {
       throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
     }
     return rawResponse(event, await cms.media.delete(method, { tenantId }));
@@ -230,7 +242,7 @@ export async function handleMediaUpload(
   user: any,
 ) {
   // 🛡️ Defense-in-depth permission check
-  if (!user || !hasPermissionWithRoles(user, "media:write", event.locals.roles || [])) {
+  if (!hasMediaPermission(event, user, "media:write")) {
     throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
   }
 
@@ -301,6 +313,13 @@ export async function handleMediaProcess(
 
   if (!processType) throw new AppError("processType is required", 400);
 
+  // 🛡️ Defense-in-depth: Require media:write for metadata and batch processing
+  if (["metadata", "batch"].includes(processType)) {
+    if (!hasMediaPermission(event, user, "media:write")) {
+      throw new AppError("Insufficient permissions for media processing", 403, "FORBIDDEN");
+    }
+  }
+
   switch (processType) {
     case "metadata": {
       const file = formData.get("file") as File;
@@ -312,6 +331,10 @@ export async function handleMediaProcess(
       return handleMediaUpload(event, cms, tenantId, user);
 
     case "delete": {
+      // 🛡️ Defense-in-depth permission check
+      if (!hasMediaPermission(event, user, "media:delete")) {
+        throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
+      }
       const mediaId = formData.get("mediaId") as string;
       if (!mediaId) throw new AppError("mediaId is required", 400);
       await cms.media.delete(mediaId, { tenantId });
@@ -347,6 +370,11 @@ export async function handleMediaRemote(
   tenantId: DatabaseId,
   user: any,
 ) {
+  // 🛡️ Defense-in-depth permission check
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for remote media ingestion", 403, "FORBIDDEN");
+  }
+
   const body = await event.request.json().catch(() => ({}));
   const { url: remoteUrl, access } = body;
 
@@ -375,19 +403,36 @@ export async function handleMediaPostDelete(
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
-  // 🛡️ Defense-in-depth permission check
-  if (
-    !event.locals.user ||
-    !hasPermissionWithRoles(event.locals.user, "media:delete", event.locals.roles || [])
-  ) {
+  const body = await event.request.json().catch(() => ({}));
+  const id = typeof body.id === "string" ? body.id.trim() : "";
+  const legacyUrl = typeof body.url === "string" ? body.url.trim() : "";
+
+  if (!id && !legacyUrl) {
+    throw new AppError("Media ID or URL is required for deletion", 400);
+  }
+
+  if (!event.locals.user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  if (!hasMediaPermission(event, event.locals.user, "media:delete")) {
     throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
   }
 
-  const body = await event.request.json().catch(() => ({}));
-  const { id } = body;
-  if (!id) throw new AppError("Media ID is required for deletion", 400);
+  let targetId = id;
+  if (!targetId && legacyUrl) {
+    const mediaFilter = cms.db.type === "mongodb" ? { url: legacyUrl } : { path: legacyUrl };
+    const mediaResult = await cms.db.crud.findOne<any>("media", mediaFilter, { tenantId });
+    const mediaId = mediaResult.success ? mediaResult.data?._id : null;
 
-  const result = await cms.media.delete(id, { tenantId });
+    if (!mediaId) {
+      throw new AppError("Media not found", 404);
+    }
+
+    targetId = String(mediaId);
+  }
+
+  const result = await cms.media.delete(targetId, { tenantId });
   if (!result.success) {
     throw result.error || new AppError(result.message || "Deletion failed", 500);
   }
@@ -408,6 +453,11 @@ export async function handleMediaManipulate(
   user: any,
   segments: string[],
 ) {
+  // 🛡️ Defense-in-depth permission check
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media manipulation", 403, "FORBIDDEN");
+  }
+
   const contentType = event.request.headers.get("content-type") || "";
   let id = segments[2];
   let body: any = {};

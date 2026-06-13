@@ -127,10 +127,10 @@ The fastest way to get started with SveltyCMS.
 
 ### Step 1: Clone Repository
 
-```bash
+````bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
-```
+```text
 
 ### Step 2: Install Dependencies
 
@@ -142,7 +142,7 @@ Choose your package manager:
 ```bash
 bun install
 bun run dev
-```
+```text
 
 </details>
 
@@ -152,7 +152,7 @@ bun run dev
 ```bash
 npm install
 npm run dev
-```
+```text
 
 </details>
 
@@ -162,7 +162,7 @@ npm run dev
 ```bash
 yarn install
 yarn dev
-```
+```text
 
 </details>
 
@@ -172,7 +172,7 @@ yarn dev
 ```bash
 pnpm install
 pnpm dev
-```
+```text
 
 </details>
 
@@ -221,7 +221,7 @@ For advanced users who need more control over the installation process.
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 bun install  # or npm/yarn/pnpm
-```
+```text
 
 ### Step 2: Install Database Driver
 
@@ -236,7 +236,7 @@ bun add mariadb
 
 # PostgreSQL (when available)
 bun add pg
-```
+```text
 
 ### Step 3: Create Environment File
 
@@ -261,7 +261,7 @@ export const privateEnv = createPrivateConfig({
   // Multi-Tenancy (optional)
   MULTI_TENANT: false,
 });
-```
+```text
 
 **Generate Secure Secrets:**
 
@@ -271,7 +271,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 # Using OpenSSL
 openssl rand -base64 32
-```
+```text
 
 ### Step 4: Test Database Connection
 
@@ -279,7 +279,7 @@ Start the development server and test the connection:
 
 ```bash
 bun run dev
-```
+```text
 
 Visit `http://localhost:5173/setup` or use the API directly:
 
@@ -294,7 +294,7 @@ curl -X POST http://localhost:5173/setup?/testDatabase \
     "user": "admin",
     "password": "your_password"
   }'
-```
+```text
 
 ### Step 5: Seed Initial Data
 
@@ -305,7 +305,7 @@ Run the seed script or use the API:
 bun run scripts/seed-cms.js
 
 # Or through the setup wizard at /setup
-```
+```text
 
 ### Step 6: Create Admin User
 
@@ -314,7 +314,7 @@ bun run scripts/seed-cms.js
 bun run scripts/create-admin.js
 
 # Or through the setup wizard at /setup
-```
+```text
 
 ---
 
@@ -383,7 +383,7 @@ yarn dev
 
 # Using pnpm
 pnpm dev
-```
+```text
 
 The server will start at:
 
@@ -402,7 +402,7 @@ bun run build
 
 # Preview production build
 bun run preview
-```
+```text
 
 ### Deployment Options
 
@@ -411,14 +411,14 @@ bun run preview
 ```bash
 npm install -g vercel
 vercel --prod
-```
+```text
 
 #### Netlify
 
 ```bash
 npm install -g netlify-cli
 netlify deploy --prod
-```
+```text
 
 #### Docker
 
@@ -431,12 +431,12 @@ COPY . .
 RUN npm run build
 EXPOSE 3000
 CMD ["node", "build"]
-```
+```text
 
 ```bash
 docker build -t sveltycms .
 docker run -p 3000:3000 --env-file .env sveltycms
-```
+```text
 
 #### Traditional Server (PM2)
 
@@ -446,7 +446,7 @@ npm run build
 pm2 start build/index.js --name sveltycms
 pm2 save
 pm2 startup
-```
+```text
 
 ### Production Environment Variables
 
@@ -460,7 +460,7 @@ PUBLIC_URL=https://your-domain.com
 # Use strong secrets!
 JWT_SECRET_KEY=<generate-with-openssl-rand-base64-32>
 ENCRYPTION_KEY=<generate-with-openssl-rand-base64-32>
-```
+```text
 
 ---
 
@@ -468,7 +468,7 @@ ENCRYPTION_KEY=<generate-with-openssl-rand-base64-32>
 
 After installation, your project structure:
 
-```
+```text
 SveltyCMS/
 ├── build/                      # Production build output
 ├── config/                     # Configuration files
@@ -506,7 +506,7 @@ SveltyCMS/
 ├── playwright.config.ts
 ├── bunfig.toml
 └── tsconfig.json
-```
+```text
 
 ---
 
@@ -565,7 +565,7 @@ graph TB
     style B1 fill:#f0f0f0,stroke:#333,stroke-width:3px
     style B7 fill:#e0e0e0,stroke:#333,stroke-width:2px
     style B14 fill:#d0d0d0,stroke:#333,stroke-width:4px
-```
+```text
 
 ### First-Time Setup Architecture
 
@@ -599,7 +599,7 @@ graph TB
     style I fill:#e0e0e0,stroke:#333,stroke-width:2px
     style O fill:#e0e0e0,stroke:#333,stroke-width:2px
     style T fill:#d0d0d0,stroke:#333,stroke-width:4px
-```
+```text
 
 ### Server Restart Architecture
 
@@ -632,7 +632,7 @@ graph TB
     style G fill:#e0e0e0,stroke:#333,stroke-width:2px
     style H fill:#d0d0d0,stroke:#333,stroke-width:3px
     style N fill:#d0d0d0,stroke:#333,stroke-width:4px
-```
+```text
 
 ---
 
@@ -661,7 +661,7 @@ sequenceDiagram
     Vite->>Browser: Open http://localhost:5173/setup
 
     Note over Browser: User sees setup wizard
-```
+```text
 
 **Created `config/private.ts`:**
 
@@ -677,7 +677,7 @@ export const privateEnv = createPrivateConfig({
   ENCRYPTION_KEY: "", // ← Empty
   MULTI_TENANT: false,
 });
-```
+```text
 
 ### Phase 2: Server Hooks (Runtime)
 
@@ -704,7 +704,7 @@ flowchart TB
     style E fill:#d0d0d0,stroke:#333,stroke-width:3px
     style G fill:#e0e0e0,stroke:#333,stroke-width:2px
     style J fill:#e0e0e0,stroke:#333,stroke-width:2px
-```
+```text
 
 ### Phase 3: Setup GUI Interaction
 
@@ -742,11 +742,11 @@ stateDiagram-v2
         - Initializes system
         - Sets session cookie
     end note
-```
+```text
 
 User completes setup wizard:
 
-```
+```text
 Step 1: Database Configuration
   ↓
 Step 2: Database Test → /setup?/testDatabase
@@ -756,7 +756,7 @@ Step 3: System Language Selection
 Step 4: Seed Data → /setup?/seedDatabase
   ↓
 Step 5: Admin User Creation → /setup?/completeSetup
-```
+```text
 
 ---
 
@@ -805,7 +805,7 @@ sequenceDiagram
         DB-->>Setup: Connection error
         Setup-->>Client: {success: false, error: "..."}
     end
-```
+```text
 
 ```typescript
 POST /setup?/testDatabase
@@ -817,7 +817,7 @@ Body: {
   user: "admin",
   password: "secret123"
 }
-```
+```text
 
 **Process:**
 
@@ -839,7 +839,7 @@ Body: {
     "warnings": []
   }
 }
-```
+```text
 
 ---
 
@@ -849,7 +849,7 @@ Body: {
 
 Called when user clicks "Next" after successful DB test. This process now runs in the **background** to prevent UI timeouts and allow real-time progress tracking.
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │ 1. Write config/private.ts                         │
 │    - Writes DB credentials from test step          │
@@ -880,7 +880,7 @@ Called when user clicks "Next" after successful DB test. This process now runs i
 │       - Reports progress via setupManager          │
 │       - Returns firstCollection info               │
 └─────────────────────────────────────────────────────┘
-```
+```text
 
 **Key Function: `seedCollectionsForSetup()`**
 
@@ -901,17 +901,17 @@ export async function seedCollectionsForSetup(dbAdapter) {
   // 3. Return first collection for fast redirect
   return { firstCollection: { name: "Posts", path: "/Collections/Posts" } };
 }
-```
+```text
 
 **Database Collections Created:**
 
-```
+```text
 system_settings          ← Public/private settings
 system_themes            ← Theme configurations
 system_content_structure ← Navigation/hierarchy (empty for now)
 collection_<uuid_1>      ← First collection (e.g., Posts)
 collection_<uuid_2>      ← Second collection (e.g., Names)
-```
+```text
 
 ---
 
@@ -921,7 +921,7 @@ collection_<uuid_2>      ← Second collection (e.g., Names)
 
 Called when user submits admin user form.
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │ 1. Parse private.ts from filesystem                 │
 │    - Bypasses Vite's import cache                  │
@@ -985,7 +985,7 @@ Called when user submits admin user form.
 │    - Redirects to /{lang}/{firstCollection.path}  │
 │    - NO SERVER RESTART REQUIRED! ✨                │
 └─────────────────────────────────────────────────────┘
-```
+```text
 
 **Response:**
 
@@ -998,7 +998,7 @@ Called when user submits admin user form.
   "requiresHardReload": false,
   "requiresServerRestart": false
 }
-```
+```text
 
 ---
 
@@ -1008,7 +1008,7 @@ Called when user submits admin user form.
 
 **File: `vite.config.ts`**
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │ 1. Vite starts                                      │
 │    - Checks if config/private.ts exists            │
@@ -1022,7 +1022,7 @@ Called when user submits admin user form.
 │    - Compiles collections intelligently            │
 │    - Sets up file watchers                         │
 └─────────────────────────────────────────────────────┘
-```
+```text
 
 ### Phase 2: Intelligent Collection Compilation
 
@@ -1030,7 +1030,7 @@ Called when user submits admin user form.
 
 The compilation system uses **content hashing** and **UUID preservation** to avoid unnecessary recompilation:
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │ 1. Scan existing compiled collections              │
 │    - Builds map: path → { jsPath, uuid, hash }    │
@@ -1068,7 +1068,7 @@ The compilation system uses **content hashing** and **UUID preservation** to avo
 │    - Removes .js files without .ts source          │
 │    - Removes empty directories                     │
 └─────────────────────────────────────────────────────┘
-```
+```text
 
 **Example Compiled Collection:**
 
@@ -1085,13 +1085,13 @@ export const schema = {
     { label: "Content", db_fieldName: "content", widget: "richtext" },
   ],
 };
-```
+```text
 
 ### Phase 3: Server Initialization
 
 **File: `src/hooks.server.ts` + `src/databases/db.ts`**
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │ handleSystemState                                   │
 │  - System state: IDLE                              │
@@ -1118,7 +1118,7 @@ export const schema = {
 │  - Registers collection models in database         │
 │  - Builds content structure cache                  │
 └─────────────────────────────────────────────────────┘
-```
+```text
 
 ---
 
@@ -1139,7 +1139,7 @@ UUIDs are assigned **once** at compilation and **preserved** across restarts.
 
 ### UUID Lifecycle
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │ 1. New Collection Created                          │
 │    config/collections/Posts.ts                     │
@@ -1172,7 +1172,7 @@ UUIDs are assigned **once** at compilation and **preserved** across restarts.
 │    - UUIDs remain stable                           │
 │    - Database tables remain consistent             │
 └─────────────────────────────────────────────────────┘
-```
+```text
 
 ### UUID Extraction Logic
 
@@ -1190,7 +1190,7 @@ function extractHashFromJs(content: string): string | null {
   const match = content.match(/__HASH__:(\w+)/);
   return match ? match[1] : null;
 }
-```
+```text
 
 **AST Transformation:**
 
@@ -1204,7 +1204,7 @@ const schemaUuidTransformer =
     // Injects: _id: "uuid-here"
     // Result: export const schema = { _id: "uuid-here", ... }
   };
-```
+```text
 
 ---
 
@@ -1249,12 +1249,12 @@ const schemaUuidTransformer =
 
 ### System States
 
-```
+```text
 IDLE → INITIALIZING → READY → DEGRADED → FAILED
   ↑                      ↓
   └──────────────────────┘
          (reinit)
-```
+```text
 
 | State            | Description                           | Allowed Routes                                                      |
 | ---------------- | ------------------------------------- | ------------------------------------------------------------------- |
@@ -1279,7 +1279,7 @@ export function transitionTo(newState: SystemState, reason?: string) {
     reason,
   });
 }
-```
+```text
 
 ---
 
@@ -1292,17 +1292,17 @@ During `seedCollectionsForSetup()`, only one `collection_<uuid>` table gets crea
 
 **Expected Behavior:**
 
-```
+```text
 collection_550e8400-e29b-41d4-a716-446655440000  (Posts)
 collection_7c9e6679-7425-40de-944b-e07fc1f90ae7  (Names)
 collection_a8098c1a-f86e-11da-bd1a-00112444be1e  (WidgetTest)
-```
+```text
 
 **Actual Behavior:**
 
-```
+```text
 collection_550e8400-e29b-41d4-a716-446655440000  (Only one table)
-```
+```text
 
 **Root Cause (Suspected):**
 
@@ -1319,7 +1319,7 @@ for (const schema of collections) {
   await dbAdapter.collection.createModel(schema);
   // ⚠️ Potential race condition here
 }
-```
+```text
 
 **Suggested Fix:**
 
@@ -1332,7 +1332,7 @@ for (const schema of collections) {
   // Add small delay to avoid race conditions
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
-```
+```text
 
 **Alternative Fix (Better):**
 
@@ -1340,7 +1340,7 @@ for (const schema of collections) {
 // Use batch operation with proper transaction
 await dbAdapter.collection.createModels(collections);
 // Implement atomic batch creation in MongoCollectionMethods
-```
+```text
 
 ### Issue #2: Vite Cache Invalidation
 
@@ -1401,7 +1401,7 @@ sequenceDiagram
     H->>H: handleSetup: isSetupComplete() → true
     H->>CM: Load collection
     CM-->>U: Render collection view
-```
+```text
 
 ### Server Restart (Smart Compilation)
 
@@ -1436,7 +1436,7 @@ sequenceDiagram
     V->>DB: Initialize database connection
     V->>CS: Initialize Content System
     CM->>DB: Register collection models
-```
+```text
 
 ---
 
@@ -1462,7 +1462,7 @@ sequenceDiagram
 
    ```bash
    tar -czf compiledCollections.backup.tar.gz compiledCollections/
-   ```
+````
 
 2. **Database migrations preserve UUIDs**
    - Collection IDs are stored in `_id` field
@@ -1502,7 +1502,7 @@ SveltyCMS uses a comprehensive testing strategy to ensure code quality across al
 
 ### Running Bun Tests
 
-```bash
+````bash
 # Run all tests
 bun test
 
@@ -1514,11 +1514,11 @@ bun test --watch
 
 # With coverage
 bun test --coverage
-```
+```text
 
 ### Test Structure
 
-```
+```text
 tests/bun/
 ├── api/                # API endpoint tests
 ├── auth/               # Authentication tests
@@ -1526,7 +1526,7 @@ tests/bun/
 ├── mocks/
 │   └── setup.ts       # Preload file (mocks SvelteKit)
 └── *.test.ts          # Various unit tests
-```
+```text
 
 ### Writing Tests
 
@@ -1541,7 +1541,7 @@ describe("ContentService", () => {
     expect(content.title).toBe("Test Post");
   });
 });
-```
+```text
 
 ---
 
@@ -1561,11 +1561,11 @@ npx playwright test --debug
 
 # UI mode
 npx playwright test --ui
-```
+```text
 
 ### Test Files
 
-```
+```text
 tests/playwright/
 ├── signupfirstuser.spec.ts
 ├── oauth-signup-firstuser.spec.ts
@@ -1573,7 +1573,7 @@ tests/playwright/
 ├── user-crud.spec.ts
 ├── collection-builder.spec.ts
 └── permission-change.spec.ts
-```
+```text
 
 ---
 
@@ -1629,7 +1629,7 @@ jobs:
 
       # Run tests
       - run: bunx playwright test
-```
+```text
 
 ### Workflow: Auto-Release
 
@@ -1658,15 +1658,15 @@ jobs:
       - run: bunx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+```text
 
 ### CI/CD Features
 
-✅ **MongoDB Service** - Isolated database for testing  
-✅ **Matrix Testing** - Tests both dev and preview modes  
-✅ **Automated Setup** - Seeds DB + creates admin automatically  
-✅ **Test Gating** - Releases only if tests pass  
-✅ **Semantic Versioning** - Automatic version bumps based on commits  
+✅ **MongoDB Service** - Isolated database for testing
+✅ **Matrix Testing** - Tests both dev and preview modes
+✅ **Automated Setup** - Seeds DB + creates admin automatically
+✅ **Test Gating** - Releases only if tests pass
+✅ **Semantic Versioning** - Automatic version bumps based on commits
 ✅ **Artifact Upload** - Test reports and videos on failure
 
 ---
@@ -1710,7 +1710,7 @@ main().catch((err) => {
   console.error("❌ Seeding failed:", err);
   process.exit(1);
 });
-```
+```text
 
 **Usage:**
 
@@ -1720,7 +1720,7 @@ bun run scripts/seed-cms.js
 
 # CI/CD with environment variables
 MONGO_HOST=localhost MONGO_PORT=27017 bun run scripts/seed-cms.js
-```
+```text
 
 ### Script: Create Admin User
 
@@ -1767,7 +1767,7 @@ main().catch((err) => {
   console.error("❌ Admin creation failed:", err);
   process.exit(1);
 });
-```
+```text
 
 **Usage:**
 
@@ -1780,14 +1780,14 @@ ADMIN_USER=admin \
 ADMIN_EMAIL=admin@example.com \
 ADMIN_PASS=SecurePass123! \
 bun run scripts/create-admin.js
-```
+```text
 
 ### Script Benefits
 
-✅ **No UI required** - Perfect for CI/CD  
-✅ **Idempotent** - Safe to run multiple times  
-✅ **Environment-driven** - Uses environment variables  
-✅ **Reuses setup logic** - Imports from actual setup endpoints  
+✅ **No UI required** - Perfect for CI/CD
+✅ **Idempotent** - Safe to run multiple times
+✅ **Environment-driven** - Uses environment variables
+✅ **Reuses setup logic** - Imports from actual setup endpoints
 ✅ **Error handling** - Graceful failure with exit codes
 
 ---
@@ -1808,7 +1808,7 @@ mongo sveltycms --eval "db.auth_users.find().pretty()"
 
 # If empty, complete setup wizard again
 # or manually create admin user via MongoDB shell
-```
+```text
 
 ### Collections not appearing after setup
 
@@ -1822,7 +1822,7 @@ tail -f logs/app.log | grep "seedCollections"
 
 # Manually trigger collection initialization
 # Restart server with DEBUG=true
-```
+```text
 
 ### UUID changed after recompilation
 
@@ -1837,7 +1837,7 @@ tar -xzf compiledCollections.backup.tar.gz
 # Or manually restore UUID in MongoDB
 mongo sveltycms --eval 'db.system_content_structure.find({name: "Posts"})'
 # Copy _id, then update compiled file
-```
+```text
 
 ---
 
@@ -1845,21 +1845,21 @@ mongo sveltycms --eval 'db.system_content_structure.find({name: "Posts"})'
 
 This comprehensive guide covers the complete SveltyCMS lifecycle:
 
-✅ **Installation** - Quick and manual installation methods  
-✅ **First-Time Setup** - Wizard-based and automated setup flows  
-✅ **Server Restart** - Intelligent recompilation and UUID preservation  
-✅ **Collection Management** - UUID assignment and lifecycle  
-✅ **Testing** - Unit tests (Bun) and E2E tests (Playwright)  
-✅ **CI/CD** - Automated testing and semantic releases  
+✅ **Installation** - Quick and manual installation methods
+✅ **First-Time Setup** - Wizard-based and automated setup flows
+✅ **Server Restart** - Intelligent recompilation and UUID preservation
+✅ **Collection Management** - UUID assignment and lifecycle
+✅ **Testing** - Unit tests (Bun) and E2E tests (Playwright)
+✅ **CI/CD** - Automated testing and semantic releases
 ✅ **Troubleshooting** - Common issues and solutions
 
 ### Key Highlights
 
-🚀 **Zero-Restart Setup** - System becomes operational without server restart  
-🔑 **UUID Preservation** - Collections maintain stable IDs across restarts  
-⚡ **Smart Compilation** - Only recompiles changed collections using content hashing  
-🧪 **Comprehensive Testing** - 95+ API endpoints, full user workflows  
-🤖 **Automated CI/CD** - GitHub Actions for testing and releases  
+🚀 **Zero-Restart Setup** - System becomes operational without server restart
+🔑 **UUID Preservation** - Collections maintain stable IDs across restarts
+⚡ **Smart Compilation** - Only recompiles changed collections using content hashing
+🧪 **Comprehensive Testing** - 95+ API endpoints, full user workflows
+🤖 **Automated CI/CD** - GitHub Actions for testing and releases
 📝 **Automated Scripts** - `seed-cms.js` and `create-admin.js` for CI/CD
 
 ⚠️ **Known Issue:** Collection UUID table creation may have race conditions during `seedCollectionsForSetup()`
@@ -1885,7 +1885,7 @@ The system is production-ready and fully automated for both local development an
 ### Database
 
 - [Core Infrastructure](/docs/architecture/database/core-infrastructure.mdx) - Database adapter system
-- [MongoDB Methods](/docs/architecture/database/mongodb-methods.mdx) - MongoDB-specific implementation
+- [MongoDB Methods](/docs/architecture/database/mongodb-implementation) - MongoDB-specific implementation
 
 ### Guides
 
@@ -1925,3 +1925,4 @@ The system is production-ready and fully automated for both local development an
 | **Total Setup**    | **10-25 seconds** | Excluding user input            |
 | Collection Compile | 50-200ms per file | With UUID preservation          |
 | Server Restart     | 3-5 seconds       | To READY state                  |
+````

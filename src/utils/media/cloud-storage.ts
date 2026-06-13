@@ -6,12 +6,78 @@
  * - Singleton S3/Cloudinary clients (reuse connections)
  * - Keep-Alive agents for HTTP/HTTPS
  * - Unified interface exports
+ *
+ * ### Security Features:
+ * - SSRF protection: validates S3 endpoints against private/internal IPs
+ * - Blocks cloud metadata endpoints (169.254.169.254, metadata.google.internal)
  */
 
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { StorageType } from "./media-models";
+
+// SSRF Protection: blocked IP ranges and hostnames for S3 endpoint validation
+const BLOCKED_ENDPOINT_IPS = [
+  /^127\./, // 127.0.0.0/8 — loopback
+  /^10\./, // 10.0.0.0/8 — private
+  /^172\.(1[6-9]|2\d|3[01])\./, // 172.16.0.0/12 — private
+  /^192\.168\./, // 192.168.0.0/16 — private
+  /^169\.254\./, // 169.254.0.0/16 — link-local / cloud metadata
+  /^0\.0\.0\.0$/, // 0.0.0.0
+  /^::1$/, // IPv6 loopback
+  /^fe80:/, // IPv6 link-local
+  /^fc00:/, // IPv6 unique local
+];
+
+const BLOCKED_ENDPOINT_HOSTS = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "[::1]",
+  "metadata.google.internal",
+  "169.254.169.254",
+]);
+
+function validateS3Endpoint(endpoint: string | undefined): void {
+  if (!endpoint) return;
+
+  let hostname: string;
+  try {
+    const url = new URL(endpoint);
+    hostname = url.hostname.toLowerCase();
+
+    // Block non-HTTP protocols (e.g., file://, gopher://)
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw error(500, `S3 endpoint has blocked protocol: ${url.protocol}`);
+    }
+  } catch (e: any) {
+    if (e.status === 500) throw e; // rethrow our own errors
+    // If URL parsing fails, treat the raw string as a hostname
+    hostname = endpoint.toLowerCase();
+  }
+
+  // Block known internal hosts
+  if (BLOCKED_ENDPOINT_HOSTS.has(hostname)) {
+    throw error(500, `S3 endpoint blocked (internal host): ${hostname}`);
+  }
+
+  // Check IP ranges
+  const ipv4Match = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (ipv4Match) {
+    if (BLOCKED_ENDPOINT_IPS.some((r) => r.test(hostname))) {
+      throw error(500, `S3 endpoint blocked (private IP): ${hostname}`);
+    }
+  }
+
+  // Check bracketed IPv6
+  if (hostname.startsWith("[") && hostname.endsWith("]")) {
+    const ip = hostname.slice(1, -1);
+    if (BLOCKED_ENDPOINT_IPS.some((r) => r.test(ip))) {
+      throw error(500, `S3 endpoint blocked (private IPv6): ${ip}`);
+    }
+  }
+}
 
 // Lazy-load clients to avoid init cost if unused
 let s3Client: any = null;
@@ -69,6 +135,9 @@ async function getS3Client(config: CloudStorageConfig) {
   if (!(config.accessKeyId && config.secretAccessKey)) {
     throw error(500, "S3/R2 credentials missing");
   }
+
+  // 🛡️ SSRF Protection: validate endpoint before creating client
+  validateS3Endpoint(config.endpoint);
 
   s3Client = new S3Client({
     region: config.region || "auto",

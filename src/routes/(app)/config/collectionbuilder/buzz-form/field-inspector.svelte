@@ -89,7 +89,7 @@ function handleUpdate(detail: { value: any }, property: string) {
 		<div class="border-b border-surface-200-800 bg-surface-100/50 dark:bg-surface-800/30 p-4">
 			<div class="flex items-center gap-3">
 				<div class="relative">
-					<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-primary-500 to-primary-700 text-white shadow-lg ring-2 ring-primary-500/20">
+					<div class="flex h-12 w-12 items-center justify-center rounded bg-linear-to-br from-primary-500 to-primary-700 text-white shadow-lg ring-2 ring-primary-500/20">
 						<iconify-icon icon={target.icon || 'mdi:widgets'} width="28"></iconify-icon>
 					</div>
 					<div class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-tertiary-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-surface-900">

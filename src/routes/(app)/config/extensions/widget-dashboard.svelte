@@ -252,20 +252,20 @@ async function uninstallWidget(widgetName: string) {
 			<span class="ms-3 text-lg">Loading widgets...</span>
 		</div>
 	{:else if error}
-		<div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:bg-red-900/20">
+		<div class="rounded border border-red-200 bg-red-50 p-4 dark:bg-red-900/20">
 			<div class="flex items-start gap-3">
 				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-red-600"></iconify-icon>
 				<div>
 					<h3 class="font-semibold text-red-800 dark:text-red-300">Error Loading Widgets</h3>
 					<p class="text-red-700 dark:text-red-400">{error}</p>
-					<button onclick={() => loadWidgets()} class="mt-2 rounded-lg bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700">Retry</button>
+					<button onclick={() => loadWidgets()} class="mt-2 rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700">Retry</button>
 				</div>
 			</div>
 		</div>
 	{:else}
 		<!-- Permission Notice -->
 		{#if !canManageWidgets}
-			<div class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:bg-amber-900/20">
+			<div class="rounded border border-amber-200 bg-amber-50 p-4 dark:bg-amber-900/20">
 				<div class="flex items-start gap-3">
 					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-amber-600"></iconify-icon>
 					<div>
@@ -319,7 +319,7 @@ async function uninstallWidget(widgetName: string) {
 			<!-- Summary Cards with Colored Backgrounds and Tooltips -->
 			<div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="widget-stats">
 				<!-- Total Widgets -->
-				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
+				<div class="relative rounded bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
 					<button
 						class="btn-icon btn-icon-sm absolute end-2 top-2 text-blue-600 dark:text-blue-400"
 						aria-label="Information about total widgets"
@@ -337,7 +337,7 @@ async function uninstallWidget(widgetName: string) {
 				</div>
 
 				<!-- Active Widgets -->
-				<div class="relative rounded-lg bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
+				<div class="relative rounded bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
 					<button
 						class="btn-icon btn-icon-sm absolute end-2 top-2 text-tertiary-500 dark:text-primary-500"
 						aria-label="Information about active widgets"
@@ -355,7 +355,7 @@ async function uninstallWidget(widgetName: string) {
 				</div>
 
 				<!-- Core Widgets -->
-				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
+				<div class="relative rounded bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
 					<button
 						class="btn-icon btn-icon-sm absolute end-2 top-2 text-blue-600 dark:text-blue-400"
 						aria-label="Information about core widgets"
@@ -374,7 +374,7 @@ async function uninstallWidget(widgetName: string) {
 
 				<!-- Custom Widgets -->
 				<div
-					class="relative rounded-lg bg-yellow-50 p-4 shadow-sm transition-all hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
+					class="relative rounded bg-yellow-50 p-4 shadow-sm transition-all hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
 				>
 					<button
 						class="btn-icon btn-icon-sm absolute end-2 top-2 text-yellow-600 dark:text-yellow-400"
@@ -440,7 +440,7 @@ async function uninstallWidget(widgetName: string) {
 			<div class="mb-12 grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="widget-grid">
 				{#if filteredWidgets.length === 0}
 					<div
-						class="col-span-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800"
+						class="col-span-full rounded border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800"
 					>
 						<iconify-icon icon="mdi:help-circle" width="64" class="mx-auto text-6xl text-gray-400"></iconify-icon>
 						<h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No Widgets Found</h3>
@@ -459,7 +459,7 @@ async function uninstallWidget(widgetName: string) {
 									searchQuery = '';
 									activeFilter = 'all';
 								}}
-								class="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+								class="mt-6 inline-flex items-center gap-2 rounded bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
 								aria-label="Clear all filters and search"
 							>
 								<iconify-icon icon="mdi:filter-off" width="24" class="text-lg"></iconify-icon>
@@ -475,7 +475,7 @@ async function uninstallWidget(widgetName: string) {
 			</div>
 		{:else}
 			<!-- Marketplace Tab -->
-			<div class="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
+			<div class="rounded border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
 				<div class="mx-auto max-w-md">
 					<iconify-icon icon="mdi:store" width="64" class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Marketplace Coming Soon</h3>
@@ -503,7 +503,7 @@ async function uninstallWidget(widgetName: string) {
 					</div>
 					<button
 						disabled
-						class="mt-6 cursor-not-allowed rounded-lg bg-gray-300 px-6 py-3 font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-500"
+						class="mt-6 cursor-not-allowed rounded bg-gray-300 px-6 py-3 font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-500"
 					>
 						Coming in Future Update
 					</button>

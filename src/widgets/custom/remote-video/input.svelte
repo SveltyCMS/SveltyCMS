@@ -284,7 +284,7 @@ Part of the Three Pillars Architecture for widget system.
 	{/if}
 
 	{#if fetchedMetadata && !isLoading && !fetchError}
-		<div class="mt-4 flex flex-col gap-4 rounded-lg border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30">
+		<div class="mt-4 flex flex-col gap-4 rounded border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30">
 			<div class="relative group shrink-0">
 				<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-[160px] rounded shadow-sm object-cover aspect-video" />
 				<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">

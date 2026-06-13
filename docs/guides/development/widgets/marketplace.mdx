@@ -34,3 +34,11 @@ Marketplace widgets do not require compile-time registration or hardcoded static
 1. **Dynamic Scanning**: During boot, `WidgetRegistryService` scans the directory `src/widgets/marketplace/` dynamically.
 2. **Eager Loading**: Any discovered directory with an `index.ts` containing a default export function matching the `WidgetModule` interface is registered automatically.
 3. This allows developers to drag-and-drop or install/delete marketplace widgets on disk with zero configuration.
+
+---
+
+## Related
+
+- [Development Guides](../index.mdx)
+- [Widget System](../../../architecture/index.mdx)
+- [Security Overview](../../../architecture/security/index.mdx)

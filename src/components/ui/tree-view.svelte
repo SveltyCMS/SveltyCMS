@@ -457,14 +457,14 @@ search filtering, and RTL support.
     <div class="flex flex-col group/item relative">
         <!-- Drag drop indicator: before -->
         {#if dragOverNode?.id === node.id && dropPosition === 'before'}
-            <div class="absolute -top-0.5 start-0 end-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
+            <div class="absolute -top-0.5 inset-s-0 inset-e-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
         {/if}
 
         <button
             type="button"
             id={`treenode-${node.id}`}
             class={cn(
-                'flex items-center rounded-lg transition-all cursor-pointer group focus:outline-none text-start border border-transparent px-2',
+                'flex w-full items-center rounded-lg transition-all cursor-pointer group focus:outline-none text-start border border-transparent px-2',
                 densityTokens.padding,
                 densityTokens.touch,
                 isSelected
@@ -535,7 +535,7 @@ search filtering, and RTL support.
                 'truncate transition-colors',
                 densityTokens.font,
                 isSelected
-                    ? 'font-bold text-white dark:text-primary-600'
+                    ? 'font-bold text-white dark:text-primary-500'
                     : 'font-medium text-surface-900 dark:text-surface-100'
             )}>
                 {nodeLabel}
@@ -560,7 +560,7 @@ search filtering, and RTL support.
 
         <!-- Per-node Action Buttons (hover to reveal) -->
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
-            <div class="absolute end-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100">
+            <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100">
                 {#each node.actions as act}
                     <button
                         type="button"
@@ -577,7 +577,7 @@ search filtering, and RTL support.
 
         <!-- Drag drop indicator: after -->
         {#if dragOverNode?.id === node.id && dropPosition === 'after'}
-            <div class="absolute -bottom-0.5 start-0 end-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
+            <div class="absolute -bottom-0.5 inset-s-0 inset-e-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
         {/if}
 
         <!-- Children (recursive) -->

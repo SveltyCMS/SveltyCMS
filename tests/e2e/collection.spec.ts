@@ -18,8 +18,8 @@ test.describe("Full Collection & Widget Flow", () => {
 
     // 2. Create Collection
     await page.getByRole("button", { name: /create/i }).click();
-    await page.getByPlaceholder(/enter first name/i).fill("First Name");
-    await page.getByPlaceholder(/enter last name/i).fill("Last Name");
+    await page.getByPlaceholder(/first name/i).fill("First Name");
+    await page.getByPlaceholder(/last name/i).fill("Last Name");
     await page.getByRole("button", { name: /save/i }).click();
     await expect(page).toHaveURL(/\/en\/Collections\/Names/);
 
@@ -48,7 +48,7 @@ test.describe("Full Collection & Widget Flow", () => {
     await page.getByRole("button", { name: /add widget/i }).click();
 
     await page.getByPlaceholder(/search widgets/i).fill("CPU Usage");
-    const cpuWidget = page.getByText(/cpu usage/i, { exact: true });
+    const cpuWidget = page.getByText(/cpu usage/i);
     await expect(cpuWidget).toBeVisible({ timeout: 10_000 });
     await cpuWidget.click();
 

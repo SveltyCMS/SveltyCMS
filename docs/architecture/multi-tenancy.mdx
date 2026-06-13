@@ -24,7 +24,7 @@ SveltyCMS supports a robust multi-tenancy architecture allowing a single instanc
 
 SveltyCMS treats tenants as first-class entities stored in the database. Each tenant record controls access, status, and resource limits.
 
-```typescript
+````typescript
 interface Tenant {
   _id: string; // UUID
   name: string;
@@ -49,7 +49,7 @@ interface Tenant {
   createdAt: string;
   updatedAt: string;
 }
-```
+```text
 
 ### Tenant Identification
 
@@ -107,7 +107,7 @@ interface TenantRole {
   permissions: string[];
   tenantId: string; // Specific tenant ID
 }
-```
+```text
 
 **Use Cases:**
 
@@ -125,7 +125,7 @@ await dbAdapter.auth.getAllRoles(undefined);
 
 // Get tenant-specific roles
 await dbAdapter.auth.getAllRoles("tenant-123");
-```
+```text
 
 ### Collections
 
@@ -147,7 +147,7 @@ interface TenantCollection {
   nodeType: "collection";
   tenantId: string; // Specific tenant ID
 }
-```
+```text
 
 **Use Cases:**
 
@@ -165,7 +165,7 @@ interface CollectionEntry {
   createdBy?: string;
   updatedBy?: string;
 }
-```
+```text
 
 ### System Settings
 
@@ -178,7 +178,7 @@ interface SystemSetting {
   isGlobal?: boolean; // true = shared across tenants
   tenantId?: string; // undefined if isGlobal is true
 }
-```
+```text
 
 **Use Cases:**
 
@@ -221,7 +221,7 @@ interface IAuthAdapter {
   }): Promise<DatabaseResult<User | null>>;
   // ...
 }
-```
+```text
 
 **Query Behavior:**
 
@@ -243,43 +243,43 @@ Data isolation is enforced strictly via the `safeQuery` utility and Database Ada
    // Example in MongoDB Adapter
    const secureFilter = safeQuery({ status: "active" }, currentTenantId);
    // Result: { status: 'active', tenantId: 'tenant-123' }
-   ```
+````
 
-   #### **Explicit Global Scope (System Services)**
+#### **Explicit Global Scope (System Services)**
 
-   In specific cases where the system needs to perform operations on global resources (e.g., plugins, system settings), you must explicitly use `tenantId: null`. This signifies an intentional global operation:
+In specific cases where the system needs to perform operations on global resources (e.g., plugins, system settings), you must explicitly use `tenantId: null`. This signifies an intentional global operation:
 
-   ```typescript
-   // Internal system maintenance operating on global data
-   const plugins = await dbAdapter.crud.findMany(
-     "plugins",
-     {},
-     {
-       tenantId: null, // Explicit global scope
-     },
-   );
-   ```
+```typescript
+// Internal system maintenance operating on global data
+const plugins = await dbAdapter.crud.findMany(
+  "plugins",
+  {},
+  {
+    tenantId: null, // Explicit global scope
+  },
+);
+```
 
-   > [!CAUTION]
-   > There is no longer a `sudo: true` backdoor to bypass tenant isolation. Every query must either be explicitly scoped to a `tenantId` or intentionally declared global with `null`. Attempting to omit the tenant context will result in a hard Security Violation.
+> [!CAUTION]
+> There is no longer a `sudo: true` backdoor to bypass tenant isolation. Every query must either be explicitly scoped to a `tenantId` or intentionally declared global with `null`. Attempting to omit the tenant context will result in a hard Security Violation.
 
-   ```mermaid
-   sequenceDiagram
-       participant Client
-       participant Middleware
-       participant API
-       participant SafeQuery
-       participant Database
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Middleware
+    participant API
+    participant SafeQuery
+    participant Database
 
-       Client->>Middleware: Request (cookie/host)
-       Middleware->>Middleware: Resolve tenantId
-       Middleware->>API: event.locals.tenantId
-       API->>SafeQuery: Query + tenantId
-       SafeQuery->>SafeQuery: Inject { tenantId: '...' }
-       SafeQuery->>Database: Secure Query
-       Database-->>API: Tenant Scoped Data
-       API-->>Client: Response
-   ```
+    Client->>Middleware: Request (cookie/host)
+    Middleware->>Middleware: Resolve tenantId
+    Middleware->>API: event.locals.tenantId
+    API->>SafeQuery: Query + tenantId
+    SafeQuery->>SafeQuery: Inject { tenantId: '...' }
+    SafeQuery->>Database: Secure Query
+    Database-->>API: Tenant Scoped Data
+    API-->>Client: Response
+```
 
 2. **Database Adapter Level**:
    - Operations without a `tenantId` default to Global (if allowed) or throw errors.
@@ -314,7 +314,7 @@ Data isolation is enforced strictly via the `safeQuery` utility and Database Ada
 
 Multi-tenant mode uses a tenant-based directory structure for better organization:
 
-```
+````text
 config/
   {tenantId}/           # Tenant-specific resources
     collections/
@@ -332,7 +332,7 @@ config/
   global/               # Compiled global collections
     Categories.js
     Tags.js
-```
+```text
 
 **Benefits:**
 
@@ -386,7 +386,7 @@ Most applications benefit from a hybrid approach:
   customers: { tenantId: 'tenant-123' },   // Isolated customer data
   customRoles: { tenantId: 'tenant-123' }  // Tenant-specific roles
 }
-```
+```text
 
 ## Migration from Single-Tenant to Multi-Tenant
 
@@ -416,7 +416,7 @@ When switching from single-tenant to multi-tenant mode:
      { tenantId: { $exists: false } },
      { $set: { tenantId: "primary-tenant-id" } },
    );
-   ```
+````
 
 3. **100% Separation**: After migration, all resources are fully isolated to the primary tenant by default
 
@@ -424,7 +424,7 @@ When switching from single-tenant to multi-tenant mode:
 
 To share resources across tenants after migration, explicitly set `tenantId` to `null`:
 
-```typescript
+````typescript
 // Make a role global (shared across all tenants)
 await dbAdapter.auth.updateRole(
   roleId,
@@ -438,7 +438,7 @@ await dbAdapter.auth.updateRole(
 await dbAdapter.content.nodes.update(collectionPath, {
   tenantId: null,
 });
-```
+```text
 
 ### Converting Tenant-Specific to Global
 
@@ -447,7 +447,7 @@ await dbAdapter.content.nodes.update(collectionPath, {
 await dbAdapter.crud.update("roles", roleId, {
   tenantId: null, // Explicitly set to null for global access
 });
-```
+```text
 
 ### Converting Global to Tenant-Specific
 
@@ -456,7 +456,7 @@ await dbAdapter.crud.update("roles", roleId, {
 await dbAdapter.crud.update("roles", roleId, {
   tenantId: "tenant-123",
 });
-```
+```text
 
 > **⚠️ Warning**: Converting resources between global and tenant-specific requires careful planning to avoid data access issues.
 
@@ -486,7 +486,7 @@ When enabling multi-tenancy:
 
    ```javascript
    db.collection.createIndex({ tenantId: 1, createdAt: -1 });
-   ```
+````
 
 2. **Caching**: Use tenant-aware cache keys
 
@@ -509,3 +509,11 @@ Admins can manage tenants via the **Tenant Dashboard** (`/admin/tenants`).
 - **Create Tenant**: Provision new tenants manually with specific plans.
 
 This UI interacts directly with `TenantService`, ensuring all changes are auditable and safe.
+
+---
+
+## Related
+
+- [Architecture Overview](./index.mdx)
+- [Security Overview](./security/index.mdx)
+- [State Management](./state-management.mdx)

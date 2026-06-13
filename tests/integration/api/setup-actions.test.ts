@@ -56,13 +56,14 @@ const API_BASE_URL = getApiBaseUrl();
 // Dynamic DB type from environment
 const dbType = (process.env.DB_TYPE || "mongodb") as DatabaseConfig["type"];
 const defaultPort = dbType === "mariadb" ? "3306" : dbType === "postgresql" ? "5432" : "27017";
+const sqliteTestDbName = `setup_actions_test_${Date.now()}`;
 
 // Verify what we are sending
 const testDbConfig: DatabaseConfig = {
   type: dbType,
   host: process.env.DB_HOST || "localhost",
   port: Number.parseInt(process.env.DB_PORT || defaultPort, 10),
-  name: process.env.DB_NAME || "sveltycms_test",
+  name: process.env.DB_NAME || (dbType === "sqlite" ? sqliteTestDbName : "sveltycms_test"),
   user: process.env.DB_USER || "",
   password: process.env.DB_PASSWORD || "",
 };

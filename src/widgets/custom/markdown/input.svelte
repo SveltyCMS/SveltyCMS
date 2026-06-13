@@ -53,7 +53,7 @@
 	}
 </script>
 
-<div class="flex flex-col border border-surface-400 dark:border-surface-600 rounded-lg overflow-hidden">
+<div class="flex flex-col border border-surface-400 dark:border-surface-600 rounded overflow-hidden">
 	<!-- Toolbar -->
 	<div class="flex items-center justify-between bg-surface-100 dark:bg-surface-800 p-2 border-b border-surface-200 dark:border-surface-700">
 		<div class="flex gap-1">

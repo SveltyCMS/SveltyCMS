@@ -82,7 +82,7 @@ Designed as a visual schema inspector for developers to understand what data str
 	}
 </script>
 
-<section class="p-6 border rounded-xl bg-white dark:bg-[#0d0f12] shadow-lg">
+<section class="p-6 border rounded bg-white dark:bg-[#0d0f12] shadow-lg">
 	<!-- Header -->
 	<div class="flex items-center gap-4 pb-3 border-b border-slate-200 dark:border-slate-700 mb-4">
 		<h2 class="text-2xl font-bold text-black dark:text-white">{currentSchema?.name || 'Unknown Schema'}</h2>
@@ -94,7 +94,7 @@ Designed as a visual schema inspector for developers to understand what data str
 	<!-- Schema Details -->
 	<div>
 		<h3 class="text-xl font-semibold mb-4 border-b pb-2">Defined Fields ({currentSchema?.fields.length ?? 0} fields)</h3>
-		<div class="space-y-6 p-4 bg-slate-50 dark:bg-[#1a1c20] rounded-lg/50 shadow-inner">
+		<div class="space-y-6 p-4 bg-slate-50 dark:bg-[#1a1c20] rounded/50 shadow-inner">
 			{#if currentSchema?.fields && currentSchema.fields.length > 0}
 				{#each currentSchema.fields as field (field.key)}
 					<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 border-b pb-6">

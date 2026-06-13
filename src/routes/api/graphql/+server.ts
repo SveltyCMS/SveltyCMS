@@ -1,20 +1,44 @@
 /**
  * @file src/routes/api/graphql/+server.ts
  * @description GraphQL API endpoint using GraphQL Yoga + Unified Dispatcher.
+ *
+ * # Features
+ * - Uses GraphQL Yoga for GraphQL API endpoint.
+ * - Uses Unified Dispatcher for GraphQL API endpoint.
+ * - Uses PubSub for GraphQL API endpoint.
+ * - Uses Loaders for GraphQL API endpoint.
+ *
+ * # Security
+ * - Enforces query depth (max 8).
+ * - Enforces alias count (max 15).
+ * - Blocks schema introspection in production (only during benchmark mode).
+ * - Adds validation rules for GraphQL queries.
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
+import { NoSchemaIntrospectionCustomRule } from "graphql";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
 
-// GraphQL validation plugin: enforces query depth (max 7) and alias count (max 15)
+// GraphQL validation plugin: enforces query depth (max 7), alias count (max 15),
+// and blocks schema introspection in production environments
+const isProduction = process.env.NODE_ENV === "production";
+const isBenchmark = process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK === "true";
+
+const depthLimitRule = createDepthLimitRule(8);
+const maxAliasesRule = createMaxAliasesRule(15);
+
 const securityValidationPlugin = {
   onValidate({ addValidationRule }: { addValidationRule: (rule: any) => void }) {
-    addValidationRule(createDepthLimitRule(7));
-    addValidationRule(createMaxAliasesRule(15));
+    addValidationRule(depthLimitRule);
+    addValidationRule(maxAliasesRule);
+    // 🛡️ Explicit introspection block in production (belt-and-suspenders with Yoga's default)
+    if ((isProduction && !isBenchmark) || process.env.BLOCK_GRAPHQL_INTROSPECTION === "true") {
+      addValidationRule(NoSchemaIntrospectionCustomRule);
+    }
   },
 };
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";

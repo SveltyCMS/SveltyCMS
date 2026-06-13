@@ -5,13 +5,14 @@
  */
 
 import { expect, type Page } from "@playwright/test";
+import { TEST_API_HEADERS } from "./test-api";
 
 /**
  * Login credentials that match the setup wizard defaults
  */
 export const ADMIN_CREDENTIALS = {
   email: process.env.ADMIN_EMAIL || "admin@example.com",
-  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Admin123!",
+  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Password123!",
 };
 
 /**
@@ -87,6 +88,7 @@ export async function loginAs(
     // CRITICAL FIX: Seed database via Testing API when empty
     try {
       await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
         data: {
           action: "seed",
           email: ADMIN_CREDENTIALS.email,
@@ -96,8 +98,12 @@ export async function loginAs(
       console.log("[Auth] ✓ Database seeded successfully");
     } catch (seedError) {
       console.log("[Auth] ⚠️ Seeding failed, trying reset first...", seedError);
-      await page.request.post("/api/testing", { data: { action: "reset" } });
       await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "reset" },
+      });
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
         data: {
           action: "seed",
           email: ADMIN_CREDENTIALS.email,
@@ -140,6 +146,18 @@ export async function loginAs(
     }
   }
 
+  // Strategy 4: Cookie consent banner (fixed bottom bar, z-9999, aria-modal)
+  const cookieBanner = page.locator('[role="dialog"][aria-modal="true"]').first();
+  if (await cookieBanner.isVisible({ timeout: 1000 }).catch(() => false)) {
+    console.log("[Auth] Cookie consent banner detected, accepting...");
+    const acceptBtn = cookieBanner.getByRole("button", { name: /accept/i });
+    if (await acceptBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await acceptBtn.click();
+      await page.waitForTimeout(500);
+      console.log("[Auth] ✓ Cookie consent accepted");
+    }
+  }
+
   console.log("[Auth] Modal dismissal complete.");
 
   // Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
@@ -178,10 +196,8 @@ export async function loginAs(
   // Wait for login form to be visible - use data-testid
   console.log("[Auth] Waiting for signin-email field...");
   await page
-    .waitForSelector('[data-testid="signin-email"]', {
-      timeout: 15_000,
-      state: "visible",
-    })
+    .getByTestId("signin-email")
+    .waitFor({ state: "visible", timeout: 15_000 })
     .catch(async (e) => {
       console.error("[Auth] ERROR: signin-email field not found!");
       // Provide debug info about available inputs
@@ -266,7 +282,10 @@ export async function logout(page: Page) {
     });
 
     // Navigate to login to confirm logout
-    await page.goto("/login", { timeout: 10_000, waitUntil: "domcontentloaded" });
+    await page.goto("/login", {
+      timeout: 10_000,
+      waitUntil: "domcontentloaded",
+    });
   } catch (error) {
     console.log("[Auth] Error during logout, continuing anyway:", error);
   }

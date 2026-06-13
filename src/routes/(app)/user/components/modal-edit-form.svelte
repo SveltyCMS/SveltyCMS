@@ -228,7 +228,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	}
 
 	// Base Classes
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded';
 </script>
 
 <div class="modal-example-form space-y-4 text-surface-900 dark:text-surface-100">
@@ -268,7 +268,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		<!-- Password Change Section -->
 		{#if canChangePassword}
 			{#if !isOwnProfile && user?.isAdmin}
-				<div class="mb-4 rounded-md bg-warning-50 p-3 text-sm text-warning-800 dark:bg-warning-900/20 dark:text-warning-200">
+				<div class="mb-4 rounded bg-warning-50 p-3 text-sm text-warning-800 dark:bg-warning-900/20 dark:text-warning-200">
 					<div class="flex">
 						<iconify-icon icon="mdi:information" width={16} class="me-2 mt-0.5 shrink-0"></iconify-icon>
 						<div>
@@ -394,7 +394,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
 					<div class="flex-auto">
-						<div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+						<div class="rounded bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
 							<div class="flex items-center">
 								<iconify-icon icon="mdi:information" width={16} class="me-2 shrink-0"></iconify-icon>
 								<div>

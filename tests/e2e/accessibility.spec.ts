@@ -10,18 +10,21 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { loginAsAdmin, ADMIN_CREDENTIALS } from "./helpers/auth";
+import { TEST_API_HEADERS } from "./helpers/test-api";
 
 test.describe("Universal Accessibility Audits", () => {
   // Reset and seed the database to ensure a clean state
   test.beforeEach(async ({ page }) => {
     console.log("[A11y Test] Resetting database via Testing API...");
     const resetResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: { action: "reset" },
     });
     expect(resetResponse.ok()).toBeTruthy();
 
     console.log("[A11y Test] Seeding database with admin...");
     const seedResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: {
         action: "seed",
         email: ADMIN_CREDENTIALS.email,
@@ -33,7 +36,17 @@ test.describe("Universal Accessibility Audits", () => {
 
   test("Login Page - Automated Axe Audit", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForSelector('[data-testid="signin-email"]');
+    // Click Sign In to reveal the signin form (hidden behind chooser by default)
+    const signInIcon = page.getByTestId("signin-icon");
+    if (await signInIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await signInIcon.click({ force: true });
+    } else {
+      await page
+        .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
+        .first()
+        .click({ force: true });
+    }
+    await page.getByTestId("signin-email").waitFor({ state: "visible" });
 
     // Run Axe audit
     const results = await new AxeBuilder({ page })

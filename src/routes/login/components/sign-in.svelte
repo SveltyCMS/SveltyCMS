@@ -369,9 +369,10 @@ $effect(() => {
 
 function handleBack(event: Event) {
 	event.stopPropagation();
-	if (P_WFORGOT || P_WRESET) {
-		P_WFORGOT = false;
+	if (P_WFORGOT && P_WRESET) {
 		P_WRESET = false;
+	} else if (P_WFORGOT) {
+		P_WFORGOT = false;
 	} else {
 		onBack();
 	}
@@ -424,7 +425,7 @@ $effect(() => {
 				<SveltyCMSLogoFull />
 			</div>
 			<div
-				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white/0 p-6 backdrop-blur lg:w-4/5"
+				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded bg-white/0 p-6 backdrop-blur lg:w-4/5"
 				class:hide={active !== 0}
 			>
 				<a href="#signin-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-in form</a>
@@ -446,7 +447,7 @@ $effect(() => {
 
 				<!-- Required label + Back button -->
 				<!-- FIX: Icon was ri:arrow-end-line (→); corrected to ← -->
-				<div class="-mt-8 mb-4 relative flex items-center justify-center text-xs text-error-500">
+				<div class="relative mb-2 flex h-10 items-center justify-center text-xs text-error-500">
 					{form_required()}
 					<div class="absolute inset-e-0">
 						<SystemTooltip title="Go Back">
@@ -471,6 +472,7 @@ $effect(() => {
 					<div class:hidden={requires2FA}>
 						<form
 							id="signin-form"
+							method="POST"
 							onsubmit={handleLoginSubmit}
 							bind:this={loginFormElement}
 							class="flex w-full flex-col gap-3"
@@ -520,7 +522,7 @@ $effect(() => {
 						</form>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-							<div class="flex w-full justify-between gap-2 sm:w-auto">
+							<div class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto">
 								<Button
 									type="submit"
 									form="signin-form"
@@ -675,10 +677,10 @@ $effect(() => {
 							errorMessage={forgotForm.errors.email?.[0] || ''}
 						/>
 
-						<div class="mt-4 flex items-center justify-between">
+						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
 							<button
 								type="submit"
-								class="preset-filled-surface-500 text-white btn"
+								class="preset-filled-surface-500 text-white btn w-full sm:w-auto"
 								aria-label={form_resetpassword()}
 							>
 								{form_resetpassword()}
@@ -761,11 +763,11 @@ $effect(() => {
 							confirmPassword={resetForm.data.confirm_password}
 						/>
 
-						<div class="mt-4 flex items-center justify-between">
+						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
 							<button
 								type="submit"
 								aria-label={signin_savenewpassword()}
-								class="btn preset-filled-surface-500 ms-2 mt-6 text-white"
+								class="btn preset-filled-surface-500 mt-6 text-white w-full sm:w-auto"
 							>
 								{signin_savenewpassword()}
 								{#if isSubmitting}

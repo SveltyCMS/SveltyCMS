@@ -14,8 +14,7 @@ if (!existsSync(authDir)) {
   mkdirSync(authDir, { recursive: true });
 }
 
-// ✨ Synchronization: Use a file to share the secret across all Playwright workers
-// This prevents 403 errors when workers re-evaluate the config file.
+// Share one test secret across all Playwright workers for explicit /api/testing calls.
 const SECRET_FILE = join(authDir, "test-secret.txt");
 let TEST_API_SECRET = process.env.TEST_API_SECRET;
 
@@ -27,6 +26,9 @@ if (!TEST_API_SECRET) {
     writeFileSync(SECRET_FILE, TEST_API_SECRET);
   }
 }
+
+// Ensure workers inherit the secret so they can authenticate testing endpoints
+process.env.TEST_API_SECRET = TEST_API_SECRET;
 
 // See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
@@ -62,12 +64,11 @@ export default defineConfig({
   /* Set environment variables for tests */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
 
-    /* ✨ ISOLATION: Pass worker index and secure token to the server */
+    /* Tag Playwright-originated API calls without bypassing normal browser navigation. */
     extraHTTPHeaders: {
       "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
     },
 
     launchOptions: {
@@ -105,31 +106,68 @@ export default defineConfig({
     },
     {
       name: "signup",
-      testMatch: [
-        /signupfirstuser\.spec\.ts/,
-        /oauth-signup-firstuser\.spec\.ts/,
-        /role-based-access\.spec\.ts/,
-        /permission-change\.spec\.ts/,
-      ],
+      testMatch: [/account-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "content",
-      testMatch: [/collection\.spec\.ts/, /collection-builder\.spec\.ts/, /user-crud\.spec\.ts/],
+      testMatch: [/content-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "system",
+      testMatch: [/system-smoke\.spec\.ts/],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "a11y",
+      testMatch: /accessibility.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "rbac",
+      testMatch: /role-based-access.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "language",
+      testMatch: /language.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "users",
+      testMatch: [/(\/|^)user\.spec\.ts$/, /(\/|^)user-crud\.spec\.ts$/],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "builder",
       testMatch: [
-        /language\.spec\.ts/,
-        /user\.spec\.ts/,
-        /accessibility\.spec\.ts/,
-        /ui-test\.spec\.ts/,
+        /collection-builder\.spec\.ts/,
+        /collection\.spec\.ts/,
+        /master-behavioral-journey\.spec\.ts/,
       ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
+    },
+    {
+      name: "permissions",
+      testMatch: /permission-change.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "firstuser",
+      testMatch: [/(\/|^)signupfirstuser\.spec\.ts$/, /(\/|^)oauth-signup-firstuser\.spec\.ts$/],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      // No dependency on auth-setup — these hit login/signup pages directly
+      workers: 1,
     },
   ],
 
@@ -138,10 +176,14 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: `cross-env TEST_MODE=true STRICT_SETUP_CHECK=true TEST_API_SECRET=${TEST_API_SECRET} bun run dev`,
-          port: 5173,
+          command: `cross-env TEST_MODE=true STRICT_SETUP_CHECK=true TEST_API_SECRET=${TEST_API_SECRET} node build/index.js`,
+          port: 4173,
           timeout: 300_000,
           reuseExistingServer: true,
+          env: {
+            HOST: "127.0.0.1",
+            PORT: "4173",
+          },
         },
       }),
 });

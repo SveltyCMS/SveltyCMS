@@ -65,7 +65,7 @@ const icons = {
 	in:fly={{ y: 20, duration: 400 }}
 	out:fade={{ duration: 200 }}
 	class={cn(
-		'pointer-events-auto w-full sm:w-80 shadow-2xl rounded-xl overflow-hidden transform transition-all duration-300',
+		'pointer-events-auto w-full sm:w-80 shadow-2xl rounded overflow-hidden transform transition-all duration-300',
 		'border border-white/10 backdrop-blur-md',
 		styles[t.type]
 	)}
@@ -96,7 +96,7 @@ const icons = {
 							t.action?.onClick();
 							onClose(t.id);
 						}}
-						class="mt-3 text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-all duration-200 border border-white/10 active:scale-95"
+						class="mt-3 text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded transition-all duration-200 border border-white/10 active:scale-95"
 					>
 						{t.action.label}
 					</button>

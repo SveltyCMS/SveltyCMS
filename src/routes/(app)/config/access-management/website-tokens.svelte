@@ -475,7 +475,7 @@ $effect(() => {
 							use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300 }}
 							onconsider={handleDndConsider}
 							onfinalize={handleDndFinalize}
-							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
+							class="flex flex-wrap justify-center gap-1 rounded p-2"
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<button

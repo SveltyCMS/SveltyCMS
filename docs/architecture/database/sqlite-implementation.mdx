@@ -24,13 +24,13 @@ The SQLite adapter enables a seamless transition from local development to produ
 
 ### Architecture Overview
 
-```mermaid
+````mermaid
 graph TD
     A[SveltyCMS Core] --> B(IDBAdapter Interface)
     B --> C{SQLiteAdapter}
     C --> D[Drizzle ORM]
     D --> E[(SQLite File: SveltyCMS.db)]
-```
+```text
 
 ### Current Status
 
@@ -47,7 +47,7 @@ graph TD
 
 ## 🚀 Performance Benchmarks (Verified)
 
-SQLite delivers exceptional response times for local and edge deployments. For detailed performance metrics, stress test results, and cross-database comparisons, please refer to the [Performance Benchmarks](/docs/project/benchmarks) document.
+SQLite delivers exceptional response times for local and edge deployments. For detailed performance metrics, stress test results, and cross-database comparisons, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
 
 Key SQLite highlights:
 
@@ -132,7 +132,7 @@ export const privateEnv = {
   DB_HOST: "/config/database", // Directory path
   DB_NAME: "SveltyCMS.db", // Filename
 };
-```
+```text
 
 The adapter will resolve the final path as `process.cwd() + DB_HOST + "/" + DB_NAME`.
 
@@ -147,3 +147,12 @@ The SQLite adapter follows the modular pattern established in the core infrastru
 - [Core Infrastructure](./core-infrastructure.mdx) - Unified architecture
 - [PostgreSQL Implementation](./postgresql-implementation.mdx) - Similar Drizzle pattern
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)
+````
+
+---
+
+## Related
+
+- [Database Architecture](./index.mdx)
+- [Performance Benchmarks](../../project/benchmarks/index.mdx)
+- [Architecture Overview](../index.mdx)

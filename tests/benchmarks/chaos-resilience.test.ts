@@ -63,10 +63,12 @@ async function runChaosAudit() {
         // 🛡️ RESILIENCE: 503 (Circuit Breaker) is acceptable during brownouts.
         // 500 (Crash) is considered a failure but should not hard-abort the benchmark.
         if (res.status === 503) {
+          await res.text().catch(() => {});
           return; // Success (Resilience active)
         }
 
         if (!res.ok) {
+          await res.text().catch(() => {});
           throw new Error(`System failure: ${res.status}`);
         }
 

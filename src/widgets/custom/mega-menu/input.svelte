@@ -228,7 +228,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		{#if value && value.length > 0}
 			{#each value as item, index (item._id)}
 				<div
-					class="rounded-lg border border-surface-200 bg-surface-50/50 transition-all duration-200 dark:text-surface-50 dark:bg-surface-800/50"
+					class="rounded border border-surface-200 bg-surface-50/50 transition-all duration-200 dark:text-surface-50 dark:bg-surface-800/50"
 					class:scale-95={draggedItem?._id === item._id}
 					class:opacity-50={draggedItem?._id === item._id}
 					class:!border-primary-400={dragOverIndex === index}
@@ -320,7 +320,7 @@ Interactive menu builder with add/edit/reorder capabilities
 
 	{#if error}
 		<div
-			class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+			class="flex items-center gap-2 rounded border border-red-200 bg-red-50 p-3 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
 			role="alert"
 			aria-live="polite"
 		>

@@ -16,6 +16,7 @@ import type { DatabaseId } from "@src/content/types";
 import { isPublicRoute } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 
 // Dynamic handlers map for build-time tree-shaking
 const HANDLERS: Record<string, () => Promise<any>> = {
@@ -222,7 +223,7 @@ export const _handler = async (event: RequestEvent) => {
   const versionedPath = rawPath.replace(/^v1\//, "");
   const segments = versionedPath.split("/").filter(Boolean);
   const namespace = segments[0];
-  const { user } = locals;
+  let user = locals.user;
   let tenantId = (locals.tenantId as string) || null;
 
   // Support tenantId override for super-admins
@@ -272,6 +273,41 @@ export const _handler = async (event: RequestEvent) => {
   }
   const cms = sharedCMS;
 
+  // Last-chance session hydration for requests that carry a valid session cookie
+  // but arrive before upstream auth middleware has populated locals.user.
+  if (!user) {
+    const sessionId =
+      cookies.get(SESSION_COOKIE_NAME) ||
+      cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
+      cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
+
+    if (sessionId && adapter?.auth?.getSessionTokenData && adapter?.auth?.getUserById) {
+      const sessionResult = await adapter.auth.getSessionTokenData(sessionId as any);
+
+      let resolvedUser: any = null;
+      if (sessionResult?.success && sessionResult.data) {
+        const expiresAt = new Date(sessionResult.data.expiresAt).getTime();
+        if (!Number.isNaN(expiresAt) && expiresAt > Date.now()) {
+          const userResult = await adapter.auth.getUserById(sessionResult.data.user_id as any, {
+            suppressErrorLog: true,
+          });
+          resolvedUser =
+            userResult && typeof userResult === "object" && "success" in userResult
+              ? userResult.data
+              : userResult;
+        }
+      }
+
+      if (resolvedUser) {
+        user = resolvedUser;
+        locals.user = resolvedUser;
+        tenantId =
+          (locals.tenantId as string) || ((resolvedUser as any).tenantId as string) || null;
+        locals.tenantId = tenantId as any;
+      }
+    }
+  }
+
   // Fail-closed authentication
   const isPublic = isPublicRoute(url.pathname, (locals as any).__testBypass === true);
   if (!user && !isPublic) {
@@ -299,12 +335,12 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   // --- Body Size Limit (prevents memory exhaustion) ---
-  const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB for API requests
+  const MAX_BODY_SIZE = 15 * 1024 * 1024; // 15MB for API requests (allows 10MB multipart uploads)
   if (["POST", "PUT", "PATCH"].includes(request.method) && request.headers.get("content-length")) {
     const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
     if (contentLength > MAX_BODY_SIZE) {
       throw new AppError(
-        `Request body too large (${(contentLength / 1024 / 1024).toFixed(1)}MB). Maximum is 10MB.`,
+        `Request body too large (${(contentLength / 1024 / 1024).toFixed(1)}MB). Maximum is 15MB.`,
         413,
       );
     }

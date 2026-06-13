@@ -96,7 +96,7 @@ export const widgetMeta = {
 							<a
 								href={`/${app.contentLanguage}/${item.collection}?edit=${item.id}`}
 								data-sveltekit-preload-data="hover"
-								class="group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-gray-50 dark:hover:bg-gray-800/60 active:scale-[0.985] outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
+								class="group flex items-start gap-3 rounded px-3 py-2.5 transition-all hover:bg-gray-50 dark:hover:bg-gray-800/60 active:scale-[0.985] outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
 							>
 								<!-- Status Circle Dot -->
 								<div class="mt-1 shrink-0">

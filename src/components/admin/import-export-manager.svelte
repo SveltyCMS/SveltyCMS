@@ -356,7 +356,7 @@
 	</div>
 
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
 				<div class="preset-filled-tertiary-500 btn-icon me-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
 				<div>
@@ -368,7 +368,7 @@
 			<button onclick={exportAllData} disabled={loading} class="preset-outline-secondary-500 btn mt-4 w-full" aria-label="Export all collections">Export Everything</button>
 		</div>
 
-		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
 				<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-icon me-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
 				<div>
@@ -426,7 +426,7 @@
 		aria-modal="true"
 		aria-labelledby="export-modal-title"
 	>
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="export-modal-title" class="text-lg font-semibold">Export Collections</h3>
 				<button onclick={() => (showExportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close export modal">
@@ -451,7 +451,7 @@
 						</div>
 					</div>
 
-					<div class="max-h-48 overflow-y-auto rounded-md border border-gray-200 p-3 dark:border-gray-700">
+					<div class="max-h-48 overflow-y-auto rounded border border-gray-200 p-3 dark:border-gray-700">
 						{#each collections as collection (collection.id)}
 							{const inputId = `export-collection-${collection.id}`}
 							<label for={inputId} class="flex cursor-pointer items-center space-x-3 py-2">
@@ -499,7 +499,7 @@
 		aria-modal="true"
 		aria-labelledby="import-modal-title"
 	>
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="import-modal-title" class="text-lg font-semibold">Import Collections</h3>
 				<button onclick={() => (showImportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close import modal">
@@ -509,7 +509,7 @@
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
 					<label for="import-file" class="mb-2 block text-sm font-medium">Select File</label>
-					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100" />
+					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:rounded file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100" />
 					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
 				</div>
 
@@ -542,7 +542,7 @@
 
 {#if showResultsModal && importResult}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
 				<button onclick={() => (showResultsModal = false)} class="preset-outlined-surface-500 btn-sm" aria-label="Close results">
@@ -552,7 +552,7 @@
 			</div>
 			<div class="max-h-[calc(80vh-140px)] overflow-y-auto p-6">
 				<div class="space-y-6">
-					<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+					<div class="rounded bg-gray-50 p-4 dark:bg-gray-800">
 						<h3 class="mb-3 font-semibold">Import Summary</h3>
 						<div class="grid grid-cols-3 gap-4 text-center">
 							<div>
@@ -574,7 +574,7 @@
 						<h3 class="mb-3 font-semibold">Collection Details</h3>
 						<div class="max-h-64 space-y-3 overflow-y-auto">
 							{#each importResult.results as result (result.collection)}
-								<div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+								<div class="rounded border border-gray-200 p-3 dark:border-gray-700">
 									<div class="mb-2 flex items-center justify-between">
 										<h4 class="font-medium">{result.collection}</h4>
 										<div class="flex space-x-4 text-sm">

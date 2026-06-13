@@ -84,7 +84,7 @@ const errorSummary = isDatabaseError
 		<!-- Skip to content link for keyboard users -->
 		<a
 			href="#error-content"
-			class="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+			class="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
 		>
 			{error_skip_content()}
 		</a>
@@ -115,7 +115,7 @@ const errorSummary = isDatabaseError
 
 				<!-- Error URL Banner -->
 				<div
-					class="mt-4 rounded-md bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:absolute sm:start-1/2 sm:top-1/2 sm:mt-0 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rotate-12"
+					class="mt-4 rounded bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:absolute sm:start-1/2 sm:top-1/2 sm:mt-0 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rotate-12"
 					aria-label="Error type"
 				>
 					<div class="max-w-[280px] truncate" title={page.url.toString()}>{page.url}</div>

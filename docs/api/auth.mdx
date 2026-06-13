@@ -90,7 +90,7 @@ When 2FA is enabled, a standard login will return a `2FA_REQUIRED` status, requi
 **Endpoint**: `POST /api/auth/2fa/disable`  
 **Payload**: `{ "password": "current_password" }` — Requires current password verification before disabling.
 
-```mermaid
+````mermaid
 sequenceDiagram
     participant User
     participant Auth as Auth Handler (auth.ts)
@@ -104,7 +104,7 @@ sequenceDiagram
     Auth->>SDK: verifyTOTP(userId, code)
     SDK->>DB: Check Secret
     Auth-->>User: 200 OK (Session Started)
-```
+```text
 
 ---
 
@@ -116,7 +116,7 @@ For enterprise environments, SveltyCMS acts as a **Service Provider (SP)** and i
 
 To connect an external IdP, the admin must provide the XML metadata.
 
-**Endpoint**: `POST /api/auth/saml/config`  
+**Endpoint**: `POST /api/auth/saml/config`
 **Payload**: `{ "tenant": "...", "rawMetadata": "<XML_CONTENT>" }`
 
 ### SAML Assertion Consumer Service
@@ -146,3 +146,4 @@ The authorization system is built on granular permissions assigned to user roles
 - [SCIM 2.0 Provisioning (scim.ts)](./scim.mdx)
 - [Login Security](../architecture/security/login-security.mdx)
 - [Authentication System Architecture](../architecture/authentication-system.mdx)
+````

@@ -79,7 +79,7 @@ This document provides technical details about the cloud storage implementation 
 
 **Exports**:
 
-```typescript
+````typescript
 // Configuration
 export function getCloudStorageConfig(): CloudStorageConfig;
 export function isCloudStorage(): boolean;
@@ -92,7 +92,7 @@ export function getCloudUrl(relativePath: string): string;
 export async function uploadToCloud(buffer: Buffer, relativePath: string): Promise<string>;
 export async function deleteFromCloud(relativePath: string): Promise<void>;
 export async function cloudFileExists(relativePath: string): Promise<boolean>;
-```
+```text
 
 **Key Features**:
 
@@ -118,7 +118,7 @@ export async function cloudFileExists(relativePath: string): Promise<boolean>;
 - Automatic format optimization
 - Unique public_id generation
 - resource_type: 'auto' for all file types
-```
+```text
 
 ### Files Modified
 
@@ -129,7 +129,7 @@ export async function cloudFileExists(relativePath: string): Promise<boolean>;
 ```typescript
 // Added
 export type StorageType = "local" | "s3" | "r2" | "cloudinary";
-```
+```text
 
 #### `src/routes/files/[...path]/+server.ts`
 
@@ -168,7 +168,7 @@ if (isCloudStorage())
 else
   ↓
   Serve from local filesystem (with local ETag validation)
-```
+```text
 
 #### `src/utils/media/mediaStorage.ts`
 
@@ -184,7 +184,7 @@ else
      getCloudUrl,
      cloudFileExists,
    } from "./cloudStorage";
-   ```
+````
 
 2. **`saveFileToDisk()`**: Now returns URL instead of void
 
@@ -310,7 +310,7 @@ else
 
 ### System Settings (Database)
 
-```typescript
+````typescript
 interface MediaSettings {
   MEDIA_STORAGE_TYPE: "local" | "s3" | "r2" | "cloudinary";
   MEDIA_FOLDER: string; // Local path OR cloud prefix
@@ -320,7 +320,7 @@ interface MediaSettings {
   MEDIA_CLOUD_ENDPOINT?: string;
   MEDIA_CLOUD_PUBLIC_URL?: string;
 }
-```
+```text
 
 ### Environment Variables
 
@@ -333,13 +333,13 @@ MEDIA_SECRET_ACCESS_KEY=
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
-```
+```text
 
 ## Data Flow
 
 ### Upload Flow
 
-```
+```text
 1. Client uploads file via API
    ↓
 2. API calls saveAvatarImage() or saveFileToDisk()
@@ -352,11 +352,11 @@ CLOUDINARY_API_SECRET=
 5. Database stores relative path (e.g., 'avatars/image.avif')
    ↓
 6. API returns public URL to client
-```
+```text
 
 ### Access Flow
 
-```
+```text
 1. Client requests /files/avatars/image.avif
    ↓
 2. /files/ route handler checks isCloudStorage()
@@ -365,11 +365,11 @@ CLOUDINARY_API_SECRET=
 3b. [Local] Serve from filesystem
    ↓
 4. Browser fetches from final location
-```
+```text
 
 ### Delete Flow
 
-```
+```text
 1. API calls deleteFile() or moveMediaToTrash()
    ↓
 2. Functions check isCloudStorage()
@@ -378,7 +378,7 @@ CLOUDINARY_API_SECRET=
 3b. [Local] Move to .trash folder
    ↓
 4. Database record updated/removed
-```
+```text
 
 ## Testing Considerations
 
@@ -462,7 +462,7 @@ async function getS3Client() {
   }
   return s3Client;
 }
-```
+```text
 
 **Benefits**:
 
@@ -531,7 +531,7 @@ await parseMultipartStream(request, {
     console.log(`Field: ${name} = ${value}`);
   },
 });
-```
+```text
 
 The parser works with Bun, Node.js, and Edge runtimes using the standard Web Streams API. Boundary detection and chunked processing keep memory usage constant regardless of file size.
 
@@ -556,7 +556,7 @@ const insights = getInsights(breakdown);
 
 const trends = getTrends(breakdown);
 // Returns month-over-month Trend[] with growthPct and totalSize
-```
+```text
 
 ### Planned
 
@@ -597,7 +597,7 @@ const trends = getTrends(breakdown);
    const config = getCloudStorageConfig();
    console.log("Storage Type:", config.storageType);
    console.log("Media Folder:", config.mediaFolder);
-   ```
+````
 
 2. **Test Cloud Operations**:
 
@@ -624,7 +624,7 @@ const trends = getTrends(breakdown);
 
 ### Custom Upload Handler
 
-```typescript
+````typescript
 import { uploadToCloud, getCloudUrl } from "@utils/media/cloud-storage";
 
 export async function uploadCustomFile(file: File, folder: string) {
@@ -638,7 +638,7 @@ export async function uploadCustomFile(file: File, folder: string) {
     publicUrl, // For API response
   };
 }
-```
+```text
 
 ### Batch Delete
 
@@ -654,7 +654,7 @@ export async function batchDelete(files: string[]) {
     error: result.status === "rejected" ? result.reason : null,
   }));
 }
-```
+```text
 
 ### Signed URL Generation (S3)
 
@@ -673,7 +673,7 @@ export async function getPrivateFileUrl(relativePath: string, expiresIn = 3600) 
 
   return await getSignedUrl(s3Client, command, { expiresIn });
 }
-```
+```text
 
 ## Conclusion
 
@@ -695,3 +695,4 @@ The cloud storage implementation provides a robust, scalable foundation for medi
 3. Monitor performance and costs
 4. Gather user feedback
 5. Implement advanced features (signed URLs, multipart uploads)
+````

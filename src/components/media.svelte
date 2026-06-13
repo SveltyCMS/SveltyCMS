@@ -275,7 +275,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		/>
 
 		<!-- View mode toggle -->
-		<div class="flex gap-1 rounded-lg border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
+		<div class="flex gap-1 rounded border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
 			<button
 				onclick={() => (currentViewMode.value = 'grid')}
 				class="btn-icon btn-icon-sm {currentViewMode.value === 'grid' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outlined-surface-500'}"
@@ -318,7 +318,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	<!-- Selection toolbar (multiple mode) -->
 	{#if multiple && selectedCount > 0}
 		<div
-			class="flex items-center justify-between rounded-lg border-s-4 border-tertiary-500 dark:border-primary-500 bg-primary-50 p-3 dark:bg-primary-900/20"
+			class="flex items-center justify-between rounded border-s-4 border-tertiary-500 dark:border-primary-500 bg-primary-50 p-3 dark:bg-primary-900/20"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<span class="text-sm font-medium"> {selectedCount} file{selectedCount !== 1 ? 's' : ''} selected </span>
@@ -412,7 +412,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 							<img
 								src={getThumbnailUrl(file, currentViewMode.value === 'list' ? 'sm' : 'md')}
 								alt={file.metadata?.altText || file.originalFilename || file.filename}
-								class="max-h-full max-w-full rounded-md object-contain"
+								class="max-h-full max-w-full rounded object-contain"
 								loading="lazy"
 							/>
 						{:else}

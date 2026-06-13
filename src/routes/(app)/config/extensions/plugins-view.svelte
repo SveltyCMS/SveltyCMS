@@ -73,11 +73,11 @@ function handleConfigure(plugin: any) {
 	{:else}
 		{#each data.plugins as plugin (plugin.name)}
 			<div
-				class="flex flex-col rounded-lg border border-surface-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-surface-700 dark:bg-surface-800"
+				class="flex flex-col rounded border border-surface-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-surface-700 dark:bg-surface-800"
 			>
 				<div class="mb-3 flex items-start justify-between">
 					<div class="flex items-center gap-3">
-						<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-50 dark:bg-surface-900/50">
+						<div class="flex h-12 w-12 items-center justify-center rounded bg-surface-50 dark:bg-surface-900/50">
 							<iconify-icon icon={plugin.icon || 'mdi:puzzle'} width="32" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						</div>
 						<div>

@@ -17,20 +17,27 @@ export async function checkServer(): Promise<boolean> {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
 
-    // The server might return 503 if setup is incomplete (MISSING_CONFIG).
-    // We still want to read the JSON body to determine the exact state.
-    if (response.status !== 200 && response.status !== 503) {
+    // The health endpoint uses 533 while warming up and may return 503/202
+    // during setup or degraded test scenarios. We still need the JSON body.
+    if (![200, 202, 503, 533].includes(response.status)) {
       const text = await response.text().catch(() => "");
       console.log(`[checkServer] Unhandled Status: ${response.status}, Body: ${text}`);
       return false;
     }
 
     const data = await response.json();
+    const payload = data?.data && typeof data.data === "object" ? data.data : data;
 
-    const status = data?.overallStatus || data?.status || "";
-    const isHealthy = ["READY", "SETUP", "WARMED", "INITIALIZING", "HEALTHY"].includes(
-      status.toUpperCase(),
-    );
+    const status = payload?.overallStatus || payload?.status || "";
+    const isHealthy = [
+      "READY",
+      "SETUP",
+      "WARMED",
+      "WARMING",
+      "DEGRADED",
+      "HEALTHY",
+      "IDLE",
+    ].includes(status.toUpperCase());
 
     if (!isHealthy) {
       console.log(`[checkServer] Unhealthy state: ${status} (HTTP ${response.status})`);
@@ -80,8 +87,9 @@ export async function safeFetch(
     headers.set("Referer", `${BASE_URL}/`);
   }
 
-  // Inject test secret by default to bypass security middleware (unless explicitly skipped)
-  if (!init?.skipTestSecret) {
+  // Use the testing secret for bootstrap/setup calls, but keep cookie-authenticated
+  // requests black-box once we have a real session.
+  if (!init?.skipTestSecret && !headers.has("Cookie") && !headers.has("cookie")) {
     const testSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     headers.set("x-test-secret", testSecret);
   }

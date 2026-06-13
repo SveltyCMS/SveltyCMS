@@ -8,7 +8,7 @@ import { page } from "$app/state";
 import { logger } from "@utils/logger";
 
 export function registerNavigationTools() {
-  const modelContext = (window.navigator as any)?.modelContext;
+  const modelContext = (window.document as any)?.modelContext;
   if (!modelContext) return;
 
   modelContext.registerTool({

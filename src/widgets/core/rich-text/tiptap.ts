@@ -59,6 +59,7 @@ export function createEditor(
       Underline,
       Link.configure({
         openOnClick: false,
+        protocols: ["http", "https", "mailto", "tel"],
       }),
       Placeholder.configure({
         placeholder: ({ node }: { node: any }) => {

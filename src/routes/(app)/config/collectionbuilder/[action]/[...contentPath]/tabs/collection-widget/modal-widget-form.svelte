@@ -96,7 +96,7 @@ function deleteWidget() {
 }
 
 // Base Classes
-const cForm = "border border-surface-500 p-4 space-y-4 rounded-xl";
+const cForm = "border border-surface-500 p-4 space-y-4 rounded";
 </script>
 
 <div class="space-y-4">

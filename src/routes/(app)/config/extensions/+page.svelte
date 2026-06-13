@@ -65,7 +65,7 @@ const tabs = [
 				href="https://sveltycms.com"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="hidden items-center gap-2 rounded-lg bg-surface-100 px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 sm:flex"
+				class="hidden items-center gap-2 rounded bg-surface-100 px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 sm:flex"
 			>
 				<iconify-icon icon="mdi:store" width={24} class="text-lg"></iconify-icon>
 				<span>Marketplace</span>

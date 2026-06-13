@@ -17,7 +17,7 @@ describe("OpenAPI Specification Integration", () => {
     adminCookie = await prepareAuthenticatedContext();
 
     // 🚀 Register a dummy collection to ensure dynamic OpenAPI paths are populated
-    await safeFetch(`${API_BASE_URL}/api/testing`, {
+    const createCollectionRes = await safeFetch(`${API_BASE_URL}/api/testing`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -34,6 +34,10 @@ describe("OpenAPI Specification Integration", () => {
         },
       }),
     });
+
+    expect(createCollectionRes.status).toBe(200);
+    const createCollectionBody = await createCollectionRes.json();
+    expect(createCollectionBody.success).toBe(true);
   });
 
   it("should serve a valid OpenAPI 3.1.0 JSON at /api/openapi.json", async () => {

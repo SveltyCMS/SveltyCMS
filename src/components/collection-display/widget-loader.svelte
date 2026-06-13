@@ -84,7 +84,7 @@ rather than bundling all widgets upfront.
 	</div>
 {:else if error}
 	<!-- Error fallback -->
-	<div class="widget-loader-error rounded-lg border border-error-500 bg-error-50 p-4 dark:bg-error-900/20">
+	<div class="widget-loader-error rounded border border-error-500 bg-error-50 p-4 dark:bg-error-900/20">
 		<div class="mb-2 flex items-center gap-2">
 			<iconify-icon icon="mdi:alert-circle" class="text-error-500" width="20"></iconify-icon>
 			<span class="font-semibold text-error-700 dark:text-error-500">Widget Load Error</span>

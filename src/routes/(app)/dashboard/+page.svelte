@@ -692,7 +692,7 @@ onMount(() => {
 						<!-- Grid drop indicator -->
 						{#if gridDropIndicator}
 							<div
-								class="pointer-events-none absolute z-30 rounded-lg border-2 border-dashed border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/20"
+								class="pointer-events-none absolute z-30 rounded border-2 border-dashed border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/20"
 								style:grid-column="span {gridDropIndicator.width}"
 								style:grid-row="span {gridDropIndicator.height}"
 								style:grid-column-start={gridDropIndicator.col + 1}
@@ -709,7 +709,7 @@ onMount(() => {
 								role="article"
 								aria-label="{widgetName} widget. Press Ctrl + Arrow keys to reorder."
 								tabindex="0"
-								class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+								class="widget-container group relative select-none overflow-hidden rounded border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 								data-widget-id={item.id}
 								style:grid-column="span {item.size.w}"
 								style:grid-row="span {item.size.h}"
@@ -786,7 +786,7 @@ onMount(() => {
 <!-- Import/Export Modal -->
 {#if showImportExport}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
 				<button onclick={() => (showImportExport = false)} class="preset-ghost btn-sm" aria-label="Close import/export modal">

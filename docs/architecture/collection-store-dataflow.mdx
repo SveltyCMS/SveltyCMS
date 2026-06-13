@@ -50,7 +50,7 @@ This eliminates the "God Component" anti-pattern and provides enterprise-grade p
 
 ## 🔄 Data Flow Overview (SSR)
 
-```mermaid
+````mermaid
 sequenceDiagram
     participant User
     participant Browser
@@ -101,7 +101,7 @@ sequenceDiagram
     Browser->>PageServer: Re-fetch (SSR Load)
     PageServer-->>Browser: Fresh data
     Browser->>Component: Update with new props
-```
+```text
 
 ### Flow Steps
 
@@ -168,7 +168,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 </script>
 
 <entry-list {entries} {pagination} />
-```
+```text
 
 ## 🎯 Component Responsibilities
 
@@ -261,7 +261,7 @@ await cacheService.set(cacheKey, data, 300);
 // Invalidation: After mutations (POST, PATCH, DELETE, batch operations)
 // All mutation endpoints automatically clear cache using pattern matching
 await cacheService.clearByPattern(`collection:${collectionId}:*`);
-```
+```text
 
 ### Automatic Cache Invalidation
 
@@ -304,3 +304,4 @@ This ensures that the next SSR load will always fetch fresh data after any data 
 - [Collection Builder Architecture](./collection-builder-architecture.mdx) - Details how the collection _structure_ itself is defined, reconciled with the filesystem, and rendered in the admin UI.
 
 This workflow ensures **enterprise-grade performance, type safety, and maintainability** for all SveltyCMS collection and entry operations.
+````

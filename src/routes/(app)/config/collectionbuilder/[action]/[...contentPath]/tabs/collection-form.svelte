@@ -5,7 +5,6 @@
 
 ### Props:
 - `collection` {object} - Collection object
-- `handlePageTitleUpdate` {function} - Function to update the page title
 
 ### Features:
 - Collection Name
@@ -42,7 +41,7 @@ import Card from "@src/components/ui/card.svelte";
 import { StatusTypes } from "@src/content/types";
 
 // Props from parent
-let { data = $bindable(null), handlePageTitleUpdate } = $props();
+let { data = $bindable(null), syncKey = "" } = $props();
 
 //action
 
@@ -55,29 +54,23 @@ let selectedIcon = $state(data?.icon || "");
 let name = $state(data?.name ?? "");
 let slug = $state(data?.slug ?? "");
 let description = $state(data?.description ?? "");
-let status = $state(data?.status ?? "unpublished");
-// Only sync from server data when collection identity changes (navigation/load), not on every store update (so typing in Name works)
-let lastSyncedId = $state<string | null>(null);
+let status = $state(data?.status ?? StatusTypes.unpublish);
+// Only sync from route-loaded data when the route target changes, not on each keystroke.
+let lastSyncedKey = $state<string | null>(null);
 
-// Update form fields when we switch to a different collection (by _id/path) so load data applies; don't overwrite while user is typing.
-// Only set selectedIcon when syncing a new collection to avoid effect loop with IconifyIconsPicker (effect_update_depth_exceeded).
+// Update form fields when we switch to a different route target.
+// This avoids booting the form from an empty placeholder object and prevents effect loops.
 $effect(() => {
 	const fromData = data;
 	const fromStore = collection.value;
+	const currentSyncKey = syncKey;
 
-	const id =
-		fromData?._id ??
-		fromData?.path ??
-		fromStore?._id ??
-		fromStore?.path ??
-		null;
-	const idStr = id != null ? String(id) : "";
-	if (fromData && idStr !== lastSyncedId) {
-		lastSyncedId = idStr;
+	if (fromData && currentSyncKey && currentSyncKey !== lastSyncedKey) {
+		lastSyncedKey = currentSyncKey;
 		name = fromData.name ?? "";
 		slug = fromData.slug ?? "";
 		description = fromData.description ?? "";
-		status = fromData.status ?? "unpublished";
+		status = fromData.status ?? StatusTypes.unpublish;
 		// Prefer load data over store so edit page always shows latest icon (no stale cache)
 		const iconValue =
 			(fromData?.icon != null && String(fromData.icon).trim()) ||
@@ -136,7 +129,6 @@ $effect(() => {
 
 function handleNameInput() {
 	if (typeof name === "string" && name) {
-		handlePageTitleUpdate(name);
 		if (autoUpdateSlug) {
 			slug = name.toLowerCase().replace(/\s+/g, "_");
 		}
@@ -150,7 +142,6 @@ $effect(() => {
 	if (autoUpdateSlug && currentName) {
 		slug = currentName.toLowerCase().replace(/ /g, "_");
 	}
-	handlePageTitleUpdate(currentName || "");
 });
 
 const statuses = Object.values(StatusTypes);
@@ -188,7 +179,7 @@ const statuses = Object.values(StatusTypes);
 							id="slug"
 							bind:value={slug}
 							placeholder={collection_slug_input()}
-							class="flex h-10 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 ps-10 pe-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+							class="flex h-10 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 ps-10 pe-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 							aria-label="Collection slug"
 						/>
 					</div>
@@ -209,7 +200,7 @@ const statuses = Object.values(StatusTypes);
 				<select
 					id="status"
 					bind:value={status}
-					class="flex h-10 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 appearance-none cursor-pointer"
+					class="flex h-10 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 appearance-none cursor-pointer"
 					aria-label="Collection status"
 				>
 					{#each statuses as statusOption}
@@ -237,7 +228,7 @@ const statuses = Object.values(StatusTypes);
 					id="description"
 					bind:value={description}
 					placeholder={collection_description_placeholder()}
-					class="flex-1 w-full rounded-md border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-30"
+					class="flex-1 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-30"
 					aria-label="Collection description"
 				></textarea>
 			</div>

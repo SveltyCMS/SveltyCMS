@@ -294,7 +294,7 @@
 					<button
 						type="button"
 						onclick={() => isPinnedOpen = !isPinnedOpen}
-						class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+						class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:bg-surface-200/50 dark:hover:bg-surface-800/50 rounded transition-colors {isSidebarFull ? 'px-1' : 'justify-center'}"
 					 aria-label="Toggle pinned items">
 						<span class="flex items-center gap-1.5">
 							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -349,7 +349,7 @@
 				<button
 					type="button"
 					onclick={handleCollectionsClick}
-					class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+					class="flex w-full items-center justify-between py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:bg-surface-200/50 dark:hover:bg-surface-800/50 rounded transition-colors {isSidebarFull ? 'px-2' : 'justify-center'}"
 				 aria-label="Toggle collections">
 					<span class="flex items-center gap-1.5">
 						<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -378,10 +378,10 @@
 					onclick={() => {
 						goto('/mediagallery');
 						if (isMobile()) {
-							toggleUIElement('leftSidebar', 'hidden');
+							toggleUIElement('leftSidebar', 'collapsed');
 						}
 					}}
-					class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+					class="flex w-full items-center justify-between py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:bg-surface-200/50 dark:hover:bg-surface-800/50 rounded transition-colors {isSidebarFull ? 'px-2' : 'justify-center'}"
 				>
 					<span class="flex items-center gap-1.5">
 						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -403,7 +403,7 @@
 								data-sveltekit-preload-data="hover"
 								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
 								onclick={() => {
-									if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+									if (isMobile()) toggleUIElement('leftSidebar', 'collapsed');
 								}}
 							>
 								<iconify-icon icon="bi:images" width="14"></iconify-icon>
@@ -433,7 +433,7 @@
 						onclick={handleUserClick}
 						aria-label="User Profile"
 						class="{isSidebarFull
-							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
+							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-surface-500/20'
 							: 'h-8 w-8 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
 						>
 							<Avatar src={avatarUrl} alt="User Avatar" size={isSidebarFull ? 'size-12' : 'size-10'} rounded="rounded-full" class="mx-auto" />
@@ -486,7 +486,7 @@
  										type="text"
  										bind:value={searchQuery}
  										placeholder="Search language..."
- 										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
+ 										class="w-full rounded bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
  										aria-label="Search languages"
  										onclick={(e) => e.stopPropagation()}
  									/>

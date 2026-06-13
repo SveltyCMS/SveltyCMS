@@ -545,7 +545,7 @@
         {form_required()}
       </div>
       <div
-        class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900"
+        class="rounded border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900"
       >
         <div
           class="flex flex-wrap items-center justify-center gap-1 overflow-auto"
@@ -850,7 +850,7 @@
             </Portal>
           {/if}
 
-          <div class="rounded-lg border p-4 dark:text-surface-50">
+          <div class="rounded border p-4 dark:text-surface-50">
             <h3 class="mb-3 text-lg font-bold">Quick Preview</h3>
 
             {#if selectedRevision}

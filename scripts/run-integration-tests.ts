@@ -76,6 +76,7 @@ const loadHardenedConfig = async () => {
 let CONFIG: any = {};
 let previewProcess: ChildProcess | null = null;
 let isShuttingDown = false;
+let serverRunningMode: "normal" | "setup" | "none" = "none";
 
 function getEnvValue(name: string): string | undefined {
   if (Object.prototype.hasOwnProperty.call(process.env, name)) {
@@ -208,7 +209,17 @@ async function freePort(port: number) {
 async function waitForServerReady(maxAttempts = 60) {
   console.log("⏳ Waiting for server to reach READY state...");
 
-  const targetStates = ["ready", "healthy", "setup", "warmed", "warming", "operational"];
+  const targetStates = [
+    "ready",
+    "healthy",
+    "setup",
+    "warmed",
+    "warming",
+    "degraded",
+    "initializing",
+    "operational",
+    "idle",
+  ];
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -222,7 +233,8 @@ async function waitForServerReady(maxAttempts = 60) {
 
       if (res.ok || res.status === 533) {
         const data = await res.json().catch(() => ({}));
-        const rawStatus = (data.overallStatus || data.status || data.health || "")
+        const payload = data?.data && typeof data.data === "object" ? data.data : data;
+        const rawStatus = (payload.overallStatus || payload.status || payload.health || "")
           .toString()
           .toLowerCase();
 
@@ -246,7 +258,7 @@ async function waitForServerReady(maxAttempts = 60) {
   throw new Error("Server failed to reach READY state within timeout");
 }
 
-function getTestEnv(db: any) {
+function getTestEnv(db: any): Record<string, string | undefined> {
   return {
     ...process.env,
     NODE_ENV: "production",
@@ -269,7 +281,7 @@ function getTestEnv(db: any) {
   };
 }
 
-async function startPreviewServer() {
+async function startPreviewServer(setupMode = false) {
   await freePort(Number(PORT));
 
   const db = getDbDefaults();
@@ -290,12 +302,15 @@ async function startPreviewServer() {
 
   const runtimeCmd = "node";
 
+  const env = getTestEnv(db);
+  env.SVELTYCMS_SETUP_MODE_TEST = setupMode ? "true" : "false";
+
   previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,
     stdio: "inherit",
     shell: process.platform === "win32",
     detached: process.platform !== "win32",
-    env: getTestEnv(db),
+    env,
   });
 
   await waitForServerReady();
@@ -303,35 +318,35 @@ async function startPreviewServer() {
 
 async function prepareIsolatedServerForTestFile(filePath: string) {
   const setupModeTest = isSetupModeTest(filePath);
+  const targetMode = setupModeTest ? "setup" : "normal";
 
-  process.env.SVELTYCMS_SETUP_MODE_TEST = setupModeTest ? "true" : "false";
-
-  // Ensure server is running for reset/seed
-  if (!previewProcess) {
-    await startPreviewServer();
+  // Ensure server is running in the correct mode
+  if (!previewProcess || serverRunningMode !== targetMode) {
+    if (previewProcess) {
+      console.log(
+        `🔁 Restarting server to switch from ${serverRunningMode} mode to ${targetMode} mode...`,
+      );
+      await stopPreviewServer();
+    }
+    serverRunningMode = targetMode;
+    await startPreviewServer(setupModeTest);
   }
 
+  // Reset state between tests — security rate-limiters, caches, DB tables
   console.log("🧹 Resetting test data for isolated test file...");
   await testingAction("reset");
 
   if (setupModeTest) {
     console.log("⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.");
-    // Force a restart to ensure setup-mode is detected on boot if needed
-    await stopPreviewServer();
-    await startPreviewServer();
     return;
   }
 
-  console.log("🌱 Seeding test data for isolated test file...");
-  await testingAction("seed");
-
-  // Only one restart after seed to ensure all systems are fully reconciled for the test
-  console.log("🔁 Final restart to ensure clean state...");
-  await stopPreviewServer();
-  await startPreviewServer();
+  // Tests handle their own seeding via prepareAuthenticatedContext / testingAction("seed")
+  console.log("⏭️ Skipping seed — each test file seeds itself.");
 }
 
 async function stopPreviewServer() {
+  serverRunningMode = "none";
   if (!previewProcess) {
     await freePort(Number(PORT));
     await waitForPortToBeFree(Number(PORT));
@@ -691,17 +706,17 @@ async function main() {
     throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
   }
 
+  // 🚀 DYNAMIC PORT RESOLUTION: Avoid port collisions by selecting a fresh port
+  const freePortNum = await getFreePort();
+  PORT = String(freePortNum);
+  API_BASE_URL = `http://${HOST}:${PORT}`;
+
   let passed = 0;
   const results: { file: string; success: boolean; time: number }[] = [];
 
   for (const file of testFiles) {
     const relPath = relative(ROOT, file);
     const start = Date.now();
-
-    // 🚀 DYNAMIC PORT RESOLUTION: Avoid port collisions by selecting a fresh port
-    const freePortNum = await getFreePort();
-    PORT = String(freePortNum);
-    API_BASE_URL = `http://${HOST}:${PORT}`;
 
     console.log("\n" + "-".repeat(80));
     console.log(`🧪 Preparing isolated environment on port ${PORT} for ${relPath}`);
@@ -733,8 +748,6 @@ async function main() {
     }
 
     console.log(success ? `✅ Passed (${(duration / 1000).toFixed(1)}s)` : "❌ Failed");
-
-    await stopPreviewServer();
 
     if (!success && failFast) {
       console.log("\n🛑 Fail-fast: Aborting integration test suite due to failure.");

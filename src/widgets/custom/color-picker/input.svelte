@@ -76,7 +76,7 @@ Renders a color input with label, helper, and validation
 
 <div class="color-picker-widget flex flex-col gap-1">
 	<div
-		class="flex items-center gap-2 rounded-lg border p-1 transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
+		class="flex items-center gap-2 rounded border p-1 transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}

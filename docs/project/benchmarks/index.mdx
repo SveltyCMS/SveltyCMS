@@ -16,15 +16,17 @@ tags:
 # 🚀 SveltyCMS Performance Benchmarks
 
 > [!IMPORTANT]
+> **EU Compliance**: Competitive performance comparisons in this document are based on publicly available documentation as of June 2026. All SveltyCMS metrics are self-measured via reproducible benchmark suites (`bun test tests/benchmarks/`). Competitor figures are derived from publicly documented framework overhead, not side-by-side benchmarks. See [Competitive Comparison](../competitive-comparison.mdx) for full methodology.
+>
 > **Recorded** benchmark runs update their report section immediately. Normal `bun test` runs print to console only unless `BENCHMARK_RECORD=1` is set.
 >
 > **Intelligence Features**: Cross-test correlation, adaptive budgets, forecasting, fix suggestions, differential execution, sub-component timing, memory trend tracking.
 
 ## 🔬 How a Recorded Benchmark Pushes Data
 
-```bash
+````bash
 BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
-```
+```text
 
 > [!NOTE]
 > Without `BENCHMARK_RECORD=1`, benchmarks are console-only — no files are modified.
@@ -64,7 +66,7 @@ flowchart TD
     F1 --> M
     F2 --> M
     F3 --> M
-```
+```text
 
 ### Step-by-step
 
@@ -182,7 +184,7 @@ test("My Benchmark Name", async () => {
     { key: "Throughput", val: result.rps, unit: "req/s" },
   ]);
 }, 120000);
-```
+```text
 
 ### Required checklist
 
@@ -227,7 +229,7 @@ Each report section follows this layout:
 > **Check**: src/hooks/handle-authentication.ts · src/databases/auth/
 
 <!-- TAG_TABLE_END -->                <- data ends here
-```
+```text
 
 ## ⚡ Executive Summary Matrix
 
@@ -253,13 +255,13 @@ Each report section follows this layout:
 
 ```bash
 bun test tests/benchmarks/auth-performance.test.ts
-```
+```text
 
 **All benchmarks (sequential, with recording):**
 
 ```bash
 bun run scripts/run-all-benchmarks.ts
-```
+```text
 
 > [!NOTE]
 > The runner runs each test sequentially and reports pass/fail.
@@ -268,25 +270,25 @@ bun run scripts/run-all-benchmarks.ts
 
 ```bash
 BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
-```
+```text
 
 **History only (no MDX mutation, useful in CI):**
 
 ```bash
 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
-```
+```text
 
 **Full SQLite matrix:**
 
 ```bash
 bun run scripts/benchmark-matrix/index.ts --sql
-```
+```text
 
 **Differential (only tests affected by recent changes):**
 
 ```bash
 bun run scripts/benchmark-matrix/index.ts --sql --differential
-```
+```text
 
 ## 🖥️ Data Sources
 
@@ -300,3 +302,12 @@ bun run scripts/benchmark-matrix/index.ts --sql --differential
 | Trend analysis           | `tests/benchmarks/modules/benchmark-analysis.ts`             |
 | MDX I/O                  | `tests/benchmarks/modules/benchmark-mdx.ts`                  |
 | Intelligence engine      | `scripts/benchmark-matrix/benchmark-intelligence.ts`         |
+````
+
+---
+
+## Related
+
+- [Architecture Overview](../index.mdx)
+- [Getting Started](../../getting-started.mdx)
+- [API Reference](../../api/index.mdx)

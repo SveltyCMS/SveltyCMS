@@ -280,7 +280,7 @@ Features:
 
 	<div class="space-y-2">
 		{#if redisAvailable && !systemSettings.useRedis}
-			<div class="rounded-lg bg-surface-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
+			<div class="rounded bg-surface-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
 				<div class="flex items-start gap-4">
 					<iconify-icon icon="mdi:lightning-bolt" class="bg-error-500 p-2 text-white rounded-full text-2xl animate-pulse"></iconify-icon>
 					<div class="flex-1">
@@ -455,7 +455,7 @@ Features:
 					/>
 
 					{#if systemSettings.mediaStorageType !== 'local'}
-						<div class="rounded-md border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20" role="status">
+						<div class="rounded border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20" role="status">
 							<p class="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
 								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"></iconify-icon>
 								<strong>{setup_note_cloud_credentials?.() || 'Note:'}</strong>
@@ -534,7 +534,7 @@ Features:
 							{#if showSystemPicker}
 								<div
 									id="system-lang-picker"
-									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded-md border border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 p-2 shadow-xl"
+									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 p-2 shadow-xl"
 									role="dialog"
 									aria-label="Add system language"
 									tabindex="-1"
@@ -645,7 +645,7 @@ Features:
 							{#if showContentPicker}
 								<div
 									id="content-lang-picker"
-									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl"
+									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-white/10 bg-surface-800 p-2 shadow-xl"
 									role="dialog"
 									aria-label="Add content language"
 									tabindex="-1"
@@ -832,7 +832,7 @@ Features:
 			</button>
 
 			{#if showScaling}
-				<div class="mt-4 space-y-4 rounded-lg border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
+				<div class="mt-4 space-y-4 rounded border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
 					<p class="text-xs text-slate-500 dark:text-white/40">
 						Configure native CDN purging to synchronize global edge nodes instantly upon content updates.
 					</p>

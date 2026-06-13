@@ -58,7 +58,7 @@ function closeInspector() {
 		<!-- Inspector Header -->
 		<header class="p-4 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50/50 dark:bg-surface-800/50">
 			<div class="flex items-center gap-3 min-w-0">
-				<div class="h-8 w-8 rounded-lg bg-primary-500/10 flex items-center justify-center text-primary-500 shrink-0">
+				<div class="h-8 w-8 rounded bg-primary-500/10 flex items-center justify-center text-primary-500 shrink-0">
 					<iconify-icon icon={localWidget.icon || 'mdi:widgets'} width="18"></iconify-icon>
 				</div>
 				<div class="min-w-0">
@@ -83,7 +83,7 @@ function closeInspector() {
 					<Input label="Field Label" bind:value={localWidget.label} placeholder="e.g. Profile Picture"  aria-label="Input" />
 					<Input label="Database Field Name" bind:value={localWidget.db_fieldName} placeholder="e.g. profile_pic"  aria-label="Input" />
 
-					<div class="flex items-center justify-between p-3 rounded-xl bg-surface-50 dark:bg-surface-950/50 border border-surface-200 dark:border-surface-800">
+					<div class="flex items-center justify-between p-3 rounded bg-surface-50 dark:bg-surface-950/50 border border-surface-200 dark:border-surface-800">
 						<div>
 							<p class="text-sm font-bold text-surface-900 dark:text-white">Required Field</p>
 							<p class="text-[10px] text-surface-500 dark:text-surface-50">Must be filled to save content</p>
@@ -100,7 +100,7 @@ function closeInspector() {
 				<div class="space-y-4">
 					<p class="text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-50">Role Access</p>
 					{#each roles as role}
-						<div class="flex items-center justify-between p-2 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
+						<div class="flex items-center justify-between p-2 rounded hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
 							<span class="text-sm">{role.name}</span>
 							<input type="checkbox" checked={true} class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-900 dark:border-surface-700"  aria-label="Input" />
 						</div>

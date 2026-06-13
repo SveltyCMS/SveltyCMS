@@ -1,0 +1,73 @@
+{
+  "cookies": [
+    {
+      "name": "csrf_token",
+      "value": "e16cd4120a7c7641e7d22d4ecda4f70f2d4ad4a24f7fd88f8b0cf18bd2775fbc",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1781465708.195273,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "ratelimit",
+      "value": "fKfIgX_cIEngr9IsAEoA7%3Bd350d8ffd94d88c339650dfda1bf85fbea86d7242492400f91c946ff976e1702",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1781984108.310437,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "PARAGLIDE_LOCALE",
+      "value": "en",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1815939308.359506,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "theme",
+      "value": "system",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1812915308.386602,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "auth_sessions",
+      "value": "84b2393a521f41c99585f23f0e873fb4",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1781465710.22568,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:4173",
+      "localStorage": [
+        {
+          "name": "sveltycms-welcome-seen",
+          "value": "true"
+        },
+        {
+          "name": "sveltycms-welcome-progress",
+          "value": "[\"data-management\",\"collections\",\"users\",\"settings\"]"
+        },
+        {
+          "name": "sveltycms_consent",
+          "value": "{\"responded\":true,\"necessary\":true}"
+        }
+      ]
+    }
+  ]
+}

@@ -17,6 +17,6 @@
 	const displayValue = $derived(value ? JSON.stringify(value, null, 2) : 'null');
 </script>
 
-<div class="card p-4 bg-surface-900 text-tertiary-500 dark:text-primary-500 overflow-x-auto rounded-lg">
+<div class="card p-4 bg-surface-900 text-tertiary-500 dark:text-primary-500 overflow-x-auto rounded">
 	<pre class="text-xs font-mono leading-relaxed"><code>{displayValue}</code></pre>
 </div>

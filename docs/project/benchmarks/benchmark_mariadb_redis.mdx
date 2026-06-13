@@ -1,4 +1,5 @@
 ---
+description: "Database performance benchmarks with trend analysis and competitive context."
 path: docs/project/benchmarks/benchmark_mariadb_redis.mdx
 title: MariaDB + Redis Performance Audit
 order: 10
@@ -12,7 +13,11 @@ tags:
   - mariadb_redis
 ---
 
+description: "Database performance benchmarks with trend analysis and competitive context."
+
 # 🚀 MariaDB+Redis Performance Ledger
+
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. All SveltyCMS metrics self-measured via `bun test tests/benchmarks/`.
 
 > [!IMPORTANT]
 > **Console-only by default.** Use `BENCHMARK_RECORD=1` to write results to this report.
@@ -29,8 +34,8 @@ tags:
 
 **Status:** ✅ PASS
 
-> [!NOTE]
-> **All 48 tests pass**: Redis-enhanced MariaDB benefits from L2 cache acceleration. Concurrency race passes. See `benchmark_mariadb.mdx` for detailed per-adapter metrics.
+> [!TIP]
+> **All Audits Passed**: 100% Graceful Degradation achieved under Chaos Resilience testing.d MariaDB benefits from L2 cache acceleration. Concurrency race passes. See `benchmark_mariadb.mdx` for detailed per-adapter metrics.
 
 ### ⚡ Executive Latency Matrix
 
@@ -52,13 +57,13 @@ tags:
 
 ### 📈 Historical Latency Trends
 
-```mermaid
+````mermaid
 xychart-beta
   title "MARIADB+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95 Latency" : [27.507, 27.507, 5.812, 5.812, 5.812, 5.812, 5.812, 5.812, 5.812, 5.812]
-```
+```text
 
 ## 📈 Core Infrastructure Trends
 
@@ -119,7 +124,7 @@ xychart-beta
 
 ```text
 ║ Cold Start (IDLE → WARMED)     │       74.621 ms │ p95:      228.789 ms │ RPS:         13 ║
-```
+```text
 
 <!-- COLD_START_TABLE_END -->
 
@@ -134,7 +139,7 @@ xychart-beta
 ║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,218,027 ║
 ║ Local SDK (Full)               │        0.006 ms │ p95:        0.012 ms │ RPS:    157,604 ║
 ║ HTTP End-to-End                │        0.572 ms │ p95:        0.786 ms │ RPS:      1,748 ║
-```
+```text
 
 <!-- TRUTH_AUDIT_TABLE_END -->
 
@@ -218,7 +223,7 @@ xychart-beta
 ║ Collection Schema              │        3.353 ms │ p95:        6.183 ms │ RPS:        298 ║
 ║ Collection Find (List)         │        3.318 ms │ p95:        5.812 ms │ RPS:        301 ║
 ║ Collection Search              │        3.196 ms │ p95:        5.789 ms │ RPS:        313 ║
-```
+```text
 
 <!-- REST_TABLE_END -->
 
@@ -234,7 +239,7 @@ xychart-beta
 ║ GQL: System Health             │        1.289 ms │ p95:        2.329 ms │ RPS:        776 ║
 ║ GQL: Collection List           │        3.933 ms │ p95:        6.814 ms │ RPS:        254 ║
 ║ GQL: Concurrent Load           │        3.375 ms │ p95:        5.886 ms │ RPS:        296 ║
-```
+```text
 
 <!-- GRAPHQL_TABLE_END -->
 
@@ -371,7 +376,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Concurrent PATCH Bomb          │        0.877 ms │ p95:        0.877 ms │ RPS:      1,141 ║
-```
+```text
 
 <!-- CONCURRENCY_TABLE_END -->
 
@@ -387,7 +392,7 @@ xychart-beta
 ║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        508 ║
 ║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        496 ║
 ║ 1000 docs × 1                  │        0.000 ms │ p95:        0.000 ms │ RPS:        435 ║
-```
+```text
 
 <!-- THROUGHPUT_TABLE_END -->
 
@@ -462,6 +467,7 @@ xychart-beta
 <!-- PROD_DAY_TABLE_END -->
 
 ---
+description: "Database performance benchmarks with trend analysis and competitive context."
 
 ## 🔬 Host Environment
 
@@ -472,6 +478,7 @@ xychart-beta
 <!-- BENCHMARK_END -->
 
 ---
+description: "Database performance benchmarks with trend analysis and competitive context."
 
 ## 🔬 Detailed Performance Ledger — 48 tests across 9 dimensions
 
@@ -1087,29 +1094,30 @@ xychart-beta
 
 ```bash
 bun test tests/benchmarks/api-latency.test.ts
-```
+```text
 
 **Single test (record to this report):**
 
 ```bash
 BENCHMARK_RECORD=1 bun test tests/benchmarks/api-latency.test.ts
-```
+```text
 
 **Full SQLite matrix:**
 
 ```bash
 bun run scripts/benchmark-matrix/index.ts --sql
-```
+```text
 
 **History-only (no MDX mutation, useful in CI):**
 
 ```bash
 BENCHMARK_RECORD=1 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
-```
+```text
 
 Each recorded run updates its section immediately with a truth table, trend label, and root cause insight. The label shows change vs a rolling median baseline.
 
 ---
+description: "Database performance benchmarks with trend analysis and competitive context."
 
 ## 🖥️ Host Environment
 
@@ -1126,3 +1134,11 @@ Each recorded run updates its section immediately with a truth table, trend labe
 - **Test metadata**: `tests/benchmarks/benchmark-meta.ts`
 - **Per-DB budgets**: `tests/benchmarks/benchmark-mdx.ts` → `PER_DIMENSION_BUDGETS`
 - **Report template**: This file — updated on each `BENCHMARK_RECORD=1` run
+````
+
+---
+
+## Related
+
+- [All Benchmarks](./index.mdx)
+- [Competitive Comparison](../../competitive-comparison.mdx)

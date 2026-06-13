@@ -84,7 +84,7 @@
 </script>
 
 {#if value}
-	<div class="logic-group rounded-xl border border-surface-300 bg-surface-50 p-5 dark:border-surface-700 dark:bg-surface-900/70">
+	<div class="logic-group rounded border border-surface-300 bg-surface-50 p-5 dark:border-surface-700 dark:bg-surface-900/70">
 		<!-- Header -->
 		<div class="mb-5 flex items-center justify-between">
 			<div class="flex items-center gap-3">
@@ -135,7 +135,7 @@
 						</div>
 					{:else}
 						<!-- Single Rule -->
-						<div class="rule-row flex flex-wrap items-center gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-surface-800">
+						<div class="rule-row flex flex-wrap items-center gap-3 rounded bg-white p-3 shadow-sm dark:bg-surface-800">
 							<select
 								bind:value={item.field}
 								class="select select-sm flex-1 min-w-35"
@@ -180,7 +180,7 @@
 
 			{#if value.rules.length === 0}
 				<div
-					class="py-10 text-center text-sm opacity-50 italic border-2 border-dashed border-surface-300 dark:border-surface-700 rounded-xl"
+					class="py-10 text-center text-sm opacity-50 italic border-2 border-dashed border-surface-300 dark:border-surface-700 rounded"
 				>
 					No conditions yet.<br />
 					Add a rule or sub-group to start building logic.

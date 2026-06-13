@@ -108,14 +108,14 @@
 	}
 </script>
 
-<div class="flex w-full min-w-0 items-center justify-between gap-4">
+<div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-2 backdrop-blur-sm dark:bg-surface-950/95">
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
 			<button
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="preset-outlined-surface-500btn-icon"
+				class="preset-outlined-surface-500 btn-icon shrink-0"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>

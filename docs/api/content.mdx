@@ -69,13 +69,13 @@ SveltyCMS broadcasts system-wide events using **Server-Sent Events (SSE)**. This
 
 **Endpoint**: `GET /api/events`
 
-```javascript
+````javascript
 const events = new EventSource("/api/events");
 events.addEventListener("entryUpdated", (e) => {
   const data = JSON.parse(e.data);
   console.log(`Entry ${data.id} changed in ${data.collection}`);
 });
-```
+```text
 
 ---
 
@@ -94,3 +94,4 @@ For comprehensive details on schema definitions, mutations, queries, and subscri
 - [Collections Reference (collections.ts)](./collections.mdx)
 - [Media Management (media.ts)](./media.mdx)
 - [System Reference (system.ts)](./system.mdx)
+````

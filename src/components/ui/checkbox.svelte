@@ -170,7 +170,7 @@ keyboard navigation, and motion-respecting transitions.
 			<label
 				for={generatedId}
 				class={cn(
-					'flex items-start w-full rounded-xl border-2 p-4 transition-all',
+					'flex items-start w-full rounded border-2 p-4 transition-all',
 					sizeTokens.gap,
 					cardActive
 						? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-sm'

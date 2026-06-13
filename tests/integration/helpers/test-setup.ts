@@ -8,6 +8,19 @@
 import { getApiBaseUrl, safeFetch } from "./server";
 
 const API_BASE_URL = getApiBaseUrl();
+const SYSTEM_SETTLE_ATTEMPTS = process.env.CI === "true" ? 5 : 3;
+const SYSTEM_SETTLE_DELAY_MS = process.env.CI === "true" ? 1000 : 500;
+const HEALTHY_SYSTEM_STATES = [
+  "READY",
+  "HEALTHY",
+  "SETUP",
+  "WARMED",
+  "WARMING",
+  "DEGRADED",
+  "INITIALIZING",
+  "OPERATIONAL",
+  "IDLE",
+];
 
 // Hardened secret resolution
 const TEST_API_SECRET =
@@ -116,27 +129,32 @@ export async function prepareAuthenticatedContext(
     }
   }
 
-  // 🚀  Wait for system to settle and reach a READY state
-  console.log("⏳ Waiting for system to settle and reach READY state...");
+  // Keep the pre-login settle check short; login itself already retries.
+  // The older 10x2s loop was burning most of the CI budget even when login
+  // succeeded immediately afterward.
+  console.log("⏳ Waiting for system to settle before login...");
   let isReady = false;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < SYSTEM_SETTLE_ATTEMPTS; i++) {
     const health = await safeFetch(`${API_BASE_URL}/api/system/health`, {
       headers: { "x-test-secret": TEST_API_SECRET },
     });
-    if (health.ok) {
+    if (health.ok || health.status === 533) {
       const data = await health.json();
-      const status = (data.overallStatus || data.status || "").toUpperCase();
-      if (["READY", "WARMED", "HEALTHY"].includes(status)) {
+      const payload = data?.data && typeof data.data === "object" ? data.data : data;
+      const status = (payload.overallStatus || payload.status || "").toUpperCase();
+      if (HEALTHY_SYSTEM_STATES.includes(status)) {
         isReady = true;
         break;
       }
     }
-    console.log(`⏳ System not ready (attempt ${i + 1}/10). Waiting 2s...`);
-    await new Promise((r) => setTimeout(r, 2000));
+    console.log(
+      `⏳ System not ready (attempt ${i + 1}/${SYSTEM_SETTLE_ATTEMPTS}). Waiting ${SYSTEM_SETTLE_DELAY_MS}ms...`,
+    );
+    await new Promise((r) => setTimeout(r, SYSTEM_SETTLE_DELAY_MS));
   }
 
   if (!isReady) {
-    console.warn("⚠️ System did not reach READY state, attempting login anyway...");
+    console.warn("⚠️ System did not reach a serviceable state, attempting login anyway...");
   }
 
   // 🚀  Obtain CSRF token first

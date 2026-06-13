@@ -244,7 +244,7 @@ export const widgetMeta = {
 								{#if activeIncidents.length > 0}
 									<div class="space-y-2 overflow-y-auto pe-1 flex-1 custom-scroll max-h-40">
 										{#each activeIncidents as incident (incident.id)}
-											<div class="rounded-xl border-s-4 p-2.5 text-xs bg-surface-50 dark:bg-surface-800/40 border-surface-200 dark:border-surface-700
+											<div class="rounded border-s-4 p-2.5 text-xs bg-surface-50 dark:bg-surface-800/40 border-surface-200 dark:border-surface-700
 												{incident.threatLevel === 'critical' ? 'border-l-red-500' :
 												  incident.threatLevel === 'high' ? 'border-l-orange-500' :
 												  incident.threatLevel === 'medium' ? 'border-l-amber-500' : 'border-l-blue-500'}">

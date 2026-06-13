@@ -42,7 +42,7 @@ We achieve this through **color theming** (Skeleton.dev compatible) + **structur
 
 ## 2. Core Architecture
 
-```mermaid
+````mermaid
 graph TD
     A["File System<br/>/themes/*.json"] -->|"Vite HMR auto-import"| B[DB Theme Config]
     B --> C[Theme Service]
@@ -55,7 +55,7 @@ graph TD
     H --> I["Sticky Action Bar<br/>+ 6 Toggleable Regions"]
     G --> J[Custom CSS Injection]
     J --> K["Per-Tenant Stylesheet (Runtime)"]
-```
+```text
 
 ---
 
@@ -114,7 +114,7 @@ All structural tokens live in `src/utilities.css` (imported by `app.css`), prote
   --admin-header-height: 72px;
   --admin-sticky-bar-height: 64px;
 }
-```
+```text
 
 Components read these directly with fallbacks:
 
@@ -122,7 +122,7 @@ Components read these directly with fallbacks:
 <div class="card shadow-sm"
      style="border-radius: var(--admin-radius-card, 0.75rem);
             border-width: var(--admin-border-width, 1px);">
-```
+```text
 
 ---
 
@@ -164,7 +164,7 @@ export interface ThemeConfig {
   customCss?: string;
   features: ThemeFeatures;
 }
-```
+```text
 
 Set in `(app)/+layout.svelte`, consumed in every native component:
 
@@ -179,7 +179,7 @@ Set in `(app)/+layout.svelte`, consumed in every native component:
 <div data-density={theme.density} data-admin-theme={theme.themeName}>
   {@render children()}
 </div>
-```
+```text
 
 **Fallback Guard**: If `getThemeContext()` returns `undefined` (unit tests, setup screens), components resolve to the standard `cozy/bordered` defaults automatically.
 
@@ -246,7 +246,7 @@ Each theme can be distributed as a JSON file in the `/themes/` directory. Vite's
   "customCss": "/* optional custom CSS */",
   "presetSource": "sveltycms-builtin"
 }
-```
+```text
 
 **Sync flow**: File save → Vite detects → `sveltyCmsPlugin.handleHmr()` → `adminThemeService.create/update` → DB → `server.ws.send("svelty:theme-update")` → client refreshes theme list.
 
@@ -262,7 +262,7 @@ The `<StickyActions>` wrapper component (`src/components/ui/sticky-actions.svelt
   <button onclick={save} aria-keyshortcuts="Mod+S">Save</button>
   <button onclick={reset}>Reset</button>
 </StickyActions>
-```
+```text
 
 **How it works:**
 
@@ -348,3 +348,12 @@ Beyond visual theming — SveltyCMS adapts the entire workspace to the user's ro
 - **Status-Color Tokens**: `--admin-color-draft`, `--admin-color-published`, `--admin-color-scheduled`, `--admin-color-review` linked directly to content review states
 - **6-Region Layout Shell**: Each region independently toggleable via `ui-store`, persisted to DB per-theme, responsive across 6 breakpoints
 - **Svelte 5 Snippet Pattern**: `<StickyActions>` demonstrates the pattern — any page wraps its actions and they appear in the sticky bar automatically
+````
+
+---
+
+## Related
+
+- [Project Roadmap](./roadmap-2026.mdx)
+- [Performance Benchmarks](./benchmarks/index.mdx)
+- [Getting Started](../getting-started.mdx)

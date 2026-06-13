@@ -163,7 +163,7 @@ const imageUrl = $derived(
 		></div>
 
 		<div
-			class="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-surface-100 shadow-xl dark:bg-surface-800 mx-4"
+			class="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded bg-surface-100 shadow-xl dark:bg-surface-800 mx-4"
 			transition:scale={{ start: 0.95, duration: 150 }}
 		>
 			<!-- Header -->
@@ -185,7 +185,7 @@ const imageUrl = $derived(
 
 				<div
 					bind:this={containerRef}
-					class="relative cursor-crosshair select-none rounded-lg overflow-hidden border-2 border-surface-300 dark:border-surface-600"
+					class="relative cursor-crosshair select-none rounded overflow-hidden border-2 border-surface-300 dark:border-surface-600"
 					onmousedown={handleMouseDown}
 					onmousemove={handleMouseMove}
 					onmouseup={handleMouseUp}

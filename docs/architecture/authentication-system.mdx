@@ -47,13 +47,13 @@ SveltyCMS uses high-entropy, cryptographically secure random tokens for session 
 
 Sessions are isolated by `tenantId`. A user's session is only valid for the tenant it was created for, preventing cross-tenant access even if a session ID were compromised.
 
-```mermaid
+````mermaid
 graph TD
     A["Request (Token + Host)"] --> B["Middleware"]
     B --> C["Identify Tenant"]
     C --> D["Validate Session in Tenant Space"]
     D --> E["Grant/Deny Access"]
-```
+```text
 
 ---
 
@@ -153,3 +153,4 @@ The token validation system enforces strict metadata checks to prevent exploitat
 - [Audit Logging & Compliance](./user-management-overview.mdx)
 - [Authentication API Reference](../api/auth.mdx)
 - [Login Security](./security/login-security.mdx)
+````

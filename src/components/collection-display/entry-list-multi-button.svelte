@@ -542,7 +542,7 @@
 			<!-- Dropdown Menu -->
 			{#if isDropdownOpen}
 				<div
-					class="absolute inset-e-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
+					class="absolute inset-e-0 top-full z-50 mt-2 w-64 overflow-hidden rounded bg-surface-800 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
 					role="menu"
 					aria-label={entrylist_multibutton_available_actions()}
 					transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
@@ -560,7 +560,7 @@
 										type="button"
 										onclick={(e) => handleOptionClick(e, config.type)}
 										role="menuitem"
-										class="group/item relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start text-white transition-all duration-200 hover:bg-white/5"
+										class="group/item relative flex w-full items-center gap-3 rounded px-3 py-2.5 text-start text-white transition-all duration-200 hover:bg-white/5"
 										aria-label="{config.label} {config.shortcut ? `(${config.shortcut})` : ''}"
 									>
 										<!-- Icon -->

@@ -55,7 +55,7 @@ function isClickable(index: number) {
 		<div class="step-item flex-1 relative group">
 			<button
 				type="button"
-				class="w-full flex {orientation === 'vertical' ? 'items-start text-start' : 'flex-col items-center text-center'} {compact ? 'p-1 justify-center' : 'p-3'} gap-4 rounded-xl transition-all
+				class="w-full flex {orientation === 'vertical' ? 'items-start text-start' : 'flex-col items-center text-center'} {compact ? 'p-1 justify-center' : 'p-3'} gap-4 rounded transition-all
 					{i === currentStep ? 'bg-tertiary-500 dark:bg-primary-500/20 ring-1 ring-primary-500' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}
 					{isClickable(i) ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}"
 				onclick={() => isClickable(i) && onStepClick(i)}

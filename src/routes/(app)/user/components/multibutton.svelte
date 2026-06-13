@@ -392,7 +392,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		<!-- Dropdown Menu -->
 		{#if isDropdownOpen}
 			<div
-				class="absolute end-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
+				class="absolute end-0 top-full z-50 mt-2 w-56 overflow-hidden rounded bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
 				role="menu"
 				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
 				onkeydown={handleDropdownKeydown}

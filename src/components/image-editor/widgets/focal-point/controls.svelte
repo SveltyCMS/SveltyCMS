@@ -29,7 +29,7 @@ Toolbar controls for the FocalPoint widget
 
 <div class="flex flex-wrap items-center gap-4 py-1">
 	<!-- Focal Point Coordinates -->
-	<div class="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 p-2 px-3 backdrop-blur-md">
+	<div class="flex items-center gap-4 rounded border border-white/10 bg-white/5 p-2 px-3 backdrop-blur-md">
 		<div class="flex items-center gap-2">
 			<iconify-icon icon="mdi:target" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<span class="text-xs font-semibold uppercase tracking-wider text-white/70">Focal Point</span>
@@ -47,7 +47,7 @@ Toolbar controls for the FocalPoint widget
 					max="100"
 					value={focalX}
 					oninput={(e) => updateField('x', (e.currentTarget as HTMLInputElement).value)}
-					class="w-12 rounded-lg border-none bg-black/40 p-1 text-center text-xs font-mono font-medium text-white ring-1 ring-white/10 transition-all hover:bg-black/60 focus:bg-black/80 focus:ring-primary-500/50 focus:outline-hidden"
+					class="w-12 rounded border-none bg-black/40 p-1 text-center text-xs font-mono font-medium text-white ring-1 ring-white/10 transition-all hover:bg-black/60 focus:bg-black/80 focus:ring-primary-500/50 focus:outline-hidden"
 					aria-label="Focal X percentage"
 				/>
 			</div>
@@ -60,7 +60,7 @@ Toolbar controls for the FocalPoint widget
 					max="100"
 					value={focalY}
 					oninput={(e) => updateField('y', (e.currentTarget as HTMLInputElement).value)}
-					class="w-12 rounded-lg border-none bg-black/40 p-1 text-center text-xs font-mono font-medium text-white ring-1 ring-white/10 transition-all hover:bg-black/60 focus:bg-black/80 focus:ring-primary-500/50 focus:outline-hidden"
+					class="w-12 rounded border-none bg-black/40 p-1 text-center text-xs font-mono font-medium text-white ring-1 ring-white/10 transition-all hover:bg-black/60 focus:bg-black/80 focus:ring-primary-500/50 focus:outline-hidden"
 					aria-label="Focal Y percentage"
 				/>
 			</div>

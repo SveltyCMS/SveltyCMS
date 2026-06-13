@@ -387,13 +387,35 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_states_unique" ON "plugin_states" ("pluginId", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
 
-      -- Clean up any previously-created broken FTS5 triggers that reference non-existent
-      -- columns (title, content) on content_nodes. content_nodes is a structural tree table;
-      -- FTS should be applied per-collection on actual content tables instead.
+      -- Full-text search virtual table (not auto-created by Drizzle ORM)
+      -- Keep an internal mirror keyed by _id so we don't depend on nonexistent title/content columns
+      -- or SQLite rowid semantics for the text primary key.
       DROP TRIGGER IF EXISTS "content_nodes_ai";
       DROP TRIGGER IF EXISTS "content_nodes_ad";
       DROP TRIGGER IF EXISTS "content_nodes_au";
       DROP TABLE IF EXISTS "content_nodes_fts";
+      CREATE VIRTUAL TABLE IF NOT EXISTS "content_nodes_fts" USING fts5(
+        "_id" UNINDEXED,
+        "name",
+        "description",
+        "data"
+      );
+      -- Triggers to keep FTS5 in sync
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_ai" AFTER INSERT ON "content_nodes" BEGIN
+        INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
+        VALUES (new._id, COALESCE(new.name, ''), COALESCE(new.description, ''), COALESCE(new.data, ''));
+      END;
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_ad" AFTER DELETE ON "content_nodes" BEGIN
+        DELETE FROM "content_nodes_fts" WHERE "_id" = old._id;
+      END;
+      CREATE TRIGGER IF NOT EXISTS "content_nodes_au" AFTER UPDATE ON "content_nodes" BEGIN
+        DELETE FROM "content_nodes_fts" WHERE "_id" = old._id;
+        INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
+        VALUES (new._id, COALESCE(new.name, ''), COALESCE(new.description, ''), COALESCE(new.data, ''));
+      END;
+      INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
+      SELECT "_id", COALESCE("name", ''), COALESCE("description", ''), COALESCE("data", '')
+      FROM "content_nodes";
     `);
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed
@@ -410,20 +432,6 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       }
     } catch {
       // Ignore
-    }
-
-    // 🚀 MIGRATION: Add 'type' column to website_tokens if missing (v0.0.9+)
-    try {
-      const wtInfo = (db as any).prepare
-        ? (db as any).prepare('PRAGMA table_info("website_tokens")').all()
-        : [];
-      const hasTypeCol = wtInfo.some((c: any) => c.name === "type");
-      if (!hasTypeCol) {
-        logger.info("[SQLite] Adding 'type' column to website_tokens...");
-        execute('ALTER TABLE "website_tokens" ADD COLUMN "type" TEXT DEFAULT \'content-api\'');
-      }
-    } catch {
-      // Ignore — table may not exist yet
     }
 
     logger.info("SQLite migrations completed successfully.");

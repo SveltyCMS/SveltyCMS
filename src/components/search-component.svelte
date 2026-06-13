@@ -387,7 +387,7 @@ accessibility -->
 				aria-autocomplete="list"
 				aria-activedescendant={selectedIndex !== -1 ? `search-result-${selectedIndex}` : undefined}
 				aria-busy={isSearching}
-				class="input w-full rounded-lg variant-tertiary dark:variant-primary"
+				class="input w-full rounded variant-tertiary dark:variant-primary"
 				autocomplete="off"
 			/>
 
@@ -416,7 +416,7 @@ accessibility -->
 			<ul
 				bind:this={listElement}
 				id="search-results"
-				class="mt-4 max-h-[50vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface-50 dark:bg-surface-900 shadow-2xl border border-surface-300 dark:border-surface-700 pointer-events-auto"
+				class="mt-4 max-h-[50vh] w-full max-w-xl overflow-y-auto rounded bg-surface-50 dark:bg-surface-900 shadow-2xl border border-surface-300 dark:border-surface-700 pointer-events-auto"
 				role="listbox"
 				aria-label="Search results"
 			>
@@ -491,7 +491,7 @@ accessibility -->
 			</ul>
 		{:else if showNoResults}
 			<div
-				class="mt-4 w-full max-w-xl rounded-lg bg-surface-50 dark:bg-surface-900 p-6 text-center shadow-2xl border border-surface-300 dark:border-surface-700 pointer-events-auto"
+				class="mt-4 w-full max-w-xl rounded bg-surface-50 dark:bg-surface-900 p-6 text-center shadow-2xl border border-surface-300 dark:border-surface-700 pointer-events-auto"
 				role="status"
 				aria-live="polite"
 			>

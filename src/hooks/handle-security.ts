@@ -239,10 +239,12 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   if ((event.locals as any).__testBypass) return resolve(event);
 
   const { request, url } = event;
+  const forceSecurity = request.headers.get("x-test-security") === "true";
 
   // 🚀 Short-circuit BEFORE getClientIp: public/bootstrap/static routes skip all security
   const flags = (event.locals as any).__flags;
-  if (flags?.isPublic || flags?.isBootstrap || flags?.isStatic) return resolve(event);
+  if ((flags?.isPublic || flags?.isBootstrap || flags?.isStatic) && !forceSecurity)
+    return resolve(event);
 
   const clientIp = getClientIp(event);
 
@@ -267,12 +269,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   }
 
   // 🛡️ SECURITY BYPASS: skip for local test/dev environments
-  if (
-    isLocal &&
-    (IS_TEST_MODE || hasValidTestSecret) &&
-    request.headers.get("x-test-security") !== "true"
-  )
-    return resolve(event);
+  if (isLocal && (IS_TEST_MODE || hasValidTestSecret) && !forceSecurity) return resolve(event);
 
   // ✨ ENTERPRISE: Load Shedding (Self-Healing)
   // Force GC if available and memory is high

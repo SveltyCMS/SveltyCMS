@@ -28,6 +28,7 @@ import { SESSION_COOKIE_NAME, getSessionCookieName } from "@src/databases/auth/c
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
@@ -219,8 +220,28 @@ async function getUserFromSession(
   lastRefreshAttempt.set(sessionId, now);
 
   try {
-    // Call the adapter directly to get the raw DatabaseResult (success vs error)
-    const result = await adapter.auth.validateSession(sessionId as any, {
+    const sessionResult = await adapter.auth.getSessionTokenData(sessionId as any);
+
+    if (!sessionResult?.success) {
+      lastRefreshAttempt.delete(sessionId);
+      logger.warn(
+        `[Auth] Transient session validation error for ${sessionId}: ${sessionResult?.message || "Unknown"}`,
+      );
+      return null;
+    }
+
+    if (!sessionResult.data) {
+      negativeCache.add(sessionId);
+      return null;
+    }
+
+    const expiresAt = new Date(sessionResult.data.expiresAt).getTime();
+    if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
+      negativeCache.add(sessionId);
+      return null;
+    }
+
+    const userResult = await adapter.auth.getUserById(sessionResult.data.user_id as any, {
       suppressErrorLog: true,
     });
 
@@ -241,7 +262,11 @@ async function getUserFromSession(
         // Definitive: Session not found or expired.
         logger.debug(`[Auth] Session not found in DB: ${sessionId.slice(0, 8)}...`);
         negativeCache.add(sessionId);
-        return null;
+      } else {
+        lastRefreshAttempt.delete(sessionId);
+        logger.warn(
+          `[Auth] Transient user lookup error for ${sessionId}: ${userResult?.message || "Unknown"}`,
+        );
       }
     } else {
       // System error (e.g. DB locked). Clear the cooldown to allow immediate retry on next request.
@@ -251,6 +276,15 @@ async function getUserFromSession(
       );
       return null;
     }
+
+    const user = userResult.data;
+    const sessionData: SessionCacheEntry = { user, timestamp: now };
+    setSessionInCache(sessionId, sessionData);
+    const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+    await cacheService
+      .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
+      .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
+    return user;
   } catch (err: any) {
     lastRefreshAttempt.delete(sessionId);
     logger.error(`Session validation crashed: ${err.message}`);
@@ -393,7 +427,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
   // dynamic imports, tenant resolution, or CSRF work. On a warm cache hit,
   // this skips ~2ms of per-request auth overhead for ALL request types.
-  const turboSessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
+  const turboSessionId =
+    cookies.get(cookieName) ||
+    cookies.get(SESSION_COOKIE_NAME) ||
+    cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
+    cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
   if (turboSessionId) {
     const turboCtx = turboAuthCache.get(turboSessionId);
     // 🛡️ Absolute expiry — never slides on access. Prevents timing attacks
@@ -453,9 +491,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     const authHeader = event.request.headers.get("Authorization");
-    // 🛡️ SECURITY: Only accept __Host- prefixed cookies when secure (prevents subdomain cookie tossing).
-    // When insecure (localhost/dev), never accept __Host- prefixed cookies.
-    const sessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
+    // Accept whichever session cookie variant the auth layer issued. This keeps
+    // local/test traffic on 127.0.0.1 compatible with secure-prefixed cookies.
+    const sessionId =
+      cookies.get(cookieName) ||
+      cookies.get(SESSION_COOKIE_NAME) ||
+      cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
+      cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
     if (sessionId) {
       metricsService.incrementAuthValidations();
       if (!auth) {
@@ -514,50 +556,75 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         // --- Performance Tweak: Negative Caching ---
         if (negativeCache.has(tokenValue)) return await resolve(event);
 
-        metricsService.incrementAuthValidations();
-        const res = await dbAdapter.system.websiteTokens.getByToken(tokenValue);
+        // --- Performance Tweak: Positive Caching ---
+        const cacheKey = `apitoken:${tokenValue}`;
+        const cachedToken = cacheService.getSync<{ user: any; tenantId: string }>(
+          cacheKey,
+          locals.tenantId as DatabaseId,
+        );
 
-        if (res.success && res.data) {
-          const token = res.data;
-
-          // 1. Expiry Check
-          if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
-            logger.warn(`[Auth] API Token expired: ${token.name}`);
-            metricsService.incrementAuthFailures();
-          } else {
-            // 2. Normalization (Retro-compatibility)
-            // If type is missing, normalize to 'content-api'
-            const tokenType = token.type || "content-api";
-
-            // 3. Tenant Isolation Check
-            if (token.tenantId && locals.tenantId && token.tenantId !== locals.tenantId) {
-              logger.warn(`[Auth] API Token tenant mismatch: ${token.name}`);
-              metricsService.incrementAuthFailures();
-              return await resolve(event);
-            }
-
-            // 4. Orphaned check & Virtual User building
-            // We skip fetching the full creator user to avoid redundant getById calls (as requested)
-            // SveltyCMS API tokens carry their own permissions as source of truth.
-            locals.user = {
-              _id: `token:${token._id}`,
-              email: `token@api.local`,
-              username: token.name,
-              role: tokenType === "admin-api" ? "admin" : "guest",
-              permissions: token.permissions || [],
-              tenantId: token.tenantId ?? (event.locals.tenantId as any),
-              isApiToken: true,
-            } as any;
-
-            locals.permissions = token.permissions || [];
-            locals.tenantId = (token.tenantId as DatabaseId) || locals.tenantId;
-
-            logger.debug(`[Auth] Authenticated via API Token: ${token.name} (${tokenType})`);
-          }
+        if (cachedToken) {
+          locals.user = cachedToken.user;
+          locals.permissions = cachedToken.user.permissions;
+          locals.tenantId = (cachedToken.tenantId as DatabaseId) || locals.tenantId;
+          logger.debug(`[Auth] Authenticated via API Token (Cache Hit)`);
         } else {
-          negativeCache.add(tokenValue);
-          metricsService.incrementAuthFailures();
-          logger.warn(`[Auth] Invalid or non-existent API Token provided`);
+          metricsService.incrementAuthValidations();
+          const res = await dbAdapter.system.websiteTokens.getByToken(tokenValue);
+
+          if (res.success && res.data) {
+            const token = res.data;
+
+            // 1. Expiry Check
+            if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
+              logger.warn(`[Auth] API Token expired: ${token.name}`);
+              metricsService.incrementAuthFailures();
+            } else {
+              // 2. Normalization (Retro-compatibility)
+              // If type is missing, normalize to 'content-api'
+              const tokenType = token.type || "content-api";
+
+              // 3. Tenant Isolation Check
+              if (token.tenantId && locals.tenantId && token.tenantId !== locals.tenantId) {
+                logger.warn(`[Auth] API Token tenant mismatch: ${token.name}`);
+                metricsService.incrementAuthFailures();
+                return await resolve(event);
+              }
+
+              // 4. Orphaned check & Virtual User building
+              // We skip fetching the full creator user to avoid redundant getById calls (as requested)
+              // SveltyCMS API tokens carry their own permissions as source of truth.
+              locals.user = {
+                _id: `token:${token._id}`,
+                email: `token@api.local`,
+                username: token.name,
+                role: tokenType === "admin-api" ? "admin" : "guest",
+                permissions: token.permissions || [],
+                tenantId: token.tenantId ?? (event.locals.tenantId as any),
+                isApiToken: true,
+              } as any;
+
+              locals.permissions = token.permissions || [];
+              locals.tenantId = (token.tenantId as DatabaseId) || locals.tenantId;
+
+              // Cache the verified token for 60 seconds to bypass DB hits
+              cacheService
+                .setWithCategory(
+                  cacheKey,
+                  { user: locals.user, tenantId: locals.tenantId as string },
+                  CacheCategory.GENERAL,
+                  locals.tenantId as DatabaseId,
+                  60, // TTL in seconds
+                )
+                .catch((err: any) => logger.warn(`Failed to cache API token: ${err.message}`));
+
+              logger.debug(`[Auth] Authenticated via API Token: ${token.name} (${tokenType})`);
+            }
+          } else {
+            negativeCache.add(tokenValue);
+            metricsService.incrementAuthFailures();
+            logger.warn(`[Auth] Invalid or non-existent API Token provided`);
+          }
         }
       }
     }

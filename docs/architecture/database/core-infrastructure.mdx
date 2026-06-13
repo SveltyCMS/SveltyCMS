@@ -23,7 +23,7 @@ The core database infrastructure consists of three essential files that enable S
 
 ## 🎯 Architecture Overview
 
-```mermaid
+````mermaid
 graph TD
     subgraph "Application Layer"
         UI[Svelte Components]
@@ -51,11 +51,11 @@ graph TD
     INIT --> IFACE
     IFACE --> MA & PA & SA
     VER --> IFACE
-```
+```text
 
 ### The Five Pillars
 
-```
+```text
 ┌──────────────────────────────────────────────────────┐
 │              CORE INFRASTRUCTURE                     │
 ├──────────────────────────────────────────────────────┤
@@ -76,7 +76,7 @@ graph TD
 │     └─ Theme loading & multi-tenant caching         │
 │                                                      │
 └──────────────────────────────────────────────────────┘
-```
+```text
 
 ### Design Principles
 
@@ -115,7 +115,7 @@ Instead of forcing database adapters (MongoDB, PostgreSQL, etc.) to handle secur
 
 **Purpose**: Central orchestration and lifecycle management for the entire database system
 
-**Size**: 850 lines  
+**Size**: 850 lines
 **Complexity**: High - This is the brain of the database layer
 
 ### Key Responsibilities
@@ -169,7 +169,7 @@ await themeManager.initialize(dbAdapter);
 
 // 5. Settings Cache Sync
 await loadSettingsFromDB();
-```
+```text
 
 ### Key Features
 
@@ -190,7 +190,7 @@ export async function getDbInitPromise(): Promise<void> {
 // BACKGROUND WARM-UP (Non-blocking)
 // Once READY is reached, secondary services initialize in the background.
 dbInitPromise.then(() => startBackgroundWarmup());
-```
+```text
 
 **Why This Matters**: Distinguishes between **Critical-Blocking** (READY) and **Deferred-Non-Blocking** (WARMING) paths.
 
@@ -218,7 +218,7 @@ for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     await new Promise((r) => setTimeout(r, RETRY_DELAY_BASE * attempt));
   }
 }
-```
+```text
 
 #### Settings Cache Synchronization
 
@@ -252,7 +252,7 @@ export async function loadSettingsFromDB() {
     throw new Error("Could not load settings from DB");
   }
 }
-```
+```text
 
 **Key Point**: Settings are stored in the database but cached in memory for performance. Changes to settings invalidate the cache and reload automatically.
 
@@ -284,7 +284,7 @@ export const dbInitPromise: Promise<void>; // Initialization promise
 // Functions
 export async function loadSettingsFromDB(): Promise<void>;
 export function clearPrivateConfigCache(): void;
-```
+```text
 
 ### Usage Examples
 
@@ -302,7 +302,7 @@ export async function GET({ locals }) {
 
   return json({ users });
 }
-```
+```text
 
 #### In Server Hooks
 
@@ -319,7 +319,7 @@ export async function handle({ event, resolve }) {
   event.locals.user = user;
   return resolve(event);
 }
-```
+```text
 
 ### Error Handling
 
@@ -333,7 +333,7 @@ try {
   // Application continues with limited functionality
   // (e.g., using cached data, read-only mode)
 }
-```
+```text
 
 ---
 
@@ -341,7 +341,7 @@ try {
 
 **Purpose**: Defines the contract that all database adapters must implement
 
-**Size**: 648 lines  
+**Size**: 648 lines
 **Complexity**: Medium - Mostly type definitions and interfaces
 
 ### Why This File is Critical
@@ -398,7 +398,7 @@ export interface DatabaseAdapter {
   widget: WidgetMethods; // Widget configurations
   theme: ThemeMethods; // Theme management
 }
-```
+```text
 
 #### DatabaseResult<T> - No Exceptions!
 
@@ -415,7 +415,7 @@ export type DatabaseResult<T> =
       success: false;
       error: DatabaseError;
     };
-```
+```text
 
 **Why No Exceptions?**
 
@@ -440,7 +440,7 @@ const user = result.data; // TypeScript knows this is User
 // ❌ Wrong way (TypeScript error)
 const user = await dbAdapter.auth.getUserById(userId);
 // Error: Type 'DatabaseResult<User>' is not assignable to type 'User'
-```
+```text
 
 #### QueryCriteria
 
@@ -474,7 +474,7 @@ export interface QueryCriteria {
   // Multi-tenant support
   tenantId?: string;
 }
-```
+```text
 
 **Example Translations**:
 
@@ -502,7 +502,7 @@ WHERE status = 'active'
 WHERE status = 'active'
   AND created_at > '2024-01-01'
   AND tenant_id = 'tenant123'
-```
+```text
 
 #### PaginationOptions
 
@@ -518,7 +518,7 @@ export interface PaginationOptions {
 }
 
 export type SortOption = Record<string, "asc" | "desc"> | Array<[string, "asc" | "desc"]>;
-```
+```text
 
 **Usage**:
 
@@ -542,7 +542,7 @@ const page2 = await dbAdapter.findMany("users", {
   cursor: lastItemId, // Use last item ID from page 1
   sort: { createdAt: "desc" },
 });
-```
+```text
 
 #### DatabaseCapabilities
 
@@ -560,7 +560,7 @@ export interface DatabaseCapabilities {
   maxBatchSize: number; // Max items in batch operation
   maxQueryComplexity: number; // Max query depth
 }
-```
+```text
 
 **Example**:
 
@@ -590,7 +590,7 @@ export interface DatabaseCapabilities {
   maxBatchSize: 100,
   maxQueryComplexity: 100
 }
-```
+```text
 
 #### Performance Types
 
@@ -612,7 +612,7 @@ export interface QueryMeta {
   batchSize?: number; // Batch size used
   cursorId?: string; // For cursor pagination
 }
-```
+```text
 
 ### Why This Architecture Works
 
@@ -627,7 +627,7 @@ const users = await dbAdapter.findMany("users", {
   sort: { createdAt: "desc" },
   limit: 20,
 });
-```
+```text
 
 **Step 2**: Change configuration
 
@@ -639,7 +639,7 @@ DB_HOST=mongodb://localhost:27017
 // After (PostgreSQL)
 DB_TYPE=postgresql
 DB_HOST=postgresql://localhost:5432
-```
+```text
 
 **Step 3**: That's it! Application works identically.
 
@@ -651,12 +651,12 @@ db.collection("users").find({ status: "active" }).sort({ createdAt: -1 }).limit(
 
 // PostgreSQL Adapter
 db.query(`
-  SELECT * FROM users 
-  WHERE status = 'active' 
-  ORDER BY created_at DESC 
+  SELECT * FROM users
+  WHERE status = 'active'
+  ORDER BY created_at DESC
   LIMIT 20
 `);
-```
+```text
 
 ---
 
@@ -664,7 +664,7 @@ db.query(`
 
 **Purpose**: Zero-latency internal SDK for server-side CMS operations
 
-**Size**: 250 lines  
+**Size**: 250 lines
 **Complexity**: High - Uses advanced JS meta-programming for "Hot-Swap" memoization
 
 ### The Zero-Tax Dispatcher {#lazy-holder-architecture}
@@ -698,7 +698,7 @@ function defineLazyNamespace(target, property, factory) {
     configurable: true,
   });
 }
-```
+```text
 
 ### Performance Comparison
 
@@ -723,7 +723,7 @@ const user = await cms.auth.me(userId);
 
 // This second call is zero-latency (direct reference)
 const posts = await cms.collections.find("posts", { tenantId });
-```
+```text
 
 ### Advanced Features
 
@@ -737,7 +737,7 @@ const posts = await cms.collections.find("posts", { tenantId });
 
 **Purpose**: Theme loading, caching, and management service
 
-**Size**: 165 lines  
+**Size**: 165 lines
 **Complexity**: Low - Simple singleton service
 
 ### Key Responsibilities
@@ -870,7 +870,7 @@ export class ThemeManager {
     logger.debug("ThemeManager cache refreshed.");
   }
 }
-```
+```text
 
 ### Default Theme Fallback
 
@@ -888,7 +888,7 @@ export const DEFAULT_THEME: Theme = {
   createdAt: new Date().toISOString() as ISODateString,
   updatedAt: new Date().toISOString() as ISODateString,
 };
-```
+```text
 
 **Why This Matters**: If the database is unavailable (e.g., during setup), the application still has a working theme.
 
@@ -903,7 +903,7 @@ const theme = await themeManager.getTheme(tenantId);
 
 // Use theme in HTML
 <link rel="stylesheet" href={theme.path} />
-```
+```text
 
 ### Multi-Tenant Theme Support
 
@@ -916,7 +916,7 @@ const tenantTheme = await themeManager.getTheme("tenant123");
 
 // Future enhancement: Per-tenant theme overrides
 // Currently falls back to global if no tenant theme exists
-```
+```text
 
 ---
 
@@ -939,11 +939,11 @@ graph TD
     J --> L[WidgetRegistry.scan]
     J --> M[ContentSystem - LAZY]
     K & L & M --> N[FULL HYDRATION - WARMED]
-```
+```text
 
 ### Request Flow Example
 
-```
+```text
 1. User Request: GET /admin/dashboard
    ↓
 2. Server Hook (hooks.server.ts)
@@ -957,7 +957,7 @@ graph TD
 4. Component Render
    └─ Theme applied
    └─ Data displayed
-```
+```text
 
 ---
 
@@ -972,7 +972,7 @@ const data = await dbAdapter.findMany("users");
 
 // ❌ Bad
 const data = await dbAdapter.findMany("users"); // Might be null!
-```
+```text
 
 ### 2. Handle DatabaseResult Properly
 
@@ -986,7 +986,7 @@ const user = result.data;
 
 // ❌ Bad
 const user = await dbAdapter.auth.getUserById(id); // Type error!
-```
+```text
 
 ### 3. Use Theme Manager Singleton
 
@@ -996,7 +996,7 @@ const themeManager = ThemeManager.getInstance();
 
 // ❌ Bad
 const themeManager = new ThemeManager(); // Error: constructor is private
-```
+```text
 
 ### 4. Respect the Adapter Interface
 
@@ -1006,7 +1006,7 @@ await dbAdapter.create("users", userData);
 
 // ❌ Bad - Direct database access
 await UserModel.create(userData); // Bypasses adapter!
-```
+```text
 
 ---
 
@@ -1028,7 +1028,7 @@ const theme = await themeManager.getTheme();
 const theme = await themeManager.getTheme();
 
 // Performance gain: 99.8% faster
-```
+```text
 
 ### Settings Cache
 
@@ -1040,7 +1040,7 @@ const setting = await db.settings.get("FEATURE_FLAG"); // 15ms
 const setting = privateEnv.FEATURE_FLAG; // 0.001ms
 
 // Performance gain: 99.99% faster
-```
+```text
 
 ---
 
@@ -1085,7 +1085,7 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   // Implement all other DatabaseAdapter methods...
 }
-```
+```text
 
 **Step 2**: Register in db.ts
 
@@ -1094,14 +1094,14 @@ case 'postgresql':
   const { PostgresAdapter } = await import('./postgresql/postgresAdapter');
   dbAdapter = new PostgresAdapter();
   break;
-```
+```text
 
 **Step 3**: Update configuration
 
 ```env
 DB_TYPE=postgresql
 DB_HOST=postgresql://localhost:5432/mydb
-```
+```text
 
 **Step 4**: Application works with PostgreSQL! No other changes needed.
 
@@ -1147,3 +1147,12 @@ Together, these files enable SveltyCMS to work with **any database** while maint
 ---
 
 _Last Updated: October 5, 2025_
+````
+
+---
+
+## Related
+
+- [Database Architecture](./index.mdx)
+- [Performance Benchmarks](../../project/benchmarks/index.mdx)
+- [Architecture Overview](../index.mdx)

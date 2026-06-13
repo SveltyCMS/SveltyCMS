@@ -41,7 +41,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
-        request: { method: "GET" },
+        request: { method: "GET", headers: new Headers() },
         url: new URL("http://localhost/api/webhooks"),
       } as any;
 
@@ -53,7 +53,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         locals: { user: mockSuperAdmin, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
-        request: { method: "GET" },
+        request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/webhooks?tenantId=${otherTenant}`),
       } as any;
 
@@ -65,7 +65,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
-        request: { method: "GET" },
+        request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/webhooks?tenantId=${otherTenant}`),
       } as any;
 
@@ -81,6 +81,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         locals: { user: { role: "user" }, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
+        request: { method: "POST", headers: new Headers() },
         url: new URL("http://localhost/api/webhooks"),
       } as any;
 

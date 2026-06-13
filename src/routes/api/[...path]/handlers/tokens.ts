@@ -15,6 +15,7 @@ import { type LocalCMS } from "@src/services/sdk";
 import { type DatabaseId } from "@src/databases/db-interface";
 import { rawResponse, successResponse } from "./base";
 import { AppError } from "@utils/error-handling";
+import { isAdmin } from "@utils/hook-utils";
 
 export async function handleTokenRoutes(
   event: RequestEvent,
@@ -49,7 +50,11 @@ export async function handleTokenRoutes(
 
   // GET /api/token or /api/token/list -> List all tokens (requires admin)
   if (request.method === "GET" && action === "list") {
-    if (!locals.user || locals.user.role !== "admin") {
+    // Accept either the hook-computed admin flag or the canonical isAdmin(user)
+    // check. Admins authenticated via the authorization fast-path carry a
+    // UUID/role-name role rather than the literal "admin", so the old
+    // `role !== "admin"` string compare wrongly 403'd them.
+    if (!locals.user || !(locals.isAdmin || isAdmin(locals.user))) {
       throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
     const isWebsite = segments[0] === "website-tokens";
@@ -61,29 +66,39 @@ export async function handleTokenRoutes(
     const sort = url.searchParams.get("sort") || undefined;
     const order = url.searchParams.get("order") as "asc" | "desc" | undefined;
 
-    let result;
     if (isWebsite) {
-      result = await (cms.system.websiteTokens as any).list({
+      const result = await cms.websiteTokens.list({
+        tenantId,
         page: page || 1,
         limit: limit || 10,
         sort,
         order,
       });
-    } else {
-      result = await cms.auth.tokens.list({
-        tenantId,
-        search,
-        page,
-        limit,
-        sort,
-        order,
+
+      if (url.searchParams.get("raw") === "true") {
+        return rawResponse(event, { success: true, data: result.data });
+      }
+
+      return rawResponse(event, {
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
       });
     }
+
+    const result = await cms.auth.tokens.list({
+      tenantId,
+      search,
+      page,
+      limit,
+      sort,
+      order,
+    });
 
     if (!result.success) return successResponse(event, result);
 
     if (url.searchParams.get("raw") === "true") {
-      return rawResponse(event, { success: true, data: result.data });
+      return rawResponse(event, result.data);
     }
 
     return rawResponse(event, {
@@ -138,9 +153,11 @@ export async function handleTokenRoutes(
 
       if (isWebsite) {
         if (!body.name) throw new AppError("Name is required", 400);
-        const result = await cms.system.websiteTokens.create({
-          ...body,
-          createdBy: locals.user?._id,
+        const result = await cms.websiteTokens.create({
+          name: body.name,
+          permissions: body.permissions,
+          expiresAt: body.expiresAt,
+          user: locals.user,
           tenantId,
         });
         if (!(result as any).success)
@@ -176,7 +193,7 @@ export async function handleTokenRoutes(
           const results = [];
           for (const id of ids) {
             if (isWebsite) {
-              results.push(await cms.system.websiteTokens.delete(String(id)));
+              results.push(await cms.websiteTokens.delete(String(id), { tenantId }));
             } else {
               results.push(await cms.auth.tokens.delete(String(id), { tenantId }));
             }

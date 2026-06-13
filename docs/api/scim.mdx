@@ -62,7 +62,7 @@ SveltyCMS filters and maps SCIM standard attributes to its internal user model:
 
 The `scim.ts` handler implements complex filtering (e.g., `filter=userName eq "john"`) and pagination according to the RFC 7644 specification.
 
-```mermaid
+````mermaid
 sequenceDiagram
     participant IdP as Okta / Azure AD
     participant SCIM as SCIM Handler (scim.ts)
@@ -74,7 +74,7 @@ sequenceDiagram
     SCIM->>SDK: cms.auth.createUser(data)
     SDK->>DB: INSERT INTO users ...
     SCIM-->>IdP: 201 Created (SCIM JSON)
-```
+```text
 
 ---
 
@@ -83,3 +83,4 @@ sequenceDiagram
 - [Authentication & Identity (auth.ts)](./auth.mdx)
 - [Token Management (tokens.ts)](./tokens.mdx)
 - [Multi-Tenant Architecture Guide](../architecture/multi-tenancy.mdx)
+````

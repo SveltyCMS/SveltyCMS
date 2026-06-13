@@ -127,8 +127,14 @@ export const contentSystem = {
             }
           }
 
-          if (!options.skipReconciliation) {
-            void this.generateApiSpec(tenantId || "global", true);
+          const shouldGenerateApiSpec = !options.skipReconciliation && options.skipApiSpec !== true;
+          if (shouldGenerateApiSpec) {
+            const apiSpecTask = this.generateApiSpec(tenantId || "global", true);
+            if (options.awaitApiSpec === true) {
+              await apiSpecTask;
+            } else {
+              void apiSpecTask;
+            }
           }
         } catch (err) {
           logger.error(`[ContentSystem] Init failed for tenant ${tenantId}:`, err);

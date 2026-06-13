@@ -338,12 +338,16 @@ export class WebsiteTokensNamespace extends BaseNamespace {
     return withTenant(
       tenantId ?? null,
       async () => {
-        const result = await this._dbAdapter.system.websiteTokens.getAll({
-          limit,
-          skip: (page - 1) * limit,
-          sort,
-          order,
-        });
+        const websiteTokens = this._dbAdapter.system.websiteTokens as any;
+        const result = await websiteTokens.getAll(
+          {
+            limit,
+            skip: (page - 1) * limit,
+            sort,
+            order,
+          },
+          tenantId ?? undefined,
+        );
         if (!result.success) throw new AppError(result.message, 500);
         return {
           data: result.data.data,
@@ -371,14 +375,18 @@ export class WebsiteTokensNamespace extends BaseNamespace {
       tenantId ?? null,
       async () => {
         const tokenValue = `sv_${generateSecureToken(24)}`;
-        const result = await this._dbAdapter.system.websiteTokens.create({
-          name,
-          token: tokenValue,
-          updatedAt: new Date().toISOString() as ISODateString,
-          createdBy: user!._id,
-          permissions: permissions || [],
-          expiresAt: (expiresAt || undefined) as ISODateString | undefined,
-        });
+        const websiteTokens = this._dbAdapter.system.websiteTokens as any;
+        const result = await websiteTokens.create(
+          {
+            name,
+            token: tokenValue,
+            updatedAt: new Date().toISOString() as ISODateString,
+            createdBy: user!._id,
+            permissions: permissions || [],
+            expiresAt: (expiresAt || undefined) as ISODateString | undefined,
+          },
+          tenantId ?? undefined,
+        );
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
       },
@@ -390,7 +398,8 @@ export class WebsiteTokensNamespace extends BaseNamespace {
     return withTenant(
       tenantId ?? null,
       async () => {
-        const result = await this._dbAdapter.system.websiteTokens.delete(tokenId as any);
+        const websiteTokens = this._dbAdapter.system.websiteTokens as any;
+        const result = await websiteTokens.delete(tokenId as any, tenantId ?? undefined);
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
       },

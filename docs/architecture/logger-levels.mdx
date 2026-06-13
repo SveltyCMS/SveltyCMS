@@ -35,11 +35,11 @@ Both loggers share the same API and use a performance-optimized priority-based l
 
 The split architecture solves critical bundling and performance issues:
 
-```
+````text
 src/utils/
 ├── logger.server.ts  # Server-only (Node.js APIs, file I/O)
 └── logger.ts         # Universal (console-based, client-safe)
-```
+```text
 
 #### ✅ Benefits:
 
@@ -72,7 +72,7 @@ export async function GET() {
   // Writes to file with batching
   return json({ data });
 }
-```
+```text
 
 ```typescript
 // ✅ Shared utils - use universal logger
@@ -84,7 +84,7 @@ export function validateEmail(email: string) {
   // Console output, safe on client and server
   return isValid;
 }
-```
+```text
 
 ```typescript
 // ✅ Components - use universal logger
@@ -97,13 +97,13 @@ export function validateEmail(email: string) {
     // Console output in browser
   }
 </script>
-```
+```text
 
 ```typescript
 // ❌ WRONG - Don't import server logger in shared code
 // lib/utils/validation.ts
 import { logger } from "@utils/logger.server"; // ❌ Build error!
-```
+```text
 
 ## Log Levels (Priority-Based System)
 
@@ -120,7 +120,7 @@ Both loggers use the same priority system (from most to least restrictive):
 ```typescript
 // .env
 LOG_LEVELS = none;
-```
+```text
 
 ### `fatal` (Priority 1)
 
@@ -130,7 +130,7 @@ LOG_LEVELS = none;
 
 ```typescript
 logger.fatal("Database connection permanently failed", { error });
-```
+```text
 
 ### `error` (Priority 2)
 
@@ -140,7 +140,7 @@ logger.fatal("Database connection permanently failed", { error });
 
 ```typescript
 logger.error("Failed to save user data", { userId, error });
-```
+```text
 
 ### `warn` (Priority 3)
 
@@ -150,7 +150,7 @@ logger.error("Failed to save user data", { userId, error });
 
 ```typescript
 logger.warn("Using default theme, custom theme not found", { themeId });
-```
+```text
 
 ### `info` (Priority 4) - **Default Level**
 
@@ -160,7 +160,7 @@ logger.warn("Using default theme, custom theme not found", { themeId });
 
 ```typescript
 logger.info("User logged in successfully", { userId, email });
-```
+```text
 
 ### `debug` (Priority 5)
 
@@ -170,7 +170,7 @@ logger.info("User logged in successfully", { userId, email });
 
 ```typescript
 logger.debug("Cache hit for collection query", { collectionId, cacheKey });
-```
+```text
 
 ### `trace` (Priority 6)
 
@@ -180,7 +180,7 @@ logger.debug("Cache hit for collection query", { collectionId, cacheKey });
 
 ```typescript
 logger.trace("Processing widget configuration", { widgetName, config });
-```
+```text
 
 ## Configuration
 
@@ -199,7 +199,7 @@ LOG_LEVELS=fatal,error
 
 # .env.production - Maximum performance
 LOG_LEVELS=none
-```
+```text
 
 #### Client-Side (`logger.ts`)
 
@@ -215,7 +215,7 @@ import { logger } from "@utils/logger.server";
 
 // After changing LOG_LEVELS in environment
 logger.refreshLogLevels();
-```
+```text
 
 ## Advanced Features
 
@@ -236,7 +236,7 @@ authLog.warn("Failed login attempt", { email, ip });
 // Output:
 // ℹ️ [INFO] [database] Query executed { duration: '42ms' }
 // ⚠️ [WARN] [auth] Failed login attempt { email: 'us**@ex****le.com', ip: '...' }
-```
+```text
 
 ### Data Dumping (Trace Level)
 
@@ -252,7 +252,7 @@ import { logger } from "@utils/logger";
 logger.dump(userData, "user-profile");
 // Browser: Expands as console.group with full depth
 // Server: Colorized trace output
-```
+```text
 
 ### Security: Automatic Data Masking
 
@@ -275,7 +275,7 @@ logger.info("User data", user);
 //   api_token: '[REDACTED]',         // Fully redacted
 //   profile: { name: 'John' }        // Not sensitive
 // }
-```
+```text
 
 **Protected keys:**
 
@@ -298,7 +298,7 @@ obj.self = obj; // Circular reference
 
 logger.debug("Object with circular ref", obj);
 // Output: { name: 'test', self: '[Circular Reference]' }
-```
+```text
 
 #### Deep Nesting (Max Depth: 10)
 
@@ -312,7 +312,7 @@ for (let i = 2; i <= 15; i++) {
 
 logger.debug("Deep object", deep);
 // Stops at depth 10: { level: 1, next: { level: 2, ... '[Max Depth Reached]' } }
-```
+```text
 
 #### Special Object Types
 
@@ -329,7 +329,7 @@ logger.debug("Special types", {
 //   regex: '/test/gi',
 //   error: { name: 'Error', message: 'Test error', stack: '...' }
 // }
-```
+```text
 
 ## Server Logger Exclusive Features
 
@@ -347,18 +347,18 @@ logger.info("User action", { userId, action });
 // - 100 logs accumulated (configurable)
 // - 5 seconds elapsed (configurable)
 // - Process exits
-```
+```text
 
 ### Log Rotation
 
 Automatic rotation when file reaches size limit (default 5MB):
 
-```
+```text
 logs/
 ├── app.log                          # Current log file
 ├── app.log.2025-01-31T10-30-00.gz  # Rotated and compressed
 └── app.log.2025-01-30T08-15-00.gz  # Older rotation
-```
+```text
 
 ### Log Retention
 
@@ -390,7 +390,7 @@ logger.addLogFilter((entry) => {
   // Only log errors from auth system
   return entry.level === "error" && entry.message.includes("auth");
 });
-```
+```text
 
 ## Performance Optimizations
 
@@ -402,7 +402,7 @@ Both loggers implement these optimizations:
 // Check happens BEFORE any argument processing
 logger.trace("Complex data:", expensiveOperation());
 // If trace is disabled, expensiveOperation() is never called!
-```
+```text
 
 ### 2. Cached Priority Calculation
 
@@ -412,21 +412,21 @@ const maxPriority = getMaxPriority();
 
 // Every log call uses simple integer comparison
 if (priorities[level] > maxPriority) return;
-```
+```text
 
 ### 3. Lazy Masking
 
 ```typescript
 // Masking only happens if log level is enabled
 const masked = args.map(maskSensitive);
-```
+```text
 
 ### 4. Batch Processing (Server Only)
 
 ```typescript
 // Multiple logs batched into single file write
 // Reduces I/O operations by ~100x
-```
+```text
 
 ## Best Practices
 
@@ -444,7 +444,7 @@ logger.trace("Request took 42ms");
 
 // ✅ Right - Performance metrics belong in debug
 logger.debug("Request took 42ms");
-```
+```text
 
 ### Avoid Expensive Operations
 
@@ -454,7 +454,7 @@ logger.trace("Data: " + JSON.stringify(largeObject));
 
 // ✅ Right - Pass the object directly, logger handles formatting
 logger.trace("Data:", largeObject);
-```
+```text
 
 ### Include Context
 
@@ -469,7 +469,7 @@ logger.error("Failed to create collection", {
   error: error.message,
   stack: error.stack,
 });
-```
+```text
 
 ### Choose the Right Logger
 
@@ -482,7 +482,7 @@ export async function POST({ request }) {
   logger.info("Creating user"); // Written to file
   // ...
 }
-```
+```text
 
 ```typescript
 // ✅ Shared utility - use universal logger
@@ -493,7 +493,7 @@ export function validate(data: unknown) {
   logger.debug("Validating data"); // Console output
   // ...
 }
-```
+```text
 
 ```typescript
 // ✅ Component - use universal logger
@@ -504,7 +504,7 @@ function handleSubmit() {
   logger.info("Form submitted"); // Browser console
   // ...
 }
-```
+```text
 
 ## Quick Reference
 
@@ -526,7 +526,7 @@ authLog.warn("Failed login attempt", { email, ip });
 
 // Auth failures - error
 authLog.error("Invalid JWT signature", { error });
-```
+```text
 
 #### API Requests
 
@@ -541,7 +541,7 @@ apiLog.debug("Request completed", { endpoint, duration, statusCode });
 
 // API errors - error
 apiLog.error("API request failed", { endpoint, error, statusCode });
-```
+```text
 
 #### Database Operations
 
@@ -556,7 +556,7 @@ dbLog.debug("Query executed", { collection, duration, resultCount });
 
 // Database errors - error
 dbLog.error("Database operation failed", { operation, error });
-```
+```text
 
 ### Testing Log Output
 
@@ -569,7 +569,7 @@ LOG_LEVELS=fatal,error,warn,info npm run dev
 
 # Maximum performance - disabled
 LOG_LEVELS=none npm run dev
-```
+```text
 
 ### Security Checklist
 
@@ -591,7 +591,7 @@ find src -name "*.server.ts"
 
 # Find all shared files (should use logger)
 find src -name "*.ts" ! -name "*.server.ts"
-```
+```text
 
 ### Step 2: Update Imports
 
@@ -601,7 +601,7 @@ import { logger } from "@utils/logger.svelte";
 
 // After
 import { logger } from "@utils/logger.server";
-```
+```text
 
 ```typescript
 // Before (in shared utils.ts)
@@ -609,7 +609,7 @@ import { logger } from "@utils/logger.svelte";
 
 // After
 import { logger } from "@utils/logger";
-```
+```text
 
 ### Step 3: Test
 
@@ -618,8 +618,9 @@ import { logger } from "@utils/logger";
 npm run build
 
 # Look for error: "logger.server.ts cannot be imported in browser code"
-```
+```text
 
 ## Related Documentation
 
 - [Architecture Overview](./code-structure.mdx) - System architecture
+````

@@ -158,7 +158,8 @@ export async function encryptData(data: any, password: string): Promise<string> 
   const encrypted = Buffer.concat([cipher.update(JSON.stringify(data), "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
-  return Buffer.concat([salt, iv, authTag, encrypted]).toString("base64");
+  const version = Buffer.from([0x01]);
+  return Buffer.concat([version, salt, iv, authTag, encrypted]).toString("base64");
 }
 
 export async function decryptData(encryptedData: string, password: string): Promise<any> {
@@ -166,17 +167,50 @@ export async function decryptData(encryptedData: string, password: string): Prom
   const combined = Buffer.from(encryptedData, "base64");
 
   let offset = 0;
+
+  // Check for version byte
+  const isVersion1 = combined[0] === 0x01;
+  if (isVersion1) {
+    offset = 1;
+  }
+
   const salt = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.saltLength));
   const iv = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.ivLength));
   const authTag = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.authTagLength));
   const encrypted = combined.subarray(offset);
 
-  const key = await deriveKey(password, Buffer.from(salt));
-  const decipher = crypto.createDecipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
-  decipher.setAuthTag(authTag);
+  try {
+    const key = await deriveKey(password, Buffer.from(salt));
+    const decipher = crypto.createDecipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
+    decipher.setAuthTag(authTag);
 
-  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-  return JSON.parse(decrypted.toString("utf8"));
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    return JSON.parse(decrypted.toString("utf8"));
+  } catch (err) {
+    // Fallback: If it was identified as version 1 but failed (e.g. legacy data where first byte of salt happened to be 0x01)
+    if (isVersion1) {
+      offset = 0;
+      const legacySalt = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.saltLength));
+      const legacyIv = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.ivLength));
+      const legacyAuthTag = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.authTagLength));
+      const legacyEncrypted = combined.subarray(offset);
+
+      const legacyKey = await deriveKey(password, Buffer.from(legacySalt));
+      const legacyDecipher = crypto.createDecipheriv(
+        ENCRYPTION_CONFIG.algorithm,
+        legacyKey,
+        legacyIv,
+      );
+      legacyDecipher.setAuthTag(legacyAuthTag);
+
+      const legacyDecrypted = Buffer.concat([
+        legacyDecipher.update(legacyEncrypted),
+        legacyDecipher.final(),
+      ]);
+      return JSON.parse(legacyDecrypted.toString("utf8"));
+    }
+    throw err;
+  }
 }
 
 // --- Token & Hash Utilities ---

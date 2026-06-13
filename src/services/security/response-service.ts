@@ -21,6 +21,7 @@ import type {
   ThreatLevel,
   AnomalyResult,
 } from "./types";
+import { safeFetch } from "@src/utils/http/egress-guard";
 
 // ============================================================================
 // CONSTANTS & POLICIES
@@ -145,6 +146,13 @@ export class SecurityResponseService {
 
     this.limiters.set(cacheKey, limiter);
     return limiter;
+  }
+
+  public reset(): void {
+    this.limiters.clear();
+    this.lastAlertTime.clear();
+    this.restoredData = {};
+    logger.info("[Security] Rate limiters and alert trackers reset");
   }
 
   /** Analyzes a request for potential security threats. */
@@ -506,11 +514,11 @@ export class SecurityResponseService {
         timestamp: new Date().toISOString(),
       };
 
-      await fetch(webhook, {
+      await safeFetch(webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(5000),
+        timeoutMs: 5000,
       });
     } catch (e) {
       logger.warn("Alert failed", e);

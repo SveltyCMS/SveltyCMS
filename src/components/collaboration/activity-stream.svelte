@@ -74,7 +74,7 @@ with the AI collaboration assistant.
 </script>
 
 <div
-	class="flex flex-col bg-surface-100-800-token border border-surface-500/30 dark:border-white/10 rounded-xl shadow-2xl dark:shadow-primary-500/10 overflow-hidden backdrop-blur-md transition-all h-full"
+	class="flex flex-col bg-surface-100-800-token border border-surface-500/30 dark:border-white/10 rounded shadow-2xl dark:shadow-primary-500/10 overflow-hidden backdrop-blur-md transition-all h-full"
 	style={screen.isMobile ? 'width: 100%;' : 'width: 350px;'}
 >
 	<!-- Header -->
@@ -143,7 +143,7 @@ with the AI collaboration assistant.
 					</div>
 				{/if}
 				{#each collaboration.activities as activity (activity.timestamp)}
-					<div transition:slide|local class="flex gap-3 p-3 rounded-lg bg-surface-300-600-token/30 border border-surface-500/10">
+					<div transition:slide|local class="flex gap-3 p-3 rounded bg-surface-300-600-token/30 border border-surface-500/10">
 						<div class="mt-1"><iconify-icon icon={getEventIcon(activity.event)} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon></div>
 						<div class="flex-1 min-w-0">
 							<p class="text-sm">
@@ -215,13 +215,13 @@ with the AI collaboration assistant.
 				<input
 					type="text"
 					placeholder="Ask AI via MCP Knowledge Core..."
-					class="flex-1 bg-surface-500/10 border border-surface-500/30 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+					class="flex-1 bg-surface-500/10 border border-surface-500/30 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
 					bind:value={newMessage}
 					aria-label="Ask AI message"
 				/>
 				<button
 					type="submit"
-					class="bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-600 text-white rounded-lg p-1.5 transition-colors disabled:opacity-50"
+					class="bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-600 text-white rounded p-1.5 transition-colors disabled:opacity-50"
 					disabled={!newMessage.trim() || (collaboration.isTyping && !collaboration.currentRoom)}
 					aria-label="Send message"
 				>

@@ -15,6 +15,7 @@ describe("Events API Security - Tenant Isolation", () => {
   const mockUser = createMockUser({ _id: "user1", role: "admin" });
   const myTenant = "tenant-1";
   const otherTenant = "tenant-2";
+  const decoder = new TextDecoder();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,7 +52,7 @@ describe("Events API Security - Tenant Isolation", () => {
     try {
       const event = {
         params: { path: "events" },
-        request: { method: "GET", signal: { addEventListener: vi.fn() } },
+        request: { method: "GET", headers: new Headers(), signal: { addEventListener: vi.fn() } },
         locals: { user: mockUser, tenantId: myTenant },
         url: new URL("http://localhost/api/events"),
         cookies: { get: vi.fn() },
@@ -79,16 +80,20 @@ describe("Events API Security - Tenant Isolation", () => {
       capturedListener(myEvent);
       capturedListener(otherEvent);
 
-      // Verify that ONLY myEvent was enqueued
-      // First call is 'connected' message
-      expect(mockController.enqueue).toHaveBeenCalledTimes(2);
+      // Verify that ONLY myEvent was enqueued.
+      // The stream now emits a second startup comment frame so production SSE
+      // flushes immediately under adapter-uws.
+      expect(mockController.enqueue).toHaveBeenCalledTimes(3);
 
-      const firstCall = mockController.enqueue.mock.calls[0][0];
+      const firstCall = decoder.decode(mockController.enqueue.mock.calls[0][0]);
       expect(firstCall).toContain("connected");
 
-      const secondCall = mockController.enqueue.mock.calls[1][0];
-      expect(secondCall).toContain("My Tenant");
-      expect(secondCall).not.toContain("Other Tenant");
+      const secondCall = decoder.decode(mockController.enqueue.mock.calls[1][0]);
+      expect(secondCall).toContain(": connected");
+
+      const thirdCall = decoder.decode(mockController.enqueue.mock.calls[2][0]);
+      expect(thirdCall).toContain("My Tenant");
+      expect(thirdCall).not.toContain("Other Tenant");
     } finally {
       // Cleanup: Guaranteed to run even if an expect() throws
       // Use globalThis directly to ensure we restore the original

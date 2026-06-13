@@ -77,7 +77,7 @@ let paletteItems = $derived(
 	<!-- Search -->
 	<div class="relative mb-4 shrink-0">
 		<iconify-icon icon="mdi:magnify" width="18" class="absolute inset-s-3 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-		<input type="text" placeholder="Search widgets..." class="input ps-10 h-10 w-full text-sm rounded-lg" bind:value={searchTerm}  aria-label="Input" />
+		<input type="text" placeholder="Search widgets..." class="input ps-10 h-10 w-full text-sm rounded" bind:value={searchTerm}  aria-label="Input" />
 	</div>
 
 	<!-- Widget List -->
@@ -91,10 +91,10 @@ let paletteItems = $derived(
 						{#each catItems as item (item.id)}
 							<button
 								onclick={() => onAddWidget(item.key)}
-								class="group flex min-h-16 flex-col items-center justify-center rounded-xl border border-surface-200-800 bg-surface-100-900 p-3 transition-all hover:border-primary-500 hover:bg-surface-200-800 touch-manipulation"
+								class="group flex min-h-16 flex-col items-center justify-center rounded border border-surface-200-800 bg-surface-100-900 p-3 transition-all hover:border-primary-500 hover:bg-surface-200-800 touch-manipulation"
 							>
 								<div
-									class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-surface-200-800 text-surface-500 group-hover:bg-primary-500 group-hover:text-white"
+									class="mb-2 flex h-10 w-10 items-center justify-center rounded bg-surface-200-800 text-surface-500 group-hover:bg-primary-500 group-hover:text-white"
 								>
 									<iconify-icon icon={item.icon} width="24"></iconify-icon>
 								</div>

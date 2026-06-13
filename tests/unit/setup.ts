@@ -1227,6 +1227,15 @@ const mockAuditLog = {
 const mockDbAdapter = {
   auth: {
     getUserById: mock((id: string) => Promise.resolve({ success: true, data: { _id: id } })),
+    getSessionTokenData: mock(() =>
+      Promise.resolve({
+        success: true,
+        data: {
+          user_id: "user123",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+      }),
+    ),
     getUserBySamlId: mock(() => Promise.resolve(null)),
     getUserByEmail: mock(() => Promise.resolve(null)),
     createUser: mock(() => Promise.resolve({ success: true, data: { _id: "new-user" } })),

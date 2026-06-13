@@ -13,7 +13,7 @@ test.describe("System Language Change", () => {
 
   test("Login and change system language between EN and DE", async ({ page }) => {
     // 1. Login
-    await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
+    await loginAsAdmin(page, /\/(admin|Collections|collectionbuilder|dashboard)/);
 
     // 2. On mobile viewports, open sidebar to access language selector
     await ensureSidebarVisible(page);
@@ -29,7 +29,7 @@ test.describe("System Language Change", () => {
       // Select language from dropdown
       await languageSelector.selectOption(lang);
 
-      // Wait briefly for UI to update
+      // Wait briefly for UI to update (language change is DOM-only, no network request)
       await page.waitForTimeout(1000);
 
       // Verify the selector value changed

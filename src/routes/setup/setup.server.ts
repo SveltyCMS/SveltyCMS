@@ -231,7 +231,11 @@ export async function completeSetup(
 
   // Wait for critical background seeding to complete
   const { setupManager } = await import("./setup-manager");
-  await setupManager.waitTillDone();
+  if (process.env.TEST_MODE === "true" || database.type === "sqlite") {
+    await setupManager.waitAll();
+  } else {
+    await setupManager.waitTillDone();
+  }
 
   if (setupManager.seedingError) {
     return {
@@ -240,20 +244,23 @@ export async function completeSetup(
     };
   }
 
-  const {
-    ensureFullInitialization,
-    dbAdapter: ga,
-    getBootPhase,
-    reinitializeSystem,
-  } = await import("@src/databases/db");
+  const { initializeWithConfig, dbAdapter: ga } = await import("@src/databases/db");
   let dbAdapter: any;
   try {
-    if (
-      getBootPhase() === "SETUP" ||
-      (await import("@src/stores/system/state.svelte.ts")).getSystemState().overallState === "SETUP"
-    )
-      await reinitializeSystem();
-    dbAdapter = (await ensureFullInitialization())?.adapter || ga;
+    dbAdapter =
+      (
+        await initializeWithConfig({
+          DB_TYPE: database.type,
+          DB_HOST: database.host,
+          DB_PORT: Number(database.port),
+          DB_NAME: database.name,
+          DB_USER: database.user || "",
+          DB_PASSWORD: database.password || "",
+          USE_REDIS: system.useRedis,
+          REDIS_HOST: system.redisHost,
+          REDIS_PORT: Number(system.redisPort),
+        })
+      )?.adapter || ga;
   } catch {
     dbAdapter = (
       await (
@@ -368,6 +375,17 @@ export async function completeSetup(
           ...opts,
           category: "private",
         });
+      }
+
+      // Update architectural modes in private.ts based on final wizard state
+      try {
+        const { updatePrivateConfigMode } = await import("./write-private-config");
+        await updatePrivateConfigMode({
+          multiTenant: system.multiTenant,
+          demoMode: system.demoMode,
+        });
+      } catch (modeError) {
+        logger.error("Failed to update architectural modes in private.ts:", modeError);
       }
 
       // Invalidate the cache to ensure the new settings are picked up instantly

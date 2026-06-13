@@ -6,6 +6,7 @@
 <script lang="ts">
 import { invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
+import { clearCompleted, deleteJob, retryJob } from "./queue.remote";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { formatRelativeDate } from "@utils/date";
 import { fade, fly } from "svelte/transition";
@@ -80,7 +81,7 @@ function getFilterUrl(status?: string) {
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }}>
 		<a href={getFilterUrl()} class="card p-4 border border-surface-200  bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
 			<div class="flex items-center gap-3">
-				<div class="p-2 rounded-lg bg-surface-200 dark:bg-surface-700">
+				<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
 					<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
 				</div>
 				<div>
@@ -92,7 +93,7 @@ function getFilterUrl(status?: string) {
 
 		<a href={getFilterUrl('pending')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-surface-500 transition-colors">
 			<div class="flex items-center gap-3">
-				<div class="p-2 rounded-lg preset-tonal-surface">
+				<div class="p-2 rounded preset-tonal-surface">
 					<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
 				</div>
 				<div>
@@ -104,7 +105,7 @@ function getFilterUrl(status?: string) {
 
 		<a href={getFilterUrl('running')} class="card p-4 border border-surface-200 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
 			<div class="flex items-center gap-3">
-				<div class="p-2 rounded-lg preset-tonal-primary">
+				<div class="p-2 rounded preset-tonal-primary">
 					<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
 				</div>
 				<div>
@@ -116,7 +117,7 @@ function getFilterUrl(status?: string) {
 
 		<a href={getFilterUrl('completed')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-success-500 transition-colors">
 			<div class="flex items-center gap-3">
-				<div class="p-2 rounded-lg preset-tonal-success">
+				<div class="p-2 rounded preset-tonal-success">
 					<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
 				</div>
 				<div>
@@ -128,7 +129,7 @@ function getFilterUrl(status?: string) {
 
 		<a href={getFilterUrl('failed')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-error-500 transition-colors">
 			<div class="flex items-center gap-3">
-				<div class="p-2 rounded-lg preset-tonal-error">
+				<div class="p-2 rounded preset-tonal-error">
 					<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
 				</div>
 				<div>
@@ -151,14 +152,13 @@ function getFilterUrl(status?: string) {
 			{/if}
 		</div>
 
-		<div class="flex items-center gap-2">
-			<button class="btn btn-sm preset-ghost-surface-500" disabled={isClearing} onclick={async () => {
-				isClearing = true;
-				try {
-					const { clearCompleted } = await import('./queue-actions.server');
-					const result = await clearCompleted();
-					if (result.success) {
-						toast.success('Completed jobs cleared.');
+			<div class="flex items-center gap-2">
+				<button class="btn btn-sm preset-ghost-surface-500" disabled={isClearing} onclick={async () => {
+					isClearing = true;
+					try {
+						const result = await clearCompleted({});
+						if (result.success) {
+							toast.success('Completed jobs cleared.');
 						invalidateAll();
 					}
 				} catch (e: unknown) {
@@ -227,7 +227,6 @@ function getFilterUrl(status?: string) {
 										<button class="btn btn-sm preset-tonal-primary-500" title="Retry Job" disabled={isRetrying} onclick={async () => {
 											isRetrying = true;
 											try {
-												const { retryJob } = await import('./queue-actions.server');
 												const result = await retryJob(job._id);
 												if (result.success) {
 													toast.success('Job rescheduled.');
@@ -243,14 +242,13 @@ function getFilterUrl(status?: string) {
 										</button>
 									{/if}
 
-									<button class="btn btn-sm preset-tonal-error-500" title="Delete Job" disabled={isDeleting} onclick={async () => {
-										if (!confirm('Are you sure you want to delete this job?')) return;
-										isDeleting = true;
-										try {
-											const { deleteJob } = await import('./queue-actions.server');
-											const result = await deleteJob(job._id);
-											if (result.success) {
-												toast.success('Job deleted.');
+										<button class="btn btn-sm preset-tonal-error-500" title="Delete Job" disabled={isDeleting} onclick={async () => {
+											if (!confirm('Are you sure you want to delete this job?')) return;
+											isDeleting = true;
+											try {
+												const result = await deleteJob(job._id);
+												if (result.success) {
+													toast.success('Job deleted.');
 												invalidateAll();
 											}
 										} catch (e: unknown) {

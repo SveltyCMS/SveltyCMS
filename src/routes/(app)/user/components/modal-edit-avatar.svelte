@@ -352,7 +352,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	// Base Classes
 
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded';
 </script>
 
 <div class="modal-avatar space-y-4">
@@ -398,7 +398,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		{/if}
 		<!-- Progress Bar -->
 		{#if isUploading}
-			<div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+			<div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded">
 				<div class="flex flex-col items-center gap-2">
 					<div class="h-16 w-16 animate-spin rounded-full border-4 border-tertiary-500 dark:border-primary-500 border-t-transparent"></div>
 					{#if uploadProgress > 0}

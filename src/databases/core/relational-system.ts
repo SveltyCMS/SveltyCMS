@@ -24,6 +24,49 @@ import type {
 } from "../db-interface";
 import * as utils from "./relational-utils";
 
+function looksJsonEncoded(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return (
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("[") ||
+    trimmed.startsWith('"') ||
+    trimmed === "null" ||
+    trimmed === "true" ||
+    trimmed === "false" ||
+    /^-?\d+(\.\d+)?$/.test(trimmed)
+  );
+}
+
+function decodePreferenceValue<T>(value: unknown): T {
+  let current = value;
+
+  for (let depth = 0; depth < 2; depth++) {
+    if (typeof current !== "string" || !looksJsonEncoded(current)) {
+      break;
+    }
+
+    try {
+      current = JSON.parse(current);
+    } catch {
+      break;
+    }
+  }
+
+  return current as T;
+}
+
+function encodePreferenceValue(adapterType: string, value: unknown): unknown {
+  const usesNativeJson =
+    adapterType === "mariadb" || adapterType === "mysql" || adapterType === "postgresql";
+
+  if (usesNativeJson) {
+    return value;
+  }
+
+  return value !== null && typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
 export class RelationalSystemModule implements ISystemAdapter {
   protected readonly adapter: ISqlAdapter;
   protected readonly schema: any;
@@ -74,11 +117,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .limit(1);
 
         if (!result) return null;
-        try {
-          return JSON.parse(result.value) as T;
-        } catch {
-          return result.value as T;
-        }
+        return decodePreferenceValue<T>(result.value);
       }, "GET_PREFERENCE_FAILED");
     },
 
@@ -112,11 +151,7 @@ export class RelationalSystemModule implements ISystemAdapter {
 
         const prefs: Record<string, T> = {};
         for (const result of results) {
-          try {
-            prefs[result.key] = JSON.parse(result.value) as T;
-          } catch {
-            prefs[result.key] = result.value as T;
-          }
+          prefs[result.key] = decodePreferenceValue<T>(result.value);
         }
         return prefs;
       }, "GET_PREFERENCES_FAILED");
@@ -151,11 +186,7 @@ export class RelationalSystemModule implements ISystemAdapter {
 
         const prefs: Record<string, T> = {};
         for (const result of results) {
-          try {
-            prefs[result.key] = JSON.parse(result.value) as T;
-          } catch {
-            prefs[result.key] = result.value as T;
-          }
+          prefs[result.key] = decodePreferenceValue<T>(result.value);
         }
         return prefs;
       }, "GET_BY_CATEGORY_FAILED");
@@ -184,7 +215,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         // 🚀 HARDENING: Use primitives for all values to avoid driver binding errors
         const data = {
           key: String(key),
-          value: typeof value === "object" ? JSON.stringify(value) : String(value),
+          value: encodePreferenceValue(this.adapter.type, value),
           scope: String(scope),
           userId: uid ? String(uid) : null,
           visibility: String(category || "private"),
@@ -340,20 +371,23 @@ export class RelationalSystemModule implements ISystemAdapter {
               ? new Date(job.nextRunAt.getTime())
               : new Date(job.nextRunAt)
             : now;
-          const values = {
-            ...(job as any),
-            _id: id,
-            nextRunAt,
-            createdAt: now,
-            updatedAt: now,
-          };
+          const values = (this.adapter as any).prepareValues(
+            this.schema.sveltyJobs,
+            {
+              ...(job as any),
+              nextRunAt,
+            },
+            id,
+            now,
+            { tenantId: job.tenantId },
+          );
           const db = this.getDb(options);
-          await db.insert(this.schema.sveltyJobs).values(utils.convertISOToDates(values));
+          await db.insert(this.schema.sveltyJobs).values(values as any);
           const [result] = await db
             .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
             .from(this.schema.sveltyJobs)
             .where(eq(this.schema.sveltyJobs._id, id));
-          return result as unknown as Job;
+          return utils.convertDatesToISO(result) as unknown as Job;
         },
         "JOB_CREATE_FAILED",
         undefined,
@@ -448,23 +482,36 @@ export class RelationalSystemModule implements ISystemAdapter {
     ): Promise<DatabaseResult<Job>> => {
       return this.adapter.wrap(async () => {
         const now = new Date();
-        const updateValues = { ...data, updatedAt: now } as any;
-        if (updateValues.nextRunAt) {
-          updateValues.nextRunAt =
-            updateValues.nextRunAt instanceof Date
-              ? new Date(updateValues.nextRunAt.getTime())
-              : new Date(updateValues.nextRunAt);
+        const nextRunAt = data.nextRunAt
+          ? data.nextRunAt instanceof Date
+            ? new Date(data.nextRunAt.getTime())
+            : new Date(data.nextRunAt)
+          : undefined;
+        const updateValues = (this.adapter as any).prepareValues(
+          this.schema.sveltyJobs,
+          {
+            ...(data as any),
+            nextRunAt,
+          },
+          undefined,
+          now,
+          { tenantId: data.tenantId },
+        );
+        delete updateValues._id;
+        delete updateValues.createdAt;
+        if (Object.keys(updateValues).length === 0) {
+          updateValues.updatedAt = now;
         }
         await this.db
           .update(this.schema.sveltyJobs)
-          .set(utils.convertISOToDates(updateValues) as any)
+          .set(updateValues as any)
           .where(eq(this.schema.sveltyJobs._id, jobId as string));
 
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
           .from(this.schema.sveltyJobs)
           .where(eq(this.schema.sveltyJobs._id, jobId as string));
-        return result as unknown as Job;
+        return utils.convertDatesToISO(result) as unknown as Job;
       }, "JOB_UPDATE_FAILED");
     },
 

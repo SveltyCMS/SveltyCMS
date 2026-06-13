@@ -152,14 +152,14 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
           Cookie: authCookie,
         },
         body: JSON.stringify({
-          widgetName: widget.name,
+          widgetName: widget.address || widget.name,
           isActive: true,
         }),
       });
 
-      // If it's not in DB, it returns 404. We'll accept 200 or 404 for now to avoid blocking the whole suite,
-      // but we'll try to make it 200.
-      expect([200, 404]).toContain(response.status);
+      // Widget found in DB — activation MUST succeed
+      expect(response.status).toBe(200);
+      expect(response.ok).toBe(true);
     }
   });
 
@@ -178,12 +178,14 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
           Cookie: authCookie,
         },
         body: JSON.stringify({
-          widgetName: widget.name,
+          widgetName: widget.address || widget.name,
           isActive: false,
         }),
       });
 
-      expect([200, 400, 404]).toContain(response.status);
+      // Widget found in DB — deactivation MUST succeed
+      expect(response.status).toBe(200);
+      expect(response.ok).toBe(true);
     }
   });
 

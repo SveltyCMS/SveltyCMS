@@ -101,12 +101,12 @@ Renders a group of fields, allowing for nested data structures.
 			content: 'bg-transparent pt-3'
 		},
 		card: {
-			container: 'rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800',
+			container: 'rounded border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800',
 			header: 'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
 			content: 'p-4'
 		},
 		bordered: {
-			container: 'rounded-lg border border-gray-300 dark:border-gray-600',
+			container: 'rounded border border-gray-300 dark:border-gray-600',
 			header: 'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
 			content: 'rounded-b-lg bg-white p-4 dark:bg-gray-800'
 		}

@@ -120,7 +120,7 @@ function selectNode(id: string) {
 </script>
 
 <div class="flex h-full flex-col gap-6 p-6 bg-surface-50 dark:bg-surface-950">
-	<div class="flex items-center justify-between bg-white dark:bg-surface-900 p-4 rounded-xl shadow-sm border border-surface-200 dark:border-surface-800">
+	<div class="flex items-center justify-between bg-white dark:bg-surface-900 p-4 rounded shadow-sm border border-surface-200 dark:border-surface-800">
 		<div class="flex items-center gap-6">
 			<div>
 				<h1 class="text-2xl font-bold flex items-center gap-2">
@@ -138,7 +138,7 @@ function selectNode(id: string) {
                     id="collection-select"
                     bind:value={selectedCollectionId} 
                     onchange={() => loadWorkflow(selectedCollectionId)}
-                    class="select select-sm py-1 font-bold bg-surface-100 dark:bg-surface-800 border-none rounded-lg"
+                    class="select select-sm py-1 font-bold bg-surface-100 dark:bg-surface-800 border-none rounded"
                 >
                     <option value="" disabled>Select Collection...</option>
                     {#each collections as col}
@@ -162,7 +162,7 @@ function selectNode(id: string) {
 					<div 
 						role="button"
 						tabindex="0"
-						class="w-48 bg-white dark:bg-surface-800 rounded-xl shadow-lg border-2 transition-all p-4 relative
+						class="w-48 bg-white dark:bg-surface-800 rounded shadow-lg border-2 transition-all p-4 relative
                             {selectedNodeId === state.id ? 'border-primary-500 ring-4 ring-primary-500/10 scale-105' : 'border-surface-200 dark:border-surface-700'}"
 						onclick={() => selectNode(state.id)}
 						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectNode(state.id); }}
@@ -209,7 +209,7 @@ function selectNode(id: string) {
 						</div>
 						<div class="space-y-2">
 							<label for="accent-color" class="label text-xs font-bold">Accent Color</label>
-							<input id="accent-color" type="color" bind:value={node.color} class="w-full h-10 rounded-lg cursor-pointer border-none" />
+							<input id="accent-color" type="color" bind:value={node.color} class="w-full h-10 rounded cursor-pointer border-none" />
 						</div>
 						<div class="flex flex-col gap-3">
 							<label class="flex items-center gap-2 text-xs font-bold">

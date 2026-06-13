@@ -23,6 +23,16 @@ import { exists, getConfig, getUrl, isCloud, remove, upload, download } from "./
 
 import type { ResizedImage } from "./media-models";
 
+/** Global lazy-loaded sharp instance to eliminate module resolution overhead */
+let _sharp: any = null;
+async function getSharp(): Promise<any> {
+  if (!_sharp) {
+    const mod = await import("sharp");
+    _sharp = mod.default || mod;
+  }
+  return _sharp;
+}
+
 /**
  * Helper to run a process and wait for completion.
  */
@@ -204,7 +214,7 @@ export async function saveResized(
   ext: string,
   baseDir: string,
 ): Promise<Record<string, ResizedImage>> {
-  const sharp = (await import("sharp")).default;
+  const sharp = await getSharp();
   const baseInstance = sharp(buffer);
   const meta = await baseInstance.metadata();
 
@@ -281,7 +291,7 @@ export async function saveAvatar(file: File, userId: string): Promise<string> {
   const buf = Buffer.from(await file.arrayBuffer());
   const ext = path.extname(file.name) || ".jpg";
 
-  const sharp = (await import("sharp")).default;
+  const sharp = await getSharp();
   const resized = await sharp(buf)
     .resize(200, 200, { fit: "cover", position: "center" })
     .toBuffer();

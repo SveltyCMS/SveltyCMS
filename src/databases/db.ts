@@ -26,6 +26,7 @@ import {
   loadPrivateConfig as loadConfig,
   getPrivateEnv as getEnv,
   setPrivateEnv,
+  clearPrivateConfigCache as clearConfigStateCache,
 } from "./config-state";
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import { AppError } from "@src/utils/error-handling";
@@ -346,14 +347,22 @@ export function resetDbInitPromise(): void {
 }
 
 export async function initializeWithConfig(config: any): Promise<any> {
-  setGlobal("__CACHED_CONFIG__", config);
+  // Setup finalization can happen while the preview server is already READY on an
+  // older bootstrap adapter. Force a full reconnect against the freshly written config.
+  clearConfigStateCache(false);
+  const baseConfig = (await loadConfig(true).catch(() => null)) ?? {};
+  const nextConfig = { ...baseConfig, ...config };
+
+  setPrivateEnv(nextConfig as any);
+  setGlobal("__CACHED_CONFIG__", nextConfig);
+  setGlobal("__SETTINGS_LOADED__", false);
+
+  await shutdownSystem();
   return ensureFullInitialization();
 }
 
 export function clearPrivateConfigCache(keepPrivateEnv = false): void {
   setGlobal("__CACHED_CONFIG__", null);
   setGlobal("__SETTINGS_LOADED__", false);
-  if (!keepPrivateEnv) {
-    setPrivateEnv(null);
-  }
+  clearConfigStateCache(keepPrivateEnv);
 }

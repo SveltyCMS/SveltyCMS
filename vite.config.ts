@@ -416,6 +416,8 @@ function stubServerModulesPlugin(): Plugin {
     "/src/content/content-watcher.server.ts",
     "/src/content/module-processor.server.ts",
     "/src/components/emails/",
+    "/src/services/security/audit-service.ts",
+    "/src/databases/sqlite/adapter-core.ts",
   ]);
 
   return {
@@ -427,6 +429,14 @@ function stubServerModulesPlugin(): Plugin {
       if (serverOnlyPackages.includes(id)) {
         return `\0virtual:stub:${id}`;
       }
+
+      // Also stub individual server-only files to suppress Node builtin warnings
+      const normalizedId = id.replace(/\\/g, "/");
+      const isServerOnlyFile = [...serverOnlyFiles].some((f) => normalizedId.endsWith(f));
+      if (isServerOnlyFile) {
+        return `\0virtual:stub:${id}`;
+      }
+
       return null;
     },
     load(id, options) {
@@ -948,8 +958,8 @@ export default defineConfig((): any => {
               "https://*.unisvg.com",
               "https://code.iconify.design",
               "https://raw.githubusercontent.com",
-              "wss://*",
-              "ws://*",
+              "wss://*" as any,
+              "ws://*" as any,
             ],
             "object-src": ["none"],
             "base-uri": ["self"],

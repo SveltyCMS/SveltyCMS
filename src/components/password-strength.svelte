@@ -269,7 +269,7 @@ Visual password strength indicator with match validation and accessibility featu
 		{#if showRequirements && showRequirementsList}
 			<div
 				id="password-requirements"
-				class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+				class="rounded border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
 				transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
 				<h4 class="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-300">Password Requirements</h4>

@@ -121,7 +121,7 @@ function handleDelete() {
 <div class="flex h-full w-full gap-6">
 	<Stepper {steps} {currentStep} completedSteps={new Set(steps.map((_, i) => i).filter(i => i < currentStep))} onStepClick={(i) => currentStep = i} />
 
-	<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-sm dark:text-surface-50 dark:bg-surface-800 overflow-hidden">
+	<div class="flex flex-1 flex-col rounded border border-surface-200 bg-white shadow-sm dark:text-surface-50 dark:bg-surface-800 overflow-hidden">
 		<div class="border-b border-surface-200 p-6">
 			<h2 class="text-2xl font-bold">{(m as any).widget_configuration_title || 'Widget Configuration'}</h2>
 			<p class="text-surface-500">

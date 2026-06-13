@@ -233,11 +233,16 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
   };
 
   websiteTokens = {
-    create: async (token: any) => (await this._getMethods()).websiteTokens.create(token),
-    getAll: async (options: any) => (await this._getMethods()).websiteTokens.getAll(options),
-    getByName: async (name: string) => (await this._getMethods()).websiteTokens.getByName(name),
-    getByToken: async (token: string) => (await this._getMethods()).websiteTokens.getByToken(token),
-    delete: async (id: DatabaseId) => (await this._getMethods()).websiteTokens.delete(id),
+    create: async (token: any, tenantId?: any) =>
+      (await this._getMethods()).websiteTokens.create(token, tenantId),
+    getAll: async (options: any, tenantId?: any) =>
+      (await this._getMethods()).websiteTokens.getAll(tenantId, options),
+    getByName: async (name: string, tenantId?: any) =>
+      (await this._getMethods()).websiteTokens.getByName(name, tenantId),
+    getByToken: async (token: string, tenantId?: any) =>
+      (await this._getMethods()).websiteTokens.getByToken(token, tenantId),
+    delete: async (id: DatabaseId, tenantId?: any) =>
+      (await this._getMethods()).websiteTokens.delete(id, tenantId),
   };
 
   public readonly health = {

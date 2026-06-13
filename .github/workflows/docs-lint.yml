@@ -22,12 +22,18 @@ on:
 permissions:
   contents: read
 
+env:
+  BUN_CACHE_DIR: .bun-cache
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   validate-documentation:
     runs-on: ubuntu-latest # Ubuntu environment for CI
-    timeout-minutes: 10 # Increased timeout for comprehensive build/linting
+    timeout-minutes: 20 # Covers doc lint + svelte-check + docs build + full integration sanity run
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -36,17 +42,24 @@ jobs:
 
       - name: Setup Bun Runtime
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
 
       - name: Cache Bun dependencies
         uses: actions/cache@v5
         with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
+      - name: Prepare Bun cache dir
+        run: mkdir -p ${{ env.BUN_CACHE_DIR }}
+
       - name: Install Dependencies
-        run: bun install --frozen-lockfile --prefer-offline --cache-dir ~/.bun/install/cache
+        run: bun install --frozen-lockfile --prefer-offline --cache-dir ${{ env.BUN_CACHE_DIR }}
 
       # === STEP 1: LINTING (The quick check) ===
       - name: Run Documentation Linter (Semantic Check)
@@ -56,7 +69,7 @@ jobs:
 
       # === STEP 1b: CODEGEN (Required before type-checking) ===
       - name: Generate Paraglide & SvelteKit types
-        run: bun run paraglide && bunx svelte-kit sync
+        run: bun run paraglide && bun x svelte-kit sync
 
       # === STEP 2: STATIC ANALYSIS (The Deep Code Check) ===
       - name: Run Comprehensive Code & Doc Linting

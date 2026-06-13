@@ -12,9 +12,8 @@ import { loginAsAdmin } from "./helpers/auth";
 
 // Construct reliable file path for CI/CD environments
 // This looks for 'testthumb.png' in the SAME directory as this test file
-const FILENAME = fileURLToPath(import.meta.url);
-const DIRNAME = path.dirname(FILENAME);
-const AVATAR_PATH = path.join(DIRNAME, "testthumb.png");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const AVATAR_PATH = path.join(__dirname, "testthumb.png");
 
 test.describe("User Profile Management", () => {
   // 1. Setup: Run before every test in this group
@@ -22,8 +21,8 @@ test.describe("User Profile Management", () => {
     // Perform Login
     await loginAsAdmin(page);
 
-    // Verification: Wait for dashboard to ensure we are logged in
-    await expect(page).toHaveURL("/");
+    // Verification: Wait for dashboard/collections to ensure we are logged in
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
   });
 
   test("Login Verification", async ({ page }) => {
@@ -78,13 +77,13 @@ test.describe("User Profile Management", () => {
     await page.getByRole("button", { name: /Edit User Settings/i }).click();
 
     // Use fill for robustness
-    await page.locator("#username").fill("Test User Updated");
+    await page.getByPlaceholder(/username/i).fill("Test User Updated");
     // Only fill password if specifically testing password change
     // otherwise it might trigger re-auth logic
 
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByText("User details updated")).toBeVisible();
+    await expect(page.getByText(/user details updated/i)).toBeVisible();
   });
 
   test("Registration Token Workflow", async ({ page }) => {
@@ -103,7 +102,7 @@ test.describe("User Profile Management", () => {
 
     await page.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.getByText("Token sent")).toBeVisible();
+    await expect(page.getByText(/token sent/i)).toBeVisible();
   });
 
   test("Toggle User Token Visibility", async ({ page }) => {

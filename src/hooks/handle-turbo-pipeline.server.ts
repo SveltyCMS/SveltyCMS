@@ -164,6 +164,8 @@ const IS_TEST_MODE =
     String(process.env.VITE_TEST_MODE) === "true" ||
     process.env.NODE_ENV === "test");
 const DB_TYPE = typeof process !== "undefined" ? process.env.DB_TYPE : "unknown";
+const IS_STRICT_SETUP_CHECK =
+  typeof process !== "undefined" && process.env.STRICT_SETUP_CHECK === "true";
 
 // Main Turbo Pipeline Hook
 export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
@@ -403,6 +405,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         }
         // Deep check only if config is missing (unlikely here) or we need to know if admin is missing
         setupState = await getSetupState();
+      } else if (isTestMode) {
+        // Test resets intentionally keep config/private.ts but wipe auth/content state.
+        // Re-check the full setup state so black-box tests still see /setup gating.
+        setupState = await getSetupState();
       } else {
         // 🚀 CRITICAL: If config exists, we are NOT in MISSING_CONFIG.
         // We might be MISSING_ADMIN, but we should NOT redirect back to /setup
@@ -422,7 +428,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     {
       const isSetupRouteDeep =
         pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-      if (isSetupRouteDeep || isTestMode) {
+      const shouldForceDeepSetupCheck =
+        isSetupRouteDeep || process.env.STRICT_SETUP_CHECK === "true";
+      if (shouldForceDeepSetupCheck) {
         setupState = await getSetupState();
       }
     }
@@ -441,11 +449,13 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         process.env.TEST_MODE === "true" ||
         process.env.VITE_TEST_MODE === "true" ||
         process.env.BENCHMARK === "true";
+      const shouldEnforceCompletedSetupRedirect = !isTestMode || IS_STRICT_SETUP_CHECK;
+
       if (
         isSetupRoute &&
         setupState === SetupState.COMPLETE &&
-        !isTestMode &&
-        isSystemOperationallyReady
+        shouldEnforceCompletedSetupRedirect &&
+        (isSystemOperationallyReady || IS_STRICT_SETUP_CHECK)
       ) {
         if (
           !(
@@ -505,7 +515,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         (event.url.pathname + event.url.search).includes("/completeSetup");
       if (isFinalization) return await resolve(event);
 
-      const destination = setupState === SetupState.MISSING_CONFIG ? "/setup" : "/setup/admin";
+      const destination = "/setup";
 
       if (isApiRoute) {
         return new Response(

@@ -130,7 +130,7 @@
 			>
 				{word}
 				<span
-					class="absolute bottom-full start-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 p-1 text-xs text-white group-hover:block"
+					class="absolute bottom-full start-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 p-1 text-xs text-white group-hover:block"
 				>
 					Heat: {heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}
 				</span>
