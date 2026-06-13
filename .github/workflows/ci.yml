@@ -655,6 +655,7 @@ jobs:
           ADMIN_PASSWORD: Password123!
           JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026
           ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
+
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           echo "::add-mask::$TEST_API_SECRET"
