@@ -2,10 +2,20 @@
   "cookies": [
     {
       "name": "csrf_token",
-      "value": "b66ff51a39b9bcee0148060183935fda9fab44a438301cfe41096b4cf2bb6d55",
+      "value": "e16cd4120a7c7641e7d22d4ecda4f70f2d4ad4a24f7fd88f8b0cf18bd2775fbc",
       "domain": "localhost",
       "path": "/",
-      "expires": 1781430149.207687,
+      "expires": 1781465708.195273,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "ratelimit",
+      "value": "fKfIgX_cIEngr9IsAEoA7%3Bd350d8ffd94d88c339650dfda1bf85fbea86d7242492400f91c946ff976e1702",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1781984108.310437,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Strict"
@@ -15,7 +25,7 @@
       "value": "en",
       "domain": "localhost",
       "path": "/",
-      "expires": 1815903749.401111,
+      "expires": 1815939308.359506,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -25,27 +35,17 @@
       "value": "system",
       "domain": "localhost",
       "path": "/",
-      "expires": 1812879749.241896,
+      "expires": 1812915308.386602,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
-      "name": "ratelimit",
-      "value": "laxHMP_1265b8rMAPtztu%3B1b48194d8397f3ad68095beb6f0d3f08eaee02f3ef01959d295175efeb57419c",
-      "domain": "localhost",
-      "path": "/",
-      "expires": 1781948549.313246,
-      "httpOnly": true,
-      "secure": false,
-      "sameSite": "Strict"
-    },
-    {
       "name": "auth_sessions",
-      "value": "f687d4f1ea384bb6bd5ac07eaa5c72e5",
+      "value": "84b2393a521f41c99585f23f0e873fb4",
       "domain": "localhost",
       "path": "/",
-      "expires": 1781430151.288348,
+      "expires": 1781465710.22568,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Strict"
@@ -53,7 +53,7 @@
   ],
   "origins": [
     {
-      "origin": "http://localhost:5173",
+      "origin": "http://localhost:4173",
       "localStorage": [
         {
           "name": "sveltycms-welcome-seen",

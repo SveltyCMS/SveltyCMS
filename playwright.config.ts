@@ -140,6 +140,35 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
+    {
+      name: "users",
+      testMatch: [/(\/|^)user\.spec\.ts$/, /(\/|^)user-crud\.spec\.ts$/],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "builder",
+      testMatch: [
+        /collection-builder\.spec\.ts/,
+        /collection\.spec\.ts/,
+        /master-behavioral-journey\.spec\.ts/,
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "permissions",
+      testMatch: /permission-change.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "firstuser",
+      testMatch: [/(\/|^)signupfirstuser\.spec\.ts$/, /(\/|^)oauth-signup-firstuser\.spec\.ts$/],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      // No dependency on auth-setup — these hit login/signup pages directly
+      workers: 1,
+    },
   ],
 
   /* Run preview server before starting the tests (local dev only; CI starts the server manually) */

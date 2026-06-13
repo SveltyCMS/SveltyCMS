@@ -75,7 +75,7 @@ test.describe("SignIn & SignOut Flows", () => {
     // Seed the database with the test user via Testing API
     try {
       const seedResponse = await page.request.post("/api/testing", {
-        headers: { "x-testing-secret": "svelty-testing-secret" },
+        headers: { "x-test-secret": "svelty-testing-secret" },
         data: {
           action: "seed",
           email: "test@test.de",

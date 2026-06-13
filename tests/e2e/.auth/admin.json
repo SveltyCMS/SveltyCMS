@@ -2,20 +2,20 @@
   "cookies": [
     {
       "name": "csrf_token",
-      "value": "c81764ab25ff270ce5a4a771b4e273b09ed64ee9e4e2436d22a77a6a9c70c054",
+      "value": "fc83e82411e0dcd79a930d4d47ad9ef7dc619c23ed2cd3bd684b610773910549",
       "domain": "localhost",
       "path": "/",
-      "expires": 1781430142.628722,
+      "expires": 1781465697.208021,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Strict"
     },
     {
       "name": "ratelimit",
-      "value": "m4-Ga7pqUfugKj3lILnNj%3B0904ba0c9c65500f0a7b4fa786dc2aac9bcedfedd9c2845af5e8584cb014e23a",
+      "value": "Eu7m3e2ymT9g7f8jluWR2%3Bcd109e83c08e335f2f7d20667e4b1a0a9d0f00e255a87f1454f5f87f89db1dd3",
       "domain": "localhost",
       "path": "/",
-      "expires": 1781948542.826921,
+      "expires": 1781984097.271605,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Strict"
@@ -25,7 +25,7 @@
       "value": "en",
       "domain": "localhost",
       "path": "/",
-      "expires": 1815903743.851022,
+      "expires": 1815939297.373934,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
@@ -35,17 +35,17 @@
       "value": "system",
       "domain": "localhost",
       "path": "/",
-      "expires": 1812879743.873138,
+      "expires": 1812915297.328119,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "auth_sessions",
-      "value": "02ff375425cf473c878ec87e90d79378",
+      "value": "8845734349a142b2b993c876dd08a62b",
       "domain": "localhost",
       "path": "/",
-      "expires": 1781430145.964401,
+      "expires": 1781465705.175017,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Strict"
@@ -53,7 +53,7 @@
   ],
   "origins": [
     {
-      "origin": "http://localhost:5173",
+      "origin": "http://localhost:4173",
       "localStorage": [
         {
           "name": "sveltycms-welcome-seen",

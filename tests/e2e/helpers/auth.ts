@@ -146,6 +146,18 @@ export async function loginAs(
     }
   }
 
+  // Strategy 4: Cookie consent banner (fixed bottom bar, z-9999, aria-modal)
+  const cookieBanner = page.locator('[role="dialog"][aria-modal="true"]').first();
+  if (await cookieBanner.isVisible({ timeout: 1000 }).catch(() => false)) {
+    console.log("[Auth] Cookie consent banner detected, accepting...");
+    const acceptBtn = cookieBanner.getByRole("button", { name: /accept/i });
+    if (await acceptBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await acceptBtn.click();
+      await page.waitForTimeout(500);
+      console.log("[Auth] ✓ Cookie consent accepted");
+    }
+  }
+
   console.log("[Auth] Modal dismissal complete.");
 
   // Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
