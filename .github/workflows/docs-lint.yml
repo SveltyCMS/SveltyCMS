@@ -29,7 +29,7 @@ env:
 jobs:
   validate-documentation:
     runs-on: ubuntu-latest # Ubuntu environment for CI
-    timeout-minutes: 10 # Increased timeout for comprehensive build/linting
+    timeout-minutes: 20 # Covers doc lint + svelte-check + docs build + full integration sanity run
     steps:
       - uses: actions/checkout@v6
         with:
