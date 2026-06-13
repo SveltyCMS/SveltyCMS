@@ -1,0 +1,175 @@
+# E2E Coverage Matrix — Route-Based Analysis
+
+> Generated: 2026-06-13 | Total routes: 8 | Total E2E specs: 17
+
+## 1. `/setup` — Setup Wizard (24 components, 6 tested)
+
+| Feature | Component | Tested? | Test File |
+|---------|-----------|---------|-----------|
+| DB type selection (sqlite/mongo/maria/postgres) | `database-config.svelte` | ✅ | `setup-wizard.spec.ts` |
+| DB connection test (success) | `connection-status.svelte` | ✅ | setup-wizard |
+| DB connection test (bad host) | `connection-status.svelte` | ✅ | setup-wizard |
+| Admin account creation (valid) | `admin-config.svelte` | ✅ | setup-wizard (full flow) |
+| Admin password mismatch | `admin-config.svelte` | ✅ | setup-wizard |
+| SMTP invalid host error | `email-config.svelte` | ✅ | setup-wizard |
+| **Preset/template selection** | `preset-selector.svelte` | ❌ | — |
+| **System config (site name, media folder)** | `system-config.svelte` | ❌ | — |
+| **SMTP test email (valid config)** | `email-config.svelte` | ❌ | — |
+| **Review step verification** | `review-config.svelte` | ❌ | — |
+| **Back navigation (return to previous)** | `setup-navigation.svelte` | ❌ | — |
+| **OAuth config during setup** | setup server | ❌ | — |
+| **Demo mode detection** | `+page.svelte` | ❌ | — |
+| **Multi-DB provisioning (Mongo/Maria/PG)** | full flow | ❌ | Commented out |
+| **Config write permissions error** | `write-private-config.ts` | ❌ | — |
+| **Cookie consent during setup** | `CookieConsent` plugin | ⚠️ | Flaky |
+
+**Coverage: 6/16 features (37%)**
+
+---
+
+## 2. `/login` — Authentication (4 components, 5 specs)
+
+| Feature | Test File | Status |
+|---------|-----------|--------|
+| Login with valid credentials | `login.spec.ts` | ✅ |
+| Logout | `login.spec.ts` | ✅ |
+| Sign Up (first user) | `signupfirstuser.spec.ts` | ⚠️ Broken |
+| Forgot password flow | `signupfirstuser.spec.ts` | ⚠️ Broken |
+| OAuth button visibility | `oauth-signup-firstuser.spec.ts` | ⚠️ Skips |
+| OAuth redirect mock | `oauth-signup-firstuser.spec.ts` | ✅ |
+| OAuth error handling | `oauth-signup-firstuser.spec.ts` | ✅ |
+| Axe accessibility audit | `accessibility.spec.ts` | ⚠️ 1 violation |
+| Keyboard focus trap | `accessibility.spec.ts` | ✅ Fixed |
+| RTL layout audit | `accessibility.spec.ts` | ⚠️ 1 violation |
+| **2FA/TOTP flow** | — | ❌ |
+| **SAML SSO login** | — | ❌ |
+| **Rate limiting (5 failed attempts)** | — | ❌ |
+| **Account lockout (15 min)** | — | ❌ |
+| **Session timeout warning** | — | ❌ |
+| **"Remember me" persistent session** | — | ❌ |
+
+**Coverage: 10/16 features (62%)**
+
+---
+
+## 3. `/user` — User Profile & Management (3 specs)
+
+| Feature | Test File | Status |
+|---------|-----------|--------|
+| View profile | `account-smoke.spec.ts` | ✅ |
+| Edit avatar | `user.spec.ts` | ⚠️ Needs test image |
+| Delete avatar | `user.spec.ts` | ⚠️ |
+| Edit user details | `user.spec.ts` | ⚠️ |
+| Registration token workflow | `user.spec.ts` | ⚠️ |
+| Toggle token/list visibility | `user.spec.ts` | ⚠️ |
+| Read/edit user (admin) | `user-crud.spec.ts` | ⚠️ |
+| Delete/block/unblock (admin) | `user-crud.spec.ts` | ⚠️ |
+| Invite user via email | `user-crud.spec.ts` | ⚠️ |
+| **Password change** | — | ❌ |
+| **2FA setup** | — | ❌ |
+| **API key management** | — | ❌ |
+| **User search/filter** | — | ❌ |
+| **Bulk user actions** | — | ❌ |
+| **User import** | — | ❌ |
+
+**Coverage: 9/15 features (60%) — all marked ⚠️ (fragile selectors)**
+
+---
+
+## 4. `/config/collectionbuilder` (4 specs)
+
+| Feature | Test File | Status |
+|---------|-----------|--------|
+| Navigate to builder | `collection-builder.spec.ts` | ⚠️ |
+| Create collection | `collection-builder.spec.ts` | ⚠️ |
+| Add widget/field | `collection-builder.spec.ts` | ⚠️ |
+| Configure widget properties | `collection-builder.spec.ts` | ⚠️ |
+| Widget search/filter | `collection-builder.spec.ts` | ⚠️ |
+| Field validation | `collection-builder.spec.ts` | ⚠️ |
+| Save collection | `content-smoke.spec.ts` | ✅ |
+| Full lifecycle (builder→entry→API) | `master-behavioral-journey.spec.ts` | ⚠️ |
+| Collection actions (publish/unpublish) | `collection.spec.ts` | ⚠️ |
+| Dashboard widget add | `collection.spec.ts` | ⚠️ |
+| **Field reordering (drag & drop)** | — | ❌ |
+| **Relation field setup** | — | ❌ |
+| **Schema export** | — | ❌ |
+| **Template import** | — | ❌ |
+| **Nested content structure** | — | ❌ |
+
+---
+
+## 5. `/config/*` — System Configuration (3 specs)
+
+| Route | Feature | Test File | Status |
+|-------|---------|-----------|--------|
+| `/config/system-settings` | Cache repair | `system-smoke.spec.ts` | ✅ |
+| `/config/access-management` | Permissions | `permission-change.spec.ts` | ⚠️ |
+| `/config/access-management` | RBAC (admin/dev/editor) | `role-based-access.spec.ts` | ⚠️ 3 fail |
+| `/config/...` | Language switching | `language.spec.ts` | ⚠️ Skips |
+| `/config/extensions` | — | — | ❌ |
+| `/config/automations` | — | — | ❌ |
+| `/config/importer` | — | — | ❌ |
+| `/config/sync` | — | — | ❌ |
+| `/config/queue` | — | — | ❌ |
+| `/config/redirects` | — | — | ❌ |
+| `/config/webhooks` | — | — | ❌ |
+| `/config/workflows` | — | — | ❌ |
+
+---
+
+## 6. `/dashboard` — NONE tested
+
+| Missing Feature | Priority |
+|-----------------|----------|
+| Widget grid layout | 🔴 High |
+| Add/remove widgets | 🔴 High |
+| Widget drag reorder | 🟡 Medium |
+| Real-time metrics (CPU, memory, disk) | 🔴 High |
+| Cache monitor | 🟡 Medium |
+| System health status | 🔴 High |
+| User online count | 🟡 Medium |
+| Security alerts | 🟡 Medium |
+| Logs widget | 🟢 Low |
+| Audit trail widget | 🟢 Low |
+
+---
+
+## 7. `/mediagallery` — NONE tested
+
+| Missing Feature |
+|-----------------|
+| Upload media (single/bulk) |
+| Delete media |
+| Folder management |
+| Media search/filter |
+| Image editor (crop, filters, focal point) |
+| Media metadata editing |
+| Virtual folder navigation |
+
+---
+
+## 8. `/language` — Partially tested
+
+| Feature | Status |
+|---------|--------|
+| Language switching dropdown | ⚠️ `data-testid` missing |
+| RTL layout (Arabic/Hebrew) | ⚠️ Axe violation |
+| Translation coverage | ❌ |
+
+---
+
+## Summary
+
+| Route | Features | Tested | Coverage |
+|-------|----------|--------|----------|
+| `/setup` | 16 | 6 | 37% |
+| `/login` | 16 | 10 | 62% |
+| `/user` | 15 | 9 | 60% |
+| `/config/collectionbuilder` | 15 | 10 | 66% |
+| `/config/*` (other) | 12 | 4 | 33% |
+| `/dashboard` | 10 | 0 | **0%** |
+| `/mediagallery` | 7 | 0 | **0%** |
+| `/language` | 3 | 1 | 33% |
+| **TOTAL** | **94** | **40** | **42%** |
+
+> **Critical gaps**: Dashboard (0%), Media Gallery (0%), Setup presets, 2FA, SAML, rate limiting, extensions.
