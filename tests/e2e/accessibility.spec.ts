@@ -36,6 +36,16 @@ test.describe("Universal Accessibility Audits", () => {
 
   test("Login Page - Automated Axe Audit", async ({ page }) => {
     await page.goto("/login");
+    // Click Sign In to reveal the signin form (hidden behind chooser by default)
+    const signInIcon = page.getByTestId("signin-icon");
+    if (await signInIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await signInIcon.click({ force: true });
+    } else {
+      await page
+        .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
+        .first()
+        .click({ force: true });
+    }
     await page.getByTestId("signin-email").waitFor({ state: "visible" });
 
     // Run Axe audit
