@@ -1198,7 +1198,7 @@ onMount(() => {
 							{:else if field.type === 'select' && field.options}
 								<select
 									id={field.key}
-									class="select w-full max-w-full min-h-11"
+									class="select input w-full max-w-full min-h-11"
 									bind:value={values[field.key]}
 									required={field.required}
 									onchange={() => (errors[field.key] = '')}
@@ -1411,15 +1411,15 @@ onMount(() => {
 			<!-- Local Group Actions -->
 				<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
 					<StickyActions>
-					<div class="flex flex-wrap items-center justify-between gap-3 w-full">
-						<div class="flex flex-wrap items-center gap-2">
+					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
 							{#if children}
 								{@render children()}
 							{/if}
 
 							<button
 								type="button"
-								class="preset-tonal-error inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+								class="preset-tonal-error inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 w-full sm:w-auto"
 								onclick={resetToDefaults}
 								disabled={saving}
 							>
@@ -1429,7 +1429,7 @@ onMount(() => {
 
 							<button
 								type="button"
-								class="preset-tonal-surface inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+								class="preset-tonal-surface inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 w-full sm:w-auto"
 								onclick={exportGroup}
 								disabled={loading}
 							>
@@ -1440,7 +1440,7 @@ onMount(() => {
 
 						<button
 							type="submit"
-							class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+							class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 w-full sm:w-auto"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
 						>
 							{#if saving}

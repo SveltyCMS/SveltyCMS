@@ -8,6 +8,8 @@ import { generateUUID } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 import type { Webhook, WebhookEvent } from "@src/services/background/webhook-service";
 
+import { safeFetch } from "@src/utils/http/egress-guard";
+
 export interface WebhookJobPayload {
   webhook: Webhook;
   event: WebhookEvent;
@@ -46,25 +48,20 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for jobs
-
-    const response = await fetch(webhook.url, {
+    const response = await safeFetch(webhook.url, {
       method: "POST",
       headers,
       body: payloadStr,
-      signal: controller.signal,
+      timeoutMs: 10000,
     });
 
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
+    if (response.success) {
       logger.info(`[WebhookJob] Successfully delivered ${event} to ${webhook.name}`);
       return;
     }
 
     // --- STATUS-AWARE ERROR HANDLING ---
-    const status = response.status;
+    const status = response.status || 0;
 
     // 1. RETRYABLE ERRORS (5xx, 429, 408)
     if (status >= 500 || status === 429 || status === 408) {

@@ -57,4 +57,23 @@ describe("Content-Security-Policy Headers", () => {
     expect(BASE_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
     expect(BASE_HEADERS["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
   });
+
+  it("should NOT contain unsafe-inline or unsafe-eval in script-src", () => {
+    const csp = BASE_HEADERS["Content-Security-Policy"];
+    const scriptSrcMatch = csp.match(/script-src[^;]+/);
+    expect(scriptSrcMatch).toBeDefined();
+    if (scriptSrcMatch) {
+      expect(scriptSrcMatch[0]).not.toContain("'unsafe-inline'");
+      expect(scriptSrcMatch[0]).not.toContain("'unsafe-eval'");
+    }
+  });
+
+  it("should NOT contain iconify domains in script-src", () => {
+    const csp = BASE_HEADERS["Content-Security-Policy"];
+    const scriptSrcMatch = csp.match(/script-src[^;]+/);
+    expect(scriptSrcMatch).toBeDefined();
+    if (scriptSrcMatch) {
+      expect(scriptSrcMatch[0]).not.toContain("iconify.design");
+    }
+  });
 });

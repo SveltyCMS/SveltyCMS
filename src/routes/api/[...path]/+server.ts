@@ -335,12 +335,12 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   // --- Body Size Limit (prevents memory exhaustion) ---
-  const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB for API requests
+  const MAX_BODY_SIZE = 15 * 1024 * 1024; // 15MB for API requests (allows 10MB multipart uploads)
   if (["POST", "PUT", "PATCH"].includes(request.method) && request.headers.get("content-length")) {
     const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
     if (contentLength > MAX_BODY_SIZE) {
       throw new AppError(
-        `Request body too large (${(contentLength / 1024 / 1024).toFixed(1)}MB). Maximum is 10MB.`,
+        `Request body too large (${(contentLength / 1024 / 1024).toFixed(1)}MB). Maximum is 15MB.`,
         413,
       );
     }

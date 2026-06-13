@@ -169,8 +169,11 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
             headers: { "x-test-mode": "true", "x-test-secret": secret },
           },
         );
-        if (!r.ok) throw new Error("Load failure");
-        await r.json();
+        if (!r.ok) {
+          await r.text().catch(() => {});
+          throw new Error("Load failure");
+        }
+        await r.json().catch(() => {});
       },
     });
 

@@ -114,7 +114,7 @@ jobs:
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
 
       - name: CVE Audit (npm)
-        run: npm audit --omit=dev --audit-level=critical || true
+        run: npm audit --omit=dev --audit-level=critical
 
       - name: CVE Audit Summary
         run: |

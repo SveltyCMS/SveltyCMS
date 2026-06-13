@@ -7,7 +7,7 @@
 import type { RequestEvent, RequestHandler } from "@sveltejs/kit";
 import { handleApiError } from "./error-handling";
 
-const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB — DoS prevention
+const MAX_BODY_SIZE = 15 * 1024 * 1024; // 15MB — DoS prevention (allows 10MB multipart uploads)
 
 type ApiHandlerCallback = (event: RequestEvent) => Promise<Response> | Response;
 

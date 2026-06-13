@@ -39,7 +39,6 @@ const isAdmin = $derived(data.isAdmin);
 
 //  Use $state for all component state
 let availableGroups: SettingGroup[] = $state([]);
-let searchTerm = $state("");
 let hasUnsavedChanges = $state(false);
 let saveTrigger = $state({ fire: () => {} });
 let saving = $state(false);
@@ -69,14 +68,6 @@ let repairResult = $state<{ success: boolean; message?: string; error?: string }
 // Track which groups need configuration
 const unconfiguredCount = $derived(groupsNeedingConfig.size);
 
-// Filter groups based on search term
-const filteredGroups = $derived(
-	availableGroups.filter(
-		(g) =>
-			g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			g.description.toLowerCase().includes(searchTerm.toLowerCase()),
-	),
-);
 
 // Check all groups for empty fields on page load using batch endpoint
 async function checkAllGroupsForEmptyFields() {
@@ -180,27 +171,7 @@ $effect(() => {
 			</div>
 		{/if}
 
-		<!-- Mobile Navigation Tabs & Search -->
-		<div class="mb-6 space-y-4 md:hidden">
-			<input bind:value={searchTerm} placeholder="Search settings..." class="input w-full" aria-label="Search settings" />
-
-			<div class="flex gap-2 overflow-x-auto pb-2 snap-x scrollbar-hide">
-				{#each filteredGroups as g}
-					<a
-						href={`?group=${g.id}`}
-						data-sveltekit-preload-data="hover"
-						class="{selectedGroupId === g.id ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'} whitespace-nowrap snap-start flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-					>
-						<span>{g.icon}</span>
-						<span>{g.name}</span>
-						{#if groupsNeedingConfig.has(g.id)}
-							<span class="ml-1 text-xs">⚠️</span>
-						{/if}
-					</a>
-				{/each}
-			</div>
-		</div>
-
+		
 		{#if unconfiguredCount > 0}
 			<div class="preset-filled-error-500 p-4 rounded mb-6">
 				<div class="text-sm opacity-90">
@@ -243,7 +214,7 @@ $effect(() => {
 										<button
 											type="button"
 											disabled={isRepairing}
-											class="preset-tonal-warning inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+											class="preset-tonal-warning inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 w-full sm:w-auto"
 											onclick={async () => {
 												isRepairing = true;
 												repairResult = null;
