@@ -8,19 +8,6 @@
 import { getApiBaseUrl, safeFetch } from "./server";
 
 const API_BASE_URL = getApiBaseUrl();
-const SYSTEM_SETTLE_ATTEMPTS = process.env.CI === "true" ? 3 : 5;
-const SYSTEM_SETTLE_DELAY_MS = process.env.CI === "true" ? 1000 : 1500;
-const HEALTHY_SYSTEM_STATES = [
-  "READY",
-  "HEALTHY",
-  "SETUP",
-  "WARMED",
-  "WARMING",
-  "DEGRADED",
-  "INITIALIZING",
-  "OPERATIONAL",
-];
-
 const SYSTEM_SETTLE_ATTEMPTS = process.env.CI === "true" ? 5 : 3;
 const SYSTEM_SETTLE_DELAY_MS = process.env.CI === "true" ? 1000 : 500;
 const HEALTHY_SYSTEM_STATES = [
