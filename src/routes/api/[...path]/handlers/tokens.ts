@@ -160,7 +160,9 @@ export async function handleTokenRoutes(
           user: locals.user,
           tenantId,
         });
-        return rawResponse(event, result, 201);
+        if (!(result as any).success)
+          throw new AppError((result as any).message || "Failed to create token", 400);
+        return rawResponse(event, (result as any).data);
       }
 
       if (body.expiresIn && !body.expires) body.expires = body.expiresIn;
@@ -213,7 +215,7 @@ export async function handleTokenRoutes(
   if (request.method === "DELETE" && action === "delete") {
     if (!tokenId) throw new AppError("Token ID is required", 400);
     if (isWebsite) {
-      return successResponse(event, await cms.websiteTokens.delete(tokenId, { tenantId }));
+      return successResponse(event, await cms.system.websiteTokens.delete(tokenId));
     }
     return successResponse(event, await cms.auth.tokens.delete(tokenId, { tenantId }));
   }

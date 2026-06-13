@@ -187,7 +187,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
   // Global Test Bypass (CI/Playwright) - Only if explicitly requested to skip
   if (process.env.TEST_MODE === "true" && process.env.SKIP_GATEKEEPER === "true") {
     if (!testModeWarned) {
-      logger.warn(
+      logger.debug(
         `[Gatekeeper] SKIP_GATEKEEPER=true → bypassing firewall, rate-limit, and state checks (benchmark/CI mode — raw performance measurement)`,
       );
       testModeWarned = true;

@@ -69,30 +69,33 @@ The system seeds the database and transitions to `READY` — no manual config fi
 
 ### Access the CMS
 
-After setup, you're redirected to the dashboard. To log back in: `http://localhost:5173/login`.
+Once setup completes, you will be automatically redirected to the CMS dashboard. If you need to log in again, navigate to `http://localhost:5173/login` and use your admin credentials.
 
-### CMS Layout
+### Understanding the CMS Layout
+
+The CMS is designed for clarity and speed.
 
 ```text
 ┌─────────────────────────────────────────────┐
 │ 🏠 SveltyCMS            [Search] 👤 Admin ▼ │
 ├──────────┬──────────────────────────────────┤
 │          │                                   │
-│ 🏠 Home  │   📊 Dashboard                    │
-│ 📚 Coll. │   • System Health                 │
-│ 📁 Media │   • Recent Content                │
-│ 👥 Users │   • Online Users                  │
-│ ⚙️ Config│   • Storage Usage                 │
+│ 🏠 Home  │   📊 Dashboard Overview           │
+│ 📚 Collections                              │
+│ 📁 Media │   • System Health                │
+│ 👥 Users │   • Recent Content               │
+│ ⚙️ Config    • Online Users                │
+│          │   • Storage Usage                │
 │          │                                   │
 └──────────┴──────────────────────────────────┘
 ```
 
 ### First Tasks
 
-1. **Configure Settings** → ⚙️ Config: Site Name, Default Language, Theme
-2. **Create a Collection** → 📚 Collections → **+ New Collection**
-   - _Example_: "Posts" with Title (Text), Content (RichText), Status (Select)
-3. **Add an Entry** → Open your collection → **+ New Entry** → Fill fields → **Save**
+1.  **Configure Settings**: Go to **⚙️ Config** to set your Site Name, Default Language, and Theme.
+2.  **Create a Collection**: Collections define your content structure. Go to **📚 Collections** → **+ New Collection**.
+    - _Example_: Create a "posts" collection with fields for Title (text), Content (richtext), and Status (select).
+3.  **Add Your First Entry**: Open your new collection and click **+ New Entry**. Fill in the fields and click **Save**.
 
 ---
 
@@ -114,9 +117,8 @@ After setup, you're redirected to the dashboard. To log back in: `http://localho
 
 ### Multi-Language
 
-1. Go to ⚙️ Config → Languages → add target languages
-2. Open any entry → use the per-field language switcher
-3. Paraglide JS compiles translations at build time — zero runtime overhead
+1.  **Enable i18n**: Go to **⚙️ Config** → **Languages** and add your target languages.
+2.  **Translate**: Open any entry and use the language switcher to enter localized content. Paraglide JS handles the compile-time switching.
 
 ---
 
@@ -124,12 +126,10 @@ After setup, you're redirected to the dashboard. To log back in: `http://localho
 
 Granular **RBAC** with field-level access control:
 
-| Role            | Access                                                            |
-| --------------- | ----------------------------------------------------------------- |
-| **Admin**       | Full system access                                                |
-| **Editor**      | Manage all content and media                                      |
-| **Contributor** | Create content, cannot publish without approval                   |
-| **Custom**      | Define per-collection, per-field permissions in ⚙️ Config → Roles |
+- **Admin**: Full access.
+- **Editor**: Can manage all content and media.
+- **Contributor**: Can create content but cannot publish without approval.
+- **Custom Roles**: Create these in **⚙️ Config** → **Roles & Permissions** to define field-level access.
 
 ---
 

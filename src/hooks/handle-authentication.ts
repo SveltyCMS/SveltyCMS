@@ -212,6 +212,7 @@ async function getUserFromSession(
   const { getDb } = await import("@src/databases/db");
   const adapter = getDb();
   if (!adapter) {
+    logger.warn(`[Auth] No DB adapter available for session validation: ${sessionId}`);
     return null;
   }
 
@@ -244,8 +245,22 @@ async function getUserFromSession(
       suppressErrorLog: true,
     });
 
-    if (!userResult?.success || !userResult.data) {
-      if (userResult?.success) {
+    if (result?.success) {
+      if (result.data) {
+        const user = result.data;
+        logger.debug(
+          `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${(user as any).email}`,
+        );
+        const sessionData: SessionCacheEntry = { user, timestamp: now };
+        setSessionInCache(sessionId, sessionData);
+        const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+        await cacheService
+          .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
+          .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
+        return user;
+      } else {
+        // Definitive: Session not found or expired.
+        logger.debug(`[Auth] Session not found in DB: ${sessionId.slice(0, 8)}...`);
         negativeCache.add(sessionId);
       } else {
         lastRefreshAttempt.delete(sessionId);
@@ -253,6 +268,12 @@ async function getUserFromSession(
           `[Auth] Transient user lookup error for ${sessionId}: ${userResult?.message || "Unknown"}`,
         );
       }
+    } else {
+      // System error (e.g. DB locked). Clear the cooldown to allow immediate retry on next request.
+      lastRefreshAttempt.delete(sessionId);
+      logger.warn(
+        `[Auth] Session validation error for ${sessionId.slice(0, 8)}...: ${result?.message || "Unknown"}`,
+      );
       return null;
     }
 

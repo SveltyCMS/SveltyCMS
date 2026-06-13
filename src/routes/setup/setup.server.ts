@@ -1,5 +1,5 @@
 /**
- * @file src/routes/setup/setup.remote.ts
+ * @file src/routes/setup/setup.server.ts
  * @description Setup Remote Functions — database testing, seeding, completion, email, and Redis.
  *
  * Extracted from +page.server.ts for auditability and type safety.
@@ -444,6 +444,19 @@ export async function completeSetup(
   }
 
   if (!session) return { success: false, error: "Session creation failed" };
+
+  // 🚀 Prime the in-memory session cache so getUserFromSession gets an instant hit,
+  // bypassing the sqlite-proxy validateSession query entirely.
+  try {
+    const user = await auth.getUserById((session as any).user_id);
+    if (user) {
+      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      primeSessionMemoryCache(session._id, user);
+      logger.info(`[Setup] Primed session cache for ${(user as any).email}`);
+    }
+  } catch (e) {
+    logger.warn("[Setup] Failed to prime session cache:", e);
+  }
 
   const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
   const { invalidateSetupCache } = await import("@src/utils/setup-check");
