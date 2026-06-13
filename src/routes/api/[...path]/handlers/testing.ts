@@ -278,6 +278,34 @@ export async function handleTestingRoutes(
       });
     }
 
+    if (action === "sdk-call") {
+      const methodPath = params.method;
+      const args = Array.isArray(params.args) ? params.args : [];
+      if (!methodPath || typeof methodPath !== "string") {
+        throw new AppError("method is required for sdk-call", 400);
+      }
+
+      const allowedRoots = new Set(["db", "auth", "collections", "system"]);
+      const segments = methodPath.split(".").filter(Boolean);
+      if (segments.length < 2 || !allowedRoots.has(segments[0])) {
+        throw new AppError(`Unsupported sdk-call method: ${methodPath}`, 400);
+      }
+
+      let target: any = cms;
+      for (const segment of segments.slice(0, -1)) {
+        target = target?.[segment];
+      }
+
+      const methodName = segments.at(-1) as string;
+      const method = target?.[methodName];
+      if (typeof method !== "function") {
+        throw new AppError(`SDK method not found: ${methodPath}`, 400);
+      }
+
+      const result = await method.apply(target, args);
+      return rawResponse({ success: true, data: result });
+    }
+
     if (action === "create-collection" || action === "bulk-create-collections") {
       const schemas =
         action === "bulk-create-collections"

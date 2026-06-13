@@ -78,13 +78,27 @@ describe("Widget API Security - Tenant Isolation", () => {
       request: {
         method,
         json: vi.fn().mockResolvedValue(eventOverrides.body || {}),
-        headers: { get: vi.fn().mockImplementation((name) => eventOverrides.headers?.[name]) },
+        headers: {
+          get: vi.fn().mockImplementation((name) => eventOverrides.headers?.[name]),
+        },
       },
       locals: {
         __testBypass: true,
         dbAdapter: mockDbAdapter,
-        user: createMockUser({ _id: "u1", email: "admin@test.com", role: "admin", isAdmin: true }),
-        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+        user: createMockUser({
+          _id: "u1",
+          email: "admin@test.com",
+          role: "admin",
+          isAdmin: true,
+        }),
+        roles: [
+          {
+            _id: "admin",
+            name: "Administrator",
+            isAdmin: true,
+            permissions: [],
+          },
+        ],
         ...locals,
       },
       cookies: {
@@ -121,6 +135,10 @@ describe("Widget API Security - Tenant Isolation", () => {
 
   describe("Activate Widget (POST /api/widgets/activate/[id])", () => {
     it("should activate widget in current tenant context", async () => {
+      mockDbAdapter.system.widgets.findAll.mockResolvedValue({
+        success: true,
+        data: [{ _id: "test-widget-id", name: "test-widget" }],
+      });
       mockDbAdapter.system.widgets.activate.mockResolvedValue({
         success: true,
       });
@@ -138,6 +156,10 @@ describe("Widget API Security - Tenant Isolation", () => {
 
   describe("Deactivate Widget (POST /api/widgets/deactivate/[id])", () => {
     it("should deactivate widget in current tenant context", async () => {
+      mockDbAdapter.system.widgets.findAll.mockResolvedValue({
+        success: true,
+        data: [{ _id: "test-widget-id", name: "test-widget" }],
+      });
       mockDbAdapter.system.widgets.deactivate.mockResolvedValue({
         success: true,
       });

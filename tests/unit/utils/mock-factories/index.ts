@@ -91,7 +91,10 @@ export function createDbAdapterStub() {
       insertMany: mockFn().mockResolvedValue({ success: true, data: [] }),
       update: mockFn().mockResolvedValue({ success: true, data: {} }),
       delete: mockFn().mockResolvedValue({ success: true }),
-      deleteMany: mockFn().mockResolvedValue({ success: true, deletedCount: 0 }),
+      deleteMany: mockFn().mockResolvedValue({
+        success: true,
+        deletedCount: 0,
+      }),
       count: mockFn().mockResolvedValue({ success: true, data: 0 }),
       exists: mockFn().mockResolvedValue({ success: true, data: false }),
     },
@@ -100,18 +103,30 @@ export function createDbAdapterStub() {
       getUserByEmail: mockFn().mockResolvedValue({ success: true, data: null }),
       createUser: mockFn().mockResolvedValue({ success: true, data: {} }),
       updateUser: mockFn().mockResolvedValue({ success: true, data: {} }),
-      updateUserAttributes: mockFn().mockResolvedValue({ success: true, data: {} }),
+      updateUserAttributes: mockFn().mockResolvedValue({
+        success: true,
+        data: {},
+      }),
       deleteUser: mockFn().mockResolvedValue({ success: true }),
       getAllUsers: mockFn().mockResolvedValue({ success: true, data: [] }),
       getUserCount: mockFn().mockResolvedValue({ success: true, data: 0 }),
-      validateSession: mockFn().mockResolvedValue({ success: true, user: null }),
+      validateSession: mockFn().mockResolvedValue({
+        success: true,
+        user: null,
+      }),
       createSession: mockFn().mockResolvedValue({ success: true, data: {} }),
       deleteSession: mockFn().mockResolvedValue({ success: true }),
-      batchAction: mockFn().mockResolvedValue({ success: true, data: { modifiedCount: 0 } }),
+      batchAction: mockFn().mockResolvedValue({
+        success: true,
+        data: { modifiedCount: 0 },
+      }),
     },
     system: {
       tenants: {
-        getById: mockFn().mockResolvedValue({ success: true, data: createMockTenant() }),
+        getById: mockFn().mockResolvedValue({
+          success: true,
+          data: createMockTenant(),
+        }),
         list: mockFn().mockResolvedValue({ success: true, data: [] }),
         create: mockFn().mockResolvedValue({ success: true, data: {} }),
         update: mockFn().mockResolvedValue({ success: true, data: {} }),
@@ -123,10 +138,17 @@ export function createDbAdapterStub() {
         getAll: mockFn().mockResolvedValue({ success: true, data: {} }),
       },
       widgets: {
-        getActiveWidgets: mockFn().mockResolvedValue({ success: true, data: [] }),
+        getActiveWidgets: mockFn().mockResolvedValue({
+          success: true,
+          data: [],
+        }),
         activate: mockFn().mockResolvedValue({ success: true }),
         deactivate: mockFn().mockResolvedValue({ success: true }),
         findAll: mockFn().mockResolvedValue({ success: true, data: [] }),
+        register: mockFn().mockResolvedValue({
+          success: true,
+          data: { _id: "mock-widget-id", name: "test-widget" },
+        }),
       },
     },
     collection: {

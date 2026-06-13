@@ -152,7 +152,7 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
           Cookie: authCookie,
         },
         body: JSON.stringify({
-          widgetName: widget.name,
+          widgetName: widget.address || widget.name,
           isActive: true,
         }),
       });
@@ -178,7 +178,7 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
           Cookie: authCookie,
         },
         body: JSON.stringify({
-          widgetName: widget.name,
+          widgetName: widget.address || widget.name,
           isActive: false,
         }),
       });

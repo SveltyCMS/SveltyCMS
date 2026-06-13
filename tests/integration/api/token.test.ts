@@ -14,6 +14,8 @@ import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
+const describeWhenMultiTenantEnabled =
+  process.env.MULTI_TENANT === "true" ? describe : describe.skip;
 
 describe("Token API Endpoints", () => {
   let authCookie: string;
@@ -159,19 +161,19 @@ describe("Token API Endpoints", () => {
         }),
       });
 
-      const response = await safeFetch(`${API_BASE_URL}/api/token?raw=true`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/token`, {
         headers: { Cookie: authCookie },
       });
 
       const result = await response.json();
       expect(response.status).toBe(200);
-      // When raw=true, result is the array itself
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.success).toBe(true);
+      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data.length).toBeGreaterThan(0);
     });
 
     it("should reject listing tokens without authentication", async () => {
-      const response = await safeFetch(`${API_BASE_URL}/api/token?raw=true`);
+      const response = await safeFetch(`${API_BASE_URL}/api/token`);
       // Returns 401 or 403 depending on auth state
       expect(response.status).toBeGreaterThanOrEqual(401);
       expect(response.status).toBeLessThanOrEqual(403);
@@ -475,14 +477,14 @@ describe("Token API Endpoints", () => {
         }),
       });
 
-      const response = await safeFetch(`${API_BASE_URL}/api/token?raw=true&search=${searchTerm}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/token?search=${searchTerm}`, {
         headers: { Cookie: authCookie },
       });
 
       const result = await response.json();
       expect(response.status).toBe(200);
-      // The search should find the token with the matching email
-      expect(Array.isArray(result)).toBe(true);
+      expect(result.success).toBe(true);
+      expect(Array.isArray(result.data)).toBe(true);
     });
   });
 
@@ -490,7 +492,7 @@ describe("Token API Endpoints", () => {
   // NEW: Multi-Tenancy Isolation Tests (Blackbox)
   // ============================================
 
-  describe("Multi-Tenancy Isolation - Cross-Tenant Security", () => {
+  describeWhenMultiTenantEnabled("Multi-Tenancy Isolation - Cross-Tenant Security", () => {
     // Note: These tests require MULTI_TENANT to be enabled in the test environment
     // They verify that tenants cannot access each other's resources
 

@@ -30,25 +30,24 @@ export class MongoWebsiteTokenMethods {
 
   async create(
     tokenData: Omit<WebsiteToken, "_id" | "createdAt" | "updatedAt" | "tenantId">,
-    tenantId: string,
+    tenantId?: string,
   ): Promise<DatabaseResult<WebsiteToken>> {
     try {
-      if (!tenantId) {
-        throw new Error("Tenant ID is mandatory for website token creation.");
-      }
-
       // Hash the sensitive token value before it touches the database layer
       const hashedToken = await this._hashToken(tokenData.token);
 
-      const secureToken = {
+      const secureToken: Record<string, unknown> = {
         ...tokenData,
         token: hashedToken,
-        tenantId: tenantId as DatabaseId,
       };
+      if (tenantId) {
+        secureToken.tenantId = tenantId as DatabaseId;
+      }
 
-      return this.crud.insert(secureToken as any as WebsiteToken, {
-        tenantId: tenantId as DatabaseId,
-      });
+      return this.crud.insert(
+        secureToken as any as WebsiteToken,
+        tenantId ? { tenantId: tenantId as DatabaseId } : {},
+      );
     } catch (error: any) {
       return {
         success: false,
@@ -59,7 +58,7 @@ export class MongoWebsiteTokenMethods {
   }
 
   async getAll(
-    tenantId: string,
+    tenantId: string | undefined,
     options: {
       limit?: number;
       skip?: number;
@@ -69,13 +68,10 @@ export class MongoWebsiteTokenMethods {
     },
   ): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
     try {
-      if (!tenantId) {
-        throw new Error("Tenant ID is mandatory for listing tokens.");
-      }
-
       // Sanitize filter to prevent raw MongoDB operator injection/credential enumeration
       const allowedFilters = ["name", "isActive"];
-      const sanitizedFilter: Record<string, any> = { tenantId };
+      const sanitizedFilter: Record<string, any> = {};
+      if (tenantId) sanitizedFilter.tenantId = tenantId;
 
       if (options.filter) {
         for (const [key, value] of Object.entries(options.filter)) {
@@ -95,10 +91,10 @@ export class MongoWebsiteTokenMethods {
           limit: options.limit || 100,
           offset: options.skip,
           sort,
-          tenantId: tenantId as DatabaseId,
+          ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
         }),
         this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, {
-          tenantId: tenantId as DatabaseId,
+          ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
         }),
       ]);
 
@@ -124,30 +120,20 @@ export class MongoWebsiteTokenMethods {
     }
   }
 
-  async delete(tokenId: DatabaseId, tenantId: string): Promise<DatabaseResult<void>> {
-    if (!tenantId) {
-      return {
-        success: false,
-        message: "Tenant ID required",
-        error: { code: "UNAUTHORIZED", message: "Tenant ID required" },
-      };
-    }
-    const result = await this.crud.delete(tokenId, { tenantId: tenantId as DatabaseId });
+  async delete(tokenId: DatabaseId, tenantId?: string): Promise<DatabaseResult<void>> {
+    const result = await this.crud.delete(
+      tokenId,
+      tenantId ? { tenantId: tenantId as DatabaseId, permanent: true } : { permanent: true },
+    );
     if (!result.success) return result as DatabaseResult<void>;
     return { success: true, data: undefined };
   }
 
-  async getByName(name: string, tenantId: string): Promise<DatabaseResult<WebsiteToken | null>> {
-    if (!tenantId) {
-      return {
-        success: false,
-        message: "Tenant ID required",
-        error: { code: "UNAUTHORIZED", message: "Tenant ID required" },
-      };
-    }
-    return this.crud.findOne({ name, tenantId } as QueryFilter<WebsiteToken>, {
-      tenantId: tenantId as DatabaseId,
-    });
+  async getByName(name: string, tenantId?: string): Promise<DatabaseResult<WebsiteToken | null>> {
+    const filter: QueryFilter<WebsiteToken> = tenantId
+      ? ({ name, tenantId } as QueryFilter<WebsiteToken>)
+      : ({ name } as QueryFilter<WebsiteToken>);
+    return this.crud.findOne(filter, tenantId ? { tenantId: tenantId as DatabaseId } : {});
   }
 
   /**
