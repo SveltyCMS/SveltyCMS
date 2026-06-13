@@ -92,13 +92,13 @@ export default defineConfig({
   projects: [
     {
       name: "wizard",
-      testMatch: /setup-wizard.*\.spec\.ts/,
+      testMatch: /routes\/setup\/setup-wizard\.spec\.ts/,
       // Force sequential to avoid race conditions during database provisioning
       workers: 1,
     },
     {
       name: "auth-setup",
-      testMatch: [/auth\.setup\.ts/, /login\.spec\.ts/],
+      testMatch: [/auth\.setup\.ts/, /routes\/login\/login\.spec\.ts/],
       // No dependency on "wizard": in CI the wizard runs once in its own job.
       // In local dev, run `playwright test --project=wizard` first manually if needed.
       // Force sequential to avoid race conditions during auth bootstrapping
@@ -106,65 +106,65 @@ export default defineConfig({
     },
     {
       name: "signup",
-      testMatch: [/account-smoke\.spec\.ts/],
+      testMatch: [/routes\/user\/account-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "content",
-      testMatch: [/content-smoke\.spec\.ts/],
+      testMatch: [/routes\/collection-builder\/content-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "system",
-      testMatch: [/system-smoke\.spec\.ts/],
+      testMatch: [/routes\/system\/settings\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "a11y",
-      testMatch: /accessibility.*\.spec\.ts/,
+      testMatch: /routes\/login\/accessibility\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "rbac",
-      testMatch: /role-based-access.*\.spec\.ts/,
+      testMatch: /routes\/system\/rbac\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "language",
-      testMatch: /language.*\.spec\.ts/,
+      testMatch: /routes\/system\/language\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "users",
-      testMatch: [/(\/|^)user\.spec\.ts$/, /(\/|^)user-crud\.spec\.ts$/],
+      testMatch: [/routes\/user\/profile\.spec\.ts$/, /routes\/user\/management\.spec\.ts$/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "builder",
       testMatch: [
-        /collection-builder\.spec\.ts/,
-        /collection\.spec\.ts/,
-        /master-behavioral-journey\.spec\.ts/,
+        /routes\/collection-builder\/builder\.spec\.ts/,
+        /routes\/collection-builder\/collection\.spec\.ts/,
+        /routes\/collection-builder\/journey\.spec\.ts/,
       ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "permissions",
-      testMatch: /permission-change.*\.spec\.ts/,
+      testMatch: /routes\/system\/permissions\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "firstuser",
-      testMatch: [/(\/|^)signupfirstuser\.spec\.ts$/, /(\/|^)oauth-signup-firstuser\.spec\.ts$/],
+      testMatch: [/routes\/login\/signup\.spec\.ts$/, /routes\/login\/oauth\.spec\.ts$/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       // No dependency on auth-setup — these hit login/signup pages directly
       workers: 1,

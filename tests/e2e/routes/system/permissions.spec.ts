@@ -7,7 +7,7 @@
  *   - Asserts success via URL and confirmation message
  */
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "./helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
 
 test.describe("Permission Management Flow", () => {
   test.setTimeout(60_000); // 1 min

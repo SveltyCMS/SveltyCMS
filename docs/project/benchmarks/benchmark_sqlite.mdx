@@ -414,7 +414,7 @@ xychart-beta
 > (suspected — single test run, needs cross-validation with related benchmarks)
 > **Check**: `src/hooks/handle-authentication.ts` · `src/databases/auth/session-service.ts` · `src/services/sdk/namespaces/auth-namespace.ts`
 
-````text
+`````text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
 ║                     File: tests/benchmarks/auth-performance.test.ts                     ║
@@ -536,7 +536,7 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ First Miss (DB)                │       11.284 ms │ p95:       11.284 ms │ RPS:         89 ║
 ║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    453,855 ║
-````
+`````
 
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
@@ -641,7 +641,7 @@ xychart-beta
 > Within normal variance — no action needed.
 > **Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
-````text
+`````text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS  —  CONTENT SCALE STRESS AUDIT                         ║
 ║                   File: tests/benchmarks/content-scale-stress.test.ts                   ║
@@ -736,8 +736,8 @@ xychart-beta
 
 <!-- LOCALSDK_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-> Throughput dropped 49% — check connection pool saturation or lock contention.  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+> Throughput dropped 49% — check connection pool saturation or lock contention.
 > **Check**: `src/hooks/handle-system-state.ts` · `src/routes/setup/+page.server.ts`
 
 ```text
@@ -949,7 +949,7 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ HTTP: findById @ 8c            │     1026.689 ms │ p95:     1041.392 ms │ RPS:          1 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
-````
+`````
 
 ```text
 ╔══════════════════════════════════════════════════════════════════════════════╗

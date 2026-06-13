@@ -6,7 +6,7 @@
  *   - Selects each language from the dropdown and waits for UI update
  */
 import { expect, test } from "@playwright/test";
-import { ensureSidebarVisible, loginAsAdmin } from "./helpers/auth";
+import { ensureSidebarVisible, loginAsAdmin } from "../../helpers/auth";
 
 test.describe("System Language Change", () => {
   test.setTimeout(60_000); // 1 min

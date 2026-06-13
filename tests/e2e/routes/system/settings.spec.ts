@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "./helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
 
 test.describe("System Smoke", () => {
   test("admin can reach dynamic system settings", async ({ page }) => {

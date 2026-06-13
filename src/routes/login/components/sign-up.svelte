@@ -82,8 +82,8 @@ const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
 // Requires +page.server.ts load to return: isOpenSignup: !!(multiTenant && demoMode)
 const isOpenSignup = pageData.isOpenSignup ?? false;
 
-// State management
-const tabIndex = $state(1);
+const isInteractiveCard = $derived(active === undefined);
+const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
 let formElement: HTMLFormElement | null = $state(null);
 let showPassword = $state(false);
 let isSubmitting = $state(false);
@@ -104,12 +104,7 @@ async function prefetchFirstCollection() {
 	}
 }
 
-// Pre-calculate tab indices
-const usernameTabIndex = 1;
-const emailTabIndex = 2;
-const passwordTabIndex = 3;
-const confirmPasswordTabIndex = 4;
-const tokenTabIndex = 5;
+// Pre-calculate tab indices (removed)
 
 // Form setup
 const signUpForm = new Form(
@@ -270,7 +265,7 @@ $effect(() => {
 	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={handlePointerEnter}
-	tabindex={tabIndex}
+	tabindex={cardTabIndex}
 	class="{baseClasses} focus-visible:outline-2 focus-visible:outline-primary-500"
 	class:active={isActive}
 	class:inactive={isInactive}
@@ -310,7 +305,7 @@ $effect(() => {
 					{form_required()}
 
 					<div class="absolute inset-e-0">
-						<SystemTooltip title="Go Back">
+						<SystemTooltip title="Go Back" role={null} tabindex={null}>
 							<Button
 								onclick={handleBack}
 								aria-label="Go back"
@@ -337,7 +332,6 @@ $effect(() => {
 						id="usernamesignUp"
 						name="username"
 						type="text"
-						tabindex={usernameTabIndex}
 						required
 						bind:value={signUpForm.data.username}
 						label={username()}
@@ -357,7 +351,6 @@ $effect(() => {
 						id="emailsignUp"
 						name="email"
 						type="email"
-						tabindex={emailTabIndex}
 						required
 						autocomplete="email"
 						autocapitalize="none"
@@ -388,7 +381,6 @@ $effect(() => {
 						id="passwordsignUp"
 						name="password"
 						type="security"
-						tabindex={passwordTabIndex}
 						required
 						bind:value={signUpForm.data.password}
 						bind:showPassword
@@ -410,7 +402,6 @@ $effect(() => {
 						id="confirm_passwordsignUp"
 						name="confirm_password"
 						type="security"
-						tabindex={confirmPasswordTabIndex}
 						required
 						bind:value={signUpForm.data.confirm_password}
 						bind:showPassword
@@ -438,7 +429,6 @@ $effect(() => {
 								id="tokensignUp"
 								name="token"
 								type="security"
-								tabindex={tokenTabIndex}
 								required
 								bind:value={signUpForm.data.token}
 								label={registration_token()}

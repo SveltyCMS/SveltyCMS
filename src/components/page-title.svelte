@@ -154,7 +154,7 @@
 
 		{#if showBackButton}
 			{#if backUrl}
-				<SystemTooltip title="Go back">
+				<SystemTooltip title="Go back" role={null} tabindex={null}>
 					<a
 						href={backUrl}
 						aria-label="Go back"

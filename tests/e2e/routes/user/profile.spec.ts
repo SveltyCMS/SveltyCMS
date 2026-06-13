@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "./helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
 
 // Construct reliable file path for CI/CD environments
 // This looks for 'testthumb.png' in the SAME directory as this test file

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "./helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
 
 /**
  * @file tests/e2e/master-behavioral-journey.spec.ts

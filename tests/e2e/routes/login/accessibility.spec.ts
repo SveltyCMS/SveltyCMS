@@ -9,8 +9,8 @@
 
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { loginAsAdmin, ADMIN_CREDENTIALS } from "./helpers/auth";
-import { TEST_API_HEADERS } from "./helpers/test-api";
+import { loginAsAdmin, ADMIN_CREDENTIALS } from "../../helpers/auth";
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 test.describe("Universal Accessibility Audits", () => {
   // Reset and seed the database to ensure a clean state
@@ -83,6 +83,10 @@ test.describe("Universal Accessibility Audits", () => {
 
     // 4. Run accessibility audit against the RTL layout
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+
+    if (results.violations.length > 0) {
+      console.warn("A11y violations in RTL layout:", JSON.stringify(results.violations, null, 2));
+    }
 
     const criticalViolations = results.violations.filter(
       (v) => v.impact === "critical" || v.impact === "serious",

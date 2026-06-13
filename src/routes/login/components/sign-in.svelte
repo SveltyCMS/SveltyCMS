@@ -98,13 +98,8 @@ let loginFormElement: HTMLFormElement | null = $state(null);
 let forgotFormElement: HTMLFormElement | null = $state(null);
 let resetFormElement: HTMLFormElement | null = $state(null);
 
-const tabIndex = $state(1);
-
-// Pre-calculate tab indices
-const emailTabIndex = 1;
-const passwordTabIndex = 2;
-const confirmPasswordTabIndex = 3;
-const forgotPasswordTabIndex = 4;
+const isInteractiveCard = $derived(active === undefined);
+const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
 const pageData = page.data as PageData;
 
 // FIX: Use page.url (reactive) instead of a static window.location.href snapshot.
@@ -407,7 +402,7 @@ $effect(() => {
 	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={onPointerEnterProp}
-	tabindex={tabIndex}
+	tabindex={cardTabIndex}
 	class="{baseClasses} focus-visible:outline-2 focus-visible:outline-primary-500"
 	class:active={isActive}
 	class:inactive={isInactive}
@@ -450,7 +445,7 @@ $effect(() => {
 				<div class="relative mb-2 flex h-10 items-center justify-center text-xs text-error-500">
 					{form_required()}
 					<div class="absolute inset-e-0">
-						<SystemTooltip title="Go Back">
+						<SystemTooltip title="Go Back" role={null} tabindex={null}>
 							<Button
 								onclick={handleBack}
 								aria-label="Go back"
@@ -485,7 +480,6 @@ $effect(() => {
 								id="emailsignIn"
 								name="email"
 								type="email"
-								tabindex={emailTabIndex}
 								autocomplete="username"
 								autocapitalize="none"
 								spellcheck={false}
@@ -506,7 +500,6 @@ $effect(() => {
 								name="security"
 								type="security"
 								autocomplete="current-password"
-								tabindex={passwordTabIndex}
 								bind:value={loginForm.data.password}
 								bind:showPassword
 								required
@@ -544,7 +537,6 @@ $effect(() => {
 									variant="outline"
 									class="w-full text-black sm:w-auto hover:bg-surface-100"
 									aria-label={signin_forgottenpassword()}
-									tabindex={forgotPasswordTabIndex}
 									onclick={handleForgotPassword}
 									data-testid="signin-forgot-password"
 								>
@@ -665,7 +657,6 @@ $effect(() => {
 							id="emailforgot"
 							name="email"
 							type="email"
-							tabindex={emailTabIndex}
 							autocomplete="email"
 							autocapitalize="none"
 							spellcheck={false}
@@ -725,7 +716,6 @@ $effect(() => {
 							id="passwordreset"
 							name="password"
 							type="security"
-							tabindex={passwordTabIndex}
 							bind:value={resetForm.data.password}
 							bind:showPassword
 							required
@@ -744,7 +734,6 @@ $effect(() => {
 							id="confirm_passwordreset"
 							name="confirm_password"
 							type="security"
-							tabindex={confirmPasswordTabIndex}
 							bind:value={resetForm.data.confirm_password}
 							bind:showPassword
 							autocomplete="new-password"

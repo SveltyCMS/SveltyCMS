@@ -143,11 +143,11 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 			{onkeydown}
 			type={effectiveType}
 			class={cn(
-				'peer block h-12 w-full appearance-none border-0 border-b-2 ps-8 pe-6 pb-1 pt-4 text-base focus:outline-none focus:ring-0 disabled:opacity-50 transition-all duration-200',
+				'peer block h-12 w-full appearance-none border-0 border-b-2 ps-8 pe-6 pb-1 pt-4 text-base disabled:opacity-50 transition-all duration-200',
 				bgTransparent
-					? 'border-white/50 text-white focus:border-white bg-transparent'
+					? 'border-white/50 text-white focus:border-white focus:outline-2 focus:outline-white bg-transparent'
 					: cn(
-							'border-surface-300 focus:border-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 text-surface-900',
+							'border-surface-300 focus:border-tertiary-600 focus:outline-2 focus:outline-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 dark:focus:outline-tertiary-500 text-surface-900',
 							textColor === 'black' ? 'bg-white text-black' : 'bg-[#242728] text-white'
 					  ),
 				invalid && 'border-error-500! dark:border-error-500!',
@@ -239,5 +239,9 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 	:global(.autofill-dark:-webkit-autofill) {
 		-webkit-box-shadow: 0 0 0 100px #242728 inset !important;
 		-webkit-text-fill-color: white !important;
+	}
+	input:focus {
+		outline: 2px solid currentColor !important;
+		outline-offset: 2px;
 	}
 </style>

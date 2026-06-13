@@ -1,6 +1,6 @@
 // tests/playwright/collection-builder.spec.ts
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "./helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
 
 test.describe("Collection Builder with Modern Widgets", () => {
   test.beforeEach(async ({ page }) => {

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "./helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
 
 test.describe("Content Smoke", () => {
   test("admin can reach collection builder and open a new collection draft", async ({ page }) => {

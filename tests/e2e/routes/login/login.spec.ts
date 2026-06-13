@@ -7,8 +7,8 @@
  *   - Logs out and checks redirect to login page
  */
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin, logout, ADMIN_CREDENTIALS } from "./helpers/auth";
-import { TEST_API_HEADERS } from "./helpers/test-api";
+import { loginAsAdmin, logout, ADMIN_CREDENTIALS } from "../../helpers/auth";
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 test.describe("Login and Logout Flow", () => {
   // Ensure we start with a clean state for the login test

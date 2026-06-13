@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin, logout } from "./helpers/auth";
+import { loginAsAdmin, logout } from "../../helpers/auth";
 
 test.describe("Account Smoke", () => {
   test("admin can open the user profile and logout", async ({ page }) => {

@@ -4,8 +4,8 @@
  * Combines full provisioning flow (all DB types), error handling, and navigation tests.
  */
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
-import { handleDialog } from "./helpers/setup-wizard";
-import { seedReadyState, resetToSetupMode } from "./helpers/test-orch";
+import { handleDialog } from "../../helpers/setup-wizard";
+import { seedReadyState, resetToSetupMode } from "../../helpers/test-orch";
 
 // --- PAGE OBJECT MODEL ---
 

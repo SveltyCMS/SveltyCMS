@@ -11,8 +11,8 @@
  */
 
 import { expect, type Page, test } from "@playwright/test";
-import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "./helpers/auth";
-import { seedTestUsers, TEST_USERS } from "./helpers/seed";
+import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
+import { seedTestUsers, TEST_USERS } from "../../helpers/seed";
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {
