@@ -39,7 +39,7 @@ test.describe("Permission Management Flow", () => {
     // 6. Assert success — via URL or confirmation message
     // Adjust this based on your actual success behavior
     await expect(page).toHaveURL(/access-management/i);
-    await expect(page.locator("text=Permissions updated")).toBeVisible({
+    await expect(page.getByText(/permissions updated/i)).toBeVisible({
       timeout: 10_000,
     });
   });

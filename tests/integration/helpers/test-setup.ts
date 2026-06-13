@@ -22,7 +22,6 @@ const HEALTHY_SYSTEM_STATES = [
   "IDLE",
 ];
 
-
 // Hardened secret resolution
 const TEST_API_SECRET =
   process.env.TEST_API_SECRET ||

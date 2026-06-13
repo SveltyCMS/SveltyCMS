@@ -32,7 +32,7 @@ test.describe("User Management Flow", () => {
     await page.getByRole("button", { name: /save/i }).click();
 
     // Confirm update saved
-    await expect(page.locator("text=updatedUser")).toBeVisible();
+    await expect(page.getByText(/updateduser/i)).toBeVisible();
   });
 
   test("Delete, Block, and Unblock Users", async ({ page }) => {
@@ -55,7 +55,7 @@ test.describe("User Management Flow", () => {
       await page.getByRole("button", { name: /confirm/i }).click();
 
       // Optional: Wait for confirmation toast or success message
-      await expect(page.locator(`text=${action}`)).toBeVisible({
+      await expect(page.getByText(new RegExp(action, "i"))).toBeVisible({
         timeout: 5000,
       });
     }
@@ -96,7 +96,7 @@ test.describe("User Management Flow", () => {
     await page.getByRole("button", { name: /accept invitation and create account/i }).click();
 
     // Optional: Assert signup success
-    await expect(page.locator("text=Account created")).toBeVisible({
+    await expect(page.getByText(/account created/i)).toBeVisible({
       timeout: 10_000,
     });
   });

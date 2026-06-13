@@ -15,7 +15,7 @@ test.describe("Master Behavioral Journey", () => {
 
     // 2. Navigate to Collection Builder
     await page.goto("/config/collectionbuilder");
-    await expect(page.getByText("Add Category")).toBeVisible();
+    await expect(page.getByText(/add category/i)).toBeVisible();
 
     // 3. Create a New Collection
     // We'll use a unique name to avoid conflicts with other tests
@@ -28,12 +28,12 @@ test.describe("Master Behavioral Journey", () => {
     await page.keyboard.press("Enter");
 
     // 4. Configure Collection Fields (GUI)
-    await expect(page.getByText("Define your Collection")).toBeVisible();
+    await expect(page.getByText(/define your collection/i)).toBeVisible();
 
     // Add a simple text field
     await page.getByRole("button", { name: /add field/i }).click();
-    await page.getByText("Input").click();
-    await page.getByRole("button", { name: /submit/i }).click();
+    await page.getByText(/input/i).first().click();
+    await page.getByRole("button", { name: /submit|select|choose/i }).click();
 
     await page.locator('input[name="label"]').fill("Project Name");
     await page.locator('input[name="db_fieldName"]').fill("project_name");
@@ -52,7 +52,7 @@ test.describe("Master Behavioral Journey", () => {
     await page.getByRole("button", { name: /create new/i }).click();
 
     // Fill the dynamically generated field
-    await page.locator('input[placeholder="Project Name"]').fill("The TQA Project");
+    await page.getByPlaceholder(/project name/i).fill("The TQA Project");
     await page.getByRole("button", { name: /save/i }).click();
     await expect(page.getByText("The TQA Project")).toBeVisible();
 

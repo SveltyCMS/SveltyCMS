@@ -36,7 +36,7 @@ test.describe("Universal Accessibility Audits", () => {
 
   test("Login Page - Automated Axe Audit", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForSelector('[data-testid="signin-email"]');
+    await page.getByTestId("signin-email").waitFor({ state: "visible" });
 
     // Run Axe audit
     const results = await new AxeBuilder({ page })

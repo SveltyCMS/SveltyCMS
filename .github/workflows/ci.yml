@@ -619,7 +619,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [signup, content, system]
+        project: [signup, content, system, a11y, rbac, language]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

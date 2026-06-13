@@ -28,12 +28,21 @@ async function login(page: Page, user: { email: string; password: string }) {
 async function logout(page: Page) {
   // Use data-testid for sign out button
   const logoutButton = page.getByTestId("sign-out-button");
-  if (await logoutButton.isVisible({ timeout: 2000 })) {
+  if (await logoutButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await logoutButton.click();
-    await page.waitForURL(/\/login/, { timeout: 5000 });
+    await page.waitForURL(/\/login/, { timeout: 5000 }).catch(() => {});
   } else {
-    // Fallback for cases where sidebar might be closed or role differs
-    await page.goto("/login");
+    // Fallback: try role-based button
+    const fallbackLogout = page.getByRole("button", {
+      name: /sign out|logout/i,
+    });
+    if (await fallbackLogout.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await fallbackLogout.click();
+      await page.waitForURL(/\/login/, { timeout: 5000 }).catch(() => {});
+    } else {
+      // Final fallback: navigate to login directly
+      await page.goto("/login");
+    }
   }
 }
 

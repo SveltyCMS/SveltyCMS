@@ -148,6 +148,13 @@ export class SecurityResponseService {
     return limiter;
   }
 
+  public reset(): void {
+    this.limiters.clear();
+    this.lastAlertTime.clear();
+    this.restoredData = {};
+    logger.info("[Security] Rate limiters and alert trackers reset");
+  }
+
   /** Analyzes a request for potential security threats. */
   public async analyzeRequest(
     request: Request,

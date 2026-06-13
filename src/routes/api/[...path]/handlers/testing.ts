@@ -110,6 +110,15 @@ export async function handleTestingRoutes(
       try {
         const { cacheService } = await import("@src/databases/cache/cache-service");
         await cacheService.invalidateAll();
+
+        try {
+          const { securityResponseService } =
+            await import("@src/services/security/response-service");
+          securityResponseService.reset();
+        } catch (err) {
+          console.warn(`[TestingHandler] Failed to reset security response service: ${err}`);
+        }
+
         const { invalidateUserCountCache, invalidateRolesCache } =
           await import("@src/hooks/handle-authorization");
         await invalidateUserCountCache(tenantId);

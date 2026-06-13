@@ -29,7 +29,7 @@ test.describe("System Language Change", () => {
       // Select language from dropdown
       await languageSelector.selectOption(lang);
 
-      // Wait briefly for UI to update
+      // Wait briefly for UI to update (language change is DOM-only, no network request)
       await page.waitForTimeout(1000);
 
       // Verify the selector value changed

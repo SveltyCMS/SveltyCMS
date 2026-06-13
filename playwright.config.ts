@@ -122,6 +122,24 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
+    {
+      name: "a11y",
+      testMatch: /accessibility.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "rbac",
+      testMatch: /role-based-access.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "language",
+      testMatch: /language.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
   ],
 
   /* Run preview server before starting the tests (local dev only; CI starts the server manually) */

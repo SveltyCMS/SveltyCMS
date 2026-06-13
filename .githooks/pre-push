@@ -1,0 +1,51 @@
+#!/usr/bin/env sh
+# =============================================================================
+# SveltyCMS Pre-Push Quality Gate
+# =============================================================================
+# Runs SQLite integration tests and Playwright E2E tests before allowing a push.
+# This is the safety net that catches bugs the fast pre-commit hook misses
+# (DB-dependent issues, permission bugs exposed by E2E, etc.).
+#
+# Skip with: git push --no-verify   (or GIT_HOOK_SKIP=1 git push)
+# =============================================================================
+set -e
+
+# Skip in CI environments
+if [ "${CI:-false}" = "true" ] || [ -n "$GIT_HOOK_SKIP" ]; then
+    echo "⏩ CI or hook skip detected. Bypassing pre-push gates."
+    exit 0
+fi
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║             SveltyCMS Pre-Push Quality Gate                  ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+# ── Gate 1: Production Build ─────────────────────────────────────────────
+echo "🏗️  Gate 1: Building Application"
+bun run build
+echo "   ✓ Build completed."
+echo ""
+
+# ── Gate 2: SQLite Integration Tests ─────────────────────────────────────
+echo "🛡️  Gate 2: SQLite Integration Tests"
+bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+echo "   ✓ Integration tests passed."
+echo ""
+
+# ── Gate 3: Playwright E2E Tests ─────────────────────────────────────────
+echo "🎭 Gate 3: Playwright E2E Tests"
+# Ensure playwright browsers are installed (cached after first run)
+bun x playwright install --with-deps chromium 2>/dev/null || true
+
+# Run all E2E projects sequentially (wizard → auth → app tests).
+# playwright.config.ts handles the webServer for local runs.
+bun x playwright test --project=wizard --project=auth-setup --project=signup --project=content --project=system --project=a11y --project=rbac --project=language
+echo "   ✓ Playwright tests passed."
+echo ""
+
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  ✅ All pre-push gates passed. Push allowed.                 ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-06-09"
+updated: "2026-06-13"
 tags:
   - "testing"
   - "documentation"
@@ -21,7 +21,7 @@ tags:
 
 n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** June 9, 2026
+**Last Updated:** June 13, 2026
 **Source of Truth:** GitHub Actions on the current branch or pull request
 **Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
@@ -93,6 +93,25 @@ bun test tests/benchmarks/api-latency.test.ts
 
 > [!TIP]
 > SveltyCMS benchmarks are **Environment-Aware**. If you execute a benchmark file with `bun run`, the system will automatically inform you and reroute the execution through the **Bun Test Engine** to ensure accurate micro-latency measurements and proper cleanup of background services.
+
+### Tiered Local Testing
+
+SveltyCMS enforces a **three-tier** local testing strategy to catch bugs at the right stage:
+
+```bash
+# Tier 1: Pre-Commit (automatic, < 5s) — format, lint, types, unit tests, build
+git commit -m "feat: my change"
+
+# Tier 2: Pre-Push (automatic, ~3 min) — SQLite integration + Playwright E2E
+git push origin my-branch
+
+# Tier 3: Full CI Parity (manual, ~10 min) — 4-DB matrix + full E2E
+bun run ci:local
+bun run ci:local --db=sqlite       # single DB
+bun run ci:local --skip-e2e         # skip Playwright
+```
+
+See **[Git Workflow & Quality Gate](./git-workflow.mdx)** for the full tiered strategy, scripts audit, and bypass instructions.
 
 ## Current GitHub Actions Gate
 

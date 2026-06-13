@@ -184,10 +184,8 @@ export async function loginAs(
   // Wait for login form to be visible - use data-testid
   console.log("[Auth] Waiting for signin-email field...");
   await page
-    .waitForSelector('[data-testid="signin-email"]', {
-      timeout: 15_000,
-      state: "visible",
-    })
+    .getByTestId("signin-email")
+    .waitFor({ state: "visible", timeout: 15_000 })
     .catch(async (e) => {
       console.error("[Auth] ERROR: signin-email field not found!");
       // Provide debug info about available inputs
@@ -272,7 +270,10 @@ export async function logout(page: Page) {
     });
 
     // Navigate to login to confirm logout
-    await page.goto("/login", { timeout: 10_000, waitUntil: "domcontentloaded" });
+    await page.goto("/login", {
+      timeout: 10_000,
+      waitUntil: "domcontentloaded",
+    });
   } catch (error) {
     console.log("[Auth] Error during logout, continuing anyway:", error);
   }
