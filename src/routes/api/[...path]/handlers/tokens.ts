@@ -15,6 +15,7 @@ import { type LocalCMS } from "@src/services/sdk";
 import { type DatabaseId } from "@src/databases/db-interface";
 import { rawResponse, successResponse } from "./base";
 import { AppError } from "@utils/error-handling";
+import { isAdmin } from "@utils/hook-utils";
 
 export async function handleTokenRoutes(
   event: RequestEvent,
@@ -49,10 +50,11 @@ export async function handleTokenRoutes(
 
   // GET /api/token or /api/token/list -> List all tokens (requires admin)
   if (request.method === "GET" && action === "list") {
-    // Use the hook-computed admin flag rather than a brittle role-name string
-    // compare: admins authenticated via the fast-path have a UUID/role-name role,
-    // not the literal "admin", so the string check wrongly 403s them.
-    if (!locals.user || !locals.isAdmin) {
+    // Accept either the hook-computed admin flag or the canonical isAdmin(user)
+    // check. Admins authenticated via the authorization fast-path carry a
+    // UUID/role-name role rather than the literal "admin", so the old
+    // `role !== "admin"` string compare wrongly 403'd them.
+    if (!locals.user || !(locals.isAdmin || isAdmin(locals.user))) {
       throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
     const isWebsite = segments[0] === "website-tokens";
