@@ -49,7 +49,10 @@ export async function handleTokenRoutes(
 
   // GET /api/token or /api/token/list -> List all tokens (requires admin)
   if (request.method === "GET" && action === "list") {
-    if (!locals.user || locals.user.role !== "admin") {
+    // Use the hook-computed admin flag rather than a brittle role-name string
+    // compare: admins authenticated via the fast-path have a UUID/role-name role,
+    // not the literal "admin", so the string check wrongly 403s them.
+    if (!locals.user || !locals.isAdmin) {
       throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
     const isWebsite = segments[0] === "website-tokens";
