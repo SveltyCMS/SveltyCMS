@@ -48,7 +48,7 @@ The setup wizard is a multi-step form that guides users through initial SveltyCM
 
 ### Setup Wizard Flow
 
-```mermaid
+````mermaid
 flowchart TD
     Start((Start)) --> DB[1. Database Config]
     DB --> |Test Connection| DBCheck{Valid?}
@@ -70,7 +70,7 @@ flowchart TD
         P[Production Pipeline]
         V[Vite Define Guard]
     end
-```
+```text
 
 ### High-Performance Lifecycle
 
@@ -102,7 +102,7 @@ sequenceDiagram
     U->>H: Incoming Request
     H->>H: Fast Check: __SVELTY_SETUP_COMPLETE__ (Zero I/O)
     H->>H: Execute Turbo Pipeline (~0.05ms)
-```
+```text
 
 #### Performance Benchmarks
 
@@ -199,7 +199,7 @@ src/routes/setup/
 System Hardening:
 ├── src/databases/db-init.ts   # Topological Phased Boot engine
 └── src/databases/config-state.ts # Security-masked configuration loader
-```
+```text
 
 ### State-Aware Initialization
 
@@ -276,7 +276,7 @@ The setup process includes several enterprise-grade security features:
     firstCollection: null
   }
 }
-```
+```text
 
 ### Validation Schemas
 
@@ -340,7 +340,7 @@ export const systemSettingsSchema = v.object({
   mediaStorageType: v.string(),
   mediaFolder: v.string(),
 });
-```
+```text
 
 ---
 
@@ -396,7 +396,7 @@ stateDiagram-v2
     Failed --> EnterConfig: Fix errors
     Success --> NextStep: Click "Next"
     NextStep --> [*]
-```
+```text
 
 ### Step 2: Admin Account Creation
 
@@ -619,7 +619,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Redirect to dashboard
   await page.waitForURL(/\/en\/collections/, { timeout: 120_000 });
 });
-```
+```text
 
 ---
 
@@ -737,7 +737,7 @@ const displayErrors = $derived<Record<string, string>>({
   ...localValidationErrors,
   ...validationErrors, // Server errors take precedence
 });
-```
+```text
 
 **Benefits**:
 
@@ -789,7 +789,7 @@ function validateStep(step: number, mutateErrors = true): boolean {
 
   return Object.keys(errs).length === 0;
 }
-```
+```text
 
 **Benefits**:
 
@@ -816,7 +816,7 @@ Each input field follows this pattern:
 		{displayErrors.host}
 	</div>
 {/if}
-```
+```text
 
 **Accessibility Features**:
 
@@ -843,11 +843,11 @@ Each input field follows this pattern:
 
 **Example**:
 
-```
+```text
 ❌ Email is required
 ❌ Password must be at least 8 characters
 ❌ Passwords do not match
-```
+```text
 
 #### 2. Network Errors
 
@@ -861,10 +861,10 @@ Each input field follows this pattern:
 
 **Example**:
 
-```
+```text
 ❌ Network error: Failed to fetch
 💡 Check your internet connection and try again
-```
+```text
 
 #### 3. Database Errors
 
@@ -889,7 +889,7 @@ Each input field follows this pattern:
 
 **Example**:
 
-```
+```text
 ❌ Connection Failed
 
 Error: Authentication failed. Please check your username and password.
@@ -905,7 +905,7 @@ Connection Details:
 - Verify your MongoDB Atlas username and password
 - Check if IP address is whitelisted in Atlas
 - Ensure database user has correct permissions
-```
+```text
 
 #### 4. Driver Installation Errors
 
@@ -919,7 +919,7 @@ Connection Details:
 
 **Example**:
 
-```
+```text
 ⚠️  Driver Installation Failed
 
 The MongoDB driver could not be installed automatically.
@@ -930,7 +930,7 @@ You can:
 1. Install manually: npm install mongoose
 2. Check your internet connection
 3. Continue with setup (connection test will fail until installed)
-```
+```text
 
 ### Error Recovery Strategies
 
@@ -964,7 +964,7 @@ async function testDatabaseConnection() {
 
   throw new Error("Connection failed after 3 attempts");
 }
-```
+```text
 
 #### Graceful Degradation
 
@@ -979,7 +979,7 @@ async function completeSetup() {
     showToast("Setup complete! (Welcome email could not be sent)", "warning");
   }
 }
-```
+```text
 
 #### User Guidance
 
@@ -995,7 +995,7 @@ function classifyDatabaseError(error: DatabaseError): string {
     return `Database error: ${error.message}`;
   }
 }
-```
+```text
 
 ---
 
@@ -1053,7 +1053,7 @@ function createSetupStore() {
 }
 
 export const setupStore = createSetupStore();
-```
+```text
 
 ### Persistence Strategy
 
@@ -1106,7 +1106,7 @@ const hasUnsavedChanges = $derived(() => {
   const currentSnapshot = JSON.stringify(wizard);
   return currentSnapshot !== initialDataSnapshot;
 });
-```
+```text
 
 **Behavior**:
 
@@ -1139,7 +1139,7 @@ const hasUnsavedChanges = $derived(() => {
 		Test Connection
 	{/if}
 </button>
-```
+```text
 
 ### Toast Notifications
 
@@ -1171,7 +1171,7 @@ showToast("Connection failed. Please check your settings.", "error", 5000);
 
 // Info
 showToast("Setup will continue, data will be created as needed.", "info", 4000);
-```
+```text
 
 ### Responsive Design
 
@@ -1215,7 +1215,7 @@ showToast("Setup will continue, data will be created as needed.", "info", 4000);
     grid-template-columns: repeat(2, 1fr);
   }
 }
-```
+```text
 
 ### Keyboard Navigation
 
@@ -1259,7 +1259,7 @@ showToast("Setup will continue, data will be created as needed.", "info", 4000);
 		<!-- Your form fields -->
 	</div>
 </div>
-```
+```text
 
 2. **Add Validation Schema**
 
@@ -1269,7 +1269,7 @@ export const myStepSchema = v.object({
   field1: v.pipe(v.string(), v.minLength(1, "Field 1 is required")),
   field2: v.pipe(v.string(), v.email("Invalid email")),
 });
-```
+```text
 
 3. **Update setup-store**
 
@@ -1284,7 +1284,7 @@ class SetupStore {
     },
   });
 }
-```
+```text
 
 4. **Register in Main Wizard**
 
@@ -1330,7 +1330,7 @@ class SetupStore {
 		// ...
 	});
 </script>
-```
+```text
 
 ### Extending Validation
 
@@ -1355,7 +1355,7 @@ export const dbConfigSchema = v.pipeAsync(
     "Database name already exists",
   ),
 );
-```
+```text
 
 **Add Cross-field Validation**:
 
@@ -1376,7 +1376,7 @@ export const adminSchema = v.object(
     ),
   ],
 );
-```
+```text
 
 ### Testing
 
@@ -1415,7 +1415,7 @@ describe("dbConfigSchema", () => {
     expect(result.issues[0].message).toContain("Host is required");
   });
 });
-```
+```text
 
 **E2E Tests** (Playwright):
 
@@ -1454,7 +1454,7 @@ test.describe("Setup Wizard", () => {
     await expect(page).toHaveURL(/\/Collections/);
   });
 });
-```
+```text
 
 ---
 
@@ -1492,7 +1492,7 @@ bun test --coverage tests/bun/api/setup*.test.ts
 
 # Watch mode for development
 bun test --watch tests/bun/api/setup.test.ts
-```
+```text
 
 ### Example Test Scenarios
 
@@ -1523,7 +1523,7 @@ it("should test database connection successfully", async () => {
   expect(result.success).toBe(true);
   expect(result.latencyMs).toBeDefined();
 });
-```
+```text
 
 **Complete Setup Flow Test:**
 
@@ -1566,7 +1566,7 @@ it("should complete entire setup process", async () => {
   const cookies = response.headers.get("set-cookie");
   expect(cookies).toContain("auth_session");
 });
-```
+```text
 
 ---
 
@@ -1602,7 +1602,7 @@ const displayErrors = $derived<Record<string, string>>({
   ...localValidationErrors,
   ...validationErrors,
 });
-```
+```text
 
 #### Issue: Form Data Not Persisting
 
@@ -1620,7 +1620,7 @@ onMount(() => {
   // Capture initial state AFTER loading
   initialDataSnapshot = JSON.stringify(wizard);
 });
-```
+```text
 
 #### Issue: Duplicate Submissions
 
@@ -1646,7 +1646,7 @@ async function completeSetup() {
     isSubmitting = false; // Always reset
   }
 }
-```
+```text
 
 #### Issue: Unsaved Changes Warning Not Working
 
@@ -1675,7 +1675,7 @@ onMount(() => {
     window.removeEventListener("beforeunload", handleBeforeUnload);
   };
 });
-```
+```text
 
 #### Issue: Database Test Fails with "Driver Not Found"
 
@@ -1692,7 +1692,7 @@ npm install mongoose
 bun add mongoose
 # or
 pnpm add mongoose
-```
+```text
 
 Then clear localStorage and retry test.
 
@@ -1712,7 +1712,7 @@ const stepClickable = $derived<boolean[]>([
   wizard.highestStepReached >= 3,
   wizard.highestStepReached >= 4,
 ]);
-```
+```text
 
 ---
 
@@ -1753,13 +1753,14 @@ const stepClickable = $derived<boolean[]>([
 
 The SveltyCMS setup wizard provides a professional, user-friendly onboarding experience with:
 
-✅ Real-time validation with Valibot  
-✅ Intelligent error handling and recovery  
-✅ Persistent state with auto-save  
-✅ Responsive design for all devices  
-✅ Accessibility features (WCAG 2.1 AA)  
-✅ Comprehensive API integration  
-✅ Zero-restart initialization  
+✅ Real-time validation with Valibot
+✅ Intelligent error handling and recovery
+✅ Persistent state with auto-save
+✅ Responsive design for all devices
+✅ Accessibility features (WCAG 2.1 AA)
+✅ Comprehensive API integration
+✅ Zero-restart initialization
 ✅ Modern UX with loading states and toast notifications
 
 The modular architecture makes it easy to extend with new steps while maintaining consistency and code quality.
+````

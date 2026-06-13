@@ -21,6 +21,21 @@ const HEALTHY_SYSTEM_STATES = [
   "OPERATIONAL",
 ];
 
+const SYSTEM_SETTLE_ATTEMPTS = process.env.CI === "true" ? 5 : 3;
+const SYSTEM_SETTLE_DELAY_MS = process.env.CI === "true" ? 1000 : 500;
+const HEALTHY_SYSTEM_STATES = [
+  "READY",
+  "HEALTHY",
+  "SETUP",
+  "WARMED",
+  "WARMING",
+  "DEGRADED",
+  "INITIALIZING",
+  "OPERATIONAL",
+  "IDLE",
+];
+
+
 // Hardened secret resolution
 const TEST_API_SECRET =
   process.env.TEST_API_SECRET ||

@@ -87,14 +87,26 @@ export class HistoryService {
       }
     }
 
-    const revisionResult = await dbAdapter.content.revisions.getHistory(
-      entryId as unknown as DatabaseId,
-      {
-        page,
-        pageSize: limit,
-      },
-    );
-
-    return revisionResult;
+    try {
+      const revisionResult = await dbAdapter.content.revisions.getHistory(
+        entryId as unknown as DatabaseId,
+        {
+          page,
+          pageSize: limit,
+        },
+      );
+      return revisionResult;
+    } catch (err: any) {
+      logger.error(`[HistoryService] Failed to retrieve history for entry ${entryId}:`, err);
+      // Return a safe fallback to prevent the UI from crashing when encountering ghost/orphan references
+      return {
+        success: false,
+        error: {
+          message:
+            err.message || "Failed to retrieve history. A related entity may have been deleted.",
+        },
+        data: [], // Fallback data to prevent downstream null-pointer exceptions
+      };
+    }
   }
 }

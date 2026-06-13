@@ -71,8 +71,8 @@ const containerClass = $derived(
 		: isCategory && isSelectedCategory
 			? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-primary-500/20 dark:bg-primary-600/25 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden"
 			: isCategory
-				? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-l-4 border-l-tertiary-500 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden"
-				: "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-l-primary-500 border-surface-500/40 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden",
+				? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-s-4 border-s-tertiary-500 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden"
+				: "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-s-4 border-s-primary-500 border-surface-500/40 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden",
 );
 
 const iconClass = $derived(
@@ -130,7 +130,7 @@ function handleKeyDown(e: KeyboardEvent) {
 	role="button"
 	{tabindex}
 	aria-label={keyboardReorderMode
-		? `${name}, reorder mode active. Arrow up/down to move, arrow left to move to parent, Enter or Escape to exit.`
+		? `${name}, reorder mode active. Arrow up/down to move, arrow start to move to parent, Enter or Escape to exit.`
 		: isCategory
 			? `${name}, category. Click to ${isSelectedCategory ? 'deselect' : 'select'} as target for new collection.`
 			: `${name}, collection. Press Enter to ${isOpen ? 'collapse' : 'expand'}.`}
@@ -186,7 +186,7 @@ function handleKeyDown(e: KeyboardEvent) {
 	<!-- Description: hidden on small screens -->
 	{#if screen.isDesktop && item.description}
 		<div class="flex-1 px-4 min-w-0 hidden md:flex justify-start">
-			<span class="italic text-sm opacity-70 truncate w-full max-w-[640px] md:max-w-[1200px] text-left" title={item.description}>
+			<span class="italic text-sm opacity-70 truncate w-full max-w-[640px] md:max-w-[1200px] text-start" title={item.description}>
 				{item.description}
 			</span>
 		</div>

@@ -203,7 +203,7 @@
 					<!-- Edit button - icon overlay -->
 					<button
 						onclick={modalEditAvatar}
-						class="absolute bottom-0 right-0 p-2 rounded-full gradient-tertiary dark:gradient-primary btn-icon"
+						class="absolute bottom-0 inset-e-0 p-2 rounded-full gradient-tertiary dark:gradient-primary btn-icon"
 						title={userpage_editavatar()}
 					>
 						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
@@ -211,13 +211,13 @@
 				</div>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-					{userpage_user_id()}<span class="ml-2 font-bold">{user?._id || 'N/A'}</span>
+					{userpage_user_id()}<span class="ms-2 font-bold">{user?._id || 'N/A'}</span>
 				</div>
 				<!-- Role -->
-				<div class="gradient-tertiary badge w-full max-w-xs text-white">{role()}:<span class="ml-2 font-bold">{user?.role || 'N/A'}</span></div>
+				<div class="gradient-tertiary badge w-full max-w-xs text-white">{role()}:<span class="ms-2 font-bold">{user?.role || 'N/A'}</span></div>
 				<!-- Tenant ID -->
 				{#if isMultiTenant && user?.tenantId}
-					<div class="gradient-warning badge w-full max-w-xs text-white">Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span></div>
+					<div class="gradient-warning badge w-full max-w-xs text-white">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></div>
 				{/if}
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
@@ -249,7 +249,7 @@
 							<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<span class="text-sm">Real-time Collaboration</span>
 						</div>
-						<input
+						<input aria-label="Input"
 							type="checkbox"
 							class="checkbox checkbox-sm"
 							checked={serverUser?.preferences?.rtc?.enabled ?? true}
@@ -264,7 +264,7 @@
 							<iconify-icon icon="material-symbols:volume-up-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<span class="text-sm">Sound Notifications</span>
 						</div>
-						<input
+						<input aria-label="Input"
 							type="checkbox"
 							class="checkbox checkbox-sm"
 							checked={serverUser?.preferences?.rtc?.sound ?? true}
@@ -289,7 +289,7 @@
 						<iconify-icon icon="mdi:account" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{username()}:</span>
 					</div>
-					<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input mb-4" />
+					<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input mb-4"  aria-label="Input" />
 
 					<div class="flex items-center gap-2 mb-1">
 						<iconify-icon icon="mdi:email" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
@@ -315,7 +315,7 @@
 						<button onclick={modalPrivacyData} class="gradient-tertiary btn w-full max-w-sm flex items-center justify-between text-white">
 							<div class="flex items-center gap-3">
 								<iconify-icon icon="mdi:shield-account" width={24}></iconify-icon>
-								<div class="text-left">
+								<div class="text-start">
 									<h3 class="text-sm font-bold">Privacy & Data (GDPR)</h3>
 								</div>
 							</div>

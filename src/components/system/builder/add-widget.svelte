@@ -58,17 +58,17 @@
 	}
 </script>
 
-<div class="fixed -top-16 left-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
+<div class="fixed -top-16 inset-s-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-tertiary-500 dark:text-primary-500" />
-		<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-outlined-secondary-500 btn-icon mr-2">
+		<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-outlined-secondary-500 btn-icon me-2">
 			<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 		</button>
 	</div>
 
 	{#if !selected_widget && !editField}
 		<div class="flex items-center justify-center">
-			<button type="button" onclick={handleCancel} aria-label="Cancel" class="mb-5 ml-auto mr-10">X</button>
+			<button type="button" onclick={handleCancel} aria-label="Cancel" class="mb-5 ml-auto me-10">X</button>
 			<Dropdown options={widget_keys.map(k => ({ label: k, value: k }))} value={selected_widget}>
 				{#snippet trigger()}
 					<button class="btn preset-outlined-surface-500">Select Widget</button>

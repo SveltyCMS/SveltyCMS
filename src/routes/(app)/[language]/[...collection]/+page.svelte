@@ -533,7 +533,7 @@ beforeNavigate(async ({ cancel }) => {
 <div class="content h-full">
 	<!-- Auto-save indicator -->
 	{#if isSavingDraft}
-		<div class="fixed right-4 top-20 z-50 flex items-center gap-2 rounded-lg bg-warning-500 px-4 py-2 text-white shadow-lg">
+		<div class="fixed end-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg">
 			<div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
 			<span class="text-sm font-medium">Auto-saving draft...</span>
 		</div>
@@ -541,7 +541,7 @@ beforeNavigate(async ({ cancel }) => {
 
 	{#if !collections.active}
 		<!-- Collection data should be available from SSR, if not show error -->
-		<div class="dark:bg-error-950 flex h-64 flex-col items-center justify-center rounded-lg border border-error-500 bg-error-50 p-8">
+		<div class="dark:bg-error-950 flex h-64 flex-col items-center justify-center rounded border border-error-500 bg-error-50 p-8">
 			<svg aria-hidden="true" class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"

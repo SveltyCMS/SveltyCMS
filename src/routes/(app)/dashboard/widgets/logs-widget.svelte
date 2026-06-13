@@ -138,7 +138,7 @@ export const widgetMeta = {
 			<div class="mb-3 flex flex-wrap items-center gap-2">
 				<select
 					bind:value={filterLevel}
-					class="rounded-xl border border-surface-200 bg-surface-50 px-3 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					class="rounded border border-surface-200 bg-surface-50 px-3 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 					aria-label="Filter by log level"
 				>
 					{#each levels as opt}
@@ -151,7 +151,7 @@ export const widgetMeta = {
 						type="text"
 						bind:value={searchTerm}
 						placeholder="Search..."
-						class="w-full rounded-xl border border-surface-200 bg-surface-50 py-1.5 ps-8 pe-3 text-xs text-surface-700 placeholder-surface-400 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+						class="w-full rounded border border-surface-200 bg-surface-50 py-1.5 ps-8 pe-3 text-xs text-surface-700 placeholder-surface-400 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 						aria-label="Search log messages"
 					/>
 					<iconify-icon icon="mdi:magnify" width="14" class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-surface-400"  ></iconify-icon>
@@ -160,14 +160,14 @@ export const widgetMeta = {
 				<input
 					type="date"
 					bind:value={startDate}
-					class="rounded-xl border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					class="rounded border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 					aria-label="Start date"
 				/>
 				<span class="text-xs text-surface-400">–</span>
 				<input
 					type="date"
 					bind:value={endDate}
-					class="rounded-xl border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					class="rounded border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 					aria-label="End date"
 				/>
 			</div>
@@ -212,7 +212,7 @@ export const widgetMeta = {
 					{const isOpen = expandedId === logId}
 					<button
 						onclick={() => toggleExpand(logId)}
-						class="w-full text-left group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+						class="w-full text-start group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 					>
 						<iconify-icon
 							icon={levelIcon(log.level)}
@@ -231,7 +231,7 @@ export const widgetMeta = {
 								{log.message}
 							</p>
 							{#if isOpen && log.args && log.args.length > 0}
-								<pre class="mt-2 overflow-x-auto rounded-lg bg-surface-100 p-2 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(log.args, null, 2)}</pre>
+								<pre class="mt-2 overflow-x-auto rounded bg-surface-100 p-2 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(log.args, null, 2)}</pre>
 							{/if}
 						</div>
 						<iconify-icon

@@ -161,7 +161,7 @@ describe("Token API Endpoints", () => {
         }),
       });
 
-      const response = await safeFetch(`${API_BASE_URL}/api/token?raw=true`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/token`, {
         headers: { Cookie: authCookie },
       });
 
@@ -173,7 +173,7 @@ describe("Token API Endpoints", () => {
     });
 
     it("should reject listing tokens without authentication", async () => {
-      const response = await safeFetch(`${API_BASE_URL}/api/token?raw=true`);
+      const response = await safeFetch(`${API_BASE_URL}/api/token`);
       // Returns 401 or 403 depending on auth state
       expect(response.status).toBeGreaterThanOrEqual(401);
       expect(response.status).toBeLessThanOrEqual(403);
@@ -477,7 +477,7 @@ describe("Token API Endpoints", () => {
         }),
       });
 
-      const response = await safeFetch(`${API_BASE_URL}/api/token?raw=true&search=${searchTerm}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/token?search=${searchTerm}`, {
         headers: { Cookie: authCookie },
       });
 

@@ -181,7 +181,7 @@
   {#if !shouldRender}
     <!-- Deferred Load State -->
     <div
-      class="flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-surface-400 bg-surface-100/50 dark:bg-surface-900/50"
+      class="flex flex-1 flex-col items-center justify-center gap-4 rounded border border-dashed border-surface-400 bg-surface-100/50 dark:bg-surface-900/50"
     >
       <iconify-icon icon="mdi:eye-outline" width="48" class="text-surface-400"
       ></iconify-icon>
@@ -196,7 +196,7 @@
       <button
         class="btn preset-filled-primary"
         onclick={() => (shouldRender = true)}
-      >
+       >
         Start Preview
       </button>
     </div>
@@ -207,30 +207,32 @@
         <iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"
         ></iconify-icon>
         <input
-          type="text"
-          class="input grow truncate text-sm font-mono"
-          readonly
-          value={authorizedUrl}
-          placeholder={isLoadingUrl ? "Authorizing..." : "URL not available"}
-        />
+            type="text"
+            class="input grow truncate text-sm font-mono"
+            readonly
+            value={authorizedUrl}
+            placeholder={isLoadingUrl ? "Authorizing..." : "URL not available"}
+            aria-label="Preview URL"
+          />
         <button
           onclick={copyUrl}
           class="btn btn-sm preset-outline-surface"
           disabled={!authorizedUrl}
           title="Copy Preview URL"
-        >
+         aria-label="Copy preview URL">
           <iconify-icon icon="mdi:content-copy" width={16}></iconify-icon>
         </button>
       </div>
 
       <div class="flex items-center gap-2">
         <button
-          onclick={() => (visualEditingEnabled = !visualEditingEnabled)}
-          class="btn btn-sm {visualEditingEnabled
-            ? 'preset-filled-primary'
-            : 'preset-soft-surface'}"
-          title="Toggle Click-to-Edit"
-        >
+            onclick={() => (visualEditingEnabled = !visualEditingEnabled)}
+            class="btn btn-sm {visualEditingEnabled
+              ? 'preset-filled-primary'
+              : 'preset-soft-surface'}"
+            title="Toggle Click-to-Edit"
+            aria-label="Toggle Click-to-Edit"
+          >
           <iconify-icon icon="mdi:cursor-default-click" width={16}
           ></iconify-icon>
           <span class="hidden sm:inline">Visual Edit</span>
@@ -259,6 +261,7 @@
             ? 'variant-filled-primary'
             : 'variant-soft-secondary'}"
           title={device.label}
+          aria-label={device.label}
         >
           <iconify-icon icon={device.icon} width={20}></iconify-icon>
         </button>
@@ -267,7 +270,7 @@
 
     <!-- Preview Iframe Container -->
     <div
-      class="relative flex-1 overflow-hidden rounded-xl border border-surface-300 bg-surface-100 dark:bg-surface-900"
+      class="relative flex-1 overflow-hidden rounded border border-surface-300 bg-surface-100 dark:bg-surface-900"
     >
       <div
         class="h-full w-full bg-white transition-all duration-300"

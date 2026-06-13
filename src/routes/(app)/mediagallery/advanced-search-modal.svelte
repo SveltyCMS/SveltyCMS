@@ -224,7 +224,7 @@ function handleKeydown(e: KeyboardEvent) {
 			>
 				<!-- Search Presets -->
 				<div class="flex flex-wrap gap-2">
-					<button
+					<button>
 						type="button"
 						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
@@ -237,7 +237,7 @@ function handleKeydown(e: KeyboardEvent) {
 						<iconify-icon icon="mdi:calendar-week" width={24}></iconify-icon>
 						<span>Recent (7 days)</span>
 					</button>
-					<button
+					<button>
 						type="button"
 						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
@@ -250,7 +250,7 @@ function handleKeydown(e: KeyboardEvent) {
 						<iconify-icon icon="mdi:calendar-month" width={24}></iconify-icon>
 						<span>Recent (30 days)</span>
 					</button>
-					<button
+					<button>
 						type="button"
 						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
@@ -261,7 +261,7 @@ function handleKeydown(e: KeyboardEvent) {
 						<iconify-icon icon="mdi:file-star" width={24}></iconify-icon>
 						<span>Large (>5MB)</span>
 					</button>
-					<button
+					<button>
 						type="button"
 						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
@@ -282,12 +282,12 @@ function handleKeydown(e: KeyboardEvent) {
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Filename</span>
-							<input type="text" bind:value={formValues.filename} class="input" placeholder="image.jpg" />
+							<input type="text" bind:value={formValues.filename} class="input" placeholder="image.jpg"  aria-label="Input" />
 						</label>
 
 						<label class="label">
 							<span>Tags (comma-separated)</span>
-							<input type="text" bind:value={formValues.tagsInput} class="input" placeholder="landscape, nature" />
+							<input type="text" bind:value={formValues.tagsInput} class="input" placeholder="landscape, nature"  aria-label="Input" />
 							{#if suggestions.tags.length > 0}
 								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">Suggestions: {suggestions.tags.join(', ')}</div>
 							{/if}
@@ -301,29 +301,29 @@ function handleKeydown(e: KeyboardEvent) {
 					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 						<label class="label">
 							<span>Min Width (px)</span>
-							<input type="number" bind:value={formValues.minWidth} class="input" placeholder="1920" />
+							<input type="number" bind:value={formValues.minWidth} class="input" placeholder="1920"  aria-label="Input" />
 						</label>
 
 						<label class="label">
 							<span>Max Width (px)</span>
-							<input type="number" bind:value={formValues.maxWidth} class="input" placeholder="3840" />
+							<input type="number" bind:value={formValues.maxWidth} class="input" placeholder="3840"  aria-label="Input" />
 						</label>
 
 						<label class="label">
 							<span>Min Height (px)</span>
-							<input type="number" bind:value={formValues.minHeight} class="input" placeholder="1080" />
+							<input type="number" bind:value={formValues.minHeight} class="input" placeholder="1080"  aria-label="Input" />
 						</label>
 
 						<label class="label">
 							<span>Max Height (px)</span>
-							<input type="number" bind:value={formValues.maxHeight} class="input" placeholder="2160" />
+							<input type="number" bind:value={formValues.maxHeight} class="input" placeholder="2160"  aria-label="Input" />
 						</label>
 					</div>
 
 					<div class="mt-4">
 						<label class="label">
 							<span>Aspect Ratio</span>
-							<select bind:value={formValues.aspectRatio} class="select">
+							<select bind:value={formValues.aspectRatio} class="select" aria-label="Select">
 								<option value="any">Any</option>
 								<option value="landscape">Landscape</option>
 								<option value="portrait">Portrait</option>
@@ -343,17 +343,17 @@ function handleKeydown(e: KeyboardEvent) {
 					<div class="grid gap-4 md:grid-cols-3">
 						<label class="label">
 							<span>Min Size (MB)</span>
-							<input type="number" bind:value={formValues.minSize} class="input" placeholder="1" step="0.1" />
+							<input type="number" bind:value={formValues.minSize} class="input" placeholder="1" step="0.1"  aria-label="Input" />
 						</label>
 
 						<label class="label">
 							<span>Max Size (MB)</span>
-							<input type="number" bind:value={formValues.maxSize} class="input" placeholder="50" step="0.1" />
+							<input type="number" bind:value={formValues.maxSize} class="input" placeholder="50" step="0.1"  aria-label="Input" />
 						</label>
 
 						<label class="label">
 							<span>File Types</span>
-							<input type="text" bind:value={formValues.fileTypesInput} class="input" placeholder="image/jpeg, image/png" />
+							<input type="text" bind:value={formValues.fileTypesInput} class="input" placeholder="image/jpeg, image/png"  aria-label="Input" />
 						</label>
 					</div>
 				</section>
@@ -364,12 +364,12 @@ function handleKeydown(e: KeyboardEvent) {
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Uploaded After</span>
-							<input type="date" bind:value={formValues.uploadedAfter} class="input" />
+							<input type="date" bind:value={formValues.uploadedAfter} class="input"  aria-label="Input" />
 						</label>
 
 						<label class="label">
 							<span>Uploaded Before</span>
-							<input type="date" bind:value={formValues.uploadedBefore} class="input" />
+							<input type="date" bind:value={formValues.uploadedBefore} class="input"  aria-label="Input" />
 						</label>
 					</div>
 				</section>
@@ -380,7 +380,7 @@ function handleKeydown(e: KeyboardEvent) {
 					<div class="grid gap-4 md:grid-cols-3">
 						<label class="label">
 							<span>Has EXIF Data</span>
-							<select bind:value={formValues.hasEXIF} class="select">
+							<select bind:value={formValues.hasEXIF} class="select" aria-label="Select">
 								<option value="any">Any</option>
 								<option value="yes">Yes</option>
 								<option value="no">No</option>
@@ -389,7 +389,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 						<label class="label">
 							<span>Camera</span>
-							<input type="text" bind:value={formValues.camera} class="input" placeholder="Canon EOS 5D" />
+							<input type="text" bind:value={formValues.camera} class="input" placeholder="Canon EOS 5D"  aria-label="Input" />
 							{#if suggestions.cameras.length > 0}
 								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">Found: {suggestions.cameras.join(', ')}</div>
 							{/if}
@@ -397,7 +397,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 						<label class="label">
 							<span>Location</span>
-							<input type="text" bind:value={formValues.location} class="input" placeholder="New York" />
+							<input type="text" bind:value={formValues.location} class="input" placeholder="New York"  aria-label="Input" />
 						</label>
 					</div>
 				</section>
@@ -408,17 +408,17 @@ function handleKeydown(e: KeyboardEvent) {
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Dominant Color (hex)</span>
-							<input type="text" bind:value={formValues.dominantColor} class="input" placeholder="#FF5733" />
+							<input type="text" bind:value={formValues.dominantColor} class="input" placeholder="#FF5733"  aria-label="Input" />
 						</label>
 
 						<label class="label">
 							<span>Hash Match</span>
-							<input type="text" bind:value={formValues.hashMatch} class="input" placeholder="a1b2c3d4..." />
+							<input type="text" bind:value={formValues.hashMatch} class="input" placeholder="a1b2c3d4..."  aria-label="Input" />
 						</label>
 					</div>
 
 					<label class="mt-4 flex items-center gap-2">
-						<input type="checkbox" bind:checked={formValues.showDuplicatesOnly} class="checkbox" />
+						<input type="checkbox" bind:checked={formValues.showDuplicatesOnly} class="checkbox"  aria-label="Input" />
 						<span>Show Duplicates Only</span>
 					</label>
 				</section>

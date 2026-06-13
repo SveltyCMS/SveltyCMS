@@ -38,9 +38,9 @@ Our CI/CD and Local pipeline uses:
 
 Before any commit, SveltyCMS runs an automated chain of checks. To activate this locally, you **must** run:
 
-```bash
+````bash
 git config core.hooksPath .githooks
-```
+```text
 
 ### 🛡️ High-Performance Quality Gate (`scripts/quality-gate.ts`)
 
@@ -100,9 +100,9 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 
 **Format:**
 
-```
+```text
 <type>(<scope>): <subject> [TQA-Verified]
-```
+```text
 
 **Types:**
 
@@ -185,7 +185,7 @@ bun run slop
 
 # Mutation Tester — verify tests catch real bugs
 bun run mutate
-```
+```text
 
 ### CI Parity Before Every Push
 
@@ -193,7 +193,7 @@ Run the full local CI parity check to ensure zero regressions:
 
 ```bash
 bun run format && bun run lint && bun run check && bun run test:unit
-```
+```text
 
 ### Security & Slop Regression Check
 
@@ -202,7 +202,7 @@ For changes touching auth, middleware, or API routes, also run:
 ```bash
 bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
 bun run slop
-```
+```text
 
 > [!NOTE]
 > On Windows (PowerShell), always use `;` to chain commands. Avoid `&&` as it is not natively supported in PowerShell.
@@ -217,7 +217,7 @@ If you are on Linux/macOS and the hook fails to execute:
 
 ```bash
 chmod +x .githooks/pre-commit
-```
+```text
 
 ### "Database connection failed" in Tests
 
@@ -230,3 +230,4 @@ Ensure you are using `127.0.0.1` in your `config/private.test.ts` and that the t
 - [Test Status Report](/docs/tests/test-status)
 - [API Testing](/docs/tests/api-testing)
 - [Testing Strategy](/docs/tests/testing-strategy)
+````

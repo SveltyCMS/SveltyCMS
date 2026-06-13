@@ -343,6 +343,9 @@ export async function handleCollectionBulkCreate(
   );
 }
 
+/** Maximum number of items allowed in a single bulk operation to prevent memory exhaustion. */
+const MAX_BULK_ITEMS = 1000;
+
 export async function handleCollectionBulkUpdate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -350,9 +353,16 @@ export async function handleCollectionBulkUpdate(
   user: any,
   collectionId: string,
 ) {
+  const payload = await event.request.json();
+  if (Array.isArray(payload) && payload.length > MAX_BULK_ITEMS) {
+    throw new AppError(
+      `Bulk update limit exceeded: ${payload.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+      413,
+    );
+  }
   return successResponse(
     event,
-    await cms.collections.bulkUpdate(collectionId, await event.request.json(), {
+    await cms.collections.bulkUpdate(collectionId, payload, {
       user: user!,
       tenantId,
     }),
@@ -366,9 +376,16 @@ export async function handleCollectionBulkDelete(
   user: any,
   collectionId: string,
 ) {
+  const payload = await event.request.json();
+  if (Array.isArray(payload) && payload.length > MAX_BULK_ITEMS) {
+    throw new AppError(
+      `Bulk delete limit exceeded: ${payload.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+      413,
+    );
+  }
   return successResponse(
     event,
-    await cms.collections.bulkDelete(collectionId, await event.request.json(), {
+    await cms.collections.bulkDelete(collectionId, payload, {
       user: user!,
       tenantId,
     }),

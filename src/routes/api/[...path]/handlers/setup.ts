@@ -98,6 +98,16 @@ async function handleTestDatabase(event: RequestEvent) {
     configData.port = Number(configData.port);
   }
 
+  // Validate port range (1-65535)
+  if (typeof configData.port === "number" && isFinite(configData.port)) {
+    if (configData.port < 1 || configData.port > 65535) {
+      throw new AppError(
+        `Invalid port number: ${configData.port}. Must be between 1 and 65535.`,
+        400,
+      );
+    }
+  }
+
   const { success, issues, output: dbConfig } = safeParse(databaseConfigSchema, configData);
   if (!success || !dbConfig) {
     throw new AppError("Invalid database configuration", 400, "VALIDATION_ERROR", issues);

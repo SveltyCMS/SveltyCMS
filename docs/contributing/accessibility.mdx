@@ -65,7 +65,7 @@ Please adhere to the following standard patterns when adding new hotkeys to Svel
 
 Example usage:
 
-```svelte
+````svelte
 <button
 	onclick={handleSave}
 	aria-keyshortcuts="Mod+S"
@@ -73,7 +73,7 @@ Example usage:
 >
 	Save
 </button>
-```
+```text
 
 ```typescript
 import { registerHotkey } from "@src/utils/hotkeys";
@@ -88,7 +88,7 @@ onMount(() => {
     "Save changes",
   );
 });
-```
+```text
 
 - [ ] **Screen Reader Support**:
   - Interactive elements have accessible names (`aria-label`, `aria-labelledby`, or visible text).
@@ -142,7 +142,7 @@ Use `aria-live="polite"` for status messages that appear dynamically without pag
 <div aria-live="polite" aria-atomic="true">
 	{#if message}{message}{/if}
 </div>
-```
+```text
 
 ### Focus Management
 
@@ -156,7 +156,7 @@ async function nextStep() {
   await tick();
   document.getElementById("step-content")?.focus();
 }
-```
+```text
 
 ### Modals
 
@@ -174,3 +174,12 @@ Before submitting PRs:
 1.  **Keyboard Test**: Tab through the interface. Can you do everything without a mouse?
 2.  **Zoom Test**: Zoom to 200%. Does the layout break?
 3.  **Automated Test**: Run any available accessibility linters or audit tools (e.g., Lighthouse, Axe).
+````
+
+---
+
+## Related
+
+- [Documentation Standards](./contributing-docs.mdx)
+- [GUI Styling Guide](./style-guide-gui.mdx)
+- [Security Overview](../architecture/security/index.mdx)

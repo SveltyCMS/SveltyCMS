@@ -78,14 +78,14 @@
 {#if showBanner && !consentStore.responded}
   <div
     transition:fade={{ duration: 300 }}
-    class="fixed inset-x-0 bottom-0 `z-9999 p-4 md:bottom-6 md:left-6 md:right-auto md:w-full md:max-w-md"
+    class="fixed inset-x-0 bottom-0 z-9999 p-4 md:bottom-6 md:left-6 md:right-auto md:w-full md:max-w-md"
     role="dialog"
     aria-modal="true"
     aria-labelledby="cookie-heading"
     aria-describedby="cookie-description"
   >
     <div
-      class="rounded-xl border border-surface-200 bg-white p-3 shadow-2xl dark:border-surface-700 dark:bg-surface-900"
+      class="rounded border border-surface-200 bg-white p-3 shadow-2xl dark:border-surface-700 dark:bg-surface-900"
     >
       <!-- Header -->
       <div class="flex items-start gap-3">
@@ -97,7 +97,7 @@
           >
             {cookie_heading()}
           </h2>
-          
+
           <p
             id="cookie-description"
             class="mt-2 text-sm text-gray-600 dark:text-gray-300"
@@ -154,30 +154,30 @@
             onclick={handleSavePreferences}
             variant="primary"
             class="flex-1"
-          >
-            {cookie_button_save()}
+           >
+             {cookie_button_save()}
           </Button>
         {:else}
           <Button
             onclick={() => (showDetails = true)}
             variant="secondary"
             class="flex-1"
-          >
-            {cookie_button_customize()}
+           >
+             {cookie_button_customize()}
           </Button>
           <Button
             onclick={handleRejectAll}
             variant="secondary"
             class="flex-1"
-          >
-            {cookie_button_reject()}
+           >
+             {cookie_button_reject()}
           </Button>
           <Button
             onclick={handleAcceptAll}
             variant="primary"
             class="flex-1"
-          >
-            {cookie_button_accept()}
+           >
+             {cookie_button_accept()}
           </Button>
         {/if}
       </div>

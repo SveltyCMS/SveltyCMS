@@ -275,7 +275,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		/>
 
 		<!-- View mode toggle -->
-		<div class="flex gap-1 rounded-lg border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
+		<div class="flex gap-1 rounded border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
 			<button
 				onclick={() => (currentViewMode.value = 'grid')}
 				class="btn-icon btn-icon-sm {currentViewMode.value === 'grid' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outlined-surface-500'}"
@@ -318,7 +318,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	<!-- Selection toolbar (multiple mode) -->
 	{#if multiple && selectedCount > 0}
 		<div
-			class="flex items-center justify-between rounded-lg border-l-4 border-tertiary-500 dark:border-primary-500 bg-primary-50 p-3 dark:bg-primary-900/20"
+			class="flex items-center justify-between rounded border-s-4 border-tertiary-500 dark:border-primary-500 bg-primary-50 p-3 dark:bg-primary-900/20"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<span class="text-sm font-medium"> {selectedCount} file{selectedCount !== 1 ? 's' : ''} selected </span>
@@ -374,7 +374,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 				>
 					{#if multiple}
 						<!-- Selection checkbox -->
-						<label class="absolute left-2 top-2 z-10">
+						<label class="absolute inset-s-2 top-2 z-10">
 							<input
 								type="checkbox"
 								checked={selected}
@@ -396,7 +396,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 						>
 							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						</button>
-						<p class="flex-1 truncate pr-2 text-center text-sm text-white" title={file.filename}>{file.filename}</p>
+						<p class="flex-1 truncate pe-2 text-center text-sm text-white" title={file.filename}>{file.filename}</p>
 					</div>
 
 					<!-- Content -->
@@ -412,18 +412,18 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 							<img
 								src={getThumbnailUrl(file, currentViewMode.value === 'list' ? 'sm' : 'md')}
 								alt={file.metadata?.altText || file.originalFilename || file.filename}
-								class="max-h-full max-w-full rounded-md object-contain"
+								class="max-h-full max-w-full rounded object-contain"
 								loading="lazy"
 							/>
 						{:else}
 							<!-- Info view -->
-							<div class="w-full text-left">
+							<div class="w-full text-start">
 								<h4 class="mb-2 text-sm font-semibold">Thumbnail Sizes</h4>
 								<table class="table w-full text-xs">
 									<thead>
 										<tr>
-											<th class="text-left">Size</th>
-											<th class="text-left">Dimensions</th>
+											<th class="text-start">Size</th>
+											<th class="text-start">Dimensions</th>
 										</tr>
 									</thead>
 									<tbody>

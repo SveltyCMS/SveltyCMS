@@ -43,6 +43,8 @@ const JSON_FIELDS = new Set([
   "thumbnails",
   "quota",
   "usage",
+  "roleIds",
+  "permissions",
   "details",
   "errorDetails",
   "instances",
@@ -148,9 +150,10 @@ export function convertISOToDates(data: any): any {
         result[key] = new Date((val as any).getTime());
       }
     } else if (JSON_FIELDS.has(key) && val !== null && typeof val === "object") {
-      // 🚀 DRIZZLE COMPATIBILITY: Drizzle handles JSON serialization natively.
-      // Manually stringifying here causes double-serialization in MariaDB/MySQL.
-      result[key] = val;
+      // For text() columns storing structured data, serialize to JSON.
+      // Native json()/jsonb() columns (PostgreSQL, MariaDB) handle this natively.
+      // SQLite text() columns need explicit serialization to avoid binding errors.
+      result[key] = Array.isArray(val) ? JSON.stringify(val) : val;
     }
   }
   return result;

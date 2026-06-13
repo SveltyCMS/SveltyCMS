@@ -8,6 +8,7 @@
 
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { Body, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
+	import Sanitize from '@src/utils/sanitize.svelte';
 	import { dev } from '$app/environment';
 
 	interface Props {
@@ -37,16 +38,15 @@
 	<Preview preview="A notification from {sitename}" />
 
 	<Body class="font-sans bg-[#f6f9fc] py-5">
-		<Container class="max-w-150 mx-auto bg-white rounded-lg overflow-hidden shadow-sm">
+		<Container class="max-w-150 mx-auto bg-white rounded overflow-hidden shadow-sm">
 			<Section class="p-8 text-center border-b border-gray-200">
 				<Link href={hostLink}><Img src={logoSrc} alt="{sitename} logo" width="120" height="auto" class="mx-auto block" /></Link>
 			</Section>
 
 			<Section class="p-6">
-				<!-- Custom body injected here -->
+				<!-- Custom body — sanitized via DOMPurify for defense-in-depth -->
 				<div class="prose prose-slate max-w-none">
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html body}
+					<Sanitize html={body} profile="rich-text" />
 				</div>
 			</Section>
 

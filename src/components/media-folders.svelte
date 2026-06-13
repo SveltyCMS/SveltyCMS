@@ -59,6 +59,7 @@
 	let isEditMode = $state(false);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
+	let search = $state('');
 
 	// Derived UI state
 	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
@@ -136,8 +137,13 @@
 			return [root];
 		}
 
+		const searchLower = search.toLowerCase();
+		const filteredFolders = search 
+			? folders.filter(f => f.name.toLowerCase().includes(searchLower))
+			: folders;
+
 		const map = new SvelteMap<string, FolderNode>();
-		folders.forEach((f) => {
+		filteredFolders.forEach((f) => {
 			const isPinned = pinnedStore.isPinned(f.id);
 			map.set(f.id, {
 				...f,
@@ -163,7 +169,7 @@
 		});
 
 		const orphans: FolderNode[] = [];
-		folders.forEach((f) => {
+		filteredFolders.forEach((f) => {
 			const node = map.get(f.id)!;
 			if (f.parentId && map.has(f.parentId)) {
 				map.get(f.parentId)?.children?.push(node);
@@ -192,7 +198,7 @@
 			expandedNodes.add(id);
 		}
 		if (isMobile) {
-			ui.toggle('leftSidebar', 'hidden');
+			ui.toggle('leftSidebar', 'collapsed');
 		}
 		const path = id === 'root' ? '/mediagallery' : `/mediagallery?folderId=${id}`;
 		goto(path);
@@ -252,29 +258,53 @@
 </script>
 
 <div class="space-y-2" role="navigation" aria-label="Media folders">
-	<!-- Header -->
-	<div class="flex items-center justify-between">
-		<h3 class="flex items-center text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-			<iconify-icon icon="bi:folder" width={24}></iconify-icon>
-			Media Folders
-		</h3>
-
+	<!-- Search Header -->
+	<div class="flex items-center gap-1">
+		<div class="relative w-full min-w-0">
+			<input
+				type="text"
+				bind:value={search}
+				size="1"
+				placeholder="Search folders..."
+				class="w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-3 {isSidebarFull ? 'pe-11' : 'pe-2'} text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 h-10 py-2"
+				aria-label="Search media folders"
+			/>
+			{#if isSidebarFull && search}
+				<div class="absolute inset-e-0 top-0 flex h-full items-center">
+					<button
+						type="button"
+						onclick={() => search = ''}
+						class="btn rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 mr-0.5"
+						aria-label="Clear search"
+					>
+						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
+					</button>
+				</div>
+			{:else if isSidebarFull && !search}
+				<div class="absolute inset-e-0 top-0 flex h-full items-center">
+					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 mr-0.5">
+						<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
+					</div>
+				</div>
+			{/if}
+		</div>
 		{#if isSidebarFull}
 			<button
 				type="button"
 				onclick={() => (isEditMode = !isEditMode)}
-				class="btn-sm {isEditMode ? 'variant-filled-warning' : 'preset-outlined-surface-500'}"
+				class="btn-icon h-10 w-10 shrink-0 {isEditMode ? 'variant-filled-warning' : 'preset-outlined-surface-500'}"
 				aria-pressed={isEditMode}
+				aria-label="Toggle Edit Mode"
+				title="Edit Folders"
 			>
 				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
-				<span class="ml-1">{isEditMode ? 'Done' : 'Edit'}</span>
 			</button>
 		{/if}
 	</div>
 
 	<!-- Edit mode hint -->
 	{#if isEditMode && isSidebarFull}
-		<div class="flex items-start gap-2 rounded-lg bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">
+		<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">
 			<iconify-icon icon="bi:info-circle" width={24}></iconify-icon>
 			<p>Drag folders to reorder or move. Use node actions for rename/delete.</p>
 		</div>

@@ -138,6 +138,7 @@ function handleKeyDown(e: KeyboardEvent) {
 				class:preset-outlined-surface-500={!isComparing}
 				onclick={onCompareToggle}
 				title="Compare before/after (C)"
+				aria-label="Compare before/after"
 			>
 				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
 				<span class="hidden sm:inline">Compare</span>
@@ -157,6 +158,7 @@ function handleKeyDown(e: KeyboardEvent) {
 						showPresetsPanel = false;
 					}}
 					title={preset.description}
+					aria-label="Apply {preset.name} preset"
 				>
 					<div class="preset-icon-wrapper"><iconify-icon icon={preset.icon} width="24"></iconify-icon></div>
 					<span class="preset-name">{preset.name}</span>
@@ -180,6 +182,7 @@ function handleKeyDown(e: KeyboardEvent) {
 						class:has-change={hasChange}
 						onclick={() => onAdjustmentChange(adj.key)}
 						title={adjConfig?.description || adj.label}
+						aria-label="Adjust {adj.label}"
 					>
 						<iconify-icon icon={adj.icon} width="24"></iconify-icon>
 						<span class="adjustment-label">{adj.label}</span>

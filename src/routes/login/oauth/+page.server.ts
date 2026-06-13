@@ -327,8 +327,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
     }
 
     logger.debug("OAuth Callback called:");
-    const firstUserExists = (await auth.getUserCount()) !== 0;
-    logger.debug(`First user exists: ${firstUserExists}`);
+    const hasAdminUser = (await auth.getUserCount()) !== 0;
+    logger.debug(`First user exists: ${hasAdminUser}`);
 
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
@@ -338,7 +338,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
     logger.debug(`Authorization code from URL: ${code}`);
     logger.debug(`Registration token from state: ${token}`);
-    logger.debug(`Is First User: ${!firstUserExists}`);
+    logger.debug(`Is First User: ${!hasAdminUser}`);
 
     // Handle OAuth errors first
     if (errorParam) {
@@ -361,7 +361,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
     if (!code) {
       const provider = url.searchParams.get("provider") || "google";
       // For first user (no existing users), redirect directly to OAuth
-      if (!firstUserExists) {
+      if (!hasAdminUser) {
         const authUrl =
           provider === "github"
             ? await generateGithubAuthUrl(token, "consent")
@@ -370,12 +370,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
       }
 
       // For non-first users without a token, show token input form
-      if (firstUserExists && !token) {
-        return { isFirstUser: !firstUserExists, requiresToken: true };
+      if (hasAdminUser && !token) {
+        return { isFirstUser: !hasAdminUser, requiresToken: true };
       }
 
       // For non-first users with a token, redirect to OAuth with the token
-      if (firstUserExists && token) {
+      if (hasAdminUser && token) {
         const authUrl =
           provider === "github"
             ? await generateGithubAuthUrl(token, "consent")
@@ -477,7 +477,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
       // Pass the refresh token from the `tokens` object to the handler function.
       await handleGoogleUser(
         googleUser as GoogleUserInfo,
-        !firstUserExists,
+        !hasAdminUser,
         token,
         refresh_token,
         cookies,

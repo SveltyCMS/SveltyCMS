@@ -20,7 +20,7 @@ tags:
 
 ## 📊 Performance Benchmarks (2026)
 
-SveltyCMS delivers enterprise-grade performance through its database-agnostic architecture. For the complete set of verified benchmarks, stress test results, and hardware context, please refer to the [Performance Benchmarks](/docs/project/benchmarks) document.
+SveltyCMS delivers enterprise-grade performance through its database-agnostic architecture. For the complete set of verified benchmarks, stress test results, and hardware context, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
 
 Key architectural improvements include:
 
@@ -120,13 +120,13 @@ Automated sitemap generation and search engine notification.
 
 ## Performance Stack Summary
 
-The SveltyCMS performance stack combines dual-layer caching, database indexing, and smart field selection to deliver sub-millisecond reactivity. Detailed real-world performance examples and RPS metrics are documented in [Performance Benchmarks](/docs/project/benchmarks).
+The SveltyCMS performance stack combines dual-layer caching, database indexing, and smart field selection to deliver sub-millisecond reactivity. Detailed real-world performance examples and RPS metrics are documented in [Performance Benchmarks](/docs/project/benchmarks/index).
 
 ### Real-World Performance Examples
 
 **Scenario 1: Dashboard Load (Cached)**
 
-```
+````text
 Without optimizations: 800ms
 - Database queries: 500ms
 - Data aggregation: 200ms
@@ -138,11 +138,11 @@ With full stack: 5ms
 - Network transfer: 2.2ms (cached + compressed)
 
 Improvement: 160x faster ✨
-```
+```text
 
 **Scenario 2: Collection List (1,000 entries, Uncached)**
 
-```
+```text
 Without optimizations: 1,200ms
 - Full table scan: 800ms
 - Load all 35 fields: 300ms
@@ -154,11 +154,11 @@ With optimizations: 18ms
 - JSON serialization: 1ms
 
 Improvement: 66x faster, then cached for 160x on next load
-```
+```text
 
 **Scenario 3: User Session Validation**
 
-```
+```text
 Without cache: 45ms
 - Database lookup: 40ms
 - Permission check: 5ms
@@ -168,7 +168,7 @@ With session cache: 0.8ms
 - Permission check: 0.3ms (cached roles)
 
 Improvement: 56x faster (happens on EVERY request!)
-```
+```text
 
 ### Enterprise Scalability
 
@@ -200,18 +200,21 @@ Improvement: 56x faster (happens on EVERY request!)
 
 ```bash
 # No errors in implementation files
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 ✓ /src/databases/mongodb/methods/collectionMethods.ts
 ✓ /src/utils/fieldselection.ts
 ✓ /src/routes/(app)/[language]/[...collection]/+page.server.ts
-```
+```text
 
 ### Index Verification
 
 ```bash
 # Check indexes created for a collection
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 db.collection_<id>.getIndexes()
 
 # Expected output:
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 [
   { key: { status: 1 } },
   { key: { createdAt: -1 } },
@@ -219,18 +222,20 @@ db.collection_<id>.getIndexes()
   { key: { tenantId: 1 } },
   # ... field-specific indexes
 ]
-```
+```text
 
 ### Payload Verification
 
 ```bash
 # Server logs show field selection
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 [Field Selection] List view loading only: _id, status, createdAt, title, thumbnail
 
 # Network tab shows reduced response size
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 Before: 450 KB
 After: 95 KB (79% reduction)
-```
+```text
 
 ---
 
@@ -249,11 +254,11 @@ After: 95 KB (79% reduction)
 
 ### Architecture: Dual-Layer Strategy
 
-```
+```text
 Layer 1: Memory (LocalStore)    → <0.1ms latency (Map-based)
 Layer 2: Redis (GlobalStore)    → <1ms latency (Optimized pipelines)
 Layer 3: Database (Persistent)   → Sub-1ms CRUD (0.042-3.261 ms across all adapters)
-```
+```text
 
 ### 2026 Core Enhancements
 
@@ -357,7 +362,7 @@ if (cached) return cached;
 
 const data = await db.find("posts", { status: "published" });
 await cacheService.set("query:posts:published", data, null, "query");
-```
+```text
 
 **Documentation:** See `/docs/architecture/cache-system.mdx` for complete guide
 
@@ -502,7 +507,8 @@ Migrated the core `SystemStateStore` from a standard Svelte store to a **Svelte 
     const rolePermissions = field.permissions[user.role];
     return !rolePermissions || rolePermissions.read !== false;
   })
-  ```
+````
+
 - **Access Control Examples:**
   - Editor role: Cannot see sensitive fields (e.g., internal notes, pricing)
   - Viewer role: Read-only access to public fields
@@ -594,7 +600,7 @@ Performance features update seamlessly:
 
 Enable detailed logging:
 
-```typescript
+````typescript
 // In collectionMethods.ts
 logger.setLevel("debug");
 
@@ -602,7 +608,7 @@ logger.setLevel("debug");
 ("Creating indexes for collection: posts");
 ("Created index on status for posts");
 ("Field Selection: List view loading only: _id, status, title");
-```
+```text
 
 ---
 
@@ -611,3 +617,4 @@ logger.setLevel("debug");
 **Based On:** `docs/FUTURE_IMPROVEMENTS.md`
 **Impact:** Enterprise-grade performance for SveltyCMS
 **Status:** Production-ready ✅
+````

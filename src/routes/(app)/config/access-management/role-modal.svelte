@@ -148,7 +148,7 @@ function onFormSubmit(event: SubmitEvent): void {
 							class="checkbox"
 							checked={localSelectedPermissions.includes(perm._id)}
 							onchange={() => togglePermission(perm._id)}
-						/>
+						 aria-label="Input" />
 						<span class="text-sm">{perm.name}</span>
 					</label>
 				{:else}

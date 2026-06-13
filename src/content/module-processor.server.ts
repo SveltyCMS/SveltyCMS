@@ -129,6 +129,35 @@ export async function loadSchemaNative(filePath: string): Promise<{ schema?: Sch
 }
 
 /**
+ * Loads a schema via the worker thread pool for sandboxed execution.
+ * Falls back to native import() if the pool is unavailable.
+ */
+export async function loadSchemaPooled(filePath: string): Promise<{ schema?: Schema } | null> {
+  try {
+    const { getModuleWorkerPool } = await import("./module-worker-pool.server");
+    const pool = getModuleWorkerPool();
+    const result = await pool.load(filePath);
+
+    if (result.schema && Array.isArray(result.schema.fields)) {
+      if (!result.schema._id && result.schema.name) {
+        result.schema._id = result.schema.name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+      }
+      return { schema: result.schema as Schema };
+    }
+
+    if (result.error) {
+      logger.warn(
+        `[WorkerPool] Schema load failed for ${path.basename(filePath)}: ${result.error}`,
+      );
+    }
+    return null;
+  } catch {
+    // Pool unavailable — fall back to native import
+    return loadSchemaNative(filePath);
+  }
+}
+
+/**
  * Legacy string-based parser (kept for backward compatibility).
  * Should rarely be used.
  */

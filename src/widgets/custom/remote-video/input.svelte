@@ -237,7 +237,7 @@ Part of the Three Pillars Architecture for widget system.
 	<SystemTooltip title={error || fetchError || ''} wFull={true}>
 		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900" role="group">
 			<!-- Platform Icon -->
-			<div class="flex items-center px-3 border-r border-surface-400/30">
+			<div class="flex items-center px-3 border-e border-surface-400/30">
 				<iconify-icon icon={PLATFORM_ICONS[currentPlatform]} width="20"></iconify-icon>
 			</div>
 
@@ -278,13 +278,13 @@ Part of the Three Pillars Architecture for widget system.
 	</SystemTooltip>
 
 	{#if error || fetchError}
-		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert">
 			{error || fetchError}
 		</p>
 	{/if}
 
 	{#if fetchedMetadata && !isLoading && !fetchError}
-		<div class="mt-4 flex flex-col gap-4 rounded-lg border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30">
+		<div class="mt-4 flex flex-col gap-4 rounded border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30">
 			<div class="relative group shrink-0">
 				<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-[160px] rounded shadow-sm object-cover aspect-video" />
 				<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">

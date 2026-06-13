@@ -114,7 +114,9 @@ jobs:
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
 
       - name: CVE Audit (npm)
-        run: npm audit --omit=dev --audit-level=critical || true
+        run: |
+          npm i --package-lock-only
+          npm audit --omit=dev --audit-level=critical
 
       - name: CVE Audit Summary
         run: |
@@ -390,7 +392,7 @@ jobs:
     name: 🧙 E2E (Wizard)
     needs: [bootstrap, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -426,6 +428,7 @@ jobs:
         run: |
           if [ -f tests/e2e/.auth/test-secret.txt ]; then
             export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+            echo "::add-mask::$TEST_API_SECRET"
           fi
 
           # Ensure clean state for wizard
@@ -442,7 +445,7 @@ jobs:
 
           # Increase timeout and add explicit logging
           echo "Waiting for preview server on port 4173..."
-          bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 2000 || (cat preview.log && exit 1)
+          bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500 || (cat preview.log && exit 1)
 
           # Run the consolidated Wizard suite
           # baseURL must point at the CI preview server (4173); export so it reaches the
@@ -518,6 +521,7 @@ jobs:
           ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          echo "::add-mask::$TEST_API_SECRET"
 
           mkdir -p config config/database tests/e2e/.auth logs mediaFolder
 
@@ -560,12 +564,13 @@ jobs:
           JWT_SECRET_KEY=Auth-Setup-JWT-Secret-Key-2026 \
           ENCRYPTION_KEY=Auth-Setup-Encryption-Key-2026-32ch \
           TEST_API_SECRET="$TEST_API_SECRET" \
-          bun run dev -- --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
+          HOST=127.0.0.1 \
+          PORT=4173 \
+          node build/index.js > preview.log 2>&1 &
 
 
-          sleep 5
           cat preview.log || true
-          bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 2000
+          bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
           bun x playwright test --project=auth-setup
 
@@ -639,25 +644,40 @@ jobs:
       - name: Run E2E (${{ matrix.project }}) project
         env:
           DB_TYPE: sqlite
+          DB_HOST: 127.0.0.1
+          DB_NAME: e2e_auth_test
+          DB_USER: ""
+          DB_PASSWORD: ""
+          DB_AUTH_SOURCE: ""
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
           ADMIN_PASSWORD: Password123!
+          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026
+          ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
+
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          echo "::add-mask::$TEST_API_SECRET"
+
+          trap 'echo "::group::preview.log"; cat preview.log || true; echo "::endgroup::"' EXIT
 
           DB_HOST=127.0.0.1 \
+          DB_NAME=e2e_auth_test \
           HOST=127.0.0.1 \
           PORT=4173 \
           PASSWORD_MIN_LENGTH=8 \
           TEST_MODE=true \
           SKIP_TEST_CLEANUP=true \
+          ADMIN_PASSWORD=Password123! \
+          JWT_SECRET_KEY=Auth-Setup-JWT-Secret-Key-2026 \
+          ENCRYPTION_KEY=Auth-Setup-Encryption-Key-2026-32ch \
           TEST_API_SECRET="$TEST_API_SECRET" \
           PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173 \
           node build/index.js > preview.log 2>&1 &
 
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
-          bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 2000
+          bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
           bun x playwright test --project=${{ matrix.project }}
 
       - uses: actions/upload-artifact@v7

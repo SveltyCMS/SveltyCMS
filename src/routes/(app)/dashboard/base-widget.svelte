@@ -374,12 +374,12 @@ $effect(() => {
 
 <article
 	bind:this={widgetEl}
-	class="widget-base-container group relative flex h-full flex-col rounded-lg border border-surface-200 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
+	class="widget-base-container group relative flex h-full flex-col rounded border border-surface-200 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
 	aria-labelledby="widget-title-{widgetId || label}"
 	style="overflow: visible;"
 >
 	<header
-		class="widget-header flex cursor-grab items-center justify-between border-b border-gray-100 bg-white py-2 pl-4 pr-2 dark:text-surface-50 dark:bg-surface-800"
+		class="widget-header flex cursor-grab items-center justify-between border-b border-gray-100 bg-white py-2 ps-4 pe-2 dark:text-surface-50 dark:bg-surface-800"
 		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
 	>
 		<div class="flex flex-1 flex-col gap-0.5">
@@ -414,11 +414,11 @@ $effect(() => {
 				</button>
 				{#if showSizeMenu}
 					<div
-						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
+						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
-							<button
+							<button>
 								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
 									s.w && size.h === s.h
 									? 'font-bold text-tertiary-500 dark:text-primary-500'
@@ -473,7 +473,7 @@ $effect(() => {
 	</section>
 	{#if resizable}
 		<div class="resize-handles pointer-events-none absolute inset-0">
-			{#each [{ dir: 'nw', classes: 'top-0 left-0 cursor-nw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-180' }, { dir: 'n', classes: 'top-0 left-1/2 cursor-n-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'ne', classes: 'top-0 right-0 cursor-ne-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '-rotate-90' }, { dir: 'e', classes: 'top-1/2 right-0 cursor-e-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }, { dir: 'se', classes: 'bottom-0 right-0 cursor-se-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '' }, { dir: 's', classes: 'bottom-0 left-1/2 cursor-s-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'sw', classes: 'bottom-0 left-0 cursor-sw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-90' }, { dir: 'w', classes: 'top-1/2 left-0 cursor-w-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }] as handle (handle.dir)}
+			{#each [{ dir: 'nw', classes: 'top-0 start-0 cursor-nw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-180' }, { dir: 'n', classes: 'top-0 start-1/2 cursor-n-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'ne', classes: 'top-0 end-0 cursor-ne-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '-rotate-90' }, { dir: 'e', classes: 'top-1/2 end-0 cursor-e-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }, { dir: 'se', classes: 'bottom-0 end-0 cursor-se-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '' }, { dir: 's', classes: 'bottom-0 start-1/2 cursor-s-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'sw', classes: 'bottom-0 start-0 cursor-sw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-90' }, { dir: 'w', classes: 'top-1/2 start-0 cursor-w-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }] as handle (handle.dir)}
 				<div
 					class="pointer-events-auto absolute z-20 flex items-center justify-center opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100 group-hover:opacity-60 {handle.classes} {handle.rotation}"
 					style="width: 16px; height: 16px; {handle.style || ''}"
@@ -496,8 +496,8 @@ $effect(() => {
 	{/if}
 
 	{#if isResizing && previewSize}
-		<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-tertiary-500 dark:bg-primary-500/10 backdrop-blur-sm">
-			<div class="rounded-lg bg-tertiary-500 dark:bg-primary-500 px-4 py-2 text-white shadow-lg">Snap to: {getSizeLabel(previewSize)}</div>
+		<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded bg-tertiary-500 dark:bg-primary-500/10 backdrop-blur-sm">
+			<div class="rounded bg-tertiary-500 dark:bg-primary-500 px-4 py-2 text-white shadow-lg">Snap to: {getSizeLabel(previewSize)}</div>
 		</div>
 	{/if}
 </article>

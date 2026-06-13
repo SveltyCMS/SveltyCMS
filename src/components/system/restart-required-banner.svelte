@@ -140,7 +140,7 @@ Displays a prominent banner when server restart is required with countdown and s
 		<!-- Content -->
 		<div class="relative flex flex-col items-center gap-3 md:flex-row md:justify-between">
 			<!-- Warning icon and message -->
-			<div class="flex items-center gap-3 text-center md:text-left">
+			<div class="flex items-center gap-3 text-center md:text-start">
 				<div class="shrink-0">
 					<iconify-icon
 						icon="mdi:alert-circle"
@@ -204,7 +204,7 @@ Displays a prominent banner when server restart is required with countdown and s
 
 		<!-- Progress bar for countdown -->
 		{#if countdown !== null && countdown < AUTO_RESTART_SECONDS}
-			<div class="absolute bottom-0 left-0 right-0 h-1 bg-warning-900/20" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+			<div class="absolute bottom-0 start-0 end-0 h-1 bg-warning-900/20" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 				<div
 					class="h-full bg-error-500 transition-all duration-1000 ease-linear"
 					style="width: {((AUTO_RESTART_SECONDS - countdown) / AUTO_RESTART_SECONDS) * 100}%"

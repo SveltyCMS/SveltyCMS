@@ -120,7 +120,7 @@ configurable position, and full focus management via `useDialog`.
 			<div
 				data-dialog-content
 				class={cn(
-					'fixed z-102 flex flex-col border-l dark:border-surface-800 shadow-2xl transition-all duration-300',
+					'fixed z-102 flex flex-col border-s dark:border-surface-800 shadow-2xl transition-all duration-300',
 					colorClasses[color],
 					positionClasses[position],
 					size,

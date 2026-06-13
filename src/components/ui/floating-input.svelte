@@ -143,7 +143,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 			{onkeydown}
 			type={effectiveType}
 			class={cn(
-				'peer block h-12 w-full appearance-none border-0 border-b-2 pl-8 pr-6 pb-1 pt-4 text-base focus:outline-none focus:ring-0 disabled:opacity-50 transition-all duration-200',
+				'peer block h-12 w-full appearance-none border-0 border-b-2 ps-8 pe-6 pb-1 pt-4 text-base focus:outline-none focus:ring-0 disabled:opacity-50 transition-all duration-200',
 				bgTransparent
 					? 'border-white/50 text-white focus:border-white bg-transparent'
 					: cn(
@@ -166,7 +166,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 				{icon}
 				width="18"
 				class={cn(
-					"absolute left-0 top-3",
+					"absolute inset-s-0 top-3",
 					bgTransparent
 						? "text-white"
 						: iconColor
@@ -186,7 +186,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 				aria-pressed={showPassword}
 				class={cn(
-					"absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none",
+					"absolute inset-e-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none",
 					bgTransparent
 						? "text-white"
 						: passwordIconColor
@@ -204,7 +204,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 			<label
 				for={currentId}
 				class={cn(
-					"pointer-events-none absolute left-8 top-2.5 origin-left -translate-y-2 scale-75 transform text-base transition-all duration-200 ease-in-out",
+					"pointer-events-none absolute inset-s-8 top-2.5 origin-start -translate-y-2 scale-75 transform text-base transition-all duration-200 ease-in-out",
 					"peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base",
 					"peer-focus:-translate-y-2 peer-focus:scale-75",
 					bgTransparent

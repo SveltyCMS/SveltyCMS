@@ -71,7 +71,7 @@ SveltyCMS enforces schema validation (via Valibot) on every write operation.
 
 The Collections handler acts as a thin dispatcher that invokes the `LocalCMS` SDK, which in turn coordinates between the Database Adapter and the Widget System.
 
-```mermaid
+````mermaid
 sequenceDiagram
     participant Client
     participant API as Collections Handler
@@ -82,7 +82,7 @@ sequenceDiagram
     API->>SDK: cms.collections.create('posts', data)
     SDK->>DB: INSERT INTO collection_posts ...
     DB-->>Client: 201 Created (JSON Entry)
-```
+```text
 
 ---
 
@@ -91,3 +91,4 @@ sequenceDiagram
 - [Content & Search (content.ts)](./content.mdx)
 - [Media Management (media.ts)](./media.mdx)
 - [System Utilities (utility.ts)](./utility.mdx)
+````

@@ -56,6 +56,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			class:active={currentTool === 'arrow'}
 			onclick={() => onSetTool(currentTool === 'arrow' ? null : 'arrow')}
 			title="Draw Arrow"
+			aria-label="Draw Arrow"
 		>
 			<iconify-icon icon="mdi:arrow-top-right" width="20"></iconify-icon>
 		</button>
@@ -65,6 +66,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			class:active={currentTool === 'rectangle'}
 			onclick={() => onSetTool(currentTool === 'rectangle' ? null : 'rectangle')}
 			title="Draw Rectangle"
+			aria-label="Draw Rectangle"
 		>
 			<iconify-icon icon="mdi:rectangle-outline" width="20"></iconify-icon>
 		</button>
@@ -101,13 +103,13 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	<!-- Color Pickers -->
 	<div class="color-group">
 		<label class="color-picker-label" title="Stroke Color">
-			<input type="color" class="input-color" oninput={(e) => onStrokeColorChange(e.currentTarget.value)} value={strokeColor} />
+			<input type="color" class="input-color" oninput={(e) => onStrokeColorChange(e.currentTarget.value)} value={strokeColor}  aria-label="Input" />
 			<div class="color-swatch" style:background-color={strokeColor}></div>
 			<iconify-icon icon="mdi:pencil-outline" class="picker-icon" width="12"></iconify-icon>
 		</label>
 
 		<label class="color-picker-label" title="Fill Color">
-			<input type="color" class="input-color" oninput={(e) => onFillColorChange(e.currentTarget.value)} value={fillColor} />
+			<input type="color" class="input-color" oninput={(e) => onFillColorChange(e.currentTarget.value)} value={fillColor}  aria-label="Input" />
 			<div class="color-swatch" style:background-color={fillColor}></div>
 			<iconify-icon icon="mdi:format-color-fill" class="picker-icon" width="12"></iconify-icon>
 		</label>

@@ -35,18 +35,18 @@ SveltyCMS implements a **GUI-First navigation pattern** where user interactions 
 
 **90% of navigation: GUI clicks** (FAST)
 
-```
+````text
 Hover → Preload to cache (300ms delay)
 Click → Check cache → setMode() → Reflect in URL
 Result: INSTANT mode switch (0ms if cached, ~100ms if not)
-```
+```text
 
 **10% of navigation: Manual URL edits** (SLOWER - acceptable)
 
-```
+```text
 User types URL → Parse → Translate to UUID → Load data → setMode()
 Result: SSR reload (~300-500ms) - Only when manually editing URL
-```
+```text
 
 ### Why GUI-First?
 
@@ -60,7 +60,7 @@ Result: SSR reload (~300-500ms) - Only when manually editing URL
 
 ### Internal Flow (GUI-First)
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │ PRIMARY PATH (90% - GUI Clicks)                          │
 └──────────────────────────────────────────────────────────┘
@@ -109,31 +109,31 @@ User types: /en/posts?edit=abc123
   setMode('edit') + set data
          ↓
   User sees edit form (300-500ms total - acceptable for rare case)
-```
+```text
 
 ## Current URL Structure
 
 ### View Mode (List)
 
-```
+```text
 http://localhost:5173/de/Collections/Names
-```
+```text
 
 **Format**: `/{language}/{collection-path}`
 
 ### Edit Mode
 
-```
+```text
 http://localhost:5173/de/Collections/Names?edit=8429c375ca7948d99fbcf423b7c0a8c3
-```
+```text
 
 **Format**: `/{language}/{collection-path}?edit={entry-uuid}`
 
 ### Create Mode
 
-```
+```text
 http://localhost:5173/de/Collections/Names?create=true
-```
+```text
 
 **Format**: `/{language}/{collection-path}?create=true`
 
@@ -219,7 +219,7 @@ export function reflectModeInURL(mode: ModeType, entryId?: string): void {
   // Update URL without reload
   window.history.pushState({}, "", url.toString());
 }
-```
+```text
 
 ### 2. Client-Side Navigation (entry-list.svelte)
 
@@ -271,7 +271,7 @@ function onCreate() {
   // 3. Toggle UI
   handleUILayoutToggle();
 }
-```
+```text
 
 ### 3. Save/Cancel Actions (header-edit.svelte, right-sidebar.svelte)
 
@@ -298,7 +298,7 @@ function handleCancel() {
   // 2. Reflect in URL (passive, no reload)
   reflectModeInURL("view");
 }
-```
+```text
 
 ### 4. URL-to-Mode Translation (+page.svelte)
 
@@ -342,7 +342,7 @@ $effect(() => {
 });
 	}
 });
-```
+```text
 
 ### 6. Manual URL Editing (URL → UUID Translation)
 
@@ -367,7 +367,7 @@ if (editEntryId) {
   // Translate to: List view with pagination
   setMode("view");
 }
-```
+```text
 
 ### 6. Data Population
 
@@ -384,7 +384,7 @@ $effect(() => {
     });
   }
 });
-```
+```text
 
 ## UUID-First Design Benefits
 
@@ -438,7 +438,7 @@ finalFilter._id = editId;
 
 // 7. Database query uses UUID
 dbAdapter.queryBuilder('collection_xyz').where({ _id: editId })
-```
+```text
 
 ### Example 2: User Manually Edits URL
 
@@ -463,7 +463,7 @@ else {
 }
 
 // 5. Rest of flow identical to button click
-```
+```text
 
 ### Example 3: Save After Create
 
@@ -486,7 +486,7 @@ await goto(url);
 // 5. Browser URL changes
 // FROM: /de/Collections/Names?create=true
 // TO:   /de/Collections/Names
-```
+```text
 
 ## Performance Optimizations
 
@@ -509,7 +509,7 @@ function handleRowHoverStart(entryId: string) {
     });
   }, 600);
 }
-```
+```text
 
 **Benefits**:
 
@@ -578,7 +578,7 @@ If `?edit=UUID` references non-existent entry:
 if (editEntryId && entries.length === 0) {
   throw error(404, "Entry not found");
 }
-```
+```text
 
 ### Invalid UUID Format
 
@@ -589,7 +589,7 @@ const isValidUUID = /^[a-f0-9]{32}$/i.test(editEntryId);
 if (editEntryId && !isValidUUID) {
   throw error(400, "Invalid entry ID format");
 }
-```
+```text
 
 ### Concurrent Edits
 
@@ -606,7 +606,7 @@ Edit parameter is preserved:
 // translation-status.svelte
 const newPath = `/${selectedLanguage}/${collectionId}${page.url.search}`;
 // Preserves ?edit=UUID when switching languages
-```
+```text
 
 ## Related Systems
 
@@ -660,6 +660,7 @@ describe("URL Pattern", () => {
     expect(response.entries).toHaveLength(1);
   });
 });
-```
+```text
 
 ---
+````

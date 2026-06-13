@@ -215,7 +215,7 @@ format auto-detection, field mapping preview, and progress tracking.**
 	<!-- Drop Zone -->
 	{#if !file}
 		<div
-			class="relative rounded-xl border-2 border-dashed p-10 text-center transition-all duration-200 {isDragging
+			class="relative rounded border-2 border-dashed p-10 text-center transition-all duration-200 {isDragging
 				? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/5 dark:bg-primary-500/5 scale-[1.02]'
 				: 'border-surface-300 dark:border-surface-600 hover:border-surface-400 dark:hover:border-surface-500'}"
 			ondragover={handleDragOver}
@@ -254,11 +254,11 @@ format auto-detection, field mapping preview, and progress tracking.**
 		</div>
 	{:else}
 		<!-- File Info & Format Detection -->
-		<div class="rounded-xl border border-surface-200 bg-white p-5 dark:border-surface-700 dark:bg-surface-800/50" in:slide={{ duration: 300 }}>
+		<div class="rounded border border-surface-200 bg-white p-5 dark:border-surface-700 dark:bg-surface-800/50" in:slide={{ duration: 300 }}>
 			<div class="flex items-start justify-between">
 				<div class="flex items-center gap-4">
 					<!-- File icon -->
-					<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700">
+					<div class="flex h-12 w-12 items-center justify-center rounded bg-surface-100 dark:bg-surface-700">
 						<iconify-icon
 							icon={formatIcons[detectedFormat] || "mdi:file-outline"}
 							width="24"
@@ -305,7 +305,7 @@ format auto-detection, field mapping preview, and progress tracking.**
 						bind:checked={dryRun}
 						class="h-4 w-4 rounded border-surface-300 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:focus:ring-primary-500"
 						disabled={isImporting}
-					/>
+					 />
 					<span>Dry Run (preview only)</span>
 				</label>
 			</SystemTooltip>
@@ -332,7 +332,7 @@ format auto-detection, field mapping preview, and progress tracking.**
 
 		<!-- Progress -->
 		{#if isImporting}
-			<div class="space-y-3 rounded-xl border border-surface-200 bg-white p-5 dark:border-surface-700 dark:bg-surface-800/50" in:fade={{ duration: 200 }}>
+			<div class="space-y-3 rounded border border-surface-200 bg-white p-5 dark:border-surface-700 dark:bg-surface-800/50" in:fade={{ duration: 200 }}>
 				<div class="flex items-center justify-between text-sm">
 					<span class="text-surface-600 dark:text-surface-300 capitalize">{progressPhase}</span>
 					<span class="font-mono text-surface-500">{progressPercent}%</span>
@@ -349,20 +349,20 @@ format auto-detection, field mapping preview, and progress tracking.**
 
 		<!-- Results Summary -->
 		{#if importResult}
-			<div class="space-y-4 rounded-xl border border-surface-200 bg-white p-5 dark:border-surface-700 dark:bg-surface-800/50" in:slide={{ duration: 300 }}>
+			<div class="space-y-4 rounded border border-surface-200 bg-white p-5 dark:border-surface-700 dark:bg-surface-800/50" in:slide={{ duration: 300 }}>
 				<h3 class="font-semibold text-surface-900 dark:text-white">Import Results</h3>
 
 				<!-- Stats -->
 				<div class="grid grid-cols-3 gap-4">
-					<div class="rounded-lg bg-tertiary-500/10 p-3 text-center dark:bg-primary-500/10">
+					<div class="rounded bg-tertiary-500/10 p-3 text-center dark:bg-primary-500/10">
 						<p class="text-2xl font-bold text-tertiary-600 dark:text-primary-400">{importResult.imported}</p>
 						<p class="text-xs text-surface-500">Imported</p>
 					</div>
-					<div class="rounded-lg bg-warning-500/10 p-3 text-center">
+					<div class="rounded bg-warning-500/10 p-3 text-center">
 						<p class="text-2xl font-bold text-warning-600">{importResult.skipped}</p>
 						<p class="text-xs text-surface-500">Skipped</p>
 					</div>
-					<div class="rounded-lg bg-error-500/10 p-3 text-center">
+					<div class="rounded bg-error-500/10 p-3 text-center">
 						<p class="text-2xl font-bold text-error-600">{importResult.errors}</p>
 						<p class="text-xs text-surface-500">Errors</p>
 					</div>
@@ -378,7 +378,7 @@ format auto-detection, field mapping preview, and progress tracking.**
 
 				<!-- Warnings -->
 				{#if importResult.warnings.length > 0}
-					<div class="space-y-1 rounded-lg bg-warning-500/5 p-3">
+					<div class="space-y-1 rounded bg-warning-500/5 p-3">
 						{#each importResult.warnings as warning}
 							<p class="text-xs text-warning-600">{warning}</p>
 						{/each}
@@ -400,14 +400,14 @@ format auto-detection, field mapping preview, and progress tracking.**
 						</button>
 
 						{#if showFieldMapping}
-							<div class="max-h-80 overflow-y-auto rounded-lg border border-surface-200 dark:border-surface-700" in:slide={{ duration: 200 }}>
+							<div class="max-h-80 overflow-y-auto rounded border border-surface-200 dark:border-surface-700" in:slide={{ duration: 200 }}>
 								<table class="w-full text-sm" aria-label="Field mapping table showing source to target field conversions">
 									<thead class="sticky top-0 bg-surface-50 dark:bg-surface-800">
 										<tr>
-											<th class="px-3 py-2 text-left text-xs font-medium text-surface-500">Source Field</th>
-											<th class="px-3 py-2 text-left text-xs font-medium text-surface-500">→</th>
-											<th class="px-3 py-2 text-left text-xs font-medium text-surface-500">Target Field</th>
-											<th class="px-3 py-2 text-left text-xs font-medium text-surface-500">Confidence</th>
+											<th class="px-3 py-2 text-start text-xs font-medium text-surface-500">Source Field</th>
+											<th class="px-3 py-2 text-start text-xs font-medium text-surface-500">→</th>
+											<th class="px-3 py-2 text-start text-xs font-medium text-surface-500">Target Field</th>
+											<th class="px-3 py-2 text-start text-xs font-medium text-surface-500">Confidence</th>
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-surface-100 dark:divide-surface-700">

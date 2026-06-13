@@ -99,14 +99,14 @@ function handleKeydown(e: KeyboardEvent) {
 
 <div class="flex flex-col gap-1.5 w-full">
 	{#if label}
-		<label for={id} class="block text-sm font-bold text-surface-700 dark:text-surface-300 ml-1">
+		<label for={id} class="block text-sm font-bold text-surface-700 dark:text-surface-300 ms-1">
 			{label}
 		</label>
 	{/if}
 
 	<div
 		class={cn(
-			'flex flex-wrap items-center gap-2 p-2 border rounded-xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-tertiary-500 dark:border-primary-500/50',
+			'flex flex-wrap items-center gap-2 p-2 border rounded transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-tertiary-500 dark:border-primary-500/50',
 			'bg-surface-50 dark:bg-surface-900 border-surface-200 dark:border-surface-700 font-sans',
 			disabled && 'opacity-50 cursor-not-allowed grayscale',
 			className
@@ -119,7 +119,7 @@ function handleKeydown(e: KeyboardEvent) {
 				<Badge
 					preset={variant as any}
 					color={color}
-					class="flex items-center gap-1.5 pl-2 pr-1 py-0.5 group"
+					class="flex items-center gap-1.5 ps-2 pe-1 py-0.5 group"
 				>
 					<span>{tag}</span>
 					{#if !disabled}
@@ -136,7 +136,7 @@ function handleKeydown(e: KeyboardEvent) {
 			</div>
 		{/each}
 
-		<input
+		<input aria-label="Input"
 			bind:this={inputElement}
 			{id}
 			type="text"

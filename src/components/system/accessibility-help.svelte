@@ -117,13 +117,13 @@
 			Keyboard Shortcuts
 		</h4>
 
-		<div class="overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700">
+		<div class="overflow-hidden rounded border border-surface-200 dark:border-surface-700">
 			<table class="w-full text-sm" aria-describedby="keyboard-table-desc">
 				<caption id="keyboard-table-desc" class="sr-only"> Keyboard shortcuts available in SveltyCMS </caption>
 				<thead class="bg-surface-100 dark:bg-surface-800">
 					<tr>
-						<th scope="col" class="px-4 py-3 text-left font-semibold dark:text-white">Key / Combination</th>
-						<th scope="col" class="px-4 py-3 text-left font-semibold dark:text-white">Action</th>
+						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white">Key / Combination</th>
+						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white">Action</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-200 dark:divide-surface-700">
@@ -156,7 +156,7 @@
 		</h4>
 
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-			<div class="rounded-lg border border-primary-200 bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-900/20">
+			<div class="rounded border border-primary-200 bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-900/20">
 				<h5 class="mb-2 font-semibold text-primary-800 dark:text-primary-200">Part A: Accessible Interface</h5>
 				<ul class="space-y-1 text-sm text-primary-700 dark:text-primary-300">
 					<li class="flex items-start gap-2">
@@ -174,7 +174,7 @@
 				</ul>
 			</div>
 
-			<div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
+			<div class="rounded border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
 				<h5 class="mb-2 font-semibold text-emerald-800 dark:text-emerald-200">Part B: Accessible Content</h5>
 				<ul class="space-y-1 text-sm text-emerald-700 dark:text-emerald-300">
 					<li class="flex items-start gap-2">

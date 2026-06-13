@@ -159,7 +159,7 @@ onMount(() => {
 					<div class="alert preset-filled-error-500 my-4 p-4" transition:slide>
 						<h4 class="font-bold">Sync Blocked: Unmet Requirements</h4>
 						<p class="text-sm">The following requirements must be met before you can import configuration:</p>
-						<ul class="mt-2 list-disc pl-5 text-sm">
+						<ul class="mt-2 list-disc ps-5 text-sm">
 							{#each status.unmetRequirements as req (req.name + req.type)}
 								<li><strong>{req.name}</strong> ({req.type}): {req.requirement}</li>
 							{/each}

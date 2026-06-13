@@ -77,7 +77,7 @@
 
 	{#if showInput}
 		<div class="description absolute top-full mt-2">
-			<input type="text" bind:value={VALUE.value} onkeydown={handleKeydown} class="input" placeholder="Enter description" />
+			<input type="text" bind:value={VALUE.value} onkeydown={handleKeydown} class="input" placeholder="Enter description"  aria-label="Input" />
 		</div>
 	{/if}
 </div>

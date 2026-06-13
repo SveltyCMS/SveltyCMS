@@ -71,7 +71,7 @@ Renders selected media files as thumbnails for display purposes.
 				/>
 				{#if (file as any).aiTags?.length}
 					<div
-						class="absolute bottom-full left-1/2 z-10 hidden -translate-x-1/2 flex-wrap gap-1 rounded bg-surface-900 p-1 text-[8px] text-white group-hover:flex"
+						class="absolute bottom-full start-1/2 z-10 hidden -translate-x-1/2 flex-wrap gap-1 rounded bg-surface-900 p-1 text-[8px] text-white group-hover:flex"
 					>
 						{#each (file as any).aiTags.slice(0, 5) as tag, i (tag + i)}
 							<Badge variant="primary" size="sm" class="py-0! px-1!">{tag}</Badge>

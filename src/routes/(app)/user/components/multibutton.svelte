@@ -366,7 +366,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			disabled={isDisabled || disabledMap[listboxValue]}
 			aria-label="Execute {actionConfig[listboxValue].label} action"
 			title="Execute {actionConfig[listboxValue].label} action"
-			class="h-10 min-w-[120px] font-bold transition-all duration-200 {!isDisabled && !disabledMap[listboxValue] ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue].buttonClass} text-white rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-r border-white/20"
+			class="h-10 min-w-[120px] font-bold transition-all duration-200 {!isDisabled && !disabledMap[listboxValue] ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue].buttonClass} text-white rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-e border-white/20"
 		>
 			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
 			<span class="uppercase tracking-wider">{actionConfig[listboxValue].label}</span>
@@ -392,7 +392,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		<!-- Dropdown Menu -->
 		{#if isDropdownOpen}
 			<div
-				class="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
+				class="absolute end-0 top-full z-50 mt-2 w-56 overflow-hidden rounded bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
 				role="menu"
 				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
 				onkeydown={handleDropdownKeydown}
@@ -413,7 +413,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 								disabled={disabled}
 								aria-label="Select {action} action"
 								role="menuitem"
-								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-left text-white transition-all duration-200 hover:bg-white/5 {disabled ? 'opacity-20 cursor-not-allowed grayscale' : ''}"
+								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-start text-white transition-all duration-200 hover:bg-white/5 {disabled ? 'opacity-20 cursor-not-allowed grayscale' : ''}"
 							>
 								<!-- Hover Indicator -->
 								{#if !disabled}

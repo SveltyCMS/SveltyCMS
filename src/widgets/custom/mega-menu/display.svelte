@@ -34,7 +34,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 </script>
 
 {#if value && value.length > 0}
-	<ul class="menu-display-list list-none pl-4">
+	<ul class="menu-display-list list-none ps-4">
 		{#each value as item (item._id)}
 			<li>
 				<Sanitize html={(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'} profile="strict" />

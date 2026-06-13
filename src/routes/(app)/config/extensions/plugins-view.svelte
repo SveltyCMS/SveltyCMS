@@ -73,11 +73,11 @@ function handleConfigure(plugin: any) {
 	{:else}
 		{#each data.plugins as plugin (plugin.name)}
 			<div
-				class="flex flex-col rounded-lg border border-surface-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-surface-700 dark:bg-surface-800"
+				class="flex flex-col rounded border border-surface-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-surface-700 dark:bg-surface-800"
 			>
 				<div class="mb-3 flex items-start justify-between">
 					<div class="flex items-center gap-3">
-						<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-50 dark:bg-surface-900/50">
+						<div class="flex h-12 w-12 items-center justify-center rounded bg-surface-50 dark:bg-surface-900/50">
 							<iconify-icon icon={plugin.icon || 'mdi:puzzle'} width="32" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						</div>
 						<div>
@@ -87,10 +87,10 @@ function handleConfigure(plugin: any) {
 									<div class="group relative">
 										<iconify-icon icon="mdi:alert-circle" width="18" class="text-warning-500"></iconify-icon>
 										<div
-											class="absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
+											class="absolute bottom-full start-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
 										>
 											Missing Configuration
-											<div class="absolute -bottom-1 left-1/2 -ml-1 h-2 w-2 rotate-45 bg-surface-900"></div>
+											<div class="absolute -bottom-1 start-1/2 -ms-1 h-2 w-2 rotate-45 bg-surface-900"></div>
 										</div>
 									</div>
 								{/if}
@@ -121,7 +121,7 @@ function handleConfigure(plugin: any) {
 				<!-- actions -->
 				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-700">
 					<button class="preset-filled-surface-500 btn-sm btn" onclick={() => handleConfigure(plugin)}>
-						<iconify-icon icon="mdi:cog" width="18" class="mr-1"></iconify-icon>
+						<iconify-icon icon="mdi:cog" width="18" class="me-1"></iconify-icon>
 						Configure
 					</button>
 				</div>

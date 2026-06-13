@@ -26,7 +26,7 @@ The loading system consists of two core components:
 1. **`loading-store.svelte.ts`** - Core state manager with reactive store
 2. **`global-loading.svelte`** - UI component displaying full-screen loading overlay
 
-```mermaid
+````mermaid
 flowchart TB
     subgraph Consumers["Loading Triggers"]
         NAV[Navigation]
@@ -72,7 +72,7 @@ flowchart TB
     WU_PAGE --> WU_SERVICES
 
     WU_PAGE -.->|"Same visual identity<br/>(Logo, Rings, Typography)"| UI
-```
+```text
 
 > **Two loading screens, one visual identity:** `global-loading.svelte` handles post-boot operations (navigation, data fetching, form submission) with contextual messages. The **Warming-Up Dashboard** handles pre-boot initialization with service health status. Both share the SveltyCMSLogo component, animated loader rings, and typography patterns for brand consistency.
 
@@ -102,7 +102,7 @@ export const loadingOperations = {
   collectionLoad: "collectionLoad", // Collection data loading
   widgetInit: "widgetInit", // Widget initialization
 } as const;
-```
+```text
 
 ## Core API
 
@@ -123,7 +123,7 @@ globalLoadingStore.stopLoading(loadingOperations.dataFetch);
 
 // Check if any loading operation is active
 const isLoading = globalLoadingStore.isLoading;
-```
+```text
 
 ### Async Wrapper (Recommended)
 
@@ -143,7 +143,7 @@ async function fetchRoles() {
     "Roles.loadData", // Optional context
   );
 }
-```
+```text
 
 **Benefits:**
 
@@ -159,7 +159,7 @@ async function fetchRoles() {
 const stats = globalLoadingStore.getStats();
 console.log(stats);
 // Output: { activeCount: 2, reasons: ['dataFetch', 'roleManagement'] }
-```
+```text
 
 ## SSR Safety Implementation
 
@@ -185,7 +185,7 @@ function createLoadingStore() {
     // ...
   };
 }
-```
+```text
 
 **Why this matters:**
 
@@ -209,9 +209,9 @@ startLoading(reason: LoadingReason, context?: string, timeout: number = 30000) {
 	loadingEntries.set(reason, { reason, context, timeoutId });
 	isLoading = true;
 }
-```
+```text
 
-**Default timeout:** 30 seconds  
+**Default timeout:** 30 seconds
 **Custom timeout:** Pass third parameter to `startLoading()` or `withLoading()`
 
 ## Concurrent Operations
@@ -234,7 +234,7 @@ console.log(globalLoadingStore.isLoading); // true
 
 globalLoadingStore.stopLoading(loadingOperations.roleManagement);
 console.log(globalLoadingStore.isLoading); // false
-```
+```text
 
 ## global-loading UI Component
 
@@ -291,7 +291,7 @@ The `global-loading.svelte` component displays operation-specific messages:
 		</div>
 	</div>
 {/if}
-```
+```text
 
 ## Translation Integration
 
@@ -306,7 +306,7 @@ All loading messages use ParaglideJS for i18n:
   "loading_configSave_top": "Saving Configuration",
   "loading_configSave_bottom": "Updating system settings..."
 }
-```
+```text
 
 **src/messages/de.json:**
 
@@ -317,7 +317,7 @@ All loading messages use ParaglideJS for i18n:
   "loading_configSave_top": "Konfiguration wird gespeichert",
   "loading_configSave_bottom": "Systemeinstellungen werden aktualisiert..."
 }
-```
+```text
 
 ## Real-World Examples
 
@@ -335,7 +335,7 @@ async function loadRoles() {
     "admin-role.loadRoles",
   );
 }
-```
+```text
 
 ### Configuration Save (accessManagement/+page.svelte)
 
@@ -354,7 +354,7 @@ async function saveAllChanges() {
     "AccessManagement.saveAll",
   );
 }
-```
+```text
 
 ### Token Generation (website-tokens.svelte)
 
@@ -370,7 +370,7 @@ async function fetchTokens() {
   );
   tokens = data.tokens;
 }
-```
+```text
 
 ## When NOT to Use Global Loading
 
@@ -401,7 +401,7 @@ The global loading store is designed for **user-initiated actions** and **page-l
 <button disabled={isSubmitting}>
 	{isSubmitting ? 'Connecting...' : 'Connect OAuth'}
 </button>
-```
+```text
 
 ## Performance Considerations
 
@@ -421,7 +421,7 @@ console.log("Active operations:", stats);
 
 // Manual cleanup (emergency only)
 globalLoadingStore.stopLoading(loadingOperations.dataFetch);
-```
+```text
 
 ### SSR Hydration Mismatch
 
@@ -434,7 +434,7 @@ onMount(() => {
   // Safe - runs client-side only
   globalLoadingStore.startLoading(loadingOperations.initialization);
 });
-```
+```text
 
 ### Custom Timeout Not Working
 
@@ -456,7 +456,7 @@ globalLoadingStore.startLoading(
   "MyComponent.load",
   60000, // 60 seconds
 );
-```
+```text
 
 ## Progress Tracking
 
@@ -474,7 +474,7 @@ await globalLoadingStore.withProgress(
   },
   "Uploading media files",
 );
-```
+```text
 
 The global-loading overlay displays a progress bar when progress data is available. The `setProgress()` method can also update progress directly for manual loading control.
 
@@ -494,7 +494,7 @@ globalLoadingStore.startLoadingWith(loadingOperations.collectionLoad, {
   priority: "low",
   context: "Syncing collections",
 });
-```
+```text
 
 ## Cancellation Support
 
@@ -510,7 +510,7 @@ const result = await globalLoadingStore.withCancellable(
   },
   { context: "Exporting report", cancellable: true },
 );
-```
+```text
 
 ## Analytics
 
@@ -527,7 +527,7 @@ const stats = globalLoadingStore.getAnalytics();
 //   },
 //   recentOperations: [{ operation, duration, success, timestamp }, ...]
 // }
-```
+```text
 
 The store maintains a rolling window of 200 metrics entries. Failures are tracked separately from successes for accurate reliability monitoring.
 
@@ -540,7 +540,7 @@ import { shouldSkipPreload, shouldDisableRealtime } from "@utils/connection-dete
 
 if (shouldSkipPreload()) return; // Don't preload on 2G or Save-Data
 if (shouldDisableRealtime()) return; // Don't stream on degraded connections
-```
+```text
 
 The global-loading component handles post-boot operations. For the pre-boot screen during system initialization, see the Warming-Up Dashboard which shares the same visual identity (SveltyCMSLogo, loader rings) but displays service health status.
 
@@ -550,3 +550,4 @@ The global-loading component handles post-boot operations. For the pre-boot scre
 - [Collection Store Dataflow](./collection-store-dataflow.mdx)
 - [Server Hooks](./server-hooks.mdx)
 - [Initialization Workflow](./initialization-workflow.mdx)
+````

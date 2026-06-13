@@ -128,19 +128,19 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 <div class="currency-widget flex flex-col gap-1">
 	<div 
-		class="flex items-center rounded-lg border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
+		class="flex items-center rounded border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
 	>
 		{#if field.prefix}
-			<span class="px-3 py-2 bg-surface-100 dark:bg-surface-800 border-r border-surface-300 dark:border-surface-700 text-surface-500 text-sm font-medium">
+			<span class="px-3 py-2 bg-surface-100 dark:bg-surface-800 border-e border-surface-300 dark:border-surface-700 text-surface-500 text-sm font-medium">
 				{field.prefix}
 			</span>
 		{/if}
 
 		<div class="relative grow flex items-center px-3">
-			<iconify-icon icon="mdi:cash-multiple" width="18" class="text-surface-400 mr-2"></iconify-icon>
+			<iconify-icon icon="mdi:cash-multiple" width="18" class="text-surface-400 me-2"></iconify-icon>
 			<input
 				type="text"
 				aria-label={field.label || fieldName || 'Currency amount'}
@@ -156,7 +156,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		</div>
 
 		{#if field.suffix}
-			<span class="px-3 py-2 bg-surface-100 dark:bg-surface-800 border-l border-surface-300 dark:border-surface-700 text-surface-500 text-sm font-medium">
+			<span class="px-3 py-2 bg-surface-100 dark:bg-surface-800 border-s border-surface-300 dark:border-surface-700 text-surface-500 text-sm font-medium">
 				{field.suffix}
 			</span>
 		{/if}
@@ -164,7 +164,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		{#if !field.required || value !== null}
 			<button 
 				type="button" 
-				class="p-1 mr-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center"
+				class="p-1 me-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center"
 				onclick={handleClear}
 				title="Clear value"
 			>

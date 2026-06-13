@@ -46,7 +46,7 @@ Provides actionable information for developers and administrators.
 </script>
 
 <div
-	class="missing-widget rounded-lg border-2 border-warning-400 bg-warning-50 p-4 dark:border-warning-600 dark:bg-warning-950"
+	class="missing-widget rounded border-2 border-warning-400 bg-warning-50 p-4 dark:border-warning-600 dark:bg-warning-950"
 	role="alert"
 	aria-live="polite"
 >

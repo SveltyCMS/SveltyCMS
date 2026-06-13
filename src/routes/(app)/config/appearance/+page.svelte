@@ -475,6 +475,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                     bind:value={newThemeName}
                     class="input flex-1"
                     placeholder="Theme name (e.g. Midnight Blue, High Contrast)"
+                    aria-label="New theme name"
                     onkeydown={(e) => { if (e.key === 'Enter') handleCreate(); }}
                   />
                   <Button variant="tertiary" onclick={handleCreate} leadingIcon="mdi:plus">Create</Button>
@@ -502,7 +503,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                 <button
                   class="card p-4 border-2 {density === 'cozy' && variant === 'bordered'
                     ? 'border-tertiary-500 dark:border-primary-500'
-                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-left"
+                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-start"
                   onclick={() => { density = 'cozy'; variant = 'bordered'; }}
                 >
                   <iconify-icon icon="mdi:monitor-dashboard" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
@@ -513,7 +514,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                 <button
                   class="card p-4 border-2 {density === 'compact' && variant === 'flat'
                     ? 'border-tertiary-500 dark:border-primary-500'
-                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-left"
+                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-start"
                   onclick={() => { density = 'compact'; variant = 'flat'; }}
                 >
                   <iconify-icon icon="mdi:table-large" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
@@ -524,7 +525,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                 <button
                   class="card p-4 border-2 {density === 'spacious' && variant === 'elevated'
                     ? 'border-tertiary-500 dark:border-primary-500'
-                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-left"
+                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-start"
                   onclick={() => { density = 'spacious'; variant = 'elevated'; }}
                 >
                   <iconify-icon icon="mdi:pen" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
@@ -539,7 +540,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
               </p>
               <div class="space-y-3">
                 <textarea bind:value={importPresetJson} class="input min-h-30 font-mono text-xs"
-                  placeholder={'{"name":"My Theme","properties":{...}}'}></textarea>
+                  placeholder={'{"name":"My Theme","properties":{...}}'}
+                  aria-label="Import preset JSON"></textarea>
                 <Button variant="tertiary" onclick={importPreset} loading={saving}>Import Preset</Button>
               </div>
             </div>
@@ -698,7 +700,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   {#if hasChanges}
     <div class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-surface-200 dark:border-surface-700 bg-white/90 dark:bg-surface-900/90 backdrop-blur-md flex items-center justify-between">
       <p class="text-sm text-warning-600 dark:text-warning-400 font-medium">
-        <iconify-icon icon="mdi:alert-circle" class="inline mr-1" width="16"></iconify-icon>
+        <iconify-icon icon="mdi:alert-circle" class="inline me-1" width="16"></iconify-icon>
         Unsaved changes — live preview active
       </p>
       <div class="flex gap-2">

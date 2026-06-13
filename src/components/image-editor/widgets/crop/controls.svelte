@@ -162,6 +162,7 @@ Supports multiple aspect ratios including common social media formats.
 				class:active={cropShape === 'rectangle' || cropShape === 'square'}
 				onclick={() => onCropShapeChange('rectangle')}
 				title="Rectangle"
+				aria-label="Crop rectangle"
 			>
 				<iconify-icon icon="mdi:crop-landscape" width="20"></iconify-icon>
 			</button>

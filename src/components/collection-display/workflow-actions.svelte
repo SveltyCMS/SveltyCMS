@@ -99,24 +99,24 @@ const availableTransitions = $derived.by(() => {
         </div>
 
         {#if !instance}
-             <div class="p-4 rounded-lg bg-surface-50 dark:bg-surface-950 text-center border-2 border-dashed border-surface-200 dark:border-surface-800">
+             <div class="p-4 rounded bg-surface-50 dark:bg-surface-950 text-center border-2 border-dashed border-surface-200 dark:border-surface-800">
                 <p class="text-xs italic opacity-40 mb-2">No active workflow instance for this entry.</p>
                 <button class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')}>
-                    Start Workflow
+                                    Start Workflow
                 </button>
              </div>
         {:else}
             <div class="space-y-3">
                 <div class="flex flex-wrap gap-2">
                     {#each availableTransitions as trans}
-                        <button 
+                        <button
                             class="btn btn-sm preset-tonal-primary text-xs font-bold"
                             onclick={() => { selectedTargetStateId = trans.to; showComment = true; }}
-                        >
+                         aria-label="{trans.label}">
                             {trans.label} ➔
                         </button>
                     {/each}
-                    
+
                     {#if availableTransitions.length === 0}
                         <p class="text-xs italic opacity-40">This entry has reached a final state or no transitions are available.</p>
                     {/if}
@@ -124,15 +124,15 @@ const availableTransitions = $derived.by(() => {
 
                 {#if showComment}
                     <div class="space-y-3 pt-3 border-t border-surface-200 dark:border-surface-800" transition:slide>
-                        <textarea 
-                            bind:value={comment} 
-                            placeholder="Add a comment (optional)..." 
-                            class="textarea text-xs bg-surface-50 dark:bg-surface-950 border-none rounded-lg focus:ring-primary-500"
+                        <textarea
+                            bind:value={comment}
+                            placeholder="Add a comment (optional)..."
+                            class="textarea text-xs bg-surface-50 dark:bg-surface-950 border-none rounded focus:ring-primary-500"
                             rows="2"
-                        ></textarea>
+                         aria-label="Textarea"></textarea>
                         <div class="flex justify-end gap-2">
-                            <button class="btn btn-sm variant-ghost-surface text-[10px]" onclick={() => showComment = false}>Cancel</button>
-                            <button class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500 text-[10px]" onclick={() => triggerTransition(selectedTargetStateId)}>Confirm Move</button>
+                                <button class="btn btn-sm variant-ghost-surface text-[10px]" onclick={() => showComment = false}>Cancel</button>
+                                <button class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500 text-[10px]" onclick={() => triggerTransition(selectedTargetStateId)}>Confirm Move</button>
                         </div>
                     </div>
                 {/if}

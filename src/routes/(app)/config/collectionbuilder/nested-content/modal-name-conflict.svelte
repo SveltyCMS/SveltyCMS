@@ -1,6 +1,6 @@
 <!--
 @file src/routes/(app)/config/collectionbuilder/ModalNameConflict.svelte
-@component 
+@component
 **ModalNameConflict - This component displays a modal for resolving collection name conflicts.**
 
 Features:

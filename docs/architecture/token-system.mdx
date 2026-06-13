@@ -1,90 +1,195 @@
 ---
 path: "docs/architecture/token-system.mdx"
-title: Token System
-description: Comprehensive guide to using the SveltyCMS Token System for dynamic content.
+title: "Token System"
+description: "Dynamic content injection engine with RBAC enforcement, secure field access, and XSS-resistant output."
+order: 6
+icon: "mdi:code-braces"
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-03-27"
+updated: "2026-06-10"
 tags:
   - "content"
   - "tokens"
   - "dynamic-content"
+  - "security"
+  - "rbac"
 ---
 
 # Token System
 
-The SveltyCMS Token System allows you to inject dynamic content into your entries, supporting fields from the current entry, related collections, user data, site configuration, and system values.
+The SveltyCMS Token System injects dynamic content into entries, templates, and automation configurations. Every token resolution passes through RBAC checks — you can only access content you have permission to read.
 
-## Syntax
+---
+
+## 1. Security Model
+
+### 1.1 User Fields: Allowlist (Not Blocklist)
+
+Only explicitly allowed user fields are accessible via `{{ user.* }}`:
+
+```
+✅ Allowed: _id, email, username, role, avatar, language, name
+❌ Blocked: password, hash, salt, tokens, secrets, and all other fields
+```
+
+> Implementation: `ALLOWED_USER_FIELDS` in `src/services/token/engine.ts:30`
+
+### 1.2 Relation Access: RBAC Enforced
+
+When resolving `{{ entry.manufacturer.name }}`, the engine:
+
+1. Looks up the relation field in the collection schema
+2. Verifies the user has `read` permission on the related collection
+3. Admins get fast-path access
+4. Unauthorized returns `[Access Denied]` with an audit log entry
+
+> Implementation: `canAccessCollection()` + `resolveRelationToken()` in `src/services/token/relation-resolver.ts`
+
+### 1.3 No Value Caching
+
+Token **values** are resolved in real-time on every request — never cached. This ensures:
+
+- User-specific data (email, role) is always current
+- Time-based tokens (`system.now`) reflect actual time
+- One user cannot see another user's cached token values
+
+> Only the token **definition registry** is cached for 5 minutes (which tokens exist for a collection, not their values).
+
+---
+
+## 2. Syntax
 
 Tokens are enclosed in double curly braces: `{{ token_path }}`.
 
-Example: `{{ entry.title }}` resolves to the title of the current entry.
+```
+{{ entry.title }}        → resolves to the title of the current entry
+{{ user.email }}         → resolves to the current user's email
+{{ site.SITE_NAME }}     → resolves to the site name
+{{ system.now }}         → resolves to current ISO timestamp
+```
 
-### Modifiers
+### 2.1 Modifiers
 
-You can transform token values using pipe modifiers: `{{ token | modifier(args) }}`.
+Transform token values using pipe modifiers:
 
-Example: `{{ system.now | date("MMM do, yyyy") }}` formats the current date.
+```
+{{ system.now | date("MMM do, yyyy") }}
+{{ entry.title | uppercase }}
+{{ entry.body | truncate(100) }}
+```
 
-## Token Categories
+### 2.2 Escaping
 
-### Entry Tokens (`entry.*`)
+Use `\{{ literal text }}` to display curly braces without token resolution.
+
+### 2.3 Error Handling
+
+| Scenario                    | Behavior                                              |
+| --------------------------- | ----------------------------------------------------- |
+| Unknown token path          | Preserved as-is (or throws if `throwOnMissing: true`) |
+| Unauthorized relation       | Returns `[Access Denied]`                             |
+| Blocked user field          | Returns empty string                                  |
+| Empty token `{{}}`          | Syntax validation error                               |
+| Nested tokens `{{ {{ }} }}` | Rejected by validator                                 |
+
+---
+
+## 3. Token Categories
+
+### 3.1 Entry Tokens (`entry.*`)
 
 Access fields from the current entry.
 
-- `{{ entry.title }}`: The title field.
-- `{{ entry.slug }}`: The slug field.
-- **Relations**: Access fields from related collections.
-  - `{{ entry.author.name }}`: The name of the related author.
-  - `{{ entry.tags.count }}`: The number of related tags.
+```
+{{ entry.title }}                 → field value
+{{ entry.slug }}                  → URL slug
+{{ entry.author.name }}           → related author's name (RBAC checked)
+{{ entry.tags.0.name }}           → first tag's name
+{{ entry.manufacturer.website }}  → relation → nested field
+```
 
-### User Tokens (`user.*`)
+### 3.2 User Tokens (`user.*`)
 
-Access information about the current authenticated user.
+Access allowed fields from the authenticated user. Blocked fields return empty string.
 
-- `{{ user.name }}`: User's full name.
-- `{{ user.email }}`: User's email address.
-- `{{ user.role }}`: User's role (e.g., admin, editor).
+```
+{{ user.name }}       → full name
+{{ user.email }}      → email address
+{{ user.role }}       → role (admin, editor, guest)
+{{ user.avatar }}     → avatar URL
+{{ user.password }}   → returns "" (blocked)
+```
 
-### Site Tokens (`site.*`)
+### 3.3 Site Tokens (`site.*`)
 
-Access global site configuration values.
+Access global site configuration. Tenant-scoped in multi-tenant deployments.
 
-- `{{ site.SITE_NAME }}`: The name of your website.
-- `{{ site.HOST_PROD }}`: Production URL.
+```
+{{ site.SITE_NAME }}   → site name
+{{ site.HOST_PROD }}   → production URL
+```
 
-### System Tokens (`system.*`)
+### 3.4 System Tokens (`system.*`)
 
-Access dynamic system values.
+Access dynamic system values. Always resolved in real-time.
 
-- `{{ system.now }}`: Current ISO timestamp.
-- `{{ system.year }}`: Current year (useful for copyright).
+```
+{{ system.now }}    → current ISO timestamp
+{{ system.year }}   → current year
+```
 
-## Visual Indicators & Validation
+---
 
-fields that contain tokens are marked with a **code icon** <iconify-icon icon="mdi:code-braces" class="inline text-primary-500"></iconify-icon>.
+## 4. Depth & Recursion Limits
 
-- **Valid**: The icon is blue/primary color.
-- **Invalid**: The icon is red/error color (e.g., unmatched braces). Hover over the icon to see the error message.
+| Limit               | Value    | Purpose                                              |
+| ------------------- | -------- | ---------------------------------------------------- |
+| Max recursion depth | 10       | Prevents infinite loops from self-referencing tokens |
+| Nested token limit  | rejected | `{{ {{ }} }}` is a syntax error                      |
+| Empty token limit   | rejected | `{{}}` is a syntax error                             |
 
-## Security (RBAC)
+---
 
-The Token System respects Role-Based Access Control (RBAC).
+## 5. Visual Validation
 
-- **Relations**: You can only access related content if you have `read` permission for that collection.
-- **User Data**: Sensitive user fields (password, hash, salt) are blocked.
+Fields containing tokens are marked with a **code icon**:
 
-## Developer Notes
+- **Valid**: Blue/primary color
+- **Invalid**: Red/error color (unmatched braces, syntax errors)
+- **Hover**: Shows the specific error message
 
-### API Resolution
+---
 
-Tokens are automatically resolved in JSON API responses (`/api/*`) via a dedicated middleware hook.
+## 6. API Resolution
 
-> [!NOTE]
-> For Server-Side Rendered (SSR) pages using the `ContentSystem` directly, tokens may remain unresolved unless explicitly processed in the `load` function.
+Tokens are automatically resolved in JSON API responses (`/api/*`) via the `handle-token-resolution` middleware hook:
 
-### Caching
+- Only processes successful (2xx) JSON responses
+- Skips non-JSON content types
+- Skips error responses (preserves error body integrity)
 
-Token definitions (the registry of what tokens exist for a collection) are cached for performance (**5 minutes**).
-Token _values_ are resolved in real-time and are NOT cached to ensure accuracy (especially for user/time-based tokens).
+For SSR pages using `ContentSystem` directly, tokens remain unresolved unless explicitly processed in the `load` function.
+
+---
+
+## 7. Automation Integration
+
+The Automation Service resolves tokens in webhook bodies, email templates, and AI agent prompts before execution. This enables dynamic payloads like:
+
+```json
+{
+  "webhook_url": "https://example.com/hooks/{{ entry.slug }}",
+  "email_subject": "New post: {{ entry.title }}",
+  "ai_prompt": "Summarize: {{ entry.body }}"
+}
+```
+
+> Token resolution happens at execution time, not configuration time — ensuring current data.
+
+---
+
+## Related
+
+- [API Security & Token Hardening](./api-security.mdx)
+- [Authentication System](./authentication-system.mdx)
+- [Security Overview](./security/index.mdx)

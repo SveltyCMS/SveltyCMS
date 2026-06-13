@@ -17,6 +17,8 @@ tags:
 
 # MongoDB Implementation Guide
 
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+
 This guide covers the **MongoDB-specific** implementation in SveltyCMS, including optimizations, indexing strategy, connection pooling, and advanced features. For database-agnostic architecture, see the [Core Infrastructure](/docs/architecture/database/core-infrastructure) documentation.
 
 ---
@@ -135,7 +137,8 @@ To maintain strict parity with SQL engines, the MongoDB adapter no longer intera
 1. **Raw Query**: `{ status: 'active', tags: { $in: ['news'] } }`
 2. **IR Map**: Decouples MongoDB-specific operators into a standard `LogicalGroup`.
 3. **Security Injection**: Automatically injects `tenantId` and `isDeleted: false` filters.
-4. **Native Compilation**: The `mapQuery` utility compiles the IR back into an optimized MongoDB filter.
+4. **NoSQL Injection Protection**: `sanitizeMongoQuery()` recursively blocks dangerous operators (`$where`, `$function`, `$expr`, `$accumulator`) and validates `$regex` patterns against ReDoS attacks before the query reaches the database.
+5. **Native Compilation**: The `mapQuery` utility compiles the IR back into an optimized MongoDB filter, with sanitization applied as the final security layer.
 
 This ensures that security audits only need to verify the `mapQuery` utility rather than every individual CRUD module.
 
@@ -159,7 +162,7 @@ As of April 2026, the MongoDB adapter has been fully modularized to align with t
 
 To maintain "Database Agnostic" consistency, SveltyCMS uses **String IDs** instead of MongoDB's native `ObjectId`. To prevent runtime crashes (`Cast to ObjectId failed`), we use a centralized registration pattern:
 
-```typescript
+````typescript
 // File: src/databases/mongodb/methods/model-registration.ts
 export async function registerSystemModels(connection: Connection): Promise<void> {
   // We "force-feed" the correct String-based schemas immediately upon connection
@@ -168,7 +171,7 @@ export async function registerSystemModels(connection: Connection): Promise<void
   }
   // This ensures 100% parity with SQLite/Postgres UUIDs
 }
-```
+```text
 
 ---
 
@@ -193,7 +196,7 @@ async execute<T>(fn: (tx: DatabaseTransaction) => Promise<DatabaseResult<T>>) {
 
   return await fn(tx);
 }
-```
+```text
 
 **Benefits**:
 
@@ -216,7 +219,7 @@ TTL (Time-To-Live) indexes automatically delete expired documents, eliminating m
 
 // Auto-delete expired tokens immediately
 TokenSchema.index({ expires: 1 }, { expireAfterSeconds: 0 });
-```
+```text
 
 **Benefits**:
 
@@ -232,7 +235,7 @@ TokenSchema.index({ expires: 1 }, { expireAfterSeconds: 0 });
 
 // Auto-delete expired sessions immediately
 SessionSchema.index({ expires: 1 }, { expireAfterSeconds: 0 });
-```
+```text
 
 **Benefits**:
 
@@ -251,7 +254,7 @@ UserSchema.index({ "resetToken.expires": 1 }, { sparse: true, expireAfterSeconds
 
 // Auto-delete temporary/unverified users after expiration
 UserSchema.index({ expiresAt: 1 }, { sparse: true, expireAfterSeconds: 0 });
-```
+```text
 
 **Benefits**:
 
@@ -323,7 +326,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
     await model.collection.createIndex(index.fields, index.options || {});
   }
 }
-```
+```text
 
 ### Index Types Created
 
@@ -340,7 +343,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 { tenantId: 1 }                    // Multi-tenant isolation
 { tenantId: 1, status: 1 }         // Tenant + status filter
 { tenantId: 1, createdAt: -1 }     // Tenant + sort by date
-```
+```text
 
 #### 2. Field-Specific Indexes
 
@@ -354,7 +357,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 {
   email: 1;
 } // Unique email addresses
-```
+```text
 
 **Indexed fields**:
 
@@ -366,7 +369,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 {
   tags: 1;
 } // Fast tag lookups
-```
+```text
 
 **Searchable fields**:
 
@@ -378,7 +381,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 {
   description: "text";
 } // Full-text search
-```
+```text
 
 **Sortable fields**:
 
@@ -390,7 +393,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 {
   publishDate: -1;
 } // Sort by date
-```
+```text
 
 ### Performance Impact
 
@@ -426,7 +429,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 // 7. { featured: 1 } - indexed
 //
 // Total: 15 indexes created automatically!
-```
+```text
 
 ---
 
@@ -443,7 +446,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 
 	return [...essentialfields, ...displayfields];
 }
-```
+```text
 
 ### Integration with Page Loads
 
@@ -460,7 +463,7 @@ if (!editEntryId) {
   // Query returns: _id, status, createdAt, title, thumbnail
   // Instead of all 35 fields!
 }
-```
+```text
 
 ### Performance Impact
 
@@ -508,7 +511,7 @@ TokenSchema.index({ tenantId: 1, user_id: 1, type: 1 });
 // Query: All non-blocked verification tokens
 // Before: 300ms (table scan), After: 8ms
 TokenSchema.index({ type: 1, expires: 1, blocked: 1 });
-```
+```text
 
 #### auth_sessions (5 indexes)
 
@@ -539,7 +542,7 @@ SessionSchema.index({ rotated: 1, expires: 1 });
 // Query: Find session this rotated to
 // Before: 100ms (table scan), After: 3ms
 SessionSchema.index({ rotatedTo: 1 });
-```
+```text
 
 #### auth_users (9 indexes)
 
@@ -590,7 +593,7 @@ UserSchema.index({ tenantId: 1, blocked: 1, failedAttempts: -1 });
 // Query: Newest users in tenant
 // Before: 100ms (table scan), After: 3ms
 UserSchema.index({ tenantId: 1, createdAt: -1 });
-```
+```text
 
 #### system_content_structure (7 indexes)
 
@@ -635,7 +638,7 @@ contentStructureSchema.index({ parentId: 1, order: 1, nodeType: 1 });
 // Query: Latest 10 blog posts
 // Before: 110ms (table scan), After: 3ms
 contentStructureSchema.index({ nodeType: 1, updatedAt: -1 });
-```
+```text
 
 #### system_media (6 indexes + full-text)
 
@@ -678,7 +681,7 @@ mediaSchema.index({
   filename: "text",
   originalFilename: "text",
 });
-```
+```text
 
 #### content_drafts (5 indexes)
 
@@ -709,7 +712,7 @@ draftSchema.index({ authorId: 1, createdAt: -1 });
 // Query: All drafts in tenant
 // Before: 110ms (table scan), After: 4ms
 draftSchema.index({ tenantId: 1, status: 1, updatedAt: -1 });
-```
+```text
 
 #### content_revisions (4 indexes)
 
@@ -735,7 +738,7 @@ revisionSchema.index({ contentId: 1, authorId: 1, createdAt: -1 });
 // Query: Latest 100 edits system-wide
 // Before: 100ms (table scan), After: 3ms
 revisionSchema.index({ createdAt: -1 });
-```
+```text
 
 #### system_widgets (3 indexes)
 
@@ -755,7 +758,7 @@ widgetSchema.index({ name: 1 }, { unique: true });
 // Query: Recently updated widgets
 // Before: 90ms (table scan), After: 3ms
 widgetSchema.index({ isActive: 1, updatedAt: -1 });
-```
+```text
 
 ---
 
@@ -787,7 +790,7 @@ const connectOptions: mongoose.ConnectOptions = {
   retryReads: true, // Auto-retry transient read failures
   w: "majority", // Write concern for data durability
 };
-```
+```text
 
 ### Configuration Benefits
 
@@ -814,7 +817,7 @@ mongoose.connection.on("disconnected", () => {
 mongoose.connection.on("error", (err) => {
   console.error("MongoDB error:", err);
 });
-```
+```text
 
 ---
 
@@ -861,7 +864,7 @@ async paginate(options: PaginateOptions): Promise<DatabaseResult<T[]>> {
     }
   };
 }
-```
+```text
 
 #### Usage Example
 
@@ -898,7 +901,7 @@ const page3 = await db
     sortDirection: "desc",
   })
   .execute();
-```
+```text
 
 #### Performance Comparison
 
@@ -945,7 +948,7 @@ async stream(): Promise<DatabaseResult<AsyncIterable<T>>> {
     };
   }
 }
-```
+```text
 
 #### Usage Examples
 
@@ -972,7 +975,7 @@ if (stream.success) {
 
 // Memory usage: ~50MB (constant)
 // vs fetching all: ~2GB (scales with data)
-```
+```text
 
 ##### Batch Processing
 
@@ -1001,7 +1004,7 @@ if (stream.success) {
     await sendEmailBatch(batch);
   }
 }
-```
+```text
 
 ##### Real-time Data Migration
 
@@ -1024,7 +1027,7 @@ if (stream.success) {
 }
 
 // Processes millions of records without memory issues
-```
+```text
 
 #### Performance Comparison
 
@@ -1065,7 +1068,7 @@ private async executeQuery(): Promise<T[]> {
 
   return mongoQuery.lean().exec();
 }
-```
+```text
 
 #### Usage Examples
 
@@ -1080,7 +1083,7 @@ const users = await db
   .execute();
 
 // MongoDB will use the specified index instead of choosing automatically
-```
+```text
 
 ##### Set Query Timeout
 
@@ -1093,7 +1096,7 @@ const results = await db
   .execute();
 
 // Query aborts after 5 seconds, preventing resource exhaustion
-```
+```text
 
 ##### Complex Query Optimization
 
@@ -1112,7 +1115,7 @@ const content = await db
     maxExecutionTime: 3000,
   })
   .execute();
-```
+```text
 
 ---
 
@@ -1136,7 +1139,7 @@ const user = await User.findOne({ email: "user@example.com" }).lean();
 // Returns: Plain JavaScript object
 // Memory: ~60KB per document (40% less!)
 // Access: user.name (direct property access)
-```
+```text
 
 #### Implementation
 
@@ -1160,7 +1163,7 @@ async find(query: FilterQuery<T>): Promise<T[]> {
     .exec();
   return results.map(r => processDates(r) as T);
 }
-```
+```text
 
 #### Performance Impact
 
@@ -1185,7 +1188,7 @@ interface QueryMeta {
   indexUsed?: string; // Which index was used
   documentsScanned?: number; // How many docs scanned
 }
-```
+```text
 
 #### Usage Example
 
@@ -1200,7 +1203,7 @@ console.log("Index used:", result.meta?.indexUsed);
 if (result.meta?.executionTime > 100) {
   Logger.warn(`Slow query detected: ${result.meta.executionTime}ms`);
 }
-```
+```text
 
 ### Cache Metrics Integration
 
@@ -1220,7 +1223,7 @@ console.log("Total misses:", metrics.totalMisses);
 // Per-category metrics
 const userMetrics = cacheMetrics.getCategoryMetrics("USER");
 console.log("User cache hit rate:", userMetrics.hitRate);
-```
+```text
 
 ---
 
@@ -1248,7 +1251,7 @@ const page = await db
   .skip(pageNumber * 20) // Scans all skipped records
   .limit(20)
   .execute();
-```
+```text
 
 #### 2. Use Streaming for Large Exports
 
@@ -1264,7 +1267,7 @@ const allMedia = await db.find("media", {}); // 2GB+ memory!
 for (const item of allMedia) {
   await processItem(item);
 }
-```
+```text
 
 #### 3. Leverage Compound Indexes
 
@@ -1283,7 +1286,7 @@ const users = await db.find("users", {
   tenantId: "acme",
   blocked: false,
 });
-```
+```text
 
 #### 4. Cache Frequently Accessed Data
 
@@ -1299,7 +1302,7 @@ if (!user) {
 
 // ❌ Bad: Always hit database
 const user = await db.findOne("users", { id: userId });
-```
+```text
 
 #### 5. Monitor Query Performance
 
@@ -1313,7 +1316,7 @@ if (result.meta?.executionTime > 100) {
     indexUsed: result.meta.indexUsed,
   });
 }
-```
+```text
 
 ### DON'T ❌
 
@@ -1326,7 +1329,7 @@ const posts = await db
   .skip(100 * 20) // Scans 2000 records
   .limit(20)
   .execute();
-```
+```text
 
 #### 2. Don't Load Large Datasets into Memory
 
@@ -1336,7 +1339,7 @@ const allUsers = await db.find("users", {});
 for (const user of allUsers) {
   await sendEmail(user); // OOM crash!
 }
-```
+```text
 
 #### 3. Don't Use Regex Without Indexes
 
@@ -1351,7 +1354,7 @@ const users = await db.find("users", {
 const users = await db.find("users", {
   $text: { $search: "example.com" },
 });
-```
+```text
 
 #### 4. Don't Forget Cache Invalidation
 
@@ -1363,7 +1366,7 @@ await db.update("users", userId, { role: "admin" });
 // ✅ Good: Invalidate cache after mutation
 await db.update("users", userId, { role: "admin" });
 await CacheService.delete("USER", `user:${userId}`);
-```
+```text
 
 #### 5. Don't Ignore Connection Pool Limits
 
@@ -1379,7 +1382,7 @@ const limit = pLimit(10); // Max 10 concurrent
 for (let i = 0; i < 100; i++) {
   promises.push(limit(() => db.find("posts", {})));
 }
-```
+```text
 
 ---
 
@@ -1399,13 +1402,15 @@ console.log("Index statistics:", indexStats);
 // Look for:
 // - Unused indexes (ops: 0)
 // - High accesses (frequently used indexes)
-```
+```text
 
 ### Slow Query Logging
 
 ```bash
 # Enable MongoDB slow query log
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 # In mongod.conf:
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 systemLog:
   verbosity: 1
   component:
@@ -1413,8 +1418,9 @@ systemLog:
       verbosity: 2  # Log slow queries
 
 # View slow queries
+n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 tail -f /var/log/mongodb/mongod.log | grep "slow query"
-```
+```text
 
 ### Database Statistics
 
@@ -1426,13 +1432,13 @@ console.log("Total documents:", stats.count);
 console.log("Average document size:", stats.avgObjSize);
 console.log("Total index size:", stats.totalIndexSize);
 console.log("Storage size:", stats.storageSize);
-```
+```text
 
 ---
 
 ## 📈 Performance Benchmarks
 
-For detailed performance metrics, stress test results, and cross-database comparisons, please refer to the [Performance Benchmarks](/docs/project/benchmarks) document.
+For detailed performance metrics, stress test results, and cross-database comparisons, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
 
 Key MongoDB highlights include:
 
@@ -1451,7 +1457,7 @@ const page = await db
   .queryBuilder("posts")
   .paginate({ cursor: lastCursor, pageSize: 20 })
   .execute();
-```
+```text
 
 ### Streaming
 
@@ -1460,7 +1466,7 @@ const stream = await db.queryBuilder("media").stream();
 for await (const item of stream.data) {
   await processItem(item);
 }
-```
+```text
 
 ### Query Hints
 
@@ -1469,7 +1475,7 @@ const result = await db
   .queryBuilder("users")
   .hint({ useIndex: ["tenantId_1_email_1"] })
   .execute();
-```
+```text
 
 ### Cache Integration
 
@@ -1479,7 +1485,7 @@ if (!cached) {
   const result = await db.findOne("users", { id });
   await CacheService.set("USER", key, result.data);
 }
-```
+```text
 
 ### Performance Monitoring
 
@@ -1487,7 +1493,7 @@ if (!cached) {
 const result = await db.queryBuilder("posts").execute();
 console.log("Time:", result.meta?.executionTime, "ms");
 console.log("Cached:", result.meta?.cached);
-```
+```text
 
 ---
 
@@ -1495,7 +1501,7 @@ console.log("Cached:", result.meta?.cached);
 
 - [Core Infrastructure](/docs/architecture/database/core-infrastructure) - Database-agnostic architecture
 - [Cache System](/docs/architecture/cache-system) - Dual-layer caching strategy (Redis + MongoDB)
-- [Authentication System](/docs/architecture/database/authentication-system) - Auth & session management
+- [Authentication System](/docs/architecture/authentication-system) - Auth & session management
 
 ---
 
@@ -1525,13 +1531,19 @@ The MongoDB implementation provides:
 4. **Cache Warming**: Zero-restart setup with pre-cached first load
 5. **Combined Impact**: 10x-160x faster operations depending on cache state
 
+### Security Hardening (June 2026)
+
+1. **NoSQL Injection Protection**: `sanitizeMongoQuery()` in `src/utils/security/mongo-sanitize.ts` recursively blocks dangerous MongoDB operators (`$where`, `$function`, `$expr`, `$accumulator`) at the `mapQuery` level — every query, including fast-path ID lookups, is sanitized before reaching the database.
+2. **ReDoS Prevention**: `$regex` patterns validated to maximum 500 characters, preventing catastrophic backtracking attacks.
+3. **Soft-Delete Filter Enforcement**: `safeQuery()` now always applies the `isDeleted: { $ne: true }` filter unless explicitly opted out — closing a gap where callers could bypass soft-deletion by setting `isDeleted` in their query.
+
 ### Performance Summary
 
-MongoDB delivers **enterprise-ready performance** with sub-1ms CRUD (0.798 ms FIND ONE, 0.853 ms INSERT) and significant optimizations for large-scale content management. For the full breakdown of metrics, see the [Performance Benchmarks](/docs/project/benchmarks) page.
+MongoDB delivers **enterprise-ready performance** with sub-1ms CRUD (0.798 ms FIND ONE, 0.853 ms INSERT) and significant optimizations for large-scale content management. For the full breakdown of metrics, see the [Performance Benchmarks](/docs/project/benchmarks/index) page.
 
 For detailed implementation information, see:
 
-- [Cache System Architecture](/docs/architecture/database/cache-system.mdx)
+- [Cache System Architecture](/docs/architecture/cache-system.mdx)
 - [Performance Architecture](/docs/architecture/database/performance-architecture.mdx)
 - ✅ **Query Hints** (Force indexes, set timeouts)
 - ✅ **.lean() Queries** (40% memory reduction, 40% faster)
@@ -1550,4 +1562,13 @@ For detailed implementation information, see:
 For complete architecture details, see:
 
 - [Performance Architecture](/docs/architecture/database/performance-architecture.mdx)
-- [Cache System Architecture](/docs/architecture/database/cache-system.mdx)
+- [Cache System Architecture](/docs/architecture/cache-system.mdx)
+````
+
+---
+
+## Related
+
+- [Database Architecture](./index.mdx)
+- [Performance Benchmarks](../../project/benchmarks/index.mdx)
+- [Architecture Overview](../index.mdx)

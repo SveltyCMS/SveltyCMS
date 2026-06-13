@@ -1034,19 +1034,19 @@ const flipDurationMs = 200;
 <!-- Toolbar -->
 <div class="mb-4 flex flex-wrap items-center gap-2">
 	<div class="relative flex-1 min-w-50">
-		<iconify-icon icon="mdi:magnify" width="18" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
+		<iconify-icon icon="mdi:magnify" width="18" class="absolute start-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
 		<input
 			type="text"
 			placeholder="Search collections..."
 			bind:value={searchText}
-			class="input w-full h-12 pl-10 pr-8 rounded shadow-sm"
+			class="input w-full h-12 ps-10 pe-8 rounded shadow-sm"
 			aria-label="Search collections"
 		/>
 		{#if searchText}
 			<button
 				type="button"
 				onclick={clearSearch}
-				class="absolute right-2 top-1/2 -translate-y-1/2 btn-icon preset-tonal-surface-500"
+				class="absolute end-2 top-1/2 -translate-y-1/2 btn-icon preset-tonal-surface-500"
 				aria-label="Clear search"
 			>
 				<iconify-icon icon="mdi:close" width={16}></iconify-icon>
@@ -1062,7 +1062,7 @@ const flipDurationMs = 200;
 				aria-label="Expand all categories"
 			>
 				<iconify-icon icon="mdi:unfold-more-horizontal" width={24} aria-hidden="true"></iconify-icon>
-				<span class="ml-1 uppercase text-xs font-bold">Expand All</span>
+				<span class="ms-1 uppercase text-xs font-bold">Expand All</span>
 			</button>
 		</SystemTooltip>
 		<SystemTooltip title="Collapse all categories">
@@ -1073,7 +1073,7 @@ const flipDurationMs = 200;
 				aria-label="Collapse all categories"
 			>
 				<iconify-icon icon="mdi:unfold-less-horizontal" width={24} aria-hidden="true"></iconify-icon>
-				<span class="ml-1 uppercase text-xs font-bold">Collapse All</span>
+				<span class="ms-1 uppercase text-xs font-bold">Collapse All</span>
 			</button>
 		</SystemTooltip>
 	</div>

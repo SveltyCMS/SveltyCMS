@@ -252,7 +252,7 @@ functionality for image editing and basic file information display.
 <div class="relative mb-4 min-h-1">
 	{#if !value}
 		<!-- File Input -->
-		<div class="rounded-lg border-2 border-dashed border-transparent" class:!border-error-500={!!validationError}>
+		<div class="rounded border-2 border-dashed border-transparent" class:!border-error-500={!!validationError}>
 			<FileUpload multiple={field.multiupload} onchange={validateInput} />
 		</div>
 	{:else}

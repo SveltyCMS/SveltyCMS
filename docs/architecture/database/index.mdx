@@ -61,7 +61,7 @@ Deep-dives into how specific adapters implement the `IDBAdapter` contract.
 
 ## 🏗️ Architecture Overview
 
-```mermaid
+````mermaid
 graph TD
     subgraph App["Application Layer"]
         B[Routes / Components]
@@ -88,7 +88,7 @@ graph TD
     B & C --> Core
     Core --> Interface
     Interface --> H & I & J & K
-```
+```text
 
 ---
 
@@ -154,9 +154,18 @@ SQLite is not "cheating" — it is the correct default for the architecture Svel
 | Multi-server / Kubernetes / replicas     | **PostgreSQL** or **MariaDB** | Native replication, connection pooling, horizontal scaling    |
 | Fastest HTTP response times              | **MariaDB**                   | 1.097 ms API. 0.728 ms auth. Best connection pooling overhead |
 
-For the full breakdown of response times, cold-start latencies, scalability metrics, and the complete 35-benchmark audit, see the [Performance Benchmarks](/docs/project/benchmarks) document.
+For the full breakdown of response times, cold-start latencies, scalability metrics, and the complete 35-benchmark audit, see the [Performance Benchmarks](/docs/project/benchmarks/index) document.
 
 ---
 
 **Last Updated**: 2026-05-24
 **Maintained by**: SveltyCMS Team
+````
+
+---
+
+## Related
+
+- [Architecture Overview](../index.mdx)
+- [Getting Started](../../getting-started.mdx)
+- [API Reference](../../api/index.mdx)

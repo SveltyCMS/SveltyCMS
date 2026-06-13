@@ -86,7 +86,7 @@ function handleSelect(opt: Option) {
 				<button
 					type="button"
 					class={cn(
-						"w-full text-left px-3 py-2 flex items-center gap-3 rounded-lg transition-colors",
+						"w-full text-start px-3 py-2 flex items-center gap-3 rounded transition-colors",
 						selected ? "bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold" : "hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300",
 						opt.disabled && "opacity-50 cursor-not-allowed"
 					)}

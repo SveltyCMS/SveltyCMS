@@ -159,19 +159,19 @@ export const widgetMeta = {
 					</div>
 
 					<div class="grid grid-cols-4 gap-2 text-center text-xs">
-						<div class="rounded-lg bg-surface-100 p-1.5 dark:bg-surface-700/50">
+						<div class="rounded bg-surface-100 p-1.5 dark:bg-surface-700/50">
 							<div class="font-mono font-semibold text-emerald-500 tabular-nums">{fmtNum(o.hits)}</div>
 							<div class="text-[10px] text-surface-500">Hits</div>
 						</div>
-						<div class="rounded-lg bg-surface-100 p-1.5 dark:bg-surface-700/50">
+						<div class="rounded bg-surface-100 p-1.5 dark:bg-surface-700/50">
 							<div class="font-mono font-semibold text-red-500 tabular-nums">{fmtNum(o.misses)}</div>
 							<div class="text-[10px] text-surface-500">Misses</div>
 						</div>
-						<div class="rounded-lg bg-surface-100 p-1.5 dark:bg-surface-700/50">
+						<div class="rounded bg-surface-100 p-1.5 dark:bg-surface-700/50">
 							<div class="font-mono font-semibold tabular-nums">{fmtNum(o.sets ?? 0)}</div>
 							<div class="text-[10px] text-surface-500">Sets</div>
 						</div>
-						<div class="rounded-lg bg-surface-100 p-1.5 dark:bg-surface-700/50">
+						<div class="rounded bg-surface-100 p-1.5 dark:bg-surface-700/50">
 							<div class="font-mono font-semibold tabular-nums">{fmtNum(o.deletes ?? 0)}</div>
 							<div class="text-[10px] text-surface-500">Evictions</div>
 						</div>

@@ -32,7 +32,7 @@ Create a folder in `src/widgets/custom/`.
 
 Custom widgets must contain their own tests within a `tests/` subdirectory.
 
-```typescript
+````typescript
 // Example: src/widgets/custom/my-widget/tests/my-widget.test.ts
 import { describe, it, expect } from "vitest";
 import Widget from "../index";
@@ -45,4 +45,13 @@ describe("MyWidget", () => {
     expect(safeParse(schema, "valid").success).toBe(true);
   });
 });
-```
+```text
+````
+
+---
+
+## Related
+
+- [Development Guides](../index.mdx)
+- [Widget System](../../../architecture/index.mdx)
+- [Security Overview](../../../architecture/security/index.mdx)

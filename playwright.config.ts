@@ -27,6 +27,9 @@ if (!TEST_API_SECRET) {
   }
 }
 
+// Ensure workers inherit the secret so they can authenticate testing endpoints
+process.env.TEST_API_SECRET = TEST_API_SECRET;
+
 // See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -61,7 +64,7 @@ export default defineConfig({
   /* Set environment variables for tests */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
 
     /* Tag Playwright-originated API calls without bypassing normal browser navigation. */
     extraHTTPHeaders: {
@@ -126,10 +129,14 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: `cross-env TEST_MODE=true STRICT_SETUP_CHECK=true TEST_API_SECRET=${TEST_API_SECRET} bun run dev`,
-          port: 5173,
+          command: `cross-env TEST_MODE=true STRICT_SETUP_CHECK=true TEST_API_SECRET=${TEST_API_SECRET} node build/index.js`,
+          port: 4173,
           timeout: 300_000,
           reuseExistingServer: true,
+          env: {
+            HOST: "127.0.0.1",
+            PORT: "4173",
+          },
         },
       }),
 });

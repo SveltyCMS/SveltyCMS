@@ -17,10 +17,114 @@ import { eventBus, SystemEvents } from "@utils/event-bus";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { generateSchemaHash, loadSchemaNative } from "./module-processor.server";
 
+// ─── Plugin System ───────────────────────────────────────────────────────────
+
+interface ContentPlugin {
+  name: string;
+  onSchemaLoad?: (schema: Schema, filePath: string) => Schema | Promise<Schema>;
+  onReconcile?: (operations: any[], prunedPaths: string[]) => void | Promise<void>;
+  onNodeChange?: (node: ContentNode, action: "upsert" | "delete") => void | Promise<void>;
+}
+
+const _plugins: ContentPlugin[] = [];
+
+export function registerContentPlugin(plugin: ContentPlugin): void {
+  if (_plugins.find((p) => p.name === plugin.name)) {
+    logger.warn(`[ContentPlugin] Duplicate plugin name: ${plugin.name}`);
+    return;
+  }
+  _plugins.push(plugin);
+  logger.info(`[ContentPlugin] Registered: ${plugin.name}`);
+}
+
+// ─── Lightweight Tracing ─────────────────────────────────────────────────────
+
+const _traces = new Map<string, number[]>();
+
+export function traceStart(label: string): () => number {
+  const start = performance.now();
+  return () => {
+    const elapsed = performance.now() - start;
+    const entries = _traces.get(label) || [];
+    entries.push(elapsed);
+    _traces.set(label, entries.slice(-100)); // Keep last 100 samples
+    return elapsed;
+  };
+}
+
+export function getTraceStats(): Record<string, { avg: number; p95: number; count: number }> {
+  const result: Record<string, any> = {};
+  for (const [label, entries] of _traces) {
+    if (entries.length === 0) continue;
+    const sorted = [...entries].sort((a, b) => a - b);
+    const avg = entries.reduce((a, b) => a + b, 0) / entries.length;
+    const p95 = sorted[Math.floor(sorted.length * 0.95)] || avg;
+    result[label] = {
+      avg: +avg.toFixed(3),
+      p95: +p95.toFixed(3),
+      count: entries.length,
+    };
+  }
+  return result;
+}
+
+/**
+ * Validates a collection schema for required fields and uniqueness constraints.
+ * Logs warnings for recoverable issues; returns false for hard validation failures.
+ */
+function validateSchemaFields(schema: Schema): boolean {
+  if (!schema.name || typeof schema.name !== "string") {
+    logger.error("Schema validation failed: missing or invalid 'name'");
+    return false;
+  }
+  if (!Array.isArray(schema.fields) || schema.fields.length === 0) {
+    logger.error(`Schema validation failed: 'fields' must be a non-empty array (${schema.name})`);
+    return false;
+  }
+
+  // Check for duplicate db_fieldName values (silent data corruption risk)
+  const fieldNames = new Set<string>();
+  for (const field of schema.fields) {
+    const name = (field as any).db_fieldName || (field as any).name;
+    if (!name) continue;
+    if (fieldNames.has(name)) {
+      logger.error(
+        `Schema validation failed: duplicate field "${name}" in collection "${schema.name}"`,
+      );
+      return false;
+    }
+    fieldNames.add(name);
+  }
+
+  return true;
+}
+
 function isSafeCollectionPath(fullPath: string): boolean {
   const resolved = path.resolve(fullPath).toLowerCase();
   const allowedBase = path.resolve(process.cwd(), ".compiledCollections").toLowerCase();
-  return resolved.startsWith(allowedBase) && resolved.endsWith(".js");
+
+  // 1. Must be within allowed directory and have .js extension
+  if (!resolved.startsWith(allowedBase) || !resolved.endsWith(".js")) {
+    return false;
+  }
+
+  // 2. Block path traversal (..)
+  const relative = path.relative(allowedBase, resolved);
+  if (relative.includes("..") || path.isAbsolute(relative)) {
+    logger.warn("Blocked path traversal attempt", { fullPath, relative });
+    return false;
+  }
+
+  // 3. Block non-alphanumeric characters except hyphens, underscores, dots, slashes
+  if (/[^\w\-./\\]/.test(relative)) {
+    logger.warn("Blocked path with suspicious characters", {
+      fullPath,
+      relative,
+    });
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -76,6 +180,8 @@ let _isScanning = false;
 const _mtimeTree = new Map<string, number>();
 const _schemaCache = new Map<string, Schema>();
 let _isDirty = true;
+/** Track changed files for incremental reconciliation */
+const _changedFiles = new Set<string>();
 
 /**
  * Flags the content system that a file has changed.
@@ -85,7 +191,15 @@ export function markFileDirty(filePath?: string | null) {
   if (filePath) {
     _mtimeTree.delete(filePath);
     _schemaCache.delete(filePath);
+    _changedFiles.add(filePath);
   }
+}
+
+/** Returns and clears tracked changed files for incremental reconciliation. */
+export function flushChangedFiles(): string[] {
+  const files = Array.from(_changedFiles);
+  _changedFiles.clear();
+  return files;
 }
 
 let _scanPromise: Promise<Schema[]> | null = null;
@@ -168,7 +282,29 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
           const schema = moduleData?.schema;
 
           if (schema) {
-            const hash = generateSchemaHash(schema);
+            // Validate schema structure before caching
+            if (!validateSchemaFields(schema)) {
+              logger.error("[Scanner] Skipping invalid schema", {
+                path: file.fullPath,
+                name: schema.name,
+              });
+              return;
+            }
+
+            // Run onSchemaLoad plugins (enrichment, validation, transforms)
+            let enrichedSchema = schema;
+            for (const plugin of _plugins) {
+              if (plugin.onSchemaLoad) {
+                try {
+                  enrichedSchema =
+                    (await plugin.onSchemaLoad(enrichedSchema, file.fullPath)) || enrichedSchema;
+                } catch (err: any) {
+                  logger.error(`[Plugin] ${plugin.name}.onSchemaLoad failed: ${err.message}`);
+                }
+              }
+            }
+
+            const hash = generateSchemaHash(enrichedSchema);
             if (cached && cached.hash === hash) {
               await cacheService.set(
                 cacheKey,
@@ -179,15 +315,15 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
               );
               _schemaCache.set(file.fullPath, cached.schema);
             } else {
-              enrichSchemaWithMetadata(schema, file.fullPath, collectionsDir);
+              enrichSchemaWithMetadata(enrichedSchema, file.fullPath, collectionsDir);
               await cacheService.set(
                 cacheKey,
-                { mtime: file.mtime, hash, schema },
+                { mtime: file.mtime, hash, schema: enrichedSchema },
                 3600,
                 null,
                 CacheCategory.SCHEMA,
               );
-              _schemaCache.set(file.fullPath, schema);
+              _schemaCache.set(file.fullPath, enrichedSchema);
             }
             _mtimeTree.set(file.fullPath, file.mtime);
           }
@@ -329,6 +465,18 @@ export const contentService = {
       ensurePhysicalModels(schemas, dbAdapter),
       this.syncStoreAndDatabase(operations, prunedPaths, tenantId ?? null, dbAdapter),
     ]);
+
+    // Fire onReconcile plugin hooks (async, fire-and-forget)
+    for (const plugin of _plugins) {
+      if (plugin.onReconcile) {
+        const result = plugin.onReconcile(operations, prunedPaths);
+        if (result instanceof Promise) {
+          result.catch((err: Error) =>
+            logger.error(`[Plugin] ${plugin.name}.onReconcile: ${err.message}`),
+          );
+        }
+      }
+    }
 
     // 4. Broadcast
     eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {

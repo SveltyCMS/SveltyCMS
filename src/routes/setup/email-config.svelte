@@ -444,12 +444,12 @@
 	<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
 		<button
-			type="button"
-			class="flex w-full items-start gap-3 text-left"
-			onclick={() => (showWhySmtp = !showWhySmtp)}
-			aria-expanded={showWhySmtp}
-			aria-controls="why-smtp-content"
-		>
+				type="button"
+				class="flex w-full items-start gap-3 text-start"
+				onclick={() => (showWhySmtp = !showWhySmtp)}
+				aria-expanded={showWhySmtp}
+				aria-controls="why-smtp-content"
+			>
 			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true"></iconify-icon>
 			<div class="flex-1">
 				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{setup_email_why_title()}</h3>
@@ -463,7 +463,7 @@
 
 		<!-- Collapsible content -->
 		{#if showWhySmtp}
-			<div id="why-smtp-content" class="ml-8 mt-2 space-y-2">
+			<div id="why-smtp-content" class="ms-8 mt-2 space-y-2">
 				<p class="text-surface-600-300 text-sm">{setup_email_why_desc()}</p>
 				<ul class="text-surface-600-300 list-inside list-disc space-y-1 text-sm">
 					<li>{setup_email_feature_user_mgmt()}</li>
@@ -488,7 +488,7 @@
 						type="button"
 						tabindex="-1"
 						aria-label={setup_email_aria_help_provider()}
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
@@ -523,7 +523,7 @@
 						type="button"
 						tabindex="-1"
 						aria-label={setup_email_aria_help_host()}
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
@@ -570,7 +570,7 @@
 							type="button"
 							tabindex="-1"
 							aria-label={setup_email_aria_help_port()}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -673,7 +673,7 @@
 						type="button"
 						tabindex="-1"
 						aria-label={setup_email_aria_help_user()}
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
@@ -717,7 +717,7 @@
 						type="button"
 						tabindex="-1"
 						aria-label={setup_email_aria_help_password()}
-						class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
@@ -726,7 +726,7 @@
 			<div class="relative">
 				<input
 					type={showPassword ? 'text' : 'password'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   pr-10"
+					class="input w-full rounded border border-slate-300 dark:border-surface-600   pe-10"
 					class:input-error={displayErrors.password}
 					bind:value={wizard.emailSettings.password}
 					placeholder={setup_email_password_placeholder()}
@@ -746,7 +746,7 @@
 				/>
 				<button
 					type="button"
-					class="btn-icon btn-sm absolute right-1 top-1/2 -translate-y-1/2"
+					class="btn-icon btn-sm absolute inset-e-1 top-1/2 -translate-y-1/2"
 					onclick={() => (showPassword = !showPassword)}
 					aria-label={showPassword ? setup_email_aria_hide_password() : setup_email_aria_show_password()}
 				>
@@ -786,7 +786,7 @@
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
 		<button type="submit" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full" disabled={!isFormValid || isTesting}>
-			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
+			<iconify-icon icon="mdi:email" class="me-2 text-xl"></iconify-icon>
 			{isTesting ? setup_email_testing() : setup_email_test_button()}
 		</button>
 

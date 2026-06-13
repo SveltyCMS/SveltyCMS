@@ -84,7 +84,7 @@ Features:
 				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
 				<span class="text-xs font-medium">{isComparing ? 'On' : 'Compare'}</span>
 			</button>
-			<div class="mr-2 flex items-center gap-1 rounded-full border border-white/10 bg-black/40 px-2 py-1 max-md:mr-0 max-md:flex-1 max-md:justify-between">
+			<div class="me-2 flex items-center gap-1 rounded-full border border-white/10 bg-black/40 px-2 py-1 max-md:me-0 max-md:flex-1 max-md:justify-between">
 				<button
 					type="button"
 					class="toolbar-icon-btn"
@@ -163,14 +163,14 @@ Features:
 	<!-- Error Toast -->
 	{#if imageEditorStore.state.error}
 		<div
-			class="absolute bottom-full left-1/2 mb-4 -translate-x-1/2 flex items-center gap-2 rounded-full bg-error-500/95 px-5 py-2.5 text-sm font-medium text-white shadow-xl backdrop-blur-sm"
+			class="absolute bottom-full start-1/2 mb-4 -translate-x-1/2 flex items-center gap-2 rounded-full bg-error-500/95 px-5 py-2.5 text-sm font-medium text-white shadow-xl backdrop-blur-sm"
 			transition:fade={{ duration: 200 }}
 		>
 			<iconify-icon icon="mdi:alert-circle" width="18"></iconify-icon>
 			<span>{imageEditorStore.state.error}</span>
 			<button
 				type="button"
-				class="ml-2 rounded-full p-1 hover:bg-white/20"
+				class="ms-2 rounded-full p-1 hover:bg-white/20"
 				onclick={() => imageEditorStore.setError(null)}
 				aria-label="Dismiss"
 			>

@@ -58,7 +58,7 @@ The `screen` store tracks the browser's viewport and accessibility settings.
 
 The store uses `requestAnimationFrame` to debounce resize events, ensuring that layout recalculations only occur when the browser is ready to paint:
 
-```typescript
+````typescript
 // Internal resize handler
 private handleResize = () => {
     if (!this.ticking) {
@@ -70,7 +70,7 @@ private handleResize = () => {
         this.ticking = true;
     }
 };
-```
+```text
 
 ---
 
@@ -118,7 +118,7 @@ Specialized routes (like the Image Editor or Collection Builder) notify the stor
 ```typescript
 // Example: Activating Collection Builder layout
 ui.setRouteContext({ isCollectionBuilder: true });
-```
+```text
 
 ---
 
@@ -150,7 +150,7 @@ Deleting over **400 lines** of legacy boilerplate and compatibility logic reduce
 {/if}
 
 <button onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}> Toggle </button>
-```
+```text
 
 ### Layout Logic
 
@@ -160,7 +160,7 @@ import { ui } from "@stores/UIStore.svelte";
 
 // Derived logic in scripts
 const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === "collapsed");
-```
+```text
 
 ---
 
@@ -171,3 +171,12 @@ const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === "collapse
 - **[Code Structure](./code-structure.mdx)** - Project folder organization.
 - **[Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx)** - User guide for the 6-region theme shell.
 - **[Admin Theme Plan](../project/admin-theme-plan.mdx)** - Architecture blueprint for the admin theme system.
+````
+
+---
+
+## Related
+
+- [Architecture Overview](./index.mdx)
+- [Security Overview](./security/index.mdx)
+- [State Management](./state-management.mdx)

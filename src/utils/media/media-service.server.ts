@@ -22,6 +22,49 @@ import type { MediaItem } from "./media-models";
 import { getUrl } from "./cloud-storage";
 import { validateEgressUrl, safeFetch } from "@src/utils/http/egress-guard";
 
+/**
+ * 🛡️ Lightweight SVG sanitizer — strips dangerous elements and attributes
+ * without requiring a DOM parser (zero additional runtime deps).
+ *
+ * Strips: script, foreignObject, iframe, object, embed tags (with content)
+ * Strips: all on* event handlers, javascript:/data: URIs in href/xlink:href
+ * Strips: CDATA blocks, XML processing instructions, DOCTYPE declarations
+ *
+ * Defense-in-depth: the RichText/Sanitize display pipeline also applies DOMPurify client-side
+ */
+function sanitizeSvg(svg: string): string {
+  let cleaned = svg;
+
+  // 1. Strip dangerous tags (with their content, including self-closing variants)
+  const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
+  for (const tag of DANGEROUS_TAGS) {
+    cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
+    cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
+  }
+
+  // 2. Strip inline event handlers (onload=, onclick=, onerror=, etc.) — both quoted and unquoted
+  cleaned = cleaned.replace(/\s+on\w+\s*=\s*"[^"]*"/gi, "");
+  cleaned = cleaned.replace(/\s+on\w+\s*=\s*'[^']*'/gi, "");
+  cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
+
+  // 3. Strip javascript: and data: protocols in href/xlink:href attributes
+  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*"\s*javascript\s*:/gi, '$1="#blocked"');
+  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*'\s*javascript\s*:/gi, "$1='#blocked'");
+  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*"\s*data\s*:/gi, '$1="#blocked"');
+  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*'\s*data\s*:/gi, "$1='#blocked'");
+
+  // 4. Strip CDATA-wrapped scripts (potential XSS vectors)
+  cleaned = cleaned.replace(/<!\[CDATA\[[\s\S]*?\]\]>/gi, "");
+
+  // 5. Strip XML processing instructions (potential XXE vectors)
+  cleaned = cleaned.replace(/<\?[\s\S]*?\?>/gi, "");
+
+  // 6. Strip DOCTYPE declarations (external entity injection)
+  cleaned = cleaned.replace(/<!DOCTYPE[^>]*>/gi, "");
+
+  return cleaned;
+}
+
 const ALLOWED_MIME_PREFIXES = [
   "image/",
   "video/",
@@ -31,6 +74,10 @@ const ALLOWED_MIME_PREFIXES = [
   "text/csv",
   "application/zip",
 ];
+
+function isSvgFile(mimeType: string, filename: string): boolean {
+  return mimeType === "image/svg+xml" || filename.toLowerCase().endsWith(".svg");
+}
 
 function validateMime(mimeType: string, filename: string) {
   if (!mimeType) throw new Error("Missing MIME type");
@@ -110,7 +157,15 @@ export class MediaService {
       // For large files, we use the stream to avoid OOM
       if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
         // Small file: Buffer is fine and faster for small items
-        const buffer = Buffer.from(await file.arrayBuffer());
+        let buffer = Buffer.from(await file.arrayBuffer());
+
+        // 🛡️ SVG Sanitization: strip scripts, event handlers, and foreignObject before storage
+        if (isSvgFile(file.type, file.name)) {
+          const raw = buffer.toString("utf-8");
+          const sanitized = sanitizeSvg(raw);
+          buffer = Buffer.from(sanitized, "utf-8");
+        }
+
         const hash = await hashFileContent(buffer);
 
         // 1. Check for existing file by hash (Deduplication)

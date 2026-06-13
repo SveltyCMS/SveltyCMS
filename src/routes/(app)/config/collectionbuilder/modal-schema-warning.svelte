@@ -76,7 +76,7 @@ function handleKeydown(e: KeyboardEvent) {
 >
 	<!-- Modal -->
 	<div
-		class="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-surface-100 shadow-2xl dark:bg-surface-800"
+		class="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded bg-surface-100 shadow-2xl dark:bg-surface-800"
 		transition:slide={{ duration: 200 }}
 	>
 		<!-- Header -->
@@ -93,7 +93,7 @@ function handleKeydown(e: KeyboardEvent) {
 		<!-- Content -->
 		<div class="space-y-4 p-4">
 			{#if dataLossChanges.length > 0}
-				<div class="rounded-lg border-2 border-error-500/30 bg-error-500/10 p-3">
+				<div class="rounded border-2 border-error-500/30 bg-error-500/10 p-3">
 					<p class="mb-2 flex items-center gap-2 font-semibold text-error-600 dark:text-error-500">
 						<iconify-icon icon="mdi:database-alert" width={24}></iconify-icon>
 						{dataLossChanges.length}
@@ -120,7 +120,7 @@ function handleKeydown(e: KeyboardEvent) {
 			{/if}
 
 			{#if otherChanges.length > 0}
-				<div class="rounded-lg border-2 border-warning-500/30 bg-warning-500/10 p-3">
+				<div class="rounded border-2 border-warning-500/30 bg-warning-500/10 p-3">
 					<p class="mb-2 flex items-center gap-2 font-semibold text-warning-600 dark:text-warning-400">
 						<iconify-icon icon="mdi:alert" width={20}></iconify-icon>
 						{otherChanges.length}
@@ -147,7 +147,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 			<!-- Confirmation checkbox for data loss -->
 			{#if hasDataLoss}
-				<label class="flex cursor-pointer items-start gap-3 rounded-lg bg-surface-200/50 p-3 dark:bg-surface-700/50">
+				<label class="flex cursor-pointer items-start gap-3 rounded bg-surface-200/50 p-3 dark:bg-surface-700/50">
 					<input
 						type="checkbox"
 						bind:checked={confirmed}
@@ -169,7 +169,7 @@ function handleKeydown(e: KeyboardEvent) {
 			<button
 				type="button"
 				onclick={onCancel}
-				class="rounded-lg border border-surface-300 bg-white px-4 py-2 font-medium text-surface-700 transition-colors hover:bg-surface-100 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:hover:bg-surface-600"
+				class="rounded border border-surface-300 bg-white px-4 py-2 font-medium text-surface-700 transition-colors hover:bg-surface-100 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:hover:bg-surface-600"
 			>
 				Cancel
 			</button>
@@ -177,7 +177,7 @@ function handleKeydown(e: KeyboardEvent) {
 				type="button"
 				onclick={handleConfirm}
 				disabled={!canProceed}
-				class="rounded-lg px-4 py-2 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50
+				class="rounded px-4 py-2 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50
 					{hasDataLoss ? 'bg-error-500 hover:bg-error-600' : 'bg-warning-500 hover:bg-warning-600'}"
 				aria-disabled={!canProceed}
 			>

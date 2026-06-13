@@ -36,14 +36,14 @@ It measures:
 
 The orchestrator code is modularized inside `scripts/benchmark-matrix/` for ultimate maintainability, but is easily executed via the main barrel file:
 
-```bash
+````bash
 # Run the full matrix across all 4 databases and 8 variants (including Redis)
 bun run scripts/benchmark-matrix/index.ts
 
 # Generate the Master Comparison Leaderboard
 # This aggregates all results into docs/project/benchmarks/README.mdx
 bun run scripts/benchmark-matrix/cli.ts --leaderboard
-```
+```text
 
 > [!NOTE]
 > Running the full matrix requires active local instances (or Docker containers) of MongoDB (`:27017`), PostgreSQL (`:5432`), and MariaDB (`:3306`). The orchestrator will automatically provision the required isolated benchmark databases for the test.
@@ -82,7 +82,7 @@ To check the bundle size and basic performance locally:
 
 ```bash
 bun run build:stats
-```
+```text
 
 This generates detailed reports including:
 
@@ -111,3 +111,12 @@ As part of the **Enterprise Matrix**, SveltyCMS performs a specialized overhead 
 - [Performance Benchmarks (Progress Reports)](../project/benchmarks/index.mdx)
 - [Enterprise Monitor Dashboard](../guides/configuration/enterprise-monitor.mdx)
 - [Contributing Documentation](../contributing/contributing-docs.mdx)
+````
+
+---
+
+## Related
+
+- [Test Documentation](./index.mdx)
+- [Security Testing](./security-testing.mdx)
+- [Architecture Overview](../architecture/index.mdx)

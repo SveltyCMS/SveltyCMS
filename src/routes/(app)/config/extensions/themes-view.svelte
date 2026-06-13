@@ -151,7 +151,7 @@ function handleThemeChange() {
 			{#if customThemes.length > 0}
 				<div class="flex flex-wrap gap-2">
 					{#each customThemes as theme (theme._id)}
-						<button
+						<button>
 							onmouseover={() => previewThemeChange(theme)}
 							onfocus={() => previewThemeChange(theme)}
 							onmouseout={resetPreview}

@@ -96,7 +96,7 @@ export async function handleUtilityRoutes(
 
     // ── Email Service ──
     if (namespace === "send-mail" && request.method === "POST") {
-      return handleSendMail(event);
+      return handleSendMail(event, cms, tenantId);
     }
 
     // ── Marketplace (placeholder) ──
@@ -191,16 +191,36 @@ async function handleCacheRoutes(
 
 // ─── Email Handler ───────────────────────────────────────────────────────────
 
-async function handleSendMail(event: RequestEvent) {
+async function handleSendMail(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const body = await event.request.json().catch(() => ({}));
-  if (!body.to || !body.subject || !body.body) {
-    throw new AppError("Missing required fields: to, subject, body", 400);
+  if (!body.to || !body.subject) {
+    throw new AppError("Missing required fields: to, subject", 400);
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.to)) {
     throw new AppError("Invalid email address", 400);
   }
-  // TODO: Integrate real email provider when configured
-  throw new AppError("Email service is not configured in this environment", 400);
+
+  try {
+    const result = await (cms.system as any).sendMail({
+      recipientEmail: body.to,
+      subject: body.subject,
+      templateName: body.templateName || "generic",
+      props: body.props || {},
+      languageTag: body.languageTag || "en",
+      tenantId,
+    });
+
+    if (!result?.success) {
+      throw new AppError(result?.message || "Email send failed", 500);
+    }
+    return successResponse(event, {
+      success: true,
+      message: "Email sent successfully",
+    });
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    throw new AppError(`Email send failed: ${err.message}`, 500, "EMAIL_SEND_ERROR");
+  }
 }
 
 // ─── Debug Handler ───────────────────────────────────────────────────────────

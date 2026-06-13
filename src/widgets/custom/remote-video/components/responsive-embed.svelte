@@ -27,7 +27,7 @@
 </script>
 
 {#if embedUrl}
-	<div class="relative w-full overflow-hidden rounded-lg bg-black {className}" style="padding-top: 56.25%;">
+	<div class="relative w-full overflow-hidden rounded bg-black {className}" style="padding-top: 56.25%;">
 		<iframe
 			src={embedUrl}
 			title={video.title}
@@ -39,7 +39,7 @@
 		></iframe>
 	</div>
 {:else}
-	<div class="flex aspect-video w-full items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-800 text-surface-400">
+	<div class="flex aspect-video w-full items-center justify-center rounded bg-surface-100 dark:bg-surface-800 text-surface-400">
 		<iconify-icon icon="mdi:video-off" width="48"></iconify-icon>
 		<span class="ml-2">Embed not available for this platform</span>
 	</div>

@@ -286,6 +286,14 @@ async function signInInternal(event: RequestEvent, input: any) {
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
+      // Prime in-memory session cache so getUserFromSession bypasses sqlite-proxy
+      try {
+        const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+        primeSessionMemoryCache(ar.sessionId!, user);
+        // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
+        const { invalidateSetupCache } = await import("@src/utils/setup-check");
+        invalidateSetupCache(false, true);
+      } catch {}
     } else {
       const { verify, hash } = await import("argon2");
       await verify(await hash("dummy-password-for-timing-defense"), p).catch(() => {
@@ -445,6 +453,18 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
   const result = safeParse(forgotFormSchema, { email });
   if (!result.success) return { success: false, errors: flatten(result.issues).nested };
 
+  // Check if SMTP is configured (independent of user existence to prevent timing attacks)
+  let smtpConfigured = false;
+  try {
+    const { dbAdapter } = await import("@src/databases/db");
+    const smtpHost = await dbAdapter.system.preferences.get<string>("SMTP_HOST", {
+      scope: "system",
+    });
+    smtpConfigured = !!(smtpHost?.success && smtpHost.data);
+  } catch {
+    // Ignore errors
+  }
+
   try {
     const user = await auth.checkUser({ email: result.output.email });
     if (user?._id) {
@@ -464,27 +484,39 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
         .catch(() => {
           logger.debug("Audit log write for password reset request failed silently");
         });
-      const baseUrl = publicEnv.HOST_PROD || `https://${event.request.headers.get("host")}`;
+      const origin = new URL(event.request.url).origin;
+      const baseUrl = publicEnv.HOST_PROD || origin;
+      const resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
       sendMail({
         recipientEmail: result.output.email,
         subject: "Reset your password",
-        templateName: "password-reset",
+        templateName: "forgotten-password",
         props: {
           token,
           expiresIn: "1 hour",
           username: user.username,
-          resetLink: `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`,
+          resetLink,
         },
         languageTag: "en" as any,
-      }).catch(() => {
-        logger.debug("Password reset email sending failed silently");
-      });
+      })
+        .then((res) => {
+          if (!res.success || res.dev_mode) {
+            logger.warn(
+              `[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`,
+            );
+          }
+        })
+        .catch(() => {
+          logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
+          logger.debug("Password reset email sending failed silently");
+        });
     }
   } catch {}
 
   return {
     success: true,
     message: "If an account exists, a reset link has been sent.",
+    smtpConfigured,
   };
 }
 

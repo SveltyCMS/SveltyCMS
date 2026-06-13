@@ -161,7 +161,7 @@ export const widgetMeta = {
 						{const isOpen = expandedId === msgId}
 						<button
 							onclick={() => toggleExpand(msgId)}
-							class="w-full text-left rounded-2xl border-s-3 {severityCls(msg)} px-4 py-3 transition-colors hover:opacity-90"
+							class="w-full text-start rounded-2xl border-s-3 {severityCls(msg)} px-4 py-3 transition-colors hover:opacity-90"
 						>
 							<div class="flex items-start justify-between gap-3">
 								<div class="flex items-center gap-2 shrink-0">

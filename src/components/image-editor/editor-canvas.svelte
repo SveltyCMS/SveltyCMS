@@ -87,7 +87,7 @@ for the image editor canvas with reactive rendering.
 
 	// --- Web Worker for Filter Processing ---
 	let _filterWorker: Worker | null = $state(null);
-	
+
 
 	// --- Touch gesture state for pinch-to-zoom and two-finger pan ---
 	let touchStartDistance = $state(0);
@@ -493,7 +493,7 @@ for the image editor canvas with reactive rendering.
 			: filters;
 
 		if (isComparing) {
-			// --- Split-screen compare: original left, edited right ---
+			// --- Split-screen compare: original left, edited end ---
 			const splitX = (width * compareSliderPosition) / 100;
 
 			// Draw original (left side)
@@ -507,7 +507,7 @@ for the image editor canvas with reactive rendering.
 			drawSourceImage(context, imageElement, crop);
 			context.restore();
 
-			// Draw edited (right side)
+			// Draw edited (end side)
 			context.save();
 			context.beginPath();
 			context.rect(splitX, 0, width - splitX, height);
@@ -580,7 +580,7 @@ for the image editor canvas with reactive rendering.
 </script>
 
 <div
-	class="editor-canvas-wrapper relative flex-1 overflow-hidden rounded-lg border border-surface-200 transition-all duration-300 ease-in-out focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 focus-within:ring-offset-surface-50 dark:focus-within:ring-offset-surface-900 md:rounded-lg md:border md:border-surface-200 max-md:rounded-none max-md:border-0 max-md:border-b max-md:border-t"
+	class="editor-canvas-wrapper relative flex-1 overflow-hidden rounded border border-surface-200 transition-all duration-300 ease-in-out focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 focus-within:ring-offset-surface-50 dark:focus-within:ring-offset-surface-900 md:rounded md:border md:border-surface-200 max-md:rounded-none max-md:border-0 max-md:border-b max-md:border-t"
 	role="region"
 	aria-label="Image editor canvas - pan with mouse, zoom with wheel"
 	aria-busy={isLoading}
@@ -588,33 +588,33 @@ for the image editor canvas with reactive rendering.
 >
 	<!-- svelte-canvas component -->
 	<button
-		class="canvas-container block h-full w-full border-0 p-0 text-left cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none"
-		class:border-2={isDragging}
-		class:border-tertiary-500={isDragging} class:dark:border-primary-500={isDragging}
-		class:border-dashed={isDragging}
-		class:bg-primary-50={isDragging}
-		class:dark:bg-primary-900={isDragging}
-		ondragover={handleDragOver}
-		ondragleave={handleDragLeave}
-		ondrop={handleDrop}
-		onmousedown={handleMouseDown}
-		onmousemove={handleMouseMove}
-		onmouseup={handleMouseUp}
-		onmouseleave={handleMouseUp}
-		onwheel={handleWheel}
-		ontouchstart={handleTouchStart}
-		ontouchmove={handleTouchMove}
-		ontouchend={handleTouchEnd}
-		ontouchcancel={handleTouchEnd}
-		onkeydown={(e) => {
-			// Basic keyboard support for pan/zoom
-			if (e.key === '+' || e.key === '=') {
-				imageEditorStore.state.zoom = imageEditorStore.state.zoom * 1.1;
-			} else if (e.key === '-' || e.key === '_') {
-				imageEditorStore.state.zoom = imageEditorStore.state.zoom / 1.1;
-			}
-		}}
-		aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."
+	class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none"
+	class:border-2={isDragging}
+	class:border-tertiary-500={isDragging} class:dark:border-primary-500={isDragging}
+	class:border-dashed={isDragging}
+	class:bg-primary-50={isDragging}
+	class:dark:bg-primary-900={isDragging}
+	ondragover={handleDragOver}
+	ondragleave={handleDragLeave}
+	ondrop={handleDrop}
+	onmousedown={handleMouseDown}
+	onmousemove={handleMouseMove}
+	onmouseup={handleMouseUp}
+	onmouseleave={handleMouseUp}
+	onwheel={handleWheel}
+	ontouchstart={handleTouchStart}
+	ontouchmove={handleTouchMove}
+	ontouchend={handleTouchEnd}
+	ontouchcancel={handleTouchEnd}
+	onkeydown={(e) => {
+		// Basic keyboard support for pan/zoom
+		if (e.key === '+' || e.key === '=') {
+			imageEditorStore.state.zoom = imageEditorStore.state.zoom * 1.1;
+		} else if (e.key === '-' || e.key === '_') {
+			imageEditorStore.state.zoom = imageEditorStore.state.zoom / 1.1;
+		}
+	}}
+	aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."
 	>
 		{#if containerWidth > 0 && containerHeight > 0}
 			<Canvas width={containerWidth} height={containerHeight}>
@@ -651,7 +651,7 @@ for the image editor canvas with reactive rendering.
 				</div>
 
 				<div class="pointer-events-auto">
-					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 gap-2" onclick={() => onupload?.()}>
+					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 gap-2" onclick={() => onupload?.()} aria-label="Upload image">
 						<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 						<span>Upload Image</span>
 					</button>
@@ -715,11 +715,11 @@ for the image editor canvas with reactive rendering.
 	}
 
 	.empty-state {
-		background: linear-gradient(to bottom right, rgb(var(--color-surface-50) / 0.95), rgb(var(--color-surface-100) / 0.95));
+		background: linear-gradient(to bottom end, rgb(var(--color-surface-50) / 0.95), rgb(var(--color-surface-100) / 0.95));
 	}
 
 	:global(.dark) .empty-state {
-		background: linear-gradient(to bottom right, rgb(var(--color-surface-900) / 1), rgb(var(--color-surface-800) / 1));
+		background: linear-gradient(to bottom end, rgb(var(--color-surface-900) / 1), rgb(var(--color-surface-800) / 1));
 	}
 
 	/* Responsive adjustments */

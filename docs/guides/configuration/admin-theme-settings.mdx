@@ -109,7 +109,7 @@ Each theme can reposition the **Collections tree** independently of visual style
 
 This enables radically different workspace layouts per theme. For example, a "Developer Workbench" theme could move Collections to the right sidebar, freeing the left sidebar for pinned favorites and system tools — while keeping the entry inspector visible during editing.
 
-```typescript
+````typescript
 // Theme A: Traditional layout (Collections on left)
 features: {
   layoutRegions: {
@@ -124,7 +124,7 @@ features: {
   }
 }
 density: "compact";
-```
+```text
 
 > [!IMPORTANT]
 > **High Contrast Mode** and **Reduced Motion** are accessibility features. Enable them to meet WCAG 3.0 Functional Performance standards for users with visual or vestibular sensitivities.
@@ -142,7 +142,7 @@ When **Sticky Action Bar** is enabled, any page can make its action buttons stic
   <button onclick={save} aria-keyshortcuts="Mod+S">Save Changes</button>
   <button onclick={reset}>Reset</button>
 </StickyActions>
-```
+```text
 
 The buttons render **both** in their original position AND in the sticky bar at the bottom of the screen — no duplication in your code. The bar uses `role="toolbar"`, `aria-label="Page actions"`, and `aria-live="polite"` for screen reader compatibility.
 
@@ -163,7 +163,7 @@ The **Advanced** tab provides a code editor where you can inject custom CSS into
   border-color: oklch(65% 0.2 260deg);
   border-width: 3px;
 }
-```
+```text
 
 Custom CSS is **sanitized server-side** before storage. Dangerous constructs (`url()`, `@import`, `javascript:`, `<script>`, HTML tags) are automatically stripped.
 
@@ -204,7 +204,7 @@ Drop a `.json` file into the `/themes/` directory and Vite auto-imports it to th
     "footer": "hidden"
   }
 }
-```
+```text
 
 **Example — Distraction-Free Writer** (`/themes/distraction-free-writer.json`):
 
@@ -228,7 +228,7 @@ Drop a `.json` file into the `/themes/` directory and Vite auto-imports it to th
     "footer": "hidden"
   }
 }
-```
+```text
 
 ### Reset to Defaults
 
@@ -287,7 +287,7 @@ Additionally, a **sticky action bar** region (`Slot name="sticky-action-bar"`) a
     <Slot name="global-footer" />  <!-- ← Theme injects status bar here -->
   </footer>
 {/if}
-```
+```text
 
 Each region is independently toggleable at runtime via the `ui` singleton store (`src/stores/ui-store.svelte`):
 
@@ -296,7 +296,7 @@ Each region is independently toggleable at runtime via the `ui` singleton store 
 ui.toggle("leftSidebar", "hidden"); // Full-width content mode
 ui.toggle("rightSidebar", "full"); // Show entry inspector
 ui.toggle("pageheader", "hidden"); // Hide breadcrumbs
-```
+```text
 
 The `ui-store` is verified by unit tests (`tests/unit/ui-store.test.ts`) confirming toggle operations, singleton behavior, and screen-size-aware `updateLayout()` calls.
 
@@ -356,7 +356,7 @@ ui.toggle("pagefooter", "hidden");
 ui.toggle("rightSidebar", "full");
 ui.toggle("pagefooter", "full");
 // Plus: density = "compact", variant = "flat"
-```
+```text
 
 ```mermaid
 flowchart LR
@@ -377,7 +377,7 @@ flowchart LR
     UI -->|"visibility"| Shell
     SC -->|"responsive"| Shell
     TM -->|"sizes + styles + layout"| Shell
-```
+```text
 
 This architecture matches or exceeds Drupal Gin's toolbar, sidebar, and layout builder modules — all without PHP/Twig overhead, using native Svelte 5 reactivity.
 
@@ -397,7 +397,7 @@ Defined in `src/utilities.css`, these variables control radii, shadows, sidebar 
   --admin-sidebar-width: 200px;
   --admin-header-height: 48px;
 }
-```
+```text
 
 ### 2. Svelte 5 `AdminTheme` Context
 
@@ -407,7 +407,7 @@ The `AdminTheme` class in `src/components/ui/theme-context.svelte.ts` is the rea
 // Every component reads theme context for adaptive rendering
 const theme = getThemeContext();
 const shadow = theme?.cardShadow ?? "var(--admin-shadow-elevation)";
-```
+```text
 
 ```mermaid
 sequenceDiagram
@@ -421,16 +421,16 @@ sequenceDiagram
     Note over SP,CP: Instant — before save
     SP->>API: POST /api/theme/admin-theme
     API->>DB: Persist to Theme record
-```
+```text
 
 ### Theme Loading on Startup
 
-```
+```text
 App Start → hooks.server.ts → ThemeManager.getTheme()
          → reads config.adminTheme from DB
          → +layout.svelte sets AdminTheme context
          → all components render with stored settings
-```
+```text
 
 ---
 
@@ -497,7 +497,7 @@ Drop a `.json` file into `/themes/` and Vite auto-imports it:
   },
   "customCss": "/* Optional custom CSS */"
 }
-```
+```text
 
 ### Programmatic Theme Creation
 
@@ -518,7 +518,7 @@ await fetch("/api/theme/activate", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ themeId: "..." }),
 });
-```
+```text
 
 ### Reading Theme Context in Components
 
@@ -533,7 +533,7 @@ const theme = getThemeContext();
 // theme?.cardShadow      → synthesized shadow based on variant
 // theme?.cardBorder      → border width based on variant
 // theme?.features?.stickyActionBar → boolean
-```
+```text
 
 ### Injecting Content into Layout Shell Regions
 
@@ -561,7 +561,7 @@ ui.toggle("pageheader", "hidden");
 
 // Layout state is persisted to DB per-theme automatically
 // (debounced 2s save to config.adminTheme.layoutState)
-```
+```text
 
 ### Screen Size Adaptation
 
@@ -570,4 +570,5 @@ import { screen } from "@src/stores/screen-size-store.svelte";
 
 // screen.isDesktop → true when width >= 1024px
 // screen.isMobile  → true when width < 768px
-```
+```text
+````

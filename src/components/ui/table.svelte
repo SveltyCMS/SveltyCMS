@@ -185,7 +185,7 @@ function onVirtualScroll() {
                 aria-rowcount={data.length}
                 aria-colcount={columns.length + (selectable ? 1 : 0)}
             >
-                <table class="w-full text-left border-collapse min-w-full table-fixed">
+                <table class="w-full text-start border-collapse min-w-full table-fixed">
                     <thead class="sticky top-0 z-10">
                         <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                             {#if selectable}
@@ -255,7 +255,7 @@ function onVirtualScroll() {
             </div>
         {:else}
             <!-- Normal (non-virtualized) table -->
-            <table class="w-full text-left border-collapse min-w-full table-fixed">
+            <table class="w-full text-start border-collapse min-w-full table-fixed">
                 <thead class="sticky top-0 z-10">
                     <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                         {#if selectable}
@@ -285,7 +285,7 @@ function onVirtualScroll() {
                         {#each Array(5) as _}
                             <tr class="animate-pulse">
                                 {#if selectable}<td class="p-4"><div class="size-4 bg-surface-200 dark:bg-surface-700 rounded-sm"></div></td>{/if}
-                                {#each columns as _}<td class={densityClass}><div class="h-4 w-full bg-surface-200 dark:bg-surface-700 rounded-lg"></div></td>{/each}
+                                {#each columns as _}<td class={densityClass}><div class="h-4 w-full bg-surface-200 dark:bg-surface-700 rounded"></div></td>{/each}
                             </tr>
                         {/each}
                     {:else if data.length === 0}

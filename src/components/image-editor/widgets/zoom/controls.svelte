@@ -108,7 +108,7 @@ function handleInputChange(e: Event) {
 			max={maxZoom}
 			value={sliderValue.value}
 			onchange={handleInputChange}
-			class="input w-14 rounded-md border border-white/8 bg-white/5 px-1.5 py-1 text-center font-mono text-sm text-surface-100 focus:border-primary-400/50 focus:ring-0 focus:text-white"
+			class="input w-14 rounded border border-white/8 bg-white/5 px-1.5 py-1 text-center font-mono text-sm text-surface-100 focus:border-primary-400/50 focus:ring-0 focus:text-white"
 			style="background: transparent;"
 			aria-label="Zoom level percentage"
 		/>
@@ -118,7 +118,7 @@ function handleInputChange(e: Event) {
 	<!-- Fit to Screen -->
 	<button
 		onclick={onFitToScreen}
-		class="zoom-action btn-icon ml-2 flex h-8 w-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white sm:w-auto sm:px-2.5 sm:py-1.5"
+		class="zoom-action btn-icon ms-2 flex h-8 w-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white sm:w-auto sm:px-2.5 sm:py-1.5"
 		title="Fit to Screen"
 		aria-label="Fit image to screen"
 	>
@@ -141,7 +141,7 @@ function handleInputChange(e: Event) {
 	<!-- 100% / Actual Size -->
 	<button
 		onclick={onActualSize}
-		class="zoom-action btn-icon ml-2 flex h-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 px-2.5 py-1.5 text-xs text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white"
+		class="zoom-action btn-icon ms-2 flex h-8 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/6 px-2.5 py-1.5 text-xs text-surface-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:border-primary-400/40 hover:bg-tertiary-500 dark:bg-primary-500/12 hover:text-white"
 		title="Actual Size (100%)"
 		aria-label="View at actual size"
 	>

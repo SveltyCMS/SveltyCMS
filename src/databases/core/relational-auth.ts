@@ -527,9 +527,7 @@ export class RelationalAuthModule implements IAuthAdapter {
 
   async deleteExpiredSessions(): Promise<DatabaseResult<number>> {
     return this.adapter.wrap(async () => {
-      await this.getDb()
-        .delete(this.schema.authSessions)
-        .where(this.expiredSessionCondition());
+      await this.getDb().delete(this.schema.authSessions).where(this.expiredSessionCondition());
       return 0;
     }, "DELETE_EXPIRED_SESSIONS_FAILED");
   }

@@ -284,7 +284,7 @@ export const actions: Actions = {
   },
 
   // Action to delete a media file
-  deleteMedia: async ({ request }) => {
+  deleteMedia: async ({ request, locals }) => {
     try {
       const formData = await request.formData();
       const imageDataStr = formData.get("imageData");
@@ -397,8 +397,14 @@ export const actions: Actions = {
 
       if (result.success) {
         logger.info("Media item deleted successfully");
-        // TODO: Add back invalidation when upgrading SvelteKit
-        return { success: true }; // Return true on success
+        // Invalidate media gallery cache after deletion
+        try {
+          const { cacheService } = await import("@src/databases/cache/cache-service");
+          await cacheService.invalidateByCategory("media" as any, locals.tenantId);
+        } catch {
+          // Non-critical: cache invalidation best-effort
+        }
+        return { success: true };
       }
       logger.error("Failed to delete image from database:", result);
       throw error(500, result.message || "Failed to delete image");

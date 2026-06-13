@@ -99,9 +99,9 @@ Each job reuses the shared test secret, provisions an isolated database, boots t
 
 ### Run All Integration Tests
 
-```bash
+````bash
 bun run test:integration
-```
+```text
 
 ### Targeted Testing
 
@@ -112,7 +112,7 @@ bun run scripts/run-integration-tests.ts --db=sqlite
 # CI parity for SQL adapters
 bun run scripts/run-integration-tests.ts --db=postgresql
 bun run scripts/run-integration-tests.ts --db=mariadb
-```
+```text
 
 ---
 
@@ -125,3 +125,12 @@ bun run scripts/run-integration-tests.ts --db=mariadb
 ---
 
 _Last Updated: June 9, 2026_
+````
+
+---
+
+## Related
+
+- [Test Documentation](./index.mdx)
+- [Security Testing](./security-testing.mdx)
+- [Architecture Overview](../architecture/index.mdx)

@@ -98,7 +98,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				onmouseenter={() => (hoveredPreset = preset.id)}
 				onmouseleave={() => (hoveredPreset = null)}
 				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPreset(preset.id); } }}
-				class="relative flex flex-col rounded-xl border-2 p-4 text-left transition-all duration-200 hover:shadow-lg {isSelected
+				class="relative flex flex-col rounded border-2 p-4 text-start transition-all duration-200 hover:shadow-lg {isSelected
 					? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/5 dark:bg-primary-500/5 shadow-md'
 					: hoveredPreset === preset.id
 						? 'border-surface-400 dark:border-surface-500 bg-surface-100 dark:bg-surface-700/80'
@@ -108,14 +108,14 @@ Selecting a template auto-creates the collections using the installTemplateColle
 			>
 				<!-- Selection indicator -->
 				{#if isSelected}
-					<div class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-tertiary-500 dark:bg-primary-500 text-white" in:scale={{ duration: 150 }}>
+					<div class="absolute inset-e-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-tertiary-500 dark:bg-primary-500 text-white" in:scale={{ duration: 150 }}>
 						<iconify-icon icon="mdi:check" width="14" aria-hidden="true"></iconify-icon>
 					</div>
 				{/if}
 
 				<!-- Icon & Title -->
 				<div class="mb-3 flex items-center gap-3">
-					<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700">
+					<div class="flex h-10 w-10 items-center justify-center rounded bg-surface-100 dark:bg-surface-700">
 						<iconify-icon icon={preset.icon} width="22" class="text-tertiary-600 dark:text-primary-400" aria-hidden="true"></iconify-icon>
 					</div>
 					<div>

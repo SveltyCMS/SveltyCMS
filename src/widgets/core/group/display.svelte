@@ -45,12 +45,12 @@ Renders grouped content in a read-only display format with collapsible functiona
 			content: 'bg-transparent pt-3'
 		},
 		card: {
-			container: 'rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-700',
+			container: 'rounded border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-700',
 			header: 'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
 			content: 'p-4'
 		},
 		bordered: {
-			container: 'rounded-lg border border-gray-300 dark:border-gray-600',
+			container: 'rounded border border-gray-300 dark:border-gray-600',
 			header: 'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
 			content: 'rounded-b-lg bg-white p-4 dark:bg-gray-800'
 		}
@@ -93,7 +93,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 	<!-- Group Header -->
 	{#if field.groupTitle || field.collapsible}
 		{#if field.collapsible}
-			<button
+			<button>
 				type="button"
 				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
 					? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700'

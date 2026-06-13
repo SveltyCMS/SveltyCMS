@@ -200,11 +200,11 @@ bun run dev  # or npm run dev / pnpm run dev
 
 We use the unified **Vite+ Alpha (VoidZero)** toolchain for an ultra-fast development experience.
 
-- **Development**: `vp dev` (runs on `localhost:5173`)
-- **Production Build**: `vp build` (Rust-based Rolldown bundler)
-- **Preview**: `vp preview` (runs on `localhost:4173`)
-- **Linting**: `oxlint` (project-wide checks in <50ms)
-- **Formatting**: `oxfmt` (blazing fast Rust-based formatter)
+- **Development**: `bun run dev` (runs on `localhost:5173`)
+- **Production Build**: `bun run build` (Rust-based Rolldown bundler)
+- **Preview**: `bun run preview` (runs on `localhost:4173`)
+- **Linting**: `bun run lint` (oxlint — project-wide checks in <50ms)
+- **Formatting**: `bun run format` (oxfmt — blazing fast Rust-based formatter)
 
 See our `package.json` for all available commands.
 

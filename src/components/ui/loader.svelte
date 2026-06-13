@@ -92,7 +92,7 @@ Respects `prefers-reduced-motion` by disabling animation when requested.
 			></div>
 		{/each}
 	{:else if variant === 'card'}
-		<div class={cn(baseClass, shimmerClass, 'w-full rounded-xl overflow-hidden')}>
+		<div class={cn(baseClass, shimmerClass, 'w-full rounded overflow-hidden')}>
 			<div class={cn(baseClass, shimmerClass, 'w-full', height || 'h-32', 'rounded-none!')}></div>
 			<div class="p-4 flex flex-col gap-2">
 				<div class={cn(baseClass, shimmerClass, 'h-4 w-3/4')}></div>
@@ -101,7 +101,7 @@ Respects `prefers-reduced-motion` by disabling animation when requested.
 			</div>
 		</div>
 	{:else if variant === 'image'}
-		<div class={cn(baseClass, shimmerClass, defaultDims.w, defaultDims.h, 'rounded-xl flex items-center justify-center')}>
+		<div class={cn(baseClass, shimmerClass, defaultDims.w, defaultDims.h, 'rounded flex items-center justify-center')}>
 			<iconify-icon icon="mdi:image-outline" width="48" class="text-surface-300 dark:text-surface-600" aria-hidden="true"></iconify-icon>
 		</div>
 	{:else}

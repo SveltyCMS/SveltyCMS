@@ -41,21 +41,44 @@ SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScrip
 
 ## Competitive Awareness (Smarter, Faster, Better)
 
-SveltyCMS alwaysoutperforms competitors like Payload CMS (React/Next.js-based), Strapi (GUI-first, heavier), Directus, Sanity, WordPress, and Drupal by leveraging Svelte 5's no-runtime compilation and unique features. From the 2026 technical evaluation:
+SveltyCMS leverages Svelte 5's no-runtime compilation — a technical advantage over React-based CMS platforms that incur VDOM reconciliation and hydration overhead. Based on publicly available documentation as of June 2026:
 
-| Feature           | SveltyCMS Approach                        | Why Better than Competitors                              |
-| ----------------- | ----------------------------------------- | -------------------------------------------------------- |
-| **Core Tech**     | SvelteKit/Svelte 5 (Runes)                | No VDOM/hydration tax vs. React-based (Payload, Strapi). |
-| **Cold Start**    | <1s (Progressive, self-healing)           | Faster than 3s+ in Payload/Strapi; edge-ready.           |
-| **i18n**          | Paraglide (Compiled, zero-runtime)        | Type-safe, no runtime lookups vs. i18next in rivals.     |
-| **Schemas**       | Hybrid (Code + GUI, bi-directional)       | Flexible vs. code-only (Payload) or GUI-only (Strapi).   |
-| **Multi-Tenancy** | Native (tenantId isolation)               | Core/free vs. enterprise-gated in Strapi/Contentful.     |
-| **SCIM 2.0**      | Native endpoints (RFC 7644, filters/bulk) | Automated provisioning vs. manual/enterprise in others.  |
-| **OpenAPI 3.1.0** | Dynamic Export & SDK Ready                | Generate clients for any language automatically.         |
-| **Audit Logs**    | Crypto-chained (SHA-256 tamper-evident)   | Compliance-ready vs. basic/manual in competitors.        |
-| **Accessibility** | WCAG 2.2 AA / ATAG 2.0                    | Full support vs. partial in Payload/Strapi.              |
+| Feature           | SveltyCMS Approach                        | Architectural Difference                            |
+| ----------------- | ----------------------------------------- | --------------------------------------------------- |
+| **Core Tech**     | SvelteKit/Svelte 5 (Runes)                | No VDOM/hydration tax vs. React-based platforms     |
+| **Cold Start**    | <1s (Progressive, self-healing)           | Measured on Intel i7-13700H, Bun 1.3.14             |
+| **i18n**          | Paraglide (Compiled, zero-runtime)        | Compiled translations vs. runtime lookups           |
+| **Schemas**       | Hybrid (Code + GUI, bi-directional)       | Compare: Payload (code-first), Strapi (GUI-first)   |
+| **Multi-Tenancy** | Native (tenantId isolation)               | Core feature vs. enterprise-tier in some platforms  |
+| **SCIM 2.0**      | Native endpoints (RFC 7644, filters/bulk) | Automated provisioning vs. manual configuration     |
+| **OpenAPI 3.1.0** | Dynamic Export & SDK Ready                | Generate clients for any language automatically     |
+| **Audit Logs**    | Crypto-chained (SHA-256 tamper-evident)   | Verifiable chain integrity vs. basic log storage    |
+| **Accessibility** | WCAG 2.2 AA / ATAG 2.0                    | Documented compliance; compare with competitor docs |
 
-To stay ahead: Implement cleaner features (e.g., isomorphic plugins > Payload's rebuilds), benchmark Core Web Vitals, and promote "Agency OS" for low TCO.
+To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs, and prioritize features that deliver measurable user value.
+
+## 🇪🇺 EU & German Comparative Advertising Compliance
+
+> [!IMPORTANT]
+> **All public-facing documentation, marketing, and competitive comparisons MUST comply with EU Directive 2006/114/EC (Comparative Advertising) and German UWG §6 (Unfair Competition Act).** These laws are stricter than US/UK standards and carry significant penalties for violations.
+
+### Requirements for ALL Competitive Claims
+
+1. **Verifiable Sources Only**: Every competitor comparison must cite publicly verifiable data (CVE databases, GitHub Advisory DB, published benchmarks, competitor's own documentation).
+2. **Date-Stamped Methodology**: All performance claims must include measurement date, hardware specs, and reproduction commands.
+3. **No Discrediting Language (German UWG §6)**: Never use language that disparages, denigrates, or discredits competitors' products, trademarks, or commercial activities. Use neutral architectural descriptions.
+4. **No Unverifiable Absolutes**: Claims like "only", "first", "best", "industry-leading" must be qualified with "to our knowledge", "based on publicly available documentation", or "as of [date]".
+5. **Comparison of Like-for-Like**: Only compare goods meeting the same needs. Note differences (SaaS vs self-hosted, free vs enterprise).
+6. **No Confusion**: Never imply affiliation with a competitor. Use clear brand attribution.
+
+### Before committing to competitive docs, verify:
+
+- [ ] All competitor claims have verifiable public sources or date-stamped qualifiers
+- [ ] No discrediting language ("suffers from", "cannot", "fails to", "broken")
+- [ ] Performance numbers include methodology and reproduction commands
+- [ ] Absolutes are qualified
+- [ ] Feature tables compare objectively verifiable capabilities
+- [ ] **Self-assessments are labeled as such** — never present internal scores as external audits
 
 ## Technical Standards
 
@@ -174,7 +197,7 @@ To maintain our **A++ Security Grade**, agents must adhere to these strictly enf
 ### 4. Account Protection & Lockout
 
 - **Password Strength**: Minimum 8 characters (default, configurable via `PASSWORD_MIN_LENGTH` in `src/databases/schemas.ts`), including uppercase, lowercase, numbers, and special characters. Enforced via `Auth.validatePasswordStrength`.
-- **Brute-Force Prevention**: Accounts are automatically locked for 15 minutes after 5 consecutive failed attempts.
+- **Brute-Force Prevention**: Accounts are automatically locked for 15 minutes after 5 consecutive failed attempts. Enforced in both `Auth.authenticate()` (direct DB path) and `AuthNamespace.login()` (REST/GraphQL login path).
 - **Tracking**: `failedAttempts` and `lockoutUntil` are tracked on the `User` object and reset upon successful authentication.
 
 ### 5. Secure Session Management
@@ -276,12 +299,12 @@ When generating/modifying code:
 
 ## Roadmap (Missing Features)
 
-From the 2026 roadmap (target A++ grade), prioritize these for parity/leadership (some beta/implemented; harden for production):
+From the 2026 roadmap, prioritize these for parity/leadership (implemented features marked [x]; harden for production):
 
 - [x] **PostgreSQL Support**: Full adapter implementation with Drizzle ORM migrations and native tenant management.
 - [x] **SQLite Support**: Lightweight adapter via Bun native driver for edge and local deployments.
 - [x] **SCIM 2.0 (v1.1)**: Native endpoints (/scim/v2/Users, Groups, Bulk); support filters (eq, co), PATCH ops; integration ready for Okta/Azure.
-- [x] **SAML 2.0 / Enterprise SSO**: Full integration via BoxyHQ (@boxyhq/saml-jackson) for enterprise identity providers (Okta, Azure).
+- [x] **SAML 2.0 / Enterprise SSO**: Lightweight integration via @node-saml/node-saml (zero DB dependencies) for enterprise identity providers (Okta, Azure).
 - [x] **Edge Computing & Multi-Region**: Native support for edge-optimized data fetching and multi-region replication.
 - [x] **BuzzForm Visual Builder (v1.5)**: Production-ready drag-and-drop form/collection builder with real-time preview.
 - [x] **Secure Media Engine (v1.2)**: Native SSRF protection, command injection prevention (spawn-based), and hardened directory traversal.
@@ -368,12 +391,12 @@ All `bun run` commands (dev, check, test, etc.) work normally after `npm install
 
 **The Problem**: Deleting both `node_modules` and `bun.lock` forces a fresh resolution. On Windows, this fails because:
 
-- `better-sqlite3` can't compile without Python/build tools, halting the entire install
+- Native addons (e.g., `argon2`, `sharp`) may fail to compile without Python/build tools, halting the entire install
 - Bun may corrupt transitive dependencies (e.g., missing `drizzle-orm/sql/`, empty `@zag-js/` directories)
 
 **Symptoms**:
 
-- `bun install` dies with `gyp ERR! find Python` at `better-sqlite3`
+- `bun install` dies with `gyp ERR! find Python` at native addons
 - After recovery, `bun install` says "no changes" but packages are missing
 - `bun run check` fails with "Module has no exported member" from `drizzle-orm`
 
@@ -593,4 +616,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-06-07_
+_Last Updated: 2026-06-10_

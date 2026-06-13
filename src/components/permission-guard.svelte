@@ -179,7 +179,7 @@ Permission-based access control component with advanced features and security.
 {#if isLoading && showLoadingState}
 	<!-- Loading state -->
 	<div
-		class="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+		class="flex items-center justify-center gap-2 rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
 		role="status"
 		aria-live="polite"
 		transition:fade={{ duration: 200 }}
@@ -196,7 +196,7 @@ Permission-based access control component with advanced features and security.
 {:else if !silent && errorMessage}
 	<!-- Error message (only if not silent) -->
 	<div
-		class="flex items-start gap-3 rounded-lg border p-4 {isRateLimited
+		class="flex items-start gap-3 rounded border p-4 {isRateLimited
 			? 'border-warning-200 bg-warning-50 dark:border-warning-800 dark:bg-warning-900/20'
 			: 'border-error-200 bg-error-50 dark:border-error-800 dark:bg-error-900/20'}"
 		role={errorRole}

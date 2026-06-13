@@ -76,7 +76,7 @@ SveltyCMS provides a dedicated endpoint for server-side image baking.
 **Endpoint**: `POST /api/media/manipulate/{id}`  
 **Payload**: JSON instructions for transformations.
 
-```json
+````json
 {
   "rotation": 90,
   "flipH": true,
@@ -85,7 +85,7 @@ SveltyCMS provides a dedicated endpoint for server-side image baking.
   "focalPoint": { "x": 45, "y": 60 },
   "saveBehavior": "overwrite"
 }
-```
+```text
 
 ---
 
@@ -112,7 +112,7 @@ sequenceDiagram
         User->>API: GET /api/media/jobs/{id}
         API-->>User: status: completed
     end
-```
+```text
 
 ---
 
@@ -121,3 +121,4 @@ sequenceDiagram
 - [Media System Architecture](../architecture/media-system.mdx)
 - [Collections Reference (collections.ts)](./collections.mdx)
 - [System Reference (system.ts)](./system.mdx)
+````

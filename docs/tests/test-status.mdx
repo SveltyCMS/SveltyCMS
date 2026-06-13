@@ -35,15 +35,15 @@ Do not treat documentation totals as the live status signal. The current branch 
 
 ## PR-Gating Suites
 
-| Layer               | Job / Command                     | Purpose                                                   |
-| ------------------- | --------------------------------- | --------------------------------------------------------- |
-| **Bootstrap**       | GitHub Actions `bootstrap`        | Lockfile install, workspace metadata, shared test secret  |
-| **Static Checks**   | `lint`, `type-check`, `build`     | Lint, compile, and production-build safety                |
-| **Unit**            | `bun run test:unit`               | White-box logic and component-adjacent behavior           |
-| **Integration**     | `bun run test:integration`        | Black-box HTTP contracts and DB parity                    |
-| **E2E Wizard**      | Playwright `wizard`               | First-run provisioning and redirect contract              |
-| **E2E Auth Setup**  | Playwright `auth-setup`           | Auth bootstrap and reusable browser state                 |
-| **E2E App Smokes**  | Playwright `signup/content/system`| Maintained browser smoke coverage for the admin UI        |
+| Layer              | Job / Command                      | Purpose                                                  |
+| ------------------ | ---------------------------------- | -------------------------------------------------------- |
+| **Bootstrap**      | GitHub Actions `bootstrap`         | Lockfile install, workspace metadata, shared test secret |
+| **Static Checks**  | `lint`, `type-check`, `build`      | Lint, compile, and production-build safety               |
+| **Unit**           | `bun run test:unit`                | White-box logic and component-adjacent behavior          |
+| **Integration**    | `bun run test:integration`         | Black-box HTTP contracts and DB parity                   |
+| **E2E Wizard**     | Playwright `wizard`                | First-run provisioning and redirect contract             |
+| **E2E Auth Setup** | Playwright `auth-setup`            | Auth bootstrap and reusable browser state                |
+| **E2E App Smokes** | Playwright `signup/content/system` | Maintained browser smoke coverage for the admin UI       |
 
 ## Safety Rules
 
@@ -61,7 +61,7 @@ Do not treat documentation totals as the live status signal. The current branch 
 
 ## Local Commands
 
-```bash
+````bash
 # White-box unit suite
 bun run test:unit
 
@@ -77,9 +77,18 @@ bun x playwright test --project=auth-setup
 bun x playwright test --project=signup
 bun x playwright test --project=content
 bun x playwright test --project=system
-```
+```text
 
 ## Verify Live Status
 
 - Use the latest GitHub Actions run on the branch or pull request.
 - Treat this page as the description of the maintained gates, not a live dashboard.
+````
+
+---
+
+## Related
+
+- [Test Documentation](./index.mdx)
+- [Security Testing](./security-testing.mdx)
+- [Architecture Overview](../architecture/index.mdx)

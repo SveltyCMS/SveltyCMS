@@ -601,24 +601,26 @@ function modalLoadPreset(): void {
 	<!-- Header -->
 	<PageTitle name={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
 		<StickyActions>
-		{@render saveButton(false)}
+			{#if currentConfig.length > 0}
+				{@render saveButton(false)}
+			{/if}
 		</StickyActions>
 	</PageTitle>
 
 	{#if currentConfig.length > 0}
 		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
 		<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
-		<Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group" disabled={isLoading}>
+		<Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group w-52 justify-center" disabled={isLoading}>
 			<iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
 			<span>Quick Start</span>
 		</Button>
 
-		<Button onclick={() => modalAddCategory()} variant="tertiary" rounded={true} size="lg" class="group" disabled={isLoading}>
+		<Button onclick={() => modalAddCategory()} variant="tertiary" rounded={true} size="lg" class="group w-52 justify-center" disabled={isLoading}>
 			<iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
 			<span>{collection_addcategory()}</span>
 		</Button>
 
-		<Button href="/config/collectionbuilder/new" variant="primary" rounded={true} size="lg" class="group">
+		<Button href="/config/collectionbuilder/new" variant="primary" rounded={true} size="lg" class="group w-52 justify-center">
 			<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
 			<span>{collection_add()}</span>
 		</Button>
@@ -642,7 +644,7 @@ function modalLoadPreset(): void {
 		<div class="mx-auto w-full max-w-screen-2xl">
 			{#if Object.keys(nodesToSave).length > 0}
 				<div
-					class="sticky top-0 z-50 mb-4 mt-0 rounded-lg border border-warning-500/30 bg-warning-500/15 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
+					class="sticky top-0 z-50 mb-4 mt-0 rounded border border-warning-500/30 bg-warning-500/15 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
 					role="status"
 					aria-live="polite"
 				>

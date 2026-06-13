@@ -164,16 +164,16 @@ export const widgetMeta = {
 									<img
 										src={thumbnailUrl(f)!}
 										alt={fileName(f)}
-										class="h-10 w-10 rounded-xl object-cover ring-1 ring-surface-200 dark:ring-surface-700"
+										class="h-10 w-10 rounded object-cover ring-1 ring-surface-200 dark:ring-surface-700"
 										loading="lazy"
 									/>
 									{#if isVideo(f)}
-										<div class="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30">
+										<div class="absolute inset-0 flex items-center justify-center rounded bg-black/30">
 											<iconify-icon icon="mdi:play-circle" class="text-lg text-white/90"  ></iconify-icon>
 										</div>
 									{/if}
 								{:else}
-									<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-100 dark:bg-surface-700">
+									<div class="flex h-10 w-10 items-center justify-center rounded bg-surface-100 dark:bg-surface-700">
 										<iconify-icon icon={fileIcon(f)} class="text-xl {fileColor(f)}"  ></iconify-icon>
 									</div>
 								{/if}
@@ -192,7 +192,7 @@ export const widgetMeta = {
 							</div>
 
 							<!-- Date -->
-							<div class="shrink-0 text-right text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
+							<div class="shrink-0 text-end text-[11px] tabular-nums text-surface-400 dark:text-surface-500">
 								{fileDate(f)}
 							</div>
 						</a>

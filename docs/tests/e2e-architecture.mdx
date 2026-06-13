@@ -25,7 +25,7 @@ To maximize performance in April 2026, we standardized on header-based database 
 2.  **Dynamic Connection Map**: The SQLite adapter parses this index and maintains a map of dedicated worker-specific files (e.g., `cms_worker_1.db`, `cms_worker_2.db`).
 3.  **Zero Contention**: Each worker operates on its own physical file, allowing us to run **4+ parallel workers** with 100% isolation.
 
-```mermaid
+````mermaid
 sequenceDiagram
     participant CI
     participant PW as Playwright (Worker 1)
@@ -70,7 +70,16 @@ sequenceDiagram
     end
 
     PW-->>CI: HTML report + traces on failure
-```
+```text
 
-**Key decision 2026**: Use **Option B (real signup flow)** in at least 1–2 security-focused specs.  
+**Key decision 2026**: Use **Option B (real signup flow)** in at least 1–2 security-focused specs.
 Use Option A in the setup project itself for speed.
+````
+
+---
+
+## Related
+
+- [Test Documentation](./index.mdx)
+- [Security Testing](./security-testing.mdx)
+- [Architecture Overview](../architecture/index.mdx)

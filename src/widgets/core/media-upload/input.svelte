@@ -4,7 +4,7 @@
 **Media Upload Widget Component**
 
 @example
-<Input field={{ label: "Upload Image", db_fieldName: "image", translated: true, required: true }} />
+<Input field={{ label: "Upload Image", db_fieldName: "image", translated: true, required: true }}  aria-label="Input" />
 
 ### Props
 - `field: FieldType` - Configuration object for the media upload field
@@ -260,14 +260,14 @@
 	}
 </script>
 
-<div class="min-h-30 rounded-lg border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
+<div class="min-h-30 rounded border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
 		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4" use:dndzone={{ items: dndItems }} onconsider={(e) => syncDndItems(e.detail.items)}>
 			{#each selectedFiles as file (file._id)}
 				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip>
 					<button
 						type="button"
-						class="block w-full cursor-pointer text-left"
+						class="block w-full cursor-pointer text-start"
 						onclick={openMediaLibrary}
 						aria-label={`Change media for ${file.name}`}
 					>
@@ -295,7 +295,7 @@
 					<button
 						type="button"
 						onclick={() => removeFile(file._id)}
-						class="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+						class="absolute end-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 						aria-label="Remove"
 						title="Remove"
 					>
@@ -309,7 +309,7 @@
 	<button
 		type="button"
 		onclick={openMediaLibrary}
-		class="w-full cursor-pointer rounded border-none bg-surface-100 p-3 text-left transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
+		class="w-full cursor-pointer rounded border-none bg-surface-100 p-3 text-start transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
 	>
 		<span class="block text-center font-medium">
 			{selectedFiles.length > 0 ? field.placeholder || 'Change Media' : field.placeholder || '+ Add Media'}
@@ -317,7 +317,7 @@
 	</button>
 
 	{#if error}
-		<p class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
+		<p class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
 

@@ -22,6 +22,7 @@ import { logger } from "@utils/logger";
 import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
+import StickyActions from "@components/ui/sticky-actions.svelte";
 
 // Remote Functions
 // Remote Functions — loaded dynamically for code splitting
@@ -47,6 +48,7 @@ interface Props {
 	onUnsavedChanges?: (hasChanges: boolean) => void;
 	saveTrigger?: { fire: () => void };
 	saving?: boolean;
+	children?: import("svelte").Snippet;
 }
 
 let {
@@ -54,7 +56,8 @@ let {
 	groupsNeedingConfig,
 	onUnsavedChanges,
 	saveTrigger = $bindable(),
-	saving = $bindable(false)
+	saving = $bindable(false),
+	children
 }: Props = $props();
 
 let loading = $state(false);
@@ -66,7 +69,7 @@ let hasEmptyRequiredFields = $state(false);
 
 // Optimize: Use $derived instead of $effect for unsaved changes.
 // Guard on !loading && !error: while loading or after a failed load, `originalValues` is not
-// populated, yet `bind:value` inputs (e.g. <select>) auto-fill defaults into `values` — which
+// populated, yet `bind:value` inputs (e.g. <select aria-label="Select">) auto-fill defaults into `values` — which
 // would otherwise look like unsaved edits and trigger a false "unsaved changes" navigation prompt.
 let hasUnsavedChanges = $derived(
 	!loading &&
@@ -706,7 +709,7 @@ onMount(() => {
 	<!-- Header -->
 	<div class="mb-6">
 		<h2 class="mb-2 text-xl font-bold md:text-2xl">
-			<span class=" mr-2">{group.icon}</span>
+			<span class=" me-2">{group.icon}</span>
 			{group.name}
 		</h2>
 		<p class="text-sm text-surface-600 dark:text-surface-300">{group.description}</p>
@@ -714,7 +717,7 @@ onMount(() => {
 
 	<!-- Restart Warning -->
 	{#if group.requiresRestart}
-		<div class="alert preset-filled-warning-500 mb-4 rounded-xl p-3 md:p-4">
+		<div class="alert preset-filled-warning-500 mb-4 rounded p-3 md:p-4">
 			<div class="alert-message">
 				<strong class="mb-1 block text-sm md:text-base">⚠️ Restart Required</strong>
 				<p class="text-xs md:text-sm">Changes to these settings require a server restart to take effect.</p>
@@ -724,7 +727,7 @@ onMount(() => {
 
 	<!-- Default Values Notice -->
 	{#if hasEmptyRequiredFields}
-		<div class="bordered alert preset-filled-error-500 mb-4 rounded-xl p-3 md:p-4">
+		<div class="bordered alert preset-filled-error-500 mb-4 rounded p-3 md:p-4">
 			<div class="alert-message">
 				<strong class="mb-1 block text-sm md:text-base">ℹ️ Default Values Detected</strong>
 				<p class="text-xs md:text-sm">
@@ -737,13 +740,13 @@ onMount(() => {
 
 	<!-- Loading State -->
 	{#if loading}
-		<div class="card preset-tonal -surface-500 rounded-xl p-6 text-center">
+		<div class="card preset-tonal-surface-500 rounded p-6 text-center">
 			<p>Loading settings...</p>
 		</div>
 	{:else}
 		<!-- Error Message -->
 		{#if error}
-			<div class="alert preset-filled-error-500 mb-4 rounded-xl p-3 md:p-4">
+			<div class="alert preset-filled-error-500 mb-4 rounded p-3 md:p-4">
 				<div class="alert-message">
 					<strong class="mb-1 block text-sm md:text-base">Error</strong>
 					<p class="text-xs md:text-sm">{error}</p>
@@ -763,7 +766,7 @@ onMount(() => {
 			{#if group.id === 'languages'}
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Left Column: Default Content Language + Available Content Languages -->
-					<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 						{#if defaultLangField}
 							<div>
 								<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -773,7 +776,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={defaultLangField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
+										<button type="button" class="ms-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -811,14 +814,14 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={availableLangsField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
+										<button type="button" class="ms-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
 										</button>
 									</SystemTooltip>
 								</div>
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[availableLangsField.key]
+										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[availableLangsField.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
@@ -826,13 +829,13 @@ onMount(() => {
 											{const languages = values[availableLangsField.key] as string[]}
 											{#each languages as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !availableLangsField.readonly}
 														<button
 															type="button"
-															class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => removeLanguage(availableLangsField.key, langCode as string)}
 															aria-label="Remove {langCode}"
 														>
@@ -848,7 +851,7 @@ onMount(() => {
 										{#if !availableLangsField.readonly}
 											<button
 												type="button"
-												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
+												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[availableLangsField.key] = true;
 													languageSearch[availableLangsField.key] = '';
@@ -867,7 +870,7 @@ onMount(() => {
 									{#if showLanguagePicker[availableLangsField.key]}
 										<div
 											id="{availableLangsField.key}-lang-picker"
-											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -876,7 +879,7 @@ onMount(() => {
 												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500"
 												placeholder="Search..."
 												bind:value={languageSearch[availableLangsField.key]}
-											/>
+											 aria-label="Input" />
 											<div class="max-h-48 overflow-auto">
 												{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
 													const search = (languageSearch[availableLangsField.key] || '').toLowerCase();
@@ -887,7 +890,7 @@ onMount(() => {
 												}) as lang (lang.code)}
 													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(availableLangsField.key, lang.code);
 															showLanguagePicker[availableLangsField.key] = false;
@@ -917,7 +920,7 @@ onMount(() => {
 						{/if}
 					</div>
 					<!-- Right Column: Base Locale + Available Locales -->
-					<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 						{#if baseLocaleField}
 							<div>
 								<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -927,7 +930,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={baseLocaleField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
+										<button type="button" class="ms-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
 										</button>
 									</SystemTooltip>
@@ -963,14 +966,14 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={localesField.description}>
-										<button type="button" class="ml-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
+										<button type="button" class="ms-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
 											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
 										</button>
 									</SystemTooltip>
 								</div>
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[localesField.key]
+										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[localesField.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
@@ -978,13 +981,13 @@ onMount(() => {
 											{const locales = values[localesField.key] as string[]}
 											{#each locales as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !localesField.readonly}
 														<button
 															type="button"
-															class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => {
 																const currentBase = values.BASE_LOCALE as string;
 																removeLanguage(localesField.key, langCode as string);
@@ -1008,7 +1011,7 @@ onMount(() => {
 										{#if !localesField.readonly && allowedLocales.filter((code) => !((values[localesField.key] as string[]) || []).includes(code)).length > 0}
 											<button
 												type="button"
-												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
+												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[localesField.key] = true;
 													languageSearch[localesField.key] = '';
@@ -1027,7 +1030,7 @@ onMount(() => {
 									{#if showLanguagePicker[localesField.key]}
 										<div
 											id="{localesField.key}-lang-picker"
-											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -1036,7 +1039,7 @@ onMount(() => {
 												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 "
 												placeholder="Search..."
 												bind:value={languageSearch[localesField.key]}
-											/>
+											 aria-label="Input" />
 											<div class="max-h-48 overflow-auto">
 												{#each allowedLocales.filter((code: string) => {
 													const search = (languageSearch[localesField.key] || '').toLowerCase();
@@ -1046,7 +1049,7 @@ onMount(() => {
 												}) as code (code)}
 													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(localesField.key, code);
 															showLanguagePicker[localesField.key] = false;
@@ -1135,7 +1138,7 @@ onMount(() => {
 										<div class="input-group-shim text-sm">
 											{field.unit}
 											{#if typeof values[field.key] === 'number' && field.unit === 'seconds'}
-												<span class="ml-2 text-surface-500 dark:text-surface-50"> ({formatDuration(values[field.key] as number)}) </span>
+												<span class="ms-2 text-surface-500 dark:text-surface-50"> ({formatDuration(values[field.key] as number)}) </span>
 											{/if}
 										</div>
 									{/if}
@@ -1146,7 +1149,7 @@ onMount(() => {
 									<input
 										id={field.key}
 										type={showPassword[field.key] ? 'text' : 'security'}
-										class="input w-full max-w-full min-h-11 pr-10"
+										class="input w-full max-w-full min-h-11 pe-10"
 										bind:value={values[field.key]}
 										placeholder={field.sensitive ? '********' : field.placeholder}
 										required={field.required}
@@ -1156,11 +1159,11 @@ onMount(() => {
 										aria-invalid={!!errors[field.key]}
 									/>
 									{#if field.sensitive && field.readonly}
-										<div class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-surface-500 italic">Configured in .env</div>
+										<div class="absolute inset-e-2 top-1/2 -translate-y-1/2 text-xs text-surface-500 italic">Configured in .env</div>
 									{:else if !field.readonly}
 										<button
 											type="button"
-											class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-50"
+											class="absolute inset-e-2 top-1/2 -translate-y-1/2 text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-50"
 											onclick={() => (showPassword[field.key] = !showPassword[field.key])}
 											aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
 										>
@@ -1195,7 +1198,7 @@ onMount(() => {
 							{:else if field.type === 'select' && field.options}
 								<select
 									id={field.key}
-									class="select w-full max-w-full min-h-11"
+									class="select input w-full max-w-full min-h-11"
 									bind:value={values[field.key]}
 									required={field.required}
 									onchange={() => (errors[field.key] = '')}
@@ -1227,7 +1230,7 @@ onMount(() => {
 								<!-- Language Multi-Select (Styled like SystemConfig.svelte) -->
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[field.key]
+										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
@@ -1235,13 +1238,13 @@ onMount(() => {
 											{const languages = values[field.key] as string[]}
 											{#each languages as langCode (langCode)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !field.readonly}
 														<button
 															type="button"
-															class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => removeLanguage(field.key, langCode as string)}
 															aria-label="Remove {langCode}"
 														>
@@ -1257,7 +1260,7 @@ onMount(() => {
 										{#if !field.readonly}
 											<button
 												type="button"
-												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
+												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[field.key] = true;
 													languageSearch[field.key] = '';
@@ -1276,7 +1279,7 @@ onMount(() => {
 									{#if showLanguagePicker[field.key]}
 										<div
 											id="{field.key}-lang-picker"
-											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -1285,7 +1288,7 @@ onMount(() => {
 												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 "
 												placeholder="Search..."
 												bind:value={languageSearch[field.key]}
-											/>
+											 aria-label="Input" />
 											<div class="max-h-48 overflow-auto">
 												{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
 													const search = (languageSearch[field.key] || '').toLowerCase();
@@ -1296,7 +1299,7 @@ onMount(() => {
 												}) as lang (lang.code)}
 													<button
 														type="button"
-														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500 dark:bg-primary-500/10"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 														onclick={() => {
 															toggleLanguage(field.key, lang.code);
 															showLanguagePicker[field.key] = false;
@@ -1319,7 +1322,7 @@ onMount(() => {
 							{:else if field.type === 'loglevel-multi'}
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[field.key]
+										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
 											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
@@ -1327,13 +1330,13 @@ onMount(() => {
 											{const levels = values[field.key] as LogLevel[]}
 											{#each levels as level (level)}
 												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-tertiary-600 dark:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
 												>
 													<span class="text-sm font-medium">{level}</span>
 													{#if !field.readonly}
 														<button
 															type="button"
-															class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															class="flex items-center justify-center -me-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => removeLogLevel(field.key, level as LogLevel)}
 															aria-label="Remove {level}"
 														>
@@ -1349,7 +1352,7 @@ onMount(() => {
 										{#if !field.readonly}
 											<button
 												type="button"
-												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
+												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => (showLogLevelPicker[field.key] = true)}
 												aria-haspopup="dialog"
 												aria-expanded={showLogLevelPicker[field.key]}
@@ -1365,7 +1368,7 @@ onMount(() => {
 									{#if showLogLevelPicker[field.key]}
 										<div
 											id="{field.key}-loglevel-picker"
-											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add log level"
 											tabindex="-1"
@@ -1376,7 +1379,7 @@ onMount(() => {
 													{#if !currentValues.includes(level)}
 														<button
 															type="button"
-															class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs capitalize hover:bg-tertiary-500 dark:bg-primary-500/10"
+															class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs capitalize hover:bg-tertiary-500/10 dark:bg-primary-500/10 dark:hover:bg-primary-500/20"
 															onclick={() => {
 																toggleLogLevel(field.key, level);
 																showLogLevelPicker[field.key] = false;
@@ -1406,29 +1409,51 @@ onMount(() => {
 			{/if}
 
 			<!-- Local Group Actions -->
-			<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
-				<div class="flex flex-wrap items-center justify-start gap-3">
-					<button
-						type="button"
-						class="btn preset-tonal-error flex items-center gap-1.5"
-						onclick={resetToDefaults}
-						disabled={saving}
-					>
-						<span>🔄</span>
-						<span>Reset to Defaults</span>
-					</button>
+				<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
+					<StickyActions>
+					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+							{#if children}
+								{@render children()}
+							{/if}
 
-					<button
-						type="button"
-						class="btn preset-tonal-surface flex items-center gap-1.5"
-						onclick={exportGroup}
-						disabled={loading}
-					>
-						<span>📤</span>
-						<span>Export Group JSON</span>
-					</button>
+							<button
+								type="button"
+								class="preset-tonal-error inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 w-full sm:w-auto"
+								onclick={resetToDefaults}
+								disabled={saving}
+							>
+								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
+								<span>Reset to Defaults</span>
+							</button>
+
+							<button
+								type="button"
+								class="preset-tonal-surface inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 w-full sm:w-auto"
+								onclick={exportGroup}
+								disabled={loading}
+							>
+								<iconify-icon icon="mdi:export" width="16"></iconify-icon>
+								<span>Export Group JSON</span>
+							</button>
+						</div>
+
+						<button
+							type="submit"
+							class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 w-full sm:w-auto"
+							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
+						>
+							{#if saving}
+								<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+								<span>Saving...</span>
+							{:else}
+								<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+								<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
+							{/if}
+						</button>
+					</div>
+					</StickyActions>
 				</div>
-			</div>
 		</form>
 	{/if}
 </div>
