@@ -108,16 +108,27 @@ export function convertDatesToISO(row: any): any {
       JSON_FIELDS.has(k) &&
       typeof v === "string" &&
       v.length > 1 &&
-      (v[0] === "{" || v[0] === "[")
+      (v[0] === "{" || v[0] === "[" || v[0] === '"')
     ) {
-      try {
-        const parsed = JSON.parse(v);
-        v = parsed;
-        if (k === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          Object.assign(result, parsed);
+      // Parse up to twice: native JSON columns (e.g. MariaDB) can double-encode
+      // array values that were JSON.stringify'd before insert, surfacing on read
+      // as a JSON-encoded string like "\"[...]\"". A single-encoded value parses
+      // to a non-string in one pass and the loop stops, so this is a no-op for
+      // adapters that already round-trip correctly (PostgreSQL, SQLite).
+      let parsed: any = v;
+      for (let depth = 0; depth < 2; depth++) {
+        if (typeof parsed !== "string") break;
+        const head = parsed.trimStart()[0];
+        if (head !== "{" && head !== "[" && head !== '"') break;
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          break;
         }
-      } catch {
-        // Keep original string
+      }
+      v = parsed;
+      if (k === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        Object.assign(result, parsed);
       }
     }
     result[k] = v;
