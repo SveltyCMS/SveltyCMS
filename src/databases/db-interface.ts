@@ -484,6 +484,49 @@ export interface QueryBuilder<T = unknown> {
   whereNull<K extends keyof T>(field: K): this;
 }
 
+// ============================================================================
+// Query IR Types (inlined from removed core/query-ir.ts for slimming the abstraction layer)
+// These types are kept here as they are part of the public IDBAdapter contract surface
+// (referenced by mapQuery in ISqlAdapter and Mongo adapter).
+// The heavy QueryTranslator is now inlined into the two mapQuery consumers.
+// ============================================================================
+
+export type Operator =
+  | "$eq"
+  | "$ne"
+  | "$gt"
+  | "$gte"
+  | "$lt"
+  | "$lte"
+  | "$in"
+  | "$nin"
+  | "$contains"
+  | "$regex"
+  | "$like"
+  | "$exists"
+  | "$or"
+  | "$and"
+  | "$not";
+
+export interface QueryCondition {
+  field: string;
+  operator: Operator;
+  value: any;
+}
+
+export interface LogicalGroup {
+  operator: "$or" | "$and" | "$not";
+  conditions: (QueryCondition | LogicalGroup)[];
+}
+
+export interface QueryIR {
+  collection: string;
+  filter: LogicalGroup;
+  limit?: number;
+  offset?: number;
+  sort?: Array<{ field: string; direction: "asc" | "desc" }>;
+}
+
 export interface DatabaseTransaction {
   commit(): Promise<DatabaseResult<void>>;
   rollback(): Promise<DatabaseResult<void>>;

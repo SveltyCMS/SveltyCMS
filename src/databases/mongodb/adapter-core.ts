@@ -9,7 +9,6 @@ if (typeof (globalThis as any).require === "undefined") {
 }
 
 import mongoose from "mongoose";
-import { queryTranslator } from "../core/query-ir";
 import { sanitizeMongoQuery } from "@src/utils/security/mongo-sanitize";
 import { logger } from "@utils/logger";
 import { BaseAdapter } from "../core/base-adapter";
@@ -21,7 +20,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
 
   public capabilities: DatabaseCapabilities = {
     maxBatchSize: 1000,
-    supportsTransactions: false, // Requires replica set — disabled for standalone compatibility
+    supportsTransactions: false,
     supportsAggregation: true,
     maxQueryComplexity: 100,
     supportsFullTextSearch: true,
@@ -66,31 +65,17 @@ export abstract class MongoAdapterCore extends BaseAdapter {
           ? connectionStringOrOptions
           : {};
 
-      // Determine wire compressors safely.
-      // Both "zstd" (@mongodb-js/zstd) and "snappy" (snappy) are *optional* peers.
-      // We must never list a compressor in `compressors` unless its module can
-      // actually be loaded at runtime. Otherwise the MongoDB driver throws
-      // MongoMissingDependencyError during operations like role seeding in
-      // ensureAuth (called from 'base' plugin during bootAll).
-      //
-      // In CI (and minimal deploys) neither optional module is present, so we
-      // end up with no wire compression — which is perfectly fine and prevents
-      // the hard CRITICAL BOOT FAILURE we were seeing.
       const compressors: string[] = [];
       try {
         // @ts-expect-error - optional peer for zstd wire compression
         await import("@mongodb-js/zstd");
         compressors.push("zstd");
-      } catch {
-        // not present — skip
-      }
+      } catch {}
       try {
         // @ts-expect-error - optional peer for snappy wire compression
         await import("snappy");
         compressors.push("snappy");
-      } catch {
-        // not present — skip
-      }
+      } catch {}
 
       const connectOptions: mongoose.ConnectOptions = {
         ...options,
@@ -124,8 +109,6 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         .createConnection(connectionString, connectOptions)
         .asPromise()
         .catch(async (err: any) => {
-          // Defense-in-depth: if a missing compressor module still surfaces for
-          // any reason, retry the connection with the compressors key removed.
           if (
             err?.name === "MongoMissingDependencyError" ||
             (err?.message || "").includes("snappy") ||
@@ -160,10 +143,8 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         await this._connection.close();
         this._connection = null;
       }
-
       this.connected = false;
       logger.info("Disconnected from MongoDB");
-
       return { success: true, data: undefined };
     } catch (err: any) {
       return this.handleError(err, "DB_DISCONNECT_FAILED");
@@ -174,43 +155,98 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     if (!this._connection) {
       throw new Error("Database not connected");
     }
-
     if (this._connection.models[collection]) {
       return this._connection.models[collection];
     }
-
     if (schema) {
       return this._connection.model(collection, schema, collection);
     }
-
-    /*
-     * SveltyCMS uses string IDs across the database adapter contract.
-     * Without defining _id as String here, Mongoose uses ObjectId by default.
-     * That breaks generic CRUD collections because MongoCrudMethods inserts
-     * generated string IDs.
-     */
     const genericSchema = new mongoose.Schema(
-      {
-        _id: {
-          type: String,
-          required: true,
-        },
-      },
-      {
-        strict: false,
-        timestamps: true,
-        versionKey: false,
-        id: false,
-      },
+      { _id: { type: String, required: true } },
+      { strict: false, timestamps: true, versionKey: false, id: false },
     );
-
     return this._connection.model(collection, genericSchema, collection);
   }
 
   /**
-   * Translates a raw MongoDB-style query into a structured Mongo filter via Query IR.
-   * 🚀 Ultra Fast-Path: Bypasses IR translation for simple ID/Token lookups.
+   * Translates a raw MongoDB-style query into a structured Mongo filter.
+   * 🚀 Ultra Fast-Path: Bypasses translation entirely for simple ID/Token lookups.
+   * 🚀 Fused: Direct walk — no intermediate IR objects (symmetry with drizzle-sql-helpers mapQuery).
    */
+  private addMongoCondition(out: Record<string, any>, field: string, operator: string, value: any) {
+    const opMap: Record<string, string> = {
+      $eq: "$eq",
+      $ne: "$ne",
+      $gt: "$gt",
+      $gte: "$gte",
+      $lt: "$lt",
+      $lte: "$lte",
+      $in: "$in",
+      $nin: "$nin",
+      $exists: "$exists",
+      $contains: "$regex",
+      $like: "$regex",
+    };
+    const mongoOp = opMap[operator] || operator;
+    let v = value;
+    if (operator === "$contains") v = new RegExp(String(value), "i");
+    else if (operator === "$like")
+      v = new RegExp("^" + String(value).replace(/%/g, ".*") + "$", "i");
+
+    if (mongoOp === "$eq") {
+      out[field] = v;
+    } else {
+      const existing = out[field];
+      if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+        existing[mongoOp] = v;
+      } else {
+        out[field] = { [mongoOp]: v };
+      }
+    }
+  }
+
+  private addMongoConds(out: Record<string, any>, q: any) {
+    if (!q || typeof q !== "object") return;
+    for (const key in q) {
+      if (!Object.prototype.hasOwnProperty.call(q, key)) continue;
+      const value = q[key];
+
+      if (key === "$or" && Array.isArray(value)) {
+        const subs: Record<string, any>[] = [];
+        for (const sub of value) {
+          const sc: Record<string, any> = {};
+          this.addMongoConds(sc, sub);
+          if (Object.keys(sc).length > 0) subs.push(sc);
+        }
+        if (subs.length > 0) out["$or"] = subs;
+      } else if (key === "$and" && Array.isArray(value)) {
+        const subs: Record<string, any>[] = [];
+        for (const sub of value) {
+          const sc: Record<string, any> = {};
+          this.addMongoConds(sc, sub);
+          if (Object.keys(sc).length > 0) subs.push(sc);
+        }
+        if (subs.length > 0) out["$and"] = subs;
+      } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        let handled = false;
+        for (const subKey in value) {
+          if (!Object.prototype.hasOwnProperty.call(value, subKey)) continue;
+          if (subKey.startsWith("$")) {
+            this.addMongoCondition(out, key, subKey, (value as any)[subKey]);
+            handled = true;
+          } else {
+            this.addMongoCondition(out, key, "$eq", value);
+            handled = true;
+            break;
+          }
+        }
+        if (!handled) this.addMongoCondition(out, key, "$eq", value);
+      } else {
+        this.addMongoCondition(out, key, "$eq", value);
+      }
+    }
+  }
+
   public mapQuery(query: Record<string, unknown>): Record<string, any> {
     if (!query) return {};
 
@@ -230,80 +266,13 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     }
 
     if (isSimple && count > 0) {
-      // Fast-path: _id/token/tenantId-only queries are inherently safe — no operator injection possible
-      return query;
+      return query as Record<string, any>;
     }
 
     if (count === 0) return {};
 
-    // 1. Translate to IR (Uses IR translator)
-    const ir = queryTranslator.translate("temp", query);
-
-    // 2. Map IR back to Mongo Filter (Ensures operator consistency)
-    const result = this.mapIRToMongo(ir.filter);
+    const result: Record<string, any> = {};
+    this.addMongoConds(result, query);
     return sanitizeMongoQuery(result);
-  }
-
-  /**
-   * Recursively maps the Unified Query IR LogicalGroup back to a MongoDB filter.
-   */
-  private mapIRToMongo(group: any): Record<string, any> {
-    const filter: Record<string, any> = {};
-    const conditions: Record<string, any>[] = [];
-
-    for (const item of group.conditions) {
-      if ("operator" in item && "conditions" in item) {
-        // Nested logical group
-        const sub = this.mapIRToMongo(item);
-        if (Object.keys(sub).length > 0) {
-          const mongoOp =
-            item.operator === "$or" ? "$or" : item.operator === "$and" ? "$and" : "$nor";
-          conditions.push({ [mongoOp]: [sub] });
-        }
-      } else {
-        // Query condition
-        const cond = item;
-        const opMap: Record<string, string> = {
-          $eq: "$eq",
-          $ne: "$ne",
-          $gt: "$gt",
-          $gte: "$gte",
-          $lt: "$lt",
-          $lte: "$lte",
-          $in: "$in",
-          $nin: "$nin",
-          $exists: "$exists",
-          $contains: "$regex",
-          $like: "$regex",
-        };
-
-        const mongoOp = opMap[cond.operator] || cond.operator;
-        let value = cond.value;
-
-        if (cond.operator === "$contains") {
-          value = new RegExp(String(value), "i");
-        } else if (cond.operator === "$like") {
-          value = new RegExp("^" + String(value).replace(/%/g, ".*") + "$", "i");
-        }
-
-        if (mongoOp === "$eq") {
-          filter[cond.field] = value;
-        } else {
-          filter[cond.field] = filter[cond.field] || {};
-          filter[cond.field][mongoOp] = value;
-        }
-      }
-    }
-
-    if (conditions.length > 0) {
-      const groupOp =
-        group.operator === "$or" ? "$or" : group.operator === "$and" ? "$and" : "$nor";
-      if (Object.keys(filter).length > 0) {
-        return { [groupOp]: [...conditions, filter] };
-      }
-      return conditions.length === 1 ? conditions[0] : { [groupOp]: conditions };
-    }
-
-    return filter;
   }
 }

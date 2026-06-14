@@ -5,7 +5,7 @@
  * Enforces strict system administrative authorization on page load and status toggle actions.
  */
 
-import { TenantModel } from "@src/databases/mongodb/tenant";
+import { TenantModel } from "@src/databases/mongodb/tenant-methods"; // Updated for merged pilot (model+methods combined)
 import { error, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 

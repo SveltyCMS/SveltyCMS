@@ -84,7 +84,7 @@ export type DatabaseResult<T> =
 
 | Method                                | Description                               |
 | :------------------------------------ | :---------------------------------------- |
-| `find(collection, criteria, options)` | Advanced filtering with Query IR support. |
+| `find(collection, criteria, options)` | Advanced filtering with inlined Query IR translation support. |
 | `findOne(collection, criteria)`       | Single record retrieval fast-path.        |
 | `insert(collection, data, options)`   | Standard record creation.                 |
 | `update(collection, criteria, data)`  | Scoped updates with multi-tenant safety.  |

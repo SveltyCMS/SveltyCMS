@@ -39,7 +39,6 @@ import {
   desc,
   type Column,
   eq,
-  isNull,
   and,
 } from "drizzle-orm";
 import * as schema from "./schema";
@@ -48,6 +47,7 @@ import mysql from "mysql2/promise";
 import { sql, type SQL } from "drizzle-orm";
 import { mysqlTable, varchar, json, datetime, boolean } from "drizzle-orm/mysql-core";
 import * as utils from "../core/relational-utils";
+import { registerTableSchema } from "../core/relational-utils";
 import { RelationalAuthModule } from "../core/relational-auth";
 import { RelationalContentModule } from "../core/relational-content";
 import { RelationalMediaModule } from "../core/relational-media";
@@ -416,6 +416,21 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
   };
 
   public createDynamicTableDefinition(tableName: string) {
+    // Schema-aware row conversion: register date/JSON columns for zero-overhead lookups
+    registerTableSchema(tableName, [
+      "_id",
+      "tenantId",
+      "collection",
+      "slug",
+      "locale",
+      "publishedAt",
+      "data",
+      "status",
+      "isDeleted",
+      "createdAt",
+      "updatedAt",
+    ]);
+
     return mysqlTable(tableName, {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
@@ -670,7 +685,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
       values.data = dynamicData;
     }
 
-    const result = utils.convertISOToDates(values);
+    const result = utils.convertISOToDates(values, {
+      mariaDoubleParseJson: true,
+      table: getTableName(table),
+    });
 
     for (const k in result) {
       const val = result[k];
@@ -713,7 +731,12 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         .where(where)
         .limit(1);
 
-      const data = results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
+      const data = results.length
+        ? (utils.convertDatesToISO(results[0], {
+            mariaDoubleParseJson: true,
+            table: collection,
+          }) as T)
+        : null;
       return this.hooks.length > 0
         ? await this.runHooks("after", "find", collection, data, options)
         : data;
@@ -867,7 +890,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         results = await builder;
       }
 
-      const data = utils.convertArrayDatesToISO(results as any) as T[];
+      const data = utils.convertArrayDatesToISO(results as any, {
+        mariaDoubleParseJson: true,
+        table: collection,
+      }) as T[];
       return this.hooks.length > 0
         ? await this.runHooks("after", "find", collection, data, options)
         : data;
@@ -921,20 +947,8 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
       const conditions: SQL[] = [eq(idCol, id as any)];
 
-      if (
-        !options.bypassTenantCheck &&
-        options.tenantId !== undefined &&
-        options.tenantId !== "global"
-      ) {
-        const tenantCol = this.getColumn(table, "tenantId");
-        if (tenantCol) {
-          conditions.push(
-            options.tenantId === null
-              ? isNull(tenantCol)
-              : eq(tenantCol, options.tenantId as string),
-          );
-        }
-      }
+      const tenantCol = this.getColumn(table, "tenantId");
+      utils.applyTenantFilter(conditions, tenantCol, options);
 
       const results = await this.getDrizzleInstance(options)
         .select()
@@ -942,7 +956,12 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         .where(and(...conditions))
         .limit(1);
 
-      return results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
+      return results.length
+        ? (utils.convertDatesToISO(results[0], {
+            mariaDoubleParseJson: true,
+            table: collection,
+          }) as T)
+        : null;
     }, "FIND_BY_ID_FAILED");
   }
 
@@ -1022,7 +1041,9 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
         const query = this.getDrizzleInstance(options).insert(table).values(values);
         await (query as any);
-        const finalData = utils.convertDatesToISO(values) as T;
+        const finalData = utils.convertDatesToISO(values, {
+          table: collection,
+        }) as T;
 
         return this.hooks.length > 0
           ? await this.runHooks("after", "insert", collection, finalData, options)
@@ -1055,7 +1076,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
         const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
         await (query as any);
-        return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
+        return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
+          mariaDoubleParseJson: true,
+          table: collection,
+        }) as T[];
       },
       "INSERT_MANY_FAILED",
       undefined,
@@ -1337,10 +1361,7 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
-        const tenantFilter =
-          options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global"
-            ? ""
-            : ` AND \`tenantId\` = '${options.tenantId}'`;
+        const tenantFilter = utils.buildRawTenantFilter(options, "mysql");
 
         const dataCol = this.getColumn(table, "data");
         const idStr = String(id);
@@ -1373,7 +1394,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
             if (Array.isArray(rows) && rows.length > 0) {
               this._returningSupported = true;
-              return utils.convertDatesToISO(rows[0]) as Record<string, unknown>;
+              return utils.convertDatesToISO(rows[0], {
+                mariaDoubleParseJson: true,
+                table: collection,
+              }) as Record<string, unknown>;
             }
           } catch (err: any) {
             // MariaDB version doesn't support RETURNING — cache to skip future attempts
@@ -1420,7 +1444,10 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
           throw new Error(`Entry not found after increment: ${idStr}`);
         }
 
-        return utils.convertDatesToISO(fallbackRows[0]) as Record<string, unknown>;
+        return utils.convertDatesToISO(fallbackRows[0], {
+          mariaDoubleParseJson: true,
+          table: collection,
+        }) as Record<string, unknown>;
       },
       "ATOMIC_INCREMENT_FAILED",
       undefined,
@@ -1503,6 +1530,9 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
             }
           }
         }
+
+        // Schema-aware row conversion: register date/JSON columns for zero-overhead lookups
+        registerTableSchema(normalizedName, ["_id", "data", ...columns.map((c: any) => c.name)]);
 
         for (const col of columns) {
           try {

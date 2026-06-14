@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-13"
+updated: "2026-06-15"
 tags:
   - "testing"
   - "status"
@@ -70,10 +70,17 @@ tags:
 
 | Metric            | Value                             |
 | ----------------- | --------------------------------- |
-| Total tests       | **1,091**                         |
+| Total tests       | **1,114**                         |
 | Pass rate         | 100%                              |
-| Test files        | 119                               |
+| Test files        | 121                               |
 | Security-specific | 64 (defense-in-depth, auth, RBAC) |
+
+**June 2026 additions**: `tests/unit/core/` — 23 dedicated tests for previously untested database proxy behavior and tenant filter logic:
+
+| Test file                  | Tests | Covers                                                                                              |
+| -------------------------- | ----- | --------------------------------------------------------------------------------------------------- |
+| `proxy-utils.test.ts`      | 16    | Self-healing HMR recovery, hot-swap zero-tax getters, tenant auto-injection, function binding cache |
+| `relational-utils.test.ts` | 7     | Tenant filter application, bypass flags, null/global handling, object variant, Mongo symmetry       |
 
 ### 4. CI Pipeline Gates
 
@@ -81,7 +88,7 @@ tags:
 | ----------------- | ---------- | ------------------------------------------------ |
 | Bootstrap         | ~30s       | Dep install, codegen                             |
 | Lint + Type Check | ~40s       | oxlint, svelte-check, tsc                        |
-| Unit Tests        | ~10s       | 1,091 Vitest specs                               |
+| Unit Tests        | ~12s       | 1,114 Vitest specs                               |
 | Build             | ~30s       | Production build integrity                       |
 | DB Matrix (×4)    | ~3min each | SQLite, MongoDB, MariaDB, PostgreSQL integration |
 | E2E Wizard        | ~30s       | Setup wizard flow                                |
@@ -90,17 +97,18 @@ tags:
 
 ### 5. Gaps — What's NOT Tested
 
-| Gap                        | Risk                                                               | Priority  |
-| -------------------------- | ------------------------------------------------------------------ | --------- |
-| **11 E2E specs not in CI** | Silent regressions in collection builder, RBAC, language, OAuth    | 🔴 High   |
-| **Media upload E2E**       | No browser test for file upload, image editor, focal point         | 🟡 Medium |
-| **GraphQL E2E**            | Only integration-tested; no browser-level GQL query test           | 🟡 Medium |
-| **SSO/OAuth integration**  | Mock-only test; no real IdP flow validation                        | 🟡 Medium |
-| **Visual regression**      | No screenshot diffing; CSS breakage undetected until manual review | 🟡 Medium |
-| **Performance regression** | Benchmarks gated to `main` only; no per-PR perf diff               | 🟡 Medium |
-| **Plugin/extension E2E**   | Stripe, cookie-consent, editable-website untested at browser level | 🟢 Low    |
-| **Mobile viewport**        | All tests run Desktop Chrome only                                  | 🟢 Low    |
-| **Multi-tenant E2E**       | No cross-tenant isolation test at browser level                    | 🟢 Low    |
+| Gap                                     | Risk                                                                                         | Priority  |
+| --------------------------------------- | -------------------------------------------------------------------------------------------- | --------- |
+| **11 E2E specs not in CI**              | Silent regressions in collection builder, RBAC, language, OAuth                              | 🔴 High   |
+| **Media upload E2E**                    | No browser test for file upload, image editor, focal point                                   | 🟡 Medium |
+| **GraphQL E2E**                         | Only integration-tested; no browser-level GQL query test                                     | 🟡 Medium |
+| **SSO/OAuth integration**               | Mock-only test; no real IdP flow validation                                                  | 🟡 Medium |
+| **Visual regression**                   | No screenshot diffing; CSS breakage undetected until manual review                           | 🟡 Medium |
+| **Performance regression**              | Benchmarks gated to `main` only; no per-PR perf diff                                         | 🟡 Medium |
+| **Plugin/extension E2E**                | Stripe, cookie-consent, editable-website untested at browser level                           | 🟢 Low    |
+| **Mobile viewport**                     | All tests run Desktop Chrome only                                                            | 🟢 Low    |
+| **Multi-tenant E2E**                    | No cross-tenant isolation test at browser level                                              | 🟢 Low    |
+| **✅ Proxy & tenant filter** (resolved) | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests) | —         |
 
 ### 6. Recommended Next Actions
 

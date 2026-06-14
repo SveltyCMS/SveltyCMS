@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-06-13"
+updated: "2026-06-15"
 tags:
   - "testing"
   - "documentation"
@@ -21,7 +21,7 @@ tags:
 
 n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** June 13, 2026
+**Last Updated:** June 15, 2026
 **Source of Truth:** GitHub Actions on the current branch or pull request
 **Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
@@ -143,8 +143,9 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 
 - **Focus:** Logic correctness, edge cases, internal consistency.
 - **Tools:** Vitest / Bun Unit Tests.
-- **What we test:** Pure functions, utility validators, service methods, and Svelte 5 reactivity logic.
+- **What we test:** Pure functions, utility validators, service methods, Svelte 5 reactivity logic, database proxy behaviors (self-healing HMR recovery, tenant auto-injection, hot-swap zero-tax), and tenant filter application logic.
 - **Benefit:** Provides high speed and deep coverage, ensuring internal logic is mathematically sound.
+- **New (June 2026):** `tests/unit/core/` — 23 dedicated tests for `proxy-utils.ts` and `relational-utils.ts` covering previously untested database layer patterns.
 
 ### 2. Black-Box Testing (Integration & E2E)
 

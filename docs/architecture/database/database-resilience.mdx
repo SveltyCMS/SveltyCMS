@@ -49,14 +49,14 @@ It is integrated in:
 | SQL Migration Strategy                            | ✅ Implemented | `runMigrations(db)` for Drizzle adapters                                          |
 | Detailed error logs download                      | ✅ Implemented | API: `/api/logs/download` (admin-only)                                            |
 
-All features above are production-ready. The "Planned Features" section later in this document only lists not-yet-implemented roadmap items (circuit breaker, adaptive backoff, distributed coordination, advanced metrics).
+All features above are production-ready. The "Future Roadmap" section later in this document lists not-yet-implemented items (adaptive backoff, distributed coordination, advanced metrics).
 
 ---
 
 ## Quick Start
 
 ````ts
-import { getDatabaseResilience } from "@src/databases/DatabaseResilience";
+import { getDatabaseResilience } from "@src/databases/database-resilience";
 
 const resilience = getDatabaseResilience();
 
@@ -125,6 +125,10 @@ Use custom configs for time-sensitive operations only; otherwise prefer the defa
 - Keep `maxAttempts` reasonable (<= 10).
 
 ---
+
+## Future Roadmap
+
+These items are on the roadmap for future releases:
 
 - Adaptive backoff based on historical success rate
 - Distributed coordination of health status across instances

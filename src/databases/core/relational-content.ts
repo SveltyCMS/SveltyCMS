@@ -221,6 +221,7 @@ export class RelationalContentModule implements IContentAdapter {
       node: EntityCreate<ContentNode>,
     ): Promise<DatabaseResult<ContentNode>> => {
       const tenantId = (node as any).tenantId;
+      // NOTE: tenant filter decisions now centralized via utils.getTenantCondition / applyTenantFilter (relational-utils) for query paths.
 
       if (this.adapter.type !== "mongodb" && (this.adapter as any).prepareValues) {
         return this.adapter.wrap(

@@ -1,10 +1,55 @@
 /**
+ * @file src/databases/mongodb/models/websiteToken.ts
+ * @description Mongoose model for Website Tokens used for external access
+ *
+ * ### Fields
+ * - `_id`: Unique identifier for the token
+ * - `name`: Human-readable name for the token
+ * - `token`: The actual token string used for authentication
+ * - `createdAt`: Timestamp of when the token was created
+ * - `updatedAt`: Timestamp of the last update to the token
+ * - `createdBy`: User ID of the creator of the token
+ */
+
+import { generateId } from "@src/databases/mongodb/mongodb-utils";
+import type { WebsiteToken } from "@src/content/types";
+import { nowISODateString } from "@utils/date";
+import type { Model } from "mongoose";
+import mongoose, { Schema } from "mongoose";
+
+export const websiteTokenSchema = new Schema<WebsiteToken>(
+  {
+    _id: { type: String, required: true, default: () => generateId() },
+    name: { type: String, required: true },
+    token: { type: String, required: true, unique: true },
+    createdAt: { type: String, default: () => nowISODateString() },
+    updatedAt: { type: String, default: () => nowISODateString() },
+    createdBy: { type: String, required: true },
+    permissions: { type: [String], default: [] },
+    expiresAt: { type: String, required: false },
+  },
+  {
+    timestamps: true,
+    collection: "system_website_tokens",
+    strict: true,
+    _id: false,
+  },
+);
+
+websiteTokenSchema.index({ createdBy: 1 });
+
+export const WebsiteTokenModel =
+  (mongoose.models?.WebsiteToken as Model<WebsiteToken> | undefined) ||
+  mongoose.model<WebsiteToken>("WebsiteToken", websiteTokenSchema);
+
+// --- Merged from website-token.ts (model + statics) into methods for file reduction pilot ---
+
+/**
  * @file src/databases/mongodb/methods/website-token-methods.ts
  * @description Secure CRUD operations for WebsiteToken collection with mandatory tenant isolation and token hashing.
  */
 
-import type { Model } from "mongoose";
-import type { DatabaseId, DatabaseResult, WebsiteToken, QueryFilter } from "../db-interface";
+import type { DatabaseId, DatabaseResult, QueryFilter } from "../db-interface";
 import { MongoCrudMethods } from "./crud-methods";
 import { createDatabaseError } from "./mongodb-utils";
 

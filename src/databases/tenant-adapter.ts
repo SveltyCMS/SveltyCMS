@@ -18,10 +18,11 @@
  */
 
 import type { DatabaseAdapter, DatabaseId, BaseQueryOptions } from "./db-interface";
+import { createTenantInjectingProxy } from "./core/proxy-utils";
 
 /**
  * Wraps a database adapter to auto-inject a specific tenantId into all operations.
- * System-level operations (bypassing tenant scope) require explicit `.system()` call.
+ * System-level operations (bypassing tenant scope) require explicit `.unscoped()` call.
  */
 export function forTenant(
   adapter: DatabaseAdapter,
@@ -32,33 +33,14 @@ export function forTenant(
     tenantId: options?.tenantId ?? defaultTenantId,
   });
 
-  // Proxy that auto-injects tenantId into every namespace method
-  const proxyNamespace = (namespace: any): any =>
-    new Proxy(namespace, {
-      get(target, prop) {
-        const original = target[prop];
-        if (typeof original !== "function") return original;
-        return (...args: any[]) => {
-          // Auto-inject tenantId into the last argument if it looks like options
-          const lastArg = args[args.length - 1];
-          if (lastArg && typeof lastArg === "object" && !Array.isArray(lastArg)) {
-            args[args.length - 1] = injectTenant(lastArg);
-          } else {
-            args.push(injectTenant({}));
-          }
-          return original.apply(target, args);
-        };
-      },
-    });
-
   const tenantAdapter = {
     ...adapter,
     // Tenant-scoped namespaces
-    crud: proxyNamespace(adapter.crud),
-    auth: proxyNamespace(adapter.auth),
-    content: proxyNamespace(adapter.content),
-    media: proxyNamespace(adapter.media),
-    collection: proxyNamespace(adapter.collection),
+    crud: createTenantInjectingProxy(adapter.crud, injectTenant),
+    auth: createTenantInjectingProxy(adapter.auth, injectTenant),
+    content: createTenantInjectingProxy(adapter.content, injectTenant),
+    media: createTenantInjectingProxy(adapter.media, injectTenant),
+    collection: createTenantInjectingProxy(adapter.collection, injectTenant),
 
     /**
      * Returns the raw adapter for system-level operations that bypass tenant scope.

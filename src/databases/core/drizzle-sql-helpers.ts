@@ -4,8 +4,8 @@
  *
  * Responsibilities:
  * - Define shared table aliases and system collections.
- * - Translate Query IR (Intermediate Representation) into Drizzle SQL conditions.
- * - Map query filters to SQL where clauses without dialect branching.
+ * - Fused query parsing + SQL condition building (no intermediate IR objects for hot paths).
+ * - Map query filters to SQL where clauses without dialect branching (for..in, direct translate).
  *
  * Features:
  * - stateless table/column mappings
@@ -32,9 +32,8 @@ import {
   asc,
   desc,
 } from "drizzle-orm";
-import { queryTranslator, type LogicalGroup, type QueryCondition } from "../core/query-ir";
-import type { FindOptions } from "../db-interface";
-import { safeDate } from "./relational-utils";
+import type { FindOptions, QueryCondition } from "../db-interface";
+import * as utils from "./relational-utils";
 
 // 🚀 CENTRALIZED TABLE ALIASES: Shared across all SQL adapters.
 export const SQL_TABLE_ALIASES: Record<string, string> = {
@@ -494,11 +493,11 @@ export function translateCondition(col: Column, cond: QueryCondition): SQL {
   let val = cond.value;
 
   if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
-    val = safeDate(val);
+    val = utils.safeDate(val);
   } else if (Array.isArray(val)) {
     val = val.map((v) =>
       v !== null && typeof v === "object" && typeof (v as any).getTime === "function"
-        ? safeDate(v)
+        ? utils.safeDate(v)
         : v,
     );
   }
@@ -523,34 +522,124 @@ export function translateCondition(col: Column, cond: QueryCondition): SQL {
   }
 }
 
-export function mapIRToSQL(
+// Fused parse + map for mapQuery: builds SQL conditions directly from user query
+// without allocating QueryIR / LogicalGroup / QueryCondition objects or their arrays.
+// This is the highest-ROI hot-path optimization for filtered find/findMany.
+// Uses for...in (zero allocation) instead of Object.entries.
+// Exact semantics preserved (including root $and grouping, nested non-$ as $eq, date handling).
+
+function addSingleCondition(
+  conditions: SQL[],
   table: any,
-  group: LogicalGroup,
+  field: string,
+  operator: string,
+  value: any,
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
-): SQL | undefined {
-  const conditions: SQL[] = [];
-  if (!group || !group.conditions) return undefined;
-
-  for (const cond of group.conditions) {
-    if ("conditions" in cond) {
-      const sub = mapIRToSQL(table, cond as LogicalGroup, getColumn, getJsonField);
-      if (sub) conditions.push(sub);
-    } else {
-      const column = getColumn(table, cond.field);
-      if (column) {
-        conditions.push(translateCondition(column, cond as QueryCondition));
-      } else {
-        const dataCol = getColumn(table, "data");
-        if (dataCol) {
-          const jsonField = getJsonField(cond.field);
-          conditions.push(translateCondition(jsonField as any, cond as QueryCondition));
-        }
-      }
+) {
+  let col = getColumn(table, field);
+  if (!col) {
+    const dataCol = getColumn(table, "data");
+    if (dataCol) {
+      col = getJsonField(field) as any;
     }
   }
-  if (!conditions.length) return undefined;
-  return group.operator === "$or" ? or(...conditions) : and(...conditions);
+  if (!col) return;
+
+  let val = value;
+  if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
+    val = utils.safeDate(val);
+  } else if (Array.isArray(val)) {
+    val = val.map((v) =>
+      v !== null && typeof v === "object" && typeof (v as any).getTime === "function"
+        ? utils.safeDate(v)
+        : v,
+    );
+  }
+
+  switch (operator) {
+    case "$eq":
+      conditions.push(val === null ? isNull(col) : eq(col, val));
+      break;
+    case "$ne":
+      conditions.push(ne(col, val));
+      break;
+    case "$gt":
+      conditions.push(gt(col, val));
+      break;
+    case "$gte":
+      conditions.push(gte(col, val));
+      break;
+    case "$lt":
+      conditions.push(lt(col, val));
+      break;
+    case "$lte":
+      conditions.push(lte(col, val));
+      break;
+    case "$in":
+      conditions.push(inArray(col, Array.isArray(val) ? val : [val]));
+      break;
+    default:
+      conditions.push(eq(col, val));
+      break;
+  }
+}
+
+function addFilterConds(
+  out: SQL[],
+  table: any,
+  q: any,
+  getColumn: (table: any, name: string) => Column | undefined,
+  getJsonField: (field: string) => SQL,
+) {
+  if (!q || typeof q !== "object") return;
+  for (const key in q) {
+    if (!Object.prototype.hasOwnProperty.call(q, key)) continue;
+    const value = q[key];
+    if (key === "$or" && Array.isArray(value)) {
+      const subs: SQL[] = [];
+      for (const sub of value) {
+        const sc: SQL[] = [];
+        addFilterConds(sc, table, sub, getColumn, getJsonField);
+        if (sc.length > 0) {
+          const s = sc.length === 1 ? sc[0] : and(...sc);
+          if (s) subs.push(s);
+        }
+      }
+      if (subs.length > 0) {
+        const s = subs.length === 1 ? subs[0] : or(...subs);
+        if (s) out.push(s);
+      }
+    } else if (key === "$and" && Array.isArray(value)) {
+      const subs: SQL[] = [];
+      for (const sub of value) {
+        addFilterConds(subs, table, sub, getColumn, getJsonField);
+      }
+      if (subs.length > 0) {
+        const s = subs.length === 1 ? subs[0] : and(...subs);
+        if (s) out.push(s);
+      }
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      let handled = false;
+      for (const subKey in value) {
+        if (!Object.prototype.hasOwnProperty.call(value, subKey)) continue;
+        const subValue = value[subKey];
+        if (subKey.startsWith("$")) {
+          addSingleCondition(out, table, key, subKey, subValue, getColumn, getJsonField);
+          handled = true;
+        } else {
+          addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+          handled = true;
+          break;
+        }
+      }
+      if (!handled) {
+        addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+      }
+    } else {
+      addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+    }
+  }
 }
 
 export function mapQuery(
@@ -560,39 +649,36 @@ export function mapQuery(
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
 ): SQL | undefined {
-  if (
-    query &&
-    query._id &&
-    (typeof query._id === "string" || typeof query._id === "number") &&
-    Object.keys(query).length === 1 &&
-    !options.bypassTenantCheck
-  ) {
-    const idCol = getColumn(table, "_id") || getColumn(table, "id");
-    if (idCol) {
-      const conditions = [eq(idCol, query._id as any)];
-      const tenantCol = getColumn(table, "tenantId");
-      if (options.tenantId !== undefined && options.tenantId !== "global" && tenantCol) {
-        conditions.push(
-          options.tenantId === null ? isNull(tenantCol) : eq(tenantCol, options.tenantId as string),
-        );
+  if (query && query._id && (typeof query._id === "string" || typeof query._id === "number")) {
+    // Zero-allocation fast-path guard: count keys without allocating Object.keys array.
+    // Tiny micro-win; V8/Bun still optimize the original for 1-element cases, but this matches the "allocation floor" goal.
+    let keyCount = 0;
+    for (const k in query) {
+      if (Object.prototype.hasOwnProperty.call(query, k)) {
+        keyCount++;
+        if (keyCount > 1) break;
       }
-      return and(...conditions);
+    }
+    if (keyCount !== 1) {
+      // fall through to full filter path
+    } else {
+      const idCol = getColumn(table, "_id") || getColumn(table, "id");
+      if (idCol) {
+        const conditions = [eq(idCol, query._id as any)];
+        const tenantCol = getColumn(table, "tenantId");
+        utils.applyTenantFilter(conditions, tenantCol, options);
+        return and(...conditions);
+      }
     }
   }
 
-  const ir = queryTranslator.translate("dummy", query || {});
   const conditions: SQL[] = [];
-
-  const filterSql = mapIRToSQL(table, ir.filter, getColumn, getJsonField);
-  if (filterSql) conditions.push(filterSql);
-
-  if (!options.bypassTenantCheck) {
-    const tenantId = options.tenantId;
-    const tenantCol = getColumn(table, "tenantId");
-    if (tenantId !== undefined && tenantId !== "global" && tenantCol) {
-      conditions.push(tenantId === null ? isNull(tenantCol) : eq(tenantCol, tenantId as string));
-    }
+  if (query && typeof query === "object") {
+    addFilterConds(conditions, table, query, getColumn, getJsonField);
   }
+
+  const tenantCol = getColumn(table, "tenantId");
+  utils.applyTenantFilter(conditions, tenantCol, options);
 
   if (!conditions.length) return undefined;
   return and(...conditions);

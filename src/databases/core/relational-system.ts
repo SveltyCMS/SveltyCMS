@@ -77,6 +77,7 @@ export class RelationalSystemModule implements ISystemAdapter {
   }
 
   protected get db() {
+    // Centralized tenant helpers (getTenantCondition, applyTenantFilter, shouldBypassTenantCheck) now live in relational-utils.ts for the SQL family.
     return (this.adapter as any).db;
   }
 

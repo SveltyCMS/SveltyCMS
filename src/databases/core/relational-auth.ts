@@ -46,6 +46,7 @@ export class RelationalAuthModule implements IAuthAdapter {
    * Returns the database instance to use, favoring an active transaction if provided.
    */
   protected getDb(options?: BaseQueryOptions) {
+    // Tenant filter centralization: use utils.getEffectiveTenantId / applyTenantFilter (single source in relational-utils) in all SQL query builders.
     const tx = options?.transaction;
     if (tx) {
       return tx.db || tx;

@@ -552,6 +552,226 @@ export class CacheService {
     return results;
   }
 
+  /**
+   * Stale-While-Revalidate (SWR) cache strategy.
+   *
+   * 1. L1 HIT & fresh (age <= ttlMs) → return value immediately
+   * 2. L1 HIT but stale (ttlMs < age <= staleMs) → return stale value + background refresh
+   * 3. MISS → call factory, cache result, return it
+   *
+   * Uses existing `pendingRequests` for single-flight coalescing and `lockedKeys`
+   * for distributed stampede protection on cache misses.
+   *
+   * @param key - Cache key
+   * @param factory - Async function to compute the value on miss
+   * @param ttlMs - Time-to-live in milliseconds for freshness
+   * @param staleMs - Maximum staleness window in milliseconds (must be >= ttlMs)
+   * @param tenantId - Optional tenant identifier
+   * @param category - Cache category for metrics
+   * @param tags - Cache invalidation tags
+   */
+  async getOrSetSWR<T>(
+    key: string,
+    factory: () => Promise<T>,
+    ttlMs: number,
+    staleMs: number,
+    tenantId?: string | null,
+    category?: CacheCategory,
+    tags?: string[],
+  ): Promise<T | null> {
+    const fullKey = this.generateKey(key, tenantId);
+    const now = Date.now();
+
+    // 1. FAST PATH: Check L1 memory cache
+    const l1Raw = this.l1.get(fullKey);
+    if (l1Raw !== undefined) {
+      // SWR entries are stored as { value, storedAt }
+      if (l1Raw && typeof l1Raw === "object" && "storedAt" in l1Raw && "value" in l1Raw) {
+        const entry = l1Raw as { value: T; storedAt: number };
+        const age = now - entry.storedAt;
+
+        if (age <= ttlMs) {
+          // FRESH: return immediately
+          this.stats.hits++;
+          this.stats.l1Hits++;
+          this.recordMetricSync("cache:hit:l1", 1);
+          cacheMetrics.recordHit(fullKey, category || CacheCategory.GENERAL, tenantId, 0);
+          return entry.value;
+        }
+
+        if (age <= staleMs) {
+          // STALE: return stale value AND trigger background refresh
+          this.stats.hits++;
+          this.stats.l1Hits++;
+          this.recordMetricSync("cache:hit:l1", 1);
+          cacheMetrics.recordHit(fullKey, category || CacheCategory.GENERAL, tenantId, 0);
+
+          // Background refresh via setTimeout(0) to avoid blocking the current request
+          setTimeout(() => {
+            this.refreshSWREntry(fullKey, factory, ttlMs, category, tenantId, tags).catch(
+              (_err) => {
+                // Silently ignore background refresh failures — stale value was already served
+              },
+            );
+          }, 0);
+
+          return entry.value;
+        }
+      } else {
+        // Legacy raw value (not an SWR entry) — treat as fresh hit
+        this.stats.hits++;
+        this.stats.l1Hits++;
+        this.recordMetricSync("cache:hit:l1", 1);
+        cacheMetrics.recordHit(fullKey, category || CacheCategory.GENERAL, tenantId, 0);
+        return l1Raw as T;
+      }
+    }
+
+    // 2. Check negative cache
+    if (!this.negativeInvalidated.has(fullKey) && this.negativeBloom.has(fullKey)) {
+      this.stats.hits++;
+      cacheMetrics.recordHit(fullKey, category || CacheCategory.GENERAL, tenantId, 0);
+      return null;
+    }
+
+    // 3. Single-flight coalescing for concurrent misses
+    if (this.pendingRequests.has(fullKey)) {
+      return this.pendingRequests.get(fullKey);
+    }
+
+    // 4. MISS: Compute via factory with stampede protection
+    const promise = (async () => {
+      let lockOwner: string | null = null;
+
+      try {
+        // Stampede protection: acquire distributed lock
+        if (this.isL2Ready()) {
+          lockOwner = await this.acquireLock(fullKey, 500);
+          if (!lockOwner) {
+            await this.waitForCache(fullKey, 1000);
+          }
+        }
+
+        // Re-check L1 after acquiring lock (another request may have populated it)
+        const recheckRaw = this.l1.get(fullKey);
+        if (recheckRaw !== undefined) {
+          if (
+            recheckRaw &&
+            typeof recheckRaw === "object" &&
+            "storedAt" in recheckRaw &&
+            "value" in recheckRaw
+          ) {
+            return (recheckRaw as { value: T; storedAt: number }).value;
+          }
+          return recheckRaw as T;
+        }
+
+        this.stats.misses++;
+        this.recordMetricSync("cache:miss", 1);
+        cacheMetrics.recordMiss(fullKey, category || CacheCategory.GENERAL, tenantId);
+
+        // Call the factory
+        const value = await factory();
+
+        if (value === null || value === undefined) {
+          this.recordMiss(key, tenantId);
+          return null;
+        }
+
+        // Store as SWR entry: { value, storedAt }
+        const swrEntry = { value, storedAt: Date.now() };
+        const ttlSeconds = Math.max(1, Math.ceil(staleMs / 1000));
+        this.l1.set(fullKey, swrEntry, { ttl: staleMs });
+        this.negativeInvalidated.add(fullKey);
+        this.addToPrefixMap(fullKey);
+        cacheMetrics.recordSet(fullKey, category || CacheCategory.GENERAL, ttlSeconds, tenantId);
+
+        if (tags && tags.length > 0) {
+          const tagSet = this.keyToTags.get(fullKey) || new Set();
+          for (const tag of tags) {
+            if (!this.tagMap.has(tag)) this.tagMap.set(tag, new Set());
+            this.tagMap.get(tag)!.add(fullKey);
+            tagSet.add(tag);
+          }
+          this.keyToTags.set(fullKey, tagSet);
+        }
+
+        if (this.isL2Ready()) {
+          try {
+            const valStr = JSON.stringify(swrEntry);
+            await this.l2.set(fullKey, valStr, { EX: ttlSeconds });
+            if (tags && tags.length > 0 && typeof this.l2.multi === "function") {
+              const multi = this.l2.multi();
+              for (const tag of tags) multi.sAdd(`tag:${tag}`, fullKey);
+              await multi.exec();
+            }
+          } catch (err) {
+            logger.error(`L2 Cache SWR Set Failure: ${fullKey}`, err);
+          }
+        }
+
+        return value;
+      } finally {
+        if (lockOwner) {
+          this.pendingRequests.set(`lockrelease:${fullKey}`, Promise.resolve(lockOwner));
+        }
+      }
+    })();
+
+    this.pendingRequests.set(fullKey, promise);
+    promise.finally(() => this.pendingRequests.delete(fullKey));
+    return promise;
+  }
+
+  /**
+   * Background refresh for stale SWR entries.
+   * Called via setTimeout(0) to avoid blocking the current request.
+   */
+  private async refreshSWREntry<T>(
+    fullKey: string,
+    factory: () => Promise<T>,
+    ttlMs: number,
+    _category?: CacheCategory,
+    _tenantId?: string | null,
+    _tags?: string[],
+  ): Promise<void> {
+    try {
+      // Use a dedicated pending key to avoid collision with the main request path
+      const refreshKey = `swr:refresh:${fullKey}`;
+      if (this.pendingRequests.has(refreshKey)) {
+        return; // Another refresh is already in progress
+      }
+
+      const refreshPromise = (async () => {
+        const value = await factory();
+        if (value !== null && value !== undefined) {
+          const swrEntry = { value, storedAt: Date.now() };
+          const ttlSeconds = Math.max(1, Math.ceil(ttlMs / 1000));
+          // Use the original staleMs for L1 TTL so subsequent reads can serve stale
+          this.l1.set(fullKey, swrEntry, { ttl: ttlMs * 2 });
+          this.negativeInvalidated.add(fullKey);
+
+          if (this.isL2Ready()) {
+            try {
+              await this.l2.set(fullKey, JSON.stringify(swrEntry), {
+                EX: ttlSeconds,
+              });
+            } catch (err) {
+              logger.error(`L2 Cache SWR Refresh Failure: ${fullKey}`, err);
+            }
+          }
+        }
+      })();
+
+      this.pendingRequests.set(refreshKey, refreshPromise);
+      await refreshPromise;
+    } catch {
+      // Silently ignore background refresh failures
+    } finally {
+      this.pendingRequests.delete(`swr:refresh:${fullKey}`);
+    }
+  }
+
   async set(
     key: string,
     value: any,

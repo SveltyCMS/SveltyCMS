@@ -1,5 +1,5 @@
 /**
- * @file src/services/local-cms.ts
+ * @file src/services/sdk/index.ts
  * @description
  * High-performance, modular Local SDK for SveltyCMS.
  * This is the primary internal entry point for server-to-server CMS operations.
@@ -23,6 +23,7 @@ import type {
   WebsiteTokensNamespace,
 } from "./namespaces/misc-namespaces";
 import { traceSpan } from "@utils/context";
+import { defineLazyNamespace } from "@src/databases/core/proxy-utils";
 
 const ASYNC_METHODS: Record<string, Set<string>> = {
   collections: new Set([
@@ -85,79 +86,6 @@ function instrumentNamespace<T extends object>(name: string, instance: T): T {
     }
   }
   return instance;
-}
-
-/**
- * Defines a lazy-loaded namespace using Object.defineProperty.
- * This eliminates Proxy overhead after the first access.
- */
-function defineLazyNamespace<T extends object>(
-  target: any,
-  property: string,
-  factory: () => Promise<T>,
-  nestedNamespaces: Record<string, boolean> = {},
-) {
-  let instance: T | null = null;
-  let initPromise: Promise<T> | null = null;
-
-  const getInstance = async () => {
-    if (instance) return instance;
-    if (!initPromise) {
-      initPromise = factory().then((res) => {
-        instance = res;
-        return res;
-      });
-    }
-    return initPromise;
-  };
-
-  let proxyInstance: any = null;
-
-  Object.defineProperty(target, property, {
-    get: () => {
-      if (proxyInstance) return proxyInstance;
-
-      proxyInstance = new Proxy({} as T, {
-        get: (_, prop: string) => {
-          if (nestedNamespaces[prop]) {
-            return new Proxy(
-              {},
-              {
-                get:
-                  (_, nestedProp: string) =>
-                  async (...args: any[]) => {
-                    const targetInstance = await getInstance();
-                    const nested = (targetInstance as any)[prop];
-                    return nested[nestedProp].apply(nested, args);
-                  },
-              },
-            );
-          }
-
-          return async (...args: any[]) => {
-            const targetInstance = await getInstance();
-
-            // HOT-SWAP: Replace the property on the main target with the actual instance.
-            // Future accesses to target[property] will bypass the Proxy entirely.
-            Object.defineProperty(target, property, {
-              value: targetInstance,
-              writable: false,
-              configurable: true,
-              enumerable: true,
-            });
-
-            const targetProp = (targetInstance as any)[prop];
-            return typeof targetProp === "function"
-              ? targetProp.apply(targetInstance, args)
-              : targetProp;
-          };
-        },
-      });
-      return proxyInstance;
-    },
-    configurable: true,
-    enumerable: true,
-  });
 }
 
 /**

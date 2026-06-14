@@ -4,7 +4,7 @@
  */
 
 export const toggleTenantStatus = async (data: any) => {
-  const { TenantModel } = await import("@src/databases/mongodb/tenant");
+  const { TenantModel } = await import("@src/databases/mongodb/tenant-methods"); // Merged pilot update
   const { error } = await import("@sveltejs/kit");
   const { logger } = await import("@utils/logger");
   const { tenantId, status } = data;

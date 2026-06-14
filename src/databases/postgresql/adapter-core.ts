@@ -40,7 +40,6 @@ import {
   desc,
   type Column,
   eq,
-  isNull,
   and,
 } from "drizzle-orm";
 import * as schema from "./schema";
@@ -49,6 +48,7 @@ import postgres from "postgres";
 import { sql as drizzleSql, type SQL } from "drizzle-orm";
 import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import * as utils from "../core/relational-utils";
+import { registerTableSchema } from "../core/relational-utils";
 import { RelationalAuthModule } from "../core/relational-auth";
 import { RelationalContentModule } from "../core/relational-content";
 import { RelationalMediaModule } from "../core/relational-media";
@@ -665,7 +665,9 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       values.data = dynamicData;
     }
 
-    const result = utils.convertISOToDates(values);
+    const result = utils.convertISOToDates(values, {
+      table: getTableName(table),
+    });
 
     for (const k in result) {
       const val = result[k];
@@ -708,7 +710,9 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         .where(where)
         .limit(1);
 
-      const data = results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
+      const data = results.length
+        ? (utils.convertDatesToISO(results[0], { table: collection }) as T)
+        : null;
       return this.hooks.length > 0
         ? await this.runHooks("after", "find", collection, data, options)
         : data;
@@ -863,7 +867,9 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         results = await builder;
       }
 
-      const data = utils.convertArrayDatesToISO(results as any) as T[];
+      const data = utils.convertArrayDatesToISO(results as any, {
+        table: collection,
+      }) as T[];
       return this.hooks.length > 0
         ? await this.runHooks("after", "find", collection, data, options)
         : data;
@@ -889,6 +895,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
       // 🚀 Native PostgreSQL Streaming
       const stream = await (builder as any).stream();
+      // Schema-aware path not wired for streaming (variable reference); fallback to full iteration.
       const convertFn = utils.convertDatesToISO;
 
       async function* generator() {
@@ -948,20 +955,8 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
       const conditions: SQL[] = [eq(idCol, id as any)];
 
-      if (
-        !options.bypassTenantCheck &&
-        options.tenantId !== undefined &&
-        options.tenantId !== "global"
-      ) {
-        const tenantCol = this.getColumn(table, "tenantId");
-        if (tenantCol) {
-          conditions.push(
-            options.tenantId === null
-              ? isNull(tenantCol)
-              : eq(tenantCol, options.tenantId as string),
-          );
-        }
-      }
+      const tenantCol = this.getColumn(table, "tenantId");
+      utils.applyTenantFilter(conditions, tenantCol, options);
 
       const results = await this.getDrizzleInstance(options)
         .select()
@@ -969,7 +964,9 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         .where(and(...conditions))
         .limit(1);
 
-      return results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
+      return results.length
+        ? (utils.convertDatesToISO(results[0], { table: collection }) as T)
+        : null;
     }, "FIND_BY_ID_FAILED");
   }
 
@@ -1048,7 +1045,9 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
         const query = this.getDrizzleInstance(options).insert(table).values(values);
         const result = await (query as any).returning();
-        const finalData = utils.convertDatesToISO(result[0]) as T;
+        const finalData = utils.convertDatesToISO(result[0], {
+          table: collection,
+        }) as T;
 
         return this.hooks.length > 0
           ? await this.runHooks("after", "insert", collection, finalData, options)
@@ -1081,7 +1080,9 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
 
         const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
         const results = await (query as any).returning();
-        return utils.convertArrayDatesToISO(results as any) as T[];
+        return utils.convertArrayDatesToISO(results as any, {
+          table: collection,
+        }) as T[];
       },
       "INSERT_MANY_FAILED",
       undefined,
@@ -1149,7 +1150,9 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
             error: { code: "NOT_FOUND", message: "Record not found" },
           };
         }
-        const finalData = utils.convertDatesToISO(res) as unknown as T;
+        const finalData = utils.convertDatesToISO(res, {
+          table: collection,
+        }) as unknown as T;
         return this.hooks.length > 0
           ? await this.runHooks("after", "update", collection, finalData, options)
           : finalData;
@@ -1361,6 +1364,21 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   };
 
   public createDynamicTableDefinition(tableName: string) {
+    // Schema-aware row conversion: register date/JSON columns for zero-overhead lookups
+    registerTableSchema(tableName, [
+      "_id",
+      "tenantId",
+      "collection",
+      "slug",
+      "locale",
+      "publishedAt",
+      "data",
+      "status",
+      "isDeleted",
+      "createdAt",
+      "updatedAt",
+    ]);
+
     return pgTable(tableName, {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
@@ -1468,10 +1486,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
-        const tenantFilter =
-          options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global"
-            ? ""
-            : ` AND "tenantId" = '${options.tenantId}'`;
+        const tenantFilter = utils.buildRawTenantFilter(options, "postgres");
 
         const dataCol = this.getColumn(table, "data");
         const sqlQuery = dataCol
@@ -1582,6 +1597,9 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
             }
           }
         }
+
+        // Schema-aware row conversion: register date/JSON columns for zero-overhead lookups
+        registerTableSchema(normalizedName, ["_id", "data", ...columns.map((c: any) => c.name)]);
 
         for (const col of columns) {
           try {

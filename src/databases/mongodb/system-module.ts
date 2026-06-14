@@ -20,7 +20,7 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
     const { MongoWidgetMethods } = await import("./widget-methods");
 
     const { MongoWebsiteTokenMethods } = await import("./website-token-methods");
-    const { websiteTokenSchema } = await import("./website-token");
+    const { websiteTokenSchema } = await import("./website-token-methods"); // Merged pilot: schema now in methods file
 
     const SystemSettingModel = (this.adapter as any)._getOrCreateModel("SystemSetting");
     const SystemPreferencesModel = (this.adapter as any)._getOrCreateModel("SystemPreferences");

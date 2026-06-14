@@ -4,8 +4,8 @@
  *
  * Tests that different user roles have appropriate access permissions:
  * - admin: Full system access
- * - developer: API + config access, no user management
- * - editor: Content management only, no settings
+ * - developer: API + config access, user management (has user:manage permission)
+ * - editor: Content and user management, no system settings
  *
  * Based on: docs/architecture/admin-user-management.mdx
  */
@@ -84,7 +84,9 @@ test.describe("Role-Based Access Control", () => {
     await logout(page);
   });
 
-  test("Developer: Can access system config but NOT user management", async ({ page }) => {
+  test("Developer: Can access system config and user management, NOT admin-only areas", async ({
+    page,
+  }) => {
     await login(page, USERS.developer);
 
     // Developer CAN access system configuration
@@ -104,32 +106,30 @@ test.describe("Role-Based Access Control", () => {
     await page.goto("/config");
     await expect(page).toHaveURL(/\/config/, { timeout: 5000 });
 
-    // Developer CANNOT manage users
+    // Developer CAN access user management (has user:manage permission)
     await page.goto("/config/user");
+    await expect(page).toHaveURL(/\/user/, { timeout: 10_000 });
+    await expect(page.locator("body")).not.toContainText(/forbidden|unauthorized|access denied/i);
 
-    // Should either redirect or show forbidden message
-    const currentUrl = page.url();
-    const bodyText = await page.textContent("body");
+    // Developer CANNOT access admin-only areas (e.g., access management)
+    await page.goto("/config/access-management");
+    await page.waitForLoadState("networkidle");
+    const amUrl = page.url();
+    const amBody = await page.textContent("body");
 
-    // Blocked if: redirected away, forbidden text, or just not showing user page
-    const isBlocked = !currentUrl.includes("/config/user") && !currentUrl.includes("/user");
+    const isBlockedFromAM =
+      !amUrl.includes("/config/access-management") ||
+      amBody?.toLowerCase().includes("forbidden") ||
+      amBody?.toLowerCase().includes("unauthorized") ||
+      amBody?.toLowerCase().includes("access denied") ||
+      amBody?.toLowerCase().includes("insufficient permissions");
 
-    // If still on user page, check for forbidden indicators
-    if (!isBlocked) {
-      const blocked =
-        bodyText?.toLowerCase().includes("forbidden") ||
-        bodyText?.toLowerCase().includes("unauthorized") ||
-        bodyText?.toLowerCase().includes("access denied") ||
-        bodyText?.toLowerCase().includes("permission");
-      // Also pass if page shows empty/error state (blocked but no explicit message)
-      expect(blocked || (bodyText?.length ?? 0) < 200).toBeTruthy();
-    }
-    expect(isBlocked).toBeTruthy();
+    expect(isBlockedFromAM).toBeTruthy();
 
     await logout(page);
   });
 
-  test("Editor: Can access content but NOT system settings", async ({ page }) => {
+  test("Editor: Can access content and user management, NOT system settings", async ({ page }) => {
     await login(page, USERS.editor);
 
     // Editor CAN access dashboard (which serves as the content landing page when empty)
@@ -140,44 +140,38 @@ test.describe("Role-Based Access Control", () => {
     await page.goto("/config/system-settings");
 
     // Check for blocked state without waiting for full network idle
-    const settingsUrl = page.url();
     const settingsBody = await page.textContent("body");
 
+    // SvelteKit renders error pages at the same URL, so the URL won't change.
+    // Check for 403 indicators in the body content.
     const isBlockedFromSettings =
-      !settingsUrl.includes("/config/system-settings") ||
       settingsBody?.toLowerCase().includes("forbidden") ||
       settingsBody?.toLowerCase().includes("unauthorized") ||
-      settingsBody?.toLowerCase().includes("access denied");
+      settingsBody?.toLowerCase().includes("access denied") ||
+      settingsBody?.toLowerCase().includes("insufficient permissions") ||
+      settingsBody?.toLowerCase().includes("403");
 
     expect(isBlockedFromSettings).toBeTruthy();
 
-    // Editor CANNOT manage users
+    // Editor CAN manage users (has user:manage permission)
     await page.goto("/config/user");
-
     await page.waitForLoadState("networkidle");
-    const userUrl = page.url();
-    const userBody = await page.textContent("body");
+    await expect(page.locator("body")).not.toContainText(
+      /forbidden|unauthorized|access denied|insufficient permissions/i,
+    );
 
-    const isBlockedFromUsers =
-      !userUrl.includes("/config/user") ||
-      userBody?.toLowerCase().includes("forbidden") ||
-      userBody?.toLowerCase().includes("unauthorized") ||
-      userBody?.toLowerCase().includes("access denied");
-
-    expect(isBlockedFromUsers).toBeTruthy();
-
-    // Editor CANNOT access access management
+    // Editor CANNOT access admin-only areas (e.g., access management)
     await page.goto("/config/access-management");
 
     await page.waitForLoadState("networkidle");
-    const accessUrl = page.url();
     const accessBody = await page.textContent("body");
 
     const isBlockedFromAccess =
-      !accessUrl.includes("/config/access-management") ||
       accessBody?.toLowerCase().includes("forbidden") ||
       accessBody?.toLowerCase().includes("unauthorized") ||
-      accessBody?.toLowerCase().includes("access denied");
+      accessBody?.toLowerCase().includes("access denied") ||
+      accessBody?.toLowerCase().includes("insufficient permissions") ||
+      accessBody?.toLowerCase().includes("403");
 
     expect(isBlockedFromAccess).toBeTruthy();
 
@@ -216,18 +210,18 @@ test.describe("Role-Based Access Control", () => {
   });
 
   test("IDOR Prevention: Non-admins cannot access sensitive APIs", async ({ page }) => {
-    // 1. Editor tries to fetch Users via API
+    // 1. Editor tries to fetch Tokens via API (admin-only endpoint)
     await login(page, USERS.editor);
-    const userApiResponse = await page.evaluate(async () => {
-      const res = await fetch("/api/user");
+    const tokenApiResponse = await page.evaluate(async () => {
+      const res = await fetch("/api/token");
       const json = await res.json();
       return { status: res.status, ok: res.ok, body: json };
     });
     // Should be Forbidden (403), Unauthorized (401), or return success:false
     const isDenied =
-      !userApiResponse.ok ||
-      [401, 403].includes(userApiResponse.status) ||
-      userApiResponse.body?.success === false;
+      !tokenApiResponse.ok ||
+      [401, 403].includes(tokenApiResponse.status) ||
+      tokenApiResponse.body?.success === false;
     expect(isDenied).toBeTruthy();
 
     // 2. Editor tries to fetch System Config via API

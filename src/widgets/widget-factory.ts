@@ -13,6 +13,46 @@ import type { FieldInstance } from "@src/content/types";
 import { registerForJsonRender } from "@src/services/json-render/catalog";
 import type { WidgetDefinition, WidgetFactory } from "@widgets/types";
 import type { BaseIssue, BaseSchema } from "valibot";
+import { LRUCache } from "lru-cache";
+
+/**
+ * Module-level LRU cache of compiled Valibot schemas.
+ * Keyed by a hash of the widget definition to avoid re-compilation
+ * of identical schemas across widget loads.
+ */
+const schemaCache = new LRUCache<string, any>({ max: 200 });
+
+/**
+ * Retrieves a cached compiled schema for the given widget definition.
+ * Returns the cached schema if found, or compiles and caches a new one.
+ *
+ * @param widgetDef - The widget definition to compile a schema for
+ * @param compileFn - Function that performs the actual schema compilation
+ * @returns The compiled Valibot schema
+ */
+export function getCachedSchema<T>(widgetDef: WidgetDefinition, compileFn: () => T): T {
+  const cacheKey = `${widgetDef.widgetId}:${widgetDef.Name}`;
+
+  const cached = schemaCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached as T;
+  }
+
+  const compiled = compileFn();
+  schemaCache.set(cacheKey, compiled);
+  return compiled;
+}
+
+/**
+ * Invalidates the cached schema for a given widget definition.
+ * Call this when the widget's validation schema changes.
+ *
+ * @param widgetDef - The widget definition whose cache entry should be invalidated
+ */
+export function invalidateSchemaCache(widgetDef: WidgetDefinition): void {
+  const cacheKey = `${widgetDef.widgetId}:${widgetDef.Name}`;
+  schemaCache.delete(cacheKey);
+}
 
 // A base constraint for widget-specific properties.
 type WidgetProps = Record<string, unknown>;
