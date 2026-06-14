@@ -94,7 +94,7 @@ reveal after position calculation prevents layout flash.
 		}
 	});
 
-	const activeTabindex = $derived(hasFocusableDescendant ? undefined : (tabindex === null ? undefined : tabindex));
+	const activeTabindex = $derived(hasFocusableDescendant ? undefined : (tabindex === null ? undefined : (typeof tabindex === 'string' ? parseInt(tabindex, 10) : tabindex)));
 	const activeRole = $derived(hasFocusableDescendant ? undefined : (role === null ? undefined : role));
 
 	function show() {

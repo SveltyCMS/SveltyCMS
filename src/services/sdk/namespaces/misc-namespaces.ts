@@ -406,6 +406,23 @@ export class WebsiteTokensNamespace extends BaseNamespace {
       { collection: "websiteTokens" },
     );
   }
+  async update(tokenId: string, data: any, options: LocalApiOptions = {}) {
+    const { tenantId } = options;
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        const result = await this._dbAdapter.crud.update<any>(
+          "websiteTokens",
+          tokenId as any,
+          data,
+          { tenantId: tenantId as DatabaseId },
+        );
+        if (!result.success) throw new AppError(result.message, 500);
+        return result.data;
+      },
+      { collection: "websiteTokens" },
+    );
+  }
 }
 
 /**
