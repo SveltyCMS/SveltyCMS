@@ -78,10 +78,9 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         family: 4,
         connectTimeoutMS: 10000,
         waitQueueTimeoutMS: 10000,
-        // Wire compression (zstd/snappy) — exploits redundancy in BSON/JSON docs between
-        // SvelteKit server and MongoDB (low-entropy field names, repeated metadata).
-        // Driver lazy-loads optional peers (@mongodb-js/zstd, snappy). Safe no-op if unavailable.
-        // Complements storage-level WiredTiger compression. See entropy analysis + benchmarks.
+        // Wire compression — zstd preferred for best ratio on CMS JSON, snappy as fallback.
+        // zstd requires optional peer @mongodb-js/zstd. Connection wraps in try/catch
+        // to gracefully degrade to snappy-only when zstd is not installed (CI, minimal deploys).
         compressors: ["zstd", "snappy"],
       };
 
@@ -100,7 +99,22 @@ export abstract class MongoAdapterCore extends BaseAdapter {
 
       this._connection = await mongoose
         .createConnection(connectionString, connectOptions)
-        .asPromise();
+        .asPromise()
+        .catch(async (err: any) => {
+          // Graceful fallback: if @mongodb-js/zstd is not installed (CI, minimal deploys),
+          // retry with snappy-only compression instead of crashing the boot process.
+          if (err?.name === "MongoMissingDependencyError" || err?.message?.includes("zstd")) {
+            logger.warn(
+              "@mongodb-js/zstd not installed — falling back to snappy-only wire compression",
+            );
+            const fallbackOpts = {
+              ...connectOptions,
+              compressors: ["snappy"] as any,
+            };
+            return mongoose.createConnection(connectionString, fallbackOpts).asPromise();
+          }
+          throw err;
+        });
 
       this.connected = true;
 
