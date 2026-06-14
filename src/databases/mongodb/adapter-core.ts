@@ -67,20 +67,29 @@ export abstract class MongoAdapterCore extends BaseAdapter {
           : {};
 
       // Determine wire compressors safely.
-      // zstd is an *optional* peer (@mongodb-js/zstd). We must never list it in
-      // `compressors` unless the module can actually be loaded, otherwise the
-      // MongoDB driver throws MongoMissingDependencyError on first operation
-      // that uses compression (including role seeding in ensureAuth during boot).
-      // This was causing hard CRITICAL BOOT FAILURE in CI for the mongodb matrix
-      // job (and any minimal deploy) even though snappy is always sufficient.
-      const compressors: ("zstd" | "snappy")[] = ["snappy"];
+      // Both "zstd" (@mongodb-js/zstd) and "snappy" (snappy) are *optional* peers.
+      // We must never list a compressor in `compressors` unless its module can
+      // actually be loaded at runtime. Otherwise the MongoDB driver throws
+      // MongoMissingDependencyError during operations like role seeding in
+      // ensureAuth (called from 'base' plugin during bootAll).
+      //
+      // In CI (and minimal deploys) neither optional module is present, so we
+      // end up with no wire compression — which is perfectly fine and prevents
+      // the hard CRITICAL BOOT FAILURE we were seeing.
+      const compressors: string[] = [];
       try {
-        // Probe (do not keep reference; the driver will load it itself if present).
-        // @ts-expect-error - optional peer dependency for zstd wire compression
+        // @ts-expect-error - optional peer for zstd wire compression
         await import("@mongodb-js/zstd");
-        compressors.unshift("zstd"); // prefer better compressor when available
+        compressors.push("zstd");
       } catch {
-        // Module not present — snappy only (graceful, no error ever thrown by driver).
+        // not present — skip
+      }
+      try {
+        // @ts-expect-error - optional peer for snappy wire compression
+        await import("snappy");
+        compressors.push("snappy");
+      } catch {
+        // not present — skip
       }
 
       const connectOptions: mongoose.ConnectOptions = {
@@ -95,7 +104,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         family: 4,
         connectTimeoutMS: 10000,
         waitQueueTimeoutMS: 10000,
-        compressors,
+        ...(compressors.length > 0 ? { compressors: compressors as any } : {}),
       };
 
       const globalOptions = {
@@ -115,19 +124,18 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         .createConnection(connectionString, connectOptions)
         .asPromise()
         .catch(async (err: any) => {
-          // Defense-in-depth: if for any reason (bundler, race, future driver change)
-          // a MongoMissingDependencyError for zstd still surfaces, retry without it.
+          // Defense-in-depth: if a missing compressor module still surfaces for
+          // any reason, retry the connection with the compressors key removed.
           if (
             err?.name === "MongoMissingDependencyError" ||
+            (err?.message || "").includes("snappy") ||
             (err?.message || "").includes("zstd")
           ) {
             logger.warn(
-              "@mongodb-js/zstd not installed (or probe missed it) — falling back to snappy-only wire compression",
+              "Optional MongoDB wire-compressor module(s) not installed (or probe missed it) — retrying connection with no compression",
             );
-            const fallbackOpts = {
-              ...connectOptions,
-              compressors: ["snappy"] as any,
-            };
+            const fallbackOpts = { ...connectOptions };
+            delete (fallbackOpts as any).compressors;
             return mongoose.createConnection(connectionString, fallbackOpts).asPromise();
           }
           throw err;
