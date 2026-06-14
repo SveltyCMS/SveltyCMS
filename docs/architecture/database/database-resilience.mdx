@@ -6,7 +6,7 @@ order: 12
 icon: "mdi:shield-refresh"
 author: "SveltyCMS Team"
 created: "2025-11-11"
-updated: "2026-05-24"
+updated: "2026-06-14"
 tags:
   - "architecture"
   - "database"
@@ -170,8 +170,8 @@ The resilience system now includes a robust **Circuit Breaker** to prevent casca
   - `OPEN`: Failures exceeded threshold. Requests fail-fast immediately without hitting the DB.
   - `HALF_OPEN`: Cooldown elapsed. Testing one request to see if the service recovered.
 - **Recovery Policy**:
-  - After **30 seconds** in `OPEN` state, the breaker automatically moves to `HALF_OPEN`.
-  - It allows **one** probe request: if successful, it moves to `CLOSED`; if it fails, it returns to `OPEN` for another 30s.
+  - After **60 seconds** in `OPEN` state, the breaker automatically moves to `HALF_OPEN`.
+  It allows **one** probe request: if successful, it moves to `CLOSED`; if it fails, it returns to `OPEN` for another 60s.
 - **Config**:
   - `failureThreshold`: 5 consecutive errors.
   - `cooldownMs`: 60,000 (1 minute) cooldown.

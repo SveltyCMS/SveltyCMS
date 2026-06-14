@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-03-27"
+updated: "2026-06-14"
 tags:
   - "cache"
   - "redis"
@@ -113,6 +113,11 @@ The 2026 Enterprise Cache Engine includes several high-performance patterns to e
 - **O(1) Tag-Based Eviction**: Utilizes a reverse mapping (`keyToTags`) to perform instantaneous L1 invalidations. Instead of scanning the entire cache, the system targets specific keys associated with a modified entity.
 - **Redis Pipelining**: Uses `.multi()` for batched invalidations and tag updates, reducing network round-trips to the Redis L2 layer.
 - **Metrics Capping**: All latency tracking buffers are capped at 100 samples with automatic shifting, preventing memory growth.
+- **Iterator-Based Bulk Clears**: `clearLocalL1ByPattern` and `clearLocalL1ByTags` use direct Set iterators instead of `Array.from()` copies, reducing memory allocation during high-cardinality cache invalidations. The `_isBulkClearing` guard defers per-key tag cleanup to a post-clear batch pass, avoiding O(deleted) × O(tags) Map/Set operations inline.
+- **Regex-Skip Fast Path**: Pattern matching in clears checks the last character first — if no glob characters (`*` or `?`), the regex is skipped entirely. Most cache keys have no glob patterns.
+- **CDN Purge Fast-Path**: A cached `_cdnActive` flag prevents the full `CdnService.getInstance()` + `loadPrivateConfig()` dynamic import chain on every `publishInvalidation` call when no Cloudflare credentials are configured (the common case for SQLite/embedded deploys).
+- **Pre-Compressed Cache Entries**: On cache MISS, the API request handler stores both the raw body and pre-compressed variants (Brotli + gzip) using shared `compressSync`. On cache HIT, the pre-made compressed bytes are served directly when the client's `Accept-Encoding` matches — zero re-stringify, zero re-compress. Size observability headers (`X-Original-Size`, `X-Compressed-Size`, `X-Compression-Ratio`, `X-Compression-Algorithm`) are emitted for matrix trend tracking.
+- **Shared Compression Utilities**: `setCompressionHeaders()` provides a single DRY helper for all compression header logic across `handleApiRequests` and `handleTurboGet`. `negotiateEncoding()` and `hasNativeCompression()` are exported for reuse.
 - **Isomorphic Environment Isolation**: Uses **Lazy Holders** for all `.server` modules within the cache system to prevent server-side logic from leaking into client-side bundles.
 
 ### Integrated Cache Metrics
@@ -176,8 +181,9 @@ Typical production metrics (Steady State):
 
 | Operation            | L1/L2 Cache Latency | Status              |
 | :------------------- | :------------------ | :------------------ |
-| **Get User**         | < 10ms              | **High Perf**       |
-| **List Collections** | 1.2ms               | **Sub-ms Response** |
+| **Get User**               | < 10ms              | **High Perf**       |
+| **Cache HIT (Pre-Compressed)** | < 0.5ms              | **Ultra-Fast**      |
+| **List Collections**       | 1.2ms               | **Sub-ms Response** |
 | **Search Content**   | 2.5ms               | **Optimized**       |
 | **Dashboard Load**   | 5ms                 | **Ultra-Fast**      |
 

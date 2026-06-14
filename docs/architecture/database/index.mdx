@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-06-04"
+updated: "2026-06-14"
 tags:
   - "database"
   - "architecture"
@@ -92,7 +92,49 @@ graph TD
 
 ---
 
-## 🔧 Key Performance Features (2026)
+## 🛡️ Shared Security Principles (All Adapters)
+
+These security guarantees apply uniformly across MongoDB, PostgreSQL, MariaDB, and SQLite — enforced at the application layer, not per-adapter:
+
+- **4-Layer Defense-in-Depth**: Middleware → Dispatcher → Handler → Page Action. Each layer re-validates permissions independently. No single compromised layer grants full access.
+- **Tenant Isolation**: Every query is scoped by `tenantId` at the adapter interface level. Cross-tenant data leakage is architecturally impossible — the filter is injected before any query reaches the database.
+- **SSRF Prevention** (June 2026): Cloud storage adapters (S3/R2) validate endpoints before connection — blocks private IPs (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), cloud metadata hosts (169.254.169.254), and non-HTTP protocols.
+- **NoSQL Injection Protection**: MongoDB queries pass through `sanitizeMongoQuery` which blocks `$where`, `$function`, `$expr`, and other dangerous operators before execution.
+- **CSPRNG-Only Tokens**: All session tokens, API keys, and reset tokens use `globalThis.crypto.getRandomValues()`. No `Math.random()` fallback — the system throws if crypto is unavailable.
+- **Timing-Safe Comparisons**: All authentication paths use `crypto.timingSafeEqual` to neutralize side-channel attacks.
+- **Fail-Closed API**: Unmapped API namespaces return 403 by default. No namespace is allowed without explicit permission mapping.
+
+For the complete security architecture, see [Security Documentation](../security/index.mdx).
+
+---
+
+## 🔄 Shared Resilience Patterns (All Adapters)
+
+Every database adapter inherits these patterns from the shared `DatabaseResilience` singleton:
+
+- **Exponential Backoff with Jitter**: `executeWithRetry()` wraps idempotent operations with configurable delays (1s → 2s → 4s → 8s → 16s, ±500ms jitter).
+- **Circuit Breaker**: After 5 consecutive failures, the breaker opens for 60 seconds — requests fail-fast without hitting the database. Probes test recovery in HALF_OPEN state.
+- **Self-Healing Reconnection**: MongoDB/SQL event handlers + `attemptReconnection()` with structured logging. State transitions (IDLE → FAILED → READY) are tracked in the system state machine.
+- **Connection Pool Diagnostics**: `GET /api/database/pool-diagnostics` exposes utilization %, waiting count, idle count, and smart recommendations (e.g., "increase maxPoolSize" or "consider PgBouncer").
+- **Migration Safety**: All SQL adapters use `CREATE TABLE IF NOT EXISTS` — idempotent, safe to run on every startup. Drizzle `db:push` integrated for schema changes.
+
+For full details, see [Database Resilience](./database-resilience.mdx).
+
+---
+
+## ⚡ June 2026 Performance Optimizations (All Adapters)
+
+These optimizations from the 19-file multi-phase sprint apply across all database engines:
+
+- **Batch Relational Upserts**: `setMany` (preferences) and `bulkUpdate` (content nodes) converted from N individual SELECT+INSERT/UPDATE round-trips to single `INSERT ... ON CONFLICT DO UPDATE` with dialect-specific handling (PostgreSQL/SQLite `excluded.*`, MariaDB/MySQL `VALUES()`). During setup seeding: ~80 queries → 1.
+- **Pre-Compressed Cache Entries**: On cache MISS, API responses are compressed (Brotli/gzip/zstd with trained 110KB CMS dictionary) and stored. On cache HIT, pre-made bytes served directly — zero re-stringify, zero re-compress. Interacts with the DB layer only on MISS.
+- **Non-Blocking Audit**: Audit logging is fire-and-forget — context captured before `await resolve(event)`, log written in detached promise. No blocking DB writes on the mutation hot path.
+- **Wire Compression**: MongoDB adapter uses `["zstd", "snappy"]` compressors for the BSON wire protocol between server and database.
+- **Iterator-Based Cache Clears**: `clearLocalL1ByPattern` uses direct Set iterators + deferred tag cleanup — avoids O(deleted) × O(tags) Map/Set operations during bulk invalidations.
+
+See [Performance Architecture](./performance-architecture.mdx) and [Benchmark Reports](../../project/benchmarks/index.mdx) for measured results (-78% to -88% relational latency, audit overhead eliminated, +336% RPS).
+
+---
 
 - **Sub-Millisecond Persistence**: Our SQL adapters achieve <1ms writes through atomic batching and write-ahead logging.
 - **Zero-Allocation Transformation**: The `RelationalUtils` engine uses a dirty-bit check to avoid object cloning during date/JSON conversion.
@@ -143,22 +185,45 @@ All four databases run on the same machine (`localhost`), but they communicate v
 
 Every TCP round-trip — even to `localhost` — must traverse the kernel networking stack: syscalls, buffer copies, and context switches. SQLite bypasses all of this, executing queries directly in-process via the C ABI.
 
-### Adapter Selection Guide
+### Adapter Selection Guide + Recommended Database by Scale
 
-SQLite is not "cheating" — it is the correct default for the architecture SveltyCMS targets. The network databases are there when you need to scale beyond a single process.
+SQLite is not "cheating" — it is the correct default for the architecture SveltyCMS targets. The network databases are there when you need to scale beyond a single process. **All scaling layers (external DB poolers, Redis, reverse proxies) are strictly optional and composable.**
 
-| Use Case                                 | Best Adapter                  | Why                                                           |
-| :--------------------------------------- | :---------------------------- | :------------------------------------------------------------ |
-| Single server, single process, max speed | **SQLite**                    | In-process, zero-network, 8–50× faster raw CRUD               |
-| Single server, high-write concurrency    | **MongoDB**                   | Best network DB CRUD (0.8–1.9 ms). Row-level locking          |
-| Multi-server / Kubernetes / replicas     | **PostgreSQL** or **MariaDB** | Native replication, connection pooling, horizontal scaling    |
-| Fastest HTTP response times              | **MariaDB**                   | 1.097 ms API. 0.728 ms auth. Best connection pooling overhead |
+#### Recommended by Deployment Scale (2026 Enterprise Guidance)
 
-For the full breakdown of response times, cold-start latencies, scalability metrics, and the complete 35-benchmark audit, see the [Performance Benchmarks](/docs/project/benchmarks/index) document.
+Use the scaling formula below. Each layer adds capability without forcing complexity on simple deploys. See the full [Enterprise Scaling Layers guide](../../guides/deployment/scaling-layers.mdx) (includes PgBouncer/ProxySQL config, Redis best practices, Nginx examples tuned for our pre-compressed turbo paths + trusted proxies via `TRUSTED_PROXIES`).
+
+| Scale / Workload                  | Recommended DB                  | Key Optional Layers                          | Why |
+| :-------------------------------- | :------------------------------ | :------------------------------------------- | :-- |
+| Dev, small teams, embedded, edge  | **SQLite** (default)            | None (pure L1 cache)                         | In-process, zero network, sub-ms CRUD, WAL for concurrency. Platinum for local. |
+| Production single node, <10K req/hr | **PostgreSQL**                  | L1 + driver pool (max ~100-200)              | Production-ready, native JSONB, FTS, replication ready. Better than MariaDB for most CMS JSON workloads. |
+| Enterprise / multi-instance (>100K req/hr, K8s) | **PostgreSQL**                  | **PgBouncer** (DB_POOLER_TYPE=pgbouncer, DB_POOLER_URL on :6432, mode=transaction) + **Redis** (USE_REDIS for L2 + cross-node invalidation + stampede protection) | Multiplex thousands of client conns to small real pool. Redis enables stateless horizontal scale + pub/sub edge sync. See scaling-layers.mdx. |
+| Global / multi-region / high concurrency | **PostgreSQL** (primary + read replicas) | Above + **reverse proxy** (Nginx/Caddy with WS /ws upgrade, trusted proxies, disable double-compress on dynamic) + CDN | Read replicas for reads; proxy for TLS/headers/LB; CDN for static/media. Multi-tenancy via tenantId isolates workloads. |
+
+**Config surface for scaling layers** (all optional in `config/private.ts` / env):
+- DB_POOLER_* for external poolers (PgBouncer for PG, ProxySQL for MariaDB).
+- USE_REDIS + REDIS_* (clean L1 fallback if unset).
+- TRUSTED_PROXIES for reverse proxy header trust (critical for rate limiting, audit, security).
+
+MariaDB remains excellent for high-concurrency MySQL-compatible setups. MongoDB for unstructured/high-volume. SQLite for anything that fits in one process.
+
+The "N nodes + PgBouncer + Redis → global + read replicas + CDN" path requires **zero code changes** — only the optional infrastructure + the config keys above.
+
+For the full breakdown of response times, cold-start latencies, scalability metrics, and the complete benchmark audit (now including post-dict wiring), see the [Performance Benchmarks](/docs/project/benchmarks/index) document and the scaling layers guide.
+
+#### Quick Adapter Matrix (Raw Performance on localhost)
+
+| Operation         |    SQLite     | MongoDB  |   MariaDB    | PostgreSQL |
+| :---------------- | :-----------: | :------: | :----------: | :--------: |
+| INSERT            | **0.107 ms**  | 0.853 ms |   2.331 ms   |  2.841 ms  |
+| ... (see full table in benchmarks) | ... | ... | ... | ... |
+
+(Full current numbers, including post-optimization relational batch wins and compression, are in the benchmark reports. The matrix above is illustrative of the floor differences.)
 
 ---
 
-**Last Updated**: 2026-05-24
+**Last Updated**: 2026-06-14 (added shared security, resilience, performance sections + scale-based recommendations + external pooler / Redis / proxy guidance from 2026 enterprise work)
+
 **Maintained by**: SveltyCMS Team
 ````
 

@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:elephant"
 author: "SveltyCMS Team"
 created: "2026-02-04"
-updated: "2026-05-24"
+updated: "2026-06-14"
 tags:
   - "database"
   - "postgresql"
@@ -173,6 +173,99 @@ Key PostgreSQL highlights:
 - [postgres.js GitHub](https://github.com/porsager/postgres)
 - [MariaDB Implementation](./mariadb-implementation.mdx)
 ````
+
+---
+
+## 🚀 Production Scaling with PgBouncer (Enterprise)
+
+For high-concurrency Postgres deployments or managed databases with connection limits (RDS, Azure, Cloud SQL), SveltyCMS recommends deploying **PgBouncer** as a connection proxy layer. This follows the same pattern used at scale by Instagram, OpenAI, and other Postgres-heavy platforms.
+
+### Why PgBouncer
+
+- **Connection Multiplexing**: PgBouncer sits between your app instances and Postgres, pooling hundreds of lightweight client connections onto a small pool of real Postgres backend connections. This prevents "too many clients" errors on managed DBs (often limited to 50-200 connections).
+- **Lower Latency**: App connections to PgBouncer are cheap (Unix socket or localhost). Real Postgres connection setup (~50ms) is avoided on every request — PgBouncer reuses existing backend connections.
+- **Reduced Postgres CPU**: Fewer Postgres backend processes mean fewer context switches and less memory pressure in Postgres's multi-process model.
+- **Horizontal Scaling**: Adding more app instances doesn't require increasing Postgres `max_connections` — they all share PgBouncer's pool.
+
+### Deployment Pattern
+
+```mermaid
+graph LR
+    A[App Instance 1] --> B[PgBouncer]
+    C[App Instance 2] --> B
+    D[App Instance N] --> B
+    B --> E[(PostgreSQL)]
+```
+
+Deploy PgBouncer as a **sidecar** on each app instance (localhost:6432) or as a **central proxy** behind a lightweight load balancer. The sidecar pattern minimizes network latency.
+
+### Recommended Configuration
+
+Create `/etc/pgbouncer/pgbouncer.ini`:
+
+```ini
+[databases]
+sveltycms = host=127.0.0.1 port=5432 dbname=sveltycms
+
+[pgbouncer]
+listen_addr = 127.0.0.1
+listen_port = 6432
+auth_type = md5
+auth_file = /etc/pgbouncer/userlist.txt
+
+;; Transaction pooling — best efficiency for web workloads.
+;; Connections are returned to the pool immediately after each transaction.
+pool_mode = transaction
+
+;; Conservative defaults. Tune based on CPU cores and workload.
+default_pool_size = 25
+max_client_conn = 500
+
+;; Cleanup between client uses (prevents session state leakage)
+server_reset_query = DISCARD ALL
+
+;; Logging for observability
+log_connections = 1
+log_disconnections = 1
+stats_period = 60
+```
+
+### SveltyCMS Integration
+
+When using PgBouncer in **transaction mode**, set the following in your environment or `config/private.ts`:
+
+```bash
+# Point the app to PgBouncer instead of direct Postgres
+DB_HOST=127.0.0.1
+DB_PORT=6432
+
+# Required: Disable server-side prepared statements when behind PgBouncer
+# (PgBouncer tx mode cannot guarantee the same backend connection between
+# prepare and execute, causing "prepared statement does not exist" errors)
+DATABASE_PREPARE=false
+```
+
+The adapter automatically detects `DATABASE_PREPARE=false` and sets `prepare: false` in the `postgres.js` driver. This trades the ~40% parse/plan win from server-side prepared statements for seamless PgBouncer compatibility. The query planner cache in Postgres still provides significant optimization.
+
+> [!WARNING]
+> **Session State Limitations**: Transaction pooling does NOT preserve session-level state (`SET` statements, temporary tables, `LISTEN`/`NOTIFY`, certain cursor types, advisory locks). SveltyCMS does not depend on any of these — all state is managed at the application layer via our cache, auth sessions, and LocalCMS SDK.
+
+### Monitoring
+
+Check PgBouncer health via its admin console:
+
+```bash
+psql -h 127.0.0.1 -p 6432 -U pgbouncer pgbouncer
+> SHOW POOLS;
+> SHOW STATS;
+> SHOW CLIENTS;
+```
+
+SveltyCMS's built-in `ConnectionPoolOptions` and `getConnectionPoolStats()` work transparently whether connecting directly or through PgBouncer. For production, monitor:
+
+- `cl_waiting` (should stay near 0 — increase `default_pool_size` if growing)
+- `avg_wait_time` (should be < 1ms)
+- Postgres `active` connections (should be stable, not climbing)
 
 ---
 

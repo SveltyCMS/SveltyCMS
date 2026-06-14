@@ -47,6 +47,29 @@ export const privateConfigSchema = object({
   DB_RETRY_DELAY: optional(pipe(coercedNumber, minValue(1))),
   DB_POOL_SIZE: optional(pipe(coercedNumber, minValue(1))),
 
+  // --- Enterprise Scaling Layers (optional, zero-config default = driver-internal pools) ---
+  // External DB connection pooler (PgBouncer for Postgres, ProxySQL/MaxScale for MariaDB/MySQL, mongos awareness for Mongo).
+  // When enabled, adapters adjust connection strings, prepare statements (PG: prepare:false in transaction mode), and pool sizing.
+  // See docs/guides/deployment/scaling-layers.mdx for full guidance + examples. Fully optional; single-node works without.
+  DB_POOLER_TYPE: optional(
+    union([
+      literal("pgbouncer"),
+      literal("proxysql"),
+      literal("mongos"),
+      literal("none"),
+      literal(""),
+    ]),
+  ),
+  DB_POOLER_URL: optional(string()), // Full connection string to the pooler (e.g. postgres://... on port 6432). Falls back to primary DB if unset.
+  DB_POOLER_MODE: optional(
+    union([literal("transaction"), literal("session"), literal("statement")]),
+  ),
+  DB_POOLER_PREPARE: optional(coercedBoolean), // Override for PG (false recommended behind PgBouncer tx mode to avoid prepared stmt issues)
+
+  // Trusted reverse proxies (Nginx, Caddy, Traefik, load balancers). For correct client IP, rate limiting, security headers (X-Forwarded-*).
+  // Comma or array in env; used by hooks/index for proxy header trust. Optional for direct deploys.
+  TRUSTED_PROXIES: optional(union([string(), array(string())])),
+
   // --- JWT Secret (Essential for startup) ---
   JWT_SECRET_KEY: pipe(
     string(),

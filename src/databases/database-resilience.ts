@@ -556,6 +556,13 @@ export class DatabaseResilience {
       recommendations.push("Pool size is very small. Consider increasing for better concurrency.");
     }
 
+    // Enterprise scaling: external pooler recommendation (PgBouncer for PG, ProxySQL for MariaDB)
+    if (stats.waiting > 5 || utilization > 70) {
+      recommendations.push(
+        "High pool pressure or waiting requests. For Postgres at scale (or managed DBs with connection limits), deploy PgBouncer as optional proxy layer (transaction mode). MariaDB equivalent: ProxySQL. Full guidance + examples: docs/guides/deployment/scaling-layers.mdx. Redis (optional) + reverse proxy are complementary layers.",
+      );
+    }
+
     if (recommendations.length === 0) {
       recommendations.push("Connection pool is healthy and well-configured.");
     }

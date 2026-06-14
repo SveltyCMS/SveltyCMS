@@ -6,7 +6,7 @@ order: 0
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-10"
+updated: "2026-06-14"
 tags:
   - "getting-started"
   - "quickstart"
@@ -16,7 +16,10 @@ tags:
 
 # Getting Started with SveltyCMS
 
-Get up and running in under 10 minutes — whether you're a **Developer** installing the system, an **Administrator** configuring permissions, or a **Content Creator** building your first site.
+Get up and running in minutes — whether you're a **Developer** installing the system, an **Administrator** configuring permissions, or a **Content Creator** building your first site.
+
+> 💡 **Default**: SQLite (zero-config, in-process, sub-millisecond). No Docker, no external database needed.
+> Upgrade to PostgreSQL/MongoDB/MariaDB when you need multi-instance scale.
 
 ---
 
@@ -39,25 +42,23 @@ SveltyCMS features a **Self-Healing Setup Wizard** that automates database confi
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 
-# 2. Install dependencies (Bun recommended)
+# 2. Install dependencies (Bun recommended, 3-4× faster than Node.js)
 bun install
-# Windows users: if bun install fails, use `npm install` instead
+# Windows: if bun install fails, use `npm install` instead (upstream Bun bug)
 
-# 3. Start development server
+# 3. Start — auto-launches Setup Wizard on first run
 bun run dev
 ```
 
-### Setup Wizard Flow
+Navigate to `http://localhost:5173`. The system detects the absence of `config/private.ts` and launches the self-healing Setup Wizard.
 
-Navigate to `http://localhost:5173`. The system detects the absence of `config/private.ts` and launches the wizard:
-
-| Step                    | What Happens                                                    |
-| ----------------------- | --------------------------------------------------------------- |
-| 1. **Choose Database**  | MongoDB, PostgreSQL, MariaDB, or SQLite (fastest for local dev) |
-| 2. **Test Connection**  | Auto-installs required drivers, validates connectivity          |
-| 3. **Create Admin**     | Set master credentials with Argon2id password hashing           |
-| 4. **Configure System** | Site name, languages, media storage, optional Redis             |
-| 5. **Email & Review**   | Optionally configure SMTP, review all settings, complete setup  |
+| Step                    | What Happens                                                                                                                |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 1. **Choose Database**  | **SQLite** (default, fastest for local dev), PostgreSQL, MariaDB, or MongoDB                                                |
+| 2. **Test Connection**  | Auto-installs required drivers, validates connectivity                                                                      |
+| 3. **Create Admin**     | Set master credentials with Argon2id password hashing                                                                       |
+| 4. **Configure System** | Site name, languages, media storage, optional Redis                                                                         |
+| 5. **Email & Complete** | Optionally configure SMTP (optional), review settings, complete setup. System transitions to READY with progressive warmup. |
 
 The system seeds the database and transitions to `READY` — no manual config file editing.
 
@@ -93,8 +94,7 @@ The CMS is designed for clarity and speed.
 ### First Tasks
 
 1.  **Configure Settings**: Go to **⚙️ Config** to set your Site Name, Default Language, and Theme.
-2.  **Create a Collection**: Collections define your content structure. Go to **📚 Collections** → **+ New Collection**.
-    - _Example_: Create a "posts" collection with fields for Title (text), Content (richtext), and Status (select).
+2.  **Create a Collection**: Go to **📚 Collections** → **+ New Collection**. Choose from 5 pre-built templates (Blog, Agency, SaaS, Corporate, E-commerce) or build from scratch.
 3.  **Add Your First Entry**: Open your new collection and click **+ New Entry**. Fill in the fields and click **Save**.
 
 ---

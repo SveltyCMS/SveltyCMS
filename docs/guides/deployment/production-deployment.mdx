@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-30"
-updated: "2026-03-27"
+updated: "2026-06-14"
 tags:
   - "production"
   - "deployment"
@@ -19,19 +19,22 @@ tags:
 
 # Production Deployment & Optimization
 
-This comprehensive guide covers deploying SveltyCMS in production with Nginx reverse proxy, Redis caching, and enterprise-grade optimizations for maximum performance and security.
+This comprehensive guide covers deploying SveltyCMS in production with Nginx reverse proxy, optional Redis caching, and enterprise-grade optimizations for maximum performance and security.
+
+> [!TIP]
+> **New in June 2026**: See [Enterprise Scaling Layers](./scaling-layers.mdx) for the complete composable scaling story — PgBouncer connection pooling, optional Redis, pre-compressed cache HITs (Brotli/zstd), CDN purge, and deployment diagrams. Start simple (single-node SQLite) and add layers as you grow.
 
 ---
 
 ## Architecture Overview
 
-The recommended production architecture consists of:
+The recommended production architecture is composable — start minimal and add layers:
 
-- **Nginx** - Reverse proxy, static asset serving, rate limiting, TLS termination
-- **SveltyCMS** - Node.js application running in cluster mode
-- **Redis** - Distributed caching and session storage
-- **PM2** - Process manager for zero-downtime deployments
-- **Database** - MongoDB or PostgreSQL with connection pooling
+- **Nginx / Caddy** — Reverse proxy, TLS termination, static asset serving, optional rate limiting
+- **SveltyCMS** — Bun runtime (3-4× faster than Node.js), Turbo pipeline, LocalCMS zero-tax SDK
+- **Redis** (optional) — Distributed L2 cache, cross-node invalidation, session sharing
+- **PgBouncer** (optional) — Connection pooling for Postgres at scale (see scaling-layers.mdx)
+- **Database** — SQLite (single-node), PostgreSQL, MariaDB, or MongoDB with connection pooling
 
 ````text
 Internet → Nginx (443) → PM2 Cluster → SveltyCMS → Redis → Database
@@ -104,7 +107,13 @@ server {
     access_log /var/log/nginx/sveltycms.access.log;
     error_log /var/log/nginx/sveltycms.error.log warn;
 
-    # ===== STATIC ASSETS (Nginx serves directly) =====
+# ===== STATIC ASSETS (Nginx serves directly) =====
+
+    # 🚀 IMPORTANT: SveltyCMS handles compression internally for dynamic paths.
+    # Turbo GET + API cache HITs already ship pre-compressed brotli/gzip/zstd
+    # with Content-Encoding set. Do NOT enable gzip/brotli on dynamic locations
+    # (proxy_pass) — this would double-compress and waste CPU.
+    # Static assets below can use Nginx's gzip_static/brotli_static safely.
 
     # SvelteKit immutable assets
     location ~ ^/_app/immutable/ {

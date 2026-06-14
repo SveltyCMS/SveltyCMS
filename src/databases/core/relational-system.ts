@@ -247,7 +247,11 @@ export class RelationalSystemModule implements ISystemAdapter {
         } else {
           await this.getDb(options as any)
             .insert(this.schema.systemPreferences)
-            .values({ ...data, _id: String(utils.generateId()), createdAt: now });
+            .values({
+              ...data,
+              _id: String(utils.generateId()),
+              createdAt: now,
+            });
         }
       }, "SET_PREFERENCE_FAILED");
     },
@@ -263,14 +267,34 @@ export class RelationalSystemModule implements ISystemAdapter {
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
-        for (const pref of preferences) {
-          await this.preferences.set(pref.key, pref.value, {
-            scope: pref.scope,
-            userId: pref.userId,
-            category: pref.category,
-            tenantId: (options as any)?.tenantId,
+        if (preferences.length === 0) return;
+        const now = utils.nowISODateString();
+        const db = this.getDb(options as any);
+        const tid = (options as any)?.tenantId ? String((options as any).tenantId) : null;
+        const rows = preferences.map((pref) => ({
+          _id: String(utils.generateId()),
+          key: String(pref.key),
+          value: encodePreferenceValue(this.adapter.type, pref.value),
+          scope: String(pref.scope || "system"),
+          userId: pref.userId ? String(pref.userId) : null,
+          visibility: String(pref.category || "private"),
+          tenantId: tid,
+          createdAt: now,
+          updatedAt: now,
+        }));
+        await db
+          .insert(this.schema.systemPreferences)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [this.schema.systemPreferences.key, this.schema.systemPreferences.tenantId],
+            set: {
+              value: sql`excluded.value`,
+              scope: sql`excluded.scope`,
+              userId: sql`excluded.userId`,
+              visibility: sql`excluded.visibility`,
+              updatedAt: sql`excluded.updatedAt`,
+            },
           });
-        }
       }, "SET_PREFERENCES_FAILED");
     },
 
@@ -730,7 +754,11 @@ export class RelationalSystemModule implements ISystemAdapter {
         } else {
           await this.getDb(options as any)
             .insert(this.schema.themes)
-            .values({ ...values, _id: theme._id || utils.generateId(), createdAt: now });
+            .values({
+              ...values,
+              _id: theme._id || utils.generateId(),
+              createdAt: now,
+            });
         }
       }
     },
@@ -834,7 +862,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         await this.db
           .update(this.schema.widgets)
-          .set({ isActive: true, updatedAt: isoDateStringToDate(nowISODateString()) })
+          .set({
+            isActive: true,
+            updatedAt: isoDateStringToDate(nowISODateString()),
+          })
           .where(eq(this.schema.widgets._id, widgetId));
       }, "ACTIVATE_WIDGET_FAILED");
     },
@@ -843,7 +874,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         await this.db
           .update(this.schema.widgets)
-          .set({ isActive: false, updatedAt: isoDateStringToDate(nowISODateString()) })
+          .set({
+            isActive: false,
+            updatedAt: isoDateStringToDate(nowISODateString()),
+          })
           .where(eq(this.schema.widgets._id, widgetId));
       }, "DEACTIVATE_WIDGET_FAILED");
     },
@@ -910,7 +944,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       sort?: string;
       order?: string;
     }): Promise<
-      DatabaseResult<{ data: import("../db-interface").WebsiteToken[]; total: number }>
+      DatabaseResult<{
+        data: import("../db-interface").WebsiteToken[];
+        total: number;
+      }>
     > => {
       return this.adapter.wrap(async () => {
         let q = this.db

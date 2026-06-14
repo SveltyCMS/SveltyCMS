@@ -12,6 +12,7 @@
  * - connection pooling and health checks
  * - native postgres JSONB querying
  * - optimized single-statement atomic increment
+ * - PgBouncer compatibility (DATABASE_PREPARE flag)
  */
 
 import { logger } from "@src/utils/logger";
@@ -241,13 +242,36 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         connect_timeout: 30,
       };
 
-      if (typeof finalConnection === "string") {
+      // Enterprise scaling: External pooler (PgBouncer etc.) support.
+      // Prefer DB_POOLER_URL when configured. For pgbouncer + transaction mode, default prepare:false
+      // (avoids server-prepared statement state issues when pooler multiplexes txs across backends).
+      // See docs/guides/deployment/scaling-layers.mdx. Fully optional.
+      let poolerUrl = "";
+      let effectivePrepare = true;
+      try {
+        const { getDbPoolerConfig } = await import("../config-state");
+        const pooler = getDbPoolerConfig();
+        if (pooler.enabled && pooler.url) {
+          poolerUrl = pooler.url;
+          if (pooler.type === "pgbouncer" && (pooler.mode === "transaction" || !pooler.mode)) {
+            effectivePrepare = pooler.prepare !== undefined ? !!pooler.prepare : false;
+          } else if (pooler.prepare !== undefined) {
+            effectivePrepare = !!pooler.prepare;
+          }
+        }
+      } catch {
+        // config not ready — fall back to direct (safe default)
+      }
+
+      const effectiveConnection = poolerUrl || finalConnection;
+
+      if (typeof effectiveConnection === "string") {
         try {
-          const url = new URL(finalConnection);
+          const url = new URL(effectiveConnection);
           options = {
             ...options,
             host: url.hostname,
-            port: Number(url.port) || 5432,
+            port: Number(url.port) || (poolerUrl ? 6432 : 5432),
             user: decodeURIComponent(url.username),
             password: decodeURIComponent(url.password),
             database: url.pathname.slice(1),
@@ -256,20 +280,21 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
             transform: { undefined: null },
           };
         } catch {
-          this.sql = postgres(finalConnection, {
+          this.sql = postgres(effectiveConnection, {
             onnotice: () => {},
             transform: { undefined: null },
+            prepare: effectivePrepare,
           });
           this._db = drizzle(this.sql, { schema });
           this.connected = true;
-          logger.info("Connected to PostgreSQL (String Mode)");
+          logger.info(`Connected to PostgreSQL (String Mode${poolerUrl ? " via pooler" : ""})`);
           return { success: true, data: undefined };
         }
       } else {
-        const c = (finalConnection || {}) as any;
+        const c = (effectiveConnection || {}) as any;
         options = {
           host: c.host || c.DB_HOST || "127.0.0.1",
-          port: Number(c.port || c.DB_PORT || 5432),
+          port: Number(c.port || c.DB_PORT || (poolerUrl ? 6432 : 5432)),
           user: c.user || c.DB_USER || "postgres",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME || "postgres",
@@ -281,12 +306,18 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         };
       }
 
-      // 🚀 Adapter Hot Path: Enable server-side prepared statements.
-      // postgres.js with `prepare: true` caches query plans server-side,
-      // eliminating parse/plan overhead (~40% reduction) on hot-path queries.
+      // PgBouncer compatibility: when behind a connection pooler in transaction mode,
+      // server-side prepared statements must be disabled (the backend connection can
+      // change between prepare and execute, causing "prepared statement does not exist").
+      // Set DATABASE_PREPARE=false to disable. Default is true for the ~40% parse/plan win.
+      const usePrepared =
+        effectivePrepare !== undefined
+          ? effectivePrepare
+          : process.env.DATABASE_PREPARE !== "false";
+
       this.sql = postgres({
         ...options,
-        prepare: true,
+        prepare: usePrepared,
         connect_timeout: 30,
         idle_timeout: 20,
         max_lifetime: 60 * 30, // 30 minutes

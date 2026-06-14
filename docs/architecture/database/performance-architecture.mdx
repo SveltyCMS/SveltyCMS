@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-05-24"
+updated: "2026-06-14"
 tags:
   - "performance"
   - "optimization"
@@ -32,6 +32,7 @@ Key architectural improvements include:
 - **Zero-Tax SDK Dispatcher**: Self-overwriting getters eliminate Proxy overhead after first access.
 - **Negative Caching**: O(1) missing-key cache prevents "DB miss storms" (2392x speedup).
 - **Prefix-Bucketed Invalidation**: O(1) namespace clearing replaces O(N) cache scans.
+- **Batch Relational Upserts**: `setMany` (preferences) and `bulkUpdate` (content nodes) now use true multi-row `INSERT ... ON CONFLICT DO UPDATE` via Drizzle ORM instead of N individual SELECT+INSERT/UPDATE round-trips. During setup seeding, this reduces ~80 individual DB queries to a single batch operation. Dialect-specific conflict handling (PostgreSQL/SQLite `excluded.*`, MariaDB/MySQL `VALUES()`) ensures adapter-agnostic performance.
 - **Rune-Based System State**: Svelte 5 runes (`$state`) provide zero-tax synchronous state access.
 - **Auto-Optimization**: Background Index Optimizer ensures database performance as schemas evolve.
 

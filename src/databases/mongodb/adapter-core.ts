@@ -78,6 +78,11 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         family: 4,
         connectTimeoutMS: 10000,
         waitQueueTimeoutMS: 10000,
+        // Wire compression (zstd/snappy) — exploits redundancy in BSON/JSON docs between
+        // SvelteKit server and MongoDB (low-entropy field names, repeated metadata).
+        // Driver lazy-loads optional peers (@mongodb-js/zstd, snappy). Safe no-op if unavailable.
+        // Complements storage-level WiredTiger compression. See entropy analysis + benchmarks.
+        compressors: ["zstd", "snappy"],
       };
 
       const globalOptions = {

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-06-10"
+updated: "2026-06-14"
 tags:
   - "security"
   - "documentation"
@@ -26,12 +26,13 @@ SveltyCMS implements enterprise-grade security measures across all system compon
 
 SveltyCMS security architecture includes:
 
+- **🔐 4-Layer Defense-in-Depth** — Middleware → Dispatcher → Handler → Page Action. Each layer re-validates independently. Fail-closed by default.
 - **🔐 Authentication & Authorization** - Multi-factor authentication, session management, RBAC
-- **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption
+- **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption, CSPRNG-only tokens (no `Math.random()` fallback)
 - **🛡️ Widget Security** - XSS prevention, injection protection, file validation
-- **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained), threat detection
+- **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained, fire-and-forget — non-blocking on mutations)
 - **🚀 Secure Development** - Build-time security checks, vulnerability scanning
-- **⚡ Enterprise Immunity** - Self-healing load shedding, graceful shutdown, and pre-compiled pipelines
+- **⚡ Enterprise Immunity** - Self-healing load shedding, graceful shutdown, SSRF endpoint validation, and pre-compiled pipelines
 
 ---
 

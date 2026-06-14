@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-06-10"
+updated: "2026-06-14"
 tags:
   - security
   - testing
@@ -120,6 +120,24 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 **Files Modified**: `src/utils/media/media-service.server.ts`, `src/utils/media/cloud-storage.ts`, `src/services/core/ai-service.ts`, `src/routes/api/graphql/+server.ts`, `src/widgets/core/rich-text/tiptap.ts`, `package.json`.
 
 **Tests**: All 64 defense-in-depth security regression tests pass. 0 lint errors. 0 type errors.
+
+### 8. June 2026 Performance Sprint — Security Preservation
+
+**Assessment Outcome**: 19-file multi-phase performance optimization sprint completed with **zero security regressions**. All 4 defense-in-depth layers preserved. 70/70 regression tests pass.
+
+**Key Security-Preserving Changes**:
+
+- ✅ **Fire-and-Forget Audit Logging**: Audit context (`userId`, `tenantId`, `path`, `method`) captured before `await resolve(event)`. Log written in detached `Promise.resolve().then(...)` — no blocking writes on the mutation hot path. SHA-256 chain integrity preserved (`src/hooks/handle-audit-logging.ts`).
+- ✅ **Turbo Auth Skip Guard**: `__turboAuth` flag prevents duplicate audit on turbo-served mutations without bypassing any auth checks. Turbo path still requires valid session + absolute-expiry auth cache (`src/hooks/handle-turbo-get.ts`).
+- ✅ **Hook Timing Gate**: `HOOK_TIMING_ENABLED` gate disables per-request instrumentation in production. No security hooks are skipped — only timing/tracing overhead is removed (`src/hooks.server.ts`).
+- ✅ **Pre-Compressed Cache**: Compression utilities operate on response bodies only — never touch authentication, authorization, or input validation. No bypass paths introduced.
+- ✅ **Batch Relational Upserts**: `setMany` + `bulkUpdate` use parameterized Drizzle ORM queries — no SQL injection risk. Tenant isolation preserved via existing `tenantId` scoping.
+- ✅ **CDN Purge Fast-Path**: Cached `_cdnActive` flag reduces invalidation overhead without changing the purge security model. Fire-and-forget Cloudflare API calls unchanged.
+- ✅ **OpenAPI Pre-Warm**: `generateFullSpec()` uses existing admin-gated endpoint. No new API surface. No permission bypass.
+
+**Security Tests**: All 70 defense-in-depth regression tests pass across 4 files (`defense-in-depth.test.ts`, `authentication.test.ts`, `authorization.test.ts`, `role-permission-access.test.ts`). 0 regressions from any hook, cache, or adapter change.
+
+**Files Modified**: `src/hooks.server.ts`, `src/hooks/handle-compression.ts`, `src/hooks/handle-turbo-get.ts`, `src/hooks/handle-api-requests.ts`, `src/hooks/handle-audit-logging.ts`, `src/hooks/handle-content-initialization.ts`, `src/databases/cache/cache-service.ts`, `src/databases/core/relational-content.ts`, `src/databases/core/relational-system.ts`, `src/databases/postgresql/adapter-core.ts`.
 
 ---
 

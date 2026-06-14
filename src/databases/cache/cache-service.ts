@@ -112,6 +112,7 @@ export class CacheService {
   }
 
   private cleanupTagsForKey(key: string) {
+    if (this._isBulkClearing) return;
     const tags = this.keyToTags.get(key);
     if (tags) {
       for (const tag of tags) {
@@ -246,13 +247,26 @@ export class CacheService {
     }
   }
 
+  private _cdnResolved = false;
+  private _cdnActive = false;
+
   private async triggerCdnPurge(pattern: string | null, tags?: string[]) {
+    if (this._cdnResolved && !this._cdnActive) return;
     try {
+      if (!this._cdnResolved) {
+        const { CdnService: CdnSvc } = await import("@src/services/cdn/cdn-service");
+        const cdnInst = await CdnSvc.getInstance();
+        this._cdnActive = (cdnInst as any).active === true;
+        this._cdnResolved = true;
+        if (!this._cdnActive) return;
+      }
       const { CdnService } = await import("@src/services/cdn/cdn-service");
       const cdn = await CdnService.getInstance();
       if (tags && tags.length > 0) await cdn.purge({ tags });
       else if (pattern) await cdn.purge({ everything: true });
     } catch (err) {
+      this._cdnResolved = true;
+      this._cdnActive = false;
       logger.trace("[CacheSync] CDN purge skipped or failed:", err);
     }
   }
@@ -758,12 +772,22 @@ export class CacheService {
   }
 
   private clearLocalL1ByTags(tags: string[], _tenantId: string | null) {
+    // Phase 2c: Batch clear with deferred tag cleanup (same pattern as clearLocalL1ByPattern)
+    this._isBulkClearing = true;
+    const deletedKeys: string[] = [];
     for (const tag of tags) {
       const keys = this.tagMap.get(tag);
       if (keys) {
-        for (const key of Array.from(keys)) this.l1.delete(key);
+        for (const key of keys) {
+          this.l1.delete(key);
+          deletedKeys.push(key);
+        }
         this.tagMap.delete(tag);
       }
+    }
+    this._isBulkClearing = false;
+    for (let i = 0; i < deletedKeys.length; i++) {
+      this.cleanupTagsForKey(deletedKeys[i]);
     }
   }
 
@@ -845,22 +869,33 @@ export class CacheService {
     }
 
     if (bestBucket) {
-      // O(bucket) scan instead of O(all)
+      // O(bucket) scan instead of O(all) - PERF FIX for throughput drops under bulk/clear (migration, cache invalidation, edge sync)
+      // Use direct Set iterator + immediate delete (safe for this use, avoids Array.from copy cost which was showing in high-cardinality clears)
+      // Reduces CPU during concurrent clears, helping "L1 fastest path" and lock contention symptoms in reports.
       this._isBulkClearing = true;
+      // Collect deleted keys for post-clear batch tag cleanup (Phase 2c).
+      // During bulk clears, per-key cleanupTagsForKey is skipped (see guard),
+      // avoiding O(deleted) × O(tags-per-key) Map/Set operations inline.
+      const deletedKeys: string[] = [];
       try {
-        // Strip glob characters (*, ?) for prefix matching — generateKey
-        // preserves them literally, but startsWith needs the prefix only
-        const matchPrefix = fullPattern.replace(/[*?]+$/, "");
-        const keys = Array.from(bestBucket);
-        for (let i = 0; i < keys.length; i++) {
-          if (keys[i].startsWith(matchPrefix)) {
-            this.l1.delete(keys[i]);
+        // Fast-path: skip regex for common non-glob patterns (most cache keys)
+        const lastChar = fullPattern[fullPattern.length - 1];
+        const matchPrefix =
+          lastChar === "*" || lastChar === "?" ? fullPattern.replace(/[*?]+$/, "") : fullPattern;
+        for (const key of bestBucket) {
+          if (key.startsWith(matchPrefix)) {
+            this.l1.delete(key);
+            deletedKeys.push(key);
           }
         }
       } finally {
         this._isBulkClearing = false;
       }
-      // Clean up empty buckets
+      // Batch tag cleanup — runs after lock release, amortized over all deleted keys
+      for (let i = 0; i < deletedKeys.length; i++) {
+        this.cleanupTagsForKey(deletedKeys[i]);
+      }
+      // Clean up empty buckets (only check touched prefixes)
       for (let i = segments.length - 1; i >= 0; i--) {
         const prefix = segments.slice(0, i + 1).join(":");
         const bucket = this.prefixMap.get(prefix);
@@ -870,13 +905,14 @@ export class CacheService {
     }
 
     // FALLBACK: Only used when no prefix bucket exists (should be rare)
-    // Strip glob characters for prefix matching (same as fast path above)
-    const fallbackPrefix = fullPattern.replace(/[*?]+$/, "");
-    const allKeys = Array.from(this.l1.keys());
-    for (let i = 0; i < allKeys.length; i++) {
-      if (allKeys[i].startsWith(fallbackPrefix)) {
-        this.l1.delete(allKeys[i]);
-        this.removeFromPrefixMap(allKeys[i]);
+    const lastChar = fullPattern[fullPattern.length - 1];
+    const fallbackPrefix =
+      lastChar === "*" || lastChar === "?" ? fullPattern.replace(/[*?]+$/, "") : fullPattern;
+    // Use iterator to avoid full Array.from when possible
+    for (const key of this.l1.keys()) {
+      if (key.startsWith(fallbackPrefix)) {
+        this.l1.delete(key);
+        this.removeFromPrefixMap(key);
       }
     }
   }

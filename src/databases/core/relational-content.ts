@@ -5,7 +5,7 @@
  */
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   ContentDraft,
   ContentNode,
@@ -318,11 +318,13 @@ export class RelationalContentModule implements IContentAdapter {
       updates: { path: string; id?: string; changes: Partial<ContentNode> }[],
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNode[]>> => {
+      if (updates.length === 0) return { success: true, data: [] };
+
       const persistUpdates = async (tx: any): Promise<DatabaseResult<ContentNode[]>> => {
-        const results: ContentNode[] = [];
         const db = tx.db || tx;
 
-        for (const update of updates) {
+        // Prepare all values upfront
+        const preparedValuesList = updates.map((update) => {
           const { preparedValues } = this.prepareContentNodeValues(
             {
               ...update.changes,
@@ -333,11 +335,53 @@ export class RelationalContentModule implements IContentAdapter {
               tenantId: options?.tenantId,
             },
           );
+          // Remove internal fields that shouldn't be in the set for conflict
+          delete (preparedValues as any)._id;
+          delete (preparedValues as any).createdAt;
+          return preparedValues;
+        });
 
-          await this.executeContentNodeUpsert(db, preparedValues);
-          results.push(utils.convertDatesToISO(preparedValues) as unknown as ContentNode);
+        // Batch multi-row insert + on conflict (avoids N individual roundtrips)
+        // This is the Drizzle bulk upsert pattern for the hot content sync path.
+        const insert = db.insert(this.schema.contentNodes).values(preparedValuesList) as any;
+
+        if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {
+          // For MySQL/MariaDB bulk, use onDuplicate with VALUES() to pull the new row data per conflict
+          // Build set using sql for the incoming values (works for bulk)
+          const setObj: Record<string, any> = {};
+          if (preparedValuesList.length > 0) {
+            const sample = preparedValuesList[0];
+            Object.keys(sample).forEach((k) => {
+              if (k !== "path" && k !== "tenantId") {
+                setObj[k] = sql`VALUES(${sql.identifier(k)})`;
+              }
+            });
+          }
+          await insert.onDuplicateKeyUpdate({ set: setObj });
+        } else {
+          const conflictTarget =
+            this.adapter.type === "sqlite"
+              ? this.schema.contentNodes._id
+              : [this.schema.contentNodes._id];
+          const setObj: Record<string, any> = {};
+          if (preparedValuesList.length > 0) {
+            const sample = preparedValuesList[0];
+            Object.keys(sample).forEach((k) => {
+              if (k !== "path" && k !== "tenantId") {
+                setObj[k] = sql`excluded.${sql.identifier(k)}`;
+              }
+            });
+          }
+          await insert.onConflictDoUpdate({
+            target: conflictTarget,
+            set: setObj,
+          });
         }
 
+        // Return the prepared (as before, since we don't fetch back the full row for bulk perf)
+        const results = preparedValuesList.map(
+          (pv) => utils.convertDatesToISO(pv) as unknown as ContentNode,
+        );
         return { success: true, data: results };
       };
 
@@ -400,15 +444,19 @@ export class RelationalContentModule implements IContentAdapter {
     reorder: async (
       nodeUpdates: Array<{ path: string; newOrder: number }>,
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.adapter.wrap(
-        async () => {
+      // Cold path (admin drag-drop reorder): transaction wrapping eliminates
+      // per-item commit overhead while keeping the code simple.
+      return this.adapter.transaction(
+        async (tx: any) => {
+          const db = tx.db || tx;
           for (const update of nodeUpdates) {
-            await this.nodes.update(update.path, { position: update.newOrder } as any);
+            await db
+              .update(this.schema.contentNodes)
+              .set({ position: update.newOrder } as any)
+              .where(eq(this.schema.contentNodes.path, update.path));
           }
-          return [];
+          return { success: true, data: [] };
         },
-        "REORDER_NODES_FAILED",
-        undefined,
         { isWrite: true },
       );
     },
@@ -421,6 +469,8 @@ export class RelationalContentModule implements IContentAdapter {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> => {
+      // Cold path (admin drag-drop structural reorder): transaction wrapping
+      // eliminates per-item commit overhead while keeping the code simple.
       return this.adapter.transaction(
         async (tx: any) => {
           const db = (tx as any).db || tx;

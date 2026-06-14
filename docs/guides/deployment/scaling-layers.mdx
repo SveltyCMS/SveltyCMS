@@ -1,0 +1,440 @@
+---
+title: "Enterprise Scaling Layers"
+path: "docs/guides/deployment/scaling-layers.mdx"
+description: "Optional, composable scaling strategy for SveltyCMS: external DB connection poolers (PgBouncer/ProxySQL), Redis as distributed cache/pub-sub (optional), and reverse proxies (Nginx/Caddy/Traefik). Zero-config defaults work great for single-node; layers unlock high-concurrency, multi-instance, and managed-DB production."
+author: "SveltyCMS Team"
+created: "2026-06-14"
+updated: "2026-06-14"
+---
+
+# Enterprise Scaling Layers
+
+SveltyCMS is designed **database-agnostic** and **zero-dependency for core operation**. A single node with SQLite + built-in L1 cache runs fast with no external services.
+
+For **enterprise scale** (many concurrent users/tenants, multiple CMS instances for HA/load, managed databases with connection limits, global edge), we provide **optional, well-documented scaling layers**:
+
+- **External DB Connection Poolers** (PgBouncer for Postgres, ProxySQL for MariaDB/MySQL, driver-level + mongos awareness for MongoDB).
+- **Redis** (optional) — distributed L2 cache, session store, pub/sub invalidation for multi-node coherence, and edge sync.
+- **Smart Entropy Compression** (always-on foundation with optional trained dictionary) — pre-compressed variants on cache MISS, zero-CPU serving on HITs, domain-specific dictionary for CMS payloads.
+- **Reverse Proxy** (Nginx, Caddy, Traefik, etc.) — TLS termination, WebSocket support, trusted headers, optional rate limiting, static asset offload.
+
+All layers are **optional**. The CMS detects and gracefully falls back (L1-only cache, direct DB connections, direct exposure).
+
+This strategy draws from proven patterns at scale (Instagram's early use of PgBouncer, OpenAI, Cloudflare, Supabase, etc.) while staying true to SveltyCMS strengths: heavy caching, LocalCMS zero-tax SDK, turbo pre-compressed paths, batch relational writes, and native multi-tenancy via `tenantId`.
+
+## 1. External DB Connection Poolers (PgBouncer & Equivalents)
+
+Postgres (and to a lesser extent MariaDB) has a multi-process architecture where each connection has meaningful memory and CPU cost. Managed services often enforce low `max_connections` (e.g. 100–500). At scale you quickly exhaust them with many app instances or bursty CMS traffic (content publishes + public reads).
+
+**Solution**: Optional external pooler proxy.
+
+### Postgres + PgBouncer (Recommended for Production PG)
+
+- Deploy PgBouncer (sidecar per instance or central) listening on 6432.
+- Point SveltyCMS at the pooler via `DB_POOLER_URL` (or full connection string).
+- Use `pool_mode = transaction` for best multiplexing.
+- **Important**: Set `prepare: false` (our adapter does this automatically when `DB_POOLER_TYPE=pgbouncer` + transaction mode, or via `DB_POOLER_PREPARE=false`).
+
+**Private config keys** (all optional, added in 2026-06 enterprise scaling update):
+
+```env
+DB_POOLER_TYPE=pgbouncer
+DB_POOLER_URL=postgres://user:pass@pgbouncer:6432/yourdb
+DB_POOLER_MODE=transaction
+DB_POOLER_PREPARE=false   # explicit override if needed
+```
+
+In code (adapters read via `getDbPoolerConfig()` in `config-state.ts`):
+
+- Prefer `DB_POOLER_URL` when present.
+- Auto-adjust `prepare` for safety.
+- Driver-level `max` pool still applies (you pool from app → pooler; pooler pools a small number to real Postgres).
+
+See the benchmark docs for historical context and the Instagram pattern (returning connections to pool sooner + async fan-out).
+
+**pgbouncer.ini example** (minimal, production starting point):
+
+```ini
+[databases]
+* = host=your-postgres port=5432
+
+[pgbouncer]
+listen_addr = 0.0.0.0
+listen_port = 6432
+auth_type = md5
+auth_file = users.txt          # or use auth_user / auth_query for production
+pool_mode = transaction
+default_pool_size = 25         # tune to Postgres cores / expected concurrency
+max_client_conn = 1000
+server_reset_query = DISCARD ALL
+server_lifetime = 3600
+server_idle_timeout = 600
+log_connections = 0
+log_disconnections = 0
+```
+
+Generate `users.txt` or use the auth_query pattern for dynamic users.
+
+**When to use**:
+
+- Managed Postgres (RDS, Azure, Cloud SQL, Neon, Supabase direct) with connection limits.
+- > 5–10 CMS instances or high tenant concurrency + bursts.
+- You want to keep driver prepared statements for direct hot paths while scaling horizontally.
+
+Single-node / dev / SQLite: leave unset. Zero overhead.
+
+### MariaDB / MySQL
+
+Similar story. Use **ProxySQL** (or MariaDB MaxScale) as the pooler/proxy.
+
+- Same config keys (`DB_POOLER_TYPE=proxysql`, `DB_POOLER_URL=mysql://...`).
+- MariaDB adapter (mysql2) connects transparently to the pooler.
+- Tune `connectionLimit` in driver (we default to 100; lower when a good pooler is in front).
+
+The driver pool + ProxySQL gives excellent results for read/write splitting, query caching at the proxy layer, and connection multiplexing.
+
+### MongoDB
+
+MongoDB driver pooling is already excellent (`maxPoolSize`, `minPoolSize`).
+
+- We expose these via `ConnectionPoolOptions` and pass to mongoose.
+- For sharded scale use **mongos** (the "pooler/router").
+- Set `DB_POOLER_TYPE=mongos` + appropriate URI; our adapter already supports compressors (zstd/snappy) on the wire.
+- Replica sets are the common HA pattern — connection string handles discovery and pooling.
+
+No separate binary pooler needed in most cases; the driver + replica set / mongos is the scaling story.
+
+### SQLite
+
+File-based. External "poolers" are rarely used.
+
+Best practices (documented in adapter and this guide):
+
+- WAL mode (enabled by default in our migrations for concurrency).
+- `busy_timeout` handling (we have resilience).
+- Single writer + multiple readers is the SQLite concurrency model.
+- For "scale" use multiple read replicas (litestream or manual) or simply run multiple independent SQLite files per tenant (our multi-tenant isolation supports this).
+
+## 2. Redis — Optional Distributed Cache & Coordination
+
+Redis is **already fully optional**.
+
+- `USE_REDIS=false` (or unset) → pure L1 (in-memory LRU + negative bloom + stampede protection).
+- Perfect for single-node, dev, edge, or SQLite-first deploys.
+- When enabled (`USE_REDIS=true` + host/port/password or URL), CacheService activates L2 + pub/sub subscriber for cross-node invalidation (`svelty:cache:invalidation`).
+
+**What Redis unlocks**:
+
+- Shared cache across multiple CMS instances (sessions, permissions, content, API responses).
+- Sub-millisecond global invalidation on publish/edit (edge sync).
+- Distributed stampede protection (locks).
+- Session stickiness not required (stateless instances behind LB).
+
+**Best practices for this CMS** (multi-tenant, high read cache-hit ratio):
+
+- **Maxmemory policy**: `allkeys-lru` or `allkeys-lfu` (our cache is the primary consumer).
+- **Persistence**: AOF + RDB or just AOF for cache (you can lose it on restart; L1 warms on demand).
+- **Clustering/Sentinel**: Use for HA. Our client reconnects; pub/sub works across.
+- **Key design**: We already namespace by tenant + category. Do not share one Redis between unrelated SveltyCMS installs without prefixes.
+- **Memory sizing**: Start with 1–4 GB for moderate sites; monitor `cache:stats` / metrics. Our L1 (500k items) + negative bloom keeps most traffic off Redis.
+- **Security**: Password + TLS in production (redis client supports via URL options).
+
+See `src/databases/cache/cache-service.ts` (L1 always, L2 lazy) and `redis-store.ts` (tag support, multi exec).
+
+In `reconfigure()` / startup we cleanly skip or cleanup if `!USE_REDIS`.
+
+## 3. Smart Entropy Compression — Trained Dictionary + Pre-compressed Cache (Runtime Freshness)
+
+SveltyCMS includes **smart, domain-specific compression** that goes beyond generic Brotli/gzip:
+
+- A **build-time trained dictionary** (`static/dictionaries/cms-payloads.dict`, ~110 KB) optimized for repetitive CMS JSON structures (widget wrappers, field names like `tenantId`/`published`/`widgets`, JSON tokens, audit patterns, etc.).
+- **Pre-compression on every cache MISS**: Responses are compressed (br + gzip today, zstd when the optional binding is present) using the dictionary.
+- **Zero-CPU serving on cache HITs** (especially the Turbo path): Pre-made compressed bytes are served directly for clients that advertise support.
+- Full observability via `X-Original-Size`, `X-Compressed-Size`, `X-Compression-Ratio`, and `X-Compression-Algorithm` headers.
+
+This is **not** a static build-time compression of user content. User data is always compressed fresh at runtime when needed.
+
+### How Compression Stays Fresh with Changing Tables & Data
+
+A CMS constantly mutates data (content edits, publishes, new collections, schema changes). The system handles this without manual intervention:
+
+```mermaid
+flowchart TD
+    subgraph Build["Build Time — Dictionary Training<br/>(one-time, when you change core structures)"]
+        direction TB
+        A[Scan src/widgets/core/<br/>+ config/collections/] --> B[Extract tokens +<br/>generate representative CMS corpus]
+        B --> C[Boundary-aware n-gram training<br/>+ 344+ high-value seeds]
+        C --> D[Write static/dictionaries/cms-payloads.dict<br/>(zstd magic + deterministic ID)]
+    end
+
+    subgraph Runtime["Runtime — Data Changes Are Always Fresh"]
+        direction TB
+        E[Client Request<br/>Accept-Encoding: zstd,br,gzip] --> F{Cache HIT?}
+        F -->|Yes - Turbo / API HIT| G[Serve pre-made bytes<br/>entry.compressed[algo]<br/>+ dict-enhanced<br/>Zero CPU]
+        F -->|No - MISS| H[Generate response<br/>from *current* DB state]
+        H --> I[Compress with current dict<br/>Brotli (always) + zstd (if binding)]
+        I --> J[Store in cache entry:<br/>{ data, body, compressed: {br, gzip, zstd?} }]
+        J --> K[Return with Content-Encoding<br/>+ X-*-Size headers]
+    end
+
+    subgraph Change["Data / Table / Schema Change"]
+        direction TB
+        L[Content edit, publish,<br/>new collection, schema update] --> M[Invalidate by tags / patterns<br/>+ Redis pub/sub + optional CDN purge]
+        M --> N[Next request for the path<br/>becomes a MISS]
+    end
+
+    Runtime --> Change
+    Change -.-> Runtime
+```
+
+**For Users / Operators**:
+
+- **Normal content changes** (edits, publishes, new entries): Nothing to do. Cache invalidation automatically turns the next access into a MISS. The fresh response is generated from the database and **re-compressed on the spot** using the dictionary that shipped with your build.
+- The pre-compressed variants for all supported algorithms are stored, so future Turbo HITs and API cache HITs are instantaneous with the best encoding the client supports.
+- **When the dictionary can become less optimal**: Only after you add many new custom widgets or radically different collection schemas in source code. In that case, re-run the trainer and redeploy:
+  ```bash
+  bun run scripts/build-zstd-dict.ts
+  # then rebuild & deploy
+  ```
+
+**For Developers**:
+
+- The dictionary captures _structural_ redundancy (keys, nesting, common CMS tokens) from your widget factory and collection definitions — not the variable user text/content.
+- Because pre-compression happens at MISS time (`handle-api-requests.ts` background + main `handleCompression`), every new or changed piece of data gets a fresh compression pass against the current dictionary.
+- Turbo path (`handle-turbo-get.ts`) prefers `entry.compressed[algo]` when available → zero re-stringify / re-compress for hot repeated traffic.
+- The `getCmsDict()` loader in `handle-compression.ts` reads the artifact at runtime (graceful fallback if missing).
+- To improve the dictionary after source changes: the script re-scans `src/widgets/core` and `config/collections` at build time.
+- Compression metrics (avg sizes + ratios) are exported during benchmarks so you can measure the real gain.
+
+This design gives you the best of both worlds:
+
+- Excellent compression ratios on typical CMS payloads (extra 10-25% from the dictionary on top of generic Brotli).
+- Correctness and freshness for a highly mutable system (invalidation + on-MISS compression).
+- Zero runtime cost for the common case of repeated reads (pre-compressed bytes served directly).
+
+See also:
+
+- `scripts/build-zstd-dict.ts` (the 5-phase trainer + CLI)
+- `src/hooks/handle-compression.ts` (dict loading + `compressSync`/`compressZstd` + `setCompressionHeaders`)
+- `src/hooks/handle-turbo-get.ts` and `handle-api-requests.ts` (pre-compress on MISS, serve on HIT)
+- `src/databases/cache/cache-service.ts` (invalidation by tags/patterns)
+
+## 4. Reverse Proxy (Nginx / Caddy / Traefik) — Optional but Recommended for Prod
+
+The CMS can run directly exposed, but a reverse proxy adds:
+
+- TLS termination (easy certs).
+- WebSocket upgrade for real-time (`/ws`).
+- Client IP for rate limiting, audit logs, security (we already parse `X-Forwarded-*` in setup-proxy tests and hooks).
+- Optional additional rate limiting / WAF layer (our internal firewall + rate limiter still run).
+- Static asset serving or caching headers for public content.
+- Load balancing multiple CMS instances.
+
+**Our internal stack already does a lot**:
+
+- Strong security headers (handle-security-headers).
+- Smart pre-compression (see section 3) for turbo/API cache hits (br/gzip/zstd with trained dictionary) + on-the-fly.
+- ETag, Vary, cache-control via our layers.
+- Proxy header hardening (see `index.cjs` and `setup-proxy.test.ts`).
+
+**Recommendations to avoid double work**:
+
+- Let Nginx handle TLS + static / long-lived assets if you want.
+- For dynamic CMS responses (especially turbo pre-compressed paths and API), **disable gzip/brotli in Nginx** or use `gzip off;` for those locations — we already ship compressed bytes with correct `Content-Encoding` and `X-Compression-*` observability headers.
+- Always set `proxy_set_header Host $host;`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`.
+- WebSocket: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";` for `/ws`.
+- Health: proxy `/api/system/health`.
+
+**TRUSTED_PROXIES** (new in schema):
+Set `TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (or your LB IPs) so our rate limiter, auth, and audit correctly see the real client IP instead of the proxy.
+
+### Production Nginx Example (Copy-Paste Ready)
+
+```nginx
+# Nginx reverse proxy for SveltyCMS (production / enterprise)
+# Place in /etc/nginx/sites-available/ and enable.
+# Assumes SveltyCMS on 127.0.0.1:3000, TLS terminated here.
+#
+# Also set in SveltyCMS private config:
+#   TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+
+upstream sveltycms {
+    server 127.0.0.1:3000;
+    # Add more for multi-instance LB:
+    # server 10.0.1.10:3000;
+    # server 10.0.1.11:3000;
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    server_name cms.example.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name cms.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/cms.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/cms.example.com/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    # Real client IP for rate limiter, auth, audit
+    set_real_ip_from  10.0.0.0/8;
+    set_real_ip_from  172.16.0.0/12;
+    set_real_ip_from  192.168.0.0/16;
+    real_ip_header    X-Forwarded-For;
+    real_ip_recursive on;
+
+    location / {
+        proxy_pass http://sveltycms;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket for /ws realtime features
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout    120s;
+        proxy_read_timeout    120s;
+
+        # IMPORTANT: SveltyCMS pre-compresses dynamic responses.
+        # Do NOT double-compress here.
+        gzip off;
+
+        proxy_buffering on;
+        proxy_buffer_size 4k;
+        proxy_buffers 8 4k;
+    }
+
+    # Health check passthrough
+    location = /api/system/health {
+        proxy_pass http://sveltycms;
+        access_log off;
+    }
+}
+```
+
+## Composition Diagrams
+
+### Minimal Deployment (Single Node, SQLite)
+
+No external dependencies — everything runs in-process:
+
+```mermaid
+graph TD
+    A[Browser / API Client] -->|"HTTPS :443"| B[Nginx / Caddy]
+    B -->|"reverse proxy :4173"| C[SveltyCMS Instance]
+
+    subgraph C[SveltyCMS Instance]
+        D[Turbo Pipeline<br/>pre-compressed HITs]
+        E[LocalCMS SDK<br/>zero HTTP tax]
+        F[L1 Cache LRU<br/>500K entries]
+        G[SQLite WAL<br/>in-process]
+    end
+
+    D --> F
+    E --> G
+    F --> G
+```
+
+### High-Scale Enterprise Deployment (All Layers)
+
+Every layer is optional and composable — add only what you need:
+
+```mermaid
+graph TD
+    A[CDN / Edge] -->|"cache purge"| B[Cloudflare]
+    A -->|"HTTPS :443"| C[Nginx / Traefik LB]
+
+    C -->|"sticky sessions"| D1[SveltyCMS Instance 1]
+    C -->|"round-robin"| D2[SveltyCMS Instance 2]
+    C -->|"health checks"| D3[SveltyCMS Instance N]
+
+    subgraph D1[Instance 1]
+        E1[Turbo pre-comp<br/>L1 Cache 500K]
+        F1[LocalCMS]
+        G1[Audit fire-and-forget]
+    end
+
+    subgraph D2[Instance 2]
+        E2[Turbo pre-comp<br/>L1 Cache 500K]
+        F2[LocalCMS]
+        G2[Audit fire-and-forget]
+    end
+
+    subgraph D3[Instance N]
+        E3[Turbo pre-comp<br/>L1 Cache 500K]
+        F3[LocalCMS]
+        G3[Audit fire-and-forget]
+    end
+
+    D1 -->|"pub/sub invalidation"| H[Redis Cluster]
+    D2 -->|"session sharing"| H
+    D3 -->|"cross-node coherence"| H
+
+    D1 -->|"connection multiplexing"| I[PgBouncer :6432]
+    D2 --> I
+    D3 --> I
+
+    I -->|"tx pooling 25 conns"| J[(PostgreSQL Primary)]
+    J -->|"streaming replication"| K[(Read Replica 1)]
+    J -->|"streaming replication"| L[(Read Replica 2)]
+
+    D1 -.->|"read queries"| K
+    D2 -.->|"read queries"| L
+    D1 -.->|"write queries"| J
+
+    B -.->|"purge by tag"| C
+```
+
+### Layer Decision Flow
+
+```mermaid
+flowchart TD
+    A[Start: Single Node SQLite] --> B{Traffic > 10K req/hr?}
+    B -->|No| C[✅ Done. Zero ops.]
+    B -->|Yes| D{Need Postgres?}
+    D -->|No| E[Add Nginx + more instances]
+    D -->|Yes| F[Add PgBouncer + Postgres]
+    E --> G{Need cross-node cache coherence?}
+    F --> G
+    G -->|No| H{Need CDN?}
+    G -->|Yes| I[Add Redis]
+    I --> H
+    H -->|No| C
+    H -->|Yes| J[Add Cloudflare purge]
+    J --> C
+```
+
+All layers are optional — start simple and add as you grow.
+
+## Security & Multi-Tenancy Notes
+
+- Poolers and proxies must not bypass our 4-layer defense (middleware → dispatcher permissions → handler checks → page actions).
+- Tenant isolation stays in the query layer (`tenantId` filters or separate schemas/DBs). Poolers/proxies are transparent at the connection level.
+- Always validate `X-Forwarded-*` only from trusted proxies (we use the new `TRUSTED_PROXIES` + existing hardening).
+- Audit logs still capture real client IPs when proxies are trusted correctly.
+
+## When (Not) to Enable Layers
+
+- **Single node / low traffic / SQLite dev**: Nothing. Best performance, zero ops.
+- **Multi-node or HA on managed DB with conn limits**: Add PgBouncer (or equivalent) + Redis + reverse proxy.
+- **Edge / global**: Redis pub/sub + our existing edge invalidation + CDN purge (Cloudflare config already supported).
+- Monitor via built-in metrics + `database-resilience` pool diagnostics (it now recommends external poolers when pressure is high).
+
+## Related Reading
+
+- [Database Adapters Architecture](../database/Performance_Architecture.mdx)
+- [Cache Service](../database/Performance_Architecture.mdx) (L1/L2 details)
+- [Security Headers & Proxy Handling](../../architecture/security/index.mdx)
+- Benchmark reports (hooks, relational, cache) for before/after numbers after the 2026 hot-path + scaling work.
+
+This gives SveltyCMS a clean, documented, optional path to the same scaling techniques used by the largest Postgres users while preserving the lightweight, database-agnostic, high-performance core that makes it special.

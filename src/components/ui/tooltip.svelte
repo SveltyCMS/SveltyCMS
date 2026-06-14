@@ -110,6 +110,7 @@ reveal after position calculation prevents layout flash.
 
 <svelte:window onkeydown={handleKeydown} />
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={referenceEl}
 	class={cn("inline-block", triggerClass)}

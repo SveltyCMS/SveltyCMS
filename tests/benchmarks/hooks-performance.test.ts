@@ -89,6 +89,8 @@ async function runHooksAudit() {
 
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const results = [];
+    // Collect compression diagnostics (from X- headers set by turbo/compression paths) for visibility of Smart Entropy / payload wins in reports & matrix
+    const compStats: Array<{ orig: number | null; comp: number | null; ratio: string | null }> = [];
 
     for (const scenario of middlewareScenarios) {
       console.log(`   → ${scenario.name}...`);
@@ -122,6 +124,18 @@ async function runHooksAudit() {
             throw new Error(`${scenario.name} failed: ${res.status} ${text}`);
           }
 
+          // Capture size/compression stats when present (turbo hits and compressed responses now emit X-Original-Size etc.)
+          const oSize = res.headers.get("x-original-size");
+          const cSize = res.headers.get("x-compressed-size");
+          const r = res.headers.get("x-compression-ratio");
+          if (oSize || cSize) {
+            compStats.push({
+              orig: oSize ? parseInt(oSize, 10) : null,
+              comp: cSize ? parseInt(cSize, 10) : null,
+              ratio: r,
+            });
+          }
+
           if (scenario.method !== "POST") {
             await res.json().catch(() => {});
           } else {
@@ -138,6 +152,21 @@ async function runHooksAudit() {
 
       results.push(enriched);
       exportResult(enriched);
+    }
+
+    // Export compression stats so matrix / mdx reports capture Smart Entropy payload wins (avg sizes + ratio across runs)
+    if (compStats.length > 0) {
+      const valid = compStats.filter((s) => s.orig && s.comp);
+      if (valid.length > 0) {
+        const avgO = valid.reduce((s, x) => s + x.orig!, 0) / valid.length;
+        const avgC = valid.reduce((s, x) => s + x.comp!, 0) / valid.length;
+        const ratios = valid.map((s) => parseFloat(s.ratio || "0")).filter((r) => r > 0);
+        const avgR = ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 0;
+        exportMetric("compression.samples", valid.length, "");
+        exportMetric("compression.avgOriginalSize", Math.round(avgO), "B");
+        exportMetric("compression.avgCompressedSize", Math.round(avgC), "B");
+        exportMetric("compression.avgRatio", avgR, "%");
+      }
     }
 
     const staticAsset = results[0];

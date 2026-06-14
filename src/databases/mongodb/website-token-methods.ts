@@ -86,16 +86,20 @@ export class MongoWebsiteTokenMethods {
           ? { [options.sort]: options.order as "asc" | "desc" | 1 | -1 }
           : { createdAt: -1 };
 
+      const findManyOpts: any = {
+        limit: options.limit || 100,
+        offset: options.skip,
+        sort,
+      };
+      if (tenantId) {
+        findManyOpts.tenantId = tenantId as DatabaseId;
+      }
+
+      const countOpts: any = tenantId ? { tenantId: tenantId as DatabaseId } : {};
+
       const [dataRes, totalRes] = await Promise.all([
-        this.crud.findMany(sanitizedFilter as QueryFilter<WebsiteToken>, {
-          limit: options.limit || 100,
-          offset: options.skip,
-          sort,
-          ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
-        }),
-        this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, {
-          ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
-        }),
+        this.crud.findMany(sanitizedFilter as QueryFilter<WebsiteToken>, findManyOpts),
+        this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, countOpts),
       ]);
 
       if (!dataRes.success) return dataRes as any;

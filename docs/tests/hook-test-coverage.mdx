@@ -4,7 +4,7 @@ title: Hook Test Coverage
 description: Comprehensive testing documentation for all SveltyCMS middleware hooks
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-04-03"
+updated: "2026-06-14"
 tags:
   - "testing"
   - "hooks"
@@ -14,38 +14,44 @@ tags:
 
 # Hook Test Coverage
 
-Complete test coverage for all 11 SvelteKit middleware hooks in the SveltyCMS system.
+Complete test coverage for all 16 SvelteKit middleware hooks in the SveltyCMS system.
 
 ## Test Suite Overview
 
-| Hook                     | Tests   | Coverage    | File                                            |
-| ------------------------ | ------- | ----------- | ----------------------------------------------- |
-| handleStaticAssetCaching | 6       | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts` |
-| handleSystemState        | 26      | ✅ Complete | `tests/unit/hooks/system-state.test.ts`         |
-| handleRateLimit          | 35      | ✅ Complete | `tests/unit/hooks/rate-limit.test.ts`           |
-| handleFirewall           | 27      | ✅ Complete | `tests/unit/hooks/firewall.test.ts`             |
-| handleSetup              | 16      | ✅ Complete | `tests/unit/hooks/setup.test.ts`                |
-| handleLocale             | 34      | ✅ Complete | `tests/unit/hooks/locale.test.ts`               |
-| handleTheme              | 16      | ✅ Complete | `tests/unit/hooks/theme.test.ts`                |
-| handleAuthentication     | 33      | ✅ Complete | `tests/unit/hooks/authentication.test.ts`       |
-| handleAuthorization      | 23      | ✅ Complete | `tests/unit/hooks/authorization.test.ts`        |
-| handleApiRequests        | 28      | ✅ Complete | `tests/unit/hooks/api-requests.test.ts`         |
-| handleTokenResolution    | 5       | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts`     |
-| addSecurityHeaders       | 38      | ✅ Complete | `tests/unit/hooks/security-headers.test.ts`     |
-| **Total**                | **287** | **100%**    | 12 files                                        |
+| Hook                        | Tests   | Coverage    | File                                              |
+| --------------------------- | ------- | ----------- | ------------------------------------------------- |
+| handleStaticAssetCaching    | 6       | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts`   |
+| handleSystemState           | 26      | ✅ Complete | `tests/unit/hooks/system-state.test.ts`           |
+| handleRateLimit             | 35      | ✅ Complete | `tests/unit/hooks/rate-limit.test.ts`             |
+| handleFirewall              | 27      | ✅ Complete | `tests/unit/hooks/firewall.test.ts`               |
+| handleSetup                 | 16      | ✅ Complete | `tests/unit/hooks/setup.test.ts`                  |
+| handleLocale                | 34      | ✅ Complete | `tests/unit/hooks/locale.test.ts`                 |
+| handleTheme                 | 16      | ✅ Complete | `tests/unit/hooks/theme.test.ts`                  |
+| handleAuthentication        | 33      | ✅ Complete | `tests/unit/hooks/authentication.test.ts`         |
+| handleAuthorization         | 23      | ✅ Complete | `tests/unit/hooks/authorization.test.ts`          |
+| handleApiRequests           | 28      | ✅ Complete | `tests/unit/hooks/api-requests.test.ts`           |
+| handleTokenResolution       | 5       | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts`       |
+| addSecurityHeaders          | 38      | ✅ Complete | `tests/unit/hooks/security-headers.test.ts`       |
+| handleTurboGet              | 12      | ✅ Complete | `tests/unit/hooks/turbo-get.test.ts`              |
+| handleCompression           | 8       | ✅ Complete | `tests/unit/hooks/compression.test.ts`            |
+| handleAuditLogging          | 6       | ✅ Complete | `tests/unit/hooks/audit-logging.test.ts`          |
+| handleContentInitialization | 4       | ✅ Complete | `tests/unit/hooks/content-initialization.test.ts` |
+| **Total**                   | **317** | **100%**    | 16 files                                          |
 
 ## Performance Benchmarks (Audit)
 
 All hooks are benchmarked via `tests/benchmarks/hooks-performance.test.ts` which measures 3 pipeline layers under production load (600+ iterations each):
 
-| Metric                       | Latest (SQLite) | Budget | What it measures            |
-| ---------------------------- | :-------------: | :----: | --------------------------- |
-| **Turbo Pipeline (Light)**   |   0.81ms avg    |  <2ms  | Health check — fastest path |
-| **Full Security + Auth**     |   1.47ms avg    |  <2ms  | JWT + session + RBAC        |
-| **Mutation + Audit Logging** |   1.28ms avg    |  <2ms  | Write with SHA-256 audit    |
-| **Auth Overhead**            |   **0.66ms**    |   —    | Turbo → Full Auth delta     |
+| Metric                       | Latest (SQLite) | Budget | What it measures                 |
+| ---------------------------- | :-------------: | :----: | -------------------------------- |
+| **Turbo Pipeline (Light)**   |   2.55ms avg    |  <2ms  | Health check — fastest path      |
+| **Full Security + Auth**     |   5.47ms avg    |  <2ms  | JWT + session + RBAC             |
+| **Mutation + Audit Logging** |   1.90ms avg    |  <2ms  | Write with fire-and-forget audit |
+| **Auth Overhead**            |   **0.66ms**    |   —    | Turbo → Full Auth delta          |
+| **Compression Ratio (br)**   |    ~65% avg     |   —    | Brotli on cache HIT payloads     |
+| **Compression Ratio (gzip)** |    ~58% avg     |   —    | Gzip on cache HIT payloads       |
 
-**Note**: Auth overhead (0.66ms) = Full Auth (1.47ms) - Turbo (0.81ms). Optimized May 2026 by eliminating redundant setup-state check on every authenticated request.
+**Note**: Audit is now fire-and-forget (context captured before resolve, logged in detached promise). HOOK_TIMING_ENABLED gate disables per-request instrumentation in production and under SVELTY_BENCHMARK_SUITE for cleaner benchmarks. Compression metrics captured via X-\* headers.
 
 ## Middleware Sequence
 

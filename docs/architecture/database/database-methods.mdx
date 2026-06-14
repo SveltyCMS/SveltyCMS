@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:database-cog"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-05-24"
+updated: "2026-06-14"
 tags:
   - "database"
   - "interface"
@@ -141,7 +141,9 @@ export type DatabaseResult<T> =
 | **Media**   | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
 | **System**  | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
 | **Batch**   | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **SCIM**    | ✅ Beta       | ✅ Beta       | ✅ Beta       | ✅ Beta       |
+| **SCIM**    | ✅ Production¹ | ✅ Production¹ | ✅ Production¹ | ✅ Production¹ |
+
+¹ SCIM 2.0 endpoints are production-ready (RFC 7644: Users, Groups, Bulk, filters, PATCH, Okta/Azure) but route through the `auth.*` adapter directly rather than a dedicated `IScimAdapter` namespace.
 
 ---
 
