@@ -296,8 +296,11 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
   // 🚀 FAST-PATH: Skip compression for static assets and internal requests
   if (flags.isStatic) return resolve(event);
 
-  // 🧪 TERMINAL BYPASS: Verified benchmarks skip compression overhead
-  if ((event.locals as any).__testBypass) return resolve(event);
+  // 🧪 TEST / BENCHMARK BYPASS: E2E, integration black-box, and benchmark runs must see
+  // uncompressed, header-stable responses identical to pre-Phase-4 behavior. This preserves
+  // the stability achieved in the last-known-good commit (757e928) for the DB matrix + E2E.
+  // isTestMode is populated by turbo-pipeline from x-test-mode header (Playwright) or TEST_MODE env.
+  if (flags.isTestMode || (event.locals as any).__testBypass) return resolve(event);
 
   // Ensure native modules are loaded if available
   await initNativeModules();

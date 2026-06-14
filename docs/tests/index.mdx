@@ -72,7 +72,7 @@ bun run scripts/run-integration-tests.ts --db=sqlite
 # Wizard E2E against the production build
 n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 TEST_MODE=true node build/index.js
-bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
+bun x playwright test --project=wizard  # (runs tests/e2e/routes/setup/setup-wizard.spec.ts via project testMatch)
 
 # Smart test runner — auto-detects what to test from git diff
 n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.

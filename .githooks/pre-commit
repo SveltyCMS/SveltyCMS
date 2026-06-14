@@ -4,9 +4,27 @@
 # =============================================================================
 set -e
 
-# Skip in CI environments
-if [ "${CI:-false}" = "true" ] || [ -n "$GIT_HOOK_SKIP" ]; then
-    echo "⏩ CI or hook skip detected. Bypassing pre-commit gates."
+# =============================================================================
+# 100% LOCAL CI PARITY ENFORCEMENT
+# =============================================================================
+# This hook (together with pre-push) is the *only* thing that stands between
+# your changes and the remote. It is deliberately designed to be extremely
+# hard to bypass accidentally.
+#
+# - There is NO easy GIT_HOOK_SKIP for local development.
+# - git commit --no-verify is the only way to bypass, and doing so is
+#   considered a policy violation except in true emergencies.
+# - If you bypass, you are personally responsible for running the full
+#   documented parity command *before* pushing:
+#     bun run format; bun run lint; bun run check; bun run test:unit
+#     bun run lint:docs
+#
+# The goal: 100% certainty that anything that reaches GitHub has already
+# passed locally the exact same checks that GitHub Actions will run.
+#
+# Only skip in real CI environments.
+if [ "${CI:-false}" = "true" ]; then
+    echo "⏩ CI environment detected. Bypassing pre-commit gates (CI will enforce anyway)."
     exit 0
 fi
 
@@ -16,9 +34,12 @@ echo "║           SveltyCMS Pre-Commit Quality Gate                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# ── Gate 1: Quality Gate (format + slop + lint + check + tests + build) ──
-echo "🛡️  Gate 1: Quality Gate"
-export PRE_COMMIT="true"
+# ── Gate 1: Quality Gate (enforces exact CI parity on Windows + Unix) ──
+# Runs the same format / lint / check / full test:unit / sqlite integration / build
+# that the dedicated jobs in ci.yml and the docs-lint.yml sanity step execute on GitHub.
+# This is the mechanism that makes "if it passes the local hook, the GitHub Actions
+# unit / lint / check / db-tests / docs checks will also pass".
+echo "🛡️  Gate 1: Quality Gate (CI parity)"
 bun run scripts/quality-gate.ts
 echo ""
 

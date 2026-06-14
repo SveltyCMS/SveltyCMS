@@ -1,5 +1,5 @@
 /**
- * @file tests/e2e/setup-wizard.spec.ts
+ * @file tests/e2e/routes/setup/setup-wizard.spec.ts
  * @description Comprehensive E2E test suite for the SveltyCMS Setup Wizard.
  * Combines full provisioning flow (all DB types), error handling, and navigation tests.
  */

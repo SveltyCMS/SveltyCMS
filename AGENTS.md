@@ -611,7 +611,16 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 - Branches: `next` (dev), `main` (stable).
 - **Commit Attribution**: **NEVER** include `Co-Authored-By` or any AI-attribution lines in commit messages unless explicitly requested by the USER for a specific commit. All work should appear as the USER's own work for seamless integration into enterprise workflows.
 - Commits: Conventional (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `security:`, `perf:`).
-- Pre-commit: `bun run format && bun run lint && bun run check && bun run test:unit` (100% CI parity).
+- **Pre-commit 100% enforcement (hardened)**: The `.githooks/pre-commit`, `.githooks/pre-push`, and `scripts/quality-gate.ts` have been made as strict as client-side Git hooks reasonably allow:
+  - No convenient local `GIT_HOOK_SKIP` (only real CI envs bypass).
+  - The gate **ends with a literal final re-execution** of the documented parity commands (including `lint:docs`).
+  - Multiple fail-closed "tree must be clean" checks (after format + at the absolute end).
+  - Both pre-commit (fast full gate) and pre-push (build + integration + E2E) are required.
+
+  Using `git commit --no-verify` or `git push --no-verify` is now explicitly a policy violation except genuine emergencies.
+
+  **Realistic maximum**: Extremely high confidence on the developer's machine (Windows or Unix) that the commit will pass the matching GitHub Actions jobs. The only true 100% guarantee is GitHub branch protection rules that require green status checks before merge to `next` or `main`. Local hooks + the final parity re-verification are defense-in-depth + team culture.
+
 - **Roadmap Checklist**: Add Universal Accessibility Auditing to CI/CD pipeline.
 
 ---

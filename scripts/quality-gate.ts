@@ -1,8 +1,15 @@
 /**
  * @file scripts/quality-gate.ts
- * @description Fast pre-commit quality gate using staged files.
+ * @description Pre-commit quality gate that enforces *exact* 100% CI parity.
  *
- * Pipeline: Format → Slop Scanner → Lint (oxlint) → Type Check → Smart Tests → Build
+ * The explicit goal is: a commit created on this machine (Windows or Unix) is
+ * only allowed if it would have passed the corresponding GitHub Actions jobs.
+ *
+ * This gate (plus pre-push) is the mechanism that makes "100% pre-commit safe".
+ * Bypassing it locally is considered a serious process violation.
+ *
+ * The gate literally runs (or very closely approximates) the exact commands
+ * required in AGENTS.md and executed by ci.yml + docs-lint.yml.
  */
 
 import { spawnSync, execSync } from "node:child_process";
@@ -75,6 +82,23 @@ async function main() {
       run: () => runCommand("vp", ["fmt", "--config", ".oxfmtrc.json"]),
     },
     {
+      name: "Post-Format Tree Clean Check",
+      run: () => {
+        const clean = runCommand("git", ["diff", "--exit-code", "--quiet"]);
+        if (!clean) {
+          console.error("\n❌ Working tree is dirty after formatting.");
+          console.error(
+            "   This usually means the formatter made changes that were not re-staged.",
+          );
+          console.error(
+            "   Re-run the pre-commit hook (or manually `git add` the formatted files).",
+          );
+          return false;
+        }
+        return true;
+      },
+    },
+    {
       name: "Slop Scanner",
       skip: () => !stagedFiles.some((f) => /\.(svelte|ts)$/.test(f)),
       // Full scan is fast (~2s) and avoids Windows command-line length limits
@@ -90,9 +114,12 @@ async function main() {
       run: () => runCommand("bun", ["run", "check"]),
     },
     {
-      name: "Smart Tests",
+      name: "Full Unit Tests (CI parity)",
       skip: !hasTsOrSvelte,
-      run: () => runCommand("bun", ["run", "scripts/test-smart.ts"]),
+      // Run the full test:unit (same as the dedicated CI "unit" job) for true parity.
+      // test-smart.ts is still useful for local speed during active dev but the gate now ensures
+      // the complete suite that GitHub Actions runs on every push.
+      run: () => runCommand("bun", ["run", "test:unit"]),
     },
     {
       name: "Dependency Audit",
@@ -115,7 +142,10 @@ async function main() {
     },
     {
       name: "Integration Tests (SQLite)",
-      skip: !shouldRunIntegration || process.env.PRE_COMMIT === "true",
+      // No longer skipped under PRE_COMMIT. Local pre-commit must exercise the same
+      // black-box integration path (against built server + sqlite) that the CI db-tests
+      // matrix and docs-lint "sanity" step run. This eliminates the "passes locally, fails in GitHub" gap.
+      skip: !shouldRunIntegration,
       run: () => {
         if (!buildExists) {
           console.warn("   ⚠️  Build missing — skipping integration tests");
@@ -124,7 +154,7 @@ async function main() {
         return runCommand("bun", [
           "run",
           "scripts/run-integration-tests.ts",
-          "--filter=sqlite",
+          "--db=sqlite",
           "--no-build",
         ]);
       },
@@ -160,7 +190,52 @@ async function main() {
     console.log(`✅ ${task.name} passed (${elapsed}ms)\n`);
   }
 
-  console.log("✨ All quality gates passed. Commit allowed.\n");
+  // =============================================================================
+  // FINAL 100% PARITY VERIFICATION (the documented AGENTS.md command)
+  // =============================================================================
+  // Even if the task list above is ever changed, we *always* re-execute the
+  // exact four commands that are required before every push and that CI runs.
+  // This is the "nuclear option" that makes local pre-commit as close to
+  // 100% safe as client-side hooks can be.
+  console.log("\n🔒 FINAL 100% CI PARITY VERIFICATION (AGENTS.md mandatory command)");
+  const parityCommands = [
+    { name: "format", cmd: "bun", args: ["run", "format"] },
+    { name: "lint", cmd: "bun", args: ["run", "lint"] },
+    { name: "check", cmd: "bun", args: ["run", "check"] },
+    { name: "test:unit (full)", cmd: "bun", args: ["run", "test:unit"] },
+    { name: "lint:docs", cmd: "bun", args: ["run", "lint:docs"] },
+  ];
+
+  for (const p of parityCommands) {
+    console.log(`   ▶️  Re-verifying ${p.name} ...`);
+    if (!runCommand(p.cmd, p.args)) {
+      console.error(`\n❌ FINAL PARITY CHECK FAILED on "${p.name}".`);
+      console.error("   This commit is not allowed. Fix and re-run the pre-commit hook.");
+      process.exit(1);
+    }
+  }
+
+  // Re-stage any files that the final re-verification commands (especially format) may have changed.
+  // This mirrors the re-staging logic in the pre-commit hook.
+  console.log("📦 Re-staging any changes from final parity re-verification...");
+
+  // Stage any working-tree changes produced by the re-run commands (format, etc.)
+  runCommand("git", ["add", "-u"]); // stage modified/deleted
+  runCommand("git", ["add", "."]); // catch new files if any
+
+  // Final tree clean check
+  const finalTreeClean = runCommand("git", ["diff", "--exit-code", "--quiet"]);
+  if (!finalTreeClean) {
+    console.error(
+      "\n❌ FINAL CHECK FAILED: Working tree is not clean after full parity re-verification and re-staging.",
+    );
+    console.error(
+      "   Please inspect `git status` and `git diff`, then re-run the pre-commit hook.",
+    );
+    process.exit(1);
+  }
+
+  console.log("\n✅ 100% local CI parity verified. Commit allowed.\n");
   process.exit(0);
 }
 

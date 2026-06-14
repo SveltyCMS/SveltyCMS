@@ -10,9 +10,20 @@
 # =============================================================================
 set -e
 
-# Skip in CI environments
-if [ "${CI:-false}" = "true" ] || [ -n "$GIT_HOOK_SKIP" ]; then
-    echo "⏩ CI or hook skip detected. Bypassing pre-push gates."
+# =============================================================================
+# 100% LOCAL CI PARITY ENFORCEMENT (FINAL LOCAL GATE)
+# =============================================================================
+# This is the last line of defense before your commit reaches the network.
+# It runs heavier checks (full build + integration + E2E) that are too slow
+# for every commit but essential before push.
+#
+# - No easy local bypass.
+# - --no-verify on push is a policy violation except emergencies.
+# - You are responsible for the full parity if you bypass.
+#
+# Only skip in real CI.
+if [ "${CI:-false}" = "true" ]; then
+    echo "⏩ CI environment detected. Bypassing pre-push gates (CI will enforce anyway)."
     exit 0
 fi
 

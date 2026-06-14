@@ -34,7 +34,7 @@ SveltyCMS uses **Playwright** for End-to-End (E2E) testing. Our strategy is opti
 bun run test:e2e
 
 # Run the setup wizard contract
-bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
+bun x playwright test --project=wizard  # (the wizard project targets tests/e2e/routes/setup/setup-wizard.spec.ts)
 
 # Generate auth state for downstream smoke suites
 bun x playwright test --project=auth-setup

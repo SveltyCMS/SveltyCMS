@@ -92,7 +92,9 @@ export default defineConfig({
   projects: [
     {
       name: "wizard",
-      testMatch: /routes\/setup\/setup-wizard\.spec\.ts/,
+      // Use glob (not RegExp) for reliable matching across platforms/CI/local.
+      // Matches the reorganized location under routes/.
+      testMatch: "routes/setup/setup-wizard.spec.ts",
       // Force sequential to avoid race conditions during database provisioning
       workers: 1,
     },
@@ -142,16 +144,18 @@ export default defineConfig({
     },
     {
       name: "users",
-      testMatch: [/routes\/user\/profile\.spec\.ts$/, /routes\/user\/management\.spec\.ts$/],
+      // Globs instead of RegExp to avoid "arguments are regular expressions" collection errors.
+      testMatch: ["**/user/profile.spec.ts", "**/user/management.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "builder",
+      // Globs for reliability.
       testMatch: [
-        /routes\/collection-builder\/builder\.spec\.ts/,
-        /routes\/collection-builder\/collection\.spec\.ts/,
-        /routes\/collection-builder\/journey\.spec\.ts/,
+        "**/collection-builder/builder.spec.ts",
+        "**/collection-builder/collection.spec.ts",
+        "**/collection-builder/journey.spec.ts",
       ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
@@ -164,7 +168,8 @@ export default defineConfig({
     },
     {
       name: "firstuser",
-      testMatch: [/routes\/login\/signup\.spec\.ts$/, /routes\/login\/oauth\.spec\.ts$/],
+      // Globs (safer than RegExp for CLI collection; avoids $/* escaping warnings in errors).
+      testMatch: ["**/login/signup.spec.ts", "**/login/oauth.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       // No dependency on auth-setup — these hit login/signup pages directly
       workers: 1,
