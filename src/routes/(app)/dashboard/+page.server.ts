@@ -49,12 +49,16 @@ async function getWidgetMetadata(componentName: string): Promise<WidgetInfo> {
     logger.error(`Failed to load metadata for widget ${componentName}:`, err);
   }
 
+  const kebabLabel = componentName
+    .replace(/-widget$/, "")
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
   return {
     componentName,
-    name: componentName
-      .replace("Widget", "")
-      .replace(/([A-Z])/g, " $1")
-      .trim(),
+    name: kebabLabel || componentName,
     icon: "mdi:widgets",
     description: "Custom dashboard widget",
   };
@@ -75,7 +79,7 @@ async function discoverWidgets(): Promise<WidgetInfo[]> {
     const files = readdirSync(widgetsPath, { withFileTypes: true });
 
     const widgetPromises = files
-      .filter((file) => file.isFile() && file.name.endsWith("Widget.svelte"))
+      .filter((file) => file.isFile() && file.name.endsWith(".svelte"))
       .map(async (file) => {
         const componentName = file.name.replace(".svelte", "");
         return await getWidgetMetadata(componentName);

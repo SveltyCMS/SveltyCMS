@@ -65,7 +65,7 @@ export const widgetMeta = {
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/dashboard/systemInfo?type=disk"
+	endpoint="/api/dashboard/system-info?type=disk"
 	pollInterval={10000}
 	{icon}
 	{widgetId}

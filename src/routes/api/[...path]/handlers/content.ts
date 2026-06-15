@@ -35,7 +35,7 @@ export async function handleContentRoutes(
     if (namespace === "content") {
       switch (method) {
         case "version":
-          return handleContentVersion();
+          return handleContentVersion(event);
 
         case "refresh":
           return handleContentRefresh(event, cms, tenantId);
@@ -48,7 +48,10 @@ export async function handleContentRoutes(
       }
 
       // POST /api/content/refresh (alternative to /api/content-structure)
-      if (request.method === "POST" && (method === "refresh" || method === "recompile")) {
+      if (
+        request.method === "POST" &&
+        (method === "refresh" || method === "recompile")
+      ) {
         await cms.collections.refresh(tenantId);
         return successResponse(event, {
           success: true,
@@ -83,7 +86,10 @@ export async function handleContentRoutes(
       return handleGraphqlRoutes(event);
     }
 
-    throw new AppError(`Content endpoint /api/${segments.join("/")} not implemented`, 404);
+    throw new AppError(
+      `Content endpoint /api/${segments.join("/")} not implemented`,
+      404,
+    );
   } catch (err: any) {
     console.error(`[ContentRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
@@ -94,13 +100,17 @@ export async function handleContentRoutes(
 // ─── Content System Handlers ─────────────────────────────────────────────────
 
 /** Returns the current content system version. */
-async function handleContentVersion() {
+async function handleContentVersion(event: RequestEvent) {
   const { contentSystem } = await import("@src/content/index.server");
-  return json({ version: contentSystem.getContentVersion() });
+  return successResponse(event, { version: contentSystem.getContentVersion() });
 }
 
 /** Full refresh: rescans filesystem, rebuilds collections, regenerates GraphQL schema. */
-async function handleContentRefresh(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
+async function handleContentRefresh(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
   await cms.collections.refresh(tenantId);
 
   // Synchronously refresh GraphQL schema after collections rebuild
@@ -118,8 +128,13 @@ async function handleContentRefresh(event: RequestEvent, cms: LocalCMS, tenantId
  * Uses refreshCollectionsCache instead of cms.collections.refresh to avoid
  * clearing all tenant buckets (which would destroy dynamic/benchmark schemas).
  */
-async function handleCollectionsRefresh(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
-  const { refreshCollectionsCache } = await import("@src/content/content-service.server");
+async function handleCollectionsRefresh(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
+  const { refreshCollectionsCache } =
+    await import("@src/content/content-service.server");
   const { getDb } = await import("@src/databases/db");
 
   await refreshCollectionsCache(tenantId, getDb() || undefined);
@@ -174,8 +189,12 @@ async function handleContentStructureAction(
       });
 
     case "reorderContentStructure": {
-      if (!Array.isArray(items)) throw new AppError("Items must be an array", 422);
-      const updated = await cms.collections.reorderContentNodes(items, tenantId);
+      if (!Array.isArray(items))
+        throw new AppError("Items must be an array", 422);
+      const updated = await cms.collections.reorderContentNodes(
+        items,
+        tenantId,
+      );
       return successResponse(event, { contentStructure: updated });
     }
 
@@ -186,13 +205,57 @@ async function handleContentStructureAction(
 
 // ─── Real-time Events (Server-Sent Events) ───────────────────────────────────
 
+/** Maps internal EventBus names to client-friendly SSE `type` values. */
+const SSE_EVENT_TYPE_MAP: Record<string, string> = {
+  "content:update": "content_update",
+  "cache:invalidate": "cache_invalidate",
+  "config:change": "config_change",
+};
+
+/**
+ * Normalizes wildcard EventBus payloads into a stable SSE wire format.
+ * Returns null when the event should be filtered out for the subscriber tenant.
+ */
+export function normalizeSseEventPayload(
+  payload:
+    | { event?: string; data?: Record<string, unknown> }
+    | null
+    | undefined,
+  filterTenantId?: string | null,
+): Record<string, unknown> | null {
+  const eventName = payload?.event;
+  if (!eventName) return null;
+
+  const data = payload?.data ?? {};
+  const eventTenantId = data.tenantId as string | undefined;
+
+  if (
+    filterTenantId &&
+    eventTenantId &&
+    eventTenantId !== "all" &&
+    String(eventTenantId) !== String(filterTenantId)
+  ) {
+    return null;
+  }
+
+  return {
+    type: SSE_EVENT_TYPE_MAP[eventName] ?? eventName.replace(/:/g, "_"),
+    event: eventName,
+    ...data,
+    timestamp: Date.now(),
+  };
+}
+
 /**
  * Establishes a Server-Sent Events stream for real-time content updates.
  * Filters events by tenantId when provided.
  * Sends keep-alive pings every 30 seconds.
  * Cleans up on client disconnect via AbortSignal.
  */
-async function handleContentEventsStream(event: RequestEvent, tenantId: DatabaseId) {
+async function handleContentEventsStream(
+  event: RequestEvent,
+  tenantId: DatabaseId,
+) {
   const { eventBus } = await import("@utils/event-bus");
   const encoder = new TextEncoder();
 
@@ -215,12 +278,18 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
         return;
       }
 
-      // Event handler — filtered by tenantId
-      const handler = (ev: any) => {
+      // Event handler — normalized wire format + tenant filtering
+      const handler = (payload: {
+        event?: string;
+        data?: Record<string, unknown>;
+      }) => {
         if (isClosed) return;
-        if (tenantId && ev.tenantId && ev.tenantId !== tenantId) return;
+        const clientPayload = normalizeSseEventPayload(payload, tenantId);
+        if (!clientPayload) return;
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(clientPayload)}\n\n`),
+          );
         } catch {
           isClosed = true;
           eventBus.off("*", handler);

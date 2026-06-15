@@ -16,9 +16,11 @@
 
 import { dbInitPromise } from "@src/databases/db";
 import { getDb } from "@src/databases/db";
+import { forTenant } from "@src/databases/tenant-adapter";
 import { StatusTypes } from "@src/content/types";
 import { auditChainService } from "@src/services/audit-chain";
 import { system } from "@src/stores/system/state.svelte.ts";
+import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import type { Job } from "@src/databases/db-interface";
 
@@ -57,7 +59,10 @@ export async function startScheduler(): Promise<void> {
   try {
     await dbInitPromise;
   } catch (err) {
-    logger.error("[Scheduler] Database initialization failed, scheduler not started", err);
+    logger.error(
+      "[Scheduler] Database initialization failed, scheduler not started",
+      err,
+    );
     return;
   }
 
@@ -113,7 +118,9 @@ function scheduleNextPoll(): void {
 async function pollAndProcess(): Promise<void> {
   const db = getDb();
   if (!db || !db.system?.jobs) {
-    logger.debug("[Scheduler] DB or jobs interface not available, skipping poll");
+    logger.debug(
+      "[Scheduler] DB or jobs interface not available, skipping poll",
+    );
     return;
   }
 
@@ -197,7 +204,9 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
     await db.system.jobs.update(job._id, {
       status: isPermanent ? "failed" : "pending",
       lastError: errorMsg,
-      nextRunAt: isPermanent ? job.nextRunAt : new Date(Date.now() + 2 ** newAttempts * 1000), // Exponential backoff
+      nextRunAt: isPermanent
+        ? job.nextRunAt
+        : new Date(Date.now() + 2 ** newAttempts * 1000), // Exponential backoff
     });
 
     if (isPermanent) {
@@ -213,44 +222,61 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
  *   - publish → unpublish
  *   - any → delete
  */
-async function executeStatusTransition(payload: Record<string, unknown>, _job: Job): Promise<void> {
-  const db = getDb();
-  if (!db) throw new Error("Database not available");
+async function executeStatusTransition(
+  payload: Record<string, unknown>,
+  _job: Job,
+): Promise<void> {
+  const rawDb = getDb();
+  if (!rawDb) throw new Error("Database not available");
 
-  const { collectionId, entryId, targetStatus, entryPath } = payload;
+  const {
+    collectionId,
+    entryId,
+    targetStatus,
+    entryPath,
+    tenantId: payloadTenantId,
+  } = payload;
 
   if (!collectionId || !entryId || !targetStatus) {
-    throw new Error("Missing required payload fields: collectionId, entryId, targetStatus");
+    throw new Error(
+      "Missing required payload fields: collectionId, entryId, targetStatus",
+    );
   }
+
+  // Tenant-scoped adapter: prevents cross-tenant data leakage in multi-tenant deployments
+  const db = payloadTenantId
+    ? forTenant(rawDb, payloadTenantId as string)
+    : rawDb;
 
   const collId = collectionId as string;
   const entId = entryId as string;
   const status = targetStatus as string;
+  const now = nowISODateString();
 
-  logger.info(`[Scheduler] Status transition: ${entId} → ${status} (collection: ${collId})`);
+  logger.info(
+    `[Scheduler] Status transition: ${entId} → ${status} (collection: ${collId})`,
+  );
 
   switch (status) {
     case "publish":
     case StatusTypes.publish: {
-      // Transition to published
       if (entryPath) {
         await db.content.nodes.update(
           entryPath as string,
           {
             status: StatusTypes.publish,
             data: { _scheduled: null },
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           } as any,
         );
       } else {
-        // Fallback: update via collection CRUD
         await db.crud.update(
           collId as any,
           entId as any,
           {
             status: StatusTypes.publish,
             _scheduled: null,
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           } as any,
         );
       }
@@ -265,7 +291,7 @@ async function executeStatusTransition(payload: Record<string, unknown>, _job: J
           {
             status: StatusTypes.unpublish,
             data: { _scheduled: null },
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           } as any,
         );
       } else {
@@ -275,7 +301,7 @@ async function executeStatusTransition(payload: Record<string, unknown>, _job: J
           {
             status: StatusTypes.unpublish,
             _scheduled: null,
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           } as any,
         );
       }
@@ -289,7 +315,7 @@ async function executeStatusTransition(payload: Record<string, unknown>, _job: J
           entryPath as string,
           {
             status: StatusTypes.delete,
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           } as any,
         );
       } else {
@@ -298,7 +324,7 @@ async function executeStatusTransition(payload: Record<string, unknown>, _job: J
           entId as any,
           {
             status: StatusTypes.delete,
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           } as any,
         );
       }
@@ -313,7 +339,7 @@ async function executeStatusTransition(payload: Record<string, unknown>, _job: J
           {
             status: StatusTypes.draft,
             data: { _scheduled: null },
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           } as any,
         );
       } else {
@@ -323,7 +349,7 @@ async function executeStatusTransition(payload: Record<string, unknown>, _job: J
           {
             status: StatusTypes.draft,
             _scheduled: null,
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           } as any,
         );
       }
@@ -362,11 +388,16 @@ async function createAuditLog(
     });
 
     if (process.env.NODE_ENV !== "production") {
-      logger.debug(`[Scheduler] Audit log created for job ${job._id} (${outcome})`);
+      logger.debug(
+        `[Scheduler] Audit log created for job ${job._id} (${outcome})`,
+      );
     }
   } catch (err) {
     // Non-fatal: don't fail the job if audit logging fails
-    logger.warn(`[Scheduler] Failed to create audit log for job ${job._id}:`, err);
+    logger.warn(
+      `[Scheduler] Failed to create audit log for job ${job._id}:`,
+      err,
+    );
   }
 }
 
@@ -389,7 +420,9 @@ export async function scheduleJob(
 ): Promise<string | null> {
   const db = getDb();
   if (!db || !db.system?.jobs) {
-    logger.warn("[Scheduler] Cannot schedule job: DB or jobs interface not available");
+    logger.warn(
+      "[Scheduler] Cannot schedule job: DB or jobs interface not available",
+    );
     return null;
   }
 

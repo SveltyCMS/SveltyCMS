@@ -61,7 +61,7 @@ export class RelationalAuthModule implements IAuthAdapter {
 
     // 🚀 Optimized mapper to bypass generic column scanning
     const converted = utils.convertUserToISO(dbUser);
-    const finalRoleIds = converted.roleIds || [];
+    const finalRoleIds = utils.parseJsonField<string[]>(converted.roleIds, []);
 
     // Priority: roleIds[0] > dbUser.role > "user"
     // This ensures that if we set roleIds during creation, it becomes the primary role.

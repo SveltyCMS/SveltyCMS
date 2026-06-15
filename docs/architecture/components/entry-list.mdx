@@ -1,12 +1,12 @@
 ---
 path: "docs/architecture/components/entry-list.mdx"
 title: "entry-list Component"
-description: "Documentation for the main collection data table with search, filtering, pagination, and hover preloading."
+description: "SSR-backed collection data table with URL-driven search, filtering, pagination, plugin columns, and connection-aware preloading."
 order: 2
 icon: "mdi:table"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-03-27"
+updated: "2026-06-15"
 tags:
   - "components"
   - "entry-list"
@@ -17,158 +17,142 @@ tags:
 
 # entry-list Component
 
-The `entry-list` is the primary component for displaying collection data in a tabular format with enterprise features like server-side search, filtering, and intelligent preloading.
+**File**: `src/components/collection-display/entry-list.svelte`
+
+Primary table for collection **view mode**. Data comes from `+page.server.ts` props; the component does **not** perform client-side collection fetching.
 
 ---
 
 ## Architecture
 
-````mermaid
-flowchart LR
-    subgraph Server["Server (+page.server.ts)"]
-        DB[(Database)]
-        SC[Server Cache]
-    end
-
-    subgraph entry-list["entry-list Component"]
-        direction TB
-        TH[Table Header]
-        TR[Table Rows]
-        FI[Filters]
-        PG[Pagination]
-        MB[MultiButton]
-    end
-
-    subgraph Preload["Hover Preloading"]
-        HP[preloadData]
-        PC[Preload Cache]
-    end
-
-    DB --> SC
-    SC --> entry-list
-    TR -->|Hover| HP
-    HP --> PC
-```text
-
----
-
-## Features
-
-| Feature                | Description                                   |
-| ---------------------- | --------------------------------------------- |
-| **Server-Side Search** | Real-time search with debounced queries       |
-| **Field Filtering**    | Per-column filtering options                  |
-| **Smart Pagination**   | Configurable page sizes (10, 25, 50, 100)     |
-| **Hover Preloading**   | Connection-aware speculative loading          |
-| **Bulk Selection**     | Multi-item selection with Shift+Click         |
-| **Sortable Columns**   | Click-to-sort with ASC/DESC toggle            |
-| **Status Display**     | Visual status badges (Published, Draft, etc.) |
-| **CI Publish Badge**   | Real-time "Publishing..." status for CI/CD    |
-
----
-
-## Data Flow
-
 ```mermaid
-sequenceDiagram
-    participant U as User
-    participant EL as entry-list
-    participant URL as URL State
-    participant S as Server
+flowchart LR
+    subgraph Server["+page.server.ts"]
+        DB[(Database)]
+        Cache[L1/L2 Cache]
+    end
 
-    U->>EL: Change filter/search/page
-    EL->>URL: Update URL params
-    URL->>S: Request new data
-    S-->>EL: Return entries + pagination
-    EL->>U: Render updated table
+    subgraph EL["entry-list"]
+        URL[URL query sync]
+        TH[Headers + DnD]
+        TR[Rows + selection]
+        TF[TableFilter]
+        PG[TablePagination]
+        MB[EntryListMultiButton]
+        TS[TranslationStatus]
+    end
 
-    Note over EL,U: Hover Preloading
-    U->>EL: Hover over row
-    EL->>S: preloadData(entry URL)
-    S-->>EL: Cache response
-```text
+    subgraph Preload["Preloading"]
+        PE[preloadEntry — SvelteKit]
+        WC["/api/collections/warm-cache"]
+    end
+
+    DB --> Cache --> EL
+    TR -->|hover| PE
+    TR -->|idle batch| WC
+```
+
+---
+
+## Features (as implemented)
+
+| Feature                | Implementation                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| **Server-driven data** | `entries` and `pagination` props from SSR; `tableData = $derived(serverEntries)` |
+| **URL state**          | `search`, `page`, `pageSize`, `filter_{field}`, sort fields via `goto()`         |
+| **Debounced search**   | `globalSearchValue` synced to URL; resets to page 1 on new search                |
+| **Column filters**     | Per-column inputs when filter row open; URL keys `filter_{name}`                 |
+| **Sortable columns**   | Header click toggles ASC/DESC; synced to URL                                     |
+| **Pagination**         | `TablePagination`; page sizes via `rowsPerPage` URL param                        |
+| **Multi-select**       | Shift+click range selection; select-all checkbox                                 |
+| **Bulk actions**       | Delegated to `entry-list-multi-button.svelte`                                    |
+| **Archived view**      | `showDeleted` toggles active vs archived entries                                 |
+| **Column manager**     | Show/hide columns; **drag-and-drop reorder** (`svelte-dnd-action`)               |
+| **Density**            | `normal` / `compact` via `TableFilter` → `entryListPaginationSettings.density`   |
+| **localStorage**       | Per-collection `entryListPaginationSettings_{collectionId}` persisted            |
+| **Plugin columns**     | `availablePlugins` → dynamic headers → `PluginComponent` cells                   |
+| **Translation UI**     | Embeds `translation-status.svelte` in filter toolbar                             |
+| **Hover preload**      | `preloadEntry()` from `@utils/navigation` on row hover                           |
+| **Idle warm-cache**    | First 5 visible rows → `POST /api/collections/warm-cache` (one ID per request)   |
+| **Connection-aware**   | Disables preload on `slow-2g` / `2g` / `saveData` (Network Information API)      |
+
+---
+
+## URL Parameters
+
+| Param                | Purpose                                                               |
+| -------------------- | --------------------------------------------------------------------- |
+| `search`             | Global text search (server-side)                                      |
+| `page`               | Current page number                                                   |
+| `pageSize`           | Rows per page                                                         |
+| `filter_{fieldName}` | Per-column filter value                                               |
+| Sort fields          | Written by `onSortChange` (see `entryListPaginationSettings.sorting`) |
 
 ---
 
 ## Props
 
 ```typescript
-interface entry-listProps {
-	entries: Entry[];
-	pagination: {
-		currentPage: number;
-		pageSize: number;
-		totalItems: number;
-		pagesCount: number;
-	};
-	contentLanguage: string;
-	breadcrumb: BreadcrumbItem[];
-	collectionStats: CollectionStats | null;
+interface EntryListProps {
+  entries: Entry[];
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalItems: number;
+    pagesCount: number;
+  };
+  contentLanguage: string;
+  breadcrumb?: Array<{ name: string; path: string }>;
+  collectionStats?: {
+    _id: string;
+    name: string;
+    count: number;
+    lastModified: string;
+  } | null;
 }
-```text
+```
 
 ---
 
 ## Keyboard Shortcuts
 
+Shortcuts are implemented on **`entry-list-multi-button`**, not in `entry-list.svelte` directly:
+
 | Shortcut  | Action             |
 | --------- | ------------------ |
-| `Alt+N`   | Create new entry   |
+| `Alt+N`   | Create             |
 | `Alt+P`   | Publish selected   |
 | `Alt+U`   | Unpublish selected |
-| `Alt+D`   | Move to draft      |
+| `Alt+D`   | Draft selected     |
 | `Alt+Del` | Delete selected    |
 
 ---
 
-## Plugin Extensibility
+## Scheduling Note
 
-The entry-list component can be extended through plugins using the **`dashboard` injection zone** for list-level enhancements.
+Bulk **Schedule** from MultiButton calls `onSchedule(date)` which sets a `_scheduled` timestamp payload on selected entries. The full **schedule-modal** (date/time/action picker) is opened from **header-edit** / **right-sidebar** / `entry-actions.ts` via `showScheduleModal()`, not from the bulk schedule stub.
 
-### Plugin Integration Points
+---
 
-Plugins can enhance the entry-list with:
+## Plugin Columns
 
-- **Custom Actions**: Bulk operations, export tools, workflow automation
-- **Data Visualizations**: Charts, analytics overlays, trend indicators
-- **Filtering Extensions**: Advanced search, saved filters, custom predicates
-- **UI Enhancements**: Custom columns, row decorators, status badges
+Plugins register `ui.columns` in their definition. `entry-list` adds headers and renders cells with:
 
-### Example: Bulk Export Plugin
+```svelte
+<PluginComponent
+  pluginId={...}
+  componentName={header.component}
+  {...mapPluginProps(header.props, entry)}
+/>
+```
 
-```typescript
-import type { Plugin } from "@src/plugins/types";
-import BulkExportButton from "./BulkExportButton.svelte";
-
-export const exportPlugin: Plugin = {
-  metadata: {
-    id: "bulk-exporter",
-    name: "Bulk Export",
-    version: "1.0.0",
-    enabled: true,
-  },
-  ui: {
-    slots: [
-      {
-        zone: "dashboard",
-        slot: "list_actions",
-        component: BulkExportButton,
-        order: 50,
-      },
-    ],
-  },
-};
-```text
-
-> [!NOTE]
-> For comprehensive plugin development, see [Plugin Architecture](/docs/architecture/security-plugin).
+Zone for list-level plugin UI: **`dashboard`** slot `list_actions` (see plugin docs).
 
 ---
 
 ## Related Documentation
 
-- [MultiButton Component](./entrylist-multibutton.mdx)
-- [fields Component](./fields.mdx)
-- [Hover Preloading Architecture](/docs/architecture/hover-preloading.mdx)
-- [Collection Store Dataflow](/docs/architecture/collection-store-dataflow.mdx)
-````
+- [MultiButton](./entrylist-multibutton.mdx)
+- [translation-status](./translation-status.mdx)
+- [fields](./fields.mdx)
+- [Collection page load tiers](/docs/architecture/collection-store-dataflow.mdx)

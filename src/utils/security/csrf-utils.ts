@@ -15,7 +15,9 @@ const CSRF_TOKEN_LENGTH = 32; // 256 bits
  */
 export function generateCsrfToken(cookies: Cookies, isSecure: boolean): string {
   const token = generateSecureToken(CSRF_TOKEN_LENGTH);
-  const cookieName = isSecure ? `__Host-${CSRF_TOKEN_COOKIE_NAME}` : CSRF_TOKEN_COOKIE_NAME;
+  const cookieName = isSecure
+    ? `__Host-${CSRF_TOKEN_COOKIE_NAME}`
+    : CSRF_TOKEN_COOKIE_NAME;
 
   cookies.set(cookieName, token, {
     path: "/",
@@ -31,8 +33,13 @@ export function generateCsrfToken(cookies: Cookies, isSecure: boolean): string {
 /**
  * Ensures a CSRF token exists in the cookies, generating one only if missing.
  */
-export function ensureCsrfToken(cookies: Cookies, isSecure: boolean): string | null {
-  const cookieName = isSecure ? `__Host-${CSRF_TOKEN_COOKIE_NAME}` : CSRF_TOKEN_COOKIE_NAME;
+export function ensureCsrfToken(
+  cookies: Cookies,
+  isSecure: boolean,
+): string | null {
+  const cookieName = isSecure
+    ? `__Host-${CSRF_TOKEN_COOKIE_NAME}`
+    : CSRF_TOKEN_COOKIE_NAME;
   const existing = cookies.get(cookieName);
 
   if (!existing) {
@@ -42,17 +49,26 @@ export function ensureCsrfToken(cookies: Cookies, isSecure: boolean): string | n
 }
 
 /**
- * Validates a CSRF token against the cookie value with constant-time comparison
+ * Validates a CSRF token against the cookie value with constant-time comparison.
+ * Returns the validation result. On success, automatically rotates the token
+ * to prevent replay attacks — the consumed token is invalidated and a fresh one
+ * is issued in the same cookie.
  */
 export function validateCsrfToken(
   cookies: Cookies,
   tokenToValidate?: string,
   isSecure?: boolean,
 ): boolean {
-  const cookieName = isSecure ? `__Host-${CSRF_TOKEN_COOKIE_NAME}` : CSRF_TOKEN_COOKIE_NAME;
+  const cookieName = isSecure
+    ? `__Host-${CSRF_TOKEN_COOKIE_NAME}`
+    : CSRF_TOKEN_COOKIE_NAME;
   const cookieToken = cookies.get(cookieName);
 
-  if (!cookieToken || !tokenToValidate || cookieToken.length !== tokenToValidate.length) {
+  if (
+    !cookieToken ||
+    !tokenToValidate ||
+    cookieToken.length !== tokenToValidate.length
+  ) {
     return false;
   }
 
@@ -61,7 +77,15 @@ export function validateCsrfToken(
   for (let i = 0; i < cookieToken.length; i++) {
     result |= cookieToken.charCodeAt(i) ^ tokenToValidate.charCodeAt(i);
   }
-  return result === 0;
+
+  const isValid = result === 0;
+
+  // Rotate token on successful validation — single-use CSRF pattern
+  if (isValid) {
+    generateCsrfToken(cookies, isSecure ?? false);
+  }
+
+  return isValid;
 }
 
 /**

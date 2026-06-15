@@ -69,6 +69,8 @@ export default defineConfig({
     /* Tag Playwright-originated API calls without bypassing normal browser navigation. */
     extraHTTPHeaders: {
       "x-test-mode": "true",
+      "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
+      "x-test-secret": TEST_API_SECRET || "",
     },
 
     launchOptions: {

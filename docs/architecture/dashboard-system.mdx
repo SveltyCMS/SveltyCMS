@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2025-10-17"
-updated: "2026-05-05"
+updated: "2026-06-15"
 tags:
   - "dashboard"
   - "widgets"
@@ -92,30 +92,24 @@ All dashboard widgets extend the `base-widget.svelte` component, which provides:
 
 ### Widget Registration
 
-Widgets are automatically discovered and registered using Vite's glob import system:
+Widgets use **dual discovery**:
+
+1. **Client** (`+page.svelte`) — Vite `import.meta.glob("./widgets/*.svelte")` builds the runtime registry for lazy-loaded rendering.
+2. **Server** (`+page.server.ts`) — `readdirSync` scans all `*.svelte` files in `widgets/` and dynamically imports `widgetMeta` for the widget picker.
 
 ```typescript
-// Automatic widget discovery in +page.svelte
-async function loadWidgetRegistry() {
-  const modules = import.meta.glob("./widgets/*.svelte");
-  const registry = {};
+// Client registry in +page.svelte
+const modules = import.meta.glob("./widgets/*.svelte");
 
-  for (const path in modules) {
-    const name = path.split("/").pop()?.replace(".svelte", "");
-    const module = await modules[path]();
+// Server discovery in +page.server.ts
+const files = readdirSync(widgetsPath).filter(
+  (file) => file.isFile() && file.name.endsWith(".svelte"),
+);
+```
 
-    registry[name] = {
-      component: module.default,
-      name: module.widgetMeta?.name || name,
-      description: module.widgetMeta?.description || "",
-      icon: module.widgetMeta?.icon || "mdi:widgets",
-      widgetMeta: module.widgetMeta,
-    };
-  }
+### Generative Dashboard
 
-  return registry;
-}
-```text
+`generativedashboard.svelte` on the dashboard page provides an AI-assisted layout builder. It reuses the same widget registry and persists layouts through `system-preferences`.
 
 ### Widget Metadata Schema
 
@@ -212,12 +206,13 @@ Enterprise-grade security monitoring and compliance tracking:
 - **Size**: 3x3 grid units (accommodates rich security data)
 - **Role-Based**: Dynamically adapts content based on user permissions
 
-#### **Securitywidget.svelte**
+#### **security-widget.svelte**
 
 - **Purpose**: Advanced threat monitoring and incident response
 - **Features**: Threat level indicators, blocked IPs, CSP violations
 - **Refresh**: 5-second intervals for threat detection
 - **Size**: 3x3 grid units
+- **API Endpoint**: `/api/dashboard/security`
 
 ### 3. Content Management Widgets
 
@@ -518,31 +513,19 @@ The audit widget seamlessly integrates with:
 
 ## Dashboard API Endpoints
 
-The dashboard system provides 9 RESTful API endpoints that serve data to widgets. All endpoints (except `/health`) require authentication and support multi-tenancy.
+The dashboard handler (`src/routes/api/[...path]/handlers/dashboard.ts`) exposes 13 RESTful sub-routes under `/api/dashboard/*`. All require session authentication and the `dashboard:read` permission (mapped in `ENDPOINT_PERMISSIONS`). Paths use kebab-case (`system-info`, `last5-content`, `online-user`).
 
 ### Authentication & Multi-tenancy
 
-All dashboard endpoints use session-based authentication:
-
-```typescript
-// Authentication check in endpoints
-const session = await locals.auth();
-if (!session?.user) {
-  return json({ error: "Unauthorized" }, { status: 401 });
-}
-
-// Tenant-scoped queries
-const tenantId = getTenantFromUrl(url);
-const data = await db.query({ tenantId });
-```text
+Requests pass through the API dispatcher (`+server.ts`) which enforces authentication and `checkEndpointPermission` before reaching the dashboard handler. Tenant-scoped queries use `locals.tenantId`.
 
 ### Endpoint Reference
 
 #### 1. **GET /api/dashboard/health**
 
-Public health check endpoint for load balancers and monitoring systems.
+System health check for dashboard widgets.
 
-**Authentication**: None (public endpoint)
+**Authentication**: Required (`dashboard:read`)
 
 **Response**:
 
@@ -597,11 +580,11 @@ Performance metrics from the MetricsService.
 
 ---
 
-#### 3. **GET /api/dashboard/systemInfo**
+#### 3. **GET /api/dashboard/system-info**
 
-Comprehensive system information: CPU, memory, disk, network, OS, processes.
+Comprehensive system information: CPU, memory, disk, and OS.
 
-**Authentication**: Required (session cookie)
+**Authentication**: Required (`dashboard:read`)
 
 **Query Parameters**:
 
@@ -693,20 +676,19 @@ System logs with ANSI color conversion to HTML.
 
 #### 5. **GET /api/dashboard/last5-content**
 
-Recent content from all collections.
+Recent content from all collections via `LocalCMS.collections.search`.
 
-**Authentication**: Required (session cookie)
+**Authentication**: Required (`dashboard:read`)
 
 **Query Parameters**:
 
-- `limit` (number): Number of items (max: 20, default: 5)
+- `limit` (number): Number of items (max: 50, default: 5)
 
 **Features**:
 
-- Multi-collection aggregation
-- Username lookup for `createdBy` field
+- Multi-collection aggregation across all tenant collections
+- Sorted by `updatedAt` (newest first)
 - Tenant-scoped queries
-- Sorted by creation date (newest first)
 
 **Response**:
 
@@ -759,13 +741,13 @@ Recent media files from the media library.
 
 #### 7. **GET /api/dashboard/online-user**
 
-Currently online users with session duration.
+Currently online users derived from active sessions (`getAllActiveSessions`).
 
-**Authentication**: Required (session cookie)
+**Authentication**: Required (`dashboard:read`)
 
 **Features**:
 
-- Active session tracking
+- Active session tracking (no synthetic random durations)
 - Username and avatar display
 - Online time formatting ("2h 15m")
 - Sorted by longest online time first
@@ -790,11 +772,11 @@ Currently online users with session duration.
 
 ---
 
-#### 8. **GET /api/dashboard/systemMessages**
+#### 8. **GET /api/dashboard/system-messages**
 
-System messages from log files.
+System messages derived from audit logs.
 
-**Authentication**: Required (session cookie)
+**Authentication**: Required (`dashboard:read`)
 
 **Query Parameters**:
 
@@ -865,11 +847,31 @@ Cache performance metrics from CacheMetrics service.
 
 ---
 
+#### 10. **GET /api/dashboard/audit**
+
+Flat audit event feed for the audit-log widget.
+
+**Authentication**: Required (`dashboard:read`)
+
+#### 11. **GET /api/dashboard/security**
+
+Security incident statistics and active threats.
+
+**Authentication**: Required (`dashboard:read`)
+
+#### 12. **GET /api/dashboard/scim**
+
+SCIM provisioning status for the scim-status widget.
+
+**Authentication**: Required (`dashboard:read`)
+
+---
+
 ### API Testing
 
-Dashboard APIs have comprehensive integration test coverage (48 tests):
+Dashboard APIs have integration test coverage:
 
-**Test File**: `tests/bun/api/dashboard.test.ts`
+**Test File**: `tests/integration/api/dashboard.test.ts`
 
 **Coverage by Endpoint**:
 
@@ -887,9 +889,9 @@ Dashboard APIs have comprehensive integration test coverage (48 tests):
 
 ```bash
 # Requires running development server
-npm run dev  # In terminal 1
-bun test tests/bun/api/dashboard.test.ts  # In terminal 2
-```text
+bun run dev
+bun test tests/integration/api/dashboard.test.ts
+```
 
 **Authentication in Tests**:
 

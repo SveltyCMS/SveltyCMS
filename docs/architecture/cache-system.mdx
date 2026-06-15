@@ -36,6 +36,26 @@ Layer 3: Database (Persistent) → Sub-ms CRUD (0.042-3.261ms)
 
 The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L2 layer for distributed deployments. This means even without Redis, the cache system is fully operational with sub-µs L1 hits.
 
+### Content System: L0 + L1 + L2 (Three Tiers)
+
+The content scanner adds a **process-local L0** on top of the dual-layer cache:
+
+```
+L0: Mtime Tree + _schemaCache (content-service.server.ts) → skip fs/import when unchanged
+L1: cacheService LRU (schema:*, navigation:tree:*)       → sub-µs metadata hits
+L2: Redis MGET/MSET (optional)                            → cross-node schema + nav snapshots
+```
+
+| Key prefix                           | Category  | TTL    | Tags                              | Invalidation                                                   |
+| ------------------------------------ | --------- | ------ | --------------------------------- | -------------------------------------------------------------- |
+| `schema:{filePath}`                  | `SCHEMA`  | 1 hour | `schema`, `schema:{collectionId}` | `clearByPattern("schema:")` on full reload                     |
+| `navigation:tree:{tenant}:{version}` | `CONTENT` | 5 min  | `navigation`, `navigation:tree`   | `clearByPattern("navigation:tree:")` on every `content:update` |
+
+**Helpers**: `src/content/content-cache.server.ts` (`setSchemaCacheEntry`, `invalidateSchemaCache`, `invalidateNavigationCache`, `notifyContentUpdate`).
+
+> [!NOTE]
+> Use `clearByPattern("schema:")` — not `invalidateByCategory(SCHEMA)` — because schema keys are prefixed with `schema:`, not `*:schema:`.
+
 ## Smart Features (All Production-Ready)
 
 ### Cache Stampede Protection (Single-Flight + Distributed Locks)
@@ -89,16 +109,18 @@ const result = await cacheService.getOrSetSWR(
 
 ## Cache Categories
 
-| Category | TTL        | Use Case                   |
-| -------- | ---------- | -------------------------- |
-| Static   | 7 days     | Page templates, layouts    |
-| Dynamic  | 1 hour     | Blog posts, articles       |
-| API      | 15 minutes | External API responses     |
-| Query    | 30 minutes | Database query results     |
-| Session  | 24 hours   | User sessions, auth tokens |
-| Widget   | 2 hours    | Dashboard widgets          |
-| Computed | 6 hours    | Expensive calculations     |
-| Media    | 30 days    | Uploaded files, thumbnails |
+| Category | TTL        | Use Case                                        |
+| -------- | ---------- | ----------------------------------------------- |
+| Static   | 7 days     | Page templates, layouts                         |
+| Dynamic  | 1 hour     | Blog posts, articles                            |
+| API      | 15 minutes | External API responses                          |
+| Query    | 30 minutes | Database query results                          |
+| Session  | 24 hours   | User sessions, auth tokens                      |
+| Widget   | 2 hours    | Dashboard widgets                               |
+| Computed | 6 hours    | Expensive calculations                          |
+| Media    | 30 days    | Uploaded files, thumbnails                      |
+| Schema   | 1 hour     | Collection schema metadata (`schema:*` keys)    |
+| Content  | 5 minutes  | Navigation tree snapshots (`navigation:tree:*`) |
 
 ## Performance Metrics
 

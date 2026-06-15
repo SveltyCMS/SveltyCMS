@@ -205,6 +205,18 @@ export async function handleTestingRoutes(
       const { invalidateSetupCache } = await import("@src/utils/setup-check");
       invalidateSetupCache(false, true);
 
+      // Invalidate roles and user count caches so they are reloaded after seeding
+      try {
+        const { invalidateUserCountCache, invalidateRolesCache } =
+          await import("@src/hooks/handle-authorization");
+        await invalidateUserCountCache(tenantId);
+        await invalidateRolesCache(tenantId);
+      } catch (err: any) {
+        logger.warn(
+          `[TestingHandler] Non-fatal cache invalidation error during seeding: ${err.message}`,
+        );
+      }
+
       return rawResponse({
         success: result.success,
         message: result.success ? "System seeded successfully" : (result as any).message,

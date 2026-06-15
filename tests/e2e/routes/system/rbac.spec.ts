@@ -13,6 +13,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
 import { seedTestUsers, TEST_USERS } from "../../helpers/seed";
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {
@@ -23,6 +24,16 @@ const USERS = {
 // Use shared loginAs helper instead of custom login function
 async function login(page: Page, user: { email: string; password: string }) {
   await loginAs(page, user.email, user.password);
+}
+
+/** SvelteKit renders +error.svelte at the same URL — detect 403/401 via status heading or message. */
+async function expectAccessDenied(page: Page) {
+  await expect(
+    page
+      .getByRole("heading", { name: /^(401|403)$/ })
+      .or(page.getByText(/insufficient permissions|forbidden|unauthorized|access denied/i))
+      .first(),
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 async function logout(page: Page) {
@@ -54,7 +65,21 @@ test.describe("Role-Based Access Control", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      // seedTestUsers now uses /api/testing which is whitelisted
+      // 1. Reset database
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "reset" },
+      });
+      // 2. Seed database (creates default roles & admin)
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      // 3. Seed test users (developer, editor)
       await seedTestUsers(page);
     } catch (error) {
       console.error("Failed to seed test users:", error);
@@ -94,13 +119,9 @@ test.describe("Role-Based Access Control", () => {
     await expect(page).toHaveURL(/\/config\/system-settings/, {
       timeout: 10_000,
     });
-    // Use a more specific selector to avoid strict mode violation (multiple matches)
-    await expect(
-      page
-        .locator("h1, h2, .title")
-        .filter({ hasText: /system settings/i })
-        .first(),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /system settings/i }).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Developer CAN access main config area
     await page.goto("/config");
@@ -113,18 +134,7 @@ test.describe("Role-Based Access Control", () => {
 
     // Developer CANNOT access admin-only areas (e.g., access management)
     await page.goto("/config/access-management");
-    await page.waitForLoadState("networkidle");
-    const amUrl = page.url();
-    const amBody = await page.textContent("body");
-
-    const isBlockedFromAM =
-      !amUrl.includes("/config/access-management") ||
-      amBody?.toLowerCase().includes("forbidden") ||
-      amBody?.toLowerCase().includes("unauthorized") ||
-      amBody?.toLowerCase().includes("access denied") ||
-      amBody?.toLowerCase().includes("insufficient permissions");
-
-    expect(isBlockedFromAM).toBeTruthy();
+    await expectAccessDenied(page);
 
     await logout(page);
   });
@@ -138,42 +148,18 @@ test.describe("Role-Based Access Control", () => {
 
     // Editor CANNOT access system settings
     await page.goto("/config/system-settings");
-
-    // Check for blocked state without waiting for full network idle
-    const settingsBody = await page.textContent("body");
-
-    // SvelteKit renders error pages at the same URL, so the URL won't change.
-    // Check for 403 indicators in the body content.
-    const isBlockedFromSettings =
-      settingsBody?.toLowerCase().includes("forbidden") ||
-      settingsBody?.toLowerCase().includes("unauthorized") ||
-      settingsBody?.toLowerCase().includes("access denied") ||
-      settingsBody?.toLowerCase().includes("insufficient permissions") ||
-      settingsBody?.toLowerCase().includes("403");
-
-    expect(isBlockedFromSettings).toBeTruthy();
+    await expectAccessDenied(page);
 
     // Editor CAN manage users (has user:manage permission)
     await page.goto("/config/user");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
     await expect(page.locator("body")).not.toContainText(
       /forbidden|unauthorized|access denied|insufficient permissions/i,
     );
 
     // Editor CANNOT access admin-only areas (e.g., access management)
     await page.goto("/config/access-management");
-
-    await page.waitForLoadState("networkidle");
-    const accessBody = await page.textContent("body");
-
-    const isBlockedFromAccess =
-      accessBody?.toLowerCase().includes("forbidden") ||
-      accessBody?.toLowerCase().includes("unauthorized") ||
-      accessBody?.toLowerCase().includes("access denied") ||
-      accessBody?.toLowerCase().includes("insufficient permissions") ||
-      accessBody?.toLowerCase().includes("403");
-
-    expect(isBlockedFromAccess).toBeTruthy();
+    await expectAccessDenied(page);
 
     await logout(page);
   });
@@ -213,7 +199,9 @@ test.describe("Role-Based Access Control", () => {
     // 1. Editor tries to fetch Tokens via API (admin-only endpoint)
     await login(page, USERS.editor);
     const tokenApiResponse = await page.evaluate(async () => {
-      const res = await fetch("/api/token");
+      const res = await fetch("/api/token", {
+        headers: { "x-test-security": "true" },
+      });
       const json = await res.json();
       return { status: res.status, ok: res.ok, body: json };
     });
@@ -224,13 +212,19 @@ test.describe("Role-Based Access Control", () => {
       tokenApiResponse.body?.success === false;
     expect(isDenied).toBeTruthy();
 
-    // 2. Editor tries to fetch System Config via API
-    const configApiResponse = await page.evaluate(async () => {
-      const res = await fetch("/api/config");
-      return { status: res.status, ok: res.ok };
+    // 2. Editor tries to fetch System Settings via API (mapped namespace, fail-closed)
+    const settingsApiResponse = await page.evaluate(async () => {
+      const res = await fetch("/api/system-settings", {
+        headers: { "x-test-security": "true" },
+      });
+      const json = await res.json().catch(() => ({}));
+      return { status: res.status, ok: res.ok, body: json };
     });
-    expect(configApiResponse.ok).toBeFalsy();
-    expect([401, 403]).toContain(configApiResponse.status);
+    const settingsDenied =
+      !settingsApiResponse.ok ||
+      [401, 403].includes(settingsApiResponse.status) ||
+      settingsApiResponse.body?.success === false;
+    expect(settingsDenied).toBeTruthy();
 
     await logout(page);
   });

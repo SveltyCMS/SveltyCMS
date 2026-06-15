@@ -50,9 +50,23 @@ export const contentSystem = {
     _skipReconciliation?: boolean,
     _incremental = false,
   ): Promise<void> {
-    // No-op on browser — real refresh happens via SSE or server actions
     if (!isBrowser) {
       console.warn("[contentSystem] refresh() called on server from wrong entry point");
+      return;
+    }
+    // Client-side: pull latest structure from the API (SSE triggers this path)
+    try {
+      const res = await fetch("/api/content-structure?action=getStructure", {
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      const nodes = json?.data?.contentNodes;
+      if (Array.isArray(nodes)) {
+        contentStore.sync(nodes);
+      }
+    } catch (err) {
+      console.warn("[contentSystem] Client refresh failed:", err);
     }
   },
 

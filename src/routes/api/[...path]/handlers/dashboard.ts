@@ -10,6 +10,8 @@ import { metricsService } from "@src/services/observability/metrics-service";
 import { auditLogService } from "@src/services/security/audit-service";
 import { getSystemInfo } from "@utils/system-info.server";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { parseSessionDuration } from "@utils/auth-utils";
+import type { Session } from "@src/databases/auth/types";
 import { rawResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
 
@@ -43,7 +45,7 @@ export async function handleDashboardRoutes(
   segments: string[],
 ) {
   const { url } = event;
-  const method = segments[1] || segments[0];
+  const method = (segments[1] || segments[0] || "").toLowerCase();
 
   if (typeof process !== "undefined" && process.env.NODE_ENV === "production") {
     console.log(`[DashboardRoute] method=${method}, segments=${segments.join(",")}`);
@@ -51,7 +53,7 @@ export async function handleDashboardRoutes(
 
   try {
     const query: DashboardQuery = {
-      method: method.toLowerCase(),
+      method,
       detailed: url.searchParams.get("detailed") === "true",
       type: url.searchParams.get("type") || undefined,
       limit: Math.min(Number(url.searchParams.get("limit")) || 5, 50),
@@ -176,24 +178,23 @@ export async function handleDashboardRoutes(
         });
       }
 
-      case "last5-content":
-      case "last5content": {
-        const result = await cms.db.crud.findMany("auditLogs", { action: "create" } as any, {
-          limit: query.limit,
-          sort: { timestamp: -1 } as any,
+      case "last5-content": {
+        const searchResult = await cms.collections.search("", {
           tenantId,
+          limit: query.limit,
+          sortField: "updatedAt",
+          sortDirection: "desc",
+          isAdmin: true,
         });
 
-        const mapped = result.success
-          ? (result.data || []).map((l: any) => ({
-              id: l._id,
-              title: l.message || l.action,
-              collection: l.collection || "System",
-              createdAt: l.timestamp,
-              createdBy: l.userEmail || l.createdBy || "system",
-              status: l.status || "published",
-            }))
-          : [];
+        const mapped = (searchResult.items || []).map((item: any) => ({
+          id: item._id || item.id,
+          title: item.title || item.name || item.slug || "Untitled",
+          collection: item._collection?.name || item._collection?.id || "unknown",
+          createdAt: item.createdAt || item.updatedAt,
+          createdBy: item.createdBy || item.author || item.updatedBy || "system",
+          status: item.status || "published",
+        }));
 
         return rawResponse(event, mapped);
       }
@@ -263,19 +264,54 @@ export async function handleDashboardRoutes(
 
       case "online-users":
       case "online-user": {
-        const usersRes = await cms.auth.listUsers({ tenantId, limit: 10 });
-        const users = usersRes && Array.isArray(usersRes.data) ? usersRes.data : [];
+        const sessionDurationMs = parseSessionDuration("1d");
+        const sessionsRes = await cms.auth.getAllActiveSessions({ tenantId });
+        const sessions =
+          sessionsRes.success && Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
 
-        const onlineUsers = users
-          .map((u) => ({
-            id: u._id,
-            name: u.username || u.email || "Unknown",
-            email: u.email || "",
-            role: u.role || "user",
-            avatarUrl: u.avatar || null,
-            onlineTime: new Date().toISOString(),
-            onlineMinutes: Math.floor(Math.random() * 60),
-          }))
+        const sessionByUser = new Map<string, Session>();
+        for (const session of sessions) {
+          const userId = String(session.user_id);
+          const existing = sessionByUser.get(userId);
+          if (!existing) {
+            sessionByUser.set(userId, session);
+            continue;
+          }
+          const existingStart = estimateSessionStartMs(existing, sessionDurationMs);
+          const currentStart = estimateSessionStartMs(session, sessionDurationMs);
+          if (currentStart < existingStart) {
+            sessionByUser.set(userId, session);
+          }
+        }
+
+        const userIds = [...sessionByUser.keys()];
+        const userLookups = await Promise.all(
+          userIds.map(async (userId) => {
+            try {
+              return await cms.auth.getUserById(userId, { tenantId });
+            } catch {
+              return null;
+            }
+          }),
+        );
+
+        const onlineUsers = userIds
+          .map((userId, index) => {
+            const user = userLookups[index];
+            const session = sessionByUser.get(userId)!;
+            const sessionStart = estimateSessionStartMs(session, sessionDurationMs);
+            const onlineMinutes = Math.max(0, Math.floor((Date.now() - sessionStart) / 60000));
+
+            return {
+              id: userId,
+              name: user?.username || user?.email || "Unknown",
+              email: user?.email || "",
+              role: user?.role || "user",
+              avatarUrl: user?.avatar || null,
+              onlineTime: formatOnlineDuration(onlineMinutes),
+              onlineMinutes,
+            };
+          })
           .sort((a, b) => b.onlineMinutes - a.onlineMinutes);
 
         return rawResponse(event, { onlineUsers });
@@ -436,4 +472,23 @@ function getRelativeTime(dateString: string): string {
   if (diffMin < 1) return "Just now";
   if (diffMin < 60) return `${diffMin}m ago`;
   return `${Math.floor(diffMin / 60)}h ago`;
+}
+
+function estimateSessionStartMs(session: Session, sessionDurationMs: number): number {
+  const expiresMs = new Date(session.expires).getTime();
+  if (!Number.isNaN(expiresMs)) {
+    return expiresMs - sessionDurationMs;
+  }
+  if (session.lastActiveAt) {
+    return new Date(session.lastActiveAt).getTime();
+  }
+  return Date.now();
+}
+
+function formatOnlineDuration(minutes: number): string {
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
 }

@@ -195,6 +195,7 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 | **concurrency-race**            | Verifies atomic consistency and lost-update protection.                                        | Critical performance audit for Concurrency.          | ~40s      |
 | **content-scale-stress**        | Measures content scan performance on 1,000+ collections across 5 nested levels.                | Critical performance audit for Content Stress.       | ~45s      |
 | **content-scan**                | Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.       | Critical performance audit for Scan.                 | ~8s       |
+| **content-incremental-reload**  | Compares surgical 1-file `fullReload` vs full reconciliation + SCHEMA cache wipe.              | Critical performance audit for Hot Reload.           | ~4s       |
 | **data-residency-failover**     | Simulates geopolitical boundary crossing and verifies PII field blocking for residency laws.   | Critical performance audit for Data Sovereignty.     | ~15s      |
 | **database-performance**        | Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.   | Critical performance audit for DB Raw p95.           | ~35s      |
 | **dev-dependency-load**         | Measures overhead of the build, sync, and lint toolchain.                                      | Critical performance audit for DX-Tooling.           | ~30s      |

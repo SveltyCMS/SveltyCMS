@@ -7,4 +7,5 @@ export const TEST_API_SECRET =
 export const TEST_API_HEADERS = {
   "x-test-mode": "true",
   "x-test-secret": TEST_API_SECRET,
+  "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
 };

@@ -98,6 +98,7 @@ bulk actions, and predictive preloading.
 	import { page } from '$app/state';
 	import EntryListMultiButton from './entry-list-multi-button.svelte';
 	import TranslationStatus from './translation-status.svelte';
+	import EntryListCell from './entry-list-cell.svelte';
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -172,6 +173,8 @@ bulk actions, and predictive preloading.
 	}
 
 	const filterDebounce = debounce(500);
+	const searchDebounce = debounce(400);
+	const useRowVirtualization = $derived(serverPagination.pageSize > 25);
 
 	function onFilterChange(filterName: string, value: string) {
 		filterDebounce(() => {
@@ -287,65 +290,48 @@ bulk actions, and predictive preloading.
 		}
 	}
 
-	// Phase 2: Batch preloading during idle time
+	// Batch warm-cache: single POST for all visible row IDs (not one request per entry)
 	async function batchPreloadVisibleEntries() {
-		if (!(isPreloadEnabled && browser)) {
+		if (!(isPreloadEnabled && browser && currentCollection?._id)) {
 			return;
 		}
 
-		// Use requestIdleCallback for background loading
+		const entriesToPreload = tableData.slice(0, 5);
+		const entryIds = entriesToPreload
+			.map((e) => e._id as string)
+			.filter((id) => {
+				if (!id) return false;
+				const cached = preloadedEntries.get(id);
+				return !cached || Date.now() - cached.timestamp > PRELOAD_CACHE_TTL;
+			});
+
+		if (entryIds.length === 0) return;
+
+		const warm = async () => {
+			try {
+				await fetch('/api/collections/warm-cache', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						collectionId: currentCollection._id,
+						entryIds
+					})
+				});
+
+				const now = Date.now();
+				for (const id of entryIds) {
+					preloadedEntries.set(id, { data: null, timestamp: now, hoverCount: 0 });
+				}
+				logger.debug(`[Batch Preload] Warmed ${entryIds.length} entries in one request`);
+			} catch (error) {
+				logger.warn('[Batch Preload] Failed:', error);
+			}
+		};
+
 		if ('requestIdleCallback' in window) {
-			(window as any).requestIdleCallback(
-				async (deadline: any) => {
-					let i = 0;
-					const entriesToPreload = tableData.slice(0, 5); // First 5 visible entries
-
-					while (i < entriesToPreload.length && deadline.timeRemaining() > 0) {
-						const entry = entriesToPreload[i];
-						if (!entry._id) {
-							i++;
-							continue;
-						}
-						const cached = preloadedEntries.get(entry._id);
-
-						if (!cached || Date.now() - cached.timestamp > PRELOAD_CACHE_TTL) {
-							try {
-								const preloadUrl = new URL(page.url);
-								preloadUrl.searchParams.set('edit', entry._id as string);
-
-								// Use new warm-cache endpoint for batch preloading
-								await fetch('/api/collections/warm-cache', {
-									method: 'POST',
-									headers: { 'Content-Type': 'application/json' },
-									body: JSON.stringify({
-										collectionId: currentCollection?._id,
-										entryIds: [entry._id as string] // We could batch this further if we refactor the loop
-									})
-								});
-
-								// Keep existing preload for edit page data if needed, or rely on warm cache
-								/* await fetch(preloadUrl.toString(), {
-									method: 'GET',
-									credentials: 'include',
-									headers: { 'X-Preload': 'true', 'X-Batch-Preload': 'true' }
-								}); */
-
-								preloadedEntries.set(entry._id as string, {
-									data: null,
-									timestamp: Date.now(),
-									hoverCount: 0
-								});
-
-								logger.debug(`[Batch Preload] Entry ${entry._id?.substring(0, 8)} preloaded during idle`);
-							} catch (error) {
-								logger.warn('[Batch Preload] Failed:', error);
-							}
-						}
-						i++;
-					}
-				},
-				{ timeout: 2000 }
-			);
+			(window as any).requestIdleCallback(warm, { timeout: 2000 });
+		} else {
+			await warm();
 		}
 	}
 
@@ -451,22 +437,20 @@ bulk actions, and predictive preloading.
 		}
 	});
 
-	// Reactive effect to update URL when globalSearchValue changes (user typing)
+	// Debounced search → URL (triggers server FTS via collection-service query.search)
 	$effect(() => {
 		const searchValue = globalSearchValue;
 		const currentUrlSearch = page.url.searchParams.get('search') || '';
 
-		// Skip if values match (avoid loop) or initial empty state
 		if (searchValue === currentUrlSearch) {
 			return;
 		}
 
-		// Use untrack to prevent infinite loops from URL changes
 		untrack(() => {
-			filterDebounce(() => {
+			searchDebounce(() => {
 				updateURL({
 					search: searchValue || null,
-					page: searchValue ? 1 : null // Reset to page 1 when searching, preserve page when clearing
+					page: searchValue ? 1 : null
 				});
 			});
 		});
@@ -545,6 +529,7 @@ bulk actions, and predictive preloading.
 				id: `${cacheKey}-${getFieldName(field)}`,
 				label: field.label,
 				name: getFieldName(field),
+				widgetName: field.widget?.Name || field.type || 'Input',
 				visible: true
 			})
 		);
@@ -1087,6 +1072,7 @@ bulk actions, and predictive preloading.
 						{#each tableData as entry, index (entry._id)}
 							<tr
 								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-tertiary-500 dark:bg-primary-500' : ''}"
+								style={useRowVirtualization ? 'content-visibility: auto; contain-intrinsic-size: 48px;' : undefined}
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 							>
@@ -1201,17 +1187,14 @@ bulk actions, and predictive preloading.
 															})}
 														</div>
 													</div>
-												{:else if typeof (entry as any)[(header as TableHeader).name || ''] === 'object' && (entry as any)[(header as TableHeader).name || ''] !== null}
-													{const fieldData = (entry as any)[(header as TableHeader).name || ''] as Record<string, any>}
-													{const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
-													{const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
-													{#if (header as TableHeader).name === 'last_name'}
-														<span title={debugInfo}><Sanitize html={translatedValue} profile="strict" /></span>
-													{:else}
-														<Sanitize html={translatedValue} profile="strict" />
-													{/if}
-												{:else if (header as TableHeader).name === 'plugin'}
-													<!-- <PluginComponent /> -->
+												{:else if (header as TableHeader).widgetName}
+													<EntryListCell
+														widgetName={(header as TableHeader).widgetName}
+														fieldName={(header as TableHeader).name || ''}
+														value={(entry as any)[(header as TableHeader).name || '']}
+														contentLanguage={currentLanguage}
+														compact={true}
+													/>
 												{:else}
 													<Sanitize html={String((entry as any)[(header as TableHeader).name || ''] || '-')} profile="strict" />
 												{/if}

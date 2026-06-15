@@ -61,12 +61,19 @@ export const events = live.stream(
  */
 const BRIDGE_EVENT_PREFIXES = [
   "content.",
+  "content:",
   "collection.",
+  "collection:",
   "media.",
+  "media:",
   "user.",
+  "user:",
   "auth.",
+  "auth:",
   "system.",
+  "system:",
   "benchmark.",
+  "benchmark:",
 ];
 
 function shouldBridgeEvent(event: string): boolean {

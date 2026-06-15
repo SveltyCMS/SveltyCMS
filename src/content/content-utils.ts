@@ -166,7 +166,17 @@ export const contentNavigation = {
     if (typeof window === "undefined" && import.meta.env.SSR) {
       try {
         const { cacheService } = await import("@src/databases/cache/cache-service");
-        await cacheService.set(cacheKey, result, 300, tenantId);
+        const { navigationCacheTags, NAVIGATION_CACHE_TTL_S } =
+          await import("./content-cache.server");
+        const { CacheCategory } = await import("@src/databases/cache/types");
+        await cacheService.set(
+          cacheKey,
+          result,
+          NAVIGATION_CACHE_TTL_S,
+          tenantId,
+          CacheCategory.CONTENT,
+          navigationCacheTags(tenantId),
+        );
       } catch {
         logger.trace("[NavigationCache] Write failed or skipped");
       }

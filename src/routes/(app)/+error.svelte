@@ -70,7 +70,7 @@ function isCMSChar(index: number): boolean {
 			<div class="animate-[spin_20s_linear_infinite] absolute inset-0 flex items-center justify-center" style="font-size: {font}em;">
 				{#each array as char, index (index)}
 					<div
-						class="absolute inset-s-1/2 top-0 h-full -translate-x-1/2 text-center font-bold uppercase leading-none"
+						class="absolute inset-s-1/2 top-0 h-full w-4 -translate-x-1/2 text-center font-bold uppercase leading-none"
 						style="transform: translateX(-50%) rotate({(360 / array.length) * index}deg); transform-origin: center {size / 2}px;"
 					>
 						<SiteName {char} textClass={isCMSChar(index) ? 'text-tertiary-500 dark:text-primary-500' : 'text-white'} />
@@ -90,11 +90,11 @@ function isCMSChar(index: number): boolean {
 
 				<!-- Error URL Banner -->
 				<div
-					class="mt-4 rounded bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:absolute sm:inset-s-1/2 sm:top-1/2 sm:mt-0 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rotate-12"
+					class="mt-4 rounded bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:absolute sm:inset-s-1/21/2 sm:top-1/2 sm:mt-0 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rotate-12"
 					aria-label="Error type"
 				>
 					<div class="max-w-70 truncate" title={page.url.toString()}>{page.url}</div>
-					<div class="whitespace-nowrap">{error_pagenotfound()}</div>
+					<div class="whit`inset-s-1/2espace-nowrap">{error_pagenotfound()}</div>
 				</div>
 			</div>
 

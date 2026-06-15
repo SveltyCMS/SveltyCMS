@@ -10,7 +10,8 @@ menu item at a specific level. Uses the standard widget loading system.
 -->
 
 <script lang="ts">
-	import { getComponentLoader } from '@src/widgets/scanner';
+	import { widgets } from '@src/stores/widget-store.svelte';
+	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { modalState } from '@utils/modal.svelte';
 	import { getFieldName } from '@utils/utils';
 	import type { MenuEditContext } from './types';
@@ -21,7 +22,7 @@ menu item at a specific level. Uses the standard widget loading system.
 	 * Resolves the appropriate widget loader for a given widget name.
 	 */
 	function getWidgetLoader(widgetName: string) {
-		return getComponentLoader(widgetName, 'input');
+		return getCachedWidgetInputLoader(widgetName, widgets.widgetFunctions);
 	}
 
 	/**

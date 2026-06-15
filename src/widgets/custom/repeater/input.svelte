@@ -14,6 +14,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 <script lang="ts">
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
+	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { getFieldName } from '@utils/utils';
 	import { flip } from 'svelte/animate';
 	import type { DndEvent } from 'svelte-dnd-action';
@@ -38,46 +39,9 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 		}
 	});
 
-	// --- WIDGET LOADING LOGIC ---
-	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('../../**/*.svelte') as Record<
-		string,
-		() => Promise<{ default: any }>
-	>;
-
 	function getWidgetLoader(widgetName: string) {
-		if (!widgetName) return null;
-
-		// 1. Exact match via store
-		const fn = widgets.widgetFunctions[widgetName];
-		const storePath = (fn as any)?.componentPath || (fn as any)?.inputComponentPath;
-		if (storePath && storePath in modules) {
-			return modules[storePath];
-		}
-
-		// 2. Normalized casing and common path search
-		const normalized = widgetName.toLowerCase();
-		for (const path in modules) {
-			const lowerPath = path.toLowerCase();
-			if (
-				lowerPath.includes(`/widgets/core/${normalized}/input.svelte`) ||
-				lowerPath.includes(`/widgets/core/${normalized}/index.svelte`) ||
-				lowerPath.includes(`/widgets/custom/${normalized}/input.svelte`) ||
-				lowerPath.includes(`/widgets/custom/${normalized}/index.svelte`)
-			) {
-				return modules[path];
-			}
-		}
-
-		// 3. Last resort fallback
-		for (const path in modules) {
-			if (path.toLowerCase().includes(`/${normalized}/input.svelte`)) {
-				return modules[path];
-			}
-		}
-
-		return null;
+		return getCachedWidgetInputLoader(widgetName, widgets.widgetFunctions);
 	}
-	// -----------------------------------------------------------
 
 	// --- DnD Logic ---
 	let items = $state<{ id: string; data: Record<string, any> }[]>([]);

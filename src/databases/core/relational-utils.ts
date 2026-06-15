@@ -154,8 +154,10 @@ export function convertDatesToISO(
   }
 
   const result: any = {};
-  const dateCols = options?.table ? getTableDateColumns(options.table) : null;
-  const jsonCols = options?.table ? getTableJsonColumns(options.table) : null;
+  const table = options?.table;
+  const hasSchema = table ? _tableDateCols.has(table) : false;
+  const dateCols = hasSchema && table ? getTableDateColumns(table) : null;
+  const jsonCols = hasSchema && table ? getTableJsonColumns(table) : null;
 
   if (dateCols && dateCols.length > 0) {
     // 🚀 2027 FAST PATH: Only convert known date columns
@@ -265,8 +267,10 @@ export function convertISOToDates(
   }
 
   const result: any = Object.assign({}, data);
-  const dateCols = options?.table ? getTableDateColumns(options.table) : null;
-  const jsonCols = options?.table ? getTableJsonColumns(options.table) : null;
+  const table = options?.table;
+  const hasSchema = table ? _tableDateCols.has(table) : false;
+  const dateCols = hasSchema && table ? getTableDateColumns(table) : null;
+  const jsonCols = hasSchema && table ? getTableJsonColumns(table) : null;
 
   if (dateCols && dateCols.length > 0) {
     for (let i = 0; i < dateCols.length; i++) {

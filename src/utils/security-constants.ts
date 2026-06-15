@@ -12,7 +12,8 @@ export const BASE_HEADERS: Record<string, string> = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Embedder-Policy": "require-corp",
-  "X-XSS-Protection": "1; mode=block",
+  "Permissions-Policy":
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), accelerometer=(), gyroscope=(), magnetometer=()",
   "X-DNS-Prefetch-Control": "off",
   "X-Permitted-Cross-Domain-Policies": "none",
 };

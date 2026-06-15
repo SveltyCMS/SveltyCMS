@@ -143,6 +143,7 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   permission: "system:admin",
   "system-jobs": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  dashboard: "dashboard:read",
 };
 
 /**

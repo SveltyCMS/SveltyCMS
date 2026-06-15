@@ -35,7 +35,8 @@ echo ""
 
 # ── Gate 1: Production Build ─────────────────────────────────────────────
 echo "🏗️  Gate 1: Building Application"
-bun run build
+rm -rf build .svelte-kit
+COMPILE_ALL_ADAPTERS=true bun run build
 echo "   ✓ Build completed."
 echo ""
 

@@ -52,18 +52,23 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T | null>> {
     const startTime = performance.now();
     try {
-      // 🚀 ULTRA FAST PATH: Direct ID lookup bypasses safeQuery and mapQuery overhead
+      // 🚀 ULTRA FAST PATH: Direct ID lookup bypasses safeQuery and mapQuery overhead.
+      // Only activates when tenantId IS provided (multi-tenant isolation is non-negotiable).
       if (
         this.isLookupQuery(query) &&
         !options.includeDeleted &&
+        options.tenantId &&
+        !options.bypassSafeQuery &&
         this.model.collection.name !== "auth_tokens" &&
         this.model.collection.name !== "sessions"
       ) {
         const id = (query as any)._id;
-        const filter: any = { _id: id };
-        if (options.tenantId) filter.tenantId = options.tenantId;
+        const filter: any = { _id: id, tenantId: options.tenantId };
 
-        const result = await this.model.findOne(filter, options.fields?.join(" ")).lean().exec();
+        const result = await this.model
+          .findOne(filter, options.fields?.join(" "))
+          .lean()
+          .exec();
 
         const meta = { executionTime: performance.now() - startTime };
         if (!result) return { success: true, data: null, meta };
@@ -109,28 +114,24 @@ export class MongoCrudMethods<T extends BaseEntity> {
     }
   }
 
-  async findByIds(ids: DatabaseId[], options: FindOptions<T> = {}): Promise<DatabaseResult<T[]>> {
+  async findByIds(
+    ids: DatabaseId[],
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     try {
-      // 🚀 Fast-Path: Direct ID list lookup
-      if (!options.tenantId && !options.includeDeleted && !options.bypassTenantCheck) {
-        const results = await this.model
-          .find({ _id: { $in: ids } } as any, options.fields?.join(" ") || "")
-          .lean()
-          .exec();
-        return {
-          success: true,
-          data: processDates(results) as T[],
-          meta: { executionTime: performance.now() - startTime },
-        };
-      }
-
+      // Always route through safeQuery for tenant isolation enforcement.
+      // No fast-path bypass — multi-tenant data leakage is non-negotiable.
       const secureQuery = this.adapter.mapQuery(
-        safeQuery({ _id: { $in: ids } } as unknown as QueryFilter<T>, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-          includeDeleted: options.includeDeleted,
-          bypassSafeQuery: options.bypassSafeQuery,
-        }),
+        safeQuery(
+          { _id: { $in: ids } } as unknown as QueryFilter<T>,
+          options.tenantId as string,
+          {
+            bypassTenantCheck: options.bypassTenantCheck,
+            includeDeleted: options.includeDeleted,
+            bypassSafeQuery: options.bypassSafeQuery,
+          },
+        ),
       );
 
       const queryOptions: any = {};
@@ -245,19 +246,30 @@ export class MongoCrudMethods<T extends BaseEntity> {
       return {
         success: false,
         message: "Streaming failed",
-        error: createDatabaseError(error, "STREAM_MANY_ERROR", "Streaming failed"),
+        error: createDatabaseError(
+          error,
+          "STREAM_MANY_ERROR",
+          "Streaming failed",
+        ),
       };
     }
   }
 
-  async insert(data: EntityCreate<T>, options: BaseQueryOptions = {}): Promise<DatabaseResult<T>> {
+  async insert(
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     try {
       // Fix: removed includeDeleted: true from insert safeQuery (copy-paste error)
-      const secureData = safeQuery(data as Record<string, unknown>, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-        bypassSafeQuery: options.bypassSafeQuery,
-      });
+      const secureData = safeQuery(
+        data as Record<string, unknown>,
+        options.tenantId as string,
+        {
+          bypassTenantCheck: options.bypassTenantCheck,
+          bypassSafeQuery: options.bypassSafeQuery,
+        },
+      );
 
       const now = nowISODateString();
       const doc = new this.model({
@@ -278,11 +290,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {
-      if (error instanceof mongoose.mongo.MongoServerError && error.code === 11_000) {
+      if (
+        error instanceof mongoose.mongo.MongoServerError &&
+        error.code === 11_000
+      ) {
         return {
           success: false,
           message: "Duplicate key error",
-          error: createDatabaseError(error, "UNIQUE_CONSTRAINT_VIOLATION", "Duplicate key error"),
+          error: createDatabaseError(
+            error,
+            "UNIQUE_CONSTRAINT_VIOLATION",
+            "Duplicate key error",
+          ),
         };
       }
       return {
@@ -303,10 +322,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
       const now = nowISODateString();
       const ops = data.map((d) => {
-        const secureData = safeQuery(d as Record<string, unknown>, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-          bypassSafeQuery: options.bypassSafeQuery,
-        });
+        const secureData = safeQuery(
+          d as Record<string, unknown>,
+          options.tenantId as string,
+          {
+            bypassTenantCheck: options.bypassTenantCheck,
+            bypassSafeQuery: options.bypassSafeQuery,
+          },
+        );
 
         const doc = {
           ...secureData,
@@ -326,7 +349,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const result = await this.model.bulkWrite(ops as any[], bulkOptions);
 
       // Extract the inserted documents from the ops for the result
-      const insertedDocs = ops.map((op) => op.insertOne.document) as unknown as T[];
+      const insertedDocs = ops.map(
+        (op) => op.insertOne.document,
+      ) as unknown as T[];
 
       return {
         success: true,
@@ -340,7 +365,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       return {
         success: false,
         message: "Insert many failed",
-        error: createDatabaseError(error, "INSERT_MANY_ERROR", "Insert many failed"),
+        error: createDatabaseError(
+          error,
+          "INSERT_MANY_ERROR",
+          "Insert many failed",
+        ),
       };
     }
   }
@@ -475,7 +504,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       return {
         success: false,
         message: "Update many failed",
-        error: createDatabaseError(error, "UPDATE_MANY_ERROR", "Update many failed"),
+        error: createDatabaseError(
+          error,
+          "UPDATE_MANY_ERROR",
+          "Update many failed",
+        ),
       };
     }
   }
@@ -508,7 +541,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
           secureQuery,
           {
             $set: (() => {
-              const { _id: _, tenantId: __, ...d } = { ...(data as any), updatedAt: now };
+              const {
+                _id: _,
+                tenantId: __,
+                ...d
+              } = { ...(data as any), updatedAt: now };
               return d;
             })(),
             $setOnInsert: {
@@ -602,7 +639,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const uniqueFields = new Set<string>();
       const schemaPaths = this.model.schema.paths;
       for (const [path, definition] of Object.entries(schemaPaths)) {
-        if ((definition as any)._userProvidedOptions?.unique) uniqueFields.add(path);
+        if ((definition as any)._userProvidedOptions?.unique)
+          uniqueFields.add(path);
       }
 
       // Check indexes for unique constraints
@@ -688,12 +726,19 @@ export class MongoCrudMethods<T extends BaseEntity> {
       return {
         success: false,
         message: "Delete many failed",
-        error: createDatabaseError(error, "DELETE_MANY_ERROR", "Delete many failed"),
+        error: createDatabaseError(
+          error,
+          "DELETE_MANY_ERROR",
+          "Delete many failed",
+        ),
       };
     }
   }
 
-  async restore(id: DatabaseId, options: BaseQueryOptions = {}): Promise<DatabaseResult<T>> {
+  async restore(
+    id: DatabaseId,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
     // 🛡️ HARDENING: Prevent driver-level crashes if ID is accidentally undefined/null
     if (id === undefined || id === null) {
       return {
@@ -709,11 +754,15 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       const { tenantId, bypassTenantCheck } = options;
       const query = this.adapter.mapQuery(
-        safeQuery({ _id: id, isDeleted: true } as QueryFilter<T>, tenantId as string, {
-          bypassTenantCheck,
-          includeDeleted: true,
-          bypassSafeQuery: options.bypassSafeQuery,
-        }),
+        safeQuery(
+          { _id: id, isDeleted: true } as QueryFilter<T>,
+          tenantId as string,
+          {
+            bypassTenantCheck,
+            includeDeleted: true,
+            bypassSafeQuery: options.bypassSafeQuery,
+          },
+        ),
       );
 
       // Fetch document to identify mangled unique fields
@@ -770,7 +819,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       if (!result) {
         return {
           success: false,
-          message: "Failed to restore document (it may have been modified or deleted concurrently)",
+          message:
+            "Failed to restore document (it may have been modified or deleted concurrently)",
           error: { code: "RESTORE_FAILED", message: "Atomic update failed" },
         };
       }
@@ -781,11 +831,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
       if (
         err?.code === 11000 ||
         err?.code === 11001 ||
-        (err?.message && (err.message.includes("E11000") || err.message.includes("duplicate key")))
+        (err?.message &&
+          (err.message.includes("E11000") ||
+            err.message.includes("duplicate key")))
       ) {
         return {
           success: false,
-          message: "Cannot restore: another document already has the same unique values",
+          message:
+            "Cannot restore: another document already has the same unique values",
           error: { code: "COLLISION", message: "Duplicate value detected" },
         };
       }
@@ -815,7 +868,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
       return {
         success: false,
         message: "Count failed",
-        error: createDatabaseError(error, "COUNT_ERROR", "Count failed", options.silent),
+        error: createDatabaseError(
+          error,
+          "COUNT_ERROR",
+          "Count failed",
+          options.silent,
+        ),
       };
     }
   }
@@ -832,7 +890,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassSafeQuery: options.bypassSafeQuery,
         }),
       );
-      const doc = await this.model.findOne(secureQuery, { _id: 1 }).lean().exec();
+      const doc = await this.model
+        .findOne(secureQuery, { _id: 1 })
+        .lean()
+        .exec();
       return { success: true, data: !!doc };
     } catch (error) {
       return {
@@ -843,7 +904,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
     }
   }
 
-  async aggregate(pipeline: any[], options: BaseQueryOptions = {}): Promise<DatabaseResult<any[]>> {
+  async aggregate(
+    pipeline: any[],
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<any[]>> {
     try {
       const filter = this.adapter.mapQuery(
         safeQuery({}, options.tenantId as string, {
@@ -881,13 +945,20 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }
 
       // 🚀 PERFORMANCE: Use allowDiskUse:false to force in-memory pipeline (faster for small datasets)
-      const result = await this.model.aggregate(securePipeline).allowDiskUse(false).exec();
+      const result = await this.model
+        .aggregate(securePipeline)
+        .allowDiskUse(false)
+        .exec();
       return { success: true, data: result };
     } catch (error) {
       return {
         success: false,
         message: "Aggregation failed",
-        error: createDatabaseError(error, "AGGREGATION_ERROR", "Aggregation failed"),
+        error: createDatabaseError(
+          error,
+          "AGGREGATION_ERROR",
+          "Aggregation failed",
+        ),
       };
     }
   }
@@ -911,7 +982,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
           update: {
             $set: (() => {
-              const { _id: _, tenantId: __, ...d } = { ...(item.data as any), updatedAt: now };
+              const {
+                _id: _,
+                tenantId: __,
+                ...d
+              } = { ...(item.data as any), updatedAt: now };
               return d;
             })(),
             $setOnInsert: {
@@ -940,7 +1015,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       return {
         success: false,
         message: "Upsert many failed",
-        error: createDatabaseError(error, "UPSERT_MANY_ERROR", "Upsert many failed"),
+        error: createDatabaseError(
+          error,
+          "UPSERT_MANY_ERROR",
+          "Upsert many failed",
+        ),
       };
     }
   }
@@ -954,7 +1033,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     const startTime = performance.now();
     try {
-      if (updates.length === 0) return { success: true, data: { modifiedCount: 0 } };
+      if (updates.length === 0)
+        return { success: true, data: { modifiedCount: 0 } };
 
       const now = nowISODateString();
       const ops = updates.map((update) => ({
@@ -987,7 +1067,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       return {
         success: false,
         message: "Bulk update failed",
-        error: createDatabaseError(error, "BULK_UPDATE_ERROR", "Bulk update failed"),
+        error: createDatabaseError(
+          error,
+          "BULK_UPDATE_ERROR",
+          "Bulk update failed",
+        ),
       };
     }
   }
@@ -1038,7 +1122,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       return {
         success: false,
         message: "Atomic increment failed",
-        error: createDatabaseError(error, "ATOMIC_INCREMENT_ERROR", "Atomic increment failed"),
+        error: createDatabaseError(
+          error,
+          "ATOMIC_INCREMENT_ERROR",
+          "Atomic increment failed",
+        ),
       };
     }
   }

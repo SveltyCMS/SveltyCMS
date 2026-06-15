@@ -36,12 +36,14 @@ export const contentLiveSync = {
       try {
         const data = JSON.parse(event.data);
 
-        // Handle reconcile or general update events
-        if (
+        // Handle reconcile or general update events (normalized SSE wire format)
+        const isContentUpdate =
           data.type === "reconcile" ||
           data.type === "content_update" ||
-          data.type === "reorder"
-        ) {
+          data.type === "reorder" ||
+          data.event === "content:update";
+
+        if (isContentUpdate) {
           if (debounceTimer) clearTimeout(debounceTimer);
           debounceTimer = setTimeout(async () => {
             logger.info(`📡 Content update received [${data.type}]. Refreshing...`);

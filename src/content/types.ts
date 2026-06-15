@@ -490,6 +490,8 @@ export interface TableHeader {
   name?: string;
   key?: string;
   label: string;
+  /** Widget type for Display-pillar list cells (entry-list). */
+  widgetName?: string;
   component?: string;
   props?: Record<string, string>;
   sortable?: boolean;

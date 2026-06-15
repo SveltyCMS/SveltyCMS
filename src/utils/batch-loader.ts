@@ -15,17 +15,34 @@
  * - Generic type safety for keys and values
  */
 
-export type BatchFunction<K, V> = (keys: readonly K[]) => Promise<ReadonlyArray<V | Error>>;
+export type BatchFunction<K, V> = (
+  keys: readonly K[],
+) => Promise<ReadonlyArray<V | Error>>;
+
+interface CacheEntry<V> {
+  promise: Promise<V>;
+  timestamp: number;
+}
 
 export class BatchLoader<K, V> {
   private _batchFn: BatchFunction<K, V>;
-  private _queue: Array<{ key: K; resolve: (value: V) => void; reject: (reason: any) => void }> =
-    [];
-  private _cache: Map<K, Promise<V>> = new Map();
+  private _queue: Array<{
+    key: K;
+    resolve: (value: V) => void;
+    reject: (reason: any) => void;
+  }> = [];
+  private _cache: Map<K, CacheEntry<V>> = new Map();
   private _scheduled = false;
+  private _maxBatchSize: number;
+  private _cacheTtlMs: number;
 
-  constructor(batchFn: BatchFunction<K, V>) {
+  constructor(
+    batchFn: BatchFunction<K, V>,
+    options?: { maxBatchSize?: number; cacheTtlMs?: number },
+  ) {
     this._batchFn = batchFn;
+    this._maxBatchSize = options?.maxBatchSize ?? 100;
+    this._cacheTtlMs = options?.cacheTtlMs ?? 0; // 0 = no TTL (request-scoped)
   }
 
   /**
@@ -33,19 +50,34 @@ export class BatchLoader<K, V> {
    * If the key is already in the cache, the existing promise is returned.
    */
   public load(key: K): Promise<V> {
-    const cachedPromise = this._cache.get(key);
-    if (cachedPromise) return cachedPromise;
+    // Check cache with TTL eviction
+    const cached = this._cache.get(key);
+    if (cached) {
+      if (
+        this._cacheTtlMs === 0 ||
+        Date.now() - cached.timestamp < this._cacheTtlMs
+      ) {
+        return cached.promise;
+      }
+      // Expired — evict
+      this._cache.delete(key);
+    }
 
     const promise = new Promise<V>((resolve, reject) => {
       this._queue.push({ key, resolve, reject });
       if (!this._scheduled) {
         this._scheduled = true;
-        // Schedule dispatch on the next microtask
-        queueMicrotask(() => this._dispatch());
+        // Immediate flush if queue exceeds max batch size
+        if (this._queue.length >= this._maxBatchSize) {
+          this._dispatch();
+        } else {
+          // Schedule dispatch on the next microtask
+          queueMicrotask(() => this._dispatch());
+        }
       }
     });
 
-    this._cache.set(key, promise);
+    this._cache.set(key, { promise, timestamp: Date.now() });
     return promise;
   }
 
@@ -103,7 +135,10 @@ export class BatchLoader<K, V> {
    */
   public prime(key: K, value: V): this {
     if (!this._cache.has(key)) {
-      this._cache.set(key, Promise.resolve(value));
+      this._cache.set(key, {
+        promise: Promise.resolve(value),
+        timestamp: Date.now(),
+      });
     }
     return this;
   }

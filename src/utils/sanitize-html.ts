@@ -37,20 +37,27 @@ export function sanitizeHtml(html: string): string {
   if (!html) return "";
 
   let cleaned = html;
+  let previous = "";
 
-  // 1. Strip dangerous tags — layered approach for defense-in-depth
-  for (const tag of STRIP_TAGS) {
-    // Remove full tag pairs: <tag>content</tag>
-    cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}>`, "gi"), "");
-    // Self-closing variants: <tag />
-    cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*\\/>`, "gi"), "");
-    // Opening tags without closing: <tag ...>
-    cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*>`, "gi"), "");
-    // Closing tags without opening: </tag>
-    cleaned = cleaned.replace(new RegExp(`</${tag}>`, "gi"), "");
+  // Iterative scrubbing — prevents label-nesting bypass attacks
+  // where <scr<script>ipt> would reassemble after first pass
+  while (cleaned !== previous) {
+    previous = cleaned;
+
+    // 1. Strip dangerous tags — layered approach for defense-in-depth
+    for (const tag of STRIP_TAGS) {
+      // Remove full tag pairs: <tag>content</tag>
+      cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}>`, "gi"), "");
+      // Self-closing variants: <tag />
+      cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*\\/>`, "gi"), "");
+      // Opening tags without closing: <tag ...>
+      cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*>`, "gi"), "");
+      // Closing tags without opening: </tag>
+      cleaned = cleaned.replace(new RegExp(`</${tag}>`, "gi"), "");
+    }
   }
 
-  // 2. Strip on* event handlers
+  // 2. Strip on* event handlers (quoted and unquoted)
   cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
   cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
 

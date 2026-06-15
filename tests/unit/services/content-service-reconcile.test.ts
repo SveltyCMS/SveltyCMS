@@ -26,6 +26,7 @@ vi.mock("../../../src/databases/cache/cache-service", () => ({
   cacheService: {
     get: vi.fn(),
     set: vi.fn(),
+    clearByPattern: vi.fn(),
   },
 }));
 
@@ -42,11 +43,12 @@ vi.mock("../../../src/utils/event-bus", () => ({
     broadcast: vi.fn(),
   },
   SystemEvents: {
-    CONTENT_UPDATE: "CONTENT_UPDATE",
+    CONTENT_UPDATE: "content:update",
   },
 }));
 
 vi.mock("../../../src/content/module-processor.server", () => ({
+  loadSchema: vi.fn(),
   loadSchemaNative: vi.fn(),
   generateSchemaHash: vi.fn(() => "abc-hash"),
 }));
@@ -61,7 +63,7 @@ describe("ContentService - Incremental Reconciliation", () => {
   });
 
   it("should perform a surgical update when a single file changes", async () => {
-    const { loadSchemaNative } = await import("../../../src/content/module-processor.server");
+    const { loadSchema } = await import("../../../src/content/module-processor.server");
 
     const { contentStore } = await import("../../../src/stores/content-store.svelte");
     const { eventBus } = await import("../../../src/utils/event-bus");
@@ -70,12 +72,13 @@ describe("ContentService - Incremental Reconciliation", () => {
     const mockSchema = {
       _id: "test-col",
       name: "Test Collection",
-      path: "posts/test.js",
+      path: "/collection/posts/test",
+      fields: [{ db_fieldName: "title", label: "Title", required: true, translated: false }],
     };
 
     // Setup mocks
     (fs.stat as any).mockResolvedValue({ mtimeMs: 12345 });
-    (loadSchemaNative as any).mockResolvedValue({ schema: mockSchema });
+    (loadSchema as any).mockResolvedValue({ schema: mockSchema });
 
     const mockAdapter = {
       content: {
@@ -87,14 +90,13 @@ describe("ContentService - Incremental Reconciliation", () => {
     };
 
     await contentService.handleIncrementalReload(
-      "posts/test.js",
+      ".compiledCollections/posts/test.js",
       "test-tenant",
       mockAdapter as any,
-      ".compiledCollections",
     );
 
     // 1. Verify schema was loaded
-    expect(loadSchemaNative).toHaveBeenCalledWith(expect.stringContaining("test.js"));
+    expect(loadSchema).toHaveBeenCalledWith(expect.stringContaining("test.js"), expect.any(Number));
 
     // 2. Verify database was updated
     expect(mockAdapter.content.nodes.bulkUpdate).toHaveBeenCalledWith(
@@ -111,25 +113,29 @@ describe("ContentService - Incremental Reconciliation", () => {
     expect(contentStore.upsert).toHaveBeenCalledWith(expect.objectContaining({ _id: "test-col" }));
 
     // 4. Verify event was broadcast
-    expect(eventBus.broadcast).toHaveBeenCalledWith("CONTENT_UPDATE", expect.any(Object));
+    expect(eventBus.broadcast).toHaveBeenCalledWith("content:update", expect.any(Object));
   });
 
   it("should skip processing if file hash matches cache (HMR optimization)", async () => {
     const { cacheService } = await import("../../../src/databases/cache/cache-service");
-    const { loadSchemaNative } = await import("../../../src/content/module-processor.server");
+    const { loadSchema } = await import("../../../src/content/module-processor.server");
     const fs = (await import("node:fs/promises")).default;
 
     (fs.stat as any).mockResolvedValue({ mtimeMs: 12345 });
     (cacheService.get as any).mockResolvedValue({ hash: "abc-hash", mtime: 12000 });
-    (loadSchemaNative as any).mockResolvedValue({ schema: { name: "Same" } });
+    (loadSchema as any).mockResolvedValue({
+      schema: {
+        name: "Same",
+        fields: [{ db_fieldName: "title", label: "Title", required: true, translated: false }],
+      },
+    });
 
     const mockAdapter = { content: { nodes: { getStructure: vi.fn() } } };
 
     await contentService.handleIncrementalReload(
-      "posts/test.js",
+      ".compiledCollections/posts/test.js",
       "test-tenant",
       mockAdapter as any,
-      ".compiledCollections",
     );
 
     // Database should NOT be queried if hash matches
