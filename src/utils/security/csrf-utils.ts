@@ -15,9 +15,7 @@ const CSRF_TOKEN_LENGTH = 32; // 256 bits
  */
 export function generateCsrfToken(cookies: Cookies, isSecure: boolean): string {
   const token = generateSecureToken(CSRF_TOKEN_LENGTH);
-  const cookieName = isSecure
-    ? `__Host-${CSRF_TOKEN_COOKIE_NAME}`
-    : CSRF_TOKEN_COOKIE_NAME;
+  const cookieName = isSecure ? `__Host-${CSRF_TOKEN_COOKIE_NAME}` : CSRF_TOKEN_COOKIE_NAME;
 
   cookies.set(cookieName, token, {
     path: "/",
@@ -33,13 +31,8 @@ export function generateCsrfToken(cookies: Cookies, isSecure: boolean): string {
 /**
  * Ensures a CSRF token exists in the cookies, generating one only if missing.
  */
-export function ensureCsrfToken(
-  cookies: Cookies,
-  isSecure: boolean,
-): string | null {
-  const cookieName = isSecure
-    ? `__Host-${CSRF_TOKEN_COOKIE_NAME}`
-    : CSRF_TOKEN_COOKIE_NAME;
+export function ensureCsrfToken(cookies: Cookies, isSecure: boolean): string | null {
+  const cookieName = isSecure ? `__Host-${CSRF_TOKEN_COOKIE_NAME}` : CSRF_TOKEN_COOKIE_NAME;
   const existing = cookies.get(cookieName);
 
   if (!existing) {
@@ -59,16 +52,10 @@ export function validateCsrfToken(
   tokenToValidate?: string,
   isSecure?: boolean,
 ): boolean {
-  const cookieName = isSecure
-    ? `__Host-${CSRF_TOKEN_COOKIE_NAME}`
-    : CSRF_TOKEN_COOKIE_NAME;
+  const cookieName = isSecure ? `__Host-${CSRF_TOKEN_COOKIE_NAME}` : CSRF_TOKEN_COOKIE_NAME;
   const cookieToken = cookies.get(cookieName);
 
-  if (
-    !cookieToken ||
-    !tokenToValidate ||
-    cookieToken.length !== tokenToValidate.length
-  ) {
+  if (!cookieToken || !tokenToValidate || cookieToken.length !== tokenToValidate.length) {
     return false;
   }
 

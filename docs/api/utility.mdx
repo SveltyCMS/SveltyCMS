@@ -28,19 +28,19 @@ The Utilities API provides a set of essential maintenance and support services t
 
 ## ⚡ Quick Reference
 
-| Feature               | HTTP Endpoint              | Method | Admin Only |
-| :-------------------- | :------------------------- | :----- | :--------: |
-| **OpenAPI Spec**      | `/api/openapi.json`        | `GET`  |     ✅     |
-| **Swagger UI**        | `/api/docs`                | `GET`  |     —      |
-| **Cache Clear**       | `/api/cache/clear`         | `POST` |     ✅     |
-| **Cache Stats**       | `/api/cache/stats`         | `GET`  |     ✅     |
-| **Trash List**        | `/api/trash`               | `GET`  |     ✅     |
-| **Restore Entry**     | `/api/trash/restore`       | `POST` |     ✅     |
-| **Send Email**        | `/api/send-mail`           | `POST` |     ✅     |
-| **Version Check**     | `/api/version-check`       | `GET`  |     ✅     |
-| **Config Sync**       | `/api/config_sync`         | `GET`  |     ✅     |
-| **Debug / Diagnostics** | `/api/debug`             | `GET`  |     ✅     |
-| **Marketplace**       | `/api/marketplace`         | `GET`  |     ✅     |
+| Feature                 | HTTP Endpoint        | Method | Admin Only |
+| :---------------------- | :------------------- | :----- | :--------: |
+| **OpenAPI Spec**        | `/api/openapi.json`  | `GET`  |     ✅     |
+| **Swagger UI**          | `/api/docs`          | `GET`  |     —      |
+| **Cache Clear**         | `/api/cache/clear`   | `POST` |     ✅     |
+| **Cache Stats**         | `/api/cache/stats`   | `GET`  |     ✅     |
+| **Trash List**          | `/api/trash`         | `GET`  |     ✅     |
+| **Restore Entry**       | `/api/trash/restore` | `POST` |     ✅     |
+| **Send Email**          | `/api/send-mail`     | `POST` |     ✅     |
+| **Version Check**       | `/api/version-check` | `GET`  |     ✅     |
+| **Config Sync**         | `/api/config_sync`   | `GET`  |     ✅     |
+| **Debug / Diagnostics** | `/api/debug`         | `GET`  |     ✅     |
+| **Marketplace**         | `/api/marketplace`   | `GET`  |     ✅     |
 
 ---
 
@@ -107,13 +107,13 @@ Send emails directly via the API using the system mail service.
 }
 ```
 
-| Field            | Type     | Required | Description                            |
-| :--------------- | :------- | :------- | :------------------------------------- |
-| `to`             | `string` | ✅       | Recipient email address                |
-| `subject`        | `string` | ✅       | Email subject line                      |
-| `templateName`   | `string` | —        | Template to render (default: `generic`) |
-| `props`          | `object` | —        | Template variables                      |
-| `languageTag`    | `string` | —        | Locale for rendering (default: `en`)    |
+| Field          | Type     | Required | Description                             |
+| :------------- | :------- | :------- | :-------------------------------------- |
+| `to`           | `string` | ✅       | Recipient email address                 |
+| `subject`      | `string` | ✅       | Email subject line                      |
+| `templateName` | `string` | —        | Template to render (default: `generic`) |
+| `props`        | `object` | —        | Template variables                      |
+| `languageTag`  | `string` | —        | Locale for rendering (default: `en`)    |
 
 ---
 

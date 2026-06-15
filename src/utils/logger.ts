@@ -16,23 +16,8 @@ import type { WriteStream } from "node:fs";
 
 // --- Types & Constants ---
 
-export type LogLevel =
-  | "none"
-  | "fatal"
-  | "error"
-  | "warn"
-  | "info"
-  | "debug"
-  | "trace";
-export type LoggableValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | object
-  | Date
-  | Error;
+export type LogLevel = "none" | "fatal" | "error" | "warn" | "info" | "debug" | "trace";
+export type LoggableValue = string | number | boolean | null | undefined | object | Date | Error;
 
 const PRIORITY: Record<LogLevel, number> = {
   none: 0,
@@ -77,9 +62,7 @@ const LOG_LEVEL_STR = (
   (typeof process !== "undefined"
     ? process.env?.LOG_LEVELS || process.env?.LOG_LEVEL
     : undefined) ??
-  (typeof process !== "undefined" && process.env.NODE_ENV === "production"
-    ? "error"
-    : "info")
+  (typeof process !== "undefined" && process.env.NODE_ENV === "production" ? "error" : "info")
 )
   .split(",")[0]
   .trim()
@@ -180,8 +163,7 @@ if (!IS_BROWSER) {
 
       let stream: WriteStream | null = null;
       let lastHash = "";
-      const HMAC_SECRET =
-        process.env.LOG_CHAIN_SECRET || "svelty-cms-default-log-secret";
+      const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || "svelty-cms-default-log-secret";
       const logQueue: { level: LogLevel; msg: string; args: unknown[] }[] = [];
       let isFlushing = false;
 
@@ -226,8 +208,7 @@ if (!IS_BROWSER) {
             }))
             .sort((a, b) => b.time - a.time);
           if (logFiles.length > 5) {
-            for (const f of logFiles.slice(5))
-              await promises.unlink(path.join(dir, f.name));
+            for (const f of logFiles.slice(5)) await promises.unlink(path.join(dir, f.name));
           }
         } catch {}
       };
@@ -289,8 +270,7 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
   // ✨ PERFORMANCE: Use globalThis for zero-tax late-binding in benchmarks
   const isQuiet =
     CAPTURED_QUIET ||
-    (typeof globalThis !== "undefined" &&
-      (globalThis as any).__SVELTY_QUIET__) ||
+    (typeof globalThis !== "undefined" && (globalThis as any).__SVELTY_QUIET__) ||
     (typeof process !== "undefined" &&
       (process.env.QUIET === "true" || process.env.BENCHMARK === "true"));
 
@@ -300,11 +280,7 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
   const icon = ICONS[level.toUpperCase()] || "●";
   const maskedArgs = args.map((a) => mask(a));
   const method =
-    level === "fatal" || level === "error"
-      ? "error"
-      : level === "warn"
-        ? "warn"
-        : "log";
+    level === "fatal" || level === "error" ? "error" : level === "warn" ? "warn" : "log";
 
   const maskedMsg = maskEmails(msg);
 

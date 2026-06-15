@@ -59,10 +59,7 @@ export async function startScheduler(): Promise<void> {
   try {
     await dbInitPromise;
   } catch (err) {
-    logger.error(
-      "[Scheduler] Database initialization failed, scheduler not started",
-      err,
-    );
+    logger.error("[Scheduler] Database initialization failed, scheduler not started", err);
     return;
   }
 
@@ -118,9 +115,7 @@ function scheduleNextPoll(): void {
 async function pollAndProcess(): Promise<void> {
   const db = getDb();
   if (!db || !db.system?.jobs) {
-    logger.debug(
-      "[Scheduler] DB or jobs interface not available, skipping poll",
-    );
+    logger.debug("[Scheduler] DB or jobs interface not available, skipping poll");
     return;
   }
 
@@ -204,9 +199,7 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
     await db.system.jobs.update(job._id, {
       status: isPermanent ? "failed" : "pending",
       lastError: errorMsg,
-      nextRunAt: isPermanent
-        ? job.nextRunAt
-        : new Date(Date.now() + 2 ** newAttempts * 1000), // Exponential backoff
+      nextRunAt: isPermanent ? job.nextRunAt : new Date(Date.now() + 2 ** newAttempts * 1000), // Exponential backoff
     });
 
     if (isPermanent) {
@@ -222,40 +215,25 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
  *   - publish → unpublish
  *   - any → delete
  */
-async function executeStatusTransition(
-  payload: Record<string, unknown>,
-  _job: Job,
-): Promise<void> {
+async function executeStatusTransition(payload: Record<string, unknown>, _job: Job): Promise<void> {
   const rawDb = getDb();
   if (!rawDb) throw new Error("Database not available");
 
-  const {
-    collectionId,
-    entryId,
-    targetStatus,
-    entryPath,
-    tenantId: payloadTenantId,
-  } = payload;
+  const { collectionId, entryId, targetStatus, entryPath, tenantId: payloadTenantId } = payload;
 
   if (!collectionId || !entryId || !targetStatus) {
-    throw new Error(
-      "Missing required payload fields: collectionId, entryId, targetStatus",
-    );
+    throw new Error("Missing required payload fields: collectionId, entryId, targetStatus");
   }
 
   // Tenant-scoped adapter: prevents cross-tenant data leakage in multi-tenant deployments
-  const db = payloadTenantId
-    ? forTenant(rawDb, payloadTenantId as string)
-    : rawDb;
+  const db = payloadTenantId ? forTenant(rawDb, payloadTenantId as string) : rawDb;
 
   const collId = collectionId as string;
   const entId = entryId as string;
   const status = targetStatus as string;
   const now = nowISODateString();
 
-  logger.info(
-    `[Scheduler] Status transition: ${entId} → ${status} (collection: ${collId})`,
-  );
+  logger.info(`[Scheduler] Status transition: ${entId} → ${status} (collection: ${collId})`);
 
   switch (status) {
     case "publish":
@@ -388,16 +366,11 @@ async function createAuditLog(
     });
 
     if (process.env.NODE_ENV !== "production") {
-      logger.debug(
-        `[Scheduler] Audit log created for job ${job._id} (${outcome})`,
-      );
+      logger.debug(`[Scheduler] Audit log created for job ${job._id} (${outcome})`);
     }
   } catch (err) {
     // Non-fatal: don't fail the job if audit logging fails
-    logger.warn(
-      `[Scheduler] Failed to create audit log for job ${job._id}:`,
-      err,
-    );
+    logger.warn(`[Scheduler] Failed to create audit log for job ${job._id}:`, err);
   }
 }
 
@@ -420,9 +393,7 @@ export async function scheduleJob(
 ): Promise<string | null> {
   const db = getDb();
   if (!db || !db.system?.jobs) {
-    logger.warn(
-      "[Scheduler] Cannot schedule job: DB or jobs interface not available",
-    );
+    logger.warn("[Scheduler] Cannot schedule job: DB or jobs interface not available");
     return null;
   }
 

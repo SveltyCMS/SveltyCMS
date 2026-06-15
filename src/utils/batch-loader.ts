@@ -15,9 +15,7 @@
  * - Generic type safety for keys and values
  */
 
-export type BatchFunction<K, V> = (
-  keys: readonly K[],
-) => Promise<ReadonlyArray<V | Error>>;
+export type BatchFunction<K, V> = (keys: readonly K[]) => Promise<ReadonlyArray<V | Error>>;
 
 interface CacheEntry<V> {
   promise: Promise<V>;
@@ -53,10 +51,7 @@ export class BatchLoader<K, V> {
     // Check cache with TTL eviction
     const cached = this._cache.get(key);
     if (cached) {
-      if (
-        this._cacheTtlMs === 0 ||
-        Date.now() - cached.timestamp < this._cacheTtlMs
-      ) {
+      if (this._cacheTtlMs === 0 || Date.now() - cached.timestamp < this._cacheTtlMs) {
         return cached.promise;
       }
       // Expired — evict

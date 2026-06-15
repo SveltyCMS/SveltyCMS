@@ -44,8 +44,7 @@ export const ENCRYPTION_CONFIG = {
 };
 
 const IS_SERVER =
-  typeof window === "undefined" ||
-  (typeof process !== "undefined" && process.versions != null);
+  typeof window === "undefined" || (typeof process !== "undefined" && process.versions != null);
 
 // --- Worker Pool (for Argon2) ---
 
@@ -61,8 +60,7 @@ const pendingPromises = new Map<
 >();
 
 async function getWorker(): Promise<any> {
-  if (!IS_SERVER)
-    throw new Error("Security workers are only available on the server");
+  if (!IS_SERVER) throw new Error("Security workers are only available on the server");
 
   const { Worker } = await import(/* @vite-ignore */ "node:worker_threads");
   const path = await import(/* @vite-ignore */ "node:path");
@@ -112,8 +110,7 @@ async function runSecurityTask(action: string, payload: any): Promise<any> {
   if (!IS_SERVER) {
     const argon2 = await import("argon2");
     if (action === "hash") return argon2.hash(payload.password, payload.config);
-    if (action === "verify")
-      return argon2.verify(payload.hash, payload.password);
+    if (action === "verify") return argon2.verify(payload.hash, payload.password);
   }
 
   // In Bun's test environment, worker threads may not be reliable.
@@ -121,8 +118,7 @@ async function runSecurityTask(action: string, payload: any): Promise<any> {
   if (typeof process !== "undefined" && process.env.BUN_TEST === "true") {
     const argon2 = await import("argon2");
     if (action === "hash") return argon2.hash(payload.password, payload.config);
-    if (action === "verify")
-      return argon2.verify(payload.hash, payload.password);
+    if (action === "verify") return argon2.verify(payload.hash, payload.password);
   }
 
   const worker = await getWorker();
@@ -142,10 +138,7 @@ export async function hashPassword(password: string): Promise<string> {
   return runSecurityTask("hash", { password: pwd, config: ARGON2_CONFIG });
 }
 
-export async function verifyPassword(
-  hash: string,
-  password: string,
-): Promise<boolean> {
+export async function verifyPassword(hash: string, password: string): Promise<boolean> {
   // Ensure consistent UTF-8 encoding for unicode passwords
   const pwd = Buffer.from(password, "utf8");
   return runSecurityTask("verify", { hash, password: pwd });
@@ -159,42 +152,28 @@ export async function needsRehashing(hash: string): Promise<boolean> {
 
 // --- Encryption Utilities ---
 
-export async function deriveKey(
-  password: string,
-  salt: Buffer,
-): Promise<Buffer> {
+export async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
   const argon2 = await import("argon2");
   const pwd = Buffer.from(password, "utf8");
   const hash = await argon2.hash(pwd, { ...ARGON2_CONFIG, salt, raw: true });
   return Buffer.from(hash).subarray(0, ENCRYPTION_CONFIG.keyLength);
 }
 
-export async function encryptData(
-  data: any,
-  password: string,
-): Promise<string> {
+export async function encryptData(data: any, password: string): Promise<string> {
   const crypto = await import(/* @vite-ignore */ "node:crypto");
   const salt = crypto.randomBytes(ENCRYPTION_CONFIG.saltLength);
   const iv = crypto.randomBytes(ENCRYPTION_CONFIG.ivLength);
   const key = await deriveKey(password, salt);
 
   const cipher = crypto.createCipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(JSON.stringify(data), "utf8"),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(data), "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
   const version = Buffer.from([0x01]);
-  return Buffer.concat([version, salt, iv, authTag, encrypted]).toString(
-    "base64",
-  );
+  return Buffer.concat([version, salt, iv, authTag, encrypted]).toString("base64");
 }
 
-export async function decryptData(
-  encryptedData: string,
-  password: string,
-): Promise<any> {
+export async function decryptData(encryptedData: string, password: string): Promise<any> {
   const crypto = await import(/* @vite-ignore */ "node:crypto");
   const combined = Buffer.from(encryptedData, "base64");
 
@@ -206,47 +185,25 @@ export async function decryptData(
     offset = 1;
   }
 
-  const salt = combined.subarray(
-    offset,
-    (offset += ENCRYPTION_CONFIG.saltLength),
-  );
+  const salt = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.saltLength));
   const iv = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.ivLength));
-  const authTag = combined.subarray(
-    offset,
-    (offset += ENCRYPTION_CONFIG.authTagLength),
-  );
+  const authTag = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.authTagLength));
   const encrypted = combined.subarray(offset);
 
   try {
     const key = await deriveKey(password, Buffer.from(salt));
-    const decipher = crypto.createDecipheriv(
-      ENCRYPTION_CONFIG.algorithm,
-      key,
-      iv,
-    );
+    const decipher = crypto.createDecipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
     decipher.setAuthTag(authTag);
 
-    const decrypted = Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
     return JSON.parse(decrypted.toString("utf8"));
   } catch (err) {
     // Fallback: If it was identified as version 1 but failed (e.g. legacy data where first byte of salt happened to be 0x01)
     if (isVersion1) {
       offset = 0;
-      const legacySalt = combined.subarray(
-        offset,
-        (offset += ENCRYPTION_CONFIG.saltLength),
-      );
-      const legacyIv = combined.subarray(
-        offset,
-        (offset += ENCRYPTION_CONFIG.ivLength),
-      );
-      const legacyAuthTag = combined.subarray(
-        offset,
-        (offset += ENCRYPTION_CONFIG.authTagLength),
-      );
+      const legacySalt = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.saltLength));
+      const legacyIv = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.ivLength));
+      const legacyAuthTag = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.authTagLength));
       const legacyEncrypted = combined.subarray(offset);
 
       const legacyKey = await deriveKey(password, Buffer.from(legacySalt));
