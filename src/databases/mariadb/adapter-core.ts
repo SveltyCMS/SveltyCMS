@@ -1127,10 +1127,14 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
+        const conditions: SQL[] = [eq(idCol, id as any)];
+        const tenantCol = this.getColumn(table, "tenantId");
+        utils.applyTenantFilter(conditions, tenantCol, options);
+
         const query = this.getDrizzleInstance(options)
           .update(table)
           .set(values)
-          .where(eq(idCol, id as any));
+          .where(and(...conditions));
         await query;
 
         const updated = await this.findOne<T>(collection, { _id: id } as any, options);
@@ -1212,16 +1216,20 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
+        const conditions: SQL[] = [eq(idCol, id as any)];
+        const tenantCol = this.getColumn(table, "tenantId");
+        utils.applyTenantFilter(conditions, tenantCol, options);
+
         const hasIsDeleted = !!this.getColumn(table, "isDeleted");
         if (options.permanent || !hasIsDeleted) {
           await this.getDrizzleInstance(options)
             .delete(table)
-            .where(eq(idCol, id as any));
+            .where(and(...conditions));
         } else {
           await this.getDrizzleInstance(options)
             .update(table)
             .set({ isDeleted: true, updatedAt: new Date() })
-            .where(eq(idCol, id as any));
+            .where(and(...conditions));
         }
         if (this.hooks.length > 0)
           await this.runHooks("after", "delete", collection, { _id: id }, options);

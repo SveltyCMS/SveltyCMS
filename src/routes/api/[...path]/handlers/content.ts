@@ -11,7 +11,6 @@
  * - GraphQL endpoint proxy
  */
 
-import { json } from "@sveltejs/kit";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";

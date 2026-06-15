@@ -794,6 +794,21 @@ export interface ICrudAdapter {
   ): Promise<DatabaseResult<Record<string, unknown>>>;
 }
 
+export interface IFtsAdapter {
+  search(
+    collection: string,
+    query: string,
+    options?: {
+      columns?: Array<{ name: string; weight?: "A" | "B" | "C" | "D" }>;
+      limit?: number;
+      offset?: number;
+      tenantId?: string | null;
+      language?: string;
+      filters?: Record<string, unknown>;
+    },
+  ): Promise<DatabaseResult<{ items: any[]; total: number }>>;
+}
+
 export interface IMediaAdapter {
   files: {
     upload(

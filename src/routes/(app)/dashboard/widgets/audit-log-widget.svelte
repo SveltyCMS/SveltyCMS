@@ -138,6 +138,7 @@ export const widgetMeta = {
 					{#each logs as log (log._id || log.timestamp)}
 						<a
 							href="/config/monitor"
+							aria-label={log.action || log.eventType || 'System Event'}
 							class="group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 						>
 							<!-- Icon -->
@@ -151,7 +152,7 @@ export const widgetMeta = {
 							<!-- Content -->
 							<div class="min-w-0 flex-1">
 								<div class="flex items-baseline justify-between gap-2">
-									<span class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+									<span class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors">
 										{log.action || log.eventType || 'System Event'}
 									</span>
 									<span class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500">

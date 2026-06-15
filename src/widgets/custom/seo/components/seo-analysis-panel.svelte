@@ -68,6 +68,8 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		type="button"
 		class="flex items-center gap-4 w-full p-3 bg-surface-100-800-token hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-left"
 		onclick={() => (expanded = !expanded)}
+		aria-label="Toggle SEO analysis"
+		aria-expanded={expanded}
 	>
 		<div class="flex items-center gap-2 flex-1">
 			<iconify-icon icon="mdi:information" width="24" class="text-tertiary-500 text-xl"></iconify-icon>

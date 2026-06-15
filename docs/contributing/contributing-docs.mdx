@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:file-document-plus-outline"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-04-21"
+updated: "2026-06-15"
 tags:
   - "documentation"
   - "contributing"
@@ -53,6 +53,17 @@ When writing or rewriting any section, structure your content in this order:
 > **Multi-Persona Balance**: Documentation is not just for developers. Every major guide (like Getting Started) must provide distinct paths for **Content Creators** (layout, workflows), **Administrators** (settings, permissions), and **Engineers** (setup, mechanics).
 >
 > **1:1 Technical Alignment**: Before documenting any function, endpoint, or component, find it in the `src/` directory first. Document the **actual** parameter names and behavior — not what you expect them to be. If the code and the existing docs disagree, the code is correct.
+
+---
+
+### 🇪🇺 EU & German Comparative Advertising Compliance
+
+All competitive comparisons and feature references in public-facing documentation must comply with **EU Directive 2006/114/EC** and **German UWG §6 (Unfair Competition Act)**:
+
+- **Use Verifiable Sources**: Every competitive claim must cite public, objective sources (e.g. competitor documentation, CVE databases).
+- **Date-Stamp Performance Metrics**: Include measurement date, hardware specifications, and reproduction commands.
+- **Avoid Disparaging Language**: Describe architectural differences neutrally (e.g. "React-based VDOM reconciliation" vs. "Svelte compile-time reactivity"). Never use disparaging terms like "fail/s to", "broken", or "suffer/s from".
+- **Qualify Absolutes**: Claims like "first", "best", or "only" must be qualified (e.g., "to our knowledge", "based on public documentation as of [Date]").
 
 ---
 
@@ -292,13 +303,14 @@ flowchart LR
 
    ```bash
    bun ./tests/lint-docs.ts
+   bun run slop
    ```
 
 4. **Audit & CI parity**: Run the full check suite and Audit matrix (if code changed).
 
    ```bash
    # Run quality gate (915+ tests)
-   bun run lint ; bun run check ; bun run test
+   bun run lint && bun run check && bun run test:unit
 
    # Run performance audit (if applicable)
    bun run scripts/benchmark-matrix/index.ts --parallel=safe
@@ -314,10 +326,7 @@ flowchart LR
    docs: overhaul getting-started for user-first structure
    ```
 
-7. **AI agent commits**: If an AI agent authored or co-authored the content, include in the commit message:
-   ```
-   Co-Authored-By: Antigravity <agent@sveltycms.com>
-   ```
+7. **AI agent commits**: Commit messages authored or co-authored by AI agents **must NOT** include `Co-Authored-By` or AI tags, keeping all commit histories clean and uniform.
 
 ---
 
@@ -338,7 +347,7 @@ Before opening a PR, verify every item:
 - [ ] Alt text provided for every image
 - [ ] Tags are lowercase and kebab-case
 - [ ] Internal links use correct canonical paths
-- [ ] Linter passes: `bun ./tests/lint-docs.ts`
+- [ ] Linter passes: `bun ./tests/lint-docs.ts` and `bun run slop`
 - [ ] **915+ Test Suite passes**: All unit tests are green (`bun run test:unit`).
 - [ ] **Audit Budget verified**: No regressions in benchmark matrix.
 - [ ] **If `src/routes/api/widgets/` or `src/stores/widget-store.svelte.ts` changed**: `Widget_API.mdx` updated in this same PR.

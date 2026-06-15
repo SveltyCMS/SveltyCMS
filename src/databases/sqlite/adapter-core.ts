@@ -874,7 +874,6 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
       { ...options, isWrite: true },
     );
   }
-
   async insertMany<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>[],
@@ -894,30 +893,32 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
           batchValues[i] = this.prepareValues(table, item, id, now, options);
         }
 
-        const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
-        if (this._insertManyReturningSupported !== false) {
-          try {
-            const results = await (query as any).returning();
-            this._insertManyReturningSupported = true;
-            return utils.convertArrayDatesToISO(results as any, {
-              table: collection,
-            }) as T[];
-          } catch (err: any) {
-            this._insertManyReturningSupported = false;
-            if (process.env.BENCHMARK !== "true") {
-              logger.warn("[SQLite] insertMany returning fallback invoked due to error:", err);
+        const db = this.getDrizzleInstance(options);
+        return await db.transaction(async (tx) => {
+          const query = tx.insert(table).values(batchValues);
+          if (this._insertManyReturningSupported !== false) {
+            try {
+              const results = await (query as any).returning();
+              this._insertManyReturningSupported = true;
+              return utils.convertArrayDatesToISO(results as any, {
+                table: collection,
+              }) as T[];
+            } catch (err: any) {
+              this._insertManyReturningSupported = false;
+              if (process.env.BENCHMARK !== "true") {
+                logger.warn("[SQLite] insertMany returning fallback invoked due to error:", err);
+              }
+              await (query as any);
+              return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
+                table: collection,
+              }) as T[];
             }
-            await (query as any);
-            return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
-              table: collection,
-            }) as T[];
           }
-        }
-        // Fallback without try (after first failure or known unsupported)
-        await (query as any);
-        return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
-          table: collection,
-        }) as T[];
+          await (query as any);
+          return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
+            table: collection,
+          }) as T[];
+        });
       },
       "INSERT_MANY_FAILED",
       undefined,
@@ -965,26 +966,28 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
+        const conditions: SQL[] = [eq(idCol, id as any)];
+        const tenantCol = this.getColumn(table, "tenantId");
+        utils.applyTenantFilter(conditions, tenantCol, options);
+
         const query = this.getDrizzleInstance(options)
           .update(table)
           .set(values)
-          .where(eq(idCol, id as any));
+          .where(and(...conditions));
         const results = await query.returning();
         let res = results[0];
         if (!res) {
           const check = await this.getDrizzleInstance(options)
             .select()
             .from(table)
-            .where(eq(idCol, id as any));
+            .where(and(...conditions));
           res = check[0];
         }
+
         if (!res) {
-          return {
-            success: false,
-            message: `Record ${id} not found in ${getTableName(table)}`,
-            error: { code: "NOT_FOUND", message: "Record not found" },
-          };
+          throw new Error(`Record ${id} not found in ${getTableName(table)}`);
         }
+
         const finalData = utils.convertDatesToISO(res, {
           table: collection,
         }) as unknown as T;
@@ -1058,16 +1061,20 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
+        const conditions: SQL[] = [eq(idCol, id as any)];
+        const tenantCol = this.getColumn(table, "tenantId");
+        utils.applyTenantFilter(conditions, tenantCol, options);
+
         const hasIsDeleted = !!this.getColumn(table, "isDeleted");
         if (options.permanent || !hasIsDeleted) {
           await this.getDrizzleInstance(options)
             .delete(table)
-            .where(eq(idCol, id as any));
+            .where(and(...conditions));
         } else {
           await this.getDrizzleInstance(options)
             .update(table)
             .set({ isDeleted: true, updatedAt: new Date() })
-            .where(eq(idCol, id as any));
+            .where(and(...conditions));
         }
         if (this.hooks.length > 0)
           await this.runHooks("after", "delete", collection, { _id: id }, options);

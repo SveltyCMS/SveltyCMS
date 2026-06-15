@@ -22,7 +22,7 @@ import { auditChainService } from "@src/services/audit-chain";
 import { system } from "@src/stores/system/state.svelte.ts";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
-import type { Job } from "@src/databases/db-interface";
+import type { Job, DatabaseId } from "@src/databases/db-interface";
 
 // ──────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -226,7 +226,7 @@ async function executeStatusTransition(payload: Record<string, unknown>, _job: J
   }
 
   // Tenant-scoped adapter: prevents cross-tenant data leakage in multi-tenant deployments
-  const db = payloadTenantId ? forTenant(rawDb, payloadTenantId as string) : rawDb;
+  const db = payloadTenantId ? forTenant(rawDb, payloadTenantId as any as DatabaseId) : rawDb;
 
   const collId = collectionId as string;
   const entId = entryId as string;

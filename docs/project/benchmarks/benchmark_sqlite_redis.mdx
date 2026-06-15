@@ -30,19 +30,19 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (14/06/2026, 14:46:17)
+## 📊 Latest Performance Audit (15/06/2026, 17:15:47)
 
 **Status:** ❌ FAIL
 
 > [!CAUTION]
-> **Anomalies Detected**: Seeding failed See console for stack trace.
+> **Anomalies Detected**: Fail-fast See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
 | :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 482ms       | ⚪ (+70.1%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 1026.689ms  | ⚪ (+81.7%) | < 5ms         | 🔴 FAIL |
+| **Cold Start**         | 242ms       | ⚪ (-26.2%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1029.898ms  | ⚪ (+49.9%) | < 5ms         | 🔴 FAIL |
 | **Middleware Hooks**   | N/A         | ⚪          | < 2ms         | ⚪ N/A  |
 | **GraphQL (Avg)**      | N/A         | ⚪ (—)      | < 5ms         | ⚪ N/A  |
 | **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
@@ -62,7 +62,7 @@ xychart-beta
   title "SQLITE+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [2.021, 2.021, 1033.235, 1033.235, 1033.235, 1033.235, 4.250, 1026.689, 1026.689, 1026.689]
+  line "p95 Latency" : [1033.235, 1033.235, 1033.235, 1033.235, 4.250, 1026.689, 1026.689, 1026.689, 1028.120, 1028.120]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -124,7 +124,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.082 ms │ p95:        0.219 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.068 ms │ p95:        0.157 ms │ RPS:          0 ║
 ```
 
 <!-- COLD_START_TABLE_END -->
@@ -138,12 +138,19 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,064,694 ║
-║ Local SDK (Full)               │        0.007 ms │ p95:        0.014 ms │ RPS:    144,425 ║
-║ HTTP End-to-End                │      514.296 ms │ p95:     1033.136 ms │ RPS:          2 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,962,067 ║
+║ Local SDK (Full)               │        0.005 ms │ p95:        0.009 ms │ RPS:    206,997 ║
+║ HTTP End-to-End                │      514.909 ms │ p95:     1030.771 ms │ RPS:          2 ║
 ```
 
 <!-- TRUTH_AUDIT_TABLE_END -->
+
+<!-- INCREMENTAL_TABLE_START -->
+
+> ⏳ **Incremental Content Reload**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
+
+<!-- INCREMENTAL_TABLE_END -->
 
 <!-- HOOKS_TRACE_TABLE_START -->
 

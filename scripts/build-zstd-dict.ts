@@ -502,7 +502,7 @@ function selectAndWrite(
   const used = new Set<string>();
   let currentBytes = 0;
 
-  // O(1) prefix + substring lookup via Set for fast redundancy check (was O(n²))
+  // O(1) prefix + substring lookup via Set for fast redundancy check (O(L²) instead of O(N))
   const prefixSet = new Set<string>();
   const isRedundant = (candidate: string) => {
     // Exact match
@@ -512,8 +512,12 @@ function selectAndWrite(
       if (prefixSet.has(candidate.slice(0, i))) return true;
     }
     // Substring containment: check if candidate contains any selected entry
-    for (const s of selected) {
-      if (candidate.includes(s)) return true;
+    // Since candidate.length is small (max 48), checking all its substrings in used Set
+    // is O(L²) which is orders of magnitude faster than O(N) linear array search.
+    for (let len = 2; len <= candidate.length; len++) {
+      for (let i = 0; i <= candidate.length - len; i++) {
+        if (used.has(candidate.slice(i, i + len))) return true;
+      }
     }
     return false;
   };

@@ -33,10 +33,13 @@ async function main() {
     }
 
     logger.info("✨ Cache cleared successfully.");
-    process.exit(0);
   } catch (error) {
     logger.error("❌ Failed to clear cache:", error);
+    await cacheService.cleanup().catch(() => {});
     process.exit(1);
+  } finally {
+    await cacheService.cleanup().catch(() => {});
+    process.exit(0);
   }
 }
 

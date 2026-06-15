@@ -11,14 +11,15 @@
  *   bun run scripts/slop-scanner.ts --files src/routes/+page.svelte
  */
 
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
+import fs from "node:fs/promises";
 import { basename, join, relative } from "node:path";
+import { globSync } from "glob";
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 const ROOT = join(import.meta.dirname, "..");
-const SRC = join(ROOT, "src");
 const MAX_FILE_SIZE = 500_000;
 const MAX_TODOS_PER_FILE = 5;
 
@@ -51,24 +52,7 @@ function report(
 // ---------------------------------------------------------------------------
 // File discovery
 // ---------------------------------------------------------------------------
-function* walkFiles(dir: string, extensions: string[]): Generator<string> {
-  try {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (
-          ["node_modules", ".svelte-kit", ".git", "paraglide", "dist", "build"].includes(entry.name)
-        )
-          continue;
-        yield* walkFiles(full, extensions);
-      } else if (extensions.some((e) => entry.name.endsWith(e))) {
-        yield full;
-      }
-    }
-  } catch {
-    /* skip */
-  }
-}
+// walkFiles replaced with globSync
 
 // ---------------------------------------------------------------------------
 // RTL Mapping
@@ -91,21 +75,44 @@ const RTL_MAP: Record<string, string> = {
 // ---------------------------------------------------------------------------
 // Core Svelte scanning
 // ---------------------------------------------------------------------------
-function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
-  const lines = content.split("\n");
+async function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
+  const cleanContent = content.replace(/<!--([\s\S]*?)-->/g, (match) =>
+    "\n".repeat((match.match(/\n/g) || []).length),
+  );
+  const lines = cleanContent.split("\n");
   let inCodeBlock = false;
+  let inScriptBlock = false;
+  let inStyleBlock = false;
   let fixed = content;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const trimmed = line.trim();
     if (/^\s*```/.test(line)) {
       inCodeBlock = !inCodeBlock;
       continue;
     }
     if (inCodeBlock) continue;
 
-    // Legacy $: reactivity
-    if (/\$\s*:(?!.*(\$state|\$derived|\$effect|\$props|\$bindable))/.test(line)) {
+    if (/<script\b/i.test(trimmed)) {
+      inScriptBlock = true;
+      continue;
+    }
+    if (/<\/script>/i.test(trimmed)) {
+      inScriptBlock = false;
+      continue;
+    }
+    if (/<style\b/i.test(trimmed)) {
+      inStyleBlock = true;
+      continue;
+    }
+    if (/<\/style>/i.test(trimmed)) {
+      inStyleBlock = false;
+      continue;
+    }
+
+    // Legacy $: reactivity (only inside script blocks)
+    if (inScriptBlock && /\$\s*:(?!.*(\$state|\$derived|\$effect|\$props|\$bindable))/.test(line)) {
       report(
         relPath,
         i + 1,
@@ -115,19 +122,49 @@ function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
       );
     }
 
+    if (inScriptBlock || inStyleBlock) continue;
+
     // Accessibility — interactive elements without accessible names
     const tagMatch = line.match(/<(button|input|select|textarea|a)\b/i);
     if (tagMatch) {
       // Skip Svelte components (PascalCase tags)
       const afterLt = line.slice(line.indexOf("<") + 1, line.indexOf("<") + 10);
       if (/^[A-Z]/.test(afterLt)) continue;
-      const combined = lines.slice(i, Math.min(i + 10, lines.length)).join(" ");
-      if (!/(aria-label|aria-labelledby|id\s*=|for\s*=|role\s*=)/i.test(combined)) {
+      const tagName = tagMatch[1].toLowerCase();
+      const combined = lines.slice(i, Math.min(i + 30, lines.length)).join(" ");
+
+      let isAccessible = /(aria-label|aria-labelledby|title|id\s*=|for\s*=|role\s*=)/i.test(
+        combined,
+      );
+
+      if (!isAccessible && (tagName === "a" || tagName === "button")) {
+        // Look for text content or an image with alt attribute inside the tag
+        const tagContentMatch = combined.match(
+          new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)</${tagName}>`, "i"),
+        );
+        if (tagContentMatch) {
+          const innerContent = tagContentMatch[1];
+          // Strip HTML tags except img
+          const textOnly = innerContent.replace(/<(?!\/?img\b)[^>]*>/gi, "").trim();
+          // Check if it has any text or if it has an img with alt/aria-label/title
+          if (textOnly.length > 0) {
+            // Check if it's just whitespace or symbols, or has actual letters/numbers/curly brackets
+            if (
+              /[a-zA-Z0-9\u00C0-\u017F{}]/.test(textOnly) ||
+              /alt\s*=|aria-label/i.test(innerContent)
+            ) {
+              isAccessible = true;
+            }
+          }
+        }
+      }
+
+      if (!isAccessible) {
         report(
           relPath,
           i + 1,
           "accessibility",
-          "Interactive element may lack accessible name (aria-label or id)",
+          `Interactive <${tagName}> element may lack accessible name (aria-label, id, or text content)`,
           "warning",
         );
       }
@@ -186,7 +223,7 @@ function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
 
   // Apply RTL fixes
   if (shouldFix && fixed !== content) {
-    writeFileSync(join(ROOT, relPath), fixed, "utf8");
+    await fs.writeFile(join(ROOT, relPath), fixed, "utf8");
     console.log(` ✅ Fixed RTL: ${relPath}`);
   }
 }
@@ -254,48 +291,58 @@ async function main() {
       }
     }
   } else {
-    for (const f of walkFiles(SRC, [".svelte", ".ts", ".js"])) {
+    const files = globSync("src/**/*.{svelte,ts,js}", {
+      cwd: ROOT,
+      ignore: [
+        "**/node_modules/**",
+        "**/.svelte-kit/**",
+        "**/paraglide/**",
+        "**/dist/**",
+        "**/build/**",
+      ],
+      absolute: true,
+    });
+    for (const f of files) {
       (f.endsWith(".svelte") ? svelteFiles : tsFiles).push(f);
     }
   }
 
   console.log(`📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files\n`);
 
-  // Svelte files
-  for (const file of svelteFiles) {
-    try {
-      const content = readFileSync(file, "utf8");
-      const rel = relative(ROOT, file).replace(/\\/g, "/");
-      scanSvelteFile(rel, content, shouldFix);
-      scanTodos(rel, content);
-      checkFileNaming(rel);
-      checkDuplicateContent(rel, content);
-      if (statSync(file).size > MAX_FILE_SIZE) {
-        report(
-          rel,
-          0,
-          "file-size",
-          `Large file (${(statSync(file).size / 1024).toFixed(0)}KB)`,
-          "warning",
-        );
+  // Scan Svelte files in parallel
+  await Promise.all(
+    svelteFiles.map(async (file) => {
+      try {
+        const content = await fs.readFile(file, "utf8");
+        const rel = relative(ROOT, file).replace(/\\/g, "/");
+        await scanSvelteFile(rel, content, shouldFix);
+        scanTodos(rel, content);
+        checkFileNaming(rel);
+        checkDuplicateContent(rel, content);
+        const size = (await fs.stat(file)).size;
+        if (size > MAX_FILE_SIZE) {
+          report(rel, 0, "file-size", `Large file (${(size / 1024).toFixed(0)}KB)`, "warning");
+        }
+      } catch {
+        console.warn(`⚠️ Could not read ${file}`);
       }
-    } catch {
-      console.warn(`⚠️ Could not read ${file}`);
-    }
-  }
+    }),
+  );
 
-  // TS files
-  for (const file of tsFiles) {
-    try {
-      const content = readFileSync(file, "utf8");
-      const rel = relative(ROOT, file).replace(/\\/g, "/");
-      scanTodos(rel, content);
-      checkFileNaming(rel);
-      checkDuplicateContent(rel, content);
-    } catch {
-      /* skip */
-    }
-  }
+  // Scan TS files in parallel
+  await Promise.all(
+    tsFiles.map(async (file) => {
+      try {
+        const content = await fs.readFile(file, "utf8");
+        const rel = relative(ROOT, file).replace(/\\/g, "/");
+        scanTodos(rel, content);
+        checkFileNaming(rel);
+        checkDuplicateContent(rel, content);
+      } catch {
+        /* skip */
+      }
+    }),
+  );
 
   // Summary
   const errors = violations.filter((v) => v.severity === "error");

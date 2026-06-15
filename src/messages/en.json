@@ -942,6 +942,7 @@
   "setup_db_test_redis_button": "Test Redis Connection",
   "setup_db_test_redis_success": "Connected successfully!",
   "cookie_heading": "We value your privacy",
+  "cookie_privacy_policy": "Privacy Policy",
   "cookie_description": "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking \"Accept All\", you consent to our use of cookies.",
   "cookie_necessary_title": "Necessary",
   "cookie_necessary_desc": "Required for the site to function",

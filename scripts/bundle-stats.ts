@@ -9,6 +9,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import zlib from "node:zlib";
+import { globSync } from "glob";
 
 const gzip = promisify(zlib.gzip);
 const brotli = promisify(zlib.brotliCompress);
@@ -121,22 +122,12 @@ async function getBuildMetadata(): Promise<BuildMetadata> {
 }
 
 async function getFilesRecursively(dir: string): Promise<string[]> {
-  let results: string[] = [];
   try {
-    const list = await fs.readdir(dir);
-    for (const file of list) {
-      const filePath = path.resolve(dir, file);
-      const stat = await fs.stat(filePath);
-      if (stat.isDirectory()) {
-        results = results.concat(await getFilesRecursively(filePath));
-      } else if (CONFIG.fileTypes.includes(path.extname(file))) {
-        results.push(filePath);
-      }
-    }
+    return globSync("**/*.{js,css}", { cwd: dir, absolute: true });
   } catch (e: any) {
-    if (e.code !== "ENOENT") console.error(e);
+    console.error(e);
+    return [];
   }
-  return results;
 }
 
 async function analyzeFile(filePath: string): Promise<BundleStats | null> {
@@ -149,7 +140,7 @@ async function analyzeFile(filePath: string): Promise<BundleStats | null> {
       brotli(content, {
         params: {
           [zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT,
-          [zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY,
+          [zlib.constants.BROTLI_PARAM_QUALITY]: 6, // Quality 6 is ~15x faster than 11 for estimation
         },
       }),
     ]);

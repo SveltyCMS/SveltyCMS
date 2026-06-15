@@ -33,31 +33,65 @@ echo "║             SveltyCMS Pre-Push Quality Gate                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# ── Gate 1: Production Build ─────────────────────────────────────────────
-echo "🏗️  Gate 1: Building Application"
+# ── Gate 1: Quality Checks (Parity with CI) ───────────────────────────────
+echo "🔎 Gate 1: Running Quality Checks (Lint, Type Check, Unit Tests)"
+bun run lint
+bun run check
+bun run test:unit
+echo "   ✓ Quality checks passed."
+echo ""
+
+# Safely back up local config so the build and E2E tests can run in a clean environment matching CI
+echo "💾 Backing up local configuration..."
+mkdir -p .tmp_config_backup
+if [ -f config/private.ts ]; then cp config/private.ts .tmp_config_backup/private.ts; fi
+if [ -f config/private.test.ts ]; then cp config/private.test.ts .tmp_config_backup/private.test.ts; fi
+if [ -d config/database ]; then cp -r config/database .tmp_config_backup/database; fi
+
+restore_config() {
+    echo "⏪ Restoring local configuration..."
+    if [ -d .tmp_config_backup/database ]; then
+        rm -rf config/database
+        cp -r .tmp_config_backup/database config/database
+    fi
+    if [ -f .tmp_config_backup/private.ts ]; then cp .tmp_config_backup/private.ts config/private.ts; else rm -f config/private.ts; fi
+    if [ -f .tmp_config_backup/private.test.ts ]; then cp .tmp_config_backup/private.test.ts config/private.test.ts; else rm -f config/private.test.ts; fi
+    rm -rf .tmp_config_backup
+    echo "   ✓ Local configuration restored."
+}
+
+# Ensure config is restored even if the tests/build fail or are interrupted
+trap restore_config EXIT INT TERM
+
+# Clear active state for E2E setup wizard and build parity with CI
+rm -rf config/private.ts config/private.test.ts config/database/* tests/e2e/.auth/user.json logs/* || true
+
+# ── Gate 2: Production Build ─────────────────────────────────────────────
+echo "🏗️  Gate 2: Building Application"
 rm -rf build .svelte-kit
 COMPILE_ALL_ADAPTERS=true bun run build
 echo "   ✓ Build completed."
 echo ""
 
-# ── Gate 2: SQLite Integration Tests ─────────────────────────────────────
-echo "🛡️  Gate 2: SQLite Integration Tests"
+# ── Gate 3: SQLite Integration Tests ─────────────────────────────────────
+echo "🛡️  Gate 3: SQLite Integration Tests"
 bun run scripts/run-integration-tests.ts --db=sqlite --no-build
 echo "   ✓ Integration tests passed."
 echo ""
 
-# ── Gate 3: Playwright E2E Tests ─────────────────────────────────────────
-echo "🎭 Gate 3: Playwright E2E Tests"
+# ── Gate 4: Playwright E2E Tests ─────────────────────────────────────────
+echo "🎭 Gate 4: Playwright E2E Tests"
+
 # Ensure playwright browsers are installed (cached after first run)
 bun x playwright install --with-deps chromium 2>/dev/null || true
 
 # Run all E2E projects sequentially (wizard → auth → app tests).
-# playwright.config.ts handles the webServer for local runs.
 bun x playwright test --project=wizard --project=auth-setup --project=signup --project=content --project=system --project=a11y --project=rbac --project=language
 echo "   ✓ Playwright tests passed."
 echo ""
 
 echo "╔══════════════════════════════════════════════════════════════╗"
+# Since trap runs on EXIT, restore_config will execute right after this next line
 echo "║  ✅ All pre-push gates passed. Push allowed.                 ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""

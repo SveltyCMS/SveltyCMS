@@ -556,14 +556,14 @@ Provides an organized interface for navigating hierarchical content structures.
 					<button
 						type="button"
 						onclick={() => (search = '')}
-						class="btn rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 mr-0.5"
+						class="btn rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 me-0.5"
 						aria-label="Clear search"
 					>
 						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
 					</button>
 				{:else}
 					<!-- Search with icon -->
-					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 mr-0.5">
+					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 me-0.5">
 						<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
 					</div>
 				{/if}

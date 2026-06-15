@@ -514,7 +514,7 @@
 	<!-- SMTP Configuration Form -->
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<!-- SMTP Host -->
-		<label class="label">
+		<label class="label" for="smtp-host">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_host()} <span class="text-error-500">*</span></span>
@@ -530,6 +530,7 @@
 				</SystemTooltip>
 			</div>
 			<input
+				id="smtp-host"
 				type="text"
 				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				class:input-error={displayErrors.host || (wizard.emailSettings.host.trim() && !isValidHostname())}
@@ -664,7 +665,7 @@
 		</label>
 
 		<!-- SMTP User -->
-		<label class="label">
+		<label class="label" for="smtp-user">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_user()} <span class="text-error-500">*</span></span>
@@ -680,6 +681,7 @@
 				</SystemTooltip>
 			</div>
 			<input
+				id="smtp-user"
 				type="text"
 				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				class:input-error={displayErrors.user}
@@ -762,12 +764,13 @@
 		</label>
 
 		<!-- From Email (Optional) -->
-		<label class="label md:col-span-2">
+		<label class="label md:col-span-2" for="smtp-from">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:email-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_from()}</span>
 			</div>
 			<input
+				id="smtp-from"
 				type="email"
 				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				bind:value={wizard.emailSettings.from}

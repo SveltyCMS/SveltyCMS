@@ -239,12 +239,12 @@ sequenceDiagram
 
 ### Key Files
 
-| File                                            | Purpose                                     |
-| :---------------------------------------------- | :------------------------------------------ |
-| `src/services/automation/types.ts`              | Type definitions, event/operation metadata  |
-| `src/services/automation/event-bus.ts`          | Singleton event bus with wildcard listeners |
-| `src/services/automation/automation-service.ts` | CRUD + execution engine                     |
-| `src/routes/api/automations/`                   | REST API endpoints                          |
+| File                                                       | Purpose                                     |
+| :--------------------------------------------------------- | :------------------------------------------ |
+| `src/services/background/automation/types.ts`              | Type definitions, event/operation metadata  |
+| `src/services/background/automation/event-bus.ts`          | Singleton event bus with wildcard listeners |
+| `src/services/background/automation/automation-service.ts` | CRUD + execution engine                     |
+| `src/routes/api/[...path]/handlers/system.ts`              | REST API endpoints (handleAutomationRoutes) |
 | `src/routes/(app)/config/automations/`          | GUI pages (list + editor)                   |
 
 ---

@@ -42,7 +42,7 @@ const MUTATION_TARGETS: { file: string; tests: string }[] = [
   },
 ];
 
-const TEST_BASE = "bun test";
+const TEST_BASE = "bun test --bail";
 let currentTarget = "";
 
 interface MutationResult {
