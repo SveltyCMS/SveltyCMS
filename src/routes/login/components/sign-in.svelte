@@ -304,16 +304,19 @@ async function submitTwoFA() {
 	isVerifying2FA = true;
 	try {
 		const { verify2FA } = await import("../auth.remote");
-		await verify2FA({ userId: twoFAUserId, code: twoFACode });
+		const result = (await verify2FA({ userId: twoFAUserId, code: twoFACode })) as any;
+		isVerifying2FA = false;
+		if (result.success && result.redirectPath) {
+			toast.success({ title: "Verification Successful", description: "Redirecting…" });
+			window.location.href = result.redirectPath;
+			return;
+		}
+		toast.error({ description: result.message || twofa_error_invalid_code() });
+		twoFACode = "";
 	} catch (e: any) {
 		isVerifying2FA = false;
-		if (e?.location) {
-			toast.success({ title: "Verification Successful", description: "Redirecting…" });
-			window.location.href = e.location;
-		} else {
-			toast.error({ description: e?.message || twofa_error_invalid_code() });
-			twoFACode = "";
-		}
+		toast.error({ description: e?.message || twofa_error_invalid_code() });
+		twoFACode = "";
 	}
 }
 

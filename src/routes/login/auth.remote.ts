@@ -22,7 +22,7 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
 import { logger } from "@utils/logger";
-import { redirect, isRedirect } from "@sveltejs/kit";
+import { isRedirect } from "@sveltejs/kit";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
@@ -128,10 +128,12 @@ export const verify2FA = command(
     if (!user) return { success: false, message: "User not found." };
 
     const sessionCookie = auth.createSessionCookie(userId as any as DatabaseId);
-    event.cookies.set(sessionCookie.name, sessionCookie.value, {
-      ...(sessionCookie.attributes as Record<string, unknown>),
-      path: "/",
-    });
+    try {
+      event.cookies.set(sessionCookie.name, sessionCookie.value, {
+        ...(sessionCookie.attributes as Record<string, unknown>),
+        path: "/",
+      });
+    } catch {}
 
     auth
       .updateUserAttributes(
@@ -151,7 +153,10 @@ export const verify2FA = command(
       finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
     } catch {}
 
-    throw redirect(303, finalCollectionPath ?? "/config/collectionbuilder");
+    return {
+      success: true,
+      redirectPath: finalCollectionPath ?? "/config/collectionbuilder",
+    };
   },
 );
 
@@ -238,7 +243,9 @@ export const prefetch = prefetchFirstCollection;
 
 async function signInInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
-    event.setHeaders({ "Retry-After": "60" });
+    try {
+      event.setHeaders({ "Retry-After": "60" });
+    } catch {}
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -282,10 +289,12 @@ async function signInInternal(event: RequestEvent, input: any) {
         };
       ok = true;
       const sc = auth.createSessionCookie(ar.sessionId!);
-      event.cookies.set(sc.name, sc.value, {
-        ...(sc.attributes as Record<string, unknown>),
-        path: "/",
-      });
+      try {
+        event.cookies.set(sc.name, sc.value, {
+          ...(sc.attributes as Record<string, unknown>),
+          path: "/",
+        });
+      } catch {}
       // Prime in-memory session cache so getUserFromSession bypasses sqlite-proxy
       try {
         const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
@@ -310,10 +319,12 @@ async function signInInternal(event: RequestEvent, input: any) {
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
     });
     const sc = auth.createSessionCookie(s._id);
-    event.cookies.set(sc.name, sc.value, {
-      ...(sc.attributes as Record<string, unknown>),
-      path: "/",
-    });
+    try {
+      event.cookies.set(sc.name, sc.value, {
+        ...(sc.attributes as Record<string, unknown>),
+        path: "/",
+      });
+    } catch {}
   }
 
   auth
@@ -349,12 +360,14 @@ async function signInInternal(event: RequestEvent, input: any) {
     });
 
   const path = await getCachedFirstCollectionPath("en" as any).catch(() => null);
-  throw redirect(303, path ?? "/config/collectionbuilder");
+  return { success: true, redirectPath: path ?? "/config/collectionbuilder" };
 }
 
 async function signUpInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
-    event.setHeaders({ "Retry-After": "60" });
+    try {
+      event.setHeaders({ "Retry-After": "60" });
+    } catch {}
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -422,10 +435,12 @@ async function signUpInternal(event: RequestEvent, input: any) {
   const session = ur.data?.session;
   if (session) {
     const sc = auth.createSessionCookie(session._id);
-    event.cookies.set(sc.name, sc.value, {
-      ...(sc.attributes as Record<string, unknown>),
-      path: "/",
-    });
+    try {
+      event.cookies.set(sc.name, sc.value, {
+        ...(sc.attributes as Record<string, unknown>),
+        path: "/",
+      });
+    } catch {}
   }
 
   invalidateUserCountCache();
@@ -438,12 +453,14 @@ async function signUpInternal(event: RequestEvent, input: any) {
       logger.debug("Registration token consumption failed silently during signup");
     });
 
-  throw redirect(303, "/config/collectionbuilder");
+  return { success: true, redirectPath: "/config/collectionbuilder" };
 }
 
 async function forgotPWInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
-    event.setHeaders({ "Retry-After": "60" });
+    try {
+      event.setHeaders({ "Retry-After": "60" });
+    } catch {}
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -522,7 +539,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
 
 async function resetPWInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
-    event.setHeaders({ "Retry-After": "60" });
+    try {
+      event.setHeaders({ "Retry-After": "60" });
+    } catch {}
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -557,5 +576,5 @@ async function resetPWInternal(event: RequestEvent, input: any) {
       logger.debug("Audit log write for password reset success failed silently");
     });
 
-  throw redirect(303, "/login?reset=success");
+  return { success: true, redirectPath: "/login?reset=success" };
 }
