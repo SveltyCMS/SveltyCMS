@@ -310,10 +310,7 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       // server-side prepared statements must be disabled (the backend connection can
       // change between prepare and execute, causing "prepared statement does not exist").
       // Set DATABASE_PREPARE=false to disable. Default is true for the ~40% parse/plan win.
-      const usePrepared =
-        effectivePrepare !== undefined
-          ? effectivePrepare
-          : process.env.DATABASE_PREPARE !== "false";
+      const usePrepared = effectivePrepare ?? process.env.DATABASE_PREPARE !== "false";
 
       this.sql = postgres({
         ...options,

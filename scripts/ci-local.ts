@@ -48,7 +48,11 @@ const skipE2E = argv.includes("--skip-e2e");
 function run(
   cmd: string,
   args: string[],
-  opts: { silent?: boolean; env?: Record<string, string>; ignoreExit?: boolean } = {},
+  opts: {
+    silent?: boolean;
+    env?: Record<string, string>;
+    ignoreExit?: boolean;
+  } = {},
 ): SpawnSyncReturns<Buffer> {
   if (!opts.silent) {
     console.log(`  $ ${cmd} ${args.join(" ")}`);
@@ -109,13 +113,21 @@ async function main() {
 
   const backupDir = join(ROOT, ".tmp_config_backup");
   const pathsToBackup = [
-    { src: join(ROOT, "config", "private.ts"), dest: join(backupDir, "private.ts"), type: "file" },
+    {
+      src: join(ROOT, "config", "private.ts"),
+      dest: join(backupDir, "private.ts"),
+      type: "file",
+    },
     {
       src: join(ROOT, "config", "private.test.ts"),
       dest: join(backupDir, "private.test.ts"),
       type: "file",
     },
-    { src: join(ROOT, "config", "database"), dest: join(backupDir, "database"), type: "dir" },
+    {
+      src: join(ROOT, "config", "database"),
+      dest: join(backupDir, "database"),
+      type: "dir",
+    },
   ];
 
   console.log("💾 Backing up local configuration...");
@@ -156,7 +168,7 @@ async function main() {
       { name: "Unit Tests", cmd: "bun", args: ["run", "test:unit"] },
     ];
 
-    let t = Date.now();
+    let t: number;
     for (const check of qualityChecks) {
       console.log(`\n  ── 🔎 ${check.name} ──`);
       t = Date.now();
@@ -193,7 +205,11 @@ async function main() {
       env: { COMPILE_ALL_ADAPTERS: "true" },
     });
     const buildPassed = ok(buildResult);
-    results.push({ name: "Production Build", passed: buildPassed, duration: elapsed(t) });
+    results.push({
+      name: "Production Build",
+      passed: buildPassed,
+      duration: elapsed(t),
+    });
     if (!buildPassed) {
       printSummary(results, pipelineStart);
       process.exit(1);
@@ -208,7 +224,11 @@ async function main() {
       t = Date.now();
       const r = run("bun", ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"]);
       const passed = ok(r);
-      results.push({ name: `Integration (${db})`, passed, duration: elapsed(t) });
+      results.push({
+        name: `Integration (${db})`,
+        passed,
+        duration: elapsed(t),
+      });
       if (!passed) {
         console.error(`  ❌ ${db} integration tests failed.`);
         break; // fail-fast
@@ -248,7 +268,11 @@ async function main() {
         t = Date.now();
         const r = run("bun", ["x", "playwright", "test", `--project=${project}`]);
         const passed = ok(r);
-        results.push({ name: `E2E (${project})`, passed, duration: elapsed(t) });
+        results.push({
+          name: `E2E (${project})`,
+          passed,
+          duration: elapsed(t),
+        });
         if (!passed) break; // fail-fast
       }
     } else if (skipE2E) {

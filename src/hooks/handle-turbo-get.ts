@@ -196,7 +196,6 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   // Falls back to on-the-fly sync compress for payloads > 1KB when client advertises support.
   // Uses shared setCompressionHeaders for DRY observability headers.
   const isRichEntry =
-    cachedResponse !== null &&
     typeof cachedResponse === "object" &&
     !(cachedResponse instanceof Uint8Array) &&
     !Buffer.isBuffer(cachedResponse);
