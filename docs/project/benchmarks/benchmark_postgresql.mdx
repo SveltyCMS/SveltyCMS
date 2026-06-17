@@ -496,7 +496,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
 > 🎯 **Proves**: Measures system graceful degradation when external services fail.
 
-````text
+`````text
 ║ Circuit Breaker Fallback       │        0.408 ms │ p95:        0.678 ms │ RPS:      2,450 ║
 ```text
 <!-- CIRCUIT_BREAKER_TABLE_END -->
@@ -698,6 +698,16 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > **Why**: Collection scan runs on every startup. Slow scans delay time-to-ready.
 
 <!-- SCAN_TABLE_END -->
+
+### 🏷️ Incremental Content Reload ⚪ —
+
+> **Budget**: ≤ 4,000ms (suite) | **Tags**: `cpu` | **Level**: 2
+
+<!-- INCREMENTAL_TABLE_START -->
+<!-- INSIGHT_PLACEHOLDER -->
+
+<!-- SUMMARY_PLACEHOLDER -->
+<!-- INCREMENTAL_TABLE_END -->
 
 ### 🏷️ Middleware & Hooks Performance 🟢 avg -10% p95 -8% rps +10% (10 runs)
 
@@ -1172,27 +1182,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 <!-- CONTENT_STRESS_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
-║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
-║          Measures surgical single-file fullReload vs full reconciliation path           ║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.252 ms │ p95:        0.303 ms │ RPS:      3,964 ║
-║ Full Reconciliation Reload     │        1.599 ms │ p95:        3.122 ms │ RPS:        626 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
-````
-
-```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Incremental Reload (avg)                           │        0.252 ms       ║
-║ Full Reconciliation (avg)                          │        1.599 ms       ║
-║ Incremental Speedup Factor                         │          6.3 x        ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
+<!-- SUMMARY_PLACEHOLDER -->
 <!-- CONTENT_STRESS_TABLE_END -->
 
 ### 🏷️ Full Client Journey Simulation ⚪ —
@@ -1378,7 +1368,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 - **Test metadata**: `tests/benchmarks/benchmark-meta.ts`
 - **Per-DB budgets**: `tests/benchmarks/benchmark-mdx.ts` → `PER_DIMENSION_BUDGETS`
 - **Report template**: This file — updated on each `BENCHMARK_RECORD=1` run
-````
+`````
 
 ---
 

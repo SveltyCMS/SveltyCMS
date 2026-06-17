@@ -24,8 +24,8 @@ import path from "node:path";
 const COLLECTIONS_DIR = path.resolve(process.cwd(), ".compiledCollections");
 const STASH_DIR = path.resolve(process.cwd(), ".bench_stash_incremental");
 const TARGET_FILE = path.join(COLLECTIONS_DIR, "bench_incremental_target.js");
-/** Matches content-scan benchmark — fixed cardinality for cross-DB parity */
-const FIXTURE_COUNT = 150;
+/** Matches content-scale-stress (1k) — full reload cost scales with tree size; incremental stays O(1). */
+const FIXTURE_COUNT = 1000;
 
 const FIXTURE_SCHEMA = (id: string, name: string) => `export const schema = {
   _id: "${id}",
@@ -55,7 +55,7 @@ async function restoreCollectionsDir(): Promise<void> {
   }
 }
 
-/** Isolated 150-file tree so full vs incremental is measured on identical cardinality (all DBs). */
+/** Isolated 1k-file tree so full vs incremental is measured on identical cardinality (all DBs). */
 async function prepareIsolatedFixtures(): Promise<void> {
   await stashCollectionsDir();
   await fs.writeFile(
@@ -141,11 +141,14 @@ test("Incremental vs Full Content Reload", async () => {
       results: [incrementalResult, fullReconcileResult],
     });
 
-    printSummaryTable([
-      { key: "Incremental Reload (avg)", val: incrementalResult.avgMs, unit: "ms" },
-      { key: "Full Reconciliation (avg)", val: fullReconcileResult.avgMs, unit: "ms" },
-      { key: "Incremental Speedup Factor", val: speedup, unit: "x" },
-    ]);
+    printSummaryTable(
+      [
+        { key: "Incremental Reload (avg)", val: incrementalResult.avgMs, unit: "ms" },
+        { key: "Full Reconciliation (avg)", val: fullReconcileResult.avgMs, unit: "ms" },
+        { key: "Incremental Speedup Factor", val: speedup, unit: "x" },
+      ],
+      "Incremental",
+    );
 
     // 3. Batched vs sequential multi-file reload (10 files)
     const batchDir = path.join(COLLECTIONS_DIR, "batch_bench");
@@ -194,11 +197,10 @@ test("Incremental vs Full Content Reload", async () => {
     const batchSpeedup =
       batchedResult.avgMs > 0 ? (sequentialResult.avgMs / batchedResult.avgMs).toFixed(1) : "N/A";
 
-    printSummaryTable([
-      { key: "Sequential 10-file (avg)", val: sequentialResult.avgMs, unit: "ms" },
-      { key: "Batched 10-file (avg)", val: batchedResult.avgMs, unit: "ms" },
-      { key: "Batch Speedup Factor", val: batchSpeedup, unit: "x" },
-    ]);
+    // Batch metrics are logged only — avoid overwriting unrelated MDX TABLE sections.
+    console.log(
+      `\n   Sequential 10-file: ${sequentialResult.avgMs.toFixed(3)} ms | Batched: ${batchedResult.avgMs.toFixed(3)} ms | Speedup: ${batchSpeedup}x`,
+    );
 
     await fs.rm(batchDir, { recursive: true, force: true }).catch(() => {});
 

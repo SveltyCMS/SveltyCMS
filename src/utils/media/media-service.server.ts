@@ -34,12 +34,19 @@ import { validateEgressUrl, safeFetch } from "@src/utils/http/egress-guard";
  */
 function sanitizeSvg(svg: string): string {
   let cleaned = svg;
+  let previous = "";
 
-  // 1. Strip dangerous tags (with their content, including self-closing variants)
-  const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
-  for (const tag of DANGEROUS_TAGS) {
-    cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
-    cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
+  // Iterative scrubbing — prevents XML label-nesting bypass attacks
+  // (same defense as sanitize-html.ts)
+  while (cleaned !== previous) {
+    previous = cleaned;
+
+    // 1. Strip dangerous tags (with their content, including self-closing variants)
+    const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
+    for (const tag of DANGEROUS_TAGS) {
+      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
+      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
+    }
   }
 
   // 2. Strip inline event handlers (onload=, onclick=, onerror=, etc.) — both quoted and unquoted

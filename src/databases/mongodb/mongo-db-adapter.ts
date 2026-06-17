@@ -15,6 +15,7 @@ import type {
   ISystemAdapter,
   IMonitoringAdapter,
   ICollectionAdapter,
+  IFtsAdapter,
   BaseEntity,
   QueryBuilder,
 } from "../db-interface";
@@ -29,6 +30,7 @@ import { MongoCollectionModule } from "./collection-module";
 import { MongoBatchModule } from "./batch-module";
 import { MongoTransactionModule } from "./transaction-module";
 import { MongoQueryBuilder } from "./mongo-query-builder";
+import { MongoFtsAdapter } from "./fts-adapter";
 import { getDefaultRoles } from "../auth/default-roles";
 import { generateId, normalizePath, validateId, createPagination } from "./mongodb-utils";
 
@@ -62,6 +64,12 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
 
   public get collection(): ICollectionAdapter {
     return (this._collection ??= new MongoCollectionModule(this));
+  }
+
+  private _fts?: IFtsAdapter;
+
+  public get fts(): IFtsAdapter {
+    return (this._fts ??= new MongoFtsAdapter(this as unknown as IDBAdapter));
   }
 
   public get batch(): IDBAdapter["batch"] {

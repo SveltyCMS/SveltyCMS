@@ -81,11 +81,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const queryOptions: any = {};
-      if (options.hints?.readConcern) {
-        queryOptions.readConcern = options.hints.readConcern;
+      if (options.hints?.mongo?.readConcern) {
+        queryOptions.readConcern = options.hints.mongo.readConcern;
       }
-      if (options.hints?.readPreference) {
-        queryOptions.readPreference = options.hints.readPreference;
+      if (options.hints?.mongo?.readPreference) {
+        queryOptions.readPreference = options.hints.mongo.readPreference;
       }
 
       const result = await this.model
@@ -125,11 +125,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const queryOptions: any = {};
-      if (options.hints?.readConcern) {
-        queryOptions.readConcern = options.hints.readConcern;
+      if (options.hints?.mongo?.readConcern) {
+        queryOptions.readConcern = options.hints.mongo.readConcern;
       }
-      if (options.hints?.readPreference) {
-        queryOptions.readPreference = options.hints.readPreference;
+      if (options.hints?.mongo?.readPreference) {
+        queryOptions.readPreference = options.hints.mongo.readPreference;
       }
 
       const results = await this.model
@@ -172,11 +172,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const sort = options.sort as any;
 
       const queryOptions: any = {};
-      if (options.hints?.readConcern) {
-        queryOptions.readConcern = options.hints.readConcern;
+      if (options.hints?.mongo?.readConcern) {
+        queryOptions.readConcern = options.hints.mongo.readConcern;
       }
-      if (options.hints?.readPreference) {
-        queryOptions.readPreference = options.hints.readPreference;
+      if (options.hints?.mongo?.readPreference) {
+        queryOptions.readPreference = options.hints.mongo.readPreference;
       }
 
       const results = await this.model
@@ -259,8 +259,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         isDeleted: false,
       });
       const saveOptions: any = {};
-      if (options.hints?.writeConcern) {
-        saveOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        saveOptions.w = options.hints.mongo.writeConcern;
       }
       const result = await doc.save(saveOptions);
       return {
@@ -310,8 +310,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       });
 
       const bulkOptions: any = { ordered: false };
-      if (options.hints?.writeConcern) {
-        bulkOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        bulkOptions.w = options.hints.mongo.writeConcern;
       }
 
       const result = await this.model.bulkWrite(ops as any[], bulkOptions);
@@ -445,8 +445,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }),
       );
       const updateOptions: any = { cloneUpdate: false };
-      if (options.hints?.writeConcern) {
-        updateOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        updateOptions.w = options.hints.mongo.writeConcern;
       }
       const result = await this.model.updateMany(
         secureQuery,
@@ -490,8 +490,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         runValidators: true,
         cloneUpdate: false,
       };
-      if (options.hints?.writeConcern) {
-        upsertOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        upsertOptions.w = options.hints.mongo.writeConcern;
       }
 
       const result = await this.model
@@ -552,8 +552,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const deleteOptions: any = {};
-      if (options.hints?.writeConcern) {
-        deleteOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        deleteOptions.w = options.hints.mongo.writeConcern;
       }
 
       if (permanent) {
@@ -639,8 +639,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const deleteOptions: any = {};
-      if (options.hints?.writeConcern) {
-        deleteOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        deleteOptions.w = options.hints.mongo.writeConcern;
       }
 
       if (permanent) {
@@ -916,8 +916,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         },
       }));
       const bulkOptions: any = { ordered: false };
-      if (options.hints?.writeConcern) {
-        bulkOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        bulkOptions.w = options.hints.mongo.writeConcern;
       }
       const res = await this.model.bulkWrite(ops as any[], bulkOptions);
       return {
@@ -963,8 +963,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }));
 
       const bulkOptions: any = { ordered: false };
-      if (options.hints?.writeConcern) {
-        bulkOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        bulkOptions.w = options.hints.mongo.writeConcern;
       }
 
       const result = await this.model.bulkWrite(ops as any[], bulkOptions);

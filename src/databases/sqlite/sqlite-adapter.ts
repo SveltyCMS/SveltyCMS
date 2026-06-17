@@ -12,9 +12,10 @@
  * - system and collection table cleanups
  */
 
-import type { IDBAdapter, DatabaseResult } from "../db-interface";
+import type { IDBAdapter, IFtsAdapter, DatabaseResult } from "../db-interface";
 import { logger } from "@src/utils/logger";
 import { SQLiteAdapterCore } from "./adapter-core";
+import { SQLiteFtsAdapter } from "./fts-adapter";
 
 export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
   private _monitoring: any = null;
@@ -43,6 +44,12 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
         avgConnectionTime: 0,
       },
     };
+  }
+
+  private _fts?: IFtsAdapter;
+
+  public get fts(): IFtsAdapter {
+    return (this._fts ??= new SQLiteFtsAdapter(this as unknown as IDBAdapter));
   }
 
   constructor(_config: any = {}) {

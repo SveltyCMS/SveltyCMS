@@ -1,7 +1,14 @@
-import type { IDBAdapter, IMonitoringAdapter, DatabaseResult, BaseEntity } from "../db-interface";
+import type {
+  IDBAdapter,
+  IMonitoringAdapter,
+  IFtsAdapter,
+  DatabaseResult,
+  BaseEntity,
+} from "../db-interface";
 import { PostgresAdapterCore } from "./adapter-core";
 import * as utils from "../core/relational-utils";
 import { PostgresQueryBuilder } from "./postgres-query-builder";
+import { PostgresFtsAdapter } from "./fts-adapter";
 
 export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter {
   public readonly type = "postgresql";
@@ -18,6 +25,12 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
       };
     }
     return this._monitoring;
+  }
+
+  private _fts?: IFtsAdapter;
+
+  public get fts(): IFtsAdapter {
+    return (this._fts ??= new PostgresFtsAdapter(this as unknown as IDBAdapter));
   }
 
   constructor(_config: any = {}) {
@@ -70,9 +83,9 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
       }
       // Get all tables in the current schema
       const rows = await this.sql`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
         AND table_type = 'BASE TABLE'
       `;
       const tables = rows.map((r: any) => r.table_name);
@@ -108,13 +121,13 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
 
       // Use raw SQL for efficient bulk deletes
       const sessionResult = await this.sql`
-        DELETE FROM auth_sessions 
+        DELETE FROM auth_sessions
         WHERE expires < CURRENT_TIMESTAMP
       `;
 
       const tokenResult = await this.sql`
-        DELETE FROM auth_tokens 
-        WHERE (expires < CURRENT_TIMESTAMP) 
+        DELETE FROM auth_tokens
+        WHERE (expires < CURRENT_TIMESTAMP)
         OR (consumed = TRUE AND "updatedAt" < CURRENT_TIMESTAMP - INTERVAL '7 days')
       `;
 

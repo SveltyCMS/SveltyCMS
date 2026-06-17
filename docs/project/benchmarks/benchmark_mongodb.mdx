@@ -672,6 +672,16 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- SCAN_TABLE_END -->
 
+### 🏷️ Incremental Content Reload ⚪ —
+
+> **Budget**: ≤ 4,000ms (suite) | **Tags**: `cpu` | **Level**: 2
+
+<!-- INCREMENTAL_TABLE_START -->
+<!-- INSIGHT_PLACEHOLDER -->
+
+<!-- SUMMARY_PLACEHOLDER -->
+<!-- INCREMENTAL_TABLE_END -->
+
 ### 🏷️ Middleware & Hooks Performance ⚪ —
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `cpu`, `security` | **Level**: 2
@@ -1375,7 +1385,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > Performance improved — recent optimizations or cache warming likely effective.
 > **Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
-````text
+`````text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — MIXED WORKLOAD AUDIT                             ║
 ║                      File: tests/benchmarks/mixed-workload.test.ts                      ║
@@ -1483,27 +1493,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 <!-- CONTENT_STRESS_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
-║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
-║          Measures surgical single-file fullReload vs full reconciliation path           ║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.253 ms │ p95:        0.342 ms │ RPS:      3,949 ║
-║ Full Reconciliation Reload     │        1.572 ms │ p95:        2.925 ms │ RPS:        636 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
-````
-
-```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Sequential 10-file (avg)                           │        2.419 ms       ║
-║ Batched 10-file (avg)                              │        1.224 ms       ║
-║ Batch Speedup Factor                               │          2.0 x        ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
+<!-- SUMMARY_PLACEHOLDER -->
 <!-- CONTENT_STRESS_TABLE_END -->
 
 ### 🏷️ Full Client Journey Simulation 🟢 avg -10% p95 -16% (4 runs)
@@ -1667,7 +1657,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ║ Batched 10-file (avg)                              │        1.153 ms       ║
 ║ Batch Speedup Factor                               │          2.1 x        ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-````
+`````
 
 <!-- THROTTLING_TABLE_END -->
 

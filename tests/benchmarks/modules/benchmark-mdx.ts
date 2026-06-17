@@ -104,21 +104,55 @@ export function slugify(s: string): string {
     .replace(/(^_|_$)/g, "");
 }
 
+/** Matrix-aligned tag slug from shortLabel (see scripts/benchmark-matrix/reporting.ts). */
+export function shortLabelToTag(shortLabel: string): string {
+  return shortLabel
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_")
+    .toUpperCase();
+}
+
+/** Explicit test-file → tag map — prevents `content_*` prefix collisions. */
+const TEST_FILE_TO_TAG: Record<string, string> = {
+  "content-incremental-reload": "INCREMENTAL",
+  "content-scale-stress": "CONTENT_STRESS",
+  "content-scan": "SCAN",
+  "entry-edit-hydration": "EDIT_HYDRATE",
+  "cold-start-phased": "COLD_START",
+  "truth-latency": "TRUTH_AUDIT",
+  "hooks-performance": "HOOKS_TRACE",
+  "cache-hit-ratio": "CACHE_EFFICIENCY",
+  "client-journey": "JOURNEY",
+  "state-machine-transition": "STATE_MACHINE",
+};
+
+function tagExistsInDoc(doc: string, tag: string): boolean {
+  return doc.includes(`<!-- ${tag}_TABLE_START -->`);
+}
+
 /** Discover which TABLE tag in the MDX matches the given test file. */
 export function discoverTag(doc: string, testFile: string, shortLabel?: string): string | null {
-  const base = path.basename(testFile, path.extname(testFile)).replace(/-/g, "_");
-  const key = (shortLabel || base).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const fileBase = path
+    .basename(testFile)
+    .replace(/\.test\.(ts|js)$/i, "")
+    .replace(/\.(ts|js)$/i, "");
+
+  if (shortLabel) {
+    const fromLabel = shortLabelToTag(shortLabel);
+    if (tagExistsInDoc(doc, fromLabel)) return fromLabel;
+  }
+
+  const explicit = TEST_FILE_TO_TAG[fileBase];
+  if (explicit && tagExistsInDoc(doc, explicit)) return explicit;
+
+  const base = fileBase.replace(/-/g, "_");
+  const key = (shortLabel || fileBase).toLowerCase().replace(/[^a-z0-9]/g, "");
 
   const tagRx = /<!-- (\w+)_TABLE_START -->/g;
   let m: RegExpExecArray | null;
   while ((m = tagRx.exec(doc)) !== null) {
     const t = m[1].toLowerCase();
-    if (
-      key.includes(t) ||
-      t.includes(key) ||
-      base.includes(t) ||
-      t.split("_")[0] === base.split("_")[0]
-    ) {
+    if (key.includes(t) || t.includes(key) || base.includes(t)) {
       return m[1];
     }
   }
@@ -143,7 +177,15 @@ function atomicWrite(docPath: string, content: string): void {
 /** Find the correct tag occurrence — prefer the one after BENCHMARK_END (educational section). */
 function findSectionPosition(doc: string, tag: string): { idx: number } | null {
   const START = `<!-- ${tag}_TABLE_START -->`;
-  const benchEnd = doc.indexOf("<!-- BENCHMARK_END -->");
+  const BENCH_END = "<!-- BENCHMARK_END -->";
+  let benchEnd = -1;
+  let searchFrom = 0;
+  while (true) {
+    const next = doc.indexOf(BENCH_END, searchFrom);
+    if (next < 0) break;
+    benchEnd = next;
+    searchFrom = next + BENCH_END.length;
+  }
 
   // Collect all occurrences
   const starts: number[] = [];
@@ -237,17 +279,23 @@ export function writeSummary(
     }
 
     const END = `<!-- ${resolvedTag}_TABLE_END -->`;
-    if (!doc.includes(END)) {
+    const pos = findSectionPosition(doc, resolvedTag);
+    if (!pos || !doc.includes(END, pos.idx)) {
       releaseMdxLock(docPath);
       return;
     }
 
+    const endIdx = doc.indexOf(END, pos.idx);
     const summaryBlock = ["```text", summaryTable, "```"].join("\n");
+    const section = doc.slice(pos.idx, endIdx + END.length);
 
-    if (doc.includes("<!-- SUMMARY_PLACEHOLDER -->")) {
-      doc = doc.replace("<!-- SUMMARY_PLACEHOLDER -->", summaryBlock);
+    if (section.includes("<!-- SUMMARY_PLACEHOLDER -->")) {
+      doc =
+        doc.slice(0, pos.idx) +
+        section.replace("<!-- SUMMARY_PLACEHOLDER -->", summaryBlock) +
+        doc.slice(endIdx + END.length);
     } else {
-      doc = doc.replace(END, "\n" + summaryBlock + "\n" + END);
+      doc = doc.slice(0, endIdx) + "\n" + summaryBlock + "\n" + doc.slice(endIdx);
     }
 
     atomicWrite(docPath, doc);

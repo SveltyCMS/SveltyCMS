@@ -291,7 +291,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/realtime-performance.test.ts](../../../tests/benchmarks/realtime-performance.test.ts)
 > 🎯 **Proves**: Benchmarks WebSocket connection/broadcast latency.
 
-````text
+`````text
 ║ 1 Listeners                    │        0.000 ms │ p95:        0.001 ms │ RPS:  1,768,933 ║
 ║ 10 Listeners                   │        0.000 ms │ p95:        0.001 ms │ RPS:  1,308,045 ║
 ║ 50 Listeners                   │        0.001 ms │ p95:        0.002 ms │ RPS:  1,011,570 ║
@@ -381,16 +381,9 @@ xychart-beta
 > **Code**: `src/content/collectionScanner.ts`, `src/databases/cache/cache-service.ts`
 > **Why**: Collection count scales with tenant usage. Scanning must remain sub-linear at scale.
 
-```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Sequential 10-file (avg)                           │        2.452 ms       ║
-║ Batched 10-file (avg)                              │        1.227 ms       ║
-║ Batch Speedup Factor                               │          2.0 x        ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-````
+<!-- INSIGHT_PLACEHOLDER -->
 
+<!-- SUMMARY_PLACEHOLDER -->
 <!-- CONTENT_STRESS_TABLE_END -->
 
 <!-- CACHE_EFFICIENCY_TABLE_START -->
@@ -453,7 +446,7 @@ xychart-beta
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Concurrent PATCH Bomb          │        1.816 ms │ p95:        1.816 ms │ RPS:        551 ║
-````
+`````
 
 <!-- CONCURRENCY_TABLE_END -->
 
@@ -502,7 +495,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
 > 🎯 **Proves**: Measures system graceful degradation when external services fail.
 
-````text
+`````text
 ║ Circuit Breaker Fallback       │        0.375 ms │ p95:        0.533 ms │ RPS:      2,667 ║
 ```text
 <!-- CIRCUIT_BREAKER_TABLE_END -->
@@ -707,6 +700,16 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > **Why**: Collection scan runs on every startup. Slow scans delay time-to-ready.
 
 <!-- SCAN_TABLE_END -->
+
+### 🏷️ Incremental Content Reload ⚪ —
+
+> **Budget**: ≤ 4,000ms (suite) | **Tags**: `cpu` | **Level**: 2
+
+<!-- INCREMENTAL_TABLE_START -->
+<!-- INSIGHT_PLACEHOLDER -->
+
+<!-- SUMMARY_PLACEHOLDER -->
+<!-- INCREMENTAL_TABLE_END -->
 
 ### 🏷️ Middleware & Hooks Performance 🟢 avg -86% p95 -90% rps +5% (4 runs)
 
@@ -1238,27 +1241,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 <!-- CONTENT_STRESS_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
-║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
-║          Measures surgical single-file fullReload vs full reconciliation path           ║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.269 ms │ p95:        0.440 ms │ RPS:      3,721 ║
-║ Full Reconciliation Reload     │        1.617 ms │ p95:        3.194 ms │ RPS:        618 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
-````
-
-```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Incremental Reload (avg)                           │        0.269 ms       ║
-║ Full Reconciliation (avg)                          │        1.617 ms       ║
-║ Incremental Speedup Factor                         │          6.0 x        ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
+<!-- SUMMARY_PLACEHOLDER -->
 <!-- CONTENT_STRESS_TABLE_END -->
 
 ### 🏷️ Full Client Journey Simulation ⚪ —
@@ -1441,7 +1424,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 - **Test metadata**: `tests/benchmarks/benchmark-meta.ts`
 - **Per-DB budgets**: `tests/benchmarks/benchmark-mdx.ts` → `PER_DIMENSION_BUDGETS`
 - **Report template**: This file — updated on each `BENCHMARK_RECORD=1` run
-````
+`````
 
 ---
 

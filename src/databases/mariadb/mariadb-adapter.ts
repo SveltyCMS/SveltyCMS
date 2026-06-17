@@ -24,11 +24,13 @@ import type {
   BaseEntity,
   DatabaseResult,
   IDBAdapter,
+  IFtsAdapter,
   QueryBuilder,
   IMonitoringAdapter,
 } from "../db-interface";
 import { MariaDBQueryBuilder } from "./maria-db-query-builder";
 import { AdapterCore } from "./adapter-core";
+import { MariaDBFtsAdapter } from "./fts-adapter";
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   public readonly type = "mariadb";
@@ -64,6 +66,12 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
       };
     }
     return this._monitoring;
+  }
+
+  private _fts?: IFtsAdapter;
+
+  public get fts(): IFtsAdapter {
+    return (this._fts ??= new MariaDBFtsAdapter(this as unknown as IDBAdapter));
   }
 
   constructor(_config: any = {}) {

@@ -1,20 +1,14 @@
 /**
  * @file src/services/search-service.ts
- * @description Database-agnostic full-text search service with weighted column support.
+ * @description Database-agnostic full-text search service.
  *
- * Provides a unified search interface across all four supported database backends:
- * - PostgreSQL: tsvector/tsquery with weighted columns (A, B, C)
- * - MariaDB: MATCH...AGAINST with FULLTEXT index
- * - SQLite: FTS5 virtual tables
- * - MongoDB: $text index with field weights
- *
- * Falls back to ILIKE/LIKE pattern matching when FTS is not configured.
+ * Thin orchestrator that delegates to the database adapter's IFtsAdapter.
+ * Falls back to universal LIKE-based pattern matching when no FTS adapter is available.
  *
  * Features:
- * - weighted column search (title:A, content:B, description:C)
- * - database-agnostic abstract interface
- * - per-DB FTS index migration SQL
- * - highlight-aware result formatting
+ * - delegates to adapter.fts.search() for native FTS
+ * - universal ILIKE/LIKE fallback across all DBs
+ * - formatted SearchResponse with highlights support
  */
 
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
@@ -66,11 +60,14 @@ export interface SearchResponse {
 
 /**
  * Database-agnostic full-text search service.
+ * Delegates to adapter-specific IFtsAdapter when available,
+ * falling back to universal LIKE-based pattern matching.
  */
 export class SearchService {
   /**
    * Searches a collection for the given query across weighted columns.
-   * Automatically detects the database backend and uses its native FTS capabilities.
+   * Delegates to the database adapter's FTS adapter if available,
+   * otherwise uses LIKE-based fallback.
    */
   async search(
     collection: string,
@@ -78,259 +75,59 @@ export class SearchService {
     options?: SearchOptions,
   ): Promise<SearchResponse> {
     if (!query || query.trim().length === 0) {
-      return { items: [], total: 0, highlights: {}, query: "", dbType: "unknown" };
+      return {
+        items: [],
+        total: 0,
+        highlights: {},
+        query: "",
+        dbType: "unknown",
+      };
     }
 
     const trimmedQuery = query.trim();
     const dbType = this.detectDbType();
 
-    try {
-      switch (dbType) {
-        case "postgresql":
-          return this.searchPostgres(collection, trimmedQuery, options);
-        case "mariadb":
-          return this.searchMariaDB(collection, trimmedQuery, options);
-        case "sqlite":
-          return this.searchSQLite(collection, trimmedQuery, options);
-        case "mongodb":
-          return this.searchMongoDB(collection, trimmedQuery, options);
-        default:
-          return this.searchFallback(collection, trimmedQuery, options);
-      }
-    } catch (err) {
-      logger.error("[SearchService] Search failed, falling back to LIKE", err);
-      return this.searchFallback(collection, trimmedQuery, options);
-    }
-  }
+    // Use the adapter's FTS implementation if available
+    const fts = dbAdapterInstance?.fts;
 
-  /**
-   * PostgreSQL full-text search using tsvector/tsquery with weighted columns.
-   * Weights: A (high), B (medium), C (low), D (lowest).
-   */
-  private async searchPostgres(
-    collection: string,
-    query: string,
-    options?: SearchOptions,
-  ): Promise<SearchResponse> {
-    if (!dbAdapterInstance) return this.emptyResponse(query);
-
-    const columns = options?.columns ?? [
-      { name: "title", weight: "A" },
-      { name: "content", weight: "B" },
-      { name: "description", weight: "C" },
-    ];
-
-    const limit = options?.limit ?? 50;
-    const offset = options?.offset ?? 0;
-    const language = options?.language ?? "english";
-
-    // Build tsvector expression with weights
-    const weightParts = columns
-      .filter((col) => col.weight)
-      .map(
-        (col) =>
-          `setweight(to_tsvector('${language}', coalesce("${col.name}", '')), '${col.weight}')`,
-      );
-    const tsvectorExpr = weightParts.join(" || ");
-
-    // Build tsquery from user input — prefix matching for partial terms
-    const tsqueryTerms = query
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((term) => `${term}:*`)
-      .join(" & ");
-    const tsquery = `to_tsquery('${language}', '${tsqueryTerms.replace(/'/g, "''")}')`;
-
-    const filterSQL = this.buildFilterSQL(options);
-
-    // Use raw SQL via the adapter's find method
-    const rawSQL = `
-      SELECT
-        *,
-        ts_rank(${tsvectorExpr}, ${tsquery}) AS relevance
-      FROM "${collection}"
-      WHERE ${tsvectorExpr} @@ ${tsquery}
-      ${filterSQL}
-      ORDER BY relevance DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-
-    const countSQL = `
-      SELECT COUNT(*) AS total
-      FROM "${collection}"
-      WHERE ${tsvectorExpr} @@ ${tsquery}
-      ${filterSQL}
-    `;
-
-    const [dataResult, countResult] = await Promise.all([
-      dbAdapterInstance.crud.find(collection, {} as any, { rawSql: true, sql: rawSQL } as any),
-      dbAdapterInstance.crud.find(collection, {} as any, { rawSql: true, sql: countSQL } as any),
-    ]);
-
-    return this.formatResponse(dataResult, countResult, query, "postgresql");
-  }
-
-  /**
-   * MariaDB full-text search using MATCH...AGAINST with FULLTEXT index.
-   */
-  private async searchMariaDB(
-    collection: string,
-    query: string,
-    options?: SearchOptions,
-  ): Promise<SearchResponse> {
-    if (!dbAdapterInstance) return this.emptyResponse(query);
-
-    const columns = options?.columns ?? [
-      { name: "title" },
-      { name: "content" },
-      { name: "description" },
-    ];
-
-    const limit = options?.limit ?? 50;
-    const offset = options?.offset ?? 0;
-
-    const columnNames = columns.map((c) => `\`${c.name}\``).join(", ");
-    const filterSQL = this.buildFilterSQL(options, "mysql");
-
-    const matchExpr = `MATCH(${columnNames}) AGAINST('${query.replace(/'/g, "''")}' IN BOOLEAN MODE)`;
-
-    const rawSQL = `
-      SELECT *, ${matchExpr} AS relevance
-      FROM \`${collection}\`
-      WHERE ${matchExpr}
-      ${filterSQL}
-      ORDER BY relevance DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-
-    const countSQL = `
-      SELECT COUNT(*) AS total
-      FROM \`${collection}\`
-      WHERE ${matchExpr}
-      ${filterSQL}
-    `;
-
-    const [dataResult, countResult] = await Promise.all([
-      dbAdapterInstance.crud.find(collection, {} as any, { rawSql: true, sql: rawSQL } as any),
-      dbAdapterInstance.crud.find(collection, {} as any, { rawSql: true, sql: countSQL } as any),
-    ]);
-
-    return this.formatResponse(dataResult, countResult, query, "mariadb");
-  }
-
-  /**
-   * SQLite full-text search using FTS5 virtual tables.
-   * Falls back to LIKE if FTS5 virtual table is not configured.
-   */
-  private async searchSQLite(
-    collection: string,
-    query: string,
-    options?: SearchOptions,
-  ): Promise<SearchResponse> {
-    if (!dbAdapterInstance) return this.emptyResponse(query);
-
-    const limit = options?.limit ?? 50;
-    const offset = options?.offset ?? 0;
-
-    try {
-      // Try FTS5 first: lookup from <collection>_fts virtual table
-      const ftsTable = `${collection}_fts`;
-      const ftsQuery = query
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((t) => `"${t.replace(/"/g, '""')}"`)
-        .join(" AND ");
-
-      const rawSQL = `
-        SELECT c.*, bm25(${ftsTable}) AS relevance
-        FROM "${ftsTable}" fts
-        JOIN "${collection}" c ON c._id = fts.rowid
-        WHERE ${ftsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
-        ORDER BY relevance
-        LIMIT ${limit} OFFSET ${offset}
-      `;
-
-      const result = await dbAdapterInstance.crud.find(
-        collection,
-        {} as any,
-        {
-          rawSql: true,
-          sql: rawSQL,
-        } as any,
-      );
-
-      if (result.success && result.data) {
-        return this.formatResponse(result, null, query, "sqlite");
-      }
-    } catch {
-      logger.debug("[SearchService] FTS5 not available, falling back to LIKE");
-    }
-
-    // Fallback to LIKE
-    return this.searchFallback(collection, query, options);
-  }
-
-  /**
-   * MongoDB full-text search using $text index with field weights.
-   */
-  private async searchMongoDB(
-    collection: string,
-    query: string,
-    options?: SearchOptions,
-  ): Promise<SearchResponse> {
-    if (!dbAdapterInstance) return this.emptyResponse(query);
-
-    const limit = options?.limit ?? 50;
-    const offset = options?.offset ?? 0;
-
-    try {
-      const result = await dbAdapterInstance.crud.findMany(
-        collection,
-        {
-          $text: { $search: query },
-        } as any,
-        {
-          limit,
-          offset,
+    if (fts) {
+      try {
+        const result = await fts.search(collection, trimmedQuery, {
+          columns: options?.columns,
+          limit: options?.limit,
+          offset: options?.offset,
           tenantId: options?.tenantId as any,
-        },
-      );
+          language: options?.language,
+          filters: options?.filters,
+        });
 
-      if (result.success && result.data) {
-        const items = result.data as unknown as SearchResultItem[];
-        return {
-          items,
-          total: items.length,
-          highlights: {},
-          query,
-          dbType: "mongodb",
-        };
+        if (result.success && result.data) {
+          return {
+            items: result.data.items as SearchResultItem[],
+            total: result.data.total,
+            highlights: {},
+            query: trimmedQuery,
+            dbType,
+          };
+        }
+      } catch (err) {
+        logger.error("[SearchService] FTS adapter failed, falling back to LIKE", err);
       }
-    } catch {
-      logger.debug("[SearchService] $text not available, falling back to regex");
     }
 
-    // Fallback: use $regex
-    const regexFilter = { $regex: query, $options: "i" };
-    const orFilter = [
-      { title: regexFilter },
-      { content: regexFilter },
-      { description: regexFilter },
-    ];
-
-    const result = await dbAdapterInstance.crud.findMany(
-      collection,
-      {
-        $or: orFilter,
-      } as any,
-      {
-        limit,
-        offset,
-        tenantId: options?.tenantId as any,
-      },
-    );
-
-    return this.formatResponse(result, null, query, "mongodb");
+    // Universal LIKE-based fallback
+    try {
+      return this.searchFallback(collection, trimmedQuery, options);
+    } catch (err) {
+      logger.error("[SearchService] LIKE fallback failed", err);
+      return {
+        items: [],
+        total: 0,
+        highlights: {},
+        query: trimmedQuery,
+        dbType,
+      };
+    }
   }
 
   /**
@@ -396,23 +193,18 @@ export class SearchService {
   /**
    * Builds WHERE clause fragments from additional filters.
    */
-  private buildFilterSQL(
-    options?: SearchOptions,
-    dialect: "pg" | "mysql" | "sqlite" = "pg",
-  ): string {
+  private buildFilterSQL(options?: SearchOptions): string {
     const conditions: string[] = [];
 
     if (options?.tenantId) {
-      const quote = dialect === "mysql" ? "`" : '"';
-      conditions.push(`${quote}tenantId${quote} = '${options.tenantId.replace(/'/g, "''")}'`);
+      conditions.push(`"tenantId" = '${options.tenantId.replace(/'/g, "''")}'`);
     }
 
     if (options?.filters) {
       for (const [key, value] of Object.entries(options.filters)) {
         if (value !== undefined && value !== null) {
-          const quote = dialect === "mysql" ? "`" : '"';
           const strVal = String(value).replace(/'/g, "''");
-          conditions.push(`${quote}${key}${quote} = '${strVal}'`);
+          conditions.push(`"${key}" = '${strVal}'`);
         }
       }
     }
