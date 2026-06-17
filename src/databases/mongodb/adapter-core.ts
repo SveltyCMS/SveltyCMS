@@ -159,7 +159,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       return this._connection.models[collection];
     }
     if (schema) {
-      return this._connection.model(collection, schema, collection);
+      return this._connection.model(collection, schema);
     }
     const genericSchema = new mongoose.Schema(
       { _id: { type: String, required: true } },
