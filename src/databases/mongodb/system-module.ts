@@ -54,7 +54,10 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
         getById: (id: DatabaseId) => jobRepo.findOne({ _id: id } as any),
         getNextReady: (limit: number, tenantId?: string) =>
           jobRepo.findMany(
-            { status: "pending", nextRunAt: { $lte: new Date().toISOString() } } as any,
+            {
+              status: "pending",
+              nextRunAt: { $lte: new Date().toISOString() },
+            } as any,
             { limit, tenantId } as any,
           ),
         list: (o: any) => jobRepo.findMany(o?.filter || {}, o),
@@ -236,7 +239,7 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
     create: async (token: any, tenantId?: any) =>
       (await this._getMethods()).websiteTokens.create(token, tenantId),
     getAll: async (options: any, tenantId?: any) =>
-      (await this._getMethods()).websiteTokens.getAll(tenantId, options),
+      (await this._getMethods()).websiteTokens.getAll(options, tenantId),
     getByName: async (name: string, tenantId?: any) =>
       (await this._getMethods()).websiteTokens.getByName(name, tenantId),
     getByToken: async (token: string, tenantId?: any) =>
