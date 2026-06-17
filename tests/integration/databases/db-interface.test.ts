@@ -726,14 +726,14 @@ describe("Database Interface Contract Tests", () => {
 
       // Insert under Tenant A
       const insertRes = await db.crud.insert(collection, testDoc as any, {
-        tenantId: "tenant-a",
+        tenantId: "tenant-a" as DatabaseId,
       });
       expect(insertRes.success).toBe(true);
 
       // Try to find under Tenant B (should return null/not found)
       const findResB = await db.crud.findOne(collection, {
         _id: testId,
-        tenantId: "tenant-b",
+        tenantId: "tenant-b" as DatabaseId,
       } as any);
       if (findResB.success) {
         expect(findResB.data).toBeNull();
@@ -744,13 +744,13 @@ describe("Database Interface Contract Tests", () => {
         collection,
         testId,
         { value: { data: "hacked" } } as any,
-        { tenantId: "tenant-b" },
+        { tenantId: "tenant-b" as DatabaseId },
       );
       expect(updateResB.success).toBe(false);
 
       // Clean up under Tenant A
       const deleteResA = await db.crud.delete(collection, testId, {
-        tenantId: "tenant-a",
+        tenantId: "tenant-a" as DatabaseId,
       });
       expect(deleteResA.success).toBe(true);
     });

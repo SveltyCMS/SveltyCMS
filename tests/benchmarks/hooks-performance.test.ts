@@ -95,12 +95,22 @@ async function runHooksAudit() {
     for (const scenario of middlewareScenarios) {
       console.log(`   → ${scenario.name}...`);
 
+      const dbType = (process.env.DB_TYPE ?? "sqlite").toLowerCase();
+      const isSqlite = dbType.includes("sqlite");
+
+      // 🎯 DB-AWARE LOAD: SQLite is a single-writer embedded DB — full concurrency
+      // causes lock contention and makes the benchmark take hours. Use minimal
+      // iterations to stay within the 300s timeout while still measuring latency.
+      const baseIterationsHttp = isSqlite ? 20 : 600;
+      const baseIterationsPost = isSqlite ? 10 : 150;
+      const baseConcurrency = (scenario: any) => (isSqlite ? 1 : scenario.concurrency);
+
       const result = await runBenchmark({
         name: scenario.name,
-        iterations: scenario.method === "POST" ? 150 : 600,
-        warmupIterations: 60,
-        runs: 3,
-        concurrency: scenario.concurrency,
+        iterations: scenario.method === "POST" ? baseIterationsPost : baseIterationsHttp,
+        warmupIterations: isSqlite ? 5 : 60,
+        runs: isSqlite ? 1 : 3,
+        concurrency: baseConcurrency(scenario),
         trimOutliers: "iqr",
         silent: true,
         onIteration: async () => {

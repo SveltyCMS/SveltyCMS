@@ -114,7 +114,9 @@ export class SessionAdapter {
 
   async deleteSession(sessionId: DatabaseId, tenantId?: string): Promise<DatabaseResult<void>> {
     try {
-      const filter = safeQuery({ _id: sessionId } as any, tenantId as string);
+      const filter = safeQuery({ _id: sessionId } as any, tenantId as string, {
+        includeDeleted: true,
+      });
       const result = await this.SessionModel.findOneAndDelete(filter);
       if (!result) {
         return {
@@ -141,7 +143,9 @@ export class SessionAdapter {
     tenantId?: string,
   ): Promise<DatabaseResult<Session>> {
     try {
-      const filter = safeQuery({ _id: sessionId } as any, tenantId as string);
+      const filter = safeQuery({ _id: sessionId } as any, tenantId as string, {
+        includeDeleted: true,
+      });
       const session = await this.SessionModel.findOneAndUpdate(
         filter,
         { expires: new Date(newExpiry) },
@@ -198,7 +202,9 @@ export class SessionAdapter {
 
   async getAllActiveSessions(tenantId: string): Promise<DatabaseResult<Session[]>> {
     try {
-      const filter = safeQuery({ expires: { $gt: new Date() } } as any, tenantId);
+      const filter = safeQuery({ expires: { $gt: new Date() } } as any, tenantId, {
+        includeDeleted: true,
+      });
       const sessions = await this.SessionModel.find(filter).lean();
       return { success: true, data: sessions.map((s) => this.mapSession(s)) };
     } catch (err) {
@@ -245,6 +251,7 @@ export class SessionAdapter {
       const filter = safeQuery(
         { _id: oldSessionId, rotated: { $ne: true } } as any,
         tenantId as string,
+        { includeDeleted: true },
       );
       const oldSession = await this.SessionModel.findOne(filter).session(session).lean();
 

@@ -165,7 +165,7 @@ xychart-beta
 <!-- TRUTH_AUDIT_TABLE_END -->
 
 <!-- SCAN_TABLE_START -->
-### 🏷️ Self-Healing Content Scan ⚪ —
+### 🏷️ Self-Healing Content Scan  🔴 avg +35% p95 +42% rps -26% (15 runs)
 > 📂 **Source**: [tests/benchmarks/content-scan.test.ts](../../../tests/benchmarks/content-scan.test.ts)
 > 🎯 **Proves**: Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.
 
@@ -176,14 +176,31 @@ xychart-beta
 <!-- SCAN_TABLE_END -->
 
 <!-- INCREMENTAL_TABLE_START -->
-### 🏷️ Incremental Content Reload ⚪ —
-> 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
-> 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 26% — check connection pool saturation or lock contention.
+**Severe degradation** (+35%) — review recent commits immediately.
+
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
+║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
+║          Measures surgical single-file fullReload vs full reconciliation path           ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.258 ms │ p95:        0.478 ms │ RPS:      3,877 ║
-║ Full Reconciliation Reload     │        1.482 ms │ p95:        2.768 ms │ RPS:        675 ║
+║ Incremental fullReload (1 file) │        0.323 ms │ p95:        0.654 ms │ RPS:      3,099 ║
+║ Full Reconciliation Reload     │        1.935 ms │ p95:        3.108 ms │ RPS:        517 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Incremental Reload (avg)                           │        0.323 ms       ║
+║ Full Reconciliation (avg)                          │        1.935 ms       ║
+║ Incremental Speedup Factor                         │          6.0 x        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- INCREMENTAL_TABLE_END -->
 
@@ -875,8 +892,8 @@ A short high-level gains summary remains earlier in this file. The in-progress m
 <!-- API_LATENCY_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 100% — check connection pool saturation or lock contention.
-**Severe degradation** (+22635%) — review recent commits immediately.
+Throughput dropped 99% — check connection pool saturation or lock contention.
+**Severe degradation** (+21459%) — review recent commits immediately.
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
@@ -886,7 +903,7 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │     1029.898 ms │ p95:     1034.871 ms │ RPS:          1 ║
+║ HTTP: findById @ 8c            │     1027.715 ms │ p95:     1044.107 ms │ RPS:          1 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -894,7 +911,7 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │     1029.898 ms       ║
+║ HTTP Latency (findById)                            │     1027.715 ms       ║
 ║ Peak Throughput                                    │        1.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -903,7 +920,8 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 
 <!-- COLD_START_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+22%) — review recent commits immediately.
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -913,7 +931,7 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
 ║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.068 ms │ p95:        0.157 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.101 ms │ p95:        0.213 ms │ RPS:          0 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -929,7 +947,10 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 <!-- COLD_START_TABLE_END -->
 
 <!-- TRUTH_AUDIT_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Within normal variance — no action needed.
+**Check**: `src/services/sdk/local-cms.ts` · `src/routes/api/[...path]/+server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -937,9 +958,9 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
 ║     Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,962,067 ║
-║ Local SDK (Full)               │        0.005 ms │ p95:        0.009 ms │ RPS:    206,997 ║
-║ HTTP End-to-End                │      514.909 ms │ p95:     1030.771 ms │ RPS:          2 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,682,558 ║
+║ Local SDK (Full)               │        0.007 ms │ p95:        0.012 ms │ RPS:    151,012 ║
+║ HTTP End-to-End                │      512.639 ms │ p95:     1034.333 ms │ RPS:          2 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -948,8 +969,8 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Baseline Harness Overhead                          │        0.001 ms       ║
-║ SDK Engine Latency                                 │        0.005 ms       ║
-║ E2E HTTP Latency                                   │      514.909 ms       ║
+║ SDK Engine Latency                                 │        0.007 ms       ║
+║ E2E HTTP Latency                                   │      512.639 ms       ║
 ║ Peak HTTP Throughput                               │        2.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -957,7 +978,9 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 
 <!-- SCAN_TABLE_START -->
 
-> Within normal variance — no action needed.
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 41% — check connection pool saturation or lock contention.
+**Severe degradation** (+100%) — review recent commits immediately.
 **Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
 
@@ -967,7 +990,7 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 ║                       File: tests/benchmarks/content-scan.test.ts                       ║
 ║    Measures filesystem + metadata processing for self-healing collections discovery     ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Content Scan (Self-Healing)    │        0.004 ms │ p95:        0.007 ms │ RPS:    163,744 ║
+║ Content Scan (Self-Healing)    │        0.008 ms │ p95:        0.015 ms │ RPS:     97,215 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -975,9 +998,9 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Scan Latency                               │        0.004 ms       ║
-║ p95 Scan Latency                                   │        0.007 ms       ║
-║ Peak Scan Throughput                               │   163744.000 ops/s    ║
+║ Average Scan Latency                               │        0.008 ms       ║
+║ p95 Scan Latency                                   │        0.015 ms       ║
+║ Peak Scan Throughput                               │    97215.000 ops/s    ║
 ║ Collection Capacity                                │      150.000 files    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -1704,7 +1727,10 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- INDEX_PRESSURE_TABLE_END -->
 
 <!-- CONTENT_STRESS_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.
+**Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1753,7 +1779,10 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- MEDIA_UPLOAD_TABLE_END -->
 
 <!-- JOURNEY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.
+**Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1850,7 +1879,15 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- SUMMARY_PLACEHOLDER -->
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Sequential 10-file (avg)                           │        2.757 ms       ║
+║ Batched 10-file (avg)                              │        1.399 ms       ║
+║ Batch Speedup Factor                               │          2.0 x        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- LOCALSDK_TABLE_END -->
 
 <!-- FAST_FAIL_TABLE_START -->

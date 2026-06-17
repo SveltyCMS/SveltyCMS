@@ -935,7 +935,9 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(eq(this.schema.websiteTokens._id, id));
-        return utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken;
+        return utils.convertDatesToISO(result, {
+          mariaDoubleParseJson: this.adapter.type === "mariadb",
+        }) as unknown as import("../db-interface").WebsiteToken;
       }, "CREATE_WEBSITE_TOKEN_FAILED");
     },
 
@@ -968,9 +970,9 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select({ count: sql<number>`count(*)` })
           .from(this.schema.websiteTokens);
         return {
-          data: utils.convertArrayDatesToISO(
-            results,
-          ) as unknown as import("../db-interface").WebsiteToken[],
+          data: utils.convertArrayDatesToISO(results, {
+            mariaDoubleParseJson: this.adapter.type === "mariadb",
+          }) as unknown as import("../db-interface").WebsiteToken[],
           total: Number(totalResult?.count || 0),
         };
       }, "GET_WEBSITE_TOKENS_FAILED");
@@ -986,7 +988,9 @@ export class RelationalSystemModule implements ISystemAdapter {
           .where(eq(this.schema.websiteTokens.name, name))
           .limit(1);
         return result
-          ? (utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken)
+          ? (utils.convertDatesToISO(result, {
+              mariaDoubleParseJson: this.adapter.type === "mariadb",
+            }) as unknown as import("../db-interface").WebsiteToken)
           : null;
       }, "GET_WEBSITE_TOKEN_BY_NAME_FAILED");
     },
@@ -1001,7 +1005,9 @@ export class RelationalSystemModule implements ISystemAdapter {
           .where(eq(this.schema.websiteTokens.token, token))
           .limit(1);
         return result
-          ? (utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken)
+          ? (utils.convertDatesToISO(result, {
+              mariaDoubleParseJson: this.adapter.type === "mariadb",
+            }) as unknown as import("../db-interface").WebsiteToken)
           : null;
       }, "GET_WEBSITE_TOKEN_BY_TOKEN_FAILED");
     },

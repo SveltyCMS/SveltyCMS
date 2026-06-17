@@ -894,7 +894,7 @@ export abstract class SQLiteAdapterCore extends BaseAdapter implements ISqlAdapt
         }
 
         const db = this.getDrizzleInstance(options);
-        return await db.transaction(async (tx) => {
+        return await db.transaction(async (tx: any) => {
           const query = tx.insert(table).values(batchValues);
           if (this._insertManyReturningSupported !== false) {
             try {

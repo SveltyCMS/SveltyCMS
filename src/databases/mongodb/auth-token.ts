@@ -99,7 +99,7 @@ export class TokenAdapter {
   > {
     try {
       const tenantId = options?.tenantId;
-      const filter = safeQuery({ token } as any, tenantId as string);
+      const filter = safeQuery({ token } as any, tenantId as string, { includeDeleted: true });
       if (userId) filter.user_id = userId;
       if (type) filter.type = type;
 
@@ -140,7 +140,7 @@ export class TokenAdapter {
     try {
       const tenantId = options?.tenantId;
       // Atomic findOneAndDelete fixes TOCTOU race condition
-      const filter = safeQuery({ token } as any, tenantId as string);
+      const filter = safeQuery({ token } as any, tenantId as string, { includeDeleted: true });
       if (userId) filter.user_id = userId;
       if (type) filter.type = type;
 
@@ -210,7 +210,7 @@ export class TokenAdapter {
   ): Promise<DatabaseResult<Token[]>> {
     try {
       const tenantId = options?.tenantId;
-      const safeFilter = safeQuery(filter, tenantId as string);
+      const safeFilter = safeQuery(filter, tenantId as string, { includeDeleted: true });
       const tokens = await this.TokenModel.find(safeFilter).lean();
       return { success: true, data: tokens as Token[] };
     } catch (err) {
@@ -231,7 +231,9 @@ export class TokenAdapter {
   ): Promise<DatabaseResult<Token>> {
     try {
       const tenantId = options?.tenantId;
-      const filter = safeQuery({ _id: tokenId } as any, tenantId as string);
+      const filter = safeQuery({ _id: tokenId } as any, tenantId as string, {
+        includeDeleted: true,
+      });
 
       // Prevent token value from being updated
       const { token: _, ...validUpdates } = tokenData;

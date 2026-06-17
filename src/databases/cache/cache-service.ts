@@ -340,6 +340,26 @@ export class CacheService {
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
       if (this.l1.has(key)) break;
+
+      // 🚀 L2 polling: Check if the winning process has populated L2 (Redis)
+      if (this.isL2Ready()) {
+        try {
+          const l2Value = await this.l2.get(key);
+          if (l2Value) {
+            let parsed: any;
+            if (typeof l2Value === "string" && l2Value.startsWith("__RAW_STRING__:")) {
+              parsed = l2Value.substring(15);
+            } else {
+              parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+            }
+            this.l1.set(key, parsed);
+            break;
+          }
+        } catch {
+          // Ignore L2 query errors during polling
+        }
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
   }
@@ -430,6 +450,12 @@ export class CacheService {
           if (!lockOwner) {
             // Another request is already fetching this key. Wait for it.
             await this.waitForCache(fullKey, 1000); // Wait up to 1s
+
+            // Re-check L1 after waiting
+            const recheckVal = this.l1.get(fullKey);
+            if (recheckVal !== undefined) {
+              return recheckVal as T;
+            }
           }
           // If we acquired the lock, the caller is responsible for populating the cache.
           // The lock will be released:
@@ -437,7 +463,7 @@ export class CacheService {
           //   b) Automatically after TTL expires (500ms fallback)
         }
 
-        return null;
+        return undefined;
       } finally {
         // 🛡️ CRITICAL: If we acquired a lock but returned undefined (miss),
         // the external caller will populate the cache via set(). We defer
@@ -977,6 +1003,20 @@ export class CacheService {
   public recordMiss(key: string, tenantId?: string | null) {
     const fullKey = this.generateKey(key, tenantId);
     this.negativeBloom.add(fullKey);
+
+    // 🚀 STAMPEDE LOCK RELEASE: If a miss-lock was acquired for this key,
+    // release it immediately since the cache miss is now confirmed/recorded.
+    const lockReleaseKey = `lockrelease:${fullKey}`;
+    const pendingLock = this.pendingRequests.get(lockReleaseKey);
+    if (pendingLock) {
+      this.pendingRequests.delete(lockReleaseKey);
+      pendingLock.then((ownerId) => {
+        if (ownerId)
+          this.releaseLock(fullKey, ownerId).catch(() => {
+            logger.debug("Lock release failed after cache miss recording");
+          });
+      });
+    }
   }
 
   private buildKey(key: string, tenantId: string | null = "default"): string {
