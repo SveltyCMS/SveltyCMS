@@ -103,7 +103,6 @@ export class MongoWebsiteTokenMethods {
   }
 
   async getAll(
-    tenantId: string | undefined,
     options: {
       limit?: number;
       skip?: number;
@@ -111,6 +110,7 @@ export class MongoWebsiteTokenMethods {
       order?: string;
       filter?: Record<string, unknown>;
     },
+    tenantId?: string,
   ): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
     try {
       // Sanitize filter to prevent raw MongoDB operator injection/credential enumeration
