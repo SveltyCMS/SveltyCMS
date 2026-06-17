@@ -22,6 +22,9 @@ vite.config.ts.timestamp-*
 /config/backup/
 /config/database
 
+# Pre-push hook config backup
+.tmp_config_backup/
+
 # SveltyCMS
 /tmp
 trash/*

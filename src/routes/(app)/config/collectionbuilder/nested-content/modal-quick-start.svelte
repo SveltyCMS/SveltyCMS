@@ -14,7 +14,6 @@ Selecting a template auto-creates the collections using the installTemplateColle
 -->
 <script lang="ts">
 	import { PRESETS } from "@src/routes/setup/presets";
-	import { installTemplateCollections } from "../collectionbuilder.remote";
 	import { toast } from "@src/stores/toast.svelte.ts";
 	import { logger } from "@utils/logger";
 	import { scale } from "svelte/transition";
@@ -42,7 +41,8 @@ Selecting a template auto-creates the collections using the installTemplateColle
 
 		try {
 			isSubmitting = true;
-			const result = await installTemplateCollections(selectedPreset);
+				const { installTemplateCollections } = await import("../collectionbuilder.remote");
+				const result = await installTemplateCollections(selectedPreset);
 
 			if ("success" in result && result.success) {
 				toast.success(result.message ?? "Collections created successfully");
