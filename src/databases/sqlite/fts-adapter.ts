@@ -93,7 +93,11 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
     options?: { tenantId?: string | null; filters?: Record<string, unknown> },
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
     const colNames = columns?.map((c) => c.name) ?? ["title", "content", "description"];
-    const escapedQuery = query.replace(/'/g, "''").replace(/%/g, "\\%").replace(/_/g, "\\_");
+    const escapedQuery = query
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "''")
+      .replace(/%/g, "\\%")
+      .replace(/_/g, "\\_");
     const orConditions = colNames.map((col) => `"${col}" LIKE '%${escapedQuery}%'`).join(" OR ");
     const filterSQL = this.buildFilterSQL(options);
 

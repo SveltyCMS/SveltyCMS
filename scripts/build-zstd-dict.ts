@@ -115,7 +115,7 @@ function extractKnowledge(): Set<string> {
           const c = readFileSync(join(collectionsRoot, f), "utf8");
           // Grab obvious field names and collection identifiers
           (c.match(/"[a-zA-Z_][a-zA-Z0-9_]*":/g) || []).forEach((m) =>
-            tokens.add(m.replace(/["":]/g, "")),
+            tokens.add(m.replace(/[":]/g, "")),
           );
         }
       });

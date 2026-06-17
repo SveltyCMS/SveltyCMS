@@ -55,11 +55,11 @@ export function sanitizeHtml(html: string): string {
       // Closing tags without opening: </tag>
       cleaned = cleaned.replace(new RegExp(`</${tag}>`, "gi"), "");
     }
-  }
 
-  // 2. Strip on* event handlers (quoted and unquoted)
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
+    // 2. Strip on* event handlers (quoted and unquoted) — inside loop for defense-in-depth
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
+  }
 
   // 3. Strip javascript: and data: protocols in href/src
   cleaned = cleaned.replace(/(href|src|action)\s*=\s*["']\s*javascript\s*:/gi, '$1="#blocked"');

@@ -47,12 +47,12 @@ function sanitizeSvg(svg: string): string {
       cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
       cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
     }
-  }
 
-  // 2. Strip inline event handlers (onload=, onclick=, onerror=, etc.) — both quoted and unquoted
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*"[^"]*"/gi, "");
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*'[^']*'/gi, "");
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
+    // 2. Strip inline event handlers — inside loop for defense-in-depth
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*"[^"]*"/gi, "");
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*'[^']*'/gi, "");
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
+  }
 
   // 3. Strip javascript: and data: protocols in href/xlink:href attributes
   cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*"\s*javascript\s*:/gi, '$1="#blocked"');
