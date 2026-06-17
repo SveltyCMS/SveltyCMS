@@ -1139,11 +1139,7 @@ export abstract class AdapterCore extends BaseAdapter implements ISqlAdapter {
 
         const updated = await this.findOne<T>(collection, { _id: id } as any, options);
         if (!updated.success || !updated.data) {
-          return {
-            success: false,
-            message: `Record ${id} not found in ${getTableName(table)}`,
-            error: { code: "NOT_FOUND", message: "Record not found" },
-          };
+          throw new Error(`Record ${id} not found in ${getTableName(table)}`);
         }
 
         return this.hooks.length > 0
