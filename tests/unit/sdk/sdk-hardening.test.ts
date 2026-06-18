@@ -117,7 +117,7 @@ describe("SDK & Media Hardening", () => {
           "global" as any as DatabaseId,
         );
 
-        if (!result1.success) throw new Error('First upload failed: ' + result1.message);
+        if (!result1.success) throw new Error("First upload failed: " + result1.message);
         expect(result1.data._id).toBe("new_id");
 
         // Mock existing file for second upload
