@@ -14,6 +14,7 @@
  */
 
 import { ThemeManager } from "@src/databases/theme-manager";
+import { randomUUID } from "node:crypto";
 import type { ThemeConfig as AdminThemeSettings } from "@components/ui/theme-context.svelte";
 import { logger } from "@utils/logger";
 import {
@@ -225,6 +226,7 @@ export class AdminThemeService {
     };
 
     const result = await db.system.themes.install({
+      _id: randomUUID(),
       name,
       path: `/themes/${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       isActive: false,
