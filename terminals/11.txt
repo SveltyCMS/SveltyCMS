@@ -1,0 +1,7 @@
+---
+pid: 57912
+cwd: "D:\SveltyCMS"
+command: "cd D:\\SveltyCMS; bun run scripts/tmp-media-e2e.ts 2>&1"
+started_at: 2026-06-18T07:23:25.599Z
+running_for_ms: 9160005  
+---

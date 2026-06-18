@@ -55,7 +55,7 @@ All features above are production-ready. The "Future Roadmap" section later in t
 
 ## Quick Start
 
-````ts
+```ts
 import { getDatabaseResilience } from "@src/databases/database-resilience";
 
 const resilience = getDatabaseResilience();
@@ -63,11 +63,11 @@ const resilience = getDatabaseResilience();
 await resilience.executeWithRetry(async () => {
   // e.g. connect to MongoDB or SQL
 }, "Connection step");
-```text
+```
 
 Recommended defaults (in the singleton):
 
-```ts
+```
 {
   maxAttempts: 5,
   initialDelayMs: 1000,
@@ -75,7 +75,7 @@ Recommended defaults (in the singleton):
   backoffMultiplier: 2,
   jitterMs: 500
 }
-```text
+```
 
 ---
 
@@ -104,14 +104,14 @@ Pool diagnostics are available via `GET /api/database/pool-diagnostics` and surf
 
 You can override defaults when needed:
 
-```ts
+```
 const resilience = getDatabaseResilience({
   maxAttempts: 3,
   initialDelayMs: 500,
   maxDelayMs: 5000,
   jitterMs: 200,
 });
-```text
+```
 
 Use custom configs for time-sensitive operations only; otherwise prefer the defaults for consistency and simpler operations.
 
@@ -151,7 +151,7 @@ These items are on the roadmap for future releases:
 
 Use `executeWithRetry()` to handle transient failures consistently across the codebase with exponential backoff and jitter.
 
-```ts
+```
 const resilience = getDatabaseResilience({
   maxAttempts: 5,
   initialDelayMs: 1000,
@@ -163,7 +163,7 @@ const resilience = getDatabaseResilience({
 await resilience.executeWithRetry(async () => {
   await mongoose.connect(connectionString, options);
 }, "MongoDB connection");
-```text
+```
 
 ### Circuit Breaker Pattern
 
@@ -175,7 +175,7 @@ The resilience system now includes a robust **Circuit Breaker** to prevent casca
   - `HALF_OPEN`: Cooldown elapsed. Testing one request to see if the service recovered.
 - **Recovery Policy**:
   - After **60 seconds** in `OPEN` state, the breaker automatically moves to `HALF_OPEN`.
-  It allows **one** probe request: if successful, it moves to `CLOSED`; if it fails, it returns to `OPEN` for another 60s.
+    It allows **one** probe request: if successful, it moves to `CLOSED`; if it fails, it returns to `OPEN` for another 60s.
 - **Config**:
   - `failureThreshold`: 5 consecutive errors.
   - `cooldownMs`: 60,000 (1 minute) cooldown.
@@ -230,7 +230,7 @@ If installation fails (e.g., due to permission errors in production), the system
 
 ## Monitoring Example
 
-```ts
+```
 const status = await getSystemStatus();
 
 if (!status.health.healthy) {
@@ -244,13 +244,13 @@ if (status.health.latency > 1000) {
 const successRate = status.metrics.totalRetries
   ? (status.metrics.successfulRetries / status.metrics.totalRetries) * 100
   : 100;
-```text
+```
 
 ---
 
 ## Environment Variables
 
-```bash
+```
 # SMTP (optional)
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
@@ -259,7 +259,7 @@ SMTP_PASS=your-password
 
 # MongoDB
 MONGODB_URI=mongodb://localhost:27017/sveltycms
-```text
+```
 
 ---
 
@@ -277,14 +277,14 @@ Overhead: small singleton footprint and lightweight metrics store.
 
 Integrates with `@src/stores/system` for fast-path checks and precise reasons on UX surfaces.
 
-```ts
+```
 const { getSystemState, isServiceHealthy } = await import("@src/stores/system");
 const systemState = getSystemState();
 
 if (!isServiceHealthy("database") || systemState.overallState === "FAILED") {
   // Avoid slow queries; surface failure reason from state
 }
-```text
+```
 
 All reconnection events update centralized state and metrics (uptime %, failure counts, transitions).
 
@@ -294,21 +294,20 @@ All reconnection events update centralized state and metrics (uptime %, failure 
 
 1. Database outage during init (expect backoff retries and structured logs)
 
-```bash
+```
 sudo systemctl stop mongod
 bun run dev
-```text
+```
 
 2. Redis connection retries (expect jittered attempts with clear errors)
 
-```bash
+```
 sudo systemctl stop redis
 bun run dev
-```text
+```
 
 3. System status endpoint
 
-```bash
+```
 curl http://localhost:5173/api/system/status
-```text
-````
+```

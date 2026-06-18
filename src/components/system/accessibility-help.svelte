@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { onMount } from 'svelte';
 	import type { ActionReturn } from 'svelte/action';
 
@@ -95,9 +96,9 @@
 			</h3>
 			<p class="text-sm text-surface-500">WCAG 2.2 AA & ATAG 2.0 Compliance</p>
 		</div>
-		<button onclick={close} class="btn-icon rounded-full" aria-label="Close accessibility help dialog">
+		<Button variant="ghost" onclick={close} aria-label="Close accessibility help dialog" class="p-0! min-w-0 rounded-full">
 			<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-		</button>
+		</Button>
 	</div>
 
 	<!-- Introduction -->
@@ -210,17 +211,16 @@
 
 	<!-- Footer Actions -->
 	<div class="flex justify-between pt-2">
-		<button
+		<Button variant="outline"
 			onclick={() => {
 				if (onRequestFeedback) onRequestFeedback();
 				if (close) close();
 			}}
-			class="btn preset-outlined"
 			aria-label="give-feedback"
-		>
+		 class="preset-outlined">
 			<iconify-icon icon="mdi:message-text" width="16" class="mr-2"></iconify-icon>
 			Give Feedback
-		</button>
-		<button onclick={close} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" aria-label="close-dialog">Close Dialog</button>
+		</Button>
+		<Button variant="tertiary" onclick={close} aria-label="close-dialog" class="dark:">Close Dialog</Button>
 	</div>
 </div>

@@ -73,15 +73,18 @@ export function getImageSizes() {
   return SIZES;
 }
 
-const MEDIA_ROOT = getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
+function resolveMediaRoot(): string {
+  return getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
+}
 
 /** Save buffer or stream to storage (local or cloud) */
 export async function saveFile(
   data: Buffer | ReadableStream | import("node:stream").Readable,
   relPath: string,
 ): Promise<string> {
-  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), MEDIA_ROOT) + path.sep;
-  const fullRelPath = path.resolve(process.cwd(), MEDIA_ROOT, relPath);
+  const mediaRoot = resolveMediaRoot();
+  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), mediaRoot) + path.sep;
+  const fullRelPath = path.resolve(process.cwd(), mediaRoot, relPath);
 
   if (!fullRelPath.startsWith(MEDIA_ROOT_FULL)) {
     throw new Error("Invalid path: Potential traversal attack");
@@ -148,8 +151,9 @@ export async function deleteFile(url: string): Promise<void> {
   rel = rel.replace(/^\/+/, "");
 
   // Path Traversal Protection
-  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), MEDIA_ROOT) + path.sep;
-  const full = path.resolve(process.cwd(), MEDIA_ROOT, rel);
+  const mediaRoot = resolveMediaRoot();
+  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), mediaRoot) + path.sep;
+  const full = path.resolve(process.cwd(), mediaRoot, rel);
 
   if (!full.startsWith(MEDIA_ROOT_FULL)) {
     const { logger } = await import("@utils/logger");
@@ -161,7 +165,7 @@ export async function deleteFile(url: string): Promise<void> {
   }
 
   const fs = await import("node:fs/promises");
-  const fullPath = path.join(process.cwd(), MEDIA_ROOT, rel);
+  const fullPath = path.join(process.cwd(), resolveMediaRoot(), rel);
   await fs.unlink(fullPath).catch(() => {
     logger.debug("Best-effort file deletion failed silently");
   }); // best effort
@@ -180,7 +184,7 @@ export async function fileExists(rel: string): Promise<boolean> {
     return await exists(rel);
   }
   const fs = await import("node:fs/promises");
-  const full = path.join(process.cwd(), MEDIA_ROOT, rel);
+  const full = path.join(process.cwd(), resolveMediaRoot(), rel);
   try {
     await fs.access(full);
     return true;
@@ -195,8 +199,9 @@ export async function getFile(rel: string): Promise<Buffer> {
     return await download(rel);
   }
 
-  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), MEDIA_ROOT) + path.sep;
-  const fullPath = path.resolve(process.cwd(), MEDIA_ROOT, rel);
+  const mediaRoot = resolveMediaRoot();
+  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), mediaRoot) + path.sep;
+  const fullPath = path.resolve(process.cwd(), mediaRoot, rel);
 
   if (!fullPath.startsWith(MEDIA_ROOT_FULL)) {
     throw new Error("Invalid path: Potential traversal attack");

@@ -21,7 +21,7 @@ tags:
 
 The System Settings page provides a user-friendly interface for managing all dynamic CMS settings. Settings are stored in the database and take effect immediately without requiring a server restart.
 
-````mermaid
+```mermaid
 mindmap
   root((System Settings))
     General
@@ -44,7 +44,7 @@ mindmap
       Cache TTLs
       Redis Config
       Optimization
-```text
+```
 
 **Access:** Navigate to **Config → System Settings** (`/config/system-settings`)
 
@@ -52,7 +52,7 @@ mindmap
 
 SveltyCMS uses an optimized batch loading mechanism to ensure the dashboard remains responsive even on high-latency connections.
 
-```mermaid
+```
 sequenceDiagram
     participant Browser
     participant API as /api/settings/all
@@ -65,7 +65,7 @@ sequenceDiagram
     API->>DB: Fetch All Authorized Settings
     DB-->>API: Data Payload
     API-->>Browser: Optimized JSON Response
-```text
+```
 
 ## Interface Layout
 
@@ -128,12 +128,12 @@ The Cache & Performance tab allows you to configure cache Time-To-Live (TTL) val
 
 The top section displays configured TTLs in an easy-to-read grid:
 
-```text
+```
 ┌─────────┬──────────┬───────┐
 │ schema  │ widget   │ theme │
 │ 10m     │ 10m      │ 5m    │
 └─────────┴──────────┴───────┘
-```text
+```
 
 ### Cache Categories
 
@@ -290,7 +290,7 @@ Click **"Reset to Defaults"** to restore all TTL values to recommended defaults:
 
 #### Development
 
-```text
+```
 Schema:  300s  (5 min)  - Frequent schema changes
 Widget:  300s  (5 min)  - Testing widget configs
 Theme:   180s  (3 min)  - Active theme development
@@ -299,11 +299,11 @@ Media:   180s  (3 min)  - Adding/editing media
 API:     300s  (5 min)  - Testing integrations
 Static:  60s   (1 min)  - Rapid asset changes
 Collection: 300s (5 min) - Schema testing
-```text
+```
 
 #### Staging
 
-```text
+```
 Schema:  600s  (10 min) - Pre-production testing
 Widget:  600s  (10 min) - Widget testing
 Theme:   300s  (5 min)  - Theme refinement
@@ -312,11 +312,11 @@ Media:   300s  (5 min)  - Media testing
 API:     600s  (10 min) - Integration testing
 Static:  600s  (10 min) - Asset validation
 Collection: 600s (10 min) - Data testing
-```text
+```
 
 #### Production (Stable Content)
 
-```text
+```
 Schema:  1800s (30 min) - Schemas rarely change
 Widget:  1800s (30 min) - Stable widgets
 Theme:   900s  (15 min) - Established theme
@@ -325,11 +325,11 @@ Media:   600s  (10 min) - Stable media
 API:     1800s (30 min) - Stable integrations
 Static:  3600s (1 hour) - Static assets
 Collection: 1800s (30 min) - Stable collections
-```text
+```
 
 #### Production (Dynamic Content)
 
-```text
+```
 Schema:  900s  (15 min) - Moderate schema changes
 Widget:  900s  (15 min) - Some widget updates
 Theme:   600s  (10 min) - Occasional theme tweaks
@@ -338,11 +338,11 @@ Media:   300s  (5 min)  - Active media management
 API:     900s  (15 min) - Dynamic data
 Static:  1800s (30 min) - Occasional changes
 Collection: 900s (15 min) - Regular updates
-```text
+```
 
 #### Production (High Traffic)
 
-```text
+```
 Schema:  3600s (1 hour) - Maximum caching
 Widget:  3600s (1 hour) - Reduce DB load
 Theme:   1800s (30 min) - Longer cache
@@ -351,7 +351,7 @@ Media:   1200s (20 min) - Reduce queries
 API:     3600s (1 hour) - Minimize external calls
 Static:  7200s (2 hours) - Long-lived assets
 Collection: 3600s (1 hour) - Maximum performance
-```text
+```
 
 ### Performance Monitoring
 
@@ -626,10 +626,10 @@ System Settings includes import/export functionality for configuration managemen
 
 At the bottom of the page, a status bar shows:
 
-```text
+```
 🟢 System Operational
 Settings: Loaded | Environment: Dynamic | Auto-save: Enabled
-```text
+```
 
 **Indicators:**
 
@@ -810,4 +810,3 @@ The interface is fully responsive:
 ---
 
 _Last Updated: October 3, 2025_
-````

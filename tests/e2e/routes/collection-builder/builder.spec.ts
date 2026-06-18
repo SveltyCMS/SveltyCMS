@@ -9,20 +9,16 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should navigate to collection builder", async ({ page }) => {
-    // Navigate to collection builder
     await page.goto("/config/collectionbuilder");
+    await expect(page.getByRole("heading", { level: 1, name: /collection builder/i })).toBeVisible({
+      timeout: 10_000,
+    });
 
-    // Check if the page loads correctly
-    await expect(page.locator("h1")).toContainText("Collection Builder");
-
-    // Check if we can create a new collection
-    const createButton = page.locator('button:has-text("Create Collection")').first();
-    if (await createButton.isVisible()) {
-      await createButton.click();
-    } else {
-      // Alternative path - look for add/new buttons
-      await page.click('button:has-text("New")');
-    }
+    const addCollection = page.getByTestId("add-collection-button").first();
+    await expect(addCollection).toBeVisible({ timeout: 10_000 });
+    await addCollection.click();
+    await expect(page).toHaveURL(/\/config\/collectionbuilder\/new/, { timeout: 10_000 });
+    await expect(page.getByTestId("collection-editor-stepper")).toBeVisible();
   });
 
   test("should display widget management page", async ({ page }) => {

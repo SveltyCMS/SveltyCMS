@@ -26,7 +26,7 @@ import {
   restrictedResponse,
   boundaryResponse,
 } from "@src/utils/hook-utils";
-import { BASE_HEADERS } from "@src/utils/security-constants";
+import { API_CONTENT_SECURITY_POLICY, BASE_HEADERS } from "@src/utils/security-constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { logger } from "@src/utils/logger";
 // Hook is initialized lazily
@@ -60,6 +60,7 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     healthHeaders = {
       "Content-Type": "application/json",
       ...BASE_HEADERS,
+      "Content-Security-Policy": API_CONTENT_SECURITY_POLICY,
       "Cache-Control": "no-store, no-cache, must-revalidate",
       Pragma: "no-cache",
       Expires: "0",
@@ -179,6 +180,22 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   // 🚀 ONE-SHOT CLASSIFICATION: Computes isStatic/isApi/isBootstrap/isPublic once.
   // All downstream hooks read from locals.__flags via getRequestFlags().
   classifyRequest(pathname, event.locals as any);
+
+  // ── 0. STATIC ASSET DELEGATION (before test bypass) ─────────────────────
+  // Playwright attaches x-test-secret to every request; test bypass must not
+  // skip CORP/cache headers or setup gates for uploaded media at /files/.
+  if (pathname.length > 1 && isStaticOrInternalRequest(pathname)) {
+    const response = await resolve(event);
+    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    if (pathname.startsWith("/files/")) {
+      const { MEDIA_RESOURCE_HEADERS } = await import("@utils/security-constants");
+      for (const [key, value] of Object.entries(MEDIA_RESOURCE_HEADERS)) {
+        response.headers.set(key, value);
+      }
+    }
+    if (dev) logRequest(event, performance.now() - requestStart, response.status);
+    return response;
+  }
 
   // ── 0a. TERMINAL TEST BYPASS ──────────────────────────────────────────
   const isTest = IS_TEST_MODE;
@@ -342,14 +359,18 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const baseHeaderMap = BASE_HEADERS;
 
   // ── 1. STATIC ASSET DELEGATION ───────────────────────────────────────────
-  // We use a high-performance regex check first.
-  if (
-    pathname.length > 1 &&
-    (pathname[1] === "_" || pathname[1] === "." || STATIC_ASSET_REGEX.test(pathname))
-  ) {
-    if (isStaticOrInternalRequest(pathname)) {
-      return await resolve(event);
+  // Must include /files/ (uploaded media) — see isStaticOrInternalRequest().
+  if (pathname.length > 1 && isStaticOrInternalRequest(pathname)) {
+    const response = await resolve(event);
+    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    if (pathname.startsWith("/files/")) {
+      const { MEDIA_RESOURCE_HEADERS } = await import("@utils/security-constants");
+      for (const [key, value] of Object.entries(MEDIA_RESOURCE_HEADERS)) {
+        response.headers.set(key, value);
+      }
     }
+    if (dev) logRequest(event, performance.now() - requestStart, response.status);
+    return response;
   }
 
   try {
@@ -384,7 +405,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         const isSetupRoute =
           pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 
-        if (!isSetupRoute && !isApiRoute && !STATIC_ASSET_REGEX.test(pathname)) {
+        if (!isSetupRoute && !isApiRoute && !isStaticOrInternalRequest(pathname)) {
           const returnTo =
             pathname === "/"
               ? ""
@@ -531,7 +552,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         );
       }
 
-      if (!isBootstrapRoute(pathname) || pathname === "/login") {
+      if (
+        !isStaticOrInternalRequest(pathname) &&
+        (!isBootstrapRoute(pathname) || pathname === "/login")
+      ) {
         const returnTo =
           pathname === "/" || pathname === "/login"
             ? ""

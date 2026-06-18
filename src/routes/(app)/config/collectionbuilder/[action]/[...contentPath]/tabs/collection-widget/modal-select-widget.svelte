@@ -12,6 +12,7 @@ import { logger } from "@utils/logger";
 // Native UI Components Stores
 import { modalState } from "@utils/modal.svelte";
 import { onMount } from "svelte";
+	import Button from '@components/ui/button.svelte';
 
 // Props
 interface Props {
@@ -54,9 +55,9 @@ const cHeader =
 	<div class={cBase}>
 		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:text-surface-50">
 			<h2 class={cHeader}>{modalState.active?.props?.title || 'Select Widget'}</h2>
-			<button class="btn-icon preset-outlined-surface-500" onclick={parent.onClose} aria-label="Close modal">
+			<Button variant="outline" onclick={parent.onClose} aria-label="Close modal" class="p-0! min-w-0">
 				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-			</button>
+			</Button>
 		</header>
 
 		<!-- Search -->

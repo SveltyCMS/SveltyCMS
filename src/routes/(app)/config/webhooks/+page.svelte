@@ -8,6 +8,13 @@ import type { Webhook } from "@src/services/background/webhook-service";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
 import { fade, slide } from "svelte/transition";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
 
 let webhooks: Webhook[] = $state([]);
 let isLoading = $state(true);
@@ -143,38 +150,39 @@ function toggleEvent(event: string) {
 onMount(loadWebhooks);
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<div class="flex items-center justify-between" in:fade>
-		<div>
-			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:webhook" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				Webhooks
-			</h1>
-			<p class="text-sm opacity-50 font-medium">Manage webhook endpoints and event subscriptions</p>
-		</div>
-		<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={openAddModal} aria-label="Add webhook">
-			<iconify-icon icon="mdi:plus"></iconify-icon>
-			<span>Add Webhook</span>
-		</button>
-	</div>
+<AdminPageShell
+	title="Webhooks"
+	icon="mdi:webhook"
+	description="Manage webhook endpoints and event subscriptions"
+>
+	{#snippet actions()}
+		<Button variant="tertiary" onclick={openAddModal} aria-label="Add webhook" leadingIcon="mdi:plus" class="dark:">
+			Add Webhook
+		</Button>
+	{/snippet}
 
 	{#if isLoading}
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
-			<div class="flex flex-col items-center justify-center py-20 grayscale opacity-50">
-				<iconify-icon icon="mdi:webhook" class="text-6xl animate-pulse"></iconify-icon>
-				<p class="mt-4">Loading webhooks...</p>
+		<AdminCard class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
+			<div class="flex flex-col items-center justify-center py-20">
+				<Loader variant="text" lines={2} lastLineWidth="50%" ariaLabel="Loading webhooks" />
 			</div>
-		</div>
+		</AdminCard>
 	{:else if webhooks.length === 0}
-		<div class="card p-12 text-center border-2 border-dashed border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fade>
+		<div in:fade>
+		<AdminCard
+			class="p-12 text-center border-2 border-dashed border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
+		>
 			<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
 			<h3 class="h3 font-bold">No Webhooks Configured</h3>
 			<p class="mb-6 opacity-60">Add a webhook to start integrating with external systems.</p>
-			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={openAddModal} aria-label="Add webhook">Get Started</button>
+			<Button variant="tertiary" onclick={openAddModal} aria-label="Add webhook" class="dark:">Get Started</Button>
+		</AdminCard>
 		</div>
 	{:else}
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fade>
+		<div in:fade>
+		<AdminCard
+			class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs space-y-4"
+		>
 			<div class="grid gap-4">
 				{#each webhooks as webhook (webhook.id)}
 					<div
@@ -184,15 +192,15 @@ onMount(loadWebhooks);
 							<div class="flex items-center gap-2 mb-1">
 								<span class="font-bold text-lg truncate">{webhook.name}</span>
 								{#if webhook.active}
-									<span class="badge preset-filled-success-500 text-[10px] uppercase">Active</span>
+									<Badge variant="success" size="sm" class="uppercase">Active</Badge>
 								{:else}
-									<span class="badge preset-tonal-surface text-[10px] uppercase">Disabled</span>
+									<Badge preset="tonal" color="surface" size="sm" class="uppercase">Disabled</Badge>
 								{/if}
 							</div>
 							<div class="text-xs font-mono opacity-60 truncate mb-2">{webhook.url}</div>
 							<div class="flex flex-wrap gap-1">
 								{#each webhook.events as event (event)}
-									<span class="badge preset-tonal-primary text-[10px]">{event}</span>
+									<Badge preset="tonal" color="primary" size="sm">{event}</Badge>
 								{/each}
 							</div>
 						</div>
@@ -200,88 +208,90 @@ onMount(loadWebhooks);
 						<div
 							class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-surface-200 dark:border-surface-700"
 						>
-							<button
-								class="btn btn-sm preset-tonal-surface"
+							<Button variant="surface"
 								onclick={() => testWebhook(webhook as Webhook)}
 								title="Send Test Event"
 								aria-label="Test Webhook"
-							>
+							 size="sm">
 								<iconify-icon icon="mdi:send-outline"></iconify-icon>
 								<span class="hidden sm:inline">Test</span>
-							</button>
-							<button
-								class="btn btn-sm preset-tonal-surface"
+							</Button>
+							<Button variant="surface"
 								onclick={() => openEditModal(webhook)}
 								title="Edit Configuration"
 								aria-label="Edit Webhook"
-							>
+							 size="sm">
 								<iconify-icon icon="mdi:pencil-outline"></iconify-icon>
 								<span class="hidden sm:inline">Edit</span>
-							</button>
-							<button
-								class="btn btn-sm preset-tonal-error"
+							</Button>
+							<Button variant="error"
 								onclick={() => deleteWebhook(webhook.id)}
 								title="Delete Webhook"
 								aria-label="Delete Webhook"
-							>
+							 size="sm">
 								<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-							</button>
+							</Button>
 						</div>
 					</div>
 				{/each}
 			</div>
+		</AdminCard>
 		</div>
 	{/if}
-</div>
+</AdminPageShell>
 
-<!-- Webhook Editor Modal -->
 {#if showModal && editingWebhook}
 	{const activeWebhook = editingWebhook}
 	<div class="fixed inset-0 z-1000 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" transition:fade>
-		<div
-			class="card bg-surface-100 dark:bg-surface-800 w-full max-w-2xl overflow-hidden shadow-2xl border border-surface-300 dark:border-surface-700"
-			transition:slide
+		<div transition:slide class="w-full max-w-2xl">
+		<AdminCard
+			class="bg-surface-100 dark:bg-surface-800 w-full overflow-hidden shadow-2xl border border-surface-300 dark:border-surface-700"
 		>
 			<header class="p-4 border-b border-surface-300 dark:border-surface-700 flex justify-between items-center bg-surface-200 dark:bg-surface-900">
 				<h3 class="h3 font-bold">{activeWebhook.id ? 'Edit Webhook' : 'Add New Webhook'}</h3>
-				<button class="btn btn-sm preset-ghost-surface-500" onclick={() => (showModal = false)} aria-label="Close modal">
+				<Button variant="ghost" onclick={() => (showModal = false)} aria-label="Close modal" size="sm">
 					<iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
-				</button>
+				</Button>
 			</header>
 
 			<section class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-				<label class="label">
-					<span>Webhook Name</span>
-					<input type="text" class="input" placeholder="e.g. My External API" bind:value={activeWebhook.name} aria-label="Webhook name" />
-				</label>
+				<Input
+					label="Webhook Name"
+					type="text"
+					placeholder="e.g. My External API"
+					bind:value={activeWebhook.name}
+				/>
 
-				<label class="label">
-					<span>Payload URL</span>
-					<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={activeWebhook.url} aria-label="Webhook URL" />
-				</label>
+				<Input
+					label="Payload URL"
+					type="url"
+					placeholder="https://example.com/webhook"
+					bind:value={activeWebhook.url}
+				/>
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<label class="label text-sm">
-						<span>Secret Key (HMAC-SHA256)</span>
+					<div class="space-y-1">
+						<span class="text-sm font-semibold text-surface-700 dark:text-surface-300">Secret Key (HMAC-SHA256)</span>
 						<div class="flex gap-1">
-							<input type="text" class="input font-mono text-xs" bind:value={activeWebhook.secret} aria-label="Secret key" />
-							<button
-								class="btn preset-ghost-surface-500 btn-sm"
+							<Input
+								type="text"
+								bind:value={activeWebhook.secret}
+								aria-label="Secret key"
+								inputClass="font-mono text-xs"
+								class="flex-1"
+							/>
+							<Button variant="ghost"
 								onclick={() => activeWebhook && (activeWebhook.secret = crypto.randomUUID().replace(/-/g, ''))}
 								aria-label="Regenerate secret"
-							>
+							 size="sm">
 								<iconify-icon icon="mdi:refresh"></iconify-icon>
-							</button>
+							</Button>
 						</div>
 						<p class="text-[10px] opacity-60 mt-1 italic">Used to sign payloads for security verify.</p>
-					</label>
+					</div>
 
 					<div class="space-y-2">
-						<span class="block text-sm">Status</span>
-						<label class="flex items-center gap-2 cursor-pointer">
-							<input type="checkbox" class="checkbox" bind:checked={activeWebhook.active} aria-label="Webhook active" />
-							<span>Active (Enabled)</span>
-						</label>
+						<Checkbox bind:checked={activeWebhook.active} label="Active (Enabled)" />
 					</div>
 				</div>
 
@@ -292,27 +302,28 @@ onMount(loadWebhooks);
 					<p class="text-xs opacity-60 mb-2">Select which events should trigger this webhook.</p>
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 						{#each eventTypes as event (event)}
-							<label class="flex items-center gap-2 cursor-pointer hover:bg-surface-200 dark:hover:bg-surface-700 p-2 rounded transition-colors">
-								<input type="checkbox" class="checkbox" checked={activeWebhook.events?.includes(event as any)} onchange={() => toggleEvent(event)} aria-label="Select event: {event}" />
-								<span class="text-sm">{event}</span>
-							</label>
+							<div class="hover:bg-surface-200 dark:hover:bg-surface-700 p-2 rounded transition-colors">
+								<Checkbox
+									checked={activeWebhook.events?.includes(event as any) ?? false}
+									onchange={() => toggleEvent(event)}
+									label={event}
+								/>
+							</div>
 						{/each}
 					</div>
 				</div>
 			</section>
 
 			<footer class="p-4 border-t border-surface-300 dark:border-surface-700 flex justify-end gap-2 bg-surface-50 dark:bg-surface-900">
-				<button class="btn preset-ghost-surface-500" onclick={() => (showModal = false)} aria-label="Cancel editing">Cancel</button>
-				<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" disabled={isSaving} onclick={saveWebhook} aria-label="Save webhook">
-					{#if isSaving}
-						<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
-						<span>Saving...</span>
-					{:else}
+				<Button variant="ghost" onclick={() => (showModal = false)} aria-label="Cancel editing">Cancel</Button>
+				<Button variant="tertiary" disabled={isSaving} onclick={saveWebhook} aria-label="Save webhook" class="dark:" loading={isSaving}>
+					{#if !isSaving}
 						<iconify-icon icon="mdi:content-save"></iconify-icon>
-						<span>{activeWebhook.id ? 'Save Changes' : 'Create Webhook'}</span>
 					{/if}
-				</button>
+					<span>{isSaving ? 'Saving...' : activeWebhook.id ? 'Save Changes' : 'Create Webhook'}</span>
+				</Button>
 			</footer>
+		</AdminCard>
 		</div>
 	</div>
 {/if}

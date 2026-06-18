@@ -36,7 +36,7 @@ The RichText widget implements **defense-in-depth** security with multiple layer
 
 **File:** `src/widgets/core/rich-text/input.svelte`
 
-````typescript
+```typescript
 // Sanitizes HTML before storing to database
 editor.on('update', () => {
   let newContent = editor!.getHTML();
@@ -52,7 +52,7 @@ editor.on('update', () => {
 
   value[lang].content = newContent;
 });
-```text
+```
 
 **Why:** Prevents malicious content from ever reaching the database.
 
@@ -62,9 +62,9 @@ editor.on('update', () => {
 
 **File:** `src/widgets/core/rich-text/display.svelte`
 
-```svelte
+```
 <Sanitize html={value.content} profile="rich-text" class="prose" />
-```text
+```
 
 **Why:** Even if sanitization failed at input (e.g., direct DB manipulation), output is still safe.
 
@@ -82,7 +82,7 @@ editor.on('update', () => {
 | **CSS Injection (float)**        | Whitelist: `['left', 'right', 'unset', 'none']`         |
 | **CSS Injection (width/height)** | Regex validation: `/^\d+(px\|%)$/`                      |
 
-```typescript
+```
 // BEFORE (vulnerable):
 container.style.float = nodeAttrs.float as string; // Injects arbitrary CSS
 
@@ -91,7 +91,7 @@ const safeFloat = ["left", "right", "unset", "none"].includes(nodeAttrs.float as
   ? nodeAttrs.float
   : "unset";
 container.style.float = safeFloat;
-```text
+```
 
 ---
 
@@ -101,7 +101,7 @@ container.style.float = safeFloat;
 
 #### Font-Size Validation
 
-```typescript
+```
 // BEFORE (vulnerable):
 setFontSize: (fontSize: string) => chain().setMark(this.name, { fontSize }).run();
 
@@ -110,7 +110,7 @@ setFontSize: (fontSize: string) => {
   const sanitized = fontSize.match(/^\d+(\.\d+)?(px|em|rem|pt|%)$/) ? fontSize : "16px"; // Safe fallback
   return chain().setMark(this.name, { fontSize: sanitized }).run();
 };
-```text
+```
 
 **Blocks:**
 
@@ -124,7 +124,7 @@ setFontSize: (fontSize: string) => {
 
 **File:** `src/widgets/core/rich-text/components/VideoDialog.svelte`
 
-```typescript
+```
 // Strict YouTube URL validation
 const youtubePattern =
   /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -133,7 +133,7 @@ if (!youtubePattern.test(youtube_url)) {
   alert("Invalid YouTube URL");
   return;
 }
-```text
+```
 
 **Blocks:**
 
@@ -180,7 +180,7 @@ if (!youtubePattern.test(youtube_url)) {
 
 ### Test Suite (Manual QA)
 
-```html
+```
 <!-- Test 1: Script injection in description -->
 <img src="x" alt="test" description="<script>alert(1)</script>" />
 Expected: Description shows literal text, no execution
@@ -200,7 +200,7 @@ Expected: Description shows literal text, no execution
     javascript:alert(document.cookie) Expected: Rejected (doesn't match pattern)</span
   >
 </div>
-```text
+```
 
 ---
 
@@ -252,7 +252,6 @@ If you discover a security vulnerability:
 2. Email: info@sveltycms.com
 3. Include: Proof of concept, impact assessment, suggested fix
 4. Response SLA: 24 hours for critical, 72 hours for high severity
-````
 
 ---
 

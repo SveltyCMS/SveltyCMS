@@ -12,8 +12,14 @@ import { lookup } from "mime-types";
 
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { apiHandler } from "@utils/api-handler";
+import { MEDIA_RESOURCE_HEADERS } from "@utils/security-constants";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+
+const withMediaResourcePolicy = (headers: Record<string, string>) => ({
+  ...MEDIA_RESOURCE_HEADERS,
+  ...headers,
+});
 
 export const GET = apiHandler(async ({ params, request }) => {
   let filePath = params.path?.trim();
@@ -26,7 +32,7 @@ export const GET = apiHandler(async ({ params, request }) => {
 
   // Load settings once per request
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
-  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "static/media";
+  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
   const cloudPublicUrl =
     getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 
@@ -61,11 +67,11 @@ export const GET = apiHandler(async ({ params, request }) => {
 
     return new Response(null, {
       status: 302, // 302 is standard for temporary asset redirects
-      headers: {
+      headers: withMediaResourcePolicy({
         Location: fullUrl,
         ...(etag && { ETag: etag }),
         "Cache-Control": "public, max-age=31536000, immutable",
-      },
+      }),
     });
   }
 
@@ -137,7 +143,7 @@ export const GET = apiHandler(async ({ params, request }) => {
 
     return new Response(webStream as any, {
       status: 206,
-      headers: {
+      headers: withMediaResourcePolicy({
         "Content-Type": mimeType,
         "Content-Range": `bytes ${start}-${end}/${stats.size}`,
         "Accept-Ranges": "bytes",
@@ -145,7 +151,7 @@ export const GET = apiHandler(async ({ params, request }) => {
         "Cache-Control": "public, max-age=31536000, immutable",
         "Last-Modified": lastModified,
         ETag: etag,
-      },
+      }),
     });
   }
 
@@ -155,13 +161,13 @@ export const GET = apiHandler(async ({ params, request }) => {
 
   return new Response(webStream as any, {
     status: 200,
-    headers: {
+    headers: withMediaResourcePolicy({
       "Content-Type": mimeType,
       "Content-Length": stats.size.toString(),
       "Cache-Control": "public, max-age=31536000, immutable",
       "Last-Modified": lastModified,
       ETag: etag,
       "Accept-Ranges": "bytes",
-    },
+    }),
   });
 });

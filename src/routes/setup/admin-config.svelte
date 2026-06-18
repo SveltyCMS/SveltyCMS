@@ -17,6 +17,8 @@
 
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
 		form_confirmpassword,
@@ -127,7 +129,7 @@
 					</SystemTooltip>
 				</label>
 
-				<input
+				<Input
 					id="admin-username"
 					bind:value={adminUser.username}
 					onblur={() => {
@@ -140,14 +142,9 @@
 					type="text"
 					autocomplete="username"
 					placeholder={setup_admin_placeholder_username?.() || 'Enter username'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.username ? 'border-error-500' : ''}"
-					aria-invalid={!!displayErrors.username}
-					aria-describedby={displayErrors.username ? 'admin-username-error' : undefined}
-					aria-required="true"
+					error={displayErrors.username}
+					required
 				/>
-				{#if displayErrors.username}
-					<div id="admin-username-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.username}</div>
-				{/if}
 			</div>
 
 			<!-- Email -->
@@ -167,7 +164,7 @@
 					</SystemTooltip>
 				</label>
 
-				<input
+				<Input
 					id="admin-email"
 					bind:value={adminUser.email}
 					onblur={() => {
@@ -180,14 +177,9 @@
 					type="email"
 					autocomplete="email"
 					placeholder={setup_admin_placeholder_email?.() || 'admin@example.com'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.email ? 'border-error-500' : ''}"
-					aria-invalid={!!displayErrors.email}
-					aria-describedby={displayErrors.email ? 'admin-email-error' : undefined}
-					aria-required="true"
+					error={displayErrors.email}
+					required
 				/>
-				{#if displayErrors.email}
-					<div id="admin-email-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.email}</div>
-				{/if}
 			</div>
 
 			<!-- Password -->
@@ -208,7 +200,7 @@
 				</label>
 
 				<div class="relative">
-					<input
+					<Input
 						id="admin-password"
 						bind:value={adminUser.password}
 						oninput={checkPasswordRequirements}
@@ -216,20 +208,20 @@
 						type={showAdminPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 pe-8 {displayErrors.password ? 'border-error-500' : ''}"
-						aria-invalid={!!displayErrors.password}
-						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
-						aria-required="true"
+						error={displayErrors.password}
+						required
+						inputClass="pe-10"
 					/>
-					<button
+					<Button
+						variant="ghost"
 						type="button"
-						tabindex="-1"
+						tabindex={-1}
 						onclick={() => (showAdminPassword = !showAdminPassword)}
-						class="absolute inset-y-0 end-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+						class="absolute inset-e-0 top-0 p-0! min-w-0"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 					>
 						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
-					</button>
+					</Button>
 				</div>
 
 				<!-- Password Strength Meter -->
@@ -251,9 +243,6 @@
 					</div>
 				{/if}
 
-				{#if displayErrors.password}
-					<div id="admin-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.password}</div>
-				{/if}
 			</div>
 
 			<!-- Confirm Password -->
@@ -274,7 +263,7 @@
 				</label>
 
 				<div class="relative">
-					<input
+					<Input
 						id="admin-confirm-password"
 						bind:value={adminUser.confirmPassword}
 						oninput={checkPasswordRequirements}
@@ -282,24 +271,21 @@
 						type={showConfirmPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 pe-8 {displayErrors.confirmPassword ? 'border-error-500' : ''}"
-						aria-invalid={!!displayErrors.confirmPassword}
-						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
-						aria-required="true"
+						error={displayErrors.confirmPassword}
+						required
+						inputClass="pe-10"
 					/>
-					<button
+					<Button
+						variant="ghost"
 						type="button"
-						tabindex="-1"
+						tabindex={-1}
 						onclick={() => (showConfirmPassword = !showConfirmPassword)}
-						class="absolute inset-y-0 end-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+						class="absolute inset-e-0 top-0 p-0! min-w-0"
 						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
 					>
 						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
-					</button>
+					</Button>
 				</div>
-				{#if displayErrors.confirmPassword}
-					<div id="admin-confirm-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.confirmPassword}</div>
-				{/if}
 			</div>
 		</div>
 

@@ -23,7 +23,7 @@ The core database infrastructure consists of three essential files that enable S
 
 ## 🎯 Architecture Overview
 
-````mermaid
+```mermaid
 graph TD
     subgraph "Application Layer"
         UI[Svelte Components]
@@ -51,11 +51,11 @@ graph TD
     INIT --> IFACE
     IFACE --> MA & PA & SA
     VER --> IFACE
-```text
+```
 
 ### The Core Components
 
-```text
+```
 ┌──────────────────────────────────────────────────────┐
 │              CORE INFRASTRUCTURE                     │
 ├──────────────────────────────────────────────────────┤
@@ -76,7 +76,7 @@ graph TD
 │     └─ Hot-swap self-overwriting getters            │
 │                                                      │
 └──────────────────────────────────────────────────────┘
-```text
+```
 
 ### Design Principles
 
@@ -131,7 +131,7 @@ The `core` directory is not a centralized security interceptor — tenant isolat
 
 `db.ts` does NOT contain a linear switch/case nor manual retry loops. Instead it delegates to specialized modules:
 
-```typescript
+```
 // 1. Configuration Loading (config-state.ts)
 const cfg = await loadPrivateConfig(); // Loads config/private.ts with cache
 
@@ -161,7 +161,7 @@ setGlobal("__SETTINGS_LOADED__", true);
 
 #### Double-Check Locked Initialization
 
-```typescript
+```
 // GATEWAY TO READY STATE — idempotent, re-entrant safe
 export async function ensureFullInitialization(): Promise<any | null> {
   const existingPromise = getGlobal(INIT_PROMISE_KEY);
@@ -186,7 +186,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
 
 #### Self-Healing Proxy
 
-```typescript
+```
 // The Reactive Shield survives Vite HMR chunking
 const createInstanceProxy = (targetProp?: string) => {
   return new Proxy({}, {
@@ -215,7 +215,7 @@ export const dbAdapter: DatabaseAdapter = createInstanceProxy();
 
 #### Settings Cache Synchronization
 
-```typescript
+```
 // Actual implementation in db-init.ts:loadSettingsFromDB()
 export async function loadSettingsFromDB(adapter: IDBAdapter, force = false): Promise<boolean> {
   if (!force && getGlobal("__SETTINGS_LOADED__", false)) return true;
@@ -255,7 +255,7 @@ The SQLite adapter is specifically engineered for high-performance edge environm
 
 ### Exported API
 
-```typescript
+```
 // Main exports from src/databases/db.ts
 export const dbAdapter: DatabaseAdapter;     // Self-healing Proxy (auto-recovers on HMR)
 export const auth: any;                      // Auth service Proxy
@@ -276,7 +276,7 @@ export async function shutdownSystem(): Promise<void>;
 
 #### In Server Hooks / .server.ts Files (Preferred: LocalCMS)
 
-```typescript
+```
 // ✅ PREFERRED: Use LocalCMS for zero-latency internal calls
 import { LocalCMS } from "@src/services/sdk";
 import { getDb } from "@src/databases/db";
@@ -291,7 +291,7 @@ const media = await cms.media.list({ folderId: "uploads" });
 
 #### Direct dbAdapter (Background Services, Legacy Hooks)
 
-```typescript
+```
 // Used when LocalCMS namespace doesn't cover the needed operation
 import { dbAdapter } from "@src/databases/db";
 
@@ -321,7 +321,7 @@ This file is the **secret to database agnosticism**. It defines a standard inter
 
 The main contract that all adapters implement:
 
-```typescript
+```
 export interface DatabaseAdapter {
   // ============================================
   // Connection Lifecycle
@@ -365,13 +365,13 @@ export interface DatabaseAdapter {
   widget: WidgetMethods; // Widget configurations
   theme: ThemeMethods; // Theme management
 }
-```text
+```
 
 #### DatabaseResult<T> - No Exceptions!
 
 Consistent result wrapper that never throws exceptions:
 
-```typescript
+```
 export type DatabaseResult<T> =
   | {
       success: true;
@@ -382,7 +382,7 @@ export type DatabaseResult<T> =
       success: false;
       error: DatabaseError;
     };
-```text
+```
 
 **Why No Exceptions?**
 
@@ -393,7 +393,7 @@ export type DatabaseResult<T> =
 
 **Usage**:
 
-```typescript
+```
 // ✅ Correct way
 const result = await dbAdapter.auth.getUserById(userId);
 
@@ -407,13 +407,13 @@ const user = result.data; // TypeScript knows this is User
 // ❌ Wrong way (TypeScript error)
 const user = await dbAdapter.auth.getUserById(userId);
 // Error: Type 'DatabaseResult<User>' is not assignable to type 'User'
-```text
+```
 
 #### QueryCriteria
 
 Generic query interface that works across all databases:
 
-```typescript
+```
 export interface QueryCriteria {
   // Equality checks
   equals?: Record<string, unknown>;
@@ -441,11 +441,11 @@ export interface QueryCriteria {
   // Multi-tenant support
   tenantId?: string;
 }
-```text
+```
 
 **Example Translations**:
 
-```typescript
+```
 // Generic criteria
 const criteria: QueryCriteria = {
   equals: { status: 'active' },
@@ -469,13 +469,13 @@ WHERE status = 'active'
 WHERE status = 'active'
   AND created_at > '2024-01-01'
   AND tenant_id = 'tenant123'
-```text
+```
 
 #### PaginationOptions
 
 Unified pagination interface:
 
-```typescript
+```
 export interface PaginationOptions {
   limit?: number; // Max results to return
   offset?: number; // Skip N results (offset pagination)
@@ -485,11 +485,11 @@ export interface PaginationOptions {
 }
 
 export type SortOption = Record<string, "asc" | "desc"> | Array<[string, "asc" | "desc"]>;
-```text
+```
 
 **Usage**:
 
-```typescript
+```
 // Offset pagination (simple but slow for large datasets)
 const page1 = await dbAdapter.findMany("users", {
   limit: 20,
@@ -509,13 +509,13 @@ const page2 = await dbAdapter.findMany("users", {
   cursor: lastItemId, // Use last item ID from page 1
   sort: { createdAt: "desc" },
 });
-```text
+```
 
 #### DatabaseCapabilities
 
 Declares what the database supports:
 
-```typescript
+```
 export interface DatabaseCapabilities {
   supportsTransactions: boolean; // ACID transactions
   supportsIndexing: boolean; // Indexes for performance
@@ -527,11 +527,11 @@ export interface DatabaseCapabilities {
   maxBatchSize: number; // Max items in batch operation
   maxQueryComplexity: number; // Max query depth
 }
-```text
+```
 
 **Example**:
 
-```typescript
+```
 // MongoDB capabilities
 {
   supportsTransactions: true,
@@ -557,11 +557,11 @@ export interface DatabaseCapabilities {
   maxBatchSize: 100,
   maxQueryComplexity: 100
 }
-```text
+```
 
 #### Performance Types
 
-```typescript
+```
 export interface QueryOptimizationHints {
   useIndex?: string[]; // Suggest specific indexes
   maxExecutionTime?: number; // Query timeout in ms
@@ -579,7 +579,7 @@ export interface QueryMeta {
   batchSize?: number; // Batch size used
   cursorId?: string; // For cursor pagination
 }
-```text
+```
 
 ### Why This Architecture Works
 
@@ -587,18 +587,18 @@ export interface QueryMeta {
 
 **Step 1**: Application code (no changes needed)
 
-```typescript
+```
 // This code works with ANY database
 const users = await dbAdapter.findMany("users", {
   filter: { equals: { status: "active" } },
   sort: { createdAt: "desc" },
   limit: 20,
 });
-```text
+```
 
 **Step 2**: Change configuration
 
-```typescript
+```
 // Before (MongoDB)
 DB_TYPE=mongodb
 DB_HOST=mongodb://localhost:27017
@@ -606,13 +606,13 @@ DB_HOST=mongodb://localhost:27017
 // After (PostgreSQL)
 DB_TYPE=postgresql
 DB_HOST=postgresql://localhost:5432
-```text
+```
 
 **Step 3**: That's it! Application works identically.
 
 The adapter translates the generic query to database-specific syntax:
 
-```typescript
+```
 // MongoDB Adapter
 db.collection("users").find({ status: "active" }).sort({ createdAt: -1 }).limit(20);
 
@@ -623,7 +623,7 @@ db.query(`
   ORDER BY created_at DESC
   LIMIT 20
 `);
-```text
+```
 
 ---
 
@@ -646,7 +646,7 @@ Traditional SDKs use `Proxies` or heavy class instances that incur a performance
 4. **Self-Destruction**: The getter property is replaced with the real instance.
 5. **Zero Overhead**: Subsequent calls to `cms.collections` hit the raw object directly—**the Proxy is gone.**
 
-```typescript
+```
 // Simplified Hot-Swap Implementation
 function defineLazyNamespace(target, property, factory) {
   Object.defineProperty(target, property, {
@@ -665,7 +665,7 @@ function defineLazyNamespace(target, property, factory) {
     configurable: true,
   });
 }
-```text
+```
 
 ### Performance Comparison
 
@@ -679,7 +679,7 @@ function defineLazyNamespace(target, property, factory) {
 
 The `LocalCMS` is the preferred way to interact with the CMS from SvelteKit Server Functions (`+page.server.ts`), Hooks, or background jobs.
 
-```typescript
+```
 import { LocalCMS } from "@src/services/sdk";
 import { dbAdapter } from "@src/databases/db";
 
@@ -690,7 +690,7 @@ const user = await cms.auth.me(userId);
 
 // This second call is zero-latency (direct reference)
 const posts = await cms.collections.find("posts", { tenantId });
-```text
+```
 
 ### Advanced Features
 
@@ -716,7 +716,7 @@ const posts = await cms.collections.find("posts", { tenantId });
 
 ### Architecture
 
-```typescript
+```
 export class ThemeManager {
   private static instance: ThemeManager;
   private themeCache: Map<string, Theme> = new Map();
@@ -837,11 +837,11 @@ export class ThemeManager {
     logger.debug("ThemeManager cache refreshed.");
   }
 }
-```text
+```
 
 ### Default Theme Fallback
 
-```typescript
+```
 export const DEFAULT_THEME: Theme = {
   _id: "670e8b8c4d123456789abcde" as DatabaseId,
   name: "SveltyCMSTheme",
@@ -855,13 +855,13 @@ export const DEFAULT_THEME: Theme = {
   createdAt: new Date().toISOString() as ISODateString,
   updatedAt: new Date().toISOString() as ISODateString,
 };
-```text
+```
 
 **Why This Matters**: If the database is unavailable (e.g., during setup), the application still has a working theme.
 
 ### Usage Examples
 
-```typescript
+```
 // In API routes or components
 import { ThemeManager } from '@src/databases/themeManager';
 
@@ -870,11 +870,11 @@ const theme = await themeManager.getTheme(tenantId);
 
 // Use theme in HTML
 <link rel="stylesheet" href={theme.path} />
-```text
+```
 
 ### Multi-Tenant Theme Support
 
-```typescript
+```
 // Global theme (no tenant)
 const globalTheme = await themeManager.getTheme();
 
@@ -883,7 +883,7 @@ const tenantTheme = await themeManager.getTheme("tenant123");
 
 // Future enhancement: Per-tenant theme overrides
 // Currently falls back to global if no tenant theme exists
-```text
+```
 
 ---
 
@@ -891,7 +891,7 @@ const tenantTheme = await themeManager.getTheme("tenant123");
 
 ### Startup Sequence (Phase-Based)
 
-```mermaid
+```
 graph TD
     A[Application Starts - IDLE] --> B[First Request / Manual Trigger - INITIALIZING]
     B --> C[loadPrivateConfig]
@@ -906,11 +906,11 @@ graph TD
     J --> L[WidgetRegistry.scan]
     J --> M[ContentSystem - LAZY]
     K & L & M --> N[FULL HYDRATION - WARMED]
-```text
+```
 
 ### Request Flow Example
 
-```text
+```
 1. User Request: GET /admin/dashboard
    ↓
 2. Server Hook (hooks.server.ts)
@@ -924,7 +924,7 @@ graph TD
 4. Component Render
    └─ Theme applied
    └─ Data displayed
-```text
+```
 
 ---
 
@@ -932,18 +932,18 @@ graph TD
 
 ### 1. Always Check Initialization
 
-```typescript
+```
 // ✅ Good
 await dbInitPromise;
 const data = await dbAdapter.findMany("users");
 
 // ❌ Bad
 const data = await dbAdapter.findMany("users"); // Might be null!
-```text
+```
 
 ### 2. Handle DatabaseResult Properly
 
-```typescript
+```
 // ✅ Good
 const result = await dbAdapter.auth.getUserById(id);
 if (!result.success) {
@@ -953,27 +953,27 @@ const user = result.data;
 
 // ❌ Bad
 const user = await dbAdapter.auth.getUserById(id); // Type error!
-```text
+```
 
 ### 3. Use Theme Manager Singleton
 
-```typescript
+```
 // ✅ Good
 const themeManager = ThemeManager.getInstance();
 
 // ❌ Bad
 const themeManager = new ThemeManager(); // Error: constructor is private
-```text
+```
 
 ### 4. Respect the Adapter Interface
 
-```typescript
+```
 // ✅ Good - Uses adapter
 await dbAdapter.create("users", userData);
 
 // ❌ Bad - Direct database access
 await UserModel.create(userData); // Bypasses adapter!
-```text
+```
 
 ---
 
@@ -987,7 +987,7 @@ await UserModel.create(userData); // Bypasses adapter!
 
 ### Theme Caching
 
-```typescript
+```
 // First request (cold): ~50ms (database query)
 const theme = await themeManager.getTheme();
 
@@ -995,11 +995,11 @@ const theme = await themeManager.getTheme();
 const theme = await themeManager.getTheme();
 
 // Performance gain: 99.8% faster
-```text
+```
 
 ### Settings Cache
 
-```typescript
+```
 // Without cache: Every settings read = database query
 const setting = await db.settings.get("FEATURE_FLAG"); // 15ms
 
@@ -1007,7 +1007,7 @@ const setting = await db.settings.get("FEATURE_FLAG"); // 15ms
 const setting = privateEnv.FEATURE_FLAG; // 0.001ms
 
 // Performance gain: 99.99% faster
-```text
+```
 
 ---
 
@@ -1017,7 +1017,7 @@ const setting = privateEnv.FEATURE_FLAG; // 0.001ms
 
 **Step 1**: Add adapter class implementing `IDBAdapter`
 
-```typescript
+```
 // src/databases/myengine/myengine-adapter.ts
 import { BaseAdapter } from "../core/base-adapter";
 import type { IDBAdapter, DatabaseResult } from "../db-interface";
@@ -1037,7 +1037,7 @@ export class MyEngineAdapter extends BaseAdapter implements IDBAdapter {
 
 **Step 2**: Register in `db-init.ts:loadAdapters()`
 
-```typescript
+```
 // src/databases/db-init.ts
 } else if (type === "myengine") {
   const { MyEngineAdapter } = await import("./myengine/myengine-adapter");
@@ -1047,7 +1047,7 @@ export class MyEngineAdapter extends BaseAdapter implements IDBAdapter {
 
 **Step 3**: Configure
 
-```env
+```
 DB_TYPE=myengine
 DB_HOST=myengine://localhost:1234/mydb
 ```
@@ -1108,4 +1108,3 @@ _Last Updated: 2026-06-14_
 - [Database Architecture](./index.mdx)
 - [Performance Benchmarks](../../project/benchmarks/index.mdx)
 - [Architecture Overview](../index.mdx)
-````

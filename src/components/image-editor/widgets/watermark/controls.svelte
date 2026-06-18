@@ -4,6 +4,8 @@
 Professional watermark controls with text, image, and advanced options
 -->
 <script lang="ts">
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
 	let {
 		onAddImage,
 		onAddText,
@@ -103,21 +105,21 @@ Professional watermark controls with text, image, and advanced options
 	<!-- Group 1: Add Controls -->
 	<div class="control-group">
 		<div class="add-buttons">
-			<button type="button" class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onAddImage} title="Add Image Watermark (I)">
+			<Button variant="tertiary" size="sm" onclick={onAddImage} title="Add Image Watermark (I)">
 				<iconify-icon icon="mdi:image-plus" width="18"></iconify-icon>
 				<span class="hidden sm:inline">Add Image</span>
-			</button>
+			</Button>
 
 			{#if onAddText}
-				<button type="button" class="btn btn-sm preset-outlined-tertiary-500 dark:preset-outlined-primary-500" onclick={onAddText} title="Add Text Watermark (T)">
+				<Button variant="tertiary" size="sm" onclick={onAddText} title="Add Text Watermark (T)">
 					<iconify-icon icon="mdi:text-box-plus" width="18"></iconify-icon>
 					<span class="hidden sm:inline">Add Text</span>
-				</button>
+				</Button>
 			{/if}
 		</div>
 
 		{#if watermarkCount > 0}
-			<div class="badge preset-filled-surface-200 text-xs"><span class="font-bold">{watermarkCount}</span></div>
+			<Badge variant="surface" class="text-xs"><span class="font-bold">{watermarkCount}</span></Badge>
 		{/if}
 	</div>
 
@@ -132,9 +134,7 @@ Professional watermark controls with text, image, and advanced options
 				placeholder="Watermark text"
 				oninput={(e) => onTextDraftChange(e.currentTarget.value)}
 			/>
-			<button type="button" class="text-apply-btn" onclick={onApplyText || (() => undefined)}>
-				Apply
-			</button>
+			<Button variant="primary" size="sm" onclick={onApplyText || (() => undefined)}>Apply</Button>
 		</div>
 	{/if}
 
@@ -146,7 +146,7 @@ Professional watermark controls with text, image, and advanced options
 			<span class="control-label hidden md:flex">Position:</span>
 			<div class="position-grid">
 				{#each positions as pos (pos.value)}
-					<button type="button" class="position-btn" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>{pos.label}</button>
+					<Button variant="ghost" size="sm" class="w-7! h-7! p-0! min-w-0 text-gray-400 hover:text-white hover:bg-white/10" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>{pos.label}</Button>
 				{/each}
 			</div>
 		</div>
@@ -176,40 +176,37 @@ Professional watermark controls with text, image, and advanced options
 			{#if onSizeChange}
 				<div class="size-presets hidden sm:flex">
 					{#each sizePresets as preset (preset.value)}
-						<button
-							type="button"
-							class="size-btn"
-							class:active={Math.abs(currentSize - preset.value) < 5}
+						<Button
+							variant={Math.abs(currentSize - preset.value) < 5 ? 'primary' : 'outline'}
+							size="sm"
 							onclick={() => onSizeChange(preset.value)}
 							title="{preset.label} ({preset.value}%)"
 						>
 							{preset.label}
-						</button>
+						</Button>
 					{/each}
 				</div>
 			{/if}
 
 			{#if onTileToggle}
-				<button
-					class="btn btn-icon btn-sm"
-					type="button"
-					class:preset-filled-tertiary-500={isTiled} class:dark:preset-filled-primary-500={isTiled}
-					class:preset-outlined-surface-500={!isTiled}
+				<Button
+					variant={isTiled ? 'tertiary' : 'outline'}
+					size="sm"
 					onclick={onTileToggle}
 					title="Tile watermark across image"
 					aria-label="Tile watermark across image"
 				>
 					<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 		</div>
 
 		<div class="divider hidden lg:block"></div>
 
 		<!-- Group 4: Actions (Delete) -->
-		<button type="button" class="btn btn-icon btn-sm preset-outlined-error-500" onclick={onDeleteWatermark} title="Delete Watermark (Delete)">
+		<Button variant="error" size="sm" onclick={onDeleteWatermark} title="Delete Watermark (Delete)" aria-label="Delete watermark">
 			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-		</button>
+		</Button>
 	{/if}
 
 	<!-- Spacer -->
@@ -291,16 +288,6 @@ Professional watermark controls with text, image, and advanced options
 		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
 	}
 
-	.text-apply-btn {
-		padding: 0.4rem 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #fff;
-		background: rgb(var(--color-primary-500) / 1);
-		border: 1px solid rgb(var(--color-primary-600) / 1);
-		border-radius: 0.5rem;
-	}
-
 	.position-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
@@ -308,26 +295,6 @@ Professional watermark controls with text, image, and advanced options
 		padding: 2px;
 		background: rgba(0, 0, 0, 0.2);
 		border-radius: 0.375rem;
-	}
-
-	.position-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.75rem;
-		height: 1.75rem;
-		font-size: 0.875rem;
-		color: #9ca3af;
-		cursor: pointer;
-		background: transparent;
-		border: none;
-		border-radius: 0.25rem;
-		transition: all 0.15s;
-	}
-
-	.position-btn:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
 	}
 
 	/* Slider */
@@ -394,41 +361,6 @@ Professional watermark controls with text, image, and advanced options
 	.size-presets {
 		display: flex;
 		gap: 0.25rem;
-	}
-
-	.size-btn {
-		min-width: 2rem;
-		height: 2rem;
-		padding: 0 0.5rem;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: rgb(var(--color-surface-700) / 1);
-		cursor: pointer;
-		background: rgb(var(--color-surface-50) / 1);
-		border: 1px solid rgb(var(--color-surface-300) / 1);
-		border-radius: 0.375rem;
-		transition: all 0.15s;
-	}
-
-	:global(.dark) .size-btn {
-		color: rgb(var(--color-surface-200) / 1);
-		background: rgb(var(--color-surface-700) / 1);
-		border-color: rgb(var(--color-surface-600) / 1);
-	}
-
-	.size-btn:hover {
-		background: rgb(var(--color-surface-100) / 1);
-		border-color: rgb(var(--color-primary-400) / 1);
-	}
-
-	:global(.dark) .size-btn:hover {
-		background: rgb(var(--color-surface-600) / 1);
-	}
-
-	.size-btn.active {
-		color: white;
-		background: rgb(var(--color-primary-500) / 1);
-		border-color: rgb(var(--color-primary-500) / 1);
 	}
 
 	.divider {

@@ -1,0 +1,19 @@
+---
+pid: 41128
+cwd: "D:\SveltyCMS"
+command: "cd D:\\SveltyCMS; bun x playwright test tests/e2e/routes/mediagallery/image-editor.spec.ts:73 --workers=1 --debug 2>&1 | Select-Object -First 5"
+started_at: 2026-06-18T07:19:59.537Z
+running_for_ms: 9415013  
+---
+bun : [WebServer] Warning: No ORIGIN, HOST_HEADER, or PROTOCOL_HEADER configured. The server will use http:// with the 
+request Host header. For production, either:
+At line:1 char:18
++ ... \SveltyCMS; bun x playwright test tests/e2e/routes/mediagallery/image ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([WebServer] War...uction, either::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[WebServer]   SSL_CERT + SSL_KEY for native TLS (no proxy needed)
+[WebServer]   ORIGIN=https://example.com (behind a TLS proxy)
+[WebServer]   PROTOCOL_HEADER=x-forwarded-proto + HOST_HEADER=x-forwarded-host (flexible proxy)
+[WebServer]   See: https://svti.me/adapter-origin

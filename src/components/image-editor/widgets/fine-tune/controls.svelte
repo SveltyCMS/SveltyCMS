@@ -4,7 +4,8 @@
 Professional fine-tune controls with presets and categories
 -->
 <script lang="ts">
-import type { Adjustments } from "./adjustments";
+	import Button from '@components/ui/button.svelte';
+	import type { Adjustments } from "./adjustments";
 import {
 	FILTER_PRESETS,
 	getAdjustmentConfig,
@@ -113,36 +114,33 @@ function handleKeyDown(e: KeyboardEvent) {
 
 		<!-- Presets Button -->
 		{#if showPresets && onPresetApply}
-			<button type="button" class="btn btn-sm preset-outlined-surface-500" onclick={() => (showPresetsPanel = !showPresetsPanel)}>
+			<Button variant="outline" size="sm" type="button" onclick={() => (showPresetsPanel = !showPresetsPanel)}>
 				<iconify-icon icon="mdi:magic-staff" width="16"></iconify-icon>
 				<span class="hidden sm:inline">Presets</span>
-			</button>
+			</Button>
 		{/if}
 
 		<!-- Auto Adjust -->
 		{#if onAutoAdjust}
-			<button type="button" class="btn btn-sm preset-outlined-tertiary-500 dark:preset-outlined-primary-500" onclick={onAutoAdjust} title="Auto Adjust (Shift+A)">
+			<Button variant="tertiary" size="sm" type="button" onclick={onAutoAdjust} title="Auto Adjust (Shift+A)">
 				<iconify-icon icon="mdi:auto-fix" width="16"></iconify-icon>
 				<span class="hidden sm:inline">Auto</span>
-			</button>
+			</Button>
 		{/if}
 
 		<div class="flex-1"></div>
 
 		<!-- Compare Toggle -->
 		{#if onCompareToggle}
-			<button
+			<Button variant={isComparing ? 'tertiary' : 'outline'} size="sm"
 				type="button"
-				class="btn btn-sm"
-				class:preset-filled-tertiary-500={isComparing} class:dark:preset-filled-primary-500={isComparing}
-				class:preset-outlined-surface-500={!isComparing}
 				onclick={onCompareToggle}
 				title="Compare before/after (C)"
 				aria-label="Compare before/after"
 			>
 				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
 				<span class="hidden sm:inline">Compare</span>
-			</button>
+			</Button>
 		{/if}
 	</div>
 
@@ -199,9 +197,9 @@ function handleKeyDown(e: KeyboardEvent) {
 			<div class="slider-title">
 				<span>{config?.label || 'Adjustment'}</span>
 				<div class="flex gap-2">
-					<button type="button" class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onReset} disabled={value === 0} title="Reset to 0">
+					<Button variant="outline" size="sm" type="button" onclick={onReset} disabled={value === 0} title="Reset to 0" class="p-0! min-w-0">
 						<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -531,9 +529,6 @@ function handleKeyDown(e: KeyboardEvent) {
 		color: white;
 	}
 
-	.btn {
-		height: 1.9rem;
-	}
 
 	@media (max-width: 640px) {
 		.finetune-controls {

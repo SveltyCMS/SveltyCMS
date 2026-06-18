@@ -18,6 +18,8 @@ Displays real-time system state and individual service health with comprehensive
 -->
 
 <script lang="ts">
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
 	import { systemState } from '@src/stores/system/state.svelte.ts';
 	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
 	import { formatDisplayDate } from '@utils/date';
@@ -51,24 +53,12 @@ Displays real-time system state and individual service health with comprehensive
 	} as const;
 
 	const SERVICE_CONFIG = {
-		healthy: { color: 'preset-filled-tertiary-500 dark:preset-filled-primary-500', icon: '✓', label: 'Healthy' },
-		unhealthy: {
-			color: 'preset-filled-error-500',
-			icon: '✗',
-			label: 'Unhealthy'
-		},
-		initializing: {
-			color: 'preset-filled-tertiary-500 dark:preset-filled-primary-500',
-			icon: '⟳',
-			label: 'Initializing'
-		},
-		skipped: { color: 'preset-filled-surface-500', icon: '⏭️', label: 'Skipped' },
-		maintenance: {
-			color: 'preset-filled-warning-500',
-			icon: '🔧',
-			label: 'Maintenance'
-		},
-		unknown: { color: 'preset-filled-surface-500', icon: '?', label: 'Unknown' }
+		healthy: { variant: 'primary' as const, icon: '✓', label: 'Healthy' },
+		unhealthy: { variant: 'error' as const, icon: '✗', label: 'Unhealthy' },
+		initializing: { variant: 'primary' as const, icon: '⟳', label: 'Initializing' },
+		skipped: { variant: 'surface' as const, icon: '⏭️', label: 'Skipped' },
+		maintenance: { variant: 'warning' as const, icon: '🔧', label: 'Maintenance' },
+		unknown: { variant: 'surface' as const, icon: '?', label: 'Unknown' }
 	} as const;
 
 	const REFRESH_INTERVAL_MS = 5000;
@@ -274,8 +264,8 @@ Displays real-time system state and individual service health with comprehensive
 		return (STATE_CONFIG as any)[state]?.label || 'Unknown';
 	}
 
-	function getServiceColor(status: ServiceHealth): string {
-		return SERVICE_CONFIG[status]?.color || SERVICE_CONFIG.unknown.color;
+	function getServiceVariant(status: ServiceHealth): 'primary' | 'error' | 'surface' | 'warning' {
+		return SERVICE_CONFIG[status]?.variant || SERVICE_CONFIG.unknown.variant;
 	}
 
 	function getServiceIcon(status: ServiceHealth): string {
@@ -378,18 +368,16 @@ Displays real-time system state and individual service health with comprehensive
 				Auto-refresh
 			</label>
 
-			<button
-				class="preset-outlined-secondary-500 btn"
+			<Button variant="outline"
 				onclick={fetchHealth}
 				disabled={isLoading}
 				title="Refresh now"
 				aria-label="Refresh system health"
 			>
 				<span class="text-lg {isLoading && !prefersReducedMotion ? 'animate-spin' : ''}" role="img" aria-hidden="true"> 🔄 </span>
-			</button>
+			</Button>
 
-			<button
-				class="preset-outlined-secondary-500 btn"
+			<Button variant="outline"
 				onclick={reinitializeSystem}
 				disabled={isReinitializing || isLoading}
 				title="Reinitialize system"
@@ -401,7 +389,7 @@ Displays real-time system state and individual service health with comprehensive
 					<span class="text-lg" role="img" aria-hidden="true">⚡</span>
 				{/if}
 				Reinitialize
-			</button>
+			</Button>
 		</div>
 	</div>
 
@@ -459,7 +447,7 @@ Displays real-time system state and individual service health with comprehensive
 		<div class="flex items-center justify-between">
 			<h4 class="h4 text-sm font-semibold opacity-70">Service Status</h4>
 			{#if unhealthyServices > 0}
-				<span class="badge preset-filled-error-500 text-xs"> {unhealthyServices} unhealthy </span>
+				<Badge variant="error" class="text-xs"> {unhealthyServices} unhealthy </Badge>
 			{/if}
 		</div>
 
@@ -475,13 +463,15 @@ Displays real-time system state and individual service health with comprehensive
 						role="article"
 						aria-label={`${formatServiceName(name)} service status`}
 					>
-						<div
-							class={`badge ${getServiceColor(service.status)} flex h-8 w-8 shrink-0 items-center justify-center text-lg`}
+						<Badge
+							variant={getServiceVariant(service.status)}
+							rounded={false}
+							class="flex h-8 w-8 shrink-0 items-center justify-center text-lg"
 							role="img"
 							aria-label={getServiceLabel(service.status)}
 						>
 							{getServiceIcon(service.status)}
-						</div>
+						</Badge>
 						<div class="min-w-0 flex-1">
 							<p class="text-sm font-semibold">{formatServiceName(name)}</p>
 							<p class="truncate text-xs opacity-70" title={service.message}>{service.message}</p>
@@ -509,19 +499,18 @@ Displays real-time system state and individual service health with comprehensive
 				<p>For external monitoring, use:</p>
 				<div class="flex items-center gap-2">
 					<code class="code flex-1 p-2">{apiHealthUrl}</code>
-					<button
+					<Button variant="primary"
 						type="button"
-						class="btn-icon preset-outlined-tertiary-500 dark:preset-outlined-primary-500"
 						onclick={copyEndpoint}
 						title="Copy to clipboard"
 						aria-label="Copy endpoint URL to clipboard"
-					>
+					 class="p-0! min-w-0 dark:">
 						{#if copiedEndpoint}
 							✓
 						{:else}
 							📋
 						{/if}
-					</button>
+					</Button>
 				</div>
 				<div class="mt-2 space-y-1">
 					<p><strong>Returns:</strong> JSON with system status and component health</p>

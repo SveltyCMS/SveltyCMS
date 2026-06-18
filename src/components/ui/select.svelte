@@ -58,6 +58,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		size?: 'sm' | 'md' | 'lg';
 		variant?: 'default' | 'floating';
 		class?: string;
+		allowEmptySelection?: boolean;
 		onchange?: (value: string) => void;
 	}
 
@@ -74,6 +75,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		size = 'md',
 		variant = 'default',
 		class: className = '',
+		allowEmptySelection = false,
 		onchange
 	}: Props = $props();
 
@@ -123,7 +125,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>
-				<option value="" disabled>{placeholder}</option>
+				<option value="" disabled={!allowEmptySelection}>{placeholder}</option>
 				{#each options as opt (opt.value)}
 					<option value={opt.value} disabled={opt.disabled}>{opt.label}</option>
 				{/each}
@@ -189,7 +191,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>
-				<option value="" disabled>{placeholder}</option>
+				<option value="" disabled={!allowEmptySelection}>{placeholder}</option>
 				{#each options as opt (opt.value)}
 					<option value={opt.value} disabled={opt.disabled}>{opt.label}</option>
 				{/each}

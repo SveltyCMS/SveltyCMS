@@ -24,6 +24,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { getFieldName } from '@src/utils/utils';
 	import type { FieldType, GroupWidgetData } from './';
 
@@ -93,7 +94,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 	<!-- Group Header -->
 	{#if field.groupTitle || field.collapsible}
 		{#if field.collapsible}
-			<button>
+			<Button variant="outline">
 				type="button"
 				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
 					? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700'
@@ -110,7 +111,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 				<div class="transition-transform duration-200 ease-in-out {isCollapsed.value ? 'rotate-180' : ''}">
 					<iconify-icon icon="mdi:chevron-down" width={18}></iconify-icon>
 				</div>
-			</button>
+			</Button>
 		{:else}
 			<div class="flex items-center justify-between p-3 {variant.header}">
 				{#if field.groupTitle}

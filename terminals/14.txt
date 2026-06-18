@@ -1,0 +1,378 @@
+---
+pid: 61388
+cwd: "D:\SveltyCMS"
+command: "cd D:\\SveltyCMS; $env:TEST_MODE='true'; $env:HOST='127.0.0.1'; $env:PORT='4173'; node build/index.js"
+started_at: 2026-06-18T07:55:13.495Z
+running_for_ms: 7310012  
+---
+2026-06-18 07:55:13 ℹ️ [INFO ] ✅ DB module loaded. System will initialize background services when READY. 
+SvelteKit server initialized in 46.3ms
+Warning: No ORIGIN, HOST_HEADER, or PROTOCOL_HEADER configured. The server will use http:// with the request Host header. For production, either:
+  SSL_CERT + SSL_KEY for native TLS (no proxy needed)
+  ORIGIN=https://example.com (behind a TLS proxy)
+  PROTOCOL_HEADER=x-forwarded-proto + HOST_HEADER=x-forwarded-host (flexible proxy)
+  See: https://svti.me/adapter-origin
+Static files indexed in 136.7ms (1216 entries)
+WebSocket endpoint registered at /ws
+Listening on http://127.0.0.1:4173 (ready in 1ms)
+2026-06-18 07:55:16 ℹ️ [INFO ] [Boot] Starting initialization... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Boot] Test mode detected. Forcing engine: sqlite 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Boot] Loading adapters for sqlite... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Boot] Adapter loaded. Connecting... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [SQLite] Opening database at: config/database/sveltycms.db (Original: D:\SveltyCMS\config\database\sveltycms.db) 
+2026-06-18 07:55:16 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Boot] Connection result: true 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Boot] Starting service initialization... 
+2026-06-18 07:55:16 ℹ️ [INFO ] System state changed: IDLE → INITIALIZING {"reason":"Starting phased topological boot"}
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Init] Starting bootAll... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] bootAll started with 8 plugins 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Booting 8 services... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] bootAll settling delay finished 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Initializing service: base... 
+2026-06-18 07:55:16 ℹ️ [INFO ] 🚀 [SQLite] Running system migrations... 
+2026-06-18 07:55:16 ℹ️ [INFO ] SQLite migrations completed successfully. 
+2026-06-18 07:55:16 ℹ️ [INFO ] 🚀 [SQLite] Running system migrations... 
+2026-06-18 07:55:16 ℹ️ [INFO ] SQLite migrations completed successfully. 
+2026-06-18 07:55:16 ℹ️ [INFO ] ✓ Service database initialized in 10ms {"average":"10.00","min":10,"max":10}
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Initializing service: settings... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Initializing service: cache... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Initializing service: auth... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Initializing service: content... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Initializing service: media... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Initializing service: audit-hooks... 
+2026-06-18 07:55:16 ℹ️ [INFO ] ✓ Service media initialized in 6ms {"average":"6.00","min":6,"max":6}
+2026-06-18 07:55:16 ℹ️ [INFO ] [Audit] Registered global Titan Tier hooks. 
+[Accessibility Warning] Widget 'Price' has potential WCAG compliance issues in '/src/widgets/custom/price/input.svelte':
+  - Interactive element '<Input
+type="number"
+value={value!.amount ?? ''}
+oninput={(e) =>' lacks 'aria-label', 'aria-labelledby', or 'id'.
+2026-06-18 07:55:16 ℹ️ [INFO ] Creating in-memory session manager 
+2026-06-18 07:55:16 ℹ️ [INFO ] ✓ Service auth initialized in 31ms {"average":"31.00","min":31,"max":31}
+2026-06-18 07:55:16 ℹ️ [INFO ] ⚡ AutomationService initialized — listening for events 
+2026-06-18 07:55:16 ℹ️ [INFO ] 🛡️ Autonomous System Watchdog started 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Scheduler] Waiting for database initialization... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Scheduler] Starting adaptive background job runner 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Scheduler] Adaptive job runner started (1s fast / 30s idle) 
+2026-06-18 07:55:16 ℹ️ [INFO ] 🔥 Starting Cache Warming: Critical Paths 
+2026-06-18 07:55:16 ℹ️ [INFO ] ✨ Cache Warming Complete in 3.76ms 
+2026-06-18 07:55:16 ℹ️ [INFO ] ✓ Service contentSystem initialized in 101ms {"average":"101.00","min":101,"max":101}
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] Initializing service: seo... 
+2026-06-18 07:55:16 ⚠️ [WARN ] [setupCheck] Config exists but DB is missing ADMIN/ROLES 
+2026-06-18 07:55:16 ℹ️ [INFO ] 🔌 Initializing plugin system... 
+2026-06-18 07:55:16 ℹ️ [INFO ] [SQLITE Adapter] Provisioned table: plugin_migrations 
+2026-06-18 07:55:16 ℹ️ [INFO ] 📝 Running plugin migration: stripe -> 001_create_payments (v1) 
+2026-06-18 07:55:16 ℹ️ [INFO ] [SQLITE Adapter] Provisioned table: collection_plugin_stripe_payments 
+2026-06-18 07:55:16 ℹ️ [INFO ] 📝 Running plugin migration: stripe -> 002_create_customers (v2) 
+2026-06-18 07:55:16 ℹ️ [INFO ] [SQLITE Adapter] Provisioned table: collection_plugin_stripe_customers 
+2026-06-18 07:55:16 ℹ️ [INFO ] ✅ All plugin migrations checked/completed 
+2026-06-18 07:55:16 ℹ️ [INFO ] ✅ Plugin system initialized 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Registry] System services online. 
+2026-06-18 07:55:16 ℹ️ [INFO ] [DB Init] bootAll complete. 
+2026-06-18 07:55:16 ℹ️ [INFO ] [ThemeFileSync] Boot scan: 3 file(s) 
+2026-06-18 07:55:16 ℹ️ [INFO ] Theme created {"name":"Corporate"}
+2026-06-18 07:55:16 ℹ️ [INFO ] Theme created {"name":"Editorial"}
+2026-06-18 07:55:16 ℹ️ [INFO ] Theme created {"name":"Operations"}
+2026-06-18 07:55:16 ℹ️ [INFO ] [ThemeFileSync] Synced 3 theme(s): Corporate, Editorial, Operations 
+2026-06-18 07:55:16 ℹ️ [INFO ] [Boot] Service initialization complete. 
+2026-06-18 07:55:16 ⚠️ [WARN ] AppError [/files/global/abc/original/test-missing.png]: File not found {}
+2026-06-18 07:55:18 ⚠️ [WARN ] AppError [/files/global/abc/original/test-missing.png]: File not found {}
+2026-06-18 07:55:26 ℹ️ [INFO ] [JobQueue] Job 1f63a1751e3f4f91b4800b4509ec2ba6 completed successfully 
+2026-06-18 07:55:35 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+2026-06-18 07:55:35 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:35 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+2026-06-18 07:55:35 ℹ️ [INFO ] Resetting system state to IDLE 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-18 07:55:35 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+2026-06-18 07:55:35 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:35 ⚠️ [WARN ] [setupCheck] Config exists but DB is missing ADMIN/ROLES 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+2026-06-18 07:55:35 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-18 07:55:35 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+2026-06-18 07:55:35 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-18 07:55:35 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:35 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:35 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:35 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:35 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:35 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:37 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:37 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:37 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:37 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:37 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:37 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:37 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:37 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:37 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+[TestingHandler] action: create-user, collectionId: N/A, tenant: null
+2026-06-18 07:55:37 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:37 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:37 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:37 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:38 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:38 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:39 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:39 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:39 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:39 ⚠️ [WARN ] Permission denied for user {"email":"ed***@example.com","userId":"***","userRoleId":"Editor","userRole":{"_id":"b83c2f95dddf44d395656619c5fbeaa2","name":"Editor","description":"Content managers - Create and edit content, manage media and users","permissions":["collections:read","collections:update","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","api:userActivity","api:media","user:manage"],"isAdmin":false,"icon":"material-symbols:edit","color":"gradient-tertiary","tenantId":null,"createdAt":"2026-06-18T07:55:35.057Z","updatedAt":"2026-06-18T07:55:35.057Z","__bitset":{"0":1073741825,"1":6830163,"2":0}},"permissionId":"config:collectionbuilder","userPermissions":["collections:read","collections:update","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","api:userActivity","api:media","user:manage"],"rolesAvailable":[{"id":"8cb0c74e57c74827a99633f3fd4f0c4b","isAdmin":true},{"id":"1e792c2d84a544ad9888e05db5f98d5c","isAdmin":false},{"id":"b83c2f95dddf44d395656619c5fbeaa2","isAdmin":false}]}
+2026-06-18 07:55:39 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:39 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+[TestingHandler] action: create-user, collectionId: N/A, tenant: null
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:39 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:39 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:39 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:41 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:41 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:41 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:41 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:41 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:41 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:41 ⚠️ [WARN ] Role not found for user {"email":"au***@example.com","userRoleId":"Author","rolesAvailable":["8cb0c74e57c74827a99633f3fd4f0c4b","1e792c2d84a544ad9888e05db5f98d5c","b83c2f95dddf44d395656619c5fbeaa2"]}
+2026-06-18 07:55:41 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+2026-06-18 07:55:41 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:41 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:41 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:41 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:41 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+2026-06-18 07:55:41 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:41 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+2026-06-18 07:55:41 ℹ️ [INFO ] Resetting system state to IDLE 
+2026-06-18 07:55:41 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-18 07:55:41 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-18 07:55:41 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+2026-06-18 07:55:41 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:41 ⚠️ [WARN ] [setupCheck] Config exists but DB is missing ADMIN/ROLES 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+2026-06-18 07:55:42 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-18 07:55:42 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:42 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:42 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:42 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:42 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:42 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] No collections found for user. Redirecting to fallback. {"tenantId":null}
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:44 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:46 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:46 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:46 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:46 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:46 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:46 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:52 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-18 07:55:51 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ℹ️ [INFO ] Fetched 0 media items for folder root 
+2026-06-18 07:55:52 ℹ️ [INFO ] No media items found 
+2026-06-18 07:55:52 ℹ️ [INFO ] Fetched 0 media items for folder root 
+2026-06-18 07:55:52 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-18 07:55:51 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:55:51 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:51 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheSet] Caching endpoint: /api/system-virtual-folder
+2026-06-18 07:55:52 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-18 07:55:52 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:55:52 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:55:52 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-18 07:55:52 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:55:52 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 0ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-18 07:55:54 ℹ️ [INFO ] Admin theme saved {"themeId":"defe28966b244439bfcb1e9a6b138cdd","tenantId":null}
+2026-06-18 07:55:54 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:55:54 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:13 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:13 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:13 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:56:13 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:13 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:13 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:56:21 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:56:21 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:56:21 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-18 07:56:21 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-18 07:56:21 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-18 07:56:22 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:22 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-18 07:56:22 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:56:22 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:56:22 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-18 07:56:22 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:22 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:22 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 0ms {"tenantId":null,"userId":"***","isTest":false}
+[svelte-realtime] Topic 'system_events:default' has subscribers but no events arrived within 30000ms.
+  Common causes:
+    - missing pg_notify trigger on the underlying table
+    - no ctx.publish() call in the relevant handler
+    - intentionally low-traffic topic (extend threshold or suppress)
+  Configure: live.silentTopicWarning({ thresholdMs: 60000 })
+  Suppress:  live.silentTopicWarning({ suppress: ['system_events:default'] })
+  Disable:   live.silentTopicWarning(false)
+  See: https://svti.me/silent-topic
+[svelte-realtime] Topic 'chat:ai:default' has subscribers but no events arrived within 30000ms.
+  Common causes:
+    - missing pg_notify trigger on the underlying table
+    - no ctx.publish() call in the relevant handler
+    - intentionally low-traffic topic (extend threshold or suppress)
+  Configure: live.silentTopicWarning({ thresholdMs: 60000 })
+  Suppress:  live.silentTopicWarning({ suppress: ['chat:ai:default'] })
+  Disable:   live.silentTopicWarning(false)
+  See: https://svti.me/silent-topic
+2026-06-18 07:56:24 ℹ️ [INFO ] Admin theme saved {"themeId":"defe28966b244439bfcb1e9a6b138cdd","tenantId":null}
+2026-06-18 07:56:24 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:24 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:26 ℹ️ [INFO ] 🚀 [SQLite] Running system migrations... 
+2026-06-18 07:56:26 ℹ️ [INFO ] SQLite migrations completed successfully. 
+2026-06-18 07:56:26 ℹ️ [INFO ] [JobQueue] Job 579d2ca137504ca8ba76d9fb272997ba completed successfully 
+2026-06-18 07:56:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:44 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:56:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:44 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:44 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-18 07:56:48 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:56:48 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:56:48 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-18 07:56:48 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-18 07:56:48 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-18 07:56:48 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:56:48 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-18 07:56:48 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-18 07:56:48 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:56:48 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 1ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-18 07:56:50 ℹ️ [INFO ] Admin theme saved {"themeId":"defe28966b244439bfcb1e9a6b138cdd","tenantId":null}
+2026-06-18 07:56:50 ⚠️ [WARN ] [SECURITY] Blocked unauthorized attempt to use test-worker context from 127.0.0.1 
+2026-06-18 07:56:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-18 07:57:26 ℹ️ [INFO ] [JobQueue] Job b5e4cc0f493a4bfbaba866328b08308e completed successfully 

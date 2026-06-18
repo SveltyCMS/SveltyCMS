@@ -82,6 +82,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
   const { theme, user: sessionUser, cspNonce, tenantId } = locals;
 
   depends("app:content");
+  depends("app:user-prefs");
 
   // Store is already initialized by root layout - just use it
 

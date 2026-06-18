@@ -5,6 +5,7 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility.
 Supports multiple aspect ratios including common social media formats.
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { CropShape } from './types';
 
 	let {
@@ -16,7 +17,7 @@ Supports multiple aspect ratios including common social media formats.
 		onCropShapeChange,
 		onAspectRatio,
 		onCropChange,
-		cropShape
+		cropShape: _cropShape
 	}: {
 		crop: { x: number; y: number; width: number; height: number };
 		onRotateLeft: () => void;
@@ -136,18 +137,16 @@ Supports multiple aspect ratios including common social media formats.
 		<span class="control-label">Aspect</span>
 		<div class="aspect-ratios">
 			{#each aspectPresets as preset, i}
-				<button
-					type="button"
-					class="aspect-btn"
-					class:active={activePreset === i}
-					onclick={() => selectPreset(preset, i)}
-					title="{preset.label}{preset.shortcut ? ` (${preset.shortcut})` : ''}"
-					aria-label="Aspect ratio {preset.label}"
-					aria-pressed={activePreset === i}
-				>
+				<Button variant="outline"
+									type="button"
+									onclick={() => selectPreset(preset, i)}
+									title="{preset.label}{preset.shortcut ? ` (${preset.shortcut})` : ''}"
+									aria-label="Aspect ratio {preset.label}"
+									aria-pressed={activePreset === i}
+								>
 					<iconify-icon icon={preset.icon} width="16"></iconify-icon>
 					<span class="hidden sm:inline">{preset.label}</span>
-				</button>
+				</Button>
 			{/each}
 		</div>
 	</div>
@@ -155,43 +154,41 @@ Supports multiple aspect ratios including common social media formats.
 	<!-- Group 2: Shape Selection -->
 	<div class="control-group">
 		<span class="control-label">Shape</span>
-		<div class="btn-group" role="radiogroup" aria-label="Crop shape">
-			<button
+		<div class="flex gap-0.5" role="radiogroup" aria-label="Crop shape">
+			<Button variant="outline"
 				type="button"
-				class="btn"
-				class:active={cropShape === 'rectangle' || cropShape === 'square'}
 				onclick={() => onCropShapeChange('rectangle')}
 				title="Rectangle"
 				aria-label="Crop rectangle"
 			>
 				<iconify-icon icon="mdi:crop-landscape" width="20"></iconify-icon>
-			</button>
-			<button type="button" class="btn" class:active={cropShape === 'square'} onclick={() => onCropShapeChange('square')} title="Square">
+			</Button>
+			<Button variant="outline" type="button" onclick={() => onCropShapeChange('square')} title="Square">
 				<iconify-icon icon="mdi:crop-square" width="20"></iconify-icon>
-			</button>
-			<button type="button" class="btn" class:active={cropShape === 'circular'} onclick={() => onCropShapeChange('circular')} title="Circle">
+			</Button>
+			<Button variant="outline" type="button" onclick={() => onCropShapeChange('circular')} title="Circle">
 				<iconify-icon icon="mdi:circle-outline" width="20"></iconify-icon>
-			</button>
+			</Button>
 		</div>
 	</div>
 
 	<!-- Group 3: Transform Controls -->
 	<div class="control-group">
 		<span class="control-label">Transform</span>
-		<div class="btn-group">
-			<button type="button" class="btn" onclick={onRotateLeft} title="Rotate Left 90° (L)" aria-label="Rotate Left 90 degrees" aria-keyshortcuts="L">
+					<div class="flex gap-0.5">
+			<Button variant="outline" type="button" onclick={onRotateLeft} title="Rotate Left 90° (L)" aria-label="Rotate Left 90 degrees" aria-keyshortcuts="L">
 				<iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon>
-			</button>
-			<button type="button" class="btn" onclick={onRotateRight} title="Rotate Right 90° (R)" aria-label="Rotate Right 90 degrees" aria-keyshortcuts="R">
+			</Button>
+			<Button variant="outline" type="button" onclick={onRotateRight} title="Rotate Right 90° (R)" aria-label="Rotate Right 90 degrees" aria-keyshortcuts="R">
 				<iconify-icon icon="mdi:rotate-right" width="20"></iconify-icon>
-			</button>
-			<button type="button" class="btn" onclick={onFlipHorizontal} title="Flip Horizontal (F)" aria-label="Flip Horizontal" aria-keyshortcuts="F">
+			</Button>
+			<Button variant="outline" type="button" onclick={onFlipHorizontal} title="Flip Horizontal (F)" aria-label="Flip Horizontal" aria-keyshortcuts="F">
 				<iconify-icon icon="mdi:flip-horizontal" width="20"></iconify-icon>
-			</button>
+			</Button>
 			{#if onFlipVertical}
-				<button type="button" class="btn" onclick={onFlipVertical} title="Flip Vertical" aria-label="Flip Vertical">
+				<Button variant="outline" type="button" onclick={onFlipVertical} title="Flip Vertical" aria-label="Flip Vertical">
 					<iconify-icon icon="mdi:flip-vertical" width="20"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 		</div>
 	</div>
@@ -255,67 +252,6 @@ Supports multiple aspect ratios including common social media formats.
 		gap: 0.25rem;
 	}
 
-	.aspect-btn {
-		display: flex;
-		gap: 0.35rem;
-		align-items: center;
-		height: 2rem;
-		padding: 0 0.75rem;
-		font-size: 0.7rem;
-		font-weight: 600;
-		color: #9ca3af;
-		white-space: nowrap;
-		cursor: pointer;
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid transparent;
-		border-radius: 0.5rem;
-		transition: all 0.15s ease;
-	}
-
-	.aspect-btn:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
-	}
-
-	.aspect-btn.active {
-		color: white;
-		background: #3b82f6;
-		border-color: #3b82f6;
-		box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
-	}
-
-	.btn-group {
-		display: flex;
-		gap: 0.25rem;
-		padding: 0.25rem;
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: 0.5rem;
-	}
-
-	.btn-group .btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		color: #9ca3af;
-		cursor: pointer;
-		border: none;
-		border-radius: 0.375rem;
-		background: transparent;
-		transition: all 0.15s ease;
-	}
-
-	.btn-group .btn:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
-	}
-
-	.btn-group .btn.active {
-		color: white;
-		background: #3b82f6;
-	}
-
 	.crop-values {
 		align-items: flex-start;
 		flex-direction: column;
@@ -371,10 +307,6 @@ Supports multiple aspect ratios including common social media formats.
 			overflow-x: auto;
 			width: 100%;
 			padding-bottom: 0.1rem;
-		}
-
-		.btn-group {
-			width: fit-content;
 		}
 
 		.crop-values {

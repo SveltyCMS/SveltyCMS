@@ -602,35 +602,25 @@ function sveltyCmsPlugin(): Plugin {
       }, 150);
     }
 
-    // 🎨 THEME FILE SYNC: /themes/*.json → DB auto-import
+    // 🎨 THEME FILE SYNC: /themes/*.json → DB auto-import (shared with boot-time scan)
     const isThemeFile = absoluteFile.startsWith(paths.themes) && file.endsWith(".json");
     if (isThemeFile) {
       setTimeout(async () => {
         log.info(`Theme file detected: ${path.basename(file)}. Syncing to database...`);
         try {
-          const themeJson = JSON.parse(readFileSync(file, "utf-8"));
-          // Validate required fields
-          if (!themeJson.name) {
-            log.warn(`Theme file ${path.basename(file)} missing "name" field — skipping`);
+          const { syncThemeFile } = await server.ssrLoadModule(
+            path.join(CWD, "src/services/core/theme-file-sync.ts"),
+          );
+          const result = await syncThemeFile(file);
+          if (result.action === "error") {
+            log.error(`Failed to sync theme file ${result.file}: ${result.error}`);
             return;
           }
-          // Import to database via the admin-theme-service
-          const { adminThemeService } = await server.ssrLoadModule(
-            path.join(CWD, "src/services/core/admin-theme-service.ts"),
-          );
-          // Check if theme with this name already exists, update if so
-          const existing = await adminThemeService.listThemes();
-          const match = existing.find((t: any) => t.name === themeJson.name);
-          if (match) {
-            await adminThemeService.saveAdminTheme(themeJson, undefined, match.id);
-            log.success(`Theme "${themeJson.name}" updated from file.`);
-          } else {
-            await adminThemeService.createTheme(themeJson.name, themeJson);
-            log.success(`Theme "${themeJson.name}" imported from file.`);
+          if (result.action === "created" || result.action === "updated") {
+            log.success(`Theme "${result.name}" ${result.action} from file.`);
           }
-          // Notify client to refresh theme list
           server.ws.send("svelty:theme-update", {
-            name: themeJson.name,
+            name: result.name,
             timestamp: Date.now(),
           });
         } catch (err) {
@@ -933,10 +923,17 @@ export default defineConfig((): any => {
             "script-src": [
               "self",
               "blob:",
+              // 'unsafe-inline' is required in dev because Vite's HMR client and
+              // some web-component libraries (iconify-icon) inject inline scripts
+              // that do not carry SvelteKit's nonce. In production the nonce-mode
+              // CSP handles everything; 'unsafe-inline' is intentionally absent there.
+              ...(!isBuild ? (["'unsafe-inline'"] as any[]) : []),
               "https://*.iconify.design",
               "https://code.iconify.design",
             ],
             "worker-src": ["self", "blob:"],
+            // 'unsafe-inline' is always needed for style-src because CSS-in-JS and
+            // Tailwind v4 generate inline <style> blocks that cannot carry nonces.
             "style-src": ["self", "https://*.iconify.design"],
             "img-src": [
               "self",

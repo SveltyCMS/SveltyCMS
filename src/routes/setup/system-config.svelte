@@ -12,6 +12,12 @@ Features:
 
 -->
 <script lang="ts">
+	import Alert from '@components/ui/alert.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import Autocomplete from '@src/components/autocomplete.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Paraglide Messages
@@ -271,6 +277,32 @@ Features:
 	// Options for Autocomplete
 	const allTimezones = Intl.supportedValuesOf('timeZone');
 	let showScaling = $state(false);
+
+	const mediaStorageOptions = $derived([
+		{ value: 'local', label: setup_media_type_local?.() || '📁 Local Storage' },
+		{ value: 's3', label: setup_media_type_s3?.() || '☁️ Amazon S3' },
+		{ value: 'r2', label: setup_media_type_r2?.() || '☁️ Cloudflare R2' },
+		{ value: 'cloudinary', label: setup_media_type_cloudinary?.() || '☁️ Cloudinary' }
+	]);
+
+	const systemLanguageOptions = $derived(
+		systemSettings.systemLanguages.map((lang: string) => ({
+			value: lang,
+			label: displayLang(lang)
+		}))
+	);
+
+	const contentLanguageOptions = $derived(
+		systemSettings.contentLanguages.map((lang: string) => ({
+			value: lang,
+			label: displayLang(lang)
+		}))
+	);
+
+	const cfPurgeOptions = [
+		{ value: 'tags', label: 'Surgical (Tag-based - Recommended)' },
+		{ value: 'all', label: 'Full Purge (Everything)' }
+	];
 </script>
 
 <form onsubmit={(e) => e.preventDefault()} class="fade-in w-full min-w-0">
@@ -280,32 +312,26 @@ Features:
 
 	<div class="space-y-2">
 		{#if redisAvailable && !systemSettings.useRedis}
-			<div class="rounded bg-surface-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
-				<div class="flex items-start gap-4">
-					<iconify-icon icon="mdi:lightning-bolt" class="bg-error-500 p-2 text-white rounded-full text-2xl animate-pulse"></iconify-icon>
-					<div class="flex-1">
-						<div class="flex items-center justify-between">
-							<h4 class="font-bold text-lg flex items-center gap-4">
-								Performance Optimization Detected
-								<span class="badge preset-filled-error-500 rounded-full uppercase">Recommended</span>
-							</h4>
-							<!-- Close button -->
-							<button
-								type="button"
-								class="btn-icon rounded-full preset-outlined"
-								onclick={() => (redisAvailable = false)}
-								aria-label="Dismiss recommendation"
-							>
-								<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-							</button>
-						</div>
-						<p class="mt-1 text-sm leading-relaxed italic">
-							A local Redis server was detected on this system. <br />Enabling Redis caching can speed up data access by up to <strong>50x</strong>
-							by reducing database load.
-						</p>
+			<Alert variant="warning" title="Performance Optimization Detected" class="animate-in fade-in slide-in-from-top-4 duration-500">
+				<div class="flex items-center justify-between gap-4">
+					<div class="flex items-center gap-2">
+						<Badge variant="error" class="uppercase">Recommended</Badge>
 					</div>
+					<Button
+						variant="outline"
+						type="button"
+						onclick={() => (redisAvailable = false)}
+						aria-label="Dismiss recommendation"
+						class="p-0! min-w-0 rounded-full preset-outlined shrink-0"
+					>
+						<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+					</Button>
 				</div>
-			</div>
+				<p class="mt-1 text-sm leading-relaxed italic">
+					A local Redis server was detected on this system. <br />Enabling Redis caching can speed up data access by up to <strong>50x</strong>
+					by reducing database load.
+				</p>
+			</Alert>
 		{/if}
 
 		<!-- Project Blueprint -->
@@ -326,20 +352,15 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<input
+					<Input
 						id="site-name"
 						bind:value={systemSettings.siteName}
 						onblur={() => handleBlur('siteName')}
 						type="text"
 						data-1p-ignore
 						placeholder={setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600  {displayErrors.siteName ? 'border-error-500' : ''}"
-						aria-invalid={!!displayErrors.siteName}
-						aria-describedby={displayErrors.siteName ? 'site-name-error' : undefined}
+						error={displayErrors.siteName}
 					/>
-					{#if displayErrors.siteName}
-						<div id="site-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.siteName}</div>
-					{/if}
 				</div>
 
 				<!-- Production URL -->
@@ -354,20 +375,15 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<input
+					<Input
 						id="host-prod"
 						bind:value={systemSettings.hostProd}
 						type="url"
 						data-1p-ignore
 						onblur={() => handleBlur('hostProd')}
 						placeholder={setup_system_host_prod_placeholder?.() || 'https://mysite.com'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 {displayErrors.hostProd ? 'border-error-500' : ''}"
-						aria-invalid={!!displayErrors.hostProd}
-						aria-describedby={displayErrors.hostProd ? 'host-prod-error' : undefined}
+						error={displayErrors.hostProd}
 					/>
-					{#if displayErrors.hostProd}
-						<div id="host-prod-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.hostProd}</div>
-					{/if}
 				</div>
 
 				<!-- Timezone (Enhanced with Autocomplete) -->
@@ -419,12 +435,7 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded border border-slate-300 dark:border-surface-600  ">
-						<option value="local">{setup_media_type_local?.() || '📁 Local Storage'}</option>
-						<option value="s3">{setup_media_type_s3?.() || '☁️ Amazon S3'}</option>
-						<option value="r2">{setup_media_type_r2?.() || '☁️ Cloudflare R2'}</option>
-						<option value="cloudinary">{setup_media_type_cloudinary?.() || '☁️ Cloudinary'}</option>
-					</select>
+					<Select bind:value={systemSettings.mediaStorageType} options={mediaStorageOptions} placeholder="Select storage type..." />
 				</div>
 
 				<!-- Media Folder Path -->
@@ -443,7 +454,7 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<input
+					<Input
 						id="media-folder"
 						bind:value={systemSettings.mediaFolder}
 						type="text"
@@ -451,7 +462,6 @@ Features:
 						placeholder={systemSettings.mediaStorageType === 'local'
 							? setup_system_media_path_placeholder?.() || './mediaFolder'
 							: setup_system_bucket_placeholder?.() || 'my-bucket-name'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 					/>
 
 					{#if systemSettings.mediaStorageType !== 'local'}
@@ -483,11 +493,11 @@ Features:
 
 					<p class="text-[10px] text-slate-500 dark:text-white/40" id="system-lang-help">Select the primary language for the admin interface.</p>
 
-					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded border border-slate-300 dark:border-surface-600  ">
-						{#each systemSettings.systemLanguages as lang (lang)}
-							<option value={lang}>{displayLang(lang)}</option>
-						{/each}
-					</select>
+					<Select
+						bind:value={systemSettings.defaultSystemLanguage}
+						options={systemLanguageOptions}
+						placeholder="Select system language..."
+					/>
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
@@ -518,18 +528,17 @@ Features:
 								</span>
 							{/each}
 							{#if systemAvailable.length}
-								<button
+								<Button variant="surface"
 									type="button"
-									class="preset-filled-surface-500 badge absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full"
 									onclick={openSystemPicker}
 																		aria-label="add-system-language"
 																		aria-haspopup="dialog"
 									aria-expanded={showSystemPicker}
 									aria-controls="system-lang-picker"
-								>
+								 class="badge absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full">
 									<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 									{button_add?.() || 'Add'}
-								</button>
+								</Button>
 							{/if}
 							{#if showSystemPicker}
 								<div
@@ -540,12 +549,13 @@ Features:
 									tabindex="-1"
 									onkeydown={onSystemPickerKey}
 								>
-									<input
+									<Input
 										id="system-lang-search"
-									aria-label="search-system-languages"
-										class="mb-2 w-full rounded border border-surface-200  bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:focus:border-tertiary-500 dark:border-primary-500"
+										aria-label="search-system-languages"
 										placeholder="Search..."
 										bind:value={systemPickerSearch}
+										inputClass="text-xs py-1"
+										class="mb-2"
 									/>
 									<div class="max-h-48 overflow-auto">
 										{#if systemAvailable.length === 0}
@@ -582,21 +592,13 @@ Features:
 						</SystemTooltip>
 					</div>
 					<p class="text-[10px] text-slate-500 dark:text-white/40" id="system-lang-help">Select the primary language for your content.</p>
-					<select
-					id="default-content-lang"
+					<Select
 						bind:value={systemSettings.defaultContentLanguage}
-						onblur={() => handleBlur('defaultContentLanguage')}
-						class="input w-full rounded {displayErrors.defaultContentLanguage ? 'border-error-500' : ''}"
-						aria-invalid={!!displayErrors.defaultContentLanguage}
-						aria-describedby={displayErrors.defaultContentLanguage ? 'default-content-lang-error' : undefined}
-					>
-						{#each systemSettings.contentLanguages as lang (lang)}
-							<option value={lang}>{displayLang(lang)}</option>
-						{/each}
-					</select>
-					{#if displayErrors.defaultContentLanguage}
-						<div id="default-content-lang-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.defaultContentLanguage}</div>
-					{/if}
+						options={contentLanguageOptions}
+						placeholder="Select content language..."
+						error={displayErrors.defaultContentLanguage}
+						onchange={() => handleBlur('defaultContentLanguage')}
+					/>
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
@@ -630,18 +632,17 @@ Features:
 									{/if}
 								</span>
 							{/each}
-							<button
+							<Button variant="surface"
 								type="button"
-								class="preset-filled-surface-500 badge absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full"
 								onclick={openContentPicker}
 							aria-label="add-content-language"
 								aria-haspopup="dialog"
 								aria-expanded={showContentPicker}
 								aria-controls="content-lang-picker"
-							>
+							 class="badge absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full">
 								<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 								{button_add?.() || 'Add'}
-							</button>
+							</Button>
 							{#if showContentPicker}
 								<div
 									id="content-lang-picker"
@@ -651,12 +652,13 @@ Features:
 									tabindex="-1"
 									onkeydown={onContentPickerKey}
 								>
-									<input
+									<Input
 										id="content-lang-search"
-								aria-label="search-content-languages"
-										class="mb-2 w-full rounded border border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500"
+										aria-label="search-content-languages"
 										placeholder="Search languages..."
 										bind:value={contentPickerSearch}
+										inputClass="text-xs py-1"
+										class="mb-2"
 									/>
 									<div class="max-h-48 overflow-auto">
 										{#if contentAvailable.length === 0}
@@ -697,48 +699,26 @@ Features:
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<!-- Multi-Tenant Toggle -->
-				<div class="flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
-					<input
-						id="multi-tenant-mode"
-						type="checkbox"
-						bind:checked={systemSettings.multiTenant}
-						class="h-4 w-4 rounded border-slate-300 text-tertiary-600 dark:text-primary-600 focus:ring-primary-500"
-					/>
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:domain" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<label for="multi-tenant-mode" class="font-medium text-black dark:text-white text-sm">
-							{setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
-						</label>
-						<SystemTooltip title={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
-						</SystemTooltip>
-					</div>
-				</div>
+				<Checkbox
+					bind:checked={systemSettings.multiTenant}
+					label={setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
+					description={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}
+					variant="card"
+				/>
 
 				<!-- Demo Mode Toggle -->
-				<div class="flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
-					<input
-						id="demo-mode"
-						type="checkbox"
+				<div class="space-y-2">
+					<Checkbox
 						bind:checked={systemSettings.demoMode}
-						class="h-4 w-4 rounded border-slate-300 text-tertiary-600 dark:text-primary-600 focus:ring-primary-500"
+						label={setup_system_demo_mode?.() || 'Demo Mode'}
+						description={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
+						variant="card"
 					/>
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:test-tube" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<label for="demo-mode" class="font-medium text-black dark:text-white text-sm">
-							{setup_system_demo_mode?.() || 'Demo Mode'}
-						</label>
-						<SystemTooltip
-							title={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
-						</SystemTooltip>
-						{#if systemSettings.demoMode && !systemSettings.multiTenant}
-							<span class="text-xs font-bold text-amber-600 dark:text-amber-400">
-								({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
-							</span>
-						{/if}
-					</div>
+					{#if systemSettings.demoMode && !systemSettings.multiTenant}
+						<span class="text-xs font-bold text-amber-600 dark:text-amber-400">
+							({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
+						</span>
+					{/if}
 				</div>
 			</div>
 		</section>
@@ -746,62 +726,55 @@ Features:
 
 		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
 		<section id="redis-section" class="space-y-2 border-t border-surface-200 dark:border-white/10 pt-2">
-			<div class="rounded border border-surface-200 dark:border-white/5 p-3">
-				<div class="flex items-center gap-2">
-					<input
-						id="use-redis"
-						type="checkbox"
-						bind:checked={systemSettings.useRedis}
-						class="h-4 w-4 rounded border-slate-300 text-tertiary-600 dark:text-primary-600 focus:ring-primary-500"
-					/>
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="devicon-plain:redis" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<label for="use-redis" class="font-medium text-black dark:text-white text-sm"> Enable Redis Caching </label>
-						<SystemTooltip
-							title="Significantly improves performance by caching database queries and session data in-memory. Recommended if Redis is available."
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
-						</SystemTooltip>
-					</div>
-				</div>
+			<div class="rounded border border-surface-200 dark:border-white/5 p-3 space-y-4">
+				<Checkbox
+					bind:checked={systemSettings.useRedis}
+					label="Enable Redis Caching"
+					description="Significantly improves performance by caching database queries and session data in-memory. Recommended if Redis is available."
+					variant="card"
+				/>
 				{#if systemSettings.useRedis}
-					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-300">
-						<div class="space-y-1.5 text-black dark:text-white">
-							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Host</label>
-							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" data-1p-ignore placeholder="localhost" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
-						</div>
-						<div class="space-y-1.5 text-black dark:text-white">
-							<label for="redis-port" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Port</label>
-							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" data-1p-ignore placeholder="6379" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
-						</div>
-						<div class="space-y-1.5 text-black dark:text-white">
-							<label for="redis-password" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Password (Optional)</label>
-							<input
-								id="redis-password"
-								bind:value={systemSettings.redisPassword}
-								type="password"
-								data-1p-ignore
-								placeholder="••••••••"
-								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
-							/>
-						</div>
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+						<Input
+							id="redis-host"
+							bind:value={systemSettings.redisHost}
+							type="text"
+							data-1p-ignore
+							label="Redis Host"
+							placeholder="localhost"
+						/>
+						<Input
+							id="redis-port"
+							bind:value={systemSettings.redisPort}
+							type="text"
+							data-1p-ignore
+							label="Redis Port"
+							placeholder="6379"
+						/>
+						<Input
+							id="redis-password"
+							bind:value={systemSettings.redisPassword}
+							type="password"
+							data-1p-ignore
+							label="Redis Password (Optional)"
+							placeholder="••••••••"
+						/>
 					</div>
 
 					<div class="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-surface-100 dark:border-white/5 pt-4">
-						<button
+						<Button variant="tertiary"
 							type="button"
-							class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 rounded flex items-center gap-2"
 							onclick={setupStore.testRedisConnection}
 						aria-label="test-redis-connection"
 							disabled={setupStore.wizard.isLoading}
-						>
+						 class="dark: rounded flex items-center gap-2">
 							{#if setupStore.wizard.isLoading}
 								<iconify-icon icon="line-md:loading-twotone-loop" width="20"></iconify-icon>
 							{:else}
 								<iconify-icon icon="mdi:connection" width="20"></iconify-icon>
 							{/if}
 							{setup_db_test_redis_button?.() || 'Test Redis Connection'}
-						</button>
+						</Button>
 
 						{#if setupStore.wizard.redisTestPassed}
 							<div class="flex items-center gap-2 text-tertiary-500 dark:text-primary-500 text-sm font-medium animate-in fade-in zoom-in duration-300">
@@ -838,34 +811,32 @@ Features:
 					</p>
 
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						<div class="space-y-1">
-							<label for="cf-token" class="text-xs font-bold uppercase tracking-wider text-slate-400">Cloudflare API Token</label>
-							<input
-								id="cf-token"
-								bind:value={systemSettings.cfApiToken}
-								type="password"
-								placeholder="Enter API Token"
-								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
-							/>
-						</div>
-						<div class="space-y-1">
-							<label for="cf-zone" class="text-xs font-bold uppercase tracking-wider text-slate-400">Cloudflare Zone ID</label>
-							<input
-								id="cf-zone"
-								bind:value={systemSettings.cfZoneId}
-								type="text"
-								placeholder="Enter Zone ID"
-								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
-							/>
-						</div>
+						<Input
+							id="cf-token"
+							bind:value={systemSettings.cfApiToken}
+							type="password"
+							label="Cloudflare API Token"
+							labelClass="text-xs font-bold uppercase tracking-wider text-slate-400"
+							placeholder="Enter API Token"
+						/>
+						<Input
+							id="cf-zone"
+							bind:value={systemSettings.cfZoneId}
+							type="text"
+							label="Cloudflare Zone ID"
+							labelClass="text-xs font-bold uppercase tracking-wider text-slate-400"
+							placeholder="Enter Zone ID"
+						/>
 					</div>
 
 					<div class="space-y-1">
-						<label for="cf-purge" class="text-xs font-bold uppercase tracking-wider text-slate-400">Purge Strategy</label>
-						<select id="cf-purge" bind:value={systemSettings.cfPurgeMode} class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  ">
-							<option value="tags">Surgical (Tag-based - Recommended)</option>
-							<option value="all">Full Purge (Everything)</option>
-						</select>
+						<Select
+							bind:value={systemSettings.cfPurgeMode}
+							label="Purge Strategy"
+							options={cfPurgeOptions}
+							placeholder="Select purge strategy..."
+							size="sm"
+						/>
 						<p class="text-[10px] text-amber-500 italic mt-1">
 							* Surgical purging requires a Cloudflare Enterprise plan or specific Cache Tag support.
 						</p>

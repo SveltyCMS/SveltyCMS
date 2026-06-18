@@ -10,6 +10,11 @@ import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
 import { fade, slide } from "svelte/transition";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
 
 type ConfigStatus = {
 	status: "in_sync" | "changes_detected" | "error";
@@ -26,7 +31,6 @@ let isLoading = $state(true);
 let isProcessing = $state(false);
 let activeTab: "sync" | "backups" | "debug" = $state("sync");
 
-// prettier counts
 const changeSummary = $derived(() => ({
 	new: status?.changes?.new?.length || 0,
 	updated: status?.changes?.updated?.length || 0,
@@ -59,7 +63,6 @@ async function performSync() {
 
 	isProcessing = true;
 	try {
-		// Standard filesystem sync
 		const payload = { action: "import" };
 		toast.info("Performing standard filesystem sync...");
 
@@ -75,7 +78,7 @@ async function performSync() {
 		}
 
 		toast.success(result.message || "Sync successful!");
-		await loadStatus(); // Refresh status after sync
+		await loadStatus();
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : String(err);
 		toast.error(`Sync failed: ${errorMsg}`);
@@ -93,27 +96,15 @@ onMount(() => {
 });
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<div class="flex items-center justify-between" in:fade>
-		<div>
-			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:sync" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				Config Sync & Backup
-			</h1>
-			<p class="text-sm opacity-50 font-medium">Synchronize configuration between filesystem and database</p>
-		</div>
-		<div class="flex items-center gap-2">
-			<a href="/config" class="btn preset-ghost-surface-500 btn-sm" data-sveltekit-preload-data="hover">
-				<iconify-icon icon="ri:arrow-left-line" width="18"></iconify-icon>
-				<span class="hidden sm:inline">Back</span>
-			</a>
-		</div>
-	</div>
+<AdminPageShell
+	title="Config Sync & Backup"
+	icon="mdi:sync"
+	description="Synchronize configuration between filesystem and database"
+	showBackButton={true}
+	backUrl="/config"
+>
 
-	<!-- Content -->
-	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
-		<!-- Description -->
+	<AdminCard class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
 		<div class="preset-tonal-surface mb-4 p-4">
 			<p class="text-surface-600 dark:text-surface-300">
 				Manage your system configuration. Use <strong>Sync</strong> to deploy code changes to the database, and <strong>Backups</strong> to import/export
@@ -121,7 +112,6 @@ onMount(() => {
 			</p>
 		</div>
 
-		<!-- Tabs -->
 		<div
 			class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70"
 			role="tablist"
@@ -152,7 +142,6 @@ onMount(() => {
 			{/each}
 		</div>
 
-		<!-- Content -->
 		<section transition:fade|local>
 			{#if activeTab === 'sync'}
 				{#if status?.unmetRequirements && status.unmetRequirements.length > 0}
@@ -168,28 +157,23 @@ onMount(() => {
 				{/if}
 
 				<div class="my-4">
-					<button
-						class="preset-filled-tertiary-500 btn w-full dark:preset-filled-primary-500 sm:w-auto"
+					<Button variant="tertiary"
 						disabled={isProcessing || !status || status.status === 'in_sync' || status?.unmetRequirements?.length > 0}
 						onclick={syncAllChanges}
-					>
-						<iconify-icon icon="mdi:sync" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>
+					 class="w-full dark: sm:w-auto" leadingIcon="mdi:sync">
 						{isProcessing ? 'Syncing...' : 'Sync All Changes'}
-					</button>
+					</Button>
 				</div>
 
 				{#if isLoading}
-					<div class="flex animate-pulse flex-col items-center py-12 text-surface-500">
-						<iconify-icon icon="mdi:sync" class="mb-3 animate-spin text-5xl"></iconify-icon>
-						Checking synchronization status...
-						<button
+					<div class="flex flex-col items-center py-12 text-surface-500">
+						<Loader variant="text" lines={2} lastLineWidth="50%" ariaLabel="Checking synchronization status" />
+						<Button variant="tertiary"
 							onclick={loadStatus}
-							class="preset-filled-tertiary-500 btn mt-6 flex items-center gap-2 dark:preset-filled-primary-500"
 							disabled={isLoading}
-						>
-							<iconify-icon icon="mdi:refresh" class={isLoading ? 'animate-spin' : ''}></iconify-icon>
+						 class="mt-6 flex items-center gap-2 dark:" leadingIcon="mdi:refresh">
 							{isLoading ? 'Checking...' : 'Refresh'}
-						</button>
+						</Button>
 					</div>
 				{:else if status?.status === 'in_sync'}
 					<div class="space-y-3 py-12 text-center">
@@ -204,30 +188,32 @@ onMount(() => {
 							Changes Detected
 						</h3>
 						<p class="">{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary().deleted} deleted.</p>
-						<div class="overflow-hidden border border-surface-200 dark:text-surface-50">
-							<table class="table w-full text-sm">
-								<thead class="bg-surface-100 dark:bg-surface-800">
-									<tr>
-										<th>Name</th>
-										<th>Type</th>
-										<th>Change</th>
+						<AdminCard class="overflow-x-auto w-full border border-surface-200 dark:border-surface-800">
+							<table class="w-full text-sm border-collapse">
+								<thead>
+									<tr class="border-b border-surface-200 dark:border-surface-800 text-left text-xs uppercase tracking-wider text-surface-400">
+										<th class="px-4 py-3 font-semibold">Name</th>
+										<th class="px-4 py-3 font-semibold">Type</th>
+										<th class="px-4 py-3 font-semibold">Change</th>
 									</tr>
 								</thead>
-								<tbody>
+								<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 									{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
 										{#each items as item (item.uuid || item.name)}
-											<tr class="border-t border-surface-200 hover:bg-surface-50 dark:text-surface-50 dark:hover:bg-surface-800/50">
-												<td>{item.name}</td>
-												<td><span class="preset-tonal-surface-500 badge capitalize">{item.type}</span></td>
-												<td>
+											<tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30">
+												<td class="px-4 py-3">{item.name}</td>
+												<td class="px-4 py-3">
+													<Badge preset="tonal" color="surface" class="capitalize">{item.type}</Badge>
+												</td>
+												<td class="px-4 py-3">
 													{#if changeType === 'new'}
-														<span class="preset-filled-tertiary-500 dark:preset-filled-primary-500 badge">New</span>
+														<Badge variant="tertiary" class="dark:preset-filled-primary-500">New</Badge>
 													{/if}
 													{#if changeType === 'updated'}
-														<span class="preset-filled-warning-500 badge">Updated</span>
+														<Badge variant="warning">Updated</Badge>
 													{/if}
 													{#if changeType === 'deleted'}
-														<span class="preset-filled-error-500 badge">Deleted</span>
+														<Badge variant="error">Deleted</Badge>
 													{/if}
 												</td>
 											</tr>
@@ -235,7 +221,7 @@ onMount(() => {
 									{/each}
 								</tbody>
 							</table>
-						</div>
+						</AdminCard>
 					</div>
 				{/if}
 			{/if}
@@ -245,7 +231,7 @@ onMount(() => {
 			{/if}
 
 			{#if activeTab === 'debug'}
-				<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
+				<div transition:slide|local class="rounded border border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-900/40">
 					<h3 class="mb-3 flex items-center gap-2 font-semibold"><iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response</h3>
 					<pre
 						class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800">{JSON.stringify(
@@ -256,5 +242,5 @@ onMount(() => {
 				</div>
 			{/if}
 		</section>
-	</div>
-</div>
+	</AdminCard>
+</AdminPageShell>

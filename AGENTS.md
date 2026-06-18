@@ -251,14 +251,20 @@ When generating/modifying code:
 8. **File Headers**: Always include as defined.
 9. **Roadmap Alignment**: Prioritize gaps like full SAML/SCIM hardening; optimize for enterprise (e.g., lighter SAML deps).
 10. **MCP Knowledge Base (CRITICAL)**: Always query the hosted MCP server at `https://mcp.sveltycms.com/mcp` when in doubt about SveltyCMS architecture, schema conventions, or widget syntax, as it holds the verified source of truth. Utilize MCP connections for dynamic generation flows.
-11. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
-12. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
+11. **Admin Theme & Native UI Compliance**:
+    - **AdminPageShell**: Every `(app)` `+page.svelte` MUST use `<AdminPageShell>`. Do NOT create hand-rolled `absolute inset-0` page shells or inline `<h1>` headers.
+    - **AdminCard**: Wrap content blocks in `<AdminCard>`, never bare `<div class="card">` with inline `var(--admin-radius-card)`.
+    - **Native Components**: Always prefer `<Button>`, `<Badge>`, `<Input>`, `<Select>`, `<Textarea>` over raw `<button class="btn">`, `<span class="badge">`, or `<input class="input">`. Raw utility classes are deprecated.
+    - **CI Gate**: Run `bun run lint:admin-theme` before committing admin route changes — blocks missing `AdminPageShell`, `class="input"`, and legacy table classes.
+      - **Reference**: `docs/contributing/style-guide-gui.mdx`, `docs/project/admin-theme-plan.mdx`
+12. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
+13. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
     - **Baseline**: Run the relevant benchmark with recording: `BENCHMARK_RECORD=1 bun test tests/benchmarks/<test>.test.ts`
     - **Verification**: Run same benchmark after changes; compare trend labels in `docs/project/benchmarks/benchmark_<db>.mdx`
     - **Full Matrix**: For cross-test correlation, run `bun run scripts/benchmark-matrix/index.ts --sql`
     - **Reports**: Check MDX reports for trend labels (`🔴 avg +35%`), root cause insights, and code path recommendations
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
-13. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
+14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
     ```bash
     bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
     ```
@@ -279,15 +285,15 @@ When generating/modifying code:
 
 ### Documentation Matrix
 
-| Feature Type        | Primary MDX Location                         | Also Update                     |
-| :------------------ | :------------------------------------------- | :------------------------------ |
-| **Database**        | `docs/database/`                             | `technical-evaluation-2026.mdx` |
-| **Auth/Security**   | `docs/database/Authentication_System.mdx`    | `technical-evaluation-2026.mdx` |
-| **UI/UX**           | `docs/guides/`                               | Widget docs if applicable       |
-| **Content/Preview** | `docs/guides/Live_Preview_Architecture.mdx`  | Integration docs                |
-| **Widgets**         | `docs/widgets/`                              | `widget-system-overview.mdx`    |
-| **API**             | `docs/api/`                                  | Relevant service docs           |
-| **Performance**     | `docs/database/Performance_Architecture.mdx` | `technical-evaluation-2026.mdx` |
+| Feature Type         | Primary MDX Location                         | Also Update                         |
+| :------------------- | :------------------------------------------- | :---------------------------------- |
+| **Database**         | `docs/database/`                             | `technical-evaluation-2026.mdx`     |
+| **Auth/Security**    | `docs/database/Authentication_System.mdx`    | `technical-evaluation-2026.mdx`     |
+| **Admin Theme / UI** | `docs/contributing/style-guide-gui.mdx`      | `docs/project/admin-theme-plan.mdx` |
+| **Content/Preview**  | `docs/guides/Live_Preview_Architecture.mdx`  | Integration docs                    |
+| **Widgets**          | `docs/widgets/`                              | `widget-system-overview.mdx`        |
+| **API**              | `docs/api/`                                  | Relevant service docs               |
+| **Performance**      | `docs/database/Performance_Architecture.mdx` | `technical-evaluation-2026.mdx`     |
 
 **Key Documentation Files:**
 
@@ -331,6 +337,7 @@ From the 2026 roadmap, prioritize these for parity/leadership (implemented featu
 - [x] **AI-Smart CMS Importer**: 5-format auto-detection (WordPress, Strapi, Directus, Drupal, SveltyCMS), heuristic field mapping, ACF detection.
 - [x] **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions.
 - [x] **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
+- [x] **Enterprise Admin Theme Migration (Phases A–F)**: Complete Gin-inspired structural theme system — `AdminPageShell` on all 22 `(app)` routes, `AdminCard` across all config pages, 600+ `<button>` → `<Button>`, 20+ `<span class="badge">` → `<Badge>`, 0 `class="input"` in `src/`, image editor toolbars on native `<Button>`, tenant-branded login (`brandedLogin`), 3 theme presets, motion tokens, per-user theme overrides, CI-gated via `lint:admin-theme`.
 
 ## Upgrading SveltyCMS
 
@@ -575,20 +582,22 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/api/media-security.test.ts`     | `docs/architecture/security/widget-security.mdx`                                       |
 | `tests/benchmarks/security-audit.test.ts`   | `docs/architecture/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx` |
 | `tests/e2e/accessibility.spec.ts`           | `docs/tests/accessibility-audit.mdx`                                                   |
+| `tests/e2e/branding.spec.ts`                | `docs/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`             |
+| `tests/e2e/visual-regression.spec.ts`       | `docs/project/admin-theme-plan.mdx`, `docs/tests/accessibility-audit.mdx`              |
 | `tests/unit/widgets/core/*.test.ts`         | `docs/tests/widget-test-coverage.mdx`                                                  |
 
 ## Key Files Reference
 
-| Category       | Key Files                                                                                                                                  |
-| :------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| **DB & Auth**  | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                     |
-| **Security**   | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                    |
-| **Content**    | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                  |
-| **Widgets**    | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                              |
-| **API**        | `routes/api/`, `hooks.server.ts`                                                                                                           |
-| **Services**   | `settingsService.ts`, `scheduler/`, `AuditLogService.ts`,`MetricsService.ts`                                                               |
-| **Benchmarks** | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-summary.ts`, `benchmark-meta.ts` |
-| **Build**      | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                 |
+| Category        | Key Files                                                                                                                                  |
+| :-------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| **DB & Auth**   | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                     |
+| **Security**    | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                    |
+| **Content**     | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                  |
+| **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                              |
+| **API**         | `routes/api/`, `hooks.server.ts`                                                                                                           |
+| **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`, `lint-admin-theme.ts`                         |
+| **Benchmarks**  | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-summary.ts`, `benchmark-meta.ts` |
+| **Build**       | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                 |
 
 ## Path Aliases
 
@@ -625,4 +634,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-06-10_
+_Last Updated: 2026-06-17_

@@ -50,7 +50,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 	let containerRef = $state<HTMLDivElement | undefined>(undefined);
 	let containerWidth = $state(0);
 	let containerHeight = $state(0);
-	let initialImageLoaded = $state(false);
 	let isProcessing = $state(false);
 	let error = $state<string | null>(null);
 	let toolInstances = $state<Record<string, any>>({});
@@ -69,13 +68,9 @@ Comprehensive image editing interface with svelte-canvas integration.
 		oncancel?.();
 	}
 
-	// Reset load state when image source changes
-	let lastLoadedSrc = $state('');
-	let lastLoadedFile = $state<File | null>(null);
-
-	$effect(() => {
-		// Logic using mediaId (excluding saveBehavior)
-	});
+	// Tracks in-flight loads so stale onload/onerror handlers cannot leave isProcessing stuck
+	let loadGeneration = 0;
+	let lastLoadKey = $state('');
 
 	// Register Keyboard Shortcuts for Accessibility (Top-level for auto-cleanup)
 	registerHotkey('mod+s', () => handleSave(), 'Save edited image');
@@ -87,14 +82,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 	registerHotkey('-', () => { imageEditorStore.state.zoom = Math.max(0.1, imageEditorStore.state.zoom / 1.15); }, 'Zoom out');
 	registerHotkey('0', () => { imageEditorStore.state.zoom = 1; imageEditorStore.state.translateX = 0; imageEditorStore.state.translateY = 0; }, 'Reset zoom');
 
-	onMount(() => {
-		imageEditorStore.reset();
-		window.addEventListener('keydown', handleKeyDown);
-
-		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
-		};
-	});
+	// Note: keydown listener is registered in the second onMount below alongside store setup.
+	// The duplicate onMount block was removed to prevent double-registration.
 
 	$effect(() => {
 		if (activeState === lastActiveToolState) {
@@ -108,15 +97,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 		lastActiveToolState = activeState;
 	});
 
-	$effect(() => {
-		const src = initialImageSrc;
-		const file = imageFile;
-		if (src !== lastLoadedSrc || file !== lastLoadedFile) {
-			initialImageLoaded = false;
-			selectedImage = '';
-		}
-	});
-
 	// Cleanup effect for selected image
 	$effect(() => {
 		return () => {
@@ -126,97 +106,138 @@ Comprehensive image editing interface with svelte-canvas integration.
 		};
 	});
 
-	// Load initial image effect
+	// Keep canvas dimensions in sync without re-triggering image decode
+	$effect(() => {
+		if (!containerRef || (containerWidth > 0 && containerHeight > 0)) {
+			return;
+		}
+
+		const sizeSyncTimer = setTimeout(() => {
+			if (containerRef && containerRef.clientWidth > 0) {
+				containerWidth = containerRef.clientWidth;
+				containerHeight = containerRef.clientHeight;
+			}
+		}, 150);
+
+		return () => clearTimeout(sizeSyncTimer);
+	});
+
+	// Load initial image effect — decode must not wait on canvas mount/size
 	$effect(() => {
 		const src = initialImageSrc;
 		const file = imageFile;
 
-		if (src !== lastLoadedSrc || file !== lastLoadedFile) {
-			initialImageLoaded = false;
-		}
-
-		if (!(containerRef && (src || file))) {
+		if (!(src || file)) {
 			return;
 		}
 
-		// Wait for container to have size
-		if (containerWidth === 0 || containerHeight === 0) {
-			const timeoutId = setTimeout(() => {
-				if (containerRef && containerRef.clientWidth > 0) {
-					containerWidth = containerRef.clientWidth;
-					containerHeight = containerRef.clientHeight;
-				}
-			}, 150);
-			return () => clearTimeout(timeoutId);
-		}
+		const loadKey = file
+			? `file:${file.name}:${file.size}:${file.lastModified}`
+			: `src:${src}`;
 
-		if (initialImageLoaded && src === selectedImage && !file) {
+		if (loadKey === lastLoadKey) {
 			return;
 		}
 
-		queueMicrotask(() => {
-			if (src) {
-				selectedImage = src;
-				loadImage(src);
-				lastLoadedSrc = src;
-				lastLoadedFile = null;
-			} else if (file) {
-				const blobUrl = URL.createObjectURL(file);
-				selectedImage = blobUrl;
-				loadImage(blobUrl, file);
-				lastLoadedSrc = '';
-				lastLoadedFile = file;
-			}
-			initialImageLoaded = true;
-		});
+		lastLoadKey = loadKey;
+		selectedImage = '';
+		imageEditorStore.reset();
+		imageEditorStore.setError(null);
+		error = null;
+
+		if (src) {
+			selectedImage = src;
+			loadImage(src);
+		} else if (file) {
+			const blobUrl = URL.createObjectURL(file);
+			selectedImage = blobUrl;
+			loadImage(blobUrl, file);
+		}
 	});
 
-	function loadImage(imageSrc: string, file?: File, retryAttempt = 0) {
+	function finalizeLoadedImage(img: HTMLImageElement, file?: File) {
+		imageEditorStore.setError(null);
+		imageEditorStore.setImageElement(img);
+		if (file) {
+			imageEditorStore.setFile(file);
+		}
+
+		const measuredWidth = containerRef?.clientWidth ?? containerWidth;
+		const measuredHeight = containerRef?.clientHeight ?? containerHeight;
+		const isMobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+		const widthFitRatio = isMobileViewport ? 0.9 : 0.82;
+		const heightFitRatio = isMobileViewport ? 0.84 : 0.82;
+
+		if (measuredWidth > 0 && measuredHeight > 0 && img.width > 0 && img.height > 0) {
+			const scaleX = (measuredWidth * widthFitRatio) / img.width;
+			const scaleY = (measuredHeight * heightFitRatio) / img.height;
+			const fitScale = Math.min(scaleX, scaleY);
+			const isPortraitViewport = measuredHeight > measuredWidth * 1.08;
+			const mobileFitBoost = isMobileViewport ? 1.02 : 1;
+			const portraitBoost = isPortraitViewport ? 1.04 : 1;
+			imageEditorStore.state.zoom = Math.min(5, Math.max(0.1, fitScale * mobileFitBoost * portraitBoost));
+		} else {
+			imageEditorStore.state.zoom = 1;
+		}
+
+		imageEditorStore.state.translateX = 0;
+		imageEditorStore.state.translateY = 0;
+
+		try {
+			imageEditorStore.takeSnapshot();
+		} catch (snapshotErr) {
+			console.warn('[ImageEditor] takeSnapshot failed:', snapshotErr);
+		}
+		isProcessing = false;
+	}
+
+	function loadImage(imageSrc: string, file?: File, retryAttempt = 0, activeGeneration?: number) {
 		let cleanedSrc = imageSrc;
 		// Handle duplicate /files/ paths correctly, allowing dynamic paths via regex
 		cleanedSrc = cleanedSrc.replace(/(?:\/files)+\//g, '/files/');
 
+		const generation = activeGeneration ?? ++loadGeneration;
 		isProcessing = true;
 		error = null;
 
 		const img = new Image();
-		img.crossOrigin = 'anonymous';
+		try {
+			const resolved = new URL(cleanedSrc, window.location.href);
+			if (resolved.origin !== window.location.origin) {
+				img.crossOrigin = 'anonymous';
+			}
+		} catch {
+			// Relative or blob URLs — same-origin, no CORS attribute needed
+		}
+
+		const safetyTimer = setTimeout(() => {
+			if (generation !== loadGeneration) return;
+			if (isProcessing) {
+				console.warn('[ImageEditor] loadImage safety timeout triggered — forcing isProcessing=false');
+				isProcessing = false;
+			}
+		}, 15_000);
 
 		img.onerror = () => {
+			if (generation !== loadGeneration) return;
+			clearTimeout(safetyTimer);
 			if (retryAttempt < 3) {
-				setTimeout(() => loadImage(imageSrc, file, retryAttempt + 1), 1000);
+				setTimeout(() => loadImage(imageSrc, file, retryAttempt + 1, generation), 1000);
 			} else {
-				error = 'Failed to load image after 3 attempts';
+				const message = 'Failed to load image after 3 attempts';
+				error = message;
+				imageEditorStore.setError(message);
 				isProcessing = false;
 			}
 		};
 
 		img.onload = () => {
-			imageEditorStore.setImageElement(img);
-			if (file) {
-				imageEditorStore.setFile(file);
-			}
-
-			// Initial fit
-			const containerWidth = containerRef?.clientWidth;
-			const containerHeight = containerRef?.clientHeight;
-			const isMobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
-			const widthFitRatio = isMobileViewport ? 0.9 : 0.82;
-			const heightFitRatio = isMobileViewport ? 0.84 : 0.82;
-			const scaleX = (containerWidth! * widthFitRatio) / img.width;
-			const scaleY = (containerHeight! * heightFitRatio) / img.height;
-			const fitScale = Math.min(scaleX, scaleY);
-			const isPortraitViewport = containerHeight! > containerWidth! * 1.08;
-			const mobileFitBoost = isMobileViewport ? 1.02 : 1;
-			const portraitBoost = isPortraitViewport ? 1.04 : 1;
-			imageEditorStore.state.zoom = Math.min(5, Math.max(0.1, fitScale * mobileFitBoost * portraitBoost));
-			imageEditorStore.state.translateX = 0;
-			imageEditorStore.state.translateY = 0;
-
-			imageEditorStore.takeSnapshot();
-			isProcessing = false;
+			if (generation !== loadGeneration) return;
+			clearTimeout(safetyTimer);
+			finalizeLoadedImage(img, file);
 		};
 
+		// Assign handlers before src — cached images can complete synchronously
 		img.src = cleanedSrc;
 	}
 
@@ -318,11 +339,16 @@ Comprehensive image editing interface with svelte-canvas integration.
 	}
 
 	onMount(() => {
-		imageEditorStore.reset();
+		// NOTE: imageEditorStore.reset() is intentionally omitted here.
+		// The parent modal already resets the store before mounting this component
+		// via a $effect. A duplicate reset here races with the image-load $effect
+		// and would clear imageElement just after it was set, causing isInitializing
+		// to never become false in the modal overlay.
 		window.addEventListener('keydown', handleKeyDown);
 	});
 
 	onDestroy(() => {
+		loadGeneration++;
 		window.removeEventListener('keydown', handleKeyDown);
 		const toolId = imageEditorStore.state.activeState || lastActiveToolState;
 		if (toolId) {

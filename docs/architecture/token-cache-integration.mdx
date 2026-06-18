@@ -57,7 +57,7 @@ When `handleTokenResolution` middleware processes a response, it replaces tokens
 
 The `handleTokenResolution` middleware is placed **after** `handleAuthorization` and **before** `addSecurityHeaders`.
 
-````typescript
+```typescript
 // src/hooks.server.ts
 export const handle = sequence(
   // ...
@@ -66,14 +66,13 @@ export const handle = sequence(
   handleTokenResolution, // Resolves tokens using fresh context
   addSecurityHeaders, // CSP & Security
 );
-```text
+```
 
 ## 4. Performance Considerations
 
 - **Streaming**: The middleware clones the response to read the body. For very large responses, this doubles memory usage for that request.
 - **Recursion Limit**: Token resolution has a depth limit (default 10) to prevent infinite loops.
 - **Lazy Loading**: The relation engine uses dynamic imports to avoid increasing the initial bundle size.
-````
 
 ---
 

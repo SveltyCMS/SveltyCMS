@@ -25,7 +25,7 @@ The login system integrates with SveltyCMS's **centralized state management** (`
 
 The login flow leverages the existing state management system for optimal performance:
 
-````typescript
+```typescript
 // Check system state first - avoid unnecessary DB queries
 const { getSystemState, isServiceHealthy } = await import("@src/stores/system");
 const systemState = getSystemState();
@@ -40,7 +40,7 @@ if (systemState.overallState === "FAILED") {
 if (!isServiceHealthy("database")) {
   return showDatabaseError(dbStatus.message);
 }
-```text
+```
 
 **Benefits:**
 
@@ -52,7 +52,7 @@ if (!isServiceHealthy("database")) {
 
 After checking state management, a lightweight database verification confirms setup completion:
 
-```typescript
+```
 async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: string }> {
   // Step 1: Check state management (instant, cached)
   const systemState = getSystemState();
@@ -71,7 +71,7 @@ async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: strin
 
   return { healthy: true };
 }
-```text
+```
 
 **Why this approach?**
 
@@ -81,13 +81,13 @@ async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: strin
 
 ### 3. Reduced Timeout for Auth Service
 
-```typescript
+```
 // Before: 30 seconds timeout
 async function waitForAuthService(maxWaitMs: number = 30000);
 
 // After: 10 seconds timeout
 async function waitForAuthService(maxWaitMs: number = 10000);
-```text
+```
 
 **Rationale:**
 
@@ -97,7 +97,7 @@ async function waitForAuthService(maxWaitMs: number = 10000);
 
 ## Error Flow
 
-```mermaid
+```
 graph TD
     A[User visits /login] --> B{Check System State}
     B -->|FAILED| C[Show Error Dialog Immediately]
@@ -111,13 +111,13 @@ graph TD
     H -->|Reset Setup| I[Delete config/private.ts]
     H -->|Refresh| J[Retry Health Check]
     I --> K[Redirect to /setup]
-```text
+```
 
 ## User-Facing Error Dialog
 
 When database issues are detected, users see a comprehensive error dialog:
 
-```svelte
+```
 {#if data.showDatabaseError}
 	<div class="error-dialog">
 		<h2>Database Issue Detected</h2>
@@ -140,7 +140,7 @@ When database issues are detected, users see a comprehensive error dialog:
 		<button onclick={refresh}>Refresh Page</button>
 	</div>
 {/if}
-```text
+```
 
 ## Recovery Options
 
@@ -173,7 +173,7 @@ When configuration is corrupted or database was manually deleted:
 
 **Implementation:**
 
-```typescript
+```
 // In login/+page.server.ts — form action, not standalone endpoint
 resetSetup: async ({ locals }) => {
   // Security check
@@ -191,7 +191,7 @@ resetSetup: async ({ locals }) => {
 
   return { success: true, message: "Setup has been reset." };
 };
-```text
+```
 
 ## Performance Metrics
 
@@ -211,7 +211,7 @@ resetSetup: async ({ locals }) => {
 
 State management tracks these metrics automatically:
 
-```typescript
+```
 const systemState = getSystemState();
 
 // Check database service metrics
@@ -222,19 +222,19 @@ console.log({
   lastFailureAt: dbMetrics.lastFailureAt,
   uptimePercentage: dbMetrics.uptimePercentage,
 });
-```text
+```
 
 ## Testing
 
 ### Playwright Test Enhancement
 
-```typescript
+```
 // Wait for page load before checking for database form
 await page.waitForLoadState("networkidle");
 
 // Extended timeout for database configuration to appear
 await expect(page.getByRole("heading", { name: /database/i })).toBeVisible({ timeout: 30000 });
-```text
+```
 
 **Why `networkidle`?**
 
@@ -293,4 +293,3 @@ await expect(page.getByRole("heading", { name: /database/i })).toBeVisible({ tim
 - [ ] Detailed error logs download from UI (planned)
 
 ---
-````

@@ -2,11 +2,21 @@
  * @file src/utils/security-constants.ts
  * @description Standard security headers for SveltyCMS.
  * Extracted to a standalone file to prevent circular dependencies in the middleware pipeline.
+ *
+ * Page routes use SvelteKit nonce CSP (vite.config.ts `csp.mode: "nonce"`).
+ * Do NOT set Content-Security-Policy in BASE_HEADERS — middleware must not clobber it.
  */
 
+/** Strict CSP for JSON/API responses (no inline scripts). */
+export const API_CONTENT_SECURITY_POLICY =
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; media-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
+
+/** Required for /files/ assets to load under COEP require-corp admin pages. */
+export const MEDIA_RESOURCE_HEADERS: Record<string, string> = {
+  "Cross-Origin-Resource-Policy": "same-origin",
+};
+
 export const BASE_HEADERS: Record<string, string> = {
-  "Content-Security-Policy":
-    "default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline' https://*.iconify.design; img-src 'self' data: blob: https://*.iconify.design https://*.simplesvg.com https://*.unisvg.com https://placehold.co https://api.qrserver.com https://github.com https://raw.githubusercontent.com; font-src 'self' data:; connect-src 'self' ws: wss: https://*.iconify.design https://*.simplesvg.com https://*.unisvg.com https://code.iconify.design https://raw.githubusercontent.com; media-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",

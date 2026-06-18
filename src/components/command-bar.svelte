@@ -1,5 +1,6 @@
 <script lang="ts">
-import { globalSearchIndex } from "@utils/global-search-index";
+	import Button from '@components/ui/button.svelte';
+	import { globalSearchIndex } from "@utils/global-search-index";
 import { ui } from "@src/stores/ui-store.svelte";
 import { onMount } from "svelte";
 import { goto } from "$app/navigation";
@@ -187,13 +188,9 @@ onMount(() => {
 				<div class="text-lg font-medium dark:text-white">No results found</div>
 				<p class="text-sm text-surface-400">Try searching for collections, media, or settings.</p>
 
-				<button
-					id="ai-assistant-fallback"
-					class="mt-6 rounded bg-tertiary-500 px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-105 active:scale-95"
-					onclick={() => {/* AI Action Fallback */}}
-				>
+				<Button variant="tertiary" size="sm" onclick={() => {/* AI Action Fallback */}} class="mt-6 dark:">
 					Ask AI Assistant
-				</button>
+				</Button>
 			</div>
 		{/if}
 	</div>

@@ -46,12 +46,12 @@ System Administrators can generate a full JSON export of all data associated wit
   - Audit Log History (All actions performed by this user)
   - Metadata (Export timestamp)
 
-````typescript
+```typescript
 import { gdprService } from "@src/services/security/gdpr-service";
 
 // Generates a JSON export of all user data
 const userData = await gdprService.exportUserData(userId);
-```text
+```
 
 ### 2. Right to Erasure (Anonymization)
 
@@ -66,12 +66,12 @@ Permanently remove a user's Personal Identifiable Information (PII) without brea
   5.  **Content:** Posts/Entries remain remaining but authorship is transferred to a system "Ghost User" or anonymized, preserving content integrity while removing PII.
   6.  **Logs:** Audit logs are cryptographically immutable but the actor's mapping is anonymized.
 
-```typescript
+```
 import { gdprService } from "@src/services/security/gdpr-service";
 
 // Anonymizes user and logs the erasure request
 await gdprService.anonymizeUser(userId, "User initiated deletion");
-```text
+```
 
 ## Privacy & Cookies
 
@@ -105,7 +105,6 @@ How SveltyCMS compares to other platforms for GDPR implementation:
 - **Drupal** has strong module support but requires heavy configuration and maintenance.
 - **Strapi/Contentful** force developers to write custom scripts to find and delete user data across relations.
 - **SveltyCMS** handles this via a single service call (`gdprService.anonymizeUser`) that automatically handles the "Referential Integrity" of keeping content while removing the user.
-````
 
 ---
 

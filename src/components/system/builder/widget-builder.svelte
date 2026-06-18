@@ -23,6 +23,7 @@
 - AddWidget: Component for adding widgets
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { FieldInstance } from '@content/types';
 	import { WidgetBuilder_AddColectionField } from '@src/paraglide/messages';
 	import AddWidget from './add-widget.svelte';
@@ -46,9 +47,9 @@
 	{#if addField}
 		<AddWidget bind:fields bind:addField />
 	{:else}
-		<button class="preset-filled-tertiary-500 btn mb-4 mt-1 dark:preset-filled-primary-500" onclick={toggleAddField}>
+		<Button variant="tertiary" onclick={toggleAddField} class="mb-4 mt-1 dark:">
 			{WidgetBuilder_AddColectionField()}
-		</button>
+		</Button>
 		<WidgetFields {fields} onFieldsUpdate={updateFields} />
 	{/if}
 </div>

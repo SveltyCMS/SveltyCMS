@@ -22,6 +22,7 @@ Renders a color input with label, helper, and validation
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
@@ -106,14 +107,16 @@ Renders a color input with label, helper, and validation
 			/>
 		</div>
 
-		<button
+		<Button
+			variant="surface"
+			size="sm"
 			type="button"
-			class="p-1 me-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center"
+			class="p-1! me-1"
 			onclick={handleReset}
 			title="Reset to default"
 		>
 			<iconify-icon icon="mdi:refresh" width="18"></iconify-icon>
-		</button>
+		</Button>
 	</div>
 
 	{#if error}

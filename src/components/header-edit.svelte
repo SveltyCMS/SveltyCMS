@@ -28,6 +28,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import type { CollectionEntry } from '@src/content/types';
@@ -282,13 +283,12 @@
 >
 	<div class="flex items-center gap-2 flex-1 min-w-0">
 		{#if ui.state.leftSidebar === 'hidden'}
-			<button
+			<Button variant="outline"
 				onclick={() => ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed')}
 				aria-label="Toggle sidebar"
-				class="btn-icon preset-outlined-surface-500 shrink-0"
-			>
+			 class="p-0! min-w-0 shrink-0">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 
 		<div class="shrink-0 flex items-center ms-2">
@@ -311,43 +311,39 @@
 			{#if showMore}
 				<TranslationStatus />
 				{#if ['edit', 'create'].includes(currentMode)}
-					<button
+					<Button variant="tertiary"
 						onclick={save}
 						disabled={!isFormValid || !canWrite}
-						class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500"
-						class:opacity-50={!isFormValid || !canWrite}
 						aria-label="Save"
-					>
+					 class="p-0! min-w-0 dark:">
 						<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
-					</button>
+					</Button>
 				{/if}
-				<button onclick={() => (showMore = false)} class="btn-icon preset-filled-tertiary-500" aria-label="Show less">
+				<Button variant="tertiary" onclick={() => (showMore = false)} aria-label="Show less" class="p-0! min-w-0">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
-				</button>
+				</Button>
 			{:else}
 				<TranslationStatus />
 
 				{#if ['edit', 'create'].includes(currentMode)}
 					{#if showNextButton}
-						<button onclick={next} class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500" aria-label="Next">
+						<Button variant="tertiary" onclick={next} aria-label="Next" class="p-0! min-w-0 dark:">
 							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
-						</button>
+						</Button>
 					{:else}
-						<button
+						<Button variant="tertiary"
 							onclick={save}
 							disabled={!isFormValid || !canWrite}
-							class="btn-icon preset-filled-tertiary-500 dark:preset-filled-primary-500"
-							class:opacity-50={!isFormValid || !canWrite}
 							aria-label="Save"
-						>
+						 class="p-0! min-w-0 dark:">
 							<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
-						</button>
+						</Button>
 					{/if}
 				{/if}
 
-				<button onclick={() => (showMore = true)} class="btn-icon preset-outlined-surface-500" aria-label="Show more">
+				<Button variant="outline" onclick={() => (showMore = true)} aria-label="Show more" class="p-0! min-w-0">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 		{:else}
 			<!-- Desktop: Translation status visible by default -->
@@ -355,9 +351,9 @@
 		{/if}
 
 		{#if !app.headerActionButton}
-			<button onclick={cancel} class="btn-icon preset-outlined-surface-500" aria-label="Cancel">
+			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="p-0! min-w-0">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 </header>
@@ -375,24 +371,24 @@
 
 			<!-- Delete -->
 			<div class="flex flex-col items-center">
-				<button onclick={openDelete} disabled={!canDelete} class="btn-icon gradient-error" aria-label="Delete">
+				<Button variant="ghost" onclick={openDelete} disabled={!canDelete} aria-label="Delete" class="p-0! min-w-0 gradient-error">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
-				</button>
+				</Button>
 			</div>
 
 			{#if ['edit', 'create'].includes(currentMode)}
 				<!-- Schedule -->
 				<div class="flex flex-col items-center">
-					<button onclick={openSchedule} disabled={!canWrite} class="btn-icon gradient-pink" aria-label="Schedule">
+					<Button variant="ghost" onclick={openSchedule} disabled={!canWrite} aria-label="Schedule" class="p-0! min-w-0 gradient-pink">
 						<iconify-icon icon="bi:clock" width="24"></iconify-icon>
-					</button>
+					</Button>
 				</div>
 
 				<!-- Clone -->
 				<div class="flex flex-col items-center">
-					<button onclick={openClone} disabled={!canWrite || !canCreate} class="btn-icon gradient-secondary" aria-label="Clone">
+					<Button variant="ghost" onclick={openClone} disabled={!canWrite || !canCreate} aria-label="Clone" class="p-0! min-w-0 gradient-secondary">
 						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>
-					</button>
+					</Button>
 				</div>
 			{/if}
 		</div>

@@ -4,6 +4,8 @@ import type { AIEnrichmentProps } from "./types";
 import Icon from "@iconify/svelte";
 import { logger } from "@utils/logger";
 import { getFieldName } from "@utils/utils";
+	import Button from '@components/ui/button.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 
 let {
 	field,
@@ -90,7 +92,7 @@ async function runEnrichment() {
 			{#if field.required}<span class="text-error-500">*</span>{/if}
 		</label>
 
-		<button>
+		<Button variant="outline">
 			type="button"
 			class="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-all bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-400 disabled:opacity-50 disabled:pointer-events-none"
 			onclick={runEnrichment}
@@ -104,7 +106,7 @@ async function runEnrichment() {
 				<Icon icon="mdi:auto-fix" />
 				Enrich from {field.sourceField || 'source'}
 			{/if}
-		</button>
+		</Button>
 	</div>
 
 	{#if error}
@@ -113,27 +115,29 @@ async function runEnrichment() {
 
 	<div class="relative">
 		{#if field.translated}
-			<textarea
+			<Textarea
 				id={inputId}
 				bind:value={value[contentLanguage]}
-				class="textarea w-full p-2"
+				class="w-full space-y-0"
+				textareaClass="w-full p-2"
 				placeholder="AI will generate content here..."
 				rows={field.action === 'summarize' || field.action === 'seo' ? 4 : 2}
 				aria-invalid={!!error}
 				aria-describedby={error ? errorId : undefined}
 				required={field.required}
-			></textarea>
+			/>
 		{:else}
-			<textarea
+			<Textarea
 				id={inputId}
 				bind:value={value}
-				class="textarea w-full p-2"
+				class="w-full space-y-0"
+				textareaClass="w-full p-2"
 				placeholder="AI will generate content here..."
 				rows={field.action === 'summarize' || field.action === 'seo' ? 4 : 2}
 				aria-invalid={!!error}
 				aria-describedby={error ? errorId : undefined}
 				required={field.required}
-			></textarea>
+			/>
 		{/if}
 
 		<div class="absolute bottom-2 end-2 flex items-center gap-1 text-[10px] text-surface-400 select-none pointer-events-none">

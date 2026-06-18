@@ -20,7 +20,7 @@ SveltyCMS features an isomorphic plugin system that runs on both server and clie
 
 ## Architecture Overview
 
-````mermaid
+```mermaid
 graph TB
     subgraph "Plugin System"
         R["Plugin Registry"]
@@ -57,13 +57,13 @@ graph TB
     R --> MG
     R --> SR --> SB
     S --> R
-```text
+```
 
 ## Quick Start: Minimal Plugin
 
 Create a new directory in `src/plugins/my-plugin/` and define your plugin in `index.ts`:
 
-```typescript
+```
 // src/plugins/my-plugin/index.ts
 import type { Plugin } from "@src/plugins/types";
 
@@ -77,13 +77,13 @@ export const myPlugin: Plugin = {
     icon: "mdi:star",
   },
 };
-```text
+```
 
 Because SveltyCMS features **System Discovery & Autoloading**, there is no need to manually register or import your plugin inside any central files. Simply saving your plugin code inside the `src/plugins/` directory is enough for the CMS to automatically scan, register, and boot your plugin.
 
 ## Plugin Interface
 
-```typescript
+```
 interface Plugin {
   metadata: PluginMetadata; // Required: id, name, version, enabled
   config?: PluginConfig; // Public/private settings
@@ -93,13 +93,13 @@ interface Plugin {
   migrations?: PluginMigration[]; // DB schema migrations
   enabledCollections?: string[]; // Restrict to specific collections
 }
-```text
+```
 
 ## Lifecycle Hooks
 
 Hooks intercept CRUD operations with a sandboxed context:
 
-```typescript
+```
 hooks: {
   beforeSave: async (context, collection, data) => {
     // Validate, transform, or enrich data before save
@@ -127,13 +127,13 @@ hooks: {
     // Cleanup related plugin data
   }
 }
-```text
+```
 
 ## SSR Data Enrichment
 
 Add custom data to entry lists during server-side rendering:
 
-```typescript
+```
 ssrHook: async (context, entries) => {
   // Return enriched data for each entry
   return entries.map((entry) => ({
@@ -142,7 +142,7 @@ ssrHook: async (context, entries) => {
     data: { score: Math.random() * 100 },
   }));
 };
-```text
+```
 
 ## UI Injection Zones
 
@@ -156,7 +156,7 @@ Plugins can inject UI components into predefined zones:
 | `config`             | Settings page  | Plugin configuration |
 | `entry_list_actions` | Entry list     | Custom actions       |
 
-```typescript
+```
 // Plugin Slot definition
 export interface PluginSlot {
   component: () => Promise<any>; // Lazy loaded Svelte component
@@ -167,13 +167,13 @@ export interface PluginSlot {
   props?: Record<string, any>;
   zone: InjectionZone;
 }
-```text
+```
 
 ## Database Migrations
 
 Plugins create their own collections via migrations:
 
-```typescript
+```
 migrations: [
   {
     id: "001_create_results",
@@ -189,7 +189,7 @@ migrations: [
     },
   },
 ];
-```text
+```
 
 ## Security Boundaries (Sandbox)
 
@@ -207,13 +207,13 @@ All plugin hooks execute within a sandboxed context (`src/plugins/sandbox.ts`):
 
 Plugins can be enabled/disabled per tenant:
 
-```typescript
+```
 // Toggle via registry
 await pluginRegistry.togglePlugin("my-plugin", true, tenantId, userId);
 
 // Check state
 const state = await pluginRegistry.getPluginState("my-plugin", tenantId);
-```text
+```
 
 ## Existing Plugins
 
@@ -232,7 +232,6 @@ const state = await pluginRegistry.getPluginState("my-plugin", tenantId);
 4. **Use migrations** for DB schema — don't create collections in hooks
 5. **Keep hooks fast** — stay under the 5s timeout
 6. **Test independently** — mock the `PluginContext` for unit tests
-````
 
 ---
 

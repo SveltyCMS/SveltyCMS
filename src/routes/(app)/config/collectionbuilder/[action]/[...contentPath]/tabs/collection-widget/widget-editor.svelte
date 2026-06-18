@@ -20,6 +20,7 @@ import type { Component } from "svelte";
 import Default from "./tabs-fields/default.svelte";
 import Permission from "./tabs-fields/permission.svelte";
 import Specific from "./tabs-fields/specific.svelte";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	onCancel: () => void;
@@ -150,18 +151,18 @@ function handleDelete() {
 		</div>
 
 		<div class="flex items-center justify-between border-t border-surface-200 p-4">
-			<button type="button" onclick={handleDelete} class="preset-outlined-error-500 btn">
+			<Button variant="error" type="button" onclick={handleDelete}>
 				<iconify-icon icon="mdi:delete" width={24}></iconify-icon>
 				<span>{button_delete()}</span>
-			</button>
+			</Button>
 
 			<div class="flex gap-2">
-				<button type="button" onclick={handleBack} class="preset-outlined-secondary-500 btn">
+				<Button variant="outline" type="button" onclick={handleBack}>
 					{currentStep === 0 ? button_cancel() : button_previous()}
-				</button>
-				<button type="button" onclick={handleNext} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">
+				</Button>
+				<Button variant="tertiary" type="button" onclick={handleNext} class="dark:">
 					{currentStep === steps.length - 1 ? button_save() : button_next()}
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>

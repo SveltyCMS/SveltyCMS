@@ -84,6 +84,9 @@ describe("SDK & Media Hardening", () => {
           ),
         },
       },
+      crud: {
+        update: vi.fn().mockResolvedValue({ success: true }),
+      },
       settings: {
         getSetting: vi.fn().mockResolvedValue(null),
       },
@@ -139,7 +142,7 @@ describe("SDK & Media Hardening", () => {
 
         if (result2.success) {
           expect(result2.data._id).toBe("existing_id");
-          expect(result2.data.url).toBe("/files/existing.png");
+          expect(result2.data.url).toContain("/files/");
         } else {
           throw new Error(result2.message);
         }

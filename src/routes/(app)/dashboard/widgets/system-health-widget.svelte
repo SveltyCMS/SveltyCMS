@@ -14,6 +14,7 @@ export const widgetMeta = {
 </script>
 
 <script lang="ts">
+	import Badge from '@components/ui/badge.svelte';
 	import type { WidgetSize } from '@src/content/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import BaseWidget from '../base-widget.svelte';
@@ -257,12 +258,14 @@ export const widgetMeta = {
 										{/if}
 
 										<div class="flex flex-col items-end gap-0.5">
-											<span class="badge text-[10px] px-2 py-0.5 font-medium rounded-full
-												{service.status === 'healthy' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
-												 service.status === 'unhealthy' ? 'bg-red-500/10 text-red-600 dark:text-red-400' :
-												 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}">
+											<Badge
+												size="sm"
+												variant={service.status === 'healthy' ? 'success' : service.status === 'unhealthy' ? 'error' : 'warning'}
+												preset="tonal"
+												class="font-medium"
+											>
 												{service.status}
-											</span>
+											</Badge>
 
 											{#if latency !== undefined}
 												<span class="text-[9px] font-mono text-surface-500 dark:text-surface-400">

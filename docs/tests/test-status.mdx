@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-15"
+updated: "2026-06-19"
 tags:
   - "testing"
   - "status"
@@ -47,14 +47,21 @@ tags:
 
 ### 2. Playwright E2E Tests (`tests/e2e/`)
 
-| Status                   | Count | Files                                                                                   |
-| ------------------------ | ----- | --------------------------------------------------------------------------------------- |
-| 🟢 **In CI**             | 6     | `setup-wizard`, `auth.setup`, `login`, `account-smoke`, `content-smoke`, `system-smoke` |
-| 🟢 **Pass-ready**        | 3     | `accessibility`, `language`, `role-based-access`                                        |
-| 🟡 **Needs minor fixes** | 3     | `collection-builder`, `master-behavioral-journey`, `permission-change`                  |
-| 🔴 **Needs env/config**  | 5     | `collection`, `oauth-signup-firstuser`, `signupfirstuser`, `user-crud`, `user`          |
+| Status                   | Count | Notes                                                                            |
+| ------------------------ | ----- | -------------------------------------------------------------------------------- |
+| 🟢 **In CI**             | 29    | 29 spec files across 17 `e2e-app` projects + `wizard` + `auth-setup` jobs        |
+| 🟢 **Visual regression** | 7     | Screenshot baselines in `admin-theme/visual-regression.spec.ts`                  |
+| 🟡 **Fragile selectors** | 4     | `collection.spec.ts`, `builder.spec.ts`, `journey.spec.ts`, `management.spec.ts` |
 
-**Selectors hardened across all 17 files**:
+**CI matrix projects** (`e2e-app` job): `signup`, `content`, `system`, `a11y`, `rbac`, `language`, `branding`, `visual-regression`, `users`, `builder`, `permissions`, `firstuser`, `config-routes`, `admin`, `dashboard`, `appearance`, `media`
+
+**Config & admin specs** (wired June 2026): `config/access-management`, `config/webhooks`, `config/automations`, `config/data-management`, `config/operations`, `admin/tenants`
+
+**New specs (June 2026)**: `dashboard/dashboard.spec.ts`, `config/appearance.spec.ts`, `config/design-system.spec.ts`, `mediagallery/mediagallery.spec.ts`, `mediagallery/image-editor.spec.ts`
+
+**Builder hardening**: `data-testid` on collection builder + widget editor; studio stepper wired on all breakpoints
+
+**Selectors hardened across all 29 spec files**:
 
 | Hardening        | Old Pattern               | New Pattern                             |
 | ---------------- | ------------------------- | --------------------------------------- |
@@ -84,26 +91,25 @@ tags:
 
 ### 4. CI Pipeline Gates
 
-| Gate              | Runtime    | What it catches                                  |
-| ----------------- | ---------- | ------------------------------------------------ |
-| Bootstrap         | ~30s       | Dep install, codegen                             |
-| Lint + Type Check | ~40s       | oxlint, svelte-check, tsc                        |
-| Unit Tests        | ~12s       | 1,114 Vitest specs                               |
-| Build             | ~30s       | Production build integrity                       |
-| DB Matrix (×4)    | ~3min each | SQLite, MongoDB, MariaDB, PostgreSQL integration |
-| E2E Wizard        | ~30s       | Setup wizard flow                                |
-| E2E Auth          | ~20s       | Login + session creation                         |
-| E2E App (×3)      | ~15s each  | Signup, content, system smoke                    |
+| Gate              | Runtime    | What it catches                                   |
+| ----------------- | ---------- | ------------------------------------------------- |
+| Bootstrap         | ~30s       | Dep install, codegen                              |
+| Lint + Type Check | ~40s       | oxlint, svelte-check, tsc                         |
+| Unit Tests        | ~12s       | 1,114 Vitest specs                                |
+| Build             | ~30s       | Production build integrity                        |
+| DB Matrix (×4)    | ~3min each | SQLite, MongoDB, MariaDB, PostgreSQL integration  |
+| E2E Wizard        | ~30s       | Setup wizard flow                                 |
+| E2E Auth          | ~20s       | Login + session creation                          |
+| E2E App (×17)     | ~15s each  | Full admin surface (signup through media gallery) |
 
 ### 5. Gaps — What's NOT Tested
 
 | Gap                                     | Risk                                                                                         | Priority  |
 | --------------------------------------- | -------------------------------------------------------------------------------------------- | --------- |
-| **11 E2E specs not in CI**              | Silent regressions in collection builder, RBAC, language, OAuth                              | 🔴 High   |
-| **Media upload E2E**                    | No browser test for file upload, image editor, focal point                                   | 🟡 Medium |
+| **Image editor save E2E**               | Editor open + crop/focal tools covered; manipulate save not browser-tested                   | 🟢 Low    |
 | **GraphQL E2E**                         | Only integration-tested; no browser-level GQL query test                                     | 🟡 Medium |
 | **SSO/OAuth integration**               | Mock-only test; no real IdP flow validation                                                  | 🟡 Medium |
-| **Visual regression**                   | No screenshot diffing; CSS breakage undetected until manual review                           | 🟡 Medium |
+| **Dashboard drag-reorder E2E**          | Widget grid smoke covered; drag-and-drop reorder not browser-tested                          | 🟢 Low    |
 | **Performance regression**              | Benchmarks gated to `main` only; no per-PR perf diff                                         | 🟡 Medium |
 | **Plugin/extension E2E**                | Stripe, cookie-consent, editable-website untested at browser level                           | 🟢 Low    |
 | **Mobile viewport**                     | All tests run Desktop Chrome only                                                            | 🟢 Low    |
@@ -112,8 +118,8 @@ tags:
 
 ### 6. Recommended Next Actions
 
-1. **Wire pass-ready E2E tests into CI** — add `accessibility`, `language`, `role-based-access` as new Playwright projects with `dependencies: ["auth-setup"]`
-2. **Fix `user.spec.ts` URL assertion** — replace `toHaveURL("/")` with `not.toHaveURL(/login/)`
-3. **Add `data-testid` attributes** to 10-15 critical components (login form, collection builder, dashboard widgets) for bulletproof selectors
-4. **Add visual regression** via Playwright's `toHaveScreenshot()` on 5 key pages (login, dashboard, collection builder, media gallery, settings)
+1. **Harden builder selectors** — add `data-testid` to collection builder critical paths (`builder.spec.ts`, `journey.spec.ts`)
+2. **Image editor save E2E** — save via `/api/media/manipulate` after crop
+3. **Visual regression baseline** — run `bun x playwright test --project=visual-regression --update-snapshots` in CI or after `bun run build && bun run preview` for `design-system.png`
+4. **Dashboard drag-reorder E2E** — keyboard/grid reorder regression test
 5. **Enable benchmark gate on PR** — add `run-benchmarks` label auto-detection for branches touching `src/databases/` or `src/content/`

@@ -396,21 +396,21 @@ Registration attempts are rate-limited to prevent abuse:
 
 ### Registration Endpoint
 
-````http
+```http
 POST /login?/signUp
 Content-Type: application/x-www-form-urlencoded
 
 username=johndoe&email=john@example.com&password=SecurePass123&confirmPassword=SecurePass123&token=invite_token_here
-```text
+```
 
 ### OAuth Registration
 
-```http
+```
 POST /login?/signInOAuth
 Content-Type: application/x-www-form-urlencoded
 
 token=invite_token_here
-```text
+```
 
 ## Related Documentation
 
@@ -422,4 +422,3 @@ token=invite_token_here
 ---
 
 **Last Updated**: October 5, 2025
-````

@@ -9,6 +9,9 @@ Features:
 - Tag Management
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Modal from '@components/ui/modal.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/media-models';
@@ -213,37 +216,19 @@ Features:
 		show = false;
 	}
 
-	function autofocus(node: HTMLElement) {
-		node.focus();
-	}
 </script>
 
-{#if show && file}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-		role="dialog"
-		aria-modal="true"
-		tabindex="-1"
-		onclick={(e) => {
-			if (e.target === e.currentTarget) close();
-		}}
-		onkeydown={(e) => e.key === 'Escape' && close()}
-	>
-		<div class="card w-full max-w-lg p-4 bg-surface-100 dark:bg-surface-800 shadow-xl m-4" role="document">
-			<header class="flex justify-between items-center mb-4">
-				<h3 class="h3 font-bold">Manage Tags</h3>
-				<button class="btn-icon btn-icon-sm" onclick={close} aria-label="Close Modal">
-					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-				</button>
-			</header>
-
+{#if file}
+	{@const activeFile = file}
+	<Modal bind:open={show} title="Manage Tags" size="md" onclose={close}>
+		{#snippet children()}
 			<div class="space-y-4 max-h-[60vh] overflow-y-auto p-1">
 				<!-- File Info Summary -->
 				<div class="flex items-center gap-3 p-2 bg-surface-200 dark:bg-surface-700 rounded">
-					<img src={getImageUrl(file)} alt="Thumbnail" class="w-12 h-12 object-cover rounded bg-black" />
+					<img src={getImageUrl(activeFile)} alt="Thumbnail" class="w-12 h-12 object-cover rounded bg-black" />
 					<div class="text-sm truncate">
-						<div class="font-bold truncate">{file.filename}</div>
-						<div class="opacity-70 text-xs">{file.mimeType}</div>
+						<div class="font-bold truncate">{activeFile.filename}</div>
+						<div class="opacity-70 text-xs">{activeFile.mimeType}</div>
 					</div>
 				</div>
 
@@ -254,41 +239,40 @@ Features:
 							<iconify-icon icon="mdi:robot-excited-outline"></iconify-icon>
 							AI / Pending Tags
 						</span>
-						{#if !file.metadata?.aiTags?.length}
-							<button class="btn btn-sm variant-filled-secondary" onclick={handleAITagging} disabled={isGenerating} aria-label="generate-ai-tags">
+						{#if !activeFile.metadata?.aiTags?.length}
+							<Button variant="outline" onclick={handleAITagging} disabled={isGenerating} aria-label="generate-ai-tags" size="sm">
 								{#if isGenerating}
 									<iconify-icon icon="eos-icons:loading" class="animate-spin"></iconify-icon>
 								{:else}
 									<iconify-icon icon="mdi:magic-staff"></iconify-icon>
 									<span>Generate</span>
 								{/if}
-							</button>
+							</Button>
 						{/if}
 					</div>
 
 					<div class="flex flex-wrap gap-2 mb-3">
-						{#if file.metadata?.aiTags?.length}
-							{#each file.metadata.aiTags as tag, i (tag)}
+						{#if activeFile.metadata?.aiTags?.length}
+							{#each activeFile.metadata.aiTags as tag, i (tag)}
 								{#if editingTag?.type === 'ai' && editingTag.index === i}
-									<input
+									<Input
 										type="text"
-										value={editingTag.value}
-										class="input input-sm w-24 px-1 py-0 text-xs"
-										oninput={(e) => (editingTag!.value = e.currentTarget.value)}
+										bind:value={editingTag.value}
+										inputClass="h-8 w-24 px-1 py-0 text-xs"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') editTag(tag, editingTag!.value, 'ai');
 											if (e.key === 'Escape') editingTag = null;
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'ai')}
-																				use:autofocus
-																				aria-label="edit-ai-tag"
-																			/>
+										autofocus
+										aria-label="edit-ai-tag"
+									/>
 								{:else}
-									<button
-										class="badge variant-filled-secondary flex items-center gap-1 cursor-pointer hover:ring-2 hover:ring-secondary-300"
+									<Button variant="outline"
+										size="sm"
 										onclick={() => (editingTag = { type: 'ai', index: i, value: tag })}
 																			aria-label="edit-ai-tag"
-																		>
+																		 class="flex items-center gap-1 hover:ring-2 hover:ring-secondary-300">
 										{tag}
 										<span
 											role="button"
@@ -302,7 +286,7 @@ Features:
 										>
 											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</span>
-									</button>
+									</Button>
 								{/if}
 							{/each}
 						{:else}
@@ -311,25 +295,26 @@ Features:
 					</div>
 
 					<div class="flex gap-2">
-						<input
-							class="input input-sm flex-1"
+						<Input
 							type="text"
-							placeholder="Add tag manually..."
+							label="Add tag manually..."
 							bind:value={newTagInput}
 							onkeydown={(e) => e.key === 'Enter' && addManualTag()}
+							inputClass="h-8 text-xs"
+							class="flex-1"
 							aria-label="add-tag-manually"
 						/>
-						<button class="btn btn-sm variant-filled-surface" onclick={addManualTag} disabled={!newTagInput.trim()} aria-label="Add Tag">
+						<Button variant="outline" onclick={addManualTag} disabled={!newTagInput.trim()} aria-label="Add Tag" size="sm">
 							<iconify-icon icon="mdi:plus"></iconify-icon>
-						</button>
+						</Button>
 					</div>
 
-					{#if file.metadata?.aiTags?.length}
+					{#if activeFile.metadata?.aiTags?.length}
 						<div class="mt-3 pt-3 border-t border-tertiary-500 dark:border-primary-500/20">
-							<button class="btn btn-sm variant-filled-success w-full" onclick={saveAITags} disabled={isSaving} aria-label="save-all-tags">
+							<Button variant="outline" onclick={saveAITags} disabled={isSaving} aria-label="save-all-tags" size="sm" class="w-full">
 								<iconify-icon icon="mdi:check-all"></iconify-icon>
 								<span>Save All to Media Tags</span>
-							</button>
+							</Button>
 						</div>
 					{/if}
 				</section>
@@ -338,28 +323,27 @@ Features:
 				<section class="p-3 border border-surface-300 dark:border-surface-600 rounded bg-surface-50 dark:bg-surface-900">
 					<div class="mb-2 text-sm font-bold opacity-80">Saved Tags</div>
 					<div class="flex flex-wrap gap-2">
-						{#if file.metadata?.tags?.length}
-							{#each file.metadata.tags as tag, i (tag)}
+						{#if activeFile.metadata?.tags?.length}
+							{#each activeFile.metadata.tags as tag, i (tag)}
 								{#if editingTag?.type === 'user' && editingTag.index === i}
-									<input
+									<Input
 										type="text"
-										value={editingTag.value}
-										class="input input-sm w-24 px-1 py-0 text-xs"
-										oninput={(e) => (editingTag!.value = e.currentTarget.value)}
+										bind:value={editingTag.value}
+										inputClass="h-8 w-24 px-1 py-0 text-xs"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') editTag(tag, editingTag!.value, 'user');
 											if (e.key === 'Escape') editingTag = null;
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'user')}
-																			use:autofocus
-																			aria-label="edit-saved-tag"
-																		/>
+										autofocus
+										aria-label="edit-saved-tag"
+									/>
 								{:else}
-									<button
-										class="badge variant-filled-surface flex items-center gap-1 cursor-pointer hover:ring-2 hover:ring-surface-400"
+									<Button variant="outline"
+										size="sm"
 										onclick={() => (editingTag = { type: 'user', index: i, value: tag })}
 																			aria-label="edit-saved-tag"
-																		>
+																		 class="flex items-center gap-1 hover:ring-2 hover:ring-surface-400">
 										{tag}
 										<span
 											role="button"
@@ -373,7 +357,7 @@ Features:
 										>
 											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</span>
-									</button>
+									</Button>
 								{/if}
 							{/each}
 						{:else}
@@ -382,6 +366,6 @@ Features:
 					</div>
 				</section>
 			</div>
-		</div>
-	</div>
+		{/snippet}
+	</Modal>
 {/if}

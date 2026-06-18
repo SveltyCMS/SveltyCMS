@@ -6,7 +6,7 @@ order: 12
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-01-20"
-updated: "2026-06-09"
+updated: "2026-06-17"
 tags:
   - "testing"
   - "e2e"
@@ -22,7 +22,7 @@ SveltyCMS uses **Playwright** for End-to-End (E2E) testing. Our strategy is opti
 
 1. **Wizard Coverage:** The setup wizard is tested directly in the dedicated `wizard` project so fresh-install flows stay PR-gating.
 2. **Auth Bootstrap:** The `auth-setup` project provisions authenticated state once and persists it for the maintained app smoke projects.
-3. **Maintained Smoke Scope:** PR-gating browser coverage is intentionally focused on `signup`, `content`, and `system`.
+3. **Maintained Smoke Scope:** PR-gating browser coverage includes all 12 E2E projects running in parallel — from auth and accessibility to visual regression, branding, and multi-tenant management.
 4. **Black-Box Safety:** State setup happens through `/api/testing` plus `TEST_API_SECRET`; browser flows still navigate the real app and assert real redirects.
 
 ## Running Tests
@@ -43,13 +43,18 @@ bun x playwright test --project=auth-setup
 bun x playwright test --project=signup
 bun x playwright test --project=content
 bun x playwright test --project=system
+bun x playwright test --project=config-routes
+bun x playwright test --project=admin
+bun x playwright test --project=dashboard
+bun x playwright test --project=appearance
+bun x playwright test --project=media
 ```text
 
 ### 🧠 Smart Testing
 
 We also provide a smart runner for local iteration:
 
-```bash
+```
 bun run scripts/test-smart.ts
 ```text
 
@@ -63,7 +68,7 @@ bun run scripts/test-smart.ts
 
 Avoid repeating the login UI in every spec. Use `loginAsAdmin` from `helpers/auth.ts` for targeted tests, or depend on the `auth-setup` project when a suite should consume persisted browser state.
 
-```typescript
+```
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "./helpers/auth";
 
@@ -91,14 +96,14 @@ For robust tests that don't break when CSS classes change, always use `data-test
 
 **In Svelte Component:**
 
-```svelte
+```
 <button data-testid="signin-submit">Sign In</button>
 <input data-testid="signin-email" />
 ```text
 
 **In Playwright Test:**
 
-```typescript
+```
 await page.getByTestId("signin-email").fill("admin@example.com");
 await page.getByTestId("signin-submit").click();
 ```text
@@ -115,9 +120,20 @@ GitHub Actions runs Playwright in staged jobs:
 
 - **`e2e-wizard`**: validates fresh setup and post-setup redirects against the production build.
 - **`e2e-auth`**: provisions auth state and uploads `tests/e2e/.auth/` as a short-lived artifact.
-- **`e2e-app`**: fans out `signup`, `content`, and `system` smoke projects in parallel.
+- **`e2e-app`**: fans out all 17 projects (signup, content, system, a11y, rbac, language, branding, visual-regression, users, builder, permissions, firstuser, config-routes, admin, dashboard, appearance, media) in parallel.
 
 Failure artifacts include Playwright HTML reports, traces, video, and preview server logs.
+
+### 5. Enterprise Config Route Specs
+
+As of June 2026, the following enterprise smoke tests cover config and admin routes:
+
+- `config/access-management.spec.ts` — Role CRUD, permission matrix
+- `config/webhooks.spec.ts` — Webhook CRUD, delivery logs
+- `config/automations.spec.ts` — Workflow builder
+- `config/data-management.spec.ts` — Importer, sync, trash, redirects
+- `config/operations.spec.ts` — Monitor, queue, extensions, system-settings
+- `admin/tenants.spec.ts` — Multi-tenant management
 
 ## Troubleshooting
 
@@ -143,14 +159,14 @@ This method securely forwards your local port 5173 to the remote server's port 5
 
 1.  **Open an SSH Tunnel** in a separate terminal window:
 
-    ```bash
+    ```
     # Forwards local 5173 -> remote 5173
     ssh -L 5173:localhost:5173 user@your-remote-server.com
     ```
 
 2.  **Run Playwright Locally**:
     By default, `playwright.config.ts` is configured to reuse an existing server on port 5173.
-    ```bash
+    ```
     # Run tests against the tunnel
     PLAYWRIGHT_TEST_BASE_URL=http://localhost:5173 npx playwright test
     ```
@@ -159,7 +175,7 @@ This method securely forwards your local port 5173 to the remote server's port 5
 
 If your remote server is publicly accessible (e.g. `https://dev.example.com` or a specific IP), you can point Playwright directly to it.
 
-```bash
+```
 PLAYWRIGHT_TEST_BASE_URL=https://dev.example.com npx playwright test
 ```text
 

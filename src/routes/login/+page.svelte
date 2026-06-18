@@ -52,9 +52,13 @@ import { getLanguageName } from "@utils/language-utils";
 // Components
 import SignIn from "./components/sign-in.svelte";
 import SignUp from "./components/sign-up.svelte";
+	import Button from '@components/ui/button.svelte';
 
 // Props
 const { data } = $props();
+const loginBranding = $derived(
+	(data as { loginBranding?: import('@utils/theme-merge').LoginBranding }).loginBranding,
+);
 
 // Derive hasAdminUser to make it reactive (fixes state_referenced_locally warning)
 const hasAdminUser = $derived(data.hasAdminUser);
@@ -87,19 +91,20 @@ $effect(() => {
 
 // Background state - mutable for user interactions
 let background = $state("#242728");
+const darkBackground = $derived(loginBranding?.accentColor || "#242728");
 
 // Initialize background based on conditions
 $effect(() => {
 	// Only set initial background, don't override user interactions
 	if (active === undefined && !hasResetParams) {
 		if (data.demoMode) {
-			background = "#242728";
+			background = darkBackground;
 		} else if (publicEnv.SEASONS) {
 			background = "white";
 		} else if (hasAdminUser) {
 			background = "white";
 		} else {
-			background = "#242728";
+			background = darkBackground;
 		}
 	}
 });
@@ -215,12 +220,12 @@ function resetToInitialState() {
 	isTransitioning = true;
 	active = undefined;
 	background = data.demoMode
-		? "#242728"
+		? darkBackground
 		: getPublicSetting("SEASONS")
-			? "#242728"
+			? darkBackground
 			: hasAdminUser
 				? "white"
-				: "#242728";
+				: darkBackground;
 	setTimeout(() => {
 		isTransitioning = false;
 	}, 300);
@@ -241,7 +246,7 @@ function handleSignInClick(event?: Event) {
 		background = "white";
 	} else {
 		active = 1; // Show SignUp for fresh installation
-		background = "#242728";
+		background = darkBackground;
 	}
 
 	setTimeout(() => {
@@ -259,7 +264,7 @@ function handleSignUpClick(event?: Event) {
 	}
 	isTransitioning = true;
 	active = 1;
-	background = "#242728";
+	background = darkBackground;
 	setTimeout(() => {
 		isTransitioning = false;
 	}, 400); // Match CSS transition duration
@@ -274,13 +279,18 @@ function handleSignInPointerEnter() {
 
 function handleSignUpPointerEnter() {
 	if (active === undefined && !data.demoMode && !getPublicSetting("SEASONS")) {
-		background = "#242728";
+		background = darkBackground;
 	}
 }
 </script>
 
 <svelte:head>
 	<meta name="robots" content="noindex, nofollow" />
+	{#if loginBranding?.brandedLogin && loginBranding.customCss}
+		<style>
+			{loginBranding.customCss}
+		</style>
+	{/if}
 </svelte:head>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`} role="main" aria-label="Authentication Page">
@@ -328,7 +338,7 @@ function handleSignUpPointerEnter() {
 
 				{#if data.canReset}
 					<div class="flex gap-4">
-						<button
+						<Button variant="warning"
 							type="button"
 							onclick={async () => {
 								if (confirm(db_error_reset_confirm())) {
@@ -340,12 +350,11 @@ function handleSignUpPointerEnter() {
 										alert('Failed to reset setup: ' + (result.message || 'Unknown error'));
 									}
 								}
-							}}
-							class="preset-filled-warning-500 btn" aria-label={db_error_reset_setup()}
+							}} aria-label={db_error_reset_setup()}
 						>
 							{db_error_reset_setup()}
-						</button>
-						<button type="button" onclick={() => window.location.reload()} class="preset-filled-secondary-500 btn">{db_error_refresh_page()}</button>
+						</Button>
+						<Button variant="secondary" type="button" onclick={() => window.location.reload()}>{db_error_refresh_page()}</Button>
 					</div>
 				{/if}
 			</div>
@@ -359,6 +368,7 @@ function handleSignUpPointerEnter() {
 		onPointerEnter={handleSignInPointerEnter}
 		onBack={resetToInitialState}
 		firstCollectionPath={data.firstCollectionPath || ''}
+		branding={loginBranding}
 	/>
 
 	<SignUp
@@ -371,6 +381,7 @@ function handleSignUpPointerEnter() {
 		onPointerEnter={handleSignUpPointerEnter}
 		onBack={resetToInitialState}
 		firstCollectionPath={data.firstCollectionPath || ''}
+		branding={loginBranding}
 	/>
 
 	{#if active == undefined}
@@ -396,12 +407,23 @@ function handleSignUpPointerEnter() {
 			</div>
 		{/if}
 
-		<!-- CMS Logo -->
+		<!-- CMS Logo / Tenant Branding -->
 		<div
 			class="absolute inset-s-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center transition-[filter] duration-300"
 			style="filter: drop-shadow(0 6px 10px {background === 'white' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.85)'});"
 		>
-			<SveltyCMSLogoFull />
+			{#if loginBranding?.brandedLogin && loginBranding.logoUrl}
+				<img
+					src={loginBranding.logoUrl}
+					alt={loginBranding.siteName}
+					class="h-16 object-contain"
+				/>
+			{:else}
+				<SveltyCMSLogoFull siteName={loginBranding?.siteName} />
+			{/if}
+			{#if loginBranding?.brandedLogin && loginBranding.siteName && loginBranding.siteName !== 'SveltyCMS'}
+				<div class="mt-2 text-center text-xl font-bold text-white drop-shadow-lg">{loginBranding.siteName}</div>
+			{/if}
 		</div>
 
 		<!-- Language Select -->

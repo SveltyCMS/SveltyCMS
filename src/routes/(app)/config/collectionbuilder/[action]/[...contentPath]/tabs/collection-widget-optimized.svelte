@@ -333,25 +333,27 @@ const viewOptions = [
 		{:else}
 			<div class="space-y-6">
 				<!-- Add Bar -->
-				<Card class="p-4 flex flex-wrap items-center gap-2 bg-surface-50/50 dark:bg-surface-900/50 border-dashed">
+				<Card class="p-4 flex flex-wrap items-center gap-2 bg-surface-50 dark:bg-surface-900 border-dashed">
 					<span class="text-xs font-bold text-surface-500 dark:text-surface-50 me-2 uppercase tracking-tight">Quick Add:</span>
 					{#each quickWidgets as qw}
-						<Button>
+						<Button
 							variant="outline"
 							size="sm"
 							onclick={() => addQuickWidget(qw.key)}
 							leadingIcon={qw.icon}
 							class="text-[11px] h-8"
+							data-testid="quick-add-{qw.key.toLowerCase()}"
 						>
 							{qw.label}
 						</Button>
 					{/each}
-					<Button>
+					<Button
 						variant="primary"
 						size="sm"
 						onclick={addField}
 						leadingIcon="mdi:plus"
 						class="ml-auto h-8"
+						data-testid="add-field-button"
 					>
 						More Widgets
 					</Button>
@@ -363,6 +365,7 @@ const viewOptions = [
 					onconsider={handleDndConsider}
 					onfinalize={handleDndFinalize}
 					class="space-y-3 min-h-50"
+					data-testid="widget-fields-list"
 				>
 					{#each items as item (item._dragId)}
 						<div animate:flip={{ duration: flipDurationMs }} class="group relative">

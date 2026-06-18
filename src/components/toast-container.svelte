@@ -95,7 +95,7 @@
 					loading: 'bg-slate-600 text-white border-slate-400',
 			  }
 			: {
-					success: 'bg-tertiary-500 dark:bg-primary-500 text-white',
+					success: 'bg-primary-500 text-white',
 					error: 'bg-error-500 text-white',
 					warning: 'bg-warning-500 text-white',
 					info: 'bg-info-500 text-white',

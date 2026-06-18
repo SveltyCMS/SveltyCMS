@@ -64,7 +64,7 @@ SveltyCMS uses a two-algorithm approach for maximum security:
 
 **Configuration:**
 
-````typescript
+```typescript
 {
   memory: 65536,      // 64 MB RAM per hash
   time: 3,            // 3 iterations
@@ -72,7 +72,7 @@ SveltyCMS uses a two-algorithm approach for maximum security:
   type: argon2id,     // Hybrid (resistant to side-channel + GPU attacks)
   hashLength: 32      // 256-bit output
 }
-```text
+```
 
 #### 2. AES-256-GCM - Data Encryption
 
@@ -85,7 +85,7 @@ SveltyCMS uses a two-algorithm approach for maximum security:
 
 **Configuration:**
 
-```typescript
+```
 {
   algorithm: 'aes-256-gcm',
   keyLength: 32,      // 256 bits
@@ -93,7 +93,7 @@ SveltyCMS uses a two-algorithm approach for maximum security:
   saltLength: 32,     // 256 bits for key derivation
   authTagLength: 16   // 128 bits for integrity
 }
-```text
+```
 
 ---
 
@@ -107,9 +107,9 @@ Hashes a plain text password using Argon2id.
 
 **Signature:**
 
-```typescript
+```
 async function hashPassword(password: string): Promise<string>;
-```text
+```
 
 **Parameters:**
 
@@ -121,7 +121,7 @@ async function hashPassword(password: string): Promise<string>;
 
 **Example:**
 
-```typescript
+```
 import { hashPassword } from "@utils/crypto";
 
 // Registration - hash user password
@@ -133,13 +133,13 @@ await db.users.create({
   email: "user@example.com",
   password: hashedPassword, // $argon2id$v=19$m=65536,t=3,p=4$...
 });
-```text
+```
 
 **Hash Format:**
 
-```text
+```
 $argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
-```text
+```
 
 Where:
 
@@ -159,9 +159,9 @@ Verifies a plain text password against an Argon2id hash.
 
 **Signature:**
 
-```typescript
+```
 async function verifyPassword(password: string, hash: string): Promise<boolean>;
-```text
+```
 
 **Parameters:**
 
@@ -174,7 +174,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean>;
 
 **Example:**
 
-```typescript
+```
 import { verifyPassword } from "@utils/crypto";
 
 // Login - verify user password
@@ -188,7 +188,7 @@ if (isValid) {
   // Password incorrect - reject login
   throw new Error("Invalid credentials");
 }
-```text
+```
 
 **Security Notes:**
 
@@ -207,9 +207,9 @@ Encrypts data using AES-256-GCM with Argon2id key derivation.
 
 **Signature:**
 
-```typescript
+```
 async function encryptData(data: Record<string, unknown>, password: string): Promise<string>;
-```text
+```
 
 **Parameters:**
 
@@ -222,7 +222,7 @@ async function encryptData(data: Record<string, unknown>, password: string): Pro
 
 **Example:**
 
-```typescript
+```
 import { encryptData } from "@utils/crypto";
 
 // Encrypt sensitive configuration data
@@ -236,11 +236,11 @@ const encrypted = await encryptData(sensitiveData, "UserPassword123!");
 
 // encrypted = "A1B2C3...base64-encoded-blob"
 // Safe to store or transfer
-```text
+```
 
 **Encryption Process:**
 
-```text
+```
 1. Generate random salt (32 bytes)
 2. Derive key from password using Argon2id (64 MB RAM, 3 iterations)
 3. Generate random IV (16 bytes)
@@ -248,13 +248,13 @@ const encrypted = await encryptData(sensitiveData, "UserPassword123!");
 5. Get authentication tag (16 bytes)
 6. Combine: salt + IV + authTag + encrypted data
 7. Base64 encode result
-```text
+```
 
 **Output Format:**
 
-```text
+```
 [salt:32][iv:16][authTag:16][encryptedData:variable]
-```text
+```
 
 All base64-encoded as single string.
 
@@ -266,12 +266,12 @@ Decrypts data encrypted by `encryptData()`.
 
 **Signature:**
 
-```typescript
+```
 async function decryptData(
   encryptedData: string,
   password: string,
 ): Promise<Record<string, unknown>>;
-```text
+```
 
 **Parameters:**
 
@@ -290,7 +290,7 @@ async function decryptData(
 
 **Example:**
 
-```typescript
+```
 import { decryptData } from "@utils/crypto";
 
 // Decrypt sensitive configuration
@@ -310,18 +310,18 @@ try {
   // - Data tampered with
   // - Data corrupted
 }
-```text
+```
 
 **Decryption Process:**
 
-```text
+```
 1. Base64 decode encrypted blob
 2. Extract: salt, IV, authTag, encrypted data
 3. Derive same key from password using Argon2id with extracted salt
 4. Decrypt with AES-256-GCM
 5. Verify authentication tag (ensures data integrity)
 6. Parse and return decrypted JSON
-```text
+```
 
 **Security Features:**
 
@@ -340,9 +340,9 @@ Derives a cryptographic key from a password using Argon2id.
 
 **Signature:**
 
-```typescript
+```
 async function deriveKey(password: string, salt: Buffer): Promise<Buffer>;
-```text
+```
 
 **Parameters:**
 
@@ -355,7 +355,7 @@ async function deriveKey(password: string, salt: Buffer): Promise<Buffer>;
 
 **Example:**
 
-```typescript
+```
 import crypto from "crypto";
 import { deriveKey } from "@utils/crypto";
 
@@ -367,7 +367,7 @@ const key = await deriveKey("UserPassword123!", salt);
 
 // Use key for custom encryption
 const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-```text
+```
 
 **Use Cases:**
 
@@ -461,12 +461,12 @@ const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
 
 **Security Timeline**:
 
-```text
+```
 Current (2025):    ████████████████████████████████ 100% secure
 +10 years (2035):  ██████████████████████████████   ~98% secure (small quantum computers emerging)
 +20 years (2045):  ████████████████████████         ~85% secure (larger quantum computers)
 +30 years (2055):  ████████████████                 ~70% secure (post-quantum migration recommended)
-```text
+```
 
 **Migration Path**: See "Post-Quantum Cryptography Roadmap" section below for future-proofing strategy.
 
@@ -525,7 +525,7 @@ The National Institute of Standards and Technology (NIST) has standardized post-
 
 For maximum security during the quantum transition, implement **hybrid cryptography**:
 
-```typescript
+```
 // Future hybrid encryption example (conceptual)
 async function hybridEncrypt(data: string, publicKey: string) {
   // Step 1: Use classical AES-256-GCM (current system)
@@ -542,7 +542,7 @@ async function hybridEncrypt(data: string, publicKey: string) {
     algorithm: "AES-256-GCM + Kyber-1024",
   };
 }
-```text
+```
 
 **Benefits**:
 
@@ -617,7 +617,7 @@ async function hybridEncrypt(data: string, publicKey: string) {
 
 ### User Authentication System
 
-```typescript
+```
 import { hashPassword, verifyPassword } from "@utils/crypto";
 
 // User Registration
@@ -653,11 +653,11 @@ export async function loginUser(email: string, password: string) {
   const session = await createSession(user._id);
   return { user, session };
 }
-```text
+```
 
 ### Secure Configuration Export/Import
 
-```typescript
+```
 import { encryptData, decryptData } from "@utils/crypto";
 
 // Export sensitive configuration
@@ -702,11 +702,11 @@ export async function importConfig(password: string) {
     throw new Error("Invalid password or corrupted file");
   }
 }
-```text
+```
 
 ### API Token Encryption
 
-```typescript
+```
 import { encryptData, decryptData } from "@utils/crypto";
 
 // Store encrypted API token
@@ -746,7 +746,7 @@ export async function getApiToken(userId: string, masterPassword: string) {
     throw new Error("Failed to decrypt token");
   }
 }
-```text
+```
 
 ---
 
@@ -756,7 +756,7 @@ export async function getApiToken(userId: string, masterPassword: string) {
 
 For maximum security with Argon2id:
 
-```typescript
+```
 export function validatePassword(password: string): { valid: boolean; message: string } {
   // Default minimum length is 8, but 12+ is recommended for enterprise security
   if (password.length < 8) {
@@ -776,13 +776,13 @@ export function validatePassword(password: string): { valid: boolean; message: s
   }
   return { valid: true, message: "Password is strong" };
 }
-```text
+```
 
 ### Salt Generation
 
 Always use cryptographically secure random salts:
 
-```typescript
+```
 import crypto from "crypto";
 
 // ✅ GOOD: Cryptographically secure
@@ -790,7 +790,7 @@ const salt = crypto.randomBytes(32);
 
 // ❌ BAD: Not secure
 const salt = Buffer.from(Math.random().toString());
-```text
+```
 
 ### Key Storage
 
@@ -814,7 +814,7 @@ const salt = Buffer.from(Math.random().toString());
 
 Never reveal detailed cryptographic errors to users:
 
-```typescript
+```
 // ✅ GOOD: Generic error message
 try {
   const decrypted = await decryptData(encrypted, password);
@@ -828,7 +828,7 @@ try {
 } catch (error) {
   throw new Error("Wrong password"); // Reveals password was incorrect
 }
-```text
+```
 
 ---
 
@@ -872,7 +872,7 @@ Typical performance on modern hardware:
 
 ### Unit Tests
 
-```typescript
+```
 import { hashPassword, verifyPassword, encryptData, decryptData } from "@utils/crypto";
 import { describe, it, expect } from "vitest";
 
@@ -912,7 +912,7 @@ describe("Cryptography Module", () => {
     });
   });
 });
-```text
+```
 
 ---
 
@@ -935,4 +935,3 @@ describe("Cryptography Module", () => {
 
 _Last Updated: October 3, 2025_
 _Security Audit: Annual review recommended_
-````

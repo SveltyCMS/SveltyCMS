@@ -109,6 +109,7 @@ describe("handleSetup Middleware", () => {
       "/setup/database",
       "/_app/immutable/chunks/index.js",
       "/static/logo.png",
+      "/files/global/abc123/original/testthumb-abc123.png",
       "/api/system/version",
       "/favicon.ico",
       "/health",

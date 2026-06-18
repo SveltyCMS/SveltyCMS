@@ -16,6 +16,8 @@ import { logger } from "@utils/logger";
 // Using iconify-icon web component
 import { onMount } from "svelte";
 import WidgetCard from "./widget-card.svelte";
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 
 // Props
 const { data }: { data: any } = $props();
@@ -320,13 +322,12 @@ async function uninstallWidget(widgetName: string) {
 			<div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="widget-stats">
 				<!-- Total Widgets -->
 				<div class="relative rounded bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
-					<button
-						class="btn-icon btn-icon-sm absolute end-2 top-2 text-blue-600 dark:text-blue-400"
+					<Button variant="ghost"
 						aria-label="Information about total widgets"
 						title="All registered widgets in the system (core + custom)"
-					>
+					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-blue-600 dark:text-blue-400">
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
-					</button>
+					</Button>
 					<div class="flex items-center gap-3">
 						<iconify-icon icon="mdi:widgets" width="24" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
 						<div>
@@ -338,13 +339,12 @@ async function uninstallWidget(widgetName: string) {
 
 				<!-- Active Widgets -->
 				<div class="relative rounded bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
-					<button
-						class="btn-icon btn-icon-sm absolute end-2 top-2 text-tertiary-500 dark:text-primary-500"
+					<Button variant="ghost"
 						aria-label="Information about active widgets"
 						title="Widgets currently enabled and available for use in collections"
-					>
+					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-500 dark:text-primary-500">
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
-					</button>
+					</Button>
 					<div class="flex items-center gap-3">
 						<iconify-icon icon="mdi:check-circle" width="24" class="text-2xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<div>
@@ -356,13 +356,12 @@ async function uninstallWidget(widgetName: string) {
 
 				<!-- Core Widgets -->
 				<div class="relative rounded bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
-					<button
-						class="btn-icon btn-icon-sm absolute end-2 top-2 text-blue-600 dark:text-blue-400"
+					<Button variant="ghost"
 						aria-label="Information about core widgets"
 						title="Essential system widgets that are always active and cannot be disabled"
-					>
+					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-blue-600 dark:text-blue-400">
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
-					</button>
+					</Button>
 					<div class="flex items-center gap-3">
 						<iconify-icon icon="mdi:puzzle" width="24" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
 						<div>
@@ -376,13 +375,12 @@ async function uninstallWidget(widgetName: string) {
 				<div
 					class="relative rounded bg-yellow-50 p-4 shadow-sm transition-all hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
 				>
-					<button
-						class="btn-icon btn-icon-sm absolute end-2 top-2 text-yellow-600 dark:text-yellow-400"
+					<Button variant="ghost"
 						aria-label="Information about custom widgets"
 						title="Optional widgets that can be toggled on/off as needed"
-					>
+					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-yellow-600 dark:text-yellow-400">
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
-					</button>
+					</Button>
 					<div class="flex items-center gap-3">
 						<iconify-icon icon="mdi:puzzle-plus" width="24" class="text-2xl text-yellow-600 dark:text-yellow-400"></iconify-icon>
 						<div>
@@ -399,13 +397,18 @@ async function uninstallWidget(widgetName: string) {
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
 					<div class="relative flex-1">
-						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-gray-400"
+						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute inset-s-3 top-1/2 -translate-y-1/2 text-gray-400"
 						></iconify-icon>
-						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 ps-10 pe-10 dark:text-white" />
+						<Input
+							type="search"
+							bind:value={searchQuery}
+							placeholder="Search widgets... (Ctrl+F)"
+							inputClass="py-2 ps-10 pe-10"
+						/>
 						{#if searchQuery}
 							<button
 								onclick={() => (searchQuery = '')}
-								class="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+								class="absolute inset-e-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
 								aria-label="Clear search"
 								title="Clear search (Esc)"
 							>
@@ -418,11 +421,10 @@ async function uninstallWidget(widgetName: string) {
 				<!-- Badges Counts -->
 				<div class="flex flex-wrap gap-2">
 					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter (filter.value)}
-						<button
+						<Button variant="tertiary"
 							onclick={() => (activeFilter = filter.value)}
-							class="btn {activeFilter === filter.value ? 'preset-filled-tertiary-500 text-white' : 'preset-ghost-secondary-500 '}"
 							aria-label="{filter.label} widgets ({filter.count})"
-						>
+						 class="{activeFilter === filter.value ? ' text-white' : ' '}">
 							<iconify-icon icon={filter.icon} width="20"></iconify-icon>
 							<span>{filter.label}</span>
 							<span
@@ -432,7 +434,7 @@ async function uninstallWidget(widgetName: string) {
 							>
 								{filter.count}
 							</span>
-						</button>
+						</Button>
 					{/each}
 				</div>
 			</div>

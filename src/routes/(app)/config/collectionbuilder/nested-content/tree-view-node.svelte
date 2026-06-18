@@ -16,6 +16,8 @@ Features:
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { screen } from "@src/stores/screen-size-store.svelte.ts";
 import type { TreeViewItem } from "./tree-view-board.svelte";
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
 
 interface Props {
 	isOpen?: boolean;
@@ -137,18 +139,17 @@ function handleKeyDown(e: KeyboardEvent) {
 >
 	<!-- Expand/Collapse Toggle -->
 	{#if item.hasChildren || isCategory}
-		<button
+		<Button variant="surface"
 			type="button"
-			class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all duration-200 hover:scale-110"
-			onclick={(e) => {
+			onclick={(e: MouseEvent) => {
 				e.stopPropagation();
 				toggle?.();
 			}}
 			aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
-		>
+		 class="p-0! min-w-0 hover: transition-all hover:scale-110">
 			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" class="transition-transform duration-200" aria-hidden="true"
 			></iconify-icon>
-		</button>
+		</Button>
 	{:else}
 		<div class="w-5" role="none"></div>
 	{/if}
@@ -161,24 +162,16 @@ function handleKeyDown(e: KeyboardEvent) {
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
 			<span class="font-bold text-sm sm:text-base leading-none truncate max-w-[150px] sm:max-w-[380px]" title={name}>{name}</span>
 			{#if isCategory}
-				<span
-					class="badge font-semibold bg-tertiary-500 text-white text-[9px] sm:text-[10px] px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm uppercase shadow-sm"
-				>
-					Category
-				</span>
+				<Badge variant="tertiary" size="sm" rounded={false} class="shadow-sm">Category</Badge>
 			{:else}
-				<span
-					class="badge font-semibold bg-secondary-500 text-white text-[9px] sm:text-[10px] px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm uppercase shadow-sm"
-				>
-					Collection
-				</span>
+				<Badge variant="secondary" size="sm" rounded={false} class="shadow-sm">Collection</Badge>
 			{/if}
 
 			<!-- Slug - Hidden on mobile to save space -->
 			{#if item.slug}
-				<span class="hidden sm:inline-block badge bg-surface-500 dark:bg-surface-600 text-white px-2 py-1 rounded font-mono text-[10px] shadow-sm ml-auto opacity-80" aria-label="URL slug">
+				<Badge variant="surface" size="sm" rounded={false} class="hidden sm:inline-flex font-mono ml-auto opacity-80 shadow-sm" aria-label="URL slug">
 					{item.slug}
-				</span>
+				</Badge>
 			{/if}
 		</div>
 	</div>
@@ -196,68 +189,64 @@ function handleKeyDown(e: KeyboardEvent) {
 	<div class="flex gap-1 ml-auto shrink-0 transition-opacity duration-200">
 		<SystemTooltip title="Edit">
 			{#if isCategory}
-				<button
+				<Button variant="surface"
 					type="button"
-					class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
-					onclick={(e) => {
+					onclick={(e: MouseEvent) => {
 						e.stopPropagation();
 						onEditCategory(item);
 					}}
 					aria-label="Edit {name}"
-				>
+				 class="p-0! min-w-0 hover: rounded transition-all hover:scale-110">
 					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				</button>
+				</Button>
 			{:else}
-				<a
+				<Button
+					variant="surface"
+					size="sm"
 					href={`/config/collectionbuilder/edit/${item.id}`}
 					data-sveltekit-preload-data="hover"
-					class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110 flex items-center justify-center"
-					onclick={(e) => e.stopPropagation()}
+					class="p-0! min-w-0 rounded transition-all duration-200 hover:scale-110"
+					onclick={(e: MouseEvent) => e.stopPropagation()}
 					aria-label="Edit {name}"
 				>
 					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				</a>
+				</Button>
 			{/if}
 		</SystemTooltip>
 
 		<!-- Duplicate -->
 		<SystemTooltip title="Duplicate">
-			<button
+			<Button variant="surface"
 				type="button"
-				class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
-				onclick={(e) => {
+				onclick={(e: MouseEvent) => {
 					e.stopPropagation();
 					onDuplicate?.(item);
 				}}
 				aria-label="Duplicate {name}"
-			>
+			 class="p-0! min-w-0 hover: rounded transition-all hover:scale-110">
 				<iconify-icon icon="mdi:content-copy" width={24} aria-hidden="true"></iconify-icon>
-			</button>
+			</Button>
 		</SystemTooltip>
 
 		<!-- Delete -->
 		<SystemTooltip title="Delete">
-			<button
+			<Button variant="surface"
 				type="button"
-				class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
-				onclick={(e) => {
+				onclick={(e: MouseEvent) => {
 					e.stopPropagation();
 					onDelete?.(item);
 				}}
 				aria-label="Delete {name}"
-			>
+			 class="p-0! min-w-0 hover: rounded transition-all hover:scale-110">
 				<iconify-icon icon="mdi:delete" width={24} aria-hidden="true" class="text-error-500"></iconify-icon>
-			</button>
+			</Button>
 		</SystemTooltip>
 
 		<!-- Drag Handle with Keyboard Support -->
 		<SystemTooltip title={keyboardReorderMode ? 'Exit reorder mode (Esc)' : 'Drag to reorder'}>
-			<button
+			<Button variant="surface"
 				type="button"
-				class="drag-handle btn-icon preset-tonal-surface-500 rounded cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 flex items-center justify-center hover:bg-surface-300 dark:hover:bg-surface-600 transition-all duration-200 hover:scale-110"
-				class:preset-filled-tertiary-500={keyboardReorderMode}
-				class:dark:preset-filled-primary-500={keyboardReorderMode}
-				onclick={(e) => {
+				onclick={(e: MouseEvent) => {
 					e.stopPropagation();
 					if (keyboardReorderMode) {
 						onExitReorderMode?.();
@@ -266,9 +255,9 @@ function handleKeyDown(e: KeyboardEvent) {
 					}
 				}}
 				aria-label={keyboardReorderMode ? 'Exit reorder mode' : 'Enter keyboard reorder mode for ' + name}
-			>
+				class="{keyboardReorderMode ? 'dark:preset-filled-primary-500' : ''} p-0! min-w-0 drag-handle rounded cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 flex items-center justify-center hover:bg-surface-300 dark:hover:bg-surface-600 transition-all hover:scale-110">
 				<iconify-icon icon={keyboardReorderMode ? 'mdi:check' : 'mdi:drag-vertical'} width={24} aria-hidden="true"></iconify-icon>
-			</button>
+			</Button>
 		</SystemTooltip>
 	</div>
 </div>

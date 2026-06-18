@@ -30,7 +30,7 @@ The dashboard is built on a flexible, grid-based widget system that allows admin
 
 ### Core Architecture
 
-````mermaid
+```mermaid
 %%{ init: { 'theme': 'neutral' } }%%
 graph TD
     subgraph "🖥️ Dashboard Frontend"
@@ -74,7 +74,7 @@ graph TD
     H --> M
     H --> N
     H --> O
-```text
+```
 
 ---
 
@@ -97,7 +97,7 @@ Widgets use **dual discovery**:
 1. **Client** (`+page.svelte`) — Vite `import.meta.glob("./widgets/*.svelte")` builds the runtime registry for lazy-loaded rendering.
 2. **Server** (`+page.server.ts`) — `readdirSync` scans all `*.svelte` files in `widgets/` and dynamically imports `widgetMeta` for the widget picker.
 
-```typescript
+```
 // Client registry in +page.svelte
 const modules = import.meta.glob("./widgets/*.svelte");
 
@@ -115,7 +115,7 @@ const files = readdirSync(widgetsPath).filter(
 
 Each widget exports metadata for dashboard integration:
 
-```typescript
+```
 export const widgetMeta = {
   name: "Widget Display Name",
   icon: "mdi:icon-name",
@@ -123,7 +123,7 @@ export const widgetMeta = {
   defaultSize: { w: 2, h: 2 }, // Grid units
   category: "monitoring" | "logs" | "content" | "static",
 };
-```text
+```
 
 ---
 
@@ -283,7 +283,7 @@ The dashboard uses a 4-column responsive grid system:
 
 Users can customize their dashboard through intuitive drag-and-drop:
 
-```typescript
+```
 // Drag and drop implementation highlights
 let dragState = $state({
   item: null,
@@ -303,7 +303,7 @@ function handleDrop(event) {
   // Update widget positions in system-preferences
   // Persist new layout configuration
 }
-```text
+```
 
 ### Widget Sizing
 
@@ -322,7 +322,7 @@ Widgets support flexible sizing within the grid:
 
 Each widget follows a standardized data loading pattern:
 
-```typescript
+```
 // Widget data loading lifecycle
 async function loadWidgetData() {
   isLoading = true;
@@ -351,7 +351,7 @@ async function loadWidgetData() {
     isLoading = false;
   }
 }
-```text
+```
 
 ### Performance Optimizations
 
@@ -366,7 +366,7 @@ async function loadWidgetData() {
 
 Dashboard implements native lazy loading without wrapper components for maximum performance:
 
-```typescript
+```
 // Integrated lazy loading in +page.svelte
 let loadedWidgets = $state<Map<string, any>>(new Map());
 let widgetObservers = new Map<string, IntersectionObserver>();
@@ -391,7 +391,7 @@ function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
   observer.observe(element);
   return { destroy: () => observer.disconnect() };
 }
-```text
+```
 
 **Benefits of Direct Integration:**
 
@@ -415,7 +415,7 @@ Based on production testing with 12 widgets:
 
 Widgets are categorized for optimal performance configuration:
 
-```typescript
+```
 export const WIDGET_DEFAULTS = {
   // Real-time monitoring (no cache, frequent updates)
   monitoring: {
@@ -442,7 +442,7 @@ export const WIDGET_DEFAULTS = {
     retryDelay: 1000,
   },
 };
-```text
+```
 
 ---
 
@@ -454,7 +454,7 @@ The new **audit-log-widget** represents the latest advancement in dashboard secu
 
 #### **Administrator View**
 
-```typescript
+```
 // Admin users see comprehensive security overview
 if (isAdmin && !showPersonalOnly) {
   // System-wide statistics
@@ -466,17 +466,17 @@ if (isAdmin && !showPersonalOnly) {
   // All system events
   const events = await queryAuditLogs({ limit: 10 });
 }
-```text
+```
 
 #### **Regular User View**
 
-```typescript
+```
 // Regular users see personal activity only
 const personalEvents = await queryAuditLogs({
   actorId: currentUser.id,
   limit: 10,
 });
-```text
+```
 
 ### Security Event Categories
 
@@ -491,14 +491,14 @@ The widget intelligently categorizes and displays events:
 
 Critical security events trigger immediate visual alerts:
 
-```typescript
+```
 // Suspicious activity alert system
 if (suspiciousEvents.length > 0) {
   // Show prominent alert banner
   // Highlight critical events in timeline
   // Trigger browser notifications (if permitted)
 }
-```text
+```
 
 ### Integration Points
 
@@ -529,7 +529,7 @@ System health check for dashboard widgets.
 
 **Response**:
 
-```json
+```
 {
 	"overallStatus": "READY" | "DEGRADED" | "INITIALIZING" | "FAILED" | "IDLE",
 	"timestamp": "2025-01-20T10:30:00Z",
@@ -539,7 +539,7 @@ System health check for dashboard widgets.
 		"cache": { "status": "healthy" }
 	}
 }
-```text
+```
 
 **Status Codes**:
 
@@ -562,7 +562,7 @@ Performance metrics from the MetricsService.
 
 **Response**:
 
-```json
+```
 {
   "requests": { "total": 1523, "success": 1498, "errors": 25 },
   "auth": { "logins": 342, "failures": 12, "logouts": 298 },
@@ -574,7 +574,7 @@ Performance metrics from the MetricsService.
     "uptime": 3600000
   }
 }
-```text
+```
 
 **Use Case**: performance-widget, unified-metrics-widget
 
@@ -594,7 +594,7 @@ Comprehensive system information: CPU, memory, disk, and OS.
 
 **Response**:
 
-```json
+```
 {
   "cpuInfo": {
     "model": "Intel Core i7-9750H",
@@ -624,7 +624,7 @@ Comprehensive system information: CPU, memory, disk, and OS.
     ]
   }
 }
-```text
+```
 
 **Use Case**: cpu-widget, memory-widget, disk-widget, system-health-widget
 
@@ -654,7 +654,7 @@ System logs with ANSI color conversion to HTML.
 
 **Response**:
 
-```json
+```
 {
   "logs": [
     {
@@ -668,7 +668,7 @@ System logs with ANSI color conversion to HTML.
   "page": 1,
   "totalPages": 31
 }
-```text
+```
 
 **Use Case**: logs-widget
 
@@ -692,7 +692,7 @@ Recent content from all collections via `LocalCMS.collections.search`.
 
 **Response**:
 
-```json
+```
 [
   {
     "id": "post-123",
@@ -703,7 +703,7 @@ Recent content from all collections via `LocalCMS.collections.search`.
     "status": "published"
   }
 ]
-```text
+```
 
 **Use Case**: last5-content-widget
 
@@ -723,7 +723,7 @@ Recent media files from the media library.
 
 **Response**:
 
-```json
+```
 [
   {
     "name": "hero-image.jpg",
@@ -733,7 +733,7 @@ Recent media files from the media library.
     "url": "/media/hero-image.jpg"
   }
 ]
-```text
+```
 
 **Use Case**: last5-media-widget
 
@@ -754,7 +754,7 @@ Currently online users derived from active sessions (`getAllActiveSessions`).
 
 **Response**:
 
-```json
+```
 {
   "onlineUsers": [
     {
@@ -766,7 +766,7 @@ Currently online users derived from active sessions (`getAllActiveSessions`).
     }
   ]
 }
-```text
+```
 
 **Use Case**: user-online-widget
 
@@ -791,7 +791,7 @@ System messages derived from audit logs.
 
 **Response**:
 
-```json
+```
 [
   {
     "id": "msg-1",
@@ -802,7 +802,7 @@ System messages derived from audit logs.
     "type": "system"
   }
 ]
-```text
+```
 
 **Use Case**: system-messages-widget
 
@@ -821,7 +821,7 @@ Cache performance metrics from CacheMetrics service.
 
 **Response**:
 
-```json
+```
 {
   "overall": {
     "hits": 8543,
@@ -841,7 +841,7 @@ Cache performance metrics from CacheMetrics service.
   "recentMisses": [{ "key": "content:post-123", "timestamp": "2025-01-20T10:30:00Z" }],
   "timestamp": "2025-01-20T10:30:15Z"
 }
-```text
+```
 
 **Use Case**: cache-monitor-widget
 
@@ -887,7 +887,7 @@ Dashboard APIs have integration test coverage:
 
 **Running Dashboard Tests**:
 
-```bash
+```
 # Requires running development server
 bun run dev
 bun test tests/integration/api/dashboard.test.ts
@@ -895,7 +895,7 @@ bun test tests/integration/api/dashboard.test.ts
 
 **Authentication in Tests**:
 
-```typescript
+```
 // All tests use authenticated session
 beforeAll(async () => {
   const loginRes = await fetch("http://localhost:5173/api/auth/login", {
@@ -905,7 +905,7 @@ beforeAll(async () => {
   const cookies = loginRes.headers.get("set-cookie");
   authCookie = cookies?.split(";")[0] || "";
 });
-```text
+```
 
 ---
 
@@ -920,7 +920,7 @@ beforeAll(async () => {
 
 ### Widget Development Best Practices
 
-```typescript
+```
 // Example widget structure
 <script lang="ts" module>
   export const widgetMeta = {
@@ -940,13 +940,13 @@ beforeAll(async () => {
     <!-- Widget content -->
   {/snippet}
 </base-widget>
-```text
+```
 
 ### Configuration Persistence
 
 Widget configurations are automatically persisted:
 
-```typescript
+```
 // System preferences store widget layouts
 system-preferences: {
 	preferences: [
@@ -959,7 +959,7 @@ system-preferences: {
 		}
 	];
 }
-```text
+```
 
 ---
 
@@ -991,7 +991,7 @@ Dashboard widgets receive live updates via svelte-realtime, which provides WebSo
 - **`chat.ts`** — Real-time AI chat for the dashboard co-pilot. Uses per-room streaming with individual access controls.
 - **`ws-platform.ts`** — Shared WebSocket platform reference for global broadcasting. Initialized by `src/hooks.ws.ts` during server startup.
 
-```typescript
+```
 // Dashboard widget subscribing to real-time events
 import { events } from "$live/system";
 
@@ -1002,13 +1002,13 @@ $effect(() => {
     updateWidgetData(event);
   });
 });
-```text
+```
 
 ## CDN Cache Purging
 
 When content is published or media is updated, `src/services/cdn/cdn-service.ts` automatically purges the Cloudflare CDN cache to ensure global edge consistency:
 
-```typescript
+```
 import { cdnService } from "@services/cdn/cdn-service";
 
 // Purge specific content by tags (surgical invalidation)
@@ -1016,7 +1016,7 @@ await cdnService.purge({ tags: ["collection:posts", "entry:abc123"] });
 
 // Purge entire zone (use sparingly)
 await cdnService.purge({ everything: true });
-```text
+```
 
 The service reads credentials from `config/private.ts` (`CF_API_TOKEN`, `CF_ZONE_ID`, `CF_PURGE_MODE`) and operates non-blocking — purge calls fire in the background without delaying the API response.
 
@@ -1024,7 +1024,7 @@ The service reads credentials from `config/private.ts` (`CF_API_TOKEN`, `CF_ZONE
 
 `src/services/security/monitoring-service.ts` provides real-time anomaly detection with webhook-based alerting for external security systems:
 
-```typescript
+```
 import { securityMonitor } from "@services/security/monitoring-service";
 
 // Start monitoring (called during server boot)
@@ -1041,7 +1041,7 @@ securityMonitor.configureWebhook({
 // Check monitoring status for dashboard widget
 const status = securityMonitor.getStatus();
 // { isMonitoring, alertCount, unacknowledgedCount, activeRules, eventCounts }
-```text
+```
 
 Five anomaly detection rules run automatically: brute force detection, unusual access patterns, permission escalation attempts, rapid session creation, and token abuse detection. Each rule has configurable thresholds and cooldown periods to prevent alert fatigue.
 
@@ -1059,7 +1059,6 @@ Five anomaly detection rules run automatically: brute force detection, unusual a
 The SveltyCMS dashboard system provides a powerful, flexible foundation for monitoring and managing all aspects of the CMS platform. With the addition of comprehensive audit logging capabilities, administrators and users have unprecedented visibility into system operations, security events, and content management activities.
 
 The modular widget architecture ensures the dashboard can evolve with changing requirements while maintaining optimal performance and user experience across all device types and user roles.
-````
 
 ---
 

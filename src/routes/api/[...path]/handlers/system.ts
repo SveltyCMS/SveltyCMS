@@ -838,8 +838,8 @@ export async function handleThemeRoutes(
     const { presetJson } = await request.json();
     if (!presetJson) throw new AppError("presetJson is required", 400);
     const { adminThemeService } = await import("@src/services/core/admin-theme-service");
-    const result = await adminThemeService.importPreset(presetJson, tenantId);
-    return successResponse(event, result);
+    const { theme, contrastWarnings } = await adminThemeService.importPreset(presetJson, tenantId);
+    return json({ success: true, data: theme, warnings: contrastWarnings });
   }
 
   // ── Multi-Theme Management ──

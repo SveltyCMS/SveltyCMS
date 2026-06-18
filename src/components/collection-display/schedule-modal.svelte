@@ -18,6 +18,9 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	// Force recompile
 	// ParaglideJS
 	import {
@@ -107,25 +110,12 @@
 		>
 			<!-- Date and Time Inputs -->
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<label class="label">
-					<span>Date</span>
-					<input class="input" type="date" bind:value={scheduleDateOnly} required aria-label="Date" />
-				</label>
-				<label class="label">
-					<span>Time</span>
-					<input class="input" type="time" bind:value={scheduleTimeOnly} required aria-label="Time" />
-				</label>
+				<Input type="date" label="Date" bind:value={scheduleDateOnly} required />
+				<Input type="time" label="Time" bind:value={scheduleTimeOnly} required />
 			</div>
 
 			<!-- Action Select -->
-			<label class="label">
-				<span>Action</span>
-				<select class="select" bind:value={action} aria-label="Schedule action">
-					{#each actionOptions as opt (opt.value)}
-						<option value={opt.value}>{opt.label}</option>
-					{/each}
-				</select>
-			</label>
+			<Select bind:value={action} label="Action" options={actionOptions} />
 
 			<!-- Error Message -->
 			{#if errorMessage}
@@ -134,10 +124,10 @@
 		</form>
 
 		<footer class="modal-footer flex items-center justify-end space-x-4">
-			<button class="btn preset-outlined-secondary-500" onclick={() => modalState.close()}>{button_cancel()}</button>
-			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => handleSubmission()} disabled={!isFormValid}>
+			<Button variant="outline" onclick={() => modalState.close()}>{button_cancel()}</Button>
+			<Button variant="tertiary" onclick={() => handleSubmission()} disabled={!isFormValid} class="dark:">
 				{entrylist_multibutton_schedule()}
-			</button>
+			</Button>
 		</footer>
 	</div>
 {/if}

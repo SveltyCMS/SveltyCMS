@@ -12,6 +12,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import TreeView from '@components/ui/tree-view.svelte';
 	import { media_root_title } from '@src/paraglide/messages';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
@@ -271,14 +272,13 @@
 			/>
 			{#if isSidebarFull && search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
-					<button
+					<Button variant="outline"
 						type="button"
 						onclick={() => search = ''}
-						class="btn rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 me-0.5"
 						aria-label="Clear search"
-					>
+					 class="rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 me-0.5">
 						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
-					</button>
+					</Button>
 				</div>
 			{:else if isSidebarFull && !search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
@@ -289,16 +289,15 @@
 			{/if}
 		</div>
 		{#if isSidebarFull}
-			<button
+			<Button variant="warning"
 				type="button"
 				onclick={() => (isEditMode = !isEditMode)}
-				class="btn-icon h-10 w-10 shrink-0 {isEditMode ? 'variant-filled-warning' : 'preset-outlined-surface-500'}"
 				aria-pressed={isEditMode}
 				aria-label="Toggle Edit Mode"
 				title="Edit Folders"
-			>
+			 class="p-0! min-w-0 h-10 w-10 shrink-0 {isEditMode ? ' ' : ' '}">
 				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 
@@ -325,10 +324,10 @@
 			<div class="flex flex-col items-center justify-center gap-3 p-6 text-center">
 				<iconify-icon icon="ic:outline-error" width={24}></iconify-icon>
 				<p class="text-sm text-error-500">{error}</p>
-				<button type="button" onclick={loadFolders} class="btn-sm preset-filled-error-500">
+				<Button variant="error" type="button" onclick={loadFolders} size="sm">
 					<iconify-icon icon="ic:outline-refresh" width={24}></iconify-icon>
 					Retry
-				</button>
+				</Button>
 			</div>
 		{:else if tree.length > 0}
 			<TreeView

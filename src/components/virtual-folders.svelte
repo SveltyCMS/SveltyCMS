@@ -27,6 +27,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/db-interface';
 	import { setMode } from '@src/stores/collection-store.svelte.ts';
@@ -188,28 +189,30 @@
 	<!-- Return to Collections Button -->
 	{#if ui.state.leftSidebar === 'full'}
 		<!-- Sidebar Expanded -->
-		<a
+		<Button
+			variant="surface"
 			href="/"
 			onclick={handleReturnToCollections}
 			aria-label="Return to Collections"
-			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 ps-2 text-white dark:bg-surface-500"
+			class="mt-1 w-full flex-row items-center justify-start bg-surface-400 py-2 ps-2 text-white dark:bg-surface-500"
 			data-sveltekit-preload-data="hover"
 		>
 			<iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon>
 			<p class="mr-auto text-center uppercase">Collections</p>
-		</a>
+		</Button>
 	{:else}
 		<!-- Sidebar Collapsed -->
-		<a
+		<Button
+			variant="surface"
 			href="/"
 			onclick={handleReturnToCollections}
 			aria-label="Return to Collections"
-			class="btn mt-2 flex-col bg-surface-400 uppercase text-white hover:bg-surface-300! dark:bg-surface-500"
+			class="mt-2 flex-col bg-surface-400 uppercase text-white hover:bg-surface-300! dark:bg-surface-500"
 			data-sveltekit-preload-data="hover"
 		>
 			<iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon>
 			<p class="text-xs uppercase text-white">Collections</p>
-		</a>
+		</Button>
 	{/if}
 
 	<!-- Loading State -->
@@ -218,7 +221,7 @@
 	{:else if error}
 		<!-- Error State -->
 		<div class="w-full pt-4 text-center">
-			<p class="variant-outline-error btn w-full text-sm">{error}</p>
+			<p class="variant-outline-error w-full rounded p-2 text-sm">{error}</p>
 		</div>
 	{:else if folders.length > 0}
 		<div class="relative flex flex-wrap">
@@ -226,32 +229,34 @@
 				{#if ui.state.leftSidebar === 'full'}
 					<!-- Sidebar Expanded -->
 					<div class="nowrap variant-outline-surface flex w-full">
-						<a
+						<Button
+							variant="ghost"
 							href={`/mediagallery?folderId=${folder._id}`}
 							onclick={handleMobileSidebarClose}
 							aria-label={`Open folder: ${folder.name}`}
-							class="btn flex items-center space-x-2 p-2"
+							class="w-full items-center space-x-2 p-2 justify-start"
 							data-sveltekit-preload-data="hover"
 						>
 							<iconify-icon icon="bi:folder" width="28" class="text-yellow-500"></iconify-icon>
 							<span class="flex-1 overflow-hidden text-ellipsis text-start text-sm">{folder.name}</span>
-						</a>
+						</Button>
 					</div>
 				{:else}
 					<!-- Sidebar Collapsed -->
 					<div
 						class="nowrap mt-2 flex w-full flex-col items-center rounded bg-surface-400 uppercase text-white hover:bg-surface-300! dark:bg-surface-500"
 					>
-						<a
+						<Button
+							variant="ghost"
 							href={`/mediagallery?folderId=${folder._id}`}
 							onclick={handleMobileSidebarClose}
 							aria-label={`Open folder: ${folder.name}`}
-							class="btn flex flex-col items-center p-2"
+							class="flex-col items-center p-2"
 							data-sveltekit-preload-data="hover"
 						>
 							<iconify-icon icon="bi:folder" width="28" class="text-yellow-500"></iconify-icon>
 							<span class="text-xs">{folder.name}</span>
-						</a>
+						</Button>
 					</div>
 				{/if}
 			{/each}
@@ -259,7 +264,7 @@
 	{:else}
 		<!-- No Folders Found Message -->
 		<div class="w-full pt-4 text-center">
-			<p class="preset-outline-secondary-500 btn w-full text-sm text-warning-500">No folders</p>
+			<p class="preset-outline-secondary-500 w-full rounded p-2 text-sm text-warning-500">No folders</p>
 		</div>
 	{/if}
 </div>

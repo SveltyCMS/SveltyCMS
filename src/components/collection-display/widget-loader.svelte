@@ -25,6 +25,7 @@ rather than bundling all widgets upfront.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { FieldInstance } from '@src/content/types';
 	import { validationStore } from '@src/stores/store.svelte.ts';
 	import { getFieldName } from '@utils/utils';
@@ -127,10 +128,10 @@ rather than bundling all widgets upfront.
 		</div>
 		<p class="text-sm text-error-600 dark:text-error-300">Failed to load widget: <strong>{field.widget?.Name || 'Unknown'}</strong></p>
 		<p class="mt-1 text-xs text-error-500 dark:text-error-500">{error.message}</p>
-		<button class="preset-outlined-error-500 btn-sm mt-3" onclick={() => loadComponent()}>
+		<Button variant="error" onclick={() => loadComponent()} size="sm" class="mt-3">
 			<iconify-icon icon="mdi:refresh" width="16" class="mr-1"></iconify-icon>
 			Retry
-		</button>
+		</Button>
 	</div>
 {:else if component}
 	{const Component = component}

@@ -1,7 +1,7 @@
 <!--
 @file src/components/system/WidgetValidationWarning.svelte
 @component
-**Widget Validation Warning component for displaying inactive widget alerts**
+**Widget Validation Warning — alerts users when collection fields use inactive widgets**
 
 Displays a warning banner when a collection has fields using inactive widgets.
 Provides clear information about the issue and actionable steps to resolve it.
@@ -9,15 +9,13 @@ Provides clear information about the issue and actionable steps to resolve it.
 @example
 <WidgetValidationWarning
 	collectionName="Posts"
-	fieldsWithIssues={[
-		{ fieldName: 'seo', widget: 'seo', issue: 'Widget "seo" is inactive...' }
-	]}
+	fieldsWithIssues={[{ fieldName: 'seo', widget: 'seo', issue: 'Widget "seo" is inactive...' }]}
 	missingWidgets={['seo']}
 	{onActivateWidgets}
 	{onDismiss}
 />
 
-#### Props
+### Props
 - `collectionName` {string} - Name of the collection
 - `fieldsWithIssues` {Array} - List of fields with inactive widgets
 - `missingWidgets` {string[]} - List of inactive widget names
@@ -26,228 +24,82 @@ Provides clear information about the issue and actionable steps to resolve it.
 -->
 
 <script lang="ts">
-	// Utils
+	import Button from '@components/ui/button.svelte';
 	import { logger } from '@utils/logger';
 
-	// Lucide Icons
-
-	const { collectionName = '', fieldsWithIssues = [], missingWidgets = [], onActivateWidgets = () => {}, onDismiss = undefined } = $props();
+	const {
+		collectionName = '',
+		fieldsWithIssues = [],
+		missingWidgets = [],
+		onActivateWidgets = () => {},
+		onDismiss = undefined,
+	} = $props();
 
 	let dismissed = $state(false);
 
 	function handleDismiss() {
 		dismissed = true;
-		if (onDismiss) {
-			onDismiss();
-		}
-		logger.debug('[WidgetValidationWarning] Warning dismissed', {
-			collectionName
-		});
+		if (onDismiss) onDismiss();
+		logger.debug('[WidgetValidationWarning] Warning dismissed', { collectionName });
 	}
 
 	function handleActivate() {
 		onActivateWidgets();
 		logger.info('[WidgetValidationWarning] Activate widgets requested', {
 			collectionName,
-			widgetsToActivate: missingWidgets
+			widgetsToActivate: missingWidgets,
 		});
 	}
 </script>
 
 {#if !dismissed && fieldsWithIssues.length > 0}
-	<div class="widget-validation-warning alert-warning alert" role="alert" aria-live="polite">
-		<div class="warning-header">
-			<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon>
-			<h4 class="warning-title">⚠️ Inactive Widgets Detected in "{collectionName}"</h4>
+	<div
+		class="rounded border border-warning-400 bg-warning-50 p-4 shadow-sm dark:border-warning-500/30 dark:bg-warning-500/10"
+		role="alert"
+		aria-live="polite"
+	>
+		<!-- Header -->
+		<div class="mb-3 flex items-center gap-3">
+			<iconify-icon icon="mdi:alert-circle" width="24" class="shrink-0 text-warning-600 dark:text-warning-400"></iconify-icon>
+			<h4 class="flex-1 text-lg font-semibold text-warning-700 dark:text-warning-400">
+				Inactive Widgets Detected in "{collectionName}"
+			</h4>
 			{#if onDismiss}
-				<button type="button" class="dismiss-btn" onclick={handleDismiss} aria-label="Dismiss warning">
-					<iconify-icon icon="mdi:close" width={20}></iconify-icon>
-				</button>
+				<Button variant="ghost" type="button" onclick={handleDismiss} aria-label="Dismiss warning" class="p-0! min-w-0">
+					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+				</Button>
 			{/if}
 		</div>
 
-		<div class="warning-content">
-			<p class="warning-message">The following fields cannot be rendered because their widgets are inactive:</p>
+		<!-- Content -->
+		<div class="ms-9 space-y-3">
+			<p class="font-medium text-warning-700 dark:text-warning-400">
+				The following fields cannot be rendered because their widgets are inactive:
+			</p>
 
-			<ul class="field-issues-list">
+			<ul class="space-y-1">
 				{#each fieldsWithIssues as field (field.fieldName)}
-					<li class="field-issue"><strong>{field.fieldName}</strong>: Widget <code>{field.widget}</code> is inactive</li>
+					<li class="border-b border-warning-200 py-1 text-warning-700 dark:border-warning-500/20 dark:text-warning-400 last:border-b-0">
+						<strong>{field.fieldName}</strong>: Widget <code class="rounded bg-warning-200 px-1 py-0.5 font-mono text-xs dark:bg-warning-500/20">{field.widget}</code> is inactive
+					</li>
 				{/each}
 			</ul>
 
-			<p class="warning-explanation">
+			<p class="rounded border-s-4 border-warning-400 bg-warning-100 p-3 text-sm text-warning-700 dark:border-warning-500 dark:bg-warning-500/10 dark:text-warning-400">
 				Content for these fields will not display properly until the widgets are activated.
 				<strong>Editing entries may result in data loss for these fields.</strong>
 			</p>
 
-			<div class="warning-actions">
-				<button type="button" class="btn-primary btn" onclick={handleActivate}>
-					<iconify-icon icon="mdi:power" width={18}></iconify-icon>
+			<div class="flex flex-wrap gap-3">
+				<Button variant="warning" type="button" onclick={handleActivate}>
+					<iconify-icon icon="mdi:power" width="18"></iconify-icon>
 					Activate Missing Widgets ({missingWidgets.length})
-				</button>
-				<a href="/dashboard/widgets" class="btn-secondary btn">
-					<iconify-icon icon="mdi:cog" width={18}></iconify-icon>
+				</Button>
+				<Button variant="secondary" href="/dashboard/widgets">
+					<iconify-icon icon="mdi:cog" width="18"></iconify-icon>
 					Manage Widgets
-				</a>
+				</Button>
 			</div>
 		</div>
 	</div>
 {/if}
-
-<style>
-	.widget-validation-warning {
-		padding: 1rem;
-		margin-bottom: 1rem;
-		background-color: #fff3cd;
-		border: 1px solid #ffc107;
-		border-radius: 0.375rem;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-	}
-
-	.warning-header {
-		display: flex;
-		gap: 0.75rem;
-		align-items: center;
-		margin-bottom: 0.75rem;
-	}
-
-	.warning-header :global(svg) {
-		flex-shrink: 0;
-		color: #856404;
-	}
-
-	.warning-title {
-		flex: 1;
-		margin: 0;
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: #856404;
-	}
-
-	.dismiss-btn {
-		flex-shrink: 0;
-		padding: 0.25rem;
-		color: #856404;
-		cursor: pointer;
-		background: transparent;
-		border: none;
-		transition: color 0.2s;
-	}
-
-	.dismiss-btn:hover {
-		color: #533f03;
-	}
-
-	.warning-content {
-		padding-left: 2.5rem;
-	}
-
-	.warning-message {
-		margin: 0 0 0.5rem 0;
-		font-weight: 500;
-		color: #856404;
-	}
-
-	.field-issues-list {
-		padding: 0;
-		margin: 0.5rem 0 1rem 1rem;
-		list-style: none;
-	}
-
-	.field-issue {
-		padding: 0.375rem 0;
-		color: #856404;
-		border-bottom: 1px solid rgba(133, 100, 4, 0.1);
-	}
-
-	.field-issue:last-child {
-		border-bottom: none;
-	}
-
-	.field-issue code {
-		padding: 0.125rem 0.375rem;
-		font-family: 'Courier New', monospace;
-		font-size: 0.9em;
-		background-color: rgba(133, 100, 4, 0.1);
-		border-radius: 0.25rem;
-	}
-
-	.warning-explanation {
-		padding: 0.75rem;
-		margin: 0.75rem 0 1rem 0;
-		font-size: 0.9rem;
-		color: #856404;
-		background-color: rgba(255, 193, 7, 0.1);
-		border-left: 3px solid #ffc107;
-	}
-
-	.warning-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem;
-	}
-
-	.btn {
-		display: inline-flex;
-		gap: 0.5rem;
-		align-items: center;
-		padding: 0.5rem 1rem;
-		font-size: 0.9rem;
-		font-weight: 500;
-		text-decoration: none;
-		cursor: pointer;
-		border: none;
-		border-radius: 0.375rem;
-		transition: all 0.2s;
-	}
-
-	.btn-primary {
-		color: #000;
-		background-color: #ffc107;
-	}
-
-	.btn-primary:hover {
-		background-color: #ffca2c;
-		box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
-		transform: translateY(-1px);
-	}
-
-	.btn-secondary {
-		color: #856404;
-		background-color: #fff;
-		border: 1px solid #ffc107;
-	}
-
-	.btn-secondary:hover {
-		background-color: #fff3cd;
-		transform: translateY(-1px);
-	}
-
-	/* Dark mode support */
-	:global(.dark) .widget-validation-warning {
-		background-color: rgba(255, 193, 7, 0.15);
-		border-color: rgba(255, 193, 7, 0.3);
-	}
-
-	:global(.dark) .warning-title,
-	:global(.dark) .warning-message,
-	:global(.dark) .field-issue,
-	:global(.dark) .warning-explanation {
-		color: #ffc107;
-	}
-
-	:global(.dark) .btn-primary {
-		color: #1a1a1a;
-		background-color: #ffc107;
-	}
-
-	:global(.dark) .btn-secondary {
-		color: #ffc107;
-		background-color: rgba(255, 255, 255, 0.05);
-		border-color: rgba(255, 193, 7, 0.3);
-	}
-
-	:global(.dark) .btn-secondary:hover {
-		background-color: rgba(255, 193, 7, 0.1);
-	}
-</style>

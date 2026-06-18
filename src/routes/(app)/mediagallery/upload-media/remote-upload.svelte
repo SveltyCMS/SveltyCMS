@@ -19,6 +19,7 @@
 <script lang="ts">
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
+	import Button from '@components/ui/button.svelte';
 
 let remoteUrls: string[] = $state([]);
 
@@ -87,5 +88,5 @@ async function uploadRemoteUrls() {
 		aria-label="Remote URLs to upload"
 	></textarea>
 	<!-- Upload Button -->
-	<button class="preset-filled-tertiary-500 btn mt-2 dark:preset-filled-primary-500" onclick={uploadRemoteUrls}>Upload URLs</button>
+	<Button variant="tertiary" onclick={uploadRemoteUrls} class="mt-2 dark:">Upload URLs</Button>
 </div>

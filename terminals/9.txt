@@ -1,0 +1,348 @@
+---
+pid: 53976
+cwd: "D:\SveltyCMS"
+command: "cd D:\\SveltyCMS; bun x playwright test tests/e2e/routes/mediagallery/image-editor.spec.ts --workers=1 2>&1"
+started_at: 2026-06-18T07:04:41.957Z
+running_for_ms: 10165007 
+---
+bun : [WebServer] Warning: No ORIGIN, HOST_HEADER, or PROTOCOL_HEADER configured. The server will use http:// with the 
+request Host header. For production, either:
+At line:1 char:18
++ ... \SveltyCMS; bun x playwright test tests/e2e/routes/mediagallery/image ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([WebServer] War...uction, either::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[WebServer]   SSL_CERT + SSL_KEY for native TLS (no proxy needed)
+[WebServer]   ORIGIN=https://example.com (behind a TLS proxy)
+[WebServer]   PROTOCOL_HEADER=x-forwarded-proto + HOST_HEADER=x-forwarded-host (flexible proxy)
+[WebServer]   See: https://svti.me/adapter-origin
+[Global Setup] Starting...
+[Global Setup] Cleaning old test data...
+[Global Setup] Cleanup completed (0 items removed)
+[Global Setup] Directory already exists: D:\SveltyCMS\config\database
+[Global Setup] Directory already exists: D:\SveltyCMS\tests\e2e\.auth
+[Global Setup] Directory already exists: D:\SveltyCMS\logs
+[Global Setup] Directory already exists: D:\SveltyCMS\mediaFolder
+[Global Setup] Creating .gitkeep in: D:\SveltyCMS\mediaFolder
+[Global Setup] All required directories verified ✓
+
+Running 6 tests using 1 worker
+
+(node:68312) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Setup] Resetting database via Testing API...
+[Setup] Seeding database with admin@example.com...
+[WebServer] [TestingHandler] action: reset, collectionId: N/A, tenant: null
+[Auth] Logging in as admin@example.com...
+[WebServer] [TestingHandler] RESET TRIGGERED for tenant: null
+[WebServer] [TestingHandler] action: seed, collectionId: N/A, tenant: null
+[WebServer] [Accessibility Warning] Widget 'Price' has potential WCAG compliance issues in 
+'/src/widgets/custom/price/input.svelte':
+[WebServer]   - Interactive element '<Input
+[WebServer] type="number"
+[WebServer] value={value!.amount ?? ''}
+[WebServer] oninput={(e) =>' lacks 'aria-label', 'aria-labelledby', or 'id'.
+[Auth] Navigating to /login...
+[WebServer] 2026-06-18 07:04:45 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:04:45 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Auth] Checking for blocking modals...
+[Auth] Modal dismissal complete.
+[Auth] Clicking SIGN IN icon...
+[Auth] Waiting for signin-email field...
+[Auth] Filling email: admin@example.com
+[Auth] Submitting login form...
+[WebServer] 2026-06-18 07:04:47 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+  ok 1 [auth-setup] › tests\e2e\auth.setup.ts:16:3 › E2E Role-Based Setup › authenticate as admin (3.3s)[WebServer] 2026-06-18 07:04:47 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:47 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+
+[WebServer] 2026-06-18 07:04:47 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[Setup] Inviting Editor...
+[WebServer] [TestingHandler] action: create-user, collectionId: N/A, tenant: null
+[Auth] Logging in as editor@example.com...
+[Auth] Navigating to /login...
+[WebServer] 2026-06-18 07:04:48 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:04:48 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Auth] Checking for blocking modals...
+[Auth] Modal dismissal complete.
+[Auth] Clicking SIGN IN icon...
+[Auth] Waiting for signin-email field...
+[Auth] Filling email: editor@example.com
+[Auth] Submitting login form...
+[WebServer] 2026-06-18 07:04:49 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Setup] Inviting Author...
+[Auth] Logging in as author@example.com...
+[WebServer] 2026-06-18 07:04:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[Auth] Navigating to /login...
+[WebServer] 2026-06-18 07:04:50 ⚠️ [WARN ] Permission denied for user {"email":"ed***@example.com","userId":"***","
+userRoleId":"Editor","userRole":{"_id":"5b33a4245c9040499dc904983d86795f","name":"Editor","description":"Content 
+managers - Create and edit content, manage media and users","permissions":["collections:read","collections:update","col
+lections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","ap
+i:userActivity","api:media","user:manage"],"isAdmin":false,"icon":"material-symbols:edit","color":"gradient-tertiary","
+tenantId":null,"createdAt":"2026-06-18T07:04:44.942Z","updatedAt":"2026-06-18T07:04:44.942Z","__bitset":{"0":1073741825
+,"1":6830163,"2":0}},"permissionId":"config:collectionbuilder","userPermissions":["collections:read","collections:updat
+e","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:us
+er","api:userActivity","api:media","user:manage"],"rolesAvailable":[{"id":"3c86f88d04b9489a9b827f29d5175ec6","isAdmin":
+true},{"id":"4efb01db0a3c4c5aaf4e1ddef1bbe338","isAdmin":false},{"id":"5b33a4245c9040499dc904983d86795f","isAdmin":fals
+e}]}
+[WebServer] 2026-06-18 07:04:50 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+[WebServer] [TestingHandler] action: create-user, collectionId: N/A, tenant: null
+[WebServer] 2026-06-18 07:04:50 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:04:50 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Auth] Checking for blocking modals...
+[Auth] Modal dismissal complete.
+[Auth] Clicking SIGN IN icon...
+[Auth] Waiting for signin-email field...
+[Auth] Filling email: author@example.com
+[Auth] Submitting login form...
+[WebServer] 2026-06-18 07:04:51 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:04:51 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:51 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:51 ⚠️ [WARN ] Role not found for user {"email":"au***@example.com","userRoleId":"Autho
+r","rolesAvailable":["3c86f88d04b9489a9b827f29d5175ec6","4efb01db0a3c4c5aaf4e1ddef1bbe338","5b33a4245c9040499dc904983d8
+6795f"]}
+[WebServer] 2026-06-18 07:04:51 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+[WebServer] 2026-06-18 07:04:51 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+  ok 2 [auth-setup] › tests\e2e\auth.setup.ts:44:3 › E2E Role-Based Setup › provision editor and author via invite flow (4.4s)[WebServer] 2026-06-18 07:04:51 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+
+[Auth] Logging in as admin@example.com...
+[WebServer] [TestingHandler] action: reset, collectionId: N/A, tenant: null
+[WebServer] [TestingHandler] RESET TRIGGERED for tenant: null
+[WebServer] 2026-06-18 07:04:52 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+[WebServer] [TestingHandler] action: seed, collectionId: N/A, tenant: null
+[Auth] Navigating to /login...
+[WebServer] 2026-06-18 07:04:52 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:04:52 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Auth] Checking for blocking modals...
+[Auth] Modal dismissal complete.
+[Auth] Clicking SIGN IN icon...
+[Auth] Waiting for signin-email field...
+[Auth] Filling email: admin@example.com
+[Auth] Submitting login form...
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+✓ Login successful, current URL: http://localhost:4173/config/collectionbuilder
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[Auth] Logging out using selector: [aria-label*="sign out" i]
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] No collections found for user. Redirecting to fallback. 
+{"tenantId":null}
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+✓ Logout successful
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+  ok 3 [auth-setup] › tests\e2e\routes\login\login.spec.ts:21:3 › Login and Logout Flow › should login and logout successfully (2.7s)
+[WebServer] 2026-06-18 07:04:54 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+(node:42468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Auth] Logging in as admin@example.com...
+[Auth] Navigating to /login...
+[WebServer] 2026-06-18 07:04:55 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:04:55 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Auth] Checking for blocking modals...
+[Auth] Modal dismissal complete.
+[Auth] Clicking SIGN IN icon...
+[Auth] Waiting for signin-email field...
+[WebServer] 2026-06-18 07:04:59 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:04:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[Auth] Filling email: admin@example.com
+[Auth] Submitting login form...
+[WebServer] 2026-06-18 07:04:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:04:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:01 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:01 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:02 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:02 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:02 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:03 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:03 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+  ok 4 [media] › tests\e2e\routes\mediagallery\image-editor.spec.ts:58:3 › Image Editor › opens editor modal after upload (8.2s)
+[Auth] Logging in as admin@example.com...
+[Auth] Navigating to /login...
+[WebServer] 2026-06-18 07:05:04 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:05:04 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Auth] Checking for blocking modals...
+[Auth] Modal dismissal complete.
+[Auth] Clicking SIGN IN icon...
+[Auth] Waiting for signin-email field...
+[Auth] Filling email: admin@example.com
+[Auth] Submitting login form...
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:06 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:07 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:07 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:08 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:08 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:08 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:09 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:05:09 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] [svelte-realtime] Topic 'system_events:default' has subscribers but no events arrived within 30000ms.
+[WebServer]   Common causes:
+[WebServer]     - missing pg_notify trigger on the underlying table
+[WebServer]     - no ctx.publish() call in the relevant handler
+[WebServer]     - intentionally low-traffic topic (extend threshold or suppress)
+[WebServer]   Configure: live.silentTopicWarning({ thresholdMs: 60000 })
+[WebServer]   Suppress:  live.silentTopicWarning({ suppress: ['system_events:default'] })
+[WebServer]   Disable:   live.silentTopicWarning(false)
+[WebServer]   See: https://svti.me/silent-topic
+[WebServer] [svelte-realtime] Topic 'chat:ai:default' has subscribers but no events arrived within 30000ms.
+[WebServer]   Common causes:
+[WebServer]     - missing pg_notify trigger on the underlying table
+[WebServer]     - no ctx.publish() call in the relevant handler
+[WebServer]     - intentionally low-traffic topic (extend threshold or suppress)
+[WebServer]   Configure: live.silentTopicWarning({ thresholdMs: 60000 })
+[WebServer]   Suppress:  live.silentTopicWarning({ suppress: ['chat:ai:default'] })
+[WebServer]   Disable:   live.silentTopicWarning(false)
+[WebServer]   See: https://svti.me/silent-topic
+  x  5 [media] › tests\e2e\routes\mediagallery\image-editor.spec.ts:66:3 › Image Editor › activates crop and focal point tools (1.5m)
+(node:63984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Auth] Logging in as admin@example.com...
+[WebServer] 2026-06-18 07:06:36 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Auth] Navigating to /login...
+[WebServer] 2026-06-18 07:06:36 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[Auth] Checking for blocking modals...
+[Auth] Modal dismissal complete.
+[Auth] Clicking SIGN IN icon...
+[Auth] Waiting for signin-email field...
+[Auth] Filling email: admin@example.com
+[Auth] Submitting login form...
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:41 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:41 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:42 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:42 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:42 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[WebServer] 2026-06-18 07:06:44 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+  x  6 [media] › tests\e2e\routes\mediagallery\image-editor.spec.ts:83:3 › Image Editor › saves edits via manipulate API (1.5m)
+
+
+  1) [media] › tests\e2e\routes\mediagallery\image-editor.spec.ts:66:3 › Image Editor › activates crop and focal point tools 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for getByRole('dialog', { name: /image editor/i }).getByRole('radio', { name: /^crop/i })
+        - locator resolved to <button disabled role="radio" aria-setsize="8" aria-label="Crop" aria-posinset="6" aria-checked="false" class="tool-item group relative flex min-w-[3.35rem] flex-none items-center justify-center gap-2 rounded px-2 py-2 text-center transition-all duration-200 lg:min-w-23 lg:px-3 lg:py-2.5 svelte-111la6m cursor-not-allowed opacity-50">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+          - waiting 100ms
+        165 × waiting for element to be visible, enabled and stable
+            - element is not enabled
+          - retrying click action
+            - waiting 500ms
+
+
+      69 |
+      70 |     const dialog = page.getByRole("dialog", { name: /image editor/i });
+    > 71 |     await dialog.getByRole("radio", { name: /^crop/i }).click();
+         |                                                         ^
+      72 |     await expect(dialog.getByRole("radio", { name: /^crop/i })).toHaveAttribute(
+      73 |       "aria-checked",
+      74 |       "true",
+        at D:\SveltyCMS\tests\e2e\routes\mediagallery\image-editor.spec.ts:71:57
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\routes-mediagallery-image--ceab9--crop-and-focal-point-tools-media\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\routes-mediagallery-image--ceab9--crop-and-focal-point-tools-media\error-context.md
+
+  2) [media] › tests\e2e\routes\mediagallery\image-editor.spec.ts:83:3 › Image Editor › saves edits via manipulate API 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for getByRole('dialog', { name: /image editor/i }).getByRole('radio', { name: /^rotate/i })
+        - locator resolved to <button disabled role="radio" aria-setsize="8" aria-posinset="1" aria-checked="false" aria-label="Rotate — Rotate, flip, and straighten your image" class="tool-item group relative flex min-w-[3.35rem] flex-none items-center justify-center gap-2 rounded px-2 py-2 text-center transition-all duration-200 lg:min-w-23 lg:px-3 lg:py-2.5 svelte-111la6m cursor-not-allowed opacity-50">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+          - waiting 100ms
+        163 × waiting for element to be visible, enabled and stable
+            - element is not enabled
+          - retrying click action
+            - waiting 500ms
+
+
+      86 |
+      87 |     const dialog = page.getByRole("dialog", { name: /image editor/i });
+    > 88 |     await dialog.getByRole("radio", { name: /^rotate/i }).click();
+         |                                                           ^
+      89 |     await expect(
+      90 |       dialog.getByRole("radio", { name: /^rotate/i }),
+      91 |     ).toHaveAttribute("aria-checked", "true");
+        at D:\SveltyCMS\tests\e2e\routes\mediagallery\image-editor.spec.ts:88:59
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\routes-mediagallery-image--0664e-es-edits-via-manipulate-API-media\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\routes-mediagallery-image--0664e-es-edits-via-manipulate-API-media\error-context.md
+
+  2 failed
+    [media] › tests\e2e\routes\mediagallery\image-editor.spec.ts:66:3 › Image Editor › activates crop and focal point tools 
+    [media] › tests\e2e\routes\mediagallery\image-editor.spec.ts:83:3 › Image Editor › saves edits via manipulate API 
+  4 passed (3.4m)

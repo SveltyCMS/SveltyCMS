@@ -129,7 +129,7 @@ xychart-beta
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```text
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -145,7 +145,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cold Start (IDLE → READY)      │        0.078 ms │ p95:        0.161 ms │ RPS:          0 ║
 ```
@@ -156,7 +156,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,692,998 ║
 ║ Local SDK (Full)               │        0.004 ms │ p95:        0.008 ms │ RPS:    239,866 ║
@@ -169,7 +169,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/content-scan.test.ts](../../../tests/benchmarks/content-scan.test.ts)
 > 🎯 **Proves**: Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Content Scan (Self-Healing)    │        0.004 ms │ p95:        0.007 ms │ RPS:    163,744 ║
 ```
@@ -182,7 +182,7 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 **Severe degradation** (+35%) — review recent commits immediately.
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
 ║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
@@ -193,7 +193,7 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -211,7 +211,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                           ║
 ║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
@@ -225,7 +225,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -245,7 +245,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/edge-sync.test.ts](../../../tests/benchmarks/edge-sync.test.ts)
 > 🎯 **Proves**: Verifies distributed L1/L2 cache invalidation latency across simulated nodes.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Edge Sync Propagation          │       15.457 ms │ p95:       16.049 ms │ RPS:         62 ║
 ```
@@ -256,7 +256,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/telemetry-performance.test.ts](../../../tests/benchmarks/telemetry-performance.test.ts)
 > 🎯 **Proves**: Measures the overhead of telemetry data collection and cryptographic signing.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Auth Validation @ 1c           │        0.321 ms │ p95:        0.400 ms │ RPS:      2,725 ║
 ║ HTTP Auth Pipeline @ 8c        │        1.307 ms │ p95:        2.422 ms │ RPS:        718 ║
@@ -268,7 +268,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
 > 🎯 **Proves**: Validates rapid IDLE -> READY self-healing cycles.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ State Transition (READY -> IDLE -> READY) │       36.071 ms │ p95:       41.242 ms │ RPS:         28 ║
 ```
@@ -286,7 +286,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](../../../tests/benchmarks/transaction-acid.test.ts)
 > 🎯 **Proves**: Measures commit/rollback latency and transaction isolation performance.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ TX Commit                      │        0.284 ms │ p95:        0.495 ms │ RPS:      2,046 ║
 ║ TX Rollback Integrity          │        0.154 ms │ p95:        0.191 ms │ RPS:      6,498 ║
@@ -298,7 +298,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/cache-performance.test.ts](../../../tests/benchmarks/cache-performance.test.ts)
 > 🎯 **Proves**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ First Miss (DB)                │       14.876 ms │ p95:       14.876 ms │ RPS:         67 ║
 ║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    548,023 ║
@@ -321,7 +321,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```text
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -338,7 +338,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](../../../tests/benchmarks/temporal-integrity.test.ts)
 > 🎯 **Proves**: Verifies timezone normalization and deterministic UTC persistence.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Timezone Ingestion             │        1.413 ms │ p95:        1.413 ms │ RPS:        707 ║
 ```
@@ -355,7 +355,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/admin-ux-vitality.test.ts](../../../tests/benchmarks/admin-ux-vitality.test.ts)
 > 🎯 **Proves**: Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Schema Resolution (8f)         │        0.679 ms │ p95:        1.137 ms │ RPS:      1,377 ║
 ║ Collection List (11 cols)      │        1.569 ms │ p95:        2.733 ms │ RPS:        629 ║
@@ -372,7 +372,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/media-performance.test.ts](../../../tests/benchmarks/media-performance.test.ts)
 > 🎯 **Proves**: Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ SDK: Media Processing          │        0.752 ms │ p95:        1.050 ms │ RPS:        974 ║
 ║ HTTP: Media Upload             │        2.063 ms │ p95:        2.926 ms │ RPS:        468 ║
@@ -384,7 +384,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/relational-performance.test.ts](../../../tests/benchmarks/relational-performance.test.ts)
 > 🎯 **Proves**: Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Shallow Relational Query       │        3.443 ms │ p95:        5.495 ms │ RPS:        276 ║
 ║ Deep Relational Query          │        2.326 ms │ p95:        3.415 ms │ RPS:        396 ║
@@ -396,7 +396,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/openapi-performance.test.ts](../../../tests/benchmarks/openapi-performance.test.ts)
 > 🎯 **Proves**: Generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cold OpenAPI Generation        │       11.946 ms │ p95:       11.946 ms │ RPS:         84 ║
 ║ Warm OpenAPI Hit (Cached)      │       11.219 ms │ p95:       12.999 ms │ RPS:         88 ║
@@ -422,7 +422,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```text
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -439,7 +439,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/security-audit.test.ts](../../../tests/benchmarks/security-audit.test.ts)
 > 🎯 **Proves**: Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ WAF Deep Analysis              │        0.004 ms │ p95:        0.008 ms │ RPS:    215,919 ║
 ║ Audit Log Persistence          │        0.000 ms │ p95:        0.001 ms │ RPS:  2,509,410 ║
@@ -455,7 +455,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Health Check                   │        0.524 ms │ p95:        1.290 ms │ RPS:      1,910 ║
 ║ Collection Schema              │        1.620 ms │ p95:        3.319 ms │ RPS:        617 ║
@@ -469,7 +469,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
 > 🎯 **Proves**: Resolver execution time and throughput for common queries.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ GQL: 5c Warmup                 │        2.934 ms │ p95:        4.342 ms │ RPS:        313 ║
 ║ GQL: 10c Light                 │        5.350 ms │ p95:        8.796 ms │ RPS:        180 ║
@@ -486,7 +486,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/seo-performance.test.ts](../../../tests/benchmarks/seo-performance.test.ts)
 > 🎯 **Proves**: E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Redirect Lookup (301)          │        0.475 ms │ p95:        0.840 ms │ RPS:      2,106 ║
 ║ Dynamic Sitemap XML            │        0.833 ms │ p95:        1.544 ms │ RPS:      1,200 ║
@@ -519,7 +519,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](../../../tests/benchmarks/negative-cache.test.ts)
 > 🎯 **Proves**: Benchmarks 404-miss response times and cache lookup speedup.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ First Miss (DB)                │       14.876 ms │ p95:       14.876 ms │ RPS:         67 ║
 ║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    548,023 ║
@@ -531,7 +531,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/revision-stress.test.ts](../../../tests/benchmarks/revision-stress.test.ts)
 > 🎯 **Proves**: Benchmarks performance degradation as document history grows to 100+ versions.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Latest Read (High Revision Count) │        0.767 ms │ p95:        1.447 ms │ RPS:      1,304 ║
 ║ History List Retrieval         │        0.443 ms │ p95:        0.644 ms │ RPS:      2,258 ║
@@ -543,7 +543,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](../../../tests/benchmarks/memory-stability.test.ts)
 > 🎯 **Proves**: Long-running soak test to identify memory leaks and GC pressure.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     16,969 ║
 ```
@@ -554,7 +554,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](../../../tests/benchmarks/multi-tenant-performance.test.ts)
 > 🎯 **Proves**: Stress-tests cross-tenant isolation and security boundary latency.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Tenant Baseline         │        1.180 ms │ p95:        2.324 ms │ RPS:        847 ║
 ║ Multi-Tenant Context Switching │        1.168 ms │ p95:        2.079 ms │ RPS:        857 ║
@@ -566,7 +566,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/mixed-workload.test.ts](../../../tests/benchmarks/mixed-workload.test.ts)
 > 🎯 **Proves**: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Mixed Workload                 │        1.468 ms │ p95:        3.259 ms │ RPS:        596 ║
 ```
@@ -583,7 +583,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/migration-scale.test.ts](../../../tests/benchmarks/migration-scale.test.ts)
 > 🎯 **Proves**: Measures system ingestion limits and read performance on 10,000+ entries.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Bulk Migration (10k)           │       19.108 ms │ p95:       24.355 ms │ RPS:         52 ║
 ║ Post-Migration Read            │        0.992 ms │ p95:        1.986 ms │ RPS:      1,009 ║
@@ -595,7 +595,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/index-pressure.test.ts](../../../tests/benchmarks/index-pressure.test.ts)
 > 🎯 **Proves**: Measures complex filtering and sorting performance on 100,000+ entry collections.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Sorted List (25k rows)         │        0.332 ms │ p95:        0.722 ms │ RPS:      3,016 ║
 ║ Filtered Query (25k rows)      │        0.329 ms │ p95:        0.577 ms │ RPS:      3,037 ║
@@ -618,7 +618,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```text
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -634,7 +634,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/cache-hit-ratio.test.ts](../../../tests/benchmarks/cache-hit-ratio.test.ts)
 > 🎯 **Proves**: Measures Redis cache hit/miss ratio, cold vs warm read speedup, and invalidation performance.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cache Miss (Bypass)            │        0.293 ms │ p95:        0.353 ms │ RPS:      2,971 ║
 ```
@@ -645,7 +645,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/media-upload-stress.test.ts](../../../tests/benchmarks/media-upload-stress.test.ts)
 > 🎯 **Proves**: Measures large file upload throughput, concurrent upload handling, and streaming efficiency.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Upload (10MB)           │       22.453 ms │ p95:       36.874 ms │ RPS:         45 ║
 ║ Small Upload (1MB)             │        5.591 ms │ p95:       12.157 ms │ RPS:        179 ║
@@ -663,7 +663,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 > 🎯 **Proves**: Verifies atomic consistency and lost-update protection.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Concurrent PATCH Bomb          │        0.858 ms │ p95:        0.858 ms │ RPS:      1,165 ║
 ```
@@ -674,7 +674,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
 > 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Full Blast                     │        0.944 ms │ p95:        0.944 ms │ RPS:      1,060 ║
 ```
@@ -692,7 +692,7 @@ Throughput dropped 25% — check connection pool saturation or lock contention.
 **Check**: `src/hooks/handle-system-state.ts` · `src/routes/setup/+page.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — SDK OVERHEAD TELEMETRY                            ║
 ║                  File: tests/benchmarks/local-api-performance.test.ts                   ║
@@ -703,7 +703,7 @@ Throughput dropped 25% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -726,7 +726,7 @@ Throughput dropped 25% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
 > 🎯 **Proves**: Measures system graceful degradation when external services fail.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Circuit Breaker Fallback       │        0.285 ms │ p95:        1.012 ms │ RPS:      3,514 ║
 ```
@@ -737,7 +737,7 @@ Throughput dropped 25% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/chaos-resilience.test.ts](../../../tests/benchmarks/chaos-resilience.test.ts)
 > 🎯 **Proves**: Simulates 500ms database brownouts and measures CMS availability and stability.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Chaos Resilience (Brownout)    │      199.833 ms │ p95:      734.346 ms │ RPS:          5 ║
 ```
@@ -748,7 +748,7 @@ Throughput dropped 25% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
 > 🎯 **Proves**: Measures rate-limiting consistency under 10x design load.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Throttling Enforcement         │        0.886 ms │ p95:        4.480 ms │ RPS:      1,128 ║
 ```
@@ -759,7 +759,7 @@ Throughput dropped 25% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
 > 🎯 **Proves**: Measures performance of deep-deletion across all linked tables.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Deep Deletion Speed            │        0.925 ms │ p95:        2.104 ms │ RPS:      1,081 ║
 ```
@@ -770,7 +770,7 @@ Throughput dropped 25% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/build-analysis.test.ts](../../../tests/benchmarks/build-analysis.test.ts)
 > 🎯 **Proves**: Measures production bundle size, chunk count, and build performance.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Production Build               │        0.000 ms │ p95:        0.000 ms │ RPS:          ∞ ║
 ```
@@ -821,7 +821,7 @@ Throughput dropped 25% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```text
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -897,7 +897,7 @@ Throughput dropped 99% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS  —  API LAYER LATENCY                             ║
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
@@ -907,7 +907,7 @@ Throughput dropped 99% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -925,7 +925,7 @@ Throughput dropped 99% — check connection pool saturation or lock contention.
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
@@ -935,7 +935,7 @@ Throughput dropped 99% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -952,7 +952,7 @@ Throughput dropped 99% — check connection pool saturation or lock contention.
 **Check**: `src/services/sdk/local-cms.ts` · `src/routes/api/[...path]/+server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                               SVELTYCMS — SRE TRUTH AUDIT                               ║
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
@@ -964,7 +964,7 @@ Throughput dropped 99% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -984,7 +984,7 @@ Throughput dropped 41% — check connection pool saturation or lock contention.
 **Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS — CONTENT SCAN AUDIT                              ║
 ║                       File: tests/benchmarks/content-scan.test.ts                       ║
@@ -994,7 +994,7 @@ Throughput dropped 41% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1012,7 +1012,7 @@ Throughput dropped 41% — check connection pool saturation or lock contention.
 **Check**: `src/databases/cache/cache-service.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                           ║
 ║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
@@ -1026,7 +1026,7 @@ Throughput dropped 41% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1047,7 +1047,7 @@ Throughput dropped 41% — check connection pool saturation or lock contention.
 **Check**: `src/services/TelemetryService.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                         SVELTYCMS — EDGE SYNC PROPAGATION AUDIT                         ║
 ║                        File: tests/benchmarks/edge-sync.test.ts                         ║
@@ -1057,7 +1057,7 @@ Throughput dropped 41% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1076,7 +1076,7 @@ Throughput dropped 19% — check connection pool saturation or lock contention.
 **Check**: `src/databases/<db>/crud-methods.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                       SVELTYCMS — TELEMETRY & UPDATE PERFORMANCE                        ║
 ║                  File: tests/benchmarks/telemetry-performance.test.ts                   ║
@@ -1087,7 +1087,7 @@ Throughput dropped 19% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1105,7 +1105,7 @@ Throughput dropped 19% — check connection pool saturation or lock contention.
 **Check**: `src/databases/cache/cache-service.ts` · `src/databases/cache/l1-cache.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — STATE MACHINE INTEGRITY                           ║
 ║                 File: tests/benchmarks/state-machine-transition.test.ts                 ║
@@ -1115,7 +1115,7 @@ Throughput dropped 19% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1140,7 +1140,7 @@ Throughput dropped 20% — check connection pool saturation or lock contention.
 **Check**: `src/services/AIService.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — ACID INTEGRITY AUDIT                             ║
 ║                     File: tests/benchmarks/transaction-acid.test.ts                     ║
@@ -1151,7 +1151,7 @@ Throughput dropped 20% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1169,7 +1169,7 @@ Throughput dropped 20% — check connection pool saturation or lock contention.
 **Check**: `src/hooks/handle-system-state.ts` · `src/routes/setup/+page.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — CACHE SERVICE TELEMETRY                           ║
 ║                      File: tests/benchmarks/cache-service.test.ts                       ║
@@ -1180,7 +1180,7 @@ Throughput dropped 20% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1198,7 +1198,7 @@ Throughput dropped 20% — check connection pool saturation or lock contention.
 **Check**: `src/services/MediaService.ts` · `src/databases/media/`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — AI INFRASTRUCTURE AUDIT                           ║
 ║                      File: tests/benchmarks/ai-performance.test.ts                      ║
@@ -1209,7 +1209,7 @@ Throughput dropped 20% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1227,7 +1227,7 @@ Throughput dropped 20% — check connection pool saturation or lock contention.
 **Check**: `src/databases/<db>/relational-utils.ts` · `src/content/relation-service.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS — TEMPORAL INTEGRITY                              ║
 ║                    File: tests/benchmarks/temporal-integrity.test.ts                    ║
@@ -1237,7 +1237,7 @@ Throughput dropped 20% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1262,7 +1262,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/services/OpenAPIService.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS  —  ADMIN UX VITALITY AUDIT                          ║
 ║                    File: tests/benchmarks/admin-ux-vitality.test.ts                     ║
@@ -1273,7 +1273,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1290,7 +1290,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/services/MediaService.ts` · `src/databases/media/`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — MEDIA UPLOAD STRESS AUDIT                          ║
 ║                   File: tests/benchmarks/media-upload-stress.test.ts                    ║
@@ -1301,7 +1301,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1319,7 +1319,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/services/AuditLogService.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — RELATIONAL RESOLVER AUDIT                          ║
 ║                  File: tests/benchmarks/relational-performance.test.ts                  ║
@@ -1330,7 +1330,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1348,7 +1348,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS — OPENAPI SPEC GENERATION AUDIT                        ║
 ║                   File: tests/benchmarks/openapi-performance.test.ts                    ║
@@ -1359,7 +1359,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1378,7 +1378,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
 ║                     File: tests/benchmarks/auth-performance.test.ts                     ║
@@ -1389,7 +1389,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1407,7 +1407,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/services/SEOService.ts` · `src/hooks/handle-seo.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT                        ║
 ║                      File: tests/benchmarks/security-audit.test.ts                      ║
@@ -1422,7 +1422,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1444,7 +1444,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/databases/core/base-adapter.ts` · `src/widgets/*/index.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — ENTERPRISE REST API AUDIT                          ║
 ║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
@@ -1457,7 +1457,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1475,7 +1475,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                         SVELTYCMS — GRAPHQL CAPACITY DISCOVERY                          ║
 ║                      File: tests/benchmarks/graphql-stress.test.ts                      ║
@@ -1491,7 +1491,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1508,7 +1508,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/databases/<db>/migrations.ts` · `src/content/migration-service.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — ENTERPRISE SEO AUDIT                             ║
 ║                     File: tests/benchmarks/seo-performance.test.ts                      ║
@@ -1521,7 +1521,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1557,7 +1557,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](../../../tests/benchmarks/negative-cache.test.ts)
 > 🎯 **Proves**: Benchmarks 404-miss response times and cache lookup speedup.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ First Miss (DB)                │       17.002 ms │ p95:       17.002 ms │ RPS:         59 ║
 ║ Cached Miss (Negative Cache)   │        0.003 ms │ p95:        0.005 ms │ RPS:    383,275 ║
@@ -1570,7 +1570,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/databases/<db>/crud-methods.ts` · `src/databases/<db>/schema.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — REVISION STRESS AUDIT                            ║
 ║                     File: tests/benchmarks/revision-stress.test.ts                      ║
@@ -1581,7 +1581,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1601,7 +1601,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — MEMORY STABILITY AUDIT                            ║
 ║                     File: tests/benchmarks/memory-stability.test.ts                     ║
@@ -1611,7 +1611,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1629,7 +1629,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](../../../tests/benchmarks/multi-tenant-performance.test.ts)
 > 🎯 **Proves**: Stress-tests cross-tenant isolation and security boundary latency.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Tenant Baseline         │        4.126 ms │ p95:        5.724 ms │ RPS:        242 ║
 ║ Multi-Tenant Context Switching │        4.012 ms │ p95:        5.582 ms │ RPS:        249 ║
@@ -1642,7 +1642,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/hooks/handle-authentication.ts` · `src/routes/api/[...path]/+server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — MIXED WORKLOAD AUDIT                             ║
 ║                      File: tests/benchmarks/mixed-workload.test.ts                      ║
@@ -1652,7 +1652,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1676,7 +1676,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/hooks.server.ts` · `src/databases/<db>/adapter-core.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — MIGRATION & SCALE AUDIT                           ║
 ║                     File: tests/benchmarks/migration-scale.test.ts                      ║
@@ -1687,7 +1687,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1704,7 +1704,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `vite.config.ts` · `svelte.config.js`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS  —  INDEX PRESSURE AUDIT                            ║
 ║                      File: tests/benchmarks/index-pressure.test.ts                      ║
@@ -1715,7 +1715,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1732,7 +1732,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS  —  CONTENT SCALE STRESS AUDIT                         ║
 ║                   File: tests/benchmarks/content-scale-stress.test.ts                   ║
@@ -1743,7 +1743,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1760,7 +1760,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/cache-hit-ratio.test.ts](../../../tests/benchmarks/cache-hit-ratio.test.ts)
 > 🎯 **Proves**: Measures Redis cache hit/miss ratio, cold vs warm read speedup, and invalidation performance.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cache Miss (Bypass)            │        0.891 ms │ p95:        1.186 ms │ RPS:        980 ║
 ```
@@ -1771,7 +1771,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/media-upload-stress.test.ts](../../../tests/benchmarks/media-upload-stress.test.ts)
 > 🎯 **Proves**: Measures large file upload throughput, concurrent upload handling, and streaming efficiency.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Upload (10MB)           │       32.125 ms │ p95:       37.266 ms │ RPS:         31 ║
 ║ Small Upload (1MB)             │        9.313 ms │ p95:       18.535 ms │ RPS:        107 ║
@@ -1784,7 +1784,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 **Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                              SVELTYCMS  —  WORLD LIFE DATA                              ║
 ║                      File: tests/benchmarks/client-journey.test.ts                      ║
@@ -1794,7 +1794,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1809,7 +1809,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- CONCURRENCY_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — MAX THROUGHPUT (SQLITE)                           ║
 ║                     File: tests/benchmarks/concurrency-max.test.ts                      ║
@@ -1819,7 +1819,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1835,7 +1835,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- THROUGHPUT_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS — LOCAL SDK BENCHMARK (SQLITE)                         ║
 ║                   File: tests/benchmarks/local-api-throughput.test.ts                   ║
@@ -1846,7 +1846,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1868,7 +1868,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- LOCALSDK_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — SDK OVERHEAD TELEMETRY                            ║
 ║                  File: tests/benchmarks/local-api-performance.test.ts                   ║
@@ -1879,7 +1879,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1899,7 +1899,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- CIRCUIT_BREAKER_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — CIRCUIT BREAKER AUDIT                            ║
 ║                 File: tests/benchmarks/circuit-breaker-failover.test.ts                 ║
@@ -1909,7 +1909,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1923,7 +1923,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- RESILIENCE_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — CHAOS RESILIENCE AUDIT                            ║
 ║                     File: tests/benchmarks/chaos-resilience.test.ts                     ║
@@ -1933,7 +1933,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1948,7 +1948,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- THROTTLING_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                              SVELTYCMS — THROTTLING AUDIT                               ║
 ║                File: tests/benchmarks/throttling-backoff-stress.test.ts                 ║
@@ -1958,7 +1958,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -1974,7 +1974,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 > 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
 > 🎯 **Proves**: Measures performance of deep-deletion across all linked tables.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Deep Deletion Speed            │        1.562 ms │ p95:        2.418 ms │ RPS:        640 ║
 ```
@@ -1983,7 +1983,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- BUILD_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — PRODUCTION BUILD ANALYSIS                          ║
 ║                      File: tests/benchmarks/build-analysis.test.ts                      ║
@@ -1993,7 +1993,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2038,7 +2038,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- SETUP_PROXY_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                     SVELTYCMS — INFRASTRUCTURE BOOT & ROUTING AUDIT                     ║
 ║                       File: tests/benchmarks/setup-proxy.test.ts                        ║
@@ -2081,7 +2081,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS  —  API LAYER LATENCY                             ║
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
@@ -2091,7 +2091,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2113,7 +2113,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
@@ -2123,7 +2123,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2144,7 +2144,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 **Check**: `src/services/sdk/local-cms.ts` · `src/routes/api/[...path]/+server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                               SVELTYCMS — SRE TRUTH AUDIT                               ║
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
@@ -2156,7 +2156,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2180,7 +2180,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 **Check**: `vite.config.ts` · `svelte.config.js`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — PRODUCTION BUILD ANALYSIS                          ║
 ║                      File: tests/benchmarks/build-analysis.test.ts                      ║
@@ -2190,7 +2190,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2228,7 +2228,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 **Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS — CONTENT SCAN AUDIT                              ║
 ║                       File: tests/benchmarks/content-scan.test.ts                       ║
@@ -2238,7 +2238,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2257,7 +2257,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 <!-- HOOKS_TRACE_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                           ║
 ║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
@@ -2271,7 +2271,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2296,7 +2296,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 **Check**: `src/services/TelemetryService.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                         SVELTYCMS — EDGE SYNC PROPAGATION AUDIT                         ║
 ║                        File: tests/benchmarks/edge-sync.test.ts                         ║
@@ -2306,7 +2306,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2329,7 +2329,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 **Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                       SVELTYCMS — TELEMETRY & UPDATE PERFORMANCE                        ║
 ║                  File: tests/benchmarks/telemetry-performance.test.ts                   ║
@@ -2340,7 +2340,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2359,7 +2359,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 <!-- STATE_MACHINE_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — STATE MACHINE INTEGRITY                           ║
 ║                 File: tests/benchmarks/state-machine-transition.test.ts                 ║
@@ -2369,7 +2369,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2394,7 +2394,7 @@ Throughput dropped 34% — check connection pool saturation or lock contention.
 **Check**: `src/services/RevisionService.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
 ║                      File: tests/benchmarks/negative-cache.test.ts                      ║
@@ -2405,7 +2405,7 @@ Throughput dropped 34% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2452,7 +2452,7 @@ Throughput dropped 34% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```text
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2478,7 +2478,7 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 **Check**: `src/components/*.svelte` · `src/routes/(app)/config/collections/`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                     SVELTYCMS — INFRASTRUCTURE BOOT & ROUTING AUDIT                     ║
 ║                       File: tests/benchmarks/setup-proxy.test.ts                        ║
@@ -2489,7 +2489,7 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2528,7 +2528,7 @@ Throughput dropped 49% — check connection pool saturation or lock contention.
 **Check**: `src/services/MediaService.ts` · `src/databases/media/`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — ACID INTEGRITY AUDIT                             ║
 ║                     File: tests/benchmarks/transaction-acid.test.ts                     ║
@@ -2539,7 +2539,7 @@ Throughput dropped 49% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2565,7 +2565,7 @@ Throughput dropped 53% — check connection pool saturation or lock contention.
 **Check**: `src/databases/<db>/relational-utils.ts` · `src/content/relation-service.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — AI INFRASTRUCTURE AUDIT                           ║
 ║                      File: tests/benchmarks/ai-performance.test.ts                      ║
@@ -2576,7 +2576,7 @@ Throughput dropped 53% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2600,7 +2600,7 @@ Throughput dropped 94% — check connection pool saturation or lock contention.
 **Check**: `src/services/OpenAPIService.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS — TEMPORAL INTEGRITY                              ║
 ║                    File: tests/benchmarks/temporal-integrity.test.ts                    ║
@@ -2610,7 +2610,7 @@ Throughput dropped 94% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2645,7 +2645,7 @@ Throughput dropped 46% — check connection pool saturation or lock contention.
 **Check**: `src/hooks/handle-authentication.ts` · `src/databases/auth/session-service.ts` · `src/services/sdk/namespaces/auth-namespace.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS  —  ADMIN UX VITALITY AUDIT                          ║
 ║                    File: tests/benchmarks/admin-ux-vitality.test.ts                     ║
@@ -2656,7 +2656,7 @@ Throughput dropped 46% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2679,7 +2679,7 @@ Throughput dropped 45% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/services/AuditLogService.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — MEDIA PIPELINE AUDIT                             ║
 ║                    File: tests/benchmarks/media-performance.test.ts                     ║
@@ -2690,7 +2690,7 @@ Throughput dropped 45% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2711,7 +2711,7 @@ Throughput dropped 45% — check connection pool saturation or lock contention.
 <!-- RELATIONAL_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — RELATIONAL RESOLVER AUDIT                          ║
 ║                  File: tests/benchmarks/relational-performance.test.ts                  ║
@@ -2722,7 +2722,7 @@ Throughput dropped 45% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2748,7 +2748,7 @@ Throughput dropped 47% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS — OPENAPI SPEC GENERATION AUDIT                        ║
 ║                   File: tests/benchmarks/openapi-performance.test.ts                    ║
@@ -2759,7 +2759,7 @@ Throughput dropped 47% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2784,7 +2784,7 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 **Check**: `src/services/SEOService.ts` · `src/hooks/handle-seo.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
 ║                     File: tests/benchmarks/auth-performance.test.ts                     ║
@@ -2795,7 +2795,7 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2817,7 +2817,7 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 **Check**: `src/databases/core/base-adapter.ts` · `src/widgets/*/index.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT                        ║
 ║                      File: tests/benchmarks/security-audit.test.ts                      ║
@@ -2832,7 +2832,7 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2860,7 +2860,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/databases/<db>/crud-methods.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — ENTERPRISE REST API AUDIT                          ║
 ║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
@@ -2873,7 +2873,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2895,7 +2895,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 **Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
 
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                          ║
 ║                 File: tests/benchmarks/graphql-api-performance.test.ts                  ║
@@ -2907,7 +2907,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2926,7 +2926,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- SEO_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — ENTERPRISE SEO AUDIT                             ║
 ║                     File: tests/benchmarks/seo-performance.test.ts                      ║
@@ -2939,7 +2939,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -2996,7 +2996,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- REVISION_STRESS_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — REVISION STRESS AUDIT                            ║
 ║                     File: tests/benchmarks/revision-stress.test.ts                      ║
@@ -3007,7 +3007,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3028,7 +3028,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- MEMORY_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — MEMORY STABILITY AUDIT                            ║
 ║                     File: tests/benchmarks/memory-stability.test.ts                     ║
@@ -3038,7 +3038,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3070,7 +3070,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- MIXED_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — MIXED WORKLOAD AUDIT                             ║
 ║                      File: tests/benchmarks/mixed-workload.test.ts                      ║
@@ -3080,7 +3080,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3110,7 +3110,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- MIGRATION_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — MIGRATION & SCALE AUDIT                           ║
 ║                     File: tests/benchmarks/migration-scale.test.ts                      ║
@@ -3131,7 +3131,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- INDEX_PRESSURE_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS  —  INDEX PRESSURE AUDIT                            ║
 ║                      File: tests/benchmarks/index-pressure.test.ts                      ║
@@ -3142,7 +3142,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3161,7 +3161,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- CONTENT_STRESS_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS  —  CONTENT SCALE STRESS AUDIT                         ║
 ║                   File: tests/benchmarks/content-scale-stress.test.ts                   ║
@@ -3172,7 +3172,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3192,7 +3192,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- JOURNEY_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                              SVELTYCMS  —  WORLD LIFE DATA                              ║
 ║                      File: tests/benchmarks/client-journey.test.ts                      ║
@@ -3202,7 +3202,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3222,7 +3222,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- CONCURRENCY_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — MAX THROUGHPUT (SQLITE)                           ║
 ║                     File: tests/benchmarks/concurrency-max.test.ts                      ║
@@ -3232,7 +3232,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3262,7 +3262,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- RESILIENCE_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — CHAOS RESILIENCE AUDIT                            ║
 ║                     File: tests/benchmarks/chaos-resilience.test.ts                     ║
@@ -3272,7 +3272,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3305,7 +3305,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- CIRCUIT_BREAKER_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — CIRCUIT BREAKER AUDIT                            ║
 ║                 File: tests/benchmarks/circuit-breaker-failover.test.ts                 ║
@@ -3315,7 +3315,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```text
+```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -3335,7 +3335,7 @@ Throughput dropped 39% — check connection pool saturation or lock contention.
 <!-- THROTTLING_TABLE_START -->
 <!-- INSIGHT_PLACEHOLDER -->
 
-```text
+```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                              SVELTYCMS — THROTTLING AUDIT                               ║
 ║                File: tests/benchmarks/throttling-backoff-stress.test.ts                 ║
@@ -3386,19 +3386,19 @@ bun test tests/benchmarks/api-latency.test.ts
 
 **Single test (record to this report):**
 
-```bash
+```
 BENCHMARK_RECORD=1 bun test tests/benchmarks/api-latency.test.ts
 ```text
 
 **Full SQLite matrix:**
 
-```bash
+```
 bun run scripts/benchmark-matrix/index.ts --sql
 ```text
 
 **History-only (no MDX mutation, useful in CI):**
 
-```bash
+```
 BENCHMARK_RECORD=1 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
 ```text
 

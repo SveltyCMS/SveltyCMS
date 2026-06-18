@@ -4,6 +4,7 @@
 Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling (colors).
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	type ToolType = 'text' | 'arrow' | 'rectangle' | 'circle' | null;
 
 	let {
@@ -47,38 +48,32 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 <div class="annotate-controls">
 	<!-- Tool Selection Group -->
 	<div class="tool-group">
-		<button type="button" class="tool-btn" class:active={currentTool === 'text'} onclick={() => onSetTool(currentTool === 'text' ? null : 'text')} title="Add Text">
+		<Button variant="outline" type="button" onclick={() => onSetTool(currentTool === 'text' ? null : 'text')} title="Add Text">
 			<iconify-icon icon="mdi:format-text" width="20"></iconify-icon>
-		</button>
-		<button
+		</Button>
+		<Button variant="outline"
 			type="button"
-			class="tool-btn"
-			class:active={currentTool === 'arrow'}
 			onclick={() => onSetTool(currentTool === 'arrow' ? null : 'arrow')}
 			title="Draw Arrow"
 			aria-label="Draw Arrow"
 		>
 			<iconify-icon icon="mdi:arrow-top-right" width="20"></iconify-icon>
-		</button>
-		<button
+		</Button>
+		<Button variant="outline"
 			type="button"
-			class="tool-btn"
-			class:active={currentTool === 'rectangle'}
 			onclick={() => onSetTool(currentTool === 'rectangle' ? null : 'rectangle')}
 			title="Draw Rectangle"
 			aria-label="Draw Rectangle"
 		>
 			<iconify-icon icon="mdi:rectangle-outline" width="20"></iconify-icon>
-		</button>
-		<button
+		</Button>
+		<Button variant="outline"
 			type="button"
-			class="tool-btn"
-			class:active={currentTool === 'circle'}
 			onclick={() => onSetTool(currentTool === 'circle' ? null : 'circle')}
 			title="Draw Circle"
 		>
 			<iconify-icon icon="mdi:circle-outline" width="20"></iconify-icon>
-		</button>
+		</Button>
 	</div>
 
 	{#if currentTool === 'text' && onTextDraftChange}
@@ -92,9 +87,9 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 				placeholder="Enter annotation text"
 				oninput={(e) => onTextDraftChange(e.currentTarget.value)}
 			/>
-			<button type="button" class="text-place-btn" onclick={() => onSetTool('text')} title="Click canvas to place text">
+			<Button variant="outline" type="button" onclick={() => onSetTool('text')} title="Click canvas to place text">
 				Place text
-			</button>
+			</Button>
 		</div>
 	{/if}
 
@@ -116,10 +111,10 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	</div>
 
 	{#if hasSelection && onDeleteAnnotation}
-		<button type="button" class="delete-btn" onclick={onDeleteAnnotation} title="Delete selected annotation">
+		<Button variant="outline" type="button" onclick={onDeleteAnnotation} title="Delete selected annotation">
 			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 			<span>Delete</span>
-		</button>
+		</Button>
 	{/if}
 </div>
 
@@ -140,31 +135,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		padding: 0.25rem;
 		background: rgba(0, 0, 0, 0.2);
 		border-radius: 9999px;
-	}
-
-	.tool-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 2.5rem;
-		height: 2.5rem;
-		color: #9ca3af;
-		cursor: pointer;
-		background: transparent;
-		border: none;
-		border-radius: 9999px;
-		transition: all 0.2s;
-	}
-
-	.tool-btn:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
-	}
-
-	.tool-btn.active {
-		color: white;
-		background: #3b82f6;
-		box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 	}
 
 	.divider {
@@ -212,16 +182,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
 	}
 
-	.text-place-btn {
-		padding: 0.45rem 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #e5e7eb;
-		background: rgba(59, 130, 246, 0.2);
-		border: 1px solid rgba(59, 130, 246, 0.5);
-		border-radius: 0.5rem;
-	}
-
 	.color-picker-label {
 		position: relative;
 		width: 2rem;
@@ -258,19 +218,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		border-radius: 50%;
 	}
 
-	.delete-btn {
-		display: inline-flex;
-		gap: 0.35rem;
-		align-items: center;
-		padding: 0.45rem 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #fecaca;
-		background: rgba(239, 68, 68, 0.16);
-		border: 1px solid rgba(239, 68, 68, 0.45);
-		border-radius: 0.5rem;
-	}
-
 	@media (max-width: 768px) {
 		.annotate-controls {
 			align-items: stretch;
@@ -302,11 +249,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			width: 100%;
 		}
 
-		.text-place-btn {
-			width: 100%;
-			justify-content: center;
-		}
-
 		.divider {
 			display: none;
 		}
@@ -316,10 +258,5 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			gap: 0.55rem;
 		}
 
-		.delete-btn {
-			order: 4;
-			width: 100%;
-			justify-content: center;
-		}
 	}
 </style>

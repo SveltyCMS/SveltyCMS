@@ -20,6 +20,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import {
 		loading_authentication_bottom,
 		loading_authentication_top,
@@ -252,14 +253,14 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 			<!-- Cancel button (if cancellable) -->
 			{#if canCancel}
-				<button
-					onclick={handleCancel}
-					class="preset-outlined-error-500 btn-sm mt-2"
-					type="button"
-					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
-				>
-					Cancel
-				</button>
+				<div transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+					<Button variant="error"
+						onclick={handleCancel}
+						type="button"
+					 size="sm" class="mt-2">
+						Cancel
+					</Button>
+				</div>
 			{/if}
 		</div>
 

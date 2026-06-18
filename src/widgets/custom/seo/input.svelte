@@ -9,12 +9,12 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	// Stores & Props
 	import { app } from '@src/stores/store.svelte';
 	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
 
 	// Lucide Icons
 
 	import { tokenTarget } from '@src/services/token/token-target';
 	import type { SeoWidgetData } from '.';
+	import Tabs from '@components/ui/tabs';
 	import SeoAnalysisPanel from './components/seo-analysis-panel.svelte';
 	import SeoField from './components/seo-field.svelte';
 	// Components
@@ -33,7 +33,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	let { field, value = $bindable(), validationError: _validationError }: Props = $props();
 
 	// --- State ---
-	let activeTab = $state(0);
+	let activeTab = $state<'basic' | 'social' | 'advanced'>('basic');
 	let seoPreviewMobile = $state(false);
 	let analysisResults: any = $state(null);
 	let showAnalysis = $state(false); // Collapsible analysis panel
@@ -171,42 +171,19 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 
 	<!-- Bottom Area: Tabs & Inputs -->
 	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm">
-		<!-- Inline Tabs Implementation -->
-		<div class="flex border-b border-surface-400/30 mb-6">
-			<button
-				class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 0
-					? 'border-tertiary-500 dark:border-primary-500 font-bold text-tertiary-500 dark:text-primary-500'
-					: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
-				onclick={() => (activeTab = 0)}
-			>
-				Basic
-			</button>
-			{#if hasFeature('social')}
-				<button
-					class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 1
-						? 'border-tertiary-500 dark:border-primary-500 font-bold text-tertiary-500 dark:text-primary-500'
-						: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
-					onclick={() => (activeTab = 1)}
-				>
-					Social
-				</button>
-			{/if}
-			{#if hasFeature('advanced')}
-				<button
-					class="px-4 py-2 border-b-2 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700/50 {activeTab === 2
-						? 'border-tertiary-500 dark:border-primary-500 font-bold text-tertiary-500 dark:text-primary-500'
-						: 'border-transparent text-surface-600 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-200'}"
-					onclick={() => (activeTab = 2)}
-				>
-					Advanced
-				</button>
-			{/if}
-		</div>
+		<Tabs bind:value={activeTab} class="w-full">
+			<Tabs.List class="mb-6 border-surface-400/30">
+				<Tabs.Trigger value="basic">Basic</Tabs.Trigger>
+				{#if hasFeature('social')}
+					<Tabs.Trigger value="social">Social</Tabs.Trigger>
+				{/if}
+				{#if hasFeature('advanced')}
+					<Tabs.Trigger value="advanced">Advanced</Tabs.Trigger>
+				{/if}
+			</Tabs.List>
 
-		<div class="mt-4 space-y-4" transition:slide>
 			{#if langData}
-				{#if activeTab === 0}
-					<!-- Basic Tab -->
+				<Tabs.Content value="basic" class="mt-4 space-y-4">
 
 					<SeoField
 						id="seo-title"
@@ -252,8 +229,10 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 					>
 						<!-- Example of using slot for extra icon if needed --></SeoField
 					>
-				{:else if activeTab === 1}
-					<!-- Social Tab (includes Preview) -->
+				</Tabs.Content>
+
+				{#if hasFeature('social')}
+				<Tabs.Content value="social" class="mt-4 space-y-4">
 					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						<div class="space-y-4">
 							<h3 class="h3 font-bold">Open Graph (Facebook/LinkedIn)</h3>
@@ -323,8 +302,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 							hostUrl={publicEnv.HOST_PROD}
 						/>
 					</div>
-				{:else if activeTab === 2}
-					<!-- Advanced Tab -->
+				</Tabs.Content>
+				{/if}
+
+				{#if hasFeature('advanced')}
+				<Tabs.Content value="advanced" class="mt-4 space-y-4">
 
 					<SeoField
 						id="seo-robotsMeta"
@@ -386,8 +368,9 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 						</div>
 						<p class="text-xs text-surface-400 dark:text-surface-300">Paste valid JSON-LD structure here.</p>
 					</div>
+				</Tabs.Content>
 				{/if}
 			{/if}
-		</div>
+		</Tabs>
 	</div>
 </div>

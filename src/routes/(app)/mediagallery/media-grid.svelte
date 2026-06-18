@@ -9,6 +9,7 @@ Features:
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
   import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
   import SystemTooltip from "@src/components/system/system-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
@@ -38,8 +39,9 @@ Features:
     onOpenFileDetails = () => {},
   }: Props = $props();
 
-  let showTagModal = $state(false);
-  let taggingFile = $state<MediaImage | null>(null);
+  	let showTagModal = $state(false);
+  	let taggingFile = $state<MediaImage | null>(null);
+  	let fileUploadInput = $state<HTMLInputElement>();
 
   function formatMimeType(mime?: string): string {
     if (!mime) return "Unknown";
@@ -94,14 +96,16 @@ Features:
 </script>
 
 <div
-  class="flex flex-wrap items-start gap-4 overflow-auto content-start min-h-100"
+  class="flex min-h-100 flex-wrap content-start items-start gap-4 overflow-auto"
   role="grid"
   aria-label="Media asset grid"
+  data-testid="media-grid"
 >
   {#if filteredFiles.length === 0}
     <div
-      class="flex flex-col items-center justify-center w-full min-h-75 border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50/50 dark:bg-surface-800/20"
+      class="flex flex-col items-center justify-center w-full min-h-75 border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50 dark:bg-surface-800"
       transition:scale={{ duration: 200 }}
+      data-testid="media-grid-empty"
     >
       <iconify-icon icon="mdi:cloud-upload-outline" width="64" class=""
       ></iconify-icon>
@@ -112,27 +116,26 @@ Features:
         Drop files here or use the upload button to start building your library.
       </p>
 
-      <label
-        class="btn btn-lg preset-filled-tertiary-500 dark:preset-filled-primary-500 cursor-pointer shadow-lg hover:shadow-primary-500/20 transition-all"
-      >
-        <iconify-icon icon="mdi:plus" width="24"></iconify-icon>
-        <span>Upload First File</span>
-        <input
-          type="file"
-          multiple
-          class="hidden"
-          onchange={(e) => {
-            const input = e.target as HTMLInputElement;
-            if (input.files?.length) {
-              const event = new CustomEvent("externalUpload", {
-                detail: { files: input.files },
-              });
-              document.dispatchEvent(event);
-            }
-          }}
-          accept="image/*,video/*,audio/*,application/pdf"
-        />
-      </label>
+      		<Button variant="tertiary" size="lg" onclick={() => fileUploadInput?.click()} class="shadow-lg hover:shadow-primary-500/20 transition-all">
+      			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
+      			<span>Upload First File</span>
+      		</Button>
+      		<input
+      			type="file"
+      			multiple
+      			class="hidden"
+      			bind:this={fileUploadInput}
+      			onchange={(e) => {
+      				const input = e.target as HTMLInputElement;
+      				if (input.files?.length) {
+      					const event = new CustomEvent("externalUpload", {
+      						detail: { files: input.files },
+      					});
+      					document.dispatchEvent(event);
+      				}
+      			}}
+      			accept="image/*,video/*,audio/*,application/pdf"
+      		/>
     </div>
   {:else}
     {#each filteredFiles as file (file._id || file.filename)}
@@ -140,10 +143,10 @@ Features:
       {const isSelected = selectedFiles.has(fileId)}
 
       <div
-        class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-300
+        class="group relative flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-300
 					hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 focus-within:ring-4 focus-within:ring-primary-500
 					{isSelected
-          ? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
+          ? 'border-primary-500 ring-2 ring-primary-500/20'
           : 'border-surface-200 dark:border-surface-800'}
 					{gridSize === 'tiny'
           ? 'w-32'
@@ -162,7 +165,7 @@ Features:
               type="checkbox"
               checked={isSelected}
               onchange={() => toggleSelection(file)}
-              class="checkbox h-6 w-6 rounded-full border-2 border-surface-400 checked:bg-tertiary-500 dark:bg-primary-500 shadow-lg cursor-pointer"
+              class="checkbox h-6 w-6 cursor-pointer rounded-full border-2 border-surface-400 shadow-lg checked:bg-primary-500"
               aria-label="Select {file.filename}"
             />
           </div>
@@ -173,29 +176,28 @@ Features:
           class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
         >
           <SystemTooltip title="Edit" positioning={{ placement: "left" }}>
-            <button
-              onclick={(e) => {
+            <Button variant="ghost"
+              data-testid="media-edit-button"
+              onclick={(e: MouseEvent) => {
                 e.stopPropagation();
                 onEditImage(file as MediaImage);
               }}
-              class="btn-icon btn-icon-sm bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm"
               aria-label="Edit {file.filename}"
-            >
+             class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm">
               <iconify-icon icon="mdi:pencil" width={16}></iconify-icon>
-            </button>
+            </Button>
           </SystemTooltip>
 
-          <button
-            onclick={(e) => {
+          <Button variant="ghost"
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               ondeleteImage(file);
             }}
-            class="btn-icon btn-icon-sm bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm"
             aria-label="Delete {file.filename}"
-          >
+           class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm">
             <iconify-icon icon="mdi:trash-can-outline" width={16}
             ></iconify-icon>
-          </button>
+          </Button>
         </div>
 
         <!-- Image / Icon -->

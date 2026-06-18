@@ -4,7 +4,7 @@ title: "Security Testing"
 description: "Comprehensive security testing for SveltyCMS including encryption, XSS prevention, Fail-Closed API, and defense-in-depth verification."
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-06-06"
+updated: "2026-06-17"
 tags:
   - "testing"
   - "security"
@@ -15,7 +15,7 @@ tags:
 
 # Security Testing
 
-**Last Updated:** June 6, 2026  
+**Last Updated:** June 17, 2026
 **Total Security Tests:** 199+ (Unit + Contract + Slop + Mutation)  
 **Pass Rate:** 100%
 
@@ -74,7 +74,7 @@ bun run audit:security --base=http://.. # custom URL
 
 **Requires a running server** (preview or dev mode). Run in a separate terminal:
 
-```bash
+```
 node build/index.js   # or: bun run dev
 ```text
 
@@ -93,7 +93,7 @@ Audit categories with real payloads:
 
 ## Running Security Tests
 
-```bash
+```
 bun run test:unit -- security   # Encryption, auth, lockout
 bun run slop                    # XSS, legacy patterns, ARIA
 bun run mutate                  # Verify sanitizer kill rate

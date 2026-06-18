@@ -14,6 +14,12 @@
 	import { browser } from '$app/environment';
 	import Logo from './svelty-cms-logo.svelte';
 
+	interface Props {
+		siteName?: string;
+	}
+
+	const { siteName: propSiteName }: Props = $props();
+
 	// Safely get the slogan - paraglide may not be ready during initial render in production
 	function getSlogan(): string {
 		try {
@@ -28,7 +34,7 @@
 	}
 
 	const slogan = $derived(getSlogan());
-	const siteName = $derived(publicEnv.SITE_NAME || 'SveltyCMS');
+	const siteName = $derived(propSiteName || publicEnv.SITE_NAME || 'SveltyCMS');
 </script>
 
 <!-- CSS Logo - Removed <a> tag to prevent navigation interference -->

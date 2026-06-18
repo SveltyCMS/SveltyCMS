@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:table-large"
 author: "SveltyCMS Team"
 created: "2026-06-13"
-updated: "2026-06-13"
+updated: "2026-06-19"
 tags:
   - "testing"
   - "e2e"
@@ -16,7 +16,7 @@ tags:
 
 # E2E Coverage Matrix — Route-Based Analysis
 
-> Generated: 2026-06-13 | Total routes: 8 | Total E2E specs: 17
+> Generated: 2026-06-19 | Total routes: 9 | Total E2E specs: 29 | CI projects: 17 (+ wizard + auth-setup)
 
 ## 1. `/setup` — Setup Wizard (24 components, 6 tested)
 
@@ -114,57 +114,70 @@ tags:
 
 ---
 
-## 5. `/config/*` — System Configuration (3 specs)
+## 5. `/config/*` — System Configuration (8 specs)
 
-| Route                       | Feature                 | Test File                   | Status    |
-| --------------------------- | ----------------------- | --------------------------- | --------- |
-| `/config/system-settings`   | Cache repair            | `system-smoke.spec.ts`      | ✅        |
-| `/config/access-management` | Permissions             | `permission-change.spec.ts` | ⚠️        |
-| `/config/access-management` | RBAC (admin/dev/editor) | `role-based-access.spec.ts` | ⚠️ 3 fail |
-| `/config/...`               | Language switching      | `language.spec.ts`          | ⚠️ Skips  |
-| `/config/extensions`        | —                       | —                           | ❌        |
-| `/config/automations`       | —                       | —                           | ❌        |
-| `/config/importer`          | —                       | —                           | ❌        |
-| `/config/sync`              | —                       | —                           | ❌        |
-| `/config/queue`             | —                       | —                           | ❌        |
-| `/config/redirects`         | —                       | —                           | ❌        |
-| `/config/webhooks`          | —                       | —                           | ❌        |
-| `/config/workflows`         | —                       | —                           | ❌        |
-
----
-
-## 6. `/dashboard` — NONE tested
-
-| Missing Feature                       | Priority  |
-| ------------------------------------- | --------- |
-| Widget grid layout                    | 🔴 High   |
-| Add/remove widgets                    | 🔴 High   |
-| Widget drag reorder                   | 🟡 Medium |
-| Real-time metrics (CPU, memory, disk) | 🔴 High   |
-| Cache monitor                         | 🟡 Medium |
-| System health status                  | 🔴 High   |
-| User online count                     | 🟡 Medium |
-| Security alerts                       | 🟡 Medium |
-| Logs widget                           | 🟢 Low    |
-| Audit trail widget                    | 🟢 Low    |
+| Route                       | Feature                          | Test File                          | CI Project      | Status |
+| --------------------------- | -------------------------------- | ---------------------------------- | --------------- | ------ |
+| `/config/system-settings`   | Cache repair                     | `system/settings.spec.ts`          | `system`        | ✅     |
+| `/config/access-management` | Roles, permissions, save gating  | `config/access-management.spec.ts` | `config-routes` | ✅     |
+| `/config/access-management` | Permission matrix (system)       | `system/permissions.spec.ts`       | `permissions`   | ✅     |
+| `/config/access-management` | RBAC (admin/dev/editor)          | `system/rbac.spec.ts`              | `rbac`          | ✅     |
+| `/config/webhooks`          | List, create form, delivery logs | `config/webhooks.spec.ts`          | `config-routes` | ✅     |
+| `/config/automations`       | Workflow builder smoke           | `config/automations.spec.ts`       | `config-routes` | ✅     |
+| `/config/importer`          | Smart importer smoke             | `config/data-management.spec.ts`   | `config-routes` | ✅     |
+| `/config/sync`              | Sync settings smoke              | `config/data-management.spec.ts`   | `config-routes` | ✅     |
+| `/config/redirects`         | Redirect manager smoke           | `config/data-management.spec.ts`   | `config-routes` | ✅     |
+| `/config/monitor`           | Service health                   | `config/operations.spec.ts`        | `config-routes` | ✅     |
+| `/config/queue`             | Job queue list                   | `config/operations.spec.ts`        | `config-routes` | ✅     |
+| `/config/extensions`        | Extension list                   | `config/operations.spec.ts`        | `config-routes` | ✅     |
+| `/config/appearance`        | My Overrides + layout prefs      | `config/appearance.spec.ts`        | `appearance`    | ✅     |
+| `/config/design-system`     | Component playground             | `config/design-system.spec.ts`     | `appearance`    | ✅     |
+| `/config/workflows`         | —                                | —                                  | —               | ❌     |
 
 ---
 
-## 7. `/mediagallery` — NONE tested
+## 6. `/admin/tenants` — Multi-Tenant Management (1 spec)
 
-| Missing Feature                           |
-| ----------------------------------------- |
-| Upload media (single/bulk)                |
-| Delete media                              |
-| Folder management                         |
-| Media search/filter                       |
-| Image editor (crop, filters, focal point) |
-| Media metadata editing                    |
-| Virtual folder navigation                 |
+| Feature                    | Test File               | CI Project | Status |
+| -------------------------- | ----------------------- | ---------- | ------ |
+| Tenant list load           | `admin/tenants.spec.ts` | `admin`    | ✅     |
+| Quota headers/empty        | `admin/tenants.spec.ts` | `admin`    | ✅     |
+| **Create tenant**          | —                       | —          | ❌     |
+| **Edit tenant**            | —                       | —          | ❌     |
+| **Cross-tenant isolation** | —                       | —          | ❌     |
 
 ---
 
-## 8. `/language` — Partially tested
+## 7. `/dashboard` — Smoke tested (1 spec)
+
+| Feature                              | Test File                     | CI Project  | Status |
+| ------------------------------------ | ----------------------------- | ----------- | ------ |
+| Page shell + grid/empty state        | `dashboard/dashboard.spec.ts` | `dashboard` | ✅     |
+| Add widget menu (CPU, System Health) | `dashboard/dashboard.spec.ts` | `dashboard` | ✅     |
+| Add CPU widget to grid               | `dashboard/dashboard.spec.ts` | `dashboard` | ✅     |
+| **Widget drag reorder**              | —                             | —           | ❌     |
+| **Cache monitor widget content**     | —                             | —           | ❌     |
+| **Real-time metrics assertions**     | —                             | —           | ❌     |
+
+---
+
+## 8. `/mediagallery` — Smoke tested (1 spec)
+
+| Feature                       | Test File                           | CI Project | Status |
+| ----------------------------- | ----------------------------------- | ---------- | ------ |
+| Page shell + toolbar          | `mediagallery/mediagallery.spec.ts` | `media`    | ✅     |
+| Search + type filter          | `mediagallery/mediagallery.spec.ts` | `media`    | ✅     |
+| Grid/table view toggle        | `mediagallery/mediagallery.spec.ts` | `media`    | ✅     |
+| Local file upload             | `mediagallery/mediagallery.spec.ts` | `media`    | ✅     |
+| **Delete media**              | —                                   | —          | ❌     |
+| **Folder management**         | —                                   | —          | ❌     |
+| **Image editor (crop/focal)** | `mediagallery/image-editor.spec.ts` | `media`    | ✅     |
+| **Image editor save**         | —                                   | —          | ❌     |
+| **Virtual folder navigation** | —                                   | —          | ❌     |
+
+---
+
+## 9. `/language` — Partially tested
 
 | Feature                     | Status                   |
 | --------------------------- | ------------------------ |
@@ -182,13 +195,38 @@ tags:
 | `/login`                    | 16       | 10     | 62%      |
 | `/user`                     | 15       | 9      | 60%      |
 | `/config/collectionbuilder` | 15       | 10     | 66%      |
-| `/config/*` (other)         | 12       | 4      | 33%      |
-| `/dashboard`                | 10       | 0      | **0%**   |
-| `/mediagallery`             | 7        | 0      | **0%**   |
+| `/config/*` (other)         | 15       | 11     | 73%      |
+| `/admin/tenants`            | 5        | 2      | 40%      |
+| `/dashboard`                | 10       | 3      | 30%      |
+| `/mediagallery`             | 8        | 4      | 50%      |
 | `/language`                 | 3        | 1      | 33%      |
-| **TOTAL**                   | **94**   | **40** | **42%**  |
+| **TOTAL**                   | **105**  | **63** | **60%**  |
 
-> **Critical gaps**: Dashboard (0%), Media Gallery (0%), Setup presets, 2FA, SAML, rate limiting, extensions.
+> **Critical gaps**: Setup presets, 2FA, SAML, rate limiting, image editor, dashboard drag-reorder.
+
+## CI Playwright Projects (17 + wizard + auth-setup)
+
+| Project             | Spec(s)                                                                                | Depends on |
+| ------------------- | -------------------------------------------------------------------------------------- | ---------- |
+| `wizard`            | `setup/setup-wizard.spec.ts`                                                           | —          |
+| `auth-setup`        | `auth.setup.ts`, `login/login.spec.ts`                                                 | —          |
+| `signup`            | `user/account-smoke.spec.ts`                                                           | auth-setup |
+| `content`           | `collection-builder/content-smoke.spec.ts`                                             | auth-setup |
+| `system`            | `system/settings.spec.ts`                                                              | auth-setup |
+| `a11y`              | `login/accessibility.spec.ts`                                                          | auth-setup |
+| `branding`          | `login/branding.spec.ts`                                                               | auth-setup |
+| `visual-regression` | `admin-theme/visual-regression.spec.ts`                                                | auth-setup |
+| `rbac`              | `system/rbac.spec.ts`                                                                  | auth-setup |
+| `language`          | `system/language.spec.ts`                                                              | auth-setup |
+| `users`             | `user/profile.spec.ts`, `user/management.spec.ts`                                      | auth-setup |
+| `builder`           | `collection-builder/builder.spec.ts`, `collection.spec.ts`, `journey.spec.ts`          | auth-setup |
+| `permissions`       | `system/permissions.spec.ts`                                                           | auth-setup |
+| `firstuser`         | `login/signup.spec.ts`, `login/oauth.spec.ts`                                          | —          |
+| `config-routes`     | `config/access-management`, `webhooks`, `automations`, `data-management`, `operations` | auth-setup |
+| `admin`             | `admin/tenants.spec.ts`                                                                | auth-setup |
+| `dashboard`         | `dashboard/dashboard.spec.ts`                                                          | auth-setup |
+| `appearance`        | `config/appearance.spec.ts`, `config/design-system.spec.ts`                            | auth-setup |
+| `media`             | `mediagallery/mediagallery.spec.ts`                                                    | auth-setup |
 
 ## Next Steps
 

@@ -27,7 +27,7 @@ SveltyCMS supports PostgreSQL as an alternative to MongoDB and MariaDB through t
 
 The PostgreSQL adapter follows a modular pattern, leveraging Drizzle ORM for schema-agnostic operations and raw SQL for initial schema setup.
 
-````mermaid
+```mermaid
 graph TD
     A[SveltyCMS Core] --> B(IDBAdapter Interface)
     B --> C{PostgreSQLAdapter}
@@ -36,11 +36,11 @@ graph TD
     D --> F[(PostgreSQL DB)]
     E --> F
     C --> G[Schema Definitions]
-```text
+```
 
 ### File Structure
 
-```text
+```
 src/databases/postgresql/
 ├── postgresAdapter.ts      # Entry point (re-exports adapter)
 ├── migrations.ts           # Automatic "CREATE TABLE IF NOT EXISTS" logic
@@ -50,13 +50,13 @@ src/databases/postgresql/
 │   └── adapterCore.ts     # Core functionality (connect, disconnect, health)
 └── schema/
     └── index.ts           # Drizzle ORM schema definitions
-```text
+```
 
 ## Schema Initialization (Migrations)
 
 Unlike MongoDB which is schema-less, PostgreSQL requires table definitions. SveltyCMS implements an automatic migration system that runs during the initial setup or the first system access.
 
-```mermaid
+```
 sequenceDiagram
     participant S as Setup Wizard / System Init
     participant A as PostgreSQLAdapter
@@ -69,13 +69,13 @@ sequenceDiagram
     D-->>M: Tables Created/Verified
     M-->>A: { success: true }
     A-->>S: Ready
-```text
+```
 
 ## Connection Configuration
 
 PostgreSQL connections are configured in `config/private.ts` or during the setup wizard:
 
-```typescript
+```
 // Configuration Object
 {
     type: 'postgresql',
@@ -85,7 +85,7 @@ PostgreSQL connections are configured in `config/private.ts` or during the setup
     user: 'postgres',
     password: 'your_password'
 }
-```text
+```
 
 ## Drizzle Schema
 
@@ -136,7 +136,7 @@ Modify `src/databases/postgresql/schema/index.ts`. Remember to also update `src/
 
 Implement methods in `src/databases/postgresql/adapter/index.ts`. Use the `wrap()` helper for consistent error handling and logging.
 
-```typescript
+```
 public readonly crud = {
   findOne: async (collection: string, query: Record<string, unknown>) => {
     return this.wrap(async () => {
@@ -147,7 +147,7 @@ public readonly crud = {
     }, 'CRUD_FIND_ONE_FAILED');
   }
 };
-```text
+```
 
 ## Performance Benchmarks
 
@@ -172,7 +172,6 @@ Key PostgreSQL highlights:
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)
 - [postgres.js GitHub](https://github.com/porsager/postgres)
 - [MariaDB Implementation](./mariadb-implementation.mdx)
-````
 
 ---
 

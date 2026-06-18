@@ -90,7 +90,7 @@ Accessibility requires not only textual translation, but directionality adaptati
 
 Our Playwright accessibility suite includes a dedicated `rtl-audit` that dynamically sets the layout direction on the page and verifies compatibility:
 
-```typescript
+```
 test("RTL Audit - Verify LTR to RTL Mirroring Stability", async ({ page }) => {
   await loginAsAdmin(page);
   await page.waitForURL(/\/(Collections|admin|dashboard|collectionbuilder)/);
@@ -128,7 +128,7 @@ Automated scans cannot easily verify the logic of focus order. We write Playwrig
 
 ### Focus Order Test Snippet
 
-```typescript
+```
 test("Keyboard Navigation - Dialog Focus Trap", async ({ page }) => {
   await page.goto("/admin/media");
 
@@ -168,7 +168,7 @@ When a widget registers using `createWidget()`, the factory statically inspects 
 
 If any issues are found, the factory prints compile-time accessibility warnings to help developers fix them immediately:
 
-```bash
+```
 [Accessibility Warning] Widget 'ColorPicker' has potential WCAG compliance issues:
   - Interactive element '<input type="text" ...>' lacks 'aria-label', 'aria-labelledby', or 'id'.
 ```text
@@ -183,7 +183,7 @@ In SveltyCMS, users frequently edit deeply nested models, open relations dropdow
 
 We write spec files that trace focus boundaries:
 
-```typescript
+```
 test("Focus Restoration - Relations Widget modal close", async ({ page }) => {
   await page.goto("/admin/collections/posts/new");
 
@@ -236,7 +236,7 @@ As a CMS, SveltyCMS is also an authoring tool. This means we must check:
 
 You can execute accessibility checks locally using the following workflows:
 
-```bash
+```
 # Run the E2E accessibility suite (automated axe, keyboard, and RTL checks)
 npx playwright test tests/e2e/accessibility.spec.ts
 ```text

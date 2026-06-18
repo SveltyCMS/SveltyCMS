@@ -48,7 +48,7 @@ const cms = createEdgeClient({
 
 ### Fetching Content
 
-```typescript
+```
 const posts = await cms.getEntries("posts", {
   limit: 10,
   filter: { status: "published" },
@@ -61,7 +61,7 @@ const posts = await cms.getEntries("posts", {
 
 ### Edge-First Architecture
 
-```mermaid
+```
 sequenceDiagram
     participant User
     participant Edge as Edge Function (CF/Vercel)

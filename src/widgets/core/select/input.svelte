@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import Select from '@components/ui/select.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import type { SelectOption } from './types';
@@ -17,11 +18,10 @@
 
 	let { field, value = $bindable(), error }: Props = $props();
 
-	const fieldId = $derived(field.db_fieldName);
 	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Local state to bind the select to
-	let localValue = $state<string | number | null>(null);
+	let localValue = $state<string>('');
 
 	// Normalize options
 	const normalizedOptions = $derived(
@@ -33,15 +33,23 @@
 		})
 	);
 
+	const selectOptions = $derived(
+		normalizedOptions.map((opt: SelectOption) => ({
+			value: String(opt.value),
+			label: opt.label
+		}))
+	);
+
 	// Sync localValue from parent value
 	$effect(() => {
 		const parentVal = value;
-		let extracted: string | number | null = null;
+		let extracted = '';
 
 		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
-			extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? null;
+			const raw = (parentVal as Record<string, any>)[LANGUAGE];
+			extracted = raw == null ? '' : String(raw);
 		} else if (!field.translated && (typeof parentVal === 'string' || typeof parentVal === 'number')) {
-			extracted = parentVal;
+			extracted = String(parentVal);
 		}
 
 		if (extracted !== localValue) {
@@ -50,43 +58,29 @@
 	});
 
 	// Update parent value when localValue changes
-	function updateParent(newVal: string | number | null) {
+	function updateParent(newVal: string) {
+		const parsedVal = newVal === '' ? null : newVal;
 		if (field.translated) {
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value as object), [LANGUAGE]: newVal };
+			value = { ...(value as object), [LANGUAGE]: parsedVal };
 		} else {
-			value = newVal;
+			value = parsedVal;
 		}
 	}
 </script>
 
-<div class="mb-4 w-full">
-	<label for={fieldId} class="label text-black dark:text-primary-500 mb-1">
-		<span>{field.label}</span>
-		{#if field.required}
-			<span class="text-error-500">*</span>
-		{/if}
-	</label>
-
-	<select
-		id={fieldId}
+<div class="relative mb-4 w-full">
+	<Select
 		bind:value={localValue}
-		onchange={() => updateParent(localValue)}
-		class="select w-full rounded border border-surface-500 dark:border-surface-400 bg-white dark:bg-surface-900"
-		aria-invalid={!!error}
-		aria-describedby={error ? `${fieldId}-error` : undefined}
-	>
-		<option value={null} disabled selected={localValue === null}>
-			{field.placeholder || 'Select an option...'}
-		</option>
-		{#each normalizedOptions as option}
-			<option value={option.value}>{option.label}</option>
-		{/each}
-	</select>
-
-	{#if error}
-		<p id={`${fieldId}-error`} class="mt-1 text-xs text-error-500" role="alert">{error}</p>
-	{/if}
+		label={field.label}
+		placeholder={field.placeholder || 'Select an option...'}
+		options={selectOptions}
+		allowEmptySelection
+		required={field.required}
+		error={error || ''}
+		invalid={!!error}
+		onchange={updateParent}
+	/>
 </div>

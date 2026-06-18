@@ -29,6 +29,7 @@ import { cn } from '@utils/cn';
 import { generateId } from '@utils/id-generator';
 import Badge from './badge.svelte';
 import { fade, scale } from 'svelte/transition';
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	tags?: string[];
@@ -123,14 +124,13 @@ function handleKeydown(e: KeyboardEvent) {
 				>
 					<span>{tag}</span>
 					{#if !disabled}
-						<button
+						<Button variant="ghost"
 							type="button"
-							class="btn-icon btn-icon-sm hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
-							onclick={(e) => { e.stopPropagation(); removeTag(i); }}
+							onclick={(e: MouseEvent) => { e.stopPropagation(); removeTag(i); }}
 							aria-label={`Remove ${tag}`}
-						>
+						 class="p-0! min-w-0 hover:bg-black/10 dark:hover:bg-white/10 rounded-full">
 							<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-						</button>
+						</Button>
 					{/if}
 				</Badge>
 			</div>

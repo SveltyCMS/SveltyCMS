@@ -9,6 +9,10 @@ Features:
 -->
 <script lang="ts">
 import { modalState } from "@utils/modal.svelte";
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 
 interface Props {
 	conflictingName: string;
@@ -52,6 +56,10 @@ function validateCustomName(name: string): boolean {
 	// Name must start with a letter and contain only letters and numbers
 	return /^[a-zA-Z][a-zA-Z0-9]*$/.test(name);
 }
+
+const suggestionOptions = $derived(
+	suggestions.map((suggestion) => ({ value: suggestion, label: suggestion }))
+);
 </script>
 
 <div class="modal-body p-4">
@@ -64,42 +72,35 @@ function validateCustomName(name: string): boolean {
 	</div>
 
 	<div class="mb-4">
-		<label for="suggested-name" class="label mb-2"> <span>Choose a suggested name:</span> </label>
-		<select id="suggested-name" class="select" bind:value={selectedName} disabled={useCustomName}>
-			{#each suggestions as suggestion (suggestion)}
-				<option value={suggestion}>{suggestion}</option>
-			{/each}
-		</select>
+		<Select
+			label="Choose a suggested name"
+			bind:value={selectedName}
+			options={suggestionOptions}
+			disabled={useCustomName}
+		/>
 	</div>
 
-	<div class="mb-4">
-		<label for="use-custom" class="label"> <span>Or use a custom name:</span> </label>
-		<div class="input-group">
-			<input id="use-custom" type="checkbox" bind:checked={useCustomName} class="checkbox" />
-			<input
-				id="custom-name"
-				type="text"
-				bind:value={customName}
-				disabled={!useCustomName}
-				class="input"
-				placeholder="Enter custom name"
-				aria-labelledby="use-custom"
-			/>
-		</div>
+	<div class="mb-4 space-y-3">
+		<Checkbox bind:checked={useCustomName} label="Or use a custom name" />
+		<Input
+			id="custom-name"
+			bind:value={customName}
+			disabled={!useCustomName}
+			placeholder="Enter custom name"
+		/>
 		{#if useCustomName && customName && !validateCustomName(customName)}
 			<p class="mt-1 text-sm text-error-500">Name must start with a letter and contain only letters and numbers (no spaces or special characters).</p>
 		{/if}
 	</div>
 
 	<footer class="modal-footer flex justify-end gap-4">
-		<button type="button" class="preset-outlined-surface-500 btn" onclick={handleCancel}>Cancel</button>
-		<button
+		<Button variant="outline" type="button" onclick={handleCancel}>Cancel</Button>
+		<Button variant="tertiary"
 			type="button"
-			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
 			onclick={handleConfirm}
 			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}
-		>
+		 class="dark:">
 			Use Selected Name
-		</button>
+		</Button>
 	</footer>
 </div>

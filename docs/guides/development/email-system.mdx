@@ -72,7 +72,7 @@ You can trigger emails via a standard REST API. This is useful for external serv
 **Endpoint**: `POST /api/send-mail`
 **Authentication**: Requires session or API token.
 
-````json
+```json
 {
   "recipientEmail": "user@example.com",
   "subject": "Hello from SveltyCMS",
@@ -81,7 +81,7 @@ You can trigger emails via a standard REST API. This is useful for external serv
     "username": "John Doe"
   }
 }
-```text
+```
 
 ### Automation System Integration
 
@@ -96,7 +96,7 @@ The most common way to send emails is through the **GUI Automation System**.
 
 ## Architecture
 
-```mermaid
+```
 graph TD
     A["API / automationService"] --> B["email.server.ts (Utility)"]
     B --> C["Svelte Compiler (SSR)"]
@@ -111,11 +111,10 @@ graph TD
     end
 
     C -.->|Import| T1 & T2 & T3
-```text
+```
 
 ## Related Documentation
 
 - **[Automation System](./automation-system.mdx)**: Learn how to trigger emails based on CMS events.
 - [Webhook Integrations](../../api/system.mdx#3-webhooks-integrations): For outbound events to third-party services.
 - **[System Settings](../../api/system.mdx)**: Manage SMTP credentials.
-````

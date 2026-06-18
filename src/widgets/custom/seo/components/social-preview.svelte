@@ -6,6 +6,7 @@ Displays a preview of the shared link for different platforms.
 -->
 
 <script module lang="ts">
+	import Button from '@components/ui/button.svelte';
 	const PLATFORMS = [
 		{ id: 'facebook', icon: 'mdi:facebook', color: 'text-blue-600', label: 'Facebook' },
 		{ id: 'whatsapp', icon: 'mdi:whatsapp', color: 'text-green-500', label: 'WhatsApp' },
@@ -60,17 +61,14 @@ Displays a preview of the shared link for different platforms.
 	<div class="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
 		{#each PLATFORMS as platform (platform.id)}
 			<SystemTooltip title={platform.label}>
-				<button
+				<Button variant="secondary"
 					type="button"
-					class="btn btn-icon btn-icon-sm transition-all {activePlatform === platform.id
-						? 'preset-filled-secondary-500 ring-2 ring-surface-900 dark:ring-white scale-110'
-						: 'preset-tonal-surface hover:preset-filled-surface-500'}"
 					onclick={() => (activePlatform = platform.id)}
 					aria-label={platform.label}
-				>
+				 class="p-0! min-w-0 transition-all {activePlatform === platform.id ? ' ring-2 ring-surface-900 dark:ring-white scale-110' : ' hover: '}">
 					<iconify-icon icon={platform.icon} width="24" class="text-xl {activePlatform === platform.id ? 'text-white' : platform.color}"
 					></iconify-icon>
-				</button>
+				</Button>
 			</SystemTooltip>
 		{/each}
 	</div>

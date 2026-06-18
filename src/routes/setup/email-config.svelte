@@ -10,6 +10,10 @@
 - Clear explanation of why SMTP is needed
 -->
 <script lang="ts">
+	import Alert from '@components/ui/alert.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
 		setup_email_aria_help_host,
@@ -375,6 +379,20 @@
 
 	let selectedPreset = $state(setup_email_preset_custom() as string);
 
+	const presetOptions = $derived(
+		presets.map((preset) => ({
+			value: preset.name,
+			label: preset.name
+		}))
+	);
+
+	const portOptions = $derived(
+		commonPorts.map((port) => ({
+			value: String(port.value),
+			label: port.label
+		}))
+	);
+
 	function applyPreset(presetName: string) {
 		const preset = presets.find((p) => p.name === presetName);
 		if (preset) {
@@ -494,19 +512,19 @@
 					</button>
 				</SystemTooltip>
 			</div>
-			<select class="select w-full rounded border border-slate-300 dark:border-surface-600  " bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
-				{#each presets as preset, index (index)}
-					<option value={preset.name}>{preset.name}</option>
-				{/each}
-			</select>
+			<Select
+				bind:value={selectedPreset}
+				options={presetOptions}
+				placeholder="Select an SMTP provider preset"
+				onchange={() => applyPreset(selectedPreset)}
+			/>
 		</label>
 		{#if selectedPreset !== setup_email_preset_custom()}
 			{const preset = presets.find((p) => p.name === selectedPreset)}
 			{#if preset?.note}
-				<div class="card preset-outlined-warning-500 flex items-start gap-2 p-3" role="alert">
-					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500" aria-hidden="true"></iconify-icon>
-					<p class="text-sm text-warning-700 dark:text-warning-300">{preset.note}</p>
-				</div>
+				<Alert variant="warning" preset="outlined">
+					{preset.note}
+				</Alert>
 			{/if}
 		{/if}
 	</div>
@@ -529,11 +547,9 @@
 					</button>
 				</SystemTooltip>
 			</div>
-			<input
+			<Input
 				id="smtp-host"
 				type="text"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
-				class:input-error={displayErrors.host || (wizard.emailSettings.host.trim() && !isValidHostname())}
 				bind:value={wizard.emailSettings.host}
 				placeholder={setup_email_host_placeholder()}
 				required
@@ -542,22 +558,13 @@
 					testSuccess = false;
 					testError = '';
 				}}
+				error={displayErrors.host ||
+					(wizard.emailSettings.host.trim() && !isValidHostname()
+						? wizard.emailSettings.host.includes('@')
+							? setup_email_invalid_hostname()
+							: setup_email_invalid_hostname_format()
+						: undefined)}
 			/>
-			{#if displayErrors.host}
-				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
-					{displayErrors.host}
-				</span>
-			{:else if wizard.emailSettings.host.trim() && !isValidHostname()}
-				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
-					{#if wizard.emailSettings.host.includes('@')}
-						{setup_email_invalid_hostname()}
-					{:else}
-						{setup_email_invalid_hostname_format()}
-					{/if}
-				</span>
-			{/if}
 		</label>
 
 		<!-- SMTP Port with Auto-Detection -->
@@ -581,73 +588,61 @@
 
 			{#if useCustomPort}
 				<div class="flex gap-2">
-					<input
+					<Input
 						type="number"
-						class="input w-full rounded border border-slate-300 dark:border-surface-600  "
-						class:input-error={displayErrors.port}
-						value={Number(wizard.emailSettings.port)}
-						oninput={(e) => (wizard.emailSettings.port = e.currentTarget.value)}
+						bind:value={wizard.emailSettings.port}
 						placeholder={setup_email_port_custom()}
-						min="1"
-						max="65535"
+						min={1}
+						max={65535}
 						required
 						onblur={() => handleBlur('port')}
 						onchange={() => {
 							testSuccess = false;
 							testError = '';
 						}}
+						error={displayErrors.port}
+						class="flex-1"
 					/>
 
-					<button
+					<Button variant="outline"
 						type="button"
-						class="preset-outlined-surface-500 btn btn-sm whitespace-nowrap border border-slate-300 dark:border-surface-600"
 						aria-label={setup_email_aria_switch_standard()}
 						onclick={() => {
 							useCustomPort = false;
 							wizard.emailSettings.port = '587'; // Reset to default
 						}}
-					>
+					 size="sm" class="whitespace-nowrap border border-slate-300 dark:border-surface-600">
 						<iconify-icon icon="mdi:arrow-u-left-top" class="text-lg" aria-hidden="true"></iconify-icon>
 						{setup_email_button_use_standard()}
-					</button>
+					</Button>
 				</div>
-				{#if displayErrors.port}
-					<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-						<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
-						{displayErrors.port}
-					</span>
-				{:else}
+				{#if !displayErrors.port}
 					<span class="text-xs text-surface-600 dark:text-surface-50">{setup_email_port_custom_desc()}</span>
 				{/if}
 			{:else}
 				<!-- Standard port dropdown -->
 				<div class="flex gap-2">
-					<select
-						class="select w-full rounded border border-slate-300 dark:border-surface-600  "
-						value={String(wizard.emailSettings.port)}
-						onchange={(e) => {
-							wizard.emailSettings.port = e.currentTarget.value;
+					<Select
+						bind:value={wizard.emailSettings.port}
+						options={portOptions}
+						placeholder="Select a standard SMTP port"
+						onchange={() => {
 							testSuccess = false;
 							testError = '';
 						}}
-						aria-label="Select a standard SMTP port"
-					>
-						{#each commonPorts as port, index (index)}
-							<option value={String(port.value)}>{port.label}</option>
-						{/each}
-					</select>
+						class="flex-1"
+					/>
 
-					<button
+					<Button variant="outline"
 						type="button"
-						class="preset-outlined dark:border-surface-600 btn btn-sm whitespace-nowrap"
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
 						}}
-					>
+					 size="sm" class="preset-outlined dark:border-surface-600 whitespace-nowrap">
 						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>
 						{setup_email_button_custom()}
-					</button>
+					</Button>
 				</div>
 				{const selectedPort = commonPorts.find((p) => p.value === effectivePort())}
 				{#if selectedPort}
@@ -680,11 +675,9 @@
 					</button>
 				</SystemTooltip>
 			</div>
-			<input
+			<Input
 				id="smtp-user"
 				type="text"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
-				class:input-error={displayErrors.user}
 				bind:value={wizard.emailSettings.user}
 				placeholder={setup_email_user_placeholder()}
 				required
@@ -700,13 +693,8 @@
 					testSuccess = false;
 					testError = '';
 				}}
+				error={displayErrors.user}
 			/>
-			{#if displayErrors.user}
-				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
-					{displayErrors.user}
-				</span>
-			{/if}
 		</label>
 
 		<!-- SMTP Password -->
@@ -726,10 +714,8 @@
 				</SystemTooltip>
 			</div>
 			<div class="relative">
-				<input
+				<Input
 					type={showPassword ? 'text' : 'password'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   pe-10"
-					class:input-error={displayErrors.password}
 					bind:value={wizard.emailSettings.password}
 					placeholder={setup_email_password_placeholder()}
 					required
@@ -745,22 +731,17 @@
 						testSuccess = false;
 						testError = '';
 					}}
+					error={displayErrors.password}
+					inputClass="pe-10"
 				/>
-				<button
+				<Button variant="ghost"
 					type="button"
-					class="btn-icon btn-sm absolute inset-e-1 top-1/2 -translate-y-1/2"
 					onclick={() => (showPassword = !showPassword)}
 					aria-label={showPassword ? setup_email_aria_hide_password() : setup_email_aria_show_password()}
-				>
+				 size="sm" class="p-0! min-w-0 absolute inset-e-0 top-0">
 					<iconify-icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} class="text-lg text-surface-600 dark:text-surface-50"></iconify-icon>
-				</button>
+				</Button>
 			</div>
-			{#if displayErrors.password}
-				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
-					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
-					{displayErrors.password}
-				</span>
-			{/if}
 		</label>
 
 		<!-- From Email (Optional) -->
@@ -769,10 +750,9 @@
 				<iconify-icon icon="mdi:email-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_from()}</span>
 			</div>
-			<input
+			<Input
 				id="smtp-from"
 				type="email"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				bind:value={wizard.emailSettings.from}
 				placeholder={wizard.emailSettings.user || 'noreply@example.com'}
 				onblur={() => {
@@ -788,10 +768,10 @@
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<button type="submit" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full" disabled={!isFormValid || isTesting}>
+		<Button variant="tertiary" type="submit" disabled={!isFormValid || isTesting} class="dark: w-full">
 			<iconify-icon icon="mdi:email" class="me-2 text-xl"></iconify-icon>
 			{isTesting ? setup_email_testing() : setup_email_test_button()}
-		</button>
+		</Button>
 
 		<!-- Test Result -->
 		{#if testSuccess}
@@ -803,14 +783,13 @@
 						<p class="font-semibold text-success-700 dark:text-success-300">{setup_email_connection_success()}</p>
 					</div>
 					<!-- Toggle button - visible only on mobile -->
-					<button
+					<Button variant="ghost"
 						type="button"
-						class="btn-icon btn-sm md:hidden"
 						onclick={() => (showSuccessDetails = !showSuccessDetails)}
 						aria-label={showSuccessDetails ? setup_email_button_hide_details() : setup_email_button_show_details()}
-					>
+					 size="sm" class="p-0! min-w-0 md:hidden">
 						<iconify-icon icon={showSuccessDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="text-xl"></iconify-icon>
-					</button>
+					</Button>
 				</div>
 
 				<!-- Collapsible details -->
@@ -824,13 +803,9 @@
 		{/if}
 
 		{#if testError}
-			<div class="card preset-outlined-error-500 flex items-start gap-3 p-4">
-				<iconify-icon icon="mdi:close-circle" class="text-2xl text-error-500"></iconify-icon>
-				<div class="flex-1">
-					<p class="font-semibold text-error-700 dark:text-error-300">{setup_email_connection_failed()}</p>
-					<p class="mt-1 text-sm text-error-600 dark:text-error-500">{testError}</p>
-				</div>
-			</div>
+			<Alert variant="error" title={setup_email_connection_failed()} preset="outlined">
+				{testError}
+			</Alert>
 		{/if}
 	</div>
 </form>

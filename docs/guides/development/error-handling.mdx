@@ -31,7 +31,7 @@ The unified error handling system consists of three core modules:
 | **apiHandler.ts**     | `src/utils/apiHandler.ts`     | Higher-order function for API route protection |
 | **apiClient.ts**      | `src/utils/apiClient.ts`      | Client-side fetch wrapper with error handling  |
 
-````mermaid
+```mermaid
 graph TD
     subgraph Server Side
         API[API Route] --> Handler[apiHandler]
@@ -48,7 +48,7 @@ graph TD
     end
 
     ErrorResponse -.-> Fetch
-```text
+```
 
 ---
 
@@ -58,7 +58,7 @@ graph TD
 
 All API errors return a standardized response shape:
 
-```typescript
+```
 interface ApiErrorResponse {
   success: false;
   message: string; // Human-readable error message
@@ -67,13 +67,13 @@ interface ApiErrorResponse {
   status?: number; // HTTP status code (for logging)
   stack?: string; // Stack trace (development only)
 }
-```text
+```
 
 ### AppError Class
 
 The `AppError` class is the standard way to throw errors in the application:
 
-```typescript
+```
 import { AppError } from "@utils/errorHandling";
 
 // Basic usage
@@ -81,7 +81,7 @@ throw new AppError("User not found", 404, "NOT_FOUND");
 
 // With details
 throw new AppError("Validation failed", 400, "VALIDATION_ERROR", { fields: ["email", "password"] });
-```text
+```
 
 #### Constructor Parameters
 
@@ -114,7 +114,7 @@ Standard error codes used across the application:
 
 In the new architecture, all API logic is encapsulated in handlers within `src/routes/api/[...path]/handlers/`.
 
-```typescript
+```
 // src/routes/api/[...path]/handlers/user.ts
 import { json } from "@sveltejs/kit";
 import { AppError } from "@utils/errorHandling";
@@ -134,13 +134,13 @@ export async function handleUserRoutes(event, cms, segments) {
 
   return json({ success: true, data: user });
 }
-```text
+```
 
 ### Handling Different Error Types
 
 The `handleApiError` function handles various error types:
 
-```typescript
+```
 // Valibot validation errors
 import { parse } from "valibot";
 const data = parse(userSchema, await event.request.json());
@@ -158,7 +158,7 @@ throw new AppError("Custom message", 400, "CUSTOM_CODE");
 // Unknown errors
 throw new Error("Something went wrong");
 // ➜ Wrapped with INTERNAL_ERROR code
-```text
+```
 
 ---
 
@@ -168,7 +168,7 @@ throw new Error("Something went wrong");
 
 Use `fetchApi` for all API calls to get consistent error handling:
 
-```typescript
+```
 import { fetchApi } from "@utils/api-client";
 
 // GET request
@@ -180,11 +180,11 @@ if (response.success) {
   console.error("Error:", response.message);
   console.error("Code:", response.code);
 }
-```text
+```
 
 ### ApiResponse Interface
 
-```typescript
+```
 interface ApiResponse<T> {
   success: boolean;
   data?: T; // Present when success: true
@@ -192,11 +192,11 @@ interface ApiResponse<T> {
   code?: string; // Error code when success: false
   issues?: string[]; // Validation issues when applicable
 }
-```text
+```
 
 ### Making Requests
 
-```typescript
+```
 // POST request with body
 const result = await fetchApi<User>("/api/users", {
   method: "POST",
@@ -215,11 +215,11 @@ const updateResult = await fetchApi<User>(`/api/users/${id}`, {
 const deleteResult = await fetchApi(`/api/users/${id}`, {
   method: "DELETE",
 });
-```text
+```
 
 ### Error Handling Patterns
 
-```typescript
+```
 async function createUser(data: UserInput) {
   const response = await fetchApi<User>("/api/users", {
     method: "POST",
@@ -248,7 +248,7 @@ async function createUser(data: UserInput) {
 
   return response.data;
 }
-```text
+```
 
 ---
 
@@ -258,7 +258,7 @@ async function createUser(data: UserInput) {
 
 Widgets integrate with the `validationStore` for field-level error handling. The `handleWidgetValidation` helper standardizes this process:
 
-```typescript
+```
 // In widget input.svelte
 import { handleWidgetValidation } from "@widgets/widgetErrorHandler";
 import { validationStore } from "@stores/store.svelte";
@@ -274,11 +274,11 @@ async function validateInput() {
   // Result contains { valid, message, issues }
   return result.valid;
 }
-```text
+```
 
 ### ValidationStore API
 
-```typescript
+```
 // Set an error
 validationStore.setError("email", "Invalid email format");
 
@@ -295,7 +295,7 @@ if (validationStore.isValid) {
 
 // Get specific error
 const emailError = validationStore.getError("email");
-```text
+```
 
 ---
 
@@ -305,7 +305,7 @@ const emailError = validationStore.getError("email");
 
 Extract a human-readable message from any error:
 
-```typescript
+```
 import { getErrorMessage } from "@utils/errorHandling";
 
 try {
@@ -314,26 +314,26 @@ try {
   const message = getErrorMessage(error);
   console.error("Operation failed:", message);
 }
-```text
+```
 
 ### isAppError
 
 Type guard to check if an error is an AppError:
 
-```typescript
+```
 import { isAppError } from "@utils/errorHandling";
 
 if (isAppError(error)) {
   console.log("Status:", error.status);
   console.log("Code:", error.code);
 }
-```text
+```
 
 ### wrapError
 
 Convert any error into an AppError:
 
-```typescript
+```
 import { wrapError } from "@utils/errorHandling";
 
 try {
@@ -341,7 +341,7 @@ try {
 } catch (error) {
   throw wrapError(error, "External API call failed", 502);
 }
-```text
+```
 
 ---
 
@@ -349,7 +349,7 @@ try {
 
 ### Unit Testing Error Handling
 
-```typescript
+```
 import { describe, test, expect } from "vitest";
 import { AppError, handleApiError, getErrorMessage } from "@utils/errorHandling";
 
@@ -380,11 +380,11 @@ describe("getErrorMessage", () => {
     expect(getErrorMessage(null)).toBe("An unknown error occurred");
   });
 });
-```text
+```
 
 ### Integration Testing API Endpoints
 
-```typescript
+```
 import { describe, test, expect } from "vitest";
 
 describe("API Error Handling", () => {
@@ -412,11 +412,11 @@ describe("API Error Handling", () => {
     expect(data.code).toBe("NOT_FOUND");
   });
 });
-```text
+```
 
 ### Running Tests with Bun
 
-```bash
+```
 # Run all tests
 bun test
 
@@ -425,7 +425,7 @@ bun test --grep "error"
 
 # Run with coverage
 bun test --coverage
-```text
+```
 
 ---
 
@@ -450,7 +450,7 @@ bun test --coverage
 
 ### Error Message Guidelines
 
-```typescript
+```
 // ❌ Bad: Too technical
 throw new AppError("ECONNREFUSED: Connection refused", 500);
 
@@ -466,7 +466,7 @@ throw new AppError("Invalid input", 400);
 
 // ✅ Good: Specific
 throw new AppError("Email address is not valid", 400, "INVALID_EMAIL");
-```text
+```
 
 ---
 
@@ -509,7 +509,7 @@ throw new AppError("Email address is not valid", 400, "INVALID_EMAIL");
 
 ### Exports from error-handling.ts
 
-```typescript
+```
 // Classes
 export class AppError extends Error { ... }
 
@@ -522,20 +522,20 @@ export function wrapError(err: unknown, message?: string, status?: number): AppE
 
 // Types
 export interface ApiErrorResponse { ... }
-```text
+```
 
 ### Exports from apiHandler.ts
 
-```typescript
+```
 export function apiHandler(handler: ApiHandlerCallback): RequestHandler;
-```text
+```
 
 ### Exports from apiClient.ts
 
-```typescript
+```
 export function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>>;
 export interface ApiResponse<T> { ... }
-```text
+```
 
 ---
 
@@ -543,13 +543,12 @@ export interface ApiResponse<T> { ... }
 
 Structured error codes enable fast log filtering in production:
 
-```bash
+```
 # Before: grep for generic message strings
 cat production.log | grep "User creation failed"
 
 # After: filter by structured code
 cat production.log | grep USER_CREATE_FAILED
-```text
+```
 
 Each `raise()` call auto-generates semantic codes (`NOT_FOUND`, `UNAUTHORIZED`, etc.) or accepts custom codes (`USER_CREATE_FAILED`). The `handleError` hook attaches userId, tenantId, and request path to every error log.
-````

@@ -12,6 +12,7 @@ Features:
 
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
@@ -54,14 +55,13 @@ Features:
 		<div class="flex-1">
 			{#if currentStep > 0}
 				<SystemTooltip title={button_previous()} positioning={{ placement: 'top', gutter: 8 }}>
-					<button
+					<Button variant="tertiary"
 						onclick={() => onprev()}
-						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 flex items-center gap-1"
 						aria-label={button_previous?.() || 'Go to previous step'}
-					>
+					 class="dark: flex items-center gap-1">
 						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
 						<span class="inline">{button_previous()}</span>
-					</button>
+					</Button>
 				</SystemTooltip>
 			{/if}
 		</div>
@@ -76,15 +76,12 @@ Features:
 		<div class="flex flex-1 justify-end">
 			{#if currentStep < totalSteps - 1}
 				<SystemTooltip title={button_next()} positioning={{ placement: 'top', gutter: 8 }}>
-					<button
+					<Button variant="tertiary"
 						onclick={() => onnext()}
 						disabled={!canProceed || isLoading}
 						aria-disabled={!canProceed || isLoading}
-						class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {canProceed
-							? ''
-							: 'cursor-not-allowed opacity-60'} flex items-center gap-1"
 						aria-label={button_next?.() || 'Go to next step'}
-					>
+					 class="transition-all dark: {canProceed ? '' : ' opacity-60'} flex items-center gap-1">
 						{#if isLoading && currentStep === 0}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
 							{#if canProceed}
@@ -96,22 +93,19 @@ Features:
 							<span class="inline">{button_next()}</span>
 							<iconify-icon icon="mdi:arrow-right-bold" class="h-5 w-5"></iconify-icon>
 						{/if}
-					</button>
+					</Button>
 				</SystemTooltip>
 			{:else if currentStep === totalSteps - 1}
 				<SystemTooltip title={button_complete?.() || 'Complete'} positioning={{ placement: 'top', gutter: 8 }}>
-					<button
+					<Button variant="tertiary"
 						onclick={() => {
 							console.log('🏁 SetupNavigation: Complete button clicked');
 							oncomplete();
 						}}
 						disabled={isLoading}
 						aria-disabled={isLoading}
-						class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {isLoading
-							? 'cursor-not-allowed opacity-60'
-							: ''} flex items-center gap-1"
 						aria-label={button_complete?.() || 'Complete setup'}
-					>
+					 class="transition-all dark: {isLoading ? ' opacity-60' : ''} flex items-center gap-1">
 						{#if isLoading}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
 							<span class="inline">Completing...</span>
@@ -119,7 +113,7 @@ Features:
 							<span class="inline">{button_complete?.() || 'Complete'}</span>
 							<iconify-icon icon="mdi:check-bold" class="h-5 w-5"></iconify-icon>
 						{/if}
-					</button>
+					</Button>
 				</SystemTooltip>
 			{/if}
 		</div>

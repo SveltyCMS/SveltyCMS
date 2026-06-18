@@ -26,6 +26,7 @@ Part of the Three Pillars Architecture for widget system.
 
 <script lang="ts">
 	// Components
+	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
@@ -42,6 +43,17 @@ Part of the Three Pillars Architecture for widget system.
 	let { field, value = $bindable(), error }: Props = $props();
 
 	const fieldName = $derived(getFieldName(field));
+	let inputRef = $state<HTMLInputElement | null>(null);
+
+	$effect(() => {
+		if (!inputRef) return;
+		const inst = tokenTarget(inputRef, {
+			name: field.db_fieldName,
+			label: field.label,
+			collection: (field as any).collection
+		});
+		return () => inst.destroy();
+	});
 
 	// Convert ISO string to YYYY-MM-DD format for native input
 
@@ -138,8 +150,9 @@ Part of the Three Pillars Architecture for widget system.
 
 <div class="relative mb-4 min-h-10 w-full">
 	<SystemTooltip title={error || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
-			<input
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
+			<Input
+				bind:inputRef
 				type="date"
 				id={field.db_fieldName}
 				name={field.db_fieldName}
@@ -150,12 +163,7 @@ Part of the Three Pillars Architecture for widget system.
 				oninput={handleInput}
 				onblur={handleBlur}
 				oninvalid={(e) => e.preventDefault()}
-				use:tokenTarget={{
-					name: field.db_fieldName,
-					label: field.label,
-					collection: (field as any).collection
-				}}
-				class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {error
+				inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500 {error
 					? 'bg-error-500-10!'
 					: ''}"
 				aria-invalid={!!error}

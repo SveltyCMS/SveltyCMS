@@ -12,6 +12,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	//Stores
 
 	// Componets
+	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { setThemePreference, themeStore, useSystemPreference } from '@src/stores/theme-store.svelte.ts';
 
@@ -54,9 +55,20 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	});
 </script>
 
-{#if showTooltip}
-	<SystemTooltip title={getTooltipText()} positioning={{ placement: tooltipPlacement }}>
-		<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
+	{#if showTooltip}
+		<SystemTooltip title={getTooltipText()} positioning={{ placement: tooltipPlacement }}>
+			<Button variant="outline" onclick={cycleTheme} aria-label="Toggle theme" class="{buttonClass} p-0! min-w-0 rounded-full">
+				{#if themeStore.themePreference === 'light'}
+					<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
+				{:else if themeStore.themePreference === 'dark'}
+					<iconify-icon icon="mdi:moon-waning-crescent" width={iconSize}></iconify-icon>
+				{:else}
+					<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
+				{/if}
+			</Button>
+		</SystemTooltip>
+	{:else}
+		<Button variant="outline" onclick={cycleTheme} aria-label="Toggle theme" class="{buttonClass} p-0! min-w-0 rounded-full">
 			{#if themeStore.themePreference === 'light'}
 				<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
 			{:else if themeStore.themePreference === 'dark'}
@@ -64,16 +76,5 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 			{:else}
 				<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
 			{/if}
-		</button>
-	</SystemTooltip>
-{:else}
-	<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
-		{#if themeStore.themePreference === 'light'}
-			<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
-		{:else if themeStore.themePreference === 'dark'}
-			<iconify-icon icon="mdi:moon-waning-crescent" width={iconSize}></iconify-icon>
-		{:else}
-			<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
-		{/if}
-	</button>
-{/if}
+		</Button>
+	{/if}

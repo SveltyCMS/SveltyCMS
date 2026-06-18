@@ -110,12 +110,12 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (type === 'user') {
 			const isSelfSelected = safeSelectedRows.some((r) => isUser(r) && currentUser && r._id === currentUser._id);
 			const isLastUser = totalUsers <= 1 || (isSelfSelected && safeSelectedRows.length >= totalUsers);
-			
+
 			// System protection: admins cannot be blocked or deleted via UI (safety first)
 			const adminsSelected = safeSelectedRows.some((r) => isUser(r) && (r.role === 'admin' || r.isAdmin));
-			
+
 			map.delete = isLastUser || adminsSelected;
-			
+
 			// Disable block/unblock for admins as well
 			if (adminsSelected) {
 				map.block = true;
@@ -366,7 +366,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			disabled={isDisabled || disabledMap[listboxValue]}
 			aria-label="Execute {actionConfig[listboxValue].label} action"
 			title="Execute {actionConfig[listboxValue].label} action"
-			class="h-10 min-w-[120px] font-bold transition-all duration-200 {!isDisabled && !disabledMap[listboxValue] ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue].buttonClass} text-white rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-e border-white/20"
+			class="h-10 min-w-30 font-bold transition-all duration-200 {!isDisabled && !disabledMap[listboxValue] ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue].buttonClass} text-white rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-e border-white/20"
 		>
 			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
 			<span class="uppercase tracking-wider">{actionConfig[listboxValue].label}</span>
@@ -392,7 +392,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		<!-- Dropdown Menu -->
 		{#if isDropdownOpen}
 			<div
-				class="absolute end-0 top-full z-50 mt-2 w-56 overflow-hidden rounded bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
+				class="absolute inset-e-0 top-full z-50 mt-2 w-56 overflow-hidden rounded bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
 				role="menu"
 				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
 				onkeydown={handleDropdownKeydown}

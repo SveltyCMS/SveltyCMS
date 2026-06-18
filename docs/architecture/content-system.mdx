@@ -107,7 +107,7 @@ This replaces polling while keeping the browser facade server-safe (no dynamic s
 
 ## 🔄 Data Flow & Lifecycle
 
-````mermaid
+```mermaid
 graph TD
     subgraph Filesystem
         SC[config/collections/*.ts]
@@ -132,7 +132,7 @@ graph TD
     SSE -->|type: content_update| CS
     CS -->|GET /api/content-structure| RS
     CS -->|contentStore.sync| UI
-```text
+```
 
 ---
 
@@ -163,14 +163,14 @@ Replaced heavy cryptographic MD5 with a lightweight, numeric string hash in `mod
 
 ## 🚀 Performance Benchmarks
 
-| Metric                      | Baseline (v0.0.7) | Ultra-Elite (v0.0.8) | Status             |
-| :-------------------------- | :---------------- | :------------------- | :----------------- |
-| **Warm Scan (120 files)**   | 2.46ms            | **0.014ms**          | 🟢 **ULTRA ELITE** |
-| **Warm Scan (1,000 files)** | 0.002ms           | **0.001ms**          | 🟢 **avg -50%**    |
-| **Cold Scan (1,000 files)** | 0.029ms           | **0.036ms**          | ⚪ stable          |
-| **Scan (150 files, warm)**  | 0.006ms           | **0.005ms**          | 🟢 **avg -17%**    |
-| **Incremental Reload (1 file)** | 10.996ms (full, 1k files) | **0.240ms**      | 🟢 **45.8× faster** |
-| **Batched 10-file reload**  | ~3.1ms (sequential) | **~1.3ms**          | 🟢 **~2.4× faster** |
+| Metric                          | Baseline (v0.0.7)         | Ultra-Elite (v0.0.8) | Status              |
+| :------------------------------ | :------------------------ | :------------------- | :------------------ |
+| **Warm Scan (120 files)**       | 2.46ms                    | **0.014ms**          | 🟢 **ULTRA ELITE**  |
+| **Warm Scan (1,000 files)**     | 0.002ms                   | **0.001ms**          | 🟢 **avg -50%**     |
+| **Cold Scan (1,000 files)**     | 0.029ms                   | **0.036ms**          | ⚪ stable           |
+| **Scan (150 files, warm)**      | 0.006ms                   | **0.005ms**          | 🟢 **avg -17%**     |
+| **Incremental Reload (1 file)** | 10.996ms (full, 1k files) | **0.240ms**          | 🟢 **45.8× faster** |
+| **Batched 10-file reload**      | ~3.1ms (sequential)       | **~1.3ms**           | 🟢 **~2.4× faster** |
 
 > Reproduce: `BENCHMARK_RECORD=1 bun test tests/benchmarks/content-incremental-reload.test.ts` (1,000-file fixture, matches content-scale-stress)
 
@@ -182,12 +182,12 @@ Replaced heavy cryptographic MD5 with a lightweight, numeric string hash in `mod
 
 The dev watcher and SSE hot path use `fullReload(changedFile)` which skips full SCHEMA cache invalidation and full DB reconciliation. Measured against the complete reload path:
 
-| Path | SQLite (recorded 2026-06-15) |
-| :--- | :--------------------------- |
-| **Incremental (1 file)** | 0.240 ms |
-| **Full reconciliation (1,000 files)** | 10.996 ms |
-| **Speedup** | **45.8×** |
-| **Batch 10-file speedup** | 2.4× |
+| Path                                  | SQLite (recorded 2026-06-15) |
+| :------------------------------------ | :--------------------------- |
+| **Incremental (1 file)**              | 0.240 ms                     |
+| **Full reconciliation (1,000 files)** | 10.996 ms                    |
+| **Speedup**                           | **45.8×**                    |
+| **Batch 10-file speedup**             | 2.4×                         |
 
 Fixture isolation: exactly **1,000** `.compiledCollections` files (same cardinality as `content-scale-stress`). Uses a mock adapter — measures reconcile-path delta, not DB round-trips. On production-scale trees, speedup can exceed **60×** (full path ~12ms vs incremental ~0.2ms).
 
@@ -201,7 +201,7 @@ This validates the June 2026 optimization: single-file changes during developmen
 
 The content system exposes lifecycle hooks for third-party plugins:
 
-```typescript
+```
 import { registerContentPlugin } from "@src/content/content-service.server";
 
 registerContentPlugin({
@@ -217,7 +217,7 @@ registerContentPlugin({
     // Track content tree changes — audit logging
   },
 });
-```text
+```
 
 **Features**:
 
@@ -244,7 +244,7 @@ registerContentPlugin({
 
 Zero-dependency performance tracking using `performance.now()`:
 
-```typescript
+```
 import { traceStart, getTraceStats } from "@src/content/content-service.server";
 
 const done = traceStart("scanCompiledCollections");
@@ -253,7 +253,7 @@ done();
 
 const stats = getTraceStats();
 // → { "scanCompiledCollections": { avg: 0.004, p95: 0.006, count: 150 } }
-```text
+```
 
 Internal traces track `scanCompiledCollections`, `reconcile`, and `loadSchemaNative` — keeping the last 100 samples per label.
 
@@ -273,4 +273,3 @@ Internal traces track `scanCompiledCollections`, `reconcile`, and `loadSchemaNat
 - [Server Hooks](./server-hooks.mdx)
 - [State Management & Readiness](./state-management.mdx)
 - [Cache System](./cache-system.mdx)
-````

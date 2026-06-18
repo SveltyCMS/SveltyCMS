@@ -21,18 +21,20 @@
 -->
 
 <script lang="ts">
-// Stores
-
 import { button_cancel } from "@src/paraglide/messages";
 import { modalState } from "@utils/modal.svelte";
 import type { SvelteComponent } from "svelte";
+	import AdminCard from '@components/admin-card.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 
-// Props
 interface Props {
 	currentGroupName: string;
 	currentRoleId: string;
 	isEditMode: boolean;
-	/** Exposes parent props to this component. */
 	parent: SvelteComponent;
 	roleDescription: string;
 	roleName: string;
@@ -53,11 +55,11 @@ const {
 	roles = [],
 }: Props = $props();
 
-// Local form state
 let formName = $state("");
 let formDescription = $state("");
 let localSelectedPermissions = $state<string[]>([]);
 let permSearch = $state("");
+let copyFromRoleId = $state("");
 
 $effect(() => {
 	formName = roleName;
@@ -73,6 +75,12 @@ const filteredPermissions = $derived(
 	),
 );
 
+const copyRoleOptions = $derived(
+	roles
+		.filter((r) => r._id !== currentRoleId && !r.isAdmin)
+		.map((r) => ({ value: r._id, label: r.name }))
+);
+
 function togglePermission(id: string) {
 	if (localSelectedPermissions.includes(id)) {
 		localSelectedPermissions = localSelectedPermissions.filter((p) => p !== id);
@@ -81,16 +89,13 @@ function togglePermission(id: string) {
 	}
 }
 
-function handleCopyPermissions(event: Event) {
-	const targetId = (event.target as HTMLSelectElement).value;
-	if (!targetId) return;
-
-	const sourceRole = roles.find((r) => r._id === targetId);
+function handleCopyPermissions(roleId: string) {
+	if (!roleId) return;
+	const sourceRole = roles.find((r) => r._id === roleId);
 	if (sourceRole) {
 		localSelectedPermissions = [...sourceRole.permissions];
 	}
-	// Reset the select element to "Copy permissions from..."
-	(event.target as HTMLSelectElement).value = "";
+	copyFromRoleId = "";
 }
 
 function onFormSubmit(event: SubmitEvent): void {
@@ -106,51 +111,54 @@ function onFormSubmit(event: SubmitEvent): void {
 }
 </script>
 
-<div class="card w-modal space-y-4 p-4 shadow-xl">
+<AdminCard class="w-modal space-y-4 p-4 shadow-xl border border-surface-200 dark:border-surface-800">
 	<header class="text-center text-2xl font-bold">{isEditMode ? 'Edit Role' : 'Create New Role'}</header>
 
 	<form
-		class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token overflow-y-auto max-h-[60vh]"
+		class="modal-form space-y-4 border border-surface-200 dark:border-surface-700 p-4 rounded overflow-y-auto max-h-[60vh]"
 		onsubmit={onFormSubmit}
 		id="roleForm"
 	>
-		<label class="label">
-			<span>Role Name:</span>
-			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required aria-label="Role Name" />
-		</label>
-
-		<label class="label">
-			<span>Role Description:</span>
-			<textarea bind:value={formDescription} placeholder="Role Description" class="input" rows="3" aria-label="Role Description"></textarea>
-		</label>
+		<Input label="Role Name" bind:value={formName} placeholder="Role Name" required />
+		<Textarea
+			id="role-description"
+			label="Role Description"
+			bind:value={formDescription}
+			placeholder="Role Description"
+			rows={3}
+		/>
 
 		<div class="space-y-2">
-			<div class="flex items-center justify-between">
+			<div class="flex items-center justify-between gap-2">
 				<span class="font-bold">Permissions ({localSelectedPermissions.length})</span>
 				<div class="flex gap-2">
-					<select class="select select-sm" onchange={handleCopyPermissions} aria-label="Copy permissions from another role">
-						<option value="">Copy permissions from...</option>
-						{#each roles as r}
-							{#if r._id !== currentRoleId && !r.isAdmin}
-								<option value={r._id}>{r.name}</option>
-							{/if}
-						{/each}
-					</select>
-					<input type="text" bind:value={permSearch} placeholder="Search..." class="input input-sm max-w-37.5" aria-label="Search permissions" />
+					<Select
+						bind:value={copyFromRoleId}
+						options={copyRoleOptions}
+						placeholder="Copy permissions from..."
+						size="sm"
+						onchange={handleCopyPermissions}
+						class="min-w-44"
+					/>
+					<Input
+						bind:value={permSearch}
+						placeholder="Search..."
+						aria-label="Search permissions"
+						class="max-w-37.5"
+						inputClass="text-sm h-8"
+					/>
 				</div>
 			</div>
 
-			<div class="card h-48 overflow-y-auto p-2 variant-soft">
+			<div class="card h-48 overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 bg-surface-50/30 dark:bg-surface-900/20">
 				{#each filteredPermissions as perm (perm._id)}
-					<label class="flex items-center space-x-2 p-1 hover:bg-surface-hover rounded cursor-pointer">
-						<input
-							type="checkbox"
-							class="checkbox"
+					<div class="p-1 hover:bg-surface-50/40 dark:hover:bg-surface-900/30 rounded">
+						<Checkbox
 							checked={localSelectedPermissions.includes(perm._id)}
 							onchange={() => togglePermission(perm._id)}
-						 aria-label="Input" />
-						<span class="text-sm">{perm.name}</span>
-					</label>
+							label={perm.name}
+						/>
+					</div>
 				{:else}
 					<div class="text-center p-4 opacity-50 text-sm">No permissions found</div>
 				{/each}
@@ -158,9 +166,8 @@ function onFormSubmit(event: SubmitEvent): void {
 		</div>
 	</form>
 
-	<!-- Footer -->
 	<footer class="modal-footer flex justify-end gap-4">
-		<button class="btn variant-ghost-surface" onclick={parent.onClose}>{button_cancel()}</button>
-		<button type="submit" form="roleForm" class="btn variant-filled-primary">{isEditMode ? 'Update' : 'Create'}</button>
+		<Button variant="ghost" onclick={parent.onClose}>{button_cancel()}</Button>
+		<Button variant="primary" type="submit" form="roleForm">{isEditMode ? 'Update' : 'Create'}</Button>
 	</footer>
-</div>
+</AdminCard>

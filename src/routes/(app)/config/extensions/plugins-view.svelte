@@ -7,6 +7,7 @@ Features:
 - Configure plugin
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 // Using iconify-icon web component
 /**
  * @file src/routes/(app)/config/extensions/PluginsView.svelte
@@ -87,10 +88,10 @@ function handleConfigure(plugin: any) {
 									<div class="group relative">
 										<iconify-icon icon="mdi:alert-circle" width="18" class="text-warning-500"></iconify-icon>
 										<div
-											class="absolute bottom-full start-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
+											class="absolute bottom-full inset-s-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
 										>
 											Missing Configuration
-											<div class="absolute -bottom-1 start-1/2 -ms-1 h-2 w-2 rotate-45 bg-surface-900"></div>
+											<div class="absolute -bottom-1 inset-s-1/2 -ms-1 h-2 w-2 rotate-45 bg-surface-900"></div>
 										</div>
 									</div>
 								{/if}
@@ -108,7 +109,7 @@ function handleConfigure(plugin: any) {
 						<button
 							onclick={() => handleToggle(plugin)}
 							class="inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors {plugin.enabled
-								? 'bg-tertiary-500 dark:bg-primary-500 text-white hover:bg-tertiary-600 dark:bg-primary-600'
+								? 'bg-tertiary-500 dark:bg-primary-500 text-white hover:bg-tertiary-600'
 								: 'bg-surface-200 text-surface-600 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-400'}"
 						>
 							{plugin.enabled ? 'Active' : 'Disabled'}
@@ -120,10 +121,10 @@ function handleConfigure(plugin: any) {
 
 				<!-- actions -->
 				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-700">
-					<button class="preset-filled-surface-500 btn-sm btn" onclick={() => handleConfigure(plugin)}>
+					<Button variant="surface" onclick={() => handleConfigure(plugin)} size="sm">
 						<iconify-icon icon="mdi:cog" width="18" class="me-1"></iconify-icon>
 						Configure
-					</button>
+					</Button>
 				</div>
 			</div>
 		{/each}

@@ -13,56 +13,39 @@ test.describe("Master Behavioral Journey", () => {
     await loginAsAdmin(page);
     await expect(page.getByText("Dashboard")).toBeVisible();
 
-    // 2. Navigate to Collection Builder
-    await page.goto("/config/collectionbuilder");
-    await expect(page.getByText(/add category/i)).toBeVisible();
-
-    // 3. Create a New Collection
-    // We'll use a unique name to avoid conflicts with other tests
+    // 2. Create a New Collection via editor
     const collectionName = `JourneyProj_${Date.now()}`;
-    await page
-      .getByRole("button", { name: /add collection/i })
-      .first()
-      .click();
-    await page.locator('input[placeholder="Collection Name"]').fill(collectionName);
-    await page.keyboard.press("Enter");
+    await page.goto("/config/collectionbuilder/new");
+    await expect(page.getByTestId("collection-name-input")).toBeVisible({ timeout: 10_000 });
+    await page.getByTestId("collection-name-input").fill(collectionName);
 
-    // 4. Configure Collection Fields (GUI)
-    await expect(page.getByText(/define your collection/i)).toBeVisible();
+    // 3. Configure Collection Fields (GUI)
+    await page.getByRole("button", { name: /field configuration/i }).click();
+    await page.getByTestId("quick-add-text").click();
+    await expect(page.getByTestId("widget-fields-list")).toContainText(/new text/i, {
+      timeout: 10_000,
+    });
 
-    // Add a simple text field
-    await page.getByRole("button", { name: /add field/i }).click();
-    await page.getByText(/input/i).first().click();
-    await page.getByRole("button", { name: /submit|select|choose/i }).click();
-
-    await page.locator('input[name="label"]').fill("Project Name");
-    await page.locator('input[name="db_fieldName"]').fill("project_name");
-    await page.getByRole("button", { name: /save/i }).click();
-
-    // 5. Save & Compile Schema
-    // This triggers the TypeScript compilation and DB DDL
-    await page.getByRole("button", { name: /save collection/i }).click();
-
-    // Wait for the compiler and refresh (Toast or Redirect)
-    await expect(page.getByText(/collection saved/i)).toBeVisible();
+    // 4. Save & Compile Schema
+    await page.getByTestId("save-collection-button").click();
+    await expect(page.getByText(/collection saved/i)).toBeVisible({ timeout: 15_000 });
 
     // 6. Create an Entry in the New Collection
     // Navigate to the newly created collection page
     await page.goto(`/en/Collections/${collectionName}`);
     await page.getByRole("button", { name: /create new/i }).click();
 
-    // Fill the dynamically generated field
-    await page.getByPlaceholder(/project name/i).fill("The TQA Project");
+    // Fill the dynamically generated text field
+    await page.getByLabel(/new text/i).fill("The TQA Project");
     await page.getByRole("button", { name: /save/i }).click();
     await expect(page.getByText("The TQA Project")).toBeVisible();
 
     // 7. Verify API Output (Public Interface)
-    // We fetch the data from the API to ensure the DB and Dispatcher are in sync
     const apiRes = await request.get(`/api/collections/${collectionName}`);
     expect(apiRes.ok()).toBeTruthy();
 
     const body = await apiRes.json();
-    const entry = body.data.find((e: any) => e.project_name === "The TQA Project");
+    const entry = body.data.find((e: any) => e.new_text === "The TQA Project");
 
     expect(entry).toBeDefined();
     expect(entry.status).toBe("unpublish"); // Default status

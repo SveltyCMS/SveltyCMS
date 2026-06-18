@@ -5,13 +5,18 @@
  */
 
 import { onMount } from "svelte";
-import { fade, fly } from "svelte/transition";
 import { toast } from "@src/stores/toast.svelte";
 import { getCollections } from "@utils/api";
 import type { Schema } from "@src/content/types";
 import Progress from "@components/ui/progress.svelte";
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import Select from '@components/ui/select.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 
-// State using Svelte 5 Runes
 let loading = $state(false);
 let collections = $state<Schema[]>([]);
 let sourceType = $state("drupal");
@@ -20,9 +25,23 @@ let apiKey = $state("");
 let contentType = $state("");
 let targetCollection = $state("");
 let mapping = $state<Record<string, any>>({});
-let step = $state(1); // 1: Source, 2: Mapping, 3: Import
+let step = $state(1);
 let importResult = $state<any>(null);
 let progress = $state(0);
+
+const sourceTypeOptions = [
+	{ value: 'drupal', label: 'Drupal (JSON:API)' },
+	{ value: 'wordpress', label: 'WordPress (REST API)' },
+];
+
+const transformOptions = [
+	{ value: '', label: 'None' },
+	{ value: 'media', label: 'Media' },
+];
+
+const collectionOptions = $derived(
+	collections.map((c) => ({ value: String(c.name), label: String(c.label || c.name) }))
+);
 
 onMount(async () => {
 	const response = await getCollections({ includeFields: true });
@@ -38,7 +57,6 @@ async function nextStep() {
 			return;
 		}
 		step = 2;
-		// Auto-suggest mapping when entering step 2
 		await runAIMapping();
 	} else if (step === 2) {
 		step = 3;
@@ -68,7 +86,7 @@ async function runAIMapping() {
 		} else {
 			toast.error("Failed to get AI mapping: " + result.message);
 		}
-	} catch (err) {
+	} catch (_err) {
 		toast.error("Error connecting to AI service");
 	} finally {
 		loading = false;
@@ -99,7 +117,7 @@ async function startImport() {
 		} else {
 			toast.error("Import failed");
 		}
-	} catch (err) {
+	} catch (_err) {
 		toast.error("Connection error during import");
 	} finally {
 		loading = false;
@@ -136,7 +154,6 @@ async function handleScaffold() {
 		const result = await response.json();
 		if (result.success) {
 			toast.success(result.message);
-			// Refresh collections and select the new one
 			const collRes = await getCollections({ includeFields: true });
 			if (collRes.success && collRes.data) {
 				collections = (collRes.data as any).collections || collRes.data;
@@ -145,7 +162,7 @@ async function handleScaffold() {
 		} else {
 			toast.error("Scaffold failed: " + result.message);
 		}
-	} catch (err) {
+	} catch (_err) {
 		toast.error("Error during scaffolding");
 	} finally {
 		loading = false;
@@ -153,158 +170,147 @@ async function handleScaffold() {
 }
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<div class="flex items-center justify-between" in:fade>
-		<div>
-			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:database-import-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				Smart CMS Importer
-			</h1>
-			<p class="text-sm opacity-50 font-medium">Migrate content from WordPress or Drupal with AI-powered field mapping</p>
-		</div>
-	</div>
-
-	<!-- Step Wizard -->
-	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fly={{ y: 20, delay: 100 }}>
-		<div class="flex items-center gap-4 mb-6">
-			<div class="flex items-center gap-2 {step >= 1 ? 'text-tertiary-500 dark:text-primary-500 font-bold' : ''}">
-				<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center border-current">1</div>
+<AdminPageShell
+	title="Smart CMS Importer"
+	icon="mdi:database-import-outline"
+	description="Migrate content from WordPress or Drupal with AI-powered field mapping"
+>
+	<AdminCard class="border border-surface-200 bg-white p-6 shadow-xs backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40">
+		<div class="mb-6 flex items-center gap-4">
+			<div class="flex items-center gap-2 {step >= 1 ? 'font-bold text-tertiary-500 dark:text-primary-500' : ''}">
+				<div class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-current">1</div>
 				<span>Source</span>
 			</div>
 			<div class="h-0.5 w-12 bg-surface-300"></div>
-			<div class="flex items-center gap-2 {step >= 2 ? 'text-tertiary-500 dark:text-primary-500 font-bold' : ''}">
-				<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center border-current">2</div>
+			<div class="flex items-center gap-2 {step >= 2 ? 'font-bold text-tertiary-500 dark:text-primary-500' : ''}">
+				<div class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-current">2</div>
 				<span>Mapping</span>
 			</div>
 			<div class="h-0.5 w-12 bg-surface-300"></div>
-			<div class="flex items-center gap-2 {step >= 3 ? 'text-tertiary-500 dark:text-primary-500 font-bold' : ''}">
-				<div class="w-8 h-8 rounded-full border-2 flex items-center justify-center border-current">3</div>
+			<div class="flex items-center gap-2 {step >= 3 ? 'font-bold text-tertiary-500 dark:text-primary-500' : ''}">
+				<div class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-current">3</div>
 				<span>Import</span>
 			</div>
 		</div>
 
 		{#if step === 1}
 			<div class="space-y-6">
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-					<label class="label">
-						<span>Source Type</span>
-						<select class="select" bind:value={sourceType} aria-label="Select">
-							<option value="drupal">Drupal (JSON:API)</option>
-							<option value="wordpress">WordPress (REST API)</option>
-						</select>
-					</label>
-					<label class="label">
-						<span>Source Site URL</span>
-						<input type="url" class="input" placeholder="https://drupal-site.com" bind:value={sourceUrl}  aria-label="Input" />
-					</label>
-					<label class="label">
-						<span>API Key / Secret (Optional)</span>
-						<input type="security" class="input" placeholder="Bearer Token or Basic Auth" bind:value={apiKey}  aria-label="Input" />
-					</label>
-					<label class="label">
-						<span>Source Content Type / Bundle</span>
-						<input type="text" class="input" placeholder="e.g. article, post" bind:value={contentType}  aria-label="Input" />
-					</label>
-					<label class="label">
-						<span>Target SveltyCMS Collection</span>
-						<select class="select" bind:value={targetCollection} aria-label="Select">
-							<option value="">Select a collection</option>
-							{#each collections as collection}
-								<option value={collection.name}>{collection.label || collection.name}</option>
-							{/each}
-						</select>
-					</label>
+				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+					<Select label="Source Type" bind:value={sourceType} options={sourceTypeOptions} />
+					<Input label="Source Site URL" type="url" placeholder="https://drupal-site.com" bind:value={sourceUrl} />
+					<Input label="API Key / Secret (Optional)" type="password" placeholder="Bearer Token or Basic Auth" bind:value={apiKey} />
+					<Input label="Source Content Type / Bundle" type="text" placeholder="e.g. article, post" bind:value={contentType} />
+					<Select
+						label="Target SveltyCMS Collection"
+						bind:value={targetCollection}
+						options={collectionOptions}
+						placeholder="Select a collection"
+					/>
 				</div>
-				<div class="flex gap-4 mt-6">
-					<button class="btn preset-filled-secondary-500 flex-1" onclick={handleScaffold} disabled={!sourceUrl || !contentType || loading}>
-						✨ Instant Scaffold (AI)
-					</button>
-					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex-1" onclick={nextStep} disabled={!sourceUrl || !contentType || !targetCollection || loading}>
-						Next: Map Fields
-					</button>
+				<div class="mt-6 flex gap-4">
+					<StickyActions>
+						<Button variant="secondary" onclick={handleScaffold} disabled={!sourceUrl || !contentType || loading} class="flex-1">
+							✨ Instant Scaffold (AI)
+						</Button>
+						<Button variant="tertiary" onclick={nextStep} disabled={!sourceUrl || !contentType || !targetCollection || loading} class="dark: flex-1">
+							Next: Map Fields
+						</Button>
+					</StickyActions>
 				</div>
 			</div>
 		{:else if step === 2}
 			<div class="space-y-6">
-				<div class="flex justify-between items-center mb-4">
+				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-xl font-semibold">Field Mapping</h3>
-					<button class="btn preset-outlined-secondary-500" onclick={runAIMapping} disabled={loading}>
+					<Button variant="outline" onclick={runAIMapping} disabled={loading}>
 						✨ AI Re-Map
-					</button>
+					</Button>
 				</div>
 
+				{#if loading}
+					<div class="flex justify-center py-8">
+						<Loader variant="text" lines={2} lastLineWidth="40%" ariaLabel="Generating field mappings" />
+					</div>
+				{/if}
+
 				<div class="space-y-4">
-					<div class="grid grid-cols-12 gap-4 font-bold border-b pb-2">
+					<div class="grid grid-cols-12 gap-4 border-b border-surface-200 pb-2 font-bold dark:border-surface-800">
 						<div class="col-span-5">Source Field</div>
 						<div class="col-span-5">Target Field / Transform</div>
 						<div class="col-span-2"></div>
 					</div>
 
 					{#each Object.entries(mapping) as [field, value]}
-						<div class="grid grid-cols-12 gap-4 items-center">
+						<div class="grid grid-cols-12 items-center gap-4">
 							<div class="col-span-5">
-								<input type="text" class="input" value={field} readonly  aria-label="Input" />
+								<Input type="text" value={field} readonly aria-label="Source field name" />
 							</div>
 							<div class="col-span-5">
 								{#if typeof value === 'object'}
 									<div class="flex gap-2">
-										<input type="text" class="input" bind:value={mapping[field].target} />
-										<select class="select w-24" bind:value={mapping[field].transform}>
-											<option value="">None</option>
-											<option value="media">Media</option>
-										</select>
+										<Input bind:value={mapping[field].target} aria-label="Target field" class="flex-1" />
+										<Select
+											bind:value={mapping[field].transform}
+											options={transformOptions}
+											size="sm"
+											class="w-24"
+										/>
 									</div>
 								{:else}
-									<input type="text" class="input" bind:value={mapping[field]} />
+									<Input bind:value={mapping[field]} aria-label="Target field mapping" />
 								{/if}
 							</div>
 							<div class="col-span-2 flex justify-end">
-								<button class="btn-icon preset-outlined-error-500" onclick={() => removeMapping(field)} aria-label="Remove mapping">
+								<Button variant="error" onclick={() => removeMapping(field)} aria-label="Remove mapping" class="p-0! min-w-0">
 									<iconify-icon icon="mdi:close"></iconify-icon>
-								</button>
+								</Button>
 							</div>
 						</div>
 					{/each}
 
-					<button class="btn preset-outlined-surface-500 w-full" onclick={addMapping}>+ Add Custom Mapping</button>
+					<Button variant="outline" onclick={addMapping} class="w-full">+ Add Custom Mapping</Button>
 				</div>
 
-				<div class="flex justify-between mt-6">
-					<button class="btn preset-outlined-surface-500" onclick={() => step = 1}>Back</button>
-					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={nextStep}>Start Import</button>
+				<div class="mt-6 flex justify-between">
+					<Button variant="outline" onclick={() => step = 1}>Back</Button>
+					<StickyActions>
+						<Button variant="tertiary" onclick={nextStep} class="dark:">Start Import</Button>
+					</StickyActions>
 				</div>
 			</div>
 		{:else if step === 3}
 			<div class="space-y-6 text-center">
 				{#if loading}
-					<div class="py-12 space-y-4">
+					<div class="space-y-4 py-12">
 						<h3 class="text-2xl">Importing Content...</h3>
 						<Progress value={progress} />
 						<p>Fetching data and downloading media...</p>
+						<Loader variant="text" lines={1} ariaLabel="Import in progress" />
 					</div>
 				{:else if importResult}
-					<div class="py-12 space-y-6">
+					<div class="space-y-6 py-12">
 						<div class="text-5xl text-success-500">✅</div>
 						<h3 class="text-2xl font-bold">Import Completed!</h3>
-						<div class="grid grid-cols-3 gap-4 max-w-md mx-auto">
-							<div class="card p-4 bg-surface-100 dark:bg-surface-700">
+						<div class="mx-auto grid max-w-md grid-cols-3 gap-4">
+							<div class="card bg-surface-100 p-4 dark:bg-surface-700">
 								<div class="text-2xl font-bold">{importResult.imported}</div>
 								<div class="text-sm opacity-60">Imported</div>
 							</div>
-							<div class="card p-4 bg-surface-100 dark:bg-surface-700">
+							<div class="card bg-surface-100 p-4 dark:bg-surface-700">
 								<div class="text-2xl font-bold">{importResult.errors}</div>
 								<div class="text-sm opacity-60">Errors</div>
 							</div>
-							<div class="card p-4 bg-surface-100 dark:bg-surface-700">
+							<div class="card bg-surface-100 p-4 dark:bg-surface-700">
 								<div class="text-2xl font-bold">{importResult.total}</div>
 								<div class="text-sm opacity-60">Total Items</div>
 							</div>
 						</div>
-						<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => step = 1}>Start New Import</button>
+						<StickyActions>
+							<Button variant="tertiary" onclick={() => step = 1} class="dark:">Start New Import</Button>
+						</StickyActions>
 					</div>
 				{/if}
 			</div>
 		{/if}
-	</div>
-</div>
+	</AdminCard>
+</AdminPageShell>

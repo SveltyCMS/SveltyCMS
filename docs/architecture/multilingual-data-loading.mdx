@@ -32,7 +32,7 @@ Traditional approaches to multilingual content management face scalability issue
 
 ### The Solution: Two-Tier SSR
 
-````text
+```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    TIER 1: entry-list (View Mode)                │
 │                                                                 │
@@ -62,7 +62,7 @@ Traditional approaches to multilingual content management face scalability issue
 │  • Enables simultaneous translation editing                     │
 │  • Per-field translation progress calculation                   │
 └─────────────────────────────────────────────────────────────────┘
-```text
+```
 
 ## Implementation
 
@@ -72,7 +72,7 @@ Traditional approaches to multilingual content management face scalability issue
 
 After enriching entries with `modifyRequest`, project language-specific data for view mode:
 
-```typescript
+```
 // =================================================================
 // 5.5. ENTERPRISE SSR: LANGUAGE PROJECTION FOR VIEW MODE
 // =================================================================
@@ -93,15 +93,15 @@ if (mode === "view") {
     }
   }
 }
-```text
+```
 
 ### Cache Key Strategy
 
 Cache keys include language for view mode, enabling language-specific caching:
 
-```typescript
+```
 const cacheKey = `collection:${currentCollection._id}:page:${page}:lang:${language}:tenant:${tenantId}`;
-```text
+```
 
 **Benefits:**
 
@@ -120,7 +120,7 @@ The language switcher dropdown:
 
 **Recommended: Anchor Tag Approach**
 
-```svelte
+```
 <!-- Best practice: Use anchor tags with preloading -->
 <script lang="ts">
 	import { contentLanguage } from '@stores/store.svelte';
@@ -148,11 +148,11 @@ The language switcher dropdown:
 >
 	{selectedLanguage.toUpperCase()}
 </a>
-```text
+```
 
 **Alternative: Programmatic Navigation** (use only when needed for complex logic)
 
-```typescript
+```
 import { goto } from "$app/navigation";
 
 async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
@@ -168,7 +168,7 @@ async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
   // SvelteKit navigation with SSR reload
   await goto(newPath, { invalidateAll: true });
 }
-```text
+```
 
 **Why anchor tags are better:**
 
@@ -196,7 +196,7 @@ async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
 
 ### Cache Invalidation Rules
 
-```typescript
+```
 // Entry save/update
 await invalidateAll(); // Invalidates all collection:* keys
 
@@ -205,7 +205,7 @@ await invalidateAll(); // Invalidates all collection:* keys
 
 // Pagination
 // → Natural cache miss (different page param in key)
-```text
+```
 
 ## Translation Progress Tracking
 
@@ -226,7 +226,7 @@ await invalidateAll(); // Invalidates all collection:* keys
 
 **File**: `src/components/collection-display/fields.svelte`
 
-```typescript
+```
 function getFieldTranslationPercentage(fieldName: string): number {
   const allLanguages = Object.keys(availableLanguages);
   const fieldData = entryData[fieldName];
@@ -240,7 +240,7 @@ function getFieldTranslationPercentage(fieldName: string): number {
 
   return Math.round((translated.length / allLanguages.length) * 100);
 }
-```text
+```
 
 ## Database Structure
 
@@ -248,7 +248,7 @@ function getFieldTranslationPercentage(fieldName: string): number {
 
 SveltyCMS uses a **database-agnostic architecture** where the application layer always works with multilingual data in a consistent nested object format, regardless of the underlying database:
 
-```typescript
+```
 // Application layer format (what widgets and components see):
 const entry = {
   _id: "507f1f77bcf86cd799439011",
@@ -268,7 +268,7 @@ const entry = {
     // fr missing (untranslated)
   },
 };
-```text
+```
 
 ### Storage Implementation by Adapter
 
@@ -316,14 +316,14 @@ SveltyCMS handles two types of collection data:
 
 fields store single values in the default content language (defined in environment):
 
-```typescript
+```
 const entry = {
   _id: "507f1f77bcf86cd799439011",
   title: "Hello World",
   slug: "hello-world",
   description: "A simple post",
 };
-```text
+```
 
 - No language projection needed
 - Data displayed as-is in all language routes
@@ -333,7 +333,7 @@ const entry = {
 
 fields marked as `translated: true` store multilingual nested objects:
 
-```typescript
+```
 const entry = {
   _id: "507f1f77bcf86cd799439011",
   title: {
@@ -348,7 +348,7 @@ const entry = {
     // fr missing - shows as untranslated
   },
 };
-```text
+```
 
 - Language projection applied in view mode
 - Full multilingual data available in edit mode
@@ -356,14 +356,14 @@ const entry = {
 
 **Field Configuration:**
 
-```typescript
+```
 {
 	label: 'Title',
 	db_fieldName: 'title',
 	translated: true,  // ← Enables multilingual storage
 	// ...
 }
-```text
+```
 
 ## Troubleshooting
 
@@ -397,4 +397,3 @@ const entry = {
 - [Cache System](./cache-system.mdx) - Redis caching implementation
 - [Content Type System](./content-type-system.mdx) - Field types and translation configuration
 - [Database Methods](./database/database-methods.mdx) - Database query patterns
-````

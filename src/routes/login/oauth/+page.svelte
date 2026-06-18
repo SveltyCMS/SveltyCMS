@@ -22,6 +22,7 @@ import {
 	loadingOperations,
 } from "@src/stores/loading-store.svelte.ts";
 import type { PageData } from "./$types";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	data: PageData;
@@ -110,18 +111,17 @@ function handleCancel() {
 
 		<div class="mt-2 flex w-full justify-between gap-1 sm:gap-2">
 			<!-- Cancel Button -->
-			<button type="button" onclick={handleCancel} aria-label={button_cancel()} class="variant-filled btn">{button_cancel()}</button>
+			<Button variant="outline" type="button" onclick={handleCancel} aria-label={button_cancel()} class="variant-filled">{button_cancel()}</Button>
 
 			<!-- Submit Button -->
-			<button
+			<Button variant="outline"
 				type="submit"
 				disabled={!isFormValid || globalLoadingStore.isLoading}
 				aria-label={button_send()}
-				class="variant-filled btn items-center"
-			>
+			 class="variant-filled items-center">
 				<iconify-icon icon="flat-color-icons:google" width={24} aria-hidden="true"></iconify-icon>
 				<span>{oauth_signup()}</span>
-			</button>
+			</Button>
 		</div>
 	</form>
 </div>

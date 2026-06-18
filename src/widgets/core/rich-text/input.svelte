@@ -15,6 +15,7 @@
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	// Stores
 	import { app } from '@src/stores/store.svelte';
@@ -513,14 +514,11 @@
 							{#if btn.type === 'dropdown'}
 								<div class="relative">
 									<SystemTooltip title={btn.label}>
-										<button
+										<Button variant="tertiary"
 											type="button"
-											class="btn {editorStateVersion && activeDropdown === btn.label
-												? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
-												: 'preset-tonal'} flex items-center gap-2"
-											onclick={(e) => toggleDropdown(btn.label, e)}
+											onclick={(e: MouseEvent) => toggleDropdown(btn.label, e)}
 											aria-label={btn.label}
-										>
+										 class="{editorStateVersion && activeDropdown === btn.label ? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'preset-tonal'} flex items-center gap-2">
 											{#if btn.icon}
 												<iconify-icon icon="mdi:{btn.icon}" width="20"></iconify-icon>
 											{/if}
@@ -528,7 +526,7 @@
 												<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
 												<iconify-icon icon="mdi:chevron-down" width="14"></iconify-icon>
 											{/if}
-										</button>
+										</Button>
 									</SystemTooltip>
 									{#if activeDropdown === btn.label}
 										<div
@@ -628,12 +626,13 @@
 											{:else if btn.label === 'Link'}
 												<div class="p-2 w-64">
 													<div class="flex flex-col gap-2">
-														<input
+														<Input
 										type="url"
 										aria-label="Link URL"
 															bind:value={linkUrl}
 															placeholder="https://example.com"
-															class="input input-sm w-full"
+															class="w-full space-y-0"
+															inputClass="h-8 w-full text-sm"
 															onkeydown={(e) => e.key === 'Enter' && setLink()}
 														/>
 														<div class="flex justify-end gap-2">
@@ -645,12 +644,13 @@
 											{:else if btn.label === 'Video'}
 												<div class="p-2 w-64">
 													<div class="flex flex-col gap-2">
-														<input
+														<Input
 										type="url"
 										aria-label="Video URL"
 															bind:value={videoUrl}
 															placeholder="YouTube URL"
-															class="input input-sm w-full"
+															class="w-full space-y-0"
+															inputClass="h-8 w-full text-sm"
 															onkeydown={(e) => e.key === 'Enter' && setVideo()}
 														/>
 														<div class="flex justify-end gap-2">
@@ -681,14 +681,13 @@
 								</div>
 							{:else}
 								<SystemTooltip title={btn.label}>
-									<button
+									<Button variant="tertiary"
 										type="button"
 										aria-label={btn.label}
-										class="btn-icon {editorStateVersion && btn.active?.() ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal'}"
 										onclick={btn.cmd}
-									>
+									 class="p-0! min-w-0 {editorStateVersion && btn.active?.() ? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'preset-tonal'}">
 										<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
-									</button>
+									</Button>
 								</SystemTooltip>
 							{/if}
 						{/each}

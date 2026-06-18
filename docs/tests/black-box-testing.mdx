@@ -4,7 +4,7 @@ title: "Black-Box Testing Architecture"
 description: "SveltyCMS black-box integration and E2E testing architecture, safety rules, and CI execution model."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-06-09"
+updated: "2026-06-17"
 tags:
   - "testing"
   - "architecture"
@@ -119,15 +119,29 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 
 ### Playwright CI Scope
 
-The GitHub Actions E2E matrix is intentionally curated around maintained smoke coverage:
+The GitHub Actions E2E matrix covers 17 projects across the full admin surface area:
 
 - `wizard`: setup provisioning and post-setup redirect contract
 - `auth-setup`: authenticated bootstrap and login/logout state generation
 - `signup`: authenticated account/profile smoke
 - `content`: collection-builder content management smoke
 - `system`: dynamic system settings smoke
+- `a11y`: accessibility compliance audits
+- `rbac`: role-based access control enforcement
+- `language`: i18n and locale switching
+- `branding`: tenant-branded login and theme overrides
+- `visual-regression`: screenshot baseline comparisons
+- `users`: user CRUD and profile management
+- `builder`: collection builder journeys
+- `permissions`: access management matrix
+- `firstuser`: signup and OAuth flows
+- `config-routes`: access-management, webhooks, automations, data-management, operations
+- `admin`: multi-tenant management
+- `dashboard`: widget grid smoke and add-widget flow
+- `appearance`: per-user overrides, layout prefs, design-system playground
+- `media`: media gallery toolbar, search, upload smoke
 
-Legacy exploratory Playwright specs remain in `tests/e2e/`, but they are not PR-gating until their routes, selectors, and redirect expectations are rewritten against the current admin UI.
+All 17 E2E projects run in CI via `.github/workflows/ci.yml` (job `e2e-app`). See [E2E Coverage Matrix](./e2e-coverage-matrix.mdx) for the complete route-to-test mapping.
 
 ## Security Matrix Testing
 

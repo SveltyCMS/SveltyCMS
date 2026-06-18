@@ -26,6 +26,7 @@ import { dateToISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import { safeParse } from "valibot";
 import { setupManager } from "./setup-manager";
+import { buildDefaultAdminThemeConfig } from "@src/themes/builtin-defaults";
 
 // ============================================================================
 // EXPORTED DEFAULTS - Loaded from project.inlang/settings.json
@@ -48,15 +49,15 @@ interface SettingData {
 
 // Default theme that matches the ThemeManager's DEFAULT_THEME
 const defaultTheme: Theme = {
-  _id: "670e8b8c4d123456789abcde" as DatabaseId, // MongoDB ObjectId-style string
-  path: "", // Default path
+  _id: "670e8b8c4d123456789abcde" as DatabaseId,
+  path: "",
   name: "SveltyCMSTheme",
-
-  isActive: false,
+  isActive: true,
   isDefault: true,
   config: {
     tailwindConfigPath: "",
     assetsPath: "",
+    adminTheme: buildDefaultAdminThemeConfig(),
   },
   createdAt: dateToISODateString(new Date()),
   updatedAt: dateToISODateString(new Date()),

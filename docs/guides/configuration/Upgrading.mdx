@@ -21,7 +21,7 @@ SveltyCMS is designed to be upgraded easily while preserving your custom collect
 
 The upgrade tool performs the following steps:
 
-````mermaid
+```mermaid
 graph TD
     A[Start Upgrade] --> B{Git Clean?}
     B -- No --> C{--force flag?}
@@ -38,7 +38,7 @@ graph TD
     L --> M[Run test:unit]
     M --> N[Restore Stash if any]
     N --> O[Upgrade Complete]
-```text
+```
 
 1. **Git Verification**: Ensures you are in a valid Git repository.
 2. **Auto-Stash**: If you have uncommitted changes and use the `--force` flag, the tool automatically stashes them and restores them after the upgrade.
@@ -53,9 +53,9 @@ graph TD
 
 Run the following command in your project root:
 
-```bash
+```
 bun run scripts/upgrade.ts
-```text
+```
 
 ### Advanced Options
 
@@ -91,13 +91,13 @@ Codemods in `scripts/codemods/` follow a specific naming pattern:
 
 If the upgrade causes issues, you can roll back to the state before the upgrade started:
 
-```bash
+```
 # List available rollback tags
 git tag --list "pre-upgrade-*"
 
 # Reset to the desired tag
 git reset --hard pre-upgrade-YYYY-MM-DD-HH-MM-SS
-```text
+```
 
 ### "Merge conflict — manual resolution required"
 
@@ -106,7 +106,6 @@ If conflicts occur:
 1. Resolve them in your IDE.
 2. `git add .`
 3. Run `bun run scripts/upgrade.ts --skip-merge` to complete the remaining steps (install, codemods, etc.).
-````
 
 ---
 

@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -110,10 +111,10 @@
 						Receive a copy of all your personal data stored in the SveltyCMS system. The data will be provided in a structured JSON format for
 						portability.
 					</p>
-					<button onclick={handleExportData} class="btn preset-filled-secondary-500 mt-4 w-full sm:w-auto">
+					<Button variant="secondary" onclick={handleExportData} class="mt-4 w-full sm:w-auto">
 						<iconify-icon icon="mdi:download" class="mr-2"></iconify-icon>
 						Request Data Export
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -133,10 +134,10 @@
 							Exercise your "Right to Erasure". This will permanently anonymize your personal data and delete your account. This action is
 							irreversible.
 						</p>
-						<button onclick={handleAnonymize} class="btn preset-filled-error-500 mt-4 w-full sm:w-auto">
+						<Button variant="error" onclick={handleAnonymize} class="mt-4 w-full sm:w-auto">
 							<iconify-icon icon="mdi:alert-circle" class="mr-2"></iconify-icon>
 							Permanently Anonymize Account
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -144,6 +145,6 @@
 	</div>
 
 	<footer class="flex justify-end pt-4 border-t border-surface-500/20">
-		<button class="btn preset-tonal-surface" onclick={() => modalState.close()}> Close </button>
+		<Button variant="surface" onclick={() => modalState.close()}> Close </Button>
 	</footer>
 </div>

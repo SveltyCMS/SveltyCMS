@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-04-03"
+updated: "2026-06-17"
 tags:
   - "testing"
   - "api"
@@ -23,7 +23,7 @@ Complete test coverage for all user-related API endpoints in SveltyCMS, now secu
 ## Test Overview
 
 - **Test Files**: `tests/unit/api/user.test.ts`, `auth-2fa.test.ts`, `security.test.ts`, `signup.test.ts`
-- **Total Suite**: 915 unit tests (consolidated)
+- **Total Suite:** 1,122 unit tests (consolidated)
 - **Coverage**: 100% (All core user endpoints)
 - **Framework**: Vitest (jsdom)
 
@@ -91,7 +91,7 @@ All User API endpoints are now protected by a central gatekeeper. If an endpoint
 
 All User API tests use a standardized `createMockEvent` helper that injects mandatory `roles` and `tenantId` into the request locals.
 
-```typescript
+```
 function createMockEvent(pathname: string, method: string = "GET"): RequestEvent {
   return {
     url: new URL(pathname, "http://localhost"),

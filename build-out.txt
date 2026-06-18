@@ -1,0 +1,148 @@
+$ NODE_OPTIONS="--no-warnings --no-deprecation" vp build
+vite v8.0.16 building ssr environment for production...
+√ [paraglide-js] Compilation complete (message-modules)
+[2Ktransforming...23:09:59 [vite-plugin-svelte] src/routes/(app)/config/design-system/+page.svelte:66:5 This reference only captures the initial value of `data`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally
+64: 
+65:   let previewDensity = $state<"compact" | "cozy" | "spacious">(
+66:     (data.adminTheme?.density as "compact" | "cozy" | "spacious") || "cozy",
+             ^
+67:   );
+68:   let previewVariant = $state<"flat" | "bordered" | "elevated">(
+23:09:59 [vite-plugin-svelte] src/routes/(app)/config/design-system/+page.svelte:69:5 This reference only captures the initial value of `data`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally
+67:   );
+68:   let previewVariant = $state<"flat" | "bordered" | "elevated">(
+69:     (data.adminTheme?.variant as "flat" | "bordered" | "elevated") || "bordered",
+             ^
+70:   );
+71:   let sampleInput = $state("Sample value");
+23:10:00 [vite-plugin-svelte] src/routes/(app)/mediagallery/+page.svelte:343:8 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+https://svelte.dev/e/attribute_quoted
+341:                 onclick={() => isSelectionMode = !isSelectionMode}
+342:                 aria-label="toggle-selection-mode"
+343:                class="{isSelectionMode ? ' dark: ' : ' '}">
+                                                               ^
+344:                 {isSelectionMode ? 'Exit Selection' : 'Select'}
+345:               </Button>
+23:10:00 [vite-plugin-svelte] src/routes/(app)/config/appearance/+page.svelte:581:19 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+https://svelte.dev/e/attribute_quoted
+579:         <Button variant="tertiary"
+580:           onclick={() => activeTab = tab.id}
+581:          size="sm" class="{activeTab === tab.id ? ' dark: ' : ' '}">
+                                                                        ^
+582:           <iconify-icon icon={tab.icon} width="16"></iconify-icon>
+583:           <span>{tab.label}</span>
+23:10:00 [vite-plugin-svelte] src/routes/(app)/config/extensions/widget-dashboard.svelte:427:7 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+https://svelte.dev/e/attribute_quoted
+425:               onclick={() => (activeFilter = filter.value)}
+426:               aria-label="{filter.label} widgets ({filter.count})"
+427:              class="{activeFilter === filter.value ? ' text-white' : ' '}">
+                                                                               ^
+428:               <iconify-icon icon={filter.icon} width="20"></iconify-icon>
+429:               <span>{filter.label}</span>
+23:10:00 [vite-plugin-svelte] src/components/collection-display/workflow-actions.svelte:115:25 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+https://svelte.dev/e/attribute_quoted
+113:                         <Button variant="primary"
+114:                             onclick={() => { selectedTargetStateId = trans.to; showComment = true; }}
+115:                          aria-label="{trans.label}" size="sm" class="text-xs">
+                                                        ^
+116:                             {trans.label} ➔
+117:                         </Button>
+23:10:02 [vite-plugin-svelte] src/routes/share/[token]/+page.svelte:380:2 Unused CSS selector ".download-btn"
+https://svelte.dev/e/css_unused_selector
+378:   }
+379: 
+380:   .download-btn {
+                    ^
+381:     width: 100%;
+382:     background: linear-gradient(135deg, #3b82f6, #2563eb);
+23:10:02 [vite-plugin-svelte] src/routes/share/[token]/+page.svelte:400:2 Unused CSS selector ".download-btn:hover"
+https://svelte.dev/e/css_unused_selector
+398:   }
+399: 
+400:   .download-btn:hover {
+                          ^
+401:     transform: translateY(-2px);
+402:     box-shadow: 0 15px 20px -3px rgba(37, 99, 235, 0.4);
+23:10:02 [vite-plugin-svelte] src/routes/share/[token]/+page.svelte:405:2 Unused CSS selector ".download-btn:active"
+https://svelte.dev/e/css_unused_selector
+403:   }
+404: 
+405:   .download-btn:active {
+                           ^
+406:     transform: translateY(0);
+407:   }
+23:10:02 [vite-plugin-svelte] src/routes/share/[token]/+page.svelte:409:2 Unused CSS selector ".download-btn:disabled"
+https://svelte.dev/e/css_unused_selector
+407:   }
+408: 
+409:   .download-btn:disabled {
+                             ^
+410:     opacity: 0.6;
+411:     cursor: not-allowed;
+23:10:02 [vite-plugin-svelte] src/routes/(app)/config/extensions/widget-card.svelte:125:15 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+https://svelte.dev/e/attribute_quoted
+123:           onclick={() => onToggle(widget.name)}
+124:           data-testid="widget-toggle-{widget.name}"
+125:          size="sm" class="{widget.isActive ? ' ' : ' '}">
+                                                             ^
+126:           {widget.isActive ? 'Deactivate' : 'Activate'}
+127:         </Button>
+23:10:03 [vite-plugin-svelte] src/routes/(app)/config/collectionbuilder/nested-content/tree-view-node.svelte:267:1 Unused CSS selector "button:focus-visible"
+https://svelte.dev/e/css_unused_selector
+265: <style>
+266:   div[role='button']:focus-visible,
+267:   button:focus-visible {
+                           ^
+268:     outline: 3px solid rgb(var(--color-primary-500));
+269:     outline-offset: 2px;
+23:10:04 [vite-plugin-svelte] src/widgets/custom/json-editor/input.svelte:86:3 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+https://svelte.dev/e/attribute_quoted
+84:       oninput={handleInput}
+85:       spellcheck={false}
+86:       placeholder="{`{\"key\": \"value\"}`}"
+                                                ^
+87:     />
+88:   </div>
+23:10:04 [vite-plugin-svelte] src/widgets/custom/json-editor/input.svelte:99:1 Unused CSS selector "textarea"
+https://svelte.dev/e/css_unused_selector
+ 97: 
+ 98: <style>
+ 99:   textarea {
+               ^
+100:     tab-size: 2;
+101:   }
+23:10:04 [vite-plugin-svelte] src/widgets/custom/seo/components/seo-preview.svelte:136:5 Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes
+https://svelte.dev/e/attribute_quoted
+134:           type="button"
+135:           onclick={() => (heatmapMode = !heatmapMode)}
+136:          class="{heatmapMode ? ' ' : ' '}">
+                                               ^
+137:           <iconify-icon icon="mdi:fire" width={24}></iconify-icon>
+138:           <span class="hidden sm:inline">Heatmap</span>
+✓ Security check passed: No private settings exposed to client
+✓ 2060 modules transformed.
+✗ Build failed in 7.51s
+error during build:
+Build failed with 1 error:
+
+[plugin vite-plugin-svelte:compile] D:/SveltyCMS/src/widgets/custom/price/input.svelte:112:4
+RolldownError: D:/SveltyCMS/src/widgets/custom/price/input.svelte:112:4 Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+ 110 |          placeholder="0.00"
+ 111 |          disabled={(field as any).readonly}
+ 112 |          aria-label="{field.label} amount"
+                                                 ^
+ 113 |          aria-invalid={!!error}
+ 114 |          aria-describedby={error ? `${fieldName}-error` : undefined}
+    at aggregateBindingErrorsIntoJsError (file:///D:/SveltyCMS/node_modules/@voidzero-dev/vite-plus-core/dist/rolldown/shared/error-BuvQYXuZ.mjs:48:18)
+    at unwrapBindingResult (file:///D:/SveltyCMS/node_modules/@voidzero-dev/vite-plus-core/dist/rolldown/shared/error-BuvQYXuZ.mjs:18:128)
+    at #build (file:///D:/SveltyCMS/node_modules/@voidzero-dev/vite-plus-core/dist/rolldown/shared/rolldown-build-CgMNHFY3.mjs:3246:34)
+    at async buildEnvironment (file:///D:/SveltyCMS/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/chunks/node.js:38827:64)
+    at async Object.build (file:///D:/SveltyCMS/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/chunks/node.js:39249:19)
+    at async Object.buildApp (file:///D:/SveltyCMS/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/chunks/node.js:39246:153)
+    at async CAC.<anonymous> (file:///D:/SveltyCMS/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/cli.js:777:3) {
+  errors: [Getter/Setter]
+}
+error: script "build" exited with code 1

@@ -284,15 +284,14 @@ format auto-detection, field mapping preview, and progress tracking.**
 					</div>
 				</div>
 
-				<button
+				<Button variant="outline"
 					type="button"
 					onclick={clearFile}
-					class="btn-icon preset-outlined-secondary-500 rounded-full"
 					disabled={isImporting}
 					aria-label="Remove selected file"
-				>
+				 class="p-0! min-w-0 rounded-full">
 					<iconify-icon icon="mdi:close" width="20" aria-hidden="true"></iconify-icon>
-				</button>
+				</Button>
 			</div>
 		</div>
 

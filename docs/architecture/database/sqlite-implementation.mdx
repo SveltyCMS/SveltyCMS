@@ -24,13 +24,13 @@ The SQLite adapter enables a seamless transition from local development to produ
 
 ### Architecture Overview
 
-````mermaid
+```mermaid
 graph TD
     A[SveltyCMS Core] --> B(IDBAdapter Interface)
     B --> C{SQLiteAdapter}
     C --> D[Drizzle ORM]
     D --> E[(SQLite File: SveltyCMS.db)]
-```text
+```
 
 ### Current Status
 
@@ -125,14 +125,14 @@ When using the [Setup Wizard](/docs/guides/setup-wizard), select **SQLite (via D
 
 If you are configuring the system manually, ensure your `config/private.ts` (or environment variables) contains:
 
-```typescript
+```
 // Example config/private.ts
 export const privateEnv = {
   DB_TYPE: "sqlite",
   DB_HOST: "/config/database", // Directory path
   DB_NAME: "SveltyCMS.db", // Filename
 };
-```text
+```
 
 The adapter will resolve the final path as `process.cwd() + DB_HOST + "/" + DB_NAME`.
 
@@ -147,7 +147,6 @@ The SQLite adapter follows the modular pattern established in the core infrastru
 - [Core Infrastructure](./core-infrastructure.mdx) - Unified architecture
 - [PostgreSQL Implementation](./postgresql-implementation.mdx) - Similar Drizzle pattern
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)
-````
 
 ---
 

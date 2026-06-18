@@ -51,7 +51,7 @@ The pipeline is **dynamically dispatched** based on system state, with **two cac
 - **READY pipeline** (16 hooks): Full production middleware chain
 - **SETUP pipeline** (3 hooks): Minimal bootstrap chain during installation
 
-````typescript
+```typescript
 // READY Pipeline (production order):
 const pipeline = [
   handleHyperTurbo, //  1. BENCHMARK AUTH (Env-gated + secret + CSPRNG nonce; auth paths excluded)
@@ -71,7 +71,7 @@ const pipeline = [
   handleApiRequests, // 15. API Caching (ETags, 2-Layer Cache, SWR Pre-warming)
   handleTokenResolution, // 16. RBAC Token Replacement in API responses
 ];
-```text
+```
 
 > **2026-06-05 Consolidation**: `handleSecurityHeaders` and `handleStaticAssetCaching` are now inlined into `handleTurboPipeline`'s post-resolve phase, reducing Promise chain depth by 2 hooks. `handleTurboGet` moved earlier — right after security gates, before auth/authz — maximizing its cache-hit fast-path coverage.
 >
@@ -105,12 +105,12 @@ SveltyCMS includes a minimal Heartbeat System (Telemetry) to help the core team 
 
 We respect user privacy. Telemetry can be completely disabled by setting the following environment variable in your `.env` file:
 
-```bash
+```
 # Disable SveltyCMS Telemetry
 SVELTY_TELEMETRY_DISABLED=true
 # OR use the universal standard
 DO_NOT_TRACK=1
-```text
+```
 
 ## 🚀 Server Startup & Initialization Flow
 
@@ -118,7 +118,7 @@ DO_NOT_TRACK=1
 
 SveltyCMS employs a **lazy initialization strategy** to minimize server startup time and enable **zero-restart setup completion**:
 
-```mermaid
+```
 sequenceDiagram
     participant Build as Vite Build
     participant Server as SvelteKit Server
@@ -160,11 +160,11 @@ sequenceDiagram
     end
 
     Hooks-->>Server: Continue request processing
-```text
+```
 
 ### First-Time Installation Flow (Zero Restart Required)
 
-```mermaid
+```
 sequenceDiagram
     participant User as User/Browser
     participant Setup as /setup Wizard
@@ -205,11 +205,11 @@ sequenceDiagram
     Setup->>User: Redirect to /login
 
     Note over User,State: ✅ System fully operational<br/>NO SERVER RESTART NEEDED
-```text
+```
 
 ### Key Implementation: hooks.server.ts
 
-```typescript
+```
 // --- Server Startup Logic ---
 if (!building) {
   /**
@@ -230,7 +230,7 @@ if (!building) {
     process.exit(0);
   });
 }
-```text
+```
 
 **Why Dynamic Import?**
 
@@ -245,7 +245,7 @@ if (!building) {
 
 **Solution:** Pass configuration in-memory, bypassing filesystem imports:
 
-```typescript
+```
 // src/databases/db.ts
 export async function initializeWithConfig(config: PrivateEnv): Promise<{ status: string }> {
   try {
@@ -264,7 +264,7 @@ export async function initializeWithConfig(config: PrivateEnv): Promise<{ status
     throw error;
   }
 }
-```text
+```
 
 **Called by:** `completeSetup` Server Function in `src/routes/setup/+page.server.ts` after writing `config/private.ts`.
 
@@ -294,14 +294,14 @@ SveltyCMS middleware is optimized for **world-class micro-latency**, utilizing f
 
 Every request is classified **once** at the top of the pipeline by `classifyRequest()` in `handleTurboPipeline`. This pre-computes five boolean flags (`isStatic`, `isApi`, `isBootstrap`, `isPublic`, `isTestMode`) and caches them on `locals.__flags`. All 15 downstream hooks read from this cache instead of re-running regex/prefix checks, eliminating redundant path classification overhead.
 
-```typescript
+```
 // In handleTurboPipeline (runs first):
 classifyRequest(pathname, event.locals);
 
 // In any downstream hook:
 const flags = getRequestFlags(event.locals);
 if (flags.isStatic) return resolve(event); // 0 redundant computes
-```text
+```
 
 ### 🔒 Security Hardening
 
@@ -435,7 +435,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 **Architecture**:
 
-```text
+```
 Request → ... → compression → ⚡ TURBO GET ⚡
   ├─ Gate 1: GET/HEAD/OPTIONS only (no mutation bypass)
   ├─ Gate 2: Cacheable API path? (8 prefixes: collections, content, settings, system, schema, navigation, themes, config)
@@ -444,7 +444,7 @@ Request → ... → compression → ⚡ TURBO GET ⚡
   ├─ Gate 5: Response in L1 memory cache?
   ├─ HIT  → Return pre-encoded response + security headers (skip auth/authz entirely)
   └─ MISS → Inject auth context into locals → passthrough to normal pipeline
-```text
+```
 
 **Universal Auth Context Cache**:
 
@@ -498,7 +498,7 @@ Rate limiting is handled at two levels for defense-in-depth:
 1. **Global** (in `handle-security.ts`): `securityResponseService.analyzeRequest()` applies IP/IPUA/cookie rate limits to all requests via the centralized security pipeline.
 2. **Per-endpoint** (e.g., auth actions in `login/+page.server.ts`): Critical endpoints apply additional `RateLimiter` instances from `sveltekit-rate-limiter` for targeted protection.
 
-```typescript
+```
 export const handleSecurity: Handle = async ({ event, resolve }) => {
   // ... test mode bypass, memory load shedding, GraphQL complexity check ...
 
@@ -513,7 +513,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
   return resolve(event);
 };
-```text
+```
 
 **Performance**: Full pipeline p95 is **1.214ms** (measured via `tests/benchmarks/hooks-performance.test.ts`). Early exit for legitimate traffic skips payload scanning; GraphQL complexity pre-filter catches attacks in <0.01ms. See [SQLite Benchmark Ledger](../project/benchmarks/benchmark_sqlite.mdx#hooks) for historical trends.
 
@@ -570,7 +570,7 @@ The root path has special handling to provide an optimal user experience across 
 
 **Implementation** (`src/routes/+page.server.ts`):
 
-```typescript
+```
 export const load: PageServerLoad = async ({ locals, url }) => {
   const { user } = locals;
 
@@ -598,7 +598,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   // No collections found - stay on root
   return { user, permissions: locals.permissions };
 };
-```text
+```
 
 **Why Root Path is Always Allowed**:
 
@@ -627,7 +627,7 @@ Blocking `/` during initialization would prevent these essential flows from work
 - **ThemeManager Integration**: Loads custom CSS from DB-based ThemeManager for white-label tenants.
 - **Fast-Path for API/Static**: Skips entirely for API routes and static assets using pre-computed flags.
 
-```typescript
+```
 export const handleUserPreferences: Handle = async ({ event, resolve }) => {
   // Skip for API/static routes via pre-computed flags
   const flags = getRequestFlags(locals);
@@ -648,7 +648,7 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
       html.replace('<html lang="en" dir="ltr">', '<html lang="en" dir="ltr" class="dark">'),
   });
 };
-```text
+```
 
 ---
 
@@ -670,7 +670,7 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
 - **Session Rotation**: Rotates session tokens every 15 minutes for active users (industry standard).
 - **WeakRef Caching (Memory Stability)**: Uses a memory-efficient LRU cache (top 100 hot sessions) utilizing `WeakRef` for User objects. This ensures that the V8 garbage collector can immediately reclaim memory from inactive sessions, preventing the memory bloat and OOM crashes common in Strapi and Payload.
 
-```typescript
+```
 // Simplified Logic
 const isDemoMode = getPrivateSettingSync('DEMO');
 
@@ -691,7 +691,7 @@ if (multiTenant) {
     }
     locals.tenantId = tenantId;
 }
-```text
+```
 
 **Key Features**:
 
@@ -711,7 +711,7 @@ if (multiTenant) {
 **File**: `src/hooks/handleAuthorization.ts`
 **Purpose**: Enforces granular permissions and protects routes based on user roles.
 
-```typescript
+```
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const { url, locals } = event;
   const { user } = locals;
@@ -756,7 +756,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
   return resolve(event);
 };
-```text
+```
 
 **Key Features**:
 
@@ -790,7 +790,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 - **Context Injection**: populates `event.locals.cms` for use in all downstream load functions and actions.
 - **Tenant-Aware**: Automatically initializes with the current `tenantId` resolved in earlier middleware.
 
-```typescript
+```
 export const handleLocalSdk: Handle = async ({ event, resolve }) => {
   const { locals } = event;
   const adapter = locals.dbAdapter;
@@ -802,7 +802,7 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
   return resolve(event);
 };
-```text
+```
 
 ---
 
@@ -871,7 +871,7 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
 **ETag Implementation**:
 
-```typescript
+```
 // SHA1 ETag (hardware-accelerated on modern CPUs)
 etag = `"${crypto.createHash("sha1").update(responseBody).digest("hex").substring(0, 16)}"`;
 
@@ -879,7 +879,7 @@ etag = `"${crypto.createHash("sha1").update(responseBody).digest("hex").substrin
 if (request.headers.get("if-none-match") === etag) {
   return new Response(null, { status: 304, headers: { etag } });
 }
-```text
+```
 
 **Key Features**:
 
@@ -896,7 +896,7 @@ if (request.headers.get("if-none-match") === etag) {
 
 ## Middleware Pipeline
 
-```mermaid
+```
 sequenceDiagram
     participant Client
     participant SvelteKit
@@ -982,7 +982,7 @@ sequenceDiagram
     Static-->>Test: Response
     Test-->>Headers: Response
     Headers-->>SvelteKit: Final Response
-```text
+```
 
 ---
 
@@ -1024,9 +1024,9 @@ Complex hooks with intricate state machines and security logic receive dedicated
 - ✅ Route pattern matching for special paths
 - ✅ State transition logging and metrics
 
-```bash
+```
 bun test tests/bun/hooks/system-state.test.ts  # 26 tests
-```text
+```
 
 #### 2. handleFirewall (27 tests)
 
@@ -1044,9 +1044,9 @@ bun test tests/bun/hooks/system-state.test.ts  # 26 tests
 - ✅ Normal traffic allowance
 - ✅ Path traversal and injection pattern detection
 
-```bash
+```
 bun test tests/bun/hooks/firewall.test.ts      # 27 tests
-```text
+```
 
 ### Indirect Integration Coverage (9 hooks)
 
@@ -1082,7 +1082,7 @@ Simpler hooks with straightforward logic are tested through integration and API 
 
 ### Running All Hook Tests
 
-```bash
+```
 # Run all direct hook tests
 bun test tests/bun/hooks/
 
@@ -1091,7 +1091,7 @@ bun test tests/bun/hooks/ tests/bun/api/ tests/bun/services/
 
 # Full test suite
 bun test
-```text
+```
 
 ---
 
@@ -1099,7 +1099,7 @@ bun test
 
 Utility functions exported from `hooks.server.ts`:
 
-```typescript
+```
 // Health metrics
 export const getHealthMetrics = () => metricsService.getReport();
 
@@ -1111,7 +1111,7 @@ export {
   forceSessionRotation,
   getSessionCacheStats,
 } from "./hooks/handleAuthentication";
-```text
+```
 
 ---
 
@@ -1132,7 +1132,6 @@ The middleware architecture provides:
 - [Security Plugin](./security-plugin.mdx) - SecurityResponseService integration
 - [Initialization Workflow](./initialization-workflow.mdx) - System startup sequence
 
-```text
+```
 
-```text
-````
+```

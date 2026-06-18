@@ -4,7 +4,13 @@
 -->
 
 <script lang="ts">
-	import { fade, fly } from "svelte/transition";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import { deleteRedirect, saveRedirect } from "./redirects.remote";
 	import { toast } from '@src/stores/toast.svelte';
 	import { button_save } from '@src/paraglide/messages';
@@ -23,6 +29,16 @@
 	let selectedRedirect = $state<any>(null);
 	let isModalOpen = $state(false);
 
+	const redirectTypeOptions = [
+		{ value: '301', label: '301 Permanent' },
+		{ value: '302', label: '302 Temporary' },
+	];
+
+	const statusOptions = [
+		{ value: 'true', label: 'Active' },
+		{ value: 'false', label: 'Inactive' },
+	];
+
 	function openModal(redirect: any = null) {
 		selectedRedirect = redirect || { from: '', to: '', type: 301, active: true, isRegex: false };
 		isModalOpen = true;
@@ -34,75 +50,69 @@
 	}
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<div class="flex items-center justify-between" in:fade>
-		<div>
-			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:arrow-decision" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				Redirect Manager
-			</h1>
-			<p class="text-sm opacity-50 font-medium">Manage your site redirects globally</p>
-		</div>
-		<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => openModal()}>
-			<iconify-icon icon="mdi:plus" class="mr-2"></iconify-icon>
+<AdminPageShell
+	title="Redirect Manager"
+	icon="mdi:arrow-decision"
+	description="Manage your site redirects globally"
+>
+	{#snippet actions()}
+		<Button variant="tertiary" onclick={() => openModal()} leadingIcon="mdi:plus" class="dark:">
 			Add Redirect
-		</button>
-	</div>
+		</Button>
+	{/snippet}
 
-	<!-- Content Card -->
-	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fly={{ y: 20, delay: 100 }}>
-		<div class="flex items-center gap-4">
-			<iconify-icon icon="mdi:magnify" class="text-2xl opacity-50"></iconify-icon>
-			<input
+	<AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-xs backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40">
+		<div class="relative">
+			<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 text-xl opacity-50"></iconify-icon>
+			<Input
 				type="search"
 				bind:value={searchQuery}
 				placeholder="Search by path..."
-				class="input"
-			 aria-label="Input" />
+				aria-label="Search redirects by path"
+				class="ps-10 w-full"
+			/>
 		</div>
 
-		<div class="table-container">
-			<table class="table table-hover">
+		<div class="w-full overflow-x-auto">
+			<table class="w-full border-collapse text-sm">
 				<thead>
-					<tr>
-						<th>From Path</th>
-						<th>To Path</th>
-						<th>Type</th>
-						<th>Status</th>
-						<th>Actions</th>
+					<tr class="border-b border-surface-200 text-left text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800">
+						<th class="pb-3 font-semibold">From Path</th>
+						<th class="pb-3 font-semibold">To Path</th>
+						<th class="pb-3 font-semibold">Type</th>
+						<th class="pb-3 font-semibold">Status</th>
+						<th class="pb-3 font-semibold">Actions</th>
 					</tr>
 				</thead>
-				<tbody>
+				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 					{#each filteredRedirects as redirect}
-						<tr>
-							<td class="font-mono text-xs">{redirect.from}</td>
-							<td class="font-mono text-xs">{redirect.to}</td>
-							<td>
-								<span class="badge {redirect.type === 301 ? 'preset-filled-success-500' : 'preset-filled-warning-500'}">
+						<tr class="text-surface-700 hover:bg-surface-50/40 dark:text-surface-200 dark:hover:bg-surface-900/30">
+							<td class="py-3 font-mono text-xs">{redirect.from}</td>
+							<td class="py-3 font-mono text-xs">{redirect.to}</td>
+							<td class="py-3">
+								<Badge variant={redirect.type === 301 ? 'success' : 'warning'}>
 									{redirect.type}
-								</span>
+								</Badge>
 							</td>
-							<td>
+							<td class="py-3">
 								{#if redirect.active}
-									<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">Active</span>
+									<Badge variant="primary">Active</Badge>
 								{:else}
-									<span class="badge preset-filled-surface-500">Inactive</span>
+									<Badge variant="surface">Inactive</Badge>
 								{/if}
 							</td>
-							<td>
+							<td class="py-3">
 								<div class="flex gap-2">
-									<button class="btn-icon btn-icon-sm preset-outlined-surface-500" onclick={() => openModal(redirect)} aria-label="Edit Redirect">
+									<Button variant="outline" onclick={() => openModal(redirect)} aria-label="Edit Redirect" class="p-0! min-w-0">
 										<iconify-icon icon="mdi:pencil"></iconify-icon>
-									</button>
-									<button class="btn-icon btn-icon-sm preset-outlined-error-500" aria-label="Delete Redirect" onclick={async () => {
-																				await deleteRedirect(redirect._id);
-																				toast.success('Redirect deleted');
-																				// Reload to reflect changes
-																				window.location.reload();
-																			}}>
-																				<iconify-icon icon="mdi:trash-can"></iconify-icon>
-																			</button>
+									</Button>
+									<Button variant="error" aria-label="Delete Redirect" onclick={async () => {
+										await deleteRedirect(redirect._id);
+										toast.success('Redirect deleted');
+										window.location.reload();
+									}} class="p-0! min-w-0">
+										<iconify-icon icon="mdi:trash-can"></iconify-icon>
+									</Button>
 								</div>
 							</td>
 						</tr>
@@ -110,70 +120,53 @@
 				</tbody>
 			</table>
 		</div>
-	</div>
-</div>
+	</AdminCard>
+</AdminPageShell>
 
-{#if isModalOpen}
-	<div class="modal-backdrop fixed inset-0 z-50 bg-surface-900/50 backdrop-blur flex items-center justify-center p-4">
-		<div class="card p-6 w-full max-w-lg space-y-4 shadow-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md">
+{#if isModalOpen && selectedRedirect}
+	<div class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-surface-900/50 p-4 backdrop-blur">
+		<AdminCard class="w-full max-w-lg space-y-4 border border-surface-200 bg-white p-6 shadow-xl backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40">
 			<h3 class="h3">{selectedRedirect._id ? 'Edit' : 'Add'} Redirect</h3>
 
 			<form onsubmit={async (e) => {
-								e.preventDefault();
-								const fd = new FormData(e.currentTarget as HTMLFormElement);
-								await saveRedirect({
-									id: fd.get('id')?.toString() || undefined,
-									from: fd.get('from')?.toString() || '',
-									to: fd.get('to')?.toString() || '',
-									type: parseInt(fd.get('type')?.toString() || '301'),
-									active: fd.get('active') === 'true',
-									isRegex: fd.get('isRegex') === 'on',
-								});
-								toast.success('Redirect saved');
-								closeModal();
-								// Reload to reflect changes
-								window.location.reload();
-							}} class="space-y-4">
-				<input type="hidden" name="id" value={selectedRedirect._id || ''}  aria-label="Input" />
-
-				<label class="label">
-					<span>From Path (e.g. /old-blog)</span>
-					<input type="text" name="from" bind:value={selectedRedirect.from} class="input" required  aria-label="Input" />
-				</label>
-
-				<label class="label">
-					<span>To Path (e.g. /new-blog or https://example.com/new)</span>
-					<input type="text" name="to" bind:value={selectedRedirect.to} class="input" required  aria-label="Input" />
-				</label>
+				e.preventDefault();
+				await saveRedirect({
+					id: selectedRedirect._id || undefined,
+					from: selectedRedirect.from,
+					to: selectedRedirect.to,
+					type: selectedRedirect.type,
+					active: selectedRedirect.active,
+					isRegex: selectedRedirect.isRegex,
+				});
+				toast.success('Redirect saved');
+				closeModal();
+				window.location.reload();
+			}} class="space-y-4">
+				<Input label="From Path (e.g. /old-blog)" bind:value={selectedRedirect.from} required />
+				<Input label="To Path (e.g. /new-blog or https://example.com/new)" bind:value={selectedRedirect.to} required />
 
 				<div class="grid grid-cols-2 gap-4">
-					<label class="label">
-						<span>Redirect Type</span>
-						<select name="type" bind:value={selectedRedirect.type} class="select" aria-label="Select">
-							<option value={301}>301 Permanent</option>
-							<option value={302}>302 Temporary</option>
-						</select>
-					</label>
-
-					<label class="label">
-						<span>Status</span>
-						<select name="active" bind:value={selectedRedirect.active} class="select" aria-label="Select">
-							<option value={true}>Active</option>
-							<option value={false}>Inactive</option>
-						</select>
-					</label>
+					<Select
+						label="Redirect Type"
+						value={String(selectedRedirect.type)}
+						options={redirectTypeOptions}
+						onchange={(v) => selectedRedirect.type = parseInt(v)}
+					/>
+					<Select
+						label="Status"
+						value={selectedRedirect.active ? 'true' : 'false'}
+						options={statusOptions}
+						onchange={(v) => selectedRedirect.active = v === 'true'}
+					/>
 				</div>
 
-				<label class="flex items-center space-x-2">
-					<input type="checkbox" name="isRegex" bind:checked={selectedRedirect.isRegex} class="checkbox"  aria-label="Input" />
-					<span>Is Regex / Pattern</span>
-				</label>
+				<Checkbox bind:checked={selectedRedirect.isRegex} label="Is Regex / Pattern" />
 
 				<div class="flex justify-end gap-2 pt-4">
-					<button type="button" class="btn preset-outlined-surface-500" onclick={closeModal}>Cancel</button>
-					<button type="submit" class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500">{button_save()}</button>
+					<Button variant="outline" type="button" onclick={closeModal}>Cancel</Button>
+					<Button variant="tertiary" type="submit" class="dark:">{button_save()}</Button>
 				</div>
 			</form>
-		</div>
+		</AdminCard>
 	</div>
 {/if}

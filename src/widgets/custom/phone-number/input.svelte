@@ -33,6 +33,8 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
@@ -40,18 +42,29 @@
 	import { minLength, optional, parse, pipe, regex, string } from 'valibot';
 	import type { FieldType } from '.';
 
-	let { 
-		field, 
+	let {
+		field,
 		value = $bindable(),
-		error 
-	}: { 
-		field: FieldType; 
+		error
+	}: {
+		field: FieldType;
 		value?: string | Record<string, string> | null | undefined;
 		error?: string | null;
 	} = $props();
 
 	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
 	const fieldName = $derived(getFieldName(field));
+	let inputRef = $state<HTMLInputElement | null>(null);
+
+	$effect(() => {
+		if (!inputRef) return;
+		const inst = tokenTarget(inputRef, {
+			name: fieldName,
+			label: field.label,
+			collection: (field as any).collection
+		});
+		return () => inst.destroy();
+	});
 
 	const safeValue = $derived.by(() => {
 		if (field.translated && value && typeof value === 'object') {
@@ -70,7 +83,7 @@
 
 	function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
 		const raw = e.currentTarget.value.trim();
-		
+
 		if (field.translated) {
 			value = { ...(typeof value === 'object' ? value : {}), [LANGUAGE]: raw };
 		} else {
@@ -94,7 +107,7 @@
 </script>
 
 <div class="phone-widget flex flex-col gap-1">
-	<div 
+	<div
 		class="flex items-center rounded border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
@@ -106,17 +119,17 @@
 			</span>
 		{/if}
 
-		<div class="relative grow flex items-center px-3">
+		<div class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0">
 			<iconify-icon icon="mdi:phone-outline" width="18" class="text-surface-400 me-2"></iconify-icon>
-			<input
+			<Input
+				bind:inputRef
 				type="tel"
 				aria-label={field.label || fieldName || 'Phone number'}
 				value={safeValue}
 				oninput={handleInput}
 				placeholder={(field.placeholder as string) || '+1234567890'}
-				class="w-full border-none bg-transparent py-2 text-sm font-medium outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
+				inputClass="h-auto w-full border-0 bg-transparent py-2 text-sm font-medium text-surface-900 shadow-none outline-none focus-visible:ring-0 dark:text-surface-50"
 				disabled={field.readonly as boolean}
-				use:tokenTarget={{ name: fieldName, label: field.label, collection: (field as any).collection }}
 			/>
 		</div>
 
@@ -127,14 +140,16 @@
 		{/if}
 
 		{#if safeValue}
-			<button 
-				type="button" 
-				class="p-1 me-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center"
+			<Button
+				variant="surface"
+				size="sm"
+				type="button"
+				class="p-1! me-1"
 				onclick={handleClear}
 				title="Clear"
 			>
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 

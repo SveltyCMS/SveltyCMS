@@ -8,6 +8,7 @@ Features:
 - Animated testing indicator
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import {
 		setup_connection_authenticated,
 		setup_connection_connecting,
@@ -312,7 +313,7 @@ Features:
 			<!-- Retry Button -->
 			{#if onRetry}
 				<div class="mt-3 flex justify-end">
-					<button onclick={onRetry} class="preset-outlined-surface-500btn btn-sm flex items-center gap-2">
+					<Button variant="outline" onclick={onRetry} size="sm" class="flex items-center gap-2">
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								stroke-linecap="round"
@@ -322,7 +323,7 @@ Features:
 							/>
 						</svg>
 						{setup_connection_retry()}
-					</button>
+					</Button>
 				</div>
 			{/if}
 		</div>

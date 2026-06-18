@@ -11,25 +11,27 @@ Renders a currency selector and a number input side-by-side.
 -->
 
 <script lang="ts">
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { getFieldName } from '@utils/utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { minValue, nullable, number, object, optional, parse, pipe, regex, string } from 'valibot';
 	import type { FieldType } from './index';
 	import type { PriceValue } from './types';
 
-	let { 
-		field, 
+	let {
+		field,
 		value = $bindable(),
-		error 
-	}: { 
-		field: FieldType; 
+		error
+	}: {
+		field: FieldType;
 		value?: PriceValue | null | undefined;
 		error?: string | null;
 	} = $props();
 
 	const currencies = $derived((field as any).allowedCurrencies || ['EUR', 'USD', 'GBP']);
 	const defaultCurrency = $derived((field as any).defaultCurrency || 'EUR');
-	
+
 	// Ensure value is initialized properly
 	$effect(() => {
 		if (!value || typeof value !== 'object') {
@@ -51,6 +53,7 @@ Renders a currency selector and a number input side-by-side.
 	});
 
 	const fieldName = $derived(getFieldName(field));
+	const currencyOptions = $derived(currencies.map((code: string) => ({ value: code, label: code })));
 
 	function handleUpdate() {
 		const min = (field as any).min ?? 0;
@@ -68,44 +71,43 @@ Renders a currency selector and a number input side-by-side.
 </script>
 
 <div class="price-widget flex flex-col gap-1">
-	<div 
+	<div
 		class="flex items-center gap-0 rounded border overflow-hidden transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
 	>
 		<!-- Currency Select -->
-		<div class="relative border-e border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800">
-			<select 
-				bind:value={value!.currency} 
-				onchange={handleUpdate}
-				class="select border-none bg-transparent py-2 ps-3 pe-8 text-sm font-medium focus:ring-0 cursor-pointer"
+		<div class="relative shrink-0 border-e border-surface-300 bg-surface-50 dark:border-surface-700 dark:bg-surface-800">
+			<Select
+				bind:value={value!.currency}
+				options={currencyOptions}
+				allowEmptySelection
+				size="sm"
 				disabled={(field as any).readonly}
-				aria-label="{field.label} currency"
-			>
-				{#each currencies as code}
-					<option value={code}>{code}</option>
-				{/each}
-			</select>
-			<div class="pointer-events-none absolute inset-y-0 end-2 flex items-center text-surface-400">
-				<iconify-icon icon="mdi:chevron-down" width="16"></iconify-icon>
-			</div>
+				class="w-auto [&_select]:cursor-pointer [&_select]:border-0 [&_select]:bg-transparent [&_select]:py-2 [&_select]:ps-3 [&_select]:pe-8 [&_select]:text-sm [&_select]:font-medium [&_select]:shadow-none [&_select]:focus:ring-0"
+				onchange={handleUpdate}
+			/>
 		</div>
 
 		<!-- Amount Input -->
-		<div class="relative grow flex items-center px-3">
+		<div class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0">
 			<span class="text-surface-400 font-mono me-2" aria-hidden="true">{currencySymbol}</span>
-			<input
+			<Input
 				type="number"
-				bind:value={value!.amount}
-				oninput={handleUpdate}
+				value={value!.amount ?? ''}
+				oninput={(e) => {
+					const raw = (e.currentTarget as HTMLInputElement).value;
+					value!.amount = raw === '' ? null : Number(raw);
+					handleUpdate();
+				}}
 				min={(field as any).min}
 				max={(field as any).max}
 				step={(field as any).step || 0.01}
-				class="w-full border-none bg-transparent py-2 text-sm font-semibold outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
+				inputClass="h-auto w-full border-0 bg-transparent py-2 text-sm font-semibold text-surface-900 shadow-none outline-none focus-visible:ring-0 dark:text-surface-50"
 				placeholder="0.00"
 				disabled={(field as any).readonly}
-				aria-label="{field.label} amount"
+				aria-label={`${field.label} amount`}
 				aria-invalid={!!error}
 				aria-describedby={error ? `${fieldName}-error` : undefined}
 			/>

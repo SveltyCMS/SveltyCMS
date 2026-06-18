@@ -22,6 +22,10 @@ Provides an organized interface for navigating hierarchical content structures.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import Select from '@components/ui/select.svelte';
 	// Components
 	import TreeView from '@components/ui/tree-view.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
@@ -189,6 +193,10 @@ Provides an organized interface for navigating hierarchical content structures.
 		}
 		return Array.from(tagsSet).sort();
 	});
+
+	const tagFilterOptions = $derived(
+		allTags.map((tag) => ({ value: tag, label: tag }))
+	);
 
 	function openTagEditor(collectionId: string, label: string) {
 		activeCollectionIdForTagging = collectionId;
@@ -496,7 +504,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		}
 	}
 
-	
+
 </script>
 
 <div class="mt-2 space-y-2" role="navigation" aria-label="Collections">
@@ -504,32 +512,25 @@ Provides an organized interface for navigating hierarchical content structures.
 	{#if isFullSidebar}
 		<div class="flex items-center gap-2 px-1">
 			<!-- Favorites Pill Toggle -->
-			<button
+			<Button variant="outline"
 				type="button"
 				onclick={() => showOnlyFavorites = !showOnlyFavorites}
-				class="btn btn-sm flex items-center gap-1.5 rounded-full border transition-all text-xs font-semibold py-1 px-3
-					{showOnlyFavorites
-						? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400'
-						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-300'}"
 				aria-label="Filter by Favorites"
-			>
+			 size="sm" class="flex items-center gap-1.5 rounded-full border transition-all text-xs font-semibold py-1 px-3 {showOnlyFavorites ? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400' : 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-300'}">
 				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14" class={showOnlyFavorites ? 'text-amber-500' : ''}></iconify-icon>
 				<span>Favorites</span>
-			</button>
+			</Button>
 
 			<!-- Tags Filter Dropdown -->
 			{#if allTags.length > 0}
 				<div class="relative flex-1">
-					<select
+					<Select
 						bind:value={selectedTagFilter}
-						class="w-full rounded-full border border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-800 py-1 px-3 text-xs outline-none focus:border-tertiary-500 text-surface-700 dark:text-surface-200 cursor-pointer"
-						aria-label="Filter by Tag"
-					>
-						<option value="">All Tags</option>
-						{#each allTags as tag}
-							<option value={tag}>{tag}</option>
-						{/each}
-					</select>
+						options={tagFilterOptions}
+						placeholder="All Tags"
+						allowEmptySelection
+						size="sm"
+					/>
 				</div>
 			{/if}
 		</div>
@@ -537,12 +538,12 @@ Provides an organized interface for navigating hierarchical content structures.
 
 	<!-- Search -->
 	<div class="relative {isFullSidebar ? 'w-full' : 'w-12'}">
-		<input
-			type="text"
+		<Input
+			id="collections-search"
+			type="search"
 			bind:value={search}
-			size="1"
 			placeholder={collections_search()}
-			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pe-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
+			inputClass="pe-11 {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
 			aria-label="Search collections"
 		/>
 
@@ -550,17 +551,16 @@ Provides an organized interface for navigating hierarchical content structures.
 			<div class="absolute inset-e-0 top-0 flex h-full items-center">
 				{#if isSearching}
 					<div class="flex h-10 w-10 items-center justify-center">
-						<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
+						<Loader variant="circle" width="size-2" height="size-2" ariaLabel="Searching collections" />
 					</div>
 				{:else if search}
-					<button
+					<Button variant="outline"
 						type="button"
 						onclick={() => (search = '')}
-						class="btn rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 me-0.5"
 						aria-label="Clear search"
-					>
+					 class="rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 me-0.5">
 						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
-					</button>
+					</Button>
 				{:else}
 					<!-- Search with icon -->
 					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 me-0.5">
@@ -605,14 +605,13 @@ Provides an organized interface for navigating hierarchical content structures.
 			class="card w-full max-w-md p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl relative"
 			role="document"
 		>
-			<button
+			<Button variant="ghost"
 				type="button"
-				class="btn-icon btn-icon-xs absolute top-4 inset-e-4 rounded-full hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-500"
 				onclick={() => showTagModal = false}
 				aria-label="Close dialog"
-			>
+			 class="p-0! min-w-0 -xs absolute top-4 inset-e-4 rounded-full hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-500">
 				<iconify-icon icon="bi:x" width="20"></iconify-icon>
-			</button>
+			</Button>
 
 			<h3 id="tag-modal-title" class="text-lg font-bold text-surface-900 dark:text-white mb-2">
 				Manage Tags
@@ -622,19 +621,17 @@ Provides an organized interface for navigating hierarchical content structures.
 			</p>
 
 			<div class="space-y-4">
-				<label class="block">
-					<span class="text-sm font-semibold text-surface-700 dark:text-surface-200">Tags</span>
-					<input
-						type="text"
+				<div>
+					<Input
 						bind:value={currentTagsInput}
+						label="Tags"
 						placeholder="e.g. news, features, blog"
-						class="input mt-1 w-full bg-surface-100 dark:bg-surface-800 border border-surface-300 dark:border-surface-700 rounded px-3 py-2 text-sm text-surface-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
 						aria-describedby="tags-help"
 					/>
 					<span id="tags-help" class="text-[11px] text-surface-400 mt-1 block">
 						Separate multiple tags with a comma.
 					</span>
-				</label>
+				</div>
 
 				<!-- Current tags preview -->
 				{#if tagMap[activeCollectionIdForTagging] && tagMap[activeCollectionIdForTagging].length > 0}
@@ -642,9 +639,9 @@ Provides an organized interface for navigating hierarchical content structures.
 						{#each tagMap[activeCollectionIdForTagging] as tag}
 							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500">
 								{tag}
-								<button
+								<Button variant="ghost"
 									type="button"
-									class="hover:text-error-500 focus:outline-none"
+									class="p-0! min-w-0 text-current hover:text-error-500 leading-none"
 									onclick={() => {
 										const currentTags = tagMap[activeCollectionIdForTagging] || [];
 										const updatedTags = currentTags.filter(t => t !== tag);
@@ -654,27 +651,25 @@ Provides an organized interface for navigating hierarchical content structures.
 									aria-label={`Remove tag ${tag}`}
 								>
 									&times;
-								</button>
+								</Button>
 							</span>
 						{/each}
 					</div>
 				{/if}
 
 				<div class="flex justify-end gap-2 mt-6">
-					<button
+					<Button variant="outline"
 						type="button"
-						class="btn bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 px-4 py-2 rounded text-sm font-semibold transition-colors"
 						onclick={() => showTagModal = false}
-					>
+					 class="bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 px-4 py-2 rounded text-sm font-semibold">
 						Cancel
-					</button>
-					<button
+					</Button>
+					<Button variant="tertiary"
 						type="button"
-						class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
 						onclick={saveTags}
-					>
+					 class="dark: text-white px-4 py-2 rounded text-sm font-semibold">
 						Save
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>

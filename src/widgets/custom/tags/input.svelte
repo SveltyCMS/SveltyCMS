@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
@@ -82,7 +83,7 @@
 	<div 
 		role="button"
 		tabindex="0"
-		class="input flex flex-wrap items-center gap-2 p-2 min-h-[42px] {validationError ? 'border-error-500' : ''}"
+		class="flex min-h-[42px] w-full flex-wrap items-center gap-2 rounded border border-surface-300 bg-surface-50 p-2 transition-all focus-within:ring-2 focus-within:ring-primary-500 dark:border-surface-600 dark:bg-surface-900 {validationError ? 'border-error-500' : ''}"
 		onclick={() => document.getElementById(`${fieldName}-input`)?.focus()}
 		onkeydown={(e) => { if (e.key === 'Enter') document.getElementById(`${fieldName}-input`)?.focus(); }}
 	>
@@ -90,14 +91,13 @@
 			{#each value as tag, i}
 				<Badge variant="primary" size="sm" class="flex items-center gap-1 ps-2! pe-1! py-1!">
 					{tag}
-					<button 
+					<Button variant="ghost" 
 						type="button" 
-						class="btn-icon btn-icon-sm hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-error-500 transition-colors" 
-						onclick={(e) => { e.stopPropagation(); removeTag(i); }}
+						onclick={(e: MouseEvent) => { e.stopPropagation(); removeTag(i); }}
 						aria-label={`Remove tag ${tag}`}
-					>
+					 class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-error-500">
 						<iconify-icon icon="mdi:close" width="12"></iconify-icon>
-					</button>
+					</Button>
 				</Badge>
 			{/each}
 		{/if}

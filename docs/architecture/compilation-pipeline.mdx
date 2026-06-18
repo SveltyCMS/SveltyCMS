@@ -63,7 +63,7 @@ The compilation pipeline is integrated into both the development server and the 
 
 In development mode, the `cmsWatcherPlugin` invokes the compiler on file changes:
 
-````typescript
+```typescript
 // vite.config.ts leverage the shared compile utility
 import { compile } from "./src/utils/compilation/compile";
 
@@ -74,19 +74,19 @@ await compile({
   targetFile: file, // Incremental compilation
   logger: log, // Injects the Vite logger
 });
-```text
+```
 
 ### Server-Side Route (`+page.server.ts`)
 
 The Collection Builder UI triggers compilation when you save a collection:
 
-```typescript
+```
 // src/routes/(app)/config/collectionbuilder/.../+page.server.ts
 import { compile } from "@src/utils/compilation/compile";
 
 // ... inside save action
 await compile({ logger }); // Trigger full or partial compile
-```text
+```
 
 ## Logging
 
@@ -104,7 +104,7 @@ While the compilation pipeline handles the _transformation_ of code to checks, t
 
 To manually trigger compilation or use it in a script:
 
-```typescript
+```
 import { compile } from "@src/utils/compilation/compile";
 
 await compile({
@@ -112,7 +112,7 @@ await compile({
   compiledCollections: "./compiledCollections",
   concurrency: 10,
 });
-```text
+```
 
 The output of this pipeline is monitored by the **Content System (`src/content/content-service.server.ts`)**, which reconciles the compiled JavaScript modules into the live system state.
 
@@ -122,4 +122,3 @@ The output of this pipeline is monitored by the **Content System (`src/content/c
 - [Initialization Workflow](./initialization-workflow.mdx) - How compilation fits into system startup
 - [Content System Architecture](./content-system.mdx) - Consumption of compiled modules
 - [Widget Architecture](/docs/guides/development/widgets/development) - Understanding widget transformation
-````

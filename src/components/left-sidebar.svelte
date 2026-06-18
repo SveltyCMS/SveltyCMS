@@ -19,6 +19,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Native UI Components
 	import Dropdown from "@components/ui/dropdown.svelte";
 	import Collections from '@src/components/collections.svelte';
@@ -236,23 +237,22 @@
 	});
 </script>
 
-<div class="flex h-full w-full flex-col justify-between bg-transparent">
+<div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
-		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 no-underline!" data-sveltekit-preload-data="hover">
-			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="base-font-color relative text-2xl font-bold -ms-2"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
+		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex items-center pt-1 no-underline!" data-sveltekit-preload-data="hover">
+			<SveltyCMSLogo fill="red" className="h-9" />
+			<span class="base-font-color relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
 		</a>
 	{:else}
 		<div class="flex justify-start gap-2">
-			<button
+			<Button variant="ghost"
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-				class="preset-outline-surface-500 btn-icon mt-1"
-			>
+			 class="p-0! min-w-0 preset-outline-surface-500 mt-1">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
-			</button>
+			</Button>
 
 			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 no-underline!">
 				<SveltyCMSLogo fill="red" className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2" />
@@ -262,12 +262,12 @@
 
 	<!-- Expand/Collapse Button -->
 	<SystemTooltip title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'} positioning={{ placement: 'right' }}>
-		<button
+		<Button variant="ghost"
 			type="button"
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			aria-expanded={isSidebarFull}
-			class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0 dark:border-black ltr:-inset-e-4 rtl:-inset-s-4"
+			class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0! min-w-0 dark:border-white ltr:-inset-e-4 rtl:-inset-s-4"
 		>
 			<iconify-icon
 				icon="bi:arrow-left-circle-fill"
@@ -276,7 +276,7 @@
 					? 'rotate-0 rtl:rotate-180'
 					: 'rotate-180 rtl:rotate-0'}"
 			></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 
 	<!-- Navigation: Collapsible Sections -->
@@ -291,10 +291,10 @@
 			<!-- 1. Pinned Items -->
 			{#if pinnedStore.items.length > 0}
 				<div class="space-y-1">
-					<button
+					<Button variant="ghost"
 						type="button"
 						onclick={() => isPinnedOpen = !isPinnedOpen}
-						class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:bg-surface-200/50 dark:hover:bg-surface-800/50 rounded transition-colors {isSidebarFull ? 'px-1' : 'justify-center'}"
+						class="flex w-full items-center justify-between py-1.5 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-1' : 'justify-center'}"
 					 aria-label="Toggle pinned items">
 						<span class="flex items-center gap-1.5">
 							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -307,7 +307,7 @@
 								class="transform transition-transform duration-200 {isPinnedOpen ? '' : '-rotate-90'}"
 							></iconify-icon>
 						{/if}
-					</button>
+					</Button>
 
 					{#if isPinnedOpen}
 						<div class="space-y-0.5" transition:scale={{ duration: 150, start: 0.95 }}>
@@ -327,14 +327,13 @@
 										{/if}
 									</a>
 									{#if isSidebarFull}
-										<button
+										<Button variant="ghost"
 											type="button"
 											onclick={() => pinnedStore.unpin(item.id)}
-											class="btn-icon btn-icon-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-surface-200 dark:hover:bg-surface-800"
 											title="Unpin"
-										aria-label="Unpin">
+										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-surface-200 dark:hover:bg-surface-800">
 											<iconify-icon icon="bi:x" width="16" class="text-surface-500"></iconify-icon>
-										</button>
+										</Button>
 									{/if}
 								</div>
 							{/each}
@@ -346,10 +345,10 @@
 
 			<!-- 2. Collections -->
 			<div class="space-y-1">
-				<button
+				<Button variant="ghost"
 					type="button"
 					onclick={handleCollectionsClick}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:bg-surface-200/50 dark:hover:bg-surface-800/50 rounded transition-colors {isSidebarFull ? 'px-2' : 'justify-center'}"
+					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
 				 aria-label="Toggle collections">
 					<span class="flex items-center gap-1.5">
 						<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -362,7 +361,7 @@
 							class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
 						></iconify-icon>
 					{/if}
-				</button>
+				</Button>
 				{#if isCollectionsOpen && showCollectionsHere}
 					<div class="px-1">
 						<Collections />
@@ -373,7 +372,7 @@
 
 			<!-- 3. Media Gallery -->
 			<div class="space-y-1">
-				<button
+				<Button variant="ghost"
 					type="button"
 					onclick={() => {
 						goto('/mediagallery');
@@ -381,7 +380,7 @@
 							toggleUIElement('leftSidebar', 'collapsed');
 						}
 					}}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:bg-surface-200/50 dark:hover:bg-surface-800/50 rounded transition-colors {isSidebarFull ? 'px-2' : 'justify-center'}"
+					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
 				>
 					<span class="flex items-center gap-1.5">
 						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -394,7 +393,7 @@
 							class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
 						></iconify-icon>
 					{/if}
-				</button>
+				</Button>
 				{#if isMediaOpen}
 					<div class="px-1 space-y-2">
 						{#if isSidebarFull && !currentPath.includes('/mediagallery')}
@@ -465,14 +464,14 @@
  					<div class="language-selector relative">
  						<Dropdown position="right-start" class="w-56">
  							{#snippet trigger()}
- 								<button
- 									class="mb-3 preset-filled-surface-500 hover:bg-surface-400 rounded-full flex items-center justify-center uppercase transition-colors {isSidebarFull
- 										? 'w-12 h-12 text-xs font-semibold'
- 										: 'w-11 h-11 text-xs font-semibold'}"
+ 								<Button
+ 									variant="surface"
+ 									rounded
  									aria-label="Select language"
+ 									class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 {isSidebarFull ? 'h-12 w-12 text-xs font-semibold' : 'h-11 w-11 text-xs font-semibold'}"
  								>
  									{languageTag}
- 								</button>
+ 								</Button>
  							{/snippet}
 
  							<!-- Header to inform user about System Language context -->
@@ -519,25 +518,25 @@
  				</SystemTooltip>
  			</div>
 
- 			<!-- Sign Out -->
- 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
- 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
- 					<button onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20">
- 						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
- 					</button>
- 				</SystemTooltip>
- 			</div>
+			<!-- Sign Out -->
+			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
+				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
+					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0">
+						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
+					</Button>
+				</SystemTooltip>
+			</div>
 
  			<!-- Config -->
  			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
  				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
- 					<a
- 						href="/config"
- 						data-sveltekit-preload-data="hover"
- 						onclick={handleConfigClick}
- 						aria-label="System Configuration"
-						class="btn-icon flex items-center justify-center rounded-full hover:bg-surface-500/20"
- 					>
+					<a
+						href="/config"
+						data-sveltekit-preload-data="hover"
+						onclick={handleConfigClick}
+						aria-label="System Configuration"
+						class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
+					>
 						<iconify-icon icon="material-symbols:build-circle" width="35" class=""></iconify-icon>
  					</a>
  				</SystemTooltip>
@@ -567,6 +566,15 @@
 </div>
 
 <style>
+	/* Sidebar width follows admin theme token (applied on layout aside) */
+	:global(aside[aria-label='Left sidebar navigation']) {
+		transition: width var(--admin-motion-duration, 300ms) ease-in-out;
+	}
+
+	.sidebar-root {
+		max-width: var(--admin-sidebar-width, 240px);
+	}
+
 	/* Scrollbar styling */
 	.overflow-y-auto {
 		scrollbar-color: rgb(var(--color-surface-500)) transparent;

@@ -11,6 +11,7 @@ Features:
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Components
 	import SiteName from '@src/components/site-name.svelte';
 
@@ -44,9 +45,9 @@ Features:
 	</section>
 
 	<footer class="flex justify-center">
-		<button class="dark:preset-filled-primary-500 preset-filled-tertiary-500 btn font-bold" onclick={handleGetStarted}>
+		<Button variant="tertiary" onclick={handleGetStarted} class="dark:">
 			{welcome_modal_cta()}
 			<iconify-icon icon="mdi:arrow-right" width="20" class="ml-2"></iconify-icon>
-		</button>
+		</Button>
 	</footer>
 </div>

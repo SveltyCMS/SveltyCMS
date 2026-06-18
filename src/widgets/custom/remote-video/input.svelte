@@ -28,6 +28,9 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
@@ -233,15 +236,15 @@ Part of the Three Pillars Architecture for widget system.
 	}
 </script>
 
-<div class="input-container relative mb-4">
+<div class="relative mb-4 w-full">
 	<SystemTooltip title={error || fetchError || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900" role="group">
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
 			<!-- Platform Icon -->
 			<div class="flex items-center px-3 border-e border-surface-400/30">
 				<iconify-icon icon={PLATFORM_ICONS[currentPlatform]} width="20"></iconify-icon>
 			</div>
 
-			<input
+			<Input
 				type="url"
 				id={field.db_fieldName}
 				name={field.db_fieldName}
@@ -250,7 +253,7 @@ Part of the Three Pillars Architecture for widget system.
 				bind:value={urlInput}
 				oninput={handleUrlInput}
 				oninvalid={(e) => e.preventDefault()}
-				class="input w-full rounded-none border-none bg-transparent font-medium text-black outline-none focus:ring-0 dark:text-primary-500 {error ||
+				inputClass="h-auto w-full rounded-none border-0 bg-transparent py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:text-primary-500 {error ||
 				fetchError
 					? 'bg-error-500/10!'
 					: ''} {isLoading ? 'opacity-50' : ''}"
@@ -265,8 +268,8 @@ Part of the Three Pillars Architecture for widget system.
 			{/if}
 
 			{#if urlInput && !isLoading}
-				<button 
-					type="button" 
+				<button
+					type="button"
 					class="flex items-center px-3 text-surface-400 hover:text-error-500 transition-colors"
 					onclick={handleClear}
 					aria-label="Clear input"
@@ -278,7 +281,7 @@ Part of the Three Pillars Architecture for widget system.
 	</SystemTooltip>
 
 	{#if error || fetchError}
-		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert">
 			{error || fetchError}
 		</p>
 	{/if}
@@ -286,19 +289,20 @@ Part of the Three Pillars Architecture for widget system.
 	{#if fetchedMetadata && !isLoading && !fetchError}
 		<div class="mt-4 flex flex-col gap-4 rounded border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30">
 			<div class="relative group shrink-0">
-				<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-[160px] rounded shadow-sm object-cover aspect-video" />
+				<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-40 rounded shadow-sm object-cover aspect-video" />
 				<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
 					<iconify-icon icon="mdi:play-circle" width="40" class="text-white"></iconify-icon>
 				</div>
 			</div>
-			
+
 			<div class="flex-1 space-y-2 min-w-0">
 				<div class="flex items-start justify-between gap-2">
 					{#if isEditingManually}
-						<input 
+						<Input
 							type="text"
 							aria-label="Video title"
-							class="input text-base font-bold p-1 bg-white dark:bg-surface-700 w-full"
+							class="w-full space-y-0"
+							inputClass="h-auto w-full border-0 bg-white p-1 text-base font-bold shadow-none focus-visible:ring-0 dark:bg-surface-700"
 							value={fetchedMetadata.title}
 							oninput={(e) => updateMetadataField('title', e.currentTarget.value)}
 						/>
@@ -307,26 +311,29 @@ Part of the Three Pillars Architecture for widget system.
 					{/if}
 
 					{#if allowManualEdit}
-						<button 
-							type="button" 
-							class="p-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center min-w-[32px] h-8"
+						<Button
+							variant="surface"
+							size="sm"
+							type="button"
+							class="min-w-8 h-8"
 							onclick={toggleManualEdit}
 							title={isEditingManually ? 'Save' : 'Edit Metadata'}
 						>
 							<iconify-icon icon={isEditingManually ? 'mdi:check' : 'mdi:pencil'} width="16"></iconify-icon>
-						</button>
+						</Button>
 					{/if}
 				</div>
 
 				{#if isEditingManually}
-					<textarea 
+					<Textarea
 						aria-label="Video description"
-						class="textarea text-xs p-1 bg-white dark:bg-surface-700 w-full"
-						rows="2"
+						class="w-full space-y-0"
+						textareaClass="min-h-0 w-full border-0 bg-white p-1 text-xs shadow-none focus-visible:ring-0 dark:bg-surface-700"
+						rows={2}
 						value={fetchedMetadata.description || ''}
 						oninput={(e) => updateMetadataField('description', e.currentTarget.value)}
 						placeholder="Add description..."
-					></textarea>
+					/>
 				{:else if fetchedMetadata.description}
 					<p class="text-xs text-surface-600 dark:text-surface-400 line-clamp-2">{fetchedMetadata.description}</p>
 				{/if}
@@ -356,14 +363,15 @@ Part of the Three Pillars Architecture for widget system.
 						<iconify-icon icon="mdi:open-in-new" width="14"></iconify-icon>
 						Watch
 					</a>
-					<button 
+					<Button
+						variant="surface"
+						size="sm"
 						type="button"
-						class="px-3 py-1.5 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center gap-1 text-xs font-medium"
 						onclick={() => fetchedMetadata && navigator.clipboard.writeText(fetchedMetadata.url)}
 					>
 						<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>
 						Link
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>

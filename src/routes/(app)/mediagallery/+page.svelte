@@ -14,8 +14,10 @@ import MediaTable from "./media-table.svelte";
 import VirtualMediaGrid from "./virtual-media-grid.svelte";
 import { mediaUrl } from "@utils/media/media-utils";
 import ImageEditorModal from "@src/components/image-editor/image-editor-modal.svelte";
+import ModalPrompt from "@components/modal-prompt.svelte";
 import MediaDetailsModal from "@src/components/media/media-details-modal.svelte";
-import PageTitle from "@src/components/page-title.svelte";
+import AdminCard from '@components/admin-card.svelte';
+import AdminPageShell from "@components/admin-page-shell.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
 import {
@@ -27,6 +29,9 @@ import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
 import { SvelteSet } from "svelte/reactivity";
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 
 let { data }: { data: PageData } = $props();
 
@@ -36,8 +41,9 @@ let globalSearchValue = $state("");
 let selectedMediaType = $state<"All" | MediaTypeEnum>("All");
 let view = $state<"grid" | "table">("grid");
 let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
-let selectedFiles = $state(new SvelteSet<string>());
-let isSelectionMode = $state(false);
+	let selectedFiles = $state(new SvelteSet<string>());
+	let isSelectionMode = $state(false);
+	let fileUploadInput = $state<HTMLInputElement>();
 
 const mediaTypes = [
 	{ value: "All", label: "ALL" },
@@ -46,6 +52,11 @@ const mediaTypes = [
 	{ value: MediaTypeEnum.Audio, label: "AUDIO" },
 	{ value: MediaTypeEnum.Video, label: "VIDEO" },
 ];
+
+const mediaTypeOptions = mediaTypes.map((type) => ({
+	value: type.value,
+	label: type.label,
+}));
 
 // Derived
 const filteredFiles = $derived.by(() => {
@@ -64,12 +75,9 @@ const useVirtualScrolling = $derived(
 	filteredFiles.length > USE_VIRTUAL_THRESHOLD,
 );
 
-// Focus management
-let searchInput: HTMLInputElement | undefined = $state();
-
 onMount(() => {
 	// Register Keyboard Shortcuts
-	registerHotkey("mod+f", () => searchInput?.focus(), "Focus Search");
+	registerHotkey("mod+f", () => document.getElementById("media-gallery-search")?.focus(), "Focus Search");
 	registerHotkey(
 		"mod+a",
 		() => {
@@ -110,7 +118,8 @@ onMount(() => {
 });
 
 async function handleEditImage(file: any) {
-	const fullUrl = mediaUrl(file);
+	// Prefer SSR-normalized relative url (same source as grid thumbnails)
+	const fullUrl = file.url || mediaUrl(file);
 	if (!fullUrl) {
 		toast.error("Invalid image URL");
 		return;
@@ -211,19 +220,23 @@ async function handleUpload(e: Event) {
 }
 
 async function handleCreateFolder() {
-	showConfirm({
-		title: "Create New Folder",
-		body: `<input id="new-folder-name" type="text" class="input" placeholder="Folder name..." />`,
-		onConfirm: async () => {
-			const name = (document.getElementById("new-folder-name") as HTMLInputElement)?.value;
-			if (!name) return;
+	modalState.trigger(
+		ModalPrompt as any,
+		{
+			title: "Create New Folder",
+			body: "Enter a name for the new folder:",
+			value: "",
+			type: "text",
+		},
+		async (name: string | null) => {
+			if (!name?.trim()) return;
 
 			try {
 				const response = await fetch("/api/system-virtual-folder", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						name,
+						name: name.trim(),
 						parent: data.currentFolder?._id,
 					}),
 				});
@@ -236,7 +249,7 @@ async function handleCreateFolder() {
 				toast.error("Folder creation failed");
 			}
 		},
-	});
+	);
 }
 
 async function handleOpenFileDetails(file: any) {
@@ -253,91 +266,101 @@ async function handleOpenFileDetails(file: any) {
 }
 </script>
 
-<div class="flex flex-col gap-4 px-2">
-	<PageTitle
-		name="Media Gallery"
-		icon="bi:images"
-		showBackButton={true}
-		backUrl="/"
+<AdminPageShell title="Media Gallery" icon="bi:images" showBackButton={true} backUrl="/" spaceY="4">
+	{#snippet actions()}
+		<div class="flex items-center gap-2">
+			<Button variant="surface"
+				onclick={handleCreateFolder}
+				aria-label="Create new virtual folder"
+			>
+				<iconify-icon icon="mdi:folder-plus" width="20"></iconify-icon>
+				<span class="hidden md:inline">New Folder</span>
+			</Button>
 
-	>
-		{#snippet children()}
-			<div class="flex items-center gap-2">
-				<button
-					onclick={handleCreateFolder}
-					class="btn preset-tonal-secondary"
-					aria-label="Create new virtual folder"
-				>
-					<iconify-icon icon="mdi:folder-plus" width="20"></iconify-icon>
-					<span class="hidden md:inline">New Folder</span>
-				</button>
-
-				<label class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 cursor-pointer">
-					<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
-					<span class="hidden md:inline">Upload</span>
-					<input
-										type="file"
-										multiple
-										class="hidden"
-										onchange={handleUpload}
-										accept="image/*,video/*,audio/*,application/pdf"
-										aria-label="upload-files"
-									/>
-				</label>
-			</div>
-		{/snippet}
-	</PageTitle>
+			<Button color="var(--color-primary-500)" onclick={() => fileUploadInput?.click()}>
+				<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
+				<span class="hidden md:inline">Upload</span>
+			</Button>
+			<input
+				type="file"
+				multiple
+				class="hidden"
+				bind:this={fileUploadInput}
+				onchange={handleUpload}
+				accept="image/*,video/*,audio/*,application/pdf"
+				aria-label="upload-files"
+				data-testid="media-upload-input"
+			/>
+		</div>
+	{/snippet}
 
 	<!-- Toolbar -->
-	<div class="flex flex-wrap items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 p-4 rounded shadow-sm border border-surface-200 dark:border-surface-700">
-		<div class="flex-1 min-w-75 relative">
-			<iconify-icon icon="mdi:magnify" class="absolute inset-s-3 top-1/2 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
-			<input
-				bind:this={searchInput}
+	<AdminCard
+		class="flex flex-wrap items-end justify-between gap-3 border border-surface-200 bg-white p-4 shadow-sm dark:border-surface-700 dark:bg-surface-900/50"
+		data-testid="media-gallery-toolbar"
+	>
+		<div class="relative min-w-75 flex-1">
+			<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
+			<Input
+				id="media-gallery-search"
 				bind:value={globalSearchValue}
-				type="text"
+				type="search"
 				placeholder="Search media... (Mod+F)"
-				class="input ps-10 w-full"
+				class="ps-10 w-full"
 				aria-label="Search media assets"
 			/>
 		</div>
 
-		<div class="flex items-center gap-2">
-			<select bind:value={selectedMediaType} class="select w-32" aria-label="Filter by type">
-				{#each mediaTypes as type}
-					<option value={type.value}>{type.label}</option>
-				{/each}
-			</select>
+		<div class="flex shrink-0 flex-wrap items-end gap-2">
+			<Select
+				bind:value={selectedMediaType}
+				options={mediaTypeOptions}
+				placeholder="Type"
+				size="sm"
+				class="w-36"
+				label="Filter by type"
+			/>
 
-			<div class="flex border border-surface-300 dark:border-surface-600 rounded overflow-hidden">
-				<button
-					onclick={() => view = 'grid'}
-					class="p-2 transition-colors {view === 'grid' ? 'bg-tertiary-500 dark:bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
+			<div class="flex h-8 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+				<Button
+					variant={view === 'grid' ? 'primary' : 'ghost'}
+					size="sm"
+					color={view === 'grid' ? 'var(--color-primary-500)' : undefined}
+					onclick={() => (view = 'grid')}
+					class="h-full rounded-none px-2 {view !== 'grid' ? 'hover:bg-surface-200 dark:hover:bg-surface-700' : ''}"
 					aria-label="Grid view"
+					aria-pressed={view === 'grid'}
 				>
 					<iconify-icon icon="mdi:grid-large" width="20"></iconify-icon>
-				</button>
-				<button
-					onclick={() => view = 'table'}
-					class="p-2 transition-colors {view === 'table' ? 'bg-tertiary-500 dark:bg-primary-500 text-white' : 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
+				</Button>
+				<Button
+					variant={view === 'table' ? 'primary' : 'ghost'}
+					size="sm"
+					color={view === 'table' ? 'var(--color-primary-500)' : undefined}
+					onclick={() => (view = 'table')}
+					class="h-full rounded-none px-2 {view !== 'table' ? 'hover:bg-surface-200 dark:hover:bg-surface-700' : ''}"
 					aria-label="Table view"
+					aria-pressed={view === 'table'}
 				>
 					<iconify-icon icon="mdi:format-list-bulleted" width="20"></iconify-icon>
-				</button>
+				</Button>
 			</div>
 
-			<button
-								onclick={() => isSelectionMode = !isSelectionMode}
-								class="btn {isSelectionMode ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
-								aria-label="toggle-selection-mode"
-							>
-								{isSelectionMode ? 'Exit Selection' : 'Select'}
-							</button>
+			<Button
+				variant={isSelectionMode ? 'surface' : 'outline'}
+				color={isSelectionMode ? 'var(--color-primary-500)' : undefined}
+				size="sm"
+				onclick={() => (isSelectionMode = !isSelectionMode)}
+				aria-label="Toggle selection mode"
+				aria-pressed={isSelectionMode}
+			>
+				{isSelectionMode ? 'Exit Selection' : 'Select'}
+			</Button>
 		</div>
-	</div>
+	</AdminCard>
 
 	<!-- Content -->
-	<div class="relative min-h-100">
+	<div class="relative min-h-100" data-testid="media-gallery-content">
 		{#if view === 'grid'}
 			{#if useVirtualScrolling}
 				<VirtualMediaGrid
@@ -368,4 +391,4 @@ async function handleOpenFileDetails(file: any) {
 			/>
 		{/if}
 	</div>
-</div>
+</AdminPageShell>

@@ -5,6 +5,7 @@
 
 <script lang="ts">
 	import { collections } from '@src/stores/collection-store.svelte';
+	import Select from '@components/ui/select.svelte';
 
 	interface Props {
 		value?: string;
@@ -16,14 +17,19 @@
 
 	// Get collection names
 	const collectionNames = $derived(Object.values((collections as any).all as Record<string, Schema>).map((c) => c.name));
+	const collectionOptions = $derived(
+		collectionNames
+			.filter((name): name is string => name != null && name !== '')
+			.map((name) => ({ value: name, label: name }))
+	);
 </script>
 
 <div class="m-1 flex max-w-full items-center justify-between gap-2">
-	<label for="collection-select" class="w-32 flex-none">Collection</label>
-	<select id="collection-select" class="input grow text-black dark:text-primary-500" bind:value>
-		<option value="">Select a collection</option>
-		{#each collectionNames as name (name)}
-			<option value={name}>{name}</option>
-		{/each}
-	</select>
+	<Select
+		bind:value
+		label="Collection"
+		class="grow"
+		placeholder="Select a collection"
+		options={collectionOptions}
+	/>
 </div>

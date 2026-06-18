@@ -19,18 +19,25 @@
 <script lang="ts">
 	// Using iconify-icon web component
 	// Auth
+	import Badge from '@components/ui/badge.svelte';
 	import type { Role } from '@src/databases/auth/types';
 
 	// Ensure roles is an array
 	const { value, roles = [] } = $props();
 
-	const roleClasses = (roleId: string) => {
+	const roleVariant = (roleId: string): 'primary' | 'secondary' | 'tertiary' | 'surface' => {
 		const role = roles.find((r: Role) => r._id === roleId);
-		if (!role) {
-			const defaultRole = roles.find((r: Role) => r._id === 'user');
-			return defaultRole?.color || 'text-white';
+		const color = role?.color ?? roles.find((r: Role) => r._id === 'user')?.color;
+		switch (color) {
+			case 'gradient-primary':
+				return 'primary';
+			case 'gradient-pink':
+				return 'secondary';
+			case 'gradient-tertiary':
+				return 'tertiary';
+			default:
+				return 'surface';
 		}
-		return role.color || 'text-white';
 	};
 
 	const iconForRole = (roleId: string) => {
@@ -52,11 +59,11 @@
 	};
 </script>
 
-<span class="badge {roleClasses(value)}">
+<Badge variant={roleVariant(value)} class="text-white">
 	{#if iconForRole(value)}
 		<iconify-icon icon={iconForRole(value)} width="20"></iconify-icon>
 		{roleName(value)}
 	{:else}
 		<span>{roleName(value)}</span>
 	{/if}
-</span>
+</Badge>

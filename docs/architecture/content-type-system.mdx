@@ -54,12 +54,12 @@ In production mode, the system bypasses the Vite watcher and uses the `contentSe
 
 Autocomplete for collection names and validation for field types.
 
-````typescript
+```typescript
 import type { ContentTypes } from "@src/content/types";
 function getCollection(name: ContentTypes) {
   return contentSystem.collections.get(name);
 }
-```text
+```
 
 ### 2. Refactoring Safety
 
@@ -86,7 +86,6 @@ When you rename a collection file, TypeScript catches all references across the 
 - **Zero Runtime Overhead**: Types are stripped during compilation.
 - **Tree-Shakable**: Server-only logic in `content-service.server.ts` is never sent to the client.
 - **Incremental Updates**: Only modified collections trigger an update in the types file.
-````
 
 ---
 

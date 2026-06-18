@@ -17,6 +17,8 @@ import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
 import { sveltyRegistry } from "@src/services/json-render/catalog";
 import type { Snippet } from "svelte";
 import { logger } from "@utils/logger";
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 
 interface Props {
 	spec?: Spec | null;
@@ -80,24 +82,23 @@ async function handleRegenerate() {
 				</div>
 
 				<div class="flex-1 max-w-xl relative">
-					<input aria-label="Input"
+					<Input
 						type="text"
 						bind:value={prompt}
 						placeholder="Prompt AI to change this layout..."
-						class="input w-full pe-24 rounded-full"
+						inputClass="pe-24 rounded-full"
 						onkeydown={(e) => e.key === 'Enter' && handleRegenerate()}
 					/>
-					<button
+					<Button variant="tertiary"
 						onclick={handleRegenerate}
 						disabled={isRegenerating}
-						class="absolute end-1 top-1 bottom-1 px-4 btn btn-sm rounded-full preset-filled-tertiary-500 dark:preset-filled-primary-500 font-bold"
-					>
+					 size="sm" class="absolute end-1 top-1 bottom-1 px-4 rounded-full dark:">
 						{#if isRegenerating}
 							<iconify-icon icon="mdi:loading" class="animate-spin" width="18"></iconify-icon>
 						{:else}
 							Update
 						{/if}
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>

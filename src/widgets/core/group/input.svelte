@@ -14,6 +14,7 @@ Renders a group of fields, allowing for nested data structures.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
@@ -78,7 +79,7 @@ Renders a group of fields, allowing for nested data structures.
 <div class="mb-4 w-full {variant.container}">
 	<!-- Header -->
 	{#if (field as any).groupTitle || (field as any).collapsible}
-		<button>
+		<Button variant="outline">
 			type="button"
 			onclick={toggleCollapse}
 			disabled={!(field as any).collapsible}
@@ -92,7 +93,7 @@ Renders a group of fields, allowing for nested data structures.
 			{#if (field as any).collapsible}
 				<iconify-icon icon="mdi:chevron-down" width="20" class="transition-transform duration-200 {isCollapsed ? 'rotate-180' : ''}"></iconify-icon>
 			{/if}
-		</button>
+		</Button>
 	{/if}
 
 	<!-- Content -->

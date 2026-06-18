@@ -22,6 +22,8 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 -->
 
 <script lang="ts">
+	import Input from '@components/ui/input.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import {
 		widget_seo_suggestioncharacter,
 		widget_seo_suggestionwidthdesktop,
@@ -114,24 +116,28 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 </label>
 
 {#if type === 'textarea'}
-	<textarea aria-label="{statusText}"
+	<Textarea
+		aria-label={statusText}
 		{id}
 		name={id}
 		{placeholder}
 		{rows}
 		bind:value
 		oninput={handleInput}
-		class="input text-black dark:text-primary-500"
+		class="space-y-0"
+		textareaClass="text-black dark:text-primary-500"
 		aria-describedby={statusId}
-	></textarea>
+	/>
 {:else}
-	<input aria-label="form input"
+	<Input
+		aria-label="form input"
 		{id}
 		type="text"
 		{placeholder}
 		bind:value
 		oninput={handleInput}
-		class="input text-black dark:text-primary-500"
+		class="space-y-0"
+		inputClass="text-black dark:text-primary-500"
 		aria-describedby={statusId}
 	/>
 {/if}

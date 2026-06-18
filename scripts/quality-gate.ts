@@ -109,6 +109,12 @@ async function main() {
       run: () => runCommand("vp", ["lint"]),
     },
     {
+      name: "Admin Theme Lint",
+      skip: () =>
+        !stagedFiles.some((f) => f.startsWith("src/routes/(app)/") && f.endsWith(".svelte")),
+      run: () => runCommand("bun", ["run", "lint:admin-theme"]),
+    },
+    {
       name: "Type Check",
       skip: !hasTsOrSvelte,
       run: () => runCommand("bun", ["run", "check"]),
@@ -204,6 +210,7 @@ async function main() {
     { name: "check", cmd: "bun", args: ["run", "check"] },
     { name: "test:unit (full)", cmd: "bun", args: ["run", "test:unit"] },
     { name: "lint:docs", cmd: "bun", args: ["run", "lint:docs"] },
+    { name: "lint:admin-theme", cmd: "bun", args: ["run", "lint:admin-theme"] },
   ];
 
   for (const p of parityCommands) {

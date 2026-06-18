@@ -1,0 +1,13 @@
+$ svelte-kit sync && bun run check:ts && bun run check:svelte
+$ tsc --noEmit
+src/services/core/marketplace-service.ts(80,3): error TS2322: Type '({ id: string; name: string; description: string; type: "theme"; category: string; version: string; author: string; source: "local"; installable: boolean; previewUrl: undefined; homepageUrl: string; themeConfig: ThemeFilePayload; } | null)[]' is not assignable to type 'MarketplaceItem[]'.
+  Type '{ id: string; name: string; description: string; type: "theme"; category: string; version: string; author: string; source: "local"; installable: boolean; previewUrl: undefined; homepageUrl: string; themeConfig: ThemeFilePayload; } | null' is not assignable to type 'MarketplaceItem'.
+    Type 'null' is not assignable to type 'MarketplaceItem'.
+src/services/core/marketplace-service.ts(107,29): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'MarketplaceItem' is not assignable to type '{ id: string; name: string; description: string; type: "theme"; category: string; version: string; author: string; source: "local"; installable: boolean; previewUrl: undefined; homepageUrl: string; themeConfig: ThemeFilePayload; }'.
+    Types of property 'type' are incompatible.
+      Type 'MarketplaceItemType' is not assignable to type '"theme"'.
+        Type '"widget"' is not assignable to type '"theme"'.
+src/services/core/marketplace-service.ts(141,16): error TS7006: Parameter 'item' implicitly has an 'any' type.
+tests/unit/marketplace-service.test.ts(26,24): error TS2352: Conversion of type 'Mock<Procedure>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'preconnect' is missing in type 'MockInstance<Procedure> & { (...args: any[]): any; new (...args: any[]): any; } & {}' but required in type 'typeof fetch'.

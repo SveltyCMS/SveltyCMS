@@ -22,6 +22,7 @@ functionality for image editing and basic file information display.
 - **Styling**: Adheres to the project's style guide using Tailwind CSS utility classes and semantic colors.
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	type Any = any;
 
 	import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
@@ -325,19 +326,19 @@ functionality for image editing and basic file information display.
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Edit -->
-						<button onclick={() => (showEditor = true)} aria-label="Edit image" class="preset-outlined-surface-500 btn-icon" title="Edit image">
+						<Button variant="outline" onclick={() => (showEditor = true)} aria-label="Edit image" title="Edit image" class="p-0! min-w-0">
 							<iconify-icon icon="material-symbols:edit" width={24}></iconify-icon>
-						</button>
+						</Button>
 
 						<!-- Flip -->
-						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="preset-outlined-surface-500 btn-icon" title="Flip details">
+						<Button variant="outline" onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" title="Flip details" class="p-0! min-w-0">
 							<iconify-icon icon="uiw:reload" width={24}></iconify-icon>
-						</button>
+						</Button>
 
 						<!-- Delete -->
-						<button onclick={() => (value = undefined)} aria-label="Delete" class="preset-outlined-surface-500 btn-icon" title="Delete image">
+						<Button variant="outline" onclick={() => (value = undefined)} aria-label="Delete" title="Delete image" class="p-0! min-w-0">
 							<iconify-icon icon="material-symbols:delete-outline" width={30}></iconify-icon>
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>

@@ -20,6 +20,7 @@ Displays a prominent banner when server restart is required with countdown and s
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { onDestroy, onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
@@ -169,17 +170,17 @@ Displays a prominent banner when server restart is required with countdown and s
 			<div class="flex flex-wrap items-center gap-2">
 				{#if countdown !== null}
 					<!-- Cancel countdown -->
-					<button onclick={stopCountdown} class="preset-outlined-surface-500btn btn-sm" disabled={isRestarting}>Cancel Auto-Restart</button>
+					<Button variant="outline" onclick={stopCountdown} disabled={isRestarting} size="sm">Cancel Auto-Restart</Button>
 				{:else}
 					<!-- Start countdown -->
-					<button onclick={startCountdown} class="preset-outlined-surface-500btn btn-sm" disabled={isRestarting}>
+					<Button variant="outline" onclick={startCountdown} disabled={isRestarting} size="sm">
 						<iconify-icon icon="mdi:timer" width="18"></iconify-icon>
 						Auto-Restart in {AUTO_RESTART_SECONDS}s
-					</button>
+					</Button>
 				{/if}
 
 				<!-- Restart now -->
-				<button onclick={() => restartServer(false)} class="preset-filled-error-500 btn-sm" disabled={isRestarting} aria-label="Restart server now">
+				<Button variant="error" onclick={() => restartServer(false)} disabled={isRestarting} aria-label="Restart server now" size="sm">
 					{#if isRestarting}
 						<div class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
 						<span>Restarting...</span>
@@ -187,18 +188,17 @@ Displays a prominent banner when server restart is required with countdown and s
 						<iconify-icon icon="mdi:restart" width="18"></iconify-icon>
 						<span>Restart Now</span>
 					{/if}
-				</button>
+				</Button>
 
 				<!-- Dismiss -->
-				<button
+				<Button variant="outline"
 					onclick={dismiss}
-					class="btn-icon btn-icon-sm preset-outlined-surface-500"
 					aria-label="Dismiss restart reminder"
 					disabled={isRestarting}
 					title="Dismiss (you can restart manually later)"
-				>
+				 class="p-0! min-w-0">
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-				</button>
+				</Button>
 			</div>
 		</div>
 

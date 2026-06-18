@@ -11,6 +11,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
   import { formatBytes } from "@utils/utils";
   import { toast } from "@src/stores/toast.svelte.ts";
 
@@ -132,11 +133,10 @@
             />
           </div>
 
-          <button 
-            type="submit" 
-            class="download-btn glow-effect"
+          <Button variant="outline" 
+            type="submit"
             disabled={isVerifying}
-          >
+           class="download- glow-effect">
             {#if isVerifying}
               <iconify-icon icon="mdi:loading" class="animate-spin" width="20"></iconify-icon>
               <span>Verifying...</span>
@@ -144,17 +144,18 @@
               <iconify-icon icon="mdi:key-outline" width="20"></iconify-icon>
               <span>Unlock & Download</span>
             {/if}
-          </button>
+          </Button>
         </form>
       {:else}
         <div class="download-action-area">
           <p class="form-instruction">Click the button below to download the file directly.</p>
           
-          <a 
+          <Button
             href="/api/media/share?id={data.mediaId}&token={data.token}"
             onclick={handleDownloadClick}
-            class="download-btn glow-effect download-link"
+            class="download-btn glow-effect download-link w-full"
             download={data.filename}
+            disabled={isDownloading}
           >
             {#if isDownloading}
               <iconify-icon icon="mdi:loading" class="animate-spin" width="20"></iconify-icon>
@@ -163,7 +164,7 @@
               <iconify-icon icon="mdi:download-outline" width="20"></iconify-icon>
               <span>Download File</span>
             {/if}
-          </a>
+          </Button>
         </div>
       {/if}
     </div>

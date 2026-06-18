@@ -16,6 +16,7 @@
 - Built-in keyboard accessibility
 -->
 <script lang="ts" module>
+	import Button from '@components/ui/button.svelte';
 export const widgetMeta = {
 	name: "Disk Usage",
 	icon: "mdi:disk",
@@ -108,7 +109,7 @@ export const widgetMeta = {
 						aria-label="Select disk drive"
 					>
 						{#each disks as d}
-							<button>
+							<Button variant="outline">
 								type="button"
 								role="tab"
 								aria-selected={disk.key === d.key}
@@ -120,7 +121,7 @@ export const widgetMeta = {
 								onclick={() => (activeDiskKey = d.key)}
 							>
 								{d.name} ({d.percent.toFixed(0)}%)
-							</button>
+							</Button>
 						{/each}
 					</div>
 				{/if}

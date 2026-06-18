@@ -1,0 +1,40 @@
+---
+pid: 63028
+cwd: "D:\SveltyCMS"
+command: "cmd /c \"cd /d D:\\SveltyCMS && set TEST_MODE=true&& set TEST_API_SECRET=809c1f44-1fd9-4889-a766-978afdb207c0&& set HOST=127.0.0.1&& set PORT=4179&& set STRICT_SETUP_CHECK=true&& node build/index.js\""
+started_at: 2026-06-18T06:33:21.289Z
+running_for_ms: 12225012 
+---
+2026-06-18 06:33:21 ℹ️ [INFO ] ✅ DB module loaded. System will initialize background services when READY. 
+SvelteKit server initialized in 66.7ms
+Static files indexed in 438.8ms (1216 entries)
+Warning: No ORIGIN, HOST_HEADER, or PROTOCOL_HEADER configured. The server will use http:// with the request Host header. For production, either:
+  SSL_CERT + SSL_KEY for native TLS (no proxy needed)
+  ORIGIN=https://example.com (behind a TLS proxy)
+  PROTOCOL_HEADER=x-forwarded-proto + HOST_HEADER=x-forwarded-host (flexible proxy)
+  See: https://svti.me/adapter-origin
+WebSocket endpoint registered at /ws
+Listening on http://127.0.0.1:4179 (ready in 1ms)
+2026-06-18 06:33:27 ℹ️ [INFO ] [Boot] Starting initialization... 
+2026-06-18 06:33:27 ℹ️ [INFO ] [Boot] Test mode detected. Forcing engine: sqlite 
+2026-06-18 06:33:27 ℹ️ [INFO ] [Boot] Loading adapters for sqlite... 
+2026-06-18 06:33:28 ℹ️ [INFO ] [Boot] Adapter loaded. Connecting... 
+2026-06-18 06:33:28 ℹ️ [INFO ] [SQLite] Opening database at: :memory: (Original: :memory:) 
+2026-06-18 06:33:28 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-18 06:33:28 ℹ️ [INFO ] [Boot] Connection result: true 
+2026-06-18 06:33:28 ℹ️ [INFO ] [Boot] Starting service initialization... 
+2026-06-18 06:33:28 ℹ️ [INFO ] [DB Init] Fresh install detected. Entering SETUP mode. 
+2026-06-18 06:33:28 ℹ️ [INFO ] System state changed: INITIALIZING → SETUP {"reason":"System awaiting configuration"}
+2026-06-18 06:33:28 ℹ️ [INFO ] [DB Init] System entered SETUP mode. 
+2026-06-18 06:33:28 ℹ️ [INFO ] [DB Registry] bootAll started with 2 plugins 
+2026-06-18 06:33:28 ℹ️ [INFO ] [DB Registry] Booting 2 services... 
+2026-06-18 06:33:28 ℹ️ [INFO ] [DB Registry] bootAll settling delay finished 
+2026-06-18 06:33:28 ℹ️ [INFO ] [DB Registry] Initializing service: base... 
+2026-06-18 06:33:28 ℹ️ [INFO ] 🚀 [SQLite] Running system migrations... 
+2026-06-18 06:33:28 ℹ️ [INFO ] SQLite migrations completed successfully. 
+2026-06-18 06:33:28 ℹ️ [INFO ] ✓ Service database initialized in 4ms {"average":"4.00","min":4,"max":4}
+2026-06-18 06:33:28 ℹ️ [INFO ] [DB Registry] Initializing service: auth... 
+2026-06-18 06:33:28 ℹ️ [INFO ] Creating in-memory session manager 
+2026-06-18 06:33:28 ℹ️ [INFO ] ✓ Service auth initialized in 4ms {"average":"4.00","min":4,"max":4}
+2026-06-18 06:33:28 ℹ️ [INFO ] [DB Registry] System services online. 
+2026-06-18 06:33:28 ℹ️ [INFO ] [Boot] Service initialization complete. 

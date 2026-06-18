@@ -23,6 +23,7 @@ import { logger } from "@utils/logger";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { goto } from "$app/navigation";
 import { optimizeImage } from "@src/utils/media/webgpu-processor";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	folder?: string;
@@ -399,14 +400,13 @@ async function uploadLocalFiles() {
 
 				<p class="text-sm opacity-75">Multiple files allowed</p>
 
-				<button
+				<Button variant="tertiary"
 					type="button"
 					onclick={() => input?.click()}
-					class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500"
 					disabled={isUploading}
-				>
+				 class="mt-3 dark:">
 					Browse Files
-				</button>
+				</Button>
 
 				<!-- File Size Limit -->
 				<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: 50 MB</p>
@@ -436,9 +436,9 @@ async function uploadLocalFiles() {
 					<!-- Delete button -->
 					<div class="absolute end-1 top-1 z-10 flex cursor-pointer shadow-sm">
 						<SystemTooltip title="Remove file" positioning={{ placement: 'top' }}>
-							<button type="button" onclick={() => handleDeleteFile(file)} class="btn-icon bg-error-500 rounded-full" aria-label="Remove file">
+							<Button variant="ghost" type="button" onclick={() => handleDeleteFile(file)} aria-label="Remove file" class="p-0! min-w-0 bg-error-500 rounded-full">
 								<iconify-icon icon="material-symbols:delete" width={24} class="text-white"></iconify-icon>
-							</button>
+							</Button>
 						</SystemTooltip>
 					</div>
 
@@ -483,10 +483,10 @@ async function uploadLocalFiles() {
 			{/each}
 
 			<!-- Add File Card -->
-			<button type="button" class="btn preset-tonal-surface-500 flex-col items-center gap-2" onclick={() => input?.click()}>
+			<Button variant="surface" type="button" onclick={() => input?.click()} class="flex-col items-center gap-2">
 				<iconify-icon icon="mingcute:add-fill" width={24}></iconify-icon>
 				<span class="font-bold">Add Files</span>
-			</button>
+			</Button>
 		</div>
 
 		<!-- Hidden Input for Add Card -->
@@ -494,8 +494,8 @@ async function uploadLocalFiles() {
 
 		<!-- Actions Footer -->
 		<div class="flex items-center justify-between border-t border-surface-200 pt-4 dark:border-surface-700">
-			<button type="button" class="btn preset-outlined-surface-500" onclick={handleCancel}>Cancel</button>
-			<button type="button" class="btn dark:preset-filled-primary-500 preset-filled-tertiary-500" onclick={uploadLocalFiles} disabled={isUploading}>
+			<Button variant="outline" type="button" onclick={handleCancel}>Cancel</Button>
+			<Button variant="tertiary" type="button" onclick={uploadLocalFiles} disabled={isUploading} class="dark:">
 				{#if isUploading}
 					<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
 					<span>Uploading... {uploadProgress}%</span>
@@ -503,7 +503,7 @@ async function uploadLocalFiles() {
 					<iconify-icon icon="mingcute:check-fill" width={24}></iconify-icon>
 					<span>Upload {files.length} File{files.length !== 1 ? 's' : ''}</span>
 				{/if}
-			</button>
+			</Button>
 		</div>
 	</div>
 {/if}

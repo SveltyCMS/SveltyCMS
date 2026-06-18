@@ -49,6 +49,51 @@ export function getMimeType(name: string): string | null {
   return map[ext] ?? null;
 }
 
+/** Canonical on-disk relative path for a media record (handles legacy `global/{hash}` rows). */
+export function resolveMediaRelPath(item: {
+  path?: string | null;
+  hash?: string | null;
+  filename?: string | null;
+}): string {
+  const stored = (item.path ?? "").replace(/^\/files\//, "").replace(/^\/+/, "");
+  if (!stored) return "";
+
+  if (stored.includes("/original/") || /\.[a-z0-9]{2,8}$/i.test(stored.split("/").pop() ?? "")) {
+    return stored;
+  }
+
+  if (item.hash && item.filename) {
+    return buildOriginalRelPath(item.hash, item.filename);
+  }
+
+  return stored;
+}
+
+/** Build the relative storage path for an uploaded original file. */
+export function buildOriginalRelPath(hash: string, filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  const ext = dot >= 0 ? filename.slice(dot + 1) : "bin";
+  const baseName = dot >= 0 ? filename.slice(0, dot) : filename || "file";
+  return `global/${hash}/original/${baseName}-${hash}.${ext}`;
+}
+
+/** Resolve a browser-ready `/files/...` URL from stored media metadata. */
+export function resolveMediaPublicPath(item: {
+  path?: string | null;
+  hash?: string | null;
+  filename?: string | null;
+  url?: string | null;
+}): string {
+  if (item.url?.startsWith("http://") || item.url?.startsWith("https://")) {
+    return item.url;
+  }
+  if (item.url?.startsWith("/files/")) {
+    return item.url;
+  }
+  const rel = resolveMediaRelPath(item);
+  return rel ? `/files/${rel}` : (item.url ?? "");
+}
+
 /** Construct public media URL */
 export function mediaUrl(item: MediaBase, size?: string): string {
   if (!item?.url) {
@@ -58,7 +103,7 @@ export function mediaUrl(item: MediaBase, size?: string): string {
   if (publicEnv.MEDIASERVER_URL) {
     // Remove leading /files/ from item.url if present when using external media server
     const cleanUrl = item.url.replace(/^\/files\//, "");
-    return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, "")}/${cleanUrl}`;
+    return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, "")}/files/${cleanUrl}`;
   }
 
   if (size && "thumbnails" in item && (item.thumbnails as any)?.[size]?.url) {

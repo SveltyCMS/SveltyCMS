@@ -254,7 +254,8 @@ walk(DOCS_DIR, (filePath) => {
   }
 
   // ===== 4. Fenced Block Balance =====
-  const blockCount = (body.match(/^```/gm) || []).length;
+  // Count all valid fenced code block markers (0-3 spaces of indentation per CommonMark)
+  const blockCount = (body.match(/^\s{0,3}```/gm) || []).length;
   if (blockCount % 2 !== 0) {
     addWarning("syntax", relPath, "Unbalanced fenced code blocks");
   }

@@ -28,6 +28,8 @@ canManage: boolean;
 - Uninstall widget
 -->
 <script lang="ts">
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
 // Using iconify-icon web component
 interface Props {
 	canManage: boolean;
@@ -65,14 +67,14 @@ const { widget, onToggle, onUninstall, canManage }: Props = $props();
 				<div class="flex flex-wrap items-center gap-2">
 					<h3 class="text-lg font-bold text-surface-900 dark:text-surface-50">{widget.name}</h3>
 					{#if widget.isCore}
-						<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">Core</span>
+						<Badge variant="primary">Core</Badge>
 					{:else}
-						<span class="badge preset-filled-tertiary-500">Custom</span>
+						<Badge variant="tertiary">Custom</Badge>
 					{/if}
 					{#if widget.isActive}
-						<span class="badge preset-filled-success-500">Active</span>
+						<Badge variant="success">Active</Badge>
 					{:else}
-						<span class="badge preset-filled-surface-500">Inactive</span>
+						<Badge variant="surface">Inactive</Badge>
 					{/if}
 				</div>
 				{#if widget.description}
@@ -102,7 +104,7 @@ const { widget, onToggle, onUninstall, canManage }: Props = $props();
 					<div class="flex flex-wrap gap-1.5 pt-1">
 						<span class="text-xs text-surface-500">Depends on:</span>
 						{#each widget.dependencies as dep (dep)}
-							<span class="badge variant-soft-secondary text-xs"> {dep} </span>
+							<Badge variant="secondary" class="text-xs">{dep}</Badge>
 						{/each}
 					</div>
 				{/if}
@@ -114,25 +116,24 @@ const { widget, onToggle, onUninstall, canManage }: Props = $props();
 			<!-- Toggle Active Status -->
 			{#if widget.isCore}
 				<!-- Core widgets are always active and cannot be deactivated -->
-				<span class="badge preset-tonal-primary-500" title="Core widgets are always active">Always Active</span>
+				<Badge preset="tonal" color="primary" title="Core widgets are always active">Always Active</Badge>
 			{:else if canManage && widget.canDisable}
-				<button
+				<Button variant="error"
 					type="button"
 					onclick={() => onToggle(widget.name)}
 					data-testid="widget-toggle-{widget.name}"
-					class="btn-sm {widget.isActive ? 'preset-filled-error-500' : 'preset-filled-success-500'}"
-				>
+				 size="sm" class="{widget.isActive ? ' ' : ' '}">
 					{widget.isActive ? 'Deactivate' : 'Activate'}
-				</button>
+				</Button>
 			{:else if !widget.canDisable}
-				<span class="badge variant-soft-warning" title="Required by other widgets">Required</span>
+				<Badge preset="tonal" color="warning" title="Required by other widgets">Required</Badge>
 			{/if}
 
 			<!-- Uninstall (only for inactive custom widgets) -->
 			{#if canManage && !widget.isCore && !widget.isActive && onUninstall}
-				<button type="button" onclick={() => onUninstall?.(widget.name)} class="btn-icon btn-icon-sm variant-soft-error" title="Uninstall widget">
+				<Button variant="surface" type="button" onclick={() => onUninstall?.(widget.name)} title="Uninstall widget" class="p-0! min-w-0">
 					<iconify-icon icon="mdi:trash-can-outline" width="20" class="text-lg"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 		</div>
 	</div>

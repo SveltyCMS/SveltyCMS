@@ -124,7 +124,7 @@ The `AIService` (`src/services/core/ai-service.ts`) provides schema-aware AI cap
 
 Evaluates content for SEO, readability, and completeness, returning actionable suggestions:
 
-````text
+```text
 POST /api/ai/score
 Content-Type: application/json
 
@@ -132,24 +132,24 @@ Content-Type: application/json
   "content": { "title": "...", "body": "..." },
   "collectionName": "blog-posts"
 }
-```text
+```
 
 **Response:**
 
-```json
+```
 {
   "score": 78,
   "seoScore": 85,
   "readabilityScore": 72,
   "suggestions": ["Add meta description", "Shorten paragraph 3"]
 }
-```text
+```
 
 ### Schema-Aware Field Suggestions
 
 Given a collection name and description, suggests optimal widget types and field configurations:
 
-```text
+```
 POST /api/ai/suggest-fields
 Content-Type: application/json
 
@@ -158,7 +158,7 @@ Content-Type: application/json
   "description": "Cooking recipes with ingredients and instructions",
   "availableWidgets": ["InputText", "RichText", "ImageArray", "Tags"]
 }
-```text
+```
 
 ### Per-Field AI Translation
 
@@ -168,7 +168,7 @@ Each translated field now has an inline **✨ AI Translate** button for one-clic
 
 SveltyCMS also offers a bulk endpoint for translating entire collections:
 
-```text
+```
 POST /api/ai/translate-collection
 Content-Type: application/json
 
@@ -177,17 +177,17 @@ Content-Type: application/json
   "targetLanguages": ["de", "fr", "es"],
   "sourceLanguage": "en"
 }
-```text
+```
 
 **Response:**
 
-```json
+```
 {
   "success": true,
   "jobId": "job_abc123",
   "message": "Bulk translation dispatched for blog-posts → [de, fr, es]"
 }
-```text
+```
 
 The job runs in the background via the Job Queue Service, iterating through entries, identifying missing locales, and generating translations while respecting field-level constraints. Track progress via `/api/system/jobs/{jobId}`.
 
@@ -274,15 +274,15 @@ The AI Assistant is built for power users. Use the following shortcuts from anyw
 
 To keep the knowledge base always up-to-date, run the sync service:
 
-```bash
+```
 bun run sync-service.ts
-```text
+```
 
 ### Online Context Server (Recommended)
 
 Add this to your MCP configuration (e.g., `claude_desktop_config.json`):
 
-```json
+```
 {
   "mcpServers": {
     "sveltycms": {
@@ -290,16 +290,16 @@ Add this to your MCP configuration (e.g., `claude_desktop_config.json`):
     }
   }
 }
-```text
+```
 
 ### Local Executor Integration
 
 If running the local core directly:
 
-```json
+```
 "command": "bun",
 "args": ["run", "./mpc-server/index.ts"]
-```text
+```
 
 ## Available Hosted MCP Tools
 
@@ -336,7 +336,6 @@ The SveltyCMS MCP server follows a "Local Build, Remote Host" model:
 3.  **Consumption**: AI Agents (like Antigravity or Claude) connect to the hosted endpoint to obtain the most recent project context, regardless of where they are running.
 
 This ensures that the sensitive build process remains local, while the structured agentic knowledge is globally accessible exactly when needed.
-````
 
 ---
 

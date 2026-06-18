@@ -1,0 +1,7 @@
+---
+pid: 15604
+cwd: "D:\SveltyCMS"
+command: "Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; cd D:\\SveltyCMS; $env:TEST_MODE='true'; $env:TEST_API_SECRET='809c1f44-1fd9-4889-a766-978afdb207c0'; $env:HOST='127.0.0.1'; $env:PORT='4173'; $env:STRICT_SETUP_CHECK='true'; Start-Process -WindowStyle Hidden -FilePath 'node' -ArgumentList 'build/index.js' -WorkingDirectory 'D:\\SveltyCMS'; Start-Sleep -Seconds 5; bun run scripts/tmp-upload-check.ts 2>&1"
+started_at: 2026-06-18T07:38:33.949Z
+running_for_ms: 8250008  
+---

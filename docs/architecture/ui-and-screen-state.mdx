@@ -58,7 +58,7 @@ The `screen` store tracks the browser's viewport and accessibility settings.
 
 The store uses `requestAnimationFrame` to debounce resize events, ensuring that layout recalculations only occur when the browser is ready to paint:
 
-````typescript
+```typescript
 // Internal resize handler
 private handleResize = () => {
     if (!this.ticking) {
@@ -70,7 +70,7 @@ private handleResize = () => {
         this.ticking = true;
     }
 };
-```text
+```
 
 ---
 
@@ -115,10 +115,10 @@ A Svelte 5 `Snippet` reference used by the `<StickyActions>` wrapper component. 
 
 Specialized routes (like the Image Editor or Collection Builder) notify the store to apply optimized layout presets.
 
-```typescript
+```
 // Example: Activating Collection Builder layout
 ui.setRouteContext({ isCollectionBuilder: true });
-```text
+```
 
 ---
 
@@ -144,23 +144,23 @@ Deleting over **400 lines** of legacy boilerplate and compatibility logic reduce
 
 ### Component Template (New Pattern)
 
-```svelte
+```
 {#if ui.state.leftSidebar === 'full'}
 	<div transition:slide>...</div>
 {/if}
 
 <button onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}> Toggle </button>
-```text
+```
 
 ### Layout Logic
 
-```typescript
+```
 import { screen } from "@stores/screen-size-store.svelte";
 import { ui } from "@stores/UIStore.svelte";
 
 // Derived logic in scripts
 const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === "collapsed");
-```text
+```
 
 ---
 
@@ -171,7 +171,6 @@ const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === "collapse
 - **[Code Structure](./code-structure.mdx)** - Project folder organization.
 - **[Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx)** - User guide for the 6-region theme shell.
 - **[Admin Theme Plan](../project/admin-theme-plan.mdx)** - Architecture blueprint for the admin theme system.
-````
 
 ---
 

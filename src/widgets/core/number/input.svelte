@@ -31,6 +31,8 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
@@ -50,6 +52,17 @@
 
 	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
 	const fieldName = $derived(getFieldName(field));
+	let inputRef = $state<HTMLInputElement | null>(null);
+
+	$effect(() => {
+		if (!inputRef) return;
+		const inst = tokenTarget(inputRef, {
+			name: fieldName,
+			label: (field.label as string),
+			collection: (field as any).collection
+		});
+		return () => inst.destroy();
+	});
 
 	const safeValue = $derived.by(() => {
 		if (field.translated && value && typeof value === 'object') {
@@ -104,9 +117,10 @@
 			</span>
 		{/if}
 
-		<div class="relative grow flex items-center px-3">
+		<div class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0">
 			<iconify-icon icon="mdi:numeric" width="18" class="text-surface-400 me-2" aria-hidden="true"></iconify-icon>
-			<input
+			<Input
+				bind:inputRef
 				type="number"
 				value={safeValue ?? ''}
 				oninput={handleInput}
@@ -114,13 +128,12 @@
 				max={field.max as number}
 				step={(field.step as number) || 1}
 				placeholder={(field.placeholder as string) || '0'}
-				class="w-full border-none bg-transparent py-2 text-sm font-semibold outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
+				inputClass="h-auto w-full border-0 bg-transparent py-2 text-sm font-semibold text-surface-900 shadow-none outline-none focus-visible:ring-0 dark:text-surface-50"
 				disabled={field.readonly as boolean}
 				aria-label={(field.label as string) || 'Numeric value'}
 				aria-invalid={!!error}
 				aria-describedby={error ? `${fieldName}-error` : undefined}
 				aria-required={field.required as boolean}
-				use:tokenTarget={{ name: fieldName, label: (field.label as string), collection: (field as any).collection }}
 			/>
 		</div>
 
@@ -131,15 +144,14 @@
 		{/if}
 
 		{#if safeValue !== null}
-			<button 
-				type="button" 
-				class="btn-icon btn-icon-sm hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100"
+			<Button variant="ghost" 
+				type="button"
 				onclick={handleClear}
 				aria-label="Clear value"
 				title="Clear"
-			>
+			 class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100">
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 

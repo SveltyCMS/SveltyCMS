@@ -35,6 +35,7 @@ Interactive menu builder with add/edit/reorder capabilities
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import { showModal } from '@utils/modal.svelte';
 	import type { FieldType } from './';
@@ -212,10 +213,10 @@ Interactive menu builder with add/edit/reorder capabilities
 <div class="space-y-4">
 	<div class="flex items-center justify-between border-b border-surface-200 pb-3 dark:text-surface-50">
 		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
-		<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={addItem}>
+		<Button variant="tertiary" type="button" onclick={addItem} class="dark:">
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 			Add Menu Item
-		</button>
+		</Button>
 	</div>
 
 	<div
@@ -257,15 +258,14 @@ Interactive menu builder with add/edit/reorder capabilities
 							{/if}
 
 							{#if item.children.length > 0 && (field as any).defaults?.enableExpandCollapse !== false}
-								<button
+								<Button variant="surface"
 									type="button"
-									class="preset-filled-surface-500 btn"
 									onclick={() => toggleExpanded(item)}
 									aria-expanded={item._expanded !== false}
 									aria-label={item._expanded !== false ? 'Collapse children' : 'Expand children'}
 								>
 									<iconify-icon icon="mdi:chevron-down" width="16" class="chevron transition-transform duration-200"></iconify-icon>
-								</button>
+								</Button>
 							{:else if item.children.length === 0}
 								<div class="spacer w-8"></div>
 							{/if}
@@ -282,24 +282,23 @@ Interactive menu builder with add/edit/reorder capabilities
 
 						<div class="flex items-center gap-1">
 							{#if (field as any).fields && (field as any).fields.length > 1}
-								<button
+								<Button variant="tertiary"
 									type="button"
-									class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
 									onclick={() => addChildItem(item)}
 									aria-label="Add child item"
 									title="Add child item"
-								>
+								 class="dark:">
 									<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
-								</button>
+								</Button>
 							{/if}
 
-							<button type="button" class="abtn preset-filled-surface-500" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
+							<Button variant="surface" type="button" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item" class="abtn">
 								<iconify-icon icon="mdi:pencil" width="24"></iconify-icon>
-							</button>
+							</Button>
 
-							<button type="button" class="preset-filled-error-500 btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
+							<Button variant="error" type="button" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
 								<iconify-icon icon="mdi:trash-can-outline" width="24"></iconify-icon>
-							</button>
+							</Button>
 						</div>
 					</div>
 

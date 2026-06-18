@@ -97,7 +97,7 @@ const client = createClient({
 
 SveltyCMS utilizes a **Unified Port Architecture** where `svelte-adapter-uws` manages both HTTP endpoints and WebSockets efficiently.
 
-````mermaid
+````
 sequenceDiagram
     participant Client
     participant UWS as uWebSockets (Port 5173)
@@ -113,7 +113,7 @@ sequenceDiagram
     Note over Live: Data Mutation in CMS
     Live->>Live: live.publish(topic, payload)
     Live-->>Client: Real-time Update
-```text
+```
 
 ### Performance & Security
 

@@ -11,6 +11,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Types
 
 	import Progress from '@components/ui/progress.svelte';
@@ -343,15 +344,15 @@
 		</div>
 
 		<div class="flex gap-3">
-			<button onclick={() => (showExportModal = true)} class="preset-outlined-secondary-500 btn" disabled={loading} aria-label="Export data">
+			<Button variant="outline" onclick={() => (showExportModal = true)} disabled={loading} aria-label="Export data">
 				<iconify-icon icon="mdi:export" width={24}></iconify-icon>
 				Export Data
-			</button>
+			</Button>
 
-			<button onclick={() => (showImportModal = true)} class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn" disabled={loading} aria-label="Import data">
+			<Button variant="primary" onclick={() => (showImportModal = true)} disabled={loading} aria-label="Import data" class="dark:">
 				<iconify-icon icon="mdi:import" width={24}></iconify-icon>
 				Import Data
-			</button>
+			</Button>
 		</div>
 	</div>
 
@@ -365,7 +366,7 @@
 				</div>
 			</div>
 
-			<button onclick={exportAllData} disabled={loading} class="preset-outline-secondary-500 btn mt-4 w-full" aria-label="Export all collections">Export Everything</button>
+			<Button variant="outline" onclick={exportAllData} disabled={loading} aria-label="Export all collections" class="mt-4 w-full">Export Everything</Button>
 		</div>
 
 		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
@@ -409,10 +410,10 @@
 			<div class="alert preset-filled-success-500">
 				<div class="flex items-center justify-between">
 					<span>Export completed successfully!</span>
-					<button onclick={downloadExport} aria-label="Download export file">
+					<Button variant="outline" onclick={downloadExport} aria-label="Download export file">
 						<iconify-icon icon="mdi:download" width={24}></iconify-icon>
 						Download
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -429,9 +430,9 @@
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="export-modal-title" class="text-lg font-semibold">Export Collections</h3>
-				<button onclick={() => (showExportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close export modal">
+				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Close export modal" class="p-0! min-w-0">
 					<iconify-icon icon="mdi:close" width={24}></iconify-icon>
-				</button>
+				</Button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
@@ -446,8 +447,8 @@
 					<div class="mb-3 flex items-center justify-between">
 						<p class="block text-sm font-medium">Select Collections</p>
 						<div class="space-x-2">
-							<button onclick={selectAllCollections} class="preset-outlined-secondary-500 btn" aria-label="Select all collections">Select All</button>
-							<button onclick={clearCollectionSelection} class="preset-outlined-secondary-500 btn" aria-label="Clear collection selection">Clear All</button>
+							<Button variant="outline" onclick={selectAllCollections} aria-label="Select all collections">Select All</Button>
+							<Button variant="outline" onclick={clearCollectionSelection} aria-label="Clear collection selection">Clear All</Button>
 						</div>
 					</div>
 
@@ -479,14 +480,13 @@
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showExportModal = false)} class="preset-outlined-secondary-500 btn" aria-label="Cancel export">Cancel</button>
-				<button aria-label="Export selected collections"
+				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Cancel export">Cancel</Button>
+				<Button variant="tertiary" aria-label="Export selected collections"
 					onclick={exportSelectedCollections}
-					class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
 					disabled={loading || exportOptions.collections.length === 0}
-				>
+				 class="dark:">
 					Export Selected
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>
@@ -502,9 +502,9 @@
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="import-modal-title" class="text-lg font-semibold">Import Collections</h3>
-				<button onclick={() => (showImportModal = false)} class="preset-outlined-surface-500 btn-icon" aria-label="Close import modal">
+				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Close import modal" class="p-0! min-w-0">
 					<iconify-icon icon="mdi:close" width={24}></iconify-icon>
-				</button>
+				</Button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
@@ -533,8 +533,8 @@
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showImportModal = false)} class="preset-outlined-secondary-500 btn" aria-label="Cancel import">Cancel</button>
-				<button onclick={handleImport} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" disabled={loading || !importFiles} aria-label="Import data from file">Import Data</button>
+				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Cancel import">Cancel</Button>
+				<Button variant="tertiary" onclick={handleImport} disabled={loading || !importFiles} aria-label="Import data from file" class="dark:">Import Data</Button>
 			</div>
 		</div>
 	</div>
@@ -545,10 +545,10 @@
 		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
-				<button onclick={() => (showResultsModal = false)} class="preset-outlined-surface-500 btn-sm" aria-label="Close results">
+				<Button variant="outline" onclick={() => (showResultsModal = false)} aria-label="Close results" size="sm">
 					<iconify-icon icon="mdi:close" width={24} aria-hidden="true"></iconify-icon>
 					Close
-				</button>
+				</Button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] overflow-y-auto p-6">
 				<div class="space-y-6">
@@ -607,7 +607,7 @@
 			</div>
 
 			<div class="flex justify-end border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showResultsModal = false)} class="variant-primary" aria-label="Close import results">Close</button>
+				<Button variant="outline" onclick={() => (showResultsModal = false)} aria-label="Close import results" class="variant-primary">Close</Button>
 			</div>
 		</div>
 	</div>

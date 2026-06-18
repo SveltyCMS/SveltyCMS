@@ -16,8 +16,23 @@
 import { ThemeManager } from "@src/databases/theme-manager";
 import type { ThemeConfig as AdminThemeSettings } from "@components/ui/theme-context.svelte";
 import { logger } from "@utils/logger";
+import {
+  isSkeletonCssExport,
+  isSkeletonPreset,
+  mapSkeletonPresetToAdminTheme,
+} from "@utils/skeleton-preset-mapper";
+import { auditPresetJson, type ContrastWarning } from "@utils/theme-contrast";
 import type { DatabaseId } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
+
+/** Admin-controlled locks — when true, users cannot override that preference */
+export interface AdminLockedSettings {
+  density?: boolean;
+  variant?: boolean;
+  reducedMotion?: boolean;
+  highContrast?: boolean;
+  layoutState?: boolean;
+}
 
 /** Shape stored in Theme.config.adminTheme */
 export interface StoredAdminTheme extends AdminThemeSettings {
@@ -25,6 +40,8 @@ export interface StoredAdminTheme extends AdminThemeSettings {
   presetSource?: string;
   /** Per-theme layout state (sidebar visibility, regions) persisted to DB */
   layoutState?: import("@components/ui/theme-context.svelte").LayoutState;
+  /** Settings users are not allowed to override via personal preferences */
+  lockedSettings?: AdminLockedSettings;
 }
 
 /** Lightweight theme summary for the selector UI */
@@ -305,7 +322,10 @@ export class AdminThemeService {
   //  Presets
   // ═══════════════════════════════════════════════
 
-  async importPreset(presetJson: string, tenantId?: string | null): Promise<StoredAdminTheme> {
+  async importPreset(
+    presetJson: string,
+    tenantId?: string | null,
+  ): Promise<{ theme: StoredAdminTheme; contrastWarnings: ContrastWarning[] }> {
     let preset: Record<string, unknown>;
     try {
       preset = JSON.parse(presetJson);
@@ -313,19 +333,25 @@ export class AdminThemeService {
       throw new Error("Invalid JSON preset format.");
     }
 
-    const isSkeletonPreset = "properties" in preset && typeof preset.properties === "object";
-
     const mapped: Partial<StoredAdminTheme> = { presetSource: "imported" };
 
-    if (isSkeletonPreset) {
-      mapped.name = (preset.name as string) || "Imported Theme";
+    const hasSkeletonCss =
+      (typeof preset.css === "string" && isSkeletonCssExport(preset.css)) ||
+      (typeof preset.code === "string" && isSkeletonCssExport(preset.code));
+
+    if (isSkeletonPreset(preset) || hasSkeletonCss) {
+      const skeleton = mapSkeletonPresetToAdminTheme(preset);
+      mapped.name = skeleton.name;
+      if (skeleton.customCss) mapped.customCss = skeleton.customCss;
     } else if (preset.id && preset.density) {
       Object.assign(mapped, preset as Partial<StoredAdminTheme>);
     } else {
       throw new Error("Unrecognized preset format. Expected Skeleton.dev or SveltyCMS theme JSON.");
     }
 
-    return this.saveAdminTheme(mapped, tenantId);
+    const contrastWarnings = auditPresetJson(presetJson);
+    const theme = await this.saveAdminTheme(mapped, tenantId);
+    return { theme, contrastWarnings };
   }
 
   async resetToDefaults(tenantId?: string | null): Promise<StoredAdminTheme> {

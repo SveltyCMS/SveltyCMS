@@ -298,6 +298,13 @@ select:focus {
 /* attribute selectors below.                                           */
 /* ------------------------------------------------------------------ */
 :root {
+  /* Motion tokens — enterprise tier (subtle, fast) */
+  --admin-motion-fast: 150ms;
+  --admin-motion-base: 200ms;
+  --admin-motion-slow: 300ms;
+  --admin-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --admin-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
   /* Density Scale (0.85 = compact, 1.0 = cozy, 1.25 = spacious) */
   --admin-density: 1;
 
@@ -347,6 +354,16 @@ select:focus {
 }
 
 /* Spacious — distraction-free content editing */
+/* Theme-driven reduced motion (set via data-reduced-motion on layout root) */
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] ::before,
+[data-reduced-motion="true"] ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 [data-density="spacious"] {
   --admin-density: 1.25;
   --admin-radius-base: 1rem;

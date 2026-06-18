@@ -3,11 +3,17 @@
  * @file src/routes/(app)/config/trash/+page.svelte
  * @description UI for browsing and restoring soft-deleted content.
  */
-import { fade, fly } from "svelte/transition";
+import { fly } from "svelte/transition";
 import { onMount } from "svelte";
 import { fetchApi } from "@utils/api";
 import { toast } from "@src/stores/toast.svelte";
 import { formatDate } from "@utils/date";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+
 let trashedItems = $state<any[]>([]);
 let isLoading = $state(true);
 
@@ -39,71 +45,72 @@ async function restoreItem(collectionId: string, entryId: string) {
 onMount(loadTrash);
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<div class="flex items-center justify-between" in:fade>
-		<div>
-			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:delete-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				Global Trash Bin
-			</h1>
-			<p class="text-sm opacity-50 font-medium">Browse and restore soft-deleted content from all collections</p>
-		</div>
-		<button class="btn preset-ghost-surface-500" onclick={loadTrash} disabled={isLoading}>
-			<iconify-icon icon="mdi:refresh" class="mr-2"></iconify-icon>
+<AdminPageShell
+	title="Global Trash Bin"
+	icon="mdi:delete-outline"
+	description="Browse and restore soft-deleted content from all collections"
+>
+	{#snippet actions()}
+		<Button variant="ghost" onclick={loadTrash} disabled={isLoading} leadingIcon="mdi:refresh">
 			Refresh
-		</button>
-	</div>
+		</Button>
+	{/snippet}
 
 	{#if isLoading}
-		<div class="flex h-64 items-center justify-center">
-			<div class="placeholder animate-pulse">Loading trash...</div>
-		</div>
+		<AdminCard class="flex h-64 items-center justify-center border border-surface-200 bg-white p-6 dark:border-surface-800 dark:bg-surface-900/40">
+			<Loader variant="text" lines={2} lastLineWidth="40%" ariaLabel="Loading trash" />
+		</AdminCard>
 	{:else if trashedItems.length === 0}
-		<div class="card p-12 text-center border-dashed border-2 border-surface-300 dark:border-surface-700  bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fly={{ y: 20, delay: 100 }}>
+		<div in:fly={{ y: 20, delay: 100 }}>
+		<AdminCard
+			class="p-12 text-center border-dashed border-2 border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
+		>
 			<iconify-icon icon="mdi:trash-can-outline" width="64" class="mx-auto mb-4 opacity-20"></iconify-icon>
 			<h3 class="text-xl font-semibold">Your trash is empty</h3>
 			<p class="text-surface-500">Deleted items will appear here for 30 days.</p>
+		</AdminCard>
 		</div>
 	{:else}
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fly={{ y: 20, delay: 100 }}>
-			<div class="table-container">
-				<table class="table table-hover">
+		<div in:fly={{ y: 20, delay: 100 }}>
+		<AdminCard
+			class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
+		>
+			<div class="overflow-x-auto w-full">
+				<table class="w-full text-sm border-collapse">
 					<thead>
-						<tr>
-							<th>Content</th>
-							<th>Collection</th>
-							<th>Deleted At</th>
-							<th>Deleted By</th>
-							<th class="text-right">Actions</th>
+						<tr class="border-b border-surface-200 dark:border-surface-800 text-left text-xs uppercase tracking-wider text-surface-400">
+							<th class="pb-3 font-semibold">Content</th>
+							<th class="pb-3 font-semibold">Collection</th>
+							<th class="pb-3 font-semibold">Deleted At</th>
+							<th class="pb-3 font-semibold">Deleted By</th>
+							<th class="pb-3 font-semibold text-right">Actions</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 						{#each trashedItems as item}
-							<tr>
-								<td>
+							<tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30">
+								<td class="py-3">
 									<span class="font-medium">{item.title || item.name || item._id}</span>
 									<div class="text-xs opacity-50 font-mono">{item._id}</div>
 								</td>
-								<td>
-									<span class="badge preset-tonal-secondary-500">{item.collectionName}</span>
+								<td class="py-3">
+									<Badge preset="tonal" color="secondary">{item.collectionName}</Badge>
 								</td>
-								<td>{formatDate(item.deletedAt)}</td>
-								<td>{item.deletedBy || 'System'}</td>
-								<td class="text-right">
-									<button
-										class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500"
+								<td class="py-3">{formatDate(item.deletedAt)}</td>
+								<td class="py-3">{item.deletedBy || 'System'}</td>
+								<td class="py-3 text-right">
+									<Button variant="tertiary"
 										onclick={() => restoreItem(item.collectionId, item._id)}
-									>
-										<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
+									 size="sm" class="dark:" leadingIcon="mdi:restore">
 										Restore
-									</button>
+									</Button>
 								</td>
 							</tr>
 						{/each}
 					</tbody>
 				</table>
 			</div>
+		</AdminCard>
 		</div>
 	{/if}
-</div>
+</AdminPageShell>

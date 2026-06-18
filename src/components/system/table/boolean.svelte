@@ -15,6 +15,7 @@
 -->
 
 <script lang="ts">
+	import Badge from '@components/ui/badge.svelte';
 	import { boolean_no, boolean_yes } from '@src/paraglide/messages';
 
 	// Svelte 5 props
@@ -26,4 +27,4 @@
 </script>
 
 <!-- Display 'Yes' for true and 'No' for false with badges -->
-<span class={value ? 'gradient-error badge rounded' : 'gradient-primary badge rounded'}> {value ? boolean_yes() : boolean_no()} </span>
+<Badge variant={value ? 'error' : 'primary'} rounded={false}>{value ? boolean_yes() : boolean_no()}</Badge>

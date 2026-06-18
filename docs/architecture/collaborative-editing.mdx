@@ -20,14 +20,14 @@ SveltyCMS utilizes **Yjs CRDTs** and the **Hocuspocus** synchronization engine t
 
 Unlike traditional CMS editors that rely on periodic auto-saves, SveltyCMS treats the **Y.Doc** as the active source of truth during an editing session.
 
-````mermaid
+```mermaid
 flowchart LR
     A[User A] <--> P[Hocuspocus Provider]
     B[User B] <--> P
     P <--> YD[Y.Doc]
     YD --"Sync"--> S[Svelte 5 Runes]
     S --"Auto-Save"--> DB[(Database)]
-```text
+```
 
 ---
 
@@ -87,7 +87,6 @@ Collaborative editing is **built-in** but can be toggled per collection:
 
 > [!TIP]
 > **Data Integrity**: Yjs ensures that even if a user goes offline, their changes are merged mathematically correctly once they reconnect, preventing the "Lost Update" problem prevalent in REST-only systems.
-````
 
 ---
 

@@ -657,7 +657,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [signup, content, system, a11y, rbac, language]
+        project:
+          [
+            signup,
+            content,
+            system,
+            a11y,
+            rbac,
+            language,
+            branding,
+            visual-regression,
+            users,
+            builder,
+            permissions,
+            firstuser,
+            config-routes,
+            admin,
+            dashboard,
+            appearance,
+            media,
+          ]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

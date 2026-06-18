@@ -15,6 +15,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	// Paraglide Messages
@@ -359,7 +360,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
 							{#if roles && roles.length > 0}
 								{#each roles as r (r._id)}
-									<button>
+									<Button variant="outline">
 										type="button"
 										role="radio"
 										aria-checked={editForm.data.role === r._id}
@@ -384,7 +385,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 											<iconify-icon icon="fa:check" width={16}></iconify-icon>
 										{/if}
 										<span class="capitalize">{r.name}</span>
-									</button>
+									</Button>
 								{/each}
 							{/if}
 						</div>
@@ -414,20 +415,20 @@ Efficiently manages user data updates with validation, role selection, and delet
 	<footer class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-4">
 		<div class="flex items-center gap-4">
 			<!-- Cancel -->
-			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{button_cancel()}</button>
+			<Button variant="outline" type="button" onclick={() => modalState.close()}>{button_cancel()}</Button>
 
 			<!-- Delete User Button (only if perm allows) -->
 			{#if showDeleteButton}
 				<PermissionGuard config={deleteUserPermissionConfig} silent={true}>
-					<button type="button" onclick={deleteUser} class="preset-filled-error-500 btn">
+					<Button variant="error" type="button" onclick={deleteUser}>
 						<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 						<span class="hidden sm:block">{button_delete()}</span>
-					</button>
+					</Button>
 				</PermissionGuard>
 			{/if}
 		</div>
 
 		<!-- Save -->
-		<button type="submit" form="change_user_form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">{button_save()}</button>
+		<Button variant="tertiary" type="submit" form="change_user_form" class="dark:">{button_save()}</Button>
 	</footer>
 </div>

@@ -12,6 +12,8 @@
 -->
 
 <script lang="ts">
+	import AdminCard from '@components/admin-card.svelte';
+	import Button from '@components/ui/button.svelte';
 	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
 		return !!row && 'token' in row && typeof row.token === 'string';
@@ -662,24 +664,25 @@
 	}
 </script>
 
-<div class="flex flex-col">
+<AdminCard
+	class="flex flex-col border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
+>
 	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{adminarea_adminarea()}</p>
 
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
-		<button type="button" onclick={modalTokenUser} aria-label={adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
+		<Button variant="outline" type="button" onclick={modalTokenUser} aria-label={adminarea_emailtoken()} class="gradient-primary w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" width={24}></iconify-icon>
 			<span class="whitespace-normal wrap-break-word">{adminarea_emailtoken()}</span>
-		</button>
+		</Button>
 
-		<button
+		<Button variant="outline"
 			type="button"
 			onclick={toggleUserToken}
 			aria-label={showUsertoken ? adminarea_hideusertoken() : adminarea_showtoken()}
-			class="gradient-secondary btn w-full text-white sm:max-w-xs"
-		>
+		 class="gradient-secondary w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:key-outline" width={24}></iconify-icon>
 			<span>{showUsertoken ? adminarea_hideusertoken() : adminarea_showtoken()}</span>
-		</button>
+		</Button>
 
 		{#if showUsertoken && !showUserList && tableData}
 			{const now = new Date()}
@@ -687,27 +690,25 @@
 				(item): item is Token => isToken(item) && item.expires != null && new Date(String(item.expires)) < now
 			)}
 			{#if expiredTokens.length > 0}
-				<button
+				<Button variant="outline"
 					type="button"
 					onclick={() => (showExpiredTokens = !showExpiredTokens)}
 					aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
-					class="gradient-secondary btn w-full text-white sm:max-w-xs"
-				>
+				 class="gradient-secondary w-full text-white sm:max-w-xs">
 					<iconify-icon icon="material-symbols:schedule" width={24}></iconify-icon>
 					<span>{showExpiredTokens ? 'Hide Expired' : 'Show Expired'}</span>
-				</button>
+				</Button>
 			{/if}
 		{/if}
 
-		<button
+		<Button variant="outline"
 			type="button"
 			onclick={toggleUserList}
 			aria-label={showUserList ? adminarea_hideuserlist() : adminarea_showuserlist()}
-			class="gradient-tertiary btn w-full text-white sm:max-w-xs"
-		>
+		 class="gradient-tertiary w-full text-white sm:max-w-xs">
 			<iconify-icon icon="mdi:account-circle" width={24}></iconify-icon>
 			<span>{showUserList ? adminarea_hideuserlist() : adminarea_showuserlist()}</span>
-		</button>
+		</Button>
 	</div>
 
 	{#if showUserList || showUsertoken}
@@ -744,29 +745,31 @@
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
 						>
 							{#each displayTableHeaders as header (header.id)}
-								<button
-									type="button"
-									class="chip {header.visible
-										? 'preset-filled-secondary-500'
-										: 'preset-ghost-secondary-500'} w-100 me-2 flex items-center justify-center"
-									animate:flip={{ duration: flipDurationMs }}
-									onclick={() => {
-										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
-										selectAllColumns = displayTableHeaders.every((h) => h.visible);
-									}}
-								>
-									{#if header.visible}
-										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
-									{/if}
-									<span class="ms-2 capitalize">{header.label}</span>
-								</button>
+								<span animate:flip={{ duration: flipDurationMs }}>
+									<Button
+										variant="secondary"
+										type="button"
+										onclick={() => {
+											displayTableHeaders = displayTableHeaders.map((h) =>
+												h.id === header.id ? { ...h, visible: !h.visible } : h
+											);
+											selectAllColumns = displayTableHeaders.every((h) => h.visible);
+										}}
+										class="chip {header.visible ? ' ' : ' '} w-100 me-2 flex items-center justify-center"
+									>
+										{#if header.visible}
+											<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
+										{/if}
+										<span class="ms-2 capitalize">{header.label}</span>
+									</Button>
+								</span>
 							{/each}
 						</section>
 					</div>
 				</div>
 			{/if}
 
-			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
+			<div class="max-h-[calc(100vh-120px)] overflow-x-auto overflow-y-auto">
 				<table class="table w-full table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 					<thead
 						class="divide-x divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
@@ -775,9 +778,9 @@
 							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
 								<th>
 									{#if Object.keys(filters).length > 0}
-										<button type="button" onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
+										<Button variant="ghost" type="button" onclick={() => (filters = {})} aria-label="Clear All Filters" class="p-0! min-w-0 preset-outline">
 											<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
-										</button>
+										</Button>
 									{/if}
 								</th>
 
@@ -864,28 +867,27 @@
 									<td class="text-center">
 										{#if header.key === 'blocked'}
 											{#if showUserList}
-												<button
+												<Button variant="outline"
 													type="button"
 													onclick={() => isUser(row) && toggleUserBlocked(row)}
-													class="btn-sm cursor-pointer rounded p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
 													aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
 													title={row.blocked ? 'Click to unblock user' : 'Click to block user'}
-												>
+												 size="sm" class="rounded p-1 transition-all hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600">
 													<Boolean value={!!row[header.key]} />
-												</button>
+												</Button>
 											{:else}
-												<button
+												<Button
+													variant="outline"
 													type="button"
-													onclick={(event) => {
+													onclick={(event: MouseEvent) => {
 														event.stopPropagation();
 														if (isToken(row)) toggleTokenBlocked(row);
 													}}
-													class="btn-sm cursor-pointer rounded p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
 													aria-label={row.blocked ? 'Click to unblock token' : 'Click to block token'}
 													title={row.blocked ? 'Click to unblock token' : 'Click to block token'}
-												>
+												 size="sm" class="rounded p-1 transition-all hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600">
 													<Boolean value={!!row[header.key]} />
-												</button>
+												</Button>
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
 											<Avatar
@@ -908,11 +910,11 @@
 											<div class="flex items-center justify-center gap-2">
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<SystemTooltip title="Copy User ID to clipboard">
-													<button
+													<Button
+														variant="tertiary"
 														type="button"
-														class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
 														aria-label="Copy User ID"
-														onclick={(event) => {
+														onclick={(event: MouseEvent) => {
 															event.stopPropagation();
 															const val = String(isUser(row) ? row._id : isToken(row) ? row._id : '');
 															navigator.clipboard
@@ -924,9 +926,9 @@
 																	toast.error('Failed to copy');
 																});
 														}}
-													>
+													 class="p-0! min-w-0 preset-ghost hover: hover:dark:">
 														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
-													</button>
+													</Button>
 												</SystemTooltip>
 											</div>
 										{:else if header.key === 'token'}
@@ -934,11 +936,11 @@
 											<div class="flex items-center justify-center gap-2">
 												<span class="max-w-50 truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<SystemTooltip title="Copy Token to clipboard">
-													<button
+													<Button
+														variant="tertiary"
 														type="button"
-														class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
 														aria-label="Copy Token"
-														onclick={(event) => {
+														onclick={(event: MouseEvent) => {
 															event.stopPropagation();
 															const val = isToken(row) && header.key === 'token' ? row.token : '';
 															navigator.clipboard
@@ -950,9 +952,9 @@
 																	toast.error('Failed to copy');
 																});
 														}}
-													>
+													 class="p-0! min-w-0 preset-ghost hover: hover:dark:">
 														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
-													</button>
+													</Button>
 												</SystemTooltip>
 											</div>
 										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
@@ -1008,7 +1010,7 @@
 				/>
 			</div>
 		{:else}
-			<div class="preset-ghost-error-500 btn text-center font-bold">
+			<div class="preset-ghost-error-500 rounded p-4 text-center font-bold">
 				{#if showUserList}
 					{adminarea_nouser()}
 				{:else if showUsertoken}
@@ -1017,4 +1019,4 @@
 			</div>
 		{/if}
 	{/if}
-</div>
+</AdminCard>

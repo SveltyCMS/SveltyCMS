@@ -22,6 +22,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { StatusTypes } from '@src/content/types';
@@ -463,17 +464,14 @@
 	<div class="flex items-center gap-0">
 		<!-- Archive Toggle -->
 		<SystemTooltip title={showDeleted ? entrylist_multibutton_show_active() : entrylist_multibutton_show_archived()}>
-			<button
+			<Button variant="error"
 				type="button"
 				onclick={() => (showDeleted = !showDeleted)}
-				class="mt-1 btn rounded-full me-2 transition-all duration-200 active:scale-90 {!showDeleted
-					? 'preset-outlined-surface-500 '
-					: 'preset-filled-error-500 text-white ring-2 ring-error-500 animate-pulse'}"
 				aria-label={showDeleted ? entrylist_multibutton_viewing_archived() : entrylist_multibutton_viewing_active()}
 				aria-pressed={showDeleted}
-			>
+			 class="mt-1 rounded-full me-2 transition-all active:scale-90 {!showDeleted ? ' ' : ' text-white ring-2 ring-error-500 animate-pulse'}">
 				<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="24"></iconify-icon>
-			</button>
+			</Button>
 		</SystemTooltip>
 
 		<!-- svelte-ignore a11y_click_events_have_key_events -->

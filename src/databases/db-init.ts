@@ -224,6 +224,14 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
   await dbPluginRegistry.bootAll(adapter);
   logger.info(`[DB Init] bootAll complete.`);
 
+  // Theme file discovery on boot (production/preview — no Vite HMR required)
+  try {
+    const { syncAllThemeFiles } = await import("@src/services/core/theme-file-sync");
+    await syncAllThemeFiles();
+  } catch (err) {
+    logger.warn("[DB Init] Theme file sync failed (non-fatal):", err);
+  }
+
   // 🚀 PERFORMANCE: Reduced sync delay from 50ms to 5ms
   await new Promise((r) => setTimeout(r, 5));
   const services: any[] = [

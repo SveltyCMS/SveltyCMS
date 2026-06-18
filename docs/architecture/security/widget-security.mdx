@@ -42,18 +42,18 @@ All critical security vulnerabilities identified in the widget system have been 
 
 **Client-Side Validation** (`input.svelte:58-65`):
 
-````typescript
+```typescript
 const ALLOWED_PLATFORMS = [
   /^https:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+$/,
   /^https:\/\/(www\.)?vimeo\.com\/\d+$/,
   /^https:\/\/(www\.)?twitch\.tv\/videos\/\d+$/,
   /^https:\/\/(www\.)?tiktok\.com\/@[\w.]+\/video\/\d+$/,
 ];
-```text
+```
 
 **Server-Side Validation** (`index.ts:29-44`):
 
-```typescript
+```
 const SAFE_VIDEO_URL_PATTERNS = [
   /^https:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+$/,
   /^https:\/\/(www\.)?vimeo\.com\/\d+$/,
@@ -66,7 +66,7 @@ const SAFE_VIDEO_URL_PATTERNS = [
 // - Private IP addresses (10.x, 172.16-31.x, 192.168.x)
 // - Cloud metadata endpoints (169.254.169.254)
 // - Non-HTTPS protocols
-```text
+```
 
 **Protection Against**:
 
@@ -85,7 +85,7 @@ const SAFE_VIDEO_URL_PATTERNS = [
 
 **Implementation** (Lines 77, 97):
 
-```typescript
+```
 // Accept tenantId parameter for tenant isolation
 export async function aggregations(field: FieldInstance, tenantId?: string) {
   // ...
@@ -97,7 +97,7 @@ export async function aggregations(field: FieldInstance, tenantId?: string) {
     },
   });
 }
-```text
+```
 
 **Protection Against**:
 
@@ -121,14 +121,14 @@ export async function aggregations(field: FieldInstance, tenantId?: string) {
 
 **Implementation** (Lines 60, 70):
 
-```typescript
+```
 const MAX_INPUT_LENGTH = 100000; // 100,000 characters
 
 // Apply truncation before processing
 if (value && value.length > MAX_INPUT_LENGTH) {
   value = value.substring(0, MAX_INPUT_LENGTH);
 }
-```text
+```
 
 **Protection Against**:
 
@@ -153,7 +153,7 @@ if (value && value.length > MAX_INPUT_LENGTH) {
 
 **Implementation** (Lines 34-52):
 
-```typescript
+```
 function escapeHtml(text: string): string {
   const map: { [key: string]: string } = {
     "&": "&amp;",
@@ -173,7 +173,7 @@ const schema = object({
   ogTitle: pipe(string(), transform(escapeHtml)),
   // ... all fields escaped
 });
-```text
+```
 
 **Protection Against**:
 
@@ -192,14 +192,14 @@ const schema = object({
 
 **Implementation** (Lines 26, 30):
 
-```typescript
+```
 function isValidHex(color: string): boolean {
   // Strict validation: only #RRGGBB format
   return /^#[0-9a-f]{6}$/i.test(color);
 }
 
 const safeColor = isValidHex(color) ? color : "#000000";
-```text
+```
 
 **Protection Against**:
 
@@ -225,7 +225,7 @@ const safeColor = isValidHex(color) ? color : "#000000";
 
 **Implementation** (Lines 26, 39, 50):
 
-```typescript
+```
 const DISPOSABLE_DOMAINS = [
   "tempmail.com",
   "guerrillamail.com",
@@ -247,7 +247,7 @@ const blockDisposableEmail = custom<string>((value) => {
 
 // Applied in validation schema
 const schema = pipe(string(), email(), blockDisposableEmail);
-```text
+```
 
 **Protection Against**:
 
@@ -266,7 +266,7 @@ const schema = pipe(string(), email(), blockDisposableEmail);
 
 **Implementation** (Line 30):
 
-```typescript
+```
 // Improved E.164 international format validation
 const phonePattern = /^\+[1-9]\d{1,3}[\d\s-]{4,14}$/;
 
@@ -275,7 +275,7 @@ const phonePattern = /^\+[1-9]\d{1,3}[\d\s-]{4,14}$/;
 // - Country code: 1-4 digits, cannot start with 0
 // - Subscriber number: 4-14 characters (digits, spaces, hyphens)
 // - Total length compliant with E.164 standard
-```text
+```
 
 **Protection Against**:
 
@@ -301,7 +301,7 @@ const phonePattern = /^\+[1-9]\d{1,3}[\d\s-]{4,14}$/;
 
 **Implementation** (Lines 26, 102):
 
-```typescript
+```
 const VALID_CURRENCY_CODES = [
   "USD",
   "EUR",
@@ -350,7 +350,7 @@ const schema = object({
     }),
   ),
 });
-```text
+```
 
 **Protection Against**:
 
@@ -375,14 +375,14 @@ const schema = object({
 
 **Implementation** (Lines 28, 40):
 
-```svelte
+```
 <script>
 	import Sanitize from '@root/src/components/sanitize.svelte';
 </script>
 
 <!-- Menu title with strict sanitization -->
 <Sanitize html={menuItem.title} profile="strict" />
-```text
+```
 
 **Sanitization Profile** (`strict`):
 
@@ -410,7 +410,7 @@ const schema = object({
 
 **Security Constants**:
 
-```typescript
+```
 const ALLOWED_MIME_TYPES = [
   // Images
   "image/jpeg",
@@ -461,11 +461,11 @@ const VALID_EXTENSIONS = [
   ".xls",
   ".xlsx",
 ];
-```text
+```
 
 **Validation Checks** (in order):
 
-```typescript
+```
 function addValidatedFiles(files: MediaFile[]) {
   const validFiles = files.filter((file) => {
     // 1. MIME Type Whitelist
@@ -510,7 +510,7 @@ function addValidatedFiles(files: MediaFile[]) {
     return true;
   });
 }
-```text
+```
 
 **Protection Against**:
 
@@ -541,13 +541,13 @@ All security fixes have been validated through:
 
 ### Test Coverage
 
-```bash
+```
 # Security test suite
 bun test tests/bun/widgets/widget-security.test.ts
 
 # Individual widget security tests
 bun test tests/bun/widgets/custom-widgets.test.ts
-```text
+```
 
 **Test Categories**:
 
@@ -624,9 +624,9 @@ Use this checklist when creating new widgets:
 
 **File**: `src/components/sanitize.svelte`
 
-```svelte
+```
 <Sanitize html={userContent} profile="strict" />
-```text
+```
 
 **Profiles**:
 
@@ -636,7 +636,7 @@ Use this checklist when creating new widgets:
 
 ### HTML Escaping
 
-```typescript
+```
 function escapeHtml(text: string): string {
   const map = {
     "&": "&amp;",
@@ -647,11 +647,11 @@ function escapeHtml(text: string): string {
   };
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
-```text
+```
 
 ### URL Validation
 
-```typescript
+```
 function isValidUrl(url: string, allowedProtocols = ["https"]): boolean {
   try {
     const parsed = new URL(url);
@@ -660,7 +660,7 @@ function isValidUrl(url: string, allowedProtocols = ["https"]): boolean {
     return false;
   }
 }
-```text
+```
 
 ---
 
@@ -701,4 +701,3 @@ All implemented security measures comply with:
 **Last Updated**: June 10, 2026
 **Security Review Status**: ✅ All Critical Fixes Implemented & API Dispatch Hardened (June 2026 Audit)
 **Next Review**: Quarterly (September 2026)
-````

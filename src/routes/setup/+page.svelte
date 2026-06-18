@@ -4,6 +4,7 @@
 **Professional multi-step setup wizard for SveltyCMS**
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Stores
 
 	// Native UI Components v4
@@ -386,22 +387,20 @@
 										{/if}
 									</div>
 									<div class="flex gap-2">
-										<button
+										<Button variant="outline"
 											type="button"
-											class="btn-sm preset-outlined rounded flex items-center gap-1"
 											onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
-										>
+										 size="sm" class="preset-outlined rounded flex items-center gap-1">
 											<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 											<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
-										</button>
-										<button
+										</Button>
+										<Button variant="ghost"
 											type="button"
-											class="btn-icon btn-sm h-7 w-7 rounded-full hover:bg-black/5 dark:hover:bg-white/5"
 											aria-label="Close message"
 											onclick={setupStore.clearDbTestError}
-										>
+										 size="sm" class="p-0! min-w-0 h-7 w-7 rounded-full hover:bg-black/5 dark:hover:bg-white/5">
 											<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
-										</button>
+										</Button>
 									</div>
 								</div>
 								{#if wizard.showDbDetails && wizard.lastDbTestResult}

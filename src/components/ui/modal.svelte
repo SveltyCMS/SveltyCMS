@@ -145,8 +145,8 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 
 			<!-- Body -->
 			<div class={cn(
-				'flex-1 overflow-y-auto p-4 sm:p-6',
-				isFullscreen ? 'h-full' : 'max-h-[80vh]',
+				'flex-1',
+				isFullscreen ? 'h-full overflow-hidden p-0' : 'max-h-[80vh] overflow-y-auto p-4 sm:p-6',
 			)}>
 				{#if children}
 					{@render children()}

@@ -22,7 +22,7 @@ SveltyCMS features a robust, enterprise-grade plugin architecture for deep custo
 
 ## System Overview
 
-````mermaid
+```mermaid
 graph TD
     subgraph "Plugin System"
         Registry["Plugin Registry"]
@@ -50,7 +50,7 @@ graph TD
     HookRunner -->|reads/writes via| Content
     Sandbox -->|wraps| HookRunner
     Migrations -->|provisions| MV
-```text
+```
 
 ## System Discovery & Autoloading
 
@@ -67,7 +67,7 @@ This allows any custom or optional plugin to be added to or deleted from the `sr
 
 Every plugin lives in `src/plugins/{plugin-id}/` and follows this structure:
 
-```text
+```
 src/plugins/my-plugin/
 ├── index.ts                  ← Plugin definition + metadata
 ├── index.server.ts           ← Server-only: hooks, migrations (optional)
@@ -76,13 +76,13 @@ src/plugins/my-plugin/
 ├── ui/                       ← Svelte components (optional)
 │   └── MyComponent.svelte
 └── my-plugin.mdx             ← Plugin documentation
-```text
+```
 
 ---
 
 ## Plugin Interface
 
-```typescript
+```
 export interface Plugin {
   /** Required: name, version, icon, category */
   metadata: PluginMetadata;
@@ -105,7 +105,7 @@ export interface Plugin {
   /** Optional: restrict plugin to specific collections */
   enabledCollections?: string[];
 }
-```text
+```
 
 ---
 
@@ -127,7 +127,7 @@ Plugins inject UI components into predefined zones:
 
 ## Lifecycle Hooks
 
-```typescript
+```
 hooks: {
   /** Transform or validate data before it's saved. Must return data. */
   beforeSave: async (context, collection, data) => { return data; },
@@ -141,7 +141,7 @@ hooks: {
   /** Cleanup related data after deletion. */
   afterDelete: async (context, collection, id) => {},
 }
-```text
+```
 
 ---
 
@@ -163,7 +163,7 @@ All plugin hooks execute within a sandbox (`src/plugins/sandbox.ts`):
 
 The recommended architecture for admin-facing plugins uses TWO layers:
 
-```text
+```
 ┌──────────────────────────────────────────┐
 │  Config Page (routes/(app)/config/...)    │  ← Admin UI
 │  +page.svelte, +page.server.ts            │     CRUD forms, list views
@@ -171,7 +171,7 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 │  Plugin (src/plugins/...)                 │  ← Business logic
 │  hooks, migrations, services              │     Auto-behaviors, cache sync
 └──────────────────────────────────────────┘
-```text
+```
 
 **Example: Redirect Manager**
 
@@ -206,7 +206,7 @@ The Stripe plugin demonstrates a full plugin implementation:
 
 ### 1. Configuration
 
-```typescript
+```
 config: {
   public: {
     publishableKey: "",   // Client-safe key (pk_...)
@@ -217,7 +217,7 @@ config: {
     webhookSecret: "",    // Webhook signing secret
   },
 }
-```text
+```
 
 ### 2. Migrations
 
@@ -225,7 +225,7 @@ Creates `plugin_stripe_payments` and `plugin_stripe_customers` collections for t
 
 ### 3. Lifecycle Hooks
 
-```typescript
+```
 beforeSave: async (context, _collection, data) => {
   // Verify Stripe payment before allowing content save
   if (data._stripePaymentIntent) {
@@ -234,7 +234,7 @@ beforeSave: async (context, _collection, data) => {
   }
   return data;
 };
-```text
+```
 
 ### 4. UI Components
 
@@ -257,7 +257,6 @@ The `stripe` npm package is dynamically imported only when the plugin is enabled
 5. **Optional Dependencies**: Dynamic import server-side deps so plugins are truly optional.
 6. **Documentation**: Every plugin must have an `.mdx` file in its directory.
 7. **Config Page Pattern**: Admin-facing plugins should pair with a config page for CRUD.
-````
 
 ---
 

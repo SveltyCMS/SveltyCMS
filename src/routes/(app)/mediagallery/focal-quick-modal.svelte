@@ -20,6 +20,7 @@ import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount } from "svelte";
 import type { MediaImage } from "@utils/media/media-models";
 import { fade, scale } from "svelte/transition";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	/** The media image to adjust focal point for */
@@ -172,9 +173,9 @@ const imageUrl = $derived(
 					<iconify-icon icon="mdi:crosshairs-gps" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					Set Focal Point
 				</h3>
-				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close (Escape)" aria-keyshortcuts="Escape">
+				<Button variant="outline" onclick={handleClose} aria-label="Close (Escape)" aria-keyshortcuts="Escape" class="p-0! min-w-0">
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-				</button>
+				</Button>
 			</header>
 
 			<!-- Image Container -->
@@ -232,18 +233,18 @@ const imageUrl = $derived(
 						X: {focalPoint.x.toFixed(0)}% | Y: {focalPoint.y.toFixed(0)}%
 					</div>
 					<!-- Reset button -->
-					<button onclick={resetToCenter} class="btn-sm preset-outlined-surface-500" title="Reset to center">
+					<Button variant="outline" onclick={resetToCenter} title="Reset to center" size="sm">
 						<iconify-icon icon="mdi:target" width="16"></iconify-icon>
 						<span>Center</span>
-					</button>
+					</Button>
 				</div>
 
 				<div class="flex gap-2">
-					<button onclick={handleClose} class="btn preset-outlined-surface-500" aria-keyshortcuts="Escape">Cancel</button>
-					<button onclick={handleSave} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" aria-keyshortcuts="mod+s">
+					<Button variant="outline" onclick={handleClose} aria-keyshortcuts="Escape">Cancel</Button>
+					<Button variant="tertiary" onclick={handleSave} aria-keyshortcuts="mod+s" class="dark:">
 						<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 						<span>Save</span>
-					</button>
+					</Button>
 				</div>
 			</footer>
 		</div>

@@ -22,6 +22,7 @@ Interactive level configuration with add/remove level capabilities
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import WidgetBuilder from '@src/components/system/builder/widget-builder.svelte';
 	import type { FieldInstance } from '@src/content/types';
 
@@ -85,15 +86,14 @@ Interactive level configuration with add/remove level capabilities
 					</div>
 
 					{#if value.length > 1}
-						<button
+						<Button variant="error"
 							type="button"
-							class="preset-filled-error-500 btn"
 							onclick={() => removeLevel(levelIndex)}
 							aria-label="Remove level {levelIndex + 1}"
 							title="Remove this menu level"
 						>
 							<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-						</button>
+						</Button>
 					{/if}
 				</div>
 
@@ -125,9 +125,9 @@ Interactive level configuration with add/remove level capabilities
 	</div>
 
 	<div class=" border-t border-surface-200 pt-4 dark:text-surface-50">
-		<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={addLevel}>
+		<Button variant="tertiary" type="button" onclick={addLevel} class="dark:">
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 			Add Menu Level
-		</button>
+		</Button>
 	</div>
 </div>

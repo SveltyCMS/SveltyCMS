@@ -25,7 +25,7 @@ SveltyCMS implements a sophisticated dual-language system that separates **UI/Ad
 
 ## Two-Language System Overview
 
-````mermaid
+```mermaid
 graph TB
     subgraph "System Language (UI)"
         ParaglideJS[ParaglideJS]
@@ -53,7 +53,7 @@ graph TB
     style DynamicSettings fill:#2196F3
     style SystemLang fill:#8BC34A
     style ContentLang fill:#03A9F4
-```text
+```
 
 ### 1. System Language (`systemLanguage`)
 
@@ -73,13 +73,13 @@ graph TB
 
 **Available Languages:**
 
-```json
+```
 // project.inlang/settings.json
 {
   "languageTags": ["en", "de", "fr", "es"],
   "baseLanguageTag": "en"
 }
-```text
+```
 
 ### 2. Content Language (`contentLanguage`)
 
@@ -99,13 +99,13 @@ graph TB
 
 **Available Languages:**
 
-```typescript
+```
 // Dynamic configuration in database
 {
   DEFAULT_CONTENT_LANGUAGE: 'en',
   AVAILABLE_CONTENT_LANGUAGES: ['en', 'de', 'fr', 'es', 'ja', 'zh', ...]
 }
-```text
+```
 
 ---
 
@@ -113,14 +113,14 @@ graph TB
 
 ### Architecture
 
-```text
+```
 Source Files → ParaglideJS Compiler → Type-Safe Messages → Runtime
    (*.json)           (Build Step)        (messages.js)      (Store)
-```text
+```
 
 ### Message Files Structure
 
-```text
+```
 src/
 ├── paraglide/
 │   ├── messages/
@@ -129,11 +129,11 @@ src/
 │   │   ├── fr.json          # French
 │   │   └── es.json          # Spanish
 │   └── messages.js          # Generated type-safe exports
-```text
+```
 
 ### Message File Example
 
-```json
+```
 // src/paraglide/messages/en.json
 {
   "dashboard_title": "Dashboard",
@@ -145,9 +145,9 @@ src/
   "cancel_button": "Cancel",
   "delete_confirm": "Are you sure you want to delete {itemName}?"
 }
-```text
+```
 
-```json
+```
 // src/paraglide/messages/de.json
 {
   "dashboard_title": "Übersicht",
@@ -159,11 +159,11 @@ src/
   "cancel_button": "Abbrechen",
   "delete_confirm": "Sind Sie sicher, dass Sie {itemName} löschen möchten?"
 }
-```text
+```
 
 ### Usage in Components
 
-```svelte
+```
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
 	import { app } from '@stores/store.svelte';
@@ -182,22 +182,24 @@ src/
 
 <button>{m.save_button()}</button>
 <button>{m.cancel_button()}</button>
-```text
+```
 
 ### Benefits of ParaglideJS
 
 1. **Type Safety:** TypeScript knows all available translation keys
 
-   ```typescript
+   ```
    m.dashboard_title(); // ✅ Valid
    m.nonexistent_key(); // ❌ TypeScript error
+   ```
+
 ````
 
 2. **Tree Shaking:** Only used messages are bundled
 
    ```typescript
    // If you never use m.old_unused_message(), it's not in the bundle
-   ```
+````
 
 3. **Parameter Validation:** Type-checked parameters
 
@@ -252,10 +254,10 @@ src/
 
 ### Architecture
 
-````text
+```
 System Settings → Database → Cache → contentLanguage Store → Widgets
    (Admin UI)      (MongoDB)   (TTL)      (Reactive)          (Display)
-```text
+```
 
 ### Configuration Location
 
@@ -263,7 +265,7 @@ System Settings → Database → Cache → contentLanguage Store → Widgets
 
 **System Settings Schema:**
 
-```typescript
+```
 {
   DEFAULT_CONTENT_LANGUAGE: {
     type: 'string',
@@ -278,13 +280,13 @@ System Settings → Database → Cache → contentLanguage Store → Widgets
     description: 'All languages available for content translation'
   }
 }
-```text
+```
 
 ### Runtime Behavior
 
 **1. Initial Load:**
 
-```typescript
+```
 // src/stores/store.svelte.ts
 let initialContentLanguage =
   getCookie("contentLanguage") ?? // User's last selection
@@ -292,11 +294,11 @@ let initialContentLanguage =
   "en"; // Fallback
 
 let _contentLanguage = $state<Locale>(initialContentLanguage);
-```text
+```
 
 **2. Language Switching:**
 
-```svelte
+```
 <!-- translation-status.svelte - Recommended: Anchor tag dropdown -->
 <script lang="ts">
 	import { app } from '@stores/store.svelte';
@@ -339,11 +341,11 @@ let _contentLanguage = $state<Locale>(initialContentLanguage);
 		</option>
 	{/each}
 </select>
-```text
+```
 
 **3. Server-Side Language Context:**
 
-```typescript
+```
 // src/routes/(app)/[language]/[...collection]/+page.server.ts
 export async function load({ params }) {
   const { language } = params;
@@ -363,11 +365,11 @@ export async function load({ params }) {
     contentLanguage: language, // Passed to client
   };
 }
-```text
+```
 
 **4. Client-Server Synchronization:**
 
-```svelte
+```
 <!-- +page.svelte -->
 <script lang="ts">
 	import { contentLanguage } from '@stores/store.svelte';
@@ -382,7 +384,7 @@ export async function load({ params }) {
 		}
 	});
 </script>
-```text
+```
 
 ### Adding New Content Language
 
@@ -396,15 +398,17 @@ export async function load({ params }) {
 2. Go to "Languages & Localization" tab
 3. Add language code to `AVAILABLE_CONTENT_LANGUAGES` array
 4. Example: Add Japanese `'ja'`
-   ```json
+   ```
    ["en", "de", "fr", "es", "ja"]
+   ```
+
 ````
 
 5. Click "Save Changes"
 
 **Step 2: Existing Content Handling**
 
-````typescript
+```typescript
 // Existing entry before adding Japanese:
 {
   title: { en: "Hello", de: "Hallo" },
@@ -424,7 +428,7 @@ export async function load({ params }) {
   title: { en: "Hello", de: "Hallo", ja: "こんにちは" },
   description: { en: "World", de: "Welt", ja: "世界" }
 }
-```text
+````
 
 **Step 3: Update translation-status Component**
 
@@ -436,7 +440,7 @@ The component automatically reads from `AVAILABLE_CONTENT_LANGUAGES`, so no code
 
 ### Field Schema Definition
 
-```typescript
+```
 // config/collections/Posts/fields.ts
 import type { FieldInstance } from "@src/content/types";
 
@@ -471,13 +475,13 @@ const fields: FieldInstance[] = [
     options: ["draft", "published", "archived"],
   },
 ];
-```text
+```
 
 ### Data Storage Format
 
 **Application Layer (Widgets & Components):**
 
-```typescript
+```
 const blogPost = {
   _id: "post_123",
   title: {
@@ -495,11 +499,11 @@ const blogPost = {
   createdAt: "2025-11-02T10:00:00Z",
   updatedAt: "2025-11-02T15:30:00Z",
 };
-```text
+```
 
 **MongoDB Storage (Current):**
 
-```javascript
+```
 // Stored directly as nested objects
 db.collection('posts').insertOne(blogPost);
 
@@ -513,11 +517,11 @@ db.collection('posts').insertOne(blogPost);
   createdAt: ISODate("2025-11-02T10:00:00Z"),
   updatedAt: ISODate("2025-11-02T15:30:00Z")
 }
-```text
+```
 
 **SQL/Drizzle Storage (Future):**
 
-```sql
+```
 -- posts table (main data)
 CREATE TABLE posts (
   id VARCHAR(36) PRIMARY KEY,
@@ -550,11 +554,11 @@ CREATE TABLE post_translations (
 -- | 4  | post_123 | content    | en       | <p>Async/await makes asynchronous... |
 -- | 5  | post_123 | content    | de       | <p>Async/await macht asynchronen...  |
 -- | 6  | post_123 | content    | fr       | <p>Async/await rend le code...       |
-```text
+```
 
 **Drizzle Adapter (Reconstructs to Application Format):**
 
-```typescript
+```
 // Drizzle adapter reads from SQL
 async function findOne(collection: string, id: string) {
   // Query main table
@@ -579,13 +583,13 @@ async function findOne(collection: string, id: string) {
   // Returns: { title: { en: "...", de: "...", fr: "..." }, ... }
   return reconstructed;
 }
-```text
+```
 
 ### Widget Data Access
 
 Widgets always work with the normalized format, regardless of database:
 
-```svelte
+```
 <!-- src/widgets/core/input/input.svelte -->
 <script lang="ts">
 	import { app } from '@stores/store.svelte';
@@ -619,7 +623,7 @@ Widgets always work with the normalized format, regardless of database:
 </script>
 
 <input type="text" value={safeValue} oninput={(e) => updateValue(e.currentTarget.value)} placeholder={field.label} />
-```text
+```
 
 ---
 
@@ -639,7 +643,7 @@ Widgets always work with the normalized format, regardless of database:
 
 **Database After Step 1:**
 
-```json
+```
 {
   "_id": "post_456",
   "title": { "en": "My First Post" },
@@ -647,7 +651,7 @@ Widgets always work with the normalized format, regardless of database:
   "slug": "my-first-post",
   "status": "draft"
 }
-```text
+```
 
 **Step 2: Add German Translation**
 
@@ -664,7 +668,7 @@ Widgets always work with the normalized format, regardless of database:
 
 **Database After Step 2:**
 
-```json
+```
 {
   "_id": "post_456",
   "title": {
@@ -678,7 +682,7 @@ Widgets always work with the normalized format, regardless of database:
   "slug": "my-first-post",
   "status": "draft"
 }
-```text
+```
 
 **Step 3: Add French Translation**
 
@@ -690,7 +694,7 @@ Same process:
 
 **Final Database:**
 
-```json
+```
 {
   "_id": "post_456",
   "title": {
@@ -706,13 +710,13 @@ Same process:
   "slug": "my-first-post",
   "status": "draft"
 }
-```text
+```
 
 ### Translation Status Indicator
 
 The `translation-status` component shows completion percentage:
 
-```svelte
+```
 <translation-status entry={currentEntry} availableLanguages={['en', 'de', 'fr', 'es']} currentLanguage={app.contentLanguage} />
 
 <!-- Displays:
@@ -721,11 +725,11 @@ The `translation-status` component shows completion percentage:
   FR: 100% ✅ (3/3 translated fields filled)
   ES: 0%   ⚠️ (0/3 translated fields filled)
 -->
-```text
+```
 
 **Calculation:**
 
-```typescript
+```
 function calculateCompletionPercentage(entry: any, language: string): number {
   const translatedfields = schema.fields.filter((f) => f.translated);
   const filledfields = translatedfields.filter((f) => {
@@ -735,7 +739,7 @@ function calculateCompletionPercentage(entry: any, language: string): number {
 
   return (filledfields.length / translatedfields.length) * 100;
 }
-```text
+```
 
 ---
 
@@ -745,78 +749,78 @@ function calculateCompletionPercentage(entry: any, language: string): number {
 
 **1. Mark User-Facing Content as Translated:**
 
-```typescript
+```
 {
 	widget: 'input',
 	db_fieldName: 'title',
 	translated: true,   // ✅ Users see this
 }
-```text
+```
 
 **2. Keep Technical fields Untranslated:**
 
-```typescript
+```
 {
 	widget: 'input',
 	db_fieldName: 'slug',
 	translated: false,  // ✅ URL path, same in all languages
 }
-```text
+```
 
 **3. Include Language in Cache Keys:**
 
-```typescript
+```
 const cacheKey = `entries:${id}:lang:${language}`; // ✅
-```text
+```
 
 **4. Validate contentLanguage from URL:**
 
-```typescript
+```
 if (!AVAILABLE_CONTENT_LANGUAGES.includes(params.language)) {
   throw error(404, "Language not available");
 }
-```text
+```
 
 **5. Use Derived Values in Widgets:**
 
-```typescript
+```
 const _language = $derived(field.translated ? app.contentLanguage : DEFAULT_CONTENT_LANGUAGE);
-```text
+```
 
 ### ❌ DON'T:
 
 **1. Don't Access Language Keys Directly:**
 
-```typescript
+```
 const title = value.en; // ❌ Hardcoded language
 const title = value[app.contentLanguage]; // ✅ Dynamic
-```text
+```
 
 **2. Don't Mix UI and Content Languages:**
 
-```typescript
+```
 // ❌ WRONG: Using contentLanguage for UI text
 <button>{app.contentLanguage === 'en' ? 'Save' : 'Speichern'}</button>
 
 // ✅ CORRECT: Use ParaglideJS messages
 <button>{m.save_button()}</button>
-```text
+```
 
 **3. Don't Cache Without Language:**
 
-```typescript
+```
 const key = `entries:${id}`; // ❌ Missing language
-```text
+```
 
 **4. Don't Assume All fields Are Translated:**
 
-```typescript
+```
 // ❌ WRONG
 const displayValue = value[contentLanguage.value];
 
 // ✅ CORRECT
 const displayValue = field.translated ? value[contentLanguage.value] : value;
-```text
+```
 
 ---
 
@@ -824,7 +828,7 @@ const displayValue = field.translated ? value[contentLanguage.value] : value;
 
 ### Scenario 1: User Wants Interface in German, Content in English
 
-```typescript
+```
 // Set system language to German
 systemLanguage.set("de");
 // Admin UI now shows: "Übersicht", "Sammlungen", "Einstellungen"
@@ -835,7 +839,7 @@ contentLanguage.set("en");
 // Editing fields shows English content
 
 // Result: German UI + English content editing ✅
-```text
+```
 
 ### Scenario 2: Multilingual Team
 
@@ -868,7 +872,7 @@ contentLanguage.set("en");
 
 **Before Removal:**
 
-```json
+```
 {
   "AVAILABLE_CONTENT_LANGUAGES": ["en", "de", "fr", "es"]
 }
@@ -882,11 +886,11 @@ contentLanguage.set("en");
     "es": "Hola"
   }
 }
-```text
+```
 
 **After Removing Spanish:**
 
-```json
+```
 {
   "AVAILABLE_CONTENT_LANGUAGES": ["en", "de", "fr"]
 }
@@ -900,11 +904,11 @@ contentLanguage.set("en");
     "es": "Hola"  // ⚠️ Still in DB but not accessible via UI
   }
 }
-```text
+```
 
 **If Content is Re-saved:**
 
-```json
+```
 // Widget only knows about ['en', 'de', 'fr']
 // On save, it might replace entire object:
 {
@@ -915,7 +919,7 @@ contentLanguage.set("en");
     // ❌ Spanish translation LOST forever!
   }
 }
-```text
+```
 
 **Recommendation:** See [System Settings Architecture](./system-settings-architecture.mdx#language-configuration-warnings) for data preservation strategies.
 
@@ -927,7 +931,7 @@ contentLanguage.set("en");
 
 **1. Data Transformation Script:**
 
-```typescript
+```
 import { db as mongoDb } from "./databases/mongodb";
 import { db as sqlDb } from "./databases/drizzle";
 
@@ -963,11 +967,11 @@ async function migrateMultilingualData() {
     }
   }
 }
-```text
+```
 
 **2. Adapter Implementation:**
 
-```typescript
+```
 // src/databases/drizzle/adapter.ts
 export class DrizzleAdapter implements IDBAdapter {
   async findOne(collection: string, id: string) {
@@ -1041,7 +1045,7 @@ export class DrizzleAdapter implements IDBAdapter {
     return this.findOne(collection, id);
   }
 }
-```text
+```
 
 **3. Zero Downtime Migration:**
 
@@ -1060,7 +1064,7 @@ export class DrizzleAdapter implements IDBAdapter {
 
 SveltyCMS implements a clean separation of concerns where each layer respects the dual-language system:
 
-```mermaid
+```
 graph TD
     subgraph "UI Layer (systemLanguage)"
         Page[+page.svelte<br/>ParaglideJS messages]
@@ -1093,7 +1097,7 @@ graph TD
     style Widgets fill:#fff8e1
     style Store fill:#e8f5e8
     style Adapter fill:#fce4ec
-```text
+```
 
 ### Component Responsibilities
 
@@ -1108,7 +1112,7 @@ graph TD
 
 **Language Usage:**
 
-```svelte
+```
 <script lang="ts">
 	import * as m from '@paraglide/messages'; // systemLanguage for UI
 	import { contentLanguage } from '@stores/store.svelte'; // for sync only
@@ -1126,7 +1130,7 @@ graph TD
 
 <!-- Pass contentLanguage to child components -->
 <fields {fields} {revisions} contentLanguage={serverContentLanguage} />
-```text
+```
 
 #### 2. fields Component (`fields.svelte`)
 
@@ -1139,7 +1143,7 @@ graph TD
 
 **Language Usage:**
 
-```svelte
+```
 <script lang="ts">
 	import * as m from '@paraglide/messages'; // systemLanguage for UI
 
@@ -1170,7 +1174,7 @@ graph TD
 {#each filteredfields as field}
 	<WidgetComponent {field} bind:value={currentCollectionValue[fieldName]} />
 {/each}
-```text
+```
 
 #### 3. Widget Components (`input.svelte`, `display.svelte`)
 
@@ -1183,7 +1187,7 @@ graph TD
 
 **Language Usage:**
 
-```svelte
+```
 <script lang="ts">
 	import { contentLanguage } from '@stores/store.svelte'; // For DATA
 	import { publicEnv } from '@stores/global-settings.svelte';
@@ -1216,13 +1220,13 @@ graph TD
 {#if field.count}
 	<span class="badge">{count}/{field.maxLength}</span>
 {/if}
-```text
+```
 
 ### Data Flow Example
 
 **Scenario:** User edits a blog post title in German
 
-```mermaid
+```
 sequenceDiagram
     participant User
     participant Page as +page.svelte<br/>(systemLanguage: en)
@@ -1256,7 +1260,7 @@ sequenceDiagram
     Adapter->>DB: Store optimal format
     Note over DB: MongoDB: { title: { en: "...", de: "..." } }
     Note over DB: SQL: 2 rows in translations table
-```text
+```
 
 ### Key Principles
 
@@ -1288,7 +1292,7 @@ sequenceDiagram
 
 **Field Configuration:**
 
-```typescript
+```
 // config/collections/Posts.ts
 {
   widget: 'input',
@@ -1297,11 +1301,11 @@ sequenceDiagram
   translated: true,        // This field stores multilingual data
   required: true
 }
-```text
+```
 
 **Runtime Execution:**
 
-```typescript
+```
 // 1. User with systemLanguage="en" editing contentLanguage="de"
 
 // Page UI (systemLanguage)
@@ -1317,11 +1321,11 @@ const safeValue = value?.[_language];
 // → safeValue = "Hallo Welt"
 
 // User sees German content in English interface!
-```text
+```
 
 **Database Storage:**
 
-```typescript
+```
 // IDBAdapter abstracts the storage format
 
 // MongoDB (current implementation)
@@ -1352,7 +1356,7 @@ await drizzleAdapter.crud.updateOne("posts", id, {
 // Application receives SAME format from both adapters
 const post = await db.crud.findOne("posts", id);
 console.log(post.title); // { en: "...", de: "...", fr: "..." }
-```text
+```
 
 ---
 
@@ -1362,7 +1366,7 @@ console.log(post.title); // { en: "...", de: "...", fr: "..." }
 
 For large multilingual datasets, load translations on demand:
 
-```typescript
+```
 // Only load current language
 const entry = await db.crud.findOne("posts", id);
 const currentTranslations = {
@@ -1378,22 +1382,22 @@ async function loadLanguage(lang: string) {
   };
   return translations;
 }
-```text
+```
 
 ### 2. Translation Caching
 
 Cache frequently accessed translations:
 
-```typescript
+```
 const cacheKey = `entry:${id}:lang:${lang}:field:${fieldName}`;
 const translation = (await cache.get(cacheKey)) || (await db.getTranslation(id, fieldName, lang));
-```text
+```
 
 ### 3. Bulk Translation Queries
 
 For lists, fetch translations in bulk:
 
-```typescript
+```
 // ❌ N+1 query problem
 for (const entry of entries) {
   entry.title = await getTranslation(entry.id, "title", lang);
@@ -1402,7 +1406,7 @@ for (const entry of entries) {
 // ✅ Single bulk query
 const entryIds = entries.map((e) => e.id);
 const translations = await getTranslationsBulk(entryIds, ["title", "description"], lang);
-```text
+```
 
 ---
 
@@ -1439,7 +1443,7 @@ We utilize **Paraglide-JS** and the **Inlang Ecosystem** for high-performance, t
 
 To implement a locale-specific field, use the following pattern in your collection schema:
 
-```typescript
+```
 // config/collections/products.ts
 export const schema: Schema = {
   name: "Products",
@@ -1460,7 +1464,7 @@ export const schema: Schema = {
     },
   ],
 };
-```text
+```
 
 This ensures the UI remains clean for US editors while being functionally complete for EU legal compliance.
 
@@ -1477,4 +1481,3 @@ This ensures the UI remains clean for US editors while being functionally comple
 
 _Last Updated: March 17, 2026_
 _Architecture Version: 4.0_
-````

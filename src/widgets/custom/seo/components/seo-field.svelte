@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import type { FieldInstance } from '@src/content/types';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { tokenTarget } from '@src/services/token/token-target';
@@ -47,6 +50,20 @@
 	// Element references
 	let inputRef = $state<HTMLInputElement | HTMLTextAreaElement | undefined>();
 
+	$effect(() => {
+		const el =
+			type === 'textarea'
+				? (document.getElementById(id) as HTMLTextAreaElement | null)
+				: inputRef;
+		if (!el) return;
+		const inst = tokenTarget(el, {
+			name: field.db_fieldName,
+			label: field.label,
+			collection: field.collection as string
+		});
+		return () => inst.destroy();
+	});
+
 	// Reactive — recalculates whenever value/maxLength/optimalMin/optimalMax change
 	const lengthClass = $derived(
 		maxLength && value.length > maxLength
@@ -71,13 +88,13 @@
 
 		<div class="flex items-center gap-3 text-xs">
 			<SystemTooltip title="Insert Token">
-				<button
+				<Button variant="outline"
 					type="button"
 					aria-label="Insert Token"
 					onclick={() => inputRef?.focus()}
 				>
 					<iconify-icon icon="mdi:code-braces" width={16} class="dark:text-primary-500"></iconify-icon>
-				</button>
+				</Button>
 			</SystemTooltip>
 
 			{#if maxLength}
@@ -97,26 +114,27 @@
 
 	<div class="relative">
 		{#if type === 'textarea'}
-			<textarea aria-label="Textarea"
-				bind:this={inputRef as HTMLTextAreaElement}
+			<Textarea
+				aria-label="Textarea"
 				{id}
-				class="textarea pe-12 resize-y"
+				class="space-y-0"
+				textareaClass="pe-12 resize-y"
 				{rows}
 				{placeholder}
 				bind:value
 				oninput={(e) => onUpdate((e.currentTarget as HTMLTextAreaElement).value)}
-				use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection as string }}
-			></textarea>
+			/>
 		{:else}
-			<input aria-label="Input"
-				bind:this={inputRef as HTMLInputElement}
+			<Input
+				aria-label="Input"
+				bind:inputRef={inputRef as HTMLInputElement}
 				{id}
 				type="text"
-				class="input pe-12"
+				class="space-y-0"
+				inputClass="pe-12"
 				{placeholder}
 				bind:value
 				oninput={(e) => onUpdate((e.currentTarget as HTMLInputElement).value)}
-				use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection as string }}
 			/>
 		{/if}
 	</div>

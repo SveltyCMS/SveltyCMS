@@ -6,7 +6,7 @@ order: 8
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2025-11-09"
-updated: "2026-04-09"
+updated: "2026-06-17"
 tags:
   - "testing"
   - "stores"
@@ -19,7 +19,7 @@ tags:
 
 ## Executive Summary
 
-**Total Suite:** 915 unit tests (consolidated)
+**Total Suite:** 1,122 unit tests (consolidated)
 **Total Store Tests:** 95 tests across 6 core files
 **Coverage:** 100% Logic Coverage (Svelte 5 Runes)
 **Status:** ✅ All tests passing
@@ -135,7 +135,7 @@ bun run test:unit -- tests/unit/stores/loading-store
 
 All stores use Svelte 5 runes to enable fine-grained reactivity and remove legacy store overhead:
 
-```typescript
+```
 // Svelte 5 State Rune (Single Source of Truth)
 export const systemState = $state({
   overallState: "IDLE" as SystemState,

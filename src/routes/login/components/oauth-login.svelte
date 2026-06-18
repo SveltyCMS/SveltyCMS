@@ -10,11 +10,12 @@
 
 ### Features:
 - Prefetches first collection on hover for instant navigation post-auth
-- Accessible Google sign-in button with <span> (not <p>) inside <button>
+- Accessible Google sign-in button with <span> (not <p>) inside <Button variant="outline">
 -->
 
 <script lang="ts">
 import { preloadData } from "$app/navigation";
+	import Button from '@components/ui/button.svelte';
 
 const {
 	showGoogleOAuth = true,
@@ -48,7 +49,7 @@ async function prefetchFirstCollection() {
 	The parent (SignIn / SignUp) already gates showOAuth on the
 	USE_GOOGLE_OAUTH env var via pageData.showOAuth, so double-checking
 	it here is unnecessary. Using <span> instead of <p> because <p> is a
-	block element and invalid inside an inline context like <button>.
+	block element and invalid inside an inline context like <Button variant="outline">.
 -->
 <div class="flex flex-col gap-2 w-full sm:w-auto">
 	{#if showGoogleOAuth}
@@ -58,16 +59,15 @@ async function prefetchFirstCollection() {
 			method="post"
 			class="flex flex-col items-center justify-center w-full"
 		>
-			<button
+			<Button variant="surface"
 				form="google-oauth-login"
 				type="submit"
 				aria-label="Sign in with Google"
-				class="preset-filled-surface-500 btn w-full"
 				onmouseenter={prefetchFirstCollection}
-			>
+			 class="w-full">
 				<iconify-icon icon="flat-color-icons:google" width={24} aria-hidden="true"></iconify-icon>
 				<span>Sign in with Google</span>
-			</button>
+			</Button>
 		</form>
 	{/if}
 
@@ -78,16 +78,15 @@ async function prefetchFirstCollection() {
 			method="post"
 			class="flex flex-col items-center justify-center w-full"
 		>
-			<button
+			<Button variant="surface"
 				form="github-oauth-login"
 				type="submit"
 				aria-label="Sign in with GitHub"
-				class="preset-filled-surface-500 btn w-full"
 				onmouseenter={prefetchFirstCollection}
-			>
+			 class="w-full">
 				<iconify-icon icon="mdi:github" width={24} aria-hidden="true"></iconify-icon>
 				<span>Sign in with GitHub</span>
-			</button>
+			</Button>
 		</form>
 	{/if}
 </div>

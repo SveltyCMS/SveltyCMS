@@ -24,8 +24,13 @@ Part of the Three Pillars Architecture for the widget system.
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
-	import { publicEnv } from '@src/stores/global-settings.svelte';
+		import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
+		import Badge from '@components/ui/badge.svelte';
+		import Button from '@components/ui/button.svelte';
+		import FloatingInput from '@components/ui/floating-input.svelte';
+		import Input from '@components/ui/input.svelte';
+		import Select from '@components/ui/select.svelte';
+		import { publicEnv } from '@src/stores/global-settings.svelte';
 	/* global google */
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
@@ -187,7 +192,7 @@ Part of the Three Pillars Architecture for the widget system.
 			});
 
 			marker = new Marker({ position: center, map, draggable: true });
-			
+
 			const geocoder = new Geocoder();
 			marker.addListener('dragend', async () => {
 				const pos = marker?.getPosition();
@@ -196,7 +201,7 @@ Part of the Three Pillars Architecture for the widget system.
 					const lng = pos.lng();
 					updateAddressField('latitude', lat);
 					updateAddressField('longitude', lng);
-					
+
 					try {
 						const response = await geocoder.geocode({ location: { lat, lng } });
 						if (response.results && response.results[0]) {
@@ -240,7 +245,7 @@ Part of the Three Pillars Architecture for the widget system.
 			city: '',
 			country: ''
 		};
-		
+
 		for (const comp of place.address_components || []) {
 			const type = comp.types[0];
 			if (type === 'route') components.street = comp.long_name;
@@ -249,11 +254,11 @@ Part of the Three Pillars Architecture for the widget system.
 			if (type === 'locality') components.city = comp.long_name;
 			if (type === 'country') components.country = comp.short_name.toUpperCase();
 		}
-		
+
 		Object.entries(components).forEach(([k, v]) => {
 			if (v) updateAddressField(k as any, v);
 		});
-		
+
 		const loc = place.geometry?.location;
 		if (loc) {
 			updateAddressField('latitude', typeof loc.lat === 'function' ? loc.lat() : loc.lat);
@@ -306,9 +311,7 @@ Part of the Three Pillars Architecture for the widget system.
 		}
 	}
 
-	function handleSearchInput(e: Event) {
-		const target = e.currentTarget as HTMLInputElement;
-		const query = target.value;
+	function handleSearchQuery(query: string) {
 		searchQuery = query;
 
 		if (searchTimeout) clearTimeout(searchTimeout);
@@ -327,7 +330,7 @@ Part of the Three Pillars Architecture for the widget system.
 				if (data && data.features) {
 					suggestions = data.features.map((f: any) => {
 						const p = f.properties;
-						
+
 						const parts = [];
 						if (p.name) parts.push(p.name);
 						if (p.street) {
@@ -335,7 +338,7 @@ Part of the Three Pillars Architecture for the widget system.
 							else parts.push(p.street);
 						}
 						const label = parts.length > 0 ? parts.join(', ') : (p.city || p.country || 'Location');
-						
+
 						const subparts = [];
 						if (p.postcode) subparts.push(p.postcode);
 						if (p.city) subparts.push(p.city);
@@ -395,7 +398,7 @@ Part of the Three Pillars Architecture for the widget system.
 			const data = await res.json();
 			if (data && data.features && data.features.length > 0) {
 				const p = data.features[0].properties;
-				
+
 				const updatedFields = {
 					street: p.street || p.name || '',
 					houseNumber: p.housenumber || '',
@@ -429,7 +432,7 @@ Part of the Three Pillars Architecture for the widget system.
 		value = null;
 		searchQuery = '';
 		validationStore.clearError(fieldName);
-		
+
 		const defaultCenter = {
 			lat: (field.mapCenter as any)?.lat || 51.1657,
 			lng: (field.mapCenter as any)?.lng || 10.4515
@@ -453,10 +456,10 @@ Part of the Three Pillars Architecture for the widget system.
 			<iconify-icon icon="mdi:map-marker-radius" width="20"></iconify-icon>
 			{field.label}
 		</div>
-		<button type="button" class="px-3 py-1.5 rounded text-xs font-semibold bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center gap-1" onclick={handleClear}>
+		<Button variant="surface" size="sm" type="button" onclick={handleClear}>
 			<iconify-icon icon="mdi:close-circle-outline" width="16"></iconify-icon>
 			Clear
-		</button>
+		</Button>
 	</div>
 
 	<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -464,31 +467,30 @@ Part of the Three Pillars Architecture for the widget system.
 		<div class="lg:col-span-7 flex flex-col gap-4">
 			{#if enableGeocoding}
 				<div class="relative autocomplete-container">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="search-address">Address Search</label>
 					<div class="relative">
-						<input 
+						<FloatingInput
 							id="search-address"
-							type="text" 
-							class="input pe-10" 
-							value={searchQuery}
-							oninput={googleMapsApiKey ? undefined : handleSearchInput}
-							onfocus={googleMapsApiKey ? undefined : () => showSuggestions = true}
-							placeholder={googleMapsApiKey ? "Search address via Google Places..." : "Type to search address (Photon)..."}
+							bind:value={searchQuery}
+							label="Address Search"
+							icon="mdi:map-search"
+							onInput={googleMapsApiKey ? undefined : handleSearchQuery}
+							onClick={googleMapsApiKey ? undefined : () => (showSuggestions = true)}
+							inputClass="pe-10"
 						/>
 						{#if isLoadingSearch}
-							<div class="absolute end-3 top-1/2 -translate-y-1/2">
+							<div class="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2">
 								<iconify-icon icon="line-md:loading-loop" width="18"></iconify-icon>
 							</div>
 						{/if}
 					</div>
-					
+
 					{#if !googleMapsApiKey && showSuggestions && suggestions.length > 0}
-						<div class="absolute z-50 start-0 end-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
+						<div class="absolute z-50 inset-s-0 inset-e-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
 							<ul class="list-none p-0 m-0">
 								{#each suggestions as sug}
 									<li>
-										<button 
-											type="button" 
+										<button
+											type="button"
 											class="w-full text-start px-4 py-2 text-sm hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex flex-col gap-0.5 border-b border-surface-200/50 dark:border-surface-700/50"
 											onclick={() => selectSuggestion(sug)}
 										>
@@ -505,36 +507,57 @@ Part of the Three Pillars Architecture for the widget system.
 
 			<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 				<div class="md:col-span-3">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="street">Street</label>
-					<input 
+					<Input
 						id="street"
-						type="text" 
-						class="input" 
-						value={safeValue?.street || ''} 
-						oninput={e => updateAddressField('street', e.currentTarget.value)}
+						label="Street"
+						labelClass="text-xs uppercase font-bold text-surface-500"
+						value={safeValue?.street || ''}
+						oninput={(e) => updateAddressField('street', e.currentTarget.value)}
 						placeholder="Street name"
 					/>
 				</div>
 				<div>
-					<label class="label text-xs uppercase font-bold text-surface-500" for="hn">No.</label>
-					<input id="hn" type="text" class="input" value={safeValue?.houseNumber || ''} oninput={e => updateAddressField('houseNumber', e.currentTarget.value)} placeholder="123" />
+					<Input
+						id="hn"
+						label="No."
+						labelClass="text-xs uppercase font-bold text-surface-500"
+						value={safeValue?.houseNumber || ''}
+						oninput={(e) => updateAddressField('houseNumber', e.currentTarget.value)}
+						placeholder="123"
+					/>
 				</div>
-				
+
 				<div class="md:col-span-1">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="pc">Postal Code</label>
-					<input id="pc" type="text" class="input" value={safeValue?.postalCode || ''} oninput={e => updateAddressField('postalCode', e.currentTarget.value)} placeholder="12345" />
+					<Input
+						id="pc"
+						label="Postal Code"
+						labelClass="text-xs uppercase font-bold text-surface-500"
+						value={safeValue?.postalCode || ''}
+						oninput={(e) => updateAddressField('postalCode', e.currentTarget.value)}
+						placeholder="12345"
+					/>
 				</div>
 				<div class="md:col-span-2">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="city">City</label>
-					<input id="city" type="text" class="input" value={safeValue?.city || ''} oninput={e => updateAddressField('city', e.currentTarget.value)} placeholder="Berlin" />
+					<Input
+						id="city"
+						label="City"
+						labelClass="text-xs uppercase font-bold text-surface-500"
+						value={safeValue?.city || ''}
+						oninput={(e) => updateAddressField('city', e.currentTarget.value)}
+						placeholder="Berlin"
+					/>
 				</div>
 				<div class="md:col-span-1">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="country">Country</label>
-					<select id="country" class="select" value={safeValue?.country || 'DE'} onchange={e => updateAddressField('country', e.currentTarget.value)}>
-						{#each countryStore.countries as c}
-							<option value={c.alpha2}>{countryStore.getCountryName(c.alpha2, UI_LANGUAGE)}</option>
-						{/each}
-					</select>
+					<Select
+						label="Country"
+						value={safeValue?.country || 'DE'}
+						allowEmptySelection
+						options={countryStore.countries.map((c) => ({
+							value: c.alpha2,
+							label: countryStore.getCountryName(c.alpha2, UI_LANGUAGE)
+						}))}
+						onchange={(val) => updateAddressField('country', val)}
+					/>
 				</div>
 			</div>
 
@@ -555,11 +578,11 @@ Part of the Three Pillars Architecture for the widget system.
 			<div class="lg:col-span-5 flex flex-col gap-2">
 				<div class="label text-xs uppercase font-bold text-surface-500 flex items-center justify-between">
 					<span>Interactive Map</span>
-					<span class="badge preset-tonal-primary uppercase text-[9px] font-mono tracking-wider px-1.5 py-0.5">
+					<Badge preset="tonal" color="primary" size="sm" class="uppercase font-mono tracking-wider">
 						{googleMapsApiKey ? 'Google Maps' : 'MapLibre Free'}
-					</span>
+					</Badge>
 				</div>
-				<div bind:this={mapElement} class="h-80 lg:h-full min-h-[300px] w-full rounded border border-surface-300 bg-surface-100 dark:border-surface-700 relative overflow-hidden">
+				<div bind:this={mapElement} class="h-80 lg:h-full min-h-75 w-full rounded border border-surface-300 bg-surface-100 dark:border-surface-700 relative overflow-hidden">
 				</div>
 			</div>
 		{/if}

@@ -46,6 +46,13 @@ import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
 import { isSearchVisible } from "@utils/global-search-index";
 import { getTextDirection } from "@utils/utils";
+import { mergeAdminThemeWithUserPrefs } from "@utils/theme-merge";
+import {
+	applyLayoutPrefsToUiState,
+	diffLayoutPrefsFromTenant,
+	uiStateToLayoutPrefs,
+} from "@utils/layout-state-prefs";
+import { userThemePrefs } from "@src/stores/user-theme-prefs.svelte";
 import { onMount, untrack } from "svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
 import CommandBar from "@src/components/command-bar.svelte";
@@ -93,15 +100,11 @@ const dbAdminConfig = $derived(
 	(data.theme as any)?.config?.adminTheme as Record<string, any> | undefined
 );
 
-const initialDensity = $derived(
-	dbAdminConfig?.density ||
-	(userRole === 'admin' || userRole === 'manager'
-		? 'spacious'
-		: userRole === 'translator'
-			? 'compact'
-			: 'cozy')
+const tenantThemeDefaults = $derived(
+	mergeAdminThemeWithUserPrefs(dbAdminConfig, undefined, userRole)
 );
-const initialVariant = $derived(dbAdminConfig?.variant || 'bordered');
+const initialDensity = $derived(tenantThemeDefaults.density);
+const initialVariant = $derived(tenantThemeDefaults.variant);
 
 const theme = setThemeContext(untrack(() => ({
 	id: 'default',
@@ -123,65 +126,96 @@ const theme = setThemeContext(untrack(() => ({
 })));
 
 $effect(() => {
-	theme.role = userRole as any;
-	theme.density = initialDensity;
-	theme.variant = initialVariant as any;
-
-	// Per-user theme overrides: merge on top of tenant theme
-	const userTheme = data.user?.preferences?.theme;
-	if (userTheme?.density) theme.density = userTheme.density;
-	if (userTheme?.variant) theme.variant = userTheme.variant;
-	if (userTheme?.reducedMotion) theme.features = { ...theme.features, reducedMotion: true };
-	if (userTheme?.highContrast) theme.features = { ...theme.features, highContrastMode: true };
-	if (userTheme?.layoutState) {
-		for (const [key, val] of Object.entries(userTheme.layoutState)) {
-			// Do not restore sidebar states if not on desktop (responsive logic must rule)
-			if ((key === 'leftSidebar' || key === 'rightSidebar') && !screen.isDesktop) continue;
-			if (val) ui.state[key as keyof typeof ui.state] = val as any;
-		}
-	}
+	void data.user?.preferences?.theme;
+	userThemePrefs.release();
 });
 
-// ── Layout state: restore from DB theme on first load ──
-let layoutStateRestored = false;
 $effect(() => {
-	const saved = dbAdminConfig?.layoutState;
-	if (saved && !layoutStateRestored) {
-		for (const key of Object.keys(saved)) {
-			if ((saved as any)[key]) {
-				// Do not restore sidebar states if not on desktop
-				if ((key === 'leftSidebar' || key === 'rightSidebar') && !screen.isDesktop) continue;
-				ui.state[key as keyof typeof ui.state] = (saved as any)[key];
-			}
-		}
+	const serverPrefs = data.user?.preferences?.theme;
+	const merged = mergeAdminThemeWithUserPrefs(
+		dbAdminConfig,
+		userThemePrefs.getEffective(serverPrefs),
+		userRole,
+	);
+	theme.role = userRole as any;
+	theme.density = merged.density;
+	theme.variant = merged.variant as any;
+	theme.features = merged.features;
+	theme.customCss = dbAdminConfig?.customCss;
+});
+
+// ── Layout state: tenant defaults, then per-user overrides ──
+let layoutStateRestored = false;
+let lastAppliedUserLayout = "";
+$effect(() => {
+	const layoutLocked = dbAdminConfig?.lockedSettings?.layoutState === true;
+	const effectivePrefs = userThemePrefs.getEffective(data.user?.preferences?.theme);
+	const userLayout = effectivePrefs?.layoutState;
+	const serialized = JSON.stringify(userLayout ?? {});
+
+	if (!layoutStateRestored && dbAdminConfig?.layoutState) {
+		applyLayoutPrefsToUiState(dbAdminConfig.layoutState, ui.state);
 		layoutStateRestored = true;
 	}
+
+	if (userLayout && !layoutLocked && serialized !== lastAppliedUserLayout) {
+		for (const [key, val] of Object.entries(userLayout)) {
+			if ((key === "leftSidebar" || key === "rightSidebar") && !screen.isDesktop) continue;
+			if (val === "full" || val === "hidden") {
+				ui.state[key as keyof typeof ui.state] = val;
+			}
+		}
+		lastAppliedUserLayout = serialized;
+	}
 });
 
-// Debounced save of layout state back to theme when ui.state changes
+// Debounced save: admins → tenant theme; others → per-user layout prefs (diff from tenant)
 let layoutSaveTimer: ReturnType<typeof setTimeout>;
 $effect(() => {
-	// Track each ui.state key individually for granular reactivity
-	const state: Record<string, string> = {
-		leftSidebar: ui.state.leftSidebar,
-		rightSidebar: ui.state.rightSidebar,
-		pageheader: ui.state.pageheader,
-		pagefooter: ui.state.pagefooter,
-		header: ui.state.header,
-		footer: ui.state.footer,
-	};
-	// Debounce 2s to batch rapid toggles
+	void ui.state.leftSidebar;
+	void ui.state.rightSidebar;
+	void ui.state.pageheader;
+	void ui.state.pagefooter;
+	void ui.state.header;
+	void ui.state.footer;
+
 	clearTimeout(layoutSaveTimer);
 	layoutSaveTimer = setTimeout(async () => {
-		// Only attempt to save to the global theme if the user is an admin
-		if (!data.user?.isAdmin && data.user?.role !== 'admin') return;
+		if (!data.user) return;
+
+		const prefs = uiStateToLayoutPrefs(ui.state);
+		const isAdmin = data.user.isAdmin || data.user.role === "admin";
+
+		if (isAdmin) {
+			try {
+				await fetch("/api/theme/admin-theme", {
+					method: "POST",
+					headers: { "Content-Type": "application/json", "X-CSRF-Token": page.data.csrfToken || "" },
+					body: JSON.stringify({ layoutState: prefs }),
+				});
+			} catch {
+				/* silent — layout state save is best-effort */
+			}
+			return;
+		}
+
+		const layoutLocked = dbAdminConfig?.lockedSettings?.layoutState === true;
+		if (layoutLocked) return;
+
+		const diff = diffLayoutPrefsFromTenant(prefs, dbAdminConfig?.layoutState);
 		try {
-			await fetch('/api/theme/admin-theme', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken || '' },
-				body: JSON.stringify({ layoutState: state }),
+			await fetch("/api/user/update-user-attributes", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					user_id: "self",
+					newUserData: { preferences: { theme: { layoutState: diff } } },
+				}),
 			});
-		} catch { /* silent — layout state save is best-effort */ }
+			userThemePrefs.apply({ layoutState: diff });
+		} catch {
+			/* silent — layout state save is best-effort */
+		}
 	}, 2000);
 });
 
@@ -351,6 +385,11 @@ afterNavigate(() => {
 	<meta name="twitter:image" content="/SveltyCMS.png" />
 	<meta property="twitter:domain" content={page.url.origin} />
 	<meta property="twitter:url" content={page.url.href} />
+	{#if theme.customCss}
+		<style>
+			{theme.customCss}
+		</style>
+	{/if}
 </svelte:head>
 
 {#if loadError}
@@ -365,6 +404,7 @@ afterNavigate(() => {
 		class="relative h-lvh w-full"
 		data-admin-theme={theme.themeName}
 		data-density={theme.density}
+		data-reduced-motion={theme.features.reducedMotion ? 'true' : 'false'}
 		style="
 			--admin-spacing-scale: {theme.spacingScale};
 			--admin-density: {theme.densityScale};
@@ -395,7 +435,7 @@ afterNavigate(() => {
 			<div class="flex flex-1 overflow-hidden">
 				{#if ui.state.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh {ui.state.leftSidebar === 'full'
+						class="max-h-dvh transition-[width] duration-300 ease-in-out {ui.state.leftSidebar === 'full'
 							? ''
 							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"

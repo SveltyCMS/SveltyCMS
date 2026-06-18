@@ -106,7 +106,7 @@ bun test tests/benchmarks/api-latency.test.ts
 
 SveltyCMS enforces a **three-tier** local testing strategy to catch bugs at the right stage:
 
-```bash
+```
 # Tier 1: Pre-Commit (automatic, < 5s) — format, lint, types, unit tests, build
 git commit -m "feat: my change"
 
@@ -238,7 +238,7 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 
 SveltyCMS uses a strict isolation strategy to ensure tests **never** touch production data, live credentials, or user-defined collections. Every test pillar has verified isolation guarantees backed by code-level enforcement.
 
-```mermaid
+```
 graph TD
     subgraph "Testing Levels"
         Unit["<b>Unit Tests</b><br/>(tests/unit/*)<br/>In-memory mocks"]
@@ -355,7 +355,7 @@ Dedicated automated and cognitive checkpoints integrated into CI and developer q
 
 ### Parallel E2E Suite (Playwright)
 
-```bash
+```
 # Run with 4 concurrent workers
 n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 npx playwright test --workers=4
@@ -363,7 +363,7 @@ npx playwright test --workers=4
 
 ### Unit Tests (Bun)
 
-```bash
+```
 # Run all unit tests (Component, Service & Utility)
 n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run test:unit

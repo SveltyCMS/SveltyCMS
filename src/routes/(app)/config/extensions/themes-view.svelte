@@ -9,6 +9,8 @@ import type { Theme } from "@src/databases/db-interface";
 import { marketplace } from "@src/paraglide/messages";
 import { themeStore, updateTheme } from "@src/stores/theme-store.svelte";
 import { dateToISODateString } from "@utils/date";
+	import Button from '@components/ui/button.svelte';
+	import Select from '@components/ui/select.svelte';
 
 let selectedTheme = $state<any | null>(null);
 let livePreviewTheme = $state<any | null>(null);
@@ -114,6 +116,18 @@ function handleThemeChange() {
 		applyTheme(selectedTheme);
 	}
 }
+
+const themeOptions = $derived(
+	themes.map((theme) => ({ value: theme._id, label: theme.name }))
+);
+
+function handleThemeSelect(themeId: string) {
+	const theme = themes.find((t) => t._id === themeId);
+	if (theme) {
+		selectedTheme = theme;
+		handleThemeChange();
+	}
+}
 </script>
 
 <div class="space-y-6">
@@ -122,24 +136,13 @@ function handleThemeChange() {
 			<h3 class="h3 font-bold">Theme Settings</h3>
 		</header>
 		<section class="p-4">
-			<label for="theme-select" class="mb-2 block font-bold">Current System Theme:</label>
-			<select
-				id="theme-select"
-				value={selectedTheme?._id}
-				class="select max-w-md"
-				onchange={(e) => {
-					const id = e.currentTarget.value;
-					const theme = themes.find((t) => t._id === id);
-					if (theme) {
-						selectedTheme = theme;
-						handleThemeChange();
-					}
-				}}
-			>
-				{#each themes as theme (theme._id)}
-					<option value={theme._id} selected={selectedTheme?._id === theme._id}>{theme.name}</option>
-				{/each}
-			</select>
+			<Select
+				label="Current System Theme"
+				value={selectedTheme?._id ?? ''}
+				options={themeOptions}
+				onchange={handleThemeSelect}
+				class="max-w-md"
+			/>
 		</section>
 	</div>
 
@@ -151,15 +154,16 @@ function handleThemeChange() {
 			{#if customThemes.length > 0}
 				<div class="flex flex-wrap gap-2">
 					{#each customThemes as theme (theme._id)}
-						<button>
+						<Button
+							variant="outline"
+							type="button"
 							onmouseover={() => previewThemeChange(theme)}
 							onfocus={() => previewThemeChange(theme)}
 							onmouseout={resetPreview}
 							onblur={resetPreview}
-							class="preset-outline-tertiary-500 btn"
 						>
 							Preview {theme.name}
-						</button>
+						</Button>
 					{/each}
 				</div>
 			{:else}
@@ -168,16 +172,15 @@ function handleThemeChange() {
 						There are currently no custom themes available. Visit the SveltyCMS marketplace to find new themes.
 					</p>
 					<!-- Market Place -->
-					<a
-						href="https://www.sveltyCMS.com"
-						target="_blank"
-						rel="noopener noreferrer"
+					<Button
+						variant="primary"
+						href="/config/appearance"
 						aria-label={marketplace()}
-						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn gap-2"
+						class="gap-2"
 					>
 						<iconify-icon icon="icon-park-outline:shopping-bag" width={20}></iconify-icon>
 						<span>{marketplace()}</span>
-					</a>
+					</Button>
 				</div>
 			{/if}
 		</section>

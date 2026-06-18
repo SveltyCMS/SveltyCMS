@@ -22,6 +22,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { entrylist_items, entrylist_of, entrylist_page, entrylist_rows, entrylist_showing } from '@src/paraglide/messages';
 
@@ -98,30 +99,28 @@
 <nav class="btn-group" aria-label="Table pagination">
 	<!-- First page button -->
 	<SystemTooltip title="First Page">
-		<button
+		<Button variant="outline"
 			onclick={() => goToPage(1)}
 			disabled={isFirstPage}
 			type="button"
 			aria-label="Go to first page"
-			class="btn h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
 			aria-disabled={isFirstPage}
-		>
+		 class="h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
 			<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 
 	<!-- Previous page button -->
 	<SystemTooltip title="Previous Page">
-		<button
+		<Button variant="outline"
 			onclick={() => goToPage(currentPage - 1)}
 			disabled={isFirstPage}
 			type="button"
 			aria-label="Go to previous page"
-			class="btn h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
 			aria-disabled={isFirstPage}
-		>
+		 class="h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
 			<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 
 	<!-- Rows per page select dropdown -->
@@ -143,29 +142,27 @@
 
 	<!-- Next page button -->
 	<SystemTooltip title="Next Page">
-		<button
+		<Button variant="outline"
 			onclick={() => goToPage(currentPage + 1)}
 			disabled={isLastPage}
 			type="button"
 			aria-label="Go to next page"
-			class="btn h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
 			aria-disabled={isLastPage}
-		>
+		 class="h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
 			<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 
 	<!-- Last page button -->
 	<SystemTooltip title="Last Page">
-		<button
+		<Button variant="outline"
 			onclick={() => goToPage(computedPagesCount)}
 			disabled={isLastPage}
 			type="button"
 			aria-label="Go to last page"
-			class="btn h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 disabled:opacity-50! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300"
 			aria-disabled={isLastPage}
-		>
+		 class="h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
 			<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 </nav>

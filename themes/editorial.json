@@ -1,0 +1,35 @@
+{
+  "name": "Editorial",
+  "description": "Distraction-free writer workspace — spacious density, elevated cards, reduced chrome.",
+  "density": "spacious",
+  "variant": "elevated",
+  "features": {
+    "stickyActionBar": false,
+    "collapsibleSidebar": true,
+    "brandedLogin": false,
+    "highContrastMode": false,
+    "reducedMotion": false,
+    "layoutRegions": {
+      "collections": "right",
+      "mediaGalleries": "left"
+    }
+  },
+  "layoutState": {
+    "leftSidebar": "full",
+    "rightSidebar": "hidden",
+    "pageheader": "hidden",
+    "pagefooter": "hidden",
+    "header": "hidden",
+    "footer": "hidden"
+  },
+  "properties": {
+    "primary": "#b45309",
+    "secondary": "#44403c",
+    "tertiary": "#d97706",
+    "success": "#16a34a",
+    "warning": "#ca8a04",
+    "error": "#dc2626",
+    "surface": "#fffbeb"
+  },
+  "presetSource": "sveltycms-builtin"
+}

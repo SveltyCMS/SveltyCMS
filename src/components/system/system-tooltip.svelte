@@ -7,7 +7,7 @@ This component provides a tooltip for any element.
 
 @example
 <SystemTooltip title="Tooltip">
-	<button>Hover me</button>
+	<Button variant="outline">Hover me</Button>
 </SystemTooltip>
 
 ### Props

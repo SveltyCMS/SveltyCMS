@@ -11,6 +11,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Lucide icons
 
 	import Avatar from "@components/ui/avatar.svelte";
@@ -412,26 +413,26 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	<footer class="modal-footer justify-between pt-4 border-t border-surface-500/20">
 		<!-- Delete Avatar -->
 		{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
-			<button type="button" onclick={deleteAvatar} class="preset-filled-error-500 btn">
+			<Button variant="error" type="button" onclick={deleteAvatar}>
 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 				<span class="hidden sm:block">{button_delete()}</span>
-			</button>
+			</Button>
 		{:else}
 			<div></div>
 			<!-- Empty div when using the default avatar -->
 		{/if}
 		<div class="flex justify-between gap-2">
 			<!-- Cancel -->
-			<button class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()} disabled={isUploading}>{button_cancel()}</button>
+			<Button variant="outline" onclick={() => modalState.close()} disabled={isUploading}>{button_cancel()}</Button>
 			<!-- Save -->
-			<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={onFormSubmit} disabled={!files.length || isUploading}>
+			<Button variant="tertiary" onclick={onFormSubmit} disabled={!files.length || isUploading} class="dark:">
 				{#if isUploading}
 					<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 					Uploading...
 				{:else}
 					{button_save()}
 				{/if}
-			</button>
+			</Button>
 		</div>
 	</footer>
 </div>

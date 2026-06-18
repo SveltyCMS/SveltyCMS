@@ -32,6 +32,7 @@
  */
 
 import type { Handle } from "@sveltejs/kit";
+import { MEDIA_RESOURCE_HEADERS } from "@utils/security-constants";
 
 // --- ASSET DETECTION ---
 
@@ -107,6 +108,11 @@ export const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
     // Apply aggressive caching headers
     // These headers tell browsers and CDNs to cache the asset for 1 year
     response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    if (event.url.pathname.startsWith("/files/")) {
+      for (const [key, value] of Object.entries(MEDIA_RESOURCE_HEADERS)) {
+        response.headers.set(key, value);
+      }
+    }
 
     return response;
   }

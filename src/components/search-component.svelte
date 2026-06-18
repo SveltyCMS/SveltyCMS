@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/search-component.svelte
 @component
 **Global search component with fuzzy search and keyboard navigation**
@@ -44,6 +44,7 @@ import SearchComponent from './search-component.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import HighlightedText from './highlighted-text.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
 
 	// Types
 	interface Trigger {
@@ -62,7 +63,6 @@ import SearchComponent from './search-component.svelte';
 	// States
 	let searchResults = $state<SearchResult[]>([]);
 	let searchQuery = $state('');
-	let inputRef = $state<HTMLInputElement | null>(null);
 	let selectedIndex = $state(-1);
 	let listElement = $state<HTMLUListElement | null>(null);
 	let isSearching = $state(false);
@@ -298,14 +298,6 @@ import SearchComponent from './search-component.svelte';
 		}
 	}
 
-	// Auto-focus input when search becomes visible
-	$effect(() => {
-		if ($isSearchVisible && inputRef) {
-			// Use setTimeout to ensure DOM is ready
-			setTimeout(() => inputRef?.focus(), 0);
-		}
-	});
-
 	// Lifecycle hooks
 	onMount(() => {
 		// Check reduced motion preference
@@ -375,24 +367,24 @@ accessibility -->
 	>
 		<!-- Search input with loading indicator -->
 		<div class="relative w-full max-w-xl pointer-events-auto">
-			<input
+			<FloatingInput
 				bind:value={searchQuery}
-				bind:this={inputRef}
-				oninput={handleInput}
+				autofocus={$isSearchVisible}
+				onInput={handleInput}
 				onkeydown={handleKeyDown}
-				type="search"
-				placeholder="Search anything..."
+				label="Search anything..."
+				icon="mdi:magnify"
 				aria-label="Search input"
 				aria-controls="search-results"
 				aria-autocomplete="list"
 				aria-activedescendant={selectedIndex !== -1 ? `search-result-${selectedIndex}` : undefined}
 				aria-busy={isSearching}
-				class="input w-full rounded variant-tertiary dark:variant-primary"
 				autocomplete="off"
+				inputClass="w-full rounded variant-tertiary dark:variant-primary"
 			/>
 
 			{#if isSearching}
-				<div class="absolute end-4 top-1/2 -translate-y-1/2" role="status" aria-label="Searching">
+				<div class="absolute inset-e-4 top-1/2 -translate-y-1/2" role="status" aria-label="Searching">
 					<svg
 						class="h-5 w-5 animate-spin text-tertiary-500 dark:text-primary-500"
 						xmlns="http://www.w3.org/2000/svg"

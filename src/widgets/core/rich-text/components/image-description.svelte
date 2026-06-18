@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/richText/components/ImageDescription.svelte
+@file src/widgets/core/rich-text/components/image-description.svelte
 @component
 **Image Description**
 
@@ -17,6 +17,8 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	interface Props {
 		active?: string;
 		key?: string;
@@ -69,15 +71,21 @@
 </script>
 
 <div class:hidden={!show} class="relative">
-	<button onclick={handleClick} aria-label="Description" class="btn-sm flex items-center">
+	<Button variant="outline" onclick={handleClick} aria-label="Description" size="sm" class="flex items-center">
 		<iconify-icon icon="material-symbols:description" width={24}></iconify-icon>
 
 		<span class="hidden sm:inline">Description</span>
-	</button>
+	</Button>
 
 	{#if showInput}
 		<div class="description absolute top-full mt-2">
-			<input type="text" bind:value={VALUE.value} onkeydown={handleKeydown} class="input" placeholder="Enter description"  aria-label="Input" />
+			<Input
+				type="text"
+				bind:value={VALUE.value}
+				onkeydown={handleKeydown}
+				label="Description"
+				placeholder="Enter description"
+			/>
 		</div>
 	{/if}
 </div>
@@ -89,10 +97,5 @@
 		width: 250px;
 		transform: translate(-50%);
 	}
-	input {
-		width: 100%;
-		padding: 5px;
-		border: 1px solid;
-		border-radius: 5px;
-	}
+
 </style>

@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:git"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-06-13"
+updated: "2026-06-17"
 tags:
   - "git"
   - "workflow"
@@ -27,7 +27,7 @@ Our CI/CD and Local pipeline uses:
 - **Native Git Hooks**: Zero-dependency quality gate (`.githooks/pre-commit`).
 - **Vitest (jsdom)**: Unified unit testing for components, stores, services, and API handlers.
 - **Unified Formatting**: oxfmt-powered `bun run format` for lightning-fast cleanup.
-- **Vitest Unit Suite**: Fast unit testing (~915 tests in under 5 seconds for the full suite).
+- **Vitest Unit Suite**: Fast unit testing (~1,122 tests in under 10 seconds for the full suite).
 - **Playwright**: Comprehensive E2E testing across multiple database backends.
 - **Semantic Release**: Automated versioning on `main`.
 - **Standardized Network**: Always use `127.0.0.1` for local consistency.
@@ -46,12 +46,12 @@ git config core.hooksPath .githooks
 
 The pre-commit chain uses a **Parallel TypeScript Orchestrator** to run checks efficiently.
 
-The gate runs the full unit test suite (915 tests via Vitest with jsdom) and the Production Build locally before every commit to ensure zero CI regressions. SQLite Integration Tests are also run locally on staged changes.
+The gate runs the full unit test suite (1,122 tests via Vitest with jsdom) and the Production Build locally before every commit to ensure zero CI regressions. SQLite Integration Tests are also run locally on staged changes.
 
 Key features:
 
 - **Parallel Execution**: Linting, Type-Checking, and Testing run simultaneously.
-- **Full Test Suite & Build Verification**: Runs the complete 915-test unit suite (Vitest) and the Production Build locally to prevent broken builds in CI.
+- **Full Test Suite & Build Verification**: Runs the complete 1,122-test unit suite (Vitest) and the Production Build locally to prevent broken builds in CI.
 - **Local Integration Verification**: Automatically runs SQLite Integration Tests locally when relevant code changes are staged.
 - **Safe Staging Isolation**: The hook only re-stages files that were **already staged** before formatting/linting auto-fixes ran, respecting the developer's selective staging (e.g. `git commit -p`) instead of blindly staging everything.
 
@@ -100,7 +100,7 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 
 **Format:**
 
-```text
+```
 <type>(<scope>): <subject> [TQA-Verified]
 ```text
 
@@ -123,9 +123,9 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 
 ## Automated Testing Architecture
 
-### 🧪 Vitest Unit Tests (915 tests)
+### 🧪 Vitest Unit Tests (1,122 tests)
 
-- **Speed**: ⚡ Lightning fast (under 5 seconds for the full 915-test suite).
+- **Speed**: ⚡ Lightning fast (under 10 seconds for the full 1,122-test suite).
 - **Location**: `tests/unit/`
 - **Runner**: Vitest with jsdom for components, stores, services, and API logic.
 - **Command**: `bun run test:unit`
@@ -164,16 +164,16 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 
 SveltyCMS uses a **three-tier testing strategy** that balances developer velocity with full CI parity. Each tier corresponds to a different Git lifecycle event:
 
-```mermaid
+```
 graph LR
-    A["git commit"] -->|"< 5s"| B["Pre-Commit<br/>Format, Lint, Types,<br/>Unit Tests, Build"]
+    A["git commit"] -->|"< 10s"| B["Pre-Commit<br/>Format, Lint, Types,<br/>Unit Tests, Build"]
     C["git push"] -->|"~3 min"| D["Pre-Push<br/>SQLite Integration,<br/>Playwright E2E"]
     E["bun run ci:local"] -->|"~10 min"| F["Full CI Parity<br/>4-DB Matrix,<br/>Full E2E Suite"]
 ```
 
 ### Tier 1: Pre-Commit (`.githooks/pre-commit`) — Fast Feedback
 
-Runs automatically on every `git commit`. Designed to be **< 5 seconds**.
+Runs automatically on every `git commit`. Designed to be **< 10 seconds**.
 
 | Check | Tool |
 |:------|:-----|
@@ -200,7 +200,7 @@ Skip with: `git push --no-verify` (or `GIT_HOOK_SKIP=1 git push`).
 
 Run manually before opening a Pull Request. Mirrors the GitHub Actions CI pipeline exactly.
 
-```bash
+```
 # Full matrix + E2E (requires Docker Desktop with DBs running)
 bun run ci:local
 
@@ -257,7 +257,7 @@ All scripts in `scripts/` and their role in the testing pipeline:
 
 If you want to run checks outside the hook lifecycle:
 
-```bash
+```
 # Smart Test Orchestrator — auto-detects what to test from git diff
 bun run test:smart
 
@@ -275,7 +275,7 @@ bun run mutate
 
 For changes touching auth, middleware, or API routes, also run:
 
-```bash
+```
 bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
 bun run slop
 ```
@@ -291,7 +291,7 @@ bun run slop
 
 If you are on Linux/macOS and the hook fails to execute:
 
-```bash
+```
 chmod +x .githooks/pre-commit .githooks/pre-push
 ```
 
@@ -301,7 +301,7 @@ Ensure you are using `127.0.0.1` in your `config/private.test.ts` and that the t
 
 ### Bypassing Hooks in Emergencies
 
-```bash
+```
 # Skip pre-commit
 git commit --no-verify -m "hotfix: emergency patch"
 

@@ -36,11 +36,11 @@ The recommended production architecture is composable — start minimal and add 
 - **PgBouncer** (optional) — Connection pooling for Postgres at scale (see scaling-layers.mdx)
 - **Database** — SQLite (single-node), PostgreSQL, MariaDB, or MongoDB with connection pooling
 
-````text
+```text
 Internet → Nginx (443) → PM2 Cluster → SveltyCMS → Redis → Database
                 ↓
            Static Assets
-```text
+```
 
 ---
 
@@ -67,7 +67,7 @@ Configure Nginx to serve static assets directly, bypassing Node.js entirely for 
 
 **File**: `/etc/nginx/sites-available/sveltycms.conf`
 
-```nginx
+```
 # Upstream Node.js application
 upstream sveltycms_backend {
     server 127.0.0.1:3000 max_fails=3 fail_timeout=30s;
@@ -289,11 +289,11 @@ server {
     server_name your-domain.com;
     return 301 https://$server_name$request_uri;
 }
-```text
+```
 
 ### Enable Configuration
 
-```bash
+```
 # Create symbolic link
 sudo ln -s /etc/nginx/sites-available/sveltycms.conf /etc/nginx/sites-enabled/
 
@@ -302,7 +302,7 @@ sudo nginx -t
 
 # Reload Nginx
 sudo systemctl reload nginx
-```text
+```
 
 ### Performance Impact
 
@@ -320,7 +320,7 @@ sudo systemctl reload nginx
 
 **File**: `/etc/redis/redis.conf`
 
-```conf
+```
 # Network
 bind 127.0.0.1
 port 6379
@@ -360,24 +360,24 @@ rdbcompression yes
 rdbchecksum yes
 dbfilename dump.rdb
 dir /var/lib/redis
-```text
+```
 
 ### Restart Redis
 
-```bash
+```
 sudo systemctl restart redis-server
 sudo systemctl enable redis-server
-```text
+```
 
 ### Update Environment Variables
 
 Add to your `.env` file:
 
-```bash
+```
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REDIS_PASSWORD=your_strong_redis_password_here
-```text
+```
 
 ---
 
@@ -389,7 +389,7 @@ PM2 provides cluster mode, auto-restart, and zero-downtime deployments.
 
 **File**: `ecosystem.config.js` (in project root)
 
-```javascript
+```
 module.exports = {
   apps: [
     {
@@ -451,11 +451,11 @@ module.exports = {
     },
   },
 };
-```text
+```
 
 ### Install and Start PM2
 
-```bash
+```
 # Install PM2 globally
 npm install -g pm2
 
@@ -470,11 +470,11 @@ pm2 startup
 
 # Monitor processes
 pm2 monit
-```text
+```
 
 ### PM2 Commands
 
-```bash
+```
 # View logs
 pm2 logs sveltycms
 
@@ -492,7 +492,7 @@ pm2 info sveltycms
 
 # View process list
 pm2 list
-```text
+```
 
 ---
 
@@ -504,7 +504,7 @@ Since Nginx now handles static assets, you can optionally remove `handleStaticAs
 
 **File**: `src/hooks.server.ts`
 
-```typescript
+```
 // Before (with static middleware)
 export const handle: Handle = sequence(
   handleStaticAssetCaching, // ← Remove this (Nginx handles it)
@@ -526,7 +526,7 @@ export const handle: Handle = sequence(
   handleAuthorization,
   addSecurityHeaders,
 );
-```text
+```
 
 **Benefits**:
 
@@ -541,13 +541,13 @@ For high-traffic production, increase session cache TTL to reduce database queri
 
 **File**: `src/hooks/handleAuthentication.ts`
 
-```typescript
+```
 // Current (5 minutes)
 const SESSION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // Recommended for production (15 minutes)
 const SESSION_CACHE_TTL_MS = 15 * 60 * 1000;
-```text
+```
 
 **Impact**: Reduces Redis/database queries by 66% while maintaining security through automatic session rotation.
 
@@ -559,7 +559,7 @@ const SESSION_CACHE_TTL_MS = 15 * 60 * 1000;
 
 #### MongoDB
 
-```typescript
+```
 import { MongoClient } from "mongodb";
 
 const client = new MongoClient(process.env.MONGODB_URI, {
@@ -573,11 +573,11 @@ const client = new MongoClient(process.env.MONGODB_URI, {
 });
 
 await client.connect();
-```text
+```
 
 #### PostgreSQL
 
-```typescript
+```
 import { Pool } from "pg";
 
 const pool = new Pool({
@@ -587,7 +587,7 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
   allowExitOnIdle: false,
 });
-```text
+```
 
 ### Database Indexes
 
@@ -595,7 +595,7 @@ Create indexes for frequently queried fields to improve performance.
 
 #### MongoDB
 
-```javascript
+```
 // User collection
 db.users.createIndex({ email: 1 }, { unique: true });
 db.users.createIndex({ tenantId: 1, role: 1 });
@@ -613,11 +613,11 @@ db.collections.createIndex({ status: 1 });
 // Media
 db.media.createIndex({ tenantId: 1, type: 1 });
 db.media.createIndex({ uploadedAt: -1 });
-```text
+```
 
 #### PostgreSQL
 
-```sql
+```
 -- Users table
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_tenant_role ON users(tenant_id, role);
@@ -635,7 +635,7 @@ CREATE INDEX idx_collections_status ON collections(status);
 -- Media table
 CREATE INDEX idx_media_tenant_type ON media(tenant_id, type);
 CREATE INDEX idx_media_uploaded ON media(uploaded_at DESC);
-```text
+```
 
 ---
 
@@ -645,7 +645,7 @@ CREATE INDEX idx_media_uploaded ON media(uploaded_at DESC);
 
 **File**: `src/routes/api/health/+server.ts`
 
-```typescript
+```
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { getSystemState } from "@stores/system";
@@ -677,13 +677,13 @@ export const GET: RequestHandler = async () => {
     },
   });
 };
-```text
+```
 
 ### Prometheus Metrics Endpoint
 
 **File**: `src/routes/api/metrics/+server.ts`
 
-```typescript
+```
 import { metricsService } from "@src/services/metrics-service";
 import type { RequestHandler } from "./$types";
 
@@ -722,11 +722,11 @@ export const GET: RequestHandler = async () => {
     },
   });
 };
-```text
+```
 
 ### Nginx Monitoring
 
-```nginx
+```
 # Add to server block
 location /nginx_status {
     stub_status on;
@@ -734,11 +734,11 @@ location /nginx_status {
     allow 127.0.0.1;
     deny all;
 }
-```text
+```
 
 ### Log Analysis
 
-```bash
+```
 # Real-time request monitoring
 tail -f /var/log/nginx/sveltycms.access.log
 
@@ -750,7 +750,7 @@ awk '{print $NF}' /var/log/nginx/sveltycms.access.log | sort -n | tail -100
 
 # 4xx/5xx errors
 grep -E ' (4[0-9]{2}|5[0-9]{2}) ' /var/log/nginx/sveltycms.access.log | tail -50
-```text
+```
 
 ---
 
@@ -758,7 +758,7 @@ grep -E ' (4[0-9]{2}|5[0-9]{2}) ' /var/log/nginx/sveltycms.access.log | tail -50
 
 ### SSL/TLS Best Practices
 
-```bash
+```
 # Generate strong DH parameters
 sudo openssl dhparam -out /etc/nginx/dhparam.pem 2048
 
@@ -768,11 +768,11 @@ ssl_stapling on;
 ssl_stapling_verify on;
 resolver 8.8.8.8 8.8.4.4 valid=300s;
 resolver_timeout 5s;
-```text
+```
 
 ### Firewall Configuration (UFW)
 
-```bash
+```
 # Enable UFW
 sudo ufw enable
 
@@ -785,21 +785,21 @@ sudo ufw allow 443/tcp
 
 # Check status
 sudo ufw status verbose
-```text
+```
 
 ### Fail2Ban for Brute Force Protection
 
-```bash
+```
 # Install Fail2Ban
 sudo apt install fail2ban
 
 # Create Nginx jail
 sudo nano /etc/fail2ban/jail.local
-```text
+```
 
 **File**: `/etc/fail2ban/jail.local`
 
-```ini
+```
 [nginx-http-auth]
 enabled = true
 port = http,https
@@ -821,15 +821,15 @@ enabled = true
 port = http,https
 logpath = /var/log/nginx/sveltycms.access.log
 maxretry = 2
-```text
+```
 
-```bash
+```
 # Restart Fail2Ban
 sudo systemctl restart fail2ban
 
 # Check status
 sudo fail2ban-client status
-```text
+```
 
 ---
 
@@ -839,7 +839,7 @@ sudo fail2ban-client status
 
 **File**: `/usr/local/bin/backup-sveltycms.sh`
 
-```bash
+```
 #!/bin/bash
 
 # Configuration
@@ -865,21 +865,21 @@ cp /var/lib/redis/dump.rdb "$BACKUP_DIR/redis_$DATE.rdb"
 find "$BACKUP_DIR" -type f -mtime +$RETENTION_DAYS -delete
 
 echo "Backup completed: $DATE"
-```text
+```
 
-```bash
+```
 # Make executable
 sudo chmod +x /usr/local/bin/backup-sveltycms.sh
 
 # Add to crontab (daily at 2 AM)
 sudo crontab -e
-```text
+```
 
 Add line:
 
-```cron
+```
 0 2 * * * /usr/local/bin/backup-sveltycms.sh >> /var/log/sveltycms-backup.log 2>&1
-```text
+```
 
 ---
 
@@ -887,19 +887,19 @@ Add line:
 
 ### Apache Bench
 
-```bash
+```
 # Test homepage
 ab -n 1000 -c 100 https://your-domain.com/
 
 # Test API endpoint
 ab -n 1000 -c 50 https://your-domain.com/api/collections
-```text
+```
 
 ### K6 Load Testing
 
 **File**: `load-test.js`
 
-```javascript
+```
 import http from "k6/http";
 import { check, sleep } from "k6";
 
@@ -922,16 +922,16 @@ export default function () {
   });
   sleep(1);
 }
-```text
+```
 
-```bash
+```
 # Install K6
 curl https://github.com/grafana/k6/releases/download/v0.46.0/k6-v0.46.0-linux-amd64.tar.gz -L | tar xvz
 sudo mv k6-v0.46.0-linux-amd64/k6 /usr/local/bin/
 
 # Run test
 k6 run load-test.js
-```text
+```
 
 ---
 
@@ -994,7 +994,7 @@ k6 run load-test.js
 
 ### Application Won't Start
 
-```bash
+```
 # Check PM2 logs
 pm2 logs sveltycms --lines 100
 
@@ -1003,11 +1003,11 @@ sudo netstat -tlnp | grep 3000
 
 # Test application directly
 NODE_ENV=production node build/index.js
-```text
+```
 
 ### Static Assets Not Loading
 
-```bash
+```
 # Verify Nginx serves static files
 curl -I https://your-domain.com/_app/version.json
 
@@ -1016,22 +1016,22 @@ ls -la /var/www/sveltycms/build/client/_app/
 
 # Verify Nginx root path
 sudo nginx -T | grep root
-```text
+```
 
 ### High Memory Usage
 
-```bash
+```
 # Check PM2 memory per process
 pm2 list
 
 # Reduce max_memory_restart in ecosystem.config.js
 # Reduce number of instances
 pm2 scale sveltycms 2  # Run only 2 instances
-```text
+```
 
 ### Redis Connection Errors
 
-```bash
+```
 # Test Redis connection
 redis-cli -a your_password ping
 
@@ -1040,11 +1040,11 @@ sudo tail -f /var/log/redis/redis-server.log
 
 # Restart Redis
 sudo systemctl restart redis-server
-```text
+```
 
 ### Nginx 502 Bad Gateway
 
-```bash
+```
 # Check if Node.js is running
 pm2 status
 
@@ -1053,7 +1053,7 @@ sudo tail -f /var/log/nginx/sveltycms.error.log
 
 # Verify upstream connection
 curl http://127.0.0.1:3000/api/health
-```text
+```
 
 ---
 
@@ -1080,4 +1080,3 @@ This production deployment guide covers:
 ✅ **Performance** - 5x capacity increase, 95% faster static assets
 
 Follow this guide to achieve enterprise-grade performance, security, and reliability for your SveltyCMS production deployment.
-````

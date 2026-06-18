@@ -40,6 +40,7 @@ bulk actions, and predictive preloading.
 -->
 
 <script module lang="ts">
+	import Button from '@components/ui/button.svelte';
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
@@ -853,15 +854,14 @@ bulk actions, and predictive preloading.
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
 			{#if ui.state.leftSidebar === 'hidden'}
-				<button
+				<Button variant="outline"
 					type="button"
 					onkeydown={() => {}}
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 					aria-label="open-sidebar"
-					class="preset-outlined-surface-500 btn-icon mt-1"
-				>
+				 class="p-0! min-w-0 mt-1">
 					<iconify-icon icon="mingcute:menu-fill" width={24}></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 
 			<!-- Collection type with icon -->
@@ -886,15 +886,14 @@ bulk actions, and predictive preloading.
 		</div>
 		<div class="flex items-center justify-between gap-1">
 			<!-- Expand/Collapse -->
-			<button
+			<Button variant="outline"
 				type="button"
 				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
-				class="preset-outlined-surface-500 btn-icon p-1 sm:hidden"
 				aria-label="expand-collapse-filters"
-			>
+			 class="p-0! min-w-0 sm:hidden">
 				<iconify-icon icon="material-symbols:filter-list-rounded" width={24}></iconify-icon>
-			</button>
+			</Button>
 
 			<!-- Translation Content Language - Mobile -->
 			<div class="mt-1 sm:hidden"><TranslationStatus /></div>
@@ -945,10 +944,10 @@ bulk actions, and predictive preloading.
 						{entrylist_all()}
 					</label>
 
-					<button class="bg-surface-400 btn text-white" onclick={resetViewSettings} aria-label="reset-view">
+					<Button variant="outline" onclick={resetViewSettings} aria-label="reset-view" class="bg-surface-400 text-white">
 						<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
 						Reset View
-					</button>
+					</Button>
 				</div>
 				<section
 					use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300, type: 'columns', dropTargetStyle: { outline: 'none' } }}
@@ -958,19 +957,16 @@ bulk actions, and predictive preloading.
 				>
 					{#each displayTableHeaders as header (header.id)}
 						<div animate:flip={{ duration: 300 }}>
-							<button
+							<Button variant="tertiary"
 								type="button"
-								class="chip {header.visible
-									? 'dark:preset-filled-primary-500 preset-filled-tertiary-500'
-									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
 								onclick={() => handleColumnVisibilityToggle(header)}
 								aria-label="toggle-column-visibility"
-							>
+							 class="chip {header.visible ? 'dark: ' : 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move">
 								{#if header.visible}
 									<iconify-icon icon="fa:check" width={24} class="mr-1"></iconify-icon>
 								{/if}
 								<span class="capitalize">{header.label}</span>
-							</button>
+							</Button>
 						</div>
 					{/each}
 				</section>
@@ -988,7 +984,7 @@ bulk actions, and predictive preloading.
 							<th>
 								<!-- Clear All Filters Button -->
 								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
-									<button
+									<Button variant="outline"
 										onclick={() => {
 											const clearedFilters: Record<string, string> = {};
 											const urlUpdates: Record<string, string | null> = {};
@@ -1003,10 +999,9 @@ bulk actions, and predictive preloading.
 											updateURL(urlUpdates);
 										}}
 										aria-label="clear-all-filters"
-										class="preset-outlined-surface-500 btn-icon"
-									>
+									 class="p-0! min-w-0">
 										<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
-									</button>
+									</Button>
 								{/if}
 							</th>
 							<!-- Filter -->

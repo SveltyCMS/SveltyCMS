@@ -20,6 +20,11 @@
 - `Alt + S`: Save currently edited entry (if focused)
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import Select from '@components/ui/select.svelte';
   import { logger } from "@utils/logger";
   import { getFieldName } from "@utils/utils";
 
@@ -111,6 +116,13 @@
 
   // Revisions State (now simpler)
   let selectedRevisionId = $state("");
+
+  const revisionOptions = $derived(
+    revisions.map((revision: any) => ({
+      value: revision._id,
+      label: `${new Date(revision.revision_at).toLocaleString()} by ${revision.revision_by.substring(0, 8)}...`,
+    }))
+  );
 
   // Track the last entry ID to detect when switching entries
   let lastEntryId = $state<string | undefined>(undefined);
@@ -430,10 +442,8 @@
 
 {#if !widgets.isLoaded}
   <div class="flex h-64 flex-col items-center justify-center gap-4">
-    <div
-      class="h-12 w-12 animate-spin rounded-full border-4 border-surface-200 border-t-primary-500"
-    ></div>
-    <p class="text-surface-500 animate-pulse">Initializing widgets...</p>
+    <Loader variant="circle" width="size-12" height="size-12" ariaLabel="Initializing widgets" />
+    <p class="text-surface-500">Initializing widgets...</p>
   </div>
 {:else}
   <Tabs
@@ -463,10 +473,8 @@
               width="20"
               class="text-tertiary-500 dark:text-primary-500"
             ></iconify-icon>
-            {applayout_version()}
-            <span class="preset-filled-secondary-500 badge"
-              >{revisions.length}</span
-            >
+	            {applayout_version()}
+	            <Badge variant="secondary">{revisions.length}</Badge>
           </div>
         </Tabs.Trigger>
       {/if}
@@ -557,10 +565,9 @@
                   </div>
                   <div class="flex items-center gap-2">
                     <SystemTooltip title="Insert Token">
-                      <button
+                      <Button variant="outline"
                         type="button"
-                        onclick={(e) => openTokenPicker(field, e)}
-                        class=""
+                        onclick={(e: MouseEvent) => openTokenPicker(field, e)}
                         aria-label="Insert token into {field.label}"
                       >
                         <iconify-icon
@@ -568,7 +575,7 @@
                           width="16"
                           class="font-bold text-tertiary-500 dark:text-primary-500"
                         ></iconify-icon>
-                      </button>
+                      </Button>
                     </SystemTooltip>
                     <!-- Per-Field Locale Badge + AI Translate -->
                     {#if field.translated}
@@ -701,35 +708,26 @@
           </p>
         {:else}
           <div class="mb-4 flex items-center justify-between gap-4">
-            <select class="select grow" bind:value={selectedRevisionId} aria-label="Select">
-              <option value="" disabled
-                >-- Select a revision to compare --</option
-              >
-              {#each revisions as revision (revision._id)}
-                <option value={revision._id}
-                  >{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(
-                    0,
-                    8,
-                  )}...</option
-                >
-              {/each}
-            </select>
-            <button
-              class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
+            <Select
+              bind:value={selectedRevisionId}
+              options={revisionOptions}
+              placeholder="Select a revision to compare"
+              class="grow"
+            />
+            <Button variant="tertiary"
               onclick={handleRevert}
               disabled={!selectedRevision?.data}
-             aria-label="Revert revision">
+             aria-label="Revert revision" class="dark:">
               <iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
               {applayout_version()}
-            </button>
-            <button
-              class="preset-tonal-primary btn"
+            </Button>
+            <Button variant="primary"
               onclick={() => (isDiffModalOpen = true)}
               disabled={!selectedRevision?.data}
              aria-label="Show diff">
               <iconify-icon icon="mdi:compare" class="mr-1"></iconify-icon>
               Compare
-            </button>
+            </Button>
           </div>
 
           {#if isDiffModalOpen && selectedRevision}
@@ -828,16 +826,15 @@
     <Tabs.Content value="3" class="w-full">
       <div class="space-y-4 p-4">
         <div class="flex items-center gap-2">
-          <input type="text" class="input grow" readonly value={apiUrl}  aria-label="Input" />
-          <button
-            class="preset-outline-surface-500 btn"
+          <Input type="text" class="grow" readonly value={apiUrl} label="API URL" />
+          <Button variant="outline"
             onclick={() => {
               navigator.clipboard.writeText(apiUrl);
               toast.success("API URL Copied");
             }}
-          >
+           class="preset-outline-surface-500">
             Copy
-          </button>
+          </Button>
         </div>
         <div
           class="card p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm `max-h-125"

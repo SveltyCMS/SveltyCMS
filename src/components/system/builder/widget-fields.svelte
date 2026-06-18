@@ -23,6 +23,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { FieldInstance } from '@content/types';
 	import PageTitle from '@src/components/page-title.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
@@ -213,15 +214,15 @@
 			: 'inset-s-0'}"
 	>
 		<div class="fixed top-0 flex items-center justify-between {ui.state.leftSidebar === 'full' ? 'inset-s-55 w-full' : 'inset-s-0 w-screen'}">
-			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" />
 
 			<div class="flex gap-2">
 				<!-- Save Button -->
-				<button class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" aria-label="Save" onclick={handleSave}>Save</button>
+				<Button variant="tertiary" aria-label="Save" onclick={handleSave} class="dark:">Save</Button>
 				<!-- Cancel Button -->
-				<button class="preset-outlined-secondary-500 btn-icon me-2" aria-label="Cancel" onclick={handleCancel}>
+				<Button variant="outline" aria-label="Cancel" onclick={handleCancel} class="p-0! min-w-0 me-2">
 					<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
-				</button>
+				</Button>
 			</div>
 		</div>
 

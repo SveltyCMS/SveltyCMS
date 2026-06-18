@@ -17,6 +17,7 @@
 <script lang="ts">
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { onMount } from "svelte";
+import FloatingInput from "@components/ui/floating-input.svelte";
 
 // Props
 interface Props {
@@ -75,9 +76,8 @@ let paletteItems = $derived(
 	</div>
 
 	<!-- Search -->
-	<div class="relative mb-4 shrink-0">
-		<iconify-icon icon="mdi:magnify" width="18" class="absolute inset-s-3 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-		<input type="text" placeholder="Search widgets..." class="input ps-10 h-10 w-full text-sm rounded" bind:value={searchTerm}  aria-label="Input" />
+	<div class="mb-4 shrink-0">
+		<FloatingInput bind:value={searchTerm} label="Search widgets..." icon="mdi:magnify" aria-label="Search widgets" inputClass="h-10 text-sm rounded" />
 	</div>
 
 	<!-- Widget List -->

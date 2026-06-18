@@ -118,7 +118,7 @@ const errorSummary = isDatabaseError
 					class="mt-4 rounded bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:absolute sm:inset-s-1/2 sm:top-1/2 sm:mt-0 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rotate-12"
 					aria-label="Error type"
 				>
-					<div class="max-w-[280px] truncate" title={page.url.toString()}>{page.url}</div>
+					<div class="max-w-70 truncate" title={page.url.toString()}>{page.url}</div>
 					<div class="whitespace-nowrap">{errorSummary}</div>
 				</div>
 			</div>

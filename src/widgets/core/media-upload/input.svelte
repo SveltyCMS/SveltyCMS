@@ -295,7 +295,7 @@
 					<button
 						type="button"
 						onclick={() => removeFile(file._id)}
-						class="absolute end-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+						class="absolute inset-e-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 						aria-label="Remove"
 						title="Remove"
 					>
@@ -317,7 +317,7 @@
 	</button>
 
 	{#if error}
-		<p class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
+		<p class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
 

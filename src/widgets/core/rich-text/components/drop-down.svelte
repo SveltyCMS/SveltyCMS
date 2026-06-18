@@ -18,6 +18,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { onMount, tick } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 
@@ -35,7 +36,7 @@
 
 	let expanded = $state(false);
 	let dropdownRef: HTMLDivElement | undefined = $state();
-	let buttonRef: HTMLButtonElement | undefined = $state();
+	let buttonWrapperRef: HTMLDivElement | undefined = $state();
 	const dropdownId = $state(`dropdown-${Math.random().toString(36).substring(2, 9)}`);
 	const listboxId = $derived(`${dropdownId}-menu`);
 	let focusedIndex = $state(-1); // roving focus index when expanded
@@ -89,7 +90,7 @@
 		active = '';
 		focusedIndex = -1;
 		if (focusButton) {
-			buttonRef?.focus();
+			buttonWrapperRef?.querySelector<HTMLButtonElement>('button, a[role="button"]')?.focus();
 		}
 	}
 
@@ -147,8 +148,10 @@
 </script>
 
 <div class={twMerge('relative', className)} class:hidden={!show} bind:this={dropdownRef}>
-	<button>
-		bind:this={buttonRef}
+	<div bind:this={buttonWrapperRef} class="contents">
+	<Button
+		variant="primary"
+		type="button"
 		onclick={toggleExpanded}
 		onkeydown={(e: KeyboardEvent) => {
 			if (e.key === 'ArrowDown') {
@@ -162,7 +165,7 @@
 				e.preventDefault();
 			}
 		}}
-		class="preset-filled-tertiary-500 btn flex w-fit items-center gap-1 rounded dark:preset-outlined-primary-500"
+		class="flex w-fit items-center gap-1 rounded"
 		aria-haspopup="true"
 		aria-expanded={expanded}
 		aria-controls={listboxId}
@@ -178,7 +181,8 @@
 		<span class="hidden text-sm sm:inline" class:text-tertiary-50={!!getActiveItem()} class:text-surface-800={!getActiveItem()}
 			>{getButtonText()}</span
 		>
-	</button>
+	</Button>
+	</div>
 
 	{#if expanded}
 		<div
@@ -213,7 +217,7 @@
 			}}
 		>
 			{#each items as item, i (item.name || item.title || i)}
-				<button>
+				<Button variant="outline">
 					use:captureItem={i}
 					onclick={(e: MouseEvent) => selectItem(item, e)}
 					onkeydown={(e: KeyboardEvent) => {
@@ -237,7 +241,7 @@
 						{/await}
 					{/if}
 					<span class="whitespace-nowrap text-sm">{item.name || item.title || ''}</span>
-				</button>
+				</Button>
 			{/each}
 		</div>
 	{/if}

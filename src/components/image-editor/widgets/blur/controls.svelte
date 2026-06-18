@@ -4,6 +4,8 @@
 Minimal blur controls focused on drag-resize rectangular regions.
 -->
 <script lang="ts">
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
 	let {
 		blurStrength,
 		hasActiveRegion = false,
@@ -47,15 +49,15 @@ Minimal blur controls focused on drag-resize rectangular regions.
 
 <div class="blur-controls" role="toolbar" aria-label="Blur controls">
 	<div class="control-group">
-		<button type="button" class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onAddRegion} title="Add blur region">
+		<Button variant="tertiary" type="button" onclick={onAddRegion} title="Add blur region" size="sm">
 			<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
 			<span>Add Region</span>
-		</button>
+		</Button>
 		{#if regionCount > 0}
-			<div class="badge preset-filled-surface-200 text-xs shrink-0">
+			<Badge variant="surface">
 				{regionCount}
 				{regionCount === 1 ? 'region' : 'regions'}
-			</div>
+			</Badge>
 		{/if}
 	</div>
 
@@ -78,22 +80,22 @@ Minimal blur controls focused on drag-resize rectangular regions.
 	</div>
 
 	<div class="control-group ml-auto">
-		<button type="button" class="btn btn-sm preset-outlined-surface-500" onclick={onReset}>
+		<Button variant="outline" type="button" onclick={onReset} size="sm">
 			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
 			<span>Reset</span>
-		</button>
-		<button type="button" class="btn btn-sm preset-outlined-error-500" onclick={onDeleteRegion} disabled={!hasActiveRegion}>
+		</Button>
+		<Button variant="error" type="button" onclick={onDeleteRegion} disabled={!hasActiveRegion} size="sm">
 			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 			<span>Delete</span>
-		</button>
-		<button type="button" class="btn btn-sm preset-outlined-error-500" onclick={onCancel}>
+		</Button>
+		<Button variant="error" type="button" onclick={onCancel} size="sm">
 			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			<span>Cancel</span>
-		</button>
-		<button type="button" class="btn btn-sm preset-filled-success-500" onclick={onApply}>
+		</Button>
+		<Button variant="success" type="button" onclick={onApply} size="sm">
 			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 			<span>Apply</span>
-		</button>
+		</Button>
 	</div>
 </div>
 

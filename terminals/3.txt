@@ -1,0 +1,646 @@
+---
+pid: 55108
+cwd: "D:\SveltyCMS"
+command: "cmd /c \"cd /d D:\\SveltyCMS && set TEST_MODE=true&& set TEST_API_SECRET=809c1f44-1fd9-4889-a766-978afdb207c0&& set HOST=127.0.0.1&& set PORT=4173&& set STRICT_SETUP_CHECK=true&& node build/index.js\""
+started_at: 2026-06-17T21:14:33.287Z
+running_for_ms: 45755008 
+---
+2026-06-17 21:14:33 ℹ️ [INFO ] ✅ DB module loaded. System will initialize background services when READY. 
+SvelteKit server initialized in 80.9ms
+Static files indexed in 212.5ms (1215 entries)
+Warning: No ORIGIN, HOST_HEADER, or PROTOCOL_HEADER configured. The server will use http:// with the request Host header. For production, either:
+  SSL_CERT + SSL_KEY for native TLS (no proxy needed)
+  ORIGIN=https://example.com (behind a TLS proxy)
+  PROTOCOL_HEADER=x-forwarded-proto + HOST_HEADER=x-forwarded-host (flexible proxy)
+  See: https://svti.me/adapter-origin
+WebSocket endpoint registered at /ws
+Listening on http://127.0.0.1:4173 (ready in 1ms)
+2026-06-17 21:14:42 ℹ️ [INFO ] [Boot] Starting initialization... 
+2026-06-17 21:14:42 ℹ️ [INFO ] [Boot] Test mode detected. Forcing engine: sqlite 
+2026-06-17 21:14:42 ℹ️ [INFO ] [Boot] Loading adapters for sqlite... 
+2026-06-17 21:14:42 ℹ️ [INFO ] [Boot] Adapter loaded. Connecting... 
+2026-06-17 21:14:42 ℹ️ [INFO ] [SQLite] Opening database at: :memory: (Original: :memory:) 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+2026-06-17 21:14:42 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-17 21:14:42 ℹ️ [INFO ] [Boot] Connection result: true 
+2026-06-17 21:14:42 ℹ️ [INFO ] [Boot] Starting service initialization... 
+2026-06-17 21:14:42 ℹ️ [INFO ] [DB Init] Fresh install detected. Entering SETUP mode. 
+2026-06-17 21:14:42 ℹ️ [INFO ] System state changed: INITIALIZING → SETUP {"reason":"System awaiting configuration"}
+2026-06-17 21:14:42 ℹ️ [INFO ] [DB Init] System entered SETUP mode. 
+2026-06-17 21:14:42 ℹ️ [INFO ] [DB Registry] bootAll started with 2 plugins 
+2026-06-17 21:14:42 ℹ️ [INFO ] [DB Registry] Booting 2 services... 
+2026-06-17 21:14:43 ℹ️ [INFO ] [DB Registry] bootAll settling delay finished 
+2026-06-17 21:14:43 ℹ️ [INFO ] [DB Registry] Initializing service: base... 
+2026-06-17 21:14:43 ℹ️ [INFO ] 🚀 [SQLite] Running system migrations... 
+2026-06-17 21:14:43 ℹ️ [INFO ] SQLite migrations completed successfully. 
+2026-06-17 21:14:43 ℹ️ [INFO ] ✓ Service database initialized in 4ms {"average":"4.00","min":4,"max":4}
+2026-06-17 21:14:43 ℹ️ [INFO ] [DB Registry] Initializing service: auth... 
+2026-06-17 21:14:43 ℹ️ [INFO ] Creating in-memory session manager 
+2026-06-17 21:14:43 ℹ️ [INFO ] ✓ Service auth initialized in 17ms {"average":"17.00","min":17,"max":17}
+2026-06-17 21:14:43 ℹ️ [INFO ] [DB Registry] System services online. 
+2026-06-17 21:14:43 ℹ️ [INFO ] [Boot] Service initialization complete. 
+2026-06-17 21:14:43 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+2026-06-17 21:14:43 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-17 21:14:43 ℹ️ [INFO ] Resetting system state to IDLE 
+2026-06-17 21:14:43 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-17 21:14:43 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+[Accessibility Warning] Widget 'Price' has potential WCAG compliance issues in '/src/widgets/custom/price/input.svelte':
+  - Interactive element '<Input
+type="number"
+value={value!.amount ?? ''}
+oninput={(e) =>' lacks 'aria-label', 'aria-labelledby', or 'id'.
+2026-06-17 21:14:43 ℹ️ [INFO ] 🔄 System setup state change detected: false -> true 
+2026-06-17 21:14:43 ℹ️ [INFO ] [SQLite] Opening database at: config/database/sveltycms_test_0.db (Original: D:\SveltyCMS\config\database\sveltycms_test_0.db) 
+2026-06-17 21:14:43 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-17 21:14:43 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-17 21:14:43 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:43 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:45 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:45 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:45 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:45 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:45 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[TestingHandler] action: create-user, collectionId: N/A, tenant: null
+2026-06-17 21:14:46 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:46 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:48 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:48 ⚠️ [WARN ] Permission denied for user {"email":"ed***@example.com","userId":"***","userRoleId":"Editor","userRole":{"_id":"a1068d1651974f4e85352e438eb96931","name":"Editor","description":"Content managers - Create and edit content, manage media and users","permissions":["collections:read","collections:update","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","api:userActivity","api:media","user:manage"],"isAdmin":false,"icon":"material-symbols:edit","color":"gradient-tertiary","tenantId":null,"createdAt":"2026-06-17T21:14:43.113Z","updatedAt":"2026-06-17T21:14:43.113Z","__bitset":{"0":1073741825,"1":6830163,"2":0}},"permissionId":"config:collectionbuilder","userPermissions":["collections:read","collections:update","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","api:userActivity","api:media","user:manage"],"rolesAvailable":[{"id":"7c5ae3de26044d84bff6dc39d2ec4be3","isAdmin":true},{"id":"0e29b6277bab424d9df702863f768d0b","isAdmin":false},{"id":"a1068d1651974f4e85352e438eb96931","isAdmin":false}]}
+2026-06-17 21:14:48 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+2026-06-17 21:14:48 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[TestingHandler] action: create-user, collectionId: N/A, tenant: null
+2026-06-17 21:14:48 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:48 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:50 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:50 ⚠️ [WARN ] Role not found for user {"email":"au***@example.com","userRoleId":"Author","rolesAvailable":["7c5ae3de26044d84bff6dc39d2ec4be3","0e29b6277bab424d9df702863f768d0b","a1068d1651974f4e85352e438eb96931"]}
+2026-06-17 21:14:50 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+2026-06-17 21:14:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:50 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+2026-06-17 21:14:50 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+2026-06-17 21:14:50 ℹ️ [INFO ] Resetting system state to IDLE 
+2026-06-17 21:14:50 ℹ️ [INFO ] 🔄 System setup state change detected: true -> false 
+2026-06-17 21:14:50 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-17 21:14:50 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-17 21:14:50 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+2026-06-17 21:14:50 ℹ️ [INFO ] 🔄 System setup state change detected: false -> true 
+2026-06-17 21:14:50 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-17 21:14:50 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:51 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:52 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:52 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:53 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:53 ⚠️ [WARN ] No collections found for user. Redirecting to fallback. {"tenantId":null}
+2026-06-17 21:14:53 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:53 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:53 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:53 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:53 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:54 ℹ️ [INFO ] [SQLite] Opening database at: config/database/sveltycms_test_1.db (Original: D:\SveltyCMS\config\database\sveltycms_test_1.db) 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+2026-06-17 21:14:54 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-17 21:14:54 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+2026-06-17 21:14:54 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+2026-06-17 21:14:54 ℹ️ [INFO ] Resetting system state to IDLE 
+2026-06-17 21:14:54 ℹ️ [INFO ] 🔄 System setup state change detected: true -> false 
+2026-06-17 21:14:54 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-17 21:14:54 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-17 21:14:54 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+2026-06-17 21:14:55 ℹ️ [INFO ] 🔄 System setup state change detected: false -> true 
+2026-06-17 21:14:55 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:55 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-17 21:14:55 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:57 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:14:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:14:57 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 0ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-17 21:15:04 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+2026-06-17 21:15:04 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+2026-06-17 21:15:04 ℹ️ [INFO ] Resetting system state to IDLE 
+2026-06-17 21:15:04 ℹ️ [INFO ] 🔄 System setup state change detected: true -> false 
+2026-06-17 21:15:04 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-17 21:15:04 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-17 21:15:04 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+2026-06-17 21:15:04 ℹ️ [INFO ] 🔄 System setup state change detected: false -> true 
+2026-06-17 21:15:04 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:04 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-17 21:15:05 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:07 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:07 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:07 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:07 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:07 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[TestingHandler] action: create-user, collectionId: N/A, tenant: null
+2026-06-17 21:15:07 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:07 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:09 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:09 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:09 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:09 ⚠️ [WARN ] Permission denied for user {"email":"ed***@example.com","userId":"***","userRoleId":"Editor","userRole":{"_id":"b77d4c860f2447b39ba4adb2537d81bb","name":"Editor","description":"Content managers - Create and edit content, manage media and users","permissions":["collections:read","collections:update","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","api:userActivity","api:media","user:manage"],"isAdmin":false,"icon":"material-symbols:edit","color":"gradient-tertiary","tenantId":null,"createdAt":"2026-06-17T21:15:04.565Z","updatedAt":"2026-06-17T21:15:04.565Z","__bitset":{"0":1073741825,"1":6830163,"2":0}},"permissionId":"config:collectionbuilder","userPermissions":["collections:read","collections:update","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","api:userActivity","api:media","user:manage"],"rolesAvailable":[{"id":"23606911cf454590856eb86b0b4e5797","isAdmin":true},{"id":"6277777132d9418d8d4e25cdc66c46cb","isAdmin":false},{"id":"b77d4c860f2447b39ba4adb2537d81bb","isAdmin":false}]}
+2026-06-17 21:15:09 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+2026-06-17 21:15:09 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[TestingHandler] action: create-user, collectionId: N/A, tenant: null
+2026-06-17 21:15:10 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:10 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:11 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:11 ⚠️ [WARN ] Role not found for user {"email":"au***@example.com","userRoleId":"Author","rolesAvailable":["23606911cf454590856eb86b0b4e5797","6277777132d9418d8d4e25cdc66c46cb","b77d4c860f2447b39ba4adb2537d81bb"]}
+2026-06-17 21:15:11 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+2026-06-17 21:15:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:12 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+2026-06-17 21:15:12 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+2026-06-17 21:15:12 ℹ️ [INFO ] Resetting system state to IDLE 
+2026-06-17 21:15:12 ℹ️ [INFO ] 🔄 System setup state change detected: true -> false 
+2026-06-17 21:15:12 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-17 21:15:12 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-17 21:15:12 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+2026-06-17 21:15:12 ℹ️ [INFO ] 🔄 System setup state change detected: false -> true 
+2026-06-17 21:15:12 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-17 21:15:12 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:12 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:14 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:14 ⚠️ [WARN ] No collections found for user. Redirecting to fallback. {"tenantId":null}
+2026-06-17 21:15:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:14 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:16 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:17 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:21 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ℹ️ [INFO ] Fetched 0 media items for folder root 
+2026-06-17 21:15:21 ℹ️ [INFO ] No media items found 
+2026-06-17 21:15:21 ℹ️ [INFO ] Fetched 0 media items for folder root 
+2026-06-17 21:15:21 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheSet] Caching endpoint: /api/system-virtual-folder
+2026-06-17 21:15:21 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:21 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:21 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:21 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:15:21 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:21 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 0ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-17 21:15:23 ℹ️ [INFO ] [SQLite] Opening database at: config/database/sveltycms_test_2.db (Original: D:\SveltyCMS\config\database\sveltycms_test_2.db) 
+2026-06-17 21:15:23 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-17 21:15:23 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:24 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+[svelte-realtime] Topic 'system_events:default' has subscribers but no events arrived within 30000ms.
+  Common causes:
+    - missing pg_notify trigger on the underlying table
+    - no ctx.publish() call in the relevant handler
+    - intentionally low-traffic topic (extend threshold or suppress)
+  Configure: live.silentTopicWarning({ thresholdMs: 60000 })
+  Suppress:  live.silentTopicWarning({ suppress: ['system_events:default'] })
+  Disable:   live.silentTopicWarning(false)
+  See: https://svti.me/silent-topic
+[svelte-realtime] Topic 'chat:ai:default' has subscribers but no events arrived within 30000ms.
+  Common causes:
+    - missing pg_notify trigger on the underlying table
+    - no ctx.publish() call in the relevant handler
+    - intentionally low-traffic topic (extend threshold or suppress)
+  Configure: live.silentTopicWarning({ thresholdMs: 60000 })
+  Suppress:  live.silentTopicWarning({ suppress: ['chat:ai:default'] })
+  Disable:   live.silentTopicWarning(false)
+  See: https://svti.me/silent-topic
+2026-06-17 21:15:28 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:28 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:28 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-17 21:15:28 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:15:28 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:28 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:28 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:28 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:28 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:30 ℹ️ [INFO ] [SQLite] Opening database at: config/database/sveltycms_test_3.db (Original: D:\SveltyCMS\config\database\sveltycms_test_3.db) 
+2026-06-17 21:15:30 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-17 21:15:30 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:31 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:35 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:35 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:35 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:35 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:15:35 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-17 21:15:35 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:35 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:35 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:35 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:35 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 1ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-17 21:15:37 ℹ️ [INFO ] [SQLite] Opening database at: config/database/sveltycms_test_4.db (Original: D:\SveltyCMS\config\database\sveltycms_test_4.db) 
+2026-06-17 21:15:37 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-17 21:15:37 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:37 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:40 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:40 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:40 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:40 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:40 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:15:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:15:40 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:15:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:40 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:41 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:41 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:43 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:43 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:43 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:43 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:43 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:15:43 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:43 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:45 ℹ️ [INFO ] [SQLite] Opening database at: config/database/sveltycms_test_5.db (Original: D:\SveltyCMS\config\database\sveltycms_test_5.db) 
+2026-06-17 21:15:45 ℹ️ [INFO ] [SQLite] Using native 'node:sqlite' driver (shimmed via sqlite-proxy). 
+2026-06-17 21:15:45 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:45 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:49 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:15:49 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:49 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:49 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:15:49 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:15:49 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-17 21:15:49 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:49 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:49 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:15:49 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:15:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:50 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:15:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:15:50 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:12 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-17 21:16:12 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+2026-06-17 21:16:12 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+2026-06-17 21:16:12 ℹ️ [INFO ] Resetting system state to IDLE 
+2026-06-17 21:16:12 ℹ️ [INFO ] 🔄 System setup state change detected: true -> false 
+2026-06-17 21:16:12 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-17 21:16:12 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+2026-06-17 21:16:13 ℹ️ [INFO ] 🔄 System setup state change detected: false -> true 
+2026-06-17 21:16:13 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:13 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-17 21:16:13 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:15 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:15 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:15 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:15 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:15 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[TestingHandler] action: create-user, collectionId: N/A, tenant: null
+2026-06-17 21:16:16 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:16 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:18 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:18 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:18 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:18 ⚠️ [WARN ] Permission denied for user {"email":"ed***@example.com","userId":"***","userRoleId":"Editor","userRole":{"_id":"68753e5189a84ab091e74fd584410c2f","name":"Editor","description":"Content managers - Create and edit content, manage media and users","permissions":["collections:read","collections:update","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","api:userActivity","api:media","user:manage"],"isAdmin":false,"icon":"material-symbols:edit","color":"gradient-tertiary","tenantId":null,"createdAt":"2026-06-17T21:16:12.840Z","updatedAt":"2026-06-17T21:16:12.840Z","__bitset":{"0":1073741825,"1":6830163,"2":0}},"permissionId":"config:collectionbuilder","userPermissions":["collections:read","collections:update","collections:create","content:editor","content:images","system:dashboard","api:systemInfo","api:collections","api:user","api:userActivity","api:media","user:manage"],"rolesAvailable":[{"id":"c32f1f43adb24201b46251e025b2027c","isAdmin":true},{"id":"78d8c83932994dbeb1dee8606c4adfa9","isAdmin":false},{"id":"68753e5189a84ab091e74fd584410c2f","isAdmin":false}]}
+2026-06-17 21:16:18 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+2026-06-17 21:16:18 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[TestingHandler] action: create-user, collectionId: N/A, tenant: null
+2026-06-17 21:16:18 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:18 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:20 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:20 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:20 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:20 ⚠️ [WARN ] Role not found for user {"email":"au***@example.com","userRoleId":"Author","rolesAvailable":["c32f1f43adb24201b46251e025b2027c","78d8c83932994dbeb1dee8606c4adfa9","68753e5189a84ab091e74fd584410c2f"]}
+2026-06-17 21:16:20 ⚠️ [WARN ] [CollectionBuilder] Permission denied for action. {"userId":"***"}
+2026-06-17 21:16:20 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:20 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:20 ℹ️ [INFO ] [SQLite Adapter] Database tables cleared/dropped (resilient clear) 
+[TestingHandler] action: reset, collectionId: N/A, tenant: null
+2026-06-17 21:16:20 ℹ️ [INFO ] [Security] Rate limiters and alert trackers reset 
+2026-06-17 21:16:20 ℹ️ [INFO ] Resetting system state to IDLE 
+2026-06-17 21:16:20 ℹ️ [INFO ] 🔄 System setup state change detected: true -> false 
+2026-06-17 21:16:20 ℹ️ [INFO ] 🔐 Seeding default roles... 
+2026-06-17 21:16:20 ℹ️ [INFO ] ✅ Default roles seeded successfully 
+[TestingHandler] RESET TRIGGERED for tenant: null
+2026-06-17 21:16:20 ⚠️ [WARN ] No themes found in database. Using DEFAULT_THEME fallback. 
+[TestingHandler] action: seed, collectionId: N/A, tenant: null
+2026-06-17 21:16:20 ℹ️ [INFO ] 🔄 System setup state change detected: false -> true 
+2026-06-17 21:16:20 ℹ️ [INFO ] [handleSystemState] Starting system initialization flow... 
+2026-06-17 21:16:21 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:21 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:23 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:23 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:23 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:23 ⚠️ [WARN ] No collections found for user. Redirecting to fallback. {"tenantId":null}
+2026-06-17 21:16:23 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:23 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:23 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:23 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:23 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:25 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:25 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:30 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:16:30 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:16:30 ℹ️ [INFO ] Fetched 0 media items for folder root 
+2026-06-17 21:16:30 ℹ️ [INFO ] No media items found 
+2026-06-17 21:16:30 ℹ️ [INFO ] Fetched 0 media items for folder root 
+2026-06-17 21:16:30 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheSet] Caching endpoint: /api/system-virtual-folder
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:30 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:31 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:16:31 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:16:31 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:16:31 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:16:30 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:31 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:31 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:31 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:16:31 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 1ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-17 21:16:31 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:16:31 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:31 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:33 ℹ️ [INFO ] Admin theme saved {"themeId":"4e744a214fdd4c3ca94ff838e7e1699f","tenantId":null}
+2026-06-17 21:16:33 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:36 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:16:36 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:36 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:37 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:16:37 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:37 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:38 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:16:38 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:38 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:39 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:16:39 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:16:39 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:08 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:17:09 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:17:14 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:17:14 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:17:14 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:17:14 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:17:14 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:17:14 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:17:14 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:17:14 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:14 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 1ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-17 21:17:15 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:15 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:15 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:16 ℹ️ [INFO ] Admin theme saved {"themeId":"4e744a214fdd4c3ca94ff838e7e1699f","tenantId":null}
+2026-06-17 21:17:16 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:20 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:20 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:20 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:21 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:21 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:22 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:22 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:23 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:23 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:23 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:52 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:17:52 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:17:56 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:17:56 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:17:56 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:17:56 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:17:56 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:56 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:56 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:17:56 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:17:56 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:17:56 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:17:57 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:56 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:57 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 0ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-17 21:17:57 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:57 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:58 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:58 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:58 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:59 ℹ️ [INFO ] Admin theme saved {"themeId":"4e744a214fdd4c3ca94ff838e7e1699f","tenantId":null}
+2026-06-17 21:17:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:59 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:17:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:17:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:00 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:18:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:00 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:24 ⚠️ [WARN ] No collections found for user. Redirecting to fallback. {"tenantId":null}
+2026-06-17 21:18:24 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:24 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:24 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 1ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-17 21:18:24 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:26 ℹ️ [INFO ] Admin theme saved {"themeId":"4e744a214fdd4c3ca94ff838e7e1699f","tenantId":null}
+2026-06-17 21:18:26 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:26 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:38 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:53 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:18:53 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:18:59 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:18:59 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:18:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:59 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:18:59 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:18:59 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:18:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:18:59 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:19:00 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:19:00 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:19:03 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:19:03 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:03 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:19:03 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:03 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:03 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:03 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:19:03 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:19:03 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:19:03 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:03 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:19:04 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:19:04 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:04 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:04 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:04 ℹ️ [INFO ] [WS Upgrade] Successful handshake in 0ms {"tenantId":null,"userId":"***","isTest":false}
+2026-06-17 21:19:06 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:19:06 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:19:10 ⚠️ [WARN ] No collections found via getSmartFirst(), returning null. 
+2026-06-17 21:19:10 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:10 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:19:10 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:10 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:10 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:19:10 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:19:10 ℹ️ [INFO ] Fetched 0 total virtual folders 
+2026-06-17 21:19:10 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:10 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:19:10 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:19:11 ℹ️ [INFO ] File uploaded successfully to global: testthumb.png 
+2026-06-17 21:19:10 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:10 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:11 ℹ️ [INFO ] Loading media gallery for folderId: root (recursive: false) 
+2026-06-17 21:19:11 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:19:11 ℹ️ [INFO ] Fetched 1 media items for folder root 
+2026-06-17 21:19:11 ℹ️ [INFO ] Fetched 0 total virtual folders 
+[CacheHit] Hit: /api/system-virtual-folder
+2026-06-17 21:19:11 ℹ️ [INFO ] [handleContentInitialization] No collections for tenant: null. Redirecting Admin to builder. 
+2026-06-17 21:19:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
+2026-06-17 21:19:11 ⚠️ [WARN ] [handleSystemState] System IDLE — served after waiting for boot. 
