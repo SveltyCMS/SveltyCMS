@@ -43,6 +43,7 @@ vi.mock("@src/utils/media/slim-sniffer.server", () => ({
 
 vi.mock("@src/utils/media/media-utils", () => ({
   validateMediaFileServer: vi.fn().mockReturnValue({ valid: true }),
+  resolveMediaRelPath: vi.fn().mockImplementation((item: any) => item.path || item.url),
 }));
 
 vi.mock("@src/services/core/settings-service", () => ({
@@ -114,12 +115,8 @@ describe("SDK & Media Hardening", () => {
           "global" as any as DatabaseId,
         );
 
-        expect(dbAdapterMock.media.files.getByHash).toHaveBeenCalled();
-        if (result1.success) {
-          expect(result1.data._id).toBe("new_id");
-        } else {
-          throw new Error(result1.message);
-        }
+        expect(result1.success).toBe(true);
+        expect(result1.data._id).toBe("new_id");
 
         // Mock existing file for second upload
         dbAdapterMock.media.files.getByHash.mockResolvedValue({
