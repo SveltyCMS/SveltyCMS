@@ -51,10 +51,12 @@
 </script>
 
 <AdminPageShell
-	title="Redirect Manager"
-	icon="mdi:arrow-decision"
-	description="Manage your site redirects globally"
->
+		title="Redirect Manager"
+		icon="mdi:arrow-decision"
+		description="Manage your site redirects globally"
+		showBackButton={true}
+		backUrl="/config"
+	>
 	{#snippet actions()}
 		<Button variant="tertiary" onclick={() => openModal()} leadingIcon="mdi:plus" class="dark:">
 			Add Redirect

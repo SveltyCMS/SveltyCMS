@@ -29,7 +29,9 @@ export const websiteTokenSchema = new Schema<WebsiteToken>(
     expiresAt: { type: String, required: false },
   },
   {
-    timestamps: true,
+    // ⚠️ timestamps: true conflicts with explicit createdAt/updatedAt String types.
+    // crud.insert() manually sets both to nowISODateString() — timestamps plugin
+    // would coerce them to Date, breaking type consistency and toObject() output.
     collection: "system_website_tokens",
     strict: true,
     _id: false,

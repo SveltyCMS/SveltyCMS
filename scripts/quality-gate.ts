@@ -79,7 +79,8 @@ async function main() {
   const tasks = [
     {
       name: "Format",
-      run: () => runCommand("vp", ["fmt", "--config", ".oxfmtrc.json"]),
+      // vite-plus 0.2 reads fmt config from vite.config.ts — no separate config file
+      run: () => runCommand("vp", ["fmt"]),
     },
     {
       name: "Post-Format Tree Clean Check",
@@ -125,7 +126,7 @@ async function main() {
       // Run the full test:unit (same as the dedicated CI "unit" job) for true parity.
       // test-smart.ts is still useful for local speed during active dev but the gate now ensures
       // the complete suite that GitHub Actions runs on every push.
-      run: () => runCommand("bun", ["run", "test:unit"]),
+      run: () => runCommand("vp", ["test", "run"]),
     },
     {
       name: "Dependency Audit",
@@ -142,7 +143,7 @@ async function main() {
       name: "Production Build",
       skip: !hasTsOrSvelte,
       run: () =>
-        runCommand("bun", ["run", "build"], {
+        runCommand("vp", ["build"], {
           env: { COMPILE_ALL_ADAPTERS: "true" },
         }),
     },

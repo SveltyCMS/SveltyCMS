@@ -532,11 +532,13 @@ beforeNavigate(async ({ cancel }) => {
 <svelte:head><title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title></svelte:head>
 
 <AdminPageShell
-	title={collectionSchema?.name ?? 'Collection'}
-	icon={collectionSchema?.icon ?? 'bi:collection'}
-	fullHeight={true}
-	animate={false}
->
+		title={collectionSchema?.name ?? 'Collection'}
+		icon={collectionSchema?.icon ?? 'bi:collection'}
+		fullHeight={true}
+		animate={false}
+		showBackButton={true}
+		backUrl="/"
+	>
 <div class="content min-h-0 flex-1">
 	<!-- Auto-save indicator -->
 	{#if isSavingDraft}
@@ -568,9 +570,9 @@ beforeNavigate(async ({ cancel }) => {
 	{:else if ['edit', 'create'].includes(collections.mode)}
 		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)] space-y-6">
             {#if collections.mode === 'edit' && collections.activeValue?._id}
-                <WorkflowActions 
-                    collectionId={collections.active._id!} 
-                    entryId={String(collections.activeValue?._id || '')} 
+                <WorkflowActions
+                    collectionId={collections.active._id!}
+                    entryId={String(collections.activeValue?._id || '')}
                 />
             {/if}
 			<!-- Pass the server-loaded data directly as props -->

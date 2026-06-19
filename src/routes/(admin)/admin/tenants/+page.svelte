@@ -37,10 +37,12 @@ function formatBytes(bytes: number, decimals = 2) {
 </script>
 
 <AdminPageShell
-	title="Tenants"
-	icon="mdi:office-building"
-	description="Manage organizations and resource quotas."
->
+		title="Tenants"
+		icon="mdi:office-building"
+		description="Manage organizations and resource quotas."
+		showBackButton={true}
+		backUrl="/admin"
+	>
 	{#snippet actions()}
 		<Button variant="primary" leadingIcon="mdi:plus">Create Tenant</Button>
 	{/snippet}

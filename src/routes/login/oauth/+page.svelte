@@ -77,7 +77,7 @@ function handleCancel() {
 </script>
 
 <div class="grid h-full w-full place-items-center bg-[#242728]">
-	<form class="card m-2 flex flex-col items-center gap-2 rounded border p-2 sm:p-6" method="post" action="?/OAuth" onsubmit={handleSubmit}>
+	<form class="m-2 flex flex-col items-center gap-2 rounded border border-surface-200 bg-white p-2 shadow-xs sm:p-6 dark:border-surface-700 dark:bg-surface-900" method="post" action="?/OAuth" onsubmit={handleSubmit}>
 		<!-- CSS Logo -->
 		<SveltyCMSLogoFull />
 

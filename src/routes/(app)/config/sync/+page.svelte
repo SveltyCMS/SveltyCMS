@@ -122,14 +122,11 @@ onMount(() => {
 					title={tab === 'sync' ? 'Deploy changes' : tab === 'backups' ? 'Import/Export Data' : 'Debug Info'}
 					positioning={{ placement: 'top' }}
 				>
-					<button
-						class="flex-1 py-3 text-center text-sm font-medium transition-all duration-200 px-6"
-						class:!bg-tertiary-500={activeTab === tab}
-						class:!text-white={activeTab === tab}
-						class:!dark:bg-primary-500={activeTab === tab}
-						class:!dark:text-surface-900={activeTab === tab}
-						class:dark:text-surface-200={activeTab !== tab}
-						class:text-surface-700={activeTab !== tab}
+					<Button
+						variant="ghost"
+						class="flex-1 py-3 text-center text-sm font-medium {activeTab === tab
+							? '!bg-tertiary-500 dark:!bg-primary-500 !text-white dark:!text-surface-900'
+							: '!text-surface-700 dark:!text-surface-200'}"
 						onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
 						role="tab"
 						aria-selected={activeTab === tab}
@@ -137,7 +134,7 @@ onMount(() => {
 						id="{tab}-tab"
 					>
 						{tab.charAt(0).toUpperCase() + tab.slice(1)}
-					</button>
+					</Button>
 				</SystemTooltip>
 			{/each}
 		</div>

@@ -151,10 +151,12 @@ onMount(loadWebhooks);
 </script>
 
 <AdminPageShell
-	title="Webhooks"
-	icon="mdi:webhook"
-	description="Manage webhook endpoints and event subscriptions"
->
+		title="Webhooks"
+		icon="mdi:webhook"
+		description="Manage webhook endpoints and event subscriptions"
+		showBackButton={true}
+		backUrl="/config"
+	>
 	{#snippet actions()}
 		<Button variant="tertiary" onclick={openAddModal} aria-label="Add webhook" leadingIcon="mdi:plus" class="dark:">
 			Add Webhook
@@ -185,8 +187,8 @@ onMount(loadWebhooks);
 		>
 			<div class="grid gap-4">
 				{#each webhooks as webhook (webhook.id)}
-					<div
-						class="card p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 hover:border-tertiary-500 dark:border-primary-500 transition-colors"
+					<AdminCard
+						class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
 					>
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2 mb-1">
@@ -231,9 +233,9 @@ onMount(loadWebhooks);
 							 size="sm">
 								<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 							</Button>
-						</div>
-					</div>
-				{/each}
+							</div>
+						</AdminCard>
+					{/each}
 			</div>
 		</AdminCard>
 		</div>

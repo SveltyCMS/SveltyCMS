@@ -171,10 +171,12 @@ async function handleScaffold() {
 </script>
 
 <AdminPageShell
-	title="Smart CMS Importer"
-	icon="mdi:database-import-outline"
-	description="Migrate content from WordPress or Drupal with AI-powered field mapping"
->
+		title="Smart CMS Importer"
+		icon="mdi:database-import-outline"
+		description="Migrate content from WordPress or Drupal with AI-powered field mapping"
+		showBackButton={true}
+		backUrl="/config"
+	>
 	<AdminCard class="border border-surface-200 bg-white p-6 shadow-xs backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40">
 		<div class="mb-6 flex items-center gap-4">
 			<div class="flex items-center gap-2 {step >= 1 ? 'font-bold text-tertiary-500 dark:text-primary-500' : ''}">
@@ -292,18 +294,18 @@ async function handleScaffold() {
 						<div class="text-5xl text-success-500">✅</div>
 						<h3 class="text-2xl font-bold">Import Completed!</h3>
 						<div class="mx-auto grid max-w-md grid-cols-3 gap-4">
-							<div class="card bg-surface-100 p-4 dark:bg-surface-700">
+							<AdminCard class="p-4 text-center">
 								<div class="text-2xl font-bold">{importResult.imported}</div>
 								<div class="text-sm opacity-60">Imported</div>
-							</div>
-							<div class="card bg-surface-100 p-4 dark:bg-surface-700">
+							</AdminCard>
+							<AdminCard class="p-4 text-center">
 								<div class="text-2xl font-bold">{importResult.errors}</div>
 								<div class="text-sm opacity-60">Errors</div>
-							</div>
-							<div class="card bg-surface-100 p-4 dark:bg-surface-700">
+							</AdminCard>
+							<AdminCard class="p-4 text-center">
 								<div class="text-2xl font-bold">{importResult.total}</div>
 								<div class="text-sm opacity-60">Total Items</div>
-							</div>
+							</AdminCard>
 						</div>
 						<StickyActions>
 							<Button variant="tertiary" onclick={() => step = 1} class="dark:">Start New Import</Button>

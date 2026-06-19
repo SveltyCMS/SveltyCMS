@@ -1207,5 +1207,15 @@ export default defineConfig((): any => {
       ],
       entries: ["!tests/**/*", "!**/*.server.ts", "!**/*.server.js"],
     },
+
+    // ── vite-plus 0.2 unified toolchain config ──
+    // Replaces .oxlintrc.json and .oxfmtrc.json
+    lint: {
+      ignorePatterns: [],
+      env: { builtin: true },
+    },
+    fmt: {
+      ignorePatterns: [],
+    },
   };
 });

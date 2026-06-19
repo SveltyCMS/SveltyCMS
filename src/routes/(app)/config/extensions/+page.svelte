@@ -6,6 +6,7 @@
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import Button from '@components/ui/button.svelte';
 import PluginsView from "./plugins-view.svelte";
 import ThemesView from "./themes-view.svelte";
 import WidgetDashboard from "./widget-dashboard.svelte";
@@ -33,20 +34,21 @@ const tabs = [
 		<div class="mb-8 flex items-center justify-between border-b border-surface-200 dark:border-surface-50">
 			<div class="flex gap-2">
 				{#each tabs as tab (tab.id)}
-					<button
+					<Button
+						variant="ghost"
 						onclick={() => (activeTab = tab.id)}
-						class="relative px-6 py-4 font-medium transition-all {activeTab === tab.id
-							? 'text-tertiary-500 dark:text-primary-500'
-							: 'text-surface-500 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-100'}"
+						class="relative px-6 py-4 font-medium {activeTab === tab.id
+							? '!text-tertiary-500 dark:!text-primary-500'
+							: '!text-surface-500 dark:!text-surface-50 hover:!text-surface-900 dark:hover:!text-surface-100'}"
+						aria-selected={activeTab === tab.id}
+						role="tab"
 					>
-						<div class="flex items-center gap-2">
-							<iconify-icon icon={tab.icon} width="20" class="text-xl"></iconify-icon>
-							<span>{tab.label}</span>
-						</div>
+						<iconify-icon icon={tab.icon} width="20" class="text-xl"></iconify-icon>
+						<span>{tab.label}</span>
 						{#if activeTab === tab.id}
 							<div class="absolute bottom-0 inset-s-0 h-0.5 w-full bg-tertiary-500 dark:bg-primary-500"></div>
 						{/if}
-					</button>
+					</Button>
 				{/each}
 			</div>
 

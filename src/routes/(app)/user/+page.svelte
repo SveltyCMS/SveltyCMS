@@ -16,8 +16,9 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import Avatar from "@components/ui/avatar.svelte";
-	import Checkbox from '@components/ui/checkbox.svelte';
+		import Avatar from "@components/ui/avatar.svelte";
+		import Badge from '@components/ui/badge.svelte';
+		import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
@@ -211,14 +212,14 @@
 					</Button>
 				</div>
 				<!-- User ID -->
-				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
+				<Badge preset="tonal" color="secondary" class="mt-1 w-full max-w-xs text-white">
 					{userpage_user_id()}<span class="ms-2 font-bold">{user?._id || 'N/A'}</span>
-				</div>
+				</Badge>
 				<!-- Role -->
-				<div class="gradient-tertiary badge w-full max-w-xs text-white">{role()}:<span class="ms-2 font-bold">{user?.role || 'N/A'}</span></div>
+				<Badge preset="tonal" color="tertiary" class="w-full max-w-xs text-white">{role()}:<span class="ms-2 font-bold">{user?.role || 'N/A'}</span></Badge>
 				<!-- Tenant ID -->
 				{#if isMultiTenant && user?.tenantId}
-					<div class="gradient-warning badge w-full max-w-xs text-white">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></div>
+					<Badge preset="tonal" color="warning" class="w-full max-w-xs text-white">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></Badge>
 				{/if}
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
@@ -302,7 +303,7 @@
 
 				<!-- Permissions List -->
 				{#each user.permissions as permission (permission)}
-					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">{permission}</div>
+					<Badge preset="tonal" color="primary" class="mt-1 w-full max-w-xs text-white">{permission}</Badge>
 				{/each}
 			</div>
 

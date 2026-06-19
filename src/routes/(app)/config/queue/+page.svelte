@@ -64,10 +64,12 @@ function getFilterUrl(status?: string) {
 </script>
 
 <AdminPageShell
-	title="Background Queue"
-	icon="mdi:tray-full"
-	description="Monitor and manage background job processing"
->
+		title="Background Queue"
+		icon="mdi:tray-full"
+		description="Monitor and manage background job processing"
+		showBackButton={true}
+		backUrl="/config"
+	>
 	{#snippet actions()}
 		<Button variant="ghost" onclick={() => invalidateAll()} size="sm" leadingIcon="mdi:refresh">
 			Refresh

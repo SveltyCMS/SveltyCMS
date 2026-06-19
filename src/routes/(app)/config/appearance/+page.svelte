@@ -680,38 +680,47 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
               </p>
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <button
-                  class="card p-4 border-2 {density === 'cozy' && variant === 'bordered'
-                    ? 'border-tertiary-500 dark:border-primary-500'
-                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-start"
-                  onclick={() => { density = 'cozy'; variant = 'bordered'; }}
-                >
-                  <iconify-icon icon="mdi:monitor-dashboard" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
-                  <h4 class="font-bold text-sm">Cozy Default</h4>
-                  <p class="text-xs text-surface-500 dark:text-surface-400">Standard admin density with subtle borders</p>
-                </button>
+                				<AdminCard
+                					class="cursor-pointer p-4 border-2 {density === 'cozy' && variant === 'bordered'
+                						? 'border-tertiary-500 dark:border-primary-500'
+                						: 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors"
+                					onclick={() => { density = 'cozy'; variant = 'bordered'; }}
+					role="button"
+					tabindex={0}
+					aria-label="Apply Cozy Default preset"
+                				>
+                					<iconify-icon icon="mdi:monitor-dashboard" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
+                					<h4 class="font-bold text-sm">Cozy Default</h4>
+                					<p class="text-xs text-surface-500 dark:text-surface-400">Standard admin density with subtle borders</p>
+                				</AdminCard>
 
-                <button
-                  class="card p-4 border-2 {density === 'compact' && variant === 'flat'
-                    ? 'border-tertiary-500 dark:border-primary-500'
-                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-start"
-                  onclick={() => { density = 'compact'; variant = 'flat'; }}
-                >
-                  <iconify-icon icon="mdi:table-large" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
-                  <h4 class="font-bold text-sm">Compact Pro</h4>
-                  <p class="text-xs text-surface-500 dark:text-surface-400">High-density for developers & data-heavy views</p>
-                </button>
+                				<AdminCard
+                					class="cursor-pointer p-4 border-2 {density === 'compact' && variant === 'flat'
+                						? 'border-tertiary-500 dark:border-primary-500'
+                						: 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors"
+                					onclick={() => { density = 'compact'; variant = 'flat'; }}
+					role="button"
+					tabindex={0}
+					aria-label="Apply Compact Pro preset"
+                				>
+                					<iconify-icon icon="mdi:table-large" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
+                					<h4 class="font-bold text-sm">Compact Pro</h4>
+                					<p class="text-xs text-surface-500 dark:text-surface-400">High-density for developers & data-heavy views</p>
+                				</AdminCard>
 
-                <button
-                  class="card p-4 border-2 {density === 'spacious' && variant === 'elevated'
-                    ? 'border-tertiary-500 dark:border-primary-500'
-                    : 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors text-start"
-                  onclick={() => { density = 'spacious'; variant = 'elevated'; }}
-                >
-                  <iconify-icon icon="mdi:pen" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
-                  <h4 class="font-bold text-sm">Spacious Writer</h4>
-                  <p class="text-xs text-surface-500 dark:text-surface-400">Distraction-free content authoring mode</p>
-                </button>
+                				<AdminCard
+                					class="cursor-pointer p-4 border-2 {density === 'spacious' && variant === 'elevated'
+                						? 'border-tertiary-500 dark:border-primary-500'
+                						: 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors"
+                					onclick={() => { density = 'spacious'; variant = 'elevated'; }}
+					role="button"
+					tabindex={0}
+					aria-label="Apply Spacious Writer preset"
+                				>
+                					<iconify-icon icon="mdi:pen" class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"></iconify-icon>
+                					<h4 class="font-bold text-sm">Spacious Writer</h4>
+                					<p class="text-xs text-surface-500 dark:text-surface-400">Distraction-free content authoring mode</p>
+                				</AdminCard>
               </div>
 
               <h4 class="font-bold text-sm mb-2 flex items-center gap-2">

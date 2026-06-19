@@ -660,8 +660,9 @@ onMount(() => {
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
 								{const widgetInfo = widgetComponentRegistry[widgetName]}
-								<button
-									class="flex w-full items-center gap-2 px-4 py-2 text-start transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
+								<Button
+									variant="ghost"
+									class="w-full justify-start gap-2 px-4 py-2 hover:bg-primary-100 dark:hover:bg-primary-900/30"
 									onclick={() => addNewWidget(widgetName)}
 									title={widgetInfo?.description}
 									role="menuitem"
@@ -671,8 +672,8 @@ onMount(() => {
 									{:else}
 										<iconify-icon icon="mdi:view-dashboard" width={20} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{/if}
-									<div class="flex flex-col"><span>{widgetInfo?.name || widgetName}</span></div>
-								</button>
+									<span>{widgetInfo?.name || widgetName}</span>
+								</Button>
 							{:else}
 								<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
 							{/each}
@@ -732,12 +733,12 @@ onMount(() => {
 									</div>
 								{:else if WidgetComponent === null}
 									<!-- Error state -->
-									<div class="card preset-ghost-error-500 flex h-full flex-col items-center justify-center p-4">
+									<AdminCard preset="tonal" variant="error" class="flex h-full flex-col items-center justify-center p-4">
 										<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"></iconify-icon>
 										<h3 class="h4 mb-2">Widget Load Error</h3>
 										<p class="text-sm">Failed to load: {item.component}</p>
 										<Button variant="error" onclick={() => removeWidget(item.id)} size="sm" class="mt-4">Remove Widget</Button>
-									</div>
+									</AdminCard>
 								{:else}
 									<!-- Render the actual widget - Svelte 5 dynamic components -->
 									<WidgetComponent

@@ -96,10 +96,12 @@ Inputs, Cards, and semantic color palettes without Storybook.
 </script>
 
 <AdminPageShell
-  title="Design System"
-  icon="mdi:compass-outline"
-  description="Interactive catalog of native admin components and theme tokens. Changes here preview locally — save presets in Appearance."
->
+	  title="Design System"
+	  icon="mdi:compass-outline"
+	  description="Interactive catalog of native admin components and theme tokens. Changes here preview locally — save presets in Appearance."
+	  showBackButton={true}
+	  backUrl="/config"
+	>
   <div class="space-y-6">
     <!-- Controls -->
     <AdminCard class="p-5">

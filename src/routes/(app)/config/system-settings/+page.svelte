@@ -22,6 +22,7 @@ import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import StickyActions from '@components/ui/sticky-actions.svelte';
 import { onMount, untrack } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
@@ -180,7 +181,7 @@ $effect(() => {
 			</div>
 		{/if}
 
-		
+
 		{#if unconfiguredCount > 0}
 			<div class="preset-filled-error-500 p-4 rounded mb-6">
 				<div class="text-sm opacity-90">
@@ -203,7 +204,7 @@ $effect(() => {
 		{/if}
 
 		<!-- Settings Layout -->
-		<div class="card flex flex-col bg-surface-50-950 border border-surface-200/50 dark:border-surface-700/50">
+				<AdminCard class="flex flex-col">
 			{#if selectedGroupId}
 				{#key selectedGroupId}
 					{@const group = availableGroups.find((g) => g.id === selectedGroupId)}
@@ -261,12 +262,12 @@ $effect(() => {
 					<p class="text-surface-500">Select a group to configure.</p>
 				</div>
 			{/if}
-		</div>
+		</AdminCard>
 	</AdminCard>
 
 	<!-- System Status -->
 	<div class="mx-auto mt-8 flex max-w-4xl items-center justify-center">
-		<div class="badge-glass flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 text-xs sm:text-sm text-center">
+		<Badge variant="surface" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 text-xs sm:text-sm text-center">
 			<div class="flex items-center gap-1.5 shrink-0">
 				<span class="text-2xl text-tertiary-500 dark:text-primary-500 leading-none">●</span>
 				<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
@@ -286,6 +287,6 @@ $effect(() => {
 				<span class="text-surface-600 dark:text-surface-50">Environment:</span>
 				<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
 			</div>
-		</div>
+		</Badge>
 		</div>
 </AdminPageShell>

@@ -178,11 +178,13 @@ onMount(loadFlows);
 </script>
 
 <AdminPageShell
-	title="Workflow Automations"
-	icon="mdi:robot-outline"
-	description="Automate actions when content changes — send emails, call webhooks, update fields"
-	spaceY="8"
->
+		title="Workflow Automations"
+		icon="mdi:robot-outline"
+		description="Automate actions when content changes — send emails, call webhooks, update fields"
+		spaceY="8"
+		showBackButton={true}
+		backUrl="/config"
+	>
 	{#snippet actions()}
 		<Button variant="primary" href="/config/automations/new" leadingIcon="mdi:plus" data-sveltekit-preload-data="hover">
 			New Automation

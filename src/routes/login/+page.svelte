@@ -461,9 +461,10 @@ function handleSignUpPointerEnter() {
 					<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
 						{#each filteredLanguages as lang (lang)}
 							{const selected = lang === currentLanguage}
-							<button
-								type="button"
-								onclick={() => handleLanguageSelection(lang)} aria-label={getLanguageName(lang)}
+							<Button
+								variant="ghost"
+								onclick={() => handleLanguageSelection(lang)}
+								aria-label={getLanguageName(lang)}
 								class="flex w-full items-center justify-between px-3 py-2 text-start rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
 							>
 								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
@@ -473,27 +474,28 @@ function handleSignUpPointerEnter() {
 									{/if}
 								</span>
 								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
-							</button>
+							</Button>
 						{/each}
 					</div>
 				{:else}
 					<div class="flex flex-col gap-1">
 						{#each availableLanguages as lang (lang)}
-							{const selected = lang === currentLanguage}
-							<button
-								type="button"
-								onclick={() => handleLanguageSelection(lang)} aria-label={getLanguageName(lang)}
-								class="flex w-full items-center justify-between px-3 py-2 text-start rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
-							>
-								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
-									{getLanguageName(lang)}
-									{#if selected}
-										<iconify-icon icon="mdi:check" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-									{/if}
-								</span>
-								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
-							</button>
-						{/each}
+								{const selected = lang === currentLanguage}
+								<Button
+									variant="ghost"
+									onclick={() => handleLanguageSelection(lang)}
+									aria-label={getLanguageName(lang)}
+									class="flex w-full items-center justify-between px-3 py-2 text-start rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
+								>
+									<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
+										{getLanguageName(lang)}
+										{#if selected}
+											<iconify-icon icon="mdi:check" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{/if}
+									</span>
+									<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
+								</Button>
+							{/each}
 					</div>
 				{/if}
 			</Dropdown>

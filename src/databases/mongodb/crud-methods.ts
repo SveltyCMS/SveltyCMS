@@ -265,7 +265,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const result = await doc.save(saveOptions);
       return {
         success: true,
-        data: (result as mongoose.HydratedDocument<T>).toObject() as T,
+        data: processDates((result as mongoose.HydratedDocument<T>).toObject()) as T,
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {

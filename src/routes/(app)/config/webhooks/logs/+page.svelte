@@ -54,10 +54,12 @@ onMount(loadLogs);
 </script>
 
 <AdminPageShell
-	title="Webhook Health Monitor"
-	icon="mdi:webhook"
-	description="Monitor delivery status and manage the Dead-Letter Queue."
->
+		title="Webhook Health Monitor"
+		icon="mdi:webhook"
+		description="Monitor delivery status and manage the Dead-Letter Queue."
+		showBackButton={true}
+		backUrl="/config/webhooks"
+	>
 	{#snippet actions()}
 		<div class="flex items-center gap-3">
 			<Select

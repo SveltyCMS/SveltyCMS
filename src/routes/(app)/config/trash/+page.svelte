@@ -46,10 +46,12 @@ onMount(loadTrash);
 </script>
 
 <AdminPageShell
-	title="Global Trash Bin"
-	icon="mdi:delete-outline"
-	description="Browse and restore soft-deleted content from all collections"
->
+		title="Global Trash Bin"
+		icon="mdi:delete-outline"
+		description="Browse and restore soft-deleted content from all collections"
+		showBackButton={true}
+		backUrl="/config"
+	>
 	{#snippet actions()}
 		<Button variant="ghost" onclick={loadTrash} disabled={isLoading} leadingIcon="mdi:refresh">
 			Refresh

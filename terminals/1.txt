@@ -1,7 +1,0 @@
----
-pid: 52080
-cwd: "D:\SveltyCMS"
-command: "cmd /c \"cd /d D:\\SveltyCMS && set TEST_MODE=true&& set TEST_API_SECRET=809c1f44-1fd9-4889-a766-978afdb207c0&& set HOST=127.0.0.1&& set PORT=4173&& set STRICT_SETUP_CHECK=true&& node build/index.js > D:\\SveltyCMS\\preview-out.txt 2>&1\""
-started_at: 2026-06-17T21:10:14.983Z
-running_for_ms: 46015001 
----
