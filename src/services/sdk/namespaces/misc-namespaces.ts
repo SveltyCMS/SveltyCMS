@@ -388,7 +388,7 @@ export class WebsiteTokensNamespace extends BaseNamespace {
           tenantId ?? undefined,
         );
         if (!result.success) throw new AppError(result.message, 500);
-        return result.data;
+        return { ...result.data, token: tokenValue };
       },
       { collection: "websiteTokens" },
     );

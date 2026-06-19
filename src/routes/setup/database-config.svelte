@@ -372,7 +372,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</SystemTooltip>
 				</label>
 
-				<Select bind:value={dbConfig.type} options={dbTypeOptions} placeholder="Select database type..." onchange={() => handleTypeChange()} />
+				<Select id="db-type" bind:value={dbConfig.type} options={dbTypeOptions} placeholder="Select database type..." onchange={() => handleTypeChange()} />
 			</div>
 
 			{#if isInstallingDriver}

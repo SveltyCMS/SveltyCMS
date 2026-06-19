@@ -46,6 +46,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	}
 
 	interface Props {
+		id?: string;
 		value?: string;
 		label?: string;
 		placeholder?: string;
@@ -63,6 +64,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	}
 
 	let {
+		id,
 		value = $bindable(''),
 		label,
 		placeholder = 'Select an option...',
@@ -79,7 +81,8 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		onchange
 	}: Props = $props();
 
-	const generatedId = generateId('select');
+	const fallbackId = generateId('select');
+	const generatedId = $derived(id ?? fallbackId);
 	const errorId = $derived(error ? `${generatedId}-error` : undefined);
 	const descriptionId = $derived(description ? `${generatedId}-description` : undefined);
 
