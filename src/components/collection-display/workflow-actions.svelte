@@ -112,7 +112,9 @@ const availableTransitions = $derived.by(() => {
                     {#each availableTransitions as trans}
                         <Button variant="primary"
                             onclick={() => { selectedTargetStateId = trans.to; showComment = true; }}
-                         aria-label="{trans.label}" size="sm" class="text-xs">
+                            aria-label={trans.label}
+                            size="sm"
+                            class="text-xs">
                             {trans.label} ➔
                         </Button>
                     {/each}

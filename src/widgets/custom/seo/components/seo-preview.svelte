@@ -133,7 +133,7 @@
 				<Button variant="warning"
 					type="button"
 					onclick={() => (heatmapMode = !heatmapMode)}
-				 class="{heatmapMode ? ' ' : ' '}">
+					class={heatmapMode ? 'preset-filled-warning-500' : ''}>
 					<iconify-icon icon="mdi:fire" width={24}></iconify-icon>
 					<span class="hidden sm:inline">Heatmap</span>
 				</Button>

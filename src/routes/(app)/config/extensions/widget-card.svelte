@@ -122,7 +122,7 @@ const { widget, onToggle, onUninstall, canManage }: Props = $props();
 					type="button"
 					onclick={() => onToggle(widget.name)}
 					data-testid="widget-toggle-{widget.name}"
-				 size="sm" class="{widget.isActive ? ' ' : ' '}">
+					size="sm">
 					{widget.isActive ? 'Deactivate' : 'Activate'}
 				</Button>
 			{:else if !widget.canDisable}

@@ -153,7 +153,7 @@
           <Button
             href="/api/media/share?id={data.mediaId}&token={data.token}"
             onclick={handleDownloadClick}
-            class="download-btn glow-effect download-link w-full"
+            class="glow-effect download-link w-full !rounded-xl !bg-gradient-to-br !from-blue-500 !to-blue-600 !py-3.5 !px-6 !font-semibold !text-white !shadow-[0_10px_15px_-3px_rgba(37,99,235,0.3)] hover:!-translate-y-0.5 hover:!shadow-[0_15px_20px_-3px_rgba(37,99,235,0.4)] active:!translate-y-0 disabled:!cursor-not-allowed disabled:!opacity-60 disabled:hover:!translate-y-0"
             download={data.filename}
             disabled={isDownloading}
           >
@@ -375,41 +375,6 @@
   .password-input.error {
     border-color: #ef4444;
     box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
-  }
-
-  .download-btn {
-    width: 100%;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: #fff;
-    border: none;
-    border-radius: 12px;
-    padding: 0.875rem 1.5rem;
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    text-decoration: none;
-    transition: all 0.2s;
-    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
-  }
-
-  .download-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 15px 20px -3px rgba(37, 99, 235, 0.4);
-  }
-
-  .download-btn:active {
-    transform: translateY(0);
-  }
-
-  .download-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
   }
 
   .footer-note {

@@ -83,7 +83,7 @@
 			value={jsonString}
 			oninput={handleInput}
 			spellcheck={false}
-			placeholder="{`{\"key\": \"value\"}`}"
+			placeholder={'{"key": "value"}'}
 		/>
 	</div>
 
@@ -94,9 +94,3 @@
 		</p>
 	{/if}
 </div>
-
-<style>
-	textarea {
-		tab-size: 2;
-	}
-</style>

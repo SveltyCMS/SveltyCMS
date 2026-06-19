@@ -423,8 +423,8 @@ async function uninstallWidget(widgetName: string) {
 					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter (filter.value)}
 						<Button variant="tertiary"
 							onclick={() => (activeFilter = filter.value)}
-							aria-label="{filter.label} widgets ({filter.count})"
-						 class="{activeFilter === filter.value ? ' text-white' : ' '}">
+							aria-label={`${filter.label} widgets (${filter.count})`}
+							class={activeFilter === filter.value ? 'text-white' : ''}>
 							<iconify-icon icon={filter.icon} width="20"></iconify-icon>
 							<span>{filter.label}</span>
 							<span

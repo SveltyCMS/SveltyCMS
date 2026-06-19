@@ -263,8 +263,7 @@ function handleKeyDown(e: KeyboardEvent) {
 </div>
 
 <style>
-	div[role='button']:focus-visible,
-	button:focus-visible {
+	div[role='button']:focus-visible {
 		outline: 3px solid rgb(var(--color-primary-500));
 		outline-offset: 2px;
 		border-radius: 0.25rem;

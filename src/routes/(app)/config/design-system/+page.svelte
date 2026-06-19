@@ -23,6 +23,7 @@ Inputs, Cards, and semantic color palettes without Storybook.
   import Textarea from "@components/ui/textarea.svelte";
   import Toggle from "@components/ui/toggle.svelte";
   import ThemeToggle from "@components/theme-toggle.svelte";
+  import { untrack } from "svelte";
   import { getThemeContext } from "@components/ui/theme-context.svelte";
   import type { AdminTheme } from "@components/ui/theme-context.svelte";
 
@@ -63,10 +64,10 @@ Inputs, Cards, and semantic color palettes without Storybook.
   const liveTheme = getThemeContext() as AdminTheme | undefined;
 
   let previewDensity = $state<"compact" | "cozy" | "spacious">(
-    (data.adminTheme?.density as "compact" | "cozy" | "spacious") || "cozy",
+    untrack(() => (data.adminTheme?.density as "compact" | "cozy" | "spacious") || "cozy"),
   );
   let previewVariant = $state<"flat" | "bordered" | "elevated">(
-    (data.adminTheme?.variant as "flat" | "bordered" | "elevated") || "bordered",
+    untrack(() => (data.adminTheme?.variant as "flat" | "bordered" | "elevated") || "bordered"),
   );
   let sampleInput = $state("Sample value");
   let sampleSelect = $state("draft");
