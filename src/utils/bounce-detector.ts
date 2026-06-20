@@ -4,13 +4,20 @@
  *
  * Tracks page entry timestamps and detects when users bounce back from a page
  * within 2 seconds — signaling that the navigation prediction was incorrect.
- * Calls penalizeTransition() on the behavioral learner to reduce that path's score.
+ * Calls penalizeTransition() to reduce that path's score in the behavioral learner.
+ *
+ * ONLY fires on actual page transitions (different pathname), NOT on
+ * filter/sort/pagination/search-param changes — avoiding false penalty signals.
  *
  * Wired into +layout.svelte via beforeNavigate/afterNavigate hooks.
  */
 
 import { browser } from "$app/environment";
 import { beforeNavigate, afterNavigate } from "$app/navigation";
+
+// ─── Constants ─────────────────────────────────────────────────────────────
+
+const BOUNCE_THRESHOLD_MS = 2000; // Bounce = left page within 2 seconds
 
 // ─── State ─────────────────────────────────────────────────────────────────
 
@@ -23,12 +30,13 @@ let _initialized = false;
 
 /**
  * Initialize bounce detection. Call once in +layout.svelte onMount.
+ * Uses SvelteKit navigation hooks to track entry/exit timing.
  */
 export function initBounceDetector(): void {
   if (!browser || _initialized) return;
   _initialized = true;
 
-  // Record entry time when page loads
+  // Record entry time when a new page loads
   afterNavigate(({ to }) => {
     if (to) {
       _entryTime = performance.now();
@@ -37,37 +45,54 @@ export function initBounceDetector(): void {
   });
 
   // On next navigation: check if user bounced from previous page
-  beforeNavigate(({ from, to, cancel }) => {
+  beforeNavigate(({ from, to }) => {
     if (!from || !to || _entryTime === 0) return;
+
+    // Only fire on actual page transitions (different pathname)
+    // Skip filter/sort/pagination/search-param-only changes
     if (from.url.pathname !== _entryPath) return;
+    if (from.url.pathname === to.url.pathname) return; // Same page, different params
 
     const timeOnPage = performance.now() - _entryTime;
 
-    // Bounce detected: user left within 2 seconds
-    if (timeOnPage < 2000) {
-      // Try to get tenant context from page store
-      try {
-        const { page } = require("$app/state") as any;
-        const tenantId = page?.data?.tenantId || "global";
-
-        import("@src/services/intelligence/behavioral-learner")
-          .then(({ penalizeTransition }) => {
-            penalizeTransition(tenantId, _entryFrom || from.url.pathname, _entryPath);
-          })
-          .catch(() => {});
-      } catch {
-        // Page store not available — skip
-      }
+    // Bounce detected: user navigated away within threshold
+    if (timeOnPage < BOUNCE_THRESHOLD_MS) {
+      penalizeBounce(_entryFrom || from.url.pathname, _entryPath);
     }
 
     // Track where we came from for the NEXT page's entry
     _entryFrom = from.url.pathname;
-    _entryTime = 0; // Reset — will be set by afterNavigate on the new page
+    _entryTime = 0; // Reset — afterNavigate on next page will set new entry time
   });
 }
 
+// ─── Internal ──────────────────────────────────────────────────────────────
+
+async function penalizeBounce(fromPath: string, toPath: string): Promise<void> {
+  try {
+    // Dynamically get tenant context and behavioral learner
+    const tenantId = await getTenantId();
+    const { penalizeTransition } = await import("@src/services/intelligence/behavioral-learner");
+    penalizeTransition(tenantId, fromPath, toPath);
+  } catch {
+    // Page store or behavioral learner unavailable — skip silently
+  }
+}
+
+async function getTenantId(): Promise<string> {
+  try {
+    // Dynamic import to avoid adding $app/state to all bundles
+    const stateModule = await import("$app/state");
+    return (stateModule as any).page?.data?.tenantId || "global";
+  } catch {
+    return "global";
+  }
+}
+
+// ─── Debug ─────────────────────────────────────────────────────────────────
+
 /**
- * Get the time spent on the current page (for debugging/dashboard).
+ * Get current page dwell time for dashboard/debugging.
  */
 export function getTimeOnPage(): number {
   if (_entryTime === 0) return 0;

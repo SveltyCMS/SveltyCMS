@@ -113,7 +113,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
         const fromPath = new URL(referer).pathname;
         if (fromPath !== currentPath) {
           recordNavigation(tid, fromPath, currentPath);
-          n; // 🧠 Skinnerian Reinforcement: reward correct predictions
+          // 🧠 Skinnerian Reinforcement: reward correct predictions
           const wasPredicted = predictNextPath(tid, fromPath);
           if (wasPredicted === currentPath) {
             reinforceTransition(tid, fromPath, currentPath);

@@ -216,8 +216,8 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
     // Pad shorter vector for cross-backend comparison
     const maxLen = Math.max(a.length, b.length);
-    const a2 = [...a, ...new Array(maxLen - a.length).fill(0)];
-    const b2 = [...b, ...new Array(maxLen - b.length).fill(0)];
+    const a2 = [...a, ...Array.from({ length: maxLen - a.length }, () => 0)];
+    const b2 = [...b, ...Array.from({ length: maxLen - b.length }, () => 0)];
     return _cosine(a2, b2);
   }
   return _cosine(a, b);
