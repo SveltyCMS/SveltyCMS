@@ -490,34 +490,28 @@ await goto(url);
 
 ## Performance Optimizations
 
-### Hover Preloading Integration
+### Predictive Preloading Integration
 
-The URL pattern enables **intelligent hover preloading**:
+The URL pattern enables **multi-strategy predictive preloading** via declarative `data-preload` attributes:
 
-```
-// entry-list.svelte - Hover handler
-function handleRowHoverStart(entryId: string) {
-  setTimeout(async () => {
-    // Build preload URL
-    const preloadUrl = new URL(page.url);
-    preloadUrl.searchParams.set("edit", entryId);
-
-    // Prefetch data (600ms hover delay)
-    await fetch(preloadUrl.toString(), {
-      credentials: "include",
-      headers: { "X-Preload": "true" },
-    });
-  }, 600);
-}
+```svelte
+<!-- entry-list row with smart preloading -->
+<tr>
+  <a href="?edit={entry._id}" data-preload="smart" class="hidden" aria-hidden="true"></a>
+  <td onclick={() => goto(`?edit=${entry._id}`)}>{entry.title}</td>
+</tr>
 ```
 
-**Benefits**:
+**Four strategies** (see [Predictive Preloading](./hover-preloading.mdx)):
 
-- 85-95% faster perceived edit mode loading
-- Browser caches preloaded responses
-- Instant transition when user clicks
+| Strategy   | Trigger                            | Best for              |
+| :--------- | :--------------------------------- | :-------------------- |
+| `smart`    | Physics cone + behavioral priority | Collection entry rows |
+| `predict`  | Cursor heading toward link         | Dashboard widgets     |
+| `viewport` | Link enters viewport               | Media gallery         |
+| `hover`    | Mouseenter + 150ms                 | Sidebar navigation    |
 
-See [Hover Preloading](./hover-preloading.mdx) for details.
+**Benefits**: 0ms perceived edit latency, browser cache pre-populated, behavioral learner prioritizes hot collections.
 
 ### Server-Side Rendering
 

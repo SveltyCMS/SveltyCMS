@@ -265,10 +265,24 @@ When generating/modifying code:
     - **Reports**: Check MDX reports for trend labels (`🔴 avg +35%`), root cause insights, and code path recommendations
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
 14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
-    ```bash
-    bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
-    ```
+    `bash
+bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
+`
     This validates all 4 security layers (Middleware → Dispatcher → Handler → Page Action) in under 1 second.
+    n15. **Predictive Preloading (Anchor-First)**: - **Anchor-First Mandate**: All primary navigation MUST use `<a>` tags with `data-preload` attributes. Never use `goto()` for primary navigation — it bypasses ALL speculative preloading. - **Strategy Selection**: - Table rows / collection entries → `data-preload="smart"` (physics cone + behavioral priority) - Dashboard widget links → `data-preload="predict"` (cursor trajectory prediction) - Sidebar / config nav → `data-preload="hover"` (150ms intent detection) - Media gallery thumbnails → `data-preload="viewport"` (IntersectionObserver) - **Implementation**: `src/utils/predictive-preload.ts` — MutationObserver-based, initialized once in `+layout.svelte`. - **goto() escape hatch**: Only use `goto()` for non-navigation URL updates (filters, sorting, pagination). - **Reference**: `docs/architecture/hover-preloading.mdx`
+15. **Behavioral Learning Integration**:
+    - Every `+layout.server.ts` MUST call `recordCollectionAccess()` and `recordNavigation()` (already wired — do not remove).
+    - Collection detail `+page.server.ts` SHOULD call `recordEntryAccess()`.
+    - Query `getHotCollections()` before cache-warming decisions.
+    - Use `predictNextPath()` for prefetch hints.
+    - **Reference**: `docs/architecture/behavioral-learning.mdx`
+16. **Reactive Search Params**:
+    - Use `useReactiveSearchParams()` from `src/utils/reactive-search-params.svelte.ts` for client-side table filtering/sorting/pagination without SSR round-trips.
+    - Wraps Svelte 5 SvelteURLSearchParams — reactive, type-safe, URL-synced.
+17. **Link Validation (Build-Time)**:
+    - Run `bun run scripts/validate-links.ts` before shipping to catch broken internal links.
+    - Flags missing `data-preload` attributes on collection entry links.
+    - **Reference**: `src/utils/link-validator.ts`
 
 ### Mandatory Documentation Updates
 
@@ -285,15 +299,18 @@ When generating/modifying code:
 
 ### Documentation Matrix
 
-| Feature Type         | Primary MDX Location                         | Also Update                         |
-| :------------------- | :------------------------------------------- | :---------------------------------- |
-| **Database**         | `docs/database/`                             | `technical-evaluation-2026.mdx`     |
-| **Auth/Security**    | `docs/database/Authentication_System.mdx`    | `technical-evaluation-2026.mdx`     |
-| **Admin Theme / UI** | `docs/contributing/style-guide-gui.mdx`      | `docs/project/admin-theme-plan.mdx` |
-| **Content/Preview**  | `docs/guides/Live_Preview_Architecture.mdx`  | Integration docs                    |
-| **Widgets**          | `docs/widgets/`                              | `widget-system-overview.mdx`        |
-| **API**              | `docs/api/`                                  | Relevant service docs               |
-| **Performance**      | `docs/database/Performance_Architecture.mdx` | `technical-evaluation-2026.mdx`     |
+| Feature Type          | Primary MDX Location                         | Also Update                                           |
+| :-------------------- | :------------------------------------------- | :---------------------------------------------------- |
+| **Database**          | `docs/database/`                             | `technical-evaluation-2026.mdx`                       |
+| **Auth/Security**     | `docs/database/Authentication_System.mdx`    | `technical-evaluation-2026.mdx`                       |
+| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`      | `docs/project/admin-theme-plan.mdx`                   |
+| **Content/Preview**   | `docs/guides/Live_Preview_Architecture.mdx`  | Integration docs                                      |
+| **Widgets**           | `docs/widgets/`                              | `widget-system-overview.mdx`                          |
+| **API**               | `docs/api/`                                  | Relevant service docs                                 |
+| **Performance**       | `docs/database/Performance_Architecture.mdx` | `technical-evaluation-2026.mdx`                       |
+| **Intelligence / AI** | `docs/architecture/behavioral-learning.mdx`  | `ai-integration.mdx`, `technical-evaluation-2026.mdx` |
+| **Preloading**        | `docs/architecture/hover-preloading.mdx`     | `behavioral-learning.mdx`, `cache-system.mdx`         |
+| **Marketplace**       | `docs/architecture/marketplace.mdx`          | `ai-integration.mdx`                                  |
 
 **Key Documentation Files:**
 

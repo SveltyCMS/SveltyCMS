@@ -63,6 +63,7 @@ function getCpuInfoBaseline(): CpuInfoResponse {
     },
     historicalLoad: { usage: [], timestamps: [] },
     currentUsage: 0,
+    currentLoad: 0, // backward compat
     loadAverage: os.loadavg(),
   };
 }
@@ -74,6 +75,7 @@ function getMemoryBaseline(): MemoryInfoResponse {
     totalBytes: total,
     usedBytes: total - free,
     freeBytes: free,
+    total: total, // backward compat
     usagePercent: Math.round(((total - free) / total) * 100),
   };
 }
@@ -116,6 +118,7 @@ export async function getSystemInfo(): Promise<SystemInfoResponse> {
         timestamps: history.map((h) => h.timestamp),
       },
       currentUsage: snapshot?.cpu ?? 0,
+      currentLoad: snapshot?.cpu ?? 0, // backward compat: integration tests expect currentLoad
       loadAverage: [snapshot?.loadAvg ?? 0, 0, 0],
     };
 
@@ -124,6 +127,7 @@ export async function getSystemInfo(): Promise<SystemInfoResponse> {
     const usedPercent = snapshot?.memory ?? getMemoryBaseline().usagePercent;
     const usedBytes = Math.round((totalMem * usedPercent) / 100);
     const memoryInfo: MemoryInfoResponse = {
+      total: totalMem, // backward compat: integration tests expect total
       totalBytes: totalMem,
       usedBytes,
       freeBytes: totalMem - usedBytes,

@@ -307,6 +307,8 @@ onMount(() => {
 	console.log("[AppLayout] Mounted. User:", data.user?.username || "None");
 
 
+		// Initialize predictive preloading (physics cone + behavioral smart)
+		import("@utils/predictive-preload").then(m => m.initPredictivePreload());
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
 	initializeUserAvatar(data.user);

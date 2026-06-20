@@ -248,7 +248,7 @@ function countFencedBlocks(body: string): number {
   return count;
 }
 
-console.log("🔍 Linting SveltyCMS documentation + 🇪🇺 EU Compliance...\n");
+console.log("🔍 Linting SveltyCMS documentation (EU/DE Compliance)...\n");
 
 const fileIndex = buildFileIndex(DOCS_DIR);
 const now = new Date();
@@ -410,5 +410,5 @@ if (errorCount > 0) {
   process.exit(1);
 }
 
-console.log("\n✅ Documentation structure + 🇪🇺 EU Compliance verified.\n");
+console.log("\n✅ Documentation structure + EU/DE Compliance verified.\n");
 process.exit(0);
