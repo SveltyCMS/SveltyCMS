@@ -313,7 +313,8 @@ It handles token creation, updates, and deletion with proper validation and erro
 					<div class="flex flex-wrap gap-2">
 						{#if roles && roles.length > 0}
 							{#each roles as r (r._id)}
-								<Button variant="outline">
+								<Button
+									variant="outline"
 									type="button"
 									class="chip {tokenForm.data.role === r._id
 										? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'

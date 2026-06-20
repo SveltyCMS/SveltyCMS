@@ -7,6 +7,7 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { lookup } from "mime-types";
 
 import { getPublicSettingSync } from "@src/services/core/settings-service";
@@ -24,13 +25,13 @@ const _baseHeaders = {
 
 // Lazy-load cloud storage module once
 let _cloudStorage: {
-  getMetadata: (p: string) => Promise<{ etag?: string } | undefined>;
+  getMetadata: (p: string) => Promise<{ etag?: string; size?: number; lastModified?: Date } | null>;
 } | null = null;
 async function getCloudStorage() {
   if (!_cloudStorage) {
     _cloudStorage = await import("@src/utils/media/cloud-storage");
   }
-  return _cloudStorage;
+  return _cloudStorage!;
 }
 
 // Compute resolved media base path once at first request

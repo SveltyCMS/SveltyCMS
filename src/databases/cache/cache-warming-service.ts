@@ -103,14 +103,82 @@ export class CacheWarmingService {
   }
 
   /**
+   * 🧠 [PredictiveCache] Warm from Behavioral Learning statistics.
+   * Proactively pre-warms the cache using in-memory getHotCollections and getHotEntries.
+   */
+  async warmFromBehavioralLearning(tenantId: string, db: any) {
+    try {
+      const { getHotCollections, getHotEntries } =
+        await import("@src/services/intelligence/behavioral-learner");
+
+      const hotCollections = getHotCollections(tenantId, 10);
+      const hotEntries = getHotEntries(tenantId, 20);
+
+      if (hotCollections.length === 0 && hotEntries.length === 0) {
+        return false;
+      }
+
+      logger.info(
+        `🧠 [PredictiveCache] Pre-warming cache from Behavioral Learner for tenant "${tenantId}"`,
+      );
+
+      // 1. Warm hot collections
+      await Promise.all(
+        hotCollections.map(async ({ id }) => {
+          if (db?.crud?.find) {
+            await cacheService.getOrSetSWR(
+              `collection:${id}:list`,
+              () => db.crud.find(id, {}, { limit: 20, skipMeta: true }),
+              300_000, // 5 min TTL
+              1_800_000, // 30 min stale SWR window
+              tenantId,
+            );
+          }
+        }),
+      );
+
+      // 2. Warm hot entries
+      await Promise.all(
+        hotEntries.map(async ({ collectionId, entryId }) => {
+          if (db?.crud?.findOne) {
+            await cacheService.getOrSetSWR(
+              `entry:${collectionId}:${entryId}`,
+              () => db.crud.findOne({ _id: entryId }, { tenantId }),
+              300_000,
+              1_800_000,
+              tenantId,
+            );
+          }
+        }),
+      );
+
+      return true;
+    } catch (err: any) {
+      logger.trace(`[PredictiveCache] Behavioral learning pre-warming skipped: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
    * 🧠 ENTERPRISE: Predictive Telemetry Warming
-   * Analyzes audit logs to find the top 5% most accessed collections and entries.
+   * Analyzes behavioral data to warm the cache, falling back to aggregate audit logs if empty.
    */
   async warmFromTelemetry(db: any) {
+    const tenantId = "global"; // Default tenant context for system warming
+
+    // First, try warming using the in-memory behavioral learning data
+    const warmed = await this.warmFromBehavioralLearning(tenantId, db);
+    if (warmed) {
+      logger.debug("🧠 [PredictiveCache] Pre-warming complete using Behavioral Learner data.");
+      return;
+    }
+
     if (!db?.crud?.aggregate) return;
 
     try {
-      logger.debug("🧠 [PredictiveCache] Analyzing telemetry for pre-warming...");
+      logger.debug(
+        "🧠 [PredictiveCache] Behavioral maps empty. Analyzing telemetry (audit logs) for pre-warming...",
+      );
 
       // Query audit logs for top accessed collections in the last 24h
       // Note: This uses the agnostic aggregation layer

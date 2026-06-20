@@ -66,10 +66,6 @@ export class VersionCheckService {
       const message = error instanceof Error ? error.message : "Unknown error";
       logger.error("Version check failed:", error);
 
-      if (error instanceof AppError) {
-        throw error;
-      }
-
       return {
         status: "error",
         message,

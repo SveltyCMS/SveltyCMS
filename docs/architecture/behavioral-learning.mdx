@@ -111,17 +111,28 @@ This means:
 - An access 48 hours ago counts as 0.25 points
 - After ~7 days, the score effectively reaches zero
 
+### Operant Conditioning (Skinnerian Loops)
+
+To align predictions with user intent dynamically, the engine integrates behavioral reinforcement learning loops based on Skinner's operant conditioning:
+
+1. **Positive Reinforcement (`reinforceTransition`)**: When a user follows a predicted prefetch route, the transition score is rewarded by adding `+2.0`. This accelerates the bubble-up of successful pathways.
+2. **Punishment (`penalizeTransition`)**: If a user immediately bounces back (indicating an unwanted prefetch or wrong choice), the transition score is penalized by subtracting `1.5` (min score capped at `0.0`).
+3. **Extinction (`applyExtinction`)**: When a user takes a different path than predicted, the scores of all alternative routes starting from the same page are decayed by multiplying them by `0.8`. This prevents outdated pathways from blocking new, more popular routes.
+
 ---
 
 ## Public API
 
-### Recording
+### Recording & Reinforcement
 
 ```typescript
 import {
   recordCollectionAccess,
   recordEntryAccess,
   recordNavigation,
+  reinforceTransition,
+  penalizeTransition,
+  applyExtinction,
 } from "@src/services/intelligence/behavioral-learner";
 
 // Record a collection being accessed
@@ -132,6 +143,15 @@ recordEntryAccess("tenant-1", "posts", "entry-abc123");
 
 // Record a navigation transition (for prefetch prediction)
 recordNavigation("tenant-1", "/en/posts", "/en/posts/abc123/edit");
+
+// Apply positive reinforcement to a path transition
+reinforceTransition("tenant-1", "/en/posts", "/en/posts/abc123/edit");
+
+// Penalize a path transition due to a bounce-back
+penalizeTransition("tenant-1", "/en/posts", "/en/posts/abc123/edit");
+
+// Apply extinction to alternative options from a given source page
+applyExtinction("tenant-1", "/en/posts", "/en/posts/pages-list");
 ```
 
 ### Querying

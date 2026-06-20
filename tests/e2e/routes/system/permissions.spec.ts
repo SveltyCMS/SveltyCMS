@@ -14,7 +14,7 @@ test.describe("Permission Management Flow", () => {
 
   test("Login and change permissions in Access Management", async ({ page }) => {
     // 1. Login
-    await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
+    await loginAsAdmin(page);
 
     // 2. Navigate to System Configuration
 

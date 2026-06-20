@@ -309,6 +309,7 @@ onMount(() => {
 
 		// Initialize predictive preloading (physics cone + behavioral smart)
 		import("@utils/predictive-preload").then(m => m.initPredictivePreload());
+		import("@utils/bounce-detector").then(m => m.initBounceDetector());
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
 	initializeUserAvatar(data.user);

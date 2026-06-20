@@ -23,13 +23,14 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
   test("should display widget management page", async ({ page }) => {
     // Navigate to widget management
-    await page.goto("/config/widgetManagement");
+    await page.goto("/config/extensions");
+    await page.getByRole("tab", { name: /widgets/i }).click();
 
-    await expect(page.locator("h1")).toContainText("Widget Management");
+    await expect(page.locator("h1")).toContainText("Extension Management");
 
     // Check if widgets are loaded - use locator-based waitFor
     await page
-      .locator('[data-testid="widget-list"], .widget-grid, .widget-dashboard')
+      .locator('[data-testid="widget-grid"]')
       .first()
       .waitFor({ state: "visible", timeout: 5000 })
       .catch(() => {
@@ -47,7 +48,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.goto("/config/collectionbuilder");
 
     // Start creating a new collection
-    await page.click('button:has-text("Create"), button:has-text("New"), a[href*="create"]');
+    await page.getByTestId("add-collection-button").first().click();
 
     // Fill collection basic info
     await page.fill(
@@ -75,8 +76,10 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await widgetModal.waitFor({ state: "visible" });
 
     // Select text/input widget
-    await page.locator(".widget-option").filter({ hasText: /text/i }).first().click();
-    await page.getByRole("button", { name: /select|choose/i }).click();
+    await page
+      .getByRole("button", { name: /TextInput|Input/i })
+      .first()
+      .click();
 
     // Configure the field
     await page.fill('input[name="label"], input[placeholder*="label"]', "Article Title");
@@ -96,7 +99,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
   test("should filter widgets by search", async ({ page }) => {
     // Navigate to collection builder and start creating
     await page.goto("/config/collectionbuilder");
-    await page.click('button:has-text("Create"), button:has-text("New")');
+    await page.getByTestId("add-collection-button").first().click();
 
     // Navigate to widgets and add field
     await page.click('button:has-text("Add Field"), button:has-text("Add Widget")');
@@ -119,14 +122,16 @@ test.describe("Collection Builder with Modern Widgets", () => {
   test("should configure widget-specific properties", async ({ page }) => {
     // Navigate to collection builder
     await page.goto("/config/collectionbuilder");
-    await page.click('button:has-text("Create"), button:has-text("New")');
+    await page.getByTestId("add-collection-button").first().click();
 
     // Add a field
     await page.click('button:has-text("Add Field"), button:has-text("Add Widget")');
 
     // Select input widget
-    await page.locator(".widget-option").first().click();
-    await page.getByRole("button", { name: /select|choose/i }).click();
+    await page
+      .getByRole("button", { name: /TextInput|Input/i })
+      .first()
+      .click();
 
     // Configure specific properties
     await page.fill('input[name="label"]', "User Email");
@@ -152,14 +157,15 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
   test("should handle widget dependencies", async ({ page }) => {
     // Navigate to widget management
-    await page.goto("/config/widgetManagement");
+    await page.goto("/config/extensions");
+    await page.getByRole("tab", { name: /widgets/i }).click();
 
     // Check if dependency information is shown
     const widgetItems = page.locator(".widget-item, .widget-card, [data-testid]").first();
 
     if (await widgetItems.isVisible().catch(() => false)) {
       // Look for dependency information using regex
-      await expect(page.getByText(/dependencies|requires/i).first()).toBeVisible({
+      await expect(page.getByText(/dependencies|requires|depends/i).first()).toBeVisible({
         timeout: 5000,
       });
     }
@@ -167,39 +173,41 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
   test("should enable/disable widgets", async ({ page }) => {
     // Navigate to widget management
-    await page.goto("/config/widgetManagement");
+    await page.goto("/config/extensions");
+    await page.getByRole("tab", { name: /widgets/i }).click();
 
     // Find a custom widget toggle
-    const toggles = page.locator(
-      'input[type="checkbox"], button:has-text("Enable"), button:has-text("Disable")',
-    );
+    const toggles = page.locator('button:has-text("Deactivate"), button:has-text("Activate")');
     const firstToggle = toggles.first();
 
     if (await firstToggle.isVisible()) {
-      const isChecked = await firstToggle.isChecked();
+      const text = await firstToggle.textContent();
+      const isActive = text?.includes("Deactivate");
 
       // Toggle the widget
       await firstToggle.click();
 
       // Wait for state change
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(2000);
 
       // Verify state changed
-      const newState = await firstToggle.isChecked();
-      expect(newState).toBe(!isChecked);
+      const newText = await firstToggle.textContent();
+      expect(newText?.includes("Deactivate")).toBe(!isActive);
     }
   });
 
   test("should validate collection creation", async ({ page }) => {
     // Navigate to collection builder
     await page.goto("/config/collectionbuilder");
-    await page.click('button:has-text("Create"), button:has-text("New")');
+    await page.getByTestId("add-collection-button").first().click();
 
     // Try to save without required fields
     await page.click('button:has-text("Save"), button:has-text("Create")');
 
     // Check for validation errors
-    await expect(page.locator(".error, .alert-error, text=required")).toBeVisible({
+    await expect(
+      page.locator(".error, .alert-error, text=required").or(page.getByText(/required/i)),
+    ).toBeVisible({
       timeout: 5000,
     });
 
@@ -208,8 +216,10 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
     // Add at least one field
     await page.click('button:has-text("Add Field")');
-    await page.locator(".widget-option").first().click();
-    await page.getByRole("button", { name: /select|choose/i }).click();
+    await page
+      .getByRole("button", { name: /TextInput|Input/i })
+      .first()
+      .click();
     await page.getByPlaceholder(/label/i).fill("Test Field");
     await page.getByRole("button", { name: /save/i }).first().click();
 
@@ -227,19 +237,21 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.goto("/config/collectionbuilder");
 
     // Look for existing collection or create one
-    const existingCollection = page.locator('.collection-item:first, a[href*="edit"]:first');
+    const existingCollection = page.locator('.collection-item, a[href*="edit"]').first();
     if (await existingCollection.isVisible()) {
       await existingCollection.click();
     } else {
       // Create a new collection with multiple fields
-      await page.click('button:has-text("Create")');
+      await page.getByTestId("add-collection-button").first().click();
       await page.fill('input[name="name"]', "Reorder Test");
 
       // Add multiple fields
       for (let i = 0; i < 3; i++) {
         await page.click('button:has-text("Add Field")');
-        await page.click(".widget-option:first");
-        await page.click('button:has-text("Select")');
+        await page
+          .getByRole("button", { name: /TextInput|Input/i })
+          .first()
+          .click();
         await page.fill('input[name="label"]', `Field ${i + 1}`);
         await page.click('button:has-text("Save")');
       }

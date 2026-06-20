@@ -34,7 +34,6 @@ export const websiteTokenSchema = new Schema<WebsiteToken>(
     // would coerce them to Date, breaking type consistency and toObject() output.
     collection: "system_website_tokens",
     strict: true,
-    _id: false,
   },
 );
 

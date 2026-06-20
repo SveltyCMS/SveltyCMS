@@ -11,7 +11,9 @@ test.describe("Master Behavioral Journey", () => {
   test("Full Lifecycle: Builder -> Schema -> Entry -> API", async ({ page, request }) => {
     // 1. Authentication
     await loginAsAdmin(page);
-    await expect(page.getByText("Dashboard")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: /collection builder/i }),
+    ).toBeVisible();
 
     // 2. Create a New Collection via editor
     const collectionName = `JourneyProj_${Date.now()}`;
