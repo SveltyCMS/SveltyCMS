@@ -13,7 +13,7 @@ test.describe("Tenant Management", () => {
 
   test("page loads with tenant list", async ({ page }) => {
     await page.goto("/admin/tenants");
-    await expect(page.getByRole("heading", { name: /tenant/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /tenant/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByRole("table").or(page.getByText(/no tenants/i))).toBeVisible({

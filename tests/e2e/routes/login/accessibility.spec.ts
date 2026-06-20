@@ -105,12 +105,13 @@ test.describe("Universal Accessibility Audits", () => {
     await expect(passwordField).toBeFocused();
 
     // Check that outline/focus rings are visible programmatically
-    const outlineStyle = await passwordField.evaluate((el) => {
+    const { outlineStyle, boxShadow } = await passwordField.evaluate((el) => {
       const style = window.getComputedStyle(el);
-      return style.outlineStyle || style.boxShadow;
+      return { outlineStyle: style.outlineStyle, boxShadow: style.boxShadow };
     });
 
     // In Tailwind v4/Native UI, focus is styled via ring/boxShadow or outline
-    expect(outlineStyle).not.toBe("none");
+    const hasFocusStyle = outlineStyle !== "none" || (boxShadow !== "none" && boxShadow !== "");
+    expect(hasFocusStyle).toBe(true);
   });
 });

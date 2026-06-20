@@ -39,6 +39,14 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	let showAnalysis = $state(false); // Collapsible analysis panel
 	let isAnalyzing = $state(false);
 
+	// License State
+	let licenseStatus = $state<{ active: boolean; daysRemaining: number | null; hasLicense: boolean }>({
+		active: true,
+		daysRemaining: null,
+		hasLicense: false
+	});
+	let isCheckingLicense = $state(true);
+
 	// Multi-language handling
 	let availableLanguages = $state<string[]>([]);
 	const lang = $derived((app.contentLanguage || 'en') as any);
@@ -91,6 +99,19 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		} else {
 			availableLanguages = ['en'];
 		}
+
+		// Fetch License Status
+		fetch('/api/system/license-status?type=widget&id=seo')
+			.then((res) => res.json())
+			.then((data) => {
+				licenseStatus = data;
+			})
+			.catch((err) => {
+				console.error('Failed to check SEO license status:', err);
+			})
+			.finally(() => {
+				isCheckingLicense = false;
+			});
 	});
 
 	// --- Analysis Trigger Optimization ---
@@ -143,7 +164,18 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	const placeholder = '{"@context": "https://schema.org", "@type": "Article", ...}';
 </script>
 
-<div class="space-y-4">
+<div class="space-y-4 relative">
+	{#if !isCheckingLicense}
+		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
+			<div class="alert variant-soft-warning flex items-center justify-between p-4 rounded-container-token">
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
+					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days left to test the Advanced, Social, and Schema SEO features.</span>
+				</div>
+				<a href="https://marketplace.sveltycms.com" target="_blank" class="btn variant-filled-warning btn-sm">Get License</a>
+			</div>
+		{/if}
+	{/if}
 	<!-- Top Area: Preview & Analysis -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 		<!-- Left: Preview (Main) -->
@@ -170,15 +202,27 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
-	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm">
+	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden">
+		
+		{#if !isCheckingLicense && !licenseStatus.active}
+			<div class="absolute inset-0 z-10 bg-surface-50-900-token/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-container-token" style="top: 60px;">
+				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-50 dark:bg-error-900/20">
+					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
+					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
+					<p class="mb-4">Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI features, please purchase a license.</p>
+					<a href="https://marketplace.sveltycms.com" target="_blank" class="btn variant-filled-error w-full">Purchase License</a>
+				</div>
+			</div>
+		{/if}
+
 		<Tabs bind:value={activeTab} class="w-full">
 			<Tabs.List class="mb-6 border-surface-400/30">
 				<Tabs.Trigger value="basic">Basic</Tabs.Trigger>
 				{#if hasFeature('social')}
-					<Tabs.Trigger value="social">Social</Tabs.Trigger>
+					<Tabs.Trigger value="social" disabled={!isCheckingLicense && !licenseStatus.active}>Social</Tabs.Trigger>
 				{/if}
 				{#if hasFeature('advanced')}
-					<Tabs.Trigger value="advanced">Advanced</Tabs.Trigger>
+					<Tabs.Trigger value="advanced" disabled={!isCheckingLicense && !licenseStatus.active}>Advanced</Tabs.Trigger>
 				{/if}
 			</Tabs.List>
 

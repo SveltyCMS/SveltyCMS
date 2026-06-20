@@ -211,7 +211,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.locator(".widget-option").first().click();
     await page.getByRole("button", { name: /select|choose/i }).click();
     await page.getByPlaceholder(/label/i).fill("Test Field");
-    await page.getByRole("button", { name: /save/i }).click();
+    await page.getByRole("button", { name: /save/i }).first().click();
 
     // Now save should work
     await page.click('button:has-text("Save Collection"), button:has-text("Create")');

@@ -48,7 +48,7 @@ test.describe("User Profile Management", () => {
     await page.goto("/user");
 
     // Wait for profile to load
-    await expect(page.getByRole("heading", { name: "User Profile" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "User Profile" })).toBeVisible();
 
     // Trigger upload
     await page.getByRole("button", { name: "Edit Avatar" }).click();
@@ -118,7 +118,7 @@ test.describe("User Profile Management", () => {
 
     // Open
     await page.getByText("Show User Token").click();
-    const tokenList = page.getByRole("heading", { name: "Token List:" });
+    const tokenList = page.getByRole("heading", { level: 1, name: "Token List:" });
     await expect(tokenList).toBeVisible();
 
     // Close
@@ -131,7 +131,7 @@ test.describe("User Profile Management", () => {
 
     // Open
     await page.getByText("Show User List").click();
-    const userList = page.getByRole("heading", { name: "User List:" });
+    const userList = page.getByRole("heading", { level: 1, name: "User List:" });
     await expect(userList).toBeVisible();
 
     // Close

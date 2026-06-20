@@ -37,7 +37,7 @@ test.describe("Master Behavioral Journey", () => {
 
     // Fill the dynamically generated text field
     await page.getByLabel(/new text/i).fill("The TQA Project");
-    await page.getByRole("button", { name: /save/i }).click();
+    await page.getByRole("button", { name: /save/i }).first().click();
     await expect(page.getByText("The TQA Project")).toBeVisible();
 
     // 7. Verify API Output (Public Interface)

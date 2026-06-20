@@ -13,7 +13,7 @@ test.describe("Data Management Pages", () => {
 
   test("importer page loads", async ({ page }) => {
     await page.goto("/config/importer");
-    await expect(page.getByRole("heading", { name: /import/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /import/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText(/upload|select file|drag|choose|source/i).first()).toBeVisible({
@@ -23,7 +23,7 @@ test.describe("Data Management Pages", () => {
 
   test("sync page loads", async ({ page }) => {
     await page.goto("/config/sync");
-    await expect(page.getByRole("heading", { name: /sync/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /sync/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText(/status|sync|changes|backup/i).first()).toBeVisible({
@@ -33,7 +33,7 @@ test.describe("Data Management Pages", () => {
 
   test("trash page loads", async ({ page }) => {
     await page.goto("/config/trash");
-    await expect(page.getByRole("heading", { name: /trash/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /trash/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText(/trash|deleted|restore/i).first()).toBeVisible({
@@ -43,7 +43,7 @@ test.describe("Data Management Pages", () => {
 
   test("redirects page loads with pagination", async ({ page }) => {
     await page.goto("/config/redirects");
-    await expect(page.getByRole("heading", { name: /redirect/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /redirect/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByRole("button", { name: /add|create|new/i }).first()).toBeVisible({

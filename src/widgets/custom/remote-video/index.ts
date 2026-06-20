@@ -148,6 +148,17 @@ const RemoteVideoWidget = createWidget({
             }
         `,
   }),
+
+  modifyRequest: async ({ data, type }: any) => {
+    if (type === "POST" || type === "PATCH") {
+      const { checkExtensionLicense } = await import("@src/utils/license-manager");
+      const status = await checkExtensionLicense("widget", "remote-video");
+      if (!status.active && !status.hasLicense) {
+        throw new Error("403 Forbidden: Premium License Required for Remote Video Widget");
+      }
+    }
+    return data;
+  },
 });
 
 export default RemoteVideoWidget;

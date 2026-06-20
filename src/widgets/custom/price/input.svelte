@@ -80,6 +80,7 @@ Renders a currency selector and a number input side-by-side.
 		<!-- Currency Select -->
 		<div class="relative shrink-0 border-e border-surface-300 bg-surface-50 dark:border-surface-700 dark:bg-surface-800">
 			<Select
+				id="{fieldName}-currency"
 				bind:value={value!.currency}
 				options={currencyOptions}
 				allowEmptySelection
@@ -94,6 +95,7 @@ Renders a currency selector and a number input side-by-side.
 		<div class="relative grow flex items-center px-3 [&>div]:min-w-0 [&>div]:grow [&>div]:space-y-0">
 			<span class="text-surface-400 font-mono me-2" aria-hidden="true">{currencySymbol}</span>
 			<Input
+				id="{fieldName}-amount"
 				type="number"
 				value={value!.amount ?? ''}
 				oninput={(e) => {

@@ -329,6 +329,8 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
     /will end up in different chunks.*@aws-sdk/,
     // svelte-realtime startup noise (utility exports not meant for live())
     /\[svelte-realtime\]/,
+    // Suppress sourcemap warnings from plugins that don't generate them
+    /\[SOURCEMAP_BROKEN\]/,
   ];
 
   function shouldSuppress(msg: string): boolean {
@@ -1048,6 +1050,7 @@ export default defineConfig((): any => {
       chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
       // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
       rolldownOptions: {
+        external: ["@mongodb-js/zstd", "snappy"],
         checks: {
           // vite-plugin-sveltekit-guard (import graph analysis) and private-config-fallback
           // are necessary plugins whose timing overhead is expected and acceptable.
@@ -1183,6 +1186,8 @@ export default defineConfig((): any => {
           "ts-node",
           "mongoose",
           "mongodb",
+          "@mongodb-js/zstd",
+          "snappy",
           "postgres",
           "mysql2",
           "redis",

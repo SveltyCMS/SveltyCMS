@@ -13,6 +13,7 @@
 
 import { widget_seo_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
+import { checkExtensionLicense } from "@src/utils/license-manager";
 import {
   custom,
   literal,
@@ -160,13 +161,54 @@ const SeoWidget = createWidget({
   }),
 
   /**
-   * Enrich SEO data on retrieval (GET)
+   * Enrich SEO data on retrieval (GET) and validate premium limits on save (POST/PATCH).
    */
   modifyRequest: async ({ data, type, user, tenantId }: any) => {
-    if (type !== "GET") return data;
-
     const value = data.get() as SeoWidgetData;
     if (!value) return data;
+
+    // SECURITY: Enforce Premium Licensing via Cloud API on Save
+    if (type === "POST" || type === "PATCH") {
+      const status = await checkExtensionLicense("widget", "seo");
+
+      try {
+        // MOCK CLOUD API: Simulate passing the license key to the SveltyCMS Cloud API for generation
+        // If this were the real implementation, the local code would NOT contain the generation logic.
+        // It would simply pass the basic data + license key to the API, and the API would return the enriched data.
+        if (!status.active && !status.hasLicense) {
+          throw new Error("403 Forbidden: Invalid License Key");
+        }
+
+        // Assume the Cloud API succeeded and returned the enriched data
+        // ... (data remains intact) ...
+      } catch (err: any) {
+        // Cloud API rejected the license or trial expired. Strip all premium fields.
+        console.warn("[widget:seo] Premium Data stripped. Reason:", err.message);
+        for (const langKey in value) {
+          if (typeof value[langKey as keyof SeoWidgetData] === "object") {
+            const langData = value[langKey as keyof SeoWidgetData] as any;
+
+            // Basic fields kept: title, description, focusKeyword
+
+            // Strip Premium fields because the Cloud API refused to generate/validate them
+            delete langData.robotsMeta;
+            delete langData.canonicalUrl;
+            delete langData.ogTitle;
+            delete langData.ogDescription;
+            delete langData.ogImage;
+            delete langData.twitterCard;
+            delete langData.twitterTitle;
+            delete langData.twitterDescription;
+            delete langData.twitterImage;
+            delete langData.schemaMarkup;
+          }
+        }
+      }
+      data.update(value);
+      return data;
+    }
+
+    if (type !== "GET") return data;
 
     // Resolve tokens in title and description
     const entry = (data as any).entry || {};

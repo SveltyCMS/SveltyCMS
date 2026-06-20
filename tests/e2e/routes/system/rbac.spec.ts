@@ -30,7 +30,7 @@ async function login(page: Page, user: { email: string; password: string }) {
 async function expectAccessDenied(page: Page) {
   await expect(
     page
-      .getByRole("heading", { name: /^(401|403)$/ })
+      .getByRole("heading", { level: 1, name: /^(401|403)$/ })
       .or(page.getByText(/insufficient permissions|forbidden|unauthorized|access denied/i))
       .first(),
   ).toBeVisible({ timeout: 15_000 });

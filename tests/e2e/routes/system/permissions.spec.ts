@@ -34,7 +34,7 @@ test.describe("Permission Management Flow", () => {
     }
 
     // 5. Click Save
-    await page.getByRole("button", { name: /save/i }).click();
+    await page.getByRole("button", { name: /save/i }).first().click();
 
     // 6. Assert success — via URL or confirmation message
     // Adjust this based on your actual success behavior

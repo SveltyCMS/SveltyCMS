@@ -13,7 +13,7 @@ test.describe("Access Management", () => {
 
   test("page loads with tabs", async ({ page }) => {
     await page.goto("/config/access-management");
-    await expect(page.getByRole("heading", { name: /access management/i })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /access management/i })).toBeVisible();
     await expect(page.getByRole("tab", { name: /roles/i })).toBeVisible();
     await expect(page.getByRole("tab", { name: /permissions/i })).toBeVisible();
   });
@@ -39,7 +39,7 @@ test.describe("Access Management", () => {
 
   test("save button is disabled when no changes made", async ({ page }) => {
     await page.goto("/config/access-management");
-    const saveBtn = page.getByRole("button", { name: /save/i });
+    const saveBtn = page.getByRole("button", { name: /save/i }).first();
     if (await saveBtn.isVisible()) {
       await expect(saveBtn).toBeDisabled();
     }

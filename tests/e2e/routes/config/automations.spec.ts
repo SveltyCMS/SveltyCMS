@@ -13,7 +13,7 @@ test.describe("Automations", () => {
 
   test("page loads with automation list", async ({ page }) => {
     await page.goto("/config/automations");
-    await expect(page.getByRole("heading", { name: /automation/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /automation/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByRole("button", { name: /new|create|add/i }).first()).toBeVisible({

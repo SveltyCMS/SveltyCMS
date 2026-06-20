@@ -8,7 +8,7 @@ test.describe("Content Smoke", () => {
     await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
 
     await expect(page).toHaveURL(/\/config\/collectionbuilder/, { timeout: 10_000 });
-    await expect(page.getByRole("heading", { name: /collection builder/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /collection builder/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByRole("button", { name: /add category/i })).toBeVisible({
@@ -20,7 +20,7 @@ test.describe("Content Smoke", () => {
     await addCollectionButton.click();
 
     await expect(page).toHaveURL(/\/config\/collectionbuilder\/new/, { timeout: 10_000 });
-    await expect(page.getByRole("button", { name: /save collection/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /save collection/i }).first()).toBeVisible({
       timeout: 10_000,
     });
   });

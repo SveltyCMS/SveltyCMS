@@ -549,6 +549,7 @@ Part of the Three Pillars Architecture for the widget system.
 				</div>
 				<div class="md:col-span-1">
 					<Select
+						id="country"
 						label="Country"
 						value={safeValue?.country || 'DE'}
 						allowEmptySelection

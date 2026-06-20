@@ -6,7 +6,7 @@ order: 306
 icon: "tabler:seo"
 author: "admin"
 created: "2025-01-15"
-updated: "2025-01-15"
+updated: "2026-06-20"
 tags:
   - widget
   - custom
@@ -32,21 +32,45 @@ The **SEO widget** is a comprehensive solution for managing all aspects of searc
 
 ### Key Features
 
-- ✅ **Real-Time Analysis**: SeoAnalyzer integration with performance scoring
-- ✅ **Tabbed Interface**: Organized UI with Basic/Social/Advanced tabs
-- ✅ **Social Media Meta**: Open Graph and Twitter Card optimization
-- ✅ **Structured Data**: Schema.org JSON-LD support with semantic labeling
-- ✅ **Accessibility**: WCAG 3.0 compliant with proper labels and ARIA support
+#### Free Tier (Basic SEO)
+
+- ✅ **Tabbed Interface**: Organized UI with a streamlined Basic tab
 - ✅ **Character Counting**: Live title (60) and description (160) character limits
-- ✅ **Focus Keyword**: Keyword density and prominence analysis
-- ✅ **Robots Meta**: Control search engine indexing
-- ✅ **Canonical URLs**: Prevent duplicate content issues
+- ✅ **Focus Keyword**: Fundamental keyword assignment
+- ✅ **Accessibility**: WCAG 3.0 compliant with proper labels and ARIA support
 - ✅ **Multilingual Support**: Full translation support per language
-- ✅ **Modular Features**: Enable/disable features via configuration
-- ✅ **AI Suggestions**: Optional AI-powered optimization hints
-- ✅ **Enterprise Redirects**: Multi-tenant redirect manager with token support
-- ✅ **Dynamic Sitemaps**: Automated sitemap.xml with i18n/hreflang support
 - ✅ **Multi-Tenant Aware**: Strictly isolated SEO data per tenant
+
+#### Premium Tier (Requires License)
+
+_Premium features are available to test during a **14-day trial**, after which a valid `LICENSE_KEY` from marketplace.sveltycms.com is required._
+
+- 👑 **Real-Time Analysis**: SeoAnalyzer integration with performance scoring
+- 👑 **Social Media Meta**: Open Graph and Twitter Card optimization
+- 👑 **Structured Data**: Schema.org JSON-LD support with semantic labeling
+- 👑 **Advanced Controls**: Robots meta and Canonical URLs
+- 👑 **AI Suggestions**: Optional AI-powered optimization hints
+- 👑 **Enterprise Redirects**: Multi-tenant redirect manager with token support
+- 👑 **Dynamic Sitemaps**: Automated sitemap.xml with i18n/hreflang support
+
+---
+
+## Licensing & 14-Day Trial
+
+The SEO widget includes a powerful suite of **Premium Features** (Social, Advanced, Schema, AI) that require a commercial license.
+
+When you first install SveltyCMS, a **14-day trial** automatically begins, allowing you to evaluate all premium features on the SEO widget. Once the trial expires, the premium tabs will lock, and any premium SEO data will be stripped server-side upon saving to protect the integrity of the API.
+
+To permanently unlock the premium features:
+
+1. Purchase a license from [marketplace.sveltycms.com](https://marketplace.sveltycms.com).
+2. Add your license key to your system's private configuration:
+   ```typescript
+   // config/private.ts
+   export const privateEnv = {
+     LICENSE_KEY: "svelty_lic_...",
+   };
+   ```
 
 ---
 

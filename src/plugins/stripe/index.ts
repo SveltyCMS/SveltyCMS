@@ -93,6 +93,13 @@ export const stripePlugin: Plugin = {
   ],
   hooks: {
     beforeSave: async (context, _collection, data) => {
+      // SECURITY: Enforce Premium Licensing for Stripe Integration
+      const { checkExtensionLicense } = await import("@src/utils/license-manager");
+      const status = await checkExtensionLicense("plugin", "stripe");
+      if (!status.active && !status.hasLicense) {
+        throw new Error("403 Forbidden: Premium License Required for Stripe Plugin");
+      }
+
       // If a payment intent is attached, verify it succeeded before saving
       if (data._stripePaymentIntent) {
         const { getStripe } = await import("./server/stripe");

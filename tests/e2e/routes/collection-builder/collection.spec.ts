@@ -20,7 +20,7 @@ test.describe("Full Collection & Widget Flow", () => {
     await page.getByRole("button", { name: /create/i }).click();
     await page.getByPlaceholder(/first name/i).fill("First Name");
     await page.getByPlaceholder(/last name/i).fill("Last Name");
-    await page.getByRole("button", { name: /save/i }).click();
+    await page.getByRole("button", { name: /save/i }).first().click();
     await expect(page).toHaveURL(/\/en\/Collections\/Names/);
 
     // 3. Perform Collection Actions
@@ -36,7 +36,7 @@ test.describe("Full Collection & Widget Flow", () => {
       await checkbox.check();
 
       // Click Save
-      await page.getByRole("button", { name: /save/i }).click();
+      await page.getByRole("button", { name: /save/i }).first().click();
 
       // Confirm redirect to collection list
       await expect(page).toHaveURL(/\/en\/Collections\/Names/);

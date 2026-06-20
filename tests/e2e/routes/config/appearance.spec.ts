@@ -16,7 +16,7 @@ test.describe("Appearance — My Overrides", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: /admin theme settings/i }),
     ).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("heading", { name: /my overrides/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /my overrides/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText(/^my layout$/i)).toBeVisible({ timeout: 10_000 });

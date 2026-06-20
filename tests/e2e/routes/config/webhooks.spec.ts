@@ -13,7 +13,7 @@ test.describe("Webhooks", () => {
 
   test("page loads with webhook list", async ({ page }) => {
     await page.goto("/config/webhooks");
-    await expect(page.getByRole("heading", { name: /webhook/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /webhook/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByRole("button", { name: /add|create|new/i }).first()).toBeVisible({
@@ -34,7 +34,9 @@ test.describe("Webhooks", () => {
 
   test("webhook logs page loads", async ({ page }) => {
     await page.goto("/config/webhooks/logs");
-    await expect(page.getByRole("heading", { name: /log|delivery|monitor/i })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { level: 1, name: /log|delivery|monitor/i }),
+    ).toBeVisible({
       timeout: 10_000,
     });
   });

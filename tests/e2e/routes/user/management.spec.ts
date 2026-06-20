@@ -29,7 +29,7 @@ test.describe("User Management Flow", () => {
     // ✅ UPDATE operation - Edit user info
     await page.getByRole("button", { name: /edit/i }).click();
     await page.getByPlaceholder(/username/i).fill("updatedUser");
-    await page.getByRole("button", { name: /save/i }).click();
+    await page.getByRole("button", { name: /save/i }).first().click();
 
     // Confirm update saved
     await expect(page.getByText(/updateduser/i)).toBeVisible();
@@ -75,7 +75,7 @@ test.describe("User Management Flow", () => {
     await page.fill('input[name="email"]', "newuser@example.com");
     await page.fill('input[name="username"]', "newuser");
     await page.selectOption('select[name="role"]', "user");
-    await page.getByRole("button", { name: /save/i }).click();
+    await page.getByRole("button", { name: /save/i }).first().click();
 
     // Assume invite sent, now simulate user following invite link
     await page.goto(
