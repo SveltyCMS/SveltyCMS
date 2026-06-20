@@ -14,7 +14,6 @@
  * ### Privacy: Tenant-isolated, no PII, only aggregate statistics.
  */
 
-
 // ─── Types ────────────────────────────────────────────────────────────────
 
 export interface AnomalyResult {
