@@ -277,7 +277,9 @@ async function signInInternal(event: RequestEvent, input: any) {
       ok = true;
     } else return { success: false, message: tr.message || "Invalid token." };
   } else {
-    const ar = await auth.authenticate(e, p, null, { bypassTenantCheck: true });
+    const ar = await auth.authenticate(e, p, undefined, {
+      bypassTenantCheck: true,
+    });
     if (ar?.user) {
       user = ar.user;
       if (user.is2FAEnabled)
@@ -376,7 +378,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
   const email = input.email as string;
   const username = input.username as string;
   const password = input.password as string;
-  const token = (input.token as string) || null;
+  const token = (input.token as string) || undefined;
 
   const result = safeParse(signUpFormSchema, {
     email,

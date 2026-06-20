@@ -457,6 +457,7 @@ $effect(() => {
 							variant="outline"
 							color="#000000"
 							type="button"
+							rounded={true}
 							onclick={handleBack}
 							aria-label={button_back()}
 							class="h-10 w-10 min-w-0 p-0! rounded-full border-black/25 text-black hover:bg-black/8 hover:border-black/40"
