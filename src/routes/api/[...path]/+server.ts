@@ -469,7 +469,18 @@ export const _handler = async (event: RequestEvent) => {
         headers: respHeaders,
       });
     } catch {
-      // Fallback: createHash unavailable (e.g., jsdom) — return response without ETag
+      // Fallback: createHash unavailable (e.g., jsdom) — return body without ETag.
+      // responseBody was already read above; we must construct a new Response
+      // because the original response.body is now consumed/disturbed.
+      const fallbackHeaders: Record<string, string> = { ..._noCacheHeaders };
+      response.headers.forEach((val, key) => {
+        if (!fallbackHeaders[key]) fallbackHeaders[key] = val;
+      });
+      return new Response(responseBody, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: fallbackHeaders,
+      });
     }
   }
 

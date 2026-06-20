@@ -1385,12 +1385,16 @@ onMount(() => {
 
 			<!-- Local Group Actions -->
 				<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
+					<!-- Children slot (e.g. Repair Cache) rendered outside StickyActions to avoid double-render in global sticky bar -->
+					{#if children}
+						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mb-3">
+							{@render children()}
+						</div>
+					{/if}
+
 					<StickyActions>
 					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
 						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-							{#if children}
-								{@render children()}
-							{/if}
 
 							<Button variant="error"
 								type="button"

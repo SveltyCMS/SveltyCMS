@@ -80,8 +80,12 @@ export class MongoWebsiteTokenMethods {
     tenantId?: string,
   ): Promise<DatabaseResult<WebsiteToken>> {
     try {
+      // Capture the original plaintext token before hashing.
+      // The raw token MUST be returned to the caller on creation (only storage is hashed).
+      const originalToken = tokenData.token;
+
       // Hash the sensitive token value before it touches the database layer
-      const hashedToken = await this._hashToken(tokenData.token);
+      const hashedToken = await this._hashToken(originalToken);
 
       const secureToken: Record<string, unknown> = {
         ...tokenData,
@@ -91,10 +95,18 @@ export class MongoWebsiteTokenMethods {
         secureToken.tenantId = tenantId as DatabaseId;
       }
 
-      return this.crud.insert(
+      const result = await this.crud.insert(
         secureToken as any as WebsiteToken,
         tenantId ? { tenantId: tenantId as DatabaseId } : {},
       );
+
+      // Override the stored hash with the original plaintext token in the response.
+      // The hash remains in the database; only the API response carries the raw value.
+      if (result.success && result.data) {
+        result.data = { ...result.data, token: originalToken };
+      }
+
+      return result;
     } catch (error: any) {
       return {
         success: false,

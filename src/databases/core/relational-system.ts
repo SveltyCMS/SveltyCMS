@@ -932,10 +932,13 @@ export class RelationalSystemModule implements ISystemAdapter {
     create: async (
       token: Omit<import("../db-interface").WebsiteToken, "_id" | "createdAt">,
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken>> => {
+      // Capture the original plaintext token before hashing.
+      // The raw token MUST be returned to the caller on creation (only storage is hashed).
+      const originalToken = token.token;
       return this.adapter.wrap(async () => {
         const id = utils.generateId();
         const now = new Date();
-        const hashedTokenValue = await this._hashToken(token.token);
+        const hashedTokenValue = await this._hashToken(originalToken);
         const values = {
           ...token,
           token: hashedTokenValue,
@@ -950,9 +953,11 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(eq(this.schema.websiteTokens._id, id));
-        return utils.convertDatesToISO(result, {
+        const stored = utils.convertDatesToISO(result, {
           mariaDoubleParseJson: this.adapter.type === "mariadb",
         }) as unknown as import("../db-interface").WebsiteToken;
+        // Override the stored hash with the original plaintext token in the response.
+        return { ...stored, token: originalToken };
       }, "CREATE_WEBSITE_TOKEN_FAILED");
     },
 
@@ -984,10 +989,16 @@ export class RelationalSystemModule implements ISystemAdapter {
         const [totalResult] = await this.db
           .select({ count: sql<number>`count(*)` })
           .from(this.schema.websiteTokens);
+        const stored = utils.convertArrayDatesToISO(results, {
+          mariaDoubleParseJson: this.adapter.type === "mariadb",
+        }) as unknown as import("../db-interface").WebsiteToken[];
+        // Scrub token hashes from list responses for security
+        const scrubbed = stored.map((t) => {
+          const { token: _, ...rest } = t as any;
+          return rest as import("../db-interface").WebsiteToken;
+        });
         return {
-          data: utils.convertArrayDatesToISO(results, {
-            mariaDoubleParseJson: this.adapter.type === "mariadb",
-          }) as unknown as import("../db-interface").WebsiteToken[],
+          data: scrubbed,
           total: Number(totalResult?.count || 0),
         };
       }, "GET_WEBSITE_TOKENS_FAILED");

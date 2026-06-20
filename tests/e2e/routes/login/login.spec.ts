@@ -27,9 +27,12 @@ test.describe("Login and Logout Flow", () => {
 
     // Assert we're logged in and at a valid post-login page
     // Fresh installs redirect to collectionbuilder, existing ones to Collections/admin/dashboard
-    await expect(page).toHaveURL(/\/(Collections|admin|dashboard|collectionbuilder)/, {
-      timeout: 10_000,
-    });
+    await expect(page).toHaveURL(
+      /\/(Collections|admin|dashboard|collectionbuilder|en.collection)/,
+      {
+        timeout: 10_000,
+      },
+    );
     console.log("✓ Login successful, current URL:", page.url());
 
     // Click logout

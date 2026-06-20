@@ -3,9 +3,9 @@
  * @description
  * Server-side logic for tenant management.
  * Enforces strict system administrative authorization on page load and status toggle actions.
+ * Uses the database-agnostic adapter (dbAdapter.system.tenants) for multi-DB compatibility.
  */
 
-import { TenantModel } from "@src/databases/mongodb/tenant-methods"; // Updated for merged pilot (model+methods combined)
 import { error, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
@@ -13,18 +13,34 @@ import type { PageServerLoad } from "./$types";
 
 // Only System Admins can access this
 export const load: PageServerLoad = async ({ locals }) => {
-  const { user, isAdmin } = locals;
+  const { user, isAdmin, dbAdapter } = locals;
 
   if (!user) throw redirect(302, "/login");
   if (!isAdmin || user.tenantId) throw redirect(303, "/");
 
   try {
-    const tenants = await TenantModel.find({}).sort({ createdAt: -1 }).lean();
+    if (!dbAdapter) {
+      logger.error("Database adapter not available");
+      throw error(500, "Database adapter not available");
+    }
+
+    const result = await dbAdapter.system.tenants.list({
+      sort: { createdAt: "desc" },
+    });
+
+    if (!result.success) {
+      logger.error("Failed to list tenants", result.error);
+      throw error(500, result.message || "Failed to load tenants");
+    }
 
     return {
-      tenants: JSON.parse(JSON.stringify(tenants)),
+      tenants: result.data,
     };
   } catch (err) {
+    // Re-throw redirects and HTTP errors
+    if (err && typeof err === "object" && "status" in err) {
+      throw err;
+    }
     logger.error("Failed to load tenants", err);
     throw error(500, "Failed to load tenants");
   }

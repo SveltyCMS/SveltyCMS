@@ -79,7 +79,7 @@
 		children
 	}: Props = $props();
 
-	const titleParts = $derived(() => {
+	const titleParts = $derived.by(() => {
 		if (highlight && name.toLowerCase().includes(highlight.toLowerCase())) {
 			const regex = new RegExp(`(${highlight})`, 'gi');
 			return name.split(regex);
@@ -132,7 +132,7 @@
 				{/if}
 
 				<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
-					{#each titleParts() as part, i (i)}
+					{#each titleParts as part, i (i)}
 						<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}> {part} </span>
 					{/each}
 				</span>

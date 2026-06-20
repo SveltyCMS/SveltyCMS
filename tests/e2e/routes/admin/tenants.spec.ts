@@ -16,7 +16,7 @@ test.describe("Tenant Management", () => {
     await expect(page.getByRole("heading", { level: 1, name: /tenant/i })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByRole("table").or(page.getByText(/no tenants/i))).toBeVisible({
+    await expect(page.getByRole("table")).toBeVisible({
       timeout: 10_000,
     });
   });
