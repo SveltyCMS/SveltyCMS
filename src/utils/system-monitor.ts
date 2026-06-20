@@ -281,3 +281,15 @@ export function shouldRejectMutations(): boolean {
 export function getPressureLevel(): SystemHealthSnapshot["pressure"] {
   return _lastSnapshot?.pressure ?? "normal";
 }
+
+// Backward-compatible object export for existing consumers
+export const systemMonitor = {
+  getAdaptiveCostMultiplier: getPressureMultiplier,
+  getPressureLevel,
+  shouldRejectMutations,
+  getLatestSnapshot,
+  getCpuHistory,
+  getCpuInfo,
+  start: startSystemMonitor,
+  stop: stopSystemMonitor,
+};
