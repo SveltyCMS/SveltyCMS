@@ -12,6 +12,11 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { replaceTokens, TokenRegistry } from '@src/services/token/engine';
 	import { modifierMetadata } from '@src/services/token/modifiers';
 	import type { ModifierMetadata, TokenDefinition } from '@src/services/token/types';
@@ -301,25 +306,24 @@
 		<header use:draggable class="mb-4 flex cursor-move select-none items-center justify-between">
 			<div class="flex items-center gap-3">
 				{#if mode === 'configure'}
-					<button onclick={back} class="btn-icon btn-icon-sm preset-outlined-surface-500" aria-label="Back">
+					<Button variant="outline" onclick={back} aria-label="Back" class="p-0! min-w-0">
 						<iconify-icon icon="mdi:arrow-left"></iconify-icon>
-					</button>
+					</Button>
 				{/if}
 				<h3 class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
 					{mode === 'configure' ? 'Configure Token' : 'Select Token'}
 					<span class="text-sm font-normal opacity-70">for</span>
-					<span class="badge variant-soft-secondary"> {activeInput.current?.field.label || activeInput.current?.field.name || 'Field'} </span>
+					<Badge variant="secondary" preset="tonal"> {activeInput.current?.field.label || activeInput.current?.field.name || 'Field'} </Badge>
 				</h3>
 			</div>
-			<button onclick={() => activeInput.set(null)} class="btn-icon btn-icon-sm preset-outlined-surface-500" aria-label="Close">
+			<Button variant="outline" onclick={() => activeInput.set(null)} aria-label="Close" class="p-0! min-w-0">
 				<iconify-icon icon="mdi:close"></iconify-icon>
-			</button>
+			</Button>
 		</header>
 
 		{#if mode === 'list'}
-			<div class="relative mb-4">
-				<iconify-icon icon="mdi:magnify" class="absolute inset-s-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
-				<input bind:value={search} class="input ps-10" type="search" placeholder="Search tokens..."  aria-label="Input" />
+			<div class="mb-4">
+				<FloatingInput bind:value={search} label="Search tokens..." icon="mdi:magnify" aria-label="Search tokens" />
 			</div>
 
 			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pe-1">
@@ -352,15 +356,14 @@
 												<code class="code text-[10px] opacity-70">{t.token}</code>
 											</div>
 											<div class="flex items-center gap-1">
-												<span class="badge variant-soft-secondary text-[10px] uppercase">{t.type}</span>
-												<button
+												<Badge variant="secondary" preset="tonal" class="text-[10px] uppercase">{t.type}</Badge>
+												<Button variant="outline"
 													onclick={(e: MouseEvent) => toggleInfo(t.token, e)}
-													class="btn-icon btn-icon-sm preset-outlined-surface-500"
 													aria-label="More information"
 													title="Info"
-												>
+												 class="p-0! min-w-0">
 													<iconify-icon icon="mdi:information-outline"></iconify-icon>
-												</button>
+												</Button>
 											</div>
 										</div>
 
@@ -383,7 +386,7 @@
 				<div class="card variant-soft-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
 					<div class="mb-2 flex items-center justify-between">
 						<div class="text-lg font-bold text-primary-700 dark:text-primary-500">{selectedToken.name}</div>
-						<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">{selectedToken.type}</span>
+						<Badge variant="primary">{selectedToken.type}</Badge>
 					</div>
 					<code class="code mb-2 block">{selectedToken.token}</code>
 					<p class="text-sm opacity-80">{selectedToken.description}</p>
@@ -397,31 +400,31 @@
 							<div class="card variant-ringed-surface group relative p-3">
 								<div class="mb-2 flex items-center justify-between">
 									<span class="font-bold text-secondary-500">{mod.def.label}</span>
-									<button
+									<Button variant="error"
 										onclick={() => removeModifier(i)}
-										class="btn-icon btn-icon-sm preset-outlined-error-500 text-error-500"
 										aria-label="Remove modifier"
-									>
+									 class="p-0! min-w-0 text-error-500">
 										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-									</button>
+									</Button>
 								</div>
 								{#if mod.def.args.length > 0}
 									<div class="space-y-2">
 										{#each mod.def.args as arg, argIdx (arg.name)}
-											<label class="label text-xs">
-												<span class="opacity-70">{arg.name}</span>
+											<div class="text-xs">
 												{#if arg.type === 'select'}
-													<select bind:value={mod.args[argIdx]} class="select select-sm" aria-label="Select">
-														{#each arg.options ?? [] as opt (opt)}
-															<option value={opt}>{opt}</option>
-														{/each}
-													</select>
+													<Select
+														bind:value={mod.args[argIdx] as string}
+														label={arg.name}
+														size="sm"
+														placeholder="Select..."
+														options={(arg.options ?? []).map((opt) => ({ value: String(opt), label: String(opt) }))}
+													/>
 												{:else if arg.type === 'number'}
-													<input type="number" bind:value={mod.args[argIdx]} class="input input-sm"  aria-label="Input" />
+													<Input type="number" bind:value={mod.args[argIdx] as number} label={arg.name} inputClass="h-8 text-xs" />
 												{:else}
-													<input type="text" bind:value={mod.args[argIdx]} class="input input-sm"  aria-label="Input" />
+													<Input type="text" bind:value={mod.args[argIdx] as string} label={arg.name} inputClass="h-8 text-xs" />
 												{/if}
-											</label>
+											</div>
 										{/each}
 									</div>
 								{/if}
@@ -435,10 +438,10 @@
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m (m.name)}
-							<button onclick={() => addModifier(m)} class="chip preset-filled-surface-500 hover:variant-filled-secondary transition-colors" aria-label="Add {m.label} modifier">
+							<Button variant="surface" onclick={() => addModifier(m)} aria-label="Add {m.label} modifier" class="chip hover:">
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}
-							</button>
+							</Button>
 						{/each}
 						{#if availableModifiers.length === 0}
 							<span class="text-xs italic opacity-50">No compatible modifiers</span>
@@ -469,14 +472,14 @@
 				</div>
 
 				<div class="flex gap-2">
-					<button onclick={deleteToken} class="btn variant-soft-error" title="Clear input" aria-label="Clear token">
+					<Button variant="surface" onclick={deleteToken} title="Clear input" aria-label="Clear token">
 						<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-					</button>
-					<button onclick={addAnotherToken} class="btn preset-tonal-surface flex-1" aria-label="Add another token">
+					</Button>
+					<Button variant="surface" onclick={addAnotherToken} aria-label="Add another token" class="flex-1">
 						<iconify-icon icon="mdi:plus"></iconify-icon>
 						Add Another
-					</button>
-					<button onclick={insert} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex-1 font-bold">Insert Token</button>
+					</Button>
+					<Button variant="tertiary" onclick={insert} class="dark: flex-1">Insert Token</Button>
 				</div>
 			</div>
 		{/if}

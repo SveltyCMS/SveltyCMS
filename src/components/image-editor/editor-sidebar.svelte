@@ -20,6 +20,7 @@ and proper focus management. Renders tools from the auto-discovered registry.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { onMount, tick } from 'svelte';
 	import { type EditorWidget, editorWidgets } from './widgets/registry';
 
@@ -162,9 +163,8 @@ and proper focus management. Renders tools from the auto-discovered registry.
 	</div>
 
 	<div class="sidebar-header hidden items-center justify-between gap-2 border-b px-3 py-3 lg:flex lg:px-4">
-		<button
+		<Button variant="outline"
 			type="button"
-			class="cancel-btn"
 			onclick={onCancel}
 			title="Cancel editing (Esc)"
 			aria-label="Cancel editing — discards all changes"
@@ -172,7 +172,7 @@ and proper focus management. Renders tools from the auto-discovered registry.
 		>
 			<iconify-icon icon="mdi:close" width="16" aria-hidden="true"></iconify-icon>
 			<span>Discard changes</span>
-		</button>
+		</Button>
 	</div>
 
 	<div class="sidebar-tools flex flex-1 flex-row flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overflow-y-hidden px-2 py-2 lg:gap-2 lg:p-3">
@@ -245,23 +245,6 @@ and proper focus management. Renders tools from the auto-discovered registry.
 
 	.sidebar-header {
 		border-color: rgba(255, 255, 255, 0.08);
-	}
-
-	.cancel-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		width: 100%;
-		padding: 0.8rem 0.9rem;
-		color: #e5e7eb;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 0.75rem;
-		transition: all 0.2s ease;
-	}
-
-	.cancel-btn:hover {
-		background: rgba(255, 255, 255, 0.08);
 	}
 
 	.tool-item {

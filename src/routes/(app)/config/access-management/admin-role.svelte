@@ -24,6 +24,8 @@ import type { Role } from "@src/databases/auth/types";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { showConfirm } from "@utils/modal.svelte";
 import { tick } from "svelte";
+	import Button from '@components/ui/button.svelte';
+	import Select from '@components/ui/select.svelte';
 
 const { roleData, setRoleData } = $props();
 
@@ -33,11 +35,17 @@ let currentAdminRole: string | null = $state(null);
 let currentAdminName: string | null = $state(null);
 let isSaving = $state(false);
 let notification: string | null = $state(null); // Explicitly type as string | null
-let selectedAdminRole: string | null = $state(null);
+let selectedAdminRole: string = $state('');
 
 // Derived state for computed values
 const availableRoles = $derived(
 	roleData.filter((role: Role) => role._id !== currentAdminRole),
+);
+const adminRoleOptions = $derived(
+	availableRoles.map((role: Role) => ({
+		value: role._id,
+		label: role.name,
+	})),
 );
 const hasChanges = $derived(selectedAdminRole !== currentAdminRole);
 
@@ -53,12 +61,6 @@ $effect(() => {
 		}
 	}
 });
-
-// Handle role change
-const handleRoleChange = (event: Event) => {
-	const selectedRoleId = (event.target as HTMLSelectElement).value;
-	selectedAdminRole = selectedRoleId;
-};
 
 // Function to save the new admin role
 const saveAdminRole = async () => {
@@ -106,7 +108,7 @@ const saveAdminRole = async () => {
 
 // Function to cancel changes and reset the selected role to the current admin role
 const cancelChanges = () => {
-	selectedAdminRole = currentAdminRole;
+	selectedAdminRole = currentAdminRole ?? '';
 };
 </script>
 
@@ -120,35 +122,35 @@ const cancelChanges = () => {
 	<div class="wrapper my-4">
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-left">
-			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
+			Current Admin Role: <span class="ms-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
 		</p>
 
 		<!-- Dropdown to select admin role -->
-		<label for="adminRole" class="block text-sm text-surface-300">Select new Administrator Role:</label>
-		<select id="adminRole" class="input" onchange={handleRoleChange} bind:value={selectedAdminRole}>
-			{#each availableRoles as role (role._id)}
-				<option value={role._id}>{role.name}</option>
-			{/each}
-		</select>
+		<Select
+			label="Select new Administrator Role:"
+			bind:value={selectedAdminRole}
+			options={adminRoleOptions}
+			placeholder="Select a role..."
+		/>
 
 		<!-- Save and Cancel Buttons -->
 		{#if hasChanges}
 			<!-- Display new admin role-->
 			<p class="mt-4 text-center lg:text-left">
-				Selected Admin Role ID: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
+				Selected Admin Role ID: <span class="ms-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->
-				<button onclick={cancelChanges} class="variant-filled-secondary btn">Cancel</button>
+				<Button variant="outline" onclick={cancelChanges}>Cancel</Button>
 
 				<!-- Save -->
-				<button onclick={saveAdminRole} class="preset-filled-tertiary-500 btn" disabled={isSaving}>
+				<Button variant="tertiary" onclick={saveAdminRole} disabled={isSaving}>
 					{#if isSaving}
 						Saving...
 					{:else}
 						Save Changes
 					{/if}
-				</button>
+				</Button>
 			</div>
 		{/if}
 

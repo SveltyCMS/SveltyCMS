@@ -20,7 +20,7 @@ tags:
 
 ## 🔄 Migration Workflow
 
-````mermaid
+```mermaid
 sequenceDiagram
     participant User as Admin (UI)
     participant SI as SmartImporter Service
@@ -40,7 +40,7 @@ sequenceDiagram
     end
 
     User-->>User: Migration Complete 🎉
-```text
+```
 
 ## 🚀 Key Features
 
@@ -99,7 +99,7 @@ You can **manually adjust** any mapping by selecting a different target field. T
 
 The importer is a **service + UI component** — no dedicated REST endpoint needed:
 
-```typescript
+```
 import { SmartImporter } from "@services/smart-importer";
 
 const importer = new SmartImporter(dbAdapter, tenantId);
@@ -123,10 +123,9 @@ const result = await importer.import(file, {
 });
 
 console.log(`Imported: ${result.imported}, Skipped: ${result.skipped}, Errors: ${result.errors}`);
-```text
+```
 
 Refer to `src/services/smart-importer.ts` for the full API.
-````
 
 ---
 

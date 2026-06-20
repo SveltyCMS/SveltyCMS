@@ -13,6 +13,7 @@
 import type { Handle } from "@sveltejs/kit";
 import { dev } from "$app/environment";
 import { getCorsHeaders } from "@utils/security/cors-utils";
+import { API_CONTENT_SECURITY_POLICY } from "@src/utils/security-constants";
 import { applySecurityHeaders, STATIC_ASSET_REGEX } from "@utils/hook-utils";
 
 // ✨ PERFORMANCE: Pre-calculated to avoid string manipulation on every request
@@ -36,6 +37,10 @@ export function applyAllSecurityHeaders(
   origin: string | null,
   pathname: string,
 ) {
+  const isPageRoute = !pathname.startsWith("/api/");
+  // SvelteKit sets nonce CSP during resolve(); capture it before base headers run.
+  const svelteKitCsp = isPageRoute ? headers.get("Content-Security-Policy") : null;
+
   // 1. Base security headers (X-Frame, X-Content-Type, Referrer, COOP, COEP, HSTS)
   applySecurityHeaders(headers, isHttps && !dev);
 
@@ -104,23 +109,11 @@ export function applyAllSecurityHeaders(
     }
   } else if (pathname.startsWith("/api/")) {
     // API routes: strict CSP since no inline scripts are needed
-    headers.set(
-      "Content-Security-Policy",
-      [
-        "default-src 'self'",
-        "script-src 'self'",
-        "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: blob:",
-        "font-src 'self'",
-        "connect-src 'self'",
-        "frame-src 'none'",
-        "object-src 'none'",
-        "base-uri 'self'",
-        "form-action 'self'",
-      ].join("; "),
-    );
+    headers.set("Content-Security-Policy", API_CONTENT_SECURITY_POLICY);
+  } else if (svelteKitCsp) {
+    // Page routes: restore SvelteKit nonce CSP — must not be clobbered by middleware.
+    headers.set("Content-Security-Policy", svelteKitCsp);
   }
-  // Page routes: leave CSP to SvelteKit's built-in nonce handling (svelte.config.js)
 }
 
 export const handleSecurityHeaders: Handle = async ({ event, resolve }) => {

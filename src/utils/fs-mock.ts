@@ -11,6 +11,7 @@
 
 export const existsSync = () => false;
 export const readFileSync = () => "";
+export const readdirSync = () => [];
 
 export const stat = async () => ({ size: 0, mtime: new Date(0) });
 export const appendFile = async () => {};
@@ -38,6 +39,7 @@ export class AsyncLocalStorage<T = unknown> {
 export default {
   existsSync,
   readFileSync,
+  readdirSync,
   promises,
   AsyncLocalStorage,
 };

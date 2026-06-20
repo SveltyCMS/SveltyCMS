@@ -54,6 +54,8 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { fade, scale, slide } from 'svelte/transition';
 
@@ -397,13 +399,14 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 
 	<!-- Input wrapper -->
 	<div class="relative">
-		<input
+		<Input
 			id="autocomplete-input"
-			bind:this={inputElement}
+			bind:inputRef={inputElement}
 			bind:value={keyword}
-			{placeholder}
+			placeholder={placeholder}
 			{disabled}
-			class="input {className} px-3 py-1.5 pe-20 transition-all duration-200 placeholder:text-surface-600 dark:placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+			class={className}
+			inputClass="pe-20 transition-all duration-200 placeholder:text-surface-600 dark:placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}
@@ -421,30 +424,29 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 		<div class="absolute inset-e-2 top-1/2 flex -translate-y-1/2 gap-1">
 			<!-- Clear button -->
 			{#if keyword && !disabled}
-				<button
-					type="button"
-					class="btn-icon btn-icon-sm rounded-full transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
-					onclick={clearSelection}
-					aria-label="Clear selection"
-					tabindex="-1"
-					transition:scale={{ duration: prefersReducedMotion ? 0 : 200 }}
-				>
-					<iconify-icon icon="mdi:close-circle" width="20"></iconify-icon>
-				</button>
+				<div transition:scale={{ duration: prefersReducedMotion ? 0 : 200 }}>
+					<Button variant="ghost"
+						type="button"
+						onclick={clearSelection}
+						aria-label="Clear selection"
+						tabindex="-1"
+					 class="p-0! min-w-0 rounded-full transition-all hover:scale-110 hover:bg-error-500/10 hover:text-error-500">
+						<iconify-icon icon="mdi:close-circle" width="20"></iconify-icon>
+					</Button>
+				</div>
 			{/if}
 
 			<!-- Dropdown toggle -->
-			<button
+			<Button variant="outline"
 				type="button"
-				class="btn-icon btn-icon-sm preset-outlined-surface-500 transition-all duration-200 hover:scale-110"
 				onclick={toggleDropdown}
 				aria-label={showDropdown ? 'Close options' : 'Show options'}
 				aria-controls="autocomplete-list"
 				{disabled}
 				tabindex="-1"
-			>
+			 class="p-0! min-w-0 transition-all hover:scale-110">
 				<iconify-icon icon="mdi:chevron-down" width="24" class="transition-transform duration-200 {showDropdown ? 'rotate-180' : ''}"></iconify-icon>
-			</button>
+			</Button>
 		</div>
 	</div>
 
@@ -505,7 +507,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 					<iconify-icon icon="mdi:magnify-close" width="32" class="text-surface-400" aria-hidden="true"></iconify-icon>
 					<p class="text-sm text-surface-600 dark:text-surface-50">No results found for "<span class="font-medium">{keyword}</span>"</p>
 					{#if allowCustomValue}
-						<button type="button" class="preset-outlined-surface-500 btn-sm mt-2" onclick={() => selectOption(keyword)}>Use custom value</button>
+						<Button variant="outline" type="button" onclick={() => selectOption(keyword)} size="sm" class="mt-2">Use custom value</Button>
 					{/if}
 				</div>
 			{/if}

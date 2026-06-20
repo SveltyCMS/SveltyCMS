@@ -36,7 +36,7 @@ export async function registerSystemModels(connection: Connection): Promise<void
     }
 
     // Themes
-    const { themeSchema } = await import("./theme");
+    const { themeSchema } = await import("./theme-methods"); // Merged pilot: theme schema now in theme-methods.ts
     if (!connection.models.system_theme) {
       connection.model("system_theme", themeSchema);
     }

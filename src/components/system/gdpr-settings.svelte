@@ -14,6 +14,8 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import type { SettingGroup } from '../../routes/(app)/config/system-settings/settings-groups';
 
@@ -130,19 +132,21 @@
 				</div>
 			</div>
 
-			<label class="label">
-				<span class="label-text text-sm font-medium">User ID</span>
-				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdExport}  aria-label="Input" />
-			</label>
+			<Input
+				label="User ID"
+				type="text"
+				placeholder="Enter User ID..."
+				bind:value={userIdExport}
+			/>
 
-			<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full" disabled={!userIdExport || loadingExport} onclick={handleExport}>
+			<Button variant="tertiary" disabled={!userIdExport || loadingExport} onclick={handleExport} class="dark: w-full">
 				{#if loadingExport}
 					<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
 					Exporting...
 				{:else}
 					Download JSON
 				{/if}
-			</button>
+			</Button>
 		</div>
 
 		<!-- Right to Erasure (Article 17) -->
@@ -155,16 +159,17 @@
 				</div>
 			</div>
 
-			<label class="label">
-				<span class="label-text text-sm font-medium">User ID</span>
-				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdAnonymize}  aria-label="Input" />
-			</label>
+			<Input
+				label="User ID"
+				type="text"
+				placeholder="Enter User ID..."
+				bind:value={userIdAnonymize}
+			/>
 
-			<button
-				class="btn {confirmAnonymize ? 'preset-filled-error-500' : 'preset-tonal-error'} w-full transition-all"
+			<Button variant="error"
 				disabled={!userIdAnonymize || loadingAnonymize}
 				onclick={handleAnonymize}
-			>
+			 class="{confirmAnonymize ? ' ' : ' '} w-full transition-all">
 				{#if loadingAnonymize}
 					<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
 					Processing...
@@ -173,7 +178,7 @@
 				{:else}
 					Anonymize User
 				{/if}
-			</button>
+			</Button>
 			{#if confirmAnonymize}
 				<p class="text-xs text-center text-error-500 animate-pulse">Click again to confirm. This action cannot be undone.</p>
 			{/if}

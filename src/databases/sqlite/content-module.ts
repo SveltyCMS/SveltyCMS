@@ -200,7 +200,11 @@ export class ContentModule extends DatabaseModule<SQLiteAdapterCore> {
           });
 
           // We don't select back every item to save time during bulk operations
-          results.push({ ...update.changes, path: update.path, _id: id } as ContentNode);
+          results.push({
+            ...update.changes,
+            path: update.path,
+            _id: id,
+          } as ContentNode);
         }
 
         return {
@@ -235,12 +239,18 @@ export class ContentModule extends DatabaseModule<SQLiteAdapterCore> {
     reorder: async (
       nodeUpdates: Array<{ path: string; newOrder: number }>,
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.core.wrap(async () => {
+      // Cold path (admin drag-drop reorder): transaction wrapping eliminates
+      // per-item commit overhead while keeping the code simple.
+      return this.core.transaction(async (tx: any) => {
+        const db = tx.db as any;
         for (const update of nodeUpdates) {
-          await this.nodes.update(update.path, { order: update.newOrder });
+          await db
+            .update(schema.contentNodes)
+            .set({ order: update.newOrder })
+            .where(eq(schema.contentNodes.path, update.path));
         }
-        return [];
-      }, "REORDER_NODES_FAILED");
+        return { success: true, data: [] };
+      });
     },
 
     reorderStructure: async (
@@ -251,6 +261,8 @@ export class ContentModule extends DatabaseModule<SQLiteAdapterCore> {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> => {
+      // Cold path (admin drag-drop structural reorder): transaction wrapping
+      // eliminates per-item commit overhead while keeping the code simple.
       return this.core.transaction(async (tx: any) => {
         const db = tx.db as any;
         for (const item of items) {

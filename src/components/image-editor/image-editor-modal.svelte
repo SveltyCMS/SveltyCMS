@@ -74,9 +74,33 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
     let isSaving = $state(false);
     let isInitializing = $state(true);
 
+    const editorSessionKey = $derived(`${mediaId ?? ''}:${imageSrc}`);
+
+    let lastResetSessionKey = $state('');
+
+    // Reset store only when the editor session changes — not on every reactive read of `image`
     $effect(() => {
-        if (imageEditorStore.state.imageElement) {
+        if (!image) {
+            lastResetSessionKey = '';
+            return;
+        }
+        const sessionKey = editorSessionKey;
+        if (sessionKey === lastResetSessionKey) return;
+        lastResetSessionKey = sessionKey;
+        isInitializing = true;
+        error = null;
+        imageEditorStore.reset();
+        imageEditorStore.setError(null);
+    });
+
+    $effect(() => {
+        const ready = !!imageEditorStore.imageElement;
+        const loadError = imageEditorStore.state.error;
+        if (ready || loadError) {
             isInitializing = false;
+            if (loadError) {
+                error = loadError;
+            }
         }
     });
 
@@ -222,15 +246,17 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
         {/if}
 
         <main class="relative flex min-h-0 flex-1 overflow-hidden bg-surface-900">
-            <Editor
-                bind:this={editorComponent}
-                initialImageSrc={imageSrc}
-                {imageFile}
-                {mediaId}
-                focalPoint={initialFocalPoint}
-                oncancel={handleCancelClick}
-                onsave={(detail) => onsave(detail)}
-            />
+            {#key editorSessionKey}
+                <Editor
+                    bind:this={editorComponent}
+                    initialImageSrc={imageSrc}
+                    {imageFile}
+                    {mediaId}
+                    focalPoint={initialFocalPoint}
+                    oncancel={handleCancelClick}
+                    onsave={(detail) => onsave(detail)}
+                />
+            {/key}
         </main>
         <EditorToolbar
             onsave={handleSaveClick}

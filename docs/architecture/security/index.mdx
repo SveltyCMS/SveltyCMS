@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-06-10"
+updated: "2026-06-14"
 tags:
   - "security"
   - "documentation"
@@ -26,12 +26,13 @@ SveltyCMS implements enterprise-grade security measures across all system compon
 
 SveltyCMS security architecture includes:
 
+- **🔐 4-Layer Defense-in-Depth** — Middleware → Dispatcher → Handler → Page Action. Each layer re-validates independently. Fail-closed by default.
 - **🔐 Authentication & Authorization** - Multi-factor authentication, session management, RBAC
-- **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption
+- **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption, CSPRNG-only tokens (no `Math.random()` fallback)
 - **🛡️ Widget Security** - XSS prevention, injection protection, file validation
-- **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained), threat detection
+- **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained, fire-and-forget — non-blocking on mutations)
 - **🚀 Secure Development** - Build-time security checks, vulnerability scanning
-- **⚡ Enterprise Immunity** - Self-healing load shedding, graceful shutdown, and pre-compiled pipelines
+- **⚡ Enterprise Immunity** - Self-healing load shedding, graceful shutdown, SSRF endpoint validation, and pre-compiled pipelines
 
 ---
 
@@ -77,7 +78,7 @@ SveltyCMS security architecture includes:
   - Secure token generation
   - Timing attack prevention
 
-- **[Quantum Security](/docs/architecture/quantum-security.mdx)** - Future-proof security measures against quantum computing threats
+- **[Quantum Security](/docs/architecture/security/quantum-security.mdx)** - Future-proof security measures against quantum computing threats
 
 ### Widget & Content Security
 
@@ -115,7 +116,7 @@ SveltyCMS security architecture includes:
   - Access control
   - Encryption at rest
 
-- **[Database Resilience](/docs/architecture/database-resilience.mdx)** - Database security and reliability
+- **[Database Resilience](/docs/architecture/database/database-resilience.mdx)** - Database security and reliability
   - Connection pooling
   - Query timeout protection
   - Injection prevention
@@ -327,7 +328,7 @@ Our integration tests authenticate like real users:
 
 SveltyCMS includes comprehensive security testing:
 
-````bash
+```bash
 # Encryption and cryptography tests
 bun test tests/unit/utils/security.test.ts
 
@@ -339,7 +340,7 @@ bun test tests/unit/hooks/
 
 # API security tests
 bun test tests/integration/api/security.test.ts
-```text
+```
 
 **Security Test Categories:**
 
@@ -567,7 +568,7 @@ SveltyCMS security features support compliance with:
 - [Authentication System](/docs/architecture/authentication-system.mdx)
 - [Cryptography Module](/docs/architecture/cryptography-module.mdx)
 - [Security Plugin](/docs/architecture/security-plugin.mdx)
-- [Database Resilience](/docs/architecture/database-resilience.mdx)
+- [Database Resilience](/docs/architecture/database/database-resilience.mdx)
 
 ### API Security
 
@@ -609,7 +610,6 @@ For security-related questions or to report vulnerabilities:
 **Last Updated**: April 23, 2026
 **Security Review Status**: ✅ A++ Grade (April 2026 Assessment - AI Hardened)
 **Next Review**: Quarterly (July 2026)
-````
 
 ---
 

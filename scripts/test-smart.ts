@@ -126,8 +126,12 @@ const SUITE_RULES: SuiteRule[] = [
   {
     label: "E2E Wizard",
     gate: 4,
-    patterns: ["src/routes/setup/**", "src/components/setup/**", "tests/e2e/setup-wizard.spec.ts"],
-    command: "npx playwright test tests/e2e/setup-wizard.spec.ts",
+    patterns: [
+      "src/routes/setup/**",
+      "src/components/setup/**",
+      "tests/e2e/routes/setup/setup-wizard.spec.ts",
+    ],
+    command: "npx playwright test tests/e2e/routes/setup/setup-wizard.spec.ts --project=wizard",
   },
   {
     label: "E2E Auth",

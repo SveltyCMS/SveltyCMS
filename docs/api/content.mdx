@@ -6,7 +6,7 @@ order: 12
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-04-12"
+updated: "2026-06-15"
 tags:
   - "api"
   - "content"
@@ -28,7 +28,8 @@ The Content API manages the structural and cross-collection aspects of SveltyCMS
 | **Get Version**   | `/api/content/version`   | `GET`  | **Public**          |
 | **Get Structure** | `/api/content-structure` | `GET`  | `collection:read`   |
 | **Global Search** | `/api/search`            | `GET`  | `collection:read`   |
-| **SSE Events**    | `/api/events`            | `GET`  | `collection:read`   |
+| **SSE Events**    | `/api/content/events`    | `GET`  | `collection:read`   |
+| **SSE (alias)**   | `/api/events`            | `GET`  | `collection:read`   |
 | **GraphQL API**   | `/api/graphql`           | `POST` | `manage:system`     |
 
 ---
@@ -65,16 +66,41 @@ Search across multiple collections simultaneously using the unified search engin
 
 ## 3. Real-Time Events (SSE)
 
-SveltyCMS broadcasts system-wide events using **Server-Sent Events (SSE)**. This enable live collaboration and instantaneous UI updates.
+SveltyCMS broadcasts structural content changes using **Server-Sent Events (SSE)**. Authenticated admin sessions connect to receive normalized update payloads; the CMS admin UI uses this to refresh the content tree without a full page reload.
 
-**Endpoint**: `GET /api/events`
+**Primary endpoint**: `GET /api/content/events`  
+**Alias**: `GET /api/events`  
+**Permission**: `collection:read` (session cookie required)
+
+### Wire format
+
+Internal `eventBus` events (e.g. `content:update`) are normalized before streaming:
+
+```json
+{
+  "type": "content_update",
+  "event": "content:update",
+  "version": 1718457600000,
+  "tenantId": "all",
+  "timestamp": 1718457600123
+}
+```
+
+Tenant-scoped subscribers only receive events where `tenantId` matches their context, or where `tenantId` is `"all"` (broadcast).
+
+### Client integration
+
+The built-in admin client (`content-sse.svelte.ts`) listens for `type: "content_update"` and calls `contentSystem.refresh()`, which fetches the latest structure from `GET /api/content-structure?action=getStructure` and syncs the reactive store.
 
 ````javascript
-const events = new EventSource("/api/events");
-events.addEventListener("entryUpdated", (e) => {
+const events = new EventSource("/api/content/events", { withCredentials: true });
+events.onmessage = (e) => {
   const data = JSON.parse(e.data);
-  console.log(`Entry ${data.id} changed in ${data.collection}`);
-});
+  if (data.type === "content_update") {
+    // Refetch structure or invalidate SvelteKit loaders
+    console.log(`Content tree changed (v${data.version})`);
+  }
+};
 ```text
 
 ---

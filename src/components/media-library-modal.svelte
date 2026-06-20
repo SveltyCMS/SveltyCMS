@@ -17,6 +17,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import LocalUpload from '@src/routes/(app)/mediagallery/upload-media/local-upload.svelte';
 	import RemoteUpload from '@src/routes/(app)/mediagallery/upload-media/remote-upload.svelte';
 	import { logger } from '@utils/logger';
@@ -153,24 +154,21 @@
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<h2 class="text-lg font-bold text-tertiary-500 dark:text-primary-500 sm:text-xl">Media Library</h2>
 				<div class="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-				<button
-					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
+				<Button variant="tertiary"
 										onclick={() => (activeTab = 'local')}
-									>
+									 class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? ' dark: ' : 'preset-outline-surface-500'}">
 					Local Upload
-				</button>
-				<button
-					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
+				</Button>
+				<Button variant="tertiary"
 										onclick={() => (activeTab = 'library')}
-									>
+									 class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? ' dark: ' : 'preset-outline-surface-500'}">
 					Library
-				</button>
-				<button
-					class="btn flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outline-surface-500'}"
+				</Button>
+				<Button variant="tertiary"
 										onclick={() => (activeTab = 'remote')}
-									>
+									 class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? ' dark: ' : 'preset-outline-surface-500'}">
 					Remote Upload
-				</button>
+				</Button>
 				</div>
 			</div>
 		</header>
@@ -194,7 +192,7 @@
 					<div class="flex h-full flex-col items-center justify-center text-error-500">
 						<iconify-icon icon="mdi:alert-circle" width="48"></iconify-icon>
 						<p>{error}</p>
-						<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 mt-4" onclick={fetchMedia}>Retry</button>
+						<Button variant="tertiary" onclick={fetchMedia} class="dark: mt-4">Retry</Button>
 					</div>
 				{:else}
 					{#if files.length === 0}
@@ -280,11 +278,11 @@
 		</main>
 
 		<footer class="mt-4 flex flex-col gap-2 border-t border-surface-200 pt-4 dark:border-surface-600 sm:flex-row sm:justify-end">
-			<button type="button" class="btn preset-outline-surface-500 w-full sm:w-auto" onclick={handleClose}>Cancel</button>
+			<Button variant="outline" type="button" onclick={handleClose} class="w-full sm:w-auto">Cancel</Button>
 			{#if activeTab === 'library' && selectedFiles.size > 0}
-				<button type="button" class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full font-bold sm:w-auto" onclick={handleConfirm}>
+				<Button variant="tertiary" type="button" onclick={handleConfirm} class="dark: w-full sm:w-auto">
 					Select {selectedFiles.size} Item{selectedFiles.size > 1 ? 's' : ''}
-				</button>
+				</Button>
 			{/if}
 		</footer>
 	</div>

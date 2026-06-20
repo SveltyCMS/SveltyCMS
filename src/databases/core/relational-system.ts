@@ -77,11 +77,25 @@ export class RelationalSystemModule implements ISystemAdapter {
   }
 
   protected get db() {
+    // Centralized tenant helpers (getTenantCondition, applyTenantFilter, shouldBypassTenantCheck) now live in relational-utils.ts for the SQL family.
     return (this.adapter as any).db;
   }
 
   protected getDb(options?: BaseQueryOptions) {
     return options?.transaction?.db || this.db;
+  }
+
+  /**
+   * Helper to hash tokens before storage or comparison.
+   * Website tokens represent API credentials and must NEVER be stored in plaintext.
+   */
+  private async _hashToken(token: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(token);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   // ============================================================
@@ -247,7 +261,11 @@ export class RelationalSystemModule implements ISystemAdapter {
         } else {
           await this.getDb(options as any)
             .insert(this.schema.systemPreferences)
-            .values({ ...data, _id: String(utils.generateId()), createdAt: now });
+            .values({
+              ...data,
+              _id: String(utils.generateId()),
+              createdAt: now,
+            });
         }
       }, "SET_PREFERENCE_FAILED");
     },
@@ -263,14 +281,34 @@ export class RelationalSystemModule implements ISystemAdapter {
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
-        for (const pref of preferences) {
-          await this.preferences.set(pref.key, pref.value, {
-            scope: pref.scope,
-            userId: pref.userId,
-            category: pref.category,
-            tenantId: (options as any)?.tenantId,
+        if (preferences.length === 0) return;
+        const now = utils.nowISODateString();
+        const db = this.getDb(options as any);
+        const tid = (options as any)?.tenantId ? String((options as any).tenantId) : null;
+        const rows = preferences.map((pref) => ({
+          _id: String(utils.generateId()),
+          key: String(pref.key),
+          value: encodePreferenceValue(this.adapter.type, pref.value),
+          scope: String(pref.scope || "system"),
+          userId: pref.userId ? String(pref.userId) : null,
+          visibility: String(pref.category || "private"),
+          tenantId: tid,
+          createdAt: now,
+          updatedAt: now,
+        }));
+        await db
+          .insert(this.schema.systemPreferences)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [this.schema.systemPreferences.key, this.schema.systemPreferences.tenantId],
+            set: {
+              value: sql`excluded.value`,
+              scope: sql`excluded.scope`,
+              userId: sql`excluded.userId`,
+              visibility: sql`excluded.visibility`,
+              updatedAt: sql`excluded.updatedAt`,
+            },
           });
-        }
       }, "SET_PREFERENCES_FAILED");
     },
 
@@ -730,7 +768,11 @@ export class RelationalSystemModule implements ISystemAdapter {
         } else {
           await this.getDb(options as any)
             .insert(this.schema.themes)
-            .values({ ...values, _id: theme._id || utils.generateId(), createdAt: now });
+            .values({
+              ...values,
+              _id: theme._id || utils.generateId(),
+              createdAt: now,
+            });
         }
       }
     },
@@ -834,7 +876,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         await this.db
           .update(this.schema.widgets)
-          .set({ isActive: true, updatedAt: isoDateStringToDate(nowISODateString()) })
+          .set({
+            isActive: true,
+            updatedAt: isoDateStringToDate(nowISODateString()),
+          })
           .where(eq(this.schema.widgets._id, widgetId));
       }, "ACTIVATE_WIDGET_FAILED");
     },
@@ -843,7 +888,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         await this.db
           .update(this.schema.widgets)
-          .set({ isActive: false, updatedAt: isoDateStringToDate(nowISODateString()) })
+          .set({
+            isActive: false,
+            updatedAt: isoDateStringToDate(nowISODateString()),
+          })
           .where(eq(this.schema.widgets._id, widgetId));
       }, "DEACTIVATE_WIDGET_FAILED");
     },
@@ -884,11 +932,16 @@ export class RelationalSystemModule implements ISystemAdapter {
     create: async (
       token: Omit<import("../db-interface").WebsiteToken, "_id" | "createdAt">,
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken>> => {
+      // Capture the original plaintext token before hashing.
+      // The raw token MUST be returned to the caller on creation (only storage is hashed).
+      const originalToken = token.token;
       return this.adapter.wrap(async () => {
         const id = utils.generateId();
         const now = new Date();
+        const hashedTokenValue = await this._hashToken(originalToken);
         const values = {
           ...token,
+          token: hashedTokenValue,
           _id: id,
           createdAt: now,
           updatedAt: now,
@@ -900,7 +953,11 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(eq(this.schema.websiteTokens._id, id));
-        return utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken;
+        const stored = utils.convertDatesToISO(result, {
+          mariaDoubleParseJson: this.adapter.type === "mariadb",
+        }) as unknown as import("../db-interface").WebsiteToken;
+        // Override the stored hash with the original plaintext token in the response.
+        return { ...stored, token: originalToken };
       }, "CREATE_WEBSITE_TOKEN_FAILED");
     },
 
@@ -910,7 +967,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       sort?: string;
       order?: string;
     }): Promise<
-      DatabaseResult<{ data: import("../db-interface").WebsiteToken[]; total: number }>
+      DatabaseResult<{
+        data: import("../db-interface").WebsiteToken[];
+        total: number;
+      }>
     > => {
       return this.adapter.wrap(async () => {
         let q = this.db
@@ -929,10 +989,16 @@ export class RelationalSystemModule implements ISystemAdapter {
         const [totalResult] = await this.db
           .select({ count: sql<number>`count(*)` })
           .from(this.schema.websiteTokens);
+        const stored = utils.convertArrayDatesToISO(results, {
+          mariaDoubleParseJson: this.adapter.type === "mariadb",
+        }) as unknown as import("../db-interface").WebsiteToken[];
+        // Scrub token hashes from list responses for security
+        const scrubbed = stored.map((t) => {
+          const { token: _, ...rest } = t as any;
+          return rest as import("../db-interface").WebsiteToken;
+        });
         return {
-          data: utils.convertArrayDatesToISO(
-            results,
-          ) as unknown as import("../db-interface").WebsiteToken[],
+          data: scrubbed,
           total: Number(totalResult?.count || 0),
         };
       }, "GET_WEBSITE_TOKENS_FAILED");
@@ -948,7 +1014,9 @@ export class RelationalSystemModule implements ISystemAdapter {
           .where(eq(this.schema.websiteTokens.name, name))
           .limit(1);
         return result
-          ? (utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken)
+          ? (utils.convertDatesToISO(result, {
+              mariaDoubleParseJson: this.adapter.type === "mariadb",
+            }) as unknown as import("../db-interface").WebsiteToken)
           : null;
       }, "GET_WEBSITE_TOKEN_BY_NAME_FAILED");
     },
@@ -957,13 +1025,16 @@ export class RelationalSystemModule implements ISystemAdapter {
       token: string,
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
       return this.adapter.wrap(async () => {
+        const hashedToken = await this._hashToken(token);
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
-          .where(eq(this.schema.websiteTokens.token, token))
+          .where(eq(this.schema.websiteTokens.token, hashedToken))
           .limit(1);
         return result
-          ? (utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken)
+          ? (utils.convertDatesToISO(result, {
+              mariaDoubleParseJson: this.adapter.type === "mariadb",
+            }) as unknown as import("../db-interface").WebsiteToken)
           : null;
       }, "GET_WEBSITE_TOKEN_BY_TOKEN_FAILED");
     },

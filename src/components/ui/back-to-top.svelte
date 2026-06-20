@@ -54,8 +54,8 @@ Appears after scrolling 200px. Fully accessible.
 {#if isVisible}
 	<button
 		type="button"
-		class="fixed bottom-16 right-2 z-50 flex h-12 w-12 items-center justify-center rounded-full 
-		       bg-white/90 dark:bg-zinc-900/90 
+		class="fixed bottom-16 inset-e-2 z-50 flex h-12 w-12 items-center justify-center rounded-full
+		       bg-white/90 dark:bg-zinc-900/90
 		       shadow-lg shadow-black/10 dark:shadow-black/50
 		       ring-1 ring-zinc-950/5 dark:ring-white/10
 		       backdrop-blur-xl
@@ -67,9 +67,9 @@ Appears after scrolling 200px. Fully accessible.
 		in:scale={{ duration: 200, start: 0.85 }}
 		out:fade={{ duration: 180 }}
 	>
-		<iconify-icon 
-			icon="fluent-emoji-high-contrast:top-arrow" 
-			width="26" 
+		<iconify-icon
+			icon="fluent-emoji-high-contrast:top-arrow"
+			width="26"
 			class="text-zinc-700 dark:text-zinc-200"
 		></iconify-icon>
 	</button>

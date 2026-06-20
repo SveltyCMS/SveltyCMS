@@ -97,7 +97,11 @@ export class RelationalMediaModule implements IMediaAdapter {
               ? [eq(this.schema.mediaItems.folderId, folderId as string)]
               : [isNull(this.schema.mediaItems.folderId)];
 
-            if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+            if (tenantId !== undefined) {
+              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
+                tenantId: tenantId as any,
+              });
+            }
 
             if (options?.user) {
               const isAdmin = options.user.role === "admin" || options.user.isAdmin === true;
@@ -242,7 +246,11 @@ export class RelationalMediaModule implements IMediaAdapter {
         return this.adapter.wrap(
           async () => {
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+            if (tenantId !== undefined) {
+              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
+                tenantId: tenantId as any,
+              });
+            }
 
             const [existing] = await this.db
               .select({ metadata: this.schema.mediaItems.metadata })
@@ -278,7 +286,11 @@ export class RelationalMediaModule implements IMediaAdapter {
         return this.adapter.wrap(
           async () => {
             const conditions = [inArray(this.schema.mediaItems._id, fileIds as string[])];
-            if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+            if (tenantId !== undefined) {
+              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
+                tenantId: tenantId as any,
+              });
+            }
 
             const results = await this.db
               .update(this.schema.mediaItems)
@@ -321,7 +333,11 @@ export class RelationalMediaModule implements IMediaAdapter {
         return this.adapter.wrap(
           async () => {
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+            if (tenantId !== undefined) {
+              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
+                tenantId: tenantId as any,
+              });
+            }
 
             await this.db
               .update(this.schema.mediaItems)
@@ -342,7 +358,11 @@ export class RelationalMediaModule implements IMediaAdapter {
         return this.adapter.wrap(
           async () => {
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+            if (tenantId !== undefined) {
+              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
+                tenantId: tenantId as any,
+              });
+            }
 
             const [existing] = await this.db
               .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))

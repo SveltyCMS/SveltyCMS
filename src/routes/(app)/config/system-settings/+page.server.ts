@@ -12,7 +12,8 @@
  * - Handles cases of unauthenticated users or insufficient permissions.
  */
 
-import { error, redirect } from "@sveltejs/kit";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { error, isHttpError, redirect } from "@sveltejs/kit";
 // System Logs
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
@@ -22,7 +23,7 @@ import "./admin.remote";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const { user, isAdmin, roles: tenantRoles } = locals;
+    const { user, isAdmin, roles: tenantRoles = [] } = locals;
 
     // If validation fails, redirect the user to the login page
     if (!user) {
@@ -33,15 +34,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Log successful session validation
     logger.trace(`User authenticated successfully for user: ${user._id}`);
 
-    // Check user permission for system settings using cached tenantRoles from locals
     const hasSystemSettingsPermission =
-      isAdmin ||
-      tenantRoles.some((role) =>
-        role.permissions?.some((p) => {
-          const [resource, action] = p.split(":");
-          return resource === "config" && action === "settings";
-        }),
-      );
+      isAdmin || hasPermissionWithRoles(user, "config:settings", tenantRoles);
 
     if (!hasSystemSettingsPermission) {
       const message = `User ${user._id} does not have permission to access system settings`;
@@ -62,8 +56,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       isAdmin,
     };
   } catch (err) {
-    if (err instanceof Error && "status" in err) {
-      // This is likely a redirect or an error we've already handled
+    if (isHttpError(err)) {
       throw err;
     }
     const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;

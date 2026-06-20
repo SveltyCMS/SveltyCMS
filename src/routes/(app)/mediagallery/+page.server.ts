@@ -25,6 +25,7 @@ import { error, redirect, isHttpError, isRedirect } from "@sveltejs/kit";
 // System Logger
 import { type LoggableValue, logger } from "@utils/logger";
 import { getImageSizes, moveMediaToTrash } from "@utils/media/media-storage.server";
+import { resolveMediaPublicPath } from "@utils/media/media-utils";
 import type { Actions, PageServerLoad } from "./$types";
 
 /**
@@ -80,28 +81,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive})`,
     );
 
-    // 🚀 Fetch virtual folders with 5-min cache (they change rarely)
-    const cacheKey = `mediagallery:virtualFolders:${locals.tenantId || "global"}`;
-    let virtualFoldersData = await cacheService.get<any[]>(
-      cacheKey,
-      locals.tenantId as string | undefined,
+    // 🚀 Fetch virtual folders with SWR (5 min fresh, 30 min stale)
+    const vfCacheKey = `mediagallery:virtualFolders:${locals.tenantId || "global"}`;
+    const virtualFoldersData = await cacheService.getOrSetSWR<any[]>(
+      vfCacheKey,
+      async () => {
+        const result = await dbAdapter.system.virtualFolder.getAll();
+        if (!result.success) throw new Error("Virtual folder fetch failed");
+        return Array.isArray(result.data) ? result.data : [];
+      },
+      300_000, // Fresh: 5 min
+      1_800_000, // Stale: 30 min (serve stale while refreshing)
     );
-    if (!virtualFoldersData) {
-      const allVirtualFoldersResult = await dbAdapter.system.virtualFolder.getAll();
-      if (!allVirtualFoldersResult.success) {
-        logger.error("Failed to fetch virtual folders", allVirtualFoldersResult.error);
-        throw error(500, "Failed to fetch virtual folders");
-      }
-      virtualFoldersData = Array.isArray(allVirtualFoldersResult.data)
-        ? allVirtualFoldersResult.data
-        : [];
-      await cacheService.set(
-        cacheKey,
-        virtualFoldersData,
-        300,
-        locals.tenantId as string | undefined,
-      );
-    }
 
     const serializedVirtualFolders = virtualFoldersData.map((folder) =>
       serializeIds(folder as unknown),
@@ -164,13 +155,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         try {
           const mediaItem = item as unknown as MediaItem;
 
-          // Derive public URL from stored path
-          const storedPath = mediaItem.path ?? "";
-          const publicUrl = storedPath.startsWith("/files/")
-            ? storedPath
-            : storedPath.startsWith("http")
-              ? storedPath
-              : `/files/${storedPath}`;
+          const publicUrl = resolveMediaPublicPath(mediaItem);
 
           // Use DB-stored thumbnails directly (already has correct URLs from upload)
           const thumbnails = (mediaItem.thumbnails ?? {}) as Record<string, { url: string }>;
@@ -250,7 +235,15 @@ export const actions: Actions = {
         files
           .filter((f): f is File => f instanceof File)
           .map(async (file) => {
-            await mediaService.saveMedia(file, user._id as any, access, folder as any);
+            const result = await mediaService.saveMedia(
+              file,
+              user._id as any,
+              access,
+              (locals.tenantId as DatabaseId | null) ?? null,
+            );
+            if (!result.success) {
+              throw new Error(result.message || "Failed to save media file");
+            }
             logger.info(`File uploaded successfully to ${folder}: ${file.name}`);
           }),
       );
@@ -452,7 +445,12 @@ export const actions: Actions = {
             const contentType = response.headers.get("content-type") || "application/octet-stream";
             const filename = url.substring(url.lastIndexOf("/") + 1);
             const file = new File([buffer], filename, { type: contentType });
-            await mediaService.saveMedia(file, user._id as any, access, folder as any);
+            await mediaService.saveMedia(
+              file,
+              user._id as any,
+              access,
+              (locals.tenantId as DatabaseId | null) ?? null,
+            );
             logger.info(`Remote file uploaded successfully to ${folder}: ${file.name}`);
           } catch (fileError) {
             const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);

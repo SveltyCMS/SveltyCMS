@@ -79,6 +79,17 @@ const GeolocationWidget = createWidget<GeolocationProps>({
       }
     `,
   }),
+
+  modifyRequest: async ({ data, type }: any) => {
+    if (type === "POST" || type === "PATCH") {
+      const { checkExtensionLicense } = await import("@src/utils/license-manager");
+      const status = await checkExtensionLicense("widget", "geolocation");
+      if (!status.active && !status.hasLicense) {
+        throw new Error("403 Forbidden: Premium License Required for Geolocation Widget");
+      }
+    }
+    return data;
+  },
 });
 
 export default GeolocationWidget;

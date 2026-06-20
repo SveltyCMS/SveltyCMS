@@ -145,6 +145,11 @@ let serverEngine: {
   enqueue: (level: LogLevel, msg: string, args: unknown[]) => void;
 } | null = null;
 
+// Startup buffer: captures log entries emitted before the async IIFE completes.
+// Once the server engine initializes, buffered entries are flushed and the buffer
+// is replaced with a direct passthrough to prevent lost audit entries.
+const startupBuffer: { level: LogLevel; msg: string; args: unknown[] }[] = [];
+
 if (!IS_BROWSER) {
   // Use a self-invoking async function to initialize server-side deps
   (async () => {
@@ -242,6 +247,14 @@ if (!IS_BROWSER) {
           else setTimeout(flush, 5000);
         },
       };
+
+      // Flush startup buffer — entries captured before the IIFE completed
+      if (startupBuffer.length > 0) {
+        const buffered = startupBuffer.splice(0, startupBuffer.length);
+        for (const entry of buffered) {
+          serverEngine.enqueue(entry.level, entry.msg, entry.args);
+        }
+      }
     } catch (e) {
       console.error("[Logger] Failed to initialize server engine", e);
     }
@@ -303,8 +316,12 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
       `${pc.dim(ts)} ${pc.bold(icon)} [${level.toUpperCase().padEnd(5)}] ${coloredMsg} ${argsStr}`,
     );
 
-    // Send to server audit engine
-    serverEngine?.enqueue(level, maskedMsg, maskedArgs);
+    // Send to server audit engine — use startup buffer if engine not ready yet
+    if (serverEngine) {
+      serverEngine.enqueue(level, maskedMsg, maskedArgs);
+    } else {
+      startupBuffer.push({ level, msg: maskedMsg, args: maskedArgs });
+    }
   }
 }
 

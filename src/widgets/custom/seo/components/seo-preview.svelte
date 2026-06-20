@@ -17,6 +17,7 @@
 -->
 
 <script module lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// ParaglideJS
 	import { widget_seo_powerwords } from '@src/paraglide/messages';
 
@@ -107,38 +108,35 @@
 		<div class="btn-group border border-surface-500 overflow-hidden">
 			<!-- Device Toggle: Desktop -->
 			<SystemTooltip title="Desktop View">
-				<button
+				<Button variant="tertiary"
 					type="button"
 					onclick={() => (SeoPreviewToggle = false)}
-					class="{!SeoPreviewToggle ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-filled-surface-500'} btn-icon"
 					aria-label="Desktop View"
-				>
+				 class="p-0! min-w-0 {!SeoPreviewToggle ? ' dark: ' : ' '}">
 					<iconify-icon icon="mdi:monitor" width={24}></iconify-icon>
-				</button>
+				</Button>
 			</SystemTooltip>
 
 			<!-- Device Toggle: Mobile -->
 			<SystemTooltip title="Mobile View">
-				<button
+				<Button variant="tertiary"
 					type="button"
 					onclick={() => (SeoPreviewToggle = true)}
-					class="{SeoPreviewToggle ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-filled-surface-500'} btn-icon"
 					aria-label="Mobile View"
-				>
+				 class="p-0! min-w-0 {SeoPreviewToggle ? ' dark: ' : ' '}">
 					<iconify-icon icon="mdi:cellphone" width={24}></iconify-icon>
-				</button>
+				</Button>
 			</SystemTooltip>
 
 			<!-- Heatmap Toggle -->
 			<SystemTooltip title="Toggle Heatmap Visualization">
-				<button
+				<Button variant="warning"
 					type="button"
-					class="btn {heatmapMode ? 'preset-filled-warning' : 'preset-filled-surface-500'}"
 					onclick={() => (heatmapMode = !heatmapMode)}
-				>
+					class={heatmapMode ? 'preset-filled-warning-500' : ''}>
 					<iconify-icon icon="mdi:fire" width={24}></iconify-icon>
 					<span class="hidden sm:inline">Heatmap</span>
-				</button>
+				</Button>
 			</SystemTooltip>
 		</div>
 	</div>

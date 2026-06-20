@@ -34,6 +34,7 @@ Visual password strength indicator with match validation and accessibility featu
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
@@ -225,16 +226,16 @@ Visual password strength indicator with match validation and accessibility featu
 					<div class="flex items-center gap-2">
 						<span class="text-xs text-gray-500 dark:text-gray-400"> Strength </span>
 						{#if showRequirements}
-							<button
+							<Button variant="ghost"
+								size="sm"
 								type="button"
 								onclick={toggleRequirements}
-								class="text-xs text-tertiary-500  hover:text-tertiary-600 dark:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded"
 								aria-expanded={showRequirementsList}
 								aria-controls="password-requirements"
 							>
 								{showRequirementsList ? 'Hide' : 'Show'}
 								requirements
-							</button>
+							</Button>
 						{/if}
 					</div>
 				{:else}

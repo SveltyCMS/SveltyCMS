@@ -17,6 +17,7 @@ This page dynamically switches between List views and Field editors based on the
 - Save or Cancel edits (triggers auto-save/draft logic).
 -->
 <script lang="ts">
+import AdminPageShell from "@components/admin-page-shell.svelte";
 import EntryList from "@src/components/collection-display/entry-list.svelte";
 import Fields from "@src/components/collection-display/fields.svelte";
 import WorkflowActions from "@src/components/collection-display/workflow-actions.svelte";
@@ -530,7 +531,15 @@ beforeNavigate(async ({ cancel }) => {
 
 <svelte:head><title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title></svelte:head>
 
-<div class="content h-full">
+<AdminPageShell
+		title={collectionSchema?.name ?? 'Collection'}
+		icon={collectionSchema?.icon ?? 'bi:collection'}
+		fullHeight={true}
+		animate={false}
+		showBackButton={true}
+		backUrl="/"
+	>
+<div class="content min-h-0 flex-1">
 	<!-- Auto-save indicator -->
 	{#if isSavingDraft}
 		<div class="fixed end-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg">
@@ -561,9 +570,9 @@ beforeNavigate(async ({ cancel }) => {
 	{:else if ['edit', 'create'].includes(collections.mode)}
 		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)] space-y-6">
             {#if collections.mode === 'edit' && collections.activeValue?._id}
-                <WorkflowActions 
-                    collectionId={collections.active._id!} 
-                    entryId={String(collections.activeValue?._id || '')} 
+                <WorkflowActions
+                    collectionId={collections.active._id!}
+                    entryId={String(collections.activeValue?._id || '')}
                 />
             {/if}
 			<!-- Pass the server-loaded data directly as props -->
@@ -571,3 +580,4 @@ beforeNavigate(async ({ cancel }) => {
 		</div>
 	{/if}
 </div>
+</AdminPageShell>

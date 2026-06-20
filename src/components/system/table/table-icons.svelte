@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/system/table/table-icons.svelte
 @component
 **Icon component for table**
@@ -43,14 +43,14 @@
 	}
 </script>
 
-<td onclick={handleIconClick} class={`border-r p-0 text-center align-middle ${cellClass}`}>
+<td onclick={handleIconClick} class={`border-e p-0 text-center align-middle ${cellClass}`}>
 	<button
 		onkeydown={handleKeydown}
 		onclick={handleIconClick}
 		aria-checked={checked ? 'true' : 'false'}
 		aria-label="Toggle selection"
 		role="checkbox"
-		class="mx-auto flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
+		class="mx-auto flex h-6.5 w-6.5 items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
 						{iconStatus === StatusTypes.unpublish
 			? 'border-yellow-500'
 			: iconStatus === StatusTypes.publish

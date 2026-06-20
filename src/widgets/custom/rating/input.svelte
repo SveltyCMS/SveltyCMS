@@ -28,6 +28,7 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import Rating from "@components/ui/rating.svelte";
 	import type { FieldType } from './';
 
@@ -92,14 +93,15 @@ Interactive star rating with hover states and click selection
 		</div>
 
 		{#if !field.required || (value !== null && value !== undefined)}
-			<button
+			<Button
+				variant="surface"
+				size="sm"
 				type="button"
-				class="p-1.5 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-all flex items-center justify-center"
 				onclick={handleClear}
 				title="Reset Rating"
 			>
 				<iconify-icon icon="mdi:refresh" width="18"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 

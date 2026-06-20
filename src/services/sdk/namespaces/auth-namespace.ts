@@ -289,6 +289,12 @@ export class AuthNamespace {
     });
   }
 
+  async getAllActiveSessions(options: LocalApiOptions = {}) {
+    const auth = await this.getAuth();
+    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return auth.getAllActiveSessions({ tenantId: options.tenantId as DatabaseId });
+  }
+
   async invalidateAllUserSessions(userId: string, options: LocalApiOptions = {}) {
     const auth = await this.getAuth();
     if (!auth) throw new AppError("Authentication system not initialized", 500);

@@ -11,6 +11,7 @@ for the image editor canvas with reactive rendering.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
@@ -651,10 +652,10 @@ for the image editor canvas with reactive rendering.
 				</div>
 
 				<div class="pointer-events-auto">
-					<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 gap-2" onclick={() => onupload?.()} aria-label="Upload image">
+					<Button variant="tertiary" onclick={() => onupload?.()} aria-label="Upload image" class="gap-2">
 						<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 						<span>Upload Image</span>
-					</button>
+					</Button>
 				</div>
 
 				<div class="empty-hints flex flex-col gap-2 mt-2">

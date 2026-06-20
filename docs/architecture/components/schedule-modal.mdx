@@ -22,7 +22,7 @@ The `schedule-modal` component provides a user interface for scheduling future a
 
 ## Architecture
 
-````mermaid
+```mermaid
 flowchart LR
     subgraph Trigger["Action Trigger"]
         MB[MultiButton]
@@ -47,7 +47,7 @@ flowchart LR
     VL -->|Valid| CB
     CB --> MS
     MS -->|Close| Trigger
-```text
+```
 
 ---
 
@@ -65,7 +65,7 @@ flowchart LR
 
 ## User Flow
 
-```mermaid
+```
 sequenceDiagram
     participant U as User
     participant MB as MultiButton
@@ -82,19 +82,19 @@ sequenceDiagram
     SM->>MS: close(response)
     MS->>MB: Callback with data
     MB->>API: Schedule action
-```text
+```
 
 ---
 
 ## Response Format
 
-```typescript
+```
 interface ScheduleResponse {
   confirmed: boolean;
   date: Date;
   action: "publish" | "unpublish" | "delete";
 }
-```text
+```
 
 ---
 
@@ -102,7 +102,7 @@ interface ScheduleResponse {
 
 The modal is opened via `modalState` and returns a response object:
 
-```typescript
+```
 // Opening the modal
 modalState.open({
   component: schedule - modal,
@@ -113,7 +113,7 @@ modalState.open({
 
 // Handling response (via modalState callback)
 // { confirmed: true, date: Date, action: 'publish' }
-```text
+```
 
 ---
 
@@ -121,4 +121,3 @@ modalState.open({
 
 - [MultiButton Component](./entrylist-multibutton.mdx)
 - [entry-list Component](./entry-list.mdx)
-````

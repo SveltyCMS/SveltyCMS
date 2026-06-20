@@ -43,6 +43,7 @@ corner-shape angled corners.
     shape?: 'round' | 'angle';
     focusColor?: string;
     class?: string;
+    inputRef?: HTMLInputElement | null;
   };
 
   // Workaround for strict $props binding requirements
@@ -57,6 +58,7 @@ corner-shape angled corners.
     class: className,
     id = generatedId,
     type = "text",
+    inputRef = $bindable<HTMLInputElement | null>(null),
     ...rest
   }: Props = $props();
 
@@ -116,6 +118,7 @@ corner-shape angled corners.
   {/if}
 
   <input
+    bind:this={inputRef}
     {id}
     {type}
     class={cn(

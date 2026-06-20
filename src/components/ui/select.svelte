@@ -46,6 +46,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	}
 
 	interface Props {
+		id?: string;
 		value?: string;
 		label?: string;
 		placeholder?: string;
@@ -58,10 +59,12 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		size?: 'sm' | 'md' | 'lg';
 		variant?: 'default' | 'floating';
 		class?: string;
+		allowEmptySelection?: boolean;
 		onchange?: (value: string) => void;
 	}
 
 	let {
+		id,
 		value = $bindable(''),
 		label,
 		placeholder = 'Select an option...',
@@ -74,10 +77,12 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		size = 'md',
 		variant = 'default',
 		class: className = '',
+		allowEmptySelection = false,
 		onchange
 	}: Props = $props();
 
-	const generatedId = generateId('select');
+	const fallbackId = generateId('select');
+	const generatedId = $derived(id ?? fallbackId);
 	const errorId = $derived(error ? `${generatedId}-error` : undefined);
 	const descriptionId = $derived(description ? `${generatedId}-description` : undefined);
 
@@ -123,7 +128,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>
-				<option value="" disabled>{placeholder}</option>
+				<option value="" disabled={!allowEmptySelection}>{placeholder}</option>
 				{#each options as opt (opt.value)}
 					<option value={opt.value} disabled={opt.disabled}>{opt.label}</option>
 				{/each}
@@ -182,14 +187,14 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					sizeTokens.height,
 					sizeTokens.text,
 					sizeTokens.padding,
-					'pr-10',
+					'pe-10',
 					invalid
 						? 'border-error-500 focus:ring-error-500/20 focus:border-error-500'
 						: 'border-surface-200 dark:border-surface-700',
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>
-				<option value="" disabled>{placeholder}</option>
+				<option value="" disabled={!allowEmptySelection}>{placeholder}</option>
 				{#each options as opt (opt.value)}
 					<option value={opt.value} disabled={opt.disabled}>{opt.label}</option>
 				{/each}

@@ -20,9 +20,13 @@
 - `Alt + S`: Save currently edited entry (if focused)
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import Select from '@components/ui/select.svelte';
   import { logger } from "@utils/logger";
   import { getFieldName } from "@utils/utils";
-  import { untrack } from "svelte";
 
   // Auth & Page data
   import { page } from "$app/state";
@@ -53,26 +57,19 @@
     validationStore,
   } from "@src/stores/store.svelte.ts";
   import { toast } from "@src/stores/toast.svelte.ts";
-  import {
-    widgetFunctions as widgetFunctionsStore,
-    widgets,
-  } from "@src/stores/widget-store.svelte";
+  import { widgets } from "@src/stores/widget-store.svelte";
+  import { collaborationService } from "@src/services/collaboration/collaboration-service";
   import { showConfirm } from "@utils/modal.svelte";
+  import {
+    getCachedWidgetInputLoader,
+    prefetchWidgetLoaders,
+  } from "@widgets/widget-loader-registry";
   import WidgetLoader from "./widget-loader.svelte";
 
   	import Portal from "@components/ui/portal.svelte";
   import RevisionDiffModal from "./revision-diff-modal.svelte";
 
   let isDiffModalOpen = $state(false);
-
-  // --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
-  // Lazy-load widgets for code-splitting (eager: false is default)
-  // Returns loader functions instead of eager-loaded components
-  const modules: Record<string, () => Promise<{ default: any }>> =
-    import.meta.glob("../../widgets/**/*.svelte") as Record<
-      string,
-      () => Promise<{ default: any }>
-    >;
 
   // Plugin Slot System
   import { slotRegistry } from "@src/plugins/slot-registry";
@@ -97,15 +94,7 @@
       console.warn("Could not find input for field", field);
     }
   }
-  // --- END PERFORMANCE FIX ---
-
-  let widgetFunctions = $state<Record<string, any>>({});
-  $effect(() => {
-    const unsubscribe = widgetFunctionsStore.subscribe((value) => {
-      widgetFunctions = value;
-    });
-    return unsubscribe;
-  });
+  let widgetFunctions = $derived(widgets.widgetFunctions);
 
   // --- 1. RECEIVE DATA AS PROPS ---
   let {
@@ -127,6 +116,13 @@
 
   // Revisions State (now simpler)
   let selectedRevisionId = $state("");
+
+  const revisionOptions = $derived(
+    revisions.map((revision: any) => ({
+      value: revision._id,
+      label: `${new Date(revision.revision_at).toLocaleString()} by ${revision.revision_by.substring(0, 8)}...`,
+    }))
+  );
 
   // Track the last entry ID to detect when switching entries
   let lastEntryId = $state<string | undefined>(undefined);
@@ -252,16 +248,6 @@
   // --- 4. SIMPLIFIED LOGIC ---
   let derivedFields = $derived(fields || []);
 
-  // Track changes to translation progress for debugging
-  $effect(() => {
-    logger.debug("Translation progress updated:", {
-      showProgress: translationProgress.value?.show,
-      languages: Object.keys(translationProgress.value || {}).filter(
-        (k) => k !== "show",
-      ),
-    });
-  });
-
   // Get available languages
   let availableLanguages = $derived.by<Locale[]>(() => {
     // Wait for publicEnv to be initialized
@@ -297,84 +283,63 @@
       }),
   );
 
-  // Sync local form state with global store
-  // When collectionValue changes (new entry loaded), update local state
-  // When local state changes (user editing), update global state
+  /** Field-level store patch — avoids full-object JSON.stringify on every keystroke. */
+  function syncFieldToStore(fieldName: string) {
+    const base = (collectionValue.value as Record<string, any>) || {};
+    const patch = { ...base, [fieldName]: currentCollectionValue[fieldName] };
+    setCollectionValue(patch);
+    dataChangeStore.compareWithCurrent(patch);
+    if (collaborationService.isCollaborative) {
+      collaborationService.updateField(fieldName, currentCollectionValue[fieldName]);
+    }
+  }
+
+  // Pull global store → local only when entry identity changes (not on every edit)
   $effect(() => {
     const global = collectionValue.value as Record<string, unknown> | undefined;
     const globalId = (global as any)?._id;
 
-    // When a new entry is loaded (different ID), pull from global -> local
     if (globalId && globalId !== lastEntryId) {
-      logger.debug("Loading entry data:", globalId);
       currentCollectionValue = { ...global } as any;
       lastEntryId = globalId;
-      // Set initial snapshot for change tracking
       dataChangeStore.setInitialSnapshot(global as Record<string, any>);
       return;
     }
 
-    // If creating new entry (no ID), initialize with global state
-    if (
-      !(globalId || lastEntryId) &&
-      global &&
-      Object.keys(global).length > 0
-    ) {
-      logger.debug("Initializing new entry");
+    if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
       currentCollectionValue = { ...global } as any;
-      // Set initial snapshot for change tracking
       dataChangeStore.setInitialSnapshot(global as Record<string, any>);
-      return;
-    }
-
-    // Otherwise, push local changes to global (user is editing)
-    // Use untrack to read currentCollectionValue without creating a dependency loop
-    const local = untrack(() => currentCollectionValue) as
-      | Record<string, unknown>
-      | undefined;
-    if (local && Object.keys(local).length > 0) {
-      const currentDataStr = JSON.stringify(local);
-      const globalDataStr = JSON.stringify(global ?? {});
-      if (currentDataStr !== globalDataStr) {
-        logger.debug("Pushing local changes to global store");
-        untrack(() => setCollectionValue({ ...local }));
-        // Track changes for save button state
-        dataChangeStore.compareWithCurrent(local as Record<string, any>);
-      }
     }
   });
 
-  // Separate effect to detect changes in currentCollectionValue and sync to store
-  // This is needed because the widget bind:value updates currentCollectionValue
-  let lastLocalValueStr = $state<string>("");
+  // Collaboration POC: init when edit tab is active
   $effect(() => {
-    // React to currentCollectionValue changes (from widget inputs)
-    const localStr = JSON.stringify(currentCollectionValue);
-
-    // Skip if this is the initial load or empty
-    if (
-      !currentCollectionValue ||
-      Object.keys(currentCollectionValue).length === 0
-    ) {
-      return;
+    if (localTabSet !== "0") return;
+    const coll = collection.value;
+    const entry = collectionValue.value;
+    if (coll && entry) {
+      collaborationService.init(coll, entry);
     }
+    return () => collaborationService.destroy();
+  });
 
-    // Only update if value actually changed
-    if (localStr !== lastLocalValueStr) {
-      logger.debug("currentCollectionValue changed, syncing to store");
-      lastLocalValueStr = localStr;
-
-      // Update the global store (using untrack to avoid creating dependency)
-      const global = untrack(() => collectionValue.value);
-      const globalStr = JSON.stringify(global ?? {});
-
-      if (localStr !== globalStr) {
-        untrack(() => setCollectionValue({ ...currentCollectionValue }));
-        // Track changes for save button state
-        dataChangeStore.compareWithCurrent(
-          currentCollectionValue as Record<string, any>,
-        );
-      }
+  let lastPrefetchKey = $state("");
+  $effect(() => {
+    if (!widgets.isLoaded || filteredFields.length === 0) return;
+    const key = `${lastEntryId ?? "new"}:${filteredFields.length}`;
+    if (key === lastPrefetchKey) return;
+    lastPrefetchKey = key;
+    const nameSet = new Set<string>();
+    for (const field of filteredFields) {
+      const widgetName = (field as { widget?: { Name?: string } }).widget?.Name;
+      if (typeof widgetName === "string") nameSet.add(widgetName);
+    }
+    const names = [...nameSet];
+    const run = () => prefetchWidgetLoaders(names, widgetFunctions);
+    if (typeof requestIdleCallback !== "undefined") {
+      requestIdleCallback(run, { timeout: 2000 });
+    } else {
+      run();
     }
   });
 
@@ -400,38 +365,38 @@
     });
   }
 
-  // --- 6. VALIDATION LOGIC ---
-  // Reactively validate fields whenever values change
-  $effect(() => {
-    const values = currentCollectionValue; // React to value changes
-
-    // Iterate over fields to validate them
-    filteredFields.forEach((field: any) => {
-      if (field.required) {
-        const fieldName = getFieldName(field, false);
-        const value = values[fieldName];
-
-        // Check for empty values
-        // Handle various types: string, array, null, undefined
-        const isEmpty =
-          value === null ||
-          value === undefined ||
-          (typeof value === "string" && value.trim() === "") ||
-          (Array.isArray(value) && value.length === 0);
-
-        if (isEmpty) {
-          // Only set error if it's not already set to avoid loop (though store handles this)
-          if (!validationStore.hasError(fieldName)) {
-            validationStore.setError(
-              fieldName,
-              `${field.label || fieldName} is required`,
-            );
-          }
-        } else if (validationStore.hasError(fieldName)) {
-          validationStore.clearError(fieldName);
-        }
+  // --- 6. VALIDATION LOGIC (derived required checks; widget-loader handles Valibot) ---
+  const requiredFieldErrors = $derived.by(() => {
+    const errors: Record<string, string> = {};
+    const values = currentCollectionValue;
+    for (const field of filteredFields) {
+      if (!field.required) continue;
+      const fieldName = getFieldName(field, false);
+      const value = values[fieldName];
+      const isEmpty =
+        value === null ||
+        value === undefined ||
+        (typeof value === "string" && value.trim() === "") ||
+        (Array.isArray(value) && value.length === 0);
+      if (isEmpty) {
+        errors[fieldName] = `${field.label || fieldName} is required`;
       }
-    });
+    }
+    return errors;
+  });
+
+  $effect(() => {
+    const errors = requiredFieldErrors;
+    for (const field of filteredFields) {
+      const fieldName = getFieldName(field, false);
+      if (errors[fieldName]) {
+        if (!validationStore.hasError(fieldName)) {
+          validationStore.setError(fieldName, errors[fieldName]);
+        }
+      } else if (validationStore.hasError(fieldName)) {
+        validationStore.clearError(fieldName);
+      }
+    }
   });
 
   $effect(() => {
@@ -459,12 +424,26 @@
     : "Edit Entry"}
 </h1>
 
+{#if collaborationService.isCollaborative && collaborationService.activeUsers.length > 0}
+  <div
+    class="mb-2 flex flex-wrap items-center gap-2 rounded border border-tertiary-500/30 bg-tertiary-500/5 px-3 py-1.5 text-xs dark:border-primary-500/30 dark:bg-primary-500/5"
+    role="status"
+    aria-live="polite"
+  >
+    <iconify-icon icon="mdi:account-group" width="16" aria-hidden="true"></iconify-icon>
+    <span class="font-semibold">Editing together:</span>
+    {#each collaborationService.activeUsers as u (u.clientId)}
+      <span class="rounded-full px-2 py-0.5 font-medium" style:background="{u.color}22" style:color={u.color}>
+        {u.name}{u.activeField ? ` · ${u.activeField}` : ""}
+      </span>
+    {/each}
+  </div>
+{/if}
+
 {#if !widgets.isLoaded}
   <div class="flex h-64 flex-col items-center justify-center gap-4">
-    <div
-      class="h-12 w-12 animate-spin rounded-full border-4 border-surface-200 border-t-primary-500"
-    ></div>
-    <p class="text-surface-500 animate-pulse">Initializing widgets...</p>
+    <Loader variant="circle" width="size-12" height="size-12" ariaLabel="Initializing widgets" />
+    <p class="text-surface-500">Initializing widgets...</p>
   </div>
 {:else}
   <Tabs
@@ -494,10 +473,8 @@
               width="20"
               class="text-tertiary-500 dark:text-primary-500"
             ></iconify-icon>
-            {applayout_version()}
-            <span class="preset-filled-secondary-500 badge"
-              >{revisions.length}</span
-            >
+	            {applayout_version()}
+	            <Badge variant="secondary">{revisions.length}</Badge>
           </div>
         </Tabs.Trigger>
       {/if}
@@ -588,10 +565,9 @@
                   </div>
                   <div class="flex items-center gap-2">
                     <SystemTooltip title="Insert Token">
-                      <button
+                      <Button variant="outline"
                         type="button"
-                        onclick={(e) => openTokenPicker(field, e)}
-                        class=""
+                        onclick={(e: MouseEvent) => openTokenPicker(field, e)}
                         aria-label="Insert token into {field.label}"
                       >
                         <iconify-icon
@@ -599,7 +575,7 @@
                           width="16"
                           class="font-bold text-tertiary-500 dark:text-primary-500"
                         ></iconify-icon>
-                      </button>
+                      </Button>
                     </SystemTooltip>
                     <!-- Per-Field Locale Badge + AI Translate -->
                     {#if field.translated}
@@ -663,70 +639,7 @@
                 {#if field.widget}
                   {const widgetName = field.widget.Name}
 
-                  <!-- --- PERFORMANCE FIX: ROBUST WIDGET FINDER --- -->
-                  {const loadedWidget = (() => {
-                    // 1. Try exact path from widget store (fastest)
-                    const storePath =
-                      widgetFunctions[widgetName]?.componentPath;
-                    if (storePath && storePath in modules)
-                      return modules[storePath];
-
-                    // 2. Try casing variations from store
-                    const camelPath =
-                      widgetFunctions[
-                        widgetName.charAt(0).toLowerCase() + widgetName.slice(1)
-                      ]?.componentPath;
-                    if (camelPath && camelPath in modules)
-                      return modules[camelPath];
-
-                    const lowerPath =
-                      widgetFunctions[widgetName.toLowerCase()]?.componentPath;
-                    if (lowerPath && lowerPath in modules)
-                      return modules[lowerPath];
-
-                    // 3. Robust Search in modules (fallback)
-                    const normalized = widgetName.toLowerCase();
-                    const kebabMatch = normalized
-                      .replace(/([a-z])([A-Z])/g, "$1-$2")
-                      .toLowerCase();
-                    const flatMatch = normalized.replace(/-/g, "");
-
-                    for (const path in modules) {
-                      const lowerPath = path.toLowerCase();
-                      const parts = lowerPath.split("/");
-                      const fileName = parts.pop();
-                      const folderName = parts.pop();
-
-                      // A. Match 3-Pillar Structure: /WidgetName/Input.svelte
-                      // IMPORTANT: Enforce folder name matches widget name (handle kebab-case and flat naming)
-                      const isFolderMatch =
-                        folderName === normalized ||
-                        folderName === kebabMatch ||
-                        folderName === flatMatch ||
-                        folderName?.replace(/-/g, "") === flatMatch;
-
-                      if (isFolderMatch && fileName === "input.svelte")
-                        return modules[path];
-
-                      // B. Match 3-Pillar Index: /WidgetName/index.svelte
-                      if (isFolderMatch && fileName === "index.svelte")
-                        return modules[path];
-
-                      // C. Match Single File: /WidgetName.svelte
-                      // EXCEPTION: Do not loosely match "Input.svelte" as it causes collisions with standard 3-pillar components
-                      if (
-                        fileName === `${normalized}.svelte` &&
-                        normalized !== "input"
-                      )
-                        return modules[path];
-                      if (
-                        fileName === `${kebabMatch}.svelte` &&
-                        kebabMatch !== "input"
-                      )
-                        return modules[path];
-                    }
-                    return null;
-                  })()}
+                  {const loadedWidget = getCachedWidgetInputLoader(widgetName, widgetFunctions)}
 
                   {#if loadedWidget}
                     {const fieldName = getFieldName(field, false)}
@@ -755,6 +668,7 @@
                           field={{ ...field, translated: false }}
                           WidgetData={{}}
                           bind:value={currentCollectionValue[fieldName][fieldLocale]}
+                          onFieldSync={() => syncFieldToStore(fieldName)}
                           {tenantId}
                           collectionName={collection.value?.name}
                         />
@@ -767,6 +681,7 @@
                           {field}
                           WidgetData={{}}
                           bind:value={currentCollectionValue[fieldName]}
+                          onFieldSync={() => syncFieldToStore(fieldName)}
                           {tenantId}
                           collectionName={collection.value?.name}
                         />
@@ -793,35 +708,26 @@
           </p>
         {:else}
           <div class="mb-4 flex items-center justify-between gap-4">
-            <select class="select grow" bind:value={selectedRevisionId} aria-label="Select">
-              <option value="" disabled
-                >-- Select a revision to compare --</option
-              >
-              {#each revisions as revision (revision._id)}
-                <option value={revision._id}
-                  >{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(
-                    0,
-                    8,
-                  )}...</option
-                >
-              {/each}
-            </select>
-            <button
-              class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn"
+            <Select
+              bind:value={selectedRevisionId}
+              options={revisionOptions}
+              placeholder="Select a revision to compare"
+              class="grow"
+            />
+            <Button variant="tertiary"
               onclick={handleRevert}
               disabled={!selectedRevision?.data}
-             aria-label="Revert revision">
-              <iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
+             aria-label="Revert revision" class="dark:">
+              <iconify-icon icon="mdi:restore" class="me-1"></iconify-icon>
               {applayout_version()}
-            </button>
-            <button
-              class="preset-tonal-primary btn"
+            </Button>
+            <Button variant="primary"
               onclick={() => (isDiffModalOpen = true)}
               disabled={!selectedRevision?.data}
              aria-label="Show diff">
-              <iconify-icon icon="mdi:compare" class="mr-1"></iconify-icon>
+              <iconify-icon icon="mdi:compare" class="me-1"></iconify-icon>
               Compare
-            </button>
+            </Button>
           </div>
 
           {#if isDiffModalOpen && selectedRevision}
@@ -920,16 +826,15 @@
     <Tabs.Content value="3" class="w-full">
       <div class="space-y-4 p-4">
         <div class="flex items-center gap-2">
-          <input type="text" class="input grow" readonly value={apiUrl}  aria-label="Input" />
-          <button
-            class="preset-outline-surface-500 btn"
+          <Input type="text" class="grow" readonly value={apiUrl} label="API URL" />
+          <Button variant="outline"
             onclick={() => {
               navigator.clipboard.writeText(apiUrl);
               toast.success("API URL Copied");
             }}
-          >
+           class="preset-outline-surface-500">
             Copy
-          </button>
+          </Button>
         </div>
         <div
           class="card p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm `max-h-125"

@@ -11,6 +11,7 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
+import { fileExists, getFile, saveFile } from "./media-storage.server";
 import type {
   IDBAdapter,
   DatabaseError,
@@ -19,6 +20,7 @@ import type {
   MediaItem as DbMediaItem,
 } from "@src/databases/db-interface";
 import type { MediaItem } from "./media-models";
+import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
 import { getUrl } from "./cloud-storage";
 import { validateEgressUrl, safeFetch } from "@src/utils/http/egress-guard";
 
@@ -34,18 +36,25 @@ import { validateEgressUrl, safeFetch } from "@src/utils/http/egress-guard";
  */
 function sanitizeSvg(svg: string): string {
   let cleaned = svg;
+  let previous = "";
 
-  // 1. Strip dangerous tags (with their content, including self-closing variants)
-  const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
-  for (const tag of DANGEROUS_TAGS) {
-    cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
-    cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
+  // Iterative scrubbing — prevents XML label-nesting bypass attacks
+  // (same defense as sanitize-html.ts)
+  while (cleaned !== previous) {
+    previous = cleaned;
+
+    // 1. Strip dangerous tags (with their content, including self-closing variants)
+    const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
+    for (const tag of DANGEROUS_TAGS) {
+      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
+      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
+    }
+
+    // 2. Strip inline event handlers — inside loop for defense-in-depth
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*"[^"]*"/gi, "");
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*'[^']*'/gi, "");
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
   }
-
-  // 2. Strip inline event handlers (onload=, onclick=, onerror=, etc.) — both quoted and unquoted
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*"[^"]*"/gi, "");
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*'[^']*'/gi, "");
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
 
   // 3. Strip javascript: and data: protocols in href/xlink:href attributes
   cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*"\s*javascript\s*:/gi, '$1="#blocked"');
@@ -129,6 +138,31 @@ export class MediaService {
     return this.db.media.files;
   }
 
+  private async ensureOriginalOnDisk(
+    hash: string,
+    filename: string,
+    data: Buffer | ReadableStream | import("node:stream").Readable,
+  ): Promise<string> {
+    const relPath = buildOriginalRelPath(hash, filename);
+    try {
+      await getFile(relPath);
+      return relPath;
+    } catch {
+      // Missing on disk (e.g. after test reset with dedup hit) — re-persist below
+    }
+
+    if (data instanceof Buffer) {
+      await saveFile(data, relPath);
+      return relPath;
+    }
+
+    await saveFile(data, relPath);
+    if (!(await fileExists(relPath))) {
+      throw new Error(`Media file was not persisted to disk: ${relPath}`);
+    }
+    return relPath;
+  }
+
   /**
    * 🚀 AGNOSTIC CORE: Saves a media item to the database and physical storage.
    */
@@ -167,13 +201,19 @@ export class MediaService {
         }
 
         const hash = await hashFileContent(buffer);
+        const relPath = await this.ensureOriginalOnDisk(hash, file.name, buffer);
 
         // 1. Check for existing file by hash (Deduplication)
         const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
+          const record = existing.data as any;
+          if (record.path !== relPath) {
+            await this.db.crud.update("media_items", record._id, { path: relPath } as any);
+            record.path = relPath;
+          }
           return {
             success: true,
-            data: this.enrichMediaWithUrl(existing.data as any) as unknown as MediaItem,
+            data: this.enrichMediaWithUrl(record) as unknown as MediaItem,
           };
         }
         return (await this.files.upload(
@@ -183,16 +223,13 @@ export class MediaService {
             mimeType: file.type,
             size: file.size,
             hash,
-            path: `global/${hash}`, // Default path, will be updated by adapter if needed
+            path: relPath,
             createdBy: _userId,
             updatedBy: _userId,
             metadata: {},
             thumbnails: {},
             access: _access,
             tenantId: tenantId ?? undefined,
-            stream: typeof file.stream === "function" ? file.stream.bind(file) : undefined,
-            arrayBuffer:
-              typeof file.arrayBuffer === "function" ? file.arrayBuffer.bind(file) : undefined,
           } as any,
           tenantId ?? undefined,
         )) as any;
@@ -210,12 +247,18 @@ export class MediaService {
         // OR we upload to a temp name and then rename.
         // For Performance Tweaks, let's assume we want to avoid double-upload.
         const hash = await hashPromise;
+        const relPath = await this.ensureOriginalOnDisk(hash, file.name, s2);
 
         const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
+          const record = existing.data as any;
+          if (record.path !== relPath) {
+            await this.db.crud.update("media_items", record._id, { path: relPath } as any);
+            record.path = relPath;
+          }
           return {
             success: true,
-            data: this.enrichMediaWithUrl(existing.data as any) as unknown as MediaItem,
+            data: this.enrichMediaWithUrl(record) as unknown as MediaItem,
           };
         }
 
@@ -226,14 +269,13 @@ export class MediaService {
             mimeType: file.type,
             size: file.size,
             hash,
-            path: `global/${hash}`,
+            path: relPath,
             createdBy: _userId,
             updatedBy: _userId,
             metadata: {},
             thumbnails: {},
             access: _access,
             tenantId: tenantId ?? undefined,
-            stream: () => s2,
           } as any,
           tenantId ?? undefined,
         )) as any;
@@ -253,7 +295,8 @@ export class MediaService {
   public enrichMediaWithUrl(item: any, prefix?: string): any {
     if (!item) return item;
 
-    const p = item.path || item.url;
+    const rel = resolveMediaRelPath(item);
+    const p = rel || item.path || item.url;
     if (p && !p.startsWith("http")) {
       item.url = getUrl(p, prefix);
     }
@@ -518,7 +561,7 @@ export class MediaService {
           mimeType: file.type,
           size: file.size,
           hash,
-          path: `global/${hash}`,
+          path: buildOriginalRelPath(hash, file.name),
           createdBy: userId,
           updatedBy: userId,
           metadata: {},

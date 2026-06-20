@@ -5,7 +5,7 @@
 -->
 
 <script lang="ts">
-import PageTitle from "@src/components/page-title.svelte";
+import AdminPageShell from "@components/admin-page-shell.svelte";
 import PermissionGuard from "@src/components/permission-guard.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte.ts";
@@ -56,6 +56,21 @@ const configItems = [
 			description: "Admin theme, density, and visual customization",
 			requiredRole: "admin",
 			action: "manage",
+			contextType: "configuration",
+		},
+	},
+	{
+		id: "designSystem",
+		href: "/config/design-system",
+		label: "Design System",
+		icon: "mdi:compass-outline",
+		iconColor: "text-tertiary-500",
+		permission: {
+			contextId: "config:appearance",
+			name: "Design System",
+			description: "Interactive native UI component playground",
+			requiredRole: "admin",
+			action: "view",
 			contextType: "configuration",
 		},
 	},
@@ -265,8 +280,7 @@ const configItems = [
 ];
 </script>
 
-<PageTitle name="System Configuration" showBackButton={true} backUrl="/" icon="material-symbols:build-circle" />
-
+<AdminPageShell title="System Configuration" showBackButton={true} backUrl="/" icon="material-symbols:build-circle">
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2" in:fade={{ duration: 300 }}>
 	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500" in:fly={{ y: -10, duration: 300 }}>Manage your system configuration</h2>
 
@@ -324,3 +338,4 @@ const configItems = [
 		{/each}
 	</div>
 </div>
+</AdminPageShell>

@@ -15,6 +15,7 @@ import {
   readFileSync,
   mkdirSync,
   writeFileSync,
+  renameSync,
 } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -660,11 +661,29 @@ async function main() {
   await runSystemSetup();
 
   if (!skipBuild) {
-    console.log("🏗️ Building project...");
-    const { code } = await runCommand("bun", ["run", "build"]);
+    console.log("🏗️ Building project (with COMPILE_ALL_ADAPTERS)...");
+    const privatePath = join(ROOT, "config", "private.ts");
+    const privateTmpPath = join(ROOT, "config", "private.ts.tmp");
+    const privateTestPath = join(ROOT, "config", "private.test.ts");
+    const privateTestTmpPath = join(ROOT, "config", "private.test.ts.tmp");
 
-    if (code !== 0) {
-      throw new Error("Build failed");
+    const hasConfig = existsSync(privatePath);
+    const hasTestConfig = existsSync(privateTestPath);
+
+    if (hasConfig) renameSync(privatePath, privateTmpPath);
+    if (hasTestConfig) renameSync(privateTestPath, privateTestTmpPath);
+
+    try {
+      const { code } = await runCommand("bun", ["run", "build"], {
+        env: { COMPILE_ALL_ADAPTERS: "true" },
+      });
+      if (code !== 0) {
+        throw new Error("Build failed");
+      }
+    } finally {
+      if (hasConfig && existsSync(privateTmpPath)) renameSync(privateTmpPath, privatePath);
+      if (hasTestConfig && existsSync(privateTestTmpPath))
+        renameSync(privateTestTmpPath, privateTestPath);
     }
   } else {
     console.log("⏭️ Skipping build; using existing CI build artifact.");

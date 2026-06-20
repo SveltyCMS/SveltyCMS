@@ -29,6 +29,7 @@ import type { DndEvent, Item } from "svelte-dnd-action";
 import { page } from "$app/state";
 import ModalSelectWidget from "./modal-select-widget.svelte";
 import ModalWidgetForm from "./modal-widget-form.svelte";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	"on:save"?: () => void;
@@ -221,9 +222,9 @@ async function handleCollectionSave() {
 					<div class=" " role="cell">{field.widget?.key}</div>
 
 					<div role="cell" class="flex justify-end">
-						<button type="button" onclick={() => modalWidgetForm(field)} aria-label={button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
+						<Button variant="ghost" type="button" onclick={() => modalWidgetForm(field)} aria-label={button_edit()} class="p-0! min-w-0 ml-auto">
 							<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
-						</button>
+						</Button>
 					</div>
 				</div>
 			{/each}
@@ -231,17 +232,16 @@ async function handleCollectionSave() {
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button onclick={() => modalSelectWidget()} class="preset-filled-tertiary-500 btn">{collection_widgetfield_addFields()} </button>
+			<Button variant="tertiary" onclick={() => modalSelectWidget()}>{collection_widgetfield_addFields()} </Button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button type="button" onclick={() => tabSet.set(1)} class="preset-filled-secondary-500 btn mt-2 justify-end">{button_previous()}</button>
-			<button
+			<Button variant="secondary" type="button" onclick={() => tabSet.set(1)} class="mt-2 justify-end">{button_previous()}</Button>
+			<Button variant="tertiary"
 				type="button"
 				onclick={handleCollectionSave}
-				class="preset-filled-tertiary-500 btn mt-2 justify-end dark:preset-filled-primary-500 dark:text-black"
-			>
+			 class="mt-2 justify-end dark: dark:text-black">
 				{button_save()}
-			</button>
+			</Button>
 		</div>
 	</div>
 </div>

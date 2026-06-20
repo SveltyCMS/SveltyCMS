@@ -51,12 +51,19 @@ async function runRealtimeAudit() {
     console.log("   → Measuring prefix filter function...");
     const BRIDGE_EVENT_PREFIXES = [
       "content.",
+      "content:",
       "collection.",
+      "collection:",
       "media.",
+      "media:",
       "user.",
+      "user:",
       "auth.",
+      "auth:",
       "system.",
+      "system:",
       "benchmark.",
+      "benchmark:",
     ];
     function shouldBridgeEvent(event: string): boolean {
       return BRIDGE_EVENT_PREFIXES.some((prefix) => event.startsWith(prefix));
@@ -71,8 +78,8 @@ async function runRealtimeAudit() {
       silent: true,
       onIteration: async () => {
         // Matched event (should bridge)
-        if (!shouldBridgeEvent("content.update")) {
-          throw new Error("Expected content.update to bridge");
+        if (!shouldBridgeEvent("content:update")) {
+          throw new Error("Expected content:update to bridge");
         }
         // Non-matched event (should be filtered)
         if (shouldBridgeEvent("cache.evict")) {

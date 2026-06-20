@@ -123,6 +123,42 @@ jobs:
           echo "## 🔒 Dependency Audit Results" >> $GITHUB_STEP_SUMMARY
           npm audit --omit=dev --json 2>/dev/null | jq -r '.metadata // empty | "**Total:** \(.totalDependencies) deps | **Vulnerabilities:** \(.vulnerabilities.critical // 0) critical, \(.vulnerabilities.high // 0) high, \(.vulnerabilities.moderate // 0) moderate"' >> $GITHUB_STEP_SUMMARY || echo "Audit completed (no structured output)" >> $GITHUB_STEP_SUMMARY
 
+  format:
+    name: 🖌️ Format Check
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - name: Run formatter
+        run: bun run format
+      - name: Verify tree is clean (no unformatted files)
+        run: |
+          if ! git diff --exit-code --quiet; then
+            echo ""
+            echo "❌  Formatting drift detected."
+            echo "    Run 'bun run format' locally (or let the pre-commit hook do it),"
+            echo "    stage the fixes, and push again."
+            echo ""
+            git diff --stat
+            exit 1
+          fi
+          echo "✅  Working tree is properly formatted."
+
   lint:
     name: 🔎 Lint
     needs: bootstrap
@@ -461,7 +497,9 @@ jobs:
           # baseURL must point at the CI preview server (4173); export so it reaches the
           # test process — an inline prefix on the server line above does NOT propagate here.
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
-          bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
+          # Use --project=wizard (the project's testMatch in playwright.config.ts selects
+          # the single setup-wizard spec). This is robust to internal test file moves.
+          bun x playwright test --project=wizard
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -619,7 +657,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [signup, content, system, a11y, rbac, language]
+        project:
+          [
+            signup,
+            content,
+            system,
+            a11y,
+            rbac,
+            language,
+            branding,
+            visual-regression,
+            users,
+            builder,
+            permissions,
+            firstuser,
+            config-routes,
+            admin,
+            dashboard,
+            appearance,
+            media,
+          ]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

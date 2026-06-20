@@ -115,6 +115,22 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     // Continue with empty navigation - don't block page load
   }
 
+  // 🧠 Behavioral learning: track access patterns (fire-and-forget)
+  try {
+    const { recordCollectionAccess, recordEntryAccess } =
+      await import("@src/services/intelligence/behavioral-learner");
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    if (pathParts.length >= 2) {
+      const collectionId = pathParts[1];
+      recordCollectionAccess(locals.tenantId || "global", collectionId);
+      if (pathParts.length >= 3) {
+        recordEntryAccess(locals.tenantId || "global", collectionId, pathParts[2]);
+      }
+    }
+  } catch {
+    /* non-critical */
+  }
+
   return {
     systemLanguage,
     contentLanguage,

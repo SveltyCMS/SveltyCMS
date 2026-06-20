@@ -4,6 +4,9 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { slide } from 'svelte/transition';
 	import { generateUUID } from '@utils/native-utils';
 	import LogicBuilder from './logic-builder.svelte';
@@ -88,39 +91,33 @@
 		<!-- Header -->
 		<div class="mb-5 flex items-center justify-between">
 			<div class="flex items-center gap-3">
-				<button
-					class="btn btn-sm font-mono font-bold tracking-wider px-4
-						{value.type === 'AND'
-							? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
-							: 'preset-filled-secondary-500'}"
+				<Button variant="tertiary"
 					onclick={() => toggleGroupType(value!)}
 					aria-label="toggle-condition-type"
-				>
+				 size="sm" class="font-mono tracking-wider px-4 {value.type === 'AND' ? ' dark: ' : ' '}">
 					{value.type}
-				</button>
+				</Button>
 				<span class="text-xs uppercase tracking-[1px] font-medium opacity-60">
 					Condition Group
 				</span>
 			</div>
 
 			<div class="flex gap-2">
-				<button
-					class="btn btn-sm preset-tonal-surface flex items-center gap-1.5"
+				<Button variant="surface"
 					onclick={() => addRule(value!)}
 					aria-label="add-rule"
-				>
+				 size="sm" class="flex items-center gap-1.5">
 					<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 					<span class="hidden sm:inline">Rule</span>
-				</button>
+				</Button>
 
-				<button
-					class="btn btn-sm preset-tonal-surface flex items-center gap-1.5"
+				<Button variant="surface"
 					onclick={() => addGroup(value!)}
 					aria-label="add-sub-group"
-				>
+				 size="sm" class="flex items-center gap-1.5">
 					<iconify-icon icon="mdi:group" width="16"></iconify-icon>
 					<span class="hidden sm:inline">Sub-group</span>
-				</button>
+				</Button>
 			</div>
 		</div>
 
@@ -130,49 +127,48 @@
 				<div transition:slide={{ duration: 180 }}>
 					{#if isGroup(item)}
 						<!-- Recursive Sub-Group -->
-						<div class="ml-8 border-s-2 border-primary-400/30 ps-5 pt-1">
+						<div class="ms-8 border-s-2 border-primary-400/30 ps-5 pt-1">
 							<LogicBuilder bind:value={value.rules[i] as LogicGroup} {fields} />
 						</div>
 					{:else}
 						<!-- Single Rule -->
 						<div class="rule-row flex flex-wrap items-center gap-3 rounded bg-white p-3 shadow-sm dark:bg-surface-800">
-							<select
+							<Select
 								bind:value={item.field}
-								class="select select-sm flex-1 min-w-35"
-								aria-label="select-field"
-							>
-								{#each uniqueFields as f}
-									<option value={f.db_fieldName || f.name}>
-										{f.label || f.db_fieldName || f.name}
-									</option>
-								{/each}
-							</select>
+								size="sm"
+								class="flex-1 min-w-35"
+								placeholder="Select field..."
+								options={uniqueFields.map((f) => ({
+									value: f.db_fieldName || f.name,
+									label: f.label || f.db_fieldName || f.name
+								}))}
+								label="Select field"
+							/>
 
-							<select
+							<Select
 								bind:value={item.operator}
-								class="select select-sm w-40"
-								aria-label="select-operator"
-							>
-								{#each operators as op}
-									<option value={op.value}>{op.label}</option>
-								{/each}
-							</select>
+								size="sm"
+								class="w-40"
+								placeholder="Select operator..."
+								options={operators.map((op) => ({ value: op.value, label: op.label }))}
+								label="Select operator"
+							/>
 
-							<input
+							<Input
 								type="text"
 								bind:value={item.value}
-								class="input input-sm flex-1 min-w-30"
+								inputClass="h-8 text-xs"
+								class="flex-1 min-w-30"
 								placeholder="Value (for 'in' use comma-separated)"
 								aria-label="condition-value"
 							/>
 
-							<button
-								class="btn-icon btn-icon-sm text-error-600 hover:bg-error-500/10 dark:text-error-500"
+							<Button variant="ghost"
 								onclick={() => removeItem(value!, i)}
 								aria-label="remove-condition"
-							>
+							 class="p-0! min-w-0 text-error-600 hover:bg-error-500/10 dark:text-error-500">
 								<iconify-icon icon="mdi:trash-can-outline" width="19"></iconify-icon>
-							</button>
+							</Button>
 						</div>
 					{/if}
 				</div>

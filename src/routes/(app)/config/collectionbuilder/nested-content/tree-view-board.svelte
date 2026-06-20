@@ -39,6 +39,8 @@ import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { screen } from "@src/stores/screen-size-store.svelte.ts";
 // Components
 import TreeViewNode from "./tree-view-node.svelte";
+	import Button from '@components/ui/button.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
 
 export interface TreeViewItem extends Record<string, any> {
 	_id?: any;
@@ -1034,47 +1036,43 @@ const flipDurationMs = 200;
 <!-- Toolbar -->
 <div class="mb-4 flex flex-wrap items-center gap-2">
 	<div class="relative flex-1 min-w-50">
-		<iconify-icon icon="mdi:magnify" width="18" class="absolute start-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
-		<input
-			type="text"
-			placeholder="Search collections..."
+		<FloatingInput
 			bind:value={searchText}
-			class="input w-full h-12 ps-10 pe-8 rounded shadow-sm"
+			label="Search collections..."
+			icon="mdi:magnify"
 			aria-label="Search collections"
+			inputClass="w-full h-12 pe-8 rounded shadow-sm"
 		/>
 		{#if searchText}
-			<button
+			<Button variant="surface"
 				type="button"
 				onclick={clearSearch}
-				class="absolute end-2 top-1/2 -translate-y-1/2 btn-icon preset-tonal-surface-500"
 				aria-label="Clear search"
-			>
+			 class="p-0! min-w-0 absolute end-2 top-1/2 -translate-y-1/2 z-10">
 				<iconify-icon icon="mdi:close" width={16}></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 	<div class="flex gap-2">
 		<SystemTooltip title="Expand all categories">
-			<button
+			<Button variant="surface"
 				type="button"
 				onclick={expandAll}
-				class="btn preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all shadow-sm"
 				aria-label="Expand all categories"
-			>
+			 class="hover: transition-all shadow-sm">
 				<iconify-icon icon="mdi:unfold-more-horizontal" width={24} aria-hidden="true"></iconify-icon>
 				<span class="ms-1 uppercase text-xs font-bold">Expand All</span>
-			</button>
+			</Button>
 		</SystemTooltip>
 		<SystemTooltip title="Collapse all categories">
-			<button
+			<Button variant="surface"
 				type="button"
 				onclick={collapseAll}
-				class="btn preset-tonal-surface-500 hover:preset-filled-surface-500 transition-all shadow-sm"
 				aria-label="Collapse all categories"
-			>
+			 class="hover: transition-all shadow-sm">
 				<iconify-icon icon="mdi:unfold-less-horizontal" width={24} aria-hidden="true"></iconify-icon>
 				<span class="ms-1 uppercase text-xs font-bold">Collapse All</span>
-			</button>
+			</Button>
 		</SystemTooltip>
 	</div>
 </div>

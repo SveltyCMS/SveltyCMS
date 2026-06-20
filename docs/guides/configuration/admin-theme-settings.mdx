@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:palette-outline"
 author: "SveltyCMS Team"
 created: "2026-06-04"
-updated: "2026-06-04"
+updated: "2026-06-17"
 tags:
   - "theme"
   - "appearance"
@@ -21,6 +21,8 @@ tags:
 SveltyCMS's admin theme system lets you create, switch, and customize **multiple named themes** — like Drupal's Gin or DXPR themes — each with its own density, visual style, features, and custom CSS. Changes preview instantly before saving.
 
 The Appearance page is located at `/config/appearance`.
+
+The **Design System playground** (`/config/design-system`) provides an interactive catalog of native UI components, semantic color swatches, and live density/variant preview — useful for developers evaluating or extending the admin theme without Storybook.
 
 ---
 
@@ -109,7 +111,7 @@ Each theme can reposition the **Collections tree** independently of visual style
 
 This enables radically different workspace layouts per theme. For example, a "Developer Workbench" theme could move Collections to the right sidebar, freeing the left sidebar for pinned favorites and system tools — while keeping the entry inspector visible during editing.
 
-````typescript
+```typescript
 // Theme A: Traditional layout (Collections on left)
 features: {
   layoutRegions: {
@@ -124,7 +126,7 @@ features: {
   }
 }
 density: "compact";
-```text
+```
 
 > [!IMPORTANT]
 > **High Contrast Mode** and **Reduced Motion** are accessibility features. Enable them to meet WCAG 3.0 Functional Performance standards for users with visual or vestibular sensitivities.
@@ -133,7 +135,7 @@ density: "compact";
 
 When **Sticky Action Bar** is enabled, any page can make its action buttons stick to the bottom of the viewport on scroll. Wrap your buttons in the `<StickyActions>` component:
 
-```svelte
+```
 <script>
   import StickyActions from "@components/ui/sticky-actions.svelte";
 </script>
@@ -142,7 +144,7 @@ When **Sticky Action Bar** is enabled, any page can make its action buttons stic
   <button onclick={save} aria-keyshortcuts="Mod+S">Save Changes</button>
   <button onclick={reset}>Reset</button>
 </StickyActions>
-```text
+```
 
 The buttons render **both** in their original position AND in the sticky bar at the bottom of the screen — no duplication in your code. The bar uses `role="toolbar"`, `aria-label="Page actions"`, and `aria-live="polite"` for screen reader compatibility.
 
@@ -157,13 +159,13 @@ The buttons render **both** in their original position AND in the sticky bar at 
 
 The **Advanced** tab provides a code editor where you can inject custom CSS into the admin panel.
 
-```css
+```
 /* Example: Change the active tab indicator */
 [data-admin-theme] .active-tab-indicator {
   border-color: oklch(65% 0.2 260deg);
   border-width: 3px;
 }
-```text
+```
 
 Custom CSS is **sanitized server-side** before storage. Dangerous constructs (`url()`, `@import`, `javascript:`, `<script>`, HTML tags) are automatically stripped.
 
@@ -175,6 +177,53 @@ Custom CSS is **sanitized server-side** before storage. Dangerous constructs (`u
 - **Export Theme JSON**: Downloads the current theme (density, variant, features, custom CSS) as a portable JSON file.
 - **Import**: Paste SveltyCMS theme JSON or [Skeleton.dev](https://themes.skeleton.dev/themes/create) theme exports in the **Presets & Import** tab.
 
+#### Default install (Corporate workspace)
+
+Fresh installs seed the active theme with the **Corporate** workspace from `/themes/corporate.json`:
+
+- **Layout:** cozy density, bordered cards, sticky action bar, collapsible sidebar
+- **Branding:** `brandedLogin: true` — login shows tenant site name + accent colors immediately
+- **Palette:** teal primary (`#0f766e`), blue tertiary (`#1d4ed8`), warm professional tones
+
+Users land on a polished default — no need to discover Appearance first. Customize from **Config → Appearance** when ready.
+
+#### Skeleton.dev color import
+
+Skeleton's theme generator exports JSON with a `properties` map (`--color-primary-500`, `--color-surface-950`, etc.). SveltyCMS also accepts a **shorthand palette** format in `/themes/*.json` for quick branding:
+
+```
+"properties": {
+  "primary": "#0f766e",
+  "tertiary": "#1d4ed8",
+  "surface": "#f8fafc"
+}
+```
+
+Shorthand keys expand to full 50–950 shade scales via CSS `color-mix()` — light `surface` values anchor at `--color-surface-50`; other palettes anchor at `-500`.
+
+On import or boot sync, SveltyCMS maps those tokens to **runtime admin CSS** scoped under `.admin-theme-container` and `[data-admin-theme]` — so utilities like `bg-primary-500` and `text-tertiary-500` update immediately across the admin panel.
+
+| Skeleton palette | SveltyCMS palette | Notes                                     |
+| :--------------- | :---------------- | :---------------------------------------- |
+| `primary`        | `primary`         | Direct match                              |
+| `secondary`      | `secondary`       | Direct match                              |
+| `tertiary`       | `tertiary`        | Direct match                              |
+| `accent`         | `tertiary`        | Mapped when Skeleton uses `accent` naming |
+| `success`        | `success`         | Direct match                              |
+| `warning`        | `warning`         | Direct match                              |
+| `error`          | `error`           | Direct match                              |
+| `surface`        | `surface`         | Direct match                              |
+
+Skeleton `--radius-base` and `--radius-container` also bridge to `--admin-radius-*` tokens. You do **not** need to edit `src/app.css` — compile-time defaults stay intact; imported colors apply at runtime via the theme's `customCss` field (visible and editable in **Advanced → Custom CSS**).
+
+Skeleton CSS exports (`[data-theme='...'] { ... }`) pasted as JSON with a `css` or `code` field are supported when a `name` is provided.
+
+**Contrast warnings:** On Skeleton or shorthand palette import, SveltyCMS runs an advisory WCAG AA audit (body text, button labels, accent on surface). Failures appear as toast warnings — imports are not blocked.
+
+### My Overrides (per-user preferences)
+
+All users can override density, card style, reduced motion, high contrast, and **layout regions** (sidebars, page header/footer) in **Appearance → My Overrides**. Use **My Layout** to set each region to visible, hidden, or theme default; click **Use current layout** to snapshot the panels as they are now. Sidebar toggles also auto-save to your profile after 2 seconds (non-admins store only differences from the tenant theme). Preferences apply **immediately** across the admin shell without a page reload (optimistic client overlay + `app:user-prefs` invalidation).
+
 ### Theme Files (`/themes/*.json`)
 
 Drop a `.json` file into the `/themes/` directory and Vite auto-imports it to the database on next save. This is the **File + DB hybrid** — files are version-controlled distribution artifacts, DB is the runtime source of truth.
@@ -182,9 +231,35 @@ Drop a `.json` file into the `/themes/` directory and Vite auto-imports it to th
 > [!TIP]
 > Theme files are Git-trackable, shareable between instances, and marketplace-ready. Copy a `.json` between servers and it works identically.
 
+**Example — Corporate (default on install)** (`/themes/corporate.json`):
+
+```
+{
+  "name": "Corporate",
+  "description": "Gin-inspired enterprise default — cozy density, bordered cards.",
+  "density": "cozy",
+  "variant": "bordered",
+  "features": {
+    "stickyActionBar": true,
+    "collapsibleSidebar": true,
+    "brandedLogin": true,
+    "layoutRegions": { "collections": "left", "mediaGalleries": "left" }
+  },
+  "properties": {
+    "primary": "#0f766e",
+    "secondary": "#334155",
+    "tertiary": "#1d4ed8",
+    "success": "#16a34a",
+    "warning": "#d97706",
+    "error": "#dc2626",
+    "surface": "#f8fafc"
+  }
+}
+```
+
 **Example — Developer Workbench** (`/themes/developer-workbench.json`):
 
-```json
+```
 {
   "name": "Developer Workbench",
   "description": "Compact density, flat cards, collections on the right.",
@@ -204,11 +279,11 @@ Drop a `.json` file into the `/themes/` directory and Vite auto-imports it to th
     "footer": "hidden"
   }
 }
-```text
+```
 
 **Example — Distraction-Free Writer** (`/themes/distraction-free-writer.json`):
 
-```json
+```
 {
   "name": "Distraction-Free Writer",
   "description": "Spacious density, elevated cards, all chrome hidden.",
@@ -228,7 +303,7 @@ Drop a `.json` file into the `/themes/` directory and Vite auto-imports it to th
     "footer": "hidden"
   }
 }
-```text
+```
 
 ### Reset to Defaults
 
@@ -266,7 +341,7 @@ The `+layout.svelte` (`src/routes/(app)/+layout.svelte`) wraps every admin page 
 
 Additionally, a **sticky action bar** region (`Slot name="sticky-action-bar"`) appears at the bottom of the main content area when `theme.features.stickyActionBar` is enabled.
 
-```svelte
+```
 <!-- +layout.svelte — how regions work -->
 {#if ui.state.header !== 'hidden'}
   <header style="height: var(--admin-header-height, 32px);">
@@ -287,16 +362,16 @@ Additionally, a **sticky action bar** region (`Slot name="sticky-action-bar"`) a
     <Slot name="global-footer" />  <!-- ← Theme injects status bar here -->
   </footer>
 {/if}
-```text
+```
 
 Each region is independently toggleable at runtime via the `ui` singleton store (`src/stores/ui-store.svelte`):
 
-```typescript
+```
 // Switch between layouts in real time
 ui.toggle("leftSidebar", "hidden"); // Full-width content mode
 ui.toggle("rightSidebar", "full"); // Show entry inspector
 ui.toggle("pageheader", "hidden"); // Hide breadcrumbs
-```text
+```
 
 The `ui-store` is verified by unit tests (`tests/unit/ui-store.test.ts`) confirming toggle operations, singleton behavior, and screen-size-aware `updateLayout()` calls.
 
@@ -345,7 +420,7 @@ The `screen` store (`src/stores/screen-size-store.svelte`) exposes `isDesktop` a
 
 Because every region is independently toggleable via `ui.state`, combined with the theme system's density presets and `--admin-sidebar-width` CSS variable, theme authors have **complete control** over both visual appearance and structural layout:
 
-```typescript
+```
 // A "Full-Width Editor" theme: hide all chrome for maximum content canvas
 ui.toggle("leftSidebar", "hidden");
 ui.toggle("rightSidebar", "hidden");
@@ -356,9 +431,9 @@ ui.toggle("pagefooter", "hidden");
 ui.toggle("rightSidebar", "full");
 ui.toggle("pagefooter", "full");
 // Plus: density = "compact", variant = "flat"
-```text
+```
 
-```mermaid
+```
 flowchart LR
     subgraph Shell["Admin Layout Shell (6 regions + sticky bar)"]
         direction TB
@@ -377,7 +452,7 @@ flowchart LR
     UI -->|"visibility"| Shell
     SC -->|"responsive"| Shell
     TM -->|"sizes + styles + layout"| Shell
-```text
+```
 
 This architecture matches or exceeds Drupal Gin's toolbar, sidebar, and layout builder modules — all without PHP/Twig overhead, using native Svelte 5 reactivity.
 
@@ -391,25 +466,25 @@ The admin theme system is built on two pillars that work together:
 
 Defined in `src/utilities.css`, these variables control radii, shadows, sidebar width, header height, and density at the browser level. They cascade from the `data-density` attribute on the admin layout root element.
 
-```css
+```
 /* Applied automatically when density changes */
 [data-density="compact"] {
   --admin-sidebar-width: 200px;
   --admin-header-height: 48px;
 }
-```text
+```
 
 ### 2. Svelte 5 `AdminTheme` Context
 
 The `AdminTheme` class in `src/components/ui/theme-context.svelte.ts` is the reactive runtime state consumed by all 37+ native UI components (Button, Card, Input, Table, Modal, Drawer, etc.).
 
-```typescript
+```
 // Every component reads theme context for adaptive rendering
 const theme = getThemeContext();
 const shadow = theme?.cardShadow ?? "var(--admin-shadow-elevation)";
-```text
+```
 
-```mermaid
+```
 sequenceDiagram
     participant SP as Settings Page
     participant TC as Theme Context
@@ -421,16 +496,16 @@ sequenceDiagram
     Note over SP,CP: Instant — before save
     SP->>API: POST /api/theme/admin-theme
     API->>DB: Persist to Theme record
-```text
+```
 
 ### Theme Loading on Startup
 
-```text
+```
 App Start → hooks.server.ts → ThemeManager.getTheme()
          → reads config.adminTheme from DB
          → +layout.svelte sets AdminTheme context
          → all components render with stored settings
-```text
+```
 
 ---
 
@@ -470,7 +545,7 @@ SveltyCMS's admin theme system is designed for both GUI configuration and progra
 
 Drop a `.json` file into `/themes/` and Vite auto-imports it:
 
-```json
+```
 {
   "name": "My Custom Theme",
   "description": "A custom admin theme.",
@@ -497,11 +572,11 @@ Drop a `.json` file into `/themes/` and Vite auto-imports it:
   },
   "customCss": "/* Optional custom CSS */"
 }
-```text
+```
 
 ### Programmatic Theme Creation
 
-```typescript
+```
 // Create via API
 await fetch("/api/theme/create", {
   method: "POST",
@@ -518,13 +593,13 @@ await fetch("/api/theme/activate", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ themeId: "..." }),
 });
-```text
+```
 
 ### Reading Theme Context in Components
 
 All 37+ native UI components already consume the `AdminTheme` context. Any custom component can too:
 
-```typescript
+```
 import { getThemeContext } from "@components/ui/theme-context.svelte";
 
 const theme = getThemeContext();
@@ -533,7 +608,7 @@ const theme = getThemeContext();
 // theme?.cardShadow      → synthesized shadow based on variant
 // theme?.cardBorder      → border width based on variant
 // theme?.features?.stickyActionBar → boolean
-```text
+```
 
 ### Injecting Content into Layout Shell Regions
 
@@ -551,7 +626,7 @@ Plugins register into these slots via the `PluginSlot` system (`src/plugins/type
 
 Every admin page lives inside a 6-region shell controlled by `ui-store`:
 
-```typescript
+```
 import { ui } from "@src/stores/ui-store.svelte";
 
 // Toggle any region independently
@@ -561,14 +636,13 @@ ui.toggle("pageheader", "hidden");
 
 // Layout state is persisted to DB per-theme automatically
 // (debounced 2s save to config.adminTheme.layoutState)
-```text
+```
 
 ### Screen Size Adaptation
 
-```typescript
+```
 import { screen } from "@src/stores/screen-size-store.svelte";
 
 // screen.isDesktop → true when width >= 1024px
 // screen.isMobile  → true when width < 768px
-```text
-````
+```

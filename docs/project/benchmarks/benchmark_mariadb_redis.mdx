@@ -122,7 +122,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
 
-```text
+```
 ║ Cold Start (IDLE → WARMED)     │       74.621 ms │ p95:      228.789 ms │ RPS:         13 ║
 ```text
 
@@ -135,7 +135,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
-```text
+```
 ║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,218,027 ║
 ║ Local SDK (Full)               │        0.006 ms │ p95:        0.012 ms │ RPS:    157,604 ║
 ║ HTTP End-to-End                │        0.572 ms │ p95:        0.786 ms │ RPS:      1,748 ║
@@ -217,7 +217,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Health Check                   │        1.110 ms │ p95:        2.389 ms │ RPS:        901 ║
 ║ Collection Schema              │        3.353 ms │ p95:        6.183 ms │ RPS:        298 ║
@@ -234,7 +234,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
 > 🎯 **Proves**: Resolver execution time and throughput for common queries.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ GQL: System Health             │        1.289 ms │ p95:        2.329 ms │ RPS:        776 ║
 ║ GQL: Collection List           │        3.933 ms │ p95:        6.814 ms │ RPS:        254 ║
@@ -373,7 +373,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 > 🎯 **Proves**: Verifies atomic consistency and lost-update protection.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Concurrent PATCH Bomb          │        0.877 ms │ p95:        0.877 ms │ RPS:      1,141 ║
 ```text
@@ -387,7 +387,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
 > 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ 10 docs × 10                   │        0.000 ms │ p95:        0.000 ms │ RPS:        508 ║
 ║ 100 docs × 1                   │        0.000 ms │ p95:        0.000 ms │ RPS:        496 ║
@@ -1092,25 +1092,25 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 **Single test (console-only):**
 
-```bash
+```
 bun test tests/benchmarks/api-latency.test.ts
 ```text
 
 **Single test (record to this report):**
 
-```bash
+```
 BENCHMARK_RECORD=1 bun test tests/benchmarks/api-latency.test.ts
 ```text
 
 **Full SQLite matrix:**
 
-```bash
+```
 bun run scripts/benchmark-matrix/index.ts --sql
 ```text
 
 **History-only (no MDX mutation, useful in CI):**
 
-```bash
+```
 BENCHMARK_RECORD=1 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
 ```text
 
@@ -1141,4 +1141,4 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ## Related
 
 - [All Benchmarks](./index.mdx)
-- [Competitive Comparison](../../competitive-comparison.mdx)
+- [Competitive Comparison](../competitive-comparison.mdx)

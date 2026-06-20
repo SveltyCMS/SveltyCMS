@@ -19,7 +19,11 @@ export const toggleTenantStatus = command(
       throw error(403, "Forbidden");
     }
 
+    if (!event.locals.dbAdapter) {
+      throw error(500, "Database adapter not available");
+    }
+
     const { toggleTenantStatus: fn } = await import("./tenants-actions.server");
-    return fn(data);
+    return fn(data, event.locals.dbAdapter);
   },
 );

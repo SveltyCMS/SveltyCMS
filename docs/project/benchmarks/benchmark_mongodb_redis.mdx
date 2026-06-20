@@ -122,7 +122,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Cold Start (IDLE → READY)      │        0.068 ms │ p95:        0.163 ms │ RPS:          0 ║
 ```text
@@ -136,7 +136,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,538,071 ║
 ║ Local SDK (Full)               │        0.004 ms │ p95:        0.008 ms │ RPS:    230,823 ║
@@ -152,7 +152,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
 > 🎯 **Proves**: Validates rapid IDLE -> READY self-healing cycles.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ State Transition (READY -> IDLE -> READY) │       34.858 ms │ p95:       53.164 ms │ RPS:         29 ║
 ```text
@@ -175,7 +175,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](../../../tests/benchmarks/transaction-acid.test.ts)
 > 🎯 **Proves**: Measures commit/rollback latency and transaction isolation performance.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ TX Commit                      │        0.002 ms │ p95:        0.003 ms │ RPS:    507,400 ║
 ║ TX Rollback Integrity          │        0.880 ms │ p95:        2.244 ms │ RPS:      1,136 ║
@@ -190,7 +190,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](../../../tests/benchmarks/temporal-integrity.test.ts)
 > 🎯 **Proves**: Verifies timezone normalization and deterministic UTC persistence.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Timezone Ingestion             │        3.046 ms │ p95:        3.046 ms │ RPS:        328 ║
 ```text
@@ -204,7 +204,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/relational-performance.test.ts](../../../tests/benchmarks/relational-performance.test.ts)
 > 🎯 **Proves**: Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Shallow Relational Query       │        3.986 ms │ p95:        5.868 ms │ RPS:        246 ║
 ║ Deep Relational Query          │        2.595 ms │ p95:        3.590 ms │ RPS:        370 ║
@@ -228,7 +228,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Health Check                   │        1.205 ms │ p95:        2.620 ms │ RPS:        830 ║
 ║ Collection Schema              │        4.431 ms │ p95:        8.242 ms │ RPS:        226 ║
@@ -245,7 +245,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
 > 🎯 **Proves**: Resolver execution time and throughput for common queries.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ GQL: 5c Warmup                 │        4.562 ms │ p95:        7.134 ms │ RPS:        214 ║
 ║ GQL: 10c Light                 │        8.564 ms │ p95:       14.382 ms │ RPS:        116 ║
@@ -265,7 +265,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/seo-performance.test.ts](../../../tests/benchmarks/seo-performance.test.ts)
 > 🎯 **Proves**: E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Redirect Lookup (301)          │        0.507 ms │ p95:        1.022 ms │ RPS:      1,971 ║
 ║ Dynamic Sitemap XML            │        2.649 ms │ p95:        5.309 ms │ RPS:        377 ║
@@ -298,7 +298,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](../../../tests/benchmarks/negative-cache.test.ts)
 > 🎯 **Proves**: Benchmarks 404-miss response times and cache lookup speedup.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ First Miss (DB)                │       14.879 ms │ p95:       14.879 ms │ RPS:         67 ║
 ║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    547,920 ║
@@ -313,7 +313,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](../../../tests/benchmarks/memory-stability.test.ts)
 > 🎯 **Proves**: Long-running soak test to identify memory leaks and GC pressure.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     17,409 ║
 ```text
@@ -327,7 +327,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](../../../tests/benchmarks/multi-tenant-performance.test.ts)
 > 🎯 **Proves**: Stress-tests cross-tenant isolation and security boundary latency.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Tenant Baseline         │        1.518 ms │ p95:        2.584 ms │ RPS:        659 ║
 ║ Multi-Tenant Context Switching │        1.456 ms │ p95:        2.464 ms │ RPS:        687 ║
@@ -342,7 +342,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/mixed-workload.test.ts](../../../tests/benchmarks/mixed-workload.test.ts)
 > 🎯 **Proves**: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Mixed Workload                 │        1.787 ms │ p95:        3.612 ms │ RPS:        520 ║
 ```text
@@ -364,7 +364,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/migration-scale.test.ts](../../../tests/benchmarks/migration-scale.test.ts)
 > 🎯 **Proves**: Measures system ingestion limits and read performance on 10,000+ entries.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Bulk Migration (10k)           │       39.165 ms │ p95:       80.146 ms │ RPS:         26 ║
 ║ Post-Migration Read            │        3.306 ms │ p95:        4.241 ms │ RPS:        302 ║
@@ -379,7 +379,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/index-pressure.test.ts](../../../tests/benchmarks/index-pressure.test.ts)
 > 🎯 **Proves**: Measures complex filtering and sorting performance on 100,000+ entry collections.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Sorted List (25k rows)         │        2.388 ms │ p95:        3.463 ms │ RPS:        419 ║
 ║ Filtered Query (25k rows)      │        0.980 ms │ p95:        1.536 ms │ RPS:      1,021 ║
@@ -402,7 +402,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/media-upload-stress.test.ts](../../../tests/benchmarks/media-upload-stress.test.ts)
 > 🎯 **Proves**: Measures large file upload throughput, concurrent upload handling, and streaming efficiency.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Upload (10MB)           │       23.477 ms │ p95:       29.532 ms │ RPS:         43 ║
 ║ Small Upload (1MB)             │        6.881 ms │ p95:       14.117 ms │ RPS:        145 ║
@@ -425,7 +425,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 > 🎯 **Proves**: Verifies atomic consistency and lost-update protection.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Concurrent PATCH Bomb          │        1.073 ms │ p95:        1.073 ms │ RPS:        932 ║
 ```text
@@ -439,7 +439,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
 > 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Local SDK                      │        0.306 ms │ p95:        0.306 ms │ RPS:      3,273 ║
 ```text
@@ -467,7 +467,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
 > 🎯 **Proves**: Measures system graceful degradation when external services fail.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Circuit Breaker Fallback       │        0.906 ms │ p95:        2.853 ms │ RPS:      1,104 ║
 ```text
@@ -481,7 +481,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
 > 🎯 **Proves**: Measures rate-limiting consistency under 10x design load.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Throttling Enforcement         │        2.970 ms │ p95:       13.072 ms │ RPS:        337 ║
 ```text
@@ -495,7 +495,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
 > 🎯 **Proves**: Measures performance of deep-deletion across all linked tables.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Deep Deletion Speed            │        2.262 ms │ p95:        4.430 ms │ RPS:        442 ║
 ```text
@@ -1144,25 +1144,25 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 **Single test (console-only):**
 
-```bash
+```
 bun test tests/benchmarks/api-latency.test.ts
 ```text
 
 **Single test (record to this report):**
 
-```bash
+```
 BENCHMARK_RECORD=1 bun test tests/benchmarks/api-latency.test.ts
 ```text
 
 **Full SQLite matrix:**
 
-```bash
+```
 bun run scripts/benchmark-matrix/index.ts --sql
 ```text
 
 **History-only (no MDX mutation, useful in CI):**
 
-```bash
+```
 BENCHMARK_RECORD=1 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
 ```text
 
@@ -1193,4 +1193,4 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ## Related
 
 - [All Benchmarks](./index.mdx)
-- [Competitive Comparison](../../competitive-comparison.mdx)
+- [Competitive Comparison](../competitive-comparison.mdx)

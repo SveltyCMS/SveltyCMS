@@ -14,6 +14,7 @@ New Features:
 <script lang="ts">
 import type { WidgetSize } from "@src/content/types";
 import { logger } from "@utils/logger";
+	import Button from '@components/ui/button.svelte';
 
 // Lucide icons
 
@@ -404,21 +405,21 @@ $effect(() => {
 		</div>
 
 		<div class="flex items-center gap-1">
-			<button onclick={() => refresh()} class="preset-outline btn-icon" aria-label="Refresh widget" disabled={loading} title="Refresh data">
+			<Button variant="ghost" onclick={() => refresh()} aria-label="Refresh widget" disabled={loading} title="Refresh data" class="p-0! min-w-0 preset-outline">
 				<iconify-icon icon="mdi:refresh" width={16} class={loading ? 'animate-spin' : ''}></iconify-icon>
-			</button>
+			</Button>
 
 			<div class="relative" style="overflow: visible;">
-				<button onclick={() => (showSizeMenu = !showSizeMenu)} class="preset-outline btn-icon" aria-label="Change widget size">
+				<Button variant="ghost" onclick={() => (showSizeMenu = !showSizeMenu)} aria-label="Change widget size" class="p-0! min-w-0 preset-outline">
 					<iconify-icon icon="mdi:dots-vertical" width={18}></iconify-icon>
-				</button>
+				</Button>
 				{#if showSizeMenu}
 					<div
 						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
-							<button>
+							<Button variant="outline">
 								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
 									s.w && size.h === s.h
 									? 'font-bold text-tertiary-500 dark:text-primary-500'
@@ -429,14 +430,14 @@ $effect(() => {
 								{#if size.w === s.w && size.h === s.h}
 									<iconify-icon icon="mdi:check" width={16} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 								{/if}
-							</button>
+							</Button>
 						{/each}
 					</div>
 				{/if}
 			</div>
-			<button onclick={onCloseRequest} class="preset-outline btn-icon" aria-label="Remove {label} widget">
+			<Button variant="ghost" onclick={onCloseRequest} aria-label="Remove {label} widget" class="p-0! min-w-0">
 				<iconify-icon icon="mdi:close" width={18}></iconify-icon>
-			</button>
+			</Button>
 		</div>
 	</header>
 	<section

@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
   import type { User } from "@auth/types";
   import type { CollectionEntry, Schema } from "@src/content/types";
   import { publicEnv } from "@src/stores/global-settings.svelte";
@@ -193,12 +194,11 @@
           Initialize handshake to start real-time syncing.
         </p>
       </div>
-      <button
-        class="btn preset-filled-primary"
+      <Button variant="primary"
         onclick={() => (shouldRender = true)}
        >
         Start Preview
-      </button>
+      </Button>
     </div>
   {:else}
     <!-- Toolbar -->
@@ -214,57 +214,50 @@
             placeholder={isLoadingUrl ? "Authorizing..." : "URL not available"}
             aria-label="Preview URL"
           />
-        <button
+        <Button variant="outline"
           onclick={copyUrl}
-          class="btn btn-sm preset-outline-surface"
           disabled={!authorizedUrl}
           title="Copy Preview URL"
-         aria-label="Copy preview URL">
+         aria-label="Copy preview URL" size="sm" class="preset-outline-surface">
           <iconify-icon icon="mdi:content-copy" width={16}></iconify-icon>
-        </button>
+        </Button>
       </div>
 
       <div class="flex items-center gap-2">
-        <button
+        <Button variant="primary"
             onclick={() => (visualEditingEnabled = !visualEditingEnabled)}
-            class="btn btn-sm {visualEditingEnabled
-              ? 'preset-filled-primary'
-              : 'preset-soft-surface'}"
             title="Toggle Click-to-Edit"
             aria-label="Toggle Click-to-Edit"
-          >
+           size="sm" class="{visualEditingEnabled ? ' ' : 'preset-soft-surface'}">
           <iconify-icon icon="mdi:cursor-default-click" width={16}
           ></iconify-icon>
           <span class="hidden sm:inline">Visual Edit</span>
-        </button>
+        </Button>
 
-        <a
+        <Button
+          variant="primary"
+          size="sm"
           href={authorizedUrl}
           target="_blank"
           rel="noopener noreferrer"
-          class="btn btn-sm preset-filled-primary {!authorizedUrl
-            ? 'disabled pointer-events-none opacity-50'
-            : ''}"
+          disabled={!authorizedUrl}
         >
           <iconify-icon icon="mdi:open-in-new" width={16}></iconify-icon>
           <span class="hidden sm:inline">Open</span>
-        </a>
+        </Button>
       </div>
     </div>
 
     <!-- Device Simulation Controls -->
     <div class="mb-3 flex justify-center gap-1">
       {#each [{ label: "Desktop", width: "100%", icon: "mdi:monitor" }, { label: "Tablet", width: "768px", icon: "mdi:tablet" }, { label: "Mobile", width: "375px", icon: "mdi:cellphone" }] as device}
-        <button
+        <Button variant="primary"
           onclick={() => (previewWidth = device.width)}
-          class="btn btn-sm btn-icon {previewWidth === device.width
-            ? 'variant-filled-primary'
-            : 'variant-soft-secondary'}"
           title={device.label}
           aria-label={device.label}
-        >
+         size="sm" class="p-0! min-w-0 {previewWidth === device.width ? ' ' : ' '}">
           <iconify-icon icon={device.icon} width={20}></iconify-icon>
-        </button>
+        </Button>
       {/each}
     </div>
 

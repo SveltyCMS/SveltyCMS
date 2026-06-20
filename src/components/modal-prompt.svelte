@@ -1,9 +1,9 @@
-<!-- 
+<!--
  @file src/components/modal-prompt.svelte
- @component 
+ @component
  **ModalPrompt component**
  @example
- <ModalPrompt title="Prompt" body="Are you sure?" value="" type="text" response={(value) => console.log(value)} parent={modalState} /> 
+ <ModalPrompt title="Prompt" body="Are you sure?" value="" type="text" response={(value) => console.log(value)} parent={modalState} />
 
  ### Features
  - Modal prompt with title, body, and input field
@@ -13,6 +13,8 @@
  -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import Sanitize from '@src/utils/sanitize.svelte';
 
 	let {
@@ -52,11 +54,11 @@
 			onConfirm();
 		}}
 	>
-		<input class="input p-2 border rounded-container-token bg-surface-200-800" {type} bind:value={inputValue}  aria-label="Input" />
+		<Input {type} bind:value={inputValue} aria-label="Input" />
 	</form>
 
 	<div class="flex justify-end gap-2 pt-2">
-		<button type="button" class="btn preset-tonal" onclick={onCancel}>Cancel</button>
-		<button type="button" class="btn preset-filled-primary" onclick={onConfirm}>Confirm</button>
+		<Button variant="secondary" type="button" onclick={onCancel}>Cancel</Button>
+		<Button variant="primary" type="button" onclick={onConfirm}>Confirm</Button>
 	</div>
 </div>

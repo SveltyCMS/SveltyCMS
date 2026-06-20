@@ -30,6 +30,7 @@ import {
 } from "./config-state";
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import { AppError } from "@src/utils/error-handling";
+import { createSelfHealingProxy } from "./core/proxy-utils";
 
 const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
 const INIT_PROMISE_KEY = "__DB_INIT_PROMISE__";
@@ -80,90 +81,14 @@ export function getDbInitPromise(_force = false, _context = "CORE"): Promise<any
   return ensureFullInitialization();
 }
 
-// 🛡️ THE REACTIVE SHIELD: A Proxy that survives Vite chunking AND wait-for-instance.
-const proxyCache = new Map<string, any>();
-const boundFunctionsCache = new WeakMap<any, Map<string | symbol, Function>>();
-
-const createInstanceProxy = (targetProp?: string) => {
-  const cacheKey = targetProp || "root";
-  if (proxyCache.has(cacheKey)) return proxyCache.get(cacheKey);
-
-  const proxy = new Proxy({} as any, {
-    get(_, prop) {
-      if (prop === "then") return undefined;
-      if (prop === "toJSON") return () => `[Proxy:${targetProp || "adapter"}]`;
-
-      const instance = getGlobal<IDBAdapter>(ADAPTER_KEY);
-
-      // Handle special properties like 'collection' and 'system'
-      if (
-        prop === "collection" ||
-        prop === "system" ||
-        prop === "crud" ||
-        prop === "auth" ||
-        prop === "raw" ||
-        prop === "media"
-      ) {
-        return createInstanceProxy(prop as string);
-      }
-
-      if (instance) {
-        const target = targetProp ? (instance as any)[targetProp] : instance;
-        if (!target) return undefined;
-        const val = target[prop];
-
-        if (typeof val === "function") {
-          let targetCache = boundFunctionsCache.get(target);
-          if (!targetCache) {
-            targetCache = new Map();
-            boundFunctionsCache.set(target, targetCache);
-          }
-          const cachedFn = targetCache.get(prop);
-          if (cachedFn) return cachedFn;
-
-          const boundFn = val.bind(target);
-          targetCache.set(prop, boundFn);
-          return boundFn;
-        }
-        return val;
-      }
-
-      // ASYNC RECOVERY — auto-heal on HMR reload or connection loss
-      return async (...args: any[]) => {
-        // 🚑 SELF-HEALING: Try to reinitialize if adapter disappeared (e.g. HMR reload)
-        let inst = getGlobal<IDBAdapter>(ADAPTER_KEY);
-        if (!inst || !inst.isConnected()) {
-          try {
-            const { reinitializeSystem } = await import("@src/databases/db");
-            await reinitializeSystem();
-            inst = getGlobal<IDBAdapter>(ADAPTER_KEY);
-          } catch {
-            // Re-initialization failed, report original error below
-          }
-        }
-        if (!inst) {
-          if (prop === "isConnected" || prop === "connected") return false;
-          throw new Error(
-            `CRITICAL: Database access attempt on '${String(targetProp || "adapter")}.${String(prop)}' before initialization.`,
-          );
-        }
-        const target = targetProp ? (inst as any)[targetProp] : inst;
-        const fn = target[prop];
-        if (typeof fn !== "function") {
-          throw new Error(
-            `Property '${String(prop)}' is not a function on ${String(targetProp || "adapter")}`,
-          );
-        }
-        return fn.apply(target, args);
-      };
-    },
-  });
-
-  proxyCache.set(cacheKey, proxy);
-  return proxy;
-};
-
-export const dbAdapter: DatabaseAdapter = createInstanceProxy();
+// 🛡️ THE REACTIVE SHIELD: Self-healing Proxy that survives Vite HMR and connection loss.
+// Implemented in core/proxy-utils.ts for testability and reuse.
+export const dbAdapter: DatabaseAdapter = createSelfHealingProxy<IDBAdapter>(
+  () => getGlobal<IDBAdapter>(ADAPTER_KEY),
+  async () => {
+    await reinitializeSystem();
+  },
+);
 
 export const auth: any = new Proxy(
   {},
@@ -296,6 +221,18 @@ export async function ensureFullInitialization(): Promise<any | null> {
       setGlobal(BOOT_PHASE_KEY, "READY");
       logger.debug(`[Boot] Services Initialized: ${(performance.now() - phase2).toFixed(2)}ms`);
 
+      // Start behavioral learning engine (fire-and-forget, zero-latency)
+      import("@src/services/intelligence/behavioral-learner")
+        .then(({ startBehavioralEngine }) => startBehavioralEngine())
+        .catch(() => {});
+
+      // Initialize semantic search index (fire-and-forget, NPU-accelerated)
+      import("@src/services/intelligence/semantic-index")
+        .then(({ initializeSemanticIndex }) =>
+          initializeSemanticIndex((cfg as any)?.tenantId || "default"),
+        )
+        .catch(() => {});
+
       return { adapter, auth: authInstance };
     } catch (error) {
       logger.error("[Boot] Initialization CRASHED:", error);
@@ -320,6 +257,10 @@ export async function shutdownSystem(): Promise<void> {
   if (adapter && typeof adapter.disconnect === "function") {
     await adapter.disconnect();
   }
+
+  // Flush behavioral learning data before shutdown
+  const { stopBehavioralEngine } = await import("@src/services/intelligence/behavioral-learner");
+  stopBehavioralEngine();
 
   // 🚀 HARDENING: Clear registries and promises
   const { dbPluginRegistry } = await import("./core/plugin-registry");

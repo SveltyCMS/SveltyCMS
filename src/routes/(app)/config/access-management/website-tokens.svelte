@@ -14,7 +14,6 @@
 -->
 
 <script lang="ts">
-// Components
 import TableFilter from "@src/components/system/table/table-filter.svelte";
 import TablePagination from "@src/components/system/table/table-pagination.svelte";
 import type { Permission, User } from "@src/databases/auth/types";
@@ -29,6 +28,11 @@ import { onMount } from "svelte";
 import { flip } from "svelte/animate";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
 import { dndzone } from "svelte-dnd-action";
+	import AdminCard from '@components/admin-card.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 
 interface TableHeader {
 	id: string;
@@ -39,27 +43,22 @@ interface TableHeader {
 
 let { permissions = [] }: { permissions: Permission[] } = $props();
 
-// Website Access Tokens Data
 let tokens: WebsiteToken[] = $state([]);
 let users: User[] = $state([]);
 
-// User Map for display
 const userMap = $derived(
 	new Map(users.map((u) => [u._id, u.username || u.email])),
 );
 
-// Token Generation State
 let newTokenName = $state("");
 let selectedPermissions: string[] = $state([]);
 let expirationOption = $state("90d");
 let customExpirationDate = $state("");
 let permissionSearchTerm = $state("");
 
-// Visibility / Display State
 let showSecretMap: Record<string, boolean> = $state({});
 let selectedTokens = $state(new Set<string>());
 
-// Filter state
 let globalSearchValue = $state("");
 let searchShow = $state(false);
 let filterShow = $state(false);
@@ -67,8 +66,7 @@ let columnShow = $state(false);
 let density = $state("normal");
 let filters: Record<string, string | undefined> = $state({});
 
-// Sorting and Pagination
-let sorting = $state({ sortedBy: "createdAt", isSorted: -1 }); // Sort by createdAt desc by default
+let sorting = $state({ sortedBy: "createdAt", isSorted: -1 });
 let currentPage = $state(1);
 let rowsPerPage = $state(10);
 let totalItems = $state(0);
@@ -82,7 +80,14 @@ const tableHeaders = [
 	{ label: "Created By", key: "createdBy" },
 ];
 
-// Column visibility
+const expirationOptions = [
+	{ value: '30d', label: '30 Days' },
+	{ value: '90d', label: '90 Days' },
+	{ value: '1y', label: '1 Year' },
+	{ value: 'never', label: 'Never (Use with caution)' },
+	{ value: 'custom', label: 'Custom Date' },
+];
+
 let displayTableHeaders = $state(
 	tableHeaders.map((h) => ({ ...h, visible: true, id: `header-${h.key}` })),
 );
@@ -357,40 +362,31 @@ $effect(() => {
 });
 </script>
 
-<div class="p-4">
+<div class="space-y-4">
 	<h3 class="mb-2 text-center text-xl font-bold">Website Access Tokens</h3>
-	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
 		Manage API tokens for external websites to access your content.
 	</p>
 
-	<div class="card mb-4">
-		<div class="p-4">
+	<AdminCard class="mb-4 border border-surface-200 dark:border-surface-800">
+		<div class="p-4 space-y-4">
 			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500">Generate New Website Token</h4>
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<!-- Name -->
-				<label class="label">
-					<span>Token Name</span>
-					<input type="text" class="input" placeholder="e.g. Production Website" bind:value={newTokenName}  aria-label="Input" />
-				</label>
+				<Input
+					label="Token Name"
+					placeholder="e.g. Production Website"
+					bind:value={newTokenName}
+				/>
 
-				<!-- Expiration -->
 				<div class="flex flex-col gap-2">
-					<label class="label">
-						<span>Expiration</span>
-						<select class="select" bind:value={expirationOption} aria-label="Select">
-							<option value="30d">30 Days</option>
-							<option value="90d">90 Days</option>
-							<option value="1y">1 Year</option>
-							<option value="never">Never (Use with caution)</option>
-							<option value="custom">Custom Date</option>
-						</select>
-					</label>
+					<Select
+						label="Expiration"
+						bind:value={expirationOption}
+						options={expirationOptions}
+					/>
 					{#if expirationOption === 'custom'}
-						<label class="label">
-							<span>Custom Date</span>
-							<input type="date" class="input" bind:value={customExpirationDate} />
-						</label>
+						<Input label="Custom Date" type="date" bind:value={customExpirationDate} />
 					{/if}
 				</div>
 			</div>
@@ -399,77 +395,72 @@ $effect(() => {
 				<div class="mb-2 flex items-center justify-between">
 					<h5 class="h5 font-bold">Permissions</h5>
 					<div class="flex items-center gap-4">
-						<input
-							type="text"
+						<Input
 							placeholder="Search permissions..."
-							class="input input-sm max-w-xs"
 							bind:value={permissionSearchTerm}
 							aria-label="Search available permissions"
+							class="max-w-xs"
 						/>
-						<button class="btn btn-sm variant-soft" onclick={toggleSelectAllPermissions}>
+						<Button variant="surface" onclick={toggleSelectAllPermissions} size="sm">
 							{selectedPermissions.length === permissions.length ? 'Deselect All' : 'Select All'}
-						</button>
+						</Button>
 					</div>
 				</div>
-				<div class="card max-h-60 overflow-y-auto p-4 bg-surface-100 dark:bg-surface-800" role="group" aria-labelledby="permissions-title">
-					<p id="permissions-title" class="text-sm text-gray-500 mb-2">
+				<AdminCard
+					class="max-h-60 overflow-y-auto p-4 border border-surface-200 dark:border-surface-800 bg-surface-50/30 dark:bg-surface-900/20"
+					role="group"
+					aria-labelledby="permissions-title"
+				>
+					<p id="permissions-title" class="text-sm text-surface-500 mb-2">
 						Select permissions to grant to this token. If none selected, the token will have <strong>Read Only</strong> access.
 					</p>
 
 					{#if filteredAvailablePermissions.length > 0}
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
 							{#each filteredAvailablePermissions as permission (permission._id)}
-								<label class="flex items-center space-x-2 p-2 rounded hover:bg-surface-200 dark:hover:bg-surface-700 cursor-pointer">
-									<input
-										type="checkbox"
-										class="checkbox"
+								<div class="p-2 rounded hover:bg-surface-200 dark:hover:bg-surface-700">
+									<Checkbox
 										checked={selectedPermissions.includes(permission._id)}
 										onchange={() => togglePermission(permission._id)}
-									 aria-label="Input" />
-									<span class="text-sm">
-										<span class="font-bold">{permission.name}</span>
-										<span class="text-xs opacity-70 block">{permission.action}</span>
-									</span>
-								</label>
+										label={permission.name}
+										description={permission.action}
+									/>
+								</div>
 							{/each}
 						</div>
 					{:else}
 						<div class="text-xs text-center p-4 italic opacity-50">No permissions match your search.</div>
 					{/if}
-				</div>
+				</AdminCard>
 			</div>
 
 			<div class="mt-4 flex justify-end">
-				<button class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn" onclick={generateToken}>
-					<iconify-icon icon="mdi:key-plus" class="me-2"></iconify-icon>
+				<Button variant="tertiary" onclick={generateToken} class="dark:" leadingIcon="mdi:key-plus">
 					Generate Token
-				</button>
+				</Button>
 			</div>
 		</div>
-	</div>
+	</AdminCard>
 
-	<div class="card">
+	<AdminCard class="border border-surface-200 dark:border-surface-800">
 		<div class="p-4">
 			<div class="my-4 flex flex-wrap items-center justify-between gap-1">
 				<div class="flex items-center gap-4">
 					<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">Existing Tokens</h4>
 					{#if selectedTokens.size > 0}
-						<button class="btn btn-sm variant-filled-error" onclick={bulkDeleteTokens}>
+						<Button variant="error" onclick={bulkDeleteTokens} size="sm">
 							Delete Selected ({selectedTokens.size})
-						</button>
+						</Button>
 					{/if}
 				</div>
 				<div class="order-3 sm:order-2"><TableFilter {globalSearchValue} {searchShow} {filterShow} {columnShow} {density} /></div>
 			</div>
 
 			{#if columnShow}
-				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-					<div class="text-white dark:text-primary-500">Drag and drop to reorder columns</div>
+				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b border-surface-200 bg-surface-100 text-center dark:border-surface-700 dark:bg-surface-800">
+					<div class="text-surface-700 dark:text-surface-200">Drag and drop to reorder columns</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
-						<label class="me-2">
-							<input type="checkbox" bind:checked={selectAllColumns} onchange={handleCheckboxChange}  aria-label="Input" />
-							All
-						</label>
+						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
 
 						<section
 							use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300 }}
@@ -478,57 +469,54 @@ $effect(() => {
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
 						>
 							{#each displayTableHeaders as header (header.id)}
-								<button
-									class="chip {header.visible
-										? 'preset-filled-secondary-500'
-										: 'preset-ghost-secondary-500'} w-100 me-2 flex items-center justify-center"
-									animate:flip={{ duration: 300 }}
-									onclick={() => {
-										displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
-										selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
-									}}
-								>
-									{#if header.visible}
-										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
-									{/if}
-									<span class="ms-2 capitalize">{header.label}</span>
-								</button>
+								<div animate:flip={{ duration: 300 }}>
+									<Button variant="secondary"
+										onclick={() => {
+											displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
+											selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
+										}}
+									 class="chip w-100 me-2 flex items-center justify-center">
+										{#if header.visible}
+											<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
+										{/if}
+										<span class="ms-2 capitalize">{header.label}</span>
+									</Button>
+								</div>
 							{/each}
 						</section>
 					</div>
 				</div>
 			{/if}
-			<div class="table-container">
-				<table class="table">
+
+			<div class="overflow-x-auto w-full">
+				<table class="w-full text-sm border-collapse">
 					<thead>
 						{#if filterShow}
-							<tr class="divide-x divide-preset-400">
-								<th></th>
+							<tr class="border-b border-surface-200 dark:border-surface-800">
+								<th class="px-2 py-2"></th>
 								{#each displayTableHeaders.filter((header: TableHeader) => header.visible) as header (header.id)}
-									<th>
-										<input
-											type="text"
-											class="input"
+									<th class="px-2 py-2">
+										<Input
 											placeholder={`Filter by ${header.label}...`}
-											oninput={(e) => handleInputChange(e.currentTarget.value, header.key)}
-										 aria-label="Input" />
+											oninput={(e) => handleInputChange((e.target as HTMLInputElement).value, header.key)}
+											aria-label={`Filter by ${header.label}`}
+										/>
 									</th>
 								{/each}
-								<th></th>
+								<th class="px-2 py-2"></th>
 							</tr>
 						{/if}
-						<tr class="divide-x divide-preset-400 border-b border-black dark:border-white">
-							<th class="w-10 text-center">
-								<input
-									type="checkbox"
-									class="checkbox"
+						<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
+							<th class="w-10 px-2 py-3 text-center">
+								<Checkbox
 									checked={selectedTokens.size === tokens.length && tokens.length > 0}
 									onchange={toggleAllTokens}
-									aria-label="Select all tokens"
+									label="Select all tokens"
+									class="[&_label:last-of-type]:sr-only"
 								/>
 							</th>
 							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
-								<th aria-sort={sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? 'ascending' : 'descending') : 'none'}>
+								<th class="px-2 py-3" aria-sort={sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? 'ascending' : 'descending') : 'none'}>
 									<button
 										class="flex w-full items-center justify-center text-center font-bold text-tertiary-500 dark:text-primary-500"
 										onclick={() => {
@@ -551,46 +539,43 @@ $effect(() => {
 									</button>
 								</th>
 							{/each}
-							<th class="text-center font-bold text-tertiary-500 dark:text-primary-500" scope="col">Action</th>
+							<th class="px-2 py-3 text-center font-bold text-tertiary-500 dark:text-primary-500" scope="col">Action</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 						{#each tokens as token (token._id)}
-							<tr class={selectedTokens.has(token._id) ? 'bg-surface-hover' : ''}>
-								<td class="text-center">
-									<input
-										type="checkbox"
-										class="checkbox"
+							<tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30 {selectedTokens.has(token._id) ? 'bg-surface-50/60 dark:bg-surface-900/40' : ''}">
+								<td class="px-2 py-3 text-center">
+									<Checkbox
 										checked={selectedTokens.has(token._id)}
 										onchange={() => toggleTokenSelection(token._id)}
-										aria-label={`Select token ${token.name}`}
+										label={`Select token ${token.name}`}
+										class="[&_label:last-of-type]:sr-only"
 									/>
 								</td>
 								{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
-									<td>
+									<td class="px-2 py-3">
 										{#if header.key === 'token'}
 											<div class="flex items-center gap-2">
 												<code class="bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded">
 													{showSecretMap[token._id] ? token.token : `${token.token.slice(0, 4)}••••••••${token.token.slice(-4)}`}
 												</code>
 												<div class="flex gap-1" aria-live="polite">
-													<button
+													<Button variant="surface"
 														onclick={() => (showSecretMap[token._id] = !showSecretMap[token._id])}
-														class="btn-icon btn-icon-sm variant-soft"
 														aria-label={showSecretMap[token._id] ? 'Hide token' : 'Show token'}
-													>
+													 class="p-0! min-w-0">
 														<iconify-icon icon={showSecretMap[token._id] ? 'mdi:eye-off-outline' : 'mdi:eye-outline'} width={20}></iconify-icon>
-													</button>
-													<button
+													</Button>
+													<Button variant="surface"
 														onclick={async () => {
 															await navigator.clipboard.writeText(token.token);
 															toast.success('Token copied to clipboard');
 														}}
-														class="btn-icon btn-icon-sm variant-soft"
 														aria-label="Copy token to clipboard"
-													>
+													 class="p-0! min-w-0">
 														<iconify-icon icon="mdi:clipboard-outline" width={20}></iconify-icon>
-													</button>
+													</Button>
 												</div>
 											</div>
 										{:else if header.key === 'createdAt'}
@@ -614,7 +599,7 @@ $effect(() => {
 										{/if}
 									</td>
 								{/each}
-								<td><button class="preset-filled-error-500 btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button></td>
+								<td class="px-2 py-3"><Button variant="error" onclick={() => deleteToken(token._id, token.name)} size="sm">Delete</Button></td>
 							</tr>
 						{/each}
 					</tbody>
@@ -636,5 +621,5 @@ $effect(() => {
 				</div>
 			</div>
 		</div>
-	</div>
+	</AdminCard>
 </div>

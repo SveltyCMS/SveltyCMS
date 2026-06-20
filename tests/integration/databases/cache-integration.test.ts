@@ -36,9 +36,9 @@ describe("Cache Integration Tests (Real CacheService)", () => {
       expect(retrieved).toEqual(testValue);
     });
 
-    test("should return null for non-existent keys", async () => {
+    test("should return undefined for non-existent keys", async () => {
       const retrieved = await cacheService.get("nonexistent:key", TEST_TENANT);
-      expect(retrieved).toBeNull();
+      expect(retrieved).toBeUndefined();
     });
 
     test("should delete cached values", async () => {
@@ -47,7 +47,7 @@ describe("Cache Integration Tests (Real CacheService)", () => {
       await cacheService.delete(testKey, TEST_TENANT);
 
       const retrieved = await cacheService.get(testKey, TEST_TENANT);
-      expect(retrieved).toBeNull();
+      expect(retrieved).toBeUndefined();
     });
 
     test("should handle TTL expiration", async () => {
@@ -58,7 +58,7 @@ describe("Cache Integration Tests (Real CacheService)", () => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       const retrieved = await cacheService.get(testKey, TEST_TENANT);
-      expect(retrieved).toBeNull();
+      expect(retrieved).toBeUndefined();
     });
   });
 
@@ -74,9 +74,9 @@ describe("Cache Integration Tests (Real CacheService)", () => {
       const user2 = await cacheService.get("user:2:profile", TEST_TENANT);
       const post1 = await cacheService.get("post:1:data", TEST_TENANT);
 
-      expect(user1).toBeNull();
-      expect(user2).toBeNull();
-      expect(post1).not.toBeNull();
+      expect(user1).toBeUndefined();
+      expect(user2).toBeUndefined();
+      expect(post1).toBeDefined();
     });
 
     test("should handle complex patterns", async () => {
@@ -90,9 +90,9 @@ describe("Cache Integration Tests (Real CacheService)", () => {
       const abc2 = await cacheService.get("tenant:abc:user:2", TEST_TENANT);
       const xyz1 = await cacheService.get("tenant:xyz:user:1", TEST_TENANT);
 
-      expect(abc1).toBeNull();
-      expect(abc2).toBeNull();
-      expect(xyz1).not.toBeNull();
+      expect(abc1).toBeUndefined();
+      expect(abc2).toBeUndefined();
+      expect(xyz1).toBeDefined();
     });
   });
 
@@ -105,8 +105,8 @@ describe("Cache Integration Tests (Real CacheService)", () => {
 
       const v1 = await cacheService.get("key:1", TEST_TENANT);
       const v2 = await cacheService.get("key:2", TEST_TENANT);
-      expect(v1).toBeNull();
-      expect(v2).toBeNull();
+      expect(v1).toBeUndefined();
+      expect(v2).toBeUndefined();
     });
   });
 

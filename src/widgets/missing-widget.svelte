@@ -93,7 +93,7 @@ Provides actionable information for developers and administrators.
 	<div class="mt-4 space-y-2">
 		<p class="text-sm font-semibold text-warning-800 dark:text-warning-200">Possible Solutions:</p>
 
-		<ul class="ml-4 space-y-1 text-sm text-warning-700 dark:text-warning-300">
+		<ul class="ms-4 space-y-1 text-sm text-warning-700 dark:text-warning-300">
 			<li class="flex items-start gap-2">
 				<span class="mt-0.5">•</span>
 				<span

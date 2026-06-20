@@ -26,7 +26,7 @@ const building = (() => {
 })();
 import { logger } from "@utils/logger";
 import type { Schema } from "../types";
-import { loadSchemaNative } from "../module-processor.server";
+import { loadSchema } from "../module-processor.server";
 
 /**
  * Scans the configured directory for collection definition files.
@@ -57,7 +57,7 @@ export async function scanAndProcessFiles(): Promise<Schema[]> {
   const schemaPromises = files.map(async (filePath) => {
     try {
       // 🚀 Native Load: Bypasses readFile, string parsing, and eval.
-      const moduleData = await loadSchemaNative(filePath);
+      const moduleData = await loadSchema(filePath);
 
       if (!moduleData?.schema) return null;
 

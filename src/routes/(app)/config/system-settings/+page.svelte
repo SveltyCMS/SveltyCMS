@@ -20,10 +20,12 @@ import GDPRSettings from "@src/components/system/gdpr-settings.svelte";
 import { groupsNeedingConfig } from "@src/stores/config-store.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
-	import PageTitle from '@components/page-title.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 import { onMount, untrack } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
-import { fade } from "svelte/transition";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import GenericSettingsGroup from "./generic-settings-group.svelte";
@@ -32,6 +34,7 @@ import type { SettingGroup } from "./settings-groups";
 // Import settings structure
 import { getSettingGroupsByRole } from "./settings-groups";
 import { beforeNavigate } from "$app/navigation";
+	import Button from '@components/ui/button.svelte';
 
 // Get user admin status from page data (set by +page.server.ts)
 const { data } = $props();
@@ -137,21 +140,28 @@ $effect(() => {
 });
 </script>
 
-<div class="absolute inset-0 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header (sticky so save button stays visible while scrolling) -->
-		<div in:fade class="sticky top-0 z-40 bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-sm pt-3 px-6 pb-3 border-b border-surface-200 dark:border-surface-800 mb-6 shadow-sm">
-			<PageTitle
-				name="System Settings"
-				icon="mdi:cog-outline"
-				showBackButton={true}
-				backUrl="/config"
+<AdminPageShell title="System Settings" icon="mdi:cog-outline" showBackButton={true} backUrl="/config" spaceY="8">
+	{#snippet actions()}
+		<StickyActions>
+			<Button
+				variant="tertiary"
+				type="button"
+				disabled={saving || !hasUnsavedChanges}
+				onclick={() => saveTrigger.fire()}
+				class="dark:"
 			>
-			</PageTitle>
-		</div>
+				{#if saving}
+					<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+					<span>Saving...</span>
+				{:else}
+					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+					<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
+				{/if}
+			</Button>
+		</StickyActions>
+	{/snippet}
 
-	<!-- Content -->
-	<div class="px-6 pb-6 space-y-8">
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
+	<AdminCard class="border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
 		<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">Configure global system settings</h2>
 
 		<p class="text-surface-600 dark:text-surface-300 text-sm mb-6">
@@ -171,7 +181,7 @@ $effect(() => {
 			</div>
 		{/if}
 
-		
+
 		{#if unconfiguredCount > 0}
 			<div class="preset-filled-error-500 p-4 rounded mb-6">
 				<div class="text-sm opacity-90">
@@ -194,7 +204,7 @@ $effect(() => {
 		{/if}
 
 		<!-- Settings Layout -->
-		<div class="card flex flex-col bg-surface-50-950 border border-surface-200/50 dark:border-surface-700/50">
+				<AdminCard class="flex flex-col">
 			{#if selectedGroupId}
 				{#key selectedGroupId}
 					{@const group = availableGroups.find((g) => g.id === selectedGroupId)}
@@ -211,10 +221,9 @@ $effect(() => {
 									onUnsavedChanges={(val) => (hasUnsavedChanges = val)}
 								>
 									{#if selectedGroupId === 'cache'}
-										<button
+										<Button variant="warning"
 											type="button"
 											disabled={isRepairing}
-											class="preset-tonal-warning inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 w-full sm:w-auto"
 											onclick={async () => {
 												isRepairing = true;
 												repairResult = null;
@@ -234,10 +243,10 @@ $effect(() => {
 												}
 											}}
 											aria-label="Repair Cache"
-										>
+										 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
 											<iconify-icon icon="mdi:wrench" width="16" class={isRepairing ? 'animate-spin' : ''}></iconify-icon>
 											<span class="hidden sm:inline">{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
-										</button>
+										</Button>
 									{/if}
 								</GenericSettingsGroup>
 							{/if}
@@ -253,12 +262,12 @@ $effect(() => {
 					<p class="text-surface-500">Select a group to configure.</p>
 				</div>
 			{/if}
-		</div>
-	</div>
+		</AdminCard>
+	</AdminCard>
 
 	<!-- System Status -->
 	<div class="mx-auto mt-8 flex max-w-4xl items-center justify-center">
-		<div class="badge-glass flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 text-xs sm:text-sm text-center">
+		<Badge variant="surface" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 text-xs sm:text-sm text-center">
 			<div class="flex items-center gap-1.5 shrink-0">
 				<span class="text-2xl text-tertiary-500 dark:text-primary-500 leading-none">●</span>
 				<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
@@ -278,7 +287,6 @@ $effect(() => {
 				<span class="text-surface-600 dark:text-surface-50">Environment:</span>
 				<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
 			</div>
+		</Badge>
 		</div>
-		</div>
-	</div>
-</div>
+</AdminPageShell>

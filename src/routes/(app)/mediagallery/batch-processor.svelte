@@ -7,6 +7,10 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
 import { slide } from "svelte/transition";
 import type { SvelteSet } from "svelte/reactivity";
+import AdminCard from '@components/admin-card.svelte';
+import Button from '@components/ui/button.svelte';
+import Input from '@components/ui/input.svelte';
+import Select from '@components/ui/select.svelte';
 
 interface Props {
 	selectedIds: SvelteSet<string>;
@@ -26,6 +30,8 @@ const presets = [
 	{ id: "sepia", label: "Sepia" },
 	{ id: "dramatic", label: "Dramatic" },
 ];
+
+const presetOptions = presets.map((p) => ({ value: p.id, label: p.label }));
 
 async function runBatch() {
 	isProcessing = true;
@@ -58,82 +64,89 @@ async function runBatch() {
 }
 </script>
 
-<div class="fixed inset-x-0 bottom-0 z-50 p-4 pointer-events-none">
-	<div 
-		class="mx-auto max-w-4xl bg-surface-100 dark:bg-surface-800 rounded-2xl shadow-2xl border border-tertiary-500 dark:border-primary-500/30 p-6 pointer-events-auto"
-		transition:slide={{ axis: 'y', duration: 300 }}
+<div class="pointer-events-none fixed inset-x-0 bottom-0 z-50 p-4">
+	<div transition:slide={{ axis: 'y', duration: 300 }}>
+	<AdminCard
+		class="pointer-events-auto mx-auto max-w-4xl border border-tertiary-500 bg-surface-100 p-6 shadow-2xl dark:border-primary-500/30 dark:bg-surface-800"
 	>
-		<div class="flex items-center justify-between mb-6">
+		<div class="mb-6 flex items-center justify-between">
 			<div class="flex items-center gap-3">
-				<div class="flex h-10 w-10 items-center justify-center rounded-full bg-tertiary-500 dark:bg-primary-500 text-white font-bold shadow-lg">
+				<div class="flex h-10 w-10 items-center justify-center rounded-full bg-tertiary-500 font-bold text-white shadow-lg dark:bg-primary-500">
 					{selectedIds.size}
 				</div>
 				<div>
 					<h3 class="text-lg font-bold">Batch Processor</h3>
-					<p class="text-xs opacity-50 uppercase tracking-widest font-mono">Sharp.js Multi-Asset Engine</p>
+					<p class="font-mono text-xs uppercase tracking-widest opacity-50">Sharp.js Multi-Asset Engine</p>
 				</div>
 			</div>
-			<button class="btn-icon preset-tonal-surface" onclick={onClose} aria-label="Close">
+			<Button variant="surface" onclick={onClose} aria-label="Close" class="min-w-0 p-0!">
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-			</button>
+			</Button>
 		</div>
 
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 			<!-- Step 1: Operation -->
 			<div class="space-y-3">
 				<span class="block text-[10px] font-bold uppercase tracking-widest opacity-60">1. Select Action</span>
 				<div class="flex flex-col gap-2">
-					<button 
-						class="btn btn-sm justify-start gap-2 {operation === 'filter' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
+					<Button
+						variant="tertiary"
 						onclick={() => operation = 'filter'}
+						size="sm"
+						class="justify-start gap-2 {operation === 'filter' ? ' dark: ' : ' '}"
 					>
 						<iconify-icon icon="mdi:auto-fix" width="18"></iconify-icon>
 						Apply Filter
-					</button>
-					<button 
-						class="btn btn-sm justify-start gap-2 {operation === 'resize' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
+					</Button>
+					<Button
+						variant="tertiary"
 						onclick={() => operation = 'resize'}
+						size="sm"
+						class="justify-start gap-2 {operation === 'resize' ? ' dark: ' : ' '}"
 					>
 						<iconify-icon icon="mdi:resize" width="18"></iconify-icon>
 						Batch Resize
-					</button>
+					</Button>
 				</div>
 			</div>
 
 			<!-- Step 2: Params -->
-			<div class="space-y-3 border-x border-surface-200 dark:border-surface-700 px-6">
-				<label for="batch-filter" class="label text-[10px] font-bold uppercase tracking-widest opacity-60">2. Configure</label>
+			<div class="space-y-3 border-x border-surface-200 px-6 dark:border-surface-700">
+				<span class="label text-[10px] font-bold uppercase tracking-widest opacity-60">2. Configure</span>
 				{#if operation === 'filter'}
-					<select id="batch-filter" bind:value={filterPreset} class="select select-sm">
-						{#each presets as p}
-							<option value={p.id}>{p.label}</option>
-						{/each}
-					</select>
+					<Select
+						bind:value={filterPreset}
+						options={presetOptions}
+						placeholder="Filter preset"
+						size="sm"
+					/>
 				{:else}
-					<div class="input-group input-group-sm">
-						<span class="input-group-shim">Width</span>
-						<input id="batch-width" type="number" bind:value={width} class="input" />
-						<span class="input-group-shim">px</span>
-					</div>
+					<Input
+						id="batch-width"
+						type="number"
+						bind:value={width}
+						label="Width (px)"
+						aria-label="Batch resize width in pixels"
+					/>
 				{/if}
 			</div>
 
 			<!-- Step 3: Run -->
 			<div class="flex flex-col justify-end">
-				<button 
-					class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full gap-2 shadow-xl"
+				<Button
+					variant="tertiary"
 					onclick={runBatch}
 					disabled={isProcessing}
+					loading={isProcessing}
+					class="dark: w-full gap-2 shadow-xl"
 				>
-					{#if isProcessing}
-						<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-						Processing...
-					{:else}
+					{#if !isProcessing}
 						<iconify-icon icon="mdi:play-circle" width="20"></iconify-icon>
-						Run {selectedIds.size} Assets
 					{/if}
-				</button>
+					Run {selectedIds.size} Assets
+				</Button>
 			</div>
 		</div>
+	</AdminCard>
 	</div>
 </div>

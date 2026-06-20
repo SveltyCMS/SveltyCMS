@@ -35,18 +35,18 @@ SveltyCMS implements a **GUI-First navigation pattern** where user interactions 
 
 **90% of navigation: GUI clicks** (FAST)
 
-````text
+```
 Hover → Preload to cache (300ms delay)
 Click → Check cache → setMode() → Reflect in URL
 Result: INSTANT mode switch (0ms if cached, ~100ms if not)
-```text
+```
 
 **10% of navigation: Manual URL edits** (SLOWER - acceptable)
 
-```text
+```
 User types URL → Parse → Translate to UUID → Load data → setMode()
 Result: SSR reload (~300-500ms) - Only when manually editing URL
-```text
+```
 
 ### Why GUI-First?
 
@@ -60,7 +60,7 @@ Result: SSR reload (~300-500ms) - Only when manually editing URL
 
 ### Internal Flow (GUI-First)
 
-```text
+```
 ┌──────────────────────────────────────────────────────────┐
 │ PRIMARY PATH (90% - GUI Clicks)                          │
 └──────────────────────────────────────────────────────────┘
@@ -109,31 +109,31 @@ User types: /en/posts?edit=abc123
   setMode('edit') + set data
          ↓
   User sees edit form (300-500ms total - acceptable for rare case)
-```text
+```
 
 ## Current URL Structure
 
 ### View Mode (List)
 
-```text
+```
 http://localhost:5173/de/Collections/Names
-```text
+```
 
 **Format**: `/{language}/{collection-path}`
 
 ### Edit Mode
 
-```text
+```
 http://localhost:5173/de/Collections/Names?edit=8429c375ca7948d99fbcf423b7c0a8c3
-```text
+```
 
 **Format**: `/{language}/{collection-path}?edit={entry-uuid}`
 
 ### Create Mode
 
-```text
+```
 http://localhost:5173/de/Collections/Names?create=true
-```text
+```
 
 **Format**: `/{language}/{collection-path}?create=true`
 
@@ -162,7 +162,7 @@ With proper hover preloading:
 
 ### 1. Navigation Utils (`src/utils/navigationUtils.ts`)
 
-```typescript
+```
 // Entry cache (5min TTL)
 const entryCache = new Map<string, CachedEntry>();
 
@@ -219,13 +219,13 @@ export function reflectModeInURL(mode: ModeType, entryId?: string): void {
   // Update URL without reload
   window.history.pushState({}, "", url.toString());
 }
-```text
+```
 
 ### 2. Client-Side Navigation (entry-list.svelte)
 
 **GUI-FIRST PATTERN:**
 
-```typescript
+```
 // Hover handler - Preload data
 function handleRowHoverStart(entryId: string) {
   const collId = collection.value?._id;
@@ -271,11 +271,11 @@ function onCreate() {
   // 3. Toggle UI
   handleUILayoutToggle();
 }
-```text
+```
 
 ### 3. Save/Cancel Actions (header-edit.svelte, right-sidebar.svelte)
 
-```typescript
+```
 // Save handler
 async function handleSave() {
   await saveEntry(data); // Save to database
@@ -298,13 +298,13 @@ function handleCancel() {
   // 2. Reflect in URL (passive, no reload)
   reflectModeInURL("view");
 }
-```text
+```
 
 ### 4. URL-to-Mode Translation (+page.svelte)
 
 **Only for manual URL edits:**
 
-```typescript
+```
 // Detect URL changes (manual edits by user)
 let lastUrlString = $state('');
 
@@ -342,13 +342,13 @@ $effect(() => {
 });
 	}
 });
-```text
+```
 
 ### 6. Manual URL Editing (URL → UUID Translation)
 
 **When users manually edit the URL:**
 
-```typescript
+```
 // Server detects URL change and translates to UUID operation
 // +page.server.ts
 const editEntryId = url.searchParams.get("edit");
@@ -367,13 +367,13 @@ if (editEntryId) {
   // Translate to: List view with pagination
   setMode("view");
 }
-```text
+```
 
 ### 6. Data Population
 
 **+page.svelte** loads entry into store:
 
-```typescript
+```
 // Populate collectionValue when editing an entry
 $effect(() => {
   const editParam = page.url.searchParams.get("edit");
@@ -384,7 +384,7 @@ $effect(() => {
     });
   }
 });
-```text
+```
 
 ## UUID-First Design Benefits
 
@@ -416,7 +416,7 @@ $effect(() => {
 
 ### Example 1: User Clicks Edit Button
 
-```typescript
+```
 // 1. User clicks row in entry-list.svelte
 onClick={() => handleRowClick(entry)}
 
@@ -438,11 +438,11 @@ finalFilter._id = editId;
 
 // 7. Database query uses UUID
 dbAdapter.queryBuilder('collection_xyz').where({ _id: editId })
-```text
+```
 
 ### Example 2: User Manually Edits URL
 
-```typescript
+```
 // 1. User bookmarks or manually types URL
 // http://localhost:5173/de/Collections/Names?edit=abc123
 
@@ -463,11 +463,11 @@ else {
 }
 
 // 5. Rest of flow identical to button click
-```text
+```
 
 ### Example 3: Save After Create
 
-```typescript
+```
 // 1. User in create mode
 // URL: /de/Collections/Names?create=true
 
@@ -486,38 +486,32 @@ await goto(url);
 // 5. Browser URL changes
 // FROM: /de/Collections/Names?create=true
 // TO:   /de/Collections/Names
-```text
+```
 
 ## Performance Optimizations
 
-### Hover Preloading Integration
+### Predictive Preloading Integration
 
-The URL pattern enables **intelligent hover preloading**:
+The URL pattern enables **multi-strategy predictive preloading** via declarative `data-preload` attributes:
 
-```typescript
-// entry-list.svelte - Hover handler
-function handleRowHoverStart(entryId: string) {
-  setTimeout(async () => {
-    // Build preload URL
-    const preloadUrl = new URL(page.url);
-    preloadUrl.searchParams.set("edit", entryId);
+```svelte
+<!-- entry-list row with smart preloading -->
+<tr>
+  <a href="?edit={entry._id}" data-preload="smart" class="hidden" aria-hidden="true"></a>
+  <td onclick={() => goto(`?edit=${entry._id}`)}>{entry.title}</td>
+</tr>
+```
 
-    // Prefetch data (600ms hover delay)
-    await fetch(preloadUrl.toString(), {
-      credentials: "include",
-      headers: { "X-Preload": "true" },
-    });
-  }, 600);
-}
-```text
+**Four strategies** (see [Predictive Preloading](./hover-preloading.mdx)):
 
-**Benefits**:
+| Strategy   | Trigger                            | Best for              |
+| :--------- | :--------------------------------- | :-------------------- |
+| `smart`    | Physics cone + behavioral priority | Collection entry rows |
+| `predict`  | Cursor heading toward link         | Dashboard widgets     |
+| `viewport` | Link enters viewport               | Media gallery         |
+| `hover`    | Mouseenter + 150ms                 | Sidebar navigation    |
 
-- 85-95% faster perceived edit mode loading
-- Browser caches preloaded responses
-- Instant transition when user clicks
-
-See [Hover Preloading](./hover-preloading.mdx) for details.
+**Benefits**: 0ms perceived edit latency, browser cache pre-populated, behavioral learner prioritizes hot collections.
 
 ### Server-Side Rendering
 
@@ -573,23 +567,23 @@ See [Multilingual Data Loading](./multilingual-data-loading.mdx) for details.
 
 If `?edit=UUID` references non-existent entry:
 
-```typescript
+```
 // Server returns empty entries array
 if (editEntryId && entries.length === 0) {
   throw error(404, "Entry not found");
 }
-```text
+```
 
 ### Invalid UUID Format
 
 Server validates UUID format:
 
-```typescript
+```
 const isValidUUID = /^[a-f0-9]{32}$/i.test(editEntryId);
 if (editEntryId && !isValidUUID) {
   throw error(400, "Invalid entry ID format");
 }
-```text
+```
 
 ### Concurrent Edits
 
@@ -602,11 +596,11 @@ Cache includes entry ID, preventing conflicts:
 
 Edit parameter is preserved:
 
-```typescript
+```
 // translation-status.svelte
 const newPath = `/${selectedLanguage}/${collectionId}${page.url.search}`;
 // Preserves ?edit=UUID when switching languages
-```text
+```
 
 ## Related Systems
 
@@ -643,7 +637,7 @@ const newPath = `/${selectedLanguage}/${collectionId}${page.url.search}`;
 
 ### Automated Testing
 
-```typescript
+```
 // Example test
 describe("URL Pattern", () => {
   it("sets edit parameter on entry click", async () => {
@@ -660,7 +654,6 @@ describe("URL Pattern", () => {
     expect(response.entries).toHaveLength(1);
   });
 });
-```text
+```
 
 ---
-````

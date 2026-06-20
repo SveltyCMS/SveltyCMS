@@ -22,6 +22,7 @@ import { NoSchemaIntrospectionCustomRule } from "graphql";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
+import { analyzeQueryCost, formatCostError } from "./cost-analyzer";
 
 // GraphQL validation plugin: enforces query depth (max 7), alias count (max 15),
 // and blocks schema introspection in production environments
@@ -260,6 +261,30 @@ async function handleRequest(event: RequestEvent) {
     | "published"
     | "draft"
     | "all";
+
+  // 🚀 QUERY COST ANALYSIS: Reject over-budget queries before execution
+  if (request.method === "POST") {
+    try {
+      const clonedRequest = request.clone();
+      const body = await clonedRequest.json().catch(() => null);
+      if (body && typeof body.query === "string") {
+        const analysis = analyzeQueryCost(body.query);
+        if (!analysis.allowed) {
+          return new Response(
+            JSON.stringify({
+              errors: [{ message: formatCostError(analysis.cost, 1000) }],
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+    } catch {
+      // If body parsing fails, let Yoga handle the error downstream
+    }
+  }
 
   let _loaders: any = null;
 

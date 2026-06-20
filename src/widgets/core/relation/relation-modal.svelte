@@ -14,6 +14,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { slide, fade } from 'svelte/transition';
 	import { modalState } from '@utils/modal.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
@@ -166,7 +167,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 				<div class="flex flex-col items-center gap-2">
 					<iconify-icon icon="mdi:alert-circle" width="48"></iconify-icon>
 					<p>{error}</p>
-					<button class="btn btn-sm preset-tonal-error mt-4" onclick={fetchEntries}>Retry</button>
+					<Button variant="error" onclick={fetchEntries} size="sm" class="mt-4">Retry</Button>
 				</div>
 			</div>
 		{:else if filteredEntries.length === 0}
@@ -182,7 +183,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 					{const id = entry._id || entry.id}
 					{const idStr = id.toString()}
 					{const isSelected = selected.has(idStr)}
-					<button>
+					<Button variant="outline">
 						type="button"
 						class="flex w-full items-center gap-3 rounded p-3 text-start transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus:ring-2 focus:ring-primary-500"
 						class:bg-tertiary-500={isSelected} class:dark:bg-primary-500={isSelected}
@@ -199,7 +200,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 							<span class="truncate font-medium">{entry[displayField] || idStr}</span>
 							<span class="truncate text-xs opacity-50 font-mono" class:text-white={isSelected}>{idStr}</span>
 						</div>
-					</button>
+					</Button>
 				{/each}
 			</div>
 		{/if}
@@ -207,23 +208,21 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 
 	<!-- Footer -->
 	<footer class="flex items-center justify-between border-t border-surface-500/20 pt-4">
-		<button
+		<Button variant="outline"
 			type="button"
-			class="btn preset-outlined-secondary-500"
 			onclick={handleCancel}
 		>
 			{button_cancel()}
-		</button>
+		</Button>
 		
 		<div class="flex items-center gap-3">
-			<button
+			<Button variant="tertiary"
 				type="button"
-				class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500"
 				onclick={handleSave}
-			>
-				<iconify-icon icon="mdi:check" class="mr-1"></iconify-icon>
+			 class="dark:">
+				<iconify-icon icon="mdi:check" class="me-1"></iconify-icon>
 				{button_save()}
-			</button>
+			</Button>
 		</div>
 	</footer>
 </div>

@@ -42,7 +42,7 @@ SveltyCMS implements a **multi-layered, enterprise-grade security system** that 
 **Purpose**: Real-time threat analysis with automated response capabilities
 **File**: `src/services/security-response-service.ts`
 
-````typescript
+```typescript
 export class SecurityResponseService {
   // Centralized security analysis
   public async analyzeRequest(request: Request, clientIp: string): Promise<SecurityStatus> {
@@ -60,7 +60,7 @@ export class SecurityResponseService {
     return this.mapThreatToResponse(threatLevel, clientIp);
   }
 }
-```text
+```
 
 **Key Features**:
 
@@ -74,7 +74,7 @@ export class SecurityResponseService {
 **Purpose**: Unified security and performance metrics with real-time analysis
 **File**: `src/services/metrics-service.ts`
 
-```typescript
+```
 export class MetricsService {
   // Security-specific metrics
   incrementSecurityEvent(type: SecurityEventType): void {
@@ -92,7 +92,7 @@ export class MetricsService {
     };
   }
 }
-```text
+```
 
 ---
 
@@ -103,7 +103,7 @@ export class MetricsService {
 **Purpose**: Cryptographically secure XSS prevention with dynamic nonce generation
 **File**: `src/hooks/addSecurityHeaders.ts`
 
-```typescript
+```
 export function generateNonce(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
@@ -145,7 +145,7 @@ export async function addSecurityHeaders({ event, resolve }) {
 
   return response;
 }
-```text
+```
 
 **Key Features**:
 
@@ -159,7 +159,7 @@ export async function addSecurityHeaders({ event, resolve }) {
 **Purpose**: Real-time CSP violation monitoring and threat response
 **File**: `src/routes/api/security/csp-violations/+server.ts`
 
-```typescript
+```
 export async function POST({ request, getClientAddress }) {
   const violation = await request.json();
   const clientIP = getClientAddress();
@@ -180,7 +180,7 @@ export async function POST({ request, getClientAddress }) {
 
   return new Response(null, { status: 204 });
 }
-```text
+```
 
 ---
 
@@ -194,24 +194,24 @@ The **Vite Security Check Plugin** provides build-time protection against accide
 
 ### Static Environment Variables (Built-in Protection ✅)
 
-```typescript
+```
 // .env file
 PRIVATE_DB_PASSWORD=secret123  // ✅ Vite warns if used in client code
 PUBLIC_API_URL=https://api.com  // ✅ Safe for client
-```text
+```
 
 SvelteKit's `PRIVATE_` prefix triggers build-time warnings if accidentally imported in `.svelte` files.
 
 ### Dynamic Settings (No Built-in Protection ❌)
 
-```typescript
+```
 // Loaded from database at runtime
 const settings = {
   DB_PASSWORD: "secret123", // ❌ No compile-time protection!
   JWT_SECRET_KEY: "abc...", // ❌ Could leak to browser
   ENCRYPTION_KEY: "xyz...", // ❌ Dangerous if imported in .svelte
 };
-```text
+```
 
 Our database-driven settings lack this protection because they're loaded at runtime, not compile-time.
 
@@ -223,11 +223,11 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
 1. **Direct `privateEnv` imports in client code**
 
-   ```typescript
+   ```
    // ❌ BLOCKED - Exposes ALL private settings to browser!
    import { privateEnv } from "@src/stores/global-settings";
    console.log(privateEnv.DB_PASSWORD); // Would be visible in browser
-````
+   ```
 
 2. **`getPrivateSetting()` calls in `.svelte` files**
 
@@ -236,6 +236,8 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
    import { getPrivateSetting } from "@src/stores/global-settings";
    const secret = getPrivateSetting("JWT_SECRET_KEY");
    ```
+
+````
 
 3. **`getAllSettings()` in client code**
    ```typescript
@@ -286,7 +288,7 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
 The plugin is configured in `vite.config.ts`:
 
-````typescript
+```typescript
 import { securityCheckPlugin } from "./src/utils/vitePluginSecurityCheck";
 
 export default defineConfig({
@@ -299,7 +301,7 @@ export default defineConfig({
     // ... other plugins
   ],
 });
-```text
+```
 
 ## How It Works
 
@@ -323,7 +325,7 @@ Not all `.ts` files are client-side! The plugin intelligently skips:
 
 For client-side files (primarily `.svelte` and client-facing `.ts`), the plugin uses regex patterns to detect:
 
-```typescript
+```
 const DANGEROUS_PATTERNS = [
   {
     pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/global-settings['"]/g,
@@ -338,13 +340,13 @@ const DANGEROUS_PATTERNS = [
     message: "SECURITY: getAllSettings() exposes private data!",
   },
 ];
-```text
+```
 
 ### 4. Build Failure
 
 If violations are detected, the build fails with a detailed error report:
 
-```text
+```
 🚨 SECURITY VIOLATIONS DETECTED!
 
 Found 2 critical security issue(s):
@@ -364,13 +366,13 @@ How to fix:
   1. Remove privateEnv imports from .svelte files
   2. Use page.data from +page.server.ts load functions instead
   3. Only access private settings in +page.server.ts, +layout.server.ts, or +server.ts files
-```text
+```
 
 ## Real-World Example
 
 ### ❌ Vulnerable Code
 
-```typescript
+```
 <!-- src/routes/(app)/settings/+page.svelte -->
 <script lang="ts">
   import { privateEnv } from '@src/stores/global-settings';
@@ -391,13 +393,13 @@ How to fix:
 </script>
 
 <div>Database: {dbInfo.host}</div>
-```text
+```
 
 **Impact**: Complete credential exposure, allows full system compromise.
 
 ### ✅ Secure Code
 
-```typescript
+```
 <!-- src/routes/(app)/settings/+page.server.ts -->
 import { privateEnv } from '@src/stores/global-settings';
 import type { PageServerLoad } from './$types';
@@ -416,9 +418,9 @@ export const load: PageServerLoad = async () => {
     // Never return: DB_PASSWORD, JWT_SECRET, etc.
   };
 };
-```text
+```
 
-```typescript
+```
 <!-- src/routes/(app)/settings/+page.svelte -->
 <script lang="ts">
   import type { PageData } from './$types';
@@ -427,7 +429,7 @@ export const load: PageServerLoad = async () => {
 
 <div>Database Status: {data.dbStatus}</div>
 <div>Host: {data.dbHost}</div>
-```text
+```
 
 ## Best Practices
 
@@ -439,7 +441,7 @@ Always load private settings in `+page.server.ts` and pass only necessary, safe 
 
 Only return the absolute minimum data needed. Never pass entire settings objects.
 
-```typescript
+```
 // ❌ BAD
 export const load = async () => {
   return { settings: privateEnv }; // ALL secrets exposed!
@@ -452,13 +454,13 @@ export const load = async () => {
     cacheEnabled: privateEnv.CACHE_ENABLED === "true",
   };
 };
-```text
+```
 
 ### 3. Type Safety
 
 Use TypeScript to enforce safe data contracts:
 
-```typescript
+```
 // src/routes/(app)/admin/types.ts
 export interface SafeAdminData {
   dbConnected: boolean;
@@ -473,7 +475,7 @@ export const load = async (): Promise<SafeAdminData> => {
     cacheStatus: privateEnv.CACHE_ENABLED === "true" ? "enabled" : "disabled",
   };
 };
-```text
+```
 
 ### 4. Code Review Checklist
 
@@ -489,7 +491,7 @@ Before committing, verify:
 
 The plugin automatically runs during your build process:
 
-```bash
+```
 # Development
 bun run dev      # No check during dev (for speed)
 
@@ -499,19 +501,19 @@ bun run build    # ✅ Security check runs and fails on violations
 # CI/CD (GitHub Actions, etc.)
 - run: bun run build
   # Build will fail if security violations detected
-```text
+```
 
 ## Disabling (Not Recommended)
 
 If you need to temporarily disable for debugging:
 
-```typescript
+```
 // vite.config.ts
 securityCheckPlugin({
   failOnError: false, // Show warnings but don't fail build
   showWarnings: true,
 });
-```text
+```
 
 **⚠️ Warning**: Never deploy to production with `failOnError: false`!
 
@@ -531,7 +533,7 @@ securityCheckPlugin({
 **security-widget.svelte** - Enterprise security dashboard component
 **File**: `src/components/dashboard/security-widget.svelte`
 
-```svelte
+```
 <script>
 	import { onMount } from 'svelte';
 	import { securityMetrics } from '$stores/security';
@@ -587,7 +589,7 @@ securityCheckPlugin({
 		{/each}
 	</div>
 </div>
-```text
+```
 
 ---
 
@@ -597,17 +599,17 @@ securityCheckPlugin({
 
 **Security Metrics Endpoint**
 
-```typescript
+```
 // GET /api/security/metrics
 export async function GET() {
   const metrics = metricsService.getSecurityReport();
   return json(metrics);
 }
-```text
+```
 
 **Threat Management Endpoint**
 
-```typescript
+```
 // POST /api/security/threats/block
 export async function POST({ request }) {
   const { ip, duration, reason } = await request.json();
@@ -617,11 +619,11 @@ export async function POST({ request }) {
 
   return json({ success: true, message: `IP ${ip} blocked for ${duration}` });
 }
-```text
+```
 
 **Security Events Stream**
 
-```typescript
+```
 // GET /api/security/events (Server-Sent Events)
 export async function GET() {
   const stream = new ReadableStream({
@@ -640,7 +642,7 @@ export async function GET() {
     },
   });
 }
-```text
+```
 
 ---
 

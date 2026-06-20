@@ -388,7 +388,7 @@ export class WebsiteTokensNamespace extends BaseNamespace {
           tenantId ?? undefined,
         );
         if (!result.success) throw new AppError(result.message, 500);
-        return result.data;
+        return { ...result.data, token: tokenValue };
       },
       { collection: "websiteTokens" },
     );
@@ -400,6 +400,23 @@ export class WebsiteTokensNamespace extends BaseNamespace {
       async () => {
         const websiteTokens = this._dbAdapter.system.websiteTokens as any;
         const result = await websiteTokens.delete(tokenId as any, tenantId ?? undefined);
+        if (!result.success) throw new AppError(result.message, 500);
+        return result.data;
+      },
+      { collection: "websiteTokens" },
+    );
+  }
+  async update(tokenId: string, data: any, options: LocalApiOptions = {}) {
+    const { tenantId } = options;
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        const result = await this._dbAdapter.crud.update<any>(
+          "websiteTokens",
+          tokenId as any,
+          data,
+          { tenantId: tenantId as DatabaseId },
+        );
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
       },

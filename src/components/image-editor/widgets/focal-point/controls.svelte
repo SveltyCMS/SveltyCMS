@@ -5,6 +5,8 @@ Toolbar controls for the FocalPoint widget
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+
 	interface Props {
 		focalX?: number;
 		focalY?: number;
@@ -77,15 +79,17 @@ Toolbar controls for the FocalPoint widget
 	<div class="grow"></div>
 
 	<!-- Actions: Reset -->
-	<button 
-		onclick={onReset} 
-		class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 transition-all hover:border-primary-400/30 hover:bg-tertiary-500 dark:bg-primary-500/10 hover:text-white active:scale-95 group" 
+	<Button
+		variant="outline"
+		size="sm"
+		onclick={onReset}
+		class="rounded-full border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 hover:border-primary-400/30 hover:bg-primary-500/10 hover:text-white active:scale-95 group"
 		title="Reset to center (50%, 50%)"
 		aria-label="Reset focal point"
 	>
 		<iconify-icon icon="mdi:restore" width="18" class="transition-transform group-hover:rotate-180"></iconify-icon>
 		<span>Reset</span>
-	</button>
+	</Button>
 </div>
 
 <style>

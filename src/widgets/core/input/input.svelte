@@ -25,6 +25,8 @@
 -->
 
 <script lang="ts">
+	import Badge from '@components/ui/badge.svelte';
+	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
@@ -98,25 +100,25 @@
 		return sanitized.normalize('NFKC');
 	}
 
-	// Memoized badge class calculation using $derived
-	let badgeClass = $derived(() => {
+	// Memoized badge variant calculation using $derived
+	let badgeVariant = $derived.by((): 'primary' | 'warning' | 'error' | 'surface' | 'outline' => {
 		const length = count;
 		if (field?.minLength && length < (field?.minLength as number)) {
-			return 'bg-error-500'; // Semantic error color
+			return 'error';
 		}
 		if (field?.maxLength && length > (field?.maxLength as number)) {
-			return 'bg-error-500';
+			return 'error';
 		}
 		if (field?.count && length === (field?.count as number)) {
-			return 'bg-tertiary-500 dark:bg-primary-500'; // Semantic success color
+			return 'primary';
 		}
 		if (field?.count && length > (field?.count as number)) {
-			return 'bg-warning-500'; // Semantic warning color
+			return 'warning';
 		}
 		if (field?.minLength) {
-			return '!preset-filled-surface-500';
+			return 'surface';
 		}
-		return '!preset-outlined-surface-500';
+		return 'outline';
 	});
 
 	// ✅ SSOT: Use validation schema from index.ts
@@ -239,7 +241,7 @@
 
 <div class="relative mb-4 min-h-10 w-full">
 	<SystemTooltip title={validationError || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
 			{#if field?.prefix}
 				<div
 					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
@@ -249,7 +251,7 @@
 				</div>
 			{/if}
 
-			<input
+			<Input
 				type="text"
 				aria-label={field.label || fieldName || 'Text input'}
 				value={safeValue}
@@ -268,7 +270,7 @@
 				readonly={field?.readonly as boolean | undefined}
 				minlength={field?.minLength as number | undefined}
 				maxlength={field?.maxLength as number | undefined}
-				class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
+				inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
 					? 'bg-error-500-10!'
 					: ''}"
 				aria-invalid={!!validationError}
@@ -281,7 +283,7 @@
 			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
 				<div class="flex items-center bg-surface-100 px-2 dark:bg-surface-800" role="status" aria-live="polite">
 					{#if field?.count || field?.minLength || field?.maxLength}
-						<span class="badge me-1 rounded-full {badgeClass}" aria-label="Character count">
+						<Badge variant={badgeVariant} class="me-1" aria-label="Character count">
 							{#if field?.count && field?.minLength && field?.maxLength}
 								{count}/{field?.maxLength}
 							{:else if field?.count && field?.maxLength}
@@ -299,7 +301,7 @@
 							{:else if field?.minLength}
 								min {field?.minLength}
 							{/if}
-						</span>
+						</Badge>
 					{/if}
 					{#if field?.suffix}
 						<span class="text-surface-700 dark:text-surface-200" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>

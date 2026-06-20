@@ -36,9 +36,30 @@ export async function createConnection(
 
   logger.info("Creating new PostgreSQL connection");
 
+  // Enterprise: respect optional external pooler (PgBouncer) from private config.
+  // When pooler in tx mode, prefer prepare:false. Port hint 6432 for standard PgBouncer.
+  let effectivePort = config.port;
+  let effectivePrepare = true;
+  try {
+    const { getDbPoolerConfig } = await import("../config-state");
+    const p = getDbPoolerConfig();
+    if (p.enabled && p.url) {
+      // Parse pooler URL for host/port override if full URL provided in future
+      try {
+        const u = new URL(p.url);
+        if (u.port) effectivePort = Number(u.port);
+      } catch {}
+      if (p.type === "pgbouncer" && (p.mode === "transaction" || !p.mode)) {
+        effectivePrepare = p.prepare !== undefined ? !!p.prepare : false;
+      } else if (p.prepare !== undefined) {
+        effectivePrepare = !!p.prepare;
+      }
+    }
+  } catch {}
+
   sql = postgres({
     host: config.host,
-    port: config.port,
+    port: effectivePort || 6432, // 6432 common for PgBouncer
     user: config.user,
     password: config.password,
     database: config.database,
@@ -46,6 +67,7 @@ export async function createConnection(
     max: 100, // Increased for high-concurrency enterprise benchmarks
     idle_timeout: 60, // Idle connection timeout in seconds
     connect_timeout: 30, // Connection timeout in seconds
+    prepare: effectivePrepare,
     onnotice: () => {
       /* Suppress notice messages */
     },

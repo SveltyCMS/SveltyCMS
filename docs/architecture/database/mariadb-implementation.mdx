@@ -1,6 +1,6 @@
 ---
 path: "docs/architecture/database/mariadb-implementation.mdx"
-title: "MariaDB Implementation Guide"
+title: "MariaDB Implementation"
 description: "Complete MariaDB implementation guide for SveltyCMS using Drizzle ORM, covering schema design, connection pooling, migrations, and performance optimization."
 order: 5
 icon: "mdi:database"
@@ -16,7 +16,7 @@ tags:
   - "relational"
 ---
 
-# MariaDB Implementation Guide
+# MariaDB Implementation
 
 This guide covers the **MariaDB-specific** implementation in SveltyCMS using Drizzle ORM with the mysql2 driver. For database-agnostic architecture, see the [Core Infrastructure](/docs/architecture/database/core-infrastructure) documentation.
 
@@ -68,7 +68,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 
 #### Relational Tables (14 total)
 
-````typescript
+```typescript
 - auth_users: User accounts with roles
 - auth_sessions: Active user sessions
 - auth_tokens: Verification/reset tokens
@@ -83,7 +83,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 - system_preferences: System/user settings
 - website_tokens: API tokens
 - tenants: Multi-tenant management (name, owner, plan, quota, usage, settings)
-```text
+```
 
 ---
 
@@ -93,7 +93,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 
 MariaDB/MySQL packages are included as `optionalDependencies`:
 
-```json
+```
 {
   "optionalDependencies": {
     "mysql2": "^3.16.0",
@@ -101,7 +101,7 @@ MariaDB/MySQL packages are included as `optionalDependencies`:
     "drizzle-orm": "^0.45.1"
   }
 }
-```text
+```
 
 Packages are auto-installed when MariaDB is selected in the setup wizard.
 
@@ -124,7 +124,7 @@ Packages are auto-installed when MariaDB is selected in the setup wizard.
 
 ### Example Table Definition
 
-```typescript
+```
 // Auth Users Table
 export const authUsers = mysqlTable(
   "auth_users",
@@ -153,7 +153,7 @@ export const authUsers = mysqlTable(
     emailTenantUnique: unique("email_tenant_unique").on(table.email, table.tenantId),
   }),
 );
-```text
+```
 
 ### Key Design Principles
 
@@ -171,7 +171,7 @@ export const authUsers = mysqlTable(
 
 ### Connection Pool Configuration
 
-```typescript
+```
 // Optimized mysql2 pool settings
 {
   host: config.host,
@@ -187,16 +187,16 @@ export const authUsers = mysqlTable(
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
 }
-```text
+```
 
 ### Health Monitoring
 
 The adapter provides connection health checking:
 
-```typescript
+```
 const health = await dbAdapter.getConnectionHealth();
 // Returns: { healthy: boolean, latency: number, activeConnections: number }
-```text
+```
 
 ---
 
@@ -206,7 +206,7 @@ const health = await dbAdapter.getConnectionHealth();
 
 On first connection, all tables are created automatically:
 
-```mermaid
+```
 sequenceDiagram
     participant S as Setup Wizard / System Init
     participant A as MariaDBAdapter
@@ -219,27 +219,27 @@ sequenceDiagram
     D-->>M: Tables Created/Verified
     M-->>A: { success: true }
     A-->>S: Ready
-```text
+```
 
-```typescript
+```
 // migrations.ts
 - Creates all 13 tables if they don't exist
 - Adds proper indexes and constraints
 - Uses InnoDB engine with utf8mb4 charset
 - Ensures idempotent operations (CREATE TABLE IF NOT EXISTS)
-```text
+```
 
 ### Future Migration Management
 
 For schema changes after initial setup:
 
-```bash
+```
 # Generate migration
 npm run db:push
 
 # View in Drizzle Studio
 npm run db:studio
-```text
+```
 
 ---
 
@@ -249,12 +249,12 @@ npm run db:studio
 
 The seeding system creates essential data during setup:
 
-```typescript
+```
 - **Default Roles**: Admin (full system access), Editor (content management), User (read access).
 - **Admin User**: Created with credentials from setup wizard, assigned Admin role, email verified automatically.
 - **Default Theme**: SveltyCMS Default theme, active and set as default.
 - **Root Virtual Folder**: Media folder organization, named "mediaFolder", parent for all media.
-```text
+```
 
 ---
 
@@ -264,18 +264,18 @@ The seeding system creates essential data during setup:
 
 All tables include nullable `tenantId` columns:
 
-```typescript
+```
 // Queries automatically filter by tenantId when provided
 const users = await db.select().from(authUsers).where(eq(authUsers.tenantId, currentTenantId));
-```text
+```
 
 ### Cross-Tenant Operations
 
-```typescript
+```
 // Admin operations can work across tenants
 const allUsers = await db.select().from(authUsers);
 // No tenantId filter = all tenants
-```text
+```
 
 ---
 
@@ -296,7 +296,7 @@ const allUsers = await db.select().from(authUsers);
 
 **Important**: All dates are converted to/from `ISODateString` at adapter boundaries:
 
-```typescript
+```
 // Database stores: DATETIME (2026-01-06 12:00:00)
 // Adapter returns: ISODateString ("2026-01-06T12:00:00.000Z")
 
@@ -304,7 +304,7 @@ const allUsers = await db.select().from(authUsers);
 utils.dateToISO(date); // Date → ISODateString
 utils.isoToDate(isoString); // ISODateString → Date
 utils.convertDatesToISO(row); // Convert all dates in object
-```text
+```
 
 ---
 
@@ -312,7 +312,7 @@ utils.convertDatesToISO(row); // Convert all dates in object
 
 ### Basic CRUD
 
-```typescript
+```
 // Create
 const id = generateId();
 await db.insert(authUsers).values({
@@ -339,11 +339,11 @@ await db
 
 // Delete
 await db.delete(authUsers).where(eq(authUsers._id, userId));
-```text
+```
 
 ### Complex Queries
 
-```typescript
+```
 // Multi-condition query with tenant filtering
 const activeUsers = await db
   .select()
@@ -364,7 +364,7 @@ const usersWithRoles = await db
   })
   .from(authUsers)
   .leftJoin(roles, eq(authUsers.roleIds, roles._id));
-```text
+```
 
 ---
 
@@ -374,7 +374,7 @@ const usersWithRoles = await db
 
 All tables include strategic indexes:
 
-```sql
+```
 -- Email lookup (frequent operation)
 INDEX email_idx (email)
 
@@ -389,7 +389,7 @@ INDEX status_idx (status)
 
 -- Date range queries (reporting)
 INDEX created_at_idx (createdAt)
-```text
+```
 
 ### Connection Pooling Benefits
 
@@ -414,27 +414,27 @@ INDEX created_at_idx (createdAt)
 
 Drizzle ORM uses **parameterized queries** automatically:
 
-```typescript
+```
 // ✅ Safe - Parameters are escaped
 await db.select().from(authUsers).where(eq(authUsers.email, userInput)); // Automatically parameterized
 
 // ❌ Never do this
 await db.execute(sql`SELECT * FROM users WHERE email = '${userInput}'`);
-```text
+```
 
 ### Password Security
 
-```typescript
+```
 // Use argon2 for password hashing (already in dependencies)
 import argon2 from "argon2";
 
 const hashedPassword = await argon2.hash(plainPassword);
 const isValid = await argon2.verify(hashedPassword, plainPassword);
-```text
+```
 
 ### Tenant Isolation
 
-```typescript
+```
 // Always apply tenant filter for user queries
 const applyTenantFilter = (conditions, tenantId) => {
   if (tenantId) {
@@ -442,7 +442,7 @@ const applyTenantFilter = (conditions, tenantId) => {
   }
   return conditions;
 };
-```text
+```
 
 ---
 
@@ -450,17 +450,17 @@ const applyTenantFilter = (conditions, tenantId) => {
 
 ### Connection Testing
 
-```typescript
+```
 // Test database connection
 const { success, latency } = await testConnection();
 console.log(`Connection ${success ? "OK" : "Failed"} (${latency}ms)`);
-```text
+```
 
 ### Data Validation
 
 All data should be validated using Valibot schemas before database operations:
 
-```typescript
+```
 import { safeParse } from "valibot";
 import { userSchema } from "./schemas";
 
@@ -469,7 +469,7 @@ if (!result.success) {
   // Handle validation errors
   console.error(result.issues);
 }
-```text
+```
 
 ---
 
@@ -479,43 +479,43 @@ if (!result.success) {
 
 **Connection Refused**
 
-```text
+```
 Error: connect ECONNREFUSED 127.0.0.1:3306
 Solution: Ensure MariaDB is running and port 3306 is accessible
-```text
+```
 
 **Authentication Failed**
 
-```text
+```
 Error: ER_ACCESS_DENIED_ERROR
 Solution: Verify username/password and user has proper grants
-```text
+```
 
 **Table Already Exists**
 
-```text
+```
 Warning: Table already exists
 Solution: This is normal - migrations are idempotent
-```text
+```
 
 **Date Format Issues**
 
-```text
+```
 Error: Invalid date format
 Solution: Ensure using utils.dateToISO() for date conversions
-```text
+```
 
 ### Debug Mode
 
 Enable query logging for debugging:
 
-```typescript
+```
 const db = drizzle(connection, {
   schema,
   mode: "default",
   logger: true, // Logs all SQL queries
 });
-```text
+```
 
 ---
 
@@ -615,7 +615,6 @@ This module is considered feature-complete (`v1.0`). Future contributions should
 1. Performance optimization (indexing, query caching)
 2. Advanced features (connection pooling tweaking)
 3. Extended testing coverage
-````
 
 ---
 

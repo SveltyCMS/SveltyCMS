@@ -51,7 +51,7 @@ export const widgetMeta = {
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/dashboard/systemInfo?type=memory"
+	endpoint="/api/dashboard/system-info?type=memory"
 	pollInterval={10000}
 	{icon}
 	{widgetId}
@@ -103,7 +103,7 @@ export const widgetMeta = {
 							<span class="font-bold tabular-nums text-sm">{mem.percent.toFixed(1)}%</span>
 							<span class="text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider text-[10px]">RAM</span>
 						</div>
-						<div class="flex items-center gap-2 text-right">
+						<div class="flex items-center gap-2 text-end">
 							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{mem.usedGB.toFixed(1)} / {mem.totalGB.toFixed(0)} GB</span>
 							{#if mem.swapPercent !== null}
 								<span class="text-gray-400 dark:text-gray-500">| Swap: <span class="font-semibold text-gray-600 dark:text-gray-400">{mem.swapPercent.toFixed(0)}%</span></span>
@@ -125,7 +125,7 @@ export const widgetMeta = {
 							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Used</span>
 						</div>
 
-						<div class="text-right">
+						<div class="text-end">
 							<div class="text-sm font-medium tabular-nums">{mem.freeGB.toFixed(1)} GB <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">free</span></div>
 						</div>
 					</div>

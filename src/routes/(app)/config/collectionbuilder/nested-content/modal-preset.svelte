@@ -6,6 +6,7 @@
 <script lang="ts">
 import PresetSelector from "@src/routes/setup/preset-selector.svelte";
 import { PRESETS } from "@src/routes/setup/presets";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	close?: (result?: any) => void;
@@ -36,14 +37,13 @@ const cForm = "border border-surface-500 p-4 space-y-4 rounded";
 		<PresetSelector presets={PRESETS} bind:selected={selectedPreset} />
 
 		<footer class="modal-footer flex justify-end pt-4 border-t border-surface-500/20 gap-2">
-			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => close?.(null)} disabled={isSubmitting}> Cancel </button>
-			<button
+			<Button variant="outline" type="button" onclick={() => close?.(null)} disabled={isSubmitting}> Cancel </Button>
+			<Button variant="tertiary"
 				type="submit"
-				class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
 				disabled={isSubmitting || selectedPreset === 'blank'}
-			>
+			 class="dark:">
 				Load Preset
-			</button>
+			</Button>
 		</footer>
 	</form>
 </div>

@@ -52,16 +52,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T | null>> {
     const startTime = performance.now();
     try {
-      // 🚀 ULTRA FAST PATH: Direct ID lookup bypasses safeQuery and mapQuery overhead
+      // 🚀 ULTRA FAST PATH: Direct ID lookup bypasses safeQuery and mapQuery overhead.
+      // Only activates when tenantId IS provided (multi-tenant isolation is non-negotiable).
       if (
         this.isLookupQuery(query) &&
         !options.includeDeleted &&
+        options.tenantId &&
+        !options.bypassSafeQuery &&
         this.model.collection.name !== "auth_tokens" &&
         this.model.collection.name !== "sessions"
       ) {
         const id = (query as any)._id;
-        const filter: any = { _id: id };
-        if (options.tenantId) filter.tenantId = options.tenantId;
+        const filter: any = { _id: id, tenantId: options.tenantId };
 
         const result = await this.model.findOne(filter, options.fields?.join(" ")).lean().exec();
 
@@ -79,11 +81,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const queryOptions: any = {};
-      if (options.hints?.readConcern) {
-        queryOptions.readConcern = options.hints.readConcern;
+      if (options.hints?.mongo?.readConcern) {
+        queryOptions.readConcern = options.hints.mongo.readConcern;
       }
-      if (options.hints?.readPreference) {
-        queryOptions.readPreference = options.hints.readPreference;
+      if (options.hints?.mongo?.readPreference) {
+        queryOptions.readPreference = options.hints.mongo.readPreference;
       }
 
       const result = await this.model
@@ -112,19 +114,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
   async findByIds(ids: DatabaseId[], options: FindOptions<T> = {}): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     try {
-      // 🚀 Fast-Path: Direct ID list lookup
-      if (!options.tenantId && !options.includeDeleted && !options.bypassTenantCheck) {
-        const results = await this.model
-          .find({ _id: { $in: ids } } as any, options.fields?.join(" ") || "")
-          .lean()
-          .exec();
-        return {
-          success: true,
-          data: processDates(results) as T[],
-          meta: { executionTime: performance.now() - startTime },
-        };
-      }
-
+      // Always route through safeQuery for tenant isolation enforcement.
+      // No fast-path bypass — multi-tenant data leakage is non-negotiable.
       const secureQuery = this.adapter.mapQuery(
         safeQuery({ _id: { $in: ids } } as unknown as QueryFilter<T>, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
@@ -134,11 +125,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const queryOptions: any = {};
-      if (options.hints?.readConcern) {
-        queryOptions.readConcern = options.hints.readConcern;
+      if (options.hints?.mongo?.readConcern) {
+        queryOptions.readConcern = options.hints.mongo.readConcern;
       }
-      if (options.hints?.readPreference) {
-        queryOptions.readPreference = options.hints.readPreference;
+      if (options.hints?.mongo?.readPreference) {
+        queryOptions.readPreference = options.hints.mongo.readPreference;
       }
 
       const results = await this.model
@@ -181,11 +172,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const sort = options.sort as any;
 
       const queryOptions: any = {};
-      if (options.hints?.readConcern) {
-        queryOptions.readConcern = options.hints.readConcern;
+      if (options.hints?.mongo?.readConcern) {
+        queryOptions.readConcern = options.hints.mongo.readConcern;
       }
-      if (options.hints?.readPreference) {
-        queryOptions.readPreference = options.hints.readPreference;
+      if (options.hints?.mongo?.readPreference) {
+        queryOptions.readPreference = options.hints.mongo.readPreference;
       }
 
       const results = await this.model
@@ -268,13 +259,13 @@ export class MongoCrudMethods<T extends BaseEntity> {
         isDeleted: false,
       });
       const saveOptions: any = {};
-      if (options.hints?.writeConcern) {
-        saveOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        saveOptions.w = options.hints.mongo.writeConcern;
       }
       const result = await doc.save(saveOptions);
       return {
         success: true,
-        data: (result as mongoose.HydratedDocument<T>).toObject() as T,
+        data: processDates((result as mongoose.HydratedDocument<T>).toObject()) as T,
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {
@@ -319,8 +310,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       });
 
       const bulkOptions: any = { ordered: false };
-      if (options.hints?.writeConcern) {
-        bulkOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        bulkOptions.w = options.hints.mongo.writeConcern;
       }
 
       const result = await this.model.bulkWrite(ops as any[], bulkOptions);
@@ -454,8 +445,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }),
       );
       const updateOptions: any = { cloneUpdate: false };
-      if (options.hints?.writeConcern) {
-        updateOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        updateOptions.w = options.hints.mongo.writeConcern;
       }
       const result = await this.model.updateMany(
         secureQuery,
@@ -499,8 +490,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         runValidators: true,
         cloneUpdate: false,
       };
-      if (options.hints?.writeConcern) {
-        upsertOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        upsertOptions.w = options.hints.mongo.writeConcern;
       }
 
       const result = await this.model
@@ -561,8 +552,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const deleteOptions: any = {};
-      if (options.hints?.writeConcern) {
-        deleteOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        deleteOptions.w = options.hints.mongo.writeConcern;
       }
 
       if (permanent) {
@@ -648,8 +639,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const deleteOptions: any = {};
-      if (options.hints?.writeConcern) {
-        deleteOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        deleteOptions.w = options.hints.mongo.writeConcern;
       }
 
       if (permanent) {
@@ -925,8 +916,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         },
       }));
       const bulkOptions: any = { ordered: false };
-      if (options.hints?.writeConcern) {
-        bulkOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        bulkOptions.w = options.hints.mongo.writeConcern;
       }
       const res = await this.model.bulkWrite(ops as any[], bulkOptions);
       return {
@@ -972,8 +963,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }));
 
       const bulkOptions: any = { ordered: false };
-      if (options.hints?.writeConcern) {
-        bulkOptions.w = options.hints.writeConcern;
+      if (options.hints?.mongo?.writeConcern) {
+        bulkOptions.w = options.hints.mongo.writeConcern;
       }
 
       const result = await this.model.bulkWrite(ops as any[], bulkOptions);

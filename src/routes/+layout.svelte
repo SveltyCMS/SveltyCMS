@@ -182,6 +182,7 @@ $effect(() => {
 
 import { setContentStructure } from "@src/stores/collection-store.svelte";
 import { initializeContent } from "@src/content";
+	import Button from '@components/ui/button.svelte';
 
 // Initialize public environment settings from server data
 // Note: Only access page.data after mount to avoid hydration issues
@@ -438,12 +439,12 @@ onMount(() => {
 			</div>
 
 			<div class="flex space-x-4">
-				<button class="btn variant-filled-primary" onclick={reset}>
+				<Button variant="primary" onclick={reset}>
 					Try Again
-				</button>
-				<button class="btn variant-ghost-surface" onclick={() => window.location.reload()}>
+				</Button>
+				<Button variant="ghost" onclick={() => window.location.reload()}>
 					Reload Page
-				</button>
+				</Button>
 			</div>
 		</div>
 	{/snippet}
@@ -471,12 +472,11 @@ onMount(() => {
 				<p class="text-xs text-surface-600 dark:text-surface-400">Session expires in {Math.floor(sessionRemainingTime / 60)}m {sessionRemainingTime % 60}s</p>
 			</div>
 		</div>
-		<button
-			class="btn btn-sm variant-filled-warning"
+		<Button variant="warning"
 			onclick={resetSessionTimer}
-		>
+		 size="sm">
 			Extend
-		</button>
+		</Button>
 	</div>
 {:else if sessionPhase === 'critical'}
 	<div
@@ -504,13 +504,12 @@ onMount(() => {
 				</div>
 
 				<div class="flex gap-4 w-full">
-					<button
+					<Button variant="error"
 						id="extend-session-btn"
-						class="btn variant-filled-error w-full py-3 text-base font-bold shadow-lg"
 						onclick={resetSessionTimer}
-					>
+					 class="w-full py-3 text-base shadow-lg">
 						Extend Session Now
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>

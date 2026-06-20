@@ -5,6 +5,7 @@ Horizontal snap-scroll preset carousel for selecting project blueprints.
 Default value is 'blank'.
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { Preset } from './presets';
 
@@ -111,31 +112,29 @@ Default value is 'blank'.
 		</div>
 
 		<div class="flex gap-1.5">
-			<button
+			<Button variant="ghost"
 				type="button"
-				class="btn-icon preset-filled rounded-full disabled:hidden"
 				onclick={() => scrollBy(-1)}
-				aria-label="Scroll left"
+				aria-label="Scroll start"
 				disabled={!canScrollLeft}
-			>
+			 class="p-0! min-w-0 preset-filled rounded-full disabled:hidden">
 				<iconify-icon icon="mdi:chevron-left" width="20"></iconify-icon>
-			</button>
-			<button
+			</Button>
+			<Button variant="ghost"
 				type="button"
-				class="btn-icon preset-filled rounded-full disabled:hidden"
 				onclick={() => scrollBy(1)}
-				aria-label="Scroll right"
+				aria-label="Scroll end"
 				disabled={!canScrollRight}
-			>
+			 class="p-0! min-w-0 preset-filled rounded-full disabled:hidden">
 				<iconify-icon icon="mdi:chevron-right" width="20"></iconify-icon>
-			</button>
+			</Button>
 		</div>
 	</div>
 
 	<!-- Scroll track -->
 	<div class="relative min-w-0">
 		<div
-			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 start-0 bg-linear-to-r from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollLeft
+			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 inset-s-0 bg-linear-to-r from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollLeft
 				? 'opacity-100'
 				: ''}"
 		></div>
@@ -172,7 +171,7 @@ Default value is 'blank'.
 
 						{#if preset.complexity}
 							<div
-								class="absolute top-1 end-1 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
+								class="absolute top-1 inset-e-1 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
 								'simple'
 									? 'text-tertiary-600 dark:text-primary-600 bg-tertiary-600 dark:bg-primary-600/10 border-primary-600/30 dark:border-primary-400/40'
 									: preset.complexity === 'moderate'
@@ -202,13 +201,13 @@ Default value is 'blank'.
 					</div>
 
 					{#if selected === preset.id}
-						<iconify-icon icon="mdi:check-circle" width="24" class="absolute end-1 bottom-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" width="24" class="absolute inset-e-1 bottom-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					{/if}
 				</button>
 			{/each}
 		</div>
 		<div
-			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 end-0 bg-linear-to-l from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollRight
+			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 inset-e-0 bg-linear-to-l from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollRight
 				? 'opacity-100'
 				: ''}"
 		></div>

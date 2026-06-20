@@ -162,7 +162,38 @@ function buildFileIndex(docsDir: string): Set<string> {
     index.add(rel.replace(/\.(mdx|md)$/, ""));
     index.add(`/docs/${rel}`);
     index.add(`/docs/${rel.replace(/\.(mdx|md)$/, "")}`);
+    // Also add with docs/ prefix (no leading slash) for relative-to-root resolution
+    index.add(`docs/${rel}`);
+    index.add(`docs/${rel.replace(/\.(mdx|md)$/, "")}`);
   });
+  // Index .ts test files under tests/ so benchmark docs can reference them
+  const testsDir = path.join(process.cwd(), "tests");
+  if (fs.existsSync(testsDir)) {
+    const addTestFiles = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory() && !entry.name.startsWith(".")) addTestFiles(full);
+        else if (entry.name.endsWith(".ts")) {
+          index.add(path.relative(process.cwd(), full).replace(/\\/g, "/"));
+        }
+      }
+    };
+    addTestFiles(testsDir);
+  }
+  // Index plugin .mdx docs under src/plugins/ so plugin architecture docs can reference them
+  const pluginsDir = path.join(process.cwd(), "src", "plugins");
+  if (fs.existsSync(pluginsDir)) {
+    const addPluginDocs = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory() && !entry.name.startsWith(".")) addPluginDocs(full);
+        else if (entry.name.endsWith(".md") || entry.name.endsWith(".mdx")) {
+          index.add(path.relative(process.cwd(), full).replace(/\\/g, "/"));
+        }
+      }
+    };
+    addPluginDocs(pluginsDir);
+  }
   return index;
 }
 
@@ -172,13 +203,52 @@ function hasStaticAsset(link: string): boolean {
     fs.accessSync(path.join(STATIC_DIR, clean));
     return true;
   } catch {
-    return false;
+    // Also check static/ root for .well-known/ and other root-level static files
+    try {
+      fs.accessSync(path.join(process.cwd(), "static", clean));
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
 // --- Main ---
 
-console.log("🔍 Linting SveltyCMS documentation + 🇪🇺 EU Compliance...\n");
+/**
+ * Counts fenced code block markers properly accounting for variable-length
+ * fences. When inside a fence of length N, shorter fences of length < N
+ * are treated as content (not fence markers). Per CommonMark, a closing
+ * fence must be at least as long as the opening fence.
+ */
+function countFencedBlocks(body: string): number {
+  const lines = body.split("\n");
+  let count = 0;
+  let depth = 0; // 0 = outside fence, >0 = inside fence of this length
+
+  for (const line of lines) {
+    const m = line.match(/^(\s{0,3})(`{3,})/);
+    if (!m) continue; // Not a fence line
+
+    const fenceLen = m[2].length;
+    if (depth === 0) {
+      // Opening fence — may carry an info string (e.g. ```mermaid)
+      depth = fenceLen;
+      count++;
+    } else if (fenceLen >= depth) {
+      // Closing candidate — must be a pure fence (no info string per CommonMark)
+      if (/^\s{0,3}`{3,}\s*$/.test(line)) {
+        depth = 0;
+        count++;
+      }
+      // else: shorter fence inside longer block → content, skip
+    }
+    // else: fenceLen < depth → content inside outer fence, skip
+  }
+  return count;
+}
+
+console.log("🔍 Linting SveltyCMS documentation (EU/DE Compliance)...\n");
 
 const fileIndex = buildFileIndex(DOCS_DIR);
 const now = new Date();
@@ -215,11 +285,18 @@ walk(DOCS_DIR, (filePath) => {
   }
 
   // ===== 2. Internal Link Integrity =====
-  const docDir = path.dirname(relPath.replace(/^docs\//, "")).replace(/\\/g, "/");
+  // docDir keeps the full relPath directory (including docs/ prefix) so
+  // relative paths like ../../../tests/ resolve correctly.
+  const docDir = path.dirname(relPath).replace(/\\/g, "/");
 
   for (const match of body.matchAll(/\[([^\]]*)\]\(([^)]+)\)/g)) {
     const [, text, rawLink] = match;
-    if (rawLink.match(/^https?:\/\//) || rawLink.startsWith("#") || rawLink.startsWith("mailto:"))
+    if (
+      rawLink.match(/^https?:\/\//) ||
+      rawLink.startsWith("file://") ||
+      rawLink.startsWith("#") ||
+      rawLink.startsWith("mailto:")
+    )
       continue;
 
     const clean = rawLink.split(/[?#]/)[0];
@@ -254,7 +331,9 @@ walk(DOCS_DIR, (filePath) => {
   }
 
   // ===== 4. Fenced Block Balance =====
-  const blockCount = (body.match(/^```/gm) || []).length;
+  // Properly count fenced code blocks accounting for variable-length fences
+  // (e.g. ```` fences that contain ``` inside mermaid diagrams)
+  const blockCount = countFencedBlocks(body);
   if (blockCount % 2 !== 0) {
     addWarning("syntax", relPath, "Unbalanced fenced code blocks");
   }
@@ -331,5 +410,5 @@ if (errorCount > 0) {
   process.exit(1);
 }
 
-console.log("\n✅ Documentation structure + 🇪🇺 EU Compliance verified.\n");
+console.log("\n✅ Documentation structure + EU/DE Compliance verified.\n");
 process.exit(0);

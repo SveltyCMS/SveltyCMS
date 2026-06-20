@@ -6,6 +6,8 @@
 import { computeFieldDiff } from "@src/utils/diff-utils";
 import { fade, slide } from "svelte/transition";
 import type { FieldInstance } from "@src/content/types";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
     oldData: Record<string, unknown>;
@@ -62,15 +64,15 @@ function onKeydown(e: KeyboardEvent) {
             <div class="flex gap-3 mt-1 items-center">
                 <span class="text-[10px] font-bold opacity-50 uppercase tracking-wider">Analysis:</span>
                 <div class="flex gap-2 items-center">
-                    {#if stats.added > 0}
-                        <span class="badge preset-filled-success-500 text-[9px] px-1.5 py-0.5">+{stats.added}</span>
-                    {/if}
-                    {#if stats.modified > 0}
-                        <span class="badge preset-filled-warning-500 text-[9px] px-1.5 py-0.5">~{stats.modified}</span>
-                    {/if}
-                    {#if stats.removed > 0}
-                        <span class="badge preset-filled-error-500 text-[9px] px-1.5 py-0.5">-{stats.removed}</span>
-                    {/if}
+	                    {#if stats.added > 0}
+	                        <Badge variant="success" class="text-[9px] px-1.5 py-0.5">+{stats.added}</Badge>
+	                    {/if}
+	                    {#if stats.modified > 0}
+	                        <Badge variant="warning" class="text-[9px] px-1.5 py-0.5">~{stats.modified}</Badge>
+	                    {/if}
+	                    {#if stats.removed > 0}
+	                        <Badge variant="error" class="text-[9px] px-1.5 py-0.5">-{stats.removed}</Badge>
+	                    {/if}
                     <span class="text-[9px] opacity-40 font-medium italic">{stats.unchanged} unchanged</span>
                 </div>
             </div>
@@ -80,7 +82,7 @@ function onKeydown(e: KeyboardEvent) {
                 <input type="checkbox" bind:checked={showOnlyChanged} class="checkbox checkbox-sm" id="show-only-changed" />
                 <span class="text-xs font-bold">Show Only Changes</span>
             </label>
-            <button class="btn btn-sm variant-soft-surface" onclick={close} aria-label="Close dialog">Close</button>
+            <Button variant="surface" onclick={close} aria-label="Close dialog" size="sm">Close</Button>
         </div>
     </div>
 
@@ -101,13 +103,15 @@ function onKeydown(e: KeyboardEvent) {
                                 <span class="text-xs font-bold opacity-40 uppercase tracking-tighter">{diff.fieldName}</span>
                                 <span class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-600 ">{diff.label}</span>
                             </div>
-                            <span class="badge
-                                {diff.type === 'added' ? 'preset-filled-success-500' :
-                                 diff.type === 'removed' ? 'preset-filled-error-500' :
-                                 diff.type === 'modified' ? 'preset-filled-warning-500' :
-                                 'preset-tonal-surface'} text-[10px] uppercase font-bold">
+                            <Badge
+                                size="sm"
+                                variant={diff.type === 'added' ? 'success' : diff.type === 'removed' ? 'error' : diff.type === 'modified' ? 'warning' : 'surface'}
+                                preset={diff.type === 'unchanged' ? 'tonal' : undefined}
+                                color={diff.type === 'unchanged' ? 'surface' : undefined}
+                                class="uppercase font-bold"
+                            >
                                 {diff.type}
-                            </span>
+                            </Badge>
                         </div>
 
                         <!-- Diff Content -->

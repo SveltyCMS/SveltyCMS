@@ -61,12 +61,26 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 	<!-- Call to Action -->
 	<div class="mt-10 flex flex-col items-center" in:fade={{ duration: 400, delay: 600 }}>
 		<div class="flex flex-wrap justify-center gap-4">
-			<Button onclick={onAddCategory} variant="tertiary" rounded={true} size="lg" class="group w-52 justify-center">
+			<Button
+				onclick={onAddCategory}
+				variant="tertiary"
+				rounded={true}
+				size="lg"
+				class="group w-52 justify-center"
+				data-testid="add-category-button"
+			>
 				<iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
 				<span>{collection_addcategory()}</span>
 			</Button>
 
-			<Button onclick={onAddCollection} variant="primary" rounded={true} size="lg" class="group w-52 justify-center">
+			<Button
+				onclick={onAddCollection}
+				variant="primary"
+				rounded={true}
+				size="lg"
+				class="group w-52 justify-center"
+				data-testid="add-collection-button"
+			>
 				<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
 				<span>{collection_add()}</span>
 			</Button>

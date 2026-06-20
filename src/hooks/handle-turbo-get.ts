@@ -31,6 +31,12 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { dev } from "$app/environment";
+import {
+  negotiateEncoding,
+  compressSync,
+  hasNativeCompression,
+  setCompressionHeaders,
+} from "./handle-compression";
 
 // ─── Auth Context Cache ──────────────────────────────────────────────────────
 
@@ -148,7 +154,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 
   // ── Gate 5: Response must be in L1 cache ──────────────────────────────
   const cacheKey = url.pathname + url.search;
-  const cachedResponse = cacheService.getSync<string>(cacheKey, turboCtx.tenantId);
+  const cachedResponse: any = cacheService.getSync<string>(cacheKey, turboCtx.tenantId);
   if (!cachedResponse) {
     // No cached response — fall through (auth context is still valid for handler)
     // Inject the auth context so downstream middleware can skip DB lookups
@@ -186,7 +192,53 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     url.pathname,
   );
 
-  return new Response(cachedResponse, {
+  // 🚀 SMART COMPRESSION ON TURBO HITS: prefer pre-compressed bytes from cache write path.
+  // Falls back to on-the-fly sync compress for payloads > 1KB when client advertises support.
+  // Uses shared setCompressionHeaders for DRY observability headers.
+  const isRichEntry =
+    typeof cachedResponse === "object" &&
+    !(cachedResponse instanceof Uint8Array) &&
+    !Buffer.isBuffer(cachedResponse);
+  const entry = isRichEntry ? cachedResponse : null;
+  const rawBody: string | Uint8Array | null = isRichEntry
+    ? (cachedResponse.body ?? null)
+    : cachedResponse;
+  let bodyToSend: BodyInit | Uint8Array = rawBody as any;
+
+  if (rawBody && typeof rawBody !== "object") {
+    // string path — try compression
+    const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+    const algo = negotiateEncoding(acceptEncoding, hasNativeCompression());
+    const payloadSize = rawBody.length;
+    if (algo && payloadSize > 1024) {
+      try {
+        const pre = entry?.compressed?.[algo as "br" | "gzip"];
+        if (pre) {
+          bodyToSend = pre;
+          setCompressionHeaders(
+            responseHeaders,
+            algo,
+            entry.body?.length || payloadSize,
+            pre.length,
+          );
+          if (dev)
+            console.log(`[TurboGET] pre-comp ${algo} ${payloadSize}B → ${pre.length}B [cache]`);
+        } else if (algo === "br" || algo === "gzip" || algo === "deflate") {
+          const compressed = compressSync(rawBody, algo);
+          if (compressed && compressed.length < payloadSize) {
+            bodyToSend = compressed;
+            setCompressionHeaders(responseHeaders, algo, payloadSize, compressed.length);
+            if (dev)
+              console.log(`[TurboGET] compressed ${algo} ${payloadSize}B → ${compressed.length}B`);
+          }
+        }
+      } catch {
+        /* safe raw */
+      }
+    }
+  }
+
+  return new Response(bodyToSend as BodyInit, {
     headers: responseHeaders,
   });
 };

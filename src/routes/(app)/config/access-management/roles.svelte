@@ -17,17 +17,17 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
-// Store
 import { toast } from "@src/stores/toast.svelte.ts";
-// Auth
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
-// Native UI Components
 import { modalState } from "@utils/modal.svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { dndzone } from "svelte-dnd-action";
-// Components
 import RoleModal from "./role-modal.svelte";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
 
 const flipDurationMs = 100;
 
@@ -45,12 +45,10 @@ let {
 	permissions = [],
 }: Props = $props();
 
-// Roles State
 let roles: (Role & { id: string })[] = $state([]);
 let roleSearchTerm = $state("");
 let error = $state<string | null>(null);
 
-// Derived items for display (filtering)
 const filteredRoles = $derived(
 	roles.filter(
 		(r) =>
@@ -59,18 +57,14 @@ const filteredRoles = $derived(
 	),
 );
 
-// Tracking changes
 const modifiedRoles = new SvelteSet<string>();
 let selectedRoles = new SvelteSet<string>();
 
-// Modal state
 let isEditMode = $state(false);
 let currentRoleId: string | null = $state(null);
 let currentGroupName = $state("");
 
-// Initialize data when component mounts (run once)
 $effect(() => {
-	// Only initialize if data hasn't been loaded yet
 	if (roles.length === 0 && roleData.length > 0) {
 		const rolesWithId = roleData.map((role: Role) => ({
 			...role,
@@ -92,8 +86,8 @@ const openModal = (role: Role | null = null, groupName = "") => {
 		roleDescription: role?.description || "",
 		currentGroupName,
 		selectedPermissions: role?.permissions || [],
-		permissions, // Pass available permissions to the modal
-		roles, // Pass available roles to copy from
+		permissions,
+		roles,
 		response: (formData: any) => {
 			if (formData) {
 				saveRole(formData);
@@ -145,7 +139,6 @@ const saveRole = async (role: {
 		toast.info("Role updated. Save to apply.");
 	}
 
-	// Sync to parent
 	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
 	setRoleData(cleanedRoles);
 
@@ -166,11 +159,9 @@ const deleteSelectedRoles = async () => {
 	selectedRoles.clear();
 	toast.info("Roles deleted. Save to apply.");
 
-	// Sync to parent
 	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
 	setRoleData(cleanedRoles);
 
-	// Notify the parent about the number of changes
 	if (updateModifiedCount) {
 		updateModifiedCount(modifiedRoles.size);
 	}
@@ -183,8 +174,6 @@ const toggleRoleSelection = (roleId: string) => {
 		selectedRoles.add(roleId);
 	}
 };
-
-// DndItem type already defined above
 
 function handleSort(e: CustomEvent) {
 	roles = [...e.detail.items];
@@ -216,25 +205,29 @@ function handleFinalize(e: CustomEvent) {
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Roles Management:</h3>
 
-	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
 		Manage user roles and their access permissions. You can create, edit, or delete roles and assign specific permissions to them.
 	</p>
 
 	<div class="wrapper my-4">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-2">
-				<button onclick={() => openModal(null, '')} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">
-					<iconify-icon icon="mdi:plus-circle-outline" class="me-2"></iconify-icon>
+				<Button variant="tertiary" onclick={() => openModal(null, '')} class="dark:" leadingIcon="mdi:plus-circle-outline">
 					Create Role
-				</button>
-				<button onclick={deleteSelectedRoles} class="preset-filled-error-500 btn" disabled={selectedRoles.size === 0}>
+				</Button>
+				<Button variant="error" onclick={deleteSelectedRoles} disabled={selectedRoles.size === 0}>
 					Delete Selected ({selectedRoles.size})
-				</button>
+				</Button>
 			</div>
 
 			<div class="relative w-full max-w-sm">
-				<iconify-icon icon="mdi:magnify" class="absolute start-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
-				<input type="text" placeholder="Search roles..." class="input ps-10" bind:value={roleSearchTerm} aria-label="Search roles" />
+				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50"></iconify-icon>
+				<Input
+					bind:value={roleSearchTerm}
+					placeholder="Search roles..."
+					aria-label="Search roles"
+					class="ps-10 w-full"
+				/>
 			</div>
 		</div>
 
@@ -257,11 +250,10 @@ function handleFinalize(e: CustomEvent) {
 					>
 						{#each filteredRoles as role (role.id)}
 							<li
-								class="animate-flip flex items-center justify-between rounded border p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
+								class="animate-flip flex items-center justify-between rounded border border-surface-200 dark:border-surface-800 p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
 								role="listitem"
 							>
 								<div class="flex items-center gap-2">
-									<!-- Drag Icon -->
 									<div
 										class="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-surface-300 dark:hover:bg-surface-600"
 										role="button"
@@ -272,36 +264,31 @@ function handleFinalize(e: CustomEvent) {
 									</div>
 
 									{#if !role.isAdmin}
-										<input
-											type="checkbox"
+										<Checkbox
 											checked={selectedRoles.has(role._id)}
 											onchange={() => toggleRoleSelection(role._id)}
-											class="checkbox"
-											aria-label={`Select ${role.name} for deletion`}
+											label={`Select ${role.name}`}
+											class="[&_label:last-of-type]:sr-only"
 										/>
 									{/if}
 
-									<!-- Role Name with Description hidden on small screens -->
 									<div class="flex flex-col">
 										<span class="flex items-center text-lg font-bold text-tertiary-500 dark:text-primary-500">
 											{role.name}
 											{#if role.isAdmin}
-												<span class="ms-2 badge variant-filled-secondary text-xs">Admin</span>
+												<Badge preset="filled" color="secondary" size="sm" class="ms-2">Admin</Badge>
 											{/if}
 										</span>
 										<span class="text-xs opacity-60 md:hidden">{role.description || 'No description'}</span>
 									</div>
 								</div>
 
-								<!-- Description for larger screens -->
 								<p class="mt-2 hidden text-sm opacity-70 md:ms-4 md:mt-0 md:block flex-1">{role.description}</p>
 
-								<!-- Actions -->
 								<div class="flex gap-2">
-									<button onclick={() => openModal(role)} aria-label={`Edit role ${role.name}`} class="btn btn-sm variant-soft-secondary">
-										<iconify-icon icon="mdi:pencil" width={18} class="me-1"></iconify-icon>
+									<Button variant="surface" onclick={() => openModal(role)} aria-label={`Edit role ${role.name}`} size="sm" leadingIcon="mdi:pencil">
 										Edit
-									</button>
+									</Button>
 								</div>
 							</li>
 						{/each}
@@ -313,7 +300,6 @@ function handleFinalize(e: CustomEvent) {
 {/if}
 
 <style>
-	/* No fixed height, let parent page container handle vertical scrolling */
 	:global([data-is-dnd-shadow-item='true']) {
 		opacity: 0.75 !important;
 		background: var(--color-surface-400) !important;

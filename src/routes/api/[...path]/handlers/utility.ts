@@ -22,6 +22,7 @@ import { successResponse, rawResponse } from "./base";
 let apiSpecService: any;
 let cacheService: any;
 let versionCheckService: any;
+let marketplaceService: import("@src/services/core/marketplace-service").MarketplaceService;
 
 async function getApiSpecService() {
   if (!apiSpecService) {
@@ -43,6 +44,14 @@ async function getVersionCheckService() {
       .versionCheckService;
   }
   return versionCheckService;
+}
+
+async function getMarketplaceService() {
+  if (!marketplaceService) {
+    const mod = await import("@src/services/core/marketplace-service");
+    marketplaceService = mod.marketplaceService;
+  }
+  return marketplaceService;
 }
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
@@ -99,9 +108,34 @@ export async function handleUtilityRoutes(
       return handleSendMail(event, cms, tenantId);
     }
 
-    // ── Marketplace (placeholder) ──
-    if (namespace === "marketplace" && request.method === "GET") {
-      return successResponse(event, { items: [], total: 0 });
+    // ── Marketplace (remote proxy + local /themes fallback) ──
+    if (namespace === "marketplace") {
+      const service = await getMarketplaceService();
+
+      if (request.method === "GET") {
+        const type = url.searchParams.get("type") as
+          | import("@src/services/core/marketplace-service").MarketplaceItemType
+          | null;
+        const result = await service.list({
+          type: type ?? undefined,
+          search: url.searchParams.get("search") || undefined,
+          category: url.searchParams.get("category") || undefined,
+          tenantId,
+        });
+        return successResponse(event, result);
+      }
+
+      if (request.method === "POST" && method === "install") {
+        if (!user?.isAdmin && user?.role !== "admin") {
+          throw new AppError("Admin access required to install marketplace items", 403);
+        }
+        const body = await request.json().catch(() => ({}));
+        const itemId = typeof body?.itemId === "string" ? body.itemId : "";
+        if (!itemId) throw new AppError("itemId is required", 400);
+
+        const installed = await service.installTheme(itemId, tenantId);
+        return successResponse(event, installed);
+      }
     }
 
     // ── Debug / Diagnostics (admin-only) ──

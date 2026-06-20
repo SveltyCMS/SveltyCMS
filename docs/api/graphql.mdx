@@ -67,7 +67,7 @@ query GetPosts {
 
 In SvelteKit `+page.server.ts`, **always prefer the Local SDK QueryBuilder**. It provides identical flexibility to GraphQL but achieves **0ms network latency** by making direct function calls that bypass the entire HTTP/JSON stack.
 
-```typescript
+```
 // Faster, typed, and direct in +page.server.ts
 const posts = await locals.cms
   .queryBuilder("posts")
@@ -83,7 +83,7 @@ const posts = await locals.cms
 
 SveltyCMS uses a **JIT (Just-In-Time) Execution Engine** to ensure your GraphQL queries run at native speeds, which is critical for enterprise performance.
 
-```mermaid
+```
 graph TD
     A[GraphQL Request] --> B[Security Response Service]
     B --> C{Threats detected?}

@@ -34,6 +34,9 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { mediagallery_nomedia } from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/media-models';
@@ -57,6 +60,11 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	// Constants
 	const THUMBNAIL_SIZES: ThumbnailSize[] = ['sm', 'md', 'lg'];
 	const DEBOUNCE_MS = 300;
+	const sortOptions = [
+		{ value: 'name', label: 'Sort by Name' },
+		{ value: 'date', label: 'Sort by Date' },
+		{ value: 'size', label: 'Sort by Size' },
+	];
 
 	// State
 	let files = $state<MediaImage[]>([]);
@@ -276,43 +284,42 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 		<!-- View mode toggle -->
 		<div class="flex gap-1 rounded border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
-			<button
+			<Button variant="tertiary"
 				onclick={() => (currentViewMode.value = 'grid')}
-				class="btn-icon btn-icon-sm {currentViewMode.value === 'grid' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outlined-surface-500'}"
 				aria-label="Grid view"
 				aria-pressed={currentViewMode.value === 'grid'}
-			>
+			 class="p-0! min-w-0 {currentViewMode.value === 'grid' ? ' dark: ' : ' '}">
 				<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
-			</button>
-			<button
+			</Button>
+			<Button variant="tertiary"
 				onclick={() => (currentViewMode.value = 'list')}
-				class="btn-icon btn-icon-sm {currentViewMode.value === 'list' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-outlined-surface-500'}"
 				aria-label="List view"
 				aria-pressed={currentViewMode.value === 'list'}
-			>
+			 class="p-0! min-w-0 {currentViewMode.value === 'list' ? ' dark: ' : ' '}">
 				<iconify-icon icon="mdi:view-list" width="18"></iconify-icon>
-			</button>
+			</Button>
 		</div>
 
 		<!-- Refresh -->
-		<button onclick={fetchMedia} class="preset-outlined-tertiary-500 dark:preset-outlined-primary-500 btn-sm" disabled={isLoading} aria-label="Refresh media">
+		<Button variant="primary" onclick={fetchMedia} disabled={isLoading} aria-label="Refresh media" size="sm" class="dark:">
 			<iconify-icon icon="mdi:refresh" width="20" class={isLoading && !prefersReducedMotion ? 'animate-spin' : ''}></iconify-icon>
-		</button>
+		</Button>
 
 		<!-- Sort dropdown -->
-		<select bind:value={sortBy} class="input w-auto" aria-label="Sort by" disabled={isLoading}>
-			<option value="name">Sort by Name</option>
-			<option value="date">Sort by Date</option>
-			<option value="size">Sort by Size</option>
-		</select>
+		<Select
+			bind:value={sortBy}
+			options={sortOptions}
+			disabled={isLoading}
+			size="sm"
+			class="w-auto"
+		/>
 
-		<button
+		<Button variant="outline"
 			onclick={() => (sortAscending = !sortAscending)}
-			class="btn-icon btn-icon-sm preset-outlined-surface-500"
 			aria-label={sortAscending ? 'Sort descending' : 'Sort ascending'}
-		>
+		 class="p-0! min-w-0">
 			<iconify-icon icon={sortAscending ? 'mdi:sort-ascending' : 'mdi:sort-descending'} width="20"></iconify-icon>
-		</button>
+		</Button>
 	</div>
 
 	<!-- Selection toolbar (multiple mode) -->
@@ -323,8 +330,8 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		>
 			<span class="text-sm font-medium"> {selectedCount} file{selectedCount !== 1 ? 's' : ''} selected </span>
 			<div class="flex gap-2">
-				<button onclick={clearSelection} class="preset-outlined-surface-500btn btn-sm">Clear</button>
-				<button onclick={confirmSelection} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-sm">Confirm Selection</button>
+				<Button variant="outline" onclick={clearSelection} size="sm">Clear</Button>
+				<Button variant="tertiary" onclick={confirmSelection} size="sm" class="dark:">Confirm Selection</Button>
 			</div>
 		</div>
 	{/if}
@@ -343,7 +350,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:alert-circle" width="48" class="text-error-500"></iconify-icon>
 				<p class="text-lg text-error-500">Error: {error}</p>
-				<button onclick={fetchMedia} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-sm">Try Again</button>
+				<Button variant="tertiary" onclick={fetchMedia} size="sm" class="dark:">Try Again</Button>
 			</div>
 		</div>
 	{:else if !hasFiles}
@@ -374,28 +381,26 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 				>
 					{#if multiple}
 						<!-- Selection checkbox -->
-						<label class="absolute inset-s-2 top-2 z-10">
-							<input
-								type="checkbox"
+						<div class="absolute inset-s-2 top-2 z-10">
+							<Checkbox
 								checked={selected}
-								onchange={(e) => toggleSelection(file, e)}
-								class="checkbox"
-								aria-label={`Select ${file.filename}`}
+								onchange={() => toggleSelection(file)}
+								label={`Select ${file.filename}`}
+								size="sm"
 							/>
-						</label>
+						</div>
 					{/if}
 
 					<!-- Header -->
 					<div class="relative z-10 flex w-full items-center bg-surface-700/90 backdrop-blur-sm">
-						<button
-							onclick={(e) => toggleInfo(e, index)}
+						<Button variant="outline"
+							onclick={(e: MouseEvent) => toggleInfo(e, index)}
 							aria-label={`${isInfoShown(index) ? 'Hide' : 'Show'} info for ${file.filename}`}
 							aria-pressed={isInfoShown(index)}
-							class="btn-sm m-1 p-1 hover:bg-surface-600"
 							type="button"
-						>
+						 size="sm" class="m-1 p-1 hover:bg-surface-600">
 							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						</button>
+						</Button>
 						<p class="flex-1 truncate pe-2 text-center text-sm text-white" title={file.filename}>{file.filename}</p>
 					</div>
 

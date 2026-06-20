@@ -25,6 +25,7 @@ import { asAny } from "@utils/utils";
 import type { Component } from "svelte";
 import Permission from "../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/permission.svelte";
 import Specific from "../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/specific.svelte";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	onDelete: () => void;
@@ -105,12 +106,12 @@ function handleUpdate(detail: { value: any }, property: string) {
 					</div>
 				</div>
 				<div class="flex flex-col gap-1">
-					<button onclick={onDuplicate} class="btn-icon btn-icon-sm preset-ghost-tertiary-500 hover:preset-filled-tertiary-500 transition-all" title="Duplicate Field" aria-label="Duplicate field">
+					<Button variant="tertiary" onclick={onDuplicate} title="Duplicate Field" aria-label="Duplicate field" class="p-0! min-w-0 hover: transition-all">
 						<iconify-icon icon="mdi:content-copy" width={18}></iconify-icon>
-					</button>
-					<button onclick={onDelete} class="btn-icon btn-icon-sm preset-ghost-error-500 hover:preset-filled-error-500 transition-all" title="Delete Field" aria-label="Delete field">
+					</Button>
+					<Button variant="error" onclick={onDelete} title="Delete Field" aria-label="Delete field" class="p-0! min-w-0 hover: transition-all">
 						<iconify-icon icon="mdi:trash-can" width={18}></iconify-icon>
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>

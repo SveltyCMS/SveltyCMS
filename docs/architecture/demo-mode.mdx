@@ -61,7 +61,7 @@ Demo mode is strictly controlled via `config/private.ts` to prevent accidental d
 
 ### Tenant Lifecycle
 
-````mermaid
+```mermaid
 stateDiagram-v2
     [*] --> NewUser: Visits /login or /setup
 
@@ -79,7 +79,7 @@ stateDiagram-v2
 
     UserActive --> Cleanup: After 60 Minutes
     Cleanup --> [*]: Data Deleted
-```text
+```
 
 1.  **Creation**:
     - **Method A (No Token)**: User visits `/login` -> Click "Sign Up".
@@ -115,7 +115,6 @@ The `seedDemoTenant` function (`src/routes/setup/seed.ts`) performs:
 - Demo tenants are strictly isolated.
 - Rate limiting is applied to tenant creation to prevent abuse.
 - File upload limits are enforced.
-````
 
 ---
 

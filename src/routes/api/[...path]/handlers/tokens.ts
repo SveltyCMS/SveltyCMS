@@ -160,9 +160,7 @@ export async function handleTokenRoutes(
           user: locals.user,
           tenantId,
         });
-        if (!(result as any).success)
-          throw new AppError((result as any).message || "Failed to create token", 400);
-        return rawResponse(event, (result as any).data);
+        return rawResponse(event, result, 201);
       }
 
       if (body.expiresIn && !body.expires) body.expires = body.expiresIn;
@@ -215,7 +213,7 @@ export async function handleTokenRoutes(
   if (request.method === "DELETE" && action === "delete") {
     if (!tokenId) throw new AppError("Token ID is required", 400);
     if (isWebsite) {
-      return successResponse(event, await cms.system.websiteTokens.delete(tokenId));
+      return successResponse(event, await cms.websiteTokens.delete(tokenId, { tenantId }));
     }
     return successResponse(event, await cms.auth.tokens.delete(tokenId, { tenantId }));
   }
@@ -227,7 +225,7 @@ export async function handleTokenRoutes(
 
     if (isWebsite) {
       // Website token update: delegate to websiteTokens module
-      const result = await (cms.system.websiteTokens as any).update(tokenId, updateData);
+      const result = await cms.websiteTokens.update(tokenId, updateData, { tenantId });
       if (!result) throw new AppError("Website token not found", 404);
       return successResponse(event, result);
     }

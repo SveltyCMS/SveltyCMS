@@ -251,18 +251,38 @@ When generating/modifying code:
 8. **File Headers**: Always include as defined.
 9. **Roadmap Alignment**: Prioritize gaps like full SAML/SCIM hardening; optimize for enterprise (e.g., lighter SAML deps).
 10. **MCP Knowledge Base (CRITICAL)**: Always query the hosted MCP server at `https://mcp.sveltycms.com/mcp` when in doubt about SveltyCMS architecture, schema conventions, or widget syntax, as it holds the verified source of truth. Utilize MCP connections for dynamic generation flows.
-11. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
-12. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
+11. **Admin Theme & Native UI Compliance**:
+    - **AdminPageShell**: Every `(app)` `+page.svelte` MUST use `<AdminPageShell>`. Do NOT create hand-rolled `absolute inset-0` page shells or inline `<h1>` headers.
+    - **AdminCard**: Wrap content blocks in `<AdminCard>`, never bare `<div class="card">` with inline `var(--admin-radius-card)`.
+    - **Native Components**: Always prefer `<Button>`, `<Badge>`, `<Input>`, `<Select>`, `<Textarea>` over raw `<button class="btn">`, `<span class="badge">`, or `<input class="input">`. Raw utility classes are deprecated.
+    - **CI Gate**: Run `bun run lint:admin-theme` before committing admin route changes — blocks missing `AdminPageShell`, `class="input"`, and legacy table classes.
+      - **Reference**: `docs/contributing/style-guide-gui.mdx`, `docs/project/admin-theme-plan.mdx`
+12. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
+13. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
     - **Baseline**: Run the relevant benchmark with recording: `BENCHMARK_RECORD=1 bun test tests/benchmarks/<test>.test.ts`
     - **Verification**: Run same benchmark after changes; compare trend labels in `docs/project/benchmarks/benchmark_<db>.mdx`
     - **Full Matrix**: For cross-test correlation, run `bun run scripts/benchmark-matrix/index.ts --sql`
     - **Reports**: Check MDX reports for trend labels (`🔴 avg +35%`), root cause insights, and code path recommendations
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
-13. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
-    ```bash
-    bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
-    ```
+14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
+    `bash
+bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
+`
     This validates all 4 security layers (Middleware → Dispatcher → Handler → Page Action) in under 1 second.
+    n15. **Predictive Preloading (Anchor-First)**: - **Anchor-First Mandate**: All primary navigation MUST use `<a>` tags with `data-preload` attributes. Never use `goto()` for primary navigation — it bypasses ALL speculative preloading. - **Strategy Selection**: - Table rows / collection entries → `data-preload="smart"` (physics cone + behavioral priority) - Dashboard widget links → `data-preload="predict"` (cursor trajectory prediction) - Sidebar / config nav → `data-preload="hover"` (150ms intent detection) - Media gallery thumbnails → `data-preload="viewport"` (IntersectionObserver) - **Implementation**: `src/utils/predictive-preload.ts` — MutationObserver-based, initialized once in `+layout.svelte`. - **goto() escape hatch**: Only use `goto()` for non-navigation URL updates (filters, sorting, pagination). - **Reference**: `docs/architecture/hover-preloading.mdx`
+15. **Behavioral Learning Integration**:
+    - Every `+layout.server.ts` MUST call `recordCollectionAccess()` and `recordNavigation()` (already wired — do not remove).
+    - Collection detail `+page.server.ts` SHOULD call `recordEntryAccess()`.
+    - Query `getHotCollections()` before cache-warming decisions.
+    - Use `predictNextPath()` for prefetch hints.
+    - **Reference**: `docs/architecture/behavioral-learning.mdx`
+16. **Reactive Search Params**:
+    - Use `useReactiveSearchParams()` from `src/utils/reactive-search-params.svelte.ts` for client-side table filtering/sorting/pagination without SSR round-trips.
+    - Wraps Svelte 5 SvelteURLSearchParams — reactive, type-safe, URL-synced.
+17. **Link Validation (Build-Time)**:
+    - Run `bun run scripts/validate-links.ts` before shipping to catch broken internal links.
+    - Flags missing `data-preload` attributes on collection entry links.
+    - **Reference**: `src/utils/link-validator.ts`
 
 ### Mandatory Documentation Updates
 
@@ -279,15 +299,18 @@ When generating/modifying code:
 
 ### Documentation Matrix
 
-| Feature Type        | Primary MDX Location                         | Also Update                     |
-| :------------------ | :------------------------------------------- | :------------------------------ |
-| **Database**        | `docs/database/`                             | `technical-evaluation-2026.mdx` |
-| **Auth/Security**   | `docs/database/Authentication_System.mdx`    | `technical-evaluation-2026.mdx` |
-| **UI/UX**           | `docs/guides/`                               | Widget docs if applicable       |
-| **Content/Preview** | `docs/guides/Live_Preview_Architecture.mdx`  | Integration docs                |
-| **Widgets**         | `docs/widgets/`                              | `widget-system-overview.mdx`    |
-| **API**             | `docs/api/`                                  | Relevant service docs           |
-| **Performance**     | `docs/database/Performance_Architecture.mdx` | `technical-evaluation-2026.mdx` |
+| Feature Type          | Primary MDX Location                         | Also Update                                           |
+| :-------------------- | :------------------------------------------- | :---------------------------------------------------- |
+| **Database**          | `docs/database/`                             | `technical-evaluation-2026.mdx`                       |
+| **Auth/Security**     | `docs/database/Authentication_System.mdx`    | `technical-evaluation-2026.mdx`                       |
+| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`      | `docs/project/admin-theme-plan.mdx`                   |
+| **Content/Preview**   | `docs/guides/Live_Preview_Architecture.mdx`  | Integration docs                                      |
+| **Widgets**           | `docs/widgets/`                              | `widget-system-overview.mdx`                          |
+| **API**               | `docs/api/`                                  | Relevant service docs                                 |
+| **Performance**       | `docs/database/Performance_Architecture.mdx` | `technical-evaluation-2026.mdx`                       |
+| **Intelligence / AI** | `docs/architecture/behavioral-learning.mdx`  | `ai-integration.mdx`, `technical-evaluation-2026.mdx` |
+| **Preloading**        | `docs/architecture/hover-preloading.mdx`     | `behavioral-learning.mdx`, `cache-system.mdx`         |
+| **Marketplace**       | `docs/architecture/marketplace.mdx`          | `ai-integration.mdx`                                  |
 
 **Key Documentation Files:**
 
@@ -331,6 +354,7 @@ From the 2026 roadmap, prioritize these for parity/leadership (implemented featu
 - [x] **AI-Smart CMS Importer**: 5-format auto-detection (WordPress, Strapi, Directus, Drupal, SveltyCMS), heuristic field mapping, ACF detection.
 - [x] **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions.
 - [x] **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
+- [x] **Enterprise Admin Theme Migration (Phases A–F)**: Complete Gin-inspired structural theme system — `AdminPageShell` on all 22 `(app)` routes, `AdminCard` across all config pages, 600+ `<button>` → `<Button>`, 20+ `<span class="badge">` → `<Badge>`, 0 `class="input"` in `src/`, image editor toolbars on native `<Button>`, tenant-branded login (`brandedLogin`), 3 theme presets, motion tokens, per-user theme overrides, CI-gated via `lint:admin-theme`.
 
 ## Upgrading SveltyCMS
 
@@ -575,20 +599,22 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/api/media-security.test.ts`     | `docs/architecture/security/widget-security.mdx`                                       |
 | `tests/benchmarks/security-audit.test.ts`   | `docs/architecture/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx` |
 | `tests/e2e/accessibility.spec.ts`           | `docs/tests/accessibility-audit.mdx`                                                   |
+| `tests/e2e/branding.spec.ts`                | `docs/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`             |
+| `tests/e2e/visual-regression.spec.ts`       | `docs/project/admin-theme-plan.mdx`, `docs/tests/accessibility-audit.mdx`              |
 | `tests/unit/widgets/core/*.test.ts`         | `docs/tests/widget-test-coverage.mdx`                                                  |
 
 ## Key Files Reference
 
-| Category       | Key Files                                                                                                                                  |
-| :------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| **DB & Auth**  | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                     |
-| **Security**   | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                    |
-| **Content**    | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                  |
-| **Widgets**    | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                              |
-| **API**        | `routes/api/`, `hooks.server.ts`                                                                                                           |
-| **Services**   | `settingsService.ts`, `scheduler/`, `AuditLogService.ts`,`MetricsService.ts`                                                               |
-| **Benchmarks** | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-summary.ts`, `benchmark-meta.ts` |
-| **Build**      | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                 |
+| Category        | Key Files                                                                                                                                  |
+| :-------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| **DB & Auth**   | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                     |
+| **Security**    | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                    |
+| **Content**     | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                  |
+| **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                              |
+| **API**         | `routes/api/`, `hooks.server.ts`                                                                                                           |
+| **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`, `lint-admin-theme.ts`                         |
+| **Benchmarks**  | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-summary.ts`, `benchmark-meta.ts` |
+| **Build**       | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                 |
 
 ## Path Aliases
 
@@ -611,9 +637,18 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 - Branches: `next` (dev), `main` (stable).
 - **Commit Attribution**: **NEVER** include `Co-Authored-By` or any AI-attribution lines in commit messages unless explicitly requested by the USER for a specific commit. All work should appear as the USER's own work for seamless integration into enterprise workflows.
 - Commits: Conventional (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `security:`, `perf:`).
-- Pre-commit: `bun run format && bun run lint && bun run check && bun run test:unit` (100% CI parity).
+- **Pre-commit 100% enforcement (hardened)**: The `.githooks/pre-commit`, `.githooks/pre-push`, and `scripts/quality-gate.ts` have been made as strict as client-side Git hooks reasonably allow:
+  - No convenient local `GIT_HOOK_SKIP` (only real CI envs bypass).
+  - The gate **ends with a literal final re-execution** of the documented parity commands (including `lint:docs`).
+  - Multiple fail-closed "tree must be clean" checks (after format + at the absolute end).
+  - Both pre-commit (fast full gate) and pre-push (build + integration + E2E) are required.
+
+  Using `git commit --no-verify` or `git push --no-verify` is now explicitly a policy violation except genuine emergencies.
+
+  **Realistic maximum**: Extremely high confidence on the developer's machine (Windows or Unix) that the commit will pass the matching GitHub Actions jobs. The only true 100% guarantee is GitHub branch protection rules that require green status checks before merge to `next` or `main`. Local hooks + the final parity re-verification are defense-in-depth + team culture.
+
 - **Roadmap Checklist**: Add Universal Accessibility Auditing to CI/CD pipeline.
 
 ---
 
-_Last Updated: 2026-06-10_
+_Last Updated: 2026-06-17_

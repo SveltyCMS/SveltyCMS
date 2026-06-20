@@ -38,6 +38,8 @@ focus restoration.
 		class?: string;
 		trigger?: Snippet;
 		children?: Snippet;
+		role?: string | null;
+		tabindex?: number | string | null;
 		[key: string]: any;
 	}
 
@@ -48,12 +50,15 @@ focus restoration.
 		class: className,
 		trigger,
 		children,
+		role = 'button',
+		tabindex = 0,
 		...rest
 	}: Props = $props();
 
 	let referenceEl = $state<HTMLElement | null>(null);
 	let floatingEl = $state<HTMLElement | null>(null);
 	let arrowEl = $state<HTMLElement | null>(null);
+	let hasFocusableDescendant = $state(false);
 
 	const floating = useFloating({
 		reference: () => referenceEl,
@@ -95,6 +100,24 @@ focus restoration.
 		};
 	});
 
+	$effect(() => {
+		if (referenceEl) {
+			const focusable = referenceEl.querySelectorAll(
+				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+			);
+			hasFocusableDescendant = focusable.length > 0;
+			if (hasFocusableDescendant) {
+				for (const el of focusable) {
+					el.setAttribute('aria-haspopup', 'true');
+					el.setAttribute('aria-expanded', String(open));
+				}
+			}
+		}
+	});
+
+	const activeTabindex = $derived(hasFocusableDescendant ? undefined : (tabindex === null ? undefined : (typeof tabindex === 'string' ? parseInt(tabindex, 10) : tabindex)));
+	const activeRole = $derived(hasFocusableDescendant ? undefined : (role === null ? undefined : role));
+
 	function toggle() {
 		open = !open;
 		if (open) {
@@ -105,14 +128,17 @@ focus restoration.
 	}
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={referenceEl}
 	class="inline-block"
 	onclick={(e) => { e.stopPropagation(); toggle(); }}
 	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle()}
-	role="button"
-	tabindex="0"
+	role={activeRole}
+	tabindex={activeTabindex}
 	{...floating.triggerAria}
+	aria-haspopup={hasFocusableDescendant ? undefined : "true"}
+	aria-expanded={hasFocusableDescendant ? undefined : open}
 	{...rest}
 >
 	{#if trigger}

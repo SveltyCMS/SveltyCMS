@@ -54,6 +54,7 @@ import { preloadData } from "$app/navigation";
 // Stores
 import { page } from "$app/state";
 import type { PageData } from "../$types";
+import type { LoginBranding } from "@utils/theme-merge";
 import SignupIcon from "./icons/signup-icon.svelte";
 
 // Props
@@ -67,9 +68,23 @@ const {
 	onPointerEnter = () => {},
 	onBack = () => {},
 	firstCollectionPath = "",
+	branding = undefined,
+}: {
+	active?: number;
+	isInviteFlow?: boolean;
+	token?: string;
+	invitedEmail?: string;
+	inviteError?: string;
+	onClick?: () => void;
+	onPointerEnter?: () => void;
+	onBack?: () => void;
+	firstCollectionPath?: string;
+	branding?: LoginBranding;
 } = $props();
 
-const siteName = $derived(publicEnv.SITE_NAME || "SveltyCMS");
+const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || "SveltyCMS");
+const brandedLogin = $derived(branding?.brandedLogin ?? false);
+const brandedVariant = $derived(branding?.variant ?? "bordered");
 
 const pageData = page.data as PageData;
 const hasAdminUser = pageData.hasAdminUser;
@@ -82,8 +97,8 @@ const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
 // Requires +page.server.ts load to return: isOpenSignup: !!(multiTenant && demoMode)
 const isOpenSignup = pageData.isOpenSignup ?? false;
 
-// State management
-const tabIndex = $state(1);
+const isInteractiveCard = $derived(active === undefined);
+const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
 let formElement: HTMLFormElement | null = $state(null);
 let showPassword = $state(false);
 let isSubmitting = $state(false);
@@ -104,12 +119,7 @@ async function prefetchFirstCollection() {
 	}
 }
 
-// Pre-calculate tab indices
-const usernameTabIndex = 1;
-const emailTabIndex = 2;
-const passwordTabIndex = 3;
-const confirmPasswordTabIndex = 4;
-const tokenTabIndex = 5;
+// Pre-calculate tab indices (removed)
 
 // Form setup
 const signUpForm = new Form(
@@ -134,6 +144,7 @@ async function handleSignUpSubmit(event: Event) {
 			email: signUpForm.data.email,
 			username: signUpForm.data.username,
 			password: signUpForm.data.password,
+			confirm_password: signUpForm.data.confirm_password,
 			token: signUpForm.data.token
 		})) as any;
 
@@ -270,7 +281,7 @@ $effect(() => {
 	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={handlePointerEnter}
-	tabindex={tabIndex}
+	tabindex={cardTabIndex}
 	class="{baseClasses} focus-visible:outline-2 focus-visible:outline-primary-500"
 	class:active={isActive}
 	class:inactive={isInactive}
@@ -285,8 +296,15 @@ $effect(() => {
 				</div>
 			{/if}
 			<!-- CSS Logo -->
-			<div class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
-			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
+			<div class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
+				<SveltyCMSLogoFull {siteName} />
+			</div>
+			<div
+				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin && brandedVariant === 'elevated'
+					? 'bg-surface-900/95 shadow-xl border border-surface-700'
+					: 'bg-surface-900/0'}"
+				class:hide={active !== 1}
+			>
 				<a href="#signup-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-up form</a>
 				<div class="flex flex-row gap-3 items-center">
 					<SveltyCMSLogo size={68} className="w-14" fill="red" />
@@ -309,9 +327,10 @@ $effect(() => {
 				<div class="relative mb-2 flex h-10 items-center justify-center text-xs text-error-500">
 					{form_required()}
 
-					<div class="absolute inset-e-0">
-						<SystemTooltip title="Go Back">
+					<div class="absolute inset-e-50">
+						<SystemTooltip title="Go Back" role={null} tabindex={null}>
 							<Button
+								type="button"
 								onclick={handleBack}
 								aria-label="Go back"
 								variant="outline"
@@ -337,7 +356,6 @@ $effect(() => {
 						id="usernamesignUp"
 						name="username"
 						type="text"
-						tabindex={usernameTabIndex}
 						required
 						bind:value={signUpForm.data.username}
 						label={username()}
@@ -357,7 +375,6 @@ $effect(() => {
 						id="emailsignUp"
 						name="email"
 						type="email"
-						tabindex={emailTabIndex}
 						required
 						autocomplete="email"
 						autocapitalize="none"
@@ -388,7 +405,6 @@ $effect(() => {
 						id="passwordsignUp"
 						name="password"
 						type="security"
-						tabindex={passwordTabIndex}
 						required
 						bind:value={signUpForm.data.password}
 						bind:showPassword
@@ -410,7 +426,6 @@ $effect(() => {
 						id="confirm_passwordsignUp"
 						name="confirm_password"
 						type="security"
-						tabindex={confirmPasswordTabIndex}
 						required
 						bind:value={signUpForm.data.confirm_password}
 						bind:showPassword
@@ -438,7 +453,6 @@ $effect(() => {
 								id="tokensignUp"
 								name="token"
 								type="security"
-								tabindex={tokenTabIndex}
 								required
 								bind:value={signUpForm.data.token}
 								label={registration_token()}
@@ -473,29 +487,30 @@ $effect(() => {
 							<Button
 								type="submit"
 								form="signup-form"
-								variant="surface"
-								class="w-full text-white sm:w-auto"
+								variant="secondary"
+								class="w-full sm:w-auto dark:"
 								aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}
 								loading={isSubmitting || isRedirecting}
 							>
-								{isInviteFlow ? 'Accept Invitation & Create Account' : form_signup()}
+								{isInviteFlow ? 'Accept Invitation' : form_signup()}
 							</Button>
 						</div>
-						<!-- Email + OAuth signin  -->
+						<!-- Email + OAuth signin -->
 					{:else}
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<div class="flex w-full justify-between gap-2 sm:w-auto">
 								<Button
 									type="submit"
 									form="signup-form"
-									variant="surface"
-									class="w-full text-white sm:w-auto"
+									variant="secondary"
+									class="w-full sm:w-auto dark:"
 									aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}
 									loading={isSubmitting || isRedirecting}
 								>
 									{isInviteFlow ? 'Accept Invitation' : form_signup()}
 								</Button>
 
+								<!-- OAuth -->
 								{#if showGoogleOAuth}
 									<Button
 										type="button"

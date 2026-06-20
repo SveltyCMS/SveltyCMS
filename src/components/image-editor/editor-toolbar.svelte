@@ -11,6 +11,7 @@ Features:
 - Smooth animations and transitions
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { fade } from 'svelte/transition';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 
@@ -73,9 +74,8 @@ Features:
 			<span>Ctrl+S save, Esc cancel, Ctrl+Z or Ctrl+Y redo</span>
 		</div>
 		<div class="action-group flex items-center gap-2 max-md:w-full max-md:flex-wrap max-md:justify-between">
-			<button
+			<Button variant="outline"
 				type="button"
-				class="toolbar-btn toolbar-btn-compare"
 				onclick={() => imageEditorStore.compareSliderPosition = imageEditorStore.compareSliderPosition > 0 ? 0 : 50}
 				title="Compare before / after"
 				aria-pressed={isComparing}
@@ -83,42 +83,38 @@ Features:
 			>
 				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
 				<span class="text-xs font-medium">{isComparing ? 'On' : 'Compare'}</span>
-			</button>
+			</Button>
 			<div class="me-2 flex items-center gap-1 rounded-full border border-white/10 bg-black/40 px-2 py-1 max-md:me-0 max-md:flex-1 max-md:justify-between">
-				<button
+				<Button variant="outline"
 					type="button"
-					class="toolbar-icon-btn"
 					onclick={onZoomOut}
 					title="Zoom out (-)"
 					aria-label="Zoom out"
 					aria-keyshortcuts="-"
 				>
 					<iconify-icon icon="mdi:magnify-minus" width="16"></iconify-icon>
-				</button>
-				<button
+				</Button>
+				<Button variant="outline"
 					type="button"
-					class="toolbar-icon-btn"
 					onclick={onZoomReset}
 					title="Reset zoom (0)"
 					aria-label="Reset zoom"
 					aria-keyshortcuts="0"
 				>
 					<iconify-icon icon="mdi:magnify" width="16"></iconify-icon>
-				</button>
-				<button
+				</Button>
+				<Button variant="outline"
 					type="button"
-					class="toolbar-icon-btn"
 					onclick={onZoomIn}
 					title="Zoom in (+)"
 					aria-label="Zoom in"
 					aria-keyshortcuts="+"
 				>
 					<iconify-icon icon="mdi:magnify-plus" width="16"></iconify-icon>
-				</button>
+				</Button>
 			</div>
-			<button
+			<Button variant="outline"
 				type="button"
-				class="toolbar-btn"
 				onclick={() => imageEditorStore.handleUndo()}
 				disabled={!canUndo}
 				title="Undo (Mod+Z)"
@@ -126,10 +122,9 @@ Features:
 				aria-keyshortcuts="Mod+Z"
 			>
 				<iconify-icon icon="mdi:undo" width="18"></iconify-icon>
-			</button>
-			<button
+			</Button>
+			<Button variant="outline"
 				type="button"
-				class="toolbar-btn"
 				onclick={() => imageEditorStore.handleRedo()}
 				disabled={!canRedo}
 				title="Redo (Mod+Shift+Z)"
@@ -137,10 +132,9 @@ Features:
 				aria-keyshortcuts="Mod+Shift+Z"
 			>
 				<iconify-icon icon="mdi:redo" width="18"></iconify-icon>
-			</button>
-			<button
+			</Button>
+			<Button variant="outline"
 				type="button"
-				class="toolbar-btn toolbar-btn-primary"
 				onclick={onsave}
 				disabled={isSaving}
 				title="Save changes (Mod+S)"
@@ -153,7 +147,7 @@ Features:
 					<iconify-icon icon="mdi:check" width="18" aria-hidden="true"></iconify-icon>
 				{/if}
 				<span class="text-xs font-medium">Save</span>
-			</button>
+			</Button>
 		</div>
 	</div>
 
@@ -163,7 +157,7 @@ Features:
 	<!-- Error Toast -->
 	{#if imageEditorStore.state.error}
 		<div
-			class="absolute bottom-full start-1/2 mb-4 -translate-x-1/2 flex items-center gap-2 rounded-full bg-error-500/95 px-5 py-2.5 text-sm font-medium text-white shadow-xl backdrop-blur-sm"
+			class="absolute bottom-full inset-s-1/2 mb-4 -translate-x-1/2 flex items-center gap-2 rounded-full bg-error-500/95 px-5 py-2.5 text-sm font-medium text-white shadow-xl backdrop-blur-sm"
 			transition:fade={{ duration: 200 }}
 		>
 			<iconify-icon icon="mdi:alert-circle" width="18"></iconify-icon>
@@ -194,67 +188,6 @@ Features:
 		}
 	}
 
-	.toolbar-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		min-width: 2.5rem;
-		height: 2.5rem;
-		padding: 0 0.75rem;
-		color: #9ca3af;
-		cursor: pointer;
-		background: transparent;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 0.5rem;
-		transition: all 0.15s ease;
-	}
-
-	.toolbar-icon-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		color: #d1d5db;
-		background: transparent;
-		border: 1px solid transparent;
-		border-radius: 9999px;
-		transition: all 0.15s ease;
-	}
-
-	.toolbar-icon-btn:hover {
-		color: #ffffff;
-		background: rgba(255, 255, 255, 0.06);
-		border-color: rgba(255, 255, 255, 0.08);
-	}
-
-	.toolbar-btn:hover:not(:disabled) {
-		color: #e5e7eb;
-		background: rgba(255, 255, 255, 0.05);
-	}
-
-	.toolbar-btn:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.toolbar-btn-primary {
-		color: #60a5fa;
-		border-color: rgba(59, 130, 246, 0.3);
-		background: rgba(59, 130, 246, 0.1);
-	}
-
-	.toolbar-btn-primary:hover:not(:disabled) {
-		color: #93c5fd;
-		background: rgba(59, 130, 246, 0.2);
-	}
-
-	.toolbar-btn-compare {
-		min-width: auto;
-		padding-inline: 0.9rem;
-	}
-
 	/* Mobile optimizations */
 	@media (max-width: 640px) {
 		.editor-toolbar {
@@ -279,28 +212,5 @@ Features:
 			gap: 0.375rem;
 		}
 
-		.toolbar-btn,
-		.toolbar-btn-compare {
-			padding-inline: 0.6rem;
-			min-width: 2.25rem;
-		}
-
-		.toolbar-btn-compare span {
-			display: none;
-		}
-
-		.action-group :global(.toolbar-btn),
-		.action-group :global(.toolbar-icon-btn) {
-			flex: 1 1 auto;
-		}
-
-		.toolbar-icon-btn {
-			width: 1.9rem;
-			height: 1.9rem;
-		}
-
-		.toolbar-btn-primary span {
-			display: none;
-		}
 	}
 </style>

@@ -125,7 +125,7 @@ The audit logging system is designed for **system-wide monitoring**, not just us
 
 The diagram below illustrates the optimized data flow with audit logging integration:
 
-````mermaid
+```mermaid
 graph TD
     subgraph Browser["Browser (Client)"]
         A["User navigates to /user page"]
@@ -164,7 +164,7 @@ graph TD
     K --> M
     K --> N
     H --> J
-```text
+```
 
 ---
 
@@ -202,7 +202,7 @@ The system tracks 20 event types organized into key categories:
 
 ### Usage Examples
 
-```typescript
+```
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 
 // Log a successful user login
@@ -239,7 +239,7 @@ await auditLogService.log(
   { format: "json", recordCount },
   tenantId,
 );
-```text
+```
 
 ### Integration Points
 
@@ -284,7 +284,6 @@ The audit logging system is designed for minimal performance impact:
 ## Conclusion
 
 The SveltyCMS user management system provides a robust, secure, and scalable foundation for both personal profile management and enterprise-grade administration. With integrated audit logging, the system ensures comprehensive visibility into all security-critical events while maintaining optimal performance and user experience.
-````
 
 ---
 

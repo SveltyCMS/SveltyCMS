@@ -25,7 +25,7 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 The Collection Builder is a visual tool for creating and managing content collections in SveltyCMS. It provides an intuitive interface for defining content structures, organizing collections into categories, and configuring fields using the modern widget system.
 
-````mermaid
+```mermaid
 flowchart TB
     subgraph "Collection Builder Architecture"
         GUI["Visual Builder<br/>(GUI)"]
@@ -61,7 +61,7 @@ flowchart TB
     style CODE fill:#2196F3,color:#fff
     style MODAL fill:#FF5722,color:#fff
     style WARN fill:#FFC107,color:#000
-```text
+```
 
 > **Note**: The Collection Builder is currently in **beta** and under active development. Some features may not be fully functional yet. Report issues on [GitHub](https://github.com/SveltyCMS/SveltyCMS/issues).
 
@@ -473,7 +473,7 @@ SveltyCMS uses a **modern widget architecture** with three pillars:
 
 Widgets are created using the factory pattern:
 
-```typescript
+```
 import { createWidget } from "@widgets/widget-factory";
 
 const widget = createWidget({
@@ -484,7 +484,7 @@ const widget = createWidget({
     /* configuration */
   },
 });
-```text
+```
 
 See [Widget Architecture](/docs/guides/development/widgets/development) for details.
 
@@ -611,7 +611,7 @@ See [Widget Architecture](/docs/guides/development/widgets/development) for deta
 
 ### Content Structure Endpoint
 
-```http
+```
 POST /api/content-structure
 Content-Type: application/json
 
@@ -635,11 +635,11 @@ Content-Type: application/json
     }
   ]
 }
-```text
+```
 
 ### Collection Schema
 
-```typescript
+```
 interface Schema {
   _id: string;
   name: string;
@@ -662,7 +662,7 @@ interface FieldInstance {
   permissions?: FieldPermissions;
   // Widget-specific properties...
 }
-```text
+```
 
 ## Data Loss Warnings
 
@@ -691,14 +691,14 @@ When saving a collection with breaking changes, a **confirmation modal** display
 
 The schema comparison engine (`collectionSchemaWarnings.ts`) can be used programmatically:
 
-```typescript
+```
 import { analyzeSchemaChanges } from "@utils/collectionSchemaWarnings";
 
 const result = analyzeSchemaChanges(oldSchema, newSchema);
 if (result.hasDataLoss) {
   console.warn("⚠️ Data loss detected:", result.summary);
 }
-```text
+```
 
 ---
 
@@ -799,4 +799,3 @@ SveltyCMS is one of the few CMS platforms that uses **AST-based codemods** (`ts-
 ---
 
 **Feedback**: Report issues on [GitHub](https://github.com/SveltyCMS/SveltyCMS/issues)
-````

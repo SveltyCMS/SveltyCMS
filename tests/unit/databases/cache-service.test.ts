@@ -61,9 +61,9 @@ describe("CacheService (Whitebox)", () => {
       expect(result).toEqual({ data: "hello" });
     });
 
-    it("returns null for missing key", async () => {
+    it("returns undefined for missing key", async () => {
       const result = await service.get("nonexistent-key-xyz");
-      expect(result).toBeNull();
+      expect(result).toBeUndefined();
     });
 
     it("overwrites existing value", async () => {
@@ -79,15 +79,15 @@ describe("CacheService (Whitebox)", () => {
     it("clears a specific key", async () => {
       await service.set("to-delete", "value");
       await service.delete("to-delete");
-      expect(await service.get("to-delete")).toBeNull();
+      expect(await service.get("to-delete")).toBeUndefined();
     });
 
     it("clears all keys", async () => {
       await service.set("key-a", 1);
       await service.set("key-b", 2);
       await service.invalidateAll();
-      expect(await service.get("key-a")).toBeNull();
-      expect(await service.get("key-b")).toBeNull();
+      expect(await service.get("key-a")).toBeUndefined();
+      expect(await service.get("key-b")).toBeUndefined();
     });
 
     it("clears keys by pattern", async () => {
@@ -97,8 +97,8 @@ describe("CacheService (Whitebox)", () => {
 
       await service.clearByPattern("user:1:*");
 
-      expect(await service.get("user:1:profile")).toBeNull();
-      expect(await service.get("user:1:settings")).toBeNull();
+      expect(await service.get("user:1:profile")).toBeUndefined();
+      expect(await service.get("user:1:settings")).toBeUndefined();
       expect(await service.get("post:1:data")).toBe("c");
     });
   });

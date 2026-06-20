@@ -1,81 +1,151 @@
 ---
 path: "docs/api/utility.mdx"
 title: "Utilities (utility.ts)"
-description: "Reference for system helper services — trash management, cache clearing, email dispatching, and automated backups."
+description: "Reference for system helper services — cache management, trash recovery, email dispatching, OpenAPI spec, Swagger UI, version checking, and diagnostics."
 order: 20
 icon: "mdi:hammer-wrench"
 author: "SveltyCMS Team"
 created: "2026-03-24"
-updated: "2026-04-12"
+updated: "2026-06-15"
 tags:
   - "api"
   - "utility"
   - "maintenance"
   - "cache"
   - "email"
+  - "trash"
+  - "openapi"
 ---
 
 # Utilities Reference (`utility.ts`)
 
-The Utilities API provides a set of essential maintenance and support services that keep the SveltyCMS environment healthy and performant. It manages ephemeral data like caches, recoverable data like the Trash, and transactional communications like Email.
+The Utilities API provides a set of essential maintenance and support services that keep the SveltyCMS environment healthy and performant. It manages cache invalidation, recoverable data via the Trash, transactional email, API documentation, version checking, and diagnostics.
+
+> [!IMPORTANT]
+> All utility endpoints are **admin-gated**. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping, and individual handlers perform defense-in-depth `isAdmin` checks. Non-admin users receive `403 Forbidden`.
 
 ---
 
 ## ⚡ Quick Reference
 
-| Feature           | HTTP Endpoint        | Method | Permission Required |
-| :---------------- | :------------------- | :----- | :------------------ |
-| **System Cache**  | `/api/cache/clear`   | `POST` | `manage:system`     |
-| **Trash List**    | `/api/trash`         | `GET`  | `collection:delete` |
-| **Restore Entry** | `/api/trash/restore` | `POST` | `collection:delete` |
-| **Send Email**    | `/api/send-mail`     | `POST` | `manage:system`     |
-| **Marketplace**   | `/api/marketplace`   | `GET`  | **Public**          |
-| **OpenAPI Spec**  | `/api/openapi.json`  | `GET`  | **Public**          |
+| Feature                 | HTTP Endpoint        | Method | Admin Only |
+| :---------------------- | :------------------- | :----- | :--------: |
+| **OpenAPI Spec**        | `/api/openapi.json`  | `GET`  |     ✅     |
+| **Swagger UI**          | `/api/docs`          | `GET`  |     —      |
+| **Cache Clear**         | `/api/cache/clear`   | `POST` |     ✅     |
+| **Cache Stats**         | `/api/cache/stats`   | `GET`  |     ✅     |
+| **Trash List**          | `/api/trash`         | `GET`  |     ✅     |
+| **Restore Entry**       | `/api/trash/restore` | `POST` |     ✅     |
+| **Send Email**          | `/api/send-mail`     | `POST` |     ✅     |
+| **Version Check**       | `/api/version-check` | `GET`  |     ✅     |
+| **Config Sync**         | `/api/config_sync`   | `GET`  |     ✅     |
+| **Debug / Diagnostics** | `/api/debug`         | `GET`  |     ✅     |
+| **Marketplace**         | `/api/marketplace`   | `GET`  |     ✅     |
 
 ---
 
-## 1. Maintenance & Cache
+## 1. OpenAPI & API Documentation
 
-### System Cache Management
+### OpenAPI 3.1.0 Specification
 
-Manually invalidate the system-wide cache or clear specific categories (e.g., `collections`, `schemas`).
+Generates the full OpenAPI 3.1.0 specification dynamically. **Admin-gated** to prevent AI reconnaissance blinding.
+
+**Endpoint**: `GET /api/openapi.json`
+
+### Swagger UI Documentation Browser
+
+Serves an interactive Swagger UI that loads the spec from `/api/openapi.json`.
+
+**Endpoint**: `GET /api/docs`
+
+---
+
+## 2. Maintenance & Cache
+
+### Clear System Cache
+
+Invalidates the entire cache for the current tenant.
 
 **Endpoint**: `POST /api/cache/clear`  
-**Payload**: `{ "category": "all" }`
+**Payload**: `{}` (optional — the `category` field is accepted but the implementation currently clears all categories regardless)
+
+### Cache Statistics
+
+Returns live cache metrics including hit rates, size, and eviction counts.
+
+**Endpoint**: `GET /api/cache/stats`
 
 ---
 
-## 2. Recovery (The Trash)
+## 3. Recovery (The Trash)
 
 SveltyCMS implements a "Soft Delete" pattern. Deleted entries are moved to the Trash before being permanently purged.
 
-- **List Trash**: `GET /api/trash` — Returns a paginated list of items currently in the trash for the current tenant.
+- **List Trash**: `GET /api/trash` — Returns a paginated list of items currently in the trash for the current tenant. Accepts `?limit=` query param (default 50, max 200).
 - **Restore**: `POST /api/trash/restore` — Returns an item to its original collection and restores its original status.
-- **Empty Trash**: `DELETE /api/trash` — Permanently deletes all items in the trash.
+  - **Payload**: `{ "collectionId": "...", "entryId": "..." }`
+- **Empty Trash**: Not currently implemented via the API.
 
 ---
 
-## 3. Communication
+## 4. Communication
 
 ### Transactional Email
 
-Send Svelte-rendered emails directly via the API.
+Send emails directly via the API using the system mail service.
 
 **Endpoint**: `POST /api/send-mail`  
 **Payload**:
 
-````json
+```json
 {
-  "recipientEmail": "user@example.com",
+  "to": "user@example.com",
   "subject": "System Alert",
-  "template": "alert",
-  "props": { "message": "High CPU usage" }
+  "templateName": "alert",
+  "props": { "message": "High CPU usage" },
+  "languageTag": "en"
 }
-```text
+```
+
+| Field          | Type     | Required | Description                             |
+| :------------- | :------- | :------- | :-------------------------------------- |
+| `to`           | `string` | ✅       | Recipient email address                 |
+| `subject`      | `string` | ✅       | Email subject line                      |
+| `templateName` | `string` | —        | Template to render (default: `generic`) |
+| `props`        | `object` | —        | Template variables                      |
+| `languageTag`  | `string` | —        | Locale for rendering (default: `en`)    |
 
 ---
 
-## 4. The Mechanics
+## 5. System Diagnostics
+
+### Version Check
+
+Checks for available updates.
+
+**Endpoint**: `GET /api/version-check?checkUpdates=true`
+
+### Configuration Sync
+
+Triggers a configuration synchronization.
+
+**Endpoint**: `GET /api/config_sync`
+
+### Debug / Diagnostics
+
+Returns system diagnostics including uptime, memory usage, and environment info. **Admin-only**.
+
+**Endpoint**: `GET /api/debug`
+
+### Marketplace
+
+Placeholder endpoint for the extensions marketplace.
+
+**Endpoint**: `GET /api/marketplace`
+
+---
+
+## 6. The Mechanics
 
 ### Utility Dispatcher
 
@@ -83,12 +153,17 @@ The `utility.ts` handler manages a wide range of disparate system helper tasks. 
 
 ```mermaid
 graph LR
-    A[Utility API] --> B[TrashManager]
-    A --> C[CacheService]
-    A --> D[EmailService]
-    A --> E[MarketplaceService]
-    A --> F[OpenAPI Generator]
-```text
+    A[Utility API] --> B[CacheService]
+    A --> C[Trash / ContentSystem]
+    A --> D[Email / SystemNamespace]
+    A --> E[ApiSpecService]
+    A --> F[VersionCheckService]
+    A --> G[Debug / Diagnostics]
+```
+
+### Access Control
+
+All utility namespaces are absent from the `ENDPOINT_PERMISSIONS` mapping in the API dispatcher, causing the framework to **fail-closed**: non-admin users receive `403 Forbidden`. Individual handlers (e.g., OpenAPI, Debug) perform additional defense-in-depth `isAdmin` checks.
 
 ---
 
@@ -97,4 +172,3 @@ graph LR
 - [System Reference (system.ts)](./system.mdx)
 - [Content Reference (content.ts)](./content.mdx)
 - [API Coverage Report](./api-coverage-report.mdx)
-````

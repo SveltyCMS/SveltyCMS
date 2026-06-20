@@ -16,7 +16,8 @@
 -->
 
 <script lang="ts">
-import PageTitle from "@src/components/page-title.svelte";
+import AdminPageShell from "@components/admin-page-shell.svelte";
+import AdminCard from '@components/admin-card.svelte';
 import Tabs from "@components/ui/tabs";
 import { system_permission, system_roles } from "@src/paraglide/messages";
 import {
@@ -34,6 +35,7 @@ import AdminRole from "./admin-role.svelte";
 import Permissions from "./permissions.svelte";
 import Roles from "./roles.svelte";
 import WebsiteTokens from "./website-tokens.svelte";
+	import Button from '@components/ui/button.svelte';
 
 // Use $state for local component state
 let currentTab = $state("0"); // Initial tab set to string '0' for Tabs component
@@ -117,36 +119,32 @@ beforeNavigate(({ cancel }) => {
 });
 </script>
 
-<div class="absolute inset-0 p-2 space-y-5 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<PageTitle name="Access Management" icon="mdi:shield-account-outline" showBackButton={true} backUrl="/config">
+<AdminPageShell title="Access Management" icon="mdi:shield-account-outline" showBackButton={true} backUrl="/config">
+	{#snippet actions()}
 		<StickyActions>
-		<button
+		<Button variant="tertiary"
 			onclick={saveAllChanges}
 			aria-label="Save all changes"
-			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn font-semibold shadow-xs"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
-		>
+		 class="dark: font-semibold shadow-xs">
 			{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
 				Saving...
 			{:else}
 				Save ({modifiedCount})
 			{/if}
-		</button>
+		</Button>
 
-		<button
+		<Button variant="ghost"
 			onclick={resetChanges}
 			aria-label="Reset changes"
-			class="preset-ghost-surface-500 btn font-semibold shadow-xs"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
-		>
+		 class="font-semibold shadow-xs">
 			Reset
-		</button>
+		</Button>
 		</StickyActions>
-	</PageTitle>
+	{/snippet}
 
-	<!-- Content -->
-	<div class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
+	<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
 		<div class="mb-4">
 			<p class="text-tertiary-500 dark:text-primary-500 text-sm">
 				Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
@@ -189,5 +187,5 @@ beforeNavigate(({ cancel }) => {
 			<Tabs.Content value="2"><div class="p-2"><AdminRole roleData={rolesData} {setRoleData} /></div></Tabs.Content>
 			<Tabs.Content value="3"><div class="p-2"><WebsiteTokens permissions={page.data.permissions} /></div></Tabs.Content>
 		</Tabs>
-	</div>
-</div>
+	</AdminCard>
+</AdminPageShell>

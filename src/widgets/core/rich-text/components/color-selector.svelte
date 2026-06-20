@@ -17,6 +17,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { onMount } from 'svelte';
 	import ColorPicker, { ChromeVariant } from 'svelte-awesome-color-picker';
 
@@ -111,18 +112,16 @@
 </script>
 
 <div class="wrapper" class:hidden={!show} bind:this={wrapperRef}>
-	<button
+	<Button variant="outline"
 		type="button"
 		onclick={toggle}
-		onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle()}
+		onkeydown={(e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && toggle()}
 		aria-label="Select color"
 		aria-expanded={expanded}
 		aria-controls="color-palette-{key}"
-		class="selected btn-sm arrow"
-		class:arrow_up={expanded}
-	>
+	 size="sm" class="selected arrow">
 		<iconify-icon icon="fluent-mdl2:color-solid" width={24}></iconify-icon>
-	</button>
+	</Button>
 	{#if expanded}
 		<div id="color-palette-{key}" class="palette" use:setPosition>
 			<ColorPicker bind:hex={color} components={ChromeVariant} sliderDirection="horizontal" isDialog={false} />

@@ -147,12 +147,19 @@ export interface FindOptions<T> extends BaseQueryOptions {
 }
 
 export interface QueryOptimizationHints {
+  /** Max documents to return in a single batch */
   batchSize?: number;
+  /** Max execution time in milliseconds before the query is aborted */
   maxExecutionTime?: number;
-  readPreference?: "primary" | "secondary" | "nearest";
-  readConcern?: "local" | "majority" | "snapshot" | "linearizable" | "available";
-  writeConcern?: "majority" | number | { w: "majority" | number; wtimeout?: number; j?: boolean };
+  /** Adapter-specific hints for the MongoDB adapter. Ignored by SQL adapters. */
+  mongo?: {
+    readPreference?: "primary" | "secondary" | "nearest";
+    readConcern?: "local" | "majority" | "snapshot" | "linearizable" | "available";
+    writeConcern?: "majority" | number | { w: "majority" | number; wtimeout?: number; j?: boolean };
+  };
+  /** Enable streaming (cursor-based) result retrieval */
   streaming?: boolean;
+  /** Specific indexes to hint for the query planner */
   useIndex?: string[];
 }
 
@@ -254,6 +261,19 @@ export type DatabaseResult<T> =
 
 export type RecordObject = Record<string, unknown>;
 
+/**
+ * Database-agnostic query operator type.
+ *
+ * The `$` prefix is a **namespace delimiter** (not MongoDB-specific).
+ * Every adapter translates these operators to its native syntax:
+ *   MongoDB  → passes through natively
+ *   MariaDB  → $ne → !=, $in → IN (...), $regex → REGEXP
+ *   PostgreSQL → $ne → !=, $in → IN (...), $regex → ~
+ *   SQLite   → $ne → !=, $in → IN (...), $regex → REGEXP
+ *
+ * This shared DSL keeps query construction database-agnostic across all
+ * hooks, services, and handler layers without leaking SQL/MQL specifics.
+ */
 export type QueryOperator<T> =
   | T
   | {
@@ -270,6 +290,11 @@ export type QueryOperator<T> =
       $options?: string;
     };
 
+/**
+ * Database-agnostic query filter type.
+ * Logical operators ($or, $and, $not, $nor) follow the same `$`-prefix
+ * convention as field operators — translated per adapter in `mapQuery()`.
+ */
 export type QueryFilter<T> = {
   [K in keyof T]?: QueryOperator<T[K]>;
 } & {
@@ -482,6 +507,49 @@ export interface QueryBuilder<T = unknown> {
   whereNotIn<K extends keyof T>(field: K, values: NonNullable<T[K]>[]): this;
   whereNotNull<K extends keyof T>(field: K): this;
   whereNull<K extends keyof T>(field: K): this;
+}
+
+// ============================================================================
+// Query IR Types (inlined from removed core/query-ir.ts for slimming the abstraction layer)
+// These types are kept here as they are part of the public IDBAdapter contract surface
+// (referenced by mapQuery in ISqlAdapter and Mongo adapter).
+// The heavy QueryTranslator is now inlined into the two mapQuery consumers.
+// ============================================================================
+
+export type Operator =
+  | "$eq"
+  | "$ne"
+  | "$gt"
+  | "$gte"
+  | "$lt"
+  | "$lte"
+  | "$in"
+  | "$nin"
+  | "$contains"
+  | "$regex"
+  | "$like"
+  | "$exists"
+  | "$or"
+  | "$and"
+  | "$not";
+
+export interface QueryCondition {
+  field: string;
+  operator: Operator;
+  value: any;
+}
+
+export interface LogicalGroup {
+  operator: "$or" | "$and" | "$not";
+  conditions: (QueryCondition | LogicalGroup)[];
+}
+
+export interface QueryIR {
+  collection: string;
+  filter: LogicalGroup;
+  limit?: number;
+  offset?: number;
+  sort?: Array<{ field: string; direction: "asc" | "desc" }>;
 }
 
 export interface DatabaseTransaction {
@@ -749,6 +817,21 @@ export interface ICrudAdapter {
     amount: number,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Record<string, unknown>>>;
+}
+
+export interface IFtsAdapter {
+  search(
+    collection: string,
+    query: string,
+    options?: {
+      columns?: Array<{ name: string; weight?: "A" | "B" | "C" | "D" }>;
+      limit?: number;
+      offset?: number;
+      tenantId?: string | null;
+      language?: string;
+      filters?: Record<string, unknown>;
+    },
+  ): Promise<DatabaseResult<{ items: any[]; total: number }>>;
 }
 
 export interface IMediaAdapter {
@@ -1190,6 +1273,28 @@ export interface ISqlAdapter extends BaseAdapter {
   };
 }
 
+/** Database-agnostic Full-Text Search adapter. Each DB adapter implements its native FTS. */
+export interface IFtsAdapter {
+  /**
+   * Execute a full-text search query against a collection.
+   * @param collection - The collection/table name
+   * @param query - User's search query string
+   * @param options - Search configuration
+   */
+  search(
+    collection: string,
+    query: string,
+    options?: {
+      columns?: Array<{ name: string; weight?: "A" | "B" | "C" | "D" }>;
+      limit?: number;
+      offset?: number;
+      tenantId?: DatabaseId | null;
+      language?: string;
+      filters?: Record<string, unknown>;
+    },
+  ): Promise<DatabaseResult<{ items: any[]; total: number }>>;
+}
+
 export interface IDBAdapter {
   type: string;
   // Top-Level Domains
@@ -1199,6 +1304,9 @@ export interface IDBAdapter {
   media: IMediaAdapter;
   system: ISystemAdapter;
   monitoring: IMonitoringAdapter;
+
+  /** Database-agnostic Full-Text Search adapter (optional). */
+  fts?: IFtsAdapter;
 
   // High-Performance Batch Operations
   batch: IBatchAdapter;

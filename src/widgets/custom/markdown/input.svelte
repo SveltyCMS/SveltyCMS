@@ -5,6 +5,8 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import { sanitizeHtml } from '@utils/sanitize-html';
 	import type { FieldType } from './index';
@@ -57,9 +59,9 @@
 	<!-- Toolbar -->
 	<div class="flex items-center justify-between bg-surface-100 dark:bg-surface-800 p-2 border-b border-surface-200 dark:border-surface-700">
 		<div class="flex gap-1">
-			<button type="button" class="px-3 py-1 rounded text-xs font-semibold transition-colors {previewMode === 'edit' ? 'bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-500 dark:hover:bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700'}" onclick={() => previewMode = 'edit'}>Edit</button>
-			<button type="button" class="px-3 py-1 rounded text-xs font-semibold transition-colors {previewMode === 'split' ? 'bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-500 dark:hover:bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700'}" onclick={() => previewMode = 'split'}>Split</button>
-			<button type="button" class="px-3 py-1 rounded text-xs font-semibold transition-colors {previewMode === 'preview' ? 'bg-tertiary-500 hover:bg-tertiary-600 dark:bg-primary-500 dark:hover:bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700'}" onclick={() => previewMode = 'preview'}>Preview</button>
+			<Button type="button" size="sm" variant={previewMode === 'edit' ? 'tertiary' : 'surface'} onclick={() => previewMode = 'edit'}>Edit</Button>
+			<Button type="button" size="sm" variant={previewMode === 'split' ? 'tertiary' : 'surface'} onclick={() => previewMode = 'split'}>Split</Button>
+			<Button type="button" size="sm" variant={previewMode === 'preview' ? 'tertiary' : 'surface'} onclick={() => previewMode = 'preview'}>Preview</Button>
 		</div>
 		<span class="text-[10px] text-surface-400 uppercase font-bold">{LANGUAGE}</span>
 	</div>
@@ -67,13 +69,14 @@
 	<!-- Editor Area -->
 	<div class="flex h-100">
 		{#if previewMode !== 'preview'}
-			<textarea
+			<Textarea
 				aria-label={field.label || field.db_fieldName || 'Markdown editor'}
-				class="textarea flex-1 p-4 font-mono text-sm border-none focus:ring-0 bg-transparent resize-none"
+				class="flex-1 space-y-0"
+				textareaClass="min-h-0 flex-1 resize-none border-0 bg-transparent p-4 font-mono text-sm shadow-none focus-visible:ring-0"
 				value={rawText}
 				oninput={handleInput}
 				placeholder="Write markdown here..."
-			></textarea>
+			/>
 		{/if}
 
 		{#if previewMode !== 'edit'}

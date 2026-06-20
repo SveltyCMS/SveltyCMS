@@ -39,6 +39,8 @@ reveal after position calculation prevents layout flash.
 		triggerClass?: string;
 		content?: Snippet;
 		children?: Snippet;
+		role?: string | null;
+		tabindex?: number | string | null;
 		[key: string]: any;
 	}
 
@@ -49,6 +51,8 @@ reveal after position calculation prevents layout flash.
 		triggerClass,
 		content,
 		children,
+		role = "button",
+		tabindex = 0,
 		...rest
 	}: Props = $props();
 
@@ -56,6 +60,7 @@ reveal after position calculation prevents layout flash.
 	let referenceEl = $state<HTMLElement | null>(null);
 	let floatingEl = $state<HTMLElement | null>(null);
 	let arrowEl = $state<HTMLElement | null>(null);
+	let hasFocusableDescendant = $state(false);
 
 	const placement = $derived(positioning.placement ?? "top");
 	const gutter = $derived(positioning.gutter ?? 8);
@@ -71,6 +76,27 @@ reveal after position calculation prevents layout flash.
 		showArrow: () => true,
 	});
 
+	$effect(() => {
+		if (referenceEl) {
+			const focusable = referenceEl.querySelectorAll(
+				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+			);
+			hasFocusableDescendant = focusable.length > 0;
+			if (hasFocusableDescendant) {
+				for (const el of focusable) {
+					if (open) {
+						el.setAttribute('aria-describedby', 'tooltip-content');
+					} else {
+						el.removeAttribute('aria-describedby');
+					}
+				}
+			}
+		}
+	});
+
+	const activeTabindex = $derived(hasFocusableDescendant ? undefined : (tabindex === null ? undefined : (typeof tabindex === 'string' ? parseInt(tabindex, 10) : tabindex)));
+	const activeRole = $derived(hasFocusableDescendant ? undefined : (role === null ? undefined : role));
+
 	function show() {
 		open = true;
 	}
@@ -84,16 +110,17 @@ reveal after position calculation prevents layout flash.
 
 <svelte:window onkeydown={handleKeydown} />
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={referenceEl}
 	class={cn("inline-block", triggerClass)}
 	onmouseenter={show}
 	onmouseleave={hide}
-	onfocus={show}
-	onblur={hide}
-	aria-describedby={open ? "tooltip-content" : undefined}
-	tabindex="0"
-	role="button"
+	onfocusin={show}
+	onfocusout={hide}
+	aria-describedby={open && !hasFocusableDescendant ? "tooltip-content" : undefined}
+	tabindex={activeTabindex}
+	role={activeRole}
 	{...rest}
 >
 	{#if children}

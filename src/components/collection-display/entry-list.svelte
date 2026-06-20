@@ -40,6 +40,7 @@ bulk actions, and predictive preloading.
 -->
 
 <script module lang="ts">
+	import Button from '@components/ui/button.svelte';
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
@@ -98,6 +99,7 @@ bulk actions, and predictive preloading.
 	import { page } from '$app/state';
 	import EntryListMultiButton from './entry-list-multi-button.svelte';
 	import TranslationStatus from './translation-status.svelte';
+	import EntryListCell from './entry-list-cell.svelte';
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -172,6 +174,8 @@ bulk actions, and predictive preloading.
 	}
 
 	const filterDebounce = debounce(500);
+	const searchDebounce = debounce(400);
+	const useRowVirtualization = $derived(serverPagination.pageSize > 25);
 
 	function onFilterChange(filterName: string, value: string) {
 		filterDebounce(() => {
@@ -287,65 +291,48 @@ bulk actions, and predictive preloading.
 		}
 	}
 
-	// Phase 2: Batch preloading during idle time
+	// Batch warm-cache: single POST for all visible row IDs (not one request per entry)
 	async function batchPreloadVisibleEntries() {
-		if (!(isPreloadEnabled && browser)) {
+		if (!(isPreloadEnabled && browser && currentCollection?._id)) {
 			return;
 		}
 
-		// Use requestIdleCallback for background loading
+		const entriesToPreload = tableData.slice(0, 5);
+		const entryIds = entriesToPreload
+			.map((e) => e._id as string)
+			.filter((id) => {
+				if (!id) return false;
+				const cached = preloadedEntries.get(id);
+				return !cached || Date.now() - cached.timestamp > PRELOAD_CACHE_TTL;
+			});
+
+		if (entryIds.length === 0) return;
+
+		const warm = async () => {
+			try {
+				await fetch('/api/collections/warm-cache', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						collectionId: currentCollection._id,
+						entryIds
+					})
+				});
+
+				const now = Date.now();
+				for (const id of entryIds) {
+					preloadedEntries.set(id, { data: null, timestamp: now, hoverCount: 0 });
+				}
+				logger.debug(`[Batch Preload] Warmed ${entryIds.length} entries in one request`);
+			} catch (error) {
+				logger.warn('[Batch Preload] Failed:', error);
+			}
+		};
+
 		if ('requestIdleCallback' in window) {
-			(window as any).requestIdleCallback(
-				async (deadline: any) => {
-					let i = 0;
-					const entriesToPreload = tableData.slice(0, 5); // First 5 visible entries
-
-					while (i < entriesToPreload.length && deadline.timeRemaining() > 0) {
-						const entry = entriesToPreload[i];
-						if (!entry._id) {
-							i++;
-							continue;
-						}
-						const cached = preloadedEntries.get(entry._id);
-
-						if (!cached || Date.now() - cached.timestamp > PRELOAD_CACHE_TTL) {
-							try {
-								const preloadUrl = new URL(page.url);
-								preloadUrl.searchParams.set('edit', entry._id as string);
-
-								// Use new warm-cache endpoint for batch preloading
-								await fetch('/api/collections/warm-cache', {
-									method: 'POST',
-									headers: { 'Content-Type': 'application/json' },
-									body: JSON.stringify({
-										collectionId: currentCollection?._id,
-										entryIds: [entry._id as string] // We could batch this further if we refactor the loop
-									})
-								});
-
-								// Keep existing preload for edit page data if needed, or rely on warm cache
-								/* await fetch(preloadUrl.toString(), {
-									method: 'GET',
-									credentials: 'include',
-									headers: { 'X-Preload': 'true', 'X-Batch-Preload': 'true' }
-								}); */
-
-								preloadedEntries.set(entry._id as string, {
-									data: null,
-									timestamp: Date.now(),
-									hoverCount: 0
-								});
-
-								logger.debug(`[Batch Preload] Entry ${entry._id?.substring(0, 8)} preloaded during idle`);
-							} catch (error) {
-								logger.warn('[Batch Preload] Failed:', error);
-							}
-						}
-						i++;
-					}
-				},
-				{ timeout: 2000 }
-			);
+			(window as any).requestIdleCallback(warm, { timeout: 2000 });
+		} else {
+			await warm();
 		}
 	}
 
@@ -451,22 +438,20 @@ bulk actions, and predictive preloading.
 		}
 	});
 
-	// Reactive effect to update URL when globalSearchValue changes (user typing)
+	// Debounced search → URL (triggers server FTS via collection-service query.search)
 	$effect(() => {
 		const searchValue = globalSearchValue;
 		const currentUrlSearch = page.url.searchParams.get('search') || '';
 
-		// Skip if values match (avoid loop) or initial empty state
 		if (searchValue === currentUrlSearch) {
 			return;
 		}
 
-		// Use untrack to prevent infinite loops from URL changes
 		untrack(() => {
-			filterDebounce(() => {
+			searchDebounce(() => {
 				updateURL({
 					search: searchValue || null,
-					page: searchValue ? 1 : null // Reset to page 1 when searching, preserve page when clearing
+					page: searchValue ? 1 : null
 				});
 			});
 		});
@@ -545,6 +530,7 @@ bulk actions, and predictive preloading.
 				id: `${cacheKey}-${getFieldName(field)}`,
 				label: field.label,
 				name: getFieldName(field),
+				widgetName: field.widget?.Name || field.type || 'Input',
 				visible: true
 			})
 		);
@@ -868,31 +854,30 @@ bulk actions, and predictive preloading.
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
 			{#if ui.state.leftSidebar === 'hidden'}
-				<button
+				<Button variant="outline"
 					type="button"
 					onkeydown={() => {}}
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 					aria-label="open-sidebar"
-					class="preset-outlined-surface-500 btn-icon mt-1"
-				>
+				 class="p-0! min-w-0 mt-1">
 					<iconify-icon icon="mingcute:menu-fill" width={24}></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 
 			<!-- Collection type with icon -->
-			<div class="mr-1 flex flex-col {!ui.state.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="me-1 flex flex-col {!ui.state.leftSidebar ? 'ms-2' : 'ms-1 sm:ms-2'}">
 				{#if categoryName}
 					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-50 rtl:text-left">{categoryName}</div>
 				{/if}
 				<h1 class="-mt-2 flex justify-start text-sm font-bold capitalize dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}
-						<span> <iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon> </span>
+						<span> <iconify-icon icon={currentCollection.icon} width="24" class="me-1 text-error-500 sm:mr-2"></iconify-icon> </span>
 					{/if}
 					{#if currentCollection?.name}
 						<div class="flex max-w-21.25 whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
 							{#if collectionStats}
-								<span class="ml-2 text-xs font-normal text-surface-500">({collectionStats.count})</span>
+								<span class="ms-2 text-xs font-normal text-surface-500">({collectionStats.count})</span>
 							{/if}
 						</div>
 					{/if}
@@ -901,15 +886,14 @@ bulk actions, and predictive preloading.
 		</div>
 		<div class="flex items-center justify-between gap-1">
 			<!-- Expand/Collapse -->
-			<button
+			<Button variant="outline"
 				type="button"
 				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
-				class="preset-outlined-surface-500 btn-icon p-1 sm:hidden"
 				aria-label="expand-collapse-filters"
-			>
+			 class="p-0! min-w-0 sm:hidden">
 				<iconify-icon icon="material-symbols:filter-list-rounded" width={24}></iconify-icon>
-			</button>
+			</Button>
 
 			<!-- Translation Content Language - Mobile -->
 			<div class="mt-1 sm:hidden"><TranslationStatus /></div>
@@ -955,15 +939,15 @@ bulk actions, and predictive preloading.
 			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
 				<div class="flex items-center gap-2">
 					<label class="flex items-center">
-						<input type="checkbox" bind:checked={selectAllColumns.value} class="mr-1" aria-label="select-all-columns" />
+						<input type="checkbox" bind:checked={selectAllColumns.value} class="me-1" aria-label="select-all-columns" />
 
 						{entrylist_all()}
 					</label>
 
-					<button class="bg-surface-400 btn text-white" onclick={resetViewSettings} aria-label="reset-view">
+					<Button variant="outline" onclick={resetViewSettings} aria-label="reset-view" class="bg-surface-400 text-white">
 						<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
 						Reset View
-					</button>
+					</Button>
 				</div>
 				<section
 					use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300, type: 'columns', dropTargetStyle: { outline: 'none' } }}
@@ -973,19 +957,16 @@ bulk actions, and predictive preloading.
 				>
 					{#each displayTableHeaders as header (header.id)}
 						<div animate:flip={{ duration: 300 }}>
-							<button
+							<Button variant="tertiary"
 								type="button"
-								class="chip {header.visible
-									? 'dark:preset-filled-primary-500 preset-filled-tertiary-500'
-									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
 								onclick={() => handleColumnVisibilityToggle(header)}
 								aria-label="toggle-column-visibility"
-							>
+							 class="chip {header.visible ? 'dark: ' : 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move">
 								{#if header.visible}
-									<iconify-icon icon="fa:check" width={24} class="mr-1"></iconify-icon>
+									<iconify-icon icon="fa:check" width={24} class="me-1"></iconify-icon>
 								{/if}
 								<span class="capitalize">{header.label}</span>
-							</button>
+							</Button>
 						</div>
 					{/each}
 				</section>
@@ -1003,7 +984,7 @@ bulk actions, and predictive preloading.
 							<th>
 								<!-- Clear All Filters Button -->
 								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
-									<button
+									<Button variant="outline"
 										onclick={() => {
 											const clearedFilters: Record<string, string> = {};
 											const urlUpdates: Record<string, string | null> = {};
@@ -1018,10 +999,9 @@ bulk actions, and predictive preloading.
 											updateURL(urlUpdates);
 										}}
 										aria-label="clear-all-filters"
-										class="preset-outlined-surface-500 btn-icon"
-									>
+									 class="p-0! min-w-0">
 										<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
-									</button>
+									</Button>
 								{/if}
 							</th>
 							<!-- Filter -->
@@ -1075,7 +1055,7 @@ bulk actions, and predictive preloading.
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
 										{const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-										<iconify-icon icon={sortIcon} width="16" class="ml-1 origin-center"></iconify-icon>
+										<iconify-icon icon={sortIcon} width="16" class="ms-1 origin-center"></iconify-icon>
 									{/if}
 								</button>
 							</th>
@@ -1087,6 +1067,7 @@ bulk actions, and predictive preloading.
 						{#each tableData as entry, index (entry._id)}
 							<tr
 								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-tertiary-500 dark:bg-primary-500' : ''}"
+								style={useRowVirtualization ? 'content-visibility: auto; contain-intrinsic-size: 48px;' : undefined}
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 							>
@@ -1201,17 +1182,14 @@ bulk actions, and predictive preloading.
 															})}
 														</div>
 													</div>
-												{:else if typeof (entry as any)[(header as TableHeader).name || ''] === 'object' && (entry as any)[(header as TableHeader).name || ''] !== null}
-													{const fieldData = (entry as any)[(header as TableHeader).name || ''] as Record<string, any>}
-													{const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
-													{const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
-													{#if (header as TableHeader).name === 'last_name'}
-														<span title={debugInfo}><Sanitize html={translatedValue} profile="strict" /></span>
-													{:else}
-														<Sanitize html={translatedValue} profile="strict" />
-													{/if}
-												{:else if (header as TableHeader).name === 'plugin'}
-													<!-- <PluginComponent /> -->
+												{:else if (header as TableHeader).widgetName}
+													<EntryListCell
+														widgetName={(header as TableHeader).widgetName}
+														fieldName={(header as TableHeader).name || ''}
+														value={(entry as any)[(header as TableHeader).name || '']}
+														contentLanguage={currentLanguage}
+														compact={true}
+													/>
 												{:else}
 													<Sanitize html={String((entry as any)[(header as TableHeader).name || ''] || '-')} profile="strict" />
 												{/if}

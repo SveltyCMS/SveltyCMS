@@ -77,9 +77,9 @@
 		aria-labelledby="video-dialog-title"
 		class="fixed start-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform rounded bg-white p-6 shadow-xl"
 	>
-		<button type="button" class="btn-icon btn-icon-sm absolute end-4 top-4" onclick={close} aria-label="Close">
+		<Button variant="ghost" type="button" onclick={close} aria-label="Close" class="p-0! min-w-0 absolute end-4 top-4">
 			<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
-		</button>
+		</Button>
 
 		<h3 id="video-dialog-title" class="mb-4 text-lg font-medium">Add Video</h3>
 

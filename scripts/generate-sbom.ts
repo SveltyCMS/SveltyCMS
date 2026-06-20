@@ -7,8 +7,8 @@
  * Output: sbom.json (project root)
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import fs from "node:fs/promises";
 
 interface PackageInfo {
   name: string;
@@ -45,43 +45,43 @@ interface SBOM {
   }>;
 }
 
-function parseBunLock(): PackageInfo[] {
-  const lockContent = readFileSync("bun.lock", "utf-8");
-  const packages: PackageInfo[] = [];
-  const lines = lockContent.split("\n");
-  let currentPkg: Partial<PackageInfo> | null = null;
-  let inPackages = false;
-  let inDependencies = false;
+async function parseBunLock(): Promise<PackageInfo[]> {
+  try {
+    const rawText = await fs.readFile("bun.lock", "utf-8");
+    const cleanText = rawText.replace(/^\uFEFF/, "").replace(/,\s*([\]}])/g, "$1");
+    const lockData = JSON.parse(cleanText);
+    const packages: PackageInfo[] = [];
 
-  for (const line of lines) {
-    if (line.trim() === "packages:") {
-      inPackages = true;
-      continue;
-    }
-    if (!inPackages) continue;
-    if (line.match(/^  \w/)) inPackages = false;
+    if (lockData.packages) {
+      for (const [_name, info] of Object.entries(lockData.packages)) {
+        if (Array.isArray(info) && info.length >= 1) {
+          const fullPkgStr = info[0];
+          const lastAtIndex = fullPkgStr.lastIndexOf("@");
+          if (lastAtIndex > 0) {
+            const pkgName = fullPkgStr.substring(0, lastAtIndex);
+            const pkgVersion = fullPkgStr.substring(lastAtIndex + 1);
+            const integrity = info[3] || undefined;
 
-    const pkgMatch = line.match(/^\s{2}"([^"]+)":\s*\["([^"]+)",/);
-    if (pkgMatch && !inDependencies) {
-      if (currentPkg && currentPkg.name) packages.push(currentPkg as PackageInfo);
-      currentPkg = { name: pkgMatch[1], version: pkgMatch[2] };
-      continue;
+            packages.push({
+              name: pkgName,
+              version: pkgVersion,
+              integrity,
+            });
+          }
+        }
+      }
     }
-
-    if (currentPkg) {
-      const resolvedMatch = line.match(/"resolved":\s*"([^"]+)"/);
-      if (resolvedMatch) currentPkg.resolved = resolvedMatch[1];
-      const integrityMatch = line.match(/"integrity":\s*"([^"]+)"/);
-      if (integrityMatch) currentPkg.integrity = integrityMatch[1];
-    }
+    return packages;
+  } catch (error: any) {
+    console.error("Failed to parse bun.lock:", error.message);
+    return [];
   }
-
-  if (currentPkg && currentPkg.name) packages.push(currentPkg as PackageInfo);
-  return packages;
 }
 
-function buildSBOM(packages: PackageInfo[]): SBOM {
-  const pkgJson = JSON.parse(readFileSync("package.json", "utf-8"));
+async function buildSBOM(packages: PackageInfo[]): Promise<SBOM> {
+  const rawText = await fs.readFile("package.json", "utf-8");
+  const cleanText = rawText.replace(/^\uFEFF/, "");
+  const pkgJson = JSON.parse(cleanText);
   const devDeps = new Set(Object.keys(pkgJson.devDependencies || {}));
   const optDeps = new Set(Object.keys(pkgJson.optionalDependencies || {}));
 
@@ -106,9 +106,7 @@ function buildSBOM(packages: PackageInfo[]): SBOM {
         type: "library" as const,
         name: p.name,
         version: p.version,
-        purl: p.name.startsWith("@")
-          ? `pkg:npm/${p.name}@${p.version}`
-          : `pkg:npm/${p.name}@${p.version}`,
+        purl: `pkg:npm/${p.name}@${p.version}`,
         scope: optDeps.has(p.name)
           ? ("optional" as const)
           : devDeps.has(p.name)
@@ -119,10 +117,10 @@ function buildSBOM(packages: PackageInfo[]): SBOM {
   };
 }
 
-const packages = parseBunLock();
-const sbom = buildSBOM(packages);
+const packages = await parseBunLock();
+const sbom = await buildSBOM(packages);
 const outputPath = resolve(process.cwd(), "sbom.json");
-writeFileSync(outputPath, JSON.stringify(sbom, null, 2));
+await fs.writeFile(outputPath, JSON.stringify(sbom, null, 2), "utf-8");
 
 console.log(`✅ SBOM generated: ${outputPath}`);
 console.log(`   ${sbom.components.length} components`);

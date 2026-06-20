@@ -4,6 +4,10 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
+	import Alert from '@components/ui/alert.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
 		common_confirm_no,
@@ -280,6 +284,14 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 		unsupportedDbSelected = false; // All database types are now supported
 	});
+
+	const dbTypeOptions = [
+		{ value: 'sqlite', label: 'SQLite (via Drizzle) - RECOMMENDED' },
+		{ value: 'mongodb', label: 'MongoDB (localhost/Docker)' },
+		{ value: 'mongodb+srv', label: 'MongoDB Atlas (SRV)' },
+		{ value: 'mariadb', label: 'MariaDB (via Drizzle)' },
+		{ value: 'postgresql', label: 'PostgreSQL (via Drizzle)' }
+	];
 </script>
 
 <div class="fade-in">
@@ -360,13 +372,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</SystemTooltip>
 				</label>
 
-				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input w-full rounded border dark:border-surface-600">
-					<option value="sqlite">SQLite (via Drizzle) - RECOMMENDED</option>
-					<option value="mongodb">MongoDB (localhost/Docker)</option>
-					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
-					<option value="mariadb">MariaDB (via Drizzle)</option>
-					<option value="postgresql">PostgreSQL (via Drizzle)</option>
-				</select>
+				<Select id="db-type" bind:value={dbConfig.type} options={dbTypeOptions} placeholder="Select database type..." onchange={() => handleTypeChange()} />
 			</div>
 
 			{#if isInstallingDriver}
@@ -382,19 +388,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</div>
 			{/if}
 			{#if installError}
-				<div
-					class="mt-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-error-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
-					role="alert"
-				>
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
-						<span class="font-medium">Driver Installation Failed</span>
-					</div>
-					<p class="mt-1">{installError}</p>
+				<Alert variant="error" title="Driver Installation Failed" class="mt-2">
+					<p>{installError}</p>
 					<p class="mt-2 text-xs">
 						You can install the driver manually or continue with the setup (connection test will show installation instructions).
 					</p>
-				</div>
+				</Alert>
 			{/if}
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -412,7 +411,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</SystemTooltip>
 				</label>
 
-				<input
+				<Input
 					id="db-host"
 					bind:value={dbConfig.host}
 					type="text"
@@ -426,14 +425,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					}}
 					onpaste={handleHostPaste}
 					placeholder={isAtlas ? 'cluster0.abcde.mongodb.net' : setup_database_host_placeholder?.() || 'localhost'}
-					class="input w-full rounded border  dark:border-surface-600 {displayErrors.host ? 'border-error-500' : ''}"
-					aria-invalid={!!displayErrors.host}
-					aria-describedby={displayErrors.host ? 'db-host-error' : undefined}
-					aria-required="true"
+					error={displayErrors.host}
+					required
 				/>
-				{#if displayErrors.host}
-					<div id="db-host-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.host}</div>
-				{/if}
 				{#if showConnectionStringHelper}
 					<div
 						class="mt-2 rounded border border-green-200 bg-green-50 p-3 text-sm text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
@@ -469,21 +463,16 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</SystemTooltip>
 					</label>
 
-					<input
+					<Input
 						id="db-port"
 						bind:value={dbConfig.port}
 						type="text"
 						onchange={clearDbTestError}
 						onblur={() => handleBlur('port')}
 						placeholder={setup_database_port_placeholder?.() || '27017'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 dark:bg-surface-900 {displayErrors.port ? 'border-error-500' : ''}"
-						aria-invalid={!!displayErrors.port}
-						aria-describedby={displayErrors.port ? 'db-port-error' : undefined}
-						aria-required="true"
+						error={displayErrors.port}
+						required
 					/>
-					{#if displayErrors.port}
-						<div id="db-port-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.port}</div>
-					{/if}
 				</div>
 			{/if}
 			<div>
@@ -502,7 +491,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</SystemTooltip>
 				</label>
 
-				<input
+				<Input
 					id="db-name"
 					bind:value={dbConfig.name}
 					type="text"
@@ -515,14 +504,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						handleBlur('name');
 					}}
 					placeholder={setup_database_name_placeholder?.() || 'SveltyCMS'}
-					class="input w-full rounded border dark:border-surface-600 {displayErrors.name ? 'border-error-500' : ''}"
-					aria-invalid={!!displayErrors.name}
-					aria-describedby={displayErrors.name ? 'db-name-error' : undefined}
-					aria-required="true"
+					error={displayErrors.name}
+					required
 				/>
-				{#if displayErrors.name}
-					<div id="db-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.name}</div>
-				{/if}
 			</div>
 			{#if dbConfig.type !== 'sqlite'}
 				<div>
@@ -541,7 +525,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</SystemTooltip>
 					</label>
 
-					<input
+					<Input
 						id="db-user"
 						name="username"
 						bind:value={dbConfig.user}
@@ -556,13 +540,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							handleBlur('user');
 						}}
 						placeholder={setup_database_user_placeholder?.() || 'Database username'}
-						class="input w-full rounded border  dark:border-surface-600 dark:bg-surface-900 {displayErrors.user ? 'border-error-500' : ''}"
-						aria-invalid={!!displayErrors.user}
-						aria-describedby={displayErrors.user ? 'db-user-error' : undefined}
+						error={displayErrors.user}
 					/>
-					{#if displayErrors.user}
-						<div id="db-user-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.user}</div>
-					{/if}
 				</div>
 				<div>
 					<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -581,7 +560,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</label>
 
 					<div class="relative">
-						<input
+						<Input
 							id="db-password"
 							name="password"
 							bind:value={dbConfig.password}
@@ -596,22 +575,19 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							type={showDbPassword ? 'text' : 'password'}
 							autocomplete="current-password"
 							placeholder={setup_database_password_placeholder?.() || 'Leave blank if none'}
-							class="input w-full rounded border border-slate-300 dark:border-surface-600 dark:bg-surface-900 {displayErrors.password ? 'border-error-500' : ''}"
-							aria-invalid={!!displayErrors.password}
-							aria-describedby={displayErrors.password ? 'db-password-error' : undefined}
+							error={displayErrors.password}
+							inputClass="pe-10"
 						/>
-						<button
+						<Button
+							variant="ghost"
 							type="button"
 							onclick={toggleDbPassword}
-							class="absolute inset-y-0 inset-e-0 flex min-w-10 items-center pe-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
+							class="absolute inset-e-0 top-0 min-w-10 p-0!"
 							aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
 						>
 							<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
-						</button>
+						</Button>
 					</div>
-					{#if displayErrors.password}
-						<div id="db-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.password}</div>
-					{/if}
 				</div>
 			{/if}
 		</div>
@@ -638,47 +614,47 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 						{#each dbConfig.replicaUrls as _, index}
 							<div class="flex gap-2 mb-2 animate-in fade-in slide-in-from-left-2 duration-200">
-								<input
+								<Input
 									type="text"
 									bind:value={dbConfig.replicaUrls[index]}
 									placeholder="postgresql://user:pass@replica-host:5432/db?region=us-east"
-									class="input text-sm py-1.5 rounded"
+									class="flex-1"
 								/>
-								<button
+								<Button variant="ghost"
 									type="button"
-									class="btn-icon rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all"
 									aria-label="Remove replica"
 									onclick={() => {
 										dbConfig.replicaUrls = dbConfig.replicaUrls.filter((_: string, i: number) => i !== index);
 									}}
-								>
+								 class="p-0! min-w-0 rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all">
 									<iconify-icon icon="mdi:close" width="16"></iconify-icon>
-								</button>
+								</Button>
 							</div>
 						{/each}
 
-						<button>
+						<Button
+							variant="tertiary"
 							type="button"
-							class="btn btn-sm variant-soft-tertiary dark:variant-soft-primary w-fit mt-2"
+							size="sm"
+							class="w-fit mt-2"
 							onclick={() => {
 								dbConfig.replicaUrls = [...dbConfig.replicaUrls, ''];
 							}}
 						>
 							<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 							Add Replica Node
-						</button>
+						</Button>
 					</div>
 				</div>
 			{/if}
 		</div>
 
 		{#if !unsupportedDbSelected}
-			<button
+			<Button variant="tertiary"
 				type="submit"
 				disabled={isLoading}
 				aria-label={isLoading ? 'Testing database connection, please wait' : 'Test database connection'}
-				class="btn w-full preset-filled-tertiary-500 dark:preset-filled-primary-500 font-bold"
-			>
+			 class="w-full dark:">
 				{#if isLoading}
 					<div
 						class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"
@@ -689,15 +665,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				{:else}
 					{setup_button_test_connection()}
 				{/if}
-			</button>
+			</Button>
 		{/if}
 		{#if dbConfigChangedSinceTest}
-			<div
-				class="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
-				role="alert"
-			>
+			<Alert variant="warning" class="mt-2 text-xs">
 				{setup_help_database_type?.() || 'Database settings changed since last successful test. Please re-test to proceed.'}
-			</div>
+			</Alert>
 		{/if}
 	</form>
 </div>

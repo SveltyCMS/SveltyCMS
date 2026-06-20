@@ -30,29 +30,24 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (09/06/2026, 09:26:10)
+## 📊 Latest Performance Audit (17/06/2026, 10:46:55)
 
-> [!WARNING]
-> **Performance Regressions Detected for SQLITE+REDIS**:
->
-> - **REST/Collections p95**: 1033.235ms (was 0.000ms, delta: +20564.7%) - _Exceeded budget: 1033.235ms > 5ms_
->
-> _Please investigate potential database adapter performance bottlenecks or environment variance._
+**Status:** ❌ FAIL
 
 > [!CAUTION]
 > **Anomalies Detected**: Fail-fast See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
-| :--------------------- | :---------- | :----------- | :------------ | :------ |
-| **Cold Start**         | 280ms       | ⚪ (-3.4%)   | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 1033.235ms  | ⚪ (+433.9%) | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | N/A         | ⚪           | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | N/A         | ⚪ (—)       | < 5ms         | ⚪ N/A  |
-| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.051ms     | ⚪           | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
+| :--------------------- | :---------- | :---------- | :------------ | :------ |
+| **Cold Start**         | 299ms       | ⚪ (-10.5%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1034.333ms  | ⚪ (+39.7%) | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | 1018.004ms  | ⚪          | < 2ms         | 🔴 FAIL |
+| **GraphQL (Avg)**      | N/A         | ⚪ (—)      | < 5ms         | ⚪ N/A  |
+| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | N/A         | ⚪          | < 50ms        | ⚪ N/A  |
+| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -67,7 +62,7 @@ xychart-beta
   title "SQLITE+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 2.021, 1033.235, 1033.235]
+  line "p95 Latency" : [1033.235, 1033.235, 1033.235, 4.250, 1026.689, 1026.689, 1026.689, 1028.120, 1028.120, 1025.754]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -80,7 +75,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 0.000ms | **Target:** < 2ms | **Trend:** ⚪ (—)
+**Middleware p95:** 1018.004ms | **Target:** < 2ms | **Trend:** ⚪ (+33255.3%)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -129,7 +124,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.071 ms │ p95:        0.166 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.101 ms │ p95:        0.213 ms │ RPS:          0 ║
 ```
 
 <!-- COLD_START_TABLE_END -->
@@ -143,12 +138,27 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,021,563 ║
-║ Local SDK (Full)               │        0.005 ms │ p95:        0.008 ms │ RPS:    222,124 ║
-║ HTTP End-to-End                │      513.760 ms │ p95:     1028.262 ms │ RPS:          2 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,682,558 ║
+║ Local SDK (Full)               │        0.007 ms │ p95:        0.012 ms │ RPS:    151,012 ║
+║ HTTP End-to-End                │      512.639 ms │ p95:     1034.333 ms │ RPS:          2 ║
 ```
 
 <!-- TRUTH_AUDIT_TABLE_END -->
+
+<!-- INCREMENTAL_TABLE_START -->
+
+### 🏷️ Incremental Content Reload ⚪ —
+
+> 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
+> 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Incremental fullReload (1 file) │        0.323 ms │ p95:        0.654 ms │ RPS:      3,099 ║
+║ Full Reconciliation Reload     │        1.935 ms │ p95:        3.108 ms │ RPS:        517 ║
+```
+
+<!-- INCREMENTAL_TABLE_END -->
 
 <!-- HOOKS_TRACE_TABLE_START -->
 
@@ -185,7 +195,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](../../../tests/benchmarks/transaction-acid.test.ts)
 > 🎯 **Proves**: Measures commit/rollback latency and transaction isolation performance.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ TX Commit                      │        0.286 ms │ p95:        0.424 ms │ RPS:      2,476 ║
 ║ TX Rollback Integrity          │        0.149 ms │ p95:        0.187 ms │ RPS:      6,718 ║
@@ -223,7 +233,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Health Check                   │        1.305 ms │ p95:        2.938 ms │ RPS:        766 ║
 ║ Collection Schema              │        4.835 ms │ p95:        9.067 ms │ RPS:        207 ║
@@ -238,7 +248,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
 > 🎯 **Proves**: Resolver execution time and throughput for common queries.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ GQL: 5c Warmup                 │        5.158 ms │ p95:        8.228 ms │ RPS:        175 ║
 ║ GQL: 10c Light                 │        9.510 ms │ p95:       14.333 ms │ RPS:        104 ║
@@ -337,7 +347,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/media-upload-stress.test.ts](../../../tests/benchmarks/media-upload-stress.test.ts)
 > 🎯 **Proves**: Measures large file upload throughput, concurrent upload handling, and streaming efficiency.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Single Upload (10MB)           │       24.758 ms │ p95:       33.755 ms │ RPS:         40 ║
 ║ Small Upload (1MB)             │        6.933 ms │ p95:       13.399 ms │ RPS:        144 ║
@@ -356,7 +366,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 > 🎯 **Proves**: Verifies atomic consistency and lost-update protection.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Concurrent PATCH Bomb          │        2.128 ms │ p95:        2.128 ms │ RPS:        470 ║
 ```text
@@ -368,7 +378,7 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
 > 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
 
-```text
+```
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Local SDK                      │        0.130 ms │ p95:        0.130 ms │ RPS:      7,697 ║
 ```text
@@ -1051,25 +1061,25 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 **Single test (console-only):**
 
-```bash
+```
 bun test tests/benchmarks/api-latency.test.ts
 ```text
 
 **Single test (record to this report):**
 
-```bash
+```
 BENCHMARK_RECORD=1 bun test tests/benchmarks/api-latency.test.ts
 ```text
 
 **Full SQLite matrix:**
 
-```bash
+```
 bun run scripts/benchmark-matrix/index.ts --sql
 ```text
 
 **History-only (no MDX mutation, useful in CI):**
 
-```bash
+```
 BENCHMARK_RECORD=1 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
 ```text
 
@@ -1100,4 +1110,4 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ## Related
 
 - [All Benchmarks](./index.mdx)
-- [Competitive Comparison](../../competitive-comparison.mdx)
+- [Competitive Comparison](../competitive-comparison.mdx)

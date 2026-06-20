@@ -4,7 +4,7 @@ title: Hook Test Coverage
 description: Comprehensive testing documentation for all SveltyCMS middleware hooks
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-04-03"
+updated: "2026-06-14"
 tags:
   - "testing"
   - "hooks"
@@ -14,38 +14,44 @@ tags:
 
 # Hook Test Coverage
 
-Complete test coverage for all 11 SvelteKit middleware hooks in the SveltyCMS system.
+Complete test coverage for all 16 SvelteKit middleware hooks in the SveltyCMS system.
 
 ## Test Suite Overview
 
-| Hook                     | Tests   | Coverage    | File                                            |
-| ------------------------ | ------- | ----------- | ----------------------------------------------- |
-| handleStaticAssetCaching | 6       | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts` |
-| handleSystemState        | 26      | ✅ Complete | `tests/unit/hooks/system-state.test.ts`         |
-| handleRateLimit          | 35      | ✅ Complete | `tests/unit/hooks/rate-limit.test.ts`           |
-| handleFirewall           | 27      | ✅ Complete | `tests/unit/hooks/firewall.test.ts`             |
-| handleSetup              | 16      | ✅ Complete | `tests/unit/hooks/setup.test.ts`                |
-| handleLocale             | 34      | ✅ Complete | `tests/unit/hooks/locale.test.ts`               |
-| handleTheme              | 16      | ✅ Complete | `tests/unit/hooks/theme.test.ts`                |
-| handleAuthentication     | 33      | ✅ Complete | `tests/unit/hooks/authentication.test.ts`       |
-| handleAuthorization      | 23      | ✅ Complete | `tests/unit/hooks/authorization.test.ts`        |
-| handleApiRequests        | 28      | ✅ Complete | `tests/unit/hooks/api-requests.test.ts`         |
-| handleTokenResolution    | 5       | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts`     |
-| addSecurityHeaders       | 38      | ✅ Complete | `tests/unit/hooks/security-headers.test.ts`     |
-| **Total**                | **287** | **100%**    | 12 files                                        |
+| Hook                        | Tests   | Coverage    | File                                              |
+| --------------------------- | ------- | ----------- | ------------------------------------------------- |
+| handleStaticAssetCaching    | 6       | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts`   |
+| handleSystemState           | 26      | ✅ Complete | `tests/unit/hooks/system-state.test.ts`           |
+| handleRateLimit             | 35      | ✅ Complete | `tests/unit/hooks/rate-limit.test.ts`             |
+| handleFirewall              | 27      | ✅ Complete | `tests/unit/hooks/firewall.test.ts`               |
+| handleSetup                 | 16      | ✅ Complete | `tests/unit/hooks/setup.test.ts`                  |
+| handleLocale                | 34      | ✅ Complete | `tests/unit/hooks/locale.test.ts`                 |
+| handleTheme                 | 16      | ✅ Complete | `tests/unit/hooks/theme.test.ts`                  |
+| handleAuthentication        | 33      | ✅ Complete | `tests/unit/hooks/authentication.test.ts`         |
+| handleAuthorization         | 23      | ✅ Complete | `tests/unit/hooks/authorization.test.ts`          |
+| handleApiRequests           | 28      | ✅ Complete | `tests/unit/hooks/api-requests.test.ts`           |
+| handleTokenResolution       | 5       | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts`       |
+| addSecurityHeaders          | 38      | ✅ Complete | `tests/unit/hooks/security-headers.test.ts`       |
+| handleTurboGet              | 12      | ✅ Complete | `tests/unit/hooks/turbo-get.test.ts`              |
+| handleCompression           | 8       | ✅ Complete | `tests/unit/hooks/compression.test.ts`            |
+| handleAuditLogging          | 6       | ✅ Complete | `tests/unit/hooks/audit-logging.test.ts`          |
+| handleContentInitialization | 4       | ✅ Complete | `tests/unit/hooks/content-initialization.test.ts` |
+| **Total**                   | **317** | **100%**    | 16 files                                          |
 
 ## Performance Benchmarks (Audit)
 
 All hooks are benchmarked via `tests/benchmarks/hooks-performance.test.ts` which measures 3 pipeline layers under production load (600+ iterations each):
 
-| Metric                       | Latest (SQLite) | Budget | What it measures            |
-| ---------------------------- | :-------------: | :----: | --------------------------- |
-| **Turbo Pipeline (Light)**   |   0.81ms avg    |  <2ms  | Health check — fastest path |
-| **Full Security + Auth**     |   1.47ms avg    |  <2ms  | JWT + session + RBAC        |
-| **Mutation + Audit Logging** |   1.28ms avg    |  <2ms  | Write with SHA-256 audit    |
-| **Auth Overhead**            |   **0.66ms**    |   —    | Turbo → Full Auth delta     |
+| Metric                       | Latest (SQLite) | Budget | What it measures                 |
+| ---------------------------- | :-------------: | :----: | -------------------------------- |
+| **Turbo Pipeline (Light)**   |   2.55ms avg    |  <2ms  | Health check — fastest path      |
+| **Full Security + Auth**     |   5.47ms avg    |  <2ms  | JWT + session + RBAC             |
+| **Mutation + Audit Logging** |   1.90ms avg    |  <2ms  | Write with fire-and-forget audit |
+| **Auth Overhead**            |   **0.66ms**    |   —    | Turbo → Full Auth delta          |
+| **Compression Ratio (br)**   |    ~65% avg     |   —    | Brotli on cache HIT payloads     |
+| **Compression Ratio (gzip)** |    ~58% avg     |   —    | Gzip on cache HIT payloads       |
 
-**Note**: Auth overhead (0.66ms) = Full Auth (1.47ms) - Turbo (0.81ms). Optimized May 2026 by eliminating redundant setup-state check on every authenticated request.
+**Note**: Audit is now fire-and-forget (context captured before resolve, logged in detached promise). HOOK_TIMING_ENABLED gate disables per-request instrumentation in production and under SVELTY_BENCHMARK_SUITE for cleaner benchmarks. Compression metrics captured via X-\* headers.
 
 ## Middleware Sequence
 
@@ -73,7 +79,7 @@ graph TD
 
 All hook tests follow this consistent pattern:
 
-```typescript
+```
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 import { hookName } from "@src/hooks/hookName";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -104,7 +110,7 @@ describe("hookName Middleware", () => {
 
 Each test file has a `createMockEvent()` helper that creates consistent `RequestEvent` mocks:
 
-```typescript
+```
 function createMockEvent(
   pathname: string,
   method: string = "GET",
@@ -146,7 +152,7 @@ function createMockEvent(
 
 **Key Tests**:
 
-```typescript
+```
 it("should match /_app/ paths", () => {
   expect("/_app/immutable/chunks/index.js").toMatch(STATIC_ASSET_REGEX);
 });
@@ -173,7 +179,7 @@ it("should add aggressive cache headers for static assets", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should block routes when state is INITIALIZING", async () => {
   mockGetSystemState.mockReturnValue("INITIALIZING");
   const event = createMockEvent("/dashboard");
@@ -202,7 +208,7 @@ it("should block routes when state is INITIALIZING", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should bypass rate limiting for localhost", async () => {
   const event = createMockEvent("/api/collections", "GET", { "x-forwarded-for": "127.0.0.1" });
   const response = await handleRateLimit({ event, resolve: mockResolve });
@@ -239,7 +245,7 @@ it("should track requests by IP+User-Agent", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should block SQL injection attempts", async () => {
   const event = createMockEvent("/search?q=1%27%20OR%20%271%27=%271");
 
@@ -267,7 +273,7 @@ it("should block SQL injection attempts", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should redirect /dashboard to /setup when config missing", async () => {
   const event = createMockEvent("/dashboard", false);
 
@@ -301,7 +307,7 @@ it("should allow /setup route when setup incomplete", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should delete invalid systemLanguage cookie", async () => {
   const event = createMockEvent("/dashboard", { systemLanguage: "invalid" });
   await handleLocale({ event, resolve: mockResolve });
@@ -335,7 +341,7 @@ it("should accept both systemLanguage and contentLanguage", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it('should inject class="dark" for dark theme', async () => {
   const event = createMockEvent("/dashboard", "dark");
   const response = await handleTheme({ event, resolve: mockResolve });
@@ -371,7 +377,7 @@ it("should NOT inject dark class for system theme", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should skip authentication for /login", async () => {
   const event = createMockEvent("/login");
   await handleAuthentication({ event, resolve: mockResolve });
@@ -404,7 +410,7 @@ it("should extract tenantId from hostname (subdomain)", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should redirect to /login for protected routes", async () => {
   const event = createMockEvent("/dashboard");
 
@@ -445,7 +451,7 @@ it("should redirect to /setup when no roles found", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should cache successful GET responses", async () => {
   const event = createMockEvent("/api/collections", "GET", mockUser);
   const response = await handleApiRequests({ event, resolve: mockResolve });
@@ -479,7 +485,7 @@ it("should invalidate cache on POST", async () => {
 
 **Key Tests**:
 
-```typescript
+```
 it("should add X-Frame-Options: SAMEORIGIN header", async () => {
   const event = createMockEvent("/dashboard");
   const response = await addSecurityHeaders({ event, resolve: mockResolve });
@@ -500,13 +506,13 @@ it("should add HSTS header for HTTPS in production", async () => {
 
 ### Run All Hook Tests
 
-```bash
+```
 bun test tests/unit/hooks/
 ```text
 
 ### Run Individual Hook Test
 
-```bash
+```
 bun run test:unit -- static-asset-caching
 bun run test:unit -- authentication
 bun run test:unit -- security-headers
@@ -514,13 +520,13 @@ bun run test:unit -- security-headers
 
 ### Run with Coverage
 
-```bash
+```
 bun test --coverage tests/unit/hooks/
 ```text
 
 ### Watch Mode
 
-```bash
+```
 bun test --watch tests/unit/hooks/
 ```text
 
@@ -555,7 +561,7 @@ bun test --watch tests/unit/hooks/
 
 ### Testing Redirects
 
-```typescript
+```
 it("should redirect to /login for protected routes", async () => {
   const event = createMockEvent("/dashboard");
 
@@ -570,7 +576,7 @@ it("should redirect to /login for protected routes", async () => {
 
 ### Testing Error Responses
 
-```typescript
+```
 it("should return 401 for unauthenticated API requests", async () => {
   const event = createMockEvent("/api/collections");
 
@@ -584,7 +590,7 @@ it("should return 401 for unauthenticated API requests", async () => {
 
 ### Testing Cache Operations
 
-```typescript
+```
 it("should cache successful GET responses", async () => {
   const event = createMockEvent("/api/data", "GET", mockUser);
   const response = await handleApiRequests({ event, resolve: mockResolve });
@@ -595,7 +601,7 @@ it("should cache successful GET responses", async () => {
 
 ### Testing Headers
 
-```typescript
+```
 it("should add security headers", async () => {
   const event = createMockEvent("/dashboard");
   const response = await addSecurityHeaders({ event, resolve: mockResolve });
@@ -613,7 +619,7 @@ All hook tests run automatically on:
 - Commits to main branch
 - Pre-release validation
 
-```yaml
+```
 # .github/workflows/test.yml
 - name: Run Hook Tests
   run: bun test tests/unit/hooks/

@@ -14,6 +14,7 @@ FIXES:
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Native UI Components
 	import Dropdown from "@components/ui/dropdown.svelte";
 	// Components
@@ -425,14 +426,13 @@ FIXES:
 <div class="translation-status-container relative mt-1 inline-block text-start">
 	<Dropdown position="bottom-start" class={showProgress && !isViewMode ? 'w-72' : 'w-56'}>
 		{#snippet trigger()}
-			<button
-				class="btn preset-outlined-surface-500 rounded-full flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
+			<Button variant="outline"
 				aria-label="Toggle language menu"
-			>
+			 class="rounded-full flex w-full items-center gap-1 p-1.5 transition-all hover:scale-105">
 				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
 				<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
 				<iconify-icon icon="mdi:chevron-down" class="h-5 w-5 transition-transform duration-200" aria-hidden="true"></iconify-icon>
-			</button>
+			</Button>
 		{/snippet}
 
 		<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">

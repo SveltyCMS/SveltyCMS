@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:database-cog"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-05-24"
+updated: "2026-06-14"
 tags:
   - "database"
   - "interface"
@@ -23,7 +23,7 @@ SveltyCMS leverages a **Modular Namespace** pattern to organize its database cap
 
 **Core Principle:** Write once (in the application layer), deploy everywhere (MongoDB, SQL, etc.).
 
-````mermaid
+```mermaid
 graph TD
     SDK[LocalCMS / API] --> Adapter[IDBAdapter]
     Adapter --> Auth[auth.*]
@@ -33,7 +33,7 @@ graph TD
     Adapter --> Media[media.*]
     Adapter --> Syst[system.*]
     Adapter --> Batch[batch.*]
-```text
+```
 
 ---
 
@@ -41,11 +41,11 @@ graph TD
 
 All methods in the SveltyCMS database layer follow the **`DatabaseResult<T>`** pattern. They MUST NOT throw exceptions for expected failures; instead, they return a structured object.
 
-```typescript
+```
 export type DatabaseResult<T> =
   | { success: true; data: T; meta?: QueryMeta }
   | { success: false; error: DatabaseError };
-```text
+```
 
 ---
 
@@ -82,14 +82,14 @@ export type DatabaseResult<T> =
 
 **Responsibility:** High-performance, standardized data operations.
 
-| Method                                | Description                               |
-| :------------------------------------ | :---------------------------------------- |
-| `find(collection, criteria, options)` | Advanced filtering with Query IR support. |
-| `findOne(collection, criteria)`       | Single record retrieval fast-path.        |
-| `insert(collection, data, options)`   | Standard record creation.                 |
-| `update(collection, criteria, data)`  | Scoped updates with multi-tenant safety.  |
-| `delete(collection, criteria)`        | Permanent or soft-deletion of records.    |
-| `upsert(collection, criteria, data)`  | Atomic "Update or Insert" operation.      |
+| Method                                | Description                                                   |
+| :------------------------------------ | :------------------------------------------------------------ |
+| `find(collection, criteria, options)` | Advanced filtering with inlined Query IR translation support. |
+| `findOne(collection, criteria)`       | Single record retrieval fast-path.                            |
+| `insert(collection, data, options)`   | Standard record creation.                                     |
+| `update(collection, criteria, data)`  | Scoped updates with multi-tenant safety.                      |
+| `delete(collection, criteria)`        | Permanent or soft-deletion of records.                        |
+| `upsert(collection, criteria, data)`  | Atomic "Update or Insert" operation.                          |
 
 ---
 
@@ -133,15 +133,17 @@ export type DatabaseResult<T> =
 
 ## 🚀 Implementation Matrix (Status 2026)
 
-| Namespace   | MongoDB       | PostgreSQL    | MariaDB       | SQLite        |
-| :---------- | :------------ | :------------ | :------------ | :------------ |
-| **Auth**    | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **CRUD**    | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **Content** | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **Media**   | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **System**  | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **Batch**   | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **SCIM**    | ✅ Beta       | ✅ Beta       | ✅ Beta       | ✅ Beta       |
+| Namespace   | MongoDB        | PostgreSQL     | MariaDB        | SQLite         |
+| :---------- | :------------- | :------------- | :------------- | :------------- |
+| **Auth**    | ✅ Production  | ✅ Production  | ✅ Production  | ✅ Production  |
+| **CRUD**    | ✅ Production  | ✅ Production  | ✅ Production  | ✅ Production  |
+| **Content** | ✅ Production  | ✅ Production  | ✅ Production  | ✅ Production  |
+| **Media**   | ✅ Production  | ✅ Production  | ✅ Production  | ✅ Production  |
+| **System**  | ✅ Production  | ✅ Production  | ✅ Production  | ✅ Production  |
+| **Batch**   | ✅ Production  | ✅ Production  | ✅ Production  | ✅ Production  |
+| **SCIM**    | ✅ Production¹ | ✅ Production¹ | ✅ Production¹ | ✅ Production¹ |
+
+¹ SCIM 2.0 endpoints are production-ready (RFC 7644: Users, Groups, Bulk, filters, PATCH, Okta/Azure) but route through the `auth.*` adapter directly rather than a dedicated `IScimAdapter` namespace.
 
 ---
 
@@ -160,4 +162,3 @@ export type DatabaseResult<T> =
 - [Database Resilience](./database-resilience.mdx) - Error handling and recovery patterns.
 - [SQLite Implementation](./sqlite-implementation.mdx) - Specific optimizations for edge deployments.
 - [PostgreSQL Implementation](./postgresql-implementation.mdx) - Enterprise scaling with JSONB.
-````

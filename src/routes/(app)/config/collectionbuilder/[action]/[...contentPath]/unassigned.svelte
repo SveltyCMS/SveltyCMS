@@ -33,7 +33,7 @@ function handleDndFinalizeCards(e: any) {
 }
 </script>
 
-<div class="ml-1 rounded-sm border-2 border-tertiary-500">
+<div class="ms-1 rounded-sm border-2 border-tertiary-500">
 	<h2 class="mb-2 text-center font-bold dark:text-white">{Unassigned_Collections()}</h2>
 	<div
 		class="flex w-full flex-wrap overflow-x-auto p-2"

@@ -1,12 +1,12 @@
 ---
 path: "docs/architecture/database/performance-architecture.mdx"
 title: "Performance Architecture"
-description: "Production-ready performance architecture with dual-layer caching, database indexing, field selection, and enterprise features delivering 95-99% improvement."
+description: "2027-ready allocation-floor database layer with schema-aware conversion, ring-buffer pooling, fused query paths, and zero-tax SDK dispatching."
 order: 3
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-05-24"
+updated: "2026-06-15"
 tags:
   - "performance"
   - "optimization"
@@ -16,605 +16,122 @@ tags:
   - "architecture"
 ---
 
----
-
-## 📊 Performance Benchmarks (2026)
+## 📊 Performance Benchmarks (2026-2027)
 
 SveltyCMS delivers enterprise-grade performance through its database-agnostic architecture. For the complete set of verified benchmarks, stress test results, and hardware context, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
 
-Key architectural improvements include:
+### SQLite — Local/Edge (Verified June 2026)
 
-- **L1 cache: 0.000 ms hit, 0.338 ms miss (SQLite) to 0.332 ms (MongoDB). Raw CRUD: 0.042-3.261 ms.**
-- **L1 cache: 0.000 ms hit, 0.338 ms miss (SQLite) to 0.332 ms (MongoDB). Raw CRUD: 0.042-3.261 ms.**
-- **80%+ payload reduction** through smart field selection.
-- **Instant Cold Starts**: L2 Schema Persistence eliminates filesystem scanning on server startup.
-- **Vectorized Processing**: Chunked parallel modification prevents event-loop blocking during large imports.
-- **Zero-Tax SDK Dispatcher**: Self-overwriting getters eliminate Proxy overhead after first access.
-- **Negative Caching**: O(1) missing-key cache prevents "DB miss storms" (2392x speedup).
-- **Prefix-Bucketed Invalidation**: O(1) namespace clearing replaces O(N) cache scans.
-- **Rune-Based System State**: Svelte 5 runes (`$state`) provide zero-tax synchronous state access.
-- **Auto-Optimization**: Background Index Optimizer ensures database performance as schemas evolve.
+| Operation                 | Latency      | RPS                         |
+| ------------------------- | ------------ | --------------------------- |
+| FIND ONE                  | **0.090 ms** | 10,386                      |
+| FIND MANY (50)            | **0.109 ms** | 8,863                       |
+| INSERT                    | **0.142 ms** | 2,657                       |
+| DELETE                    | **0.051 ms** | 14,447                      |
+| NATIVE UPSERT             | **0.093 ms** | 9,102                       |
+| Peak Throughput           | —            | **15,617 req/s**            |
+| **LocalCMS SDK Overhead** | —            | **0.00%** (verified parity) |
 
-> [!NOTE]
-> Performance gains represent a **95–99% reduction** in latency across typical user flows (translates to 20–160× faster operations depending on hit rate and query complexity).
+### Cross-Database Impact (All 4 Engines)
 
----
+| Optimization                   | SQLite  | PostgreSQL | MariaDB  | MongoDB        |
+| ------------------------------ | ------- | ---------- | -------- | -------------- |
+| Schema-aware row conversion    | ✅ Full | ✅ Full    | ✅ Full  | N/A (own path) |
+| Ring-buffer result pool        | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
+| Conditions array pool          | ✅ Full | ✅ Full    | ✅ Full  | N/A (own path) |
+| Fused mapQuery (no IR objects) | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
+| for...in (zero Object.entries) | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
+| Pre-allocated meta object      | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
+| MariaDB double-parse isolated  | N/A     | ✅ Benefit | ✅ Owner | N/A            |
+
+> **SQL family gets ~5-8 fewer allocations per filtered query. MongoDB gets ~2-3 fewer (result pool + fused mapQuery). All 4 databases benefit from shared BaseAdapter optimizations.**
 
 ## Philosophy
 
-SveltyCMS implements **best-practice performance patterns from day one**. No migrations, no legacy compatibility layers - just modern, optimized code designed for enterprise-scale workloads. Every feature is built with performance as a core requirement, not an afterthought.
+SveltyCMS implements **best-practice performance patterns from day one**. Every feature is built with performance as a core requirement, not an afterthought. The 2027 allocation-floor work pushes the database layer to the practical limit of the current architecture (Drizzle ORM + DatabaseResult contract).
 
-## Overview
+## 2027 Allocation-Floor Optimizations
 
-This document details the production-ready performance architecture implemented in SveltyCMS. These optimizations target enterprise-scale usage with collections containing 100K+ entries, 20+ fields, multi-tenant deployments, and real-time collaboration.
+### Schema-Aware Row Conversion
 
----
-
-## ✅ Phase 1: Database Indexing & Optimization (ENHANCED)
-
-**Status:** ✅ FULLY IMPLEMENTED (Enhanced April 2026)
-**Impact:** Exponential query speedup (O(n) → O(log n))
-
-### Automatic Index Optimizer
-
-The system now includes a background `IndexOptimizer` service that automatically manages database performance:
-
-1. **Schema-Driven Indexing**: Analyzes collection schemas to identify `unique`, `searchable`, or `indexed` fields.
-2. **Background Building**: Creates indexes in the background to ensure API responsiveness is never compromised.
-3. **Multi-Database Support**: Optimized for MongoDB (Compound/Text indexes) and SQL (B-Tree indexes).
-
-**Trigger:** Automatically runs during the `WARMING` phase of system initialization.
-
----
-
-## ✅ Phase 6: Vectorized Processing & Atomic Versioning (NEW)
-
-**Status:** ✅ FULLY IMPLEMENTED (April 2026)
-**Impact:** 70% reduction in function overhead; Race-condition free sync.
-
-### 6.1 Vectorized Request Modification
-
-The `modifyRequest` pipeline now uses **Chunked Parallel Processing** ($O(N/chunk)$).
-
-- **Goal**: Prevent event loop blocking during 10,000+ item imports.
-- **Mechanics**: Data is processed in groups of 100 with `setTimeout(0)` yields, ensuring the CMS dashboard remains responsive during massive background imports.
-
-### 6.2 L2 Schema Persistence
-
-Implemented a persistent schema cache in the `system_content_structure` collection.
-
-- **Goal**: Achieve <100ms cold-start latency.
-- **Implementation**: The full schema (including field definitions) is stored in the database. On server restart, `LocalCMS` loads the schema directly from DB, bypassing the expensive filesystem scan and module evaluation unless an `incremental` update is detected.
-
-### 6.3 Atomic Content Versioning
-
-Implemented the `ContentVersionManager` to handle global state increments.
-
-- **Implementation**: Uses native database atomic operations (`$inc` in MongoDB, `RETURNING` in SQL) to prevent version drift in multi-tenant environments.
-
----
-
-## ✅ Phase 7: High-Performance Enterprise SEO (NEW)
-
-**Status:** ✅ FULLY IMPLEMENTED
-**Impact:** Sub-millisecond redirect lookups; Zero-latency dynamic sitemaps.
-
-### 7.1 Multi-Tenant Redirect Middleware
-
-Implemented a tenant-aware redirect interceptor in `hooks.server.ts`.
-
-- **Goal**: Intercept and redirect legacy URLs with zero measurable impact on standard request latency.
-- **Implementation**: Uses an in-memory `Map` cache (L1) per tenant to store active redirects. Lookups are $O(1)$. Database synchronization occurs via the `PluginLifecycleHooks` (afterSave/afterDelete), ensuring the cache remains consistent without requiring per-request database hits.
-
-### 7.2 Dynamic Sitemap & Indexing
-
-Automated sitemap generation and search engine notification.
-
-- **Goal**: Ensure search engines are notified of content updates in real-time while maintaining multi-language `hreflang` integrity.
-- **Implementation**:
-  - **Dynamic Route**: `/sitemap.xml` generates a compliant XML sitemap on-the-fly using the `LocalCMS` bridge.
-  - **Indexing Pings**: Automated background tasks notify Google and Bing upon content publication (`status === "published"`).
-  - **Tenant Isolation**: Sitemaps and robots.txt are strictly isolated by `tenantId`, supporting custom domains and prefixes per tenant.
-
----
-
-## Performance Stack Summary
-
-The SveltyCMS performance stack combines dual-layer caching, database indexing, and smart field selection to deliver sub-millisecond reactivity. Detailed real-world performance examples and RPS metrics are documented in [Performance Benchmarks](/docs/project/benchmarks/index).
-
-### Real-World Performance Examples
-
-**Scenario 1: Dashboard Load (Cached)**
-
-````text
-Without optimizations: 800ms
-- Database queries: 500ms
-- Data aggregation: 200ms
-- Network transfer: 100ms
-
-With full stack: 5ms
-- Redis cache hit: 0.8ms
-- Data deserialization: 2ms
-- Network transfer: 2.2ms (cached + compressed)
-
-Improvement: 160x faster ✨
-```text
-
-**Scenario 2: Collection List (1,000 entries, Uncached)**
-
-```text
-Without optimizations: 1,200ms
-- Full table scan: 800ms
-- Load all 35 fields: 300ms
-- JSON serialization: 100ms
-
-With optimizations: 18ms
-- Indexed query: 15ms (66x faster)
-- Load 5 fields only: 2ms (payload 79% smaller)
-- JSON serialization: 1ms
-
-Improvement: 66x faster, then cached for 160x on next load
-```text
-
-**Scenario 3: User Session Validation**
-
-```text
-Without cache: 45ms
-- Database lookup: 40ms
-- Permission check: 5ms
-
-With session cache: 0.8ms
-- Redis lookup: 0.5ms
-- Permission check: 0.3ms (cached roles)
-
-Improvement: 56x faster (happens on EVERY request!)
-```text
-
-### Enterprise Scalability
-
-**Before:**
-
-- 1,000 entry collection = 12 second page load
-- 100 users = database overload
-- Network costs: $500/month
-
-**After:**
-
-- 1,000 entry collection = 0.3 second page load
-- 1,000 users = comfortable scaling
-- Network costs: $100/month (80% reduction)
-
-### Code Quality
-
-- ✅ Performance-first architecture
-- ✅ Automatic optimization for all collections
-- ✅ Zero configuration required
-- ✅ Enterprise-scale ready from day one
-- ✅ Best practices built-in, not bolted-on
-
----
-
-## Testing Validation
-
-### Lint Check
-
-```bash
-# No errors in implementation files
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-✓ /src/databases/mongodb/methods/collectionMethods.ts
-✓ /src/utils/fieldselection.ts
-✓ /src/routes/(app)/[language]/[...collection]/+page.server.ts
-```text
-
-### Index Verification
-
-```bash
-# Check indexes created for a collection
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-db.collection_<id>.getIndexes()
-
-# Expected output:
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-[
-  { key: { status: 1 } },
-  { key: { createdAt: -1 } },
-  { key: { status: 1, createdAt: -1 } },
-  { key: { tenantId: 1 } },
-  # ... field-specific indexes
-]
-```text
-
-### Payload Verification
-
-```bash
-# Server logs show field selection
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-[Field Selection] List view loading only: _id, status, createdAt, title, thumbnail
-
-# Network tab shows reduced response size
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-Before: 450 KB
-After: 95 KB (79% reduction)
-```text
-
----
-
-## ✅ Phase 0: Dual-Layer Caching System (FOUNDATION)
-
-**Status:** ✅ FULLY IMPLEMENTED
-**Impact:** 56x-160x performance improvement for cached operations
-
-### Implementation
-
-**Files:**
-
-- `/src/databases/cache/cache-service.ts` - Main cache service implementation
-- `/src/stores/cachestore.svelte.ts` - Svelte store wrapper
-- `/docs/architecture/cache-system.mdx` - Complete documentation
-
-### Architecture: Dual-Layer Strategy
-
-```text
-Layer 1: Memory (LocalStore)    → <0.1ms latency (Map-based)
-Layer 2: Redis (GlobalStore)    → <1ms latency (Optimized pipelines)
-Layer 3: Database (Persistent)   → Sub-1ms CRUD (0.042-3.261 ms across all adapters)
-```text
-
-### 2026 Core Enhancements
-
-1. **Modular Store Architecture**:
-   - `InMemoryStore` for ultra-fast local lookups.
-   - `RedisStore` for distributed consistency.
-   - Decoupled `CacheService` for provider agnosticism.
-
-2. **Cache Tagging & Bulk Invalidation**:
-   - Support for `tags: string[]` on all `set` operations.
-   - `clearByTags(tags)` for immediate invalidation across categories.
-   - Used for smart invalidation (e.g., clearing all entries related to `collection:X` when its schema changes).
-
-3. **Enterprise Monitoring (Prometheus)**:
-   - Native `/api/metrics` endpoint with Prometheus/Grafana format.
-   - Response time histograms (buckets: 10ms, 50ms, 100ms, 500ms).
-   - Real-time hit/miss rates per category and tenant.
-   - LRU-based event tracking for visual audit logs.
-
-4. **Predictive Prefetching**:
-   - Pattern-based registration (`user:*:profile` → prefetch permissions).
-   - Async background warming for high-traffic paths.
-   - Adaptive prefetching based on user navigation trends.
-
-### Features
-
-1. **8 Cache Categories** with customizable TTL:
-   - **Static** (7 days) - Page templates, layouts, static assets
-   - **Dynamic** (1 hour) - Blog posts, news articles, product pages
-   - **API** (15 minutes) - External API responses
-   - **Query** (30 minutes) - Database query results
-   - **Session** (24 hours) - User session data, auth tokens
-   - **Widget** (2 hours) - Dashboard widgets, analytics
-   - **Computed** (6 hours) - Expensive calculations, reports
-   - **Media** (30 days) - Uploaded files, thumbnails
-
-2. **Smart Caching Strategy**:
-   - Session cache = single source of truth for user data
-   - No redundant user data caching (avoids complex invalidation)
-   - API response caching by endpoint pattern
-   - Pattern-based cache invalidation (`clearByPattern('query:posts:*')`)
-
-3. **Cache Warming**:
-   - **Zero-Restart Setup**: Cache warmed after setup completion
-   - **First Load Optimization**: Homepage pre-rendered before redirect
-   - **SSR Pre-Caching**: Menu, settings, collections cached at startup
-
-4. **Resilience & Monitoring**:
-   - Automatic retry with exponential backoff
-   - Cache statistics (hit rate, entries, size)
-   - Debug logging for troubleshooting
-   - Graceful degradation if Redis unavailable
-
-### Performance Metrics
-
-| Operation         | Without Cache | With Cache  | Improvement  |
-| ----------------- | ------------- | ----------- | ------------ |
-| Get User          | 45ms          | 0.8ms       | **56x**      |
-| List Posts        | 120ms         | 1.2ms       | **100x**     |
-| Search            | 350ms         | 2.5ms       | **140x**     |
-| Dashboard         | 800ms         | 5ms         | **160x**     |
-| **Negative Miss** | **2.45ms**    | **0.001ms** | **2392x** 🚀 |
-
-### Cache Hit Rates
-
-- **User Sessions:** 92% hit rate
-- **Static Content:** 95% hit rate
-- **API Responses:** 88% hit rate
-- **Database Queries:** 85% hit rate
-
-### Auto-Execution
-
-Caching applies automatically to:
-
-- Session management (authentication)
-- Collection schemas (ContentSystem)
-- User data (session-based)
-- GraphQL queries (resolver-level)
-- Media metadata
-- System settings
-- Widget configurations
-
-### Configuration
-
-TTL settings managed via UI at `/config/system-settings` (Cache tab):
-
-- No code changes needed
-- Changes apply immediately
-- Category-specific TTL customization
-- Clear cache button for instant invalidation
-
-### Integration Points
+Instead of checking every row key against `DATE_FIELDS`/`JSON_FIELDS` Set lookups on every row read/write, table schemas are pre-computed once during table creation. Only known date and JSON columns are converted — eliminating per-row `Set.has()` calls and enabling targeted iteration.
 
 ```typescript
-// Automatic caching in API endpoints
-import { cacheService } from "@src/databases/cache/cache-service";
-
-// Query results cached
-const cached = await cacheService.get("query:posts:published");
-if (cached) return cached;
-
-const data = await db.find("posts", { status: "published" });
-await cacheService.set("query:posts:published", data, null, "query");
-```text
-
-**Documentation:** See `/docs/architecture/cache-system.mdx` for complete guide
-
----
-
-## ✅ Phase 8: Platinum-Tier Database Optimization
-
-**Status:** ✅ FULLY IMPLEMENTED (Platinum Tier)
-**Impact:** 40-60% increase in RPS; Zero-allocation lookups.
-
-### 8.1 Zero-Overhead Security Fast-Path (`bypassSafeQuery`)
-
-The `safeQuery` middleware now supports an explicit `bypassSafeQuery` flag for trusted internal system operations.
-
-- **Goal**: Eliminate security middleware overhead for Auth, Sessions, and System Settings.
-- **Optimization**: Skips tenant injection and soft-delete filtering when requested by internal SDK modules (`AuthUser`, `SessionService`).
-- **Result**: Reduces latency by ~0.5ms on critical auth paths.
-
-### 8.2 Zero-Allocation Utility Pattern (`hasChanges`)
-
-Data processing utilities (`processDates`, `mapQuery`) now use a "Dirty-Bit" detection pattern.
-
-- **Goal**: Prevent unnecessary object cloning and recursive traversal.
-- **Implementation**: Functions return the original object reference if no modifications are required (e.g., no dates found to transform).
-- **Result**: Dramatic reduction in heap churn and Garbage Collection (GC) pauses during high-frequency API requests.
-
-### 8.3 Hardened Lookup Fast-Path (`isLookupQuery`)
-
-Implemented a robust lookup identification engine in the MongoDB and SQL adapters.
-
-- **Goal**: Bypass the full Query IR (Intermediate Representation) translation for simple ID-based lookups.
-- **Implementation**: Detects queries targeting only `_id` or `token`.
-- **Result**: Direct driver calls for ID lookups, bypassing the entire translation pipeline.
-
-### 8.4 SQL Atomic Batching (Platinum SQL Upgrade)
-
-Refactored the `ISqlAdapter` implementations to utilize native Drizzle batching for `insertMany`.
-
-- **Goal**: Resolve the 10-50x performance gap between SQL individual inserts and bulk operations.
-- **Implementation**: Replaced iterative `for` loops with atomic `db.insert().values([...])` calls.
-- **Result**: Massively improved performance for large-scale content imports and migrations.
-
-### 8.5 Explicit Physical Selection (The "Perfect Storm" Fix)
-
-Implemented hardcoded literal property selection in the database adapter to bypass dynamic reflection.
-
-- **Goal**: Eliminate ORM reflection tax on high-frequency paths and ensure structural integrity in minified production bundles.
-- **Implementation**: The `getPhysicalSelection` utility uses a predefined `Set` of literal keys (e.g., `["_id", "path", "translations"]`) instead of relying on the ORM to dynamically guess the column mapping.
-- **Result**: Up to +40% increase in RPS for complex queries and **100% immunity** to "Ghost Columns" caused by production bundler name-mangling.
-
-### 8.6 Topological Date Stabilization
-
-Explicitly rewrites all Date objects crossing the database boundary to solve the ESM cross-chunk prototype drift.
-
-- **Goal**: Prevent `Date` objects from losing their prototype (`instanceof Date === false`) when moving from the database adapter chunk to the application chunk.
-- **Implementation**: Values originating from SQL `timestamp_ms` or raw Unix epochs are forcefully wrapped in `new Date()` before being returned by the adapter.
-- **Result**: Complete elimination of sitemap crashes and cache bloat caused by un-serializable or un-garbage-collectable "Plain Object" dates.
-
----
-
-## ✅ Phase 9: Hyper-Scale L1 Optimization
-
-**Status:** ✅ FULLY IMPLEMENTED (Elite Tier)
-**Impact:** 2392x speedup for negative misses; 0% SDK overhead.
-
-### 9.1 Zero-Tax SDK Dispatcher (Hot-Swap)
-
-The `LocalCMS` SDK now utilizes a **Hot-Swap Self-Overwriting Getter** pattern to eliminate the overhead of JavaScript Proxies in the hot path.
-
-- **Goal**: Achieve raw direct-access performance while maintaining a modular, lazy-loaded developer experience.
-- **Mechanism**: Namespaces (Auth, Collections, Media) are defined as reactive getters. Upon first access, the getter initializes the target service and **overwrites itself** with the raw instance reference.
-- **Result**: Subsequent calls to `cms.collections.find()` hit the raw object directly with **0.00ms** middleware overhead.
-
-### 9.2 Negative Caching (Bloom-Filter Style)
-
-Implemented a high-performance **Negative Cache** within the `CacheService` to handle non-existent keys (confirmed DB misses).
-
-- **Goal**: Prevent "Cache Miss Storms" where high-traffic requests for non-existent items (404s, broken links) overwhelm the database.
-- **Performance**: Improved lookup latency for missing items from **2.450ms** (DB hit) to **0.001ms** (L1 Negative hit).
-- **Result**: **2392x speedup** for repeated misses, dramatically increasing system resilience during brute-force or 404-heavy traffic.
-
-### 9.3 Prefix-Bucketed Cache Invalidation
-
-Refactored the `CacheService` to support **O(1) Pattern-Based Clearing** via namespace bucketing.
-
-- **Goal**: Eliminate the $O(N)$ performance cliff when clearing parts of a large cache.
-- **Implementation**: The system maintains a `prefixMap` that groups cache keys by their logical namespace (e.g., `collection:posts:*`).
-- **Result**: Calling `clearByPattern` now only iterates over keys in the relevant bucket, maintaining sub-millisecond invalidation speed even with **500,000+** total items in the L1 cache.
-
-### 9.4 Svelte 5 Rune-Based System State
-
-Migrated the core `SystemStateStore` from a standard Svelte store to a **Svelte 5 Reactive Class**.
-
-- **Goal**: Eliminate the overhead of store subscriptions and the `get()` helper during server-side state checks.
-- **Optimization**: The system uses `$state` for deep reactivity and `$derived` for the overall system status. `getSystemState()` now accesses the raw object directly (`system.current`), bypassing the subscriber-iteration logic of traditional stores.
-- **Result**: Zero-tax synchronous state access for all internal CMS services.
-
----
-
-## Already Implemented Enterprise Features
-
-### ✅ Phase 3: Activity Logging System (ALREADY IMPLEMENTED)
-
-- **Status:** Fully operational in production
-- **File:** `/src/services/auditLogService.ts` (365 lines)
-- **Features:**
-  - Immutable audit trail with structured logging
-  - 16 event types (authentication, user management, tokens, data operations, security)
-  - 4 severity levels (low, medium, high, critical)
-  - Query API with filtering (by event type, actor, target, severity, date range)
-  - Audit statistics dashboard integration
-  - Suspicious activity detection
-  - Automatic log cleanup with retention policy (default 365 days)
-  - Database-agnostic implementation
-- **Integration:**
-  - Used in API routes for tracking sensitive operations
-  - Batch operations maintain audit trail (`/api/collections/[collectionId]/batch`)
-  - Status changes logged automatically (`/api/collections/[collectionId]/[entryId]/status`)
-  - Import/export operations tracked (`/api/import/full`)
-- **Performance:** Optimized with indexes, minimal overhead (<5ms per log)
-- **Compliance Ready:** GDPR, SOC2, HIPAA audit requirements
-
-### ✅ Phase 4: Field-Level Permissions (ALREADY IMPLEMENTED)
-
-- **Status:** Fully operational in production
-- **Files:**
-  - `/src/components/permissions-setting.svelte` - Permission UI component
-  - `/src/components/collectionDisplay/fields.svelte` - Field filtering by role (lines 176-178)
-  - `/src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget/tabs-fields/permission.svelte` - Permission configuration - Permission system integrated into field definitions
-- **Features:**
-  - Per-field permission configuration: `{ [role]: { read: boolean, write: boolean } }`
-  - Automatic field filtering based on user role
-  - Admin bypass (admins see all fields)
-  - Permission inheritance from role definitions
-  - UI for configuring field permissions in collection builder
-  - Runtime permission checking enforced
-- **Implementation:**
-  ```typescript
-  // Field filtering by permission (fields.svelte:176-178)
-  .filter((field: any) => {
-    if (!field.permissions || page.data?.isAdmin || !user?.role) return true;
-    const rolePermissions = field.permissions[user.role];
-    return !rolePermissions || rolePermissions.read !== false;
-  })
-````
-
-- **Access Control Examples:**
-  - Editor role: Cannot see sensitive fields (e.g., internal notes, pricing)
-  - Viewer role: Read-only access to public fields
-  - Custom roles: Configurable per-field permissions
-- **Security:** Permission checks enforced server-side and client-side
-
-### 🔶 Phase 5: Real-Time Event System (PARTIALLY IMPLEMENTED)
-
-- **Status:** GraphQL Subscriptions operational, HTTP webhooks not yet implemented
-- **Files:**
-  - `/src/routes/api/graphql/+server.ts` (441 lines) - GraphQL + WebSocket subscriptions
-  - `/src/routes/api/graphql/resolvers/collections.ts` - Collection resolvers
-  - `/src/routes/api/graphql/resolvers/media.ts` - Media resolvers
-  - `/src/routes/api/graphql/resolvers/users.ts` - User resolvers
-  - WebSocket server with `graphql-ws` integration
-  - PubSub system for event broadcasting
-- **Currently Available:**
-  - **GraphQL Subscriptions:** Real-time updates via WebSocket
-  - Event types: `postAdded`, collection mutations
-  - WebSocket server (`ws` package) integrated
-  - PubSub pattern for event broadcasting
-  - Client-side subscription support
-  ```graphql
-  subscription {
-    postAdded {
-      _id
-      title
-      createdAt
-      updatedAt
-    }
+// Before: checks every key against Sets
+for (const k in row) {
+  if (DATE_FIELDS.has(k)) {
+    /* convert date */
+  } else if (JSON_FIELDS.has(k)) {
+    /* parse JSON */
   }
-  ```
-- **Not Yet Implemented:**
-  - HTTP webhook configuration UI
-  - Webhook delivery queue
-  - Retry mechanism for failed webhooks
-  - Webhook signature verification
-  - Webhook management dashboard
-- **Recommended Next Steps (if needed):**
-  - Add webhook configuration collection
-  - Implement webhook delivery service
-  - Add webhook management UI in `/config`
-  - Integrate with audit log service for webhook tracking
-- **Alternative:** GraphQL subscriptions already provide real-time event streaming for modern clients
+  result[k] = row[k];
+}
 
-### 📊 Production Architecture Summary
+// After: only touches known columns
+registerTableSchema("posts", ["_id", "title", "createdAt", "metadata"]);
+// converts only "createdAt" (date) and "metadata" (JSON) — skips everything else
+```
 
-| Component                 | Implementation | Lines of Code | Impact                     |
-| ------------------------- | -------------- | ------------- | -------------------------- |
-| **Dual-Layer Caching**    | ✅ Production  | ~800 lines    | 56x-160x faster operations |
-| **Database Indexing**     | ✅ Production  | ~100 lines    | 12.5x-480x faster queries  |
-| **Field Selection**       | ✅ Production  | ~217 lines    | 50-80% payload reduction   |
-| **Activity Logging**      | ✅ Production  | ~365 lines    | Full audit compliance      |
-| **Field Permissions**     | ✅ Production  | ~200 lines    | Granular access control    |
-| **GraphQL Subscriptions** | ✅ Production  | ~441 lines    | Real-time event streaming  |
+### Fused Query Construction (SQL + MongoDB)
 
-### 🎯 Performance Metrics
+Both `mapQuery` implementations now build database conditions directly from user queries without intermediate IR (Intermediate Representation) objects. The old pattern (query → QueryIR → LogicalGroup → QueryCondition[] → SQL conditions) is replaced with a single fused walk.
 
-- **Total Implementation:** ~2,123 lines of optimized code
-- **Performance Gain:** 95-99% across all operations
-- **Cache Hit Rate:** 85-95% (Redis + Database dual-layer)
-- **Security:** Enterprise-grade audit logging + field-level permissions
-- **Scalability:** Real-time subscriptions + optimized queries + distributed caching
-- **Compliance:** GDPR/SOC2/HIPAA audit trail ready
+- **SQL path** (`drizzle-sql-helpers.ts`): `addFilterConds` + `addSingleCondition` build `SQL[]` directly
+- **Mongo path** (`mongodb/adapter-core.ts`): `addMongoConds` + `addMongoCondition` build filter objects directly
+- **Eliminated**: QueryIR, LogicalGroup, QueryCondition[] intermediates (~3-5 objects per filtered query)
+- **Eliminated**: All `Object.entries()` array allocations (replaced with `for...in`)
 
----
+### Ring-Buffer Result Pool
 
-## Architecture Notes
+All `BaseAdapter.wrap()` calls now use a 64-slot ring-buffer pool for `{ success, data }` result wrappers. Pooled slots are safe in single-threaded JS — callers consume results synchronously after `await`. Eliminates 100% of result wrapper allocations.
 
-### Collection Creation
+### Ring-Buffer Conditions Array Pool
 
-All performance optimizations apply automatically:
+Filtered queries (`mapQuery`) reuse `conditions: SQL[]` arrays from a 32-slot ring-buffer pool instead of allocating `[]` each time. Arrays are cleared via `.length = 0` without deallocation.
 
-- Indexes created on model creation
-- Cache patterns configured per collection
-- Field selection enabled for all views
-- Permissions enforced at field level
+### Pre-Allocated Meta Object
 
-### Schema Updates
+The `{ executionTime }` meta sub-object is pre-allocated once per adapter. `wrap()` mutates `this._meta.executionTime` instead of creating a new object per call.
 
-Performance features update seamlessly:
+### MariaDB Double-Parse Isolation
 
-- API: `PUT /api/collections/{id}`
-- ContentSystem: `updateCollection()`
-- Indexes rebuild automatically
-- Cache invalidation by pattern
+MariaDB's native JSON columns can double-encode. The double-parse loop is now opt-in (`mariaDoubleParseJson: true`) — PostgreSQL and SQLite paths never pay this cost.
 
-### Debugging
+### SQLite RETURNING Cache
 
-Enable detailed logging:
+The `insertMany` path caches whether `RETURNING` is supported per SQLite instance. Avoids repeated try/catch + logger.warn overhead in benchmarks and unsupported table scenarios.
 
-````typescript
-// In collectionMethods.ts
-logger.setLevel("debug");
+### Zero-Tax SDK Dispatcher
 
-// Shows performance metrics:
-("Creating indexes for collection: posts");
-("Created index on status for posts");
-("Field Selection: List view loading only: _id, status, title");
-```text
+Self-overwriting getters eliminate Proxy overhead after first access. Verified: **0.00% middleware tax** (LocalCMS is statistically identical to direct adapter calls).
+
+## Structural Improvements (Shared by All Adapters)
+
+- **Proxy extraction**: 3 scattered Proxy factories → 1 shared `core/proxy-utils.ts` with 23 dedicated tests
+- **Tenant filter centralization**: ~4+ duplicate sites → single source of truth in `relational-utils.ts`
+- **Query IR removal**: standalone `query-ir.ts` removed; translator inlined into the only 2 real consumers
+- **Mongo file reduction**: 43 → 39 files (4 thin module/model pairs merged)
+- **Code reduction**: 1,105 lines deleted across 36 files
+
+## Phase 1: Database Indexing & Optimization
+
+**Status:** ✅ FULLY IMPLEMENTED
+**Impact:** Exponential query speedup (O(n) → O(log n))
+
+Background `IndexOptimizer` service automatically manages database performance through schema-driven indexing, background building, and multi-database support (MongoDB Compound/Text, SQL B-Tree).
+
+## Batch Relational Upserts
+
+`setMany` and `bulkUpdate` use true multi-row `INSERT ... ON CONFLICT DO UPDATE` via Drizzle ORM. During setup seeding, ~80 individual DB queries → single batch operation. Dialect-specific handling (PostgreSQL/SQLite `excluded.*`, MariaDB/MySQL `VALUES()`).
+
+## Negative Caching
+
+O(1) missing-key cache prevents "DB miss storms" (verified 2392x speedup for repeated misses).
+
+## Prefix-Bucketed Invalidation
+
+O(1) namespace clearing replaces O(N) cache scans.
 
 ---
 
-## Credits
-
-**Based On:** `docs/FUTURE_IMPROVEMENTS.md`
-**Impact:** Enterprise-grade performance for SveltyCMS
-**Status:** Production-ready ✅
-````
+**Last Updated**: 2026-06-15 (allocation-floor optimizations, schema-aware conversion, ring-buffer pools, fused mapQuery, cross-database impact table)

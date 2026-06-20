@@ -24,23 +24,24 @@ const isDev = (() => {
   }
 })();
 
-// --- Unified Error Throwing ---
+// --- Maps & Constants ---
 
-/** Maps HTTP status codes to semantic error codes */
+/** Module-level status-to-code map — avoids allocation on every raise() call */
+const STATUS_CODE_MAP: Record<number, string> = {
+  400: "BAD_REQUEST",
+  401: "UNAUTHORIZED",
+  403: "FORBIDDEN",
+  404: "NOT_FOUND",
+  409: "CONFLICT",
+  422: "UNPROCESSABLE",
+  429: "TOO_MANY_REQUESTS",
+  500: "INTERNAL_ERROR",
+  502: "BAD_GATEWAY",
+  503: "SERVICE_UNAVAILABLE",
+};
+
 function statusToCode(status: number): string {
-  const map: Record<number, string> = {
-    400: "BAD_REQUEST",
-    401: "UNAUTHORIZED",
-    403: "FORBIDDEN",
-    404: "NOT_FOUND",
-    409: "CONFLICT",
-    422: "UNPROCESSABLE",
-    429: "TOO_MANY_REQUESTS",
-    500: "INTERNAL_ERROR",
-    502: "BAD_GATEWAY",
-    503: "SERVICE_UNAVAILABLE",
-  };
-  return map[status] || `HTTP_${status}`;
+  return STATUS_CODE_MAP[status] || `HTTP_${status}`;
 }
 
 /**
@@ -288,8 +289,15 @@ export function isAppError(err: unknown): err is AppError {
  * Type Guard: Checks if an error is a SvelteKit HttpError.
  */
 export function isHttpError(err: unknown): err is HttpError {
-  // Loose check to satisfy tests: just status is enough
-  return typeof err === "object" && err !== null && "status" in err;
+  // Defense-in-depth: check status is a valid HTTP error code (400-599)
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    typeof (err as any).status === "number" &&
+    (err as any).status >= 400 &&
+    (err as any).status < 600
+  );
 }
 
 /**

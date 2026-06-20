@@ -14,7 +14,13 @@ import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import type { PageServerLoad } from "./$types";
 import type { ISODateString, DatabaseId } from "@src/content/types";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import {
+  getPrivateSettingSync,
+  getPublicSetting,
+  getUntypedSetting,
+} from "@src/services/core/settings-service";
+import { adminThemeService } from "@src/services/core/admin-theme-service";
+import { resolveLoginBranding } from "@utils/theme-merge";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { sendMail } from "@utils/email.server";
@@ -130,6 +136,24 @@ async function shouldShowGoogleOAuth(hasInvite?: boolean): Promise<boolean> {
   }
 }
 
+async function loadLoginBranding(tenantId?: string | null) {
+  try {
+    const [tenantSiteName, logoUrl, accentColor, adminTheme] = await Promise.all([
+      getPublicSetting("SITE_NAME", tenantId ?? undefined),
+      getUntypedSetting<string>("LOGO_URL", "public", tenantId ?? undefined).catch(() => null),
+      getUntypedSetting<string>("ACCENT_COLOR", "public", tenantId ?? undefined).catch(() => null),
+      adminThemeService.getAdminTheme(tenantId),
+    ]);
+    return resolveLoginBranding(
+      adminTheme,
+      (tenantSiteName as string) || publicEnv.SITE_NAME || "SveltyCMS",
+      { logoUrl, accentColor },
+    );
+  } catch {
+    return resolveLoginBranding(null, publicEnv.SITE_NAME || "SveltyCMS");
+  }
+}
+
 async function shouldShowGithubOAuth(hasInvite?: boolean): Promise<boolean> {
   if (!getPrivateSettingSync("GITHUB_CLIENT_ID")) return false;
   if (hasInvite) return true;
@@ -152,6 +176,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
   const userLanguage = getUserLanguage();
   const isOpenSignup = !!(multiTenant && demoMode);
 
+  const defaultBranding = await loadLoginBranding(locals?.tenantId);
+
   const errorDefaults = {
     hasAdminUser: true,
     showGoogleOAuth: false,
@@ -163,6 +189,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     resetForm: {},
     signUpForm: {},
     demoMode,
+    loginBranding: defaultBranding,
   } as const;
 
   try {
@@ -384,6 +411,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     } catch {}
 
     const pkgVersion = pkg.version;
+    const loginBranding = await loadLoginBranding(locals.tenantId);
 
     return {
       ...errorDefaults,
@@ -393,6 +421,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       hasExistingOAuthUsers: false,
       firstCollectionPath,
       pkgVersion,
+      loginBranding,
       // Returning user: handle-authentication sets locals.returningUser when a session cookie was
       // present but invalid/expired (then deletes the dead cookie). Fall back to raw cookie presence
       // for any path that bypasses that branch. A valid session is already redirected away by hooks,

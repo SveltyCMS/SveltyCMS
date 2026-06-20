@@ -396,30 +396,29 @@ Registration attempts are rate-limited to prevent abuse:
 
 ### Registration Endpoint
 
-````http
+```http
 POST /login?/signUp
 Content-Type: application/x-www-form-urlencoded
 
 username=johndoe&email=john@example.com&password=SecurePass123&confirmPassword=SecurePass123&token=invite_token_here
-```text
+```
 
 ### OAuth Registration
 
-```http
+```
 POST /login?/signInOAuth
 Content-Type: application/x-www-form-urlencoded
 
 token=invite_token_here
-```text
+```
 
 ## Related Documentation
 
-- [Admin User Management](/docs/guides/admin-user-management) - Managing users and permissions
-- [Access Management](/docs/guides/access-management) - Roles and permissions system
-- [Two-Factor Authentication](/docs/guides/2fa-setup) - Enhanced security setup
-- [Multi-Tenant Configuration](/docs/architecture/multi-tenant) - Tenant isolation setup
+- [Admin User Management](/docs/architecture/admin-user-management.mdx) - Managing users and permissions
+- [Access Management](/docs/architecture/admin-user-management.mdx) - Roles and permissions system
+- [Two-Factor Authentication](/docs/api/auth.mdx) - Enhanced security setup
+- [Multi-Tenant Configuration](/docs/architecture/multi-tenancy.mdx) - Tenant isolation setup
 
 ---
 
 **Last Updated**: October 5, 2025
-````

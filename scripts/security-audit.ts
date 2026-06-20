@@ -166,20 +166,28 @@ async function auditAuth() {
     "/api/dashboard",
   ];
 
-  for (const ep of endpoints) {
-    const res = await probe("GET", ep);
-    if (!res) {
-      report(ep, "Connection", "A01", "HIGH", "Server unreachable");
-      continue;
-    }
-    if (res.status === 200) {
-      report(ep, "Auth bypass", "A01", "CRITICAL", "Unauthenticated access returns 200");
-    } else if (res.status === 401 || res.status === 403) {
-      console.log(`  ✅ ${ep}: protected (${res.status})`);
-    } else {
-      report(ep, "Unexpected status", "A01", "MEDIUM", `Returns ${res.status} (expected 401/403)`);
-    }
-  }
+  await Promise.all(
+    endpoints.map(async (ep) => {
+      const res = await probe("GET", ep);
+      if (!res) {
+        report(ep, "Connection", "A01", "HIGH", "Server unreachable");
+        return;
+      }
+      if (res.status === 200) {
+        report(ep, "Auth bypass", "A01", "CRITICAL", "Unauthenticated access returns 200");
+      } else if (res.status === 401 || res.status === 403) {
+        console.log(`  ✅ ${ep}: protected (${res.status})`);
+      } else {
+        report(
+          ep,
+          "Unexpected status",
+          "A01",
+          "MEDIUM",
+          `Returns ${res.status} (expected 401/403)`,
+        );
+      }
+    }),
+  );
 }
 
 // ── A03: INJECTION ──────────────────────────────────────────────────────
@@ -192,30 +200,32 @@ async function auditXSS() {
     "javascript:alert(1)",
   ];
 
-  for (const payload of payloads) {
-    const enc = encodeURIComponent(payload);
-    const res = await probe("GET", `/api/system/health?q=${enc}`);
-    if (!res) continue;
-    if (res.body.includes(payload)) {
-      report(
-        "/api/system/health?q=...",
-        "XSS reflection",
-        "A03",
-        "HIGH",
-        `Payload reflected: "${payload.substring(0, 40)}"`,
-      );
-    }
-    const ct = res.headers.get("content-type") || "";
-    if (ct.includes("text/html")) {
-      report(
-        "/api/system/health",
-        "HTML response",
-        "A03",
-        "MEDIUM",
-        "API returns text/html — XSS risk surface",
-      );
-    }
-  }
+  await Promise.all(
+    payloads.map(async (payload) => {
+      const enc = encodeURIComponent(payload);
+      const res = await probe("GET", `/api/system/health?q=${enc}`);
+      if (!res) return;
+      if (res.body.includes(payload)) {
+        report(
+          "/api/system/health?q=...",
+          "XSS reflection",
+          "A03",
+          "HIGH",
+          `Payload reflected: "${payload.substring(0, 40)}"`,
+        );
+      }
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("text/html")) {
+        report(
+          "/api/system/health",
+          "HTML response",
+          "A03",
+          "MEDIUM",
+          "API returns text/html — XSS risk surface",
+        );
+      }
+    }),
+  );
   console.log(`  ✅ Tested ${payloads.length} XSS payloads`);
 }
 
@@ -224,67 +234,73 @@ async function auditSQLi() {
   const sqlPayloads = ["'; DROP TABLE users;--", "1' OR '1'='1", "union select * from users"];
   let blocked = 0;
 
-  for (const p of sqlPayloads) {
-    const res = await probe("GET", `/api/collections?filter=${encodeURIComponent(p)}`);
-    if (!res) continue;
-    if (res.status === 401 || res.status === 403) {
-      console.log(`  ✅ Auth blocked SQLi probe (${res.status})`);
-    } else if (res.status === 400 || res.status === 422) {
-      blocked++;
-      console.log(`  ✅ SQLi blocked (${res.status})`);
-    } else {
-      report(
-        "/api/collections?filter=...",
-        "SQLi not blocked",
-        "A03",
-        "HIGH",
-        `Accepted with ${res.status}: "${p.substring(0, 30)}"`,
-      );
-    }
-  }
+  await Promise.all(
+    sqlPayloads.map(async (p) => {
+      const res = await probe("GET", `/api/collections?filter=${encodeURIComponent(p)}`);
+      if (!res) return;
+      if (res.status === 401 || res.status === 403) {
+        console.log(`  ✅ Auth blocked SQLi probe (${res.status})`);
+      } else if (res.status === 400 || res.status === 422) {
+        blocked++;
+        console.log(`  ✅ SQLi blocked (${res.status})`);
+      } else {
+        report(
+          "/api/collections?filter=...",
+          "SQLi not blocked",
+          "A03",
+          "HIGH",
+          `Accepted with ${res.status}: "${p.substring(0, 30)}"`,
+        );
+      }
+    }),
+  );
 
   // NoSQLi: test via collection query parameters (not GraphQL variables — those never reach mapQuery)
   if (authCookie) {
     const nosqlPayloads = ['{"$where":"1"}', '{"$expr":{"$gt":["$_id",""]}}'];
-    for (const p of nosqlPayloads) {
-      const res = await probe("GET", `/api/collections?filter=${encodeURIComponent(p)}`);
-      if (!res) continue;
-      if (res.status === 400) {
-        blocked++;
-        console.log(`  ✅ NoSQLi blocked (400): ${p.substring(0, 35)}`);
-      } else if (res.status === 200) {
-        report(
-          "/api/collections?filter=...",
-          "NoSQLi not blocked",
-          "A03",
-          "HIGH",
-          `NoSQL payload accepted: ${p.substring(0, 40)}`,
-        );
-      }
-    }
+    await Promise.all(
+      nosqlPayloads.map(async (p) => {
+        const res = await probe("GET", `/api/collections?filter=${encodeURIComponent(p)}`);
+        if (!res) return;
+        if (res.status === 400) {
+          blocked++;
+          console.log(`  ✅ NoSQLi blocked (400): ${p.substring(0, 35)}`);
+        } else if (res.status === 200) {
+          report(
+            "/api/collections?filter=...",
+            "NoSQLi not blocked",
+            "A03",
+            "HIGH",
+            `NoSQL payload accepted: ${p.substring(0, 40)}`,
+          );
+        }
+      }),
+    );
   }
 
-  console.log(`  ✅ ${blocked}/${sqlPayloads.length} SQLi payloads blocked`);
+  console.log(`  ✅ Tested all SQLi/NoSQLi payloads (blocked ${blocked} invalid attempts)`);
 }
 
 async function auditPathTraversal() {
   console.log("\n📁 [A03] Path Traversal");
   const payloads = ["../../../etc/passwd", "..\\..\\windows\\system32", "/etc/passwd%00.html"];
-  for (const p of payloads) {
-    const res = await probe("GET", `/api/media/files?path=${encodeURIComponent(p)}`);
-    if (!res) continue;
-    if ([400, 401, 403, 404].includes(res.status)) {
-      console.log(`  ✅ Traversal blocked (${res.status})`);
-    } else if (res.status === 200) {
-      report(
-        "/api/media/files?path=...",
-        "Path traversal",
-        "A03",
-        "CRITICAL",
-        `Payload returned 200: "${p}"`,
-      );
-    }
-  }
+  await Promise.all(
+    payloads.map(async (p) => {
+      const res = await probe("GET", `/api/media/files?path=${encodeURIComponent(p)}`);
+      if (!res) return;
+      if ([400, 401, 403, 404].includes(res.status)) {
+        console.log(`  ✅ Traversal blocked (${res.status})`);
+      } else if (res.status === 200) {
+        report(
+          "/api/media/files?path=...",
+          "Path traversal",
+          "A03",
+          "CRITICAL",
+          `Payload returned 200: "${p}"`,
+        );
+      }
+    }),
+  );
 }
 
 // ── A04: INSECURE DESIGN (GraphQL) ────────────────────────────────────
@@ -543,6 +559,32 @@ async function auditRateLimit() {
   }
 }
 
+async function auditInfoLeakage() {
+  console.log("\n⚠️  [A05] Information Leakage");
+
+  // Probe a non-existent API path to see if it leaks stack trace, database framework details, or node_modules
+  const res = await probe("GET", "/api/collections/nonexistent_collection_name_94812");
+  if (res) {
+    const bodyLower = res.body.toLowerCase();
+    const leaksStack =
+      bodyLower.includes("stack trace") ||
+      bodyLower.includes("stack:") ||
+      bodyLower.includes("node_modules") ||
+      bodyLower.includes("drizzle-orm");
+    if (leaksStack) {
+      report(
+        "/api/collections/nonexistent_collection_name_94812",
+        "Stack trace disclosure",
+        "A05",
+        "HIGH",
+        "API error responses disclose framework internals or filesystem stack trace details",
+      );
+    } else {
+      console.log("  ✅ Error response: clean (no internal stack traces or path disclosure)");
+    }
+  }
+}
+
 // ── SELF-TEST ───────────────────────────────────────────────────────────
 
 async function auditSelfTest() {
@@ -585,6 +627,7 @@ async function main() {
   await auditCORS(); // A05
   await auditCookieSecurity(); // A02
   await auditRateLimit(); // A07
+  await auditInfoLeakage(); // A05
 
   // ── SUMMARY ──────────────────────────────────────────────────────
   console.log("\n" + "═".repeat(55));

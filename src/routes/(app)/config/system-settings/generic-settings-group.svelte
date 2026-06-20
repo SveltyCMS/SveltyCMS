@@ -22,6 +22,10 @@ import { logger } from "@utils/logger";
 import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
+import Alert from "@components/ui/alert.svelte";
+import Checkbox from "@components/ui/checkbox.svelte";
+import Input from "@components/ui/input.svelte";
+import Select from "@components/ui/select.svelte";
 import StickyActions from "@components/ui/sticky-actions.svelte";
 
 // Remote Functions
@@ -447,6 +451,7 @@ function validateAll(): boolean {
 
 import { modalState } from "@utils/modal.svelte";
 import { page } from "$app/state";
+	import Button from '@components/ui/button.svelte';
 
 // ... previous code until saveSettings ...
 
@@ -717,25 +722,17 @@ onMount(() => {
 
 	<!-- Restart Warning -->
 	{#if group.requiresRestart}
-		<div class="alert preset-filled-warning-500 mb-4 rounded p-3 md:p-4">
-			<div class="alert-message">
-				<strong class="mb-1 block text-sm md:text-base">⚠️ Restart Required</strong>
-				<p class="text-xs md:text-sm">Changes to these settings require a server restart to take effect.</p>
-			</div>
-		</div>
+		<Alert variant="warning" title="Restart Required" class="mb-4">
+			Changes to these settings require a server restart to take effect.
+		</Alert>
 	{/if}
 
 	<!-- Default Values Notice -->
 	{#if hasEmptyRequiredFields}
-		<div class="bordered alert preset-filled-error-500 mb-4 rounded p-3 md:p-4">
-			<div class="alert-message">
-				<strong class="mb-1 block text-sm md:text-base">ℹ️ Default Values Detected</strong>
-				<p class="text-xs md:text-sm">
-					Some settings are using placeholder values from the system defaults. Please review and update these values to match your infrastructure and
-					requirements before using in production.
-				</p>
-			</div>
-		</div>
+		<Alert variant="error" title="Default Values Detected" class="mb-4">
+			Some settings are using placeholder values from the system defaults. Please review and update these values to match your infrastructure and
+			requirements before using in production.
+		</Alert>
 	{/if}
 
 	<!-- Loading State -->
@@ -746,12 +743,9 @@ onMount(() => {
 	{:else}
 		<!-- Error Message -->
 		{#if error}
-			<div class="alert preset-filled-error-500 mb-4 rounded p-3 md:p-4">
-				<div class="alert-message">
-					<strong class="mb-1 block text-sm md:text-base">Error</strong>
-					<p class="text-xs md:text-sm">{error}</p>
-				</div>
-			</div>
+			<Alert variant="error" title="Error" class="mb-4">
+				{error}
+			</Alert>
 		{/if}
 
 		<!-- Settings Form -->
@@ -781,27 +775,20 @@ onMount(() => {
 										</button>
 									</SystemTooltip>
 								</label>
-								<select
-									id={defaultLangField.key}
-									bind:value={values[defaultLangField.key]}
-									class="input w-full rounded {errors[defaultLangField.key] ? 'border-error-500' : ''}"
+								<Select
+									bind:value={values[defaultLangField.key] as string}
+									options={((values.AVAILABLE_CONTENT_LANGUAGES as string[])?.length > 0
+										? (values.AVAILABLE_CONTENT_LANGUAGES as string[])
+										: ['en']
+									).map((langCode) => ({
+										value: langCode,
+										label: `${displayLanguage(langCode)} (${langCode})`
+									}))}
+									placeholder={`Select ${defaultLangField.label}...`}
 									required={defaultLangField.required}
+									error={errors[defaultLangField.key]}
 									onchange={() => (errors[defaultLangField.key] = '')}
-									aria-invalid={!!errors[defaultLangField.key]}
-									aria-describedby={errors[defaultLangField.key] ? `${defaultLangField.key}-error` : undefined}
-								>
-									{#if (values.AVAILABLE_CONTENT_LANGUAGES as string[])?.length > 0}
-										{const languages = values.AVAILABLE_CONTENT_LANGUAGES as string[]}
-										{#each languages as langCode (langCode)}
-											<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
-										{/each}
-									{:else}
-										<option value="en">English (en)</option>
-									{/if}
-								</select>
-								{#if errors[defaultLangField.key]}
-									<div id="{defaultLangField.key}-error" class="mt-1 text-xs text-error-500">{errors[defaultLangField.key]}</div>
-								{/if}
+								/>
 							</div>
 						{/if}
 
@@ -849,9 +836,8 @@ onMount(() => {
 										{/if}
 
 										{#if !availableLangsField.readonly}
-											<button
+											<Button variant="tertiary"
 												type="button"
-												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[availableLangsField.key] = true;
 													languageSearch[availableLangsField.key] = '';
@@ -859,10 +845,10 @@ onMount(() => {
 												aria-haspopup="dialog"
 												aria-expanded={showLanguagePicker[availableLangsField.key]}
 												aria-controls="{availableLangsField.key}-lang-picker"
-											>
+											 class="dark: absolute inset-e-2 top-2 rounded-full text-xs font-medium">
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
 												Add
-											</button>
+											</Button>
 										{/if}
 									</div>
 
@@ -875,11 +861,13 @@ onMount(() => {
 											aria-label="Add language"
 											tabindex="-1"
 										>
-											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500"
+											<Input
 												placeholder="Search..."
 												bind:value={languageSearch[availableLangsField.key]}
-											 aria-label="Input" />
+												aria-label="Search languages"
+												inputClass="text-xs py-1"
+												class="mb-2"
+											/>
 											<div class="max-h-48 overflow-auto">
 												{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
 													const search = (languageSearch[availableLangsField.key] || '').toLowerCase();
@@ -935,25 +923,20 @@ onMount(() => {
 										</button>
 									</SystemTooltip>
 								</label>
-								<select
-									id={baseLocaleField.key}
-									bind:value={values[baseLocaleField.key]}
-									class="input w-full rounded {errors[baseLocaleField.key] ? 'border-error-500' : ''}"
+								<Select
+									bind:value={values[baseLocaleField.key] as string}
+									options={((values.LOCALES as string[])?.length > 0
+										? (values.LOCALES as string[])
+										: ['en']
+									).map((langCode) => ({
+										value: langCode,
+										label: `${displayLanguage(langCode)} (${langCode})`
+									}))}
+									placeholder={`Select ${baseLocaleField.label}...`}
 									required={baseLocaleField.required}
+									error={errors[baseLocaleField.key]}
 									onchange={() => (errors[baseLocaleField.key] = '')}
-								>
-									{#if (values.LOCALES as string[])?.length > 0}
-										{const locales = values.LOCALES as string[]}
-										{#each locales as langCode (langCode)}
-											<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
-										{/each}
-									{:else}
-										<option value="en">English (en)</option>
-									{/if}
-								</select>
-								{#if errors[baseLocaleField.key]}
-									<div id="{baseLocaleField.key}-error" class="mt-1 text-xs text-error-500">{errors[baseLocaleField.key]}</div>
-								{/if}
+								/>
 							</div>
 						{/if}
 
@@ -1009,9 +992,8 @@ onMount(() => {
 										{/if}
 
 										{#if !localesField.readonly && allowedLocales.filter((code) => !((values[localesField.key] as string[]) || []).includes(code)).length > 0}
-											<button
+											<Button variant="tertiary"
 												type="button"
-												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[localesField.key] = true;
 													languageSearch[localesField.key] = '';
@@ -1019,10 +1001,10 @@ onMount(() => {
 												aria-haspopup="dialog"
 												aria-expanded={showLanguagePicker[localesField.key]}
 												aria-controls="{localesField.key}-lang-picker"
-											>
+											 class="dark: absolute inset-e-2 top-2 rounded-full text-xs font-medium">
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
 												Add
-											</button>
+											</Button>
 										{/if}
 									</div>
 
@@ -1035,11 +1017,13 @@ onMount(() => {
 											aria-label="Add language"
 											tabindex="-1"
 										>
-											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 "
+											<Input
 												placeholder="Search..."
 												bind:value={languageSearch[localesField.key]}
-											 aria-label="Input" />
+												aria-label="Search locales"
+												inputClass="text-xs py-1"
+												class="mb-2"
+											/>
 											<div class="max-h-48 overflow-auto">
 												{#each allowedLocales.filter((code: string) => {
 													const search = (languageSearch[localesField.key] || '').toLowerCase();
@@ -1106,81 +1090,78 @@ onMount(() => {
 
 							<!-- Text Input -->
 							{#if field.type === 'text'}
-								<input
+								<Input
 									id={field.key}
 									type={field.key.toLowerCase().includes('email') || field.key === 'SMTP_USER' || field.label.toLowerCase().includes('email')
 										? 'email'
 										: 'text'}
-									class="input w-full max-w-full min-h-11"
-									bind:value={values[field.key]}
+									bind:value={values[field.key] as string}
 									placeholder={field.placeholder}
 									required={field.required}
 									disabled={field.readonly}
 									oninput={() => (errors[field.key] = '')}
-									aria-invalid={!!errors[field.key]}
+									error={errors[field.key]}
 								/>
 								<!-- Number Input -->
 							{:else if field.type === 'number'}
-								<div class="input-group input-group-divider grid-cols-[1fr_auto] max-w-full">
-									<input
+								<div class="flex items-center gap-2 max-w-full">
+									<Input
 										id={field.key}
 										type="number"
-										class="input w-full max-w-full min-h-11"
-										bind:value={values[field.key]}
+										bind:value={values[field.key] as number}
 										placeholder={field.placeholder}
 										required={field.required}
 										min={field.min}
 										max={field.max}
 										oninput={() => (errors[field.key] = '')}
-										aria-invalid={!!errors[field.key]}
+										error={errors[field.key]}
+										class="flex-1"
 									/>
 									{#if field.unit}
-										<div class="input-group-shim text-sm">
+										<span class="text-sm text-surface-500 dark:text-surface-50 shrink-0">
 											{field.unit}
 											{#if typeof values[field.key] === 'number' && field.unit === 'seconds'}
-												<span class="ms-2 text-surface-500 dark:text-surface-50"> ({formatDuration(values[field.key] as number)}) </span>
+												({formatDuration(values[field.key] as number)})
 											{/if}
-										</div>
+										</span>
 									{/if}
 								</div>
 								<!-- Password Input -->
 							{:else if field.type === 'security'}
 								<div class="relative">
-									<input
+									<Input
 										id={field.key}
-										type={showPassword[field.key] ? 'text' : 'security'}
-										class="input w-full max-w-full min-h-11 pe-10"
-										bind:value={values[field.key]}
+										type={showPassword[field.key] ? 'text' : 'password'}
+										bind:value={values[field.key] as string}
 										placeholder={field.sensitive ? '********' : field.placeholder}
 										required={field.required}
 										disabled={field.readonly}
 										oninput={() => (errors[field.key] = '')}
 										autocomplete="current-password"
-										aria-invalid={!!errors[field.key]}
+										error={errors[field.key]}
+										inputClass={field.sensitive && field.readonly ? '' : 'pe-10'}
 									/>
 									{#if field.sensitive && field.readonly}
-										<div class="absolute inset-e-2 top-1/2 -translate-y-1/2 text-xs text-surface-500 italic">Configured in .env</div>
+										<div class="absolute inset-e-2 top-2 text-xs text-surface-500 italic">Configured in .env</div>
 									{:else if !field.readonly}
-										<button
+										<Button
+											variant="ghost"
 											type="button"
-											class="absolute inset-e-2 top-1/2 -translate-y-1/2 text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-50"
+											class="absolute inset-e-0 top-0 p-0! min-w-0"
 											onclick={() => (showPassword[field.key] = !showPassword[field.key])}
 											aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
 										>
 											<iconify-icon icon={showPassword[field.key] ? 'bi:eye-slash-fill' : 'bi:eye-fill'} width="20"></iconify-icon>
-										</button>
+										</Button>
 									{/if}
 								</div>
 								<!-- Boolean Input -->
 							{:else if field.type === 'boolean'}
-								<input
-									id={field.key}
-									type="checkbox"
-									class="checkbox w-auto min-w-5 min-h-5"
-									checked={!!values[field.key]}
-									onchange={(e) => {
-										const checked = (e.target as HTMLInputElement).checked;
-										values[field.key] = checked;
+								<Checkbox
+									bind:checked={values[field.key] as boolean}
+									required={field.required}
+									error={errors[field.key]}
+									onchange={(checked) => {
 										errors[field.key] = '';
 
 										if (field.key === 'SEASONS' && checked) {
@@ -1190,31 +1171,25 @@ onMount(() => {
 											}
 										}
 									}}
-									aria-invalid={!!errors[field.key]}
-									aria-required={field.required}
-									aria-describedby={errors[field.key] ? `${field.key}-error` : undefined}
 								/>
 								<!-- Select Input -->
 							{:else if field.type === 'select' && field.options}
-								<select
-									id={field.key}
-									class="select input w-full max-w-full min-h-11"
-									bind:value={values[field.key]}
+								<Select
+									bind:value={values[field.key] as string}
+									options={field.options.map((option) => ({
+										value: String(option.value),
+										label: option.label
+									}))}
+									placeholder={`Select ${field.label}...`}
 									required={field.required}
+									error={errors[field.key]}
 									onchange={() => (errors[field.key] = '')}
-									aria-invalid={!!errors[field.key]}
-								>
-									<option value="">Select {field.label}...</option>
-									{#each field.options as option (option.value)}
-										<option value={option.value}>{option.label}</option>
-									{/each}
-								</select>
+								/>
 								<!-- Array Input -->
 							{:else if field.type === 'array'}
-								<input
+								<Input
 									id={field.key}
 									type="text"
-									class="input w-full max-w-full min-h-11"
 									value={getArrayValue(field.key)}
 									placeholder={field.placeholder}
 									required={field.required}
@@ -1222,7 +1197,7 @@ onMount(() => {
 										handleArrayInput(field, e);
 										errors[field.key] = '';
 									}}
-									aria-invalid={!!errors[field.key]}
+									error={errors[field.key]}
 								/>
 								<p class="mt-1 text-xs text-surface-500 dark:text-surface-50">Enter values separated by commas</p>
 								<!-- Language Multi-Select -->
@@ -1258,9 +1233,8 @@ onMount(() => {
 										{/if}
 
 										{#if !field.readonly}
-											<button
+											<Button variant="tertiary"
 												type="button"
-												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => {
 													showLanguagePicker[field.key] = true;
 													languageSearch[field.key] = '';
@@ -1268,10 +1242,10 @@ onMount(() => {
 												aria-haspopup="dialog"
 												aria-expanded={showLanguagePicker[field.key]}
 												aria-controls="{field.key}-lang-picker"
-											>
+											 class="dark: absolute inset-e-2 top-2 rounded-full text-xs font-medium">
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
 												Add
-											</button>
+											</Button>
 										{/if}
 									</div>
 
@@ -1284,11 +1258,13 @@ onMount(() => {
 											aria-label="Add language"
 											tabindex="-1"
 										>
-											<input
-												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:border-primary-500 "
+											<Input
 												placeholder="Search..."
 												bind:value={languageSearch[field.key]}
-											 aria-label="Input" />
+												aria-label="Search languages"
+												inputClass="text-xs py-1"
+												class="mb-2"
+											/>
 											<div class="max-h-48 overflow-auto">
 												{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
 													const search = (languageSearch[field.key] || '').toLowerCase();
@@ -1350,17 +1326,16 @@ onMount(() => {
 										{/if}
 
 										{#if !field.readonly}
-											<button
+											<Button variant="tertiary"
 												type="button"
-												class="preset-filled-tertiary-500 dark:preset-filled-primary-500 absolute inset-e-2 top-2 rounded-full text-xs font-medium"
 												onclick={() => (showLogLevelPicker[field.key] = true)}
 												aria-haspopup="dialog"
 												aria-expanded={showLogLevelPicker[field.key]}
 												aria-controls="{field.key}-loglevel-picker"
-											>
+											 class="dark: absolute inset-e-2 top-2 rounded-full text-xs font-medium">
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
 												Add
-											</button>
+											</Button>
 										{/if}
 									</div>
 
@@ -1410,39 +1385,40 @@ onMount(() => {
 
 			<!-- Local Group Actions -->
 				<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
+					<!-- Children slot (e.g. Repair Cache) rendered outside StickyActions to avoid double-render in global sticky bar -->
+					{#if children}
+						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mb-3">
+							{@render children()}
+						</div>
+					{/if}
+
 					<StickyActions>
 					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
 						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-							{#if children}
-								{@render children()}
-							{/if}
 
-							<button
+							<Button variant="error"
 								type="button"
-								class="preset-tonal-error inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 w-full sm:w-auto"
 								onclick={resetToDefaults}
 								disabled={saving}
-							>
+							 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
 								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
 								<span>Reset to Defaults</span>
-							</button>
+							</Button>
 
-							<button
+							<Button variant="surface"
 								type="button"
-								class="preset-tonal-surface inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 w-full sm:w-auto"
 								onclick={exportGroup}
 								disabled={loading}
-							>
+							 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
 								<iconify-icon icon="mdi:export" width="16"></iconify-icon>
 								<span>Export Group JSON</span>
-							</button>
+							</Button>
 						</div>
 
-						<button
+						<Button variant="tertiary"
 							type="submit"
-							class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 w-full sm:w-auto"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
-						>
+						 class="dark: items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold w-full sm:w-auto">
 							{#if saving}
 								<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
 								<span>Saving...</span>
@@ -1450,7 +1426,7 @@ onMount(() => {
 								<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
 								<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
 							{/if}
-						</button>
+						</Button>
 					</div>
 					</StickyActions>
 				</div>

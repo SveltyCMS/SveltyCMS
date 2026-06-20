@@ -21,7 +21,7 @@
 
 <script lang="ts">
 import Tabs from "@components/ui/tabs";
-import PageTitle from "@src/components/page-title.svelte";
+import AdminPageShell from "@components/admin-page-shell.svelte";
 import { uploadMedia_title } from "@src/paraglide/messages";
 import { goto } from "$app/navigation";
 import LocalUpload from "./local-upload.svelte";
@@ -34,20 +34,7 @@ function handleUploadComplete() {
 }
 </script>
 
-<!-- PageTitle -->
-<div class="mb-4 flex items-center justify-between">
-	<PageTitle name={uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
-
-	<!-- Back -->
-	<button
-		onclick={() => history.back()}
-		aria-label="Back"
-		class="preset-outlined-tertiary-500 btn-icon rounded-full dark:preset-outlined-primary-500"
-	>
-		<iconify-icon icon="mdi:arrow-left" width="24"></iconify-icon>
-	</button>
-</div>
-
+<AdminPageShell title={uploadMedia_title()} icon="bi:images" showBackButton={true} backUrl="/mediagallery">
 <div class="wrapper">
 	<Tabs value={tabSet} onValueChange={(e) => (tabSet = e.value)}>
 		<Tabs.List class="flex border-b border-surface-200-800 font-bold">
@@ -70,3 +57,4 @@ function handleUploadComplete() {
 		<Tabs.Content value="1"><div class="p-4"><RemoteUpload onUploadComplete={handleUploadComplete} /></div></Tabs.Content>
 	</Tabs>
 </div>
+</AdminPageShell>

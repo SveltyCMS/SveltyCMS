@@ -156,6 +156,7 @@ export const widgetMeta = {
 						<a
 							href="/mediagallery"
 							data-sveltekit-preload-data="hover"
+							aria-label={fileName(f)}
 							class="group flex items-center gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 						>
 							<!-- Thumbnail / Icon -->
@@ -181,7 +182,7 @@ export const widgetMeta = {
 
 							<!-- Info -->
 							<div class="min-w-0 flex-1">
-								<div class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+								<div class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors">
 									{fileName(f)}
 								</div>
 								<div class="mt-0.5 flex items-center gap-2 text-xs text-surface-500">

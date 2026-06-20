@@ -16,7 +16,7 @@ tags:
 
 # GUI Automation System
 
-SveltyCMS includes a visual **Automation Builder** for creating event-driven workflows — no custom code required. Automations extend the existing [Webhook System](/docs/api/Webhooks) by adding multiple operation types, conditional logic, and a step-by-step editor GUI.
+SveltyCMS includes a visual **Automation Builder** for creating event-driven workflows — no custom code required. Automations extend the existing [Webhook System](/docs/api/system.mdx) by adding multiple operation types, conditional logic, and a step-by-step editor GUI.
 
 > [!TIP]
 > **Enterprise Use Cases:** Send email notifications on publish, call external APIs on content changes, auto-set fields for editorial workflows, log audit events, and chain conditions together.
@@ -64,7 +64,7 @@ Operations are the **actions** that execute when a trigger fires. They run seque
 
 All text fields in operations support **token placeholders** for dynamic values:
 
-````text
+```text
 {{ entry.title }}         → Entry title
 {{ entry.status }}        → Entry status
 {{ entry.author }}        → Author name
@@ -77,7 +77,7 @@ All text fields in operations support **token placeholders** for dynamic values:
 {{ user.email }}          → Current user email
 {{ user.username }}       → Current username
 {{ system.now }}          → Current date/time
-```text
+```
 
 ---
 
@@ -116,22 +116,22 @@ All endpoints require admin authentication.
 
 ### List All Automations
 
-```text
+```
 GET /api/automations
-```text
+```
 
 **Response:**
 
-```json
+```
 {
   "success": true,
   "data": [{ "id": "...", "name": "...", "active": true, ... }]
 }
-```text
+```
 
 ### Create Automation
 
-```text
+```
 POST /api/automations
 Content-Type: application/json
 
@@ -153,32 +153,32 @@ Content-Type: application/json
     }
   ]
 }
-```text
+```
 
 ### Update Automation
 
-```text
+```
 PATCH /api/automations/:id
 Content-Type: application/json
 
 { "active": false }
-```text
+```
 
 ### Delete Automation
 
-```text
+```
 DELETE /api/automations/:id
-```text
+```
 
 ### Test Automation
 
-```text
+```
 POST /api/automations/:id/test
-```text
+```
 
 **Response:**
 
-```json
+```
 {
   "success": true,
   "data": {
@@ -187,7 +187,7 @@ POST /api/automations/:id/test
     "operationResults": [{ "type": "email", "status": "success", "duration": 35 }]
   }
 }
-```text
+```
 
 ---
 
@@ -197,7 +197,7 @@ The Automation System uses a decoupled, event-driven architecture to ensure mini
 
 ### Logic Flow
 
-```mermaid
+```
 graph TD
     A["CMS Event (CRUD)"] --> B["EventBus (Singleton)"]
     B -->|Emit| C["AutomationService"]
@@ -214,11 +214,11 @@ graph TD
     end
 
     F --> F1 & F2 & F3 & F4 & F5
-```text
+```
 
 ### Sequence of Execution
 
-```mermaid
+```
 sequenceDiagram
     participant DB as User/Database
     participant EB as EventBus
@@ -235,17 +235,17 @@ sequenceDiagram
         Note over OP: Log success/failure
     end
     AS-->>DB: Execution complete (async)
-```text
+```
 
 ### Key Files
 
-| File                                            | Purpose                                     |
-| :---------------------------------------------- | :------------------------------------------ |
-| `src/services/automation/types.ts`              | Type definitions, event/operation metadata  |
-| `src/services/automation/event-bus.ts`          | Singleton event bus with wildcard listeners |
-| `src/services/automation/automation-service.ts` | CRUD + execution engine                     |
-| `src/routes/api/automations/`                   | REST API endpoints                          |
-| `src/routes/(app)/config/automations/`          | GUI pages (list + editor)                   |
+| File                                                       | Purpose                                     |
+| :--------------------------------------------------------- | :------------------------------------------ |
+| `src/services/background/automation/types.ts`              | Type definitions, event/operation metadata  |
+| `src/services/background/automation/event-bus.ts`          | Singleton event bus with wildcard listeners |
+| `src/services/background/automation/automation-service.ts` | CRUD + execution engine                     |
+| `src/routes/api/[...path]/handlers/system.ts`              | REST API endpoints (handleAutomationRoutes) |
+| `src/routes/(app)/config/automations/`                     | GUI pages (list + editor)                   |
 
 ---
 
@@ -260,7 +260,6 @@ sequenceDiagram
 | **Token System** | ✅ `{{ }}`         | ⚠️ Limited  | ❌ No        | ❌ No           | ❌ No          |
 | **DB-Agnostic**  | ✅ Yes             | ⚠️ SQL only | ⚠️ SQL only  | ⚠️ SQL only     | N/A (SaaS)     |
 | **Open Source**  | ✅ Free            | ✅ Free     | ✅ Free      | ⚠️ Some gated   | ❌ Proprietary |
-````
 
 ---
 

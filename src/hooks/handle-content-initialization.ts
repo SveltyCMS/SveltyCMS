@@ -49,6 +49,10 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
           // Give the DB a moment to finish its OWN internal warm-up if we're coming from a fresh restart
           await getDbInitPromise(false, "CORE");
           await contentSystem.initialize(tenantId, false);
+          // Phase 2a: Pre-warm OpenAPI spec in background after content init
+          import("@src/services/system/api-spec-service")
+            .then(({ apiSpecService }) => apiSpecService.generateFullSpec(tenantId))
+            .catch(() => {});
         } catch (err) {
           logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
           initPromises.delete(tenantId); // Allow retry on failure

@@ -48,7 +48,7 @@ The setup wizard is a multi-step form that guides users through initial SveltyCM
 
 ### Setup Wizard Flow
 
-````mermaid
+```mermaid
 flowchart TD
     Start((Start)) --> DB[1. Database Config]
     DB --> |Test Connection| DBCheck{Valid?}
@@ -70,13 +70,13 @@ flowchart TD
         P[Production Pipeline]
         V[Vite Define Guard]
     end
-```text
+```
 
 ### High-Performance Lifecycle
 
 SveltyCMS employs a "State-Aware" initialization strategy to ensure the setup wizard is ultra-responsive while the production environment remains enterprise-grade.
 
-```mermaid
+```
 sequenceDiagram
     participant V as Vite / Build
     participant H as hooks.server.ts
@@ -102,7 +102,7 @@ sequenceDiagram
     U->>H: Incoming Request
     H->>H: Fast Check: __SVELTY_SETUP_COMPLETE__ (Zero I/O)
     H->>H: Execute Turbo Pipeline (~0.05ms)
-```text
+```
 
 #### Performance Benchmarks
 
@@ -186,7 +186,7 @@ WCAG 2.1 AA compliant features:
 
 ### Component Structure
 
-```text
+```
 src/routes/setup/
 ├── +page.svelte               # Main orchestrator UI (Svelte 5 Runes)
 ├── +page.server.ts            # Consolidated setup actions and DB orchestration
@@ -199,7 +199,7 @@ src/routes/setup/
 System Hardening:
 ├── src/databases/db-init.ts   # Topological Phased Boot engine
 └── src/databases/config-state.ts # Security-masked configuration loader
-```text
+```
 
 ### State-Aware Initialization
 
@@ -215,7 +215,7 @@ The setup process includes several enterprise-grade security features:
 
 ### State Management
 
-```typescript
+```
 // Central state via setup-store (Svelte 5 runes)
 {
   wizard: {
@@ -276,13 +276,13 @@ The setup process includes several enterprise-grade security features:
     firstCollection: null
   }
 }
-```text
+```
 
 ### Validation Schemas
 
 Located in `src/utils/schemas.ts`:
 
-```typescript
+```
 import * as v from "valibot";
 
 // Database configuration schema
@@ -340,7 +340,7 @@ export const systemSettingsSchema = v.object({
   mediaStorageType: v.string(),
   mediaFolder: v.string(),
 });
-```text
+```
 
 ---
 
@@ -385,7 +385,7 @@ export const systemSettingsSchema = v.object({
 - Green success message with connection details
 - "Next" button enabled
 
-```mermaid
+```
 stateDiagram-v2
     [*] --> EnterConfig: User fills form
     EnterConfig --> TestConnection: Click "Test Connection"
@@ -396,7 +396,7 @@ stateDiagram-v2
     Failed --> EnterConfig: Fix errors
     Success --> NextStep: Click "Next"
     NextStep --> [*]
-```text
+```
 
 ### Step 2: Admin Account Creation
 
@@ -548,9 +548,9 @@ SveltyCMS includes a robust Playwright-based E2E test suite to verify the setup 
 
 ### Setup Wizard Test Example
 
-The following test (`tests/e2e/setup-wizard.spec.ts`) demonstrates how to automate the multi-step configuration, including handling modal portals and cookie consent banners:
+The following test (`tests/e2e/routes/setup/setup-wizard.spec.ts`) demonstrates how to automate the multi-step configuration, including handling modal portals and cookie consent banners:
 
-```typescript
+```
 import { expect, test, type Page } from "@playwright/test";
 
 // Helper to click "Next" button and wait for transition
@@ -619,7 +619,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Redirect to dashboard
   await page.waitForURL(/\/en\/collections/, { timeout: 120_000 });
 });
-```text
+```
 
 ---
 
@@ -696,7 +696,7 @@ The wizard implements a two-tier validation system:
 
 **Implementation**:
 
-```typescript
+```
 // In each step component (e.g., database-config.svelte)
 import { safeParse } from "valibot";
 import { dbConfigSchema } from "@utils/schemas";
@@ -737,7 +737,7 @@ const displayErrors = $derived<Record<string, string>>({
   ...localValidationErrors,
   ...validationErrors, // Server errors take precedence
 });
-```text
+```
 
 **Benefits**:
 
@@ -752,7 +752,7 @@ const displayErrors = $derived<Record<string, string>>({
 
 **Implementation**:
 
-```typescript
+```
 function validateStep(step: number, mutateErrors = true): boolean {
   const errs: ValidationErrors = {};
   const errorMessages: string[] = [];
@@ -789,7 +789,7 @@ function validateStep(step: number, mutateErrors = true): boolean {
 
   return Object.keys(errs).length === 0;
 }
-```text
+```
 
 **Benefits**:
 
@@ -802,7 +802,7 @@ function validateStep(step: number, mutateErrors = true): boolean {
 
 Each input field follows this pattern:
 
-```svelte
+```
 <input
 	id="db-host"
 	bind:value={dbConfig.host}
@@ -816,7 +816,7 @@ Each input field follows this pattern:
 		{displayErrors.host}
 	</div>
 {/if}
-```text
+```
 
 **Accessibility Features**:
 
@@ -843,11 +843,11 @@ Each input field follows this pattern:
 
 **Example**:
 
-```text
+```
 ❌ Email is required
 ❌ Password must be at least 8 characters
 ❌ Passwords do not match
-```text
+```
 
 #### 2. Network Errors
 
@@ -861,10 +861,10 @@ Each input field follows this pattern:
 
 **Example**:
 
-```text
+```
 ❌ Network error: Failed to fetch
 💡 Check your internet connection and try again
-```text
+```
 
 #### 3. Database Errors
 
@@ -889,7 +889,7 @@ Each input field follows this pattern:
 
 **Example**:
 
-```text
+```
 ❌ Connection Failed
 
 Error: Authentication failed. Please check your username and password.
@@ -905,7 +905,7 @@ Connection Details:
 - Verify your MongoDB Atlas username and password
 - Check if IP address is whitelisted in Atlas
 - Ensure database user has correct permissions
-```text
+```
 
 #### 4. Driver Installation Errors
 
@@ -919,7 +919,7 @@ Connection Details:
 
 **Example**:
 
-```text
+```
 ⚠️  Driver Installation Failed
 
 The MongoDB driver could not be installed automatically.
@@ -930,13 +930,13 @@ You can:
 1. Install manually: npm install mongoose
 2. Check your internet connection
 3. Continue with setup (connection test will fail until installed)
-```text
+```
 
 ### Error Recovery Strategies
 
 #### Auto-retry
 
-```typescript
+```
 async function testDatabaseConnection() {
   const maxRetries = 3;
   let attempt = 0;
@@ -964,11 +964,11 @@ async function testDatabaseConnection() {
 
   throw new Error("Connection failed after 3 attempts");
 }
-```text
+```
 
 #### Graceful Degradation
 
-```typescript
+```
 async function completeSetup() {
   try {
     // Try to send welcome email
@@ -979,11 +979,11 @@ async function completeSetup() {
     showToast("Setup complete! (Welcome email could not be sent)", "warning");
   }
 }
-```text
+```
 
 #### User Guidance
 
-```typescript
+```
 function classifyDatabaseError(error: DatabaseError): string {
   if (error.code === "EAUTH") {
     return "Authentication failed. Please check your username and password.";
@@ -995,7 +995,7 @@ function classifyDatabaseError(error: DatabaseError): string {
     return `Database error: ${error.message}`;
   }
 }
-```text
+```
 
 ---
 
@@ -1007,7 +1007,7 @@ function classifyDatabaseError(error: DatabaseError): string {
 
 **Pattern**: Svelte 5 class-based store with runes
 
-```typescript
+```
 function createSetupStore() {
   const wizard = $state({
     dbConfig: { ... },
@@ -1053,7 +1053,7 @@ function createSetupStore() {
 }
 
 export const setupStore = createSetupStore();
-```text
+```
 
 ### Persistence Strategy
 
@@ -1079,7 +1079,7 @@ export const setupStore = createSetupStore();
 
 **Implementation**:
 
-```typescript
+```
 // Capture initial state on mount
 let initialDataSnapshot = $state<string>("");
 
@@ -1106,7 +1106,7 @@ const hasUnsavedChanges = $derived(() => {
   const currentSnapshot = JSON.stringify(wizard);
   return currentSnapshot !== initialDataSnapshot;
 });
-```text
+```
 
 **Behavior**:
 
@@ -1130,7 +1130,7 @@ const hasUnsavedChanges = $derived(() => {
 
 **Implementation**:
 
-```svelte
+```
 <button onclick={testDatabaseConnection} disabled={isLoading} class="btn {isLoading ? 'cursor-not-allowed opacity-60' : ''}">
 	{#if isLoading}
 		<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-white"></div>
@@ -1139,7 +1139,7 @@ const hasUnsavedChanges = $derived(() => {
 		Test Connection
 	{/if}
 </button>
-```text
+```
 
 ### Toast Notifications
 
@@ -1160,7 +1160,7 @@ const hasUnsavedChanges = $derived(() => {
 
 **Implementation**:
 
-```typescript
+```
 import { showToast } from "@utils/toast";
 
 // Success
@@ -1171,7 +1171,7 @@ showToast("Connection failed. Please check your settings.", "error", 5000);
 
 // Info
 showToast("Setup will continue, data will be created as needed.", "info", 4000);
-```text
+```
 
 ### Responsive Design
 
@@ -1201,7 +1201,7 @@ showToast("Setup will continue, data will be created as needed.", "info", 4000);
 
 **CSS Pattern**:
 
-```css
+```
 /* Mobile-first approach */
 .form-grid {
   display: grid;
@@ -1215,7 +1215,7 @@ showToast("Setup will continue, data will be created as needed.", "info", 4000);
     grid-template-columns: repeat(2, 1fr);
   }
 }
-```text
+```
 
 ### Keyboard Navigation
 
@@ -1241,7 +1241,7 @@ showToast("Setup will continue, data will be created as needed.", "info", 4000);
 
 1. **Create Step Component**
 
-```svelte
+```
 <!-- src/routes/setup/my-new-step.svelte -->
 <script lang="ts">
 	import type { MyStepData } from '@stores/setup-store.svelte';
@@ -1259,21 +1259,21 @@ showToast("Setup will continue, data will be created as needed.", "info", 4000);
 		<!-- Your form fields -->
 	</div>
 </div>
-```text
+```
 
 2. **Add Validation Schema**
 
-```typescript
+```
 // src/utils/schemas.ts
 export const myStepSchema = v.object({
   field1: v.pipe(v.string(), v.minLength(1, "Field 1 is required")),
   field2: v.pipe(v.string(), v.email("Invalid email")),
 });
-```text
+```
 
 3. **Update setup-store**
 
-```typescript
+```
 // src/stores/setup-store.svelte.ts
 class SetupStore {
   wizard = $state({
@@ -1284,11 +1284,11 @@ class SetupStore {
     },
   });
 }
-```text
+```
 
 4. **Register in Main Wizard**
 
-```svelte
+```
 <!-- src/routes/setup/+page.svelte -->
 <script lang="ts">
 	import MyNewStep from './my-new-step.svelte';
@@ -1330,13 +1330,13 @@ class SetupStore {
 		// ...
 	});
 </script>
-```text
+```
 
 ### Extending Validation
 
 **Add Custom Validator**:
 
-```typescript
+```
 // src/utils/schemas.ts
 import * as v from "valibot";
 
@@ -1355,11 +1355,11 @@ export const dbConfigSchema = v.pipeAsync(
     "Database name already exists",
   ),
 );
-```text
+```
 
 **Add Cross-field Validation**:
 
-```typescript
+```
 export const adminSchema = v.object(
   {
     password: v.string(),
@@ -1376,13 +1376,13 @@ export const adminSchema = v.object(
     ),
   ],
 );
-```text
+```
 
 ### Testing
 
 **Unit Tests** (Vitest):
 
-```typescript
+```
 import { describe, it, expect } from "vitest";
 import { safeParse } from "valibot";
 import { dbConfigSchema } from "@utils/schemas";
@@ -1415,11 +1415,11 @@ describe("dbConfigSchema", () => {
     expect(result.issues[0].message).toContain("Host is required");
   });
 });
-```text
+```
 
 **E2E Tests** (Playwright):
 
-```typescript
+```
 import { test, expect } from "@playwright/test";
 
 test.describe("Setup Wizard", () => {
@@ -1454,7 +1454,7 @@ test.describe("Setup Wizard", () => {
     await expect(page).toHaveURL(/\/Collections/);
   });
 });
-```text
+```
 
 ---
 
@@ -1483,7 +1483,7 @@ The setup wizard has comprehensive test coverage across:
 
 ### Running Tests
 
-```bash
+```
 # Run all setup tests
 bun test tests/bun/api/setup*.test.ts
 
@@ -1492,13 +1492,13 @@ bun test --coverage tests/bun/api/setup*.test.ts
 
 # Watch mode for development
 bun test --watch tests/bun/api/setup.test.ts
-```text
+```
 
 ### Example Test Scenarios
 
 **Database Connection Test:**
 
-```typescript
+```
 it("should test database connection successfully", async () => {
   const formData = new FormData();
   formData.append(
@@ -1523,11 +1523,11 @@ it("should test database connection successfully", async () => {
   expect(result.success).toBe(true);
   expect(result.latencyMs).toBeDefined();
 });
-```text
+```
 
 **Complete Setup Flow Test:**
 
-```typescript
+```
 it("should complete entire setup process", async () => {
   // 1. Test database
   const dbForm = new FormData();
@@ -1566,7 +1566,7 @@ it("should complete entire setup process", async () => {
   const cookies = response.headers.get("set-cookie");
   expect(cookies).toContain("auth_session");
 });
-```text
+```
 
 ---
 
@@ -1582,7 +1582,7 @@ it("should complete entire setup process", async () => {
 
 **Solution**:
 
-```typescript
+```
 // Ensure $effect updates localValidationErrors
 $effect(() => {
   const newErrors: Record<string, string> = {};
@@ -1602,7 +1602,7 @@ const displayErrors = $derived<Record<string, string>>({
   ...localValidationErrors,
   ...validationErrors,
 });
-```text
+```
 
 #### Issue: Form Data Not Persisting
 
@@ -1612,7 +1612,7 @@ const displayErrors = $derived<Record<string, string>>({
 
 **Solution**:
 
-```typescript
+```
 onMount(() => {
   loadStore(); // Load existing data
   setupPersistence(); // Start auto-save
@@ -1620,7 +1620,7 @@ onMount(() => {
   // Capture initial state AFTER loading
   initialDataSnapshot = JSON.stringify(wizard);
 });
-```text
+```
 
 #### Issue: Duplicate Submissions
 
@@ -1630,7 +1630,7 @@ onMount(() => {
 
 **Solution**:
 
-```typescript
+```
 async function completeSetup() {
   // Guard at the top
   if (isSubmitting) {
@@ -1646,7 +1646,7 @@ async function completeSetup() {
     isSubmitting = false; // Always reset
   }
 }
-```text
+```
 
 #### Issue: Unsaved Changes Warning Not Working
 
@@ -1656,7 +1656,7 @@ async function completeSetup() {
 
 **Solution**:
 
-```typescript
+```
 onMount(() => {
   // Capture initial state after loading from localStorage
   initialDataSnapshot = JSON.stringify(wizard);
@@ -1675,7 +1675,7 @@ onMount(() => {
     window.removeEventListener("beforeunload", handleBeforeUnload);
   };
 });
-```text
+```
 
 #### Issue: Database Test Fails with "Driver Not Found"
 
@@ -1685,14 +1685,14 @@ onMount(() => {
 
 **Solution**:
 
-```bash
+```
 # Manual installation
 npm install mongoose
 # or
 bun add mongoose
 # or
 pnpm add mongoose
-```text
+```
 
 Then clear localStorage and retry test.
 
@@ -1704,7 +1704,7 @@ Then clear localStorage and retry test.
 
 **Solution**:
 
-```typescript
+```
 const stepClickable = $derived<boolean[]>([
   true, // Step 0 always clickable
   wizard.highestStepReached >= 1,
@@ -1712,7 +1712,7 @@ const stepClickable = $derived<boolean[]>([
   wizard.highestStepReached >= 3,
   wizard.highestStepReached >= 4,
 ]);
-```text
+```
 
 ---
 
@@ -1763,4 +1763,3 @@ The SveltyCMS setup wizard provides a professional, user-friendly onboarding exp
 ✅ Modern UX with loading states and toast notifications
 
 The modular architecture makes it easy to extend with new steps while maintaining consistency and code quality.
-````

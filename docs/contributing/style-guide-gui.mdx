@@ -81,6 +81,8 @@ Avoid expensive calculations. Use `$derived` and `$derived.by` for computed valu
 
 ## 📦 Native Component Library Quick Reference
 
+**Interactive playground:** `/config/design-system` — live preview of components, palettes, and `--admin-*` structural tokens. Link from **Config → Design System** or **Appearance → Presets**.
+
 Always import from `@components/ui/`. Key components:
 
 | Category        | Components                                                                                                                                                                   |
@@ -98,7 +100,7 @@ Always import from `@components/ui/`. Key components:
 
 All native components follow the same Svelte 5 pattern:
 
-````svelte
+```svelte
 <script>
   import Button from '@components/ui/button.svelte';
   import Modal from '@components/ui/modal.svelte';
@@ -116,7 +118,7 @@ All native components follow the same Svelte 5 pattern:
     <Button variant="primary" onclick={() => open = false}>Save</Button>
   {/snippet}
 </Modal>
-```text
+```
 
 ## Layout & Spacing
 
@@ -127,11 +129,11 @@ All form input widgets (Text, Relation, RichText, etc.) follow a standard layout
 - **Wrapper**: `relative mb-4 w-full`
 - **Error Spacing**: Add `pb-6` to the wrapper if using Pattern 1 (Absolute) error messages. This provides space for error text without shifting layout.
 
-```svelte
+```
 <div class="relative mb-4 w-full pb-6">
   <Input bind:value={field} label="Title" error={fieldError} />
 </div>
-```text
+```
 
 ## ⌨️ Form Inputs
 
@@ -139,11 +141,11 @@ All form input widgets (Text, Relation, RichText, etc.) follow a standard layout
 
 Use native `Input`, `Select`, or `FloatingInput` components. They handle labels, error states, and ARIA automatically.
 
-```svelte
+```
 <Input bind:value={title} label="Page Title" error={errors.title} required />
 <Select bind:value={status} label="Status" options={statusOptions} />
 <FloatingInput bind:value={email} label="Email" type="email" icon="mdi:email" />
-```text
+```
 
 ### Complex Inputs (RichText, MediaUpload)
 
@@ -152,7 +154,7 @@ For complex inputs that are their own self-contained "app," use a bordered conta
 - **Container**: `relative w-full rounded border border-surface-200 bg-surface-50 shadow-sm dark:border-surface-700 dark:bg-surface-900`
 - **Internal Structure**: Use `border-b border-surface-200 dark:border-surface-700` to separate toolbars and content areas.
 
-```svelte
+```
 <div class="relative w-full rounded border border-surface-200 bg-surface-50 shadow-sm dark:border-surface-700 dark:bg-surface-900">
   <div class="toolbar flex flex-wrap border-b border-surface-200 dark:border-surface-700 p-2 gap-1">
     <!-- toolbar buttons -->
@@ -161,7 +163,7 @@ For complex inputs that are their own self-contained "app," use a bordered conta
     <!-- editor area -->
   </div>
 </div>
-```text
+```
 
 ## Validation & Error Handling
 
@@ -174,9 +176,9 @@ For most inputs. Error appears below without shifting layout. All native form co
 - **When to Use**: Text, Select, Combobox, DatePicker, FileUpload.
 - **How**: Pass `error="message"` to the component. No manual positioning needed.
 
-```svelte
+```
 <Input bind:value={title} label="Title" error="Title is required" />
-```text
+```
 
 ### Pattern 2: Static Error Text
 
@@ -185,7 +187,7 @@ For components where absolute positioning is awkward (radio groups, checkboxes).
 - **When to Use**: RadioGroup, Checkbox group.
 - **How**: Display error below the component group.
 
-```svelte
+```
 <RadioGroup bind:value={plan} label="Select Plan">
   <RadioItem value="free" label="Free" />
   <RadioItem value="pro" label="Pro" />
@@ -194,7 +196,7 @@ For components where absolute positioning is awkward (radio groups, checkboxes).
 {#if errors.plan}
   <p class="mt-2 text-xs text-error-500" role="alert">{errors.plan}</p>
 {/if}
-```text
+```
 
 ### Pattern 3: Error Banner
 
@@ -203,20 +205,20 @@ For complex, multi-part components where a single line is insufficient.
 - **When to Use**: Mega menu builder, complex list inputs.
 - **Classes**: `flex items-center gap-2 rounded border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300`
 
-```svelte
+```
 {#if errors.form}
   <div class="flex items-center gap-2 rounded border border-error-200 bg-error-50 p-3 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-300" role="alert">
     <iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
     {errors.form}
   </div>
 {/if}
-```text
+```
 
 ## 🔘 Buttons & Actions
 
 Use the native `Button` component. It handles variants, sizes, loading state, and icons automatically.
 
-```svelte
+```
 <!-- Primary action (Save, Submit) -->
 <Button variant="primary">Save</Button>
 
@@ -240,7 +242,7 @@ Use the native `Button` component. It handles variants, sizes, loading state, an
 
 <!-- Icon-only -->
 <Button variant="ghost" leadingIcon="mdi:plus" aria-label="Add item" />
-```text
+```
 
 **Available variants**: `primary`, `secondary`, `tertiary`, `surface`, `success`, `warning`, `error`, `ghost`, `outline`
 **Available sizes**: `sm`, `md` (default), `lg`, `xl`
@@ -251,7 +253,7 @@ Use native overlay components — they handle backdrop, blur, focus trapping, an
 
 ### Modal
 
-```svelte
+```
 <Modal bind:open title="Edit Settings" size="lg">
   <!-- body content -->
   {#snippet footer()}
@@ -259,22 +261,22 @@ Use native overlay components — they handle backdrop, blur, focus trapping, an
     <Button variant="ghost" onclick={() => open = false}>Cancel</Button>
   {/snippet}
 </Modal>
-```text
+```
 
 ### Drawer
 
-```svelte
+```
 <Drawer bind:open position="right" title="Details">
   <!-- drawer content -->
   {#snippet footer()}
     <Button variant="primary">Confirm</Button>
   {/snippet}
 </Drawer>
-```text
+```
 
 ### Popover / Dropdown
 
-```svelte
+```
 <Dropdown bind:value={selected} {options} position="bottom">
   {#snippet trigger()}
     <Button variant="outline" trailingIcon="mdi:chevron-down">
@@ -282,7 +284,7 @@ Use native overlay components — they handle backdrop, blur, focus trapping, an
     </Button>
   {/snippet}
 </Dropdown>
-```text
+```
 
 ## 💬 Feedback Components
 
@@ -290,32 +292,32 @@ Use native overlay components — they handle backdrop, blur, focus trapping, an
 
 Use the toast store for transient notifications:
 
-```typescript
+```
 import { toastStore } from "@src/stores/toast.svelte.ts";
 
 toastStore.success("Settings saved successfully");
 toastStore.error("Failed to save settings");
 toastStore.warning("Your session will expire soon");
 toastStore.info("New update available");
-```text
+```
 
 ### Alerts
 
 For persistent in-page messages:
 
-```svelte
+```
 <Alert variant="success" title="Success">Your changes have been saved.</Alert>
 <Alert variant="error" title="Error">Something went wrong. Please try again.</Alert>
-```text
+```
 
 ### Progress & Loaders
 
-```svelte
+```
 <Progress value={75} color="primary" />
 <Progress indeterminate color="success" />
 <Loader variant="card" />  <!-- Loading placeholder -->
 <Loader variant="text" lines={3} lastLineWidth="60%" />
-```text
+```
 
 ## 🌙 Dark Mode
 
@@ -335,17 +337,17 @@ To stop layout drift and prevent interfaces from looking different across views,
 
 Every workspace page must be enclosed within an absolute shell mapping safely to the active admin theme containers. No raw background selections are allowed.
 
-```svelte
+```
 <div class="absolute inset-0 p-6 space-y-6 bg-surface-50 dark:bg-surface-950 overflow-y-auto admin-theme-container">
   <!-- All page content goes here -->
 </div>
-```text
+```
 
 ### 2. Standard Page Header
 
 Every configuration workspace must invoke the global `<PageTitle>` primitive. Writing custom or inline `<h1>` variants is forbidden. Actions are dropped strictly inside the default layout slot to populate on the trailing edge.
 
-```svelte
+```
 <script>
   import PageTitle from '@components/page-title.svelte';
 </script>
@@ -353,7 +355,7 @@ Every configuration workspace must invoke the global `<PageTitle>` primitive. Wr
 <PageTitle name="Extension Management" icon="mdi:form-select" description="Install and manage plugins, widgets, and custom workspace extensions">
   <Button variant="primary" leadingIcon="mdi:plus">Install Extension</Button>
 </PageTitle>
-```text
+```
 
 **Rules**:
 
@@ -366,12 +368,12 @@ Every configuration workspace must invoke the global `<PageTitle>` primitive. Wr
 
 All content grids, data tables, metrics feeds, and system blocks must reside inside an explicit bounding card. No content may lay bare on the application viewport background.
 
-```svelte
+```
 <div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
      style="border-radius: var(--admin-radius-card, 0.75rem);">
   <!-- Tables, grids, forms, stats — everything goes inside a card -->
 </div>
-```text
+```
 
 **Rules**:
 
@@ -387,7 +389,7 @@ Three rules for high-density admin interfaces that look professional in both lig
 
 When an option isn't selected or a toolbar filter isn't active, blend it into the surface so the user's eye stays pinned on the workspace. Inactive controls should match the surrounding background layer until hovered or engaged.
 
-```svelte
+```
 <!-- ✅ Good: inactive button blends into background -->
 <button class="text-surface-500 hover:text-surface-900 dark:text-surface-500 dark:hover:text-white bg-transparent">
   Horizontal Toolbar
@@ -397,13 +399,13 @@ When an option isn't selected or a toolbar filter isn't active, blend it into th
 <button class="text-primary-500 bg-primary-100 dark:text-primary-400 dark:bg-primary-500/20">
   Horizontal Toolbar
 </button>
-```text
+```
 
 ### 2. Border-First Separation
 
 Use slim, high-contrast borders to separate content regions instead of heavy background fills. This keeps layouts crisp at high data density and anchors user movement across multi-column configurations.
 
-```svelte
+```
 <!-- ✅ Good: border defines the boundary, background stays light -->
 <div class="rounded border border-surface-200 p-4 bg-surface-50/30 dark:border-surface-800 dark:bg-surface-900/20">
   <!-- grouped content -->
@@ -413,13 +415,13 @@ Use slim, high-contrast borders to separate content regions instead of heavy bac
 <div class="rounded bg-surface-100 p-4 dark:bg-surface-800">
   <!-- grouped content -->
 </div>
-```text
+```
 
 ### 3. Adaptive Accent Saturation
 
 In light mode, use deeply anchored, rich accent tones for crisp visibility. In dark mode, reduce saturation and lift lightness — full-saturation accents that look premium on a light canvas become harsh and cause eye strain against dark backgrounds.
 
-```svelte
+```
 <!-- ✅ Good: light mode uses rich tertiary tone, dark mode uses subdued primary -->
 <button class="preset-filled-tertiary-500 dark:preset-filled-primary-500">
   Save Changes
@@ -429,7 +431,7 @@ In light mode, use deeply anchored, rich accent tones for crisp visibility. In d
 <button class="preset-filled-primary-500">
   Save Changes
 </button>
-```text
+```
 
 > The preset system already enforces per-mode saturation control. For custom accent utilities, target `oklch` lightness ~55–65% in light mode; step saturation down and lift lightness 5–10 points in dark mode. Never hardcode raw `oklch` values directly in components.
 
@@ -439,7 +441,7 @@ In light mode, use deeply anchored, rich accent tones for crisp visibility. In d
 
 When presenting menu options or macro parameters, keep items locked into explicit content templates. Avoid vast sizing discrepancies by mapping actions to standard grid columns.
 
-```svelte
+```
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
   <a href="/config/settings" class="card p-5 hover:border-tertiary-500 dark:hover:border-primary-500 transition-all flex items-start gap-4">
     <iconify-icon icon="mdi:cog" width="24" class="text-surface-500"></iconify-icon>
@@ -450,13 +452,13 @@ When presenting menu options or macro parameters, keep items locked into explici
   </a>
   <!-- Repeat for each grid item -->
 </div>
-```text
+```
 
 ### Data Management Tables
 
 Tables must scale natively across view bounds and feature explicit alignment breaks. Rows must feature subtle divider lines rather than bold grid matrices. Always wrap tables in `overflow-x-auto`.
 
-```svelte
+```
 <div class="overflow-x-auto w-full">
   <table class="w-full text-sm border-collapse">
     <thead>
@@ -475,23 +477,23 @@ Tables must scale natively across view bounds and feature explicit alignment bre
     </tbody>
   </table>
 </div>
-```text
+```
 
 ### Status Badges
 
-```svelte
+```
 <span class="badge text-[10px] preset-filled-success-500">Active</span>
 <span class="badge text-[10px] preset-tonal-primary-500">In Progress</span>
-```text
+```
 
 ### Quick Action Links
 
-```svelte
+```
 <a href="/config/target" class="btn btn-sm preset-tonal-surface-500 w-full justify-between">
   <span>Label</span>
   <iconify-icon icon="mdi:arrow-right"></iconify-icon>
 </a>
-```text
+```
 
 ## 🛑 Complete Core Anti-Patterns (DO NOT USE)
 
@@ -524,12 +526,11 @@ Before submitting a PR:
 - [ ] **Svelte 5 Runes**: `$state`, `$derived`, `$props`, `$bindable` used. No Svelte 4 legacy syntax.
 - [ ] **Responsiveness**: Mobile-first, tested at 320px width.
 - [ ] **Tailwind v4 & RTL Conventions**: Use suffix exclamation marks (e.g., `py-0!`) and RTL logical properties (e.g., `ps-`, `pe-`).
-````
 
 ---
 
 ## Related
 
-- [Getting Started](./getting-started.mdx)
-- [Architecture Overview](./architecture/index.mdx)
-- [Security Overview](./architecture/security/index.mdx)
+- [Getting Started](../getting-started.mdx)
+- [Architecture Overview](../architecture/index.mdx)
+- [Security Overview](../architecture/security/index.mdx)

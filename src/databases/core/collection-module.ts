@@ -49,6 +49,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
         const res = await this.crud.findOne<any>(
           id,
           query as import("../db-interface").QueryFilter<Record<string, unknown>>,
+          { skipMeta: true },
         );
         return res.success ? (res.data as R) : null;
       },

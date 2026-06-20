@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-04-26"
-updated: "2026-05-31"
+updated: "2026-06-20"
 tags:
   - "benchmark"
   - "performance"
@@ -43,7 +43,7 @@ BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
 
 ### Data Flow
 
-```mermaid
+```
 flowchart TD
     A["bun test auth-performance.test.ts"] --> B["setupBenchmarkServer"]
     B --> C["runBenchmark x N scenarios"]
@@ -135,7 +135,7 @@ flowchart TD
 | **Per-DB Budgets**            | SQLite/PG/MariaDB/MongoDB each have different cold/warm/CRUD/cache/concurrency budgets                                   |
 | **Shared Database**           | All benchmarks reuse `benchmark_shared.sqlite` — first run seeds, subsequent runs skip seeding (smart detect)            |
 | **Persistent Data**           | Database file persists between runs — no cleanup on stop. Write benchmarks recreate their own collections as needed      |
-| **48 Enhanced Sections**      | 9 dimensions: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance                          |
+| **58 Enhanced Benchmarks**     | 12 dimensions: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance, Soak, Streaming, Failover |
 
 ## 📝 Creating a New Benchmark
 
@@ -143,7 +143,7 @@ Every benchmark test MUST follow this structure to integrate with the reporting 
 
 ### Required structure
 
-```typescript
+```
 /**
  * @file tests/benchmarks/my-benchmark.test.ts
  * @description One-line description of what this benchmark measures.
@@ -212,7 +212,7 @@ The `pushTableToMdx` bridge discovers the correct MDX section by:
 
 Each report section follows this layout:
 
-```text
+```
 ### 🏷️ Test Name 🔴 avg +25%          <- label with trend (outside tags, persists)
 
 > **Measures**: What this benchmark proves.
@@ -253,13 +253,13 @@ Each report section follows this layout:
 
 **Console only (safe for normal dev):**
 
-```bash
+```
 bun test tests/benchmarks/auth-performance.test.ts
 ```text
 
 **All benchmarks (sequential, with recording):**
 
-```bash
+```
 bun run scripts/run-all-benchmarks.ts
 ```text
 
@@ -268,25 +268,25 @@ bun run scripts/run-all-benchmarks.ts
 
 **Single test (record to report):**
 
-```bash
+```
 BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
 ```text
 
 **History only (no MDX mutation, useful in CI):**
 
-```bash
+```
 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
 ```text
 
 **Full SQLite matrix:**
 
-```bash
+```
 bun run scripts/benchmark-matrix/index.ts --sql
 ```text
 
 **Differential (only tests affected by recent changes):**
 
-```bash
+```
 bun run scripts/benchmark-matrix/index.ts --sql --differential
 ```text
 
@@ -308,6 +308,6 @@ bun run scripts/benchmark-matrix/index.ts --sql --differential
 
 ## Related
 
-- [Architecture Overview](../index.mdx)
+- [Architecture Overview](../technical-evaluation-2026.mdx)
 - [Getting Started](../../getting-started.mdx)
 - [API Reference](../../api/index.mdx)

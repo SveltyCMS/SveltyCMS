@@ -22,6 +22,7 @@ import type { SvelteComponent } from "svelte";
 import Default from "./tabs-fields/default.svelte";
 import Permission from "./tabs-fields/permission.svelte";
 import Specific from "./tabs-fields/specific.svelte";
+	import Button from '@components/ui/button.svelte';
 
 let localTabSet = $state("0");
 
@@ -140,13 +141,13 @@ const cForm = "border border-surface-500 p-4 space-y-4 rounded";
 	<footer class="flex justify-between pt-4 border-t border-surface-500/20">
 		<div class="flex gap-2">
 			<!-- Delete Button -->
-			<button type="button" onclick={deleteWidget} aria-label="Delete" class="preset-filled-error-500 btn">
+			<Button variant="error" type="button" onclick={deleteWidget} aria-label="Delete">
 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 				<span class="hidden sm:block">{button_delete()}</span>
-			</button>
+			</Button>
 
 			<!-- Duplicate Button -->
-			<button
+			<Button variant="tertiary"
 				type="button"
 				onclick={() => {
 					if (response) {
@@ -155,19 +156,18 @@ const cForm = "border border-surface-500 p-4 space-y-4 rounded";
 					modalState.close();
 				}}
 				aria-label="Duplicate"
-				class="preset-filled-tertiary-500 btn"
 			>
 				<iconify-icon icon="mdi:content-copy" width={24}></iconify-icon>
 				<span class="hidden sm:block">Duplicate</span>
-			</button>
+			</Button>
 		</div>
 
 		<!-- Cancel & Save Buttons -->
 		<div class="flex justify-between gap-4">
-			<button type="button" aria-label={button_cancel()} class="btn preset-outlined-secondary-500" onclick={() => modalState.close()}>
+			<Button variant="outline" type="button" aria-label={button_cancel()} onclick={() => modalState.close()}>
 				{button_cancel()}
-			</button>
-			<button type="button" aria-label={button_save()} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onFormSubmit}>{button_save()}</button>
+			</Button>
+			<Button variant="tertiary" type="button" aria-label={button_save()} onclick={onFormSubmit} class="dark:">{button_save()}</Button>
 		</div>
 	</footer>
 </div>

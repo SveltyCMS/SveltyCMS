@@ -194,6 +194,7 @@ if (!building) {
             import("@src/services/system/watchdog"),
             import("@src/services/observability/telemetry-service"),
             import("@src/services/scheduler"),
+            import("@src/services/intelligence/behavioral-learner"),
           ])
             .then(
               ([
@@ -202,11 +203,13 @@ if (!building) {
                 { watchdog },
                 { telemetryService },
                 scheduler,
+                { startBehavioralEngine },
               ]) => {
                 jobQueue.startPolling();
                 automationService.init();
                 watchdog.start();
                 scheduler.startScheduler();
+                startBehavioralEngine();
 
                 // Telemetry check
                 const globalWithTelemetry = globalThis as typeof globalThis & {
@@ -325,11 +328,24 @@ export function getHookTimings(): Record<
   return result;
 }
 
+// 🚀 PERF FIX: Hook timing and tracing add measurable overhead (Map ops, performance.now, traceSpan)
+// on every request for every hook. This contributes to the "Middleware/Hooks over budget"
+// (target <2ms full pipeline in exec matrix). Gate to diagnostics/benchmark only.
+// Turbo path remains fast (1.6-2.1ms) because it short-circuits many later hooks.
+const HOOK_TIMING_ENABLED =
+  process.env.ENABLE_HOOK_TIMING === "1" ||
+  (process.env.NODE_ENV !== "production" && !process.env.SVELTY_BENCHMARK_SUITE);
+
 function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
+  // Resolve once at wrap time (pipeline build). Saves per-request function call overhead.
+  const resolvedHandle = handleFnRef();
+  if (!HOOK_TIMING_ENABLED) {
+    // Minimal wrapper: no timing/trace cost in hot prod path.
+    return async (input) => await resolvedHandle(input);
+  }
   return async (input) => {
     const start = performance.now();
     try {
-      const resolvedHandle = handleFnRef();
       return await traceSpan(`hook:${name}`, async () => await resolvedHandle(input));
     } finally {
       const elapsed = performance.now() - start;

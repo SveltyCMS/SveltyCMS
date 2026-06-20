@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/mediagallery/AdvancedSearchModal.svelte
+@file src/routes/(app)/mediagallery/advanced-search-modal.svelte
 @component
 **Advanced Search Modal for Media Gallery**
 
@@ -29,6 +29,11 @@ Structure optimized for LLM integration and AI-powered search.
 import type { SearchCriteria } from "@utils/media/advanced-search";
 import type { MediaBase } from "@utils/media/media-models";
 import { SvelteDate, SvelteSet } from "svelte/reactivity";
+import AdminCard from '@components/admin-card.svelte';
+import Button from '@components/ui/button.svelte';
+import Checkbox from '@components/ui/checkbox.svelte';
+import Input from '@components/ui/input.svelte';
+import Select from '@components/ui/select.svelte';
 
 interface Props {
 	files: MediaBase[];
@@ -38,8 +43,18 @@ interface Props {
 
 const { files, onSearch, onClose }: Props = $props();
 
-// Search criteria state (not used directly, converted from formValues)
-// let criteria = $state<SearchCriteria>({...});
+const aspectRatioOptions = [
+	{ value: "any", label: "Any" },
+	{ value: "landscape", label: "Landscape" },
+	{ value: "portrait", label: "Portrait" },
+	{ value: "square", label: "Square" },
+];
+
+const hasExifOptions = [
+	{ value: "any", label: "Any" },
+	{ value: "yes", label: "Yes" },
+	{ value: "no", label: "No" },
+];
 
 // Form input values (separate from criteria for easier binding)
 let formValues = $state({
@@ -70,7 +85,6 @@ const suggestions = $derived.by(() => {
 	const dimensions = new SvelteSet<string>();
 
 	files.forEach((file) => {
-		// Extract tags - handle type safety
 		if (
 			file.metadata &&
 			typeof file.metadata === "object" &&
@@ -82,7 +96,6 @@ const suggestions = $derived.by(() => {
 			}
 		}
 
-		// Extract camera info - handle type safety
 		if (
 			file.metadata &&
 			typeof file.metadata === "object" &&
@@ -94,7 +107,6 @@ const suggestions = $derived.by(() => {
 			}
 		}
 
-		// Extract common dimensions - use MediaImage type
 		const imageFile = file as { width?: number; height?: number };
 		if (imageFile.width && imageFile.height) {
 			dimensions.add(`${imageFile.width}x${imageFile.height}`);
@@ -108,9 +120,7 @@ const suggestions = $derived.by(() => {
 	};
 });
 
-// Handle search
 function handleSearch() {
-	// Convert form values to criteria
 	const searchCriteria: SearchCriteria = {
 		filename: formValues.filename || undefined,
 		tags: formValues.tagsInput
@@ -134,7 +144,7 @@ function handleSearch() {
 				: undefined,
 		minSize: formValues.minSize
 			? Number.parseInt(formValues.minSize, 10) * 1024 * 1024
-			: undefined, // Convert MB to bytes
+			: undefined,
 		maxSize: formValues.maxSize
 			? Number.parseInt(formValues.maxSize, 10) * 1024 * 1024
 			: undefined,
@@ -159,7 +169,6 @@ function handleSearch() {
 	onSearch(searchCriteria);
 }
 
-// Reset form
 function resetForm() {
 	formValues = {
 		filename: "",
@@ -183,7 +192,6 @@ function resetForm() {
 	};
 }
 
-// Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
 	if (e.key === "Escape") {
 		onClose();
@@ -194,9 +202,9 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <!-- Modal Content Wrapper -->
-<div class="h-full w-full flex flex-col items-center justify-center p-4">
-	<div
-		class="card max-h-[85vh] w-full max-w-4xl flex flex-col overflow-hidden bg-surface-100 dark:bg-surface-800 shadow-xl"
+<div class="flex h-full w-full flex-col items-center justify-center p-4">
+	<AdminCard
+		class="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden border border-surface-200 bg-surface-100 shadow-xl dark:border-surface-700 dark:bg-surface-800"
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => {
 			if (e.key === 'Enter') e.stopPropagation();
@@ -205,10 +213,10 @@ function handleKeydown(e: KeyboardEvent) {
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="advanced-search-title"
-		tabindex="0"
+		tabindex={0}
 	>
 		<!-- Header -->
-		<div class="flex-none border-b border-surface-300 p-4 dark:border-surface-600 bg-surface-200/50 dark:bg-surface-700/50">
+		<div class="flex-none border-b border-surface-300 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50">
 			<h2 id="advanced-search-title" class="text-center text-2xl font-bold text-tertiary-500 underline dark:text-primary-500">Advanced Search</h2>
 		</div>
 
@@ -224,7 +232,8 @@ function handleKeydown(e: KeyboardEvent) {
 			>
 				<!-- Search Presets -->
 				<div class="flex flex-wrap gap-2">
-					<button>
+					<Button
+						variant="outline"
 						type="button"
 						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
@@ -236,8 +245,9 @@ function handleKeydown(e: KeyboardEvent) {
 					>
 						<iconify-icon icon="mdi:calendar-week" width={24}></iconify-icon>
 						<span>Recent (7 days)</span>
-					</button>
-					<button>
+					</Button>
+					<Button
+						variant="outline"
 						type="button"
 						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
@@ -249,8 +259,9 @@ function handleKeydown(e: KeyboardEvent) {
 					>
 						<iconify-icon icon="mdi:calendar-month" width={24}></iconify-icon>
 						<span>Recent (30 days)</span>
-					</button>
-					<button>
+					</Button>
+					<Button
+						variant="outline"
 						type="button"
 						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
@@ -260,8 +271,9 @@ function handleKeydown(e: KeyboardEvent) {
 					>
 						<iconify-icon icon="mdi:file-star" width={24}></iconify-icon>
 						<span>Large (>5MB)</span>
-					</button>
-					<button>
+					</Button>
+					<Button
+						variant="outline"
 						type="button"
 						class="chip preset-outlined-tertiary-500 dark:preset-outlined-primary-500 hover:preset-filled-tertiary-500 dark:preset-filled-primary-500 transition-colors"
 						onclick={() => {
@@ -271,7 +283,7 @@ function handleKeydown(e: KeyboardEvent) {
 					>
 						<iconify-icon icon="mdi:monitor-screenshot" width={24}></iconify-icon>
 						<span>4K+ Images</span>
-					</button>
+					</Button>
 				</div>
 
 				<hr class="border-surface-300 dark:border-surface-600" />
@@ -280,18 +292,13 @@ function handleKeydown(e: KeyboardEvent) {
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Basic Criteria</h3>
 					<div class="grid gap-4 md:grid-cols-2">
-						<label class="label">
-							<span>Filename</span>
-							<input type="text" bind:value={formValues.filename} class="input" placeholder="image.jpg"  aria-label="Input" />
-						</label>
-
-						<label class="label">
-							<span>Tags (comma-separated)</span>
-							<input type="text" bind:value={formValues.tagsInput} class="input" placeholder="landscape, nature"  aria-label="Input" />
+						<Input bind:value={formValues.filename} label="Filename" placeholder="image.jpg" />
+						<div>
+							<Input bind:value={formValues.tagsInput} label="Tags (comma-separated)" placeholder="landscape, nature" />
 							{#if suggestions.tags.length > 0}
 								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">Suggestions: {suggestions.tags.join(', ')}</div>
 							{/if}
-						</label>
+						</div>
 					</div>
 				</section>
 
@@ -299,37 +306,19 @@ function handleKeydown(e: KeyboardEvent) {
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Dimensions</h3>
 					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-						<label class="label">
-							<span>Min Width (px)</span>
-							<input type="number" bind:value={formValues.minWidth} class="input" placeholder="1920"  aria-label="Input" />
-						</label>
-
-						<label class="label">
-							<span>Max Width (px)</span>
-							<input type="number" bind:value={formValues.maxWidth} class="input" placeholder="3840"  aria-label="Input" />
-						</label>
-
-						<label class="label">
-							<span>Min Height (px)</span>
-							<input type="number" bind:value={formValues.minHeight} class="input" placeholder="1080"  aria-label="Input" />
-						</label>
-
-						<label class="label">
-							<span>Max Height (px)</span>
-							<input type="number" bind:value={formValues.maxHeight} class="input" placeholder="2160"  aria-label="Input" />
-						</label>
+						<Input bind:value={formValues.minWidth} type="number" label="Min Width (px)" placeholder="1920" />
+						<Input bind:value={formValues.maxWidth} type="number" label="Max Width (px)" placeholder="3840" />
+						<Input bind:value={formValues.minHeight} type="number" label="Min Height (px)" placeholder="1080" />
+						<Input bind:value={formValues.maxHeight} type="number" label="Max Height (px)" placeholder="2160" />
 					</div>
 
 					<div class="mt-4">
-						<label class="label">
-							<span>Aspect Ratio</span>
-							<select bind:value={formValues.aspectRatio} class="select" aria-label="Select">
-								<option value="any">Any</option>
-								<option value="landscape">Landscape</option>
-								<option value="portrait">Portrait</option>
-								<option value="square">Square</option>
-							</select>
-						</label>
+						<Select
+							bind:value={formValues.aspectRatio}
+							label="Aspect Ratio"
+							options={aspectRatioOptions}
+							placeholder="Aspect ratio"
+						/>
 					</div>
 
 					{#if suggestions.dimensions.length > 0}
@@ -341,20 +330,9 @@ function handleKeydown(e: KeyboardEvent) {
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">File Properties</h3>
 					<div class="grid gap-4 md:grid-cols-3">
-						<label class="label">
-							<span>Min Size (MB)</span>
-							<input type="number" bind:value={formValues.minSize} class="input" placeholder="1" step="0.1"  aria-label="Input" />
-						</label>
-
-						<label class="label">
-							<span>Max Size (MB)</span>
-							<input type="number" bind:value={formValues.maxSize} class="input" placeholder="50" step="0.1"  aria-label="Input" />
-						</label>
-
-						<label class="label">
-							<span>File Types</span>
-							<input type="text" bind:value={formValues.fileTypesInput} class="input" placeholder="image/jpeg, image/png"  aria-label="Input" />
-						</label>
+						<Input bind:value={formValues.minSize} type="number" label="Min Size (MB)" placeholder="1" step="0.1" />
+						<Input bind:value={formValues.maxSize} type="number" label="Max Size (MB)" placeholder="50" step="0.1" />
+						<Input bind:value={formValues.fileTypesInput} label="File Types" placeholder="image/jpeg, image/png" />
 					</div>
 				</section>
 
@@ -362,15 +340,8 @@ function handleKeydown(e: KeyboardEvent) {
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Upload Dates</h3>
 					<div class="grid gap-4 md:grid-cols-2">
-						<label class="label">
-							<span>Uploaded After</span>
-							<input type="date" bind:value={formValues.uploadedAfter} class="input"  aria-label="Input" />
-						</label>
-
-						<label class="label">
-							<span>Uploaded Before</span>
-							<input type="date" bind:value={formValues.uploadedBefore} class="input"  aria-label="Input" />
-						</label>
+						<Input bind:value={formValues.uploadedAfter} type="date" label="Uploaded After" />
+						<Input bind:value={formValues.uploadedBefore} type="date" label="Uploaded Before" />
 					</div>
 				</section>
 
@@ -378,27 +349,14 @@ function handleKeydown(e: KeyboardEvent) {
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Metadata & EXIF</h3>
 					<div class="grid gap-4 md:grid-cols-3">
-						<label class="label">
-							<span>Has EXIF Data</span>
-							<select bind:value={formValues.hasEXIF} class="select" aria-label="Select">
-								<option value="any">Any</option>
-								<option value="yes">Yes</option>
-								<option value="no">No</option>
-							</select>
-						</label>
-
-						<label class="label">
-							<span>Camera</span>
-							<input type="text" bind:value={formValues.camera} class="input" placeholder="Canon EOS 5D"  aria-label="Input" />
+						<Select bind:value={formValues.hasEXIF} label="Has EXIF Data" options={hasExifOptions} placeholder="EXIF" />
+						<div>
+							<Input bind:value={formValues.camera} label="Camera" placeholder="Canon EOS 5D" />
 							{#if suggestions.cameras.length > 0}
 								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">Found: {suggestions.cameras.join(', ')}</div>
 							{/if}
-						</label>
-
-						<label class="label">
-							<span>Location</span>
-							<input type="text" bind:value={formValues.location} class="input" placeholder="New York"  aria-label="Input" />
-						</label>
+						</div>
+						<Input bind:value={formValues.location} label="Location" placeholder="New York" />
 					</div>
 				</section>
 
@@ -406,44 +364,39 @@ function handleKeydown(e: KeyboardEvent) {
 				<section>
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">Advanced</h3>
 					<div class="grid gap-4 md:grid-cols-2">
-						<label class="label">
-							<span>Dominant Color (hex)</span>
-							<input type="text" bind:value={formValues.dominantColor} class="input" placeholder="#FF5733"  aria-label="Input" />
-						</label>
-
-						<label class="label">
-							<span>Hash Match</span>
-							<input type="text" bind:value={formValues.hashMatch} class="input" placeholder="a1b2c3d4..."  aria-label="Input" />
-						</label>
+						<Input bind:value={formValues.dominantColor} label="Dominant Color (hex)" placeholder="#FF5733" />
+						<Input bind:value={formValues.hashMatch} label="Hash Match" placeholder="a1b2c3d4..." />
 					</div>
 
-					<label class="mt-4 flex items-center gap-2">
-						<input type="checkbox" bind:checked={formValues.showDuplicatesOnly} class="checkbox"  aria-label="Input" />
-						<span>Show Duplicates Only</span>
-					</label>
+					<div class="mt-4">
+						<Checkbox
+							bind:checked={formValues.showDuplicatesOnly}
+							label="Show Duplicates Only"
+						/>
+					</div>
 				</section>
 			</form>
 		</div>
 
 		<!-- Footer -->
-		<div class="flex-none border-t border-surface-300 p-4 dark:border-surface-600 bg-surface-200/50 dark:bg-surface-700/50">
+		<div class="flex-none border-t border-surface-300 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50">
 			<div class="flex items-center justify-between">
-				<div class="text-sm hidden sm:block">
+				<div class="hidden text-sm sm:block">
 					<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong>
 					Press
-					<kbd class="preset-filled-tertiary-500 badge dark:preset-filled-primary-500">Ctrl+Enter</kbd>
+					<kbd class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500">Ctrl+Enter</kbd>
 					to search
 				</div>
 
-				<div class="flex gap-3 ml-auto">
-					<button type="button" onclick={resetForm} class="preset-outlined-surface-500 btn">Reset</button>
-					<button type="button" onclick={onClose} class="preset-outlined-surface-500 btn">Cancel</button>
-					<button type="submit" form="advanced-search-form" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">
+				<div class="ml-auto flex gap-3">
+					<Button variant="outline" type="button" onclick={resetForm}>Reset</Button>
+					<Button variant="outline" type="button" onclick={onClose}>Cancel</Button>
+					<Button variant="tertiary" type="submit" form="advanced-search-form" class="dark:">
 						<iconify-icon icon="mdi:magnify" width={20}></iconify-icon>
 						Search
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>
-	</div>
+	</AdminCard>
 </div>

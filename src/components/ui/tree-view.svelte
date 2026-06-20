@@ -80,6 +80,7 @@ search filtering, and RTL support.
 -->
 
 <script module lang="ts">
+	import Button from '@components/ui/button.svelte';
     export interface TreeItem {
         id: string;
         label?: string;
@@ -468,7 +469,7 @@ search filtering, and RTL support.
                 densityTokens.padding,
                 densityTokens.touch,
                 isSelected
-                    ? 'bg-tertiary-500 dark:bg-primary-500/10 border-tertiary-500 dark:border-primary-500/30 text-white dark:text-primary-300 shadow-xs'
+                    ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-300 shadow-xs'
                     : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
                 isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
@@ -524,7 +525,7 @@ search filtering, and RTL support.
                     <iconify-icon
                         icon={node.icon}
                         width={densityTokens.icon}
-                        class={cn(isSelected ? 'text-white dark:text-primary-500' : iconColorClass)}
+                        class={cn(isSelected ? 'text-primary-600 dark:text-primary-500' : iconColorClass)}
                         aria-hidden="true"
                     ></iconify-icon>
                 </div>
@@ -535,7 +536,7 @@ search filtering, and RTL support.
                 'truncate transition-colors',
                 densityTokens.font,
                 isSelected
-                    ? 'font-bold text-white dark:text-primary-500'
+                    ? 'font-bold text-primary-600 dark:text-primary-500'
                     : 'font-medium text-surface-900 dark:text-surface-100'
             )}>
                 {nodeLabel}
@@ -562,15 +563,14 @@ search filtering, and RTL support.
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
             <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100">
                 {#each node.actions as act}
-                    <button
+                    <Button variant="ghost"
                         type="button"
-                        class="btn-icon btn-icon-sm rounded-full hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-                        onclick={(e) => { e.stopPropagation(); act.onClick(); }}
+                        onclick={(e: MouseEvent) => { e.stopPropagation(); act.onClick(); }}
                         aria-label={act.label}
                         title={act.label}
-                    >
+                     class="p-0! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700">
                         <iconify-icon icon={act.icon} width="16" class={act.colorClass || ''} aria-hidden="true"></iconify-icon>
-                    </button>
+                    </Button>
                 {/each}
             </div>
         {/if}

@@ -20,6 +20,7 @@
     cookie_marketing_title,
     cookie_necessary_desc,
     cookie_necessary_title,
+    cookie_privacy_policy,
   } from "@src/paraglide/messages";
   import { consentStore } from "@src/stores/consent-store.svelte";
   import { fade, slide } from "svelte/transition";
@@ -182,11 +183,8 @@
         {/if}
       </div>
 
-      <!-- Privacy Link -->
       <p class="mt-2 text-center text-xs text-surface-500">
-        <a href="/privacy-policy" class="hover:underline hover:text-tertiary-500 dark:text-primary-500"
-          >Privacy Policy</a
-        >
+        <a href="/privacy-policy" class="hover:underline hover:text-tertiary-500 dark:text-primary-500">{cookie_privacy_policy()}</a>
       </p>
     </div>
   </div>

@@ -2,29 +2,17 @@
  * @file src/routes/(app)/dashboard/+page.server.ts
  * @description Server-side logic for the dashboard page.
  *
- * ### Props
- * - `user`: The authenticated user data.
- * - `availableWidgets`: Dynamically discovered widgets from the widgets folder
- *
  * Features:
  * - User authentication and authorization
- * - Dynamic widget discovery from widgets folder
+ * - Compile-time widget discovery via import.meta.glob (zero runtime FS scan)
  * - Server-side UUID v4 generation for new widgets
- * - Support for dynamic width and height sizing
  */
 
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
 import { error, json, redirect } from "@sveltejs/kit";
-// System Logger
 import { logger } from "@utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
+import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
 import type { Actions, PageServerLoad } from "./$types";
-
-// Cache for discovered widgets
-let cachedWidgets: WidgetInfo[] | null = null;
-const WIDGET_CACHE_TTL = 1000 * 60 * 5; // 5 minutes
-let lastCacheTime = 0;
 
 interface WidgetInfo {
   componentName: string;
@@ -33,69 +21,41 @@ interface WidgetInfo {
   name: string;
 }
 
-async function getWidgetMetadata(componentName: string): Promise<WidgetInfo> {
-  try {
-    const widgetModule = await import(`./widgets/${componentName}.svelte`);
-    if (widgetModule.widgetMeta) {
+// Compile-time widget discovery — Vite resolves this at build time.
+// Zero runtime FS scan, zero dynamic imports, zero blocking I/O.
+const _widgetModules = import.meta.glob<{
+  widgetMeta?: { name: string; icon: string; description?: string };
+}>("./widgets/*.svelte", { eager: true });
+
+// Pre-compute widget list once at module load
+const _widgets: WidgetInfo[] = Object.entries(_widgetModules)
+  .map(([path, mod]) => {
+    const componentName = path.split("/").pop()!.replace(".svelte", "");
+    if (mod.widgetMeta) {
       return {
         componentName,
-        name: widgetModule.widgetMeta.name,
-        icon: widgetModule.widgetMeta.icon,
-        description: widgetModule.widgetMeta.description,
+        name: mod.widgetMeta.name,
+        icon: mod.widgetMeta.icon,
+        description: mod.widgetMeta.description,
       };
     }
-    logger.warn(`Widget ${componentName} has no widgetMeta export, using fallback`);
-  } catch (err) {
-    logger.error(`Failed to load metadata for widget ${componentName}:`, err);
-  }
+    // Fallback: derive name from filename
+    const name = componentName
+      .replace(/-widget$/, "")
+      .split("-")
+      .filter(Boolean)
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(" ");
+    return {
+      componentName,
+      name,
+      icon: "mdi:widgets",
+      description: "Dashboard widget",
+    };
+  })
+  .sort((a, b) => a.name.localeCompare(b.name));
 
-  return {
-    componentName,
-    name: componentName
-      .replace("Widget", "")
-      .replace(/([A-Z])/g, " $1")
-      .trim(),
-    icon: "mdi:widgets",
-    description: "Custom dashboard widget",
-  };
-}
-
-async function discoverWidgets(): Promise<WidgetInfo[]> {
-  // Return cached widgets if valid
-  if (
-    cachedWidgets &&
-    Date.now() - lastCacheTime < WIDGET_CACHE_TTL &&
-    process.env.NODE_ENV === "production"
-  ) {
-    return cachedWidgets;
-  }
-
-  try {
-    const widgetsPath = join(process.cwd(), "src/routes/(app)/dashboard/widgets");
-    const files = readdirSync(widgetsPath, { withFileTypes: true });
-
-    const widgetPromises = files
-      .filter((file) => file.isFile() && file.name.endsWith("Widget.svelte"))
-      .map(async (file) => {
-        const componentName = file.name.replace(".svelte", "");
-        return await getWidgetMetadata(componentName);
-      });
-
-    const widgets = await Promise.all(widgetPromises);
-    const sortedWidgets = widgets.sort((a, b) => a.name.localeCompare(b.name));
-
-    logger.trace(`Discovered ${sortedWidgets.length} dashboard widgets`);
-
-    // Update cache
-    cachedWidgets = sortedWidgets;
-    lastCacheTime = Date.now();
-
-    return sortedWidgets;
-  } catch (err) {
-    logger.error("Failed to discover widgets:", err);
-    return [];
-  }
-}
+logger.trace(`Discovered ${_widgets.length} dashboard widgets (compile-time)`);
 
 export const load: PageServerLoad = async ({ locals }) => {
   const { user, isAdmin, roles: tenantRoles } = locals;
@@ -126,17 +86,29 @@ export const load: PageServerLoad = async ({ locals }) => {
   logger.trace(`User authenticated successfully for dashboard: ${user._id}`);
 
   const { _id, ...rest } = user;
-  const availableWidgets = await discoverWidgets();
+
+  // Behavioral learning: sort available widgets by usage frequency.
+  // Collections that are frequently accessed get boosted to the top.
+  const tenant = locals.tenantId || "global";
+  const hotCollections = getHotCollections(tenant, 20);
+  const hotIds = new Set(hotCollections.map((c) => c.id));
+
+  // Sort: widgets matching hot collections first, then by original order
+  const sortedWidgets = [..._widgets].sort((a, b) => {
+    const aHot = hotIds.has(a.componentName);
+    const bHot = hotIds.has(b.componentName);
+    if (aHot && !bHot) return -1;
+    if (!aHot && bHot) return 1;
+    return 0;
+  });
 
   return {
     pageData: {
-      user: {
-        id: _id.toString(),
-        ...rest,
-      },
+      user: { id: _id.toString(), ...rest },
       isAdmin,
     },
-    availableWidgets,
+    availableWidgets: sortedWidgets,
+    hotCollections,
   };
 };
 

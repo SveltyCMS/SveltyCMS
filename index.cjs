@@ -13,8 +13,8 @@ async function loadApp() {
   process.env.ORIGIN = process.env.ORIGIN || "https://demo.sveltycms.com";
   process.env.NODE_ENV = "production";
 
-  // PROXY HEADERS: Fix for "Too Many Requests" issue
-  process.env.ADDRESS_HEADER = "x-real-ip";
+  // PROXY HEADERS: Fix for "Too Many Requests" issue & Header mismatches
+  process.env.ADDRESS_HEADER = "x-forwarded-for";
   process.env.PROTOCOL_HEADER = "x-forwarded-proto";
   process.env.HOST_HEADER = "host";
 

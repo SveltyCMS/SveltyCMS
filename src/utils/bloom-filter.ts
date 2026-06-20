@@ -11,12 +11,16 @@ export class BloomFilter {
   private _bits: Uint32Array;
   private _size: number;
   private _hashCount: number;
+  private _expectedItems: number;
+  private _falsePositiveRate: number;
 
   /**
    * @param expectedItems Maximum items before false positive rate increases significantly
    * @param falsePositiveRate Desired false positive probability (e.g., 0.01 for 1%)
    */
   constructor(expectedItems: number = 10000, falsePositiveRate: number = 0.01) {
+    this._expectedItems = expectedItems;
+    this._falsePositiveRate = falsePositiveRate;
     // Formula: m = - (n * ln(p)) / (ln(2)^2)
     this._size = Math.ceil(
       -(expectedItems * Math.log(falsePositiveRate)) / Math.pow(Math.log(2), 2),
@@ -65,6 +69,44 @@ export class BloomFilter {
    */
   public clear(): void {
     this._bits.fill(0);
+  }
+
+  /**
+   * Serializes the filter to a compact portable format for storage or transfer.
+   * Returns an object that can be JSON-stringified and later restored via fromJSON.
+   */
+  public toJSON(): {
+    bits: number[];
+    size: number;
+    hashCount: number;
+    expectedItems: number;
+    falsePositiveRate: number;
+  } {
+    return {
+      bits: Array.from(this._bits),
+      size: this._size,
+      hashCount: this._hashCount,
+      expectedItems: this._expectedItems,
+      falsePositiveRate: this._falsePositiveRate,
+    };
+  }
+
+  /**
+   * Restores a bloom filter from a previously serialized state.
+   * Reconstructs an identical filter without re-hashing all elements.
+   */
+  public static fromJSON(json: {
+    bits: number[];
+    size: number;
+    hashCount: number;
+    expectedItems: number;
+    falsePositiveRate: number;
+  }): BloomFilter {
+    const filter = new BloomFilter(json.expectedItems, json.falsePositiveRate);
+    filter._size = json.size;
+    filter._hashCount = json.hashCount;
+    filter._bits = new Uint32Array(json.bits);
+    return filter;
   }
 
   /**

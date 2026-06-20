@@ -35,12 +35,12 @@ export type { SystemSetting } from "./system-setting";
 export { SystemSettingModel } from "./system-setting";
 // System Virtual Folders
 export { SystemVirtualFolderModel } from "./system-virtual-folder";
-export type { Tenant, TenantQuota, TenantUsage } from "./tenant";
+export type { Tenant, TenantQuota, TenantUsage } from "./tenant-methods"; // Merged pilot
 // Tenants
-export { TenantModel } from "./tenant";
+export { TenantModel } from "./tenant-methods"; // Merged pilot: model now lives with methods for reduced file count
 // Themes
-export { ThemeModel } from "./theme";
+export { ThemeModel } from "./theme-methods"; // Merged pilot: model now lives with methods for reduced file count
 // Website Tokens
-export { WebsiteTokenModel } from "./website-token";
+export { WebsiteTokenModel } from "./website-token-methods"; // Merged pilot: model now lives with methods for reduced file count
 // Widgets
-export { WidgetModel } from "./widget";
+export { WidgetModel } from "./widget-methods"; // Merged pilot: model now lives with methods for reduced file count

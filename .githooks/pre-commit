@@ -1,12 +1,17 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit Quality Gate
+# SveltyCMS Pre-Commit Quality Gate — CI parity (format → lint → check →
+# unit → build → integration)
+# =============================================================================
+# Matches the CI pipeline. Only run what changed since the last commit.
+# E2E tests are deferred to pre-push (too slow for every commit).
+#
+# Skip with: git commit --no-verify
 # =============================================================================
 set -e
 
-# Skip in CI environments
-if [ "${CI:-false}" = "true" ] || [ -n "$GIT_HOOK_SKIP" ]; then
-    echo "⏩ CI or hook skip detected. Bypassing pre-commit gates."
+if [ "${CI:-false}" = "true" ]; then
+    echo "⏩ CI environment detected. Bypassing pre-commit gates."
     exit 0
 fi
 
@@ -16,34 +21,50 @@ echo "║           SveltyCMS Pre-Commit Quality Gate                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# ── Gate 1: Quality Gate (format + slop + lint + check + tests + build) ──
-echo "🛡️  Gate 1: Quality Gate"
-export PRE_COMMIT="true"
-bun run scripts/quality-gate.ts
-echo ""
+echo "▶️  Format"
+bun run format
 
-# ── Gate 2: Documentation Linter ─────────────────────────────────────────
-echo "📖 Gate 2: Documentation Linter"
-bun run lint:docs
-echo ""
-
-# ── Re-stage files modified by auto-fixers ───────────────────────────────
-echo "📦 Re-staging auto-fixed files..."
+# Re-stage files modified by formatter
 staged_after_fix=$(git diff --cached --name-only --diff-filter=ACMR || true)
-
 if [ -n "$staged_after_fix" ]; then
     printf '%s\n' "$staged_after_fix" | while IFS= read -r file; do
-        if [ -f "$file" ]; then
-            git add "$file"
-            echo "   ✓ Re-staged: $file"
-        fi
+        if [ -f "$file" ]; then git add "$file"; fi
     done
-else
-    echo "   No files to re-stage."
 fi
 
+if ! git diff --exit-code --quiet; then
+    echo "❌ Working tree is dirty after formatting. Re-stage and try again."
+    exit 1
+fi
+echo "   ✓ Format passed."
 echo ""
+
+echo "▶️  Lint"
+bun run lint
+echo "   ✓ Lint passed."
+echo ""
+
+echo "▶️  Type Check"
+bun run check
+echo "   ✓ Type check passed."
+echo ""
+
+echo "▶️  Unit Tests"
+bun run test:unit
+echo "   ✓ Unit tests passed."
+echo ""
+
+echo "▶️  Build"
+bun run build
+echo "   ✓ Build passed."
+echo ""
+
+echo "▶️  Integration Tests (SQLite)"
+bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+echo "   ✓ Integration tests passed."
+echo ""
+
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  ✅ All gates passed. Commit allowed.                        ║"
+echo "║  ✅ All CI gates passed. Run 'git push' for E2E validation.  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""

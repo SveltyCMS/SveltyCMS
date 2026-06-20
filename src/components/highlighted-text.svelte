@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/highlighted-text.svelte
 @component
 **Enhanced HighlightedText - Svelte 5 Optimized**
@@ -6,10 +6,10 @@
 Intelligent text highlighting with character limits and expand/collapse functionality.
 
 @example
-<HighlightedText 
-  text="Your long text here" 
-  term="search term" 
-  charLimit={200} 
+<HighlightedText
+  text="Your long text here"
+  term="search term"
+  charLimit={200}
 />
 
 ### Props
@@ -31,6 +31,8 @@ Intelligent text highlighting with character limits and expand/collapse function
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 
@@ -177,30 +179,33 @@ Intelligent text highlighting with character limits and expand/collapse function
 
 	<!-- Show More/Less button -->
 	{#if needsTruncation}
-		<button
-			type="button"
-			onclick={toggleText}
-			class="ml-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-sm font-medium text-tertiary-500 dark:text-primary-500 transition-colors hover:bg-tertiary-500 dark:bg-primary-500/10 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500"
-			aria-expanded={isExpanded}
-			aria-label={isExpanded ? 'Show less text' : 'Show more text'}
-			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
-		>
-			{isExpanded ? 'Show Less' : 'Show More'}
-			<iconify-icon icon={isExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="16" aria-hidden="true"></iconify-icon>
-		</button>
+		<div transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }} class="inline">
+			<Button variant="ghost"
+				size="sm"
+				type="button"
+				onclick={toggleText}
+				aria-expanded={isExpanded}
+				aria-label={isExpanded ? 'Show less text' : 'Show more text'}
+				class="ms-1"
+			>
+				{isExpanded ? 'Show Less' : 'Show More'}
+				<iconify-icon icon={isExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="16" aria-hidden="true"></iconify-icon>
+			</Button>
+		</div>
 	{/if}
 
 	<!-- Match count indicator (if searching) -->
 	{#if term && matchCount > 0}
-		<span
-			class="ml-2 inline-flex items-center gap-1 rounded-full bg-tertiary-500 dark:bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-tertiary-600 dark:text-primary-600 dark:text-primary-500"
-			title="Number of matches found"
-			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
-		>
-			<iconify-icon icon="mdi:magnify" width="12" aria-hidden="true"></iconify-icon>
-			{matchCount}
-			match{matchCount !== 1 ? 'es' : ''}
-		</span>
+		<div transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }} class="inline">
+			<Badge variant="tertiary"
+				title="Number of matches found"
+				class="ms-2"
+			>
+				<iconify-icon icon="mdi:magnify" width="12" aria-hidden="true"></iconify-icon>
+				{matchCount}
+				match{matchCount !== 1 ? 'es' : ''}
+			</Badge>
+		</div>
 	{/if}
 
 	<!-- Screen reader announcement -->

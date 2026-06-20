@@ -20,7 +20,7 @@ const BASE_HEADERS_ENTRIES = Object.entries(BASE_HEADERS);
  * Compiled regular expression for all static assets and internal Vite/SvelteKit routes.
  */
 export const STATIC_ASSET_REGEX =
-  /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
+  /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|files\/|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
 
 /**
  * Legacy alias for STATIC_ASSET_REGEX
@@ -136,6 +136,7 @@ export function getRequestFlags(locals: App.Locals): RequestFlags {
 export function isStaticOrInternalRequest(pathname: string): boolean {
   if (pathname.length < 2) return false;
   if (pathname.startsWith("/api/")) return false; // API routes are never static/internal bypass candidates
+  if (pathname.startsWith("/files/")) return true;
   if (pathname.startsWith("/.well-known/") || pathname.startsWith("/_")) return true;
   return STATIC_ASSET_REGEX.test(pathname);
 }
@@ -270,6 +271,8 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
  */
 export function applySecurityHeaders(headers: Headers, isHttps: boolean) {
   for (const [key, value] of BASE_HEADERS_ENTRIES) {
+    // Never overwrite SvelteKit nonce CSP on HTML page responses.
+    if (key === "Content-Security-Policy") continue;
     headers.set(key, value);
   }
 

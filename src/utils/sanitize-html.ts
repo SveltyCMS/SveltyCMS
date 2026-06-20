@@ -37,22 +37,29 @@ export function sanitizeHtml(html: string): string {
   if (!html) return "";
 
   let cleaned = html;
+  let previous = "";
 
-  // 1. Strip dangerous tags — layered approach for defense-in-depth
-  for (const tag of STRIP_TAGS) {
-    // Remove full tag pairs: <tag>content</tag>
-    cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}>`, "gi"), "");
-    // Self-closing variants: <tag />
-    cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*\\/>`, "gi"), "");
-    // Opening tags without closing: <tag ...>
-    cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*>`, "gi"), "");
-    // Closing tags without opening: </tag>
-    cleaned = cleaned.replace(new RegExp(`</${tag}>`, "gi"), "");
+  // Iterative scrubbing — prevents label-nesting bypass attacks
+  // where <scr<script>ipt> would reassemble after first pass
+  while (cleaned !== previous) {
+    previous = cleaned;
+
+    // 1. Strip dangerous tags — layered approach for defense-in-depth
+    for (const tag of STRIP_TAGS) {
+      // Remove full tag pairs: <tag>content</tag>
+      cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}>`, "gi"), "");
+      // Self-closing variants: <tag />
+      cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*\\/>`, "gi"), "");
+      // Opening tags without closing: <tag ...>
+      cleaned = cleaned.replace(new RegExp(`<${tag}\\b[^>]*>`, "gi"), "");
+      // Closing tags without opening: </tag>
+      cleaned = cleaned.replace(new RegExp(`</${tag}>`, "gi"), "");
+    }
+
+    // 2. Strip on* event handlers (quoted and unquoted) — inside loop for defense-in-depth
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
+    cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
   }
-
-  // 2. Strip on* event handlers
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
 
   // 3. Strip javascript: and data: protocols in href/src
   cleaned = cleaned.replace(/(href|src|action)\s*=\s*["']\s*javascript\s*:/gi, '$1="#blocked"');

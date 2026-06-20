@@ -71,13 +71,13 @@ import SiteName from './site-name.svelte';
 
 {#if char !== null}
 	<!-- Single character mode (for animations) -->
-	<span class="text-left font-bold {textClass}"> {char} </span>
+	<span class="text-start font-bold {textClass}"> {char} </span>
 {:else if parts}
 	<!-- Site name with highlighted portion -->
-	<span class="text-left font-bold {textClass}">
+	<span class="text-start font-bold {textClass}">
 		{parts.before}<span class="text-primary-500">{parts.highlight}</span>{parts.after}
 	</span>
 {:else}
 	<!-- Full site name without highlighting -->
-	<span class="text-left font-bold {textClass}"> {siteName} </span>
+	<span class="text-start font-bold {textClass}"> {siteName} </span>
 {/if}

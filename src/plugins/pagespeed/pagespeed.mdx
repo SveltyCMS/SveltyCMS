@@ -1,82 +1,23 @@
 ---
 path: "src/plugins/pagespeed/pagespeed.mdx"
-title: "Google PageSpeed Insights Plugin"
-description: "Monitor Core Web Vitals and performance scores for your content."
-order: 2
-icon: "mdi:speedometer"
+title: "PageSpeed Insights Plugin"
+description: "Documentation for the PageSpeed Insights plugin for SveltyCMS."
+order: 100
+icon: "mdi:puzzle"
 author: "SveltyCMS Team"
-created: "2026-05-31"
-updated: "2026-05-31"
+created: "2025-10-05"
+updated: "2026-06-20"
 tags:
-  - pagespeed
-  - performance
-  - lighthouse
-  - core-web-vitals
-  - plugin
+  - "plugin"
+  - "pagespeed"
 ---
 
-# Google PageSpeed Insights Plugin
+# PageSpeed Insights Plugin
 
-**Status:** ✅ Available (v1.1.0)
-**Category:** Performance
+Documentation for the **PageSpeed Insights** plugin is being prepared.
 
-Monitors Core Web Vitals (LCP, FCP, CLS) and performance scores using the Google PageSpeed Insights API with built-in caching to minimize API quota consumption.
+For implementation details, see the source code in `src/plugins/pagespeed/`.
 
 ---
 
-## Features
-
-- **Performance scoring** — Lighthouse-based scores (0-100) per entry URL
-- **Core Web Vitals** — LCP, FCP, and CLS metrics tracked per page
-- **Entry list column** — Performance score visible in collection entry lists
-- **One-click refresh** — "Refresh PageSpeed" action per entry
-- **API caching** — Results cached to minimize Google API quota usage
-- **SSR enrichment** — Scores computed server-side and attached to entries
-
----
-
-## Configuration
-
-| Key             | Type   | Visibility | Description                                            |
-| --------------- | ------ | ---------- | ------------------------------------------------------ |
-| `defaultDevice` | string | Public     | Test device: `mobile` or `desktop` (default: `mobile`) |
-| `apiKeySource`  | string | Private    | API key source: `settings` or `env`                    |
-
-### Environment Variables
-
-```
-PAGESPEED_API_KEY=your-google-api-key
-```
-
----
-
-## Usage
-
-Enable the plugin in **Config → Plugins**. The performance score column appears automatically in your collection entry lists.
-
-### Refresh a Single Entry
-
-Click the **Refresh PageSpeed** action button on any entry to re-run the audit.
-
-### View Metrics
-
-The performance column shows:
-
-- **Score** — color-coded (green ≥ 90, orange ≥ 50, red < 50)
-- **FCP** — First Contentful Paint (ms)
-- **LCP** — Largest Contentful Paint (ms)
-- **CLS** — Cumulative Layout Shift
-
----
-
-## Collections
-
-| Collection                 | Purpose                               |
-| -------------------------- | ------------------------------------- |
-| `plugin_pagespeed_results` | Cached PageSpeed scores per entry URL |
-
----
-
-## API Quota
-
-Google PageSpeed Insights API has a free tier of 25,000 requests/day. The plugin caches results for 24 hours per URL to minimize consumption.
+**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)

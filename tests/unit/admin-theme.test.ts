@@ -21,6 +21,12 @@ import {
   type ThemeConfig,
 } from "../../src/components/ui/theme-context.svelte";
 import ThemeTestWrapper from "./components/ui/ThemeTestWrapper.svelte";
+import {
+  mergeAdminThemeWithUserPrefs,
+  resolveLoginBranding,
+  getRoleBasedDensity,
+  isPreferenceLocked,
+} from "../../src/utils/theme-merge";
 
 // ─── AdminTheme Class ───
 
@@ -142,35 +148,86 @@ describe("DEFAULT_THEME_FEATURES", () => {
 
 // ─── User Preferences Merge Strategy ───
 
-describe("User theme preferences merge", () => {
-  it("should override tenant density with user density", () => {
-    const tenantDensity = "cozy";
-    const userDensity = "compact";
-    const merged = userDensity || tenantDensity;
-    expect(merged).toBe("compact");
+describe("theme-merge utilities", () => {
+  it("getRoleBasedDensity returns role-appropriate defaults", () => {
+    expect(getRoleBasedDensity("admin")).toBe("spacious");
+    expect(getRoleBasedDensity("translator")).toBe("compact");
+    expect(getRoleBasedDensity("editor")).toBe("cozy");
   });
 
-  it("should fall back to tenant density when user has none", () => {
-    const tenantDensity = "spacious";
-    const userDensity = undefined;
-    const merged = userDensity || tenantDensity;
-    expect(merged).toBe("spacious");
+  it("mergeAdminThemeWithUserPrefs applies user density and variant", () => {
+    const merged = mergeAdminThemeWithUserPrefs(
+      { density: "cozy", variant: "bordered" },
+      { density: "compact", variant: "elevated" },
+      "editor",
+    );
+    expect(merged.density).toBe("compact");
+    expect(merged.variant).toBe("elevated");
   });
 
-  it("should merge user features on top of tenant features", () => {
-    const tenantFeatures = { stickyActionBar: false, reducedMotion: false };
-    const userPrefs = { reducedMotion: true };
-    const merged = { ...tenantFeatures, ...userPrefs };
-    expect(merged.stickyActionBar).toBe(false);
-    expect(merged.reducedMotion).toBe(true);
+  it("mergeAdminThemeWithUserPrefs respects locked settings", () => {
+    const merged = mergeAdminThemeWithUserPrefs(
+      { density: "cozy", lockedSettings: { density: true, variant: true } },
+      { density: "compact", variant: "flat" },
+      "editor",
+    );
+    expect(merged.density).toBe("cozy");
+    expect(merged.variant).toBe("bordered");
   });
 
-  it("should apply user layoutState overrides", () => {
-    const tenantLayout = { leftSidebar: "full", rightSidebar: "hidden" };
-    const userLayout = { rightSidebar: "full" };
-    const merged = { ...tenantLayout, ...userLayout };
-    expect(merged.leftSidebar).toBe("full");
-    expect(merged.rightSidebar).toBe("full");
+  it("mergeAdminThemeWithUserPrefs applies accessibility overrides when unlocked", () => {
+    const merged = mergeAdminThemeWithUserPrefs(
+      { features: { reducedMotion: false, highContrastMode: false } },
+      { reducedMotion: true, highContrast: true },
+      "editor",
+    );
+    expect(merged.features.reducedMotion).toBe(true);
+    expect(merged.features.highContrastMode).toBe(true);
+  });
+
+  it("mergeAdminThemeWithUserPrefs clears accessibility overrides when explicitly false", () => {
+    const merged = mergeAdminThemeWithUserPrefs(
+      { features: { reducedMotion: true, highContrastMode: true } },
+      { reducedMotion: false, highContrast: false },
+      "editor",
+    );
+    expect(merged.features.reducedMotion).toBe(false);
+    expect(merged.features.highContrastMode).toBe(false);
+  });
+
+  it("mergeAdminThemeWithUserPrefs merges layoutState when unlocked", () => {
+    const merged = mergeAdminThemeWithUserPrefs(
+      { layoutState: { leftSidebar: "full", rightSidebar: "hidden" } },
+      { layoutState: { rightSidebar: "full" } },
+      "editor",
+    );
+    expect(merged.layoutState.leftSidebar).toBe("full");
+    expect(merged.layoutState.rightSidebar).toBe("full");
+  });
+
+  it("isPreferenceLocked returns true only when lock flag is set", () => {
+    expect(isPreferenceLocked({ density: true }, "density")).toBe(true);
+    expect(isPreferenceLocked({ density: true }, "variant")).toBe(false);
+  });
+
+  it("resolveLoginBranding exposes tenant site name when branded login is on", () => {
+    const branding = resolveLoginBranding(
+      { features: { brandedLogin: true }, variant: "elevated", customCss: ".x {}" },
+      "Acme CMS",
+    );
+    expect(branding.siteName).toBe("Acme CMS");
+    expect(branding.brandedLogin).toBe(true);
+    expect(branding.variant).toBe("elevated");
+    expect(branding.customCss).toBe(".x {}");
+  });
+
+  it("resolveLoginBranding omits custom CSS when branded login is off", () => {
+    const branding = resolveLoginBranding(
+      { features: { brandedLogin: false }, customCss: ".x {}" },
+      "SveltyCMS",
+    );
+    expect(branding.brandedLogin).toBe(false);
+    expect(branding.customCss).toBeUndefined();
   });
 });
 

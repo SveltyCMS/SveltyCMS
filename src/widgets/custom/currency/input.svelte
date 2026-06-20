@@ -8,7 +8,7 @@ Part of the Three Pillars Architecture for WSidget system.
 
 @example
 <CurrencyInput bind:value={amount} field={{ currencyCode: "EUR", required: true }} />
-User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number 
+User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 ### Props
 - `field: FieldType` - Widget field definition with currency code and validation
@@ -28,6 +28,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
@@ -47,7 +48,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 	const lang = $derived(app.systemLanguage);
 	const currencyCode = $derived(field.currencyCode || 'EUR');
-	
+
 	const formatter = $derived(
 		new Intl.NumberFormat(lang as string, {
 			style: 'currency',
@@ -85,10 +86,10 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		isFocused = true;
 		if (typeof value === 'number') {
 			// Show number without currency symbol and grouping for easier editing
-			displayValue = new Intl.NumberFormat(lang as string, { 
-				useGrouping: false, 
+			displayValue = new Intl.NumberFormat(lang as string, {
+				useGrouping: false,
 				minimumFractionDigits: 0,
-				maximumFractionDigits: 10 
+				maximumFractionDigits: 10
 			}).format(value);
 		}
 	}
@@ -127,7 +128,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 </script>
 
 <div class="currency-widget flex flex-col gap-1">
-	<div 
+	<div
 		class="flex items-center rounded border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
@@ -162,14 +163,16 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		{/if}
 
 		{#if !field.required || value !== null}
-			<button 
-				type="button" 
-				class="p-1 me-1 rounded bg-surface-200 dark:bg-surface-800 text-surface-700 dark:text-surface-300 opacity-60 hover:opacity-100 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors flex items-center justify-center"
+			<Button
+				variant="surface"
+				size="sm"
+				type="button"
+				class="p-1! me-1"
 				onclick={handleClear}
 				title="Clear value"
 			>
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 

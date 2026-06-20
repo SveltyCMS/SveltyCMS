@@ -25,7 +25,7 @@ The `fields` component is responsible for rendering collection fields dynamicall
 
 The fields component is part of a larger system for editing collection entries. The following components work together:
 
-````mermaid
+```mermaid
 flowchart TB
     subgraph Header["Header Actions"]
         HE[header-edit<br/>Mobile]
@@ -61,7 +61,7 @@ flowchart TB
     TS --> TRP
     TP --> W
     CV --> DC
-```text
+```
 
 ### Component Roles
 
@@ -85,7 +85,7 @@ SveltyCMS implements real-time collaborative editing using **Yjs CRDTs**. This e
 
 The collaborative system uses a **Single Source of Truth (SSoT)** model during the editing session, synchronized via a WebSocket provider (e.g., Hocuspocus).
 
-```mermaid
+```
 flowchart TB
     subgraph Clients["Concurrent Editors"]
         C1[User A]
@@ -111,7 +111,7 @@ flowchart TB
     YD --"Reconciles"--> F
     F --"Updates"--> CV
     CV --"Saves (Debounced)"--> DB
-```text
+```
 
 ### Key Components of Collaboration
 
@@ -134,7 +134,7 @@ flowchart TB
 
 ## Architecture
 
-```mermaid
+```
 flowchart TB
     subgraph fields["fields Component"]
         direction TB
@@ -166,7 +166,7 @@ flowchart TB
     VL --> VS
     VS --> DC
     RH --> CV
-```text
+```
 
 ---
 
@@ -196,10 +196,10 @@ Visible on screens < 1024px. Provides:
 - **Clone**: Duplicate entry functionality
 - **Scheduling**: Publish/unpublish scheduling
 
-```typescript
+```
 // Save validation gating
 const canSave = $derived(validationStore.isValid && dataChangeStore.hasChanges);
-```text
+```
 
 ### right-sidebar (Desktop)
 
@@ -217,13 +217,13 @@ Both components integrate with `validationStore` to prevent saving invalid entri
 
 Displays translation completion progress for multilingual collections:
 
-```mermaid
+```
 flowchart LR
     F[fields] --> TS[translation-status]
     TS --> |tracks| TP[translationProgress]
     TS --> |displays| Languages
     Languages --> Progress[% Complete]
-```text
+```
 
 ### Features
 
@@ -234,7 +234,7 @@ flowchart LR
 
 ### Progress Calculation
 
-```typescript
+```
 // Translation progress per language
 translationProgress[language] = {
   total: new SvelteSet<string>(), // All translatable fields
@@ -243,7 +243,7 @@ translationProgress[language] = {
 
 // Progress percentage
 const progress = (translated.size / total.size) * 100;
-```text
+```
 
 ---
 
@@ -263,7 +263,7 @@ A floating panel for inserting dynamic tokens into input fields:
 
 Tokens are inserted with `{{ }}` syntax:
 
-```typescript
+```
 {
   {
     entry: title;
@@ -279,7 +279,7 @@ Tokens are inserted with `{{ }}` syntax:
     user: displayName | upper;
   }
 } // Uppercase modifier
-```text
+```
 
 ---
 
@@ -289,7 +289,7 @@ The fields component integrates with the global `validationStore` for real-time 
 
 ### Validation Flow
 
-```mermaid
+```
 sequenceDiagram
     participant F as fields
     participant W as Widget
@@ -306,13 +306,13 @@ sequenceDiagram
     W->>VS: clearError(fieldName)
     VS->>UI: isValid = true
     Note over UI: Save enabled
-```text
+```
 
 ### Required Field Validation
 
 The component automatically validates required fields:
 
-```typescript
+```
 $effect(() => {
   const values = currentCollectionValue;
 
@@ -335,13 +335,13 @@ $effect(() => {
     }
   });
 });
-```text
+```
 
 ### Widget-Level Validation
 
 Individual widgets can implement their own validation using Valibot schemas:
 
-```typescript
+```
 // In widget input.svelte
 import { validationStore } from "@stores/store.svelte";
 import { parse } from "valibot";
@@ -355,13 +355,13 @@ function validateInput() {
     validationStore.setError(fieldName, message);
   }
 }
-```text
+```
 
 ---
 
 ## Widget Loading Flow
 
-```mermaid
+```
 sequenceDiagram
     participant F as fields
     participant WL as widget-loader
@@ -373,7 +373,7 @@ sequenceDiagram
     CL-->>WL: Resolve Svelte Component
     WL->>W: Mount with props
     W->>F: bind:value updates
-```text
+```
 
 ### widget-loader Error Handling
 
@@ -387,7 +387,7 @@ The `widget-loader` component handles loading failures gracefully:
 
 ## Props
 
-```typescript
+```
 interface fieldsProps {
   fields: FieldDefinition[];
   collection: Collection;
@@ -397,7 +397,7 @@ interface fieldsProps {
   revisions?: Revision[];
   contentLanguage?: string;
 }
-```text
+```
 
 ---
 
@@ -421,7 +421,7 @@ Only visible if `collection.revision` is enabled. Shows historical snapshots wit
 
 Only visible if `collection.livePreview` is configured. Displays an **iframe** with the frontend preview:
 
-```mermaid
+```
 sequenceDiagram
     participant CMS as fields Component
     participant IFrame as Preview IFrame
@@ -431,7 +431,7 @@ sequenceDiagram
     IFrame->>Frontend: GET with preview param
     Frontend->>Frontend: Set draft cookies
     Frontend-->>IFrame: Render draft content
-```text
+```
 
 **Features:**
 
@@ -467,7 +467,7 @@ Plugins can register components in the `entry_edit` zone to:
 
 ### Example Plugin Integration
 
-```typescript
+```
 // Plugin registering a custom SEO tab
 import type { Plugin } from "@src/plugins/types";
 import SEOTab from "./SEOTab.svelte";
@@ -490,7 +490,7 @@ export const seoPlugin: Plugin = {
     ],
   },
 };
-```text
+```
 
 ### Available Slots in `entry_edit` Zone
 
@@ -524,4 +524,3 @@ export const seoPlugin: Plugin = {
 - [Live Preview Architecture](/docs/architecture/live-preview-architecture.mdx) - Preview system
 - [Validation Instant Feedback](/docs/architecture/validation-instant-feedback.mdx) - Validation UX
 - [Multilingual Data Loading](/docs/architecture/multilingual-data-loading.mdx) - Translation handling
-````

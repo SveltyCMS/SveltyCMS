@@ -7,10 +7,23 @@ import { onMount } from "svelte";
 import { fetchApi } from "@utils/api";
 import { toast } from "@src/stores/toast.svelte";
 import { formatDate } from "@utils/date";
+import Badge from '@components/ui/badge.svelte';
+import Button from '@components/ui/button.svelte';
+import Loader from '@components/ui/loader.svelte';
+import AdminCard from '@components/admin-card.svelte';
+import AdminPageShell from '@components/admin-page-shell.svelte';
+import Select from '@components/ui/select.svelte';
 
 let logs = $state<any[]>([]);
 let isLoading = $state(true);
 let filterStatus = $state("");
+
+const statusOptions = [
+	{ value: "", label: "All Statuses" },
+	{ value: "completed", label: "Success" },
+	{ value: "pending", label: "Pending/Retrying" },
+	{ value: "failed", label: "Failed (DLQ)" },
+];
 
 async function loadLogs() {
 	isLoading = true;
@@ -40,86 +53,85 @@ async function retryWebhook(jobId: string) {
 onMount(loadLogs);
 </script>
 
-<div class="container mx-auto p-6">
-	<header class="mb-8 flex items-center justify-between">
-		<div>
-			<h1 class="text-3xl font-bold">Webhook Health Monitor</h1>
-			<p class="text-surface-600 dark:text-surface-400">
-				Monitor delivery status and manage the Dead-Letter Queue.
-			</p>
-		</div>
-		<div class="flex gap-4">
-			<select class="select" bind:value={filterStatus} onchange={loadLogs} aria-label="Select">
-				<option value="">All Statuses</option>
-				<option value="completed">Success</option>
-				<option value="pending">Pending/Retrying</option>
-				<option value="failed">Failed (DLQ)</option>
-			</select>
-			<button class="btn variant-ghost-surface" onclick={loadLogs} disabled={isLoading}>
-				<iconify-icon icon="mdi:refresh" class="mr-2"></iconify-icon>
+<AdminPageShell
+		title="Webhook Health Monitor"
+		icon="mdi:webhook"
+		description="Monitor delivery status and manage the Dead-Letter Queue."
+		showBackButton={true}
+		backUrl="/config/webhooks"
+	>
+	{#snippet actions()}
+		<div class="flex items-center gap-3">
+			<Select
+				bind:value={filterStatus}
+				options={statusOptions}
+				size="sm"
+				class="min-w-44"
+				onchange={() => loadLogs()}
+			/>
+			<Button variant="ghost" onclick={loadLogs} disabled={isLoading} leadingIcon="mdi:refresh">
 				Refresh
-			</button>
+			</Button>
 		</div>
-	</header>
+	{/snippet}
 
 	{#if isLoading}
-		<div class="flex h-64 items-center justify-center">
-			<div class="placeholder animate-pulse">Loading delivery logs...</div>
-		</div>
+		<AdminCard class="flex h-64 items-center justify-center border border-surface-200 bg-white p-6 dark:border-surface-800 dark:bg-surface-900/40">
+			<Loader variant="text" lines={2} lastLineWidth="40%" ariaLabel="Loading delivery logs" />
+		</AdminCard>
 	{:else if logs.length === 0}
-		<div class="card p-12 text-center border-dashed border-2 border-surface-300 dark:border-surface-700">
+		<AdminCard class="border-2 border-dashed border-surface-300 p-12 text-center dark:border-surface-700">
 			<iconify-icon icon="mdi:webhook" width="64" class="mx-auto mb-4 opacity-20"></iconify-icon>
-			<h3 class="text-xl font-semibold">No logs found</h3>
+			<h3 class="text-xl font-semibold text-surface-900 dark:text-white">No logs found</h3>
 			<p class="text-surface-500">Webhook delivery attempts will appear here.</p>
-		</div>
+		</AdminCard>
 	{:else}
-		<div class="table-container card p-4">
-			<table class="table table-hover">
-				<thead>
-					<tr>
-						<th>Webhook / Event</th>
-						<th>Status</th>
-						<th>Attempts</th>
-						<th>Last Attempt</th>
-						<th>Error</th>
-						<th class="text-right">Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each logs as log}
-						<tr>
-							<td>
-								<div class="font-medium">{log.payload?.webhook?.name}</div>
-								<div class="text-xs badge variant-soft-surface">{log.payload?.event}</div>
-							</td>
-							<td>
-								{#if log.status === 'completed'}
-									<span class="badge variant-filled-success">SUCCESS</span>
-								{:else if log.status === 'failed'}
-									<span class="badge variant-filled-error">FAILED (DLQ)</span>
-								{:else}
-									<span class="badge variant-filled-warning">RETRYING</span>
-								{/if}
-							</td>
-							<td>{log.attempts} / {log.maxAttempts || 5}</td>
-							<td>{formatDate(log.updatedAt)}</td>
-							<td class="max-w-xs truncate text-xs text-error-500 font-mono">
-								{log.lastError || '-'}
-							</td>
-							<td class="text-right">
-								{#if log.status === 'failed'}
-									<button 
-										class="btn btn-sm variant-filled-primary"
-										onclick={() => retryWebhook(log._id)}
-									>
-										Retry Now
-									</button>
-								{/if}
-							</td>
+		<AdminCard class="overflow-hidden border border-surface-200 bg-white p-0 shadow-xs backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40">
+			<div class="overflow-x-auto w-full">
+				<table class="w-full border-collapse text-sm">
+					<thead>
+						<tr class="border-b border-surface-200 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800">
+							<th class="px-4 py-3 font-semibold">Webhook / Event</th>
+							<th class="px-4 py-3 font-semibold">Status</th>
+							<th class="px-4 py-3 font-semibold">Attempts</th>
+							<th class="px-4 py-3 font-semibold">Last Attempt</th>
+							<th class="px-4 py-3 font-semibold">Error</th>
+							<th class="px-4 py-3 text-end font-semibold">Actions</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+					</thead>
+					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+						{#each logs as log}
+							<tr class="text-surface-700 transition-colors hover:bg-surface-50/40 dark:text-surface-200 dark:hover:bg-surface-900/30">
+								<td class="px-4 py-3">
+									<div class="font-medium">{log.payload?.webhook?.name}</div>
+									<Badge preset="tonal" color="surface" size="sm">{log.payload?.event}</Badge>
+								</td>
+								<td class="px-4 py-3">
+									{#if log.status === 'completed'}
+										<Badge variant="success">SUCCESS</Badge>
+									{:else if log.status === 'failed'}
+										<Badge variant="error">FAILED (DLQ)</Badge>
+									{:else}
+										<Badge variant="warning">RETRYING</Badge>
+									{/if}
+								</td>
+								<td class="px-4 py-3">{log.attempts} / {log.maxAttempts || 5}</td>
+								<td class="px-4 py-3">{formatDate(log.updatedAt)}</td>
+								<td class="max-w-xs truncate px-4 py-3 font-mono text-xs text-error-500">
+									{log.lastError || '-'}
+								</td>
+								<td class="px-4 py-3 text-end">
+									{#if log.status === 'failed'}
+										<Button variant="primary" onclick={() => retryWebhook(log._id)} size="sm">
+											Retry Now
+										</Button>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		</AdminCard>
 	{/if}
-</div>
+</AdminPageShell>

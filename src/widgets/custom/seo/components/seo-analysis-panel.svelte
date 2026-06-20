@@ -7,6 +7,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { slide } from 'svelte/transition';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SeoAnalysisResult } from '../seo-types';
@@ -66,8 +67,10 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 <div class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-125' : 'h-16'}">
 	<button
 		type="button"
-		class="flex items-center gap-4 w-full p-3 bg-surface-100-800-token hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-left"
+		class="flex items-center gap-4 w-full p-3 bg-surface-100-800-token hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
 		onclick={() => (expanded = !expanded)}
+		aria-label="Toggle SEO analysis"
+		aria-expanded={expanded}
 	>
 		<div class="flex items-center gap-2 flex-1">
 			<iconify-icon icon="mdi:information" width="24" class="text-tertiary-500 text-xl"></iconify-icon>
@@ -190,13 +193,12 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 				<div class="pt-2 border-t border-surface-500/10">
 					<div class="flex items-center justify-between mb-2">
 						<h4 class="text-xs font-bold uppercase opacity-50">Internal Linking</h4>
-						<button
-							class="btn btn-sm preset-tonal-primary py-0.5 px-2 text-[10px]"
+						<Button variant="primary"
 							onclick={fetchLinkSuggestions}
 							disabled={isFetchingLinks}
-						>
+						 size="sm" class="py-0.5 px-2 text-[10px]">
 							{isFetchingLinks ? 'Searching...' : 'Find Suggestions'}
-						</button>
+						</Button>
 					</div>
 
 					{#if linkSuggestions.length > 0}
@@ -207,16 +209,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 										<div class="font-bold truncate">{link.title}</div>
 										<div class="opacity-50 text-[10px] truncate">{link.url}</div>
 									</div>
-									<button>
-										class="btn btn-sm preset-ghost-surface-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-										title="Copy relative URL"
-										onclick={() => {
-											navigator.clipboard.writeText(link.url);
-											// Show toast or simple feedback
-										}}
-									>
+									<Button variant="ghost" size="sm" class="p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Copy relative URL" onclick={() => { navigator.clipboard.writeText(link.url); }}>
 										<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>
-									</button>
+									</Button>
 								</div>
 							{/each}
 						</div>

@@ -15,8 +15,13 @@
 -->
 
 <script lang="ts">
-	import Avatar from "@components/ui/avatar.svelte";
-	import PageTitle from '@src/components/page-title.svelte';
+	import Button from '@components/ui/button.svelte';
+		import Avatar from "@components/ui/avatar.svelte";
+		import Badge from '@components/ui/badge.svelte';
+		import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
 	// ParaglideJS
 	import {
@@ -188,10 +193,8 @@
 	}
 </script>
 
-<!-- Page Title with Back Button -->
-<PageTitle name={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
-
-<div class="max-h-[calc(100vh-65px)] overflow-auto" in:fade={{ duration: 300 }}>
+<AdminPageShell title={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config">
+<div in:fade={{ duration: 300 }}>
 	<h2 class="sr-only">Profile Information</h2>
 	<div class="wrapper mb-2">
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
@@ -201,30 +204,28 @@
 					<Avatar src={normalizeAvatarUrl(avatarSrc.value)} initials="AV" size="size-32" class="rounded-full border border-white shadow-lg dark:border-surface-800" />
 
 					<!-- Edit button - icon overlay -->
-					<button
+					<Button variant="ghost"
 						onclick={modalEditAvatar}
-						class="absolute bottom-0 inset-e-0 p-2 rounded-full gradient-tertiary dark:gradient-primary btn-icon"
 						title={userpage_editavatar()}
-					>
+					 class="p-0! min-w-0 absolute bottom-0 inset-e-0 rounded-full gradient-tertiary dark:gradient-primary">
 						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
-					</button>
+					</Button>
 				</div>
 				<!-- User ID -->
-				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
+				<Badge preset="tonal" color="secondary" class="mt-1 w-full max-w-xs text-white">
 					{userpage_user_id()}<span class="ms-2 font-bold">{user?._id || 'N/A'}</span>
-				</div>
+				</Badge>
 				<!-- Role -->
-				<div class="gradient-tertiary badge w-full max-w-xs text-white">{role()}:<span class="ms-2 font-bold">{user?.role || 'N/A'}</span></div>
+				<Badge preset="tonal" color="tertiary" class="w-full max-w-xs text-white">{role()}:<span class="ms-2 font-bold">{user?.role || 'N/A'}</span></Badge>
 				<!-- Tenant ID -->
 				{#if isMultiTenant && user?.tenantId}
-					<div class="gradient-warning badge w-full max-w-xs text-white">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></div>
+					<Badge preset="tonal" color="warning" class="w-full max-w-xs text-white">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></Badge>
 				{/if}
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
-					<button
+					<Button variant="error"
 						onclick={open2FAModal}
-						class="btn {user?.is2FAEnabled ? 'preset-tonal-success' : 'preset-tonal-error'} btn-sm w-full max-w-xs border border-surface-500/20"
-					>
+					 size="sm" class="{user?.is2FAEnabled ? ' ' : ' '} w-full max-w-xs border border-surface-500/20">
 						<div class="flex w-full items-center justify-between py-1">
 							<div class="flex items-center gap-2">
 								<iconify-icon icon="mdi:shield-lock" width={20} class="text-error-500"></iconify-icon>
@@ -239,95 +240,144 @@
 								<span class="text-xs font-bold uppercase">{user?.is2FAEnabled ? 'Enabled' : 'Disabled'}</span>
 							</div>
 						</div>
-					</button>
+					</Button>
 				{/if}
 
+				<!-- Workspace Appearance -->
+				<AdminCard class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm">
+					<div class="space-y-2">
+						<div class="flex items-center gap-2">
+							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
+							<span class="text-sm font-semibold">Workspace Appearance</span>
+						</div>
+						<p class="text-xs text-surface-500 dark:text-surface-400">
+							Personal density, layout regions, card style, and accessibility overrides.
+						</p>
+						{#if serverUser?.preferences?.theme?.density || serverUser?.preferences?.theme?.variant || serverUser?.preferences?.theme?.layoutState}
+							<p class="text-xs text-tertiary-600 dark:text-primary-400">
+								Active:
+								{serverUser.preferences.theme.density || 'theme default'}
+								· {serverUser.preferences.theme.variant || 'theme default'}
+								{#if serverUser.preferences.theme.layoutState}
+									· {Object.keys(serverUser.preferences.theme.layoutState).length} layout override{Object.keys(serverUser.preferences.theme.layoutState).length === 1 ? '' : 's'}
+								{/if}
+							</p>
+						{/if}
+						<Button variant="outline" size="sm" href="/config/appearance" class="w-full">
+							Open Appearance Settings
+						</Button>
+					</div>
+				</AdminCard>
+
 				<!-- Collaboration Settings -->
-				<div class="card p-4 w-full max-w-xs space-y-1 bg-surface-200-700-token border border-surface-500 shadow-sm" in:fly={{ y: 10, delay: 300, duration: 300 }}>
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-2">
-							<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
-							<span class="text-sm">Real-time Collaboration</span>
+				<AdminCard
+					class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm"
+				>
+					<div in:fly={{ y: 10, delay: 300, duration: 300 }} class="space-y-3">
+						<div class="flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
+								<span class="text-sm">Real-time Collaboration</span>
+							</div>
+							<Checkbox
+								checked={serverUser?.preferences?.rtc?.enabled ?? true}
+								onchange={async (enabled) => updateRtcPreference('enabled', enabled)}
+								label="Toggle real-time collaboration"
+								size="sm"
+							/>
 						</div>
-						<input aria-label="Input"
-							type="checkbox"
-							class="checkbox checkbox-sm"
-							checked={serverUser?.preferences?.rtc?.enabled ?? true}
-							onchange={async (e) => {
-								const enabled = (e.target as HTMLInputElement).checked;
-								await updateRtcPreference('enabled', enabled);
-							}}
-						/>
-					</div>
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-2">
-							<iconify-icon icon="material-symbols:volume-up-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
-							<span class="text-sm">Sound Notifications</span>
+						<div class="flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="material-symbols:volume-up-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
+								<span class="text-sm">Sound Notifications</span>
+							</div>
+							<Checkbox
+								checked={serverUser?.preferences?.rtc?.sound ?? true}
+								onchange={async (sound) => updateRtcPreference('sound', sound)}
+								label="Toggle sound notifications"
+								size="sm"
+							/>
 						</div>
-						<input aria-label="Input"
-							type="checkbox"
-							class="checkbox checkbox-sm"
-							checked={serverUser?.preferences?.rtc?.sound ?? true}
-							onchange={async (e) => {
-								const sound = (e.target as HTMLInputElement).checked;
-								await updateRtcPreference('sound', sound);
-							}}
-						/>
 					</div>
-				</div>
+				</AdminCard>
 
 				<!-- Permissions List -->
 				{#each user.permissions as permission (permission)}
-					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">{permission}</div>
+					<Badge preset="tonal" color="primary" class="mt-1 w-full max-w-xs text-white">{permission}</Badge>
 				{/each}
 			</div>
 
 			<!-- User fields -->
 			{#if user}
-				<form>
-					<div class="flex items-center gap-2 mb-1">
-						<iconify-icon icon="mdi:account" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
-						<span class="text-sm font-bold">{username()}:</span>
-					</div>
-					<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input mb-4"  aria-label="Input" />
+				<form class="space-y-4">
+					<Input
+						value={user.username}
+						name="username"
+						type="text"
+						autocomplete="username"
+						disabled
+						label={username()}
+						aria-label={username()}
+					/>
 
-					<div class="flex items-center gap-2 mb-1">
-						<iconify-icon icon="mdi:email" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
-						<span class="text-sm font-bold">{email()}:</span>
-					</div>
-					<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input mb-4" />
+					<Input
+						value={user.email}
+						name="email"
+						type="email"
+						autocomplete="email"
+						disabled
+						label={email()}
+						aria-label={email()}
+					/>
 
-					<div class="flex items-center gap-2 mb-1">
-						<iconify-icon icon="mdi:lock" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
-						<span class="text-sm font-bold">{form_password()}:</span>
-					</div>
-					<input bind:value={password} name="security" type="security" autocomplete="current-password" disabled class="input" />
+					<Input
+						bind:value={password}
+						name="password"
+						type="password"
+						autocomplete="current-password"
+						disabled
+						label={form_password()}
+						aria-label={form_password()}
+					/>
 
 
-					<div class="mt-4 flex flex-col items-center justify-center gap-2">
+					<div class="mt-3 flex flex-col items-center justify-center gap-1.5">
 						<!-- Edit Modal Button -->
-						<button onclick={modalUserForm} aria-label={userpage_edit_usersetting()} class="gradient-tertiary btn w-full max-w-sm text-white">
-							<iconify-icon icon="bi:pencil-fill" width={24}></iconify-icon>
+						<Button
+							variant="outline"
+							size="sm"
+							leadingIcon="bi:pencil-fill"
+							onclick={modalUserForm}
+							aria-label={userpage_edit_usersetting()}
+							class="gradient-tertiary w-full max-w-xs text-white"
+						>
 							{userpage_edit_usersetting()}
-						</button>
+						</Button>
 
 						<!-- GDPR Compact Tile -->
-						<button onclick={modalPrivacyData} class="gradient-tertiary btn w-full max-w-sm flex items-center justify-between text-white">
-							<div class="flex items-center gap-3">
-								<iconify-icon icon="mdi:shield-account" width={24}></iconify-icon>
-								<div class="text-start">
-									<h3 class="text-sm font-bold">Privacy & Data (GDPR)</h3>
-								</div>
-							</div>
-							<iconify-icon icon="mdi:chevron-right" width={24}></iconify-icon>
-						</button>
+						<Button
+							variant="outline"
+							size="sm"
+							leadingIcon="mdi:shield-account"
+							trailingIcon="mdi:chevron-right"
+							onclick={modalPrivacyData}
+							class="gradient-tertiary w-full max-w-xs justify-between text-white"
+						>
+							<span class="text-xs font-bold">Privacy & Data (GDPR)</span>
+						</Button>
 
 						<!-- Delete Modal Button -->
 						{#if isFirstUser}
-							<button onclick={modalConfirm} aria-label={button_delete()} class="gradient-error btn w-full max-w-sm text-white">
-								<iconify-icon icon="bi:trash3-fill" width={24}></iconify-icon>
+							<Button
+								variant="outline"
+								size="sm"
+								leadingIcon="bi:trash3-fill"
+								onclick={modalConfirm}
+								aria-label={button_delete()}
+								class="gradient-error w-full max-w-xs text-white"
+							>
 								{button_delete()}
-							</button>
+							</Button>
 						{/if}
 					</div>
 				</form>
@@ -351,3 +401,4 @@
 		</div>
 	</PermissionGuard>
 </div>
+</AdminPageShell>

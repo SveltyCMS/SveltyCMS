@@ -58,7 +58,8 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import Button from "@components/ui/button.svelte";
 import StickyActions from "@components/ui/sticky-actions.svelte";
-import PageTitle from "@src/components/page-title.svelte";
+import AdminPageShell from "@components/admin-page-shell.svelte";
+import AdminCard from "@components/admin-card.svelte";
 // Logger
 import { logger } from "@utils/logger";
 import { modalState } from "@utils/modal.svelte";
@@ -581,46 +582,59 @@ function modalLoadPreset(): void {
 </script>
 
 {#snippet saveButton(isHeader = false)}
-	<button
+	<Button variant="tertiary"
 		onclick={handleSave}
-		class="btn flex items-center gap-1 {isHeader ? 'btn-sm sm:btn-md preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-filled-tertiary-500 dark:preset-filled-primary-500'}"
 		disabled={isLoading || Object.keys(nodesToSave).length === 0}
 		title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
 		aria-keyshortcuts="mod+s"
-	>
+	 size="sm" class="flex items-center gap-1 {isHeader ? ' sm: dark: ' : ' dark: '}">
 		{#if isLoading}
 			<iconify-icon icon="mdi:loading" width={isHeader ? '18' : '24'} class="animate-spin"></iconify-icon>
 		{:else}
 			<iconify-icon icon="mdi:content-save" width={isHeader ? '18' : '24'}></iconify-icon>
 		{/if}
 		<span>{button_save()}</span>
-	</button>
+	</Button>
 {/snippet}
 
-<div class="absolute inset-0 pt-3 px-6 pb-6 space-y-6 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<PageTitle name={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
+<AdminPageShell title={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
+	{#snippet actions()}
 		<StickyActions>
 			{#if currentConfig.length > 0}
 				{@render saveButton(false)}
 			{/if}
 		</StickyActions>
-	</PageTitle>
+	{/snippet}
 
 	{#if currentConfig.length > 0}
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
+		<AdminCard class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
 		<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
 		<Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group w-52 justify-center" disabled={isLoading}>
 			<iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
 			<span>Quick Start</span>
 		</Button>
 
-		<Button onclick={() => modalAddCategory()} variant="tertiary" rounded={true} size="lg" class="group w-52 justify-center" disabled={isLoading}>
+		<Button
+			onclick={() => modalAddCategory()}
+			variant="tertiary"
+			rounded={true}
+			size="lg"
+			class="group w-52 justify-center"
+			disabled={isLoading}
+			data-testid="add-category-button"
+		>
 			<iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
 			<span>{collection_addcategory()}</span>
 		</Button>
 
-		<Button href="/config/collectionbuilder/new" variant="primary" rounded={true} size="lg" class="group w-52 justify-center">
+		<Button
+			href="/config/collectionbuilder/new"
+			variant="primary"
+			rounded={true}
+			size="lg"
+			class="group w-52 justify-center"
+			data-testid="add-collection-button"
+		>
 			<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
 			<span>{collection_add()}</span>
 		</Button>
@@ -640,7 +654,7 @@ function modalLoadPreset(): void {
 		{/if}
 	</div>
 
-	<div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
+	<div class="max-h-[calc(100vh-120px)] overflow-auto p-4" data-testid="collection-builder-board">
 		<div class="mx-auto w-full max-w-screen-2xl">
 			{#if Object.keys(nodesToSave).length > 0}
 				<div
@@ -665,8 +679,8 @@ function modalLoadPreset(): void {
 			/>
 		</div>
 	</div>
-	</div>
+	</AdminCard>
 {:else}
 	<EmptyState onAddCollection={handleAddCollectionClick} onAddCategory={() => modalAddCategory()} onLoadPreset={modalLoadPreset} onQuickStart={modalQuickStart} />
 {/if}
-</div>
+</AdminPageShell>

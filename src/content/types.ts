@@ -239,9 +239,12 @@ export interface JoinField {
   limit?: number; // Max items to fetch
 }
 
-// Field definition
-// Fix: removed 'unknown' from union to ensure type safety
-export type FieldDefinition = WidgetPlaceholder | JoinField | Record<string, any>;
+// Field definition — discriminated union with documented fallback.
+// WidgetPlaceholder and JoinField are the valid structured types.
+// The index-signature fallback exists for forward-compatibility with
+// future field types not yet modeled. Consumer code MUST narrow via
+// type guards before accessing properties.
+export type FieldDefinition = WidgetPlaceholder | JoinField | { [key: string]: unknown };
 
 // ContentTypes is now dynamic, based on collectionSchemas
 
@@ -490,6 +493,8 @@ export interface TableHeader {
   name?: string;
   key?: string;
   label: string;
+  /** Widget type for Display-pillar list cells (entry-list). */
+  widgetName?: string;
   component?: string;
   props?: Record<string, string>;
   sortable?: boolean;

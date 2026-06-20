@@ -6,6 +6,8 @@ Displays detailed SEO analysis results in a modal overlay.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import { fade, scale } from 'svelte/transition';
 	import type { SeoAnalysisResult } from '../seo-types';
 
@@ -54,9 +56,9 @@ Displays detailed SEO analysis results in a modal overlay.
 					<iconify-icon icon="mdi:google-analytics" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					SEO Analysis Report
 				</h3>
-				<button type="button" class="btn-icon btn-icon-sm preset-outlined-surface-500" onclick={close} aria-label="Close">
+				<Button variant="outline" type="button" onclick={close} aria-label="Close" class="p-0! min-w-0">
 					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-				</button>
+				</Button>
 			</header>
 
 			<!-- Content -->
@@ -134,15 +136,16 @@ Displays detailed SEO analysis results in a modal overlay.
 												</div>
 											{/if}
 										</div>
-										<span
-											class="badge {suggestion.type === 'error'
-												? 'preset-filled-error-500'
+										<Badge
+											variant={suggestion.type === 'error'
+												? 'error'
 												: suggestion.type === 'warning'
-													? 'preset-filled-warning-500'
-													: 'preset-filled-tertiary-500 dark:preset-filled-primary-500'} text-[10px] uppercase"
+													? 'warning'
+													: 'primary'}
+											size="sm"
 										>
 											{suggestion.type}
-										</span>
+										</Badge>
 									</div>
 								</div>
 							{/each}
@@ -162,7 +165,7 @@ Displays detailed SEO analysis results in a modal overlay.
 			</div>
 			<!-- Footer -->
 			<footer class="card-footer p-4 border-t border-surface-500/20 flex justify-end">
-				<button class="btn preset-filled-surface-500" onclick={close}>Close</button>
+				<Button variant="surface" onclick={close}>Close</Button>
 			</footer>
 		</div>
 	</div>

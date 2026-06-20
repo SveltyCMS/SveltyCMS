@@ -14,6 +14,7 @@ export function createCodemodProject(): Project {
   return new Project({
     tsConfigFilePath: path.join(process.cwd(), "tsconfig.json"),
     skipAddingFilesFromTsConfig: true,
+    skipLoadingLibFiles: true,
     compilerOptions: {
       allowJs: true,
       strict: false, // Be lenient with legacy code during migrations

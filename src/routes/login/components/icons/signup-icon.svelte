@@ -33,7 +33,7 @@ function handleKeyDown(event: KeyboardEvent) {
 </script>
 
 <div
-	class="overflow icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] transition-all duration-300"
+	class="overflow icon dark:text-dark absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] transition-all duration-300"
 	class:hide={!show}
 	class:pointer-events-none={!show || disabled}
 	class:opacity-50={disabled}
@@ -43,6 +43,7 @@ function handleKeyDown(event: KeyboardEvent) {
 		onkeydown={handleKeyDown}
 		role="button"
 		aria-label="Go to Sign Up"
+		data-testid="signup-icon"
 		tabindex={disabled ? -1 : 0}
 		class="flex cursor-pointer flex-col items-center"
 	>

@@ -245,9 +245,9 @@ async function getUserFromSession(
       suppressErrorLog: true,
     });
 
-    if (result?.success) {
-      if (result.data) {
-        const user = result.data;
+    if (userResult?.success) {
+      if (userResult.data) {
+        const user = userResult.data;
         logger.debug(
           `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${(user as any).email}`,
         );
@@ -259,32 +259,18 @@ async function getUserFromSession(
           .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
         return user;
       } else {
-        // Definitive: Session not found or expired.
-        logger.debug(`[Auth] Session not found in DB: ${sessionId.slice(0, 8)}...`);
+        // Definitive: User not found in DB
+        logger.debug(`[Auth] User not found in DB: ${sessionResult.data.user_id}`);
         negativeCache.add(sessionId);
-      } else {
-        lastRefreshAttempt.delete(sessionId);
-        logger.warn(
-          `[Auth] Transient user lookup error for ${sessionId}: ${userResult?.message || "Unknown"}`,
-        );
       }
     } else {
-      // System error (e.g. DB locked). Clear the cooldown to allow immediate retry on next request.
+      // Transient user lookup error or DB locked. Clear the cooldown to allow immediate retry on next request.
       lastRefreshAttempt.delete(sessionId);
       logger.warn(
-        `[Auth] Session validation error for ${sessionId.slice(0, 8)}...: ${result?.message || "Unknown"}`,
+        `[Auth] Session validation error for ${sessionId.slice(0, 8)}...: ${userResult?.message || "Unknown"}`,
       );
       return null;
     }
-
-    const user = userResult.data;
-    const sessionData: SessionCacheEntry = { user, timestamp: now };
-    setSessionInCache(sessionId, sessionData);
-    const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-    await cacheService
-      .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
-      .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
-    return user;
   } catch (err: any) {
     lastRefreshAttempt.delete(sessionId);
     logger.error(`Session validation crashed: ${err.message}`);

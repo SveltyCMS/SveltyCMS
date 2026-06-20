@@ -25,6 +25,7 @@ This modal			class="input text-center font-mono tracking-wider"
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import {
 		button_cancel,
 		twofa_backup_code_placeholder,
@@ -178,21 +179,20 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	<!-- Action Buttons -->
 	<div class="flex gap-3">
-		<button onclick={cancelVerification} class="preset-tonal-surface btn flex-1">{button_cancel()}</button>
+		<Button variant="surface" onclick={cancelVerification} class="flex-1">{button_cancel()}</Button>
 
-		<button
+		<Button variant="tertiary"
 			onclick={submitCode}
 			disabled={!code.trim() || isVerifying || (!useBackupCode && code.length !== 6) || (useBackupCode && code.length < 8)}
-			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn flex-1"
-		>
+		 class="dark: flex-1">
 			{#if isVerifying}
-				<iconify-icon icon="mdi:loading" width="20" class="mr-2 animate-spin"></iconify-icon>
+				<iconify-icon icon="mdi:loading" width="20" class="me-2 animate-spin"></iconify-icon>
 				{twofa_verifying()}
 			{:else}
-				<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+				<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>
 				{twofa_verify_button()}
 			{/if}
-		</button>
+		</Button>
 	</div>
 
 	<!-- Help Text -->

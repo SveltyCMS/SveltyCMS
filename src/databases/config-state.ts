@@ -282,7 +282,7 @@ export function getDatabaseConfig() {
     name,
     user,
     password,
-    poolSize: env.DB_POOL_SIZE || 100,
+    poolSize: env.DB_POOL_SIZE || (dbType === "postgresql" ? 20 : dbType === "sqlite" ? 1 : 100),
     retryAttempts: env.DB_RETRY_ATTEMPTS || 5,
     retryDelay: env.DB_RETRY_DELAY || 2000,
   };
@@ -308,6 +308,41 @@ export function getRedisConfig() {
   };
 
   return redisConfigCache;
+}
+
+/**
+ * Enterprise scaling: External DB pooler (PgBouncer etc.) config.
+ * All fields optional. When DB_POOLER_URL is set, adapters should prefer it for connections.
+ * DB_POOLER_MODE and PREPARE are hints for transaction pooling compatibility (esp. Postgres).
+ */
+export function getDbPoolerConfig() {
+  const env = getPrivateEnv();
+  return {
+    type: env?.DB_POOLER_TYPE || "",
+    url: env?.DB_POOLER_URL || "",
+    mode: env?.DB_POOLER_MODE || "transaction",
+    prepare: env?.DB_POOLER_PREPARE, // undefined = let adapter decide (true for direct, false for pgbouncer tx)
+    enabled: !!(env?.DB_POOLER_TYPE || env?.DB_POOLER_URL),
+  };
+}
+
+/**
+ * Trusted reverse proxies (Nginx, load balancers). Used for X-Forwarded-* trust in rate limiting, auth, security.
+ * Supports string "1.2.3.4,10.0.0.0/8" or array. "all" or "*" for dev.
+ */
+export function getTrustedProxies(): string[] | "all" {
+  const env = getPrivateEnv();
+  const raw = env?.TRUSTED_PROXIES;
+  if (!raw) return [];
+  if (raw === "all" || raw === "*") return "all";
+  if (typeof raw === "string") {
+    return raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  return [];
 }
 
 /**

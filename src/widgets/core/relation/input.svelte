@@ -118,14 +118,13 @@ Interactive selector with "Select" button and clear functionality
 		{#each selectedEntries as entry (entry._id)}
 			<Badge variant="surface" class="flex items-center gap-2 p-2">
 				<span>{entry[field.displayField as string]?.[lang] || entry[field.displayField as string] || '...'}</span>
-				<button
+				<Button variant="ghost"
 					onclick={() => removeItem(entry._id)}
 					type="button"
-					class="btn-icon btn-icon-sm rounded-full w-4 h-4 bg-error-500/20 text-error-500 hover:bg-error-500 hover:text-white transition-colors"
 					aria-label="Remove"
-				>
+				 class="p-0! min-w-0 rounded-full w-4 h-4 bg-error-500/20 text-error-500 hover:bg-error-500 hover:text-white">
 					<iconify-icon icon="mdi:close" width="12"></iconify-icon>
-				</button>
+				</Button>
 			</Badge>
 		{/each}
 	</div>

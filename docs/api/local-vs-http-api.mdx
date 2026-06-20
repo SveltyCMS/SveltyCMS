@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:lightning-bolt"
 author: "SveltyCMS Team"
 created: "2026-03-29"
-updated: "2026-04-01"
+updated: "2026-06-20"
 tags:
   - "architecture"
   - "performance"
@@ -24,7 +24,7 @@ Both access patterns are derived from a single, **unified OpenAPI 3.1.0 contract
 
 **Recommendation**: In all server-side code (`+page.server.ts`, actions, hooks, etc.), **prefer the Local SDK** unless you have a specific reason to test the full HTTP stack.
 
-````mermaid
+```mermaid
 graph TB
     subgraph Client["Client Tier (Slowest)"]
         CB[Browser / App]
@@ -42,14 +42,13 @@ graph TB
             MC[modifyRequest]
             VB[Valibot Validation]
             IS[Intelligent Storage Tier]
-            DL[DataLoader Batching]
             CH[Cache Hooks]
             EB[Event Bus]
         end
 
         subgraph API["Access Layers (Harmonized)"]
             EX[External API / GraphQL]
-            SDK[Local SDK / locals.cms]
+            SDK[Local SDK / LocalCMS]
         end
     end
 
@@ -58,25 +57,22 @@ graph TB
         RD[(Redis Cache)]
     end
 
-    %% External Flow
     CB -->|150ms+| HTTP
     HTTP --> Auth
     Auth --> Firewall
     Firewall -->|JSON Parsed| EX
     EX --> Logic
 
-    %% Internal Flow
     Server_Load[+page.server.ts / Actions] -->|0.1ms| SDK
     SDK -->|Native Calls| Logic
 
-    %% Core to Data
     Logic --> DB
     Logic --> RD
 
     style SDK fill:#4ade80,stroke:#166534,stroke-width:2px,color:#000
     style Logic fill:#fef08a,stroke:#854d0e,stroke-width:2px,color:#000
     style Network fill:#fecaca,stroke:#991b1b,stroke-dasharray: 5 5,color:#000
-```text
+```
 
 ---
 
@@ -97,7 +93,7 @@ graph TB
 
 ## Why the Local SDK Exists
 
-The Local SDK (`src/routes/api/cms.ts` or injected via `locals.cms`) is a high-performance facade that:
+The Local SDK (`src/services/sdk/index.ts` — the `LocalCMS` class) is a high-performance facade that:
 
 1. **Eliminates overhead**: No network stack, JSON parsing, or serialization.
 2. **Bypasses external security**: Safely skips WAF and rate-limiting because it runs with server privileges.
@@ -107,65 +103,50 @@ The Local SDK (`src/routes/api/cms.ts` or injected via `locals.cms`) is a high-p
 
 ## Example: Local SDK Structure
 
-The `locals.cms` object provides a unified, typed interface to all system capabilities:
+The `cms` (LocalCMS) object provides a unified, typed interface to all system capabilities:
 
 ```typescript
 // Content Management
-await locals.cms.collections.find("posts", { limit: 10 });
-await locals.cms.media.find("images", { limit: 5 });
+await cms.collections.find("posts", { limit: 10 });
+await cms.collections.create("posts", { title: "New" });
+await cms.media.list({ folderId: "uploads" });
 
 // Identity & Access
-await locals.cms.auth.listUsers();
-await locals.cms.websiteTokens.create({
-  /* ... */
-});
+await cms.auth.listUsers({ tenantId });
+await cms.websiteTokens.create({ name: "API Key", permissions: ["content:read"], user, tenantId });
 
 // System & Infrastructure
-await locals.cms.system.getPreference("theme");
-await locals.cms.widgets.list();
+await cms.system.settings.getAll();
+await cms.system.getHealth();
+await cms.widgets.list();
 
-// Advanced APIs
-await locals.cms.graphql("{ posts { title } }");
-await locals.cms.transaction(async (tx) => {
-  /* ... */
-});
-```text
-
----
+// Direct adapter access (escape hatch)
+const raw = await cms.db.crud.findMany("posts", {}, { tenantId });
+```
 
 ## Example: Data Loading in `+page.server.ts`
 
 ```typescript
+import { LocalCMS } from "@src/services/sdk";
+import { getDb } from "@src/databases/db";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
-  // locals.cms is the recommended way (typed via App.Locals)
-  const posts = await locals.cms.collections.find("posts", {
+  const cms = new LocalCMS(getDb()!);
+  const posts = await cms.collections.find("posts", {
     limit: 10,
-    filter: { status: "publish" },
     tenantId: locals.tenantId,
   });
-
   return { posts };
 };
-```text
+```
 
-## Example: Bulk Creation
-
-```typescript
-// Create 1000 items in a single high-performance database call
-const result = await locals.cms.bulkCreate("products", largeDataArray);
-```text
-
-## Example: Database Transactions
+## Example: Bulk Operations
 
 ```typescript
-// Atomically update multiple collections
-await locals.cms.transaction(async (tx) => {
-  await tx.collections.update("orders", orderId, { status: "paid" });
-  await tx.collections.create("audit_log", { event: "payment_received" });
-});
-```text
+// Collections namespace supports bulkCreate, bulkUpdate, bulkDelete
+const result = await cms.collections.bulkCreate("products", largeDataArray, { tenantId });
+```
 
 ---
 
@@ -177,13 +158,9 @@ await locals.cms.transaction(async (tx) => {
 - Cache hooks, invalidation, and version bumping happen automatically.
 - Real-time updates (SSE / WebSocket) are triggered for connected clients.
 - Multi-tenancy, user context, and permissions are applied consistently.
-
-- **Media Intelligent Storage**: Shared deduplication and loop protection logic for all uploads.
-- **Bulk operations**: `bulkCreate`, `bulkUpdate`, `bulkDelete` for high-throughput tasks.
-- **DataLoader Batching**: `findById` calls are autonomously coalesced to reduce database I/O.
-- **Transactions**: Full atomic transaction support (wrapped from database adapter).
-- **Fluent Query Builder**: Native `queryBuilder` support for complex filtering and joins.
-- **SDK Telemetry**: Automated performance metrics via `metricsService`.
+- **Media Intelligent Storage**: Shared deduplication and loop protection logic for all uploads via `cms.media.upload()`.
+- **Bulk operations**: `cms.collections.bulkCreate()`, `bulkUpdate()`, `bulkDelete()` for high-throughput tasks.
+- **Direct adapter access**: `cms.db` provides escape-hatch access to the raw `IDBAdapter` when the SDK namespace doesn't cover a needed operation.
 
 ### When You Might Still Use HTTP from Server Code
 
@@ -196,10 +173,11 @@ await locals.cms.transaction(async (tx) => {
 ## Best Practices
 
 1. **Default to Local SDK** in every `.server.ts` file, server actions, and hooks.
-2. **Avoid `fetch('/api/cms/...')`** inside server code — it adds unnecessary latency and stack depth.
-3. **Use `locals.cms`** (injected via hooks) for clean, typed access throughout your app.
-4. **Leverage `event.fetch`** only when you specifically need the full HTTP context of an internal route.
-````
+2. **Avoid `fetch('/api/...')`** inside server code — it adds unnecessary latency and stack depth.
+3. **Instantiate via `new LocalCMS(adapter)`** from `@src/services/sdk` for clean, typed access. The instance is lightweight and safe to create per-request.
+4. **Use `cms.db`** when you need raw adapter access — e.g., `cms.db.system.websiteTokens.getByToken()`.
+
+```
 
 ---
 
@@ -207,3 +185,4 @@ await locals.cms.transaction(async (tx) => {
 
 - [API Reference](./index.mdx)
 - [Getting Started](../getting-started.mdx)
+```

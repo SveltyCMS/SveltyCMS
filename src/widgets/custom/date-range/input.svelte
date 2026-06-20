@@ -23,6 +23,7 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
+	import Input from '@components/ui/input.svelte';
 	import { validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
 	import type { FieldType } from './';
@@ -99,22 +100,22 @@ Part of the Three Pillars Architecture for widget system.
 	const endDateInput = $derived(value?.end ? value.end.split('T')[0] : '');
 </script>
 
-<div class="mb-4 w-full">
+<div class="relative mb-4 w-full">
 	<div class="flex gap-2">
 		<!-- Start Date -->
 		<div class="flex-1">
 			<label for={`${field.db_fieldName}_start`} class="block text-sm font-medium text-surface-700 dark:text-surface-200 mb-1">Start</label>
 			<div
-				class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500"
+				class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
 			>
-				<input
+				<Input
 					type="date"
 					id={`${field.db_fieldName}_start`}
 					name={`${field.db_fieldName}_start`}
 					value={startDateInput}
 					oninput={(e) => handleInput('start', e)}
 					required={field.required}
-					class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500"
+					inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500"
 					aria-label="Start Date"
 				/>
 			</div>
@@ -124,16 +125,16 @@ Part of the Three Pillars Architecture for widget system.
 		<div class="flex-1">
 			<label for={`${field.db_fieldName}_end`} class="block text-sm font-medium text-surface-700 dark:text-surface-200 mb-1">End</label>
 			<div
-				class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500"
+				class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
 			>
-				<input
+				<Input
 					type="date"
 					id={`${field.db_fieldName}_end`}
 					name={`${field.db_fieldName}_end`}
 					value={endDateInput}
 					oninput={(e) => handleInput('end', e)}
 					required={field.required}
-					class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500"
+					inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500"
 					aria-label="End Date"
 				/>
 			</div>

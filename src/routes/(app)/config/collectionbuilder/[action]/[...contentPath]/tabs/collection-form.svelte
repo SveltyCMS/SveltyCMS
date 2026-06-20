@@ -162,6 +162,7 @@ const statuses = Object.values(StatusTypes);
 				placeholder={collection_name_placeholder()}
 				required
 				aria-label={collection_name()}
+				data-testid="collection-name-input"
 			/>
 			{#if name}
 				<p class="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-50 -mt-2">

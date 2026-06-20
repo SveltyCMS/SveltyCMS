@@ -7,6 +7,7 @@ import { onMount } from "svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { fade, slide } from "svelte/transition";
 import type { WorkflowDefinition, WorkflowInstance } from "@src/types/workflow-types";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
     collectionId: string;
@@ -101,20 +102,21 @@ const availableTransitions = $derived.by(() => {
         {#if !instance}
              <div class="p-4 rounded bg-surface-50 dark:bg-surface-950 text-center border-2 border-dashed border-surface-200 dark:border-surface-800">
                 <p class="text-xs italic opacity-40 mb-2">No active workflow instance for this entry.</p>
-                <button class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')}>
+                <Button variant="tertiary" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')} size="sm" class="dark:">
                                     Start Workflow
-                </button>
+                </Button>
              </div>
         {:else}
             <div class="space-y-3">
                 <div class="flex flex-wrap gap-2">
                     {#each availableTransitions as trans}
-                        <button
-                            class="btn btn-sm preset-tonal-primary text-xs font-bold"
+                        <Button variant="primary"
                             onclick={() => { selectedTargetStateId = trans.to; showComment = true; }}
-                         aria-label="{trans.label}">
+                            aria-label={trans.label}
+                            size="sm"
+                            class="text-xs">
                             {trans.label} ➔
-                        </button>
+                        </Button>
                     {/each}
 
                     {#if availableTransitions.length === 0}
@@ -131,8 +133,8 @@ const availableTransitions = $derived.by(() => {
                             rows="2"
                          aria-label="Textarea"></textarea>
                         <div class="flex justify-end gap-2">
-                                <button class="btn btn-sm variant-ghost-surface text-[10px]" onclick={() => showComment = false}>Cancel</button>
-                                <button class="btn btn-sm preset-filled-tertiary-500 dark:preset-filled-primary-500 text-[10px]" onclick={() => triggerTransition(selectedTargetStateId)}>Confirm Move</button>
+                                <Button variant="ghost" onclick={() => showComment = false} size="sm" class="text-[10px]">Cancel</Button>
+                                <Button variant="tertiary" onclick={() => triggerTransition(selectedTargetStateId)} size="sm" class="dark: text-[10px]">Confirm Move</Button>
                         </div>
                     </div>
                 {/if}

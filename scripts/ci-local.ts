@@ -25,7 +25,7 @@
  */
 
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -48,7 +48,11 @@ const skipE2E = argv.includes("--skip-e2e");
 function run(
   cmd: string,
   args: string[],
-  opts: { silent?: boolean; env?: Record<string, string>; ignoreExit?: boolean } = {},
+  opts: {
+    silent?: boolean;
+    env?: Record<string, string>;
+    ignoreExit?: boolean;
+  } = {},
 ): SpawnSyncReturns<Buffer> {
   if (!opts.silent) {
     console.log(`  $ ${cmd} ${args.join(" ")}`);
@@ -107,54 +111,175 @@ async function main() {
   console.log(`  Databases:    Using Docker Desktop (already running)`);
   console.log("");
 
-  // ── Step 1: Build ───────────────────────────────────────────────────────
-  console.log("🏗️  Step 1: Production Build");
-  let t = Date.now();
-  const buildResult = run("bun", ["run", "build"]);
-  const buildPassed = ok(buildResult);
-  results.push({ name: "Production Build", passed: buildPassed, duration: elapsed(t) });
-  if (!buildPassed) {
-    printSummary(results, pipelineStart);
-    process.exit(1);
+  const backupDir = join(ROOT, ".tmp_config_backup");
+  const pathsToBackup = [
+    {
+      src: join(ROOT, "config", "private.ts"),
+      dest: join(backupDir, "private.ts"),
+      type: "file",
+    },
+    {
+      src: join(ROOT, "config", "private.test.ts"),
+      dest: join(backupDir, "private.test.ts"),
+      type: "file",
+    },
+    {
+      src: join(ROOT, "config", "database"),
+      dest: join(backupDir, "database"),
+      type: "dir",
+    },
+  ];
+
+  console.log("💾 Backing up local configuration...");
+  if (existsSync(backupDir)) {
+    rmSync(backupDir, { recursive: true, force: true });
   }
+  mkdirSync(backupDir, { recursive: true });
 
-  // ── Step 2: Integration DB Matrix ─────────────────────────────────────
-  const databases = singleDb ? [singleDb] : ["sqlite", "mongodb", "mariadb", "postgresql"];
-
-  console.log(`\n🧪 Step 2: Integration Tests (${databases.join(", ")})`);
-  for (const db of databases) {
-    console.log(`\n  ── 🗄️  ${db.toUpperCase()} ──`);
-    t = Date.now();
-    const r = run("bun", ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"]);
-    const passed = ok(r);
-    results.push({ name: `Integration (${db})`, passed, duration: elapsed(t) });
-    if (!passed) {
-      console.error(`  ❌ ${db} integration tests failed.`);
-      break; // fail-fast
+  for (const p of pathsToBackup) {
+    if (existsSync(p.src)) {
+      cpSync(p.src, p.dest, { recursive: true });
     }
   }
 
-  // ── Step 3: Playwright E2E ────────────────────────────────────────────
-  if (!skipE2E && results.every((r) => r.passed)) {
-    console.log("\n🎭 Step 3: Playwright E2E Suite");
+  const restoreConfig = () => {
+    console.log("⏪ Restoring local configuration...");
+    for (const p of pathsToBackup) {
+      if (existsSync(p.dest)) {
+        if (p.type === "dir") {
+          rmSync(p.src, { recursive: true, force: true });
+        }
+        cpSync(p.dest, p.src, { recursive: true });
+      } else {
+        rmSync(p.src, { recursive: true, force: true });
+      }
+    }
+    rmSync(backupDir, { recursive: true, force: true });
+    console.log("   ✓ Local configuration restored.");
+  };
 
-    // Ensure browsers are installed
-    run("bun", ["x", "playwright", "install", "--with-deps", "chromium"], {
-      silent: true,
-      ignoreExit: true,
-    });
+  try {
+    // ── Step 0: Quality Gates ────────────────────────────────────────────────
+    console.log("🛡️  Step 0: Quality Gates (Format, Lint, Type Check, Unit Tests)");
+    const qualityChecks = [
+      { name: "Format Check", cmd: "bun", args: ["run", "format"] },
+      { name: "Lint Check", cmd: "bun", args: ["run", "lint"] },
+      { name: "Type Check", cmd: "bun", args: ["run", "check"] },
+      { name: "Unit Tests", cmd: "bun", args: ["run", "test:unit"] },
+    ];
 
-    const e2eProjects = ["wizard", "auth-setup", "signup", "content", "system"];
-    for (const project of e2eProjects) {
-      console.log(`\n  ── 🎭 ${project} ──`);
+    let t: number;
+    for (const check of qualityChecks) {
+      console.log(`\n  ── 🔎 ${check.name} ──`);
       t = Date.now();
-      const r = run("bun", ["x", "playwright", "test", `--project=${project}`]);
+      const r = run(check.cmd, check.args);
       const passed = ok(r);
-      results.push({ name: `E2E (${project})`, passed, duration: elapsed(t) });
-      if (!passed) break; // fail-fast
+      results.push({ name: check.name, passed, duration: elapsed(t) });
+      if (!passed) {
+        console.error(`  ❌ ${check.name} failed.`);
+        printSummary(results, pipelineStart);
+        process.exit(1);
+      }
     }
-  } else if (skipE2E) {
-    console.log("\n⏩ Step 3: Playwright E2E (skipped via --skip-e2e)");
+    console.log("");
+
+    // Clear active state for E2E setup wizard and build parity with CI
+    const dirsToClear = [
+      join(ROOT, "config", "private.ts"),
+      join(ROOT, "config", "private.test.ts"),
+      join(ROOT, "config", "database"),
+      join(ROOT, "tests", "e2e", ".auth", "user.json"),
+      join(ROOT, "logs"),
+    ];
+    for (const path of dirsToClear) {
+      if (existsSync(path)) {
+        rmSync(path, { recursive: true, force: true });
+      }
+    }
+    mkdirSync(join(ROOT, "config", "database"), { recursive: true });
+
+    // ── Step 1: Build ───────────────────────────────────────────────────────
+    console.log("🏗️  Step 1: Production Build (with COMPILE_ALL_ADAPTERS)");
+    t = Date.now();
+    const buildResult = run("bun", ["run", "build"], {
+      env: { COMPILE_ALL_ADAPTERS: "true" },
+    });
+    const buildPassed = ok(buildResult);
+    results.push({
+      name: "Production Build",
+      passed: buildPassed,
+      duration: elapsed(t),
+    });
+    if (!buildPassed) {
+      printSummary(results, pipelineStart);
+      process.exit(1);
+    }
+
+    // ── Step 2: Integration DB Matrix ─────────────────────────────────────
+    const databases = singleDb ? [singleDb] : ["sqlite", "mongodb", "mariadb", "postgresql"];
+
+    console.log(`\n🧪 Step 2: Integration Tests (${databases.join(", ")})`);
+    for (const db of databases) {
+      console.log(`\n  ── 🗄️  ${db.toUpperCase()} ──`);
+      t = Date.now();
+      const r = run("bun", ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"]);
+      const passed = ok(r);
+      results.push({
+        name: `Integration (${db})`,
+        passed,
+        duration: elapsed(t),
+      });
+      if (!passed) {
+        console.error(`  ❌ ${db} integration tests failed.`);
+        break; // fail-fast
+      }
+    }
+
+    // ── Step 3: Playwright E2E ────────────────────────────────────────────
+    if (!skipE2E && results.every((r) => r.passed)) {
+      console.log("\n🎭 Step 3: Playwright E2E Suite");
+
+      // Ensure browsers are installed
+      run("bun", ["x", "playwright", "install", "--with-deps", "chromium"], {
+        silent: true,
+        ignoreExit: true,
+      });
+
+      // Clear state again just in case previous integration tests left garbage
+      for (const path of dirsToClear) {
+        if (existsSync(path)) {
+          rmSync(path, { recursive: true, force: true });
+        }
+      }
+      mkdirSync(join(ROOT, "config", "database"), { recursive: true });
+
+      const e2eProjects = [
+        "wizard",
+        "auth-setup",
+        "signup",
+        "content",
+        "system",
+        "a11y",
+        "rbac",
+        "language",
+      ];
+      for (const project of e2eProjects) {
+        console.log(`\n  ── 🎭 ${project} ──`);
+        t = Date.now();
+        const r = run("bun", ["x", "playwright", "test", `--project=${project}`]);
+        const passed = ok(r);
+        results.push({
+          name: `E2E (${project})`,
+          passed,
+          duration: elapsed(t),
+        });
+        if (!passed) break; // fail-fast
+      }
+    } else if (skipE2E) {
+      console.log("\n⏩ Step 3: Playwright E2E (skipped via --skip-e2e)");
+    }
+  } finally {
+    restoreConfig();
   }
 
   printSummary(results, pipelineStart);

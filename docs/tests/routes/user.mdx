@@ -1,0 +1,43 @@
+---
+path: "docs/tests/routes/user.mdx"
+title: "User Profile and Management E2E Tests"
+description: "End-to-end test specifications and coverage checklist for user profiles and credentials."
+order: 15
+icon: "mdi:account"
+author: "SveltyCMS Team"
+created: "2026-06-13"
+updated: "2026-06-13"
+tags:
+  - "testing"
+  - "e2e"
+  - "playwright"
+  - "user"
+---
+
+# User Profile and Management E2E Tests (`/user`)
+
+This document details the end-to-end test specifications and coverage checklist for user accounts, profiles, credentials management, and admin CRUD actions.
+
+## Coverage Checklist
+
+- [x] Profile details updates
+- [x] Password changes and security checks
+- [x] User management CRUD (for admins)
+- [x] API verification for user retrieval
+- [ ] User self-deletion & account cleanup - _Gaps identified, pending integration_
+
+## Associated Tests
+
+- [profile.spec.ts](file:///d:/SveltyCMS/tests/e2e/routes/user/profile.spec.ts)
+- [management.spec.ts](file:///d:/SveltyCMS/tests/e2e/routes/user/management.spec.ts)
+- [account-smoke.spec.ts](file:///d:/SveltyCMS/tests/e2e/routes/user/account-smoke.spec.ts)
+
+## Implementation Details
+
+User profiles are validated under different role definitions (admin, editor, developer). Tests include file upload verification for avatars, username modifications, and timing-safe password updates.
+
+## Next Steps
+
+- [E2E Testing Guide](../e2e-testing-guide.mdx)
+- [Testing Overview & Strategy](../testing-strategy.mdx)
+- [E2E Coverage Matrix](../e2e-coverage-matrix.mdx)

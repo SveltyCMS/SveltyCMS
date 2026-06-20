@@ -31,7 +31,6 @@ import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
 import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
 import FloatingInput from "@components/ui/floating-input.svelte";
 import Button from "@components/ui/button.svelte";
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 // ParaglideJS
 import {
 	button_back,
@@ -65,6 +64,7 @@ import { goto, preloadData } from "$app/navigation";
 // Stores
 import { page } from "$app/state";
 import type { PageData } from "../$types";
+import type { LoginBranding } from "@utils/theme-merge";
 import SigninIcon from "./icons/signin-icon.svelte";
 import OauthLogin from "./oauth-login.svelte";
 
@@ -75,15 +75,19 @@ const {
 	onPointerEnter: onPointerEnterProp = () => {},
 	onBack = () => {},
 	firstCollectionPath = "",
+	branding = undefined,
 }: {
 	active?: number;
 	onClick?: () => void;
 	onPointerEnter?: (e: PointerEvent) => void;
 	onBack?: () => void;
 	firstCollectionPath?: string;
+	branding?: LoginBranding;
 } = $props();
 
-const siteName = $derived(publicEnv.SITE_NAME || "SveltyCMS");
+const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || "SveltyCMS");
+const brandedLogin = $derived(branding?.brandedLogin ?? false);
+const brandedVariant = $derived(branding?.variant ?? "bordered");
 
 // State management
 let P_WFORGOT = $state(false);
@@ -98,13 +102,8 @@ let loginFormElement: HTMLFormElement | null = $state(null);
 let forgotFormElement: HTMLFormElement | null = $state(null);
 let resetFormElement: HTMLFormElement | null = $state(null);
 
-const tabIndex = $state(1);
-
-// Pre-calculate tab indices
-const emailTabIndex = 1;
-const passwordTabIndex = 2;
-const confirmPasswordTabIndex = 3;
-const forgotPasswordTabIndex = 4;
+const isInteractiveCard = $derived(active === undefined);
+const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
 const pageData = page.data as PageData;
 
 // FIX: Use page.url (reactive) instead of a static window.location.href snapshot.
@@ -309,16 +308,19 @@ async function submitTwoFA() {
 	isVerifying2FA = true;
 	try {
 		const { verify2FA } = await import("../auth.remote");
-		await verify2FA({ userId: twoFAUserId, code: twoFACode });
+		const result = (await verify2FA({ userId: twoFAUserId, code: twoFACode })) as any;
+		isVerifying2FA = false;
+		if (result.success && result.redirectPath) {
+			toast.success({ title: "Verification Successful", description: "Redirecting…" });
+			window.location.href = result.redirectPath;
+			return;
+		}
+		toast.error({ description: result.message || twofa_error_invalid_code() });
+		twoFACode = "";
 	} catch (e: any) {
 		isVerifying2FA = false;
-		if (e?.location) {
-			toast.success({ title: "Verification Successful", description: "Redirecting…" });
-			window.location.href = e.location;
-		} else {
-			toast.error({ description: e?.message || twofa_error_invalid_code() });
-			twoFACode = "";
-		}
+		toast.error({ description: e?.message || twofa_error_invalid_code() });
+		twoFACode = "";
 	}
 }
 
@@ -407,7 +409,7 @@ $effect(() => {
 	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={onPointerEnterProp}
-	tabindex={tabIndex}
+	tabindex={cardTabIndex}
 	class="{baseClasses} focus-visible:outline-2 focus-visible:outline-primary-500"
 	class:active={isActive}
 	class:inactive={isInactive}
@@ -422,10 +424,12 @@ $effect(() => {
 				</div>
 			{/if}
 			<div class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
-				<SveltyCMSLogoFull />
+				<SveltyCMSLogoFull {siteName} />
 			</div>
 			<div
-				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded bg-white/0 p-6 backdrop-blur lg:w-4/5"
+				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin && brandedVariant === 'elevated'
+					? 'bg-white shadow-xl border border-surface-200'
+					: 'bg-white/0'}"
 				class:hide={active !== 0}
 			>
 				<a href="#signin-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-in form</a>
@@ -446,21 +450,20 @@ $effect(() => {
 				</div>
 
 				<!-- Required label + Back button -->
-				<!-- FIX: Icon was ri:arrow-end-line (→); corrected to ← -->
-				<div class="relative mb-2 flex h-10 items-center justify-center text-xs text-error-500">
+				<div class="relative mb-2 flex h-12 items-center justify-center text-xs text-error-500">
 					{form_required()}
 					<div class="absolute inset-e-0">
-						<SystemTooltip title="Go Back">
-							<Button
-								onclick={handleBack}
-								aria-label="Go back"
-								variant="outline"
-								rounded={true}
-								class="w-10 h-10 p-0 flex items-center justify-center text-black border-surface-300! hover:bg-surface-100"
-							>
-								<iconify-icon icon="ri:arrow-left-line" width={24}></iconify-icon>
-							</Button>
-						</SystemTooltip>
+						<Button
+							variant="outline"
+							color="#000000"
+							type="button"
+							rounded={true}
+							onclick={handleBack}
+							aria-label={button_back()}
+							class="h-10 w-10 min-w-0 p-0! rounded-full border-black/25 text-black hover:bg-black/8 hover:border-black/40"
+						>
+							<iconify-icon icon="ri:arrow-left-line" width={24} class="text-black" aria-hidden="true"></iconify-icon>
+						</Button>
 					</div>
 				</div>
 
@@ -485,7 +488,6 @@ $effect(() => {
 								id="emailsignIn"
 								name="email"
 								type="email"
-								tabindex={emailTabIndex}
 								autocomplete="username"
 								autocapitalize="none"
 								spellcheck={false}
@@ -506,7 +508,6 @@ $effect(() => {
 								name="security"
 								type="security"
 								autocomplete="current-password"
-								tabindex={passwordTabIndex}
 								bind:value={loginForm.data.password}
 								bind:showPassword
 								required
@@ -527,7 +528,7 @@ $effect(() => {
 									type="submit"
 									form="signin-form"
 									variant="surface"
-									class="w-full text-white sm:w-auto"
+									class="w-full sm:w-auto"
 									aria-label={form_signin()}
 									data-testid="signin-submit"
 									loading={isSubmitting || isAuthenticating}
@@ -542,9 +543,8 @@ $effect(() => {
 								<Button
 									type="button"
 									variant="outline"
-									class="w-full text-black sm:w-auto hover:bg-surface-100"
+									class="w-full sm:w-auto text-black!"
 									aria-label={signin_forgottenpassword()}
-									tabindex={forgotPasswordTabIndex}
 									onclick={handleForgotPassword}
 									data-testid="signin-forgot-password"
 								>
@@ -606,26 +606,24 @@ $effect(() => {
 								</div>
 
 								<div class="flex gap-3">
-									<button
+									<Button variant="surface"
 										type="button"
 										onclick={back2FAToLogin}
-										class="btn preset-tonal-surface-500 flex-1"
 										aria-label={button_back()}
-									>
+									 class="flex-1">
 										<iconify-icon icon="mdi:arrow-left" width={20} class="me-2" aria-hidden="true"></iconify-icon>
 										{button_back()}
-									</button>
+									</Button>
 
-									<button
+									<Button variant="tertiary"
 										type="button"
 										onclick={submitTwoFA}
 										disabled={!twoFACode.trim() ||
 											isVerifying2FA ||
 											(!useBackupCode && twoFACode.length !== 6) ||
 											(useBackupCode && twoFACode.length < 8)}
-										class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex-1"
 										aria-label={twofa_verify_button()}
-									>
+									 class="dark: flex-1">
 										{#if isVerifying2FA}
 											<!-- FIX: alt="" + aria-hidden on spinner image -->
 											<img src="/Spinner.svg" alt="" aria-hidden="true" class="me-2 h-5 invert filter" />
@@ -634,7 +632,7 @@ $effect(() => {
 											<iconify-icon icon="mdi:check" width={20} class="me-2" aria-hidden="true"></iconify-icon>
 											{twofa_verify_button()}
 										{/if}
-									</button>
+									</Button>
 								</div>
 
 								<div class="mt-2 text-center text-xs text-surface-600 dark:text-surface-400" aria-live="polite">
@@ -665,7 +663,6 @@ $effect(() => {
 							id="emailforgot"
 							name="email"
 							type="email"
-							tabindex={emailTabIndex}
 							autocomplete="email"
 							autocapitalize="none"
 							spellcheck={false}
@@ -678,25 +675,23 @@ $effect(() => {
 						/>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
-							<button
+							<Button variant="surface"
 								type="submit"
-								class="preset-filled-surface-500 text-white btn w-full sm:w-auto"
 								aria-label={form_resetpassword()}
-							>
+							 class="text-white w-full sm:w-auto">
 								{form_resetpassword()}
 								{#if isSubmitting}
 									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ms-4 h-6 invert filter" />
 								{/if}
-							</button>
+							</Button>
 
-							<button
+							<Button variant="surface"
 								type="button"
-								class="btn-icon preset-filled-surface-500 rounded-full"
 								aria-label="Back to sign in"
 								onclick={() => { P_WFORGOT = false; P_WRESET = false; }}
-							>
+							 class="p-0! min-w-0 rounded-full">
 								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"></iconify-icon>
-							</button>
+							</Button>
 						</div>
 					</form>
 				{/if}
@@ -725,7 +720,6 @@ $effect(() => {
 							id="passwordreset"
 							name="password"
 							type="security"
-							tabindex={passwordTabIndex}
 							bind:value={resetForm.data.password}
 							bind:showPassword
 							required
@@ -744,7 +738,6 @@ $effect(() => {
 							id="confirm_passwordreset"
 							name="confirm_password"
 							type="security"
-							tabindex={confirmPasswordTabIndex}
 							bind:value={resetForm.data.confirm_password}
 							bind:showPassword
 							autocomplete="new-password"
@@ -764,25 +757,23 @@ $effect(() => {
 						/>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
-							<button
+							<Button variant="surface"
 								type="submit"
 								aria-label={signin_savenewpassword()}
-								class="btn preset-filled-surface-500 mt-6 text-white w-full sm:w-auto"
-							>
+							 class="mt-6 text-white w-full sm:w-auto">
 								{signin_savenewpassword()}
 								{#if isSubmitting}
 									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ms-4 h-6" />
 								{/if}
-							</button>
+							</Button>
 
-							<button
+							<Button variant="surface"
 								type="button"
 								aria-label={button_back()}
-								class="preset-filled-surface-500 btn-icon"
 								onclick={() => { P_WFORGOT = false; P_WRESET = false; }}
-							>
+							 class="p-0! min-w-0">
 								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"></iconify-icon>
-							</button>
+							</Button>
 						</div>
 					</form>
 				{/if}

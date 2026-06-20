@@ -70,7 +70,7 @@ Sidebar navigation for System Settings
 	<!-- Groups List -->
 	<div class="flex-1 overflow-y-auto px-1 space-y-1 flex flex-col settings-list">
 		{#each filteredGroups as group (group.id)}
-			<SystemTooltip title={group.name} positioning={{ placement: 'right', gutter: 15 }} contentClass="!text-sm" triggerClass="block w-full">
+			<SystemTooltip title={group.name} positioning={{ placement: 'end', gutter: 15 }} contentClass="!text-sm" triggerClass="block w-full">
 				<a
 					href={`/config/system-settings?group=${group.id}`}
 					data-sveltekit-preload-data="hover"

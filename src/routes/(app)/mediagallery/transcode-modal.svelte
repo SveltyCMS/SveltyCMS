@@ -6,6 +6,7 @@
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
 import { slide } from "svelte/transition";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	video: { _id: string; filename: string; url: string };
@@ -70,9 +71,9 @@ function toggleResolution(res: string) {
 			</h2>
 			<p class="text-xs opacity-50 font-mono mt-1">{video.filename}</p>
 		</div>
-		<button class="btn-icon preset-tonal-surface" onclick={onClose} aria-label="Close">
+		<Button variant="surface" onclick={onClose} aria-label="Close" class="p-0! min-w-0">
 			<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-		</button>
+		</Button>
 	</div>
 
 	<div class="grid grid-cols-2 gap-6">
@@ -80,18 +81,16 @@ function toggleResolution(res: string) {
 		<div class="space-y-2">
 			<span class="block text-sm font-bold uppercase tracking-widest opacity-60">Output Format</span>
 			<div class="flex gap-2">
-				<button 
-					class="btn flex-1 {format === 'hls' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
+				<Button variant="tertiary"
 					onclick={() => format = 'hls'}
-				>
+				 class="flex-1 {format === 'hls' ? ' dark: ' : ' '}">
 					HLS (Adaptive)
-				</button>
-				<button 
-					class="btn flex-1 {format === 'mp4' ? 'preset-filled-tertiary-500 dark:preset-filled-primary-500' : 'preset-tonal-surface'}"
+				</Button>
+				<Button variant="tertiary"
 					onclick={() => format = 'mp4'}
-				>
+				 class="flex-1 {format === 'mp4' ? ' dark: ' : ' '}">
 					MP4 (Fixed)
-				</button>
+				</Button>
 			</div>
 		</div>
 
@@ -112,12 +111,11 @@ function toggleResolution(res: string) {
 		<span class="block text-sm font-bold uppercase tracking-widest opacity-60">Resolutions to Generate</span>
 		<div class="flex flex-wrap gap-2">
 			{#each availableResolutions as res}
-				<button 
-					class="btn btn-sm px-4 {resolutions.includes(res) ? 'preset-filled-secondary-500' : 'preset-outlined-surface-500'}"
+				<Button variant="secondary"
 					onclick={() => toggleResolution(res)}
-				>
+				 size="sm" class="px-4 {resolutions.includes(res) ? ' ' : ' '}">
 					{res}
-				</button>
+				</Button>
 			{/each}
 		</div>
 	</div>
@@ -136,18 +134,17 @@ function toggleResolution(res: string) {
 	{/if}
 
 	<div class="flex gap-3 pt-4">
-		<button class="btn preset-tonal-surface flex-1" onclick={onClose}>Cancel</button>
-		<button 
-			class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 flex-1 gap-2" 
+		<Button variant="surface" onclick={onClose} class="flex-1">Cancel</Button>
+		<Button variant="tertiary" 
 			onclick={startTranscoding}
 			disabled={isProcessing || resolutions.length === 0}
-		>
+		 class="dark: flex-1 gap-2">
 			{#if isProcessing}
 				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
 			{:else}
 				<iconify-icon icon="mdi:play" width="20"></iconify-icon>
 			{/if}
 			Start Pipeline
-		</button>
+		</Button>
 	</div>
 </div>

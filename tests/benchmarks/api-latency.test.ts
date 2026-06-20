@@ -73,6 +73,7 @@ export async function runApiLatencyAudit() {
             headers: {
               "x-test-mode": "true",
               "x-test-secret": TEST_API_SECRET,
+              "x-tenant-id": "default",
             },
           },
         );

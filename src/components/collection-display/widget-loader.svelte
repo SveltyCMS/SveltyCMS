@@ -18,16 +18,20 @@ rather than bundling all widgets upfront.
 
 ### Features
 - Async component loading with Suspense-like behavior
-- Code-splitting support via import.meta.glob
+- Code-splitting via central widget-loader-registry cache
+- Valibot runtime validation when widget defines validationSchema
+- Field-level store sync callback (avoids full-form JSON.stringify)
 - Error boundary with fallback UI
-- Loading state management
-- TypeScript support
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { FieldInstance } from '@src/content/types';
+	import { validationStore } from '@src/stores/store.svelte.ts';
+	import { getFieldName } from '@utils/utils';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
+	import { safeParse } from 'valibot';
 
 	interface Props {
 		collectionName?: string;
@@ -36,16 +40,52 @@ rather than bundling all widgets upfront.
 		tenantId?: string | null;
 		value?: any;
 		WidgetData?: Record<string, any>;
+		/** Called when value changes — parent patches global store field-by-field. */
+		onFieldSync?: () => void;
 	}
 
-	let { loader, field, WidgetData = {}, value = $bindable(), tenantId, collectionName }: Props = $props();
+	let {
+		loader,
+		field,
+		WidgetData = {},
+		value = $bindable(),
+		tenantId,
+		collectionName,
+		onFieldSync
+	}: Props = $props();
 
-	// Component state
 	let component: any = $state(null);
 	let loading = $state(true);
 	let error = $state<Error | null>(null);
+	let lastSyncedValue = $state.raw<unknown>(undefined);
 
-	// Load the widget component asynchronously
+	function runWidgetValidation(v: unknown) {
+		const widget = field.widget as { validationSchema?: unknown | ((f: FieldInstance) => unknown) } | undefined;
+		if (!widget?.validationSchema) return;
+
+		let schema = widget.validationSchema;
+		if (typeof schema === 'function') {
+			schema = schema(field);
+		}
+
+		const fieldName = getFieldName(field, false);
+		const result = safeParse(schema as Parameters<typeof safeParse>[0], v);
+		if (!result.success) {
+			const message = result.issues[0]?.message || 'Invalid value';
+			validationStore.setError(fieldName, String(message));
+		} else if (validationStore.hasError(fieldName)) {
+			validationStore.clearError(fieldName);
+		}
+	}
+
+	$effect(() => {
+		const v = value;
+		if (v === lastSyncedValue) return;
+		lastSyncedValue = v;
+		runWidgetValidation(v);
+		onFieldSync?.();
+	});
+
 	async function loadComponent() {
 		try {
 			loading = true;
@@ -70,20 +110,17 @@ rather than bundling all widgets upfront.
 		}
 	}
 
-	// Load on mount
 	onMount(() => {
 		loadComponent();
 	});
 </script>
 
 {#if loading}
-	<!-- Loading placeholder -->
 	<div class="widget-loader-placeholder animate-pulse">
 		<div class="mb-2 h-4 w-1/3 rounded bg-surface-300 dark:bg-surface-600"></div>
 		<div class="h-10 w-full rounded bg-surface-200 dark:bg-surface-700"></div>
 	</div>
 {:else if error}
-	<!-- Error fallback -->
 	<div class="widget-loader-error rounded border border-error-500 bg-error-50 p-4 dark:bg-error-900/20">
 		<div class="mb-2 flex items-center gap-2">
 			<iconify-icon icon="mdi:alert-circle" class="text-error-500" width="20"></iconify-icon>
@@ -91,17 +128,15 @@ rather than bundling all widgets upfront.
 		</div>
 		<p class="text-sm text-error-600 dark:text-error-300">Failed to load widget: <strong>{field.widget?.Name || 'Unknown'}</strong></p>
 		<p class="mt-1 text-xs text-error-500 dark:text-error-500">{error.message}</p>
-		<button class="preset-outlined-error-500 btn-sm mt-3" onclick={() => loadComponent()}>
-			<iconify-icon icon="mdi:refresh" width="16" class="mr-1"></iconify-icon>
+		<Button variant="error" onclick={() => loadComponent()} size="sm" class="mt-3">
+			<iconify-icon icon="mdi:refresh" width="16" class="me-1"></iconify-icon>
 			Retry
-		</button>
+		</Button>
 	</div>
 {:else if component}
-	<!-- Loaded component -->
 	{const Component = component}
 	<Component {field} bind:value {WidgetData} {tenantId} {collectionName} />
 {:else}
-	<!-- Unexpected state -->
 	<div class="widget-loader-empty rounded border border-warning-500 bg-warning-50 p-3 dark:bg-warning-900/20">
 		<p class="text-sm text-warning-700 dark:text-warning-300">Widget component not available</p>
 	</div>

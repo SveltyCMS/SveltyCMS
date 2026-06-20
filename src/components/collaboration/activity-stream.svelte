@@ -8,6 +8,7 @@ with the AI collaboration assistant.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -104,9 +105,9 @@ with the AI collaboration assistant.
 				</div>
 			</SystemTooltip>
 
-			<button class="btn-icon preset-outlined rounded-full" onclick={() => collaboration.togglePanel()} aria-label="Close panel">
+			<Button variant="outline" onclick={() => collaboration.togglePanel()} aria-label="Close panel" class="p-0! min-w-0 preset-outlined rounded-full">
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-			</button>
+			</Button>
 		</div>
 	</div>
 

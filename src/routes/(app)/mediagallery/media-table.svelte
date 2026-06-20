@@ -9,10 +9,14 @@ Features:
 -->
 
 <script lang="ts">
+import AdminCard from '@components/admin-card.svelte';
 import TablePagination from "@src/components/system/table/table-pagination.svelte";
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { formatBytes } from "@utils/utils";
 import type { SvelteSet } from "svelte/reactivity";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 
 interface Props {
 	filteredFiles?: (MediaBase | MediaImage)[];
@@ -72,19 +76,21 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 }
 </script>
 
-<div class="w-full overflow-hidden border border-surface-200 dark:border-surface-800 rounded bg-white dark:bg-surface-900 shadow-sm">
-	<div class="table-container max-h-[600px] overflow-auto">
-		<table class="table table-hover w-full">
-			<thead class="bg-surface-50 dark:bg-surface-800 sticky top-0 z-10">
-				<tr class="text-xs uppercase tracking-wider text-surface-500 font-bold">
+<AdminCard
+	class="w-full overflow-hidden border border-surface-200 bg-white shadow-sm dark:border-surface-800 dark:bg-surface-900"
+>
+	<div class="max-h-[600px] overflow-x-auto w-full">
+		<table class="w-full border-collapse text-sm">
+			<thead class="sticky top-0 z-10 bg-surface-50 dark:bg-surface-800">
+				<tr class="border-b border-surface-200 text-xs font-bold uppercase tracking-wider text-surface-500 dark:border-surface-800">
 					<th class="w-12 text-center p-4">
 						<iconify-icon icon="mdi:checkbox-marked-circle-outline" width="20"></iconify-icon>
 					</th>
 					<th class="w-20 p-4">Preview</th>
-					<th class="p-4 text-left">Name</th>
-					<th class="p-4 text-left">Type</th>
-					<th class="p-4 text-left">Size</th>
-					<th class="p-4 text-right">Actions</th>
+					<th class="p-4 text-start">Name</th>
+					<th class="p-4 text-start">Type</th>
+					<th class="p-4 text-start">Size</th>
+					<th class="p-4 text-end">Actions</th>
 				</tr>
 			</thead>
 
@@ -100,13 +106,12 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 						tabindex="0"
 						aria-selected={isSelected}
 					>
-						<td class="text-center p-4">
-							<input aria-label="Input"
-								type="checkbox"
+						<td class="p-4 text-center" onclick={(e) => e.stopPropagation()}>
+							<Checkbox
 								checked={isSelected}
 								onchange={() => toggleSelection(file)}
-								class="checkbox"
-								onclick={(e) => e.stopPropagation()}
+								label="Select {file.filename}"
+								size="sm"
 							/>
 						</td>
 						<td class="p-2">
@@ -125,25 +130,23 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							</div>
 						</td>
 						<td class="p-4 text-xs opacity-70">
-							<span class="badge preset-tonal-surface uppercase">{file.mimeType.split('/')[1] || file.type}</span>
+							<Badge preset="tonal" color="surface" class="uppercase">{file.mimeType.split('/')[1] || file.type}</Badge>
 						</td>
 						<td class="p-4 text-xs font-mono opacity-70">{formatBytes(file.size)}</td>
-						<td class="p-4 text-right">
+						<td class="p-4 text-end">
 							<div class="flex justify-end gap-1">
-								<button
-									onclick={(e) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
-									class="btn-icon btn-icon-sm preset-ghost-surface hover:preset-filled-tertiary-500 dark:preset-filled-primary-500"
+								<Button variant="tertiary"
+									onclick={(e: MouseEvent) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
 									aria-label="Edit"
-								>
+								 class="p-0! min-w-0 hover: dark:">
 									<iconify-icon icon="mdi:pencil" width="16"></iconify-icon>
-								</button>
-								<button
-									onclick={(e) => { e.stopPropagation(); ondeleteImage(file); }}
-									class="btn-icon btn-icon-sm preset-ghost-surface hover:preset-filled-error-500"
+								</Button>
+								<Button variant="error"
+									onclick={(e: MouseEvent) => { e.stopPropagation(); ondeleteImage(file); }}
 									aria-label="Delete"
-								>
+								 class="p-0! min-w-0 hover:">
 									<iconify-icon icon="mdi:trash-can-outline" width="16"></iconify-icon>
-								</button>
+								</Button>
 							</div>
 						</td>
 					</tr>
@@ -163,4 +166,4 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 			onUpdateRowsPerPage={(r: number) => { rowsPerPage = r; currentPage = 1; }}
 		/>
 	</div>
-</div>
+</AdminCard>

@@ -5,6 +5,8 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import { validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
 	import type { FieldType } from './index';
@@ -54,33 +56,35 @@
 <div class="relative group">
 	<div class="flex items-center justify-between mb-2 px-1">
 		<span class="text-[10px] uppercase tracking-widest text-surface-400 font-bold">JSON Data</span>
-		<button
+		<Button
+			variant="tertiary"
+			size="sm"
 			type="button"
-			class="text-[10px] h-6 px-2.5 rounded bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-400 font-semibold transition-all disabled:opacity-50 disabled:pointer-events-none"
 			onclick={formatJson}
 			disabled={!!parseError}
 		>
 			Format JSON
-		</button>
+		</Button>
 	</div>
 
 	<div class="relative rounded overflow-hidden border {parseError ? 'border-error-500' : 'border-surface-400 dark:border-surface-600'}">
 		<!-- Line numbers sidebar (Visual only) -->
-		<div class="absolute start-0 top-0 bottom-0 w-8 bg-surface-100 dark:bg-surface-800 border-e border-surface-200 dark:border-surface-700 flex flex-col items-center py-3 text-[10px] text-surface-400 select-none pointer-events-none">
+		<div class="absolute inset-s-0 top-0 bottom-0 w-8 bg-surface-100 dark:bg-surface-800 border-e border-surface-200 dark:border-surface-700 flex flex-col items-center py-3 text-[10px] text-surface-400 select-none pointer-events-none">
 			{#each Array(20) as _, i}
 				<span>{i + 1}</span>
 			{/each}
 		</div>
 
-		<textarea
+		<Textarea
 			aria-label={field.label || fieldName || 'JSON editor'}
-			class="textarea w-full ps-10 pe-4 py-3 font-mono text-sm leading-relaxed bg-surface-50 dark:bg-surface-900 border-none focus:ring-0 resize-y"
+			class="w-full space-y-0"
+			textareaClass="w-full resize-y border-0 bg-surface-50 ps-10 pe-4 py-3 font-mono text-sm leading-relaxed shadow-none focus-visible:ring-0 dark:bg-surface-900 [tab-size:2]"
 			style="height: {field.height || '300px'};"
 			value={jsonString}
 			oninput={handleInput}
-			spellcheck="false"
-			placeholder="{`{\"key\": \"value\"}`}"
-		></textarea>
+			spellcheck={false}
+			placeholder={'{"key": "value"}'}
+		/>
 	</div>
 
 	{#if parseError}
@@ -90,9 +94,3 @@
 		</p>
 	{/if}
 </div>
-
-<style>
-	textarea {
-		tab-size: 2;
-	}
-</style>

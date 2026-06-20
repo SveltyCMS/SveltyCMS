@@ -56,7 +56,7 @@ function closeInspector() {
 {#if localWidget}
 	<aside class="w-80 xl:w-96 flex flex-col border-s border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-xl overflow-hidden animate-in slide-in-from-right duration-300">
 		<!-- Inspector Header -->
-		<header class="p-4 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50/50 dark:bg-surface-800/50">
+		<header class="p-4 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50 dark:bg-surface-800">
 			<div class="flex items-center gap-3 min-w-0">
 				<div class="h-8 w-8 rounded bg-primary-500/10 flex items-center justify-center text-primary-500 shrink-0">
 					<iconify-icon icon={localWidget.icon || 'mdi:widgets'} width="18"></iconify-icon>
@@ -110,7 +110,7 @@ function closeInspector() {
 		</div>
 
 		<!-- Footer Actions -->
-		<footer class="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-800/50 flex gap-2">
+		<footer class="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800 flex gap-2">
 			<Button variant="primary" class="flex-1" onclick={handleSave} leadingIcon="mdi:check">
 				Apply Changes
 			</Button>

@@ -294,7 +294,7 @@ function getActionBadgeClass(action: string) {
 	</div>
 
 	{#if filteredPermissions.length === 0}
-		<div class="text-center py-8 border border-dashed border-surface-200 dark:border-surface-800 rounded bg-surface-50/50 dark:bg-surface-900/25">
+		<div class="text-center py-8 border border-dashed border-surface-200 dark:border-surface-800 rounded bg-surface-50 dark:bg-surface-900">
 			<iconify-icon icon="material-symbols:search-off-rounded" width="32" class="text-surface-400 mb-2"></iconify-icon>
 			<p class="text-surface-500 dark:text-surface-400 text-sm">{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}</p>
 		</div>

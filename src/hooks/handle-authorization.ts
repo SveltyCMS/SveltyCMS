@@ -32,6 +32,7 @@ import { error, type Handle, redirect } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { testWorkerContext } from "@utils/test-worker-context";
 
 // 🚀 Turbo GET fast-path: imports for populating auth context cache
 import { setTurboAuthContext } from "./handle-turbo-get";
@@ -39,7 +40,7 @@ import { getRoleBitset } from "@src/databases/auth/permissions";
 
 // --- MODULE-LEVEL CACHES ---
 let multiTenantCached: boolean | null = null;
-let userCountCache: { count: number; timestamp: number } | null = null;
+const userCountCache = new Map<string, { count: number; timestamp: number }>();
 const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 
 // 🚀 PRE-CACHED DYNAMIC IMPORTS: Avoid repeated lazy-load overhead
@@ -63,21 +64,24 @@ async function getCachedUserCount(
   multiTenant?: boolean,
 ): Promise<number> {
   const now = Date.now();
+  const workerIndex = testWorkerContext.getStore() || "";
+  const key = workerIndex ? `${workerIndex}:${tenantId || "global"}` : tenantId || "global";
 
   // 1. In-memory check
-  if (!IS_BUN_TEST && userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS) {
-    return userCountCache.count;
+  const cached = userCountCache.get(key.toString());
+  if (!IS_BUN_TEST && cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
+    return cached.count;
   }
 
   // 2. Distributed check
   try {
-    const cached = await cacheService.get<{ count: number; timestamp: number }>(
-      "userCount",
+    const cachedDist = await cacheService.get<{ count: number; timestamp: number }>(
+      `userCount:${key}`,
       tenantId ?? undefined,
     );
-    if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
-      userCountCache = cached;
-      return cached.count;
+    if (cachedDist && now - cachedDist.timestamp < USER_COUNT_CACHE_TTL_MS) {
+      userCountCache.set(key.toString(), cachedDist);
+      return cachedDist.count;
     }
 
     // 3. Database source of truth
@@ -94,8 +98,13 @@ async function getCachedUserCount(
       return count;
     }
     const cacheData = { count, timestamp: now };
-    userCountCache = cacheData;
-    await cacheService.set("userCount", cacheData, USER_COUNT_CACHE_TTL_S, tenantId ?? undefined);
+    userCountCache.set(key.toString(), cacheData);
+    await cacheService.set(
+      `userCount:${key}`,
+      cacheData,
+      USER_COUNT_CACHE_TTL_S,
+      tenantId ?? undefined,
+    );
     return count;
   } catch (err: any) {
     logger.warn(`User count cache or query failed: ${err.message}`);
@@ -106,7 +115,8 @@ async function getCachedUserCount(
 /** Get cached roles for access checks (database-only) */
 async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
   const now = Date.now();
-  const key = tenantId || "global";
+  const workerIndex = testWorkerContext.getStore() || "";
+  const key = workerIndex ? `${workerIndex}:${tenantId || "global"}` : tenantId || "global";
 
   const cached = rolesCache.get(key.toString());
   if (cached && now - cached.timestamp < USER_PERM_CACHE_TTL_MS) return cached.data;
@@ -136,9 +146,26 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const { url, locals } = event;
   const { user } = locals;
 
-  // 🧪 TEST MODE BYPASS: If cryptographic handshake verified, skip auth logic
+  // 🧪 TEST MODE BYPASS: Skip heavy auth logic, but page loads still need roles for +page.server.ts RBAC.
   if ((locals as any).__testBypass) {
-    locals.isAdmin = isAdmin(user);
+    locals.isAdmin = isAdmin(user) || (user as any)?.isAdmin === true;
+    const pathname = url.pathname;
+    if (!pathname.startsWith("/api/") && user) {
+      const roles = await getCachedRoles(event.locals.tenantId as DatabaseId);
+      if (roles.length > 0) {
+        event.locals.roles = roles;
+      } else if ((locals as any).__setupConfigExists !== false) {
+        const { getDefaultRoles: getDefaultRolesMod } = await getDefaultRoles();
+        event.locals.roles = getDefaultRolesMod();
+      }
+      const userRole = (event.locals.roles || []).find(
+        (r) => r._id === user.role || r.name?.toLowerCase() === String(user.role).toLowerCase(),
+      );
+      if (userRole?.isAdmin) {
+        locals.isAdmin = true;
+        (user as any).isAdmin = true;
+      }
+    }
     return resolve(event);
   }
 
@@ -206,8 +233,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   }
 
   // 3. ROLES LOAD (only for non-admin users)
-  const roles = await getCachedRoles(locals.tenantId as DatabaseId);
-  locals.roles = roles;
+  const roles = await getCachedRoles(event.locals.tenantId as DatabaseId);
+  event.locals.roles = roles;
 
   // Setup guard
   if (
@@ -216,9 +243,9 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     !pathname.startsWith("/api/system") &&
     !pathname.startsWith("/api/setup")
   ) {
-    if (locals.__setupConfigExists === true) {
+    if (event.locals.__setupConfigExists === true) {
       const { getDefaultRoles: getDefaultRolesMod } = await getDefaultRoles();
-      locals.roles = getDefaultRolesMod();
+      event.locals.roles = getDefaultRolesMod();
     } else {
       if (isApi) throw new AppError("System not initialized", 503, "SYSTEM_NOT_INITIALIZED");
       throw redirect(302, "/setup");
@@ -227,25 +254,27 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
   // 4. AUTH CHECKS
   try {
+    const activeRoles = event.locals.roles || [];
     if (user) {
-      const userRole = roles.find((r) => r._id.toString() === user.role?.toString());
+      const userRole = activeRoles.find((r) => r._id.toString() === user.role?.toString());
       const isAdminUser = !!userRole?.isAdmin || isAdmin(user);
 
       (user as any).isAdmin = isAdminUser;
-      locals.isAdmin = isAdminUser;
-      locals.hasAdminPermission = isAdminUser;
-      locals.hasManageUsersPermission =
-        isAdminUser || AuthGuardService.checkPermissions(user, "manage", "user", undefined, roles);
+      event.locals.isAdmin = isAdminUser;
+      event.locals.hasAdminPermission = isAdminUser;
+      event.locals.hasManageUsersPermission =
+        isAdminUser ||
+        AuthGuardService.checkPermissions(user, "manage", "user", undefined, activeRoles);
 
       if (isPublic && !isApi) throw redirect(302, "/");
-    } else if (!(isPublic || locals.isFirstUser)) {
+    } else if (!(isPublic || event.locals.isFirstUser)) {
       if (isApi) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
       throw redirect(302, "/login");
     }
 
     // 🚀 Turbo GET: Populate auth context cache after roles are resolved
     // so the next GET request to a cached endpoint skips all middleware.
-    _populateTurboAuth(event, user!, roles);
+    _populateTurboAuth(event, user!, activeRoles);
 
     const response = await resolve(event);
 
@@ -260,13 +289,16 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 // --- CACHE INVALIDATION ---
 
 export async function invalidateUserCountCache(tenantId?: string | null): Promise<void> {
-  userCountCache = null;
-  cacheService.delete("userCount", tenantId).catch(() => {});
+  const workerIndex = testWorkerContext.getStore() || "";
+  const key = workerIndex ? `${workerIndex}:${tenantId || "global"}` : tenantId || "global";
+  userCountCache.delete(key.toString());
+  cacheService.delete(`userCount:${key}`, tenantId).catch(() => {});
 }
 
 export async function invalidateRolesCache(tenantId?: string | null): Promise<void> {
-  const key = tenantId || "global";
-  rolesCache.delete(key);
+  const workerIndex = testWorkerContext.getStore() || "";
+  const key = workerIndex ? `${workerIndex}:${tenantId || "global"}` : tenantId || "global";
+  rolesCache.delete(key.toString());
   cacheService.delete(`roles:${key}`, tenantId).catch(() => {});
 }
 

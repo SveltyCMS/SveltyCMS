@@ -13,8 +13,8 @@ Selecting a template auto-creates the collections using the installTemplateColle
 - ARIA-accessible keyboard navigation
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { PRESETS } from "@src/routes/setup/presets";
-	import { installTemplateCollections } from "../collectionbuilder.remote";
 	import { toast } from "@src/stores/toast.svelte.ts";
 	import { logger } from "@utils/logger";
 	import { scale } from "svelte/transition";
@@ -42,7 +42,8 @@ Selecting a template auto-creates the collections using the installTemplateColle
 
 		try {
 			isSubmitting = true;
-			const result = await installTemplateCollections(selectedPreset);
+				const { installTemplateCollections } = await import("../collectionbuilder.remote");
+				const result = await installTemplateCollections(selectedPreset);
 
 			if ("success" in result && result.success) {
 				toast.success(result.message ?? "Collections created successfully");
@@ -148,22 +149,20 @@ Selecting a template auto-creates the collections using the installTemplateColle
 
 	<!-- Footer Actions -->
 	<footer class="flex items-center justify-end gap-3 border-t border-surface-200 pt-4 dark:border-surface-700">
-		<button
+		<Button variant="outline"
 			type="button"
-			class="btn preset-outlined-secondary-500"
 			onclick={() => close?.(null)}
 			disabled={isSubmitting}
 			aria-label="Cancel template selection"
 		>
 			Cancel
-		</button>
-		<button
+		</Button>
+		<Button variant="tertiary"
 			type="button"
-			class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500"
 			onclick={handleInstall}
 			disabled={isSubmitting || !selectedPreset}
 			aria-label="Install selected template collections"
-		>
+		 class="dark:">
 			{#if isSubmitting}
 				<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"></iconify-icon>
 				Installing...
@@ -171,6 +170,6 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				<iconify-icon icon="mdi:magic-staff" width="18" aria-hidden="true"></iconify-icon>
 				Install Template
 			{/if}
-		</button>
+		</Button>
 	</footer>
 </div>

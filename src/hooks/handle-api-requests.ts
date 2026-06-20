@@ -11,6 +11,13 @@ import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling
 import { logger } from "@utils/logger";
 import { isAdmin, isPublicRoute } from "@utils/hook-utils";
 import crypto from "node:crypto";
+import {
+  compressSync,
+  negotiateEncoding,
+  hasNativeCompression,
+  setCompressionHeaders,
+  compressZstd,
+} from "./handle-compression";
 
 /** Optimized API endpoint extraction: Ultra-fast prefix triage */
 function getApiEndpoint(pathname: string | null): string | null {
@@ -78,10 +85,10 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     if (request.method === "GET") {
       if (!bypassCache && locals.user?._id) {
         try {
-          const cached = await cacheService.get<{
-            data: unknown;
-            headers: Record<string, string>;
-          }>(generateCacheKey(url.pathname, url.search, locals.user._id), locals.tenantId);
+          const cached = await cacheService.get<any>(
+            generateCacheKey(url.pathname, url.search, locals.user._id),
+            locals.tenantId,
+          );
           // ... rest remains same ...
 
           if (cached) {
@@ -96,7 +103,18 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
               });
             }
 
-            // Using Response.json() for engine-optimized serialization (native speed in Bun/V8)
+            // 🚀 Serve pre-compressed wire body if available for Accept-Encoding
+            const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+            const algo = negotiateEncoding(acceptEncoding, hasNativeCompression());
+            const preComp = algo && cached.compressed?.[algo as "br" | "gzip"];
+            if (preComp) {
+              const h = new Headers(cached.headers || {});
+              h.set("X-Cache", "HIT");
+              setCompressionHeaders(h, algo, cached.body?.length || preComp.length, preComp.length);
+              return new Response(preComp, { status: 200, headers: h });
+            }
+
+            // Fallback: Using Response.json() for engine-optimized serialization
             return Response.json(cached.data, {
               status: 200,
               headers: { ...cached.headers, "X-Cache": "HIT" },
@@ -161,14 +179,41 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             response.headers.set("X-Cache", nocache ? "NOCACHE" : refresh ? "REFRESH" : "MISS");
 
             if (!nocache && responseData) {
-              // Background caching
+              // Background caching — store serialized body + pre-compressed variants (br/gzip) for common encodings.
+              // This is a key streamline: stringify + compress paid once on MISS; hits serve pre-made wire bytes (no re-JSON, no re-compress).
+              // Directly improves hot path ms and makes Smart Entropy Compression (payload reduction) measurable via X- headers.
               (async () => {
                 try {
                   if (!locals.user?._id) return;
+                  let compressed: any = undefined;
+                  if (hasNativeCompression() && responseBody) {
+                    const br = compressSync(responseBody, "br");
+                    const gz = compressSync(responseBody, "gzip");
+                    if (br || gz) {
+                      compressed = {};
+                      if (br) compressed.br = br;
+                      if (gz) compressed.gzip = gz;
+                    }
+                  }
+                  // Wire zstd for pre-compressed cache entries (background, async safe).
+                  // Enables turbo HITs for zstd clients to serve pre-made bytes (no on-the-fly).
+                  // Uses the CMS dict for extra ratio on repetitive payloads.
+                  (async () => {
+                    try {
+                      const zstd = await compressZstd(responseBody);
+                      if (zstd && compressed) {
+                        compressed.zstd = zstd;
+                      } else if (zstd) {
+                        compressed = { zstd };
+                      }
+                    } catch {}
+                  })();
                   await cacheService.set(
                     generateCacheKey(url.pathname, url.search, locals.user._id),
                     {
                       data: responseData,
+                      body: responseBody,
+                      compressed,
                       headers: Object.fromEntries(response.headers),
                     },
                     API_CACHE_TTL_S,

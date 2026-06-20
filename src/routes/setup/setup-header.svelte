@@ -4,6 +4,7 @@
 Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobile menu.
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Native UI
 	import Dropdown from "@components/ui/dropdown.svelte";
 
@@ -65,13 +66,13 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 					<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 						<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-[75vw] max-w-64">
 							{#snippet trigger()}
-								<span class="inline-flex items-center gap-1 preset-outlined-surface-500 btn h-9.5 rounded px-2 py-0 sm:h-10 sm:px-3">
+								<Button variant="outline" type="button" class="h-9.5 rounded px-2 py-0 sm:h-10 sm:px-3 gap-1">
 									<span class="text-[10px] font-bold sm:text-sm">
 										<span class="hidden xs:inline">{getLanguageName(currentLanguageTag)}</span>
 										<span class="xs:hidden">{currentLanguageTag.toUpperCase()}</span>
 									</span>
-									<iconify-icon icon="mdi:chevron-down" class="ml-1 h-4 w-4 transition-transform"></iconify-icon>
-								</span>
+									<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
+								</Button>
 							{/snippet}
 							<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
 								{applayout_systemlanguage()}
@@ -91,7 +92,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 						</Dropdown>
 					</SystemTooltip>
 				</div>
-				<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={20} buttonClass="btn preset-outlined-surface-500 h-9.5 w-9.5 rounded text-black dark:text-white" />
+				<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={20} />
 			</div>
 		</div>
 
@@ -109,10 +110,10 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 				<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 					<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-64">
 						{#snippet trigger()}
-							<span class="inline-flex items-center gap-1 preset-outlined-surface-500 btn h-10 rounded px-3">
+							<Button variant="outline" type="button" class="h-10 rounded px-3 gap-1">
 								<span class="text-sm font-bold">{getLanguageName(currentLanguageTag)}</span>
-								<iconify-icon icon="mdi:chevron-down" class="ml-1 h-4 w-4 transition-transform"></iconify-icon>
-							</span>
+								<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
+							</Button>
 						{/snippet}
 						<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
 							{applayout_systemlanguage()}
@@ -134,12 +135,12 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 			</div>
 
 			<SystemTooltip title="Accessibility Help">
-				<button type="button" class="btn preset-outlined-surface-500 h-10 w-10 rounded text-black dark:text-white" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label="Accessibility Help">
+				<Button variant="outline" type="button" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label="Accessibility Help" class="h-10 w-10 rounded text-black dark:text-white">
 					<iconify-icon icon="mdi:accessibility" width="20"></iconify-icon>
-				</button>
+				</Button>
 			</SystemTooltip>
 
-			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={20} buttonClass="btn preset-outlined-surface-500 h-10 w-10 rounded text-black dark:text-white" />
+			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={20} />
 		</div>
 	</div>
 

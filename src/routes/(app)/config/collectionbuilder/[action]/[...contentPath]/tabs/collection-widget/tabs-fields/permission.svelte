@@ -14,6 +14,7 @@ import type { Role } from "@src/databases/auth/types";
 import type { WidgetFieldPermissions } from "@src/content/types";
 import { collections } from "@src/stores/collection-store.svelte";
 import { modalState } from "@utils/modal.svelte";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	/** Roles for role-based access (e.g. from edit page data). Used when not in modal. */
@@ -155,15 +156,12 @@ function toggleRoleWrite(roleId: string) {
 				<div class="flex flex-wrap gap-2">
 					{#each roles as role (role._id)}
 						{#if !role.isAdmin}
-							<button
+							<Button variant="tertiary"
 								type="button"
-								class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors {(permissions.readRoles ?? []).includes(role._id)
-									? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
-									: 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}"
 								onclick={() => toggleRoleRead(role._id)}
-							>
+							 class="rounded-full border px-3 py-1.5 text-xs font-semibold {(permissions.readRoles ?? []).includes(role._id) ? ' dark: ' : 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}">
 								{role.name ?? role._id}
-							</button>
+							</Button>
 						{/if}
 					{/each}
 				</div>
@@ -174,15 +172,12 @@ function toggleRoleWrite(roleId: string) {
 				<div class="flex flex-wrap gap-2">
 					{#each roles as role (role._id)}
 						{#if !role.isAdmin}
-							<button
+							<Button variant="tertiary"
 								type="button"
-								class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors {(permissions.writeRoles ?? []).includes(role._id)
-									? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
-									: 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}"
 								onclick={() => toggleRoleWrite(role._id)}
-							>
+							 class="rounded-full border px-3 py-1.5 text-xs font-semibold {(permissions.writeRoles ?? []).includes(role._id) ? ' dark: ' : 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}">
 								{role.name ?? role._id}
-							</button>
+							</Button>
 						{/if}
 					{/each}
 				</div>

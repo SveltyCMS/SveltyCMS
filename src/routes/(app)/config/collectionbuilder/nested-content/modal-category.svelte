@@ -25,6 +25,8 @@ import { invalidate } from "$app/navigation";
 // Lucide Icons
 
 import type { ContentNode } from "@root/src/databases/db-interface";
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 
 interface Props {
 	body?: string;
@@ -189,22 +191,15 @@ const cForm = "border border-surface-500 p-4 space-y-4 rounded";
 	{/if}
 
 	<form class="modal-form {cForm}" onsubmit={onFormSubmit}>
-		<label class="label" for="category_name">
-			<span>{modalcategory_categoryname()}</span>
-			<input
-				class="input"
-				type="text"
-				id="category_name"
-				bind:value={formData.newCategoryName}
-				placeholder={modalcategory_placeholder()}
-				aria-invalid={!!validationErrors.name}
-				aria-describedby={validationErrors.name ? 'name-error' : undefined}
-				disabled={isSubmitting}
-			/>
-			{#if validationErrors.name}
-				<span id="name-error" class="text-sm text-error-500">{validationErrors.name}</span>
-			{/if}
-		</label>
+		<Input
+			type="text"
+			id="category_name"
+			bind:value={formData.newCategoryName}
+			label={modalcategory_categoryname()}
+			placeholder={modalcategory_placeholder()}
+			error={validationErrors.name}
+			disabled={isSubmitting}
+		/>
 
 		<label class="label" for="icon-picker">
 			<span>Icon</span>
@@ -215,27 +210,26 @@ const cForm = "border border-surface-500 p-4 space-y-4 rounded";
 		</label>
 		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-500/20">
 			{#if existingCategory.name}
-				<button type="button" onclick={deleteCategory} class="preset-filled-error-500 btn" aria-label="Delete category" disabled={isSubmitting}>
+				<Button variant="error" type="button" onclick={deleteCategory} aria-label="Delete category" disabled={isSubmitting}>
 					<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 					<span class="hidden md:inline">{button_delete()}</span>
-				</button>
+				</Button>
 			{/if}
 
 			<div class="flex gap-2">
-				<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => close?.(null)} disabled={isSubmitting}>
+				<Button variant="outline" type="button" onclick={() => close?.(null)} disabled={isSubmitting}>
 					{button_cancel()}
-				</button>
-				<button
+				</Button>
+				<Button variant="tertiary"
 					type="submit"
-					class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
 					aria-label={button_save()}
 					disabled={isSubmitting}
-				>
+				 class="dark:">
 					{#if isSubmitting}
 						<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
 					{/if}
 					{button_save()}
-				</button>
+				</Button>
 			</div>
 		</footer>
 	</form>

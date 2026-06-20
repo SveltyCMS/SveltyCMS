@@ -1,0 +1,45 @@
+---
+path: "docs/tests/routes/collection-builder.mdx"
+title: "Collection Builder E2E Tests"
+description: "End-to-end test specifications and coverage checklist for collection schema builder and content entries."
+order: 16
+icon: "mdi:database-edit"
+author: "SveltyCMS Team"
+created: "2026-06-13"
+updated: "2026-06-13"
+tags:
+  - "testing"
+  - "e2e"
+  - "playwright"
+  - "collections"
+  - "builder"
+---
+
+# Collection Builder and Content Management E2E Tests (`/config/collectionbuilder`)
+
+This document details the end-to-end test specifications and coverage checklist for the core schema modeling engine and content CRUD workflows.
+
+## Coverage Checklist
+
+- [x] Creating, modifying, and deleting collection schemas
+- [x] Adding content entries utilizing various schema widgets
+- [x] Smoke tests for content preview and lists
+- [x] End-to-end journey tests for content creators
+- [ ] Drag-and-drop field sorting in collection builder - _Gaps identified, pending integration_
+
+## Associated Tests
+
+- [builder.spec.ts](file:///d:/SveltyCMS/tests/e2e/routes/collection-builder/builder.spec.ts)
+- [collection.spec.ts](file:///d:/SveltyCMS/tests/e2e/routes/collection-builder/collection.spec.ts)
+- [content-smoke.spec.ts](file:///d:/SveltyCMS/tests/e2e/routes/collection-builder/content-smoke.spec.ts)
+- [journey.spec.ts](file:///d:/SveltyCMS/tests/e2e/routes/collection-builder/journey.spec.ts)
+
+## Implementation Details
+
+Collection tests evaluate widget lifecycle mapping (Input, RichText, Select, Relation, Repeater, Image). Playwright mock interceptors intercept local and server database calls to ensure isolated verification.
+
+## Next Steps
+
+- [E2E Testing Guide](../e2e-testing-guide.mdx)
+- [Testing Overview & Strategy](../testing-strategy.mdx)
+- [E2E Coverage Matrix](../e2e-coverage-matrix.mdx)

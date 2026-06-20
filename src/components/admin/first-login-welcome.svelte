@@ -151,7 +151,10 @@
 
 {#if showWelcome && !dismissedWelcome}
 	<!-- Welcome Container -->
-	<div class="welcome-container mx-auto max-w-4xl rounded bg-surface-50 p-6 shadow-lg dark:bg-surface-800">
+	<div
+		class="welcome-container mx-auto max-w-4xl border border-surface-200 bg-surface-50 p-6 shadow-lg dark:border-surface-800 dark:bg-surface-800"
+		style="border-radius: var(--admin-radius-card, 0.75rem);"
+	>
 		<!-- Header -->
 		<div class="mb-8 text-center">
 			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
@@ -219,19 +222,31 @@
 
 		<!-- Quick Stats -->
 		<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-			<div class="rounded bg-gray-50 p-4 text-center dark:bg-gray-800">
+			<div
+				class="rounded border border-surface-200 bg-gray-50 p-4 text-center dark:border-surface-800 dark:bg-gray-800"
+				style="border-radius: var(--admin-radius-card, 0.75rem);"
+			>
 				<div class="text-2xl font-bold text-green-600">✓</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Setup Complete</div>
 			</div>
-			<div class="rounded bg-gray-50 p-4 text-center dark:bg-gray-800">
+			<div
+				class="rounded border border-surface-200 bg-gray-50 p-4 text-center dark:border-surface-800 dark:bg-gray-800"
+				style="border-radius: var(--admin-radius-card, 0.75rem);"
+			>
 				<div class="text-2xl font-bold text-blue-600">0</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Collections</div>
 			</div>
-			<div class="rounded bg-gray-50 p-4 text-center dark:bg-gray-800">
+			<div
+				class="rounded border border-surface-200 bg-gray-50 p-4 text-center dark:border-surface-800 dark:bg-gray-800"
+				style="border-radius: var(--admin-radius-card, 0.75rem);"
+			>
 				<div class="text-2xl font-bold text-purple-600">1</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Admin User</div>
 			</div>
-			<div class="rounded bg-gray-50 p-4 text-center dark:bg-gray-800">
+			<div
+				class="rounded border border-surface-200 bg-gray-50 p-4 text-center dark:border-surface-800 dark:bg-gray-800"
+				style="border-radius: var(--admin-radius-card, 0.75rem);"
+			>
 				<div class="text-2xl font-bold text-orange-600">∞</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Possibilities</div>
 			</div>
@@ -268,12 +283,15 @@
 <!-- Import/Export Overlay -->
 {#if showImportExport}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div
+			class="max-h-[90vh] w-full max-w-6xl overflow-hidden border border-surface-200 bg-surface-50 shadow-xl dark:border-surface-800 dark:bg-surface-800"
+			style="border-radius: var(--admin-radius-card, 0.75rem);"
+		>
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button onclick={() => (showImportExport = false)} class="preset-outlined-surface-500 btn-sm" aria-label="Close">
+				<Button variant="outline" onclick={() => (showImportExport = false)} aria-label="Close" size="sm">
 					<iconify-icon icon="mdi:close" width={20}></iconify-icon>
-				</button>
+				</Button>
 			</div>
 
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>

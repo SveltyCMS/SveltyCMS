@@ -20,8 +20,10 @@
 -->
 <script lang="ts">
 import ImportExportManager from "@src/components/admin/import-export-manager.svelte";
+import WelcomeThemePicker from "@src/components/admin/welcome-theme-picker.svelte";
 // Components
-import PageTitle from "@src/components/page-title.svelte";
+import AdminCard from "@components/admin-card.svelte";
+import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@src/components/system/slot.svelte";
 import type {
 	DashboardWidgetConfig,
@@ -46,6 +48,9 @@ import { themeStore } from "@src/stores/theme-store.svelte.ts";
 
 // System logger
 import { logger } from "@utils/logger";
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
 
 // Lucide Icons
 
@@ -607,56 +612,57 @@ onMount(() => {
 });
 </script>
 
-<main bind:this={mainContainerEl} class="relative overflow-y-auto overflow-x-hidden" style="touch-action: pan-y;">
-	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 px-6 py-3 dark:text-surface-50">
-		<PageTitle
-			name="Dashboard"
-			icon="bi:bar-chart-line"
-			showBackButton={true}
-			backUrl="/config"
-
-		/>
+<AdminPageShell title="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config">
+	<WelcomeThemePicker />
+	{#snippet actions()}
 		<div class="flex items-center gap-2">
 			<!-- Generate AI Dashboard Button -->
-			<button
-				class="preset-outlined-surface-500 btn-icon"
+			<Button variant="outline"
 				onclick={toggleAiMode}
 				aria-label="Toggle AI Dashboard Mode"
 				title="Toggle AI Dashboard Mode"
-			>
+			 class="p-0! min-w-0">
 				<iconify-icon icon="mdi:robot-outline" width={20} class={aiDashboardSpec ? 'text-tertiary-500 dark:text-primary-500' : ''}></iconify-icon>
-			</button>
+			</Button>
 			<!-- Reset All Button - Small and subtle -->
 			{#if currentPreferences.length > 0}
-				<button class="preset-outlined-surface-500 btn-icon" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets">
+				<Button variant="outline" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets" class="p-0! min-w-0">
 					<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 			<!-- Add Widget Button -->
 			<div class="relative">
 				{#if availableWidgets.length > 0}
-					<button
-						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500"
+					<Button variant="tertiary"
 						onclick={() => (dropdownOpen = !dropdownOpen)}
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
 						aria-label="Add Widget"
-					>
+					 class="dark:">
 						<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
 						Add Widget
-					</button>
+					</Button>
 				{/if}
 				{#if dropdownOpen}
 					<div
-						class="widget-dropdown absolute end-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
 						role="menu"
 					>
-						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery}  aria-label="Input" /></div>
+						<div class="p-2">
+							<Input
+								type="search"
+								bind:value={searchQuery}
+								placeholder="Search widgets..."
+								aria-label="Search widgets"
+								class="w-full"
+							/>
+						</div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
 								{const widgetInfo = widgetComponentRegistry[widgetName]}
-								<button
-									class="flex w-full items-center gap-2 px-4 py-2 text-start transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
+								<Button
+									variant="ghost"
+									class="w-full justify-start gap-2 px-4 py-2 hover:bg-primary-100 dark:hover:bg-primary-900/30"
 									onclick={() => addNewWidget(widgetName)}
 									title={widgetInfo?.description}
 									role="menuitem"
@@ -666,8 +672,8 @@ onMount(() => {
 									{:else}
 										<iconify-icon icon="mdi:view-dashboard" width={20} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{/if}
-									<div class="flex flex-col"><span>{widgetInfo?.name || widgetName}</span></div>
-								</button>
+									<span>{widgetInfo?.name || widgetName}</span>
+								</Button>
 							{:else}
 								<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
 							{/each}
@@ -676,17 +682,17 @@ onMount(() => {
 				{/if}
 			</div>
 		</div>
-	</header>
+	{/snippet}
 
-	<div class="relative m-0 w-full p-0">
+	<div bind:this={mainContainerEl} class="relative m-0 w-full p-0" style="touch-action: pan-y;">
 		<section class="w-full px-1 py-4">
 			<GenerativeDashboard spec={aiDashboardSpec}>
 				{#if aiLoading}
-					<div class="flex flex-col items-center justify-center py-20 animate-pulse">
-						<iconify-icon icon="mdi:robot-outline" width="64" class="text-tertiary-500 dark:text-primary-500 mb-4"></iconify-icon>
-						<p class="text-lg font-bold text-tertiary-500 dark:text-primary-500">Generating AI Dashboard...</p>
+					<AdminCard class="flex flex-col items-center justify-center border border-surface-200 py-20 dark:border-surface-800">
+						<Loader variant="circle" width="size-16" height="size-16" ariaLabel="Generating AI dashboard" />
+						<p class="mt-4 text-lg font-bold text-tertiary-500 dark:text-primary-500">Generating AI Dashboard...</p>
 						<p class="text-sm text-surface-500">Connecting to Knowledge Core (mcp.sveltycms.com)</p>
-					</div>
+					</AdminCard>
 				{:else if currentPreferences.length > 0}
 					<div class="responsive-dashboard-grid" role="grid">
 						<!-- Grid drop indicator -->
@@ -722,22 +728,17 @@ onMount(() => {
 							>
 								{#if !WidgetComponent}
 									<!-- Loading placeholder -->
-									<div class="widget-placeholder h-full animate-pulse">
-										<div class="mb-2 h-12 rounded-t bg-surface-300 dark:bg-surface-700"></div>
-										<div class="h-full rounded-b bg-surface-200 p-4 dark:bg-surface-800">
-											<div class="mb-3 h-8 rounded bg-surface-300 dark:bg-surface-700"></div>
-											<div class="mb-2 h-6 w-3/4 rounded bg-surface-300 dark:bg-surface-700"></div>
-											<div class="mb-2 h-6 w-1/2 rounded bg-surface-300 dark:bg-surface-700"></div>
-										</div>
+									<div class="widget-placeholder h-full p-4">
+										<Loader variant="card" height="h-full" ariaLabel="Loading widget" />
 									</div>
 								{:else if WidgetComponent === null}
 									<!-- Error state -->
-									<div class="card preset-ghost-error-500 flex h-full flex-col items-center justify-center p-4">
+									<AdminCard preset="tonal" variant="error" class="flex h-full flex-col items-center justify-center p-4">
 										<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"></iconify-icon>
 										<h3 class="h4 mb-2">Widget Load Error</h3>
 										<p class="text-sm">Failed to load: {item.component}</p>
-										<button class="preset-filled-error-500 btn-sm mt-4" onclick={() => removeWidget(item.id)}>Remove Widget</button>
-									</div>
+										<Button variant="error" onclick={() => removeWidget(item.id)} size="sm" class="mt-4">Remove Widget</Button>
+									</AdminCard>
 								{:else}
 									<!-- Render the actual widget - Svelte 5 dynamic components -->
 									<WidgetComponent
@@ -764,14 +765,13 @@ onMount(() => {
 							<iconify-icon icon="mdi:view-dashboard" width={80} class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"></iconify-icon>
 							<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">Your Dashboard is Empty</p>
 							<p class="mb-6 text-base text-surface-600 dark:text-surface-300">Click below to add your first widget and get started.</p>
-							<button
-								class="btn rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
+							<Button variant="outline"
 								onclick={() => (dropdownOpen = true)}
 								aria-label="Add first widget"
-							>
+							 class="rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500">
 								<iconify-icon icon="mdi:plus" width={22} class="me-2"></iconify-icon>
 								Add Widget
-							</button>
+							</Button>
 						</div>
 					</div>
 				{/if}
@@ -781,7 +781,7 @@ onMount(() => {
 			</GenerativeDashboard>
 		</section>
 	</div>
-</main>
+</AdminPageShell>
 
 <!-- Import/Export Modal -->
 {#if showImportExport}
@@ -789,9 +789,9 @@ onMount(() => {
 		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button onclick={() => (showImportExport = false)} class="preset-ghost btn-sm" aria-label="Close import/export modal">
+				<Button variant="ghost" onclick={() => (showImportExport = false)} aria-label="Close import/export modal" size="sm" class="preset-ghost">
 					<iconify-icon icon="mdi:close" width={20}></iconify-icon>
-				</button>
+				</Button>
 			</div>
 
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
@@ -801,7 +801,7 @@ onMount(() => {
 					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
-				<div class="flex space-x-2"><button onclick={() => (showImportExport = false)} class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn">Done</button></div>
+				<div class="flex space-x-2"><Button variant="tertiary" onclick={() => (showImportExport = false)} class="dark:">Done</Button></div>
 			</div>
 		</div>
 	</div>

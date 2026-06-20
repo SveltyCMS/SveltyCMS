@@ -1,20 +1,19 @@
 import { safeFetch } from "../helpers/server";
 
 /**
- * @file tests/bun/api/dashboard.test.ts
+ * @file tests/integration/api/dashboard.test.ts
  * @description Integration tests for dashboard API endpoints
  *
- * TESTED ENDPOINTS (9 total):
- * ============================
- * - GET /api/dashboard/health - System health check
- * - GET /api/dashboard/metrics - Performance metrics
- * - GET /api/dashboard/systemInfo - System information (CPU, memory, disk)
- * - GET /api/dashboard/logs - System logs with pagination and filtering
- * - GET /api/dashboard/last5Content - Recent content items
- * - GET /api/dashboard/last5media - Recent media files
- * - GET /api/dashboard/online_user - Currently online users
- * - GET /api/dashboard/systemMessages - System messages from logs
- * - GET /api/dashboard/cache-metrics - Cache performance metrics
+ * TESTED ENDPOINTS:
+ * - GET /api/dashboard/health
+ * - GET /api/dashboard/metrics
+ * - GET /api/dashboard/system-info (alias: systemInfo)
+ * - GET /api/dashboard/logs
+ * - GET /api/dashboard/last5-content (alias: last5Content)
+ * - GET /api/dashboard/last5media
+ * - GET /api/dashboard/online-user
+ * - GET /api/dashboard/system-messages
+ * - GET /api/dashboard/cache-metrics
  */
 
 import { beforeAll, describe, expect, test } from "bun:test";

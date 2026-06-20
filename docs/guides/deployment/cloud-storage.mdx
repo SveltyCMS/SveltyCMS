@@ -6,7 +6,7 @@ order: 15
 icon: "mdi:cloud-upload"
 author: "SveltyCMS Team"
 created: "2025-11-05"
-updated: "2026-03-27"
+updated: "2026-06-14"
 tags:
   - "guide"
   - "cloud-storage"
@@ -45,7 +45,7 @@ SveltyCMS supports multiple storage backends for media files, allowing you to ch
 
 ### Storage Flow
 
-````text
+```text
 ┌─────────────┐
 │   Upload    │
 └──────┬──────┘
@@ -70,33 +70,33 @@ SveltyCMS supports multiple storage backends for media files, allowing you to ch
               │   S3    │ │Cloudinary │
               │   R2    │ └───────────┘
               └─────────┘
-```text
+```
 
 ### URL Resolution
 
 All media files are stored in the database with a unified `/files/` path:
 
-```javascript
+```
 // Database Storage (same for all storage types)
 user.avatar = "/files/avatars/hash-image.avif";
-```text
+```
 
 **Local Storage:**
 
-```text
+```
 GET /files/avatars/hash-image.avif
 → Server reads: ./mediaFolder/avatars/hash-image.avif
 → Returns: File content
-```text
+```
 
 **Cloud Storage:**
 
-```text
+```
 GET /files/avatars/hash-image.avif
 → Server returns: 307 Redirect
 → Browser follows: https://cdn.example.com/cms-media/avatars/hash-image.avif
 → CDN serves file
-```text
+```
 
 ### MEDIA_FOLDER Prefix
 
@@ -121,7 +121,7 @@ The `MEDIA_FOLDER` setting acts as a path prefix in all storage types:
 
 **System Settings** (Dashboard → System Settings → Media):
 
-```javascript
+```
 {
   MEDIA_STORAGE_TYPE: 's3',
   MEDIA_FOLDER: 'my-cms-media', // Prefix within bucket
@@ -131,18 +131,18 @@ The `MEDIA_FOLDER` setting acts as a path prefix in all storage types:
   // Or with CloudFront CDN:
   // MEDIA_CLOUD_PUBLIC_URL: 'https://d1234567890.cloudfront.net'
 }
-```text
+```
 
 **Environment Variables** (`.env`):
 
-```bash
+```
 MEDIA_ACCESS_KEY_ID=AKIA...
 MEDIA_SECRET_ACCESS_KEY=wJalrXUtn...
-```text
+```
 
 **S3 Bucket Policy** (Permissions → Bucket Policy):
 
-```json
+```
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -155,11 +155,11 @@ MEDIA_SECRET_ACCESS_KEY=wJalrXUtn...
     }
   ]
 }
-```text
+```
 
 **IAM User Policy** (User → Permissions):
 
-```json
+```
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -170,7 +170,7 @@ MEDIA_SECRET_ACCESS_KEY=wJalrXUtn...
     }
   ]
 }
-```text
+```
 
 ### 2. Cloudflare R2
 
@@ -182,7 +182,7 @@ MEDIA_SECRET_ACCESS_KEY=wJalrXUtn...
 
 **System Settings:**
 
-```javascript
+```
 {
   MEDIA_STORAGE_TYPE: 'r2',
   MEDIA_FOLDER: 'cms-media',
@@ -191,14 +191,14 @@ MEDIA_SECRET_ACCESS_KEY=wJalrXUtn...
   MEDIA_CLOUD_PUBLIC_URL: 'https://media.yourdomain.com'
   // Configure custom domain in Cloudflare R2 dashboard
 }
-```text
+```
 
 **Environment Variables:**
 
-```bash
+```
 MEDIA_ACCESS_KEY_ID=your-r2-access-key-id
 MEDIA_SECRET_ACCESS_KEY=your-r2-secret-access-key
-```text
+```
 
 **R2 Setup Steps:**
 
@@ -224,20 +224,20 @@ MEDIA_SECRET_ACCESS_KEY=your-r2-secret-access-key
 
 **System Settings:**
 
-```javascript
+```
 {
   MEDIA_STORAGE_TYPE: 'cloudinary',
   MEDIA_FOLDER: 'cms-media' // Folder in Cloudinary
 }
-```text
+```
 
 **Environment Variables:**
 
-```bash
+```
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=123456789012345
 CLOUDINARY_API_SECRET=abcdefghijklmnopqrstuvwxyz
-```text
+```
 
 **Cloudinary Features:**
 
@@ -253,19 +253,19 @@ CLOUDINARY_API_SECRET=abcdefghijklmnopqrstuvwxyz
 
 **For S3/R2:**
 
-```bash
+```
 npm install @aws-sdk/client-s3
 # or
 bun add @aws-sdk/client-s3
-```text
+```
 
 **For Cloudinary:**
 
-```bash
+```
 npm install cloudinary
 # or
 bun add cloudinary
-```text
+```
 
 The cloud storage modules are lazy-loaded, so you only need to install packages for the storage type you're using.
 
@@ -282,17 +282,17 @@ The cloud storage modules are lazy-loaded, so you only need to install packages 
 
 **AWS CLI Example:**
 
-```bash
+```
 aws s3 sync ./mediaFolder s3://your-bucket/cms-media/ \
   --acl public-read \
   --region us-east-1
-```text
+```
 
 **Cloudflare R2 Example (using Rclone):**
 
-```bash
+```
 rclone sync ./mediaFolder r2:your-bucket/cms-media/
-```text
+```
 
 ### Migrating Between Cloud Providers
 
@@ -307,6 +307,7 @@ Use the respective CLI tools or APIs to transfer files between services. Update 
 3. **Bucket Policies**: Restrict public access to necessary paths only
 4. **HTTPS Only**: Always use HTTPS for public URLs
 5. **Token Rotation**: Rotate API keys regularly
+6. **SSRF Protection** (June 2026): The S3/R2 adapter validates endpoints before connection — blocks private IPs (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), cloud metadata hosts (169.254.169.254), and non-HTTP protocols
 
 ### Performance
 
@@ -338,33 +339,33 @@ Use the respective CLI tools or APIs to transfer files between services. Update 
 
 **Files Not Uploading:**
 
-```text
+```
 Error: AccessDenied
-```text
+```
 
 - **Solution**: Check IAM permissions, bucket policy, and CORS settings
 
 **Files Not Accessible:**
 
-```text
+```
 Error: 403 Forbidden
-```text
+```
 
 - **Solution**: Verify bucket/folder is public or has correct ACL
 
 **Redirects Not Working:**
 
-```text
+```
 Error: Failed to redirect to cloud URL
-```text
+```
 
 - **Solution**: Check `MEDIA_CLOUD_PUBLIC_URL` is configured and accessible
 
 **Wrong File Paths:**
 
-```text
+```
 Files uploaded to root instead of MEDIA_FOLDER
-```text
+```
 
 - **Solution**: Verify `MEDIA_FOLDER` setting doesn't have leading/trailing slashes
 
@@ -372,25 +373,25 @@ Files uploaded to root instead of MEDIA_FOLDER
 
 Enable detailed logging:
 
-```javascript
+```
 // In your .env file
 LOG_LEVEL = debug;
-```text
+```
 
 Check logs for upload/download operations:
 
-```javascript
+```
 // Look for these log entries:
 "Uploading to cloud storage";
 "File uploaded to cloud storage";
 "Redirecting to cloud storage";
-```text
+```
 
 ## Examples
 
 ### Upload Avatar
 
-```javascript
+```
 // Client-side
 const formData = new FormData();
 formData.append("avatar", file);
@@ -403,22 +404,22 @@ const response = await fetch("/api/user/save-avatar", {
 const { avatarUrl } = await response.json();
 // Local:  /files/avatars/hash-image.avif
 // Cloud:  https://cdn.example.com/cms-media/avatars/hash-image.avif
-```text
+```
 
 ### Direct Cloud Upload (Advanced)
 
-```typescript
+```
 // Server-side - utils/media/cloudStorage.ts
 import { uploadToCloud, getCloudUrl } from "@utils/media/cloud-storage";
 
 const buffer = await file.arrayBuffer();
 const publicUrl = await uploadToCloud(Buffer.from(buffer), "avatars/image.avif");
 // Returns: https://cdn.example.com/cms-media/avatars/image.avif
-```text
+```
 
 ### Check Storage Type
 
-```typescript
+```
 // Server-side
 import { isCloudStorage, getCloudStorageConfig } from "@utils/media/cloud-storage";
 
@@ -427,7 +428,7 @@ if (isCloudStorage()) {
   console.log("Using cloud storage:", config.storageType);
   console.log("Media folder prefix:", config.mediaFolder);
 }
-```text
+```
 
 ## API Reference
 
@@ -463,7 +464,6 @@ For issues or questions:
 - GitHub: [github.com/SveltyCMS/SveltyCMS/issues](https://github.com/SveltyCMS/SveltyCMS/issues)
 - Documentation: [docs.sveltycms.dev](https://docs.sveltycms.dev)
 - Community: [Discord](https://discord.gg/sveltycms)
-````
 
 ---
 

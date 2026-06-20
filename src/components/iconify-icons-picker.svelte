@@ -24,6 +24,9 @@ Advanced icon picker with search, pagination, and favorites.
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { loadIcons } from '@iconify/svelte';
 	import { iconpicker_placeholder } from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
@@ -550,66 +553,63 @@ Advanced icon picker with search, pagination, and favorites.
 			</button>
 
 			<div class="flex shrink-0 gap-1">
-				<button
+				<Button variant="outline"
 					onclick={() => toggleFavorite(iconselected)}
 					type="button"
-					class="btn-icon preset-outlined-surface-500 transition-all duration-200 hover:scale-110"
 					aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 					title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-				>
+				 class="p-0! min-w-0 transition-all hover:scale-110">
 					<iconify-icon icon={isFavorite ? 'mdi:heart' : 'mdi:heart-outline'} width="22" class={isFavorite ? 'text-error-500' : ''}></iconify-icon>
-				</button>
+				</Button>
 
-				<button
+				<Button variant="outline"
 					onclick={copyIconName}
 					type="button"
-					class="btn-icon preset-outlined-surface-500 transition-all duration-200 hover:scale-110"
 					aria-label="Copy icon name"
 					title="Copy icon name"
-				>
+				 class="p-0! min-w-0 transition-all hover:scale-110">
 					<iconify-icon icon="mdi:content-copy" width="22"></iconify-icon>
-				</button>
+				</Button>
 
-				<button
+				<Button variant="error"
 					onclick={removeIcon}
 					type="button"
-					class="btn-icon preset-outlined-error-500 transition-all duration-200 hover:scale-110"
 					aria-label="Remove selected icon"
 					title="Remove icon"
-				>
+				 class="p-0! min-w-0 transition-all hover:scale-110">
 					<iconify-icon icon="mdi:close" width="22"></iconify-icon>
-				</button>
+				</Button>
 			</div>
 		</div>
 	{:else if hideSearchInput}
 		<!-- No icon selected: clickable placeholder to open dropdown (no extra button) -->
-		<button
+		<Button variant="ghost"
 			type="button"
 			onclick={() => {
 				showDropdown = true;
 				handleFocus();
 			}}
-			class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border-2 border-dashed border-surface-300 p-4 text-surface-500 transition-colors hover:border-tertiary-500 hover:text-tertiary-500 dark:text-primary-500  dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:text-tertiary-500 "
+			class="flex w-full items-center justify-center gap-2 border-2 border-dashed border-surface-300 p-4 text-surface-500 hover:border-tertiary-500 hover:text-tertiary-500 dark:border-surface-600 dark:text-surface-400 dark:hover:border-tertiary-500"
 			aria-expanded={showDropdown}
 			aria-controls="icon-dropdown"
 			aria-label="Choose icon"
 		>
 			<iconify-icon icon="mdi:image-plus" width="24"></iconify-icon>
 			<span class="text-sm font-medium">Click to choose icon</span>
-		</button>
+		</Button>
 	{/if}
 
 	<!-- Search input (when not hideSearchInput) -->
 	{#if !hideSearchInput}
 		<div class="relative">
-			<input
-				type="text"
+			<FloatingInput
 				role="combobox"
 				bind:value={searchQuery}
-				placeholder={iconselected ? `Replace: ${iconselected}` : iconpicker_placeholder()}
-				class="input w-full pe-10 transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
-				oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
+				label={iconselected ? `Replace: ${iconselected}` : iconpicker_placeholder()}
+				icon="mdi:magnify"
+				onInput={() => debouncedSearch(searchQuery, selectedLibrary)}
 				onfocus={handleFocus}
+				inputClass="w-full pe-10 transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
 				aria-label="Search icons"
 				aria-controls="icon-dropdown"
 				aria-haspopup="listbox"
@@ -618,9 +618,9 @@ Advanced icon picker with search, pagination, and favorites.
 				aria-describedby={searchError ? 'search-error' : undefined}
 			/>
 			{#if searchQuery}
-				<button
+				<Button variant="ghost"
 					type="button"
-					class="absolute inset-e-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
+					class="absolute inset-e-2 top-1/2 -translate-y-1/2 p-0! min-w-0"
 					onclick={() => {
 						searchQuery = '';
 						debouncedSearch('', selectedLibrary);
@@ -628,7 +628,7 @@ Advanced icon picker with search, pagination, and favorites.
 					aria-label="Clear search"
 				>
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 		</div>
 	{/if}
@@ -702,27 +702,23 @@ Advanced icon picker with search, pagination, and favorites.
 			<!-- Library selector (only for search tab) -->
 			{#if activeTab === 'search'}
 				<div class="border-b border-surface-200 p-4 dark:text-surface-50" transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}>
-					<label for="library-select" class="mb-2 block text-sm font-medium"> Icon Library </label>
-					<div class="relative">
-						<select
-							id="library-select"
-							bind:value={selectedLibrary}
-							onchange={handleLibraryChange}
-							onclick={fetchIconLibraries}
-							class="input w-full"
-							disabled={isLoadingLibraries}
-							aria-label="Select icon library"
-						>
-							<option value="">All Libraries (Global Search)</option>
-							{#if !librariesLoaded}
-								<option value={DEFAULT_LIBRARY}>Loading libraries...</option>
-							{:else}
-								{#each sortedLibraries as [prefix, library] (prefix)}
-									<option value={prefix}>{library.name} ({prefix}) — {library.total.toLocaleString()} icons</option>
-								{/each}
-							{/if}
-						</select>
-					</div>
+					<Select
+						bind:value={selectedLibrary}
+						onchange={() => {
+							fetchIconLibraries();
+							handleLibraryChange();
+						}}
+						label="Icon Library"
+						placeholder="All Libraries (Global Search)"
+						allowEmptySelection={true}
+						disabled={isLoadingLibraries}
+						options={!librariesLoaded
+							? [{ value: DEFAULT_LIBRARY, label: 'Loading libraries...' }]
+							: sortedLibraries.map(([prefix, library]) => ({
+									value: prefix,
+									label: `${library.name} (${prefix}) — ${library.total.toLocaleString()} icons`
+								}))}
+					/>
 				</div>
 			{/if}
 
@@ -764,16 +760,16 @@ Advanced icon picker with search, pagination, and favorites.
 								></iconify-icon>
 
 								{#if activeTab === 'favorites'}
-									<button
-										onclick={(e) => {
+									<Button variant="ghost"
+										onclick={(e: MouseEvent) => {
 											e.stopPropagation();
 											toggleFavorite(icon);
 										}}
-										class="absolute inset-e-0 top-0 opacity-0 transition-opacity group-hover:opacity-100"
+										class="absolute inset-e-0 top-0 opacity-0 transition-opacity group-hover:opacity-100 p-0! min-w-0"
 										aria-label="Remove from favorites"
 									>
 										<iconify-icon icon="mdi:close-circle" width="16" class="text-error-500"></iconify-icon>
-									</button>
+									</Button>
 								{/if}
 							</div>
 						{/each}

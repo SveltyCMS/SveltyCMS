@@ -76,7 +76,13 @@ async function getWorker(): Promise<any> {
   }
 
   if (workerPool.length < _maxWorkers) {
-    const workerPath = path.resolve(process.cwd(), "src/utils/security.worker.ts");
+    // Resolve worker path relative to this module, not process.cwd() —
+    // works in both dev (src/utils/) and production builds (build/).
+    const { fileURLToPath } = await import(/* @vite-ignore */ "node:url");
+    const workerPath = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "security.worker.ts",
+    );
     const worker = new Worker(workerPath);
     worker.on("message", (msg) => {
       const p = pendingPromises.get(msg.id);
@@ -86,7 +92,12 @@ async function getWorker(): Promise<any> {
         else p.resolve(msg.result);
       }
     });
-    worker.on("error", (err) => logger.error("Security worker error", err));
+    worker.on("error", (err) => {
+      logger.error("Security worker error — removing from pool", err);
+      // Remove crashed worker from pool so it gets replaced on next request
+      const idx = workerPool.indexOf(worker);
+      if (idx !== -1) workerPool.splice(idx, 1);
+    });
     workerPool.push(worker);
     return worker;
   }
@@ -102,9 +113,15 @@ async function runSecurityTask(action: string, payload: any): Promise<any> {
     if (action === "verify") return argon2.verify(payload.hash, payload.password);
   }
 
-  // In Bun's test environment, worker threads may not be reliable.
+  // In Bun's test environment, worker threads may not be reliable, or when running in test mode.
   // Fall back to direct argon2 import for robustness.
-  if (typeof process !== "undefined" && process.env.BUN_TEST === "true") {
+  if (
+    typeof process !== "undefined" &&
+    (process.env.BUN_TEST === "true" ||
+      process.env.TEST_MODE === "true" ||
+      process.env.NODE_ENV === "test" ||
+      (process.env.NODE_ENV === "production" && process.env.TEST_MODE === "true"))
+  ) {
     const argon2 = await import("argon2");
     if (action === "hash") return argon2.hash(payload.password, payload.config);
     if (action === "verify") return argon2.verify(payload.hash, payload.password);

@@ -14,6 +14,7 @@ import { nowISODateString } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
 import type { DatabaseId } from "../content/types";
+import { buildDefaultAdminThemeConfig } from "@src/themes/builtin-defaults";
 import type { IDBAdapter, Theme } from "./db-interface";
 
 /**
@@ -30,6 +31,7 @@ export const DEFAULT_THEME: Theme = {
   config: {
     tailwindConfigPath: "",
     assetsPath: "",
+    adminTheme: buildDefaultAdminThemeConfig(),
   },
   createdAt: nowISODateString(),
   updatedAt: nowISODateString(),

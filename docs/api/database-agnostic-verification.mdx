@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:check-decagram"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-01"
+updated: "2026-06-20"
 tags:
   - "api"
   - "verification"
@@ -18,7 +18,7 @@ tags:
 
 ## 1. The Goal
 
-Ensure that the SveltyCMS API remains 100% portable across all supported database engines (PostgreSQL, MySQL, SQLite, MongoDB). By enforcing strict architectural boundaries, we prevent vendor lock-in and allow users to switch databases without changing a single line of application code.
+Ensure that the SveltyCMS API remains 100% portable across all supported database engines (PostgreSQL, MariaDB, SQLite, MongoDB). By enforcing strict architectural boundaries, we prevent vendor lock-in and allow users to switch databases without changing a single line of application code.
 
 ---
 
@@ -26,22 +26,34 @@ Ensure that the SveltyCMS API remains 100% portable across all supported databas
 
 ### 🚀 Architecture Reference
 
-| Layer                  | Responsibility               | **Verification Pattern**            |
-| :--------------------- | :--------------------------- | :---------------------------------- |
-| **Unified Gatekeeper** | Request routing & Auth       | Centralized, fail-closed gate       |
-| **Handler Layer**      | Domain-specific logic        | Verified 1:1 with documentation     |
-| **Local SDK**          | Business logic & Validation  | Injected via `locals.cms` bridge    |
-| **DB Adapter**         | Query generation (SQL/NoSQL) | Dialect-neutral crud implementation |
+| Layer                  | Responsibility               | **Verification Pattern**               |
+| :--------------------- | :--------------------------- | :------------------------------------- |
+| **Unified Gatekeeper** | Request routing & Auth       | Centralized, fail-closed gate          |
+| **Handler Layer**      | Domain-specific logic        | Verified 1:1 with documentation        |
+| **Local SDK**          | Business logic & Validation  | Injected via `cms` (LocalCMS instance) |
+| **DB Adapter**         | Query generation (SQL/NoSQL) | Dialect-neutral crud implementation    |
 
 > [!IMPORTANT]
-> **No Direct Queries**: Direct use of `SELECT`, `INSERT`, or MongoDB `collection.find` is strictly prohibited in `src/routes/api`. All data access must pass through the `dbAdapter` or `locals.cms` interfaces.
+> **No Direct Queries**: Direct use of `SELECT`, `INSERT`, or MongoDB `collection.find` is strictly prohibited in `src/routes/api`. All data access must pass through the `cms` (LocalCMS SDK) or `dbAdapter` interfaces.
 
 ### Verification Status (Batch 2026-Q2)
 
-- ✅ **Authentication**: 100% Agnostic (Argon2id hashing is engine-independent).
-- ✅ **Collections**: 100% Agnostic (Generic CRUD interface handles dialect translation).
-- ✅ **Media**: 100% Agnostic (Metadata stored via adapter, blobs via Storage API).
-- ✅ **Settings**: 100% Agnostic (Key-value abstraction).
+| Namespace                           | Status | Pattern Used                             |
+| :---------------------------------- | :----- | :--------------------------------------- |
+| **Authentication**                  | ✅     | `cms.auth.*` (Argon2id, sessions)        |
+| **Collections / Content**           | ✅     | `cms.collections.*` (Generic CRUD)       |
+| **Media**                           | ✅     | `cms.media.*` (Metadata + Storage API)   |
+| **Settings / System Preferences**   | ✅     | `cms.system.settings.*` (Key-value)      |
+| **Website Tokens**                  | ✅     | `cms.websiteTokens.*` (CSPRNG + SHA-256) |
+| **Webhooks**                        | ✅     | `cms.db.system.webhooks.*`               |
+| **System Jobs (Scheduler)**         | ✅     | `cms.db.system.jobs.*`                   |
+| **SCIM 2.0**                        | ✅     | `cms.auth.*` (Provisioning)              |
+| **AI / Automation**                 | ✅     | `cms.system.*` (Service layer)           |
+| **Import / Export**                 | ✅     | `cms.system.importer.*`                  |
+| **Dashboard / Metrics / Telemetry** | ✅     | `cms.system.*` + metrics service         |
+| **Theme / Virtual Folders**         | ✅     | `cms.system.themes.*` / `cms.db.*`       |
+| **GraphQL**                         | ✅     | `cms.collections.*` (Content bridge)     |
+| **OpenAPI 3.1.0**                   | ✅     | Dynamic spec from adapter schema         |
 
 ---
 
@@ -49,24 +61,23 @@ Ensure that the SveltyCMS API remains 100% portable across all supported databas
 
 ### The Adapter Pattern
 
-````mermaid
+```mermaid
 graph TD
     A[API / SDK Call] --> B{DB Adapter}
-    B -->|SQL Dialect| C[(PostgreSQL / MySQL)]
+    B -->|SQL Dialect| C[(PostgreSQL / MariaDB)]
     B -->|BSON / JSON| D[(MongoDB)]
     B -->|Native Driver| E[(SQLite / Bun)]
-```text
+```
 
 ### Implementation Checklist
 
 Every API endpoint is verified against these four non-negotiable rules:
 
 1. **No Raw SQL**: No string-templated queries or direct database driver imports.
-2. **Adapter Injection**: Use of `dbAdapter` or the high-level `locals.cms` facade.
-3. **Abstraction Usage**: Preferring `getAllSettings()` over direct collection queries.
+2. **Adapter Injection**: Use of `dbAdapter` or the high-level `cms` (LocalCMS instance) facade.
+3. **Abstraction Usage**: Preferring `cms.system.settings.getAll()` over direct collection queries.
 4. **Dialect Neutrality**: Ensuring filtering logic (e.g., regex, full-text) is supported across all adapters.
 
 ---
 
 **Next Steps**: Review the [Database Methods Architecture](../architecture/database/index.mdx) for instructions on building custom adapters.
-````

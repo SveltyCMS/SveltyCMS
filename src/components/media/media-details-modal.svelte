@@ -12,6 +12,9 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
   import { fade } from "svelte/transition";
   import { formatBytes } from "@utils/utils";
   import { toast } from "@src/stores/toast.svelte.ts";
@@ -46,6 +49,11 @@
 
   // Share Tab State
   let expiryHours = $state<number | null>(24);
+  let expiryHoursValue = $state('24');
+
+  function handleExpiryChange(val: string) {
+    expiryHours = val === 'never' ? null : Number(val);
+  }
   let sharePassword = $state("");
   let isCreatingShare = $state(false);
 
@@ -343,16 +351,18 @@
     {/if}
 
     <div class="mt-4 flex gap-2">
-      <a
+      <Button
+        variant="tertiary"
+        size="sm"
         href={mediaUrl(file)}
         download={file.filename}
-        class="btn preset-tonal-primary text-xs"
         target="_blank"
         rel="noopener noreferrer"
+        class="text-xs"
       >
         <iconify-icon icon="mdi:download-outline" width="16"></iconify-icon>
         <span>Download Original</span>
-      </a>
+      </Button>
     </div>
   </div>
 
@@ -366,9 +376,9 @@
         </h2>
         <p class="text-xs opacity-60 font-mono mt-1">{file._id}</p>
       </div>
-      <button onclick={close} class="btn-icon hover:bg-surface-200 dark:hover:bg-surface-800" aria-label="Close modal">
+      <Button variant="ghost" onclick={close} aria-label="Close modal" class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-800">
         <iconify-icon icon="mdi:close" width="20"></iconify-icon>
-      </button>
+      </Button>
     </div>
 
     <!-- Navigation Tabs -->
@@ -441,23 +451,23 @@
             </div>
 
             <div class="flex gap-2">
-              <input
+              <Input
                 type="text"
                 bind:value={newTagInput}
                 onkeydown={handleAddTag}
-                placeholder="Add tag..."
-                class="input text-sm py-1.5"
+                label="Add tag..."
+                inputClass="text-sm py-1.5 h-9"
                 disabled={isSavingTags}
                 aria-label="add-tag"
+                class="flex-1"
               />
-              <button
+              <Button variant="tertiary"
                 onclick={handleAddTag}
-                class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs py-1.5 px-3"
                 disabled={isSavingTags || !newTagInput.trim()}
                 aria-label="add-tag-button"
-              >
+               class="dark: text-xs py-1.5 px-3">
                 Add
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -479,12 +489,11 @@
               class="hidden"
               aria-label="upload-new-version"
             />
-            <button
+            <Button variant="tertiary"
               onclick={triggerFileInput}
-              class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs px-4"
               disabled={isUploadingVersion}
               aria-label="upload-new-version-button"
-            >
+             class="dark: text-xs px-4">
               {#if isUploadingVersion}
                 <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
                 <span>Uploading...</span>
@@ -492,7 +501,7 @@
                 <iconify-icon icon="mdi:upload" width="16"></iconify-icon>
                 <span>Upload New Version</span>
               {/if}
-            </button>
+            </Button>
           </div>
 
           <!-- Version History -->
@@ -531,22 +540,24 @@
                   </div>
 
                   <div class="flex gap-2">
-                    <a
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       href={mediaUrl({ url: ver.path } as any)}
                       download={ver.filename}
-                      class="btn-icon btn-icon-sm bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-750"
                       title="Download Version"
+                      aria-label="Download Version"
+                      class="p-0! min-w-0 bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-750"
                     >
                       <iconify-icon icon="mdi:download-outline" width="14"></iconify-icon>
-                    </a>
-                    <button
+                    </Button>
+                    <Button variant="surface"
                       onclick={() => handleRestoreVersion(ver.versionNumber)}
-                      class="btn preset-tonal-secondary text-[10px] py-1 px-2.5 flex items-center gap-1"
                       disabled={isRestoringVersion}
                       aria-label="restore-version"
-                    >
+                     class="text-[10px] py-1 px-2.5 flex items-center gap-1">
                       Restore
-                    </button>
+                    </Button>
                   </div>
                 </div>
               {/each}
@@ -575,12 +586,14 @@
                       <p class="opacity-60 mt-0.5 font-mono">Entry ID: {ref.entryId}</p>
                     </div>
 
-                    <a
+                    <Button
+                      variant="tertiary"
+                      size="sm"
                       href="/content/{ref.collection}/{ref.entryId}"
-                      class="btn preset-tonal-primary text-[10px] py-1 px-2.5"
+                      class="text-[10px] py-1 px-2.5"
                     >
                       Go to Entry
-                    </a>
+                    </Button>
                   </div>
                 {:else}
                   <div class="bg-surface-50 dark:bg-surface-900/40 border-2 border-dashed border-surface-200 dark:border-surface-800 rounded p-6 text-center">
@@ -600,34 +613,34 @@
             <h4 class="font-bold text-sm">Create Expiring Public Link</h4>
 
             <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block opacity-60 mb-1" for="expiry-hours">Expiration (Hours):</label>
-                <select bind:value={expiryHours} id="expiry-hours" class="select text-xs py-1.5 w-full">
-                  <option value={1}>1 Hour</option>
-                  <option value={24}>24 Hours (1 Day)</option>
-                  <option value={168}>168 Hours (7 Days)</option>
-                  <option value={null}>Never Expires</option>
-                </select>
-              </div>
-              <div>
-                <label class="block opacity-60 mb-1" for="share-password">Password (Optional):</label>
-                <input
-                  type="password"
-                  bind:value={sharePassword}
-                  id="share-password"
-                  placeholder="Set password..."
-                  class="input text-xs py-1.5 w-full"
-                  aria-label="share-password"
-                />
-              </div>
+              <Select
+                bind:value={expiryHoursValue}
+                onchange={handleExpiryChange}
+                label="Expiration (Hours)"
+                size="sm"
+                placeholder="Select expiration..."
+                options={[
+                  { value: '1', label: '1 Hour' },
+                  { value: '24', label: '24 Hours (1 Day)' },
+                  { value: '168', label: '168 Hours (7 Days)' },
+                  { value: 'never', label: 'Never Expires' }
+                ]}
+              />
+              <Input
+                type="password"
+                bind:value={sharePassword}
+                label="Password (Optional)"
+                inputClass="text-xs py-1.5 h-9"
+                placeholder="Set password..."
+                aria-label="share-password"
+              />
             </div>
 
-            <button
+            <Button variant="tertiary"
               onclick={handleGenerateShareLink}
-              class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 text-xs py-1.5 w-full mt-2"
               disabled={isCreatingShare}
               aria-label="generate-sharing-link"
-            >
+             class="dark: text-xs py-1.5 w-full mt-2">
               {#if isCreatingShare}
                 <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
                 <span>Generating...</span>
@@ -635,7 +648,7 @@
                 <iconify-icon icon="mdi:link-variant" width="16"></iconify-icon>
                 <span>Generate Sharing Link</span>
               {/if}
-            </button>
+            </Button>
           </div>
 
           <!-- Existing Share Links -->
@@ -657,29 +670,29 @@
                   </div>
 
                   <div class="flex gap-2">
-                    <input
+                    <Input
                       type="text"
                       value={getShareLinkUrl(link.token)}
                       readonly
-                      class="input text-[10px] py-1 font-mono flex-1 bg-surface-200 dark:bg-surface-950 border border-surface-300 dark:border-surface-800 rounded"
+                      label="Share link URL"
+                      inputClass="text-[10px] py-1 font-mono flex-1 bg-surface-200 dark:bg-surface-950"
                       aria-label="share-link-url"
+                      class="flex-1"
                     />
-                    <button
+                    <Button variant="primary"
                       onclick={() => copyToClipboard(getShareLinkUrl(link.token))}
-                      class="btn preset-tonal-primary text-[10px] py-1 px-2.5"
                       title="Copy Share Link"
                       aria-label="copy-share-link"
-                    >
+                     class="text-[10px] py-1 px-2.5">
                       Copy
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="error"
                       onclick={() => handleRevokeShareLink(link.token)}
-                      class="btn preset-tonal-error text-[10px] py-1 px-2.5"
                       title="Revoke Share Link"
                       aria-label="revoke-share-link"
-                    >
+                     class="text-[10px] py-1 px-2.5">
                       Revoke
-                    </button>
+                    </Button>
                   </div>
 
                   {#if link.expiry}

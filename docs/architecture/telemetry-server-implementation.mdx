@@ -44,7 +44,7 @@ Requests must include a `timestamp` (Unix milliseconds). The server MUST reject 
 
 ### Request Payload
 
-````typescript
+```typescript
 interface TelemetryPayload {
   // Required fields
   current_version: string; // "0.9.0"
@@ -59,16 +59,16 @@ interface TelemetryPayload {
 
   // ... rest of payload
 }
-```text
+```
 
 ### Signature Generation
 
 The signature is computed over the string: `installation_id:current_version:timestamp` using the secret obtained during registration.
 
-```typescript
+```
 const data = `${payload.installation_id}:${payload.current_version}:${payload.timestamp}`;
 const signature = crypto.createHmac("sha256", clientSecret).update(data).digest("hex");
-```text
+```
 
 ## 3. Implementation Logic
 
@@ -82,7 +82,7 @@ A robust telemetry server should perform the following steps:
 
 ### Signature Validation Code (Example)
 
-```typescript
+```
 function validateSignature(payload: TelemetryPayload, clientSecret: string): boolean {
   const { installation_id, current_version, timestamp, signature } = payload;
 
@@ -99,7 +99,7 @@ function validateSignature(payload: TelemetryPayload, clientSecret: string): boo
   // 3. Constant-time comparison
   return crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"));
 }
-```text
+```
 
 ## 4. Response Codes
 
@@ -114,7 +114,6 @@ function validateSignature(payload: TelemetryPayload, clientSecret: string): boo
 ## 5. Deployment
 
 The telemetry receiver is stateless and ideal for serverless deployment on Cloudflare Workers, Vercel, or Fly.io.
-````
 
 ---
 

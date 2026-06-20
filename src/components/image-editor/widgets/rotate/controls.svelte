@@ -4,6 +4,8 @@
 Professional rotate controls with straighten and snap features
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+
 	let {
 		rotationAngle,
 		isFlippedH = false,
@@ -124,43 +126,43 @@ Professional rotate controls with straighten and snap features
 	<div class="control-group">
 		<!-- Quick Rotate -->
 		<div class="btn-group">
-			<button class="btn" onclick={onRotateLeft} title="Rotate Left 90° (Ctrl+←)" aria-label="Rotate Left 90°">
+			<Button variant="outline" size="sm" class="p-0! min-w-0" onclick={onRotateLeft} title="Rotate Left 90° (Ctrl+←)" aria-label="Rotate Left 90°">
 				<iconify-icon icon="mdi:rotate-left" width="20" aria-hidden="true"></iconify-icon>
-			</button>
-			<button class="btn" onclick={onRotateRight} title="Rotate Right 90° (Ctrl+→)" aria-label="Rotate Right 90°">
+			</Button>
+			<Button variant="outline" size="sm" class="p-0! min-w-0" onclick={onRotateRight} title="Rotate Right 90° (Ctrl+→)" aria-label="Rotate Right 90°">
 				<iconify-icon icon="mdi:rotate-right" width="20" aria-hidden="true"></iconify-icon>
-			</button>
+			</Button>
 		</div>
 
 		<!-- Flip -->
 		<div class="btn-group">
-			<button class="btn" class:active={isFlippedH} onclick={onFlipHorizontal} title="Flip Horizontal (H)" aria-label="Flip Horizontal">
+			<Button variant="outline" size="sm" class="p-0! min-w-0" aria-pressed={isFlippedH} onclick={onFlipHorizontal} title="Flip Horizontal (H)" aria-label="Flip Horizontal">
 				<iconify-icon icon="mdi:flip-horizontal" width="20" aria-hidden="true"></iconify-icon>
-			</button>
-			<button class="btn" class:active={isFlippedV} onclick={onFlipVertical} title="Flip Vertical (V)" aria-label="Flip Vertical">
+			</Button>
+			<Button variant="outline" size="sm" class="p-0! min-w-0" aria-pressed={isFlippedV} onclick={onFlipVertical} title="Flip Vertical (V)" aria-label="Flip Vertical">
 				<iconify-icon icon="mdi:flip-vertical" width="20" aria-hidden="true"></iconify-icon>
-			</button>
+			</Button>
 		</div>
 
 		<!-- Helpers -->
 		<div class="btn-group">
 			{#if onGridToggle}
-				<button class="btn" class:active={showGrid} onclick={onGridToggle} title="Toggle Grid (G)" aria-label="Toggle Grid">
+				<Button variant="outline" size="sm" class="p-0! min-w-0" aria-pressed={showGrid} onclick={onGridToggle} title="Toggle Grid (G)" aria-label="Toggle Grid">
 					<iconify-icon icon="mdi:grid" width="20" aria-hidden="true"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 			{#if onSnapToggle}
-				<button class="btn" class:active={snapToAngles} onclick={onSnapToggle} title="Snap to Angles" aria-label="Snap to Angles">
+				<Button variant="outline" size="sm" class="p-0! min-w-0" aria-pressed={snapToAngles} onclick={onSnapToggle} title="Snap to Angles" aria-label="Snap to Angles">
 					<iconify-icon icon="mdi:magnet" width="20" aria-hidden="true"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 			{#if onStraighten}
-				<button class="btn" onclick={onStraighten} title="Straighten (S)" aria-label="Straighten">
+				<Button variant="outline" size="sm" class="p-0! min-w-0" onclick={onStraighten} title="Straighten (S)" aria-label="Straighten">
 					<iconify-icon icon="mdi:image-filter-center-focus-weak" width="20" aria-hidden="true"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 			{#if onAutoStraighten}
-				<button class="btn" onclick={onAutoStraighten} title="Auto-Straighten" aria-label="Auto-Straighten"><iconify-icon icon="mdi:auto-fix" width="20" aria-hidden="true"></iconify-icon></button>
+				<Button variant="outline" size="sm" class="p-0! min-w-0" onclick={onAutoStraighten} title="Auto-Straighten" aria-label="Auto-Straighten"><iconify-icon icon="mdi:auto-fix" width="20" aria-hidden="true"></iconify-icon></Button>
 			{/if}
 		</div>
 	</div>
@@ -169,9 +171,9 @@ Professional rotate controls with straighten and snap features
 	<div class="control-group">
 		<div class="preset-angles">
 			{#each presetAngles as angle (angle)}
-				<button class="preset-btn" class:active={Math.abs(displayAngle - angle) < 0.5} onclick={() => onRotationChange(angle)}>
+				<Button variant="outline" size="sm" aria-pressed={Math.abs(displayAngle - angle) < 0.5} onclick={() => onRotationChange(angle)}>
 					{angle > 0 ? '+' : ''}{angle}°
-				</button>
+				</Button>
 			{/each}
 		</div>
 	</div>
@@ -231,67 +233,9 @@ Professional rotate controls with straighten and snap features
 		border-radius: 9999px;
 	}
 
-	.btn-group .btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		padding: 0;
-		color: #9ca3af;
-		background: transparent;
-		border: none;
-		border-radius: 9999px;
-		transition: all 0.2s;
-	}
-
-	.btn-group .btn:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
-	}
-
-	.btn-group .btn.active {
-		color: white;
-		background: #3b82f6;
-	}
-
-	.btn-group .btn:last-child {
-		border-right: none;
-	}
-
-	.btn-group .btn.active {
-		color: white;
-		background: rgb(var(--color-primary-500) / 1);
-	}
-
 	.preset-angles {
 		display: flex;
 		gap: 0.25rem;
-	}
-
-	.preset-btn {
-		height: 2rem;
-		padding: 0 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: #9ca3af;
-		white-space: nowrap;
-		cursor: pointer;
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid transparent;
-		border-radius: 9999px;
-		transition: all 0.2s;
-	}
-
-	.preset-btn:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
-	}
-
-	.preset-btn.active {
-		color: white;
-		background: #3b82f6; /* Primary-500 */
-		box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
 	}
 
 	/* Enhanced Slider Styling */

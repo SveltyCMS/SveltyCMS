@@ -16,6 +16,7 @@
 - Built-in keyboard accessibility
 -->
 <script lang="ts" module>
+	import Button from '@components/ui/button.svelte';
 export const widgetMeta = {
 	name: "Disk Usage",
 	icon: "mdi:disk",
@@ -65,7 +66,7 @@ export const widgetMeta = {
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/dashboard/systemInfo?type=disk"
+	endpoint="/api/dashboard/system-info?type=disk"
 	pollInterval={10000}
 	{icon}
 	{widgetId}
@@ -108,7 +109,7 @@ export const widgetMeta = {
 						aria-label="Select disk drive"
 					>
 						{#each disks as d}
-							<button>
+							<Button variant="outline">
 								type="button"
 								role="tab"
 								aria-selected={disk.key === d.key}
@@ -120,7 +121,7 @@ export const widgetMeta = {
 								onclick={() => (activeDiskKey = d.key)}
 							>
 								{d.name} ({d.percent.toFixed(0)}%)
-							</button>
+							</Button>
 						{/each}
 					</div>
 				{/if}
@@ -139,7 +140,7 @@ export const widgetMeta = {
 						<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Used</span>
 					</div>
 
-					<div class="text-right text-sm">
+					<div class="text-end text-sm">
 						<div class="font-medium tabular-nums">{disk.free.toFixed(1)} GB <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">free</span></div>
 					</div>
 				</div>

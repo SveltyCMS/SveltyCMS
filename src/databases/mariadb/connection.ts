@@ -27,6 +27,10 @@ export async function createConnectionPool(config: ConnectionConfig): Promise<my
 
   logger.info("Creating new MariaDB connection pool");
 
+  // Enterprise scaling: If external pooler (ProxySQL etc.) URL is configured in private config,
+  // the caller should pass host/port from the pooler. We keep driver pool settings conservative
+  // when a pooler is in front (fewer direct connections needed).
+  // See docs/guides/deployment/scaling-layers.mdx for ProxySQL / MaxScale guidance.
   pool = mysql.createPool({
     host: config.host,
     port: config.port,

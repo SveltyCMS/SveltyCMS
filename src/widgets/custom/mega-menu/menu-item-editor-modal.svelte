@@ -10,7 +10,9 @@ menu item at a specific level. Uses the standard widget loading system.
 -->
 
 <script lang="ts">
-	import { getComponentLoader } from '@src/widgets/scanner';
+	import Button from '@components/ui/button.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte';
+	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { modalState } from '@utils/modal.svelte';
 	import { getFieldName } from '@utils/utils';
 	import type { MenuEditContext } from './types';
@@ -21,7 +23,7 @@ menu item at a specific level. Uses the standard widget loading system.
 	 * Resolves the appropriate widget loader for a given widget name.
 	 */
 	function getWidgetLoader(widgetName: string) {
-		return getComponentLoader(widgetName, 'input');
+		return getCachedWidgetInputLoader(widgetName, widgets.widgetFunctions);
 	}
 
 	/**
@@ -55,14 +57,13 @@ menu item at a specific level. Uses the standard widget loading system.
 			</h2>
 			<span class="text-xs font-medium uppercase tracking-wider text-surface-500">Level {meta.level + 1} Configuration</span>
 		</div>
-		<button
+		<Button variant="surface"
 			type="button"
-			class="btn-icon preset-tonal-surface hover:preset-filled-surface-500 transition-colors"
 			onclick={onCancel}
 			aria-label="Close modal"
-		>
+		 class="p-0! min-w-0 hover:">
 			<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-		</button>
+		</Button>
 	</header>
 
 	<div class="space-y-6">
@@ -104,11 +105,11 @@ menu item at a specific level. Uses the standard widget loading system.
 	</div>
 
 	<footer class="flex justify-end gap-3 border-t border-surface-200 pt-5 dark:border-surface-700">
-		<button type="button" class="btn preset-outlined-surface-500" onclick={onCancel}> Discard </button>
-		<button type="button" class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onSave}>
-			<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+		<Button variant="outline" type="button" onclick={onCancel}> Discard </Button>
+		<Button variant="tertiary" type="button" onclick={onSave} class="dark:">
+			<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>
 			Save Changes
-		</button>
+		</Button>
 	</footer>
 </div>
 

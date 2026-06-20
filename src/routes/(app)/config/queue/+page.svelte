@@ -10,6 +10,10 @@ import { clearCompleted, deleteJob, retryJob } from "./queue.remote";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { formatRelativeDate } from "@utils/date";
 import { fade, fly } from "svelte/transition";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import AdminCard from '@components/admin-card.svelte';
 
 let { data } = $props();
 
@@ -17,11 +21,11 @@ let isRetrying = $state(false);
 let isDeleting = $state(false);
 let isClearing = $state(false);
 
-const statusColors: Record<string, string> = {
-	pending: "preset-tonal-surface",
-	running: "preset-filled-tertiary-500 dark:preset-filled-primary-500",
-	completed: "preset-filled-tertiary-500 dark:preset-filled-primary-500",
-	failed: "preset-filled-error-500",
+const statusBadgeProps: Record<string, { variant?: 'primary' | 'error'; preset?: 'tonal'; color?: string }> = {
+	pending: { preset: 'tonal', color: 'surface' },
+	running: { variant: 'primary' },
+	completed: { variant: 'primary' },
+	failed: { variant: 'error' },
 };
 
 const statusIcons: Record<string, string> = {
@@ -54,111 +58,114 @@ function getFilterUrl(status?: string) {
 	} else {
 		params.delete("status");
 	}
-	params.set("offset", "0"); // Reset to first page
+	params.set("offset", "0");
 	return `?${params.toString()}`;
 }
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<div class="flex items-center justify-between" in:fade>
-		<div>
-			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:tray-full" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				Background Queue
-			</h1>
-			<p class="text-sm opacity-50 font-medium">Monitor and manage background job processing</p>
-		</div>
-		<div class="flex items-center gap-2">
-			<button class="btn btn-sm preset-ghost-primary-500" onclick={() => invalidateAll()}>
-				<iconify-icon icon="mdi:refresh"></iconify-icon>
-				<span>Refresh</span>
-			</button>
-		</div>
-	</div>
+<AdminPageShell
+		title="Background Queue"
+		icon="mdi:tray-full"
+		description="Monitor and manage background job processing"
+		showBackButton={true}
+		backUrl="/config"
+	>
+	{#snippet actions()}
+		<Button variant="ghost" onclick={() => invalidateAll()} size="sm" leadingIcon="mdi:refresh">
+			Refresh
+		</Button>
+	{/snippet}
 
-	<!-- Statistics Cards -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }}>
-		<a href={getFilterUrl()} class="card p-4 border border-surface-200  bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
-			<div class="flex items-center gap-3">
-				<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
-					<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
+		<a href={getFilterUrl()} class="block no-underline text-inherit">
+			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
+				<div class="flex items-center gap-3">
+					<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
+						<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
+					</div>
+					<div>
+						<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Total</p>
+						<p class="text-2xl font-bold">{data.stats.total}</p>
+					</div>
 				</div>
-				<div>
-					<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Total</p>
-					<p class="text-2xl font-bold">{data.stats.total}</p>
-				</div>
-			</div>
+			</AdminCard>
 		</a>
 
-		<a href={getFilterUrl('pending')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-surface-500 transition-colors">
-			<div class="flex items-center gap-3">
-				<div class="p-2 rounded preset-tonal-surface">
-					<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
+		<a href={getFilterUrl('pending')} class="block no-underline text-inherit">
+			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors">
+				<div class="flex items-center gap-3">
+					<div class="p-2 rounded preset-tonal-surface">
+						<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
+					</div>
+					<div>
+						<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Pending</p>
+						<p class="text-2xl font-bold">{data.stats.pending}</p>
+					</div>
 				</div>
-				<div>
-					<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Pending</p>
-					<p class="text-2xl font-bold">{data.stats.pending}</p>
-				</div>
-			</div>
+			</AdminCard>
 		</a>
 
-		<a href={getFilterUrl('running')} class="card p-4 border border-surface-200 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-tertiary-500 dark:border-primary-500 transition-colors">
-			<div class="flex items-center gap-3">
-				<div class="p-2 rounded preset-tonal-primary">
-					<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
+		<a href={getFilterUrl('running')} class="block no-underline text-inherit">
+			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
+				<div class="flex items-center gap-3">
+					<div class="p-2 rounded preset-tonal-primary">
+						<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
+					</div>
+					<div>
+						<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Running</p>
+						<p class="text-2xl font-bold">{data.stats.running}</p>
+					</div>
 				</div>
-				<div>
-					<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Running</p>
-					<p class="text-2xl font-bold">{data.stats.running}</p>
-				</div>
-			</div>
+			</AdminCard>
 		</a>
 
-		<a href={getFilterUrl('completed')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-success-500 transition-colors">
-			<div class="flex items-center gap-3">
-				<div class="p-2 rounded preset-tonal-success">
-					<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
+		<a href={getFilterUrl('completed')} class="block no-underline text-inherit">
+			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors">
+				<div class="flex items-center gap-3">
+					<div class="p-2 rounded preset-tonal-success">
+						<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
+					</div>
+					<div>
+						<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Completed</p>
+						<p class="text-2xl font-bold">{data.stats.completed}</p>
+					</div>
 				</div>
-				<div>
-					<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Completed</p>
-					<p class="text-2xl font-bold">{data.stats.completed}</p>
-				</div>
-			</div>
+			</AdminCard>
 		</a>
 
-		<a href={getFilterUrl('failed')} class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm hover:border-error-500 transition-colors">
-			<div class="flex items-center gap-3">
-				<div class="p-2 rounded preset-tonal-error">
-					<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
+		<a href={getFilterUrl('failed')} class="block no-underline text-inherit">
+			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors">
+				<div class="flex items-center gap-3">
+					<div class="p-2 rounded preset-tonal-error">
+						<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
+					</div>
+					<div>
+						<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Failed</p>
+						<p class="text-2xl font-bold">{data.stats.failed}</p>
+					</div>
 				</div>
-				<div>
-					<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Failed</p>
-					<p class="text-2xl font-bold">{data.stats.failed}</p>
-				</div>
-			</div>
+			</AdminCard>
 		</a>
 	</div>
 
-	<!-- Actions Bar -->
 	<div class="flex flex-wrap items-center justify-between gap-4">
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-bold">Recent Jobs</h2>
 			{#if page.url.searchParams.has('status')}
-							<span class="badge preset-filled-tertiary-500 dark:preset-filled-primary-500 uppercase text-[10px]">
-								Filter: {page.url.searchParams.get('status')}
-				</span>
-				<a href={getFilterUrl()} class="btn btn-sm preset-ghost-surface-500">Clear Filter</a>
+				<Badge variant="primary" size="sm" class="uppercase">
+					Filter: {page.url.searchParams.get('status')}
+				</Badge>
+				<Button variant="ghost" size="sm" href={getFilterUrl()}>Clear Filter</Button>
 			{/if}
 		</div>
 
-			<div class="flex items-center gap-2">
-				<button class="btn btn-sm preset-ghost-surface-500" disabled={isClearing} onclick={async () => {
-					isClearing = true;
-					try {
-						const result = await clearCompleted({});
-						if (result.success) {
-							toast.success('Completed jobs cleared.');
+		<div class="flex items-center gap-2">
+			<Button variant="ghost" disabled={isClearing} onclick={async () => {
+				isClearing = true;
+				try {
+					const result = await clearCompleted({});
+					if (result.success) {
+						toast.success('Completed jobs cleared.');
 						invalidateAll();
 					}
 				} catch (e: unknown) {
@@ -166,43 +173,48 @@ function getFilterUrl(status?: string) {
 				} finally {
 					isClearing = false;
 				}
-			}}>
-				<iconify-icon icon="mdi:broom"></iconify-icon>
-				<span>Clear Completed</span>
-			</button>
+			}} size="sm" leadingIcon="mdi:broom">
+				Clear Completed
+			</Button>
 		</div>
 	</div>
 
-	<!-- Jobs Table -->
-	<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm overflow-hidden" in:fade>
-		<div class="overflow-x-auto">
-			<table class="table table-hover w-full whitespace-nowrap">
+	<div in:fade>
+	<AdminCard
+		class="p-0 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs overflow-hidden"
+	>
+		<div class="overflow-x-auto w-full">
+			<table class="w-full text-sm border-collapse whitespace-nowrap">
 				<thead>
-					<tr class="bg-surface-200 dark:bg-surface-900">
-						<th class="p-3 text-left">Job ID</th>
-						<th class="p-3 text-left">Task Type</th>
-						<th class="p-3 text-left">Status</th>
-						<th class="p-3 text-left">Attempts</th>
-						<th class="p-3 text-left">Next Run</th>
-						<th class="p-3 text-left">Created</th>
-						<th class="p-3 text-right">Actions</th>
+					<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
+						<th class="px-4 py-3 font-semibold">Job ID</th>
+						<th class="px-4 py-3 font-semibold">Task Type</th>
+						<th class="px-4 py-3 font-semibold">Status</th>
+						<th class="px-4 py-3 font-semibold">Attempts</th>
+						<th class="px-4 py-3 font-semibold">Next Run</th>
+						<th class="px-4 py-3 font-semibold">Created</th>
+						<th class="px-4 py-3 font-semibold text-end">Actions</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-200 dark:divide-surface-700">
+				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 					{#each data.jobs as job (job._id)}
-						<tr>
-							<td class="p-3">
+						<tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30">
+							<td class="px-4 py-3">
 								<span class="font-mono text-xs opacity-60" title={job._id}>{job._id.slice(0, 8)}...</span>
 							</td>
-							<td class="p-3">
+							<td class="px-4 py-3">
 								<span class="font-medium">{job.taskType}</span>
 							</td>
-							<td class="p-3">
+							<td class="px-4 py-3">
 								<div class="flex items-center gap-2">
-									<span class="badge {statusColors[job.status]} text-[10px] uppercase flex items-center gap-1">
+									<Badge
+										{...statusBadgeProps[job.status]}
+										size="sm"
+										class="uppercase flex items-center gap-1"
+									>
 										<iconify-icon icon={statusIcons[job.status]}></iconify-icon>
 										{job.status}
-									</span>
+									</Badge>
 									{#if job.lastError}
 										<iconify-icon
 											icon="mdi:information-outline"
@@ -212,19 +224,19 @@ function getFilterUrl(status?: string) {
 									{/if}
 								</div>
 							</td>
-							<td class="p-3">
+							<td class="px-4 py-3">
 								<span class="text-sm">{job.attempts} / {job.maxAttempts}</span>
 							</td>
-							<td class="p-3 text-sm">
+							<td class="px-4 py-3 text-sm">
 								{formatDate(job.nextRunAt)}
 							</td>
-							<td class="p-3 text-sm">
+							<td class="px-4 py-3 text-sm">
 								{formatDate(job.createdAt)}
 							</td>
-							<td class="p-3 text-right">
+							<td class="px-4 py-3 text-end">
 								<div class="flex items-center justify-end gap-1">
 									{#if job.status === 'failed'}
-										<button class="btn btn-sm preset-tonal-primary-500" title="Retry Job" disabled={isRetrying} onclick={async () => {
+										<Button variant="primary" title="Retry Job" disabled={isRetrying} onclick={async () => {
 											isRetrying = true;
 											try {
 												const result = await retryJob(job._id);
@@ -237,18 +249,18 @@ function getFilterUrl(status?: string) {
 											} finally {
 												isRetrying = false;
 											}
-										}}>
+										}} size="sm">
 											<iconify-icon icon="mdi:replay"></iconify-icon>
-										</button>
+										</Button>
 									{/if}
 
-										<button class="btn btn-sm preset-tonal-error-500" title="Delete Job" disabled={isDeleting} onclick={async () => {
-											if (!confirm('Are you sure you want to delete this job?')) return;
-											isDeleting = true;
-											try {
-												const result = await deleteJob(job._id);
-												if (result.success) {
-													toast.success('Job deleted.');
+									<Button variant="error" title="Delete Job" disabled={isDeleting} onclick={async () => {
+										if (!confirm('Are you sure you want to delete this job?')) return;
+										isDeleting = true;
+										try {
+											const result = await deleteJob(job._id);
+											if (result.success) {
+												toast.success('Job deleted.');
 												invalidateAll();
 											}
 										} catch (e: unknown) {
@@ -256,15 +268,15 @@ function getFilterUrl(status?: string) {
 										} finally {
 											isDeleting = false;
 										}
-									}}>
+									}} size="sm">
 										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-									</button>
+									</Button>
 								</div>
 							</td>
 						</tr>
 					{:else}
 						<tr>
-							<td colspan="7" class="p-12 text-center opacity-40">
+							<td colspan="7" class="px-4 py-12 text-center opacity-40">
 								<iconify-icon icon="mdi:tray-off" class="text-4xl mb-2"></iconify-icon>
 								<p>No jobs found matching the current filters.</p>
 							</td>
@@ -274,36 +286,31 @@ function getFilterUrl(status?: string) {
 			</table>
 		</div>
 
-		<!-- Pagination -->
 		{#if data.totalCount > data.pagination.limit}
 			<div class="p-4 bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700 flex items-center justify-between">
 				<p class="text-xs opacity-60">
 					Showing {data.pagination.offset + 1} to {Math.min(data.pagination.offset + data.pagination.limit, data.totalCount)} of {data.totalCount} jobs
 				</p>
 				<div class="flex gap-2">
-					<a
+					<Button
+						variant="ghost"
+						size="sm"
 						href={getPaginationUrl(Math.max(0, data.pagination.offset - data.pagination.limit))}
-						class="btn btn-sm preset-ghost-surface-500"
-						class:disabled={data.pagination.offset === 0}
+						disabled={data.pagination.offset === 0}
 					>
 						Previous
-					</a>
-					<a
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
 						href={getPaginationUrl(data.pagination.offset + data.pagination.limit)}
-						class="btn btn-sm preset-ghost-surface-500"
-						class:disabled={data.pagination.offset + data.pagination.limit >= data.totalCount}
+						disabled={data.pagination.offset + data.pagination.limit >= data.totalCount}
 					>
 						Next
-					</a>
+					</Button>
 				</div>
 			</div>
 		{/if}
+	</AdminCard>
 	</div>
-</div>
-
-<style>
-	.disabled {
-		pointer-events: none;
-		opacity: 0.5;
-	}
-</style>
+</AdminPageShell>

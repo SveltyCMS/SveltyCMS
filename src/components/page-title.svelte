@@ -1,31 +1,30 @@
-<!-- 
-@file src/components/page-title.svelte 
+<!--
+@file src/components/page-title.svelte
 @component
 **Dynamic Page Title with Accessibility and CMS Features**
 
 @example
-<PageTitle 
-  name="Dashboard" 
-  icon="bi:bar-chart-line" 
-  highlight="Dash" 
-  iconColor="text-tertiary-500 dark:text-primary-500" 
-  iconSize="24" 
-  showBackButton={true}  
-  backUrl="/home" 
+<PageTitle
+  name="Dashboard"
+  icon="bi:bar-chart-line"
+  highlight="Dash"
+  iconColor="text-tertiary-500 dark:text-primary-500"
+  showBackButton={true}
+  backUrl="/home"
   onBackClick={(defaultBehavior) => {
     // Custom navigation logic
     defaultBehavior();
   }}
 />
 
-#### Props - Required 
+#### Props - Required
 - `name` {string} - Page title
 - `icon` {string} - Icon name from [iconify](https://iconify.design/)
 
-#### Props - Optional 
+#### Props - Optional
 - `highlight` {string} - Part of `name` to highlight
 - `iconColor` {string} - Icon color (default: `text-tertiary-500 dark:text-primary-500`)
-- `iconSize` {string} - Icon size (default: `32`)
+- `iconSize` {string} - Icon size (default: `32`; do not override per route — use AdminPageShell)
 - `showBackButton` {boolean} - Show back button (default: `false`)
 - `backUrl` {string} - Navigation URL for back button
 - `truncate` {boolean} - Enable title truncation (default: `true`)
@@ -45,6 +44,7 @@
 - Fluid typography scaling
 -->
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 
@@ -79,7 +79,7 @@
 		children
 	}: Props = $props();
 
-	const titleParts = $derived(() => {
+	const titleParts = $derived.by(() => {
 		if (highlight && name.toLowerCase().includes(highlight.toLowerCase())) {
 			const regex = new RegExp(`(${highlight})`, 'gi');
 			return name.split(regex);
@@ -111,14 +111,13 @@
 <div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-2 backdrop-blur-sm dark:bg-surface-950/95">
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
-			<button
+			<Button variant="outline"
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="preset-outlined-surface-500 btn-icon shrink-0"
-			>
+			 class="p-0! min-w-0 shrink-0">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 		<div class="flex flex-col ms-2 min-w-0">
 			<h1
@@ -129,11 +128,11 @@
 				data-cms-type="text"
 			>
 				{#if icon}
-					<iconify-icon {icon} width={iconSize} class={`mr-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
+					<iconify-icon {icon} width={iconSize} class={`me-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
 				{/if}
 
 				<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
-					{#each titleParts() as part, i (i)}
+					{#each titleParts as part, i (i)}
 						<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}> {part} </span>
 					{/each}
 				</span>
@@ -154,7 +153,7 @@
 
 		{#if showBackButton}
 			{#if backUrl}
-				<SystemTooltip title="Go back">
+				<SystemTooltip title="Go back" role={null} tabindex={null}>
 					<a
 						href={backUrl}
 						aria-label="Go back"
@@ -167,15 +166,15 @@
 					</a>
 				</SystemTooltip>
 			{:else}
-				<button
-					onclick={(e) => handleBackClick(e)}
+				<Button variant="outline"
+					onclick={(e: MouseEvent) => handleBackClick(e)}
 					aria-label="Go back"
 					tabindex="0"
-					class="flex h-10 w-10 items-center justify-center rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 transition-colors shrink-0"
+					class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0 shrink-0"
 					data-cms-action="back"
 				>
 					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
-				</button>
+				</Button>
 			{/if}
 		{/if}
 	</div>

@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import Sanitize from '@src/utils/sanitize.svelte';
 
 	interface Props {
@@ -36,10 +37,10 @@
 
 	<div class="flex justify-between gap-4 pt-4">
 		{#if buttonTextCancel}
-			<button class="btn preset-filled-secondary-500 hover:bg-surface-300 dark:hover:bg-surface-700 font-medium transition-colors" onclick={onCancel}>
+			<Button variant="secondary" onclick={onCancel} class="hover:bg-surface-300 dark:hover:bg-surface-700 font-medium">
 				{buttonTextCancel}
-			</button>
+			</Button>
 		{/if}
-		<button class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" onclick={onConfirm}>{buttonTextConfirm}</button>
+		<Button variant="tertiary" onclick={onConfirm} class="dark:">{buttonTextConfirm}</Button>
 	</div>
 </div>

@@ -3,7 +3,7 @@
 @component Collection Builder Editor Shell
  -->
 <script lang="ts">
-import PageTitle from "@src/components/page-title.svelte";
+import AdminPageShell from "@components/admin-page-shell.svelte";
 import StickyActions from "@components/ui/sticky-actions.svelte";
 import { StatusTypes, type FieldInstance, type Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
@@ -28,6 +28,7 @@ import { page } from "$app/state";
 import CollectionForm from "./tabs/collection-form.svelte";
 import CollectionWidgetOptimized from "./tabs/collection-widget-optimized.svelte";
 import Stepper from "@src/components/ui/stepper.svelte";
+	import Button from '@components/ui/button.svelte';
 
 const action = $derived(page.params.action);
 const { data } = $props<{ data: { collection?: Schema; user: User } }>();
@@ -190,59 +191,62 @@ $effect(() => {
 });
 </script>
 
-<div class="flex flex-col h-[calc(100vh-80px)] lg:h-[calc(100vh-64px)] overflow-hidden bg-surface-50 dark:bg-surface-950">
-	<!-- Mobile Stepper (Horizontal) -->
-	<div class="lg:hidden p-4 border-b border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm z-20">
+<AdminPageShell
+	title={action === 'edit' ? `Edit ${collection.value?.name}` : (collection.value?.name && collection.value.name !== 'new' ? `Create ${collection.value.name}` : 'Create Collection')}
+	icon={collection.value?.icon || 'ic:baseline-build'}
+	showBackButton={true}
+	backUrl="/config/collectionbuilder"
+	fullHeight={true}
+	spaceY="4"
+	animate={false}
+>
+	{#snippet actions()}
+		<div class="flex gap-2">
+		{#if action === 'edit'}
+			<Button variant="error"
+				onclick={handleCollectionDelete}
+				disabled={isLoading}
+				aria-label="Delete collection"
+			 class="flex items-center gap-1">
+				<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
+				<span class="hidden sm:inline">{button_delete()}</span>
+			</Button>
+		{/if}
+		<StickyActions>
+		<Button variant="tertiary"
+			onclick={() => handleCollectionSave()}
+			disabled={isLoading}
+			aria-label="Save collection"
+			data-testid="save-collection-button"
+		 class="dark: flex items-center gap-1 min-w-25">
+			{#if isLoading}
+				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+			{:else}
+				<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+			{/if}
+			<span>{button_save()}</span>
+		</Button>
+		</StickyActions>
+		</div>
+	{/snippet}
+
+	<!-- Studio stepper — visible on all breakpoints for E2E + keyboard navigation -->
+	<div
+		class="p-4 border-b border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm z-20 shrink-0"
+		data-testid="collection-editor-stepper"
+	>
 		<Stepper
 			{steps}
 			currentStep={activeStep - 1}
 			{completedSteps}
 			orientation="horizontal"
+			onStepClick={(index) => {
+				collections.stepper.activeStep = index + 1;
+			}}
 		/>
 	</div>
 
-	<!-- Main Workspace -->
-	<main class="flex-1 flex flex-col min-w-0 bg-surface-50 dark:bg-surface-950/50 overflow-hidden relative">
-		<!-- Studio Header -->
-		<header class="flex items-center justify-between px-2 py-2 sm:px-6 lg:px-10 border-b border-surface-200/60 dark:border-surface-800/60 bg-white/50 dark:bg-surface-900/50 backdrop-blur-md z-10 shrink-0 min-h-18">
-				<PageTitle
-					name={action === 'edit' ? `Edit ${collection.value?.name}` : (collection.value?.name && collection.value.name !== 'new' ? `Create ${collection.value.name}` : 'Create Collection')}
-					icon={collection.value?.icon || 'ic:baseline-build'}
-					showBackButton={true}
-					backUrl="/config/collectionbuilder"
-				>
-					<div class="flex gap-2 ml-auto">
-					{#if action === 'edit'}
-						<button
-							onclick={handleCollectionDelete}
-							class="preset-filled-error-500 btn flex items-center gap-1"
-							disabled={isLoading}
-							aria-label="Delete collection"
-						>
-							<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
-							<span class="hidden sm:inline">{button_delete()}</span>
-						</button>
-					{/if}
-					<StickyActions>
-					<button
-						onclick={() => handleCollectionSave()}
-						class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn flex items-center gap-1 min-w-25"
-						disabled={isLoading}
-						aria-label="Save collection"
-					>
-						{#if isLoading}
-							<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-						{:else}
-							<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
-						{/if}
-						<span>{button_save()}</span>
-					</button>
-					</StickyActions>
-				</div>
-			</PageTitle>
-		</header>
-
-		<!-- Step Content -->
+	<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
 		<div class="flex-1 overflow-y-auto w-full scroll-smooth">
 			<div class="h-full {activeStep === 1 ? 'mx-auto max-w-5xl p-4 sm:p-6 lg:p-10' : 'p-0'}">
 				{#if activeStep === 1}
@@ -256,7 +260,5 @@ $effect(() => {
 				{/if}
 			</div>
 		</div>
-
-		<!-- NO INTERNAL FOOTER - Handled by +layout.svelte -->
-	</main>
-</div>
+	</div>
+</AdminPageShell>

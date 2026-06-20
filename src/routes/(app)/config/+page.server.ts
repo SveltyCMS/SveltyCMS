@@ -17,7 +17,7 @@ import {
   permissionConfigs,
 } from "@src/databases/auth/permissions";
 import { error, redirect } from "@sveltejs/kit";
-// System Logger
+import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
@@ -53,25 +53,32 @@ export const load: PageServerLoad = async ({ locals }) => {
     // menu item, or feature can have individual permissions assigned
     const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
 
-    for (const key in permissionConfigs) {
-      if (!Object.hasOwn(permissionConfigs, key)) {
-        continue;
-      }
-      const config = permissionConfigs[key];
-
-      // Admin bypass for efficiency (admins have all permissions)
-      if (isAdmin) {
-        permissions[config.contextId] = {
+    // Admin bypass — skip cache, return all true immediately
+    if (isAdmin) {
+      for (const key in permissionConfigs) {
+        if (!Object.hasOwn(permissionConfigs, key)) continue;
+        permissions[permissionConfigs[key].contextId] = {
           hasPermission: true,
           isRateLimited: false,
         };
-      } else {
-        // Check user permission for non-admin
-        // This supports fine-grained permissions like:
-        // - config:settings:cache
-        // - config:settings:database
-        // - config:settings:email
-        // etc.
+      }
+    } else {
+      // Non-admin: cache permission set per user for 5 minutes
+      const permCacheKey = `config:permissions:${user._id}`;
+      const cached = await cacheService.get<typeof permissions>(permCacheKey);
+      if (cached) {
+        return {
+          user: serializableUser,
+          permissions: cached,
+          permissionConfigs,
+          allPermissions,
+          isAdmin,
+        };
+      }
+
+      for (const key in permissionConfigs) {
+        if (!Object.hasOwn(permissionConfigs, key)) continue;
+        const config = permissionConfigs[key];
         const permissionCheck = await hasPermissionByAction(
           user,
           config.action,
@@ -84,6 +91,8 @@ export const load: PageServerLoad = async ({ locals }) => {
           isRateLimited: false,
         };
       }
+
+      await cacheService.set(permCacheKey, permissions, 300_000); // 5 min TTL
     }
 
     return {

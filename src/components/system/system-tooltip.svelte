@@ -7,7 +7,7 @@ This component provides a tooltip for any element.
 
 @example
 <SystemTooltip title="Tooltip">
-	<button>Hover me</button>
+	<Button variant="outline">Hover me</Button>
 </SystemTooltip>
 
 ### Props
@@ -48,6 +48,8 @@ This component provides a tooltip for any element.
 		triggerClass?: string;
 		triggerStyle?: string;
 		wFull?: boolean;
+		role?: string | null;
+		tabindex?: number | string | null;
 	}
 
 	let {
@@ -58,7 +60,9 @@ This component provides a tooltip for any element.
 		triggerStyle = '',
 		wFull = false,
 		children: childrenProp,
-		positioning = { placement: 'top', gutter: 10 }
+		positioning = { placement: 'top', gutter: 10 },
+		role = 'button',
+		tabindex = 0
 	}: Props = $props();
 
 	const TOOLTIP_CLASS = 'rounded bg-surface-900 dark:bg-white px-3 py-1.5 text-[11px] font-medium shadow-2xl text-white dark:text-surface-900 border border-white/10 dark:border-black/5';
@@ -75,6 +79,8 @@ This component provides a tooltip for any element.
 	class={`${TOOLTIP_CLASS} ${contentClass}`}
 	triggerClass={resolvedTriggerClass}
 	style={triggerStyle}
+	{role}
+	{tabindex}
 >
 	{#snippet children()}
 		{@render childrenProp?.()}

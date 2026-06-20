@@ -331,7 +331,9 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
       const results = await q;
       return {
         success: true,
-        data: utils.convertArrayDatesToISO(results) as unknown as T[],
+        data: utils.convertArrayDatesToISO(results, {
+          mariaDoubleParseJson: true,
+        }) as unknown as T[],
         meta: { executionTime: Date.now() - startTime },
       };
     } catch (error) {
@@ -350,7 +352,9 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
       const [result] = await q;
       return {
         success: true,
-        data: result ? (utils.convertDatesToISO(result) as unknown as T) : null,
+        data: result
+          ? (utils.convertDatesToISO(result, { mariaDoubleParseJson: true }) as unknown as T)
+          : null,
         meta: { executionTime: Date.now() - startTime },
       };
     } catch (error) {

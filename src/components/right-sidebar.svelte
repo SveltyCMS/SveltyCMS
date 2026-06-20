@@ -12,6 +12,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	// Components
 	import Toggle from '@components/ui/toggle.svelte';
 	import { StatusTypes } from '@src/content/types';
@@ -286,28 +287,25 @@
 		{#if showSidebar}
 		<!-- Special "Next" button for Menu wizard -->
 		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
-			<button type="button" onclick={nextAction!} class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full gap-2 shadow-lg">
+			<Button variant="tertiary" type="button" onclick={nextAction!} class="dark: w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
 				{button_next()}
-			</button>
+			</Button>
 		{:else}
 			<!-- Main actions -->
 			<header class="flex flex-col gap-3">
-				<button
+				<Button variant="tertiary"
 					type="button"
 					onclick={save}
 					disabled={!isFormValid || !canWrite}
-					class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 w-full gap-2 shadow-lg transition-all"
-					class:opacity-50={!isFormValid || !canWrite}
-					class:cursor-not-allowed={!isFormValid || !canWrite}
 					aria-label="Save"
 					title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
-				>
+				 class="dark: w-full gap-2 shadow-lg transition-all">
 					<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
 					{button_save()}
-				</button>
+				</Button>
 
-				<div class="btn gradient-secondary w-full gap-2 shadow-md">
+				<div class="gradient-secondary w-full gap-2 rounded p-2 shadow-md">
 					<Toggle
 						value={statusStore.isPublish}
 						label={statusStore.isPublish ? status_publish() : status_unpublish()}
@@ -321,20 +319,19 @@
 
 				{#if currentMode === 'edit'}
 					<div class="flex w-full flex-col gap-2">
-						<button
+						<Button variant="outline"
 							type="button"
 							onclick={handleClone}
 							disabled={!canCreate}
-							class="btn gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md"
-						>
+						 class="gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md">
 							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
 							Clone <span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentCollection?.name}</span>
-						</button>
+						</Button>
 
-						<button type="button" onclick={handleDelete} disabled={!canDelete} class="btn preset-filled-error-500 w-full gap-2 shadow-md">
+						<Button variant="error" type="button" onclick={handleDelete} disabled={!canDelete} class="w-full gap-2 shadow-md">
 							<iconify-icon icon="icomoon-free:bin" width="18"></iconify-icon>
 							{button_delete()}
-						</button>
+						</Button>
 					</div>
 				{/if}
 			</header>
@@ -353,26 +350,24 @@
 								{new Date(scheduleTimestamp).toLocaleString(getLocale())}
 							</p>
 						{/if}
-						<button
+						<Button variant="surface"
 							onclick={openSchedule}
-							class="btn preset-filled-surface-500 hover:preset-filled-primary-500-hover w-full justify-start gap-2 text-start transition-colors"
-						>
+						 class="hover: w-full justify-start gap-2 text-start">
 							<iconify-icon icon="bi:clock" width="16"></iconify-icon>
 							<span class="text-sm text-tertiary-500 dark:text-primary-500">
 								{scheduleTimestamp ? 'Change schedule...' : 'Schedule publication...'}
 							</span>
-						</button>
+						</Button>
 						{#if scheduleTimestamp}
-							<button
+							<Button variant="error"
 								onclick={() => {
 									collectionValue.value = { ...currentEntry!, _scheduled: undefined, status: StatusTypes.draft };
 									toast.success('Schedule cancelled');
 								}}
-								class="btn preset-filled-error-500 w-full justify-start gap-2 text-start text-sm transition-colors"
-							>
+							 class="w-full justify-start gap-2 text-start text-sm">
 								<iconify-icon icon="material-symbols:cancel" width="16"></iconify-icon>
 								<span>Cancel Schedule</span>
-							</button>
+							</Button>
 						{/if}
 				</div>
 

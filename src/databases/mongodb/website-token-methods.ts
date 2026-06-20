@@ -1,10 +1,57 @@
 /**
+ * @file src/databases/mongodb/models/websiteToken.ts
+ * @description Mongoose model for Website Tokens used for external access
+ *
+ * ### Fields
+ * - `_id`: Unique identifier for the token
+ * - `name`: Human-readable name for the token
+ * - `token`: The actual token string used for authentication
+ * - `createdAt`: Timestamp of when the token was created
+ * - `updatedAt`: Timestamp of the last update to the token
+ * - `createdBy`: User ID of the creator of the token
+ */
+
+import { generateId } from "@src/databases/mongodb/mongodb-utils";
+import type { WebsiteToken } from "@src/content/types";
+import { nowISODateString } from "@utils/date";
+import type { Model } from "mongoose";
+import mongoose, { Schema } from "mongoose";
+
+export const websiteTokenSchema = new Schema<WebsiteToken>(
+  {
+    _id: { type: String, required: true, default: () => generateId() },
+    name: { type: String, required: true },
+    token: { type: String, required: true, unique: true },
+    createdAt: { type: String, default: () => nowISODateString() },
+    updatedAt: { type: String, default: () => nowISODateString() },
+    createdBy: { type: String, required: true },
+    permissions: { type: [String], default: [] },
+    expiresAt: { type: String, required: false },
+  },
+  {
+    // ⚠️ timestamps: true conflicts with explicit createdAt/updatedAt String types.
+    // crud.insert() manually sets both to nowISODateString() — timestamps plugin
+    // would coerce them to Date, breaking type consistency and toObject() output.
+    collection: "system_website_tokens",
+    strict: true,
+    _id: false,
+  },
+);
+
+websiteTokenSchema.index({ createdBy: 1 });
+
+export const WebsiteTokenModel =
+  (mongoose.models?.WebsiteToken as Model<WebsiteToken> | undefined) ||
+  mongoose.model<WebsiteToken>("WebsiteToken", websiteTokenSchema);
+
+// --- Merged from website-token.ts (model + statics) into methods for file reduction pilot ---
+
+/**
  * @file src/databases/mongodb/methods/website-token-methods.ts
  * @description Secure CRUD operations for WebsiteToken collection with mandatory tenant isolation and token hashing.
  */
 
-import type { Model } from "mongoose";
-import type { DatabaseId, DatabaseResult, WebsiteToken, QueryFilter } from "../db-interface";
+import type { DatabaseId, DatabaseResult, QueryFilter } from "../db-interface";
 import { MongoCrudMethods } from "./crud-methods";
 import { createDatabaseError } from "./mongodb-utils";
 
@@ -33,8 +80,12 @@ export class MongoWebsiteTokenMethods {
     tenantId?: string,
   ): Promise<DatabaseResult<WebsiteToken>> {
     try {
+      // Capture the original plaintext token before hashing.
+      // The raw token MUST be returned to the caller on creation (only storage is hashed).
+      const originalToken = tokenData.token;
+
       // Hash the sensitive token value before it touches the database layer
-      const hashedToken = await this._hashToken(tokenData.token);
+      const hashedToken = await this._hashToken(originalToken);
 
       const secureToken: Record<string, unknown> = {
         ...tokenData,
@@ -44,10 +95,18 @@ export class MongoWebsiteTokenMethods {
         secureToken.tenantId = tenantId as DatabaseId;
       }
 
-      return this.crud.insert(
+      const result = await this.crud.insert(
         secureToken as any as WebsiteToken,
         tenantId ? { tenantId: tenantId as DatabaseId } : {},
       );
+
+      // Override the stored hash with the original plaintext token in the response.
+      // The hash remains in the database; only the API response carries the raw value.
+      if (result.success && result.data) {
+        result.data = { ...result.data, token: originalToken };
+      }
+
+      return result;
     } catch (error: any) {
       return {
         success: false,
@@ -58,7 +117,6 @@ export class MongoWebsiteTokenMethods {
   }
 
   async getAll(
-    tenantId: string | undefined,
     options: {
       limit?: number;
       skip?: number;
@@ -66,6 +124,7 @@ export class MongoWebsiteTokenMethods {
       order?: string;
       filter?: Record<string, unknown>;
     },
+    tenantId?: string,
   ): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
     try {
       // Sanitize filter to prevent raw MongoDB operator injection/credential enumeration
@@ -86,16 +145,20 @@ export class MongoWebsiteTokenMethods {
           ? { [options.sort]: options.order as "asc" | "desc" | 1 | -1 }
           : { createdAt: -1 };
 
+      const findManyOpts: any = {
+        limit: options.limit || 100,
+        offset: options.skip,
+        sort,
+      };
+      if (tenantId) {
+        findManyOpts.tenantId = tenantId as DatabaseId;
+      }
+
+      const countOpts: any = tenantId ? { tenantId: tenantId as DatabaseId } : {};
+
       const [dataRes, totalRes] = await Promise.all([
-        this.crud.findMany(sanitizedFilter as QueryFilter<WebsiteToken>, {
-          limit: options.limit || 100,
-          offset: options.skip,
-          sort,
-          ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
-        }),
-        this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, {
-          ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
-        }),
+        this.crud.findMany(sanitizedFilter as QueryFilter<WebsiteToken>, findManyOpts),
+        this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, countOpts),
       ]);
 
       if (!dataRes.success) return dataRes as any;

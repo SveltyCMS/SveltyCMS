@@ -13,9 +13,14 @@ import { contentStore } from "@src/stores/content-store.svelte";
 import type { ContentNode, Schema, DatabaseId } from "./types";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateCategoryNodesFromPaths } from "./content-utils";
-import { eventBus, SystemEvents } from "@utils/event-bus";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { generateSchemaHash, loadSchemaNative } from "./module-processor.server";
+import { generateSchemaHash, loadSchema } from "./module-processor.server";
+import { isSafeCollectionPath } from "./collection-path-security.server";
+import {
+  invalidateSchemaCache,
+  notifyContentUpdate,
+  setSchemaCacheEntry,
+} from "./content-cache.server";
 
 // ─── Plugin System ───────────────────────────────────────────────────────────
 
@@ -94,34 +99,6 @@ function validateSchemaFields(schema: Schema): boolean {
       return false;
     }
     fieldNames.add(name);
-  }
-
-  return true;
-}
-
-function isSafeCollectionPath(fullPath: string): boolean {
-  const resolved = path.resolve(fullPath).toLowerCase();
-  const allowedBase = path.resolve(process.cwd(), ".compiledCollections").toLowerCase();
-
-  // 1. Must be within allowed directory and have .js extension
-  if (!resolved.startsWith(allowedBase) || !resolved.endsWith(".js")) {
-    return false;
-  }
-
-  // 2. Block path traversal (..)
-  const relative = path.relative(allowedBase, resolved);
-  if (relative.includes("..") || path.isAbsolute(relative)) {
-    logger.warn("Blocked path traversal attempt", { fullPath, relative });
-    return false;
-  }
-
-  // 3. Block non-alphanumeric characters except hyphens, underscores, dots, slashes
-  if (/[^\w\-./\\]/.test(relative)) {
-    logger.warn("Blocked path with suspicious characters", {
-      fullPath,
-      relative,
-    });
-    return false;
   }
 
   return true;
@@ -278,7 +255,7 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
             return;
           }
 
-          const moduleData = await loadSchemaNative(file.fullPath);
+          const moduleData = await loadSchema(file.fullPath, file.mtime);
           const schema = moduleData?.schema;
 
           if (schema) {
@@ -306,22 +283,14 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 
             const hash = generateSchemaHash(enrichedSchema);
             if (cached && cached.hash === hash) {
-              await cacheService.set(
-                cacheKey,
-                { ...cached, mtime: file.mtime },
-                3600,
-                null,
-                CacheCategory.SCHEMA,
-              );
-              _schemaCache.set(file.fullPath, cached.schema);
+              await setSchemaCacheEntry(cacheKey, { ...cached, mtime: file.mtime }, enrichedSchema);
+              _schemaCache.set(file.fullPath, enrichedSchema);
             } else {
               enrichSchemaWithMetadata(enrichedSchema, file.fullPath, collectionsDir);
-              await cacheService.set(
+              await setSchemaCacheEntry(
                 cacheKey,
                 { mtime: file.mtime, hash, schema: enrichedSchema },
-                3600,
-                null,
-                CacheCategory.SCHEMA,
+                enrichedSchema,
               );
               _schemaCache.set(file.fullPath, enrichedSchema);
             }
@@ -428,10 +397,15 @@ export const contentService = {
     const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
     if (!dbAdapter) return;
 
-    await cacheService.invalidateByCategory(CacheCategory.SCHEMA, tenantId);
+    const isIncremental = !!(changedFile && changedFile.endsWith(".js"));
 
-    if (changedFile && changedFile.endsWith(".js")) {
-      await this.handleIncrementalReload(changedFile, tenantId, dbAdapter);
+    // Full reload: prefix-clear schema:* in L1/L2 (invalidateByCategory pattern does not match schema keys)
+    if (!isIncremental) {
+      await invalidateSchemaCache(tenantId ?? null);
+    }
+
+    if (isIncremental) {
+      await this.handleIncrementalReload(changedFile!, tenantId, dbAdapter);
       return;
     }
 
@@ -478,11 +452,8 @@ export const contentService = {
       }
     }
 
-    // 4. Broadcast
-    eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
-      version: Date.now(),
-      tenantId: tenantId || "all",
-    });
+    // 4. Invalidate navigation L1/L2 + broadcast
+    await notifyContentUpdate(tenantId);
   },
 
   async fastSyncStore(schemas: Schema[], tenantId?: string | null) {
@@ -636,10 +607,17 @@ export const contentService = {
     filePath: string,
     tenantId: string | null | undefined,
     dbAdapter: IDBAdapter,
-  ): Promise<void> {
+    options?: { broadcast?: boolean },
+  ): Promise<ContentNode | null> {
     const fullPath = path.resolve(filePath);
+
+    if (!isSafeCollectionPath(fullPath)) {
+      logger.error("[Incremental] Blocked unsafe schema path", { path: fullPath });
+      return null;
+    }
+
     const stats = await fsPromises.stat(fullPath).catch(() => null);
-    if (!stats) return;
+    if (!stats) return null;
 
     const cacheKey = `schema:${fullPath}`;
     const cached = await cacheService.get<{
@@ -648,32 +626,28 @@ export const contentService = {
       schema: Schema;
     }>(cacheKey, null, CacheCategory.SCHEMA);
 
-    const moduleData = await loadSchemaNative(fullPath);
+    const moduleData = await loadSchema(fullPath, stats.mtimeMs);
     const schema = moduleData?.schema;
-    if (!schema) return;
+    if (!schema) return null;
+
+    if (!validateSchemaFields(schema)) {
+      logger.error("[Incremental] Skipping invalid schema", {
+        path: fullPath,
+        name: schema.name,
+      });
+      return null;
+    }
 
     const hash = generateSchemaHash(schema);
     if (cached && cached.hash === hash) {
-      await cacheService.set(
-        cacheKey,
-        { ...cached, mtime: stats.mtimeMs },
-        3600,
-        null,
-        CacheCategory.SCHEMA,
-      );
-      return;
+      await setSchemaCacheEntry(cacheKey, { ...cached, mtime: stats.mtimeMs }, schema);
+      return null;
     }
 
     const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
     enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
 
-    await cacheService.set(
-      cacheKey,
-      { mtime: stats.mtimeMs, hash, schema },
-      3600,
-      null,
-      CacheCategory.SCHEMA,
-    );
+    await setSchemaCacheEntry(cacheKey, { mtime: stats.mtimeMs, hash, schema }, schema);
 
     const now = dateToISODateString(new Date());
     const existingResult = await dbAdapter.content.nodes.getStructure("flat", {
@@ -703,10 +677,72 @@ export const contentService = {
       tenantId: tenantId as any,
     });
     contentStore.upsert(node);
-    eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
-      version: Date.now(),
-      tenantId: tenantId || "all",
-    });
+
+    if (options?.broadcast !== false) {
+      await notifyContentUpdate(tenantId);
+    }
+
+    return node;
+  },
+
+  /**
+   * Processes all files queued via markFileDirty / flushChangedFiles in one batched pass.
+   * Fires a single CONTENT_UPDATE event after all surgical updates complete.
+   */
+  async processChangedFiles(
+    tenantId?: string | null,
+    adapter?: IDBAdapter,
+    options?: { requireFullReload?: boolean },
+  ): Promise<void> {
+    const changedFiles = flushChangedFiles();
+    const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
+    if (!dbAdapter) return;
+
+    if (options?.requireFullReload || changedFiles.length === 0) {
+      if (options?.requireFullReload) {
+        await this.fullReload(tenantId, false, dbAdapter, null);
+      }
+      return;
+    }
+
+    const validFiles = changedFiles.filter((f) => f.endsWith(".js") && isSafeCollectionPath(f));
+
+    if (validFiles.length === 0) {
+      if (options?.requireFullReload) {
+        await this.fullReload(tenantId, false, dbAdapter, null);
+      }
+      return;
+    }
+
+    if (validFiles.length === 1 && !options?.requireFullReload) {
+      await this.handleIncrementalReload(validFiles[0], tenantId, dbAdapter);
+      return;
+    }
+
+    await this.processBatchedIncrementalReload(validFiles, tenantId, dbAdapter);
+  },
+
+  /**
+   * Parallel surgical updates for multiple changed files — one DB broadcast at the end.
+   */
+  async processBatchedIncrementalReload(
+    filePaths: string[],
+    tenantId?: string | null,
+    adapter?: IDBAdapter,
+  ): Promise<void> {
+    const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
+    if (!dbAdapter || filePaths.length === 0) return;
+
+    const updates = await Promise.all(
+      filePaths.map((filePath) =>
+        this.handleIncrementalReload(filePath, tenantId, dbAdapter, { broadcast: false }),
+      ),
+    );
+
+    const nodes = updates.filter((n): n is ContentNode => !!n);
+    if (nodes.length > 0) {
+      await notifyContentUpdate(tenantId, { batchSize: nodes.length });
+    }
   },
 
   async getContentStructureFromDatabase(

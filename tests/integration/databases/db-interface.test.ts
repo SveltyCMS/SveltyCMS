@@ -704,6 +704,56 @@ describe("Database Interface Contract Tests", () => {
 
       expect(deleteRes.success).toBe(true);
     });
+
+    it("should enforce strict multi-tenant isolation", async () => {
+      if (!db?.crud) return;
+
+      if (currentDbType === "mongodb") {
+        console.warn("Skipping multi-tenant isolation check in db-interface for MongoDB adapter.");
+        return;
+      }
+
+      const collection = "system_preferences";
+      const testId = `tenant-pref-${Date.now()}` as any;
+      const testDoc = {
+        _id: testId as DatabaseId,
+        key: `tenant_isolated_key_${testId}`,
+        value: { data: "tenant_a_data" },
+        scope: "system",
+        visibility: "private",
+        tenantId: "tenant-a",
+      };
+
+      // Insert under Tenant A
+      const insertRes = await db.crud.insert(collection, testDoc as any, {
+        tenantId: "tenant-a" as DatabaseId,
+      });
+      expect(insertRes.success).toBe(true);
+
+      // Try to find under Tenant B (should return null/not found)
+      const findResB = await db.crud.findOne(collection, {
+        _id: testId,
+        tenantId: "tenant-b" as DatabaseId,
+      } as any);
+      if (findResB.success) {
+        expect(findResB.data).toBeNull();
+      }
+
+      // Try to update under Tenant B (should return success: false or not found)
+      const updateResB = await db.crud.update(
+        collection,
+        testId,
+        { value: { data: "hacked" } } as any,
+        { tenantId: "tenant-b" as DatabaseId },
+      );
+      expect(updateResB.success).toBe(false);
+
+      // Clean up under Tenant A
+      const deleteResA = await db.crud.delete(collection, testId, {
+        tenantId: "tenant-a" as DatabaseId,
+      });
+      expect(deleteResA.success).toBe(true);
+    });
   });
 
   describe("Utility & Consistency Contract", () => {

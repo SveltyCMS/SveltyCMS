@@ -61,6 +61,7 @@ function isClickable(index: number) {
 				onclick={() => isClickable(i) && onStepClick(i)}
 				disabled={!isClickable(i)}
 				aria-current={i === currentStep ? 'step' : undefined}
+				aria-label={step.label}
 			>
 				<!-- Step Indicator -->
 				<div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all

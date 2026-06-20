@@ -10,7 +10,14 @@ import type { AutomationFlow } from "@src/services/background/automation/types";
 import { AUTOMATION_EVENTS } from "@src/services/background/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
-import { fade, fly, slide } from "svelte/transition";
+import { slide } from "svelte/transition";
+	import Badge from '@components/ui/badge.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import AdminPageShell from '@components/admin-page-shell.svelte';
 
 let flows: AutomationFlow[] = $state([]);
 let isLoading = $state(true);
@@ -170,91 +177,96 @@ function timeAgo(dateStr: string | undefined) {
 onMount(loadFlows);
 </script>
 
-<div class="absolute inset-0 p-6 space-y-8 bg-surface-50/50 dark:bg-surface-950/50 overflow-y-auto">
-	<!-- Header -->
-	<div class="flex items-center justify-between" in:fade>
-		<div>
-			<h1 class="text-3xl font-bold flex items-center gap-3">
-				<iconify-icon icon="mdi:robot-outline" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				Workflow Automations
-			</h1>
-			<p class="text-sm opacity-50 font-medium">Automate actions when content changes &mdash; send emails, call webhooks, update fields</p>
-		</div>
-		<div class="flex items-center gap-2">
-			<a class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" href="/config/automations/new" data-sveltekit-preload-data="hover">
-				<iconify-icon icon="mdi:plus"></iconify-icon>
-				<span>New Automation</span>
-			</a>
-		</div>
-	</div>
+<AdminPageShell
+		title="Workflow Automations"
+		icon="mdi:robot-outline"
+		description="Automate actions when content changes — send emails, call webhooks, update fields"
+		spaceY="8"
+		showBackButton={true}
+		backUrl="/config"
+	>
+	{#snippet actions()}
+		<Button variant="primary" href="/config/automations/new" leadingIcon="mdi:plus" data-sveltekit-preload-data="hover">
+			New Automation
+		</Button>
+	{/snippet}
 
 	<!-- Search & Bulk Actions -->
-	<div
-		class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4"
-		in:fly={{ y: 20, delay: 100 }}
-	>
+	<AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
 		<div class="flex flex-col md:flex-row items-center gap-4">
 			<div class="relative flex-1 w-full">
-				<iconify-icon icon="mdi:magnify" class="absolute inset-s-3 top-1/2 -translate-y-1/2 opacity-40"></iconify-icon>
-				<input type="text" class="input ps-10 w-full" placeholder="Search automations..." bind:value={searchQuery} aria-label="Search automations" />
+				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-40"></iconify-icon>
+				<Input
+					type="search"
+					bind:value={searchQuery}
+					placeholder="Search automations..."
+					aria-label="Search automations"
+					class="ps-10 w-full"
+				/>
 			</div>
 
 			<div class="flex items-center gap-2 w-full md:w-auto">
-				<label
-					class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-surface-200 dark:hover:bg-surface-700 rounded transition-colors mr-auto"
-				>
-					<input type="checkbox" class="checkbox" checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} aria-label="Select all automations" />
-					<span class="text-xs font-medium uppercase opacity-60">Select All</span>
-				</label>
+				<div class="flex items-center gap-2 px-3 py-2 mr-auto">
+					<Checkbox
+						checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+						onchange={toggleSelectAll}
+						label="Select All"
+						size="sm"
+					/>
+				</div>
 
 				{#if selectedIds.length > 0}
 					<div class="flex items-center gap-1" transition:slide={{ axis: 'x' }}>
 						<span class="text-xs font-bold me-2">{selectedIds.length} Selected</span>
-						<button class="btn btn-sm preset-tonal-surface" onclick={() => bulkToggle(true)} title="Activate Selected" aria-label="Activate selected">
+						<Button variant="surface" onclick={() => bulkToggle(true)} title="Activate Selected" aria-label="Activate selected" size="sm">
 							<iconify-icon icon="mdi:play" class="text-success-600"></iconify-icon>
-						</button>
-						<button class="btn btn-sm preset-tonal-surface" onclick={() => bulkToggle(false)} title="Pause Selected" aria-label="Pause selected">
+						</Button>
+						<Button variant="surface" onclick={() => bulkToggle(false)} title="Pause Selected" aria-label="Pause selected" size="sm">
 							<iconify-icon icon="mdi:pause" class="text-warning-600"></iconify-icon>
-						</button>
-						<button class="btn btn-sm preset-tonal-error" onclick={bulkDelete} title="Delete Selected" aria-label="Delete selected">
+						</Button>
+						<Button variant="error" onclick={bulkDelete} title="Delete Selected" aria-label="Delete selected" size="sm">
 							<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-						</button>
+						</Button>
 					</div>
 				{/if}
 			</div>
 		</div>
-	</div>
+	</AdminCard>
 
 	{#if isLoading}
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm">
-			<div class="flex flex-col items-center justify-center py-20 grayscale opacity-50">
-				<iconify-icon icon="mdi:robot-outline" class="text-6xl animate-pulse"></iconify-icon>
-				<p class="mt-4">Loading automations...</p>
+		<AdminCard class="border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+			<div class="flex flex-col items-center justify-center gap-4 py-20 grayscale opacity-50">
+				<Loader variant="circle" width="size-16" height="size-16" ariaLabel="Loading automations" />
+				<p>Loading automations...</p>
 			</div>
-		</div>
+		</AdminCard>
 	{:else if flows.length === 0}
-		<div class="card p-12 text-center border-2 border-dashed border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm" in:fade>
+		<AdminCard class="border-2 border-dashed border-surface-300 bg-white p-12 text-center shadow-sm backdrop-blur-md dark:border-surface-700 dark:bg-surface-900/50">
 			<iconify-icon icon="mdi:robot-off-outline" width="64" height="64" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
 			<p class="mb-6 text-sm opacity-40">Example: Send an email when a new article is published.</p>
-			<a class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500" href="/config/automations/new" data-sveltekit-preload-data="hover">
+			<Button variant="primary" href="/config/automations/new" data-sveltekit-preload-data="hover">
 				<iconify-icon icon="mdi:plus"></iconify-icon>
 				Get Started
-			</a>
-		</div>
+			</Button>
+		</AdminCard>
 	{:else}
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/50 backdrop-blur-md shadow-sm space-y-4" in:fade>
+		<AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
 			<div class="grid gap-4">
 				{#each filteredFlows as flow (flow.id)}
-					<div
-						class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 hover:border-tertiary-500 dark:border-primary-600 transition-all duration-200 rounded flex items-center gap-4"
-						class:opacity-50={!flow.active}
-						transition:slide
+					<div class:opacity-50={!flow.active} transition:slide>
+					<AdminCard
+						class="flex items-center gap-4 border border-surface-200 bg-surface-100 p-4 transition-all duration-200 hover:border-tertiary-500 dark:border-primary-600 dark:bg-surface-800"
 					>
 						<!-- Checkbox -->
 						<div class="shrink-0">
-							<input type="checkbox" class="checkbox" checked={selectedIds.includes(flow.id)} onchange={() => toggleSelect(flow.id)} aria-label="Select automation" />
+							<Checkbox
+								checked={selectedIds.includes(flow.id)}
+								onchange={() => toggleSelect(flow.id)}
+								label={`Select ${flow.name}`}
+								size="sm"
+							/>
 						</div>
 
 						<div class="flex flex-col md:flex-row items-start md:items-center gap-4 flex-1 min-w-0">
@@ -277,16 +289,16 @@ onMount(loadFlows);
 
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center gap-2 mb-0.5">
-										<a class="font-bold text-lg truncate hover:text-tertiary-600 dark:text-primary-600 transition-colors text-left" href={`/config/automations/${flow.id}`} data-sveltekit-preload-data="hover">
+										<a class="font-bold text-lg truncate hover:text-tertiary-600 dark:text-primary-600 transition-colors text-start" href={`/config/automations/${flow.id}`} data-sveltekit-preload-data="hover">
 											{flow.name}
 										</a>
 										{#if flow.active}
-											<span class="badge preset-filled-success-500 text-[10px] uppercase">Active</span>
+											<Badge variant="success" size="sm" class="uppercase">Active</Badge>
 										{:else}
-											<span class="badge preset-tonal-surface text-[10px] uppercase">Paused</span>
+											<Badge preset="tonal" color="surface" size="sm" class="uppercase">Paused</Badge>
 										{/if}
 										{#if (flow.failureCount ?? 0) > 0}
-											<span class="badge preset-filled-error-500 text-[10px]">{flow.failureCount} errors</span>
+											<Badge variant="error" size="sm">{flow.failureCount} errors</Badge>
 										{/if}
 									</div>
 
@@ -296,12 +308,12 @@ onMount(loadFlows);
 
 									<!-- Trigger & Operations Summary -->
 									<div class="flex flex-wrap items-center gap-2 text-xs">
-										<span class="badge preset-tonal-primary">
+										<Badge preset="tonal" color="primary">
 											<iconify-icon icon={getTriggerIcon(flow)} class="text-sm"></iconify-icon>
 											{getTriggerLabel(flow)}
-										</span>
+										</Badge>
 										<iconify-icon icon="mdi:arrow-right" class="text-sm opacity-40"></iconify-icon>
-										<span class="badge preset-tonal-secondary truncate max-w-75"> {getOperationsSummary(flow)} </span>
+										<Badge preset="tonal" color="secondary" class="truncate max-w-75"> {getOperationsSummary(flow)} </Badge>
 									</div>
 								</div>
 							</div>
@@ -324,38 +336,40 @@ onMount(loadFlows);
 
 								<!-- Action buttons -->
 								<div class="flex items-center gap-1">
-									<button class="btn btn-sm preset-tonal-surface" onclick={() => testFlow(flow)} title="Test Run" aria-label="Test Automation">
+									<Button variant="surface" onclick={() => testFlow(flow)} title="Test Run" aria-label="Test Automation" size="sm">
 										<iconify-icon icon="mdi:play-outline"></iconify-icon>
-									</button>
-									<button
-										class="btn btn-sm preset-tonal-surface"
+									</Button>
+									<Button variant="surface"
 										onclick={() => toggleFlow(flow)}
 										title={flow.active ? 'Pause' : 'Activate'}
 										aria-label={flow.active ? 'Pause automation' : 'Activate automation'}
-									>
+									 size="sm">
 										<iconify-icon icon={flow.active ? 'mdi:pause' : 'mdi:play'}></iconify-icon>
-									</button>
-									<a class="btn btn-sm preset-tonal-surface flex items-center justify-center" href={`/config/automations/${flow.id}`} title="Edit" aria-label="Edit Automation" data-sveltekit-preload-data="hover">
+									</Button>
+									<Button variant="secondary" size="sm" href={`/config/automations/${flow.id}`} title="Edit" aria-label="Edit Automation" data-sveltekit-preload-data="hover" class="p-0! min-w-0">
 										<iconify-icon icon="mdi:pencil-outline"></iconify-icon>
-									</a>
-									<a
-										class="btn btn-sm preset-tonal-surface flex items-center justify-center"
+									</Button>
+									<Button
+										variant="secondary"
+										size="sm"
 										href={`/config/automations/${flow.id}?duplicate=true`}
 										title="Duplicate"
 										aria-label="Duplicate Automation"
 										data-sveltekit-preload-data="hover"
+										class="p-0! min-w-0"
 									>
 										<iconify-icon icon="mdi:content-copy"></iconify-icon>
-									</a>
-									<button class="btn btn-sm preset-tonal-error" onclick={() => deleteFlow(flow)} title="Delete" aria-label="Delete Automation">
+									</Button>
+									<Button variant="error" onclick={() => deleteFlow(flow)} title="Delete" aria-label="Delete Automation" size="sm">
 										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-									</button>
+									</Button>
 								</div>
 							</div>
 						</div>
+					</AdminCard>
 					</div>
 				{/each}
 			</div>
-		</div>
+		</AdminCard>
 	{/if}
-</div>
+</AdminPageShell>

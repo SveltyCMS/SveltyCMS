@@ -282,7 +282,7 @@ $effect(() => {
 				isOpen && "rounded-b-none",
 				error && "border-error-500 ring-error-500/20 focus:border-error-500 focus:ring-error-500/20",
 				disabled && "opacity-50 cursor-not-allowed",
-				clearable && value !== undefined && !disabled ? "pr-20" : "pr-10"
+				clearable && value !== undefined && !disabled ? "pe-20" : "pe-10"
 			)}
 			onfocus={() => (isOpen = true)}
 			onkeydown={handleKeydown}
@@ -298,7 +298,7 @@ $effect(() => {
 		{#if clearable && value !== undefined && !disabled}
 			<button
 				type="button"
-				class="absolute end-9 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
+				class="absolute inset-e-9 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
 				onclick={handleClear}
 				aria-label="Clear selection"
 			>
@@ -309,7 +309,7 @@ $effect(() => {
 		<!-- Chevron / loading -->
 		<button
 			type="button"
-			class="absolute end-2 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
+			class="absolute inset-e-2 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
 			onclick={toggleDropdown}
 			{disabled}
 			aria-label={isOpen ? "Close selection" : "Open selection"}

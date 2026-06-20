@@ -94,13 +94,18 @@ export function getRoleBitset(role: Role): Uint32Array {
 }
 
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
-export function hasPermissionWithRoles(user: User, permissionId: string, roles: Role[]): boolean {
+export function hasPermissionWithRoles(
+  user: User,
+  permissionId: string,
+  roles: Role[] = [],
+): boolean {
   // ADMIN FAST-PATH: If the user object is already marked as admin, grant immediately.
   if (user.isAdmin) {
     return true;
   }
 
-  let userRole = roles.find((role) => role._id === user.role);
+  const safeRoles = roles || [];
+  let userRole = safeRoles.find((role) => role._id === user.role);
 
   // Fallback: user.role may reference a default role name ('admin', 'developer', 'editor')
   // but tenant-scoped roles have UUID IDs. Match by name instead.
@@ -109,10 +114,11 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
       admin: "Administrator",
       developer: "Developer",
       editor: "Editor",
+      author: "Author",
     };
-    const roleName = DEFAULT_ROLE_NAMES[user.role];
+    const roleName = DEFAULT_ROLE_NAMES[(user.role || "").toLowerCase()];
     if (roleName) {
-      userRole = roles.find((role) => role.name === roleName);
+      userRole = safeRoles.find((role) => role.name === roleName);
     }
   }
 
@@ -120,7 +126,7 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
     logger.warn("Role not found for user", {
       email: user.email,
       userRoleId: user.role,
-      rolesAvailable: roles.map((r) => r._id),
+      rolesAvailable: safeRoles.map((r) => r._id),
     });
     return false;
   }
@@ -212,7 +218,8 @@ export function hasPermissionByAction(
     }
   }
 
-  const userRole = roles.find((role) => role._id === user.role);
+  const safeRoles = roles || [];
+  const userRole = safeRoles.find((role) => role._id === user.role);
   if (!userRole) {
     return false;
   }
@@ -250,14 +257,16 @@ export function hasPermissionByAction(
 }
 
 // Get permissions for a specific role (with roles parameter)
-export function getRolePermissionsWithRoles(roleId: string, roles: Role[]): string[] {
-  const role = roles.find((r) => r._id === roleId);
+export function getRolePermissionsWithRoles(roleId: string, roles: Role[] = []): string[] {
+  const safeRoles = roles || [];
+  const role = safeRoles.find((r) => r._id === roleId);
   return role?.permissions || [];
 }
 
 // Check if a role is admin (with roles parameter)
-export function isAdminRoleWithRoles(roleId: string, roles: Role[]): boolean {
-  const role = roles.find((r) => r._id === roleId);
+export function isAdminRoleWithRoles(roleId: string, roles: Role[] = []): boolean {
+  const safeRoles = roles || [];
+  const role = safeRoles.find((r) => r._id === roleId);
   return role?.isAdmin === true;
 }
 
@@ -545,15 +554,20 @@ export const permissionConfigs: Record<
 export const permissions = getAllPermissions();
 
 // Convenience functions for common operations
-export function checkPermissions(user: User, permissionIds: string[], roles: Role[]): boolean {
-  return permissionIds.every((permissionId) => hasPermissionWithRoles(user, permissionId, roles));
+export function checkPermissions(user: User, permissionIds: string[], roles: Role[] = []): boolean {
+  const safeRoles = roles || [];
+  return permissionIds.every((permissionId) =>
+    hasPermissionWithRoles(user, permissionId, safeRoles),
+  );
 }
 
-export function getUserRole(user: User, roles: Role[]): Role | undefined {
-  return roles.find((role) => role._id === user.role);
+export function getUserRole(user: User, roles: Role[] = []): Role | undefined {
+  const safeRoles = roles || [];
+  return safeRoles.find((role) => role._id === user.role);
 }
 
-export function getUserRoles(user: User, roles: Role[]): Role[] {
-  const userRole = getUserRole(user, roles);
+export function getUserRoles(user: User, roles: Role[] = []): Role[] {
+  const safeRoles = roles || [];
+  const userRole = getUserRole(user, safeRoles);
   return userRole ? [userRole] : [];
 }

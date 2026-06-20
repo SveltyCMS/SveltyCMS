@@ -17,6 +17,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	// ParaglideJS
 	import {
@@ -265,9 +266,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 					<span class="text-xs uppercase font-bold opacity-60">Invitation Link</span>
 					<div class="flex gap-2 mt-1">
 						<input type="text" readonly value={invitationLink} class="input flex-1" />
-						<button type="button" class="btn variant-filled-primary shrink-0" onclick={() => copyToClipboard(invitationLink, 'Link')} aria-label="Copy invitation link">
+						<Button variant="primary" type="button" onclick={() => copyToClipboard(invitationLink, 'Link')} aria-label="Copy invitation link" class="shrink-0">
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
-						</button>
+						</Button>
 					</div>
 				</label>
 
@@ -275,15 +276,15 @@ It handles token creation, updates, and deletion with proper validation and erro
 					<span class="text-xs uppercase font-bold opacity-60">Raw Token</span>
 					<div class="flex gap-2 mt-1">
 						<input type="text" readonly value={createdToken} class="input flex-1" />
-						<button type="button" class="btn variant-filled-secondary shrink-0" onclick={() => copyToClipboard(createdToken, 'Token')} aria-label="Copy raw token">
+						<Button variant="outline" type="button" onclick={() => copyToClipboard(createdToken, 'Token')} aria-label="Copy raw token" class="shrink-0">
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
-						</button>
+						</Button>
 					</div>
 				</label>
 			</div>
 
 			<div class="flex justify-end pt-4">
-				<button type="button" class="btn variant-filled-surface px-8" onclick={() => close?.({ success: true })}>Close</button>
+				<Button variant="outline" type="button" onclick={() => close?.({ success: true })} class="px-8">Close</Button>
 			</div>
 		</div>
 	{:else}
@@ -312,7 +313,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 					<div class="flex flex-wrap gap-2">
 						{#if roles && roles.length > 0}
 							{#each roles as r (r._id)}
-								<button>
+								<Button variant="outline">
 									type="button"
 									class="chip {tokenForm.data.role === r._id
 										? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
@@ -323,7 +324,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 										<span><iconify-icon icon="fa:check" width={16}></iconify-icon></span>
 									{/if}
 									<span class="capitalize">{r.name}</span>
-								</button>
+								</Button>
 							{/each}
 						{:else}
 							<div class="text-sm text-gray-500 italic">No roles available.</div>
@@ -353,21 +354,21 @@ It handles token creation, updates, and deletion with proper validation and erro
 			<footer class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-6 mt-2">
 				<div class="flex items-center gap-4">
 					<!-- Cancel -->
-					<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()}>{button_cancel()}</button>
+					<Button variant="outline" type="button" onclick={() => modalState.close()}>{button_cancel()}</Button>
 
 					<!-- Delete - Only show for existing tokens -->
 					{#if tokenForm.data.token}
-						<button type="button" onclick={deleteToken} class="btn variant-filled-error">
+						<Button variant="error" type="button" onclick={deleteToken}>
 							<iconify-icon icon="icomoon-free:bin" width={20}></iconify-icon>
 							<span class="hidden sm:block ms-2">{button_delete()}</span>
-						</button>
+						</Button>
 					{/if}
 				</div>
 
 				<!-- Save -->
-				<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 px-10">
+				<Button variant="tertiary" type="submit" form="token-form" class="dark: px-10">
 					{tokenForm.submitting ? '...' : button_save()}
-				</button>
+				</Button>
 			</footer>
 		</form>
 	{/if}

@@ -22,6 +22,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
@@ -116,15 +117,14 @@
 		{/if}
 
 		{#if safeValue}
-			<button 
-				type="button" 
-				class="btn-icon btn-icon-sm hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100"
+			<Button variant="ghost" 
+				type="button"
 				onclick={handleClear}
 				aria-label="Clear email"
 				title="Clear"
-			>
+			 class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100">
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 

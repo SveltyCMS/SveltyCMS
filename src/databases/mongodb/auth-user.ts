@@ -119,6 +119,7 @@ export class UserAdapter {
       // safeQuery used for validation side-effects as per documentation requirement
       safeQuery({}, userData.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
+        includeDeleted: true,
       });
 
       const userId = generateId();
@@ -157,6 +158,7 @@ export class UserAdapter {
       const filter = safeQuery({ _id: userId } as any, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
         bypassSafeQuery: options.bypassSafeQuery,
+        includeDeleted: true,
       });
 
       const user = await this.UserModel.findOneAndUpdate(filter, normalizedData, {
@@ -190,6 +192,7 @@ export class UserAdapter {
       const filter = safeQuery({}, dbOptions.tenantId as string, {
         bypassTenantCheck: dbOptions.bypassTenantCheck,
         bypassSafeQuery: dbOptions.bypassSafeQuery,
+        includeDeleted: true,
       });
 
       let query = this.UserModel.find(filter).lean();
@@ -233,6 +236,7 @@ export class UserAdapter {
       const safeFilter = safeQuery(filter, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
         bypassSafeQuery: options.bypassSafeQuery,
+        includeDeleted: true,
       });
 
       const count = await this.UserModel.countDocuments(safeFilter);
@@ -252,7 +256,9 @@ export class UserAdapter {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
-      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string);
+      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string, {
+        includeDeleted: true,
+      });
 
       const result = await this.UserModel.updateMany(filter, {
         blocked: true,
@@ -274,7 +280,9 @@ export class UserAdapter {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
-      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string);
+      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string, {
+        includeDeleted: true,
+      });
 
       const result = await this.UserModel.updateMany(filter, {
         blocked: false,
@@ -299,6 +307,7 @@ export class UserAdapter {
       const filter = safeQuery({ _id: userId } as any, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
         bypassSafeQuery: options.bypassSafeQuery,
+        includeDeleted: true,
       });
 
       const result = await this.UserModel.findOneAndDelete(filter);
@@ -325,7 +334,9 @@ export class UserAdapter {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     try {
-      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string);
+      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string, {
+        includeDeleted: true,
+      });
       const result = await this.UserModel.deleteMany(filter);
       return { success: true, data: { deletedCount: result.deletedCount } };
     } catch (err) {
@@ -346,6 +357,7 @@ export class UserAdapter {
       const filter = safeQuery({ _id: userId } as any, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
         bypassSafeQuery: options.bypassSafeQuery,
+        includeDeleted: true,
       });
 
       const user = await this.UserModel.findOne(filter).lean();
@@ -371,6 +383,7 @@ export class UserAdapter {
         {
           bypassTenantCheck: options.bypassTenantCheck,
           bypassSafeQuery: options.bypassSafeQuery,
+          includeDeleted: true,
         },
       );
       const user = await this.UserModel.findOne(filter).lean();

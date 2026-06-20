@@ -11,6 +11,19 @@ export const widgetMeta = {
 	description: "Monitor SCIM identity synchronization status",
 	defaultSize: { w: 1, h: 2 },
 };
+
+	let licenseStatus = $state<{ active?: boolean; hasLicense?: boolean; daysRemaining?: number | null } | null>(null);
+
+	$effect(() => {
+		fetch('/api/system/license-status?type=dashboard&id=scim-status')
+			.then((res) => res.json())
+			.then((data) => {
+				licenseStatus = data;
+			})
+			.catch(() => {
+				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
+			});
+	});
 </script>
 
 <script lang="ts">
@@ -60,6 +73,24 @@ export const widgetMeta = {
 	}
 </script>
 
+{#if licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense}
+	<BaseWidget
+		{label}
+		{theme}
+		{icon}
+		{widgetId}
+		{size}
+		{onSizeChange}
+		onCloseRequest={onRemove}
+	>
+		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-50 dark:bg-surface-800/50 rounded-lg">
+			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
+			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
+			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
+			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">Upgrade License &rarr;</a>
+		</div>
+	</BaseWidget>
+{:else}
 <BaseWidget
 	{label}
 	{theme}
@@ -100,7 +131,7 @@ export const widgetMeta = {
 							</div>
 							<span class="font-bold tabular-nums text-sm capitalize {scim.status === 'healthy' ? 'text-emerald-600 dark:text-emerald-400' : scim.status === 'degraded' ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}">{scim.status}</span>
 						</div>
-						<div class="flex items-center gap-2 text-right">
+						<div class="flex items-center gap-2 text-end">
 							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{scim.activeUsers} Active Users</span>
 							{#if scim.syncedToday > 0}
 								<span class="text-gray-400 dark:text-gray-500">| +{scim.syncedToday} Today</span>
@@ -191,6 +222,7 @@ export const widgetMeta = {
 		{/if}
 	{/snippet}
 </BaseWidget>
+{/if}
 
 <style>
 	path {

@@ -67,13 +67,11 @@ describe("Events API Security - Tenant Isolation", () => {
       // Simulate events from different tenants
       const myEvent = {
         event: "entry:create",
-        tenantId: myTenant,
-        data: { name: "My Tenant" },
+        data: { name: "My Tenant", tenantId: myTenant },
       };
       const otherEvent = {
         event: "entry:create",
-        tenantId: otherTenant,
-        data: { name: "Other Tenant" },
+        data: { name: "Other Tenant", tenantId: otherTenant },
       };
 
       // Call the captured listener

@@ -27,6 +27,8 @@ It includes search, filter toggles, column visibility, and density controls, opt
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
 	// Stores
 
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -56,14 +58,6 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		densityOptions = $bindable(['compact', 'normal', 'comfortable']),
 		showDeleted = $bindable(false)
 	} = $props();
-
-	let searchInput = $state<HTMLInputElement>();
-
-	$effect(() => {
-		if (searchShow && searchInput) {
-			searchInput.focus();
-		}
-	});
 
 	// Storage key for user settings
 	const USER_SETTINGS_KEY = 'userTableSettings';
@@ -140,89 +134,84 @@ It includes search, filter toggles, column visibility, and density controls, opt
 <!-- Expanding Search -->
 {#if searchShow}
 	<div class="input-group input-group-divider grid grid-cols-[1fr_auto] h-10 w-full max-w-xs sm:max-w-sm transition-all duration-300 z-50">
-		<input
-			bind:this={searchInput}
-			type="text"
-			placeholder={table_search_placeholder()}
-			aria-label={table_search_aria()}
+		<FloatingInput
+			autofocus={searchShow}
 			bind:value={globalSearchValue}
+			label={table_search_placeholder()}
+			icon="material-symbols:search-rounded"
+			aria-label={table_search_aria()}
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
-			class="input w-full h-full outline-none border-none bg-transparent px-4 transition-all duration-500 ease-in-out focus:border-tertiary-500 dark:text-surface-50 dark:bg-surface-800 dark:focus:border-tertiary-500 dark:border-primary-500"
+			inputClass="h-full border-none bg-transparent dark:text-surface-50 dark:bg-surface-800"
 		/>
-		<button
+		<Button variant="surface"
 			onclick={() => {
 				globalSearchValue = '';
 				searchShow = false;
 			}}
-			onkeydown={(event) => {
+			onkeydown={(event: KeyboardEvent) => {
 				if (event.key === 'Enter' || event.key === ' ') {
 					globalSearchValue = '';
 					searchShow = false;
 				}
 			}}
 			aria-label={table_clear_search()}
-			class="preset-filled-surface-500 w-10 flex items-center justify-center"
-		>
+		 class="w-10 flex items-center justify-center">
 			<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
-		</button>
+		</Button>
 	</div>
 {:else}
 	<SystemTooltip title={table_search_toggle()}>
-		<button
+		<Button variant="outline"
 			type="button"
 			onclick={() => {
 				searchShow = !searchShow;
 				if (searchShow) closeOpenStates('search');
 			}}
 			aria-label={table_search_toggle()}
-			class="btn preset-outlined-surface-500 rounded-full"
-		>
+		 class="rounded-full">
 			<iconify-icon icon="material-symbols:search-rounded" width={24}></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 
 	<!-- Filter -->
 	<SystemTooltip title={table_filter_toggle()}>
-		<button
+		<Button variant="outline"
 			type="button"
 			onclick={() => {
 				filterShow = !filterShow;
 				if (filterShow) closeOpenStates('filter');
 			}}
 			aria-label={table_filter_toggle()}
-			class="btn preset-outlined-surface-500 rounded-full"
-		>
+		 class="rounded-full">
 			<iconify-icon icon="carbon:filter-edit" width={24}></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 
 	<!-- Column Order & Visibility -->
 	<SystemTooltip title={table_column_toggle()}>
-		<button
+		<Button variant="outline"
 			type="button"
 			onclick={() => {
 				columnShow = !columnShow;
 				if (columnShow) closeOpenStates('column');
 			}}
 			aria-label={table_column_toggle()}
-			class="btn preset-outlined-surface-500 rounded-full"
-		>
+		 class="rounded-full">
 			<iconify-icon icon="fluent:column-triple-edit-24-regular" width={24}></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 
 	<!-- Spacing/Density -->
 	<SystemTooltip title={table_density_label({ density: getDensityDisplayName() })}>
-		<button
+		<Button variant="outline"
 			type="button"
 			onclick={() => {
 				cycleDensity();
 				closeOpenStates('density');
 			}}
 			aria-label={table_density_toggle()}
-			class="btn preset-outlined-surface-500 rounded-full"
-		>
+		 class="rounded-full">
 			<iconify-icon icon={getDensityIcon()} width={24}></iconify-icon>
-		</button>
+		</Button>
 	</SystemTooltip>
 {/if}

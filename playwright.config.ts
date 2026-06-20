@@ -42,7 +42,13 @@ export default defineConfig({
      * For example in `await expect(locator).toBeVisible();`
      */
     timeout: 10 * 1000,
+    toHaveScreenshot: {
+      animations: "disabled",
+      maxDiffPixelRatio: 0.02,
+      threshold: 0.25,
+    },
   },
+  snapshotPathTemplate: "{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}",
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -69,6 +75,8 @@ export default defineConfig({
     /* Tag Playwright-originated API calls without bypassing normal browser navigation. */
     extraHTTPHeaders: {
       "x-test-mode": "true",
+      "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
+      "x-test-secret": TEST_API_SECRET || "",
     },
 
     launchOptions: {
@@ -92,13 +100,15 @@ export default defineConfig({
   projects: [
     {
       name: "wizard",
-      testMatch: /setup-wizard.*\.spec\.ts/,
+      // Use glob (not RegExp) for reliable matching across platforms/CI/local.
+      // Matches the reorganized location under routes/.
+      testMatch: "routes/setup/setup-wizard.spec.ts",
       // Force sequential to avoid race conditions during database provisioning
       workers: 1,
     },
     {
       name: "auth-setup",
-      testMatch: [/auth\.setup\.ts/, /login\.spec\.ts/],
+      testMatch: [/auth\.setup\.ts/, /routes\/login\/login\.spec\.ts/],
       // No dependency on "wizard": in CI the wizard runs once in its own job.
       // In local dev, run `playwright test --project=wizard` first manually if needed.
       // Force sequential to avoid race conditions during auth bootstrapping
@@ -106,68 +116,140 @@ export default defineConfig({
     },
     {
       name: "signup",
-      testMatch: [/account-smoke\.spec\.ts/],
+      testMatch: [/routes\/user\/account-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "content",
-      testMatch: [/content-smoke\.spec\.ts/],
+      testMatch: [/routes\/collection-builder\/content-smoke\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "system",
-      testMatch: [/system-smoke\.spec\.ts/],
+      testMatch: [
+        /routes\/system\/settings\.spec\.ts/,
+        /routes\/config\/access-management\.spec\.ts/,
+        /routes\/config\/webhooks\.spec\.ts/,
+        /routes\/config\/automations\.spec\.ts/,
+        /routes\/config\/data-management\.spec\.ts/,
+        /routes\/config\/operations\.spec\.ts/,
+        /routes\/admin\/tenants\.spec\.ts/,
+      ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "a11y",
-      testMatch: /accessibility.*\.spec\.ts/,
+      testMatch: /routes\/login\/accessibility\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
+      name: "branding",
+      testMatch: /routes\/login\/branding\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        headless: true,
+        viewport: { width: 1280, height: 720 },
+      },
+      dependencies: ["auth-setup"],
+      workers: 1,
+    },
+    {
+      name: "visual-regression",
+      testMatch: /routes\/admin-theme\/visual-regression\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        headless: true,
+        viewport: { width: 1280, height: 720 },
+      },
+      dependencies: ["auth-setup"],
+      workers: 1,
+    },
+    {
       name: "rbac",
-      testMatch: /role-based-access.*\.spec\.ts/,
+      testMatch: /routes\/system\/rbac\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "language",
-      testMatch: /language.*\.spec\.ts/,
+      testMatch: /routes\/system\/language\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "users",
-      testMatch: [/(\/|^)user\.spec\.ts$/, /(\/|^)user-crud\.spec\.ts$/],
+      // Globs instead of RegExp to avoid "arguments are regular expressions" collection errors.
+      testMatch: ["**/user/profile.spec.ts", "**/user/management.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "builder",
+      // Globs for reliability.
       testMatch: [
-        /collection-builder\.spec\.ts/,
-        /collection\.spec\.ts/,
-        /master-behavioral-journey\.spec\.ts/,
+        "**/collection-builder/builder.spec.ts",
+        "**/collection-builder/collection.spec.ts",
+        "**/collection-builder/journey.spec.ts",
       ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "permissions",
-      testMatch: /permission-change.*\.spec\.ts/,
+      testMatch: /routes\/system\/permissions\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "firstuser",
-      testMatch: [/(\/|^)signupfirstuser\.spec\.ts$/, /(\/|^)oauth-signup-firstuser\.spec\.ts$/],
+      // Globs (safer than RegExp for CLI collection; avoids $/* escaping warnings in errors).
+      testMatch: ["**/login/signup.spec.ts", "**/login/oauth.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       // No dependency on auth-setup — these hit login/signup pages directly
       workers: 1,
+    },
+    {
+      name: "config-routes",
+      testMatch: [
+        "**/routes/config/access-management.spec.ts",
+        "**/routes/config/webhooks.spec.ts",
+        "**/routes/config/automations.spec.ts",
+        "**/routes/config/data-management.spec.ts",
+        "**/routes/config/operations.spec.ts",
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "admin",
+      testMatch: "**/routes/admin/tenants.spec.ts",
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "dashboard",
+      testMatch: "**/routes/dashboard/dashboard.spec.ts",
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "appearance",
+      testMatch: ["**/routes/config/appearance.spec.ts", "**/routes/config/design-system.spec.ts"],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "media",
+      testMatch: [
+        "**/routes/mediagallery/mediagallery.spec.ts",
+        "**/routes/mediagallery/image-editor.spec.ts",
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
     },
   ],
 

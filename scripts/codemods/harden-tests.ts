@@ -1,13 +1,14 @@
-import { readFileSync, writeFileSync } from "fs";
-import { globSync } from "glob";
+import { Glob } from "bun";
 
-const files = globSync("tests/{benchmarks,integration}/**/*.test.ts");
+const glob = new Glob("tests/{benchmarks,integration}/**/*.test.ts");
+const files = Array.from(glob.scanSync());
 console.log(`🔍 Found ${files.length} test files for hardening...`);
 
 let hardenedCount = 0;
 
 for (const file of files) {
-  let content = readFileSync(file, "utf8");
+  const fileRef = Bun.file(file);
+  let content = await fileRef.text();
   let changed = false;
 
   // Robust catch block processing
@@ -52,7 +53,7 @@ for (const file of files) {
   });
 
   if (changed) {
-    writeFileSync(file, newContent);
+    await Bun.write(file, newContent);
     hardenedCount++;
     console.log(`✅ Hardened: ${file}`);
   }

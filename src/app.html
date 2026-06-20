@@ -2,40 +2,7 @@
 <html lang="en" dir="ltr" class="dark">
   <head>
     <meta charset="utf-8" />
-    <script nonce="%sveltekit.nonce%">
-      "use strict";
-      // Theme initialization (before page render to prevent flicker)
-      const THEME_REGEX = /theme=(\w+)/;
-      (() => {
-        const c = document.cookie.match(THEME_REGEX)?.[1];
-        const h = document.documentElement;
-
-        try {
-          // Determine if dark mode should be active
-          const systemPrefersLight = matchMedia("(prefers-color-scheme: light)").matches;
-          let isDark = true; // Default to dark mode
-
-          if (c === "dark") {
-            isDark = true;
-          } else if (c === "light") {
-            isDark = false;
-          } else if (c === "system" || !c) {
-            // Priority System: if system says light, use light. Otherwise default dark.
-            isDark = !systemPrefersLight;
-          }
-
-          if (isDark) {
-            h.classList.add("dark");
-            h.classList.remove("light");
-          } else {
-            h.classList.add("light");
-            h.classList.remove("dark");
-          }
-        } catch (e) {
-          console.error("[SSR Script] Error:", e);
-        }
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
     <link rel="icon" href="%sveltekit.assets%/SveltyCMS_Logo.svg" />
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
 

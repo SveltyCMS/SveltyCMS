@@ -31,7 +31,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 					<!-- Connecting line to next step -->
 					{#if i < steps.length - 1}
 						<div
-							class="absolute left-1/2 top-4 -z-10 h-0.5 w-full -translate-y-1/2 sm:top-5 {stepCompleted[i]
+							class="absolute inset-s-1/2 top-4 -z-10 h-0.5 w-full -translate-y-1/2 sm:top-5 {stepCompleted[i]
 								? 'bg-tertiary-500 dark:bg-primary-500'
 								: 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
 							aria-hidden="true"
@@ -80,7 +80,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 
 		<!-- Desktop: Vertical step indicator -->
 		<div class="hidden flex-1 flex-col overflow-hidden p-6 lg:flex">
-			<div class="flex-1 overflow-y-auto overflow-x-hidden pr-2 [scrollbar:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+			<div class="flex-1 overflow-y-auto overflow-x-hidden pe-2 [scrollbar:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
 				{#each steps as step, i (i)}
 					<div class="relative last:pb-0">
 						<button
@@ -112,7 +112,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							>
 								<span class="text-[0.65rem]"> {stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'} </span>
 							</div>
-							<div class="text-left">
+							<div class="text-start">
 								<div
 									class="text-base font-medium {i < currentStep
 										? 'text-slate-800 dark:text-slate-200'
@@ -135,9 +135,9 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						</button>
 						{#if i !== steps.length - 1}
 							<div
-								class="absolute left-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
+								class="absolute inset-s-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-0.5 {stepCompleted[i]
 									? 'bg-tertiary-500 dark:bg-primary-500'
-									: 'border-l-2 border-dashed border-slate-200'}"
+									: 'border-s-2 border-dashed border-slate-200'}"
 							></div>
 						{/if}
 					</div>

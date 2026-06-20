@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import PageTitle from '@src/components/page-title.svelte';
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import Dropdown from '@components/ui/dropdown.svelte';
@@ -60,10 +61,10 @@
 
 <div class="fixed -top-16 inset-s-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
-		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-tertiary-500 dark:text-primary-500" />
-		<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-outlined-secondary-500 btn-icon me-2">
+		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" />
+		<Button variant="outline" type="button" onclick={handleCancel} aria-label="Cancel" class="p-0! min-w-0 me-2">
 			<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
-		</button>
+		</Button>
 	</div>
 
 	{#if !selected_widget && !editField}
@@ -71,7 +72,7 @@
 			<button type="button" onclick={handleCancel} aria-label="Cancel" class="mb-5 ml-auto me-10">X</button>
 			<Dropdown options={widget_keys.map(k => ({ label: k, value: k }))} value={selected_widget}>
 				{#snippet trigger()}
-					<button class="btn preset-outlined-surface-500">Select Widget</button>
+					<Button variant="outline">Select Widget</Button>
 				{/snippet}
 			</Dropdown>
 		</div>
@@ -79,8 +80,8 @@
 		<div class="flex-col items-center justify-center overflow-auto">
 			<p class="text-wxl mb-3 text-center">Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span></p>
 			<div class="w-100 mx-2 mb-2 flex justify-between gap-2">
-				<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={handleSave}>Save {selected_widget} Widget</button>
-				<button class="variant-filled-secondary btn dark:preset-outlined-secondary-500" onclick={handleWidgetCancel}>Cancel</button>
+				<Button variant="tertiary" onclick={handleSave} class="dark:">Save {selected_widget} Widget</Button>
+				<Button variant="outline" onclick={handleWidgetCancel} class="dark:">Cancel</Button>
 			</div>
 
 			{#if guiSchema}

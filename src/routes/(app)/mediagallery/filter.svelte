@@ -13,6 +13,10 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
+
 interface Props {
 	globalSearchValue: string;
 	mediaTypes: { value: string; icon: string }[];
@@ -25,37 +29,48 @@ let {
 	mediaTypes,
 }: Props = $props();
 
+const mediaTypeOptions = $derived(
+	mediaTypes.map((type) => ({
+		value: type.value,
+		label: type.value.toUpperCase(),
+	})),
+);
+
 function clearSearch() {
 	globalSearchValue = "";
 }
 </script>
 
-<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">
-	<label for="globalSearch">Search</label>
-	<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
-		<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
+<div class="mb-8 flex w-full flex-col justify-center gap-4 md:hidden">
+	<div class="flex max-w-md items-end gap-2">
+		<Input
+			id="globalSearch"
+			bind:value={globalSearchValue}
+			label="Search"
+			placeholder="Search"
+			class="flex-1"
+		/>
 		{#if globalSearchValue}
-			<button onclick={clearSearch} aria-label="Clear" class="preset-filled-surface-500 w-12">
+			<Button variant="surface" onclick={clearSearch} aria-label="Clear search" class="w-12">
 				<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
-			</button>
+			</Button>
 		{/if}
 	</div>
 
-	<div class="mt-4 flex justify-between">
-		<div class="flex flex-col">
-			<label for="mediaType">Type</label>
-			<select id="mediaType" bind:value={selectedMediaType} class="input">
-				{#each mediaTypes as type (type.value)}
-					<option value={type.value}><span class="uppercase">{type.value}</span></option>
-				{/each}
-			</select>
-		</div>
+	<div class="mt-2 flex justify-between gap-4">
+		<Select
+			bind:value={selectedMediaType}
+			label="Type"
+			options={mediaTypeOptions}
+			placeholder="Type"
+			class="flex-1"
+		/>
 
-		<div class="flex flex-col text-center">
-			<label for="sortButton">Sort</label>
-			<button id="sortButton" class="preset-outlined-surface-500btn" aria-label="Sort">
+		<div class="flex flex-col justify-end text-center">
+			<span class="mb-2 text-sm font-medium">Sort</span>
+			<Button variant="outline" id="sortButton" aria-label="Sort">
 				<iconify-icon icon="flowbite:sort-outline" width={24}></iconify-icon>
-			</button>
+			</Button>
 		</div>
 	</div>
 </div>

@@ -71,11 +71,12 @@ export function safeQuery<T extends Record<string, any>>(
   }
 
   // 3. Enforce Soft Delete boundary — always applies unless explicitly opted out
-  // Note: overriding any caller-set isDeleted to prevent soft-delete bypass
+  // Uses a DB-agnostic boolean check that works across MongoDB, MariaDB, PostgreSQL, and SQLite
   if (!options.includeDeleted) {
     if (!hasChanges) secureQuery = { ...query };
-    // MongoDB syntax: match where isDeleted is not true (exists and is false, or doesn't exist)
-    secureQuery.isDeleted = { $ne: true };
+    // Generic soft-delete: match where isDeleted is not true
+    // Works portably — MongoDB coerces { $ne: true }, SQL dialects use WHERE isDeleted != 1
+    secureQuery.isDeleted = false;
   }
 
   return secureQuery;

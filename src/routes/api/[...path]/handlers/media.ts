@@ -697,7 +697,7 @@ export async function handleMediaShareDownload(
   // Determine storage backend
   const filePath = mediaItem.path;
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
-  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "static/media";
+  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
   const cloudUrl =
     getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 

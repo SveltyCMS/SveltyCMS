@@ -13,6 +13,7 @@ import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { formatBytes } from "@utils/utils";
 import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	filteredFiles?: (MediaBase | MediaImage)[];
@@ -108,9 +109,9 @@ onMount(() => {
 				<div
 					role="button"
 					tabindex="0"
-					class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-surface-900 shadow-sm transition-all duration-200
+					class="group relative flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-200 dark:bg-surface-900
                         hover:z-10 hover:-translate-y-1 hover:shadow-lg focus:ring-4 focus:ring-primary-500 text-start cursor-pointer
-                        {isSelected ? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
+                        {isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
 					style:height="{itemHeight - 32}px"
 					onclick={() => isSelectionMode ? toggleSelection(file) : onOpenFileDetails(file)}
 					onkeydown={(e) => {
@@ -152,13 +153,12 @@ onMount(() => {
 
 						<!-- Action Dock (Hover) -->
 						<div class="absolute end-2 top-2 z-30 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-							<button
-								onclick={(e) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
-								class="btn-icon btn-icon-sm bg-white/90 dark:bg-surface-800/90 shadow-sm"
+							<Button variant="ghost"
+								onclick={(e: MouseEvent) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
 								aria-label="Edit {file.filename}"
-							>
+							 class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 shadow-sm">
 								<iconify-icon icon="mdi:pencil" width={16}></iconify-icon>
-							</button>
+							</Button>
 						</div>
 					</div>
 

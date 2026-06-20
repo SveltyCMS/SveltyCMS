@@ -35,6 +35,7 @@ interface PooledWorker {
 interface Task {
   id: number;
   filePath: string;
+  mtimeMs?: number;
   resolve: (result: { schema?: any; error?: string }) => void;
   reject: (err: Error) => void;
   timer: ReturnType<typeof setTimeout>;
@@ -135,7 +136,11 @@ class ModuleWorkerPool {
     };
 
     worker.worker.on("message", onMessage);
-    worker.worker.postMessage({ id: task.id, filePath: task.filePath });
+    worker.worker.postMessage({
+      id: task.id,
+      filePath: task.filePath,
+      mtimeMs: task.mtimeMs,
+    });
 
     // Timeout guard
     task.timer = setTimeout(() => {
@@ -167,13 +172,14 @@ class ModuleWorkerPool {
    * Load a schema module in a worker thread.
    * Returns { schema } on success or { error } on failure.
    */
-  async load(filePath: string): Promise<{ schema?: any; error?: string }> {
+  async load(filePath: string, mtimeMs?: number): Promise<{ schema?: any; error?: string }> {
     const id = ++this.nextId;
 
     return new Promise((resolve, reject) => {
       const task: Task = {
         id,
         filePath,
+        mtimeMs,
         resolve,
         reject,
         timer: setTimeout(() => {}, TASK_TIMEOUT_MS), // placeholder, replaced in executeTask

@@ -31,6 +31,7 @@ import { tabSet } from "@src/stores/store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
 import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
+	import Button from '@components/ui/button.svelte';
 
 const props = $props();
 
@@ -221,36 +222,34 @@ async function handleSave() {
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key || field.__type || 'Unknown Widget'}</div>
 
-					<button onclick={() => modalWidgetForm(field)} type="button" aria-label={button_edit()} class="preset-ghost-primary-500 btn-icon ml-auto">
+					<Button variant="ghost" onclick={() => modalWidgetForm(field)} type="button" aria-label={button_edit()} class="p-0! min-w-0 ml-auto">
 						<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
-					</button>
+					</Button>
 				</div>
 			{/each}
 		</VerticalList>
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button
+			<Button variant="tertiary"
 				onclick={() => modalSelectWidget()}
-				class="preset-filled-tertiary-500 btn"
 				aria-label={collection_widgetfield_addFields()}
 				data-testid="add-field-button"
 			>
 				{collection_widgetfield_addFields()}
-			</button>
+			</Button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button onclick={() => tabSet.set(0)} type="button" aria-label={button_previous()} class="preset-filled-secondary-500 btn mt-2 justify-end">
+			<Button variant="secondary" onclick={() => tabSet.set(0)} type="button" aria-label={button_previous()} class="mt-2 justify-end">
 				{button_previous()}
-			</button>
-			<button
+			</Button>
+			<Button variant="tertiary"
 				onclick={handleSave}
 				type="button"
 				aria-label={button_save()}
-				class="preset-filled-tertiary-500 btn mt-2 justify-end dark:preset-filled-primary-500 dark:text-black"
-			>
+			 class="mt-2 justify-end dark: dark:text-black">
 				{button_save()}
-			</button>
+			</Button>
 		</div>
 	</div>
 </div>

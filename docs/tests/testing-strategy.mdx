@@ -4,7 +4,7 @@ title: "Testing Strategy: Four-Gate Architecture"
 description: "SveltyCMS testing strategy — Contracts, White-Box unit, Black-Box integration, and E2E with Smart Orchestrator."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-06-06"
+updated: "2026-06-17"
 tags:
   - "testing"
   - "strategy"
@@ -49,7 +49,7 @@ graph TD
 
 All tests use a **single source of truth** for fixtures and contracts:
 
-```text
+```
 tests/harness/
   fixtures.ts    — Fixed tenants, users, roles, tokens (no Math.random()/Date.now())
   contracts.ts   — AdapterContract, AuthContract, PermissionContract, SetupGatingContract
@@ -84,7 +84,7 @@ Every adapter (SQLite, MongoDB, PostgreSQL, MariaDB) MUST pass every assertion. 
 
 **"Test pure logic knowing how it works."**
 
-Files: `tests/unit/**/*.test.ts` | Runner: `bun run test:unit` | Tests: 1,063 (118 files, 0 failures)
+Files: `tests/unit/**/*.test.ts` | Runner: `bun run test:unit` | Tests: 1,122 (123 files, 0 failures)
 
 These tests have full access to internal code structure. They're fast (milliseconds), parallelizable, and catch logic regressions immediately.
 
@@ -106,13 +106,13 @@ Real HTTP requests against a running server. Verifies middleware chain, RBAC enf
 
 **"Test the full user journey in a real browser."**
 
-Files: `tests/e2e/*.spec.ts` | Runner: `npx playwright test` | Scenarios: ~40
+Files: `tests/e2e/*.spec.ts` | Runner: `npx playwright test` | Scenarios: ~95+ (24+ spec files, 12 CI projects)
 
 ---
 
 ## Smart Test Orchestrator
 
-```bash
+```
 bun run test:smart              # reads git diff, runs only needed suites
 bun run test:smart --all        # runs everything
 bun run test:smart --list       # previews without executing

@@ -119,6 +119,9 @@ async function handlePostRoutes(
   entryId: string | undefined,
   subAction: string | undefined,
 ) {
+  if (collectionId === "warm-cache") {
+    return handleCollectionWarmCache(event, cms, tenantId);
+  }
   if (entryId === "bulk")
     return handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
   if (subAction === "increment")
@@ -322,6 +325,40 @@ export async function handleCollectionDelete(
       permanent,
     }),
   );
+}
+
+// ─── Warm Cache Handler ──────────────────────────────────────────────────────
+
+/** POST /api/collections/warm-cache — batch pre-load entry payloads for edit mode. */
+export async function handleCollectionWarmCache(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
+  const body = (await event.request.json()) as {
+    collectionId?: string;
+    entryIds?: string[];
+  };
+
+  const { collectionId, entryIds } = body;
+  if (!collectionId || !Array.isArray(entryIds) || entryIds.length === 0) {
+    throw new AppError("collectionId and entryIds[] are required", 400);
+  }
+  if (entryIds.length > 20) {
+    throw new AppError("warm-cache supports at most 20 entryIds per request", 400);
+  }
+
+  await Promise.all(
+    entryIds.map((id) =>
+      cms.collections.findById(collectionId, id, { tenantId }).catch(() => null),
+    ),
+  );
+
+  return successResponse(event, {
+    warmed: entryIds.length,
+    collectionId,
+    success: true,
+  });
 }
 
 // ─── Bulk Operation Handlers ─────────────────────────────────────────────────

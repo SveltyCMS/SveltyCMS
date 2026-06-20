@@ -91,7 +91,7 @@ Resources without a `tenantId` (or with `tenantId: null`) are shared across all 
 
 Roles can be configured as either **global** or **tenant-specific**:
 
-```typescript
+```
 // Global Role (shared across all tenants)
 interface GlobalRole {
   _id: string;
@@ -116,7 +116,7 @@ interface TenantRole {
 
 **Database Operations:**
 
-```typescript
+```
 // Get all roles (global + tenant-specific)
 await dbAdapter.auth.getAllRoles(tenantId);
 
@@ -131,7 +131,7 @@ await dbAdapter.auth.getAllRoles("tenant-123");
 
 Collections can be configured as **global** or **tenant-specific**:
 
-```typescript
+```
 // Global Collection (accessible to all tenants)
 interface GlobalCollection {
   _id: string;
@@ -157,7 +157,7 @@ interface TenantCollection {
 **Content Entries:**
 All entries within a collection inherit the collection's isolation strategy:
 
-```typescript
+```
 interface CollectionEntry {
   _id: string;
   status?: "published" | "draft" | "archived";
@@ -171,7 +171,7 @@ interface CollectionEntry {
 
 System settings support an explicit `isGlobal` flag:
 
-```typescript
+```
 interface SystemSetting {
   key: string;
   value: unknown;
@@ -200,7 +200,7 @@ The `handleAuthentication` hook (`src/hooks/handleAuthentication.ts`) is the ent
 
 The `DatabaseAdapter` interface supports optional `tenantId` for most operations, enabling flexible resource isolation:
 
-```typescript
+```
 interface IAuthAdapter {
   // Roles
   getAllRoles(tenantId?: string): Promise<Role[]>;
@@ -239,7 +239,7 @@ Data isolation is enforced strictly via the `safeQuery` utility and Database Ada
    - **Protection**: Throws an error if `tenantId` is missing in Multi-Tenant mode (unless explicitly `global`).
    - Prevents accidental "find all" queries from leaking cross-tenant data.
 
-   ```typescript
+   ```
    // Example in MongoDB Adapter
    const secureFilter = safeQuery({ status: "active" }, currentTenantId);
    // Result: { status: 'active', tenantId: 'tenant-123' }
@@ -374,7 +374,7 @@ Use tenant-specific resources when:
 
 Most applications benefit from a hybrid approach:
 
-```typescript
+```
 // Example: E-commerce Platform
 {
   // Global Resources
@@ -398,7 +398,7 @@ When switching from single-tenant to multi-tenant mode:
 
 2. **Automatic `tenantId` Assignment**: All existing resources receive the primary `tenantId`:
 
-   ```typescript
+   ```
    // Collections
    db.collections.updateMany(
      { tenantId: { $exists: false } },
@@ -442,7 +442,7 @@ await dbAdapter.content.nodes.update(collectionPath, {
 
 ### Converting Tenant-Specific to Global
 
-```typescript
+```
 // Remove tenantId to make resource global
 await dbAdapter.crud.update("roles", roleId, {
   tenantId: null, // Explicitly set to null for global access
@@ -451,7 +451,7 @@ await dbAdapter.crud.update("roles", roleId, {
 
 ### Converting Global to Tenant-Specific
 
-```typescript
+```
 // Add tenantId to isolate resource
 await dbAdapter.crud.update("roles", roleId, {
   tenantId: "tenant-123",
@@ -484,7 +484,7 @@ When enabling multi-tenancy:
 
 1. **Indexing**: Create compound indexes on `tenantId` + frequently queried fields
 
-   ```javascript
+   ```
    db.collection.createIndex({ tenantId: 1, createdAt: -1 });
 ````
 
