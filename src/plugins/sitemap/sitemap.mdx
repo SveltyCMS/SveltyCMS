@@ -1,68 +1,23 @@
 ---
 path: "src/plugins/sitemap/sitemap.mdx"
-title: "Sitemap Plugin"
-description: "Dynamic XML sitemap with i18n/hreflang support for multilingual SEO."
-order: 6
-icon: "mdi:sitemap-outline"
+title: "Sitemap Generator Plugin"
+description: "Documentation for the Sitemap Generator plugin for SveltyCMS."
+order: 100
+icon: "mdi:puzzle"
 author: "SveltyCMS Team"
-created: "2026-05-31"
-updated: "2026-05-31"
+created: "2025-10-05"
+updated: "2026-06-20"
 tags:
-  - seo
-  - sitemap
-  - xml
-  - i18n
-  - plugin
+  - "plugin"
+  - "sitemap"
 ---
 
-# Sitemap Plugin
+# Sitemap Generator Plugin
 
-**Status:** ✅ Available
-**Category:** SEO
+Documentation for the **Sitemap Generator** plugin is being prepared.
 
-Dynamic XML sitemap generation with i18n/hreflang support, automatic collection discovery, and configurable change frequencies. Part of the Enterprise SEO Suite.
+For implementation details, see the source code in `src/plugins/sitemap/`.
 
 ---
 
-## Features
-
-- **Dynamic generation** — Automatically includes all published collection entries
-- **i18n support** — Hreflang tags for multilingual content
-- **Configurable** — Per-collection change frequency and priority
-- **Search engine submission** — Auto-pings Google and Bing on content changes
-- **Cached** — Generated once, served fast, invalidated on content change
-
----
-
-## Usage
-
-The sitemap is automatically available at:
-
-```
-GET /sitemap.xml
-```
-
-### Configure Per-Collection
-
-```typescript
-// In your collection config
-{
-  sitemap: {
-    enabled: true,
-    changefreq: 'weekly',
-    priority: 0.8,
-  }
-}
-```
-
-### Multilingual Hreflang
-
-For collections with translations, the sitemap automatically includes:
-
-```xml
-<url>
-  <loc>https://example.com/en/blog/post-1</loc>
-  <xhtml:link rel="alternate" hreflang="de" href="https://example.com/de/blog/post-1"/>
-  <xhtml:link rel="alternate" hreflang="fr" href="https://example.com/fr/blog/post-1"/>
-</url>
-```
+**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)

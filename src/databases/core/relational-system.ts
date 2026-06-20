@@ -85,6 +85,19 @@ export class RelationalSystemModule implements ISystemAdapter {
     return options?.transaction?.db || this.db;
   }
 
+  /**
+   * Helper to hash tokens before storage or comparison.
+   * Website tokens represent API credentials and must NEVER be stored in plaintext.
+   */
+  private async _hashToken(token: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(token);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
   // ============================================================
   // PREFERENCES
   // ============================================================
@@ -922,8 +935,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         const id = utils.generateId();
         const now = new Date();
+        const hashedTokenValue = await this._hashToken(token.token);
         const values = {
           ...token,
+          token: hashedTokenValue,
           _id: id,
           createdAt: now,
           updatedAt: now,
@@ -999,10 +1014,11 @@ export class RelationalSystemModule implements ISystemAdapter {
       token: string,
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
       return this.adapter.wrap(async () => {
+        const hashedToken = await this._hashToken(token);
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
-          .where(eq(this.schema.websiteTokens.token, token))
+          .where(eq(this.schema.websiteTokens.token, hashedToken))
           .limit(1);
         return result
           ? (utils.convertDatesToISO(result, {

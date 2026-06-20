@@ -86,18 +86,16 @@ const DATE_FIELDS = new Set([
 
 const _tableDateCols = new Map<string, string[]>();
 const _tableJsonCols = new Map<string, string[]>();
+const _tableSkipKeys = new Map<string, Set<string>>();
 
 /** Registers a table's known date/JSON columns for zero-overhead conversion. Idempotent. */
 export function registerTableSchema(table: string, columns: string[]): void {
   if (_tableDateCols.has(table)) return;
-  _tableDateCols.set(
-    table,
-    columns.filter((c) => DATE_FIELDS.has(c)),
-  );
-  _tableJsonCols.set(
-    table,
-    columns.filter((c) => JSON_FIELDS.has(c)),
-  );
+  const dateCols = columns.filter((c) => DATE_FIELDS.has(c));
+  const jsonCols = columns.filter((c) => JSON_FIELDS.has(c));
+  _tableDateCols.set(table, dateCols);
+  _tableJsonCols.set(table, jsonCols);
+  _tableSkipKeys.set(table, new Set([...dateCols, ...jsonCols]));
 }
 
 export function getTableDateColumns(table: string): string[] {
@@ -115,7 +113,7 @@ export function getTableJsonColumns(table: string): string[] {
 // provide a ring-buffer pool of reusable arrays. Callers acquire, build, pass
 // to and(...), then implicitly release (array is cleared by next acquire).
 
-const _condPoolSize = 32;
+const _condPoolSize = 128;
 const _condPool: SQL[][] = Array.from({ length: _condPoolSize }, () => []);
 let _condPoolIdx = 0;
 
@@ -205,8 +203,8 @@ export function convertDatesToISO(
 
   // Copy remaining keys (neither date nor JSON) — only if schema registered
   if (dateCols) {
-    // With schema: copy non-date, non-json keys
-    const skipKeys = new Set([...(dateCols || []), ...(jsonCols || [])]);
+    // With schema: copy non-date, non-json keys (cached skipKeys Set — zero per-row allocation)
+    const skipKeys = _tableSkipKeys.get(table!) || new Set([...dateCols, ...(jsonCols || [])]);
     for (const k in row) {
       if (!Object.prototype.hasOwnProperty.call(row, k)) continue;
       if (skipKeys.has(k) || result[k] !== undefined) continue;
@@ -408,3 +406,11 @@ export function buildRawTenantFilter(
   if (dialect === "mysql") return ` AND \`tenantId\` = '${id}'`;
   return ` AND "tenantId" = '${id}'`;
 }
+
+// Pre-register all system table schemas for optimal row conversion.
+// Uses dynamic import to avoid circular dependency with drizzle-sql-helpers.
+import("./drizzle-sql-helpers").then(({ SYSTEM_LITERAL_COLUMNS }) => {
+  for (const [tableName, columns] of Object.entries(SYSTEM_LITERAL_COLUMNS)) {
+    registerTableSchema(tableName, columns as string[]);
+  }
+});

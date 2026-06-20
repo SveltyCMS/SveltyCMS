@@ -194,6 +194,7 @@ if (!building) {
             import("@src/services/system/watchdog"),
             import("@src/services/observability/telemetry-service"),
             import("@src/services/scheduler"),
+            import("@src/services/intelligence/behavioral-learner"),
           ])
             .then(
               ([
@@ -202,11 +203,13 @@ if (!building) {
                 { watchdog },
                 { telemetryService },
                 scheduler,
+                { startBehavioralEngine },
               ]) => {
                 jobQueue.startPolling();
                 automationService.init();
                 watchdog.start();
                 scheduler.startScheduler();
+                startBehavioralEngine();
 
                 // Telemetry check
                 const globalWithTelemetry = globalThis as typeof globalThis & {

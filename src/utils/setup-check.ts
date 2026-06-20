@@ -17,6 +17,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import type { DatabaseResult, Role } from "../databases/db-interface";
 
 /**
  * ⚡️ FAST SHALLOW CHECK
@@ -34,6 +35,24 @@ export enum SetupState {
   MISSING_CONFIG = "MISSING_CONFIG", // config/private.ts not found
   MISSING_ADMIN = "MISSING_ADMIN", // Config exists but DB is empty
   COMPLETE = "COMPLETE", // Everything ready
+}
+
+function isSuccessfulDatabaseResult<T>(
+  result: unknown,
+): result is Extract<DatabaseResult<T>, { success: true }> {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "success" in result &&
+    (result as DatabaseResult<T>).success === true &&
+    "data" in result
+  );
+}
+
+function unwrapAdapterCount(result: unknown): number {
+  if (typeof result === "number") return result;
+  if (isSuccessfulDatabaseResult<number>(result)) return result.data;
+  return 0;
 }
 
 /**
@@ -68,13 +87,13 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     if (typeof dbAdapter.isConnected === "function" && !dbAdapter.isConnected()) return false;
 
     // Check Admin Users & Roles — use getUserCount which is more reliable than getAllUsers
-    const [adminCount, roles] = await Promise.all([
-      dbAdapter.auth.getUserCount({ role: "admin" }, { bypassTenantCheck: true }),
-      dbAdapter.auth.getAllRoles({ bypassTenantCheck: true }),
-    ]);
+    const bypassOpts = { bypassTenantCheck: true } as const;
+    const adminCountResult = await dbAdapter.auth.getUserCount({ role: "admin" }, bypassOpts);
+    const roles: Role[] = await dbAdapter.auth.getAllRoles(bypassOpts);
 
-    const hasAdmin = (adminCount as unknown as number) > 0;
-    const hasRoles = Array.isArray(roles) && roles.length > 0;
+    const adminCount = unwrapAdapterCount(adminCountResult);
+    const hasAdmin = adminCount > 0;
+    const hasRoles = roles.length > 0;
 
     if (!hasAdmin || !hasRoles) {
       logger

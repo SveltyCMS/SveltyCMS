@@ -781,4 +781,52 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     tags: ["security", "cpu"],
     metricCategory: "latency",
   },
+
+  // --- SOAK (Multi-Hour Memory & Resource Stability) ---
+  {
+    path: "tests/benchmarks/longevity-soak.test.ts",
+    label: "Longevity Soak (Memory Stability)",
+    shortLabel: "Soak",
+    level: 4,
+    section: "soak",
+    intensity: "high",
+    estimatedMs: 360_000, // 5 min CI default
+    timeoutMs: 600_000,
+    desc: "Sustained mixed workload with periodic memory sampling — detects slow leaks over time.",
+    strategy: "once",
+    tags: ["memory", "cpu", "network"],
+    metricCategory: "stability",
+  },
+
+  // --- RESILIENCE (Failover & Reconnection) ---
+  {
+    path: "tests/benchmarks/database-failover.test.ts",
+    label: "Database Failover & Reconnection",
+    shortLabel: "Failover",
+    level: 2,
+    section: "resilience",
+    intensity: "medium",
+    estimatedMs: 30_000,
+    timeoutMs: 300_000,
+    desc: "Simulates DB disconnect mid-request — measures circuit breaker activation and reconnection timing.",
+    strategy: "all",
+    tags: ["network", "disk"],
+    metricCategory: "latency",
+  },
+
+  // --- STREAMING (Large Payload Streaming) ---
+  {
+    path: "tests/benchmarks/large-payload-streaming.test.ts",
+    label: "Large Payload Streaming",
+    shortLabel: "Streaming",
+    level: 3,
+    section: "streaming",
+    intensity: "medium",
+    estimatedMs: 60_000,
+    timeoutMs: 600_000,
+    desc: "Upload/download of 5-10MB files — validates streaming efficiency and memory usage.",
+    strategy: "once",
+    tags: ["network", "disk", "memory"],
+    metricCategory: "throughput",
+  },
 ];

@@ -221,6 +221,18 @@ export async function ensureFullInitialization(): Promise<any | null> {
       setGlobal(BOOT_PHASE_KEY, "READY");
       logger.debug(`[Boot] Services Initialized: ${(performance.now() - phase2).toFixed(2)}ms`);
 
+      // Start behavioral learning engine (fire-and-forget, zero-latency)
+      import("@src/services/intelligence/behavioral-learner")
+        .then(({ startBehavioralEngine }) => startBehavioralEngine())
+        .catch(() => {});
+
+      // Initialize semantic search index (fire-and-forget, NPU-accelerated)
+      import("@src/services/intelligence/semantic-index")
+        .then(({ initializeSemanticIndex }) =>
+          initializeSemanticIndex((cfg as any)?.tenantId || "default"),
+        )
+        .catch(() => {});
+
       return { adapter, auth: authInstance };
     } catch (error) {
       logger.error("[Boot] Initialization CRASHED:", error);
@@ -245,6 +257,10 @@ export async function shutdownSystem(): Promise<void> {
   if (adapter && typeof adapter.disconnect === "function") {
     await adapter.disconnect();
   }
+
+  // Flush behavioral learning data before shutdown
+  const { stopBehavioralEngine } = await import("@src/services/intelligence/behavioral-learner");
+  stopBehavioralEngine();
 
   // 🚀 HARDENING: Clear registries and promises
   const { dbPluginRegistry } = await import("./core/plugin-registry");

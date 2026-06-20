@@ -6,9 +6,14 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
+import { isSystemReady } from "@src/stores/system/state.svelte";
 import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
+
+// Cache the first collection URL per language (TTL: 5 minutes in production)
+const _redirectCache = new Map<string, { url: string; ts: number }>();
+const REDIRECT_CACHE_TTL = 5 * 60_000;
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const { language } = params;
@@ -22,8 +27,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   }
 
   try {
-    // Ensurecontent-manageris initialized (required for accurate collection list)
-    await contentSystem.initialize(tenantId);
+    // Check redirect cache first (production only)
+    if (process.env.NODE_ENV === "production") {
+      const cached = _redirectCache.get(language);
+      if (cached && Date.now() - cached.ts < REDIRECT_CACHE_TTL) {
+        throw redirect(302, cached.url);
+      }
+    }
+
+    // Only initialize if system isn't ready yet
+    if (!isSystemReady()) {
+      await contentSystem.initialize(tenantId);
+    }
 
     // Get robust redirect URL for first collection
     // This returns /${language}/${collectionId}, which then canonically redirects
@@ -31,7 +46,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const redirectUrl = await contentSystem.getFirstCollectionRedirectUrl(language, tenantId);
 
     if (redirectUrl) {
-      logger.info(`[Language Redirect] Redirecting to first collection: ${redirectUrl}`);
+      _redirectCache.set(language, { url: redirectUrl, ts: Date.now() });
       throw redirect(302, redirectUrl);
     }
 

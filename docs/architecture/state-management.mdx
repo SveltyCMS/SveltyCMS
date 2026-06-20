@@ -50,11 +50,11 @@ The system state is managed by `SystemStateContainer` (`src/stores/system/state.
 
 Instead of a monolithic boot, the system targets "Minimum Viable Services" based on request intent:
 
-| Phase     | Services                                                  | Result           | Required For |
-| --------- | --------------------------------------------------------- | ---------------- | ------------ |
-| **SETUP** | Database connectivity                                     | State → `SETUP`  | Setup Wizard |
-| **CORE**  | Auth, Security, Critical Settings                         | State → `READY`  | Login screen |
-| **FULL**  | Cache Pre-Warming, Widget Reconciliation, Background Jobs | State → `WARMED` | Dashboard    |
+| Phase     | Services                                                                     | Result           | Required For |
+| --------- | ---------------------------------------------------------------------------- | ---------------- | ------------ |
+| **SETUP** | Database connectivity                                                        | State → `SETUP`  | Setup Wizard |
+| **CORE**  | Auth, Security, Critical Settings                                            | State → `READY`  | Login screen |
+| **FULL**  | Cache Pre-Warming, Widget Reconciliation, Background Jobs, Behavioral Engine | State → `WARMED` | Dashboard    |
 
 > **Thundering Herd Prevention**: Only the first request triggers initialization. Subsequent requests wait on the shared `dbInitPromise` — preventing connection storms.  
 > **Logical vs. Technical**: [Lazy Holders](./database/core-infrastructure.mdx#lazy-holder-architecture) enforce physical code isolation, preventing server-only modules from leaking into client bundles.
@@ -181,3 +181,4 @@ All reactive client-side state uses Svelte 5 runes (`.svelte.ts`):
 - [Database Core](./database/core-infrastructure.mdx)
 - [API Security & Token Hardening](./api-security.mdx)
 - [Login Resilience & Recovery](./security/login-resilience.mdx)
+- [Behavioral Learning Engine](./behavioral-learning.mdx) — Starts/stops with server lifecycle during `FULL` phase

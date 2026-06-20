@@ -672,7 +672,7 @@ export function mapQuery(
     }
   }
 
-  const conditions: SQL[] = [];
+  const conditions = utils.acquireConditionsArray();
   if (query && typeof query === "object") {
     addFilterConds(conditions, table, query, getColumn, getJsonField);
   }

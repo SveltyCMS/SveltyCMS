@@ -81,28 +81,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive})`,
     );
 
-    // 🚀 Fetch virtual folders with 5-min cache (they change rarely)
-    const cacheKey = `mediagallery:virtualFolders:${locals.tenantId || "global"}`;
-    let virtualFoldersData = await cacheService.get<any[]>(
-      cacheKey,
-      locals.tenantId as string | undefined,
+    // 🚀 Fetch virtual folders with SWR (5 min fresh, 30 min stale)
+    const vfCacheKey = `mediagallery:virtualFolders:${locals.tenantId || "global"}`;
+    const virtualFoldersData = await cacheService.getOrSetSWR<any[]>(
+      vfCacheKey,
+      async () => {
+        const result = await dbAdapter.system.virtualFolder.getAll();
+        if (!result.success) throw new Error("Virtual folder fetch failed");
+        return Array.isArray(result.data) ? result.data : [];
+      },
+      300_000, // Fresh: 5 min
+      1_800_000, // Stale: 30 min (serve stale while refreshing)
     );
-    if (!virtualFoldersData) {
-      const allVirtualFoldersResult = await dbAdapter.system.virtualFolder.getAll();
-      if (!allVirtualFoldersResult.success) {
-        logger.error("Failed to fetch virtual folders", allVirtualFoldersResult.error);
-        throw error(500, "Failed to fetch virtual folders");
-      }
-      virtualFoldersData = Array.isArray(allVirtualFoldersResult.data)
-        ? allVirtualFoldersResult.data
-        : [];
-      await cacheService.set(
-        cacheKey,
-        virtualFoldersData,
-        300,
-        locals.tenantId as string | undefined,
-      );
-    }
 
     const serializedVirtualFolders = virtualFoldersData.map((folder) =>
       serializeIds(folder as unknown),

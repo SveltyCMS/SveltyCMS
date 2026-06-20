@@ -47,6 +47,7 @@ It is integrated in:
 | Circuit Breaker Pattern                           | ✅ Implemented | `DatabaseResilience.executeWithRetry()`; states: CLOSED, OPEN, HALF_OPEN          |
 | Automatic Driver Installation & Fallback          | ✅ Implemented | `install-driver/+server.ts`; manual command on failure                            |
 | SQL Migration Strategy                            | ✅ Implemented | `runMigrations(db)` for Drizzle adapters                                          |
+| Per-DB Connection Pool Defaults                   | ✅ Implemented | `config-state.ts` — PG:20, SQLite:1, MariaDB/Mongo:100                            |
 | Detailed error logs download                      | ✅ Implemented | API: `/api/logs/download` (admin-only)                                            |
 
 All features above are production-ready. The "Future Roadmap" section later in this document lists not-yet-implemented items (adaptive backoff, distributed coordination, advanced metrics).

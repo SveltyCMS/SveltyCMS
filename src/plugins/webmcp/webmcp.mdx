@@ -1,70 +1,23 @@
 ---
 path: "src/plugins/webmcp/webmcp.mdx"
 title: "WebMCP Plugin"
-description: "MCP server for AI assistants — expose CMS data to AI coding agents."
-order: 7
-icon: "mdi:robot-outline"
+description: "Documentation for the WebMCP plugin for SveltyCMS."
+order: 100
+icon: "mdi:puzzle"
 author: "SveltyCMS Team"
-created: "2026-05-31"
-updated: "2026-05-31"
+created: "2025-10-05"
+updated: "2026-06-20"
 tags:
-  - mcp
-  - ai
-  - assistant
-  - integration
-  - plugin
+  - "plugin"
+  - "webmcp"
 ---
-
-> [!WARNING]
-> **Premium Extension**
-> This extension is available to test during a **14-day trial**, after which a valid `LICENSE_KEY` from marketplace.sveltycms.com is required.
 
 # WebMCP Plugin
 
-**Status:** ✅ Available
-**Category:** AI / Integration
+Documentation for the **WebMCP** plugin is being prepared.
 
-Exposes your CMS as a Model Context Protocol (MCP) server, enabling AI coding assistants to query collections, read schemas, and interact with content directly.
-
----
-
-## Features
-
-- **MCP server** — Standard Model Context Protocol endpoint
-- **Collection introspection** — AI assistants can discover and query your content
-- **Schema exposure** — Widget definitions and field types available to AI
-- **Read-only by default** — Writes require explicit configuration
-- **Tenant isolation** — Respects multi-tenant boundaries
+For implementation details, see the source code in `src/plugins/webmcp/`.
 
 ---
 
-## Usage
-
-The MCP endpoint is available at:
-
-```
-POST /mcp
-```
-
-### Connect an AI Assistant
-
-Configure your AI coding tool to connect to:
-
-```
-https://your-cms.com/mcp
-```
-
-The assistant can then:
-
-- List all collections and their schemas
-- Query entries with filters
-- Read individual entries by ID
-- (Optionally) Create and update entries
-
-### Configuration
-
-| Key                  | Type     | Description                             |
-| -------------------- | -------- | --------------------------------------- |
-| `allowWrites`        | boolean  | Enable AI write access (default: false) |
-| `exposedCollections` | string[] | Collections exposed to AI (empty = all) |
-| `maxResults`         | number   | Max entries per query (default: 50)     |
+**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)

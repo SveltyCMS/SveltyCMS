@@ -282,7 +282,7 @@ export function getDatabaseConfig() {
     name,
     user,
     password,
-    poolSize: env.DB_POOL_SIZE || 100,
+    poolSize: env.DB_POOL_SIZE || (dbType === "postgresql" ? 20 : dbType === "sqlite" ? 1 : 100),
     retryAttempts: env.DB_RETRY_ATTEMPTS || 5,
     retryDelay: env.DB_RETRY_DELAY || 2000,
   };

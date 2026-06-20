@@ -378,12 +378,14 @@ async function signUpInternal(event: RequestEvent, input: any) {
   const email = input.email as string;
   const username = input.username as string;
   const password = input.password as string;
+  const confirm_password = (input.confirm_password as string) || password;
   const token = (input.token as string) || undefined;
 
   const result = safeParse(signUpFormSchema, {
     email,
     username,
     password,
+    confirm_password,
     token,
   });
   if (!result.success) return { success: false, errors: flatten(result.issues).nested };

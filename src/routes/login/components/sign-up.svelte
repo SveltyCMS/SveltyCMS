@@ -144,6 +144,7 @@ async function handleSignUpSubmit(event: Event) {
 			email: signUpForm.data.email,
 			username: signUpForm.data.username,
 			password: signUpForm.data.password,
+			confirm_password: signUpForm.data.confirm_password,
 			token: signUpForm.data.token
 		})) as any;
 

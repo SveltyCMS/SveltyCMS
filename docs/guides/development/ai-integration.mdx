@@ -48,6 +48,9 @@ SveltyCMS is the **MCP leader** — PayloadCMS, Strapi, and Directus are catchin
 | **Enterprise awareness**     | ✅ Trash recovery, DLQ, Yjs presence               | ❌                                     | ❌                        | ❌             |
 | **Bulk AI translation**      | ✅ `/api/ai/translate-collection`                  | ❌                                     | ❌                        | ❌             |
 | **Agentic automation tasks** | ✅ `agentic_task` operation in Automation Builder  | ❌                                     | ❌                        | ❌             |
+| **AI Widget Scaffolder**     | ✅ Generate 3-pillar widgets from config           | ❌                                     | ❌                        | ❌             |
+| **Marketplace**              | ✅ Hosted marketplace.sveltycms.com + API client   | ✅ Built-in marketplace                | ❌ (GitHub only)          | ⚠️ Marketplace |
+| **Behavioral Learning**      | ✅ Server-side access pattern tracking + prefetch  | ❌                                     | ❌                        | ❌             |
 | **Security**                 | ✅ Draft airgap + prompt injection shield + tarpit | ✅ API Key + granular opt-in           | ❌ (just permissions)     | ✅ OAuth flow  |
 | **Local inference**          | ✅ Ollama + LanceDB                                | ❌                                     | ❌                        | ❌             |
 | **SSE real-time**            | ✅                                                 | ✅                                     | ✅                        | ✅             |
@@ -218,6 +221,85 @@ The AI processes the entry content locally via Ollama (privacy-first) and writes
 
 ---
 
+## 6b. AI Widget Scaffolder (Code Generation)
+
+The **Widget Scaffolder** (`src/services/intelligence/ai-codegen/widget-scaffolder.ts`) generates complete SveltyCMS 3-pillar widgets from a configuration object. This directly closes the plugin ecosystem gap — instead of needing hundreds of community plugins, developers describe what they need and get production-ready code instantly.
+
+### What it generates
+
+| Pillar         | File             | Contents                                                                               |
+| -------------- | ---------------- | -------------------------------------------------------------------------------------- |
+| **Definition** | `index.ts`       | `createWidget()` with auto-inferred Valibot validators, GuiSchema, and type-safe props |
+| **Input**      | `Input.svelte`   | Svelte 5 runes with `$bindable` props, Tailwind v4, WCAG 2.2 AA ARIA labels            |
+| **Display**    | `Display.svelte` | Responsive rendering with graceful empty-state handling                                |
+
+### Supported field types
+
+`text` · `number` · `richtext` · `select` · `toggle` · `color` · `media` · `date`
+
+### Usage
+
+```typescript
+import { generateWidget } from "@src/services/intelligence/ai-codegen/widget-scaffolder";
+
+await generateWidget({
+  name: "StarRating",
+  label: "Star Rating",
+  description: "A 5-star rating widget with half-star support",
+  icon: "mdi:star",
+  fields: [
+    { name: "rating", label: "Rating", type: "number", required: true, min: 1, max: 5 },
+    { name: "label", label: "Label", type: "text", placeholder: "e.g. Quality" },
+  ],
+});
+
+// Output:
+// src/widgets/core/star-rating/index.ts       ← Definition + Valibot schema
+// src/widgets/core/star-rating/Input.svelte    ← Editor component
+// src/widgets/core/star-rating/Display.svelte  ← Frontend renderer
+```
+
+### LLM Integration
+
+The scaffolder accepts structured configs, making it ideal for LLM-generated prompts:
+
+```
+User: "Create a testimonial carousel widget with name, role, quote, and avatar"
+  ↓
+LLM generates WidgetScaffoldConfig
+  ↓
+scaffoldWidget(config) → 3 production-ready files
+```
+
+This is how SveltyCMS closes the plugin ecosystem gap — **generated custom code on demand** instead of maintaining a marketplace.
+
+---
+
+## 6c. Behavioral Learning Engine
+
+The **Behavioral Learning Engine** (`src/services/intelligence/behavioral-learner.ts`) tracks server-side access patterns to make the CMS smarter over time — zero client overhead, zero PII, zero latency.
+
+### How it works
+
+- Every page load in `+layout.server.ts` records collection and entry access
+- Exponential decay weighting (24h half-life) keeps scores current
+- In-memory Map operations only — sub-microsecond, no per-request I/O
+- Auto-persists to cache layer every 15 minutes, restores on startup
+
+### What it enables
+
+All three integrations are active and wired:
+
+| Consumer            | API                   | Description                                          |
+| ------------------- | --------------------- | ---------------------------------------------------- |
+| **Cache Warming**   | `getHotCollections()` | Pre-warms cache for most-accessed content on startup |
+| **Smart Prefetch**  | `predictNextPath()`   | Adds `<link rel="prefetch">` for likely next pages   |
+| **Dashboard Order** | `getHotCollections()` | Sorts widgets by actual usage frequency              |
+
+See [Behavioral Learning Architecture](../../architecture/behavioral-learning.mdx) for full documentation.
+
+---
+
 ## 7. Enterprise Awareness: Beyond Content
 
 The SveltyCMS Knowledge Core understands the CMS's own operational infrastructure, enabling AI agents to assist with high-level administrative and maintenance tasks.
@@ -339,8 +421,26 @@ This ensures that the sensitive build process remains local, while the structure
 
 ---
 
+n## Implementation Files
+
+| Service            | File                                                        |       NPU        |
+| :----------------- | :---------------------------------------------------------- | :--------------: |
+| Behavioral Learner | `src/services/intelligence/behavioral-learner.ts`           |        —         |
+| Embedding Service  | `src/services/intelligence/embedding-service.ts`            |    ✅ Ollama     |
+| Semantic Index     | `src/services/intelligence/semantic-index.ts`               | ✅ via embedding |
+| Widget Scaffolder  | `src/services/intelligence/ai-codegen/widget-scaffolder.ts` |        —         |
+| Marketplace Client | `src/services/intelligence/marketplace-client.ts`           |        —         |
+| System Monitor     | `src/utils/system-monitor.ts`                               |        —         |
+| Rate Limiter       | `src/hooks/handle-rate-limit.ts`                            |        —         |
+| Global Search      | `src/utils/global-search-index.ts`                          | ✅ via semantic  |
+
 ## Related
 
+n- [State Management](../../architecture/state-management.mdx) — SystemMonitor + hardware-aware rate limiting
+
+- [Cache System](../../architecture/cache-system.mdx) — Dual-layer cache pre-warmed by behavioral engine
+- [Behavioral Learning Engine](../../architecture/behavioral-learning.mdx)
+- [Marketplace System](../../architecture/marketplace.mdx)
 - [Getting Started](../../getting-started.mdx)
 - [Architecture Overview](../../architecture/index.mdx)
 - [Security Overview](../../architecture/security/index.mdx)

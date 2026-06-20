@@ -370,8 +370,11 @@ afterNavigate(() => {
 });
 </script>
 
-<svelte:head>
-	<meta name="description" content={seoDescription} />
+	<svelte:head>
+		{#if data.predictedNextPath}
+			<link rel="prefetch" href={data.predictedNextPath} />
+		{/if}
+		<meta name="description" content={seoDescription} />
 	<meta property="og:title" content={siteName} />
 	<meta property="og:description" content={seoDescription} />
 	<meta property="og:type" content="website" />

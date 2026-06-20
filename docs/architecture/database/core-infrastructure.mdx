@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database-settings"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-14"
+updated: "2026-06-20"
 tags:
   - "database"
   - "infrastructure"
@@ -70,7 +70,10 @@ graph TD
 │     └─ Plugin-registry with critical/dependency DAG │
 │                                                      │
 │  4. core/ (Shared Relational Utilities)              │
-│     └─ relational-*, drizzle-sql-helpers (Query IR translation inlined into mapQuery)  │
+│     ├─ sql-adapter-core (SqlAdapterCore — CRUD,     │
+│     │   delegation, module getters)                   │
+│     ├─ relational-*, drizzle-sql-helpers              │
+│     └─ base-adapter (ring-buffer pool, hooks)        │
 │                                                      │
 │  5. LocalCMS SDK (services/sdk/)                     │
 │     └─ Hot-swap self-overwriting getters            │
@@ -106,7 +109,8 @@ The `core` directory is not a centralized security interceptor — tenant isolat
 - **Drizzle SQL Helpers**: `drizzle-sql-helpers.ts` — centralized table aliases, physical column selection maps (defeating minifier ghost columns), and Drizzle condition builders.
 - **Relational Utilities**: `relational-utils.ts` — JSON field detection (zero-clone dirty-bit transform), DATE field normalization, ID generation, pagination, and tenant filter injection.
 - **Query IR translation**: Inlined into the two `mapQuery()` implementations (drizzle-sql-helpers and mongodb/adapter-core) for a slimmed abstraction layer. Types remain in `db-interface.ts`. The parser normalizes Mongo-style operators for cross-engine use in filter building.
-- **Base Adapter**: `base-adapter.ts` — `BaseAdapter` abstract class with `wrap()` (metrics + error handling), hook system, cache invalidation, and `getCollectionData`.
+- **Base Adapter**: `base-adapter.ts` — `BaseAdapter` abstract class with `wrap()` (metrics + error handling), hook system, cache invalidation, ring-buffer result pooling (256-slot), and `getCollectionData`.
+- **SQL Adapter Core**: `sql-adapter-core.ts` — `SqlAdapterCore` abstract class extending `BaseAdapter`, implementing `ISqlAdapter`. Absorbs ~1,300 lines of duplicated CRUD, delegation, module-getter, and `prepareValues` logic shared by all three SQL engines. Each adapter (PostgreSQL, MariaDB, SQLite) now extends this class and implements only dialect-specific hooks (`getTable`, `getJsonField`, `isMissingTableError`, etc.).
 - **Plugin Registry**: `plugin-registry.ts` — topological dependency-aware parallel service boot.
 - **Schema Proxy**: `schema-proxy.ts` — guarded `db.posts.findOne()` sugar for collection-name-based access.
 

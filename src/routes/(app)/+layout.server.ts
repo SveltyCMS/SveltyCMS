@@ -24,6 +24,11 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getPrivateSetting } from "@src/services/core/settings-service";
+import {
+  predictNextPath,
+  recordCollectionAccess,
+  recordNavigation,
+} from "@src/services/intelligence/behavioral-learner";
 import type { LayoutServerLoad } from "./$types";
 
 interface LayoutError {
@@ -78,7 +83,7 @@ function createLayoutError(err: unknown, fallbackMessage: string): LayoutError {
   };
 }
 
-export const load: LayoutServerLoad = async ({ locals, depends }) => {
+export const load: LayoutServerLoad = async ({ locals, depends, url, request }) => {
   const { theme, user: sessionUser, cspNonce, tenantId } = locals;
 
   depends("app:content");
@@ -87,6 +92,34 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
   // Store is already initialized by root layout - just use it
 
   try {
+    // 🧠 Behavioral Learning: record what's being accessed (< 0.001ms, non-blocking)
+    const tid = tenantId || "global";
+    const currentPath = url.pathname;
+
+    // Extract collection ID from path: /en/posts/entry-id → posts
+    const pathParts = currentPath.split("/").filter(Boolean);
+    // pathParts: ["en", "posts", "entry-id"] or ["dashboard"] or ["config"]
+    const collectionId = pathParts.length >= 2 ? pathParts[1] : pathParts[0] || "root";
+    if (collectionId && !collectionId.startsWith("config") && collectionId !== "dashboard") {
+      recordCollectionAccess(tid, collectionId);
+    }
+
+    // Record navigation transition for prefetch prediction
+    const referer = request.headers.get("referer");
+    if (referer) {
+      try {
+        const fromPath = new URL(referer).pathname;
+        if (fromPath !== currentPath) {
+          recordNavigation(tid, fromPath, currentPath);
+        }
+      } catch {
+        /* invalid referer URL — skip */
+      }
+    }
+
+    // Predictive prefetch: guess the most likely next page (< 0.05ms, non-blocking)
+    const predictedNextPath = predictNextPath(tenantId || "global", url.pathname);
+
     // Start initialization but don't await generic content loading for the main thread
     // This prevents the "blank white page" issue
     const contentPromise = contentSystem.initialize(tenantId).then(() => {
@@ -129,6 +162,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
       aiEnabled,
       publicSettings: publicEnv, // Use the reactive store
       cspNonce,
+      predictedNextPath,
       streamed: {}, // SvelteKit streaming marker
       firstCollection: contentPromise.then(([_, first]) =>
         first ? JSON.parse(JSON.stringify(first)) : null,

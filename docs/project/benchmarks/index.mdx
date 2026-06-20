@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-04-26"
-updated: "2026-05-31"
+updated: "2026-06-20"
 tags:
   - "benchmark"
   - "performance"
@@ -135,7 +135,7 @@ flowchart TD
 | **Per-DB Budgets**            | SQLite/PG/MariaDB/MongoDB each have different cold/warm/CRUD/cache/concurrency budgets                                   |
 | **Shared Database**           | All benchmarks reuse `benchmark_shared.sqlite` — first run seeds, subsequent runs skip seeding (smart detect)            |
 | **Persistent Data**           | Database file persists between runs — no cleanup on stop. Write benchmarks recreate their own collections as needed      |
-| **48 Enhanced Sections**      | 9 dimensions: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance                          |
+| **58 Enhanced Benchmarks**     | 12 dimensions: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance, Soak, Streaming, Failover |
 
 ## 📝 Creating a New Benchmark
 
@@ -308,6 +308,6 @@ bun run scripts/benchmark-matrix/index.ts --sql --differential
 
 ## Related
 
-- [Architecture Overview](../index.mdx)
+- [Architecture Overview](../technical-evaluation-2026.mdx)
 - [Getting Started](../../getting-started.mdx)
 - [API Reference](../../api/index.mdx)

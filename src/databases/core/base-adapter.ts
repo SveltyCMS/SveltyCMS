@@ -135,23 +135,34 @@ export abstract class BaseAdapter {
   // 🚀 PERFORMANCE: Ring-buffer result pool for *all* wrap() calls (internal + external).
   // Eliminates per-call {success, data} wrapper allocation entirely.
   // Single-threaded JS + "consume synchronously after await" (per callers) + large pool size makes reuse safe in practice.
-  // Size 64 covers deep async + concurrent in benchmark scenarios.
+  // Size 256 covers deep async + concurrent in benchmark scenarios.
   // External callers get .meta attached (shared pre-alloc meta object).
   // See allocation audit: this + raw bypasses are the remaining breakthroughs without contract change.
-  private readonly _poolSize = 64;
-  private readonly _resultPool: Array<{ success: true; data: any; meta?: any }> = Array.from(
-    { length: this._poolSize },
-    () => ({
-      success: true as const,
-      data: undefined,
-    }),
-  );
+  private readonly _poolSize = 256;
+  private readonly _resultPool: Array<{
+    success: true;
+    data: any;
+    meta?: any;
+  }> = Array.from({ length: this._poolSize }, () => ({
+    success: true as const,
+    data: undefined,
+  }));
   private _poolIndex = 0;
 
   /** Acquires a pre-allocated result wrapper from the ring buffer. Callers MUST NOT retain references across awaits. */
   private _poolAcquire<T>(data: T): { success: true; data: T; meta?: any } {
     const slot = this._resultPool[this._poolIndex];
     this._poolIndex = (this._poolIndex + 1) % this._poolSize;
+    // DEBUG: Detect slot reuse before the previous consumer's microtask releases it.
+    if ((slot as any)._inUse) {
+      console.warn(
+        "[BaseAdapter] Ring buffer slot reused before previous consumer released it. Pool may be undersized.",
+      );
+    }
+    (slot as any)._inUse = true;
+    queueMicrotask(() => {
+      (slot as any)._inUse = false;
+    });
     slot.data = data;
     // meta will be attached in wrap() for non-skipMeta if needed
     return slot as { success: true; data: T; meta?: any };

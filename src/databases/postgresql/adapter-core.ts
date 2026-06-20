@@ -5,43 +5,26 @@
  *
  * Responsibilities include:
  * - Establishing connection to PostgreSQL using postgres.js.
- * - Implementing high-performance CRUD methods optimized for Postgres.
- * - Handling tenant isolation and schema migrations.
+ * - Implementing PostgreSQL-specific CRUD hooks and table provisioning.
  *
  * ### Features:
  * - connection pooling and health checks
  * - native postgres JSONB querying
  * - optimized single-statement atomic increment
  * - PgBouncer compatibility (DATABASE_PREPARE flag)
+ * - read replica support
  */
 
 import { logger } from "@src/utils/logger";
-import { BaseAdapter } from "../core/base-adapter";
+import { SqlAdapterCore } from "../core/sql-adapter-core";
 import type {
-  BaseEntity,
   BaseQueryOptions,
   DatabaseCapabilities,
   DatabaseResult,
   DatabaseId,
-  FindOptions,
-  EntityCreate,
-  EntityUpdate,
-  QueryFilter,
-  ICrudAdapter,
-  ISqlAdapter,
 } from "../db-interface";
 import * as helpers from "../core/drizzle-sql-helpers";
-import { generateUUID } from "@utils/native-utils";
-import {
-  count as drizzleCount,
-  getTableColumns,
-  getTableName,
-  asc,
-  desc,
-  type Column,
-  eq,
-  and,
-} from "drizzle-orm";
+import { getTableName } from "drizzle-orm";
 import * as schema from "./schema";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -49,14 +32,8 @@ import { sql as drizzleSql, type SQL } from "drizzle-orm";
 import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
-import { RelationalAuthModule } from "../core/relational-auth";
-import { RelationalContentModule } from "../core/relational-content";
-import { RelationalMediaModule } from "../core/relational-media";
-import { RelationalSystemModule } from "../core/relational-system";
-import { BatchModule } from "../core/batch-module";
-import { CollectionModule } from "../core/collection-module";
 
-export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAdapter {
+export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public type = "postgresql";
   public capabilities: DatabaseCapabilities = {
     supportsTransactions: true,
@@ -85,76 +62,78 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   private allReplicaSqls: ReturnType<typeof postgres>[] = [];
   protected _transactionModule?: import("./transaction-module").TransactionModule;
 
-  // Cache and Registry State
-  protected preparedStatements = new Map<string, any>();
-  protected readonly MAX_PREPARED_STATEMENTS = 500;
-  protected _tableColumnsCache = new Map<any, Record<string, Column>>();
-  protected tableRegistry = new Map<string, any>();
-  protected dynamicTables = new Map<string, any>();
-  protected modelRegistry = new Map<string, any>();
-  protected _resolving = new Set<string>();
-  protected _selectionCache = new Map<string, any>();
-  protected _lastTable: any = null;
-  protected _lastCols: Record<string, Column> | null = null;
+  // --------------------------------------------------------------------------
+  // Abstract hook implementations
+  // --------------------------------------------------------------------------
 
-  // Lazy Domain Module Cache
-  protected _auth: any = null;
-  protected _content: any = null;
-  protected _media: any = null;
-  protected _system: any = null;
-  protected _batch: any = null;
-  protected _collection: any = null;
+  /** PostgreSQL supports RETURNING on INSERT and UPDATE. */
+  protected get insertReturnsRows(): boolean {
+    return true;
+  }
 
-  // Domain module getters
-  public get auth(): any {
-    if (!this._auth) {
-      this._auth = new RelationalAuthModule(this as any, this.schema);
+  protected get updateReturnsRows(): boolean {
+    return true;
+  }
+
+  protected get useDynamicSqlInFindMany(): boolean {
+    return true;
+  }
+
+  protected isMissingTableError(err: any): boolean {
+    return err?.code === "42P01";
+  }
+
+  public readonly schema = schema;
+
+  public getJsonField(field: string): SQL {
+    if (field.includes(".")) {
+      const path = `{${field.split(".").join(",")}}`;
+      return drizzleSql`data#>>${path}`;
     }
-    return this._auth;
+    return drizzleSql`data->>${field}`;
   }
 
-  public get content(): any {
-    if (!this._content) {
-      this._content = new RelationalContentModule(this as any, this.schema);
+  public getTable(collection: string): any {
+    if (typeof collection !== "string") return null;
+
+    const cached = this.tableRegistry.get(collection);
+    if (cached) return cached;
+
+    if (this._resolving.has(collection)) {
+      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
+      return null;
     }
-    return this._content;
-  }
+    this._resolving.add(collection);
 
-  public get media(): any {
-    if (!this._media) {
-      this._media = new RelationalMediaModule(this as any, this.schema);
+    try {
+      if (helpers.isSystemTable(collection)) {
+        const aliased = this.getAliasedTable(collection);
+        if (aliased) {
+          this.tableRegistry.set(collection, aliased);
+          return aliased;
+        }
+      }
+
+      const cleanId = collection.replace(/-/g, "");
+      const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
+
+      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+      if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
+        return this.getTable(cleanName);
+      }
+
+      const dynamicTable = this.createDynamicTableDefinition(tableName);
+      this.tableRegistry.set(collection, dynamicTable);
+      return dynamicTable;
+    } finally {
+      this._resolving.delete(collection);
     }
-    return this._media;
   }
 
-  public get system(): any {
-    if (!this._system) {
-      this._system = new RelationalSystemModule(this as any, this.schema);
-    }
-    return this._system;
-  }
+  // --------------------------------------------------------------------------
+  // Read Replicas
+  // --------------------------------------------------------------------------
 
-  public get batch(): any {
-    if (!this._batch) {
-      this._batch = new BatchModule(this as any);
-    }
-    return this._batch;
-  }
-
-  public get collection(): any {
-    if (!this._collection) {
-      this._collection = new CollectionModule(this as any);
-    }
-    return this._collection;
-  }
-
-  public get crud(): ICrudAdapter {
-    return this as any;
-  }
-
-  /**
-   * Returns the appropriate SQL client based on the operation mode (read/write).
-   */
   public getSql(mode: "read" | "write" = "write"): ReturnType<typeof postgres> {
     if (!this.sql) throw new Error("Database not connected");
 
@@ -171,13 +150,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     return this.allReplicaSqls[index];
   }
 
-  /**
-   * 🚀 AGNOSTIC CORE: Returns the raw database client.
-   */
-  public getClient(): ReturnType<typeof postgres> | null {
-    return this.sql;
-  }
-
   public getDrizzle(mode: "read" | "write" = "write"): PostgresJsDatabase<typeof schema> {
     if (mode === "write") return this.db;
     if (this._readDb) return this._readDb;
@@ -187,36 +159,46 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     return this._readDb;
   }
 
-  /**
-   * 🚀 AGNOSTIC CORE: Resolves a collection name to its Drizzle schema object.
-   */
-  protected getAliasedTable(collection: string): any {
-    const schemaAny = this.schema as any;
+  public configureReplicas(urls: string[] | string): void {
+    const replicaUrls = typeof urls === "string" ? (JSON.parse(urls) as string[]) : urls;
+    if (!Array.isArray(replicaUrls)) return;
+    for (const sql of this.allReplicaSqls)
+      sql.end().catch(() => {
+        logger.debug("Failed to end PostgreSQL replica SQL during reconfiguration");
+      });
+    this.allReplicaSqls = [];
+    this.replicaSqls.clear();
+    if (replicaUrls.length === 0) return;
 
-    // 1. Check direct alias map
-    const alias = helpers.SQL_TABLE_ALIASES[collection];
-    if (alias && schemaAny[alias]) return schemaAny[alias];
-
-    // 2. Check if the name itself is a schema export
-    if (schemaAny[collection]) return schemaAny[collection];
-
-    return null;
+    for (const urlStr of replicaUrls) {
+      try {
+        const url = new URL(urlStr);
+        const region = url.searchParams.get("region") || "unknown";
+        const replicaSql = postgres(urlStr, {
+          max: 50,
+          transform: { undefined: null },
+        });
+        this.allReplicaSqls.push(replicaSql);
+        if (region !== "unknown") this.replicaSqls.set(region, replicaSql);
+      } catch (e) {
+        logger.warn(`Failed to initialize replica ${urlStr}:`, e);
+      }
+    }
   }
 
-  protected getDrizzleInstance(
-    _options?: import("../db-interface").BaseQueryOptions,
-  ): PostgresJsDatabase<typeof schema> {
-    return this.db;
+  // --------------------------------------------------------------------------
+  // Connection
+  // --------------------------------------------------------------------------
+
+  public getClient(): ReturnType<typeof postgres> | null {
+    return this.sql;
   }
 
   async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
   async connect(
     poolOptions: import("../db-interface").ConnectionPoolOptions,
   ): Promise<DatabaseResult<void>>;
-  public async connect(
-    connection: string | import("../db-interface").ConnectionPoolOptions,
-    _options?: any,
-  ): Promise<DatabaseResult<void>> {
+  public async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
     try {
       let finalConnection = connection;
 
@@ -232,121 +214,111 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
         throw new Error("Missing PostgreSQL connection configuration.");
       }
 
-      let options: Record<string, unknown> = {
-        // 🚀 Higher pool for benchmark/stress testing (2× default: each
-        // concurrent HTTP request may need 2 DB calls simultaneously)
-        max:
-          process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true"
-            ? 200
-            : 100,
-        connect_timeout: 30,
-      };
+      let options: any;
 
-      // Enterprise scaling: External pooler (PgBouncer etc.) support.
-      // Prefer DB_POOLER_URL when configured. For pgbouncer + transaction mode, default prepare:false
-      // (avoids server-prepared statement state issues when pooler multiplexes txs across backends).
-      // See docs/guides/deployment/scaling-layers.mdx. Fully optional.
-      let poolerUrl = "";
-      let effectivePrepare = true;
-      try {
-        const { getDbPoolerConfig } = await import("../config-state");
-        const pooler = getDbPoolerConfig();
-        if (pooler.enabled && pooler.url) {
-          poolerUrl = pooler.url;
-          if (pooler.type === "pgbouncer" && (pooler.mode === "transaction" || !pooler.mode)) {
-            effectivePrepare = pooler.prepare !== undefined ? !!pooler.prepare : false;
-          } else if (pooler.prepare !== undefined) {
-            effectivePrepare = !!pooler.prepare;
+      if (typeof finalConnection === "string") {
+        options = {
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 200,
+          connect_timeout: 30,
+        };
+        let poolerUrl = process.env.DATABASE_POOLER_URL;
+        let effectivePrepare = true;
+
+        if (poolerUrl) {
+          const { getDbPoolerConfig } = await import("../config-state");
+          const pooler = getDbPoolerConfig ? getDbPoolerConfig() : null;
+          if (pooler) {
+            poolerUrl = pooler.url || poolerUrl;
+            effectivePrepare = pooler.prepare !== false;
           }
         }
-      } catch {
-        // config not ready — fall back to direct (safe default)
-      }
 
-      const effectiveConnection = poolerUrl || finalConnection;
-
-      if (typeof effectiveConnection === "string") {
-        try {
-          const url = new URL(effectiveConnection);
-          options = {
-            ...options,
-            host: url.hostname,
-            port: Number(url.port) || (poolerUrl ? 6432 : 5432),
-            user: decodeURIComponent(url.username),
-            password: decodeURIComponent(url.password),
-            database: url.pathname.slice(1),
-            ssl: url.searchParams.get("sslmode") === "require" ? "require" : undefined,
-            onnotice: () => {},
-            transform: { undefined: null },
-          };
-        } catch {
-          this.sql = postgres(effectiveConnection, {
-            onnotice: () => {},
-            transform: { undefined: null },
-            prepare: effectivePrepare,
-          });
-          this._db = drizzle(this.sql, { schema });
-          this.connected = true;
-          logger.info(`Connected to PostgreSQL (String Mode${poolerUrl ? " via pooler" : ""})`);
-          return { success: true, data: undefined };
+        let effectiveConnection = finalConnection;
+        if (poolerUrl) {
+          effectiveConnection = poolerUrl;
         }
-      } else {
-        const c = (effectiveConnection || {}) as any;
+
+        const url = new URL(effectiveConnection);
         options = {
-          host: c.host || c.DB_HOST || "127.0.0.1",
-          port: Number(c.port || c.DB_PORT || (poolerUrl ? 6432 : 5432)),
-          user: c.user || c.DB_USER || "postgres",
-          password: c.password || c.DB_PASSWORD || "",
-          database: c.database || c.DB_NAME || "postgres",
-          max: 100,
-          connect_timeout: 30,
-          ssl: c.ssl === true || c.ssl === "require" ? "require" : undefined,
+          host: url.hostname,
+          port: Number(url.port || 5432),
+          user: decodeURIComponent(url.username),
+          password: decodeURIComponent(url.password),
+          database: url.pathname.slice(1),
+          ssl:
+            url.searchParams.get("sslmode") === "require" ? { rejectUnauthorized: false } : false,
           onnotice: () => {},
           transform: { undefined: null },
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 200,
+          connect_timeout: 30,
+          prepare: effectivePrepare,
+          connection: {
+            application_name: "sveltycms",
+            statement_timeout: 30000,
+          },
+        };
+      } else {
+        const c = (finalConnection || {}) as any;
+        const usePrepared = (c.prepare ?? process.env.DATABASE_PREPARE ?? "true") !== "false";
+
+        options = {
+          host: c.host || c.DB_HOST || "127.0.0.1",
+          port: Number(c.port || c.DB_PORT || 5432),
+          user: c.user || c.DB_USER || "postgres",
+          password: c.password || c.DB_PASSWORD || "",
+          database: c.database || c.DB_NAME,
+          max: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 200),
+          connect_timeout: c.connect_timeout || 30,
+          ssl: c.ssl || false,
+          onnotice: () => {},
+          transform: { undefined: null },
+          prepare: usePrepared,
+          idle_timeout: c.idle_timeout || 60,
+          max_lifetime: c.max_lifetime || 60 * 30,
+          connection: {
+            application_name: "sveltycms",
+            statement_timeout: 30000,
+          },
         };
       }
 
-      // PgBouncer compatibility: when behind a connection pooler in transaction mode,
-      // server-side prepared statements must be disabled (the backend connection can
-      // change between prepare and execute, causing "prepared statement does not exist").
-      // Set DATABASE_PREPARE=false to disable. Default is true for the ~40% parse/plan win.
-      const usePrepared = effectivePrepare ?? process.env.DATABASE_PREPARE !== "false";
-
-      this.sql = postgres({
-        ...options,
-        prepare: usePrepared,
-        connect_timeout: 30,
-        idle_timeout: 20,
-        max_lifetime: 60 * 30, // 30 minutes
-      });
-      this._db = drizzle(this.sql, { schema });
-
-      // Verification
+      // Auto-create database if missing
       try {
+        this.sql = postgres(finalConnection, options);
+        this._db = drizzle(this.sql, { schema });
         await this.sql`SELECT 1`;
+        this.connected = true;
+        logger.info("Connected to PostgreSQL");
+        return { success: true, data: undefined };
       } catch (err: any) {
-        if (err.code === "3D000" && (options.database as string)) {
-          const adminOptions = { ...options, database: "postgres" };
-          const adminSql = postgres(adminOptions);
-          try {
-            await adminSql.unsafe(`CREATE DATABASE "${options.database}"`);
-            await adminSql.end();
-            this.sql = postgres(options);
-            this._db = drizzle(this.sql, { schema });
-            await this.sql`SELECT 1`;
-          } catch (createErr) {
-            await adminSql.end();
-            throw createErr;
+        const isMissingDb = err.code === "3D000" || err.message?.includes("does not exist");
+
+        if (isMissingDb && typeof finalConnection === "string") {
+          const dbName = new URL(finalConnection).pathname.slice(1);
+          if (dbName) {
+            logger.info(`[postgresql] Database "${dbName}" not found. Attempting auto-creation...`);
+            const adminOptions = { ...options, database: "postgres" };
+            const adminSql = postgres(
+              finalConnection.replace(`/${dbName}`, "/postgres"),
+              adminOptions,
+            );
+            try {
+              await adminSql.unsafe(`CREATE DATABASE "${dbName}"`);
+              await adminSql.end();
+              this.sql = postgres(finalConnection, options);
+              this._db = drizzle(this.sql, { schema });
+              await this.sql`SELECT 1`;
+              this.connected = true;
+              logger.info("Connected to PostgreSQL");
+              return { success: true, data: undefined };
+            } catch (createErr) {
+              await adminSql.end();
+              throw createErr;
+            }
           }
-        } else {
-          throw err;
         }
+        throw err;
       }
-
-      this.connected = true;
-      logger.info("Connected to PostgreSQL");
-
-      return { success: true, data: undefined };
     } catch (error) {
       this.connected = false;
       return this.handleError(error, "CONNECTION_FAILED");
@@ -411,11 +383,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     if (!this.sql) return this.notConnectedError();
     try {
       const result = await this.sql`
-        SELECT COUNT(*) as count
-        FROM information_schema.tables
+        SELECT COUNT(*) as count FROM information_schema.tables
         WHERE table_schema = 'public'
       `;
-      const count = Number(result[0].count);
+      const count = Number(result[0]?.count ?? 0);
       return { success: true, data: count === 0 };
     } catch (error) {
       return this.handleError(error, "CHECK_EMPTY_FAILED");
@@ -425,947 +396,24 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
   public async getConnectionPoolStats(): Promise<
     DatabaseResult<import("../db-interface").ConnectionPoolStats>
   > {
-    try {
-      if (!this.sql) return this.handleError("Not connected", "POOL_STATS_FAILED");
-      return {
-        success: true,
-        data: {
-          total: 10,
-          active: 0,
-          idle: 0,
-          waiting: 0,
-          avgConnectionTime: 0,
-        },
-      };
-    } catch (error) {
-      return this.handleError(error, "POOL_STATS_FAILED");
-    }
-  }
-
-  public readonly schema = schema;
-
-  public isSystemTable(collection: string): boolean {
-    return helpers.isSystemTable(collection);
-  }
-
-  public getTable(collection: string): any {
-    if (typeof collection !== "string") return null;
-
-    const cached = this.tableRegistry.get(collection);
-    if (cached) return cached;
-
-    if (this._resolving.has(collection)) {
-      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
-      return null;
-    }
-    this._resolving.add(collection);
-
-    try {
-      if (helpers.isSystemTable(collection)) {
-        const aliased = this.getAliasedTable(collection);
-        if (aliased) {
-          this.tableRegistry.set(collection, aliased);
-          return aliased;
-        }
-      }
-
-      const cleanId = collection.replace(/-/g, "");
-      const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
-
-      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-      if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
-        return this.getTable(cleanName);
-      }
-
-      const dynamicTable = this.createDynamicTableDefinition(tableName);
-      this.tableRegistry.set(collection, dynamicTable);
-      return dynamicTable;
-    } finally {
-      this._resolving.delete(collection);
-    }
-  }
-
-  public getColumn(table: any, name: string, forcePhysical = false): any {
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val) {
-        self._lastCols = val;
+    if (!this.sql) return this.notConnectedError();
+    return {
+      success: true,
+      data: {
+        total: 0,
+        active: 0,
+        idle: 0,
+        waiting: 0,
+        avgConnectionTime: 0,
       },
     };
-    return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
   }
 
-  public getPhysicalSelection(table: any): any {
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val) {
-        self._lastCols = val;
-      },
-    };
-    return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
-    );
-  }
-
-  public mapQuery(table: any, query: any, options: any = {}): any {
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val) {
-        self._lastCols = val;
-      },
-    };
-    return helpers.mapQuery(
-      table,
-      query,
-      options,
-      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
-      (f) => this.getJsonField(f),
-    );
-  }
-
-  public applyOrderBy(builder: any, table: any, options: any): any {
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val) {
-        self._lastCols = val;
-      },
-    };
-    return helpers.applyOrderBy(
-      builder,
-      table,
-      options,
-      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
-      (f) => this.getJsonField(f),
-    );
-  }
-
-  public prepareValues(table: any, data: any, id: any, now: Date, options: any): any {
-    const values: any = {};
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val) {
-        self._lastCols = val;
-      },
-    };
-    const getCol = (t: any, n: string) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
-
-    let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
-    if (!schemaCols) {
-      try {
-        const resolvedCols = getTableColumns(table);
-        if (resolvedCols && Object.keys(resolvedCols).length > 0) {
-          schemaCols = resolvedCols as any;
-          this._tableColumnsCache.set(table, schemaCols!);
-        }
-      } catch {}
-    }
-
-    for (const k in data) {
-      if (!Object.hasOwn(data, k)) continue;
-      if (k === "_id" || k === "id") continue;
-
-      const isPhysical = schemaCols?.[k] || getCol(table, k);
-
-      if (isPhysical) {
-        if ((k === "_id" || k === "id") && id) continue;
-        if (data[k] !== undefined) {
-          values[k] = data[k];
-        }
-      }
-    }
-
-    if (id) {
-      const idCol =
-        schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
-      if (idCol) {
-        values[idCol.name] = id;
-      }
-    }
-
-    if (options?.tenantId && (schemaCols?.["tenantId"] || getCol(table, "tenantId"))) {
-      values.tenantId = options.tenantId;
-    }
-
-    if (id && (schemaCols?.["createdAt"] || getCol(table, "createdAt"))) {
-      values.createdAt = now;
-    }
-    if (schemaCols?.["updatedAt"] || getCol(table, "updatedAt")) {
-      values.updatedAt = now;
-    }
-
-    // Map common fields explicitly
-    if (schemaCols?.["collection"] || getCol(table, "collection")) {
-      values.collection = data.collection || getTableName(table).replace(/^collection_/, "");
-    }
-
-    if (schemaCols?.["publishedAt"] || getCol(table, "publishedAt")) {
-      const pubAt = data.publishedAt || data.metadata?.publishedAt;
-      if (pubAt !== undefined) {
-        values.publishedAt = pubAt;
-      }
-    }
-
-    if (getCol(table, "data")) {
-      const dynamicData: any = {};
-      for (const k in data) {
-        if (!Object.hasOwn(data, k)) continue;
-        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
-          continue;
-        dynamicData[k] = data[k];
-      }
-      values.data = dynamicData;
-    }
-
-    const result = utils.convertISOToDates(values, {
-      table: getTableName(table),
-    });
-
-    for (const k in result) {
-      const val = result[k];
-      if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
-        result[k] = new Date((val as any).getTime());
-      }
-    }
-
-    return result;
-  }
-
-  // --- CRUD Operations ---
-  async findOne<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    options: FindOptions<T> = {},
-  ): Promise<DatabaseResult<T | null>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    return this.wrap(async () => {
-      const q =
-        this.hooks.length > 0
-          ? await this.runHooks("before", "find", collection, query, options)
-          : query;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const where = this.mapQuery(table, q as any, options);
-
-      const results = await this.getDrizzleInstance(options)
-        .select(this.getPhysicalSelection(table))
-        .from(table)
-        .where(where)
-        .limit(1);
-
-      const data = results.length
-        ? (utils.convertDatesToISO(results[0], { table: collection }) as T)
-        : null;
-      return this.hooks.length > 0
-        ? await this.runHooks("after", "find", collection, data, options)
-        : data;
-    }, "FIND_ONE_FAILED");
-  }
-
-  async findMany<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    options: FindOptions<T> = {},
-  ): Promise<DatabaseResult<T[]>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    return this.wrap(async () => {
-      const q =
-        this.hooks.length > 0
-          ? await this.runHooks("before", "find", collection, query, options)
-          : query;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const where = this.mapQuery(table, q as any, options);
-
-      const tableName = getTableName(table);
-      const isDynamic =
-        collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_");
-
-      let results;
-      if (isDynamic) {
-        const selection = this.getPhysicalSelection(table);
-        const columns = Object.keys(selection);
-        const colList = columns.map((c) => `"${c}"`).join(", ");
-
-        let sqlQuery = drizzleSql`SELECT ${drizzleSql.raw(colList)} FROM ${drizzleSql.raw(`"${tableName}"`)} WHERE ${where || drizzleSql`1=1`}`;
-
-        if (options.sort) {
-          const sortConditions: any[] = [];
-          const normalizedSorts: {
-            field: string;
-            direction: "asc" | "desc";
-          }[] = [];
-          if (Array.isArray(options.sort)) {
-            for (const item of options.sort) {
-              if (Array.isArray(item) && item.length >= 2) {
-                normalizedSorts.push({
-                  field: item[0],
-                  direction: item[1] as "asc" | "desc",
-                });
-              } else if (typeof item === "object" && item !== null) {
-                const keys = Object.keys(item);
-                if (keys.length > 0) {
-                  const field = keys[0];
-                  const direction = (item as any)[field];
-                  normalizedSorts.push({ field, direction });
-                }
-              }
-            }
-          } else if (typeof options.sort === "object") {
-            for (const field of Object.keys(options.sort)) {
-              const direction = (options.sort as any)[field];
-              normalizedSorts.push({ field, direction });
-            }
-          }
-
-          const self = this as any;
-          const lastRef = {
-            get table() {
-              return self._lastTable;
-            },
-            set table(val) {
-              self._lastTable = val;
-            },
-            get cols() {
-              return self._lastCols;
-            },
-            set cols(val) {
-              self._lastCols = val;
-            },
-          };
-          for (const s of normalizedSorts) {
-            let sortCol: any;
-            const column = helpers.getColumnHelper(
-              table,
-              s.field,
-              this._tableColumnsCache,
-              lastRef,
-              false,
-            );
-            if (column) {
-              sortCol = column;
-            } else {
-              const dataCol = helpers.getColumnHelper(
-                table,
-                "data",
-                this._tableColumnsCache,
-                lastRef,
-                false,
-              );
-              if (dataCol) {
-                sortCol = this.getJsonField(s.field);
-              }
-            }
-
-            if (sortCol) {
-              sortConditions.push(s.direction === "asc" ? asc(sortCol) : desc(sortCol));
-            }
-          }
-
-          if (sortConditions.length > 0) {
-            sqlQuery = drizzleSql`${sqlQuery} ORDER BY ${drizzleSql.join(sortConditions, drizzleSql`, `)}`;
-          }
-        }
-
-        if (options.limit !== undefined) sqlQuery = drizzleSql`${sqlQuery} LIMIT ${options.limit}`;
-        if (options.offset !== undefined)
-          sqlQuery = drizzleSql`${sqlQuery} OFFSET ${options.offset}`;
-
-        const db = this.getDrizzleInstance(options);
-        const execResult = await db.execute(sqlQuery);
-        const rawRows = Array.isArray(execResult)
-          ? execResult
-          : (execResult as any).rows || [execResult];
-
-        results = rawRows.map((row: any) => {
-          const obj: any = {};
-          if (Array.isArray(row)) {
-            columns.forEach((col, idx) => {
-              if (row[idx] !== undefined) obj[col] = row[idx];
-            });
-          } else if (row && typeof row === "object") {
-            columns.forEach((col) => {
-              if (row[col] !== undefined) obj[col] = row[col];
-            });
-          }
-          return obj;
-        });
-      } else {
-        let builder: any = this.getDrizzleInstance(options)
-          .select(this.getPhysicalSelection(table))
-          .from(table)
-          .where(where);
-        builder = this.applyOrderBy(builder, table, options);
-        if (options.limit) builder = builder.limit(options.limit);
-        if (options.offset) builder = builder.offset(options.offset);
-        results = await builder;
-      }
-
-      const data = utils.convertArrayDatesToISO(results as any, {
-        table: collection,
-      }) as T[];
-      return this.hooks.length > 0
-        ? await this.runHooks("after", "find", collection, data, options)
-        : data;
-    }, "FIND_MANY_FAILED");
-  }
-
-  public async streamMany<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    options: FindOptions<T> = {},
-  ): Promise<DatabaseResult<AsyncIterable<T>>> {
-    return this.wrap(async () => {
-      const q =
-        this.hooks.length > 0
-          ? await this.runHooks("before", "find", collection, query, options)
-          : query;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const where = this.mapQuery(table, q, options);
-      let builder = (this.db as any).select().from(table).where(where);
-      if (options.limit) builder = builder.limit(options.limit);
-      if (options.offset) builder = builder.offset(options.offset);
-
-      // 🚀 Native PostgreSQL Streaming
-      const stream = await (builder as any).stream();
-      // Schema-aware path not wired for streaming (variable reference); fallback to full iteration.
-      const convertFn = utils.convertDatesToISO;
-
-      async function* generator() {
-        for await (const row of stream) {
-          yield convertFn(row) as T;
-        }
-      }
-
-      return generator() as AsyncIterable<T>;
-    }, "STREAM_MANY_FAILED");
-  }
-
-  async find<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    options: FindOptions<T> = {},
-  ): Promise<DatabaseResult<T[]>> {
-    return this.findMany(collection, query, options);
-  }
-
-  async findByIds<T extends BaseEntity>(
-    collection: string,
-    ids: DatabaseId[],
-    options: FindOptions<T> = {},
-  ): Promise<DatabaseResult<T[]>> {
-    return this.findMany(collection, { _id: { $in: ids } } as any, options);
-  }
-
-  async findById<T extends BaseEntity>(
-    collection: string,
-    id: DatabaseId,
-    options: FindOptions<T> = {},
-  ): Promise<DatabaseResult<T | null>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    if (id === undefined || id === null) {
-      return {
-        success: false,
-        message: `Invalid ID: ${id}`,
-        error: { code: "INVALID_ID", message: "ID must be a non-null value" },
-      };
-    }
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
-
-      const conditions: SQL[] = [eq(idCol, id as any)];
-
-      const tenantCol = this.getColumn(table, "tenantId");
-      utils.applyTenantFilter(conditions, tenantCol, options);
-
-      const results = await this.getDrizzleInstance(options)
-        .select()
-        .from(table)
-        .where(and(...conditions))
-        .limit(1);
-
-      return results.length
-        ? (utils.convertDatesToISO(results[0], { table: collection }) as T)
-        : null;
-    }, "FIND_BY_ID_FAILED");
-  }
-
-  async exists<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<boolean>> {
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) return false;
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
-      const where = this.mapQuery(table, query as any, options);
-      const results = await this.getDrizzleInstance(options)
-        .select({ id: idCol })
-        .from(table)
-        .where(where)
-        .limit(1);
-      return results.length > 0;
-    }, "EXISTS_FAILED");
-  }
-
-  async count<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T> = {},
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<number>> {
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      const where = this.mapQuery(table, query || {}, options);
-      try {
-        const result = await this.getDrizzleInstance(options)
-          .select({ count: drizzleCount() })
-          .from(table)
-          .where(where);
-        return result[0].count;
-      } catch (err: any) {
-        const tableName = getTableName(table);
-        const isDynamic =
-          tableName.startsWith("collection_") || tableName.toLowerCase().includes("benchmark");
-        if (err?.code === "42P01" && isDynamic) {
-          return 0;
-        }
-        throw err;
-      }
-    }, "COUNT_FAILED");
-  }
-
-  async insert<T extends BaseEntity>(
-    collection: string,
-    data: EntityCreate<T>,
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<T>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    return this.wrap(
-      async () => {
-        const d =
-          this.hooks.length > 0
-            ? await this.runHooks("before", "insert", collection, data, options)
-            : data;
-        const table = this.getTable(collection);
-        if (!table) throw new Error(`Collection table not found: ${collection}`);
-        const id = (d as any)._id || generateUUID();
-        const now = new Date();
-        const values = this.prepareValues(table, d, id, now, options);
-
-        const query = this.getDrizzleInstance(options).insert(table).values(values);
-        const result = await (query as any).returning();
-        const finalData = utils.convertDatesToISO(result[0], {
-          table: collection,
-        }) as T;
-
-        return this.hooks.length > 0
-          ? await this.runHooks("after", "insert", collection, finalData, options)
-          : finalData;
-      },
-      "INSERT_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
-  }
-
-  async insertMany<T extends BaseEntity>(
-    collection: string,
-    data: EntityCreate<T>[],
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<T[]>> {
-    if (!data || data.length === 0) return { success: true, data: [] };
-    return this.wrap(
-      async () => {
-        const table = this.getTable(collection);
-        if (!table) throw new Error(`Collection table not found: ${collection}`);
-        const now = new Date();
-        const len = data.length;
-        const batchValues = Array.from({ length: len });
-        for (let i = 0; i < len; i++) {
-          const item = data[i];
-          const id = (item as any)._id || generateUUID();
-          batchValues[i] = this.prepareValues(table, item, id, now, options);
-        }
-
-        const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
-        const results = await (query as any).returning();
-        return utils.convertArrayDatesToISO(results as any, {
-          table: collection,
-        }) as T[];
-      },
-      "INSERT_MANY_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
-  }
-
-  async update<T extends BaseEntity>(
-    collection: string,
-    id: DatabaseId,
-    data: EntityUpdate<T>,
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<T>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    if (id === undefined || id === null) {
-      return {
-        success: false,
-        message: `Update failed: ID is ${id}`,
-        error: {
-          code: "INVALID_ID",
-          message: `Cannot update ${collection} with ${id} ID`,
-        },
-      };
-    }
-    return this.wrap(
-      async () => {
-        const d =
-          this.hooks.length > 0
-            ? await this.runHooks("before", "update", collection, data, options)
-            : data;
-        const table = this.getTable(collection);
-        if (!table) throw new Error(`Collection table not found: ${collection}`);
-        const now = new Date();
-        const values = this.prepareValues(table, d, id, now, options);
-
-        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-        if (!idCol) throw new Error("ID column not found");
-
-        const conditions: SQL[] = [eq(idCol, id as any)];
-        const tenantCol = this.getColumn(table, "tenantId");
-        utils.applyTenantFilter(conditions, tenantCol, options);
-
-        const query = this.getDrizzleInstance(options)
-          .update(table)
-          .set(values)
-          .where(and(...conditions));
-        const results = await query.returning();
-        let res = results[0];
-        if (!res) {
-          const check = await this.getDrizzleInstance(options)
-            .select()
-            .from(table)
-            .where(and(...conditions));
-          res = check[0];
-        }
-        if (!res) {
-          throw new Error(`Record ${id} not found in ${getTableName(table)}`);
-        }
-        const finalData = utils.convertDatesToISO(res, {
-          table: collection,
-        }) as unknown as T;
-        return this.hooks.length > 0
-          ? await this.runHooks("after", "update", collection, finalData, options)
-          : finalData;
-      },
-      "UPDATE_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
-  }
-
-  async updateMany<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    data: EntityUpdate<T>,
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.wrap(
-      async () => {
-        const items = await this.findMany(collection, query, options);
-        if (!items.success) throw new Error(items.message);
-        let modifiedCount = 0;
-        for (const item of items.data || []) {
-          const res = await this.update(collection, (item as any)._id, data, options);
-          if (res.success) modifiedCount++;
-        }
-        return { modifiedCount };
-      },
-      "UPDATE_MANY_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
-  }
-
-  async delete(
-    collection: string,
-    id: DatabaseId,
-    options: BaseQueryOptions & {
-      permanent?: boolean;
-      userId?: DatabaseId;
-    } = {},
-  ): Promise<DatabaseResult<void>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    if (id === undefined || id === null) {
-      return {
-        success: false,
-        message: `Delete failed: ID is ${id}`,
-        error: {
-          code: "INVALID_ID",
-          message: `Cannot delete from ${collection} with ${id} ID`,
-        },
-      };
-    }
-    return this.wrap(
-      async () => {
-        if (this.hooks.length > 0)
-          await this.runHooks("before", "delete", collection, { _id: id }, options);
-        const table = this.getTable(collection);
-        if (!table) throw new Error(`Collection table not found: ${collection}`);
-        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-        if (!idCol) throw new Error("ID column not found");
-
-        const conditions: SQL[] = [eq(idCol, id as any)];
-        const tenantCol = this.getColumn(table, "tenantId");
-        utils.applyTenantFilter(conditions, tenantCol, options);
-
-        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
-        if (options.permanent || !hasIsDeleted) {
-          await this.getDrizzleInstance(options)
-            .delete(table)
-            .where(and(...conditions));
-        } else {
-          await this.getDrizzleInstance(options)
-            .update(table)
-            .set({ isDeleted: true, updatedAt: new Date() })
-            .where(and(...conditions));
-        }
-        if (this.hooks.length > 0)
-          await this.runHooks("after", "delete", collection, { _id: id }, options);
-      },
-      "DELETE_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
-  }
-
-  async deleteMany<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    options: BaseQueryOptions & {
-      permanent?: boolean;
-      userId?: DatabaseId;
-    } = {},
-  ): Promise<DatabaseResult<{ deletedCount: number }>> {
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (options.permanent && (!query || Object.keys(query).length === 0)) {
-        await this.getDrizzleInstance(options).delete(table);
-        return { deletedCount: -1 };
-      }
-      const items = await this.findMany(collection, query, options);
-      if (!items.success) throw new Error(items.message);
-      let deletedCount = 0;
-      for (const item of items.data || []) {
-        const res = await this.delete(collection, (item as any)._id, options);
-        if (res.success) deletedCount++;
-      }
-      return { deletedCount };
-    }, "DELETE_MANY_FAILED");
-  }
-
-  async restore(
-    collection: string,
-    id: DatabaseId,
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<void>> {
-    if (id === undefined || id === null) {
-      return {
-        success: false,
-        message: `Restore failed: ID is ${id}`,
-        error: {
-          code: "INVALID_ID",
-          message: `Cannot restore in ${collection} with ${id} ID`,
-        },
-      };
-    }
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
-      await this.getDrizzleInstance(options)
-        .update(table)
-        .set({ isDeleted: false, updatedAt: new Date() })
-        .where(eq(idCol, id as any));
-    }, "RESTORE_FAILED");
-  }
-
-  async upsert<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    data: EntityCreate<T>,
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<T>> {
-    const existing = await this.findOne(collection, query, options);
-    if (existing.success && existing.data) {
-      const existingId = (existing.data as any)._id || (existing.data as any).id;
-      if (existingId) {
-        return this.update(collection, existingId, data as any, options);
-      }
-    }
-    return this.insert(collection, data, options);
-  }
-
-  async upsertMany<T extends BaseEntity>(
-    collection: string,
-    items: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }>,
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<T[]>> {
-    const results: T[] = [];
-    for (const item of items) {
-      const res = await this.upsert(collection, item.query, item.data, options);
-      if (res.success && res.data) results.push(res.data as T);
-    }
-    return { success: true, data: results };
-  }
-
-  async aggregate<R>(
-    _collection: string,
-    _pipeline: unknown[],
-    _options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<R[]>> {
-    if (process.env.BENCHMARK_MODE !== "true") {
-      return this.notImplemented("aggregate");
-    }
-    return { success: true, data: [] };
-  }
-
-  public override destroy(): void {
-    if (this.preparedStatements.size > 0) this.preparedStatements.clear();
-  }
-
-  /**
-   * 🚀 AGNOSTIC CORE: PostgreSQL implementation of JSON field extraction.
-   */
-  public getJsonField(field: string): import("drizzle-orm").SQL {
-    if (field.includes(".")) {
-      const path = `{${field.split(".").join(",")}}`;
-      return drizzleSql`data#>>${path}`;
-    }
-    return drizzleSql`data->>${field}`;
-  }
-
-  public transaction = async <T>(
-    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
-    options?: {
-      timeout?: number;
-      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
-    },
-  ): Promise<DatabaseResult<T>> => {
-    if (!this._transactionModule) {
-      const { TransactionModule } = await import("./transaction-module");
-      this._transactionModule = new TransactionModule(this);
-    }
-    return this._transactionModule.execute(fn, options as any);
-  };
+  // --------------------------------------------------------------------------
+  // Schema & Dynamic Tables
+  // --------------------------------------------------------------------------
 
   public createDynamicTableDefinition(tableName: string) {
-    // Schema-aware row conversion: register date/JSON columns for zero-overhead lookups
     registerTableSchema(tableName, [
       "_id",
       "tenantId",
@@ -1399,36 +447,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     });
   }
 
-  public configureReplicas(urls: string[] | string): void {
-    const replicaUrls = typeof urls === "string" ? (JSON.parse(urls) as string[]) : urls;
-    if (!Array.isArray(replicaUrls)) return;
-    for (const sql of this.allReplicaSqls)
-      sql.end().catch(() => {
-        logger.debug("Failed to end PostgreSQL replica SQL during reconfiguration");
-      });
-    this.allReplicaSqls = [];
-    this.replicaSqls.clear();
-    if (replicaUrls.length === 0) return;
+  // --------------------------------------------------------------------------
+  // Raw Access
+  // --------------------------------------------------------------------------
 
-    for (const urlStr of replicaUrls) {
-      try {
-        const url = new URL(urlStr);
-        const region = url.searchParams.get("region") || "unknown";
-        const replicaSql = postgres(urlStr, {
-          max: 50,
-          transform: { undefined: null },
-        });
-        this.allReplicaSqls.push(replicaSql);
-        if (region !== "unknown") this.replicaSqls.set(region, replicaSql);
-      } catch (e) {
-        logger.warn(`Failed to initialize replica ${urlStr}:`, e);
-      }
-    }
-  }
-
-  /**
-   * 🚀 RAW ACCESS: Implementation for PostgreSQL (postgres.js)
-   */
   public get raw(): {
     execute: (sql: string, params?: any[]) => Promise<any>;
     client: any;
@@ -1441,6 +463,62 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       client: this.sql,
     };
   }
+
+  // --------------------------------------------------------------------------
+  // Transaction
+  // --------------------------------------------------------------------------
+
+  public transaction = async <T>(
+    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
+    options?: {
+      timeout?: number;
+      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
+    },
+  ): Promise<DatabaseResult<T>> => {
+    if (!this._transactionModule) {
+      const { TransactionModule } = await import("./transaction-module");
+      this._transactionModule = new TransactionModule(this);
+    }
+    return this._transactionModule.execute(fn, options as any);
+  };
+
+  // --------------------------------------------------------------------------
+  // Stream Many (PostgreSQL-specific native streaming)
+  // --------------------------------------------------------------------------
+
+  public async streamMany<T extends import("../db-interface").BaseEntity>(
+    collection: string,
+    query: import("../db-interface").QueryFilter<T>,
+    options: import("../db-interface").FindOptions<T> = {},
+  ): Promise<import("../db-interface").DatabaseResult<AsyncIterable<T>>> {
+    return this.wrap(async () => {
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const where = this.mapQuery(table, q, options);
+      let builder = (this.db as any).select().from(table).where(where);
+      if (options.limit) builder = builder.limit(options.limit);
+      if (options.offset) builder = builder.offset(options.offset);
+
+      const stream = await (builder as any).stream();
+      const convertFn = utils.convertDatesToISO;
+
+      async function* generator() {
+        for await (const row of stream) {
+          yield convertFn(row) as T;
+        }
+      }
+
+      return generator() as AsyncIterable<T>;
+    }, "STREAM_MANY_FAILED");
+  }
+
+  // --------------------------------------------------------------------------
+  // Upsert Native
+  // --------------------------------------------------------------------------
 
   async upsertNative(
     table: any,
@@ -1459,8 +537,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
     await this.wrap(
       async () => {
         const db = this.getDrizzleInstance(options);
-        // Pass Drizzle column references directly — sql.raw() can produce
-        // invalid ON CONFLICT targets on strict SQL dialects (PostgreSQL).
         await (db.insert(table).values(values) as any).onConflictDoUpdate({
           target: conflictTarget,
           set: values,
@@ -1471,6 +547,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       { isWrite: true },
     );
   }
+
+  // --------------------------------------------------------------------------
+  // Atomic Increment
+  // --------------------------------------------------------------------------
 
   async atomicIncrement(
     collection: string,
@@ -1500,7 +580,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
           try {
             rows = (await this.raw.execute(sqlQuery)) || [];
           } catch (err: any) {
-            // "too many clients" → pool exhaustion, retry with backoff
             if (err?.message?.includes("too many clients") || err?.code === "53300") {
               await new Promise((r) => setTimeout(r, 20 * (attempt + 1)));
               continue;
@@ -1518,6 +597,10 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
       { ...options, isWrite: true },
     );
   }
+
+  // --------------------------------------------------------------------------
+  // Create Model (Table Provisioning)
+  // --------------------------------------------------------------------------
 
   public async createModel(schemaData: any): Promise<void> {
     const tableName = schemaData._id || schemaData.id;
@@ -1599,7 +682,6 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
           }
         }
 
-        // Schema-aware row conversion: register date/JSON columns for zero-overhead lookups
         registerTableSchema(normalizedName, ["_id", "data", ...columns.map((c: any) => c.name)]);
 
         for (const col of columns) {
@@ -1607,17 +689,20 @@ export abstract class PostgresAdapterCore extends BaseAdapter implements ISqlAda
             await this.raw.execute(
               `ALTER TABLE "${physicalName}" ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type}`,
             );
-          } catch {}
+          } catch {
+            /* safe */
+          }
         }
 
-        // Create indexes
         for (const colName of dynamicCols) {
           try {
             const indexName = `${physicalName}_${colName}_idx`;
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${colName}")`,
             );
-          } catch {}
+          } catch {
+            /* safe */
+          }
         }
       },
       "CREATE_MODEL_FAILED",

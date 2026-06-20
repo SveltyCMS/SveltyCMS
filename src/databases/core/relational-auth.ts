@@ -54,6 +54,19 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.db;
   }
 
+  /**
+   * Helper to hash tokens before storage or comparison.
+   * Auth tokens (password reset, magic links, etc.) must NEVER be stored in plaintext.
+   */
+  private async _hashToken(token: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(token);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
   protected mapUser(dbUser: any): User {
     if (!dbUser) throw new Error("User not found");
 
@@ -675,13 +688,14 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const tokenValue = utils.generateId();
+        const hashedToken = await this._hashToken(tokenValue);
         await this.getDb()
           .insert(this.schema.authTokens)
           .values({
             _id: utils.generateId(),
             user_id: data.user_id,
             email: data.email.toLowerCase(),
-            token: tokenValue,
+            token: hashedToken,
             type: data.type,
             expires: new Date(data.expires),
             tenantId: data.tenantId || null,
@@ -728,8 +742,9 @@ export class RelationalAuthModule implements IAuthAdapter {
   async validateToken(token: string, userId?: DatabaseId, type?: string, options?: any) {
     return this.adapter.wrap(
       async () => {
+        const hashedToken = await this._hashToken(token);
         const conditions = [
-          eq(this.schema.authTokens.token, token),
+          eq(this.schema.authTokens.token, hashedToken),
           eq(this.schema.authTokens.consumed, false),
           gt(this.schema.authTokens.expires, new Date()),
         ];
@@ -764,7 +779,11 @@ export class RelationalAuthModule implements IAuthAdapter {
   async consumeToken(token: string, userId?: DatabaseId, type?: string, options?: any) {
     return this.adapter.wrap(
       async () => {
-        const conditions = [eq(this.schema.authTokens.token, token)];
+        const hashedToken = await this._hashToken(token);
+        const conditions = [
+          eq(this.schema.authTokens.token, hashedToken),
+          eq(this.schema.authTokens.consumed, false),
+        ];
         if (userId) conditions.push(eq(this.schema.authTokens.user_id, userId as string));
         if (type) conditions.push(eq(this.schema.authTokens.type, type));
         if (options?.tenantId !== undefined)
@@ -773,10 +792,29 @@ export class RelationalAuthModule implements IAuthAdapter {
               ? isNull(this.schema.authTokens.tenantId)
               : eq(this.schema.authTokens.tenantId, options.tenantId as string),
           );
-        await this.getDb(options)
+
+        const db = this.getDb(options);
+
+        // Verify the token exists and has not been consumed yet
+        const [existing] = await db
+          .select({ _id: this.schema.authTokens._id })
+          .from(this.schema.authTokens)
+          .where(and(...conditions))
+          .limit(1);
+
+        if (!existing) {
+          return {
+            status: false,
+            message: "Token not found or already consumed",
+          };
+        }
+
+        // Atomically mark as consumed with the same strict conditions
+        await db
           .update(this.schema.authTokens)
           .set({ consumed: true })
           .where(and(...conditions));
+
         return { status: true, message: "Consumed" };
       },
       "CONSUME_TOKEN_FAILED",
@@ -1170,10 +1208,17 @@ export class RelationalAuthModule implements IAuthAdapter {
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>> {
     return this.adapter.wrap(async () => {
+      const hashedToken = await this._hashToken(token);
       const [res] = await this.getDb(options)
         .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
         .from(this.schema.authTokens)
-        .where(eq(this.schema.authTokens.token, token))
+        .where(
+          and(
+            eq(this.schema.authTokens.token, hashedToken),
+            eq(this.schema.authTokens.consumed, false),
+            gt(this.schema.authTokens.expires, new Date()),
+          ),
+        )
         .limit(1);
       return res ? (utils.convertDatesToISO(res) as unknown as Token) : null;
     }, "GET_TOKEN_FAILED");
@@ -1200,7 +1245,12 @@ export class RelationalAuthModule implements IAuthAdapter {
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>> {
     return this.adapter.wrap(async () => {
-      const conditions = [eq(this.schema.authTokens.token, token)];
+      const hashedToken = await this._hashToken(token);
+      const conditions = [
+        eq(this.schema.authTokens.token, hashedToken),
+        eq(this.schema.authTokens.consumed, false),
+        gt(this.schema.authTokens.expires, new Date()),
+      ];
       if (userId) conditions.push(eq(this.schema.authTokens.user_id, userId as string));
       if (type) conditions.push(eq(this.schema.authTokens.type, type));
       const [res] = await this.getDb(options)
