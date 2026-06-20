@@ -128,7 +128,7 @@
 				data-cms-type="text"
 			>
 				{#if icon}
-					<iconify-icon {icon} width={iconSize} class={`mr-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
+					<iconify-icon {icon} width={iconSize} class={`me-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
 				{/if}
 
 				<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>

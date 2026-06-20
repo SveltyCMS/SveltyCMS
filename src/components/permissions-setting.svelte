@@ -394,7 +394,7 @@ Advanced permission management interface with bulk actions and presets.
 			<table class="table w-full" role="grid">
 				<thead>
 					<tr>
-						<th scope="col" class="px-4 py-3 text-left">
+						<th scope="col" class="px-4 py-3 text-start">
 							<div class="flex items-center gap-2">
 								Role
 								<span class="text-xs font-normal opacity-70"> ({filteredRoles.length}) </span>

@@ -3,15 +3,19 @@
  * @description Unit tests for the ToastStore.
  */
 import { toast } from "@stores/toast.svelte";
+import { vi, describe, beforeEach, afterEach, it, expect } from "vitest";
 
 describe("ToastStore", () => {
   beforeEach(() => {
     toast.clear();
     sessionStorage.clear();
+    // Enable fake timers before each test if available to guard asynchronous duration tests
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
     toast.clear();
+    vi.useRealTimers();
   });
 
   it("should add a basic toast", () => {
@@ -43,8 +47,8 @@ describe("ToastStore", () => {
 
     toast.clear();
 
-    // Interleave persistent toast
-    toast.info({ message: "Persistent", persistent: true });
+    // FIXED: explicitly use core configuration method to pass properties safely
+    toast.show({ type: "info", message: "Persistent", persistent: true });
     for (let i = 0; i < 5; i++) {
       toast.info(`Message ${i}`);
     }
@@ -72,7 +76,6 @@ describe("ToastStore", () => {
   });
 
   it("should store and read flash messages across sessions", () => {
-    // Flash is browser-only (sessionStorage). Skip in node environment.
     if (typeof window === "undefined") return;
 
     toast.flash({ type: "success", message: "Flash Success" });
@@ -84,7 +87,6 @@ describe("ToastStore", () => {
       message: "Flash Success",
     });
 
-    // Check flash logic
     toast.checkFlash();
     expect(toast.toasts.length).toBe(1);
     expect(toast.toasts[0].message).toBe("Flash Success");
@@ -98,16 +100,13 @@ describe("ToastStore", () => {
   });
 
   it("should auto-remove toast after duration", async () => {
-    // Skip in TEST_MODE because we disable timers for CI stability
-    if (process.env.TEST_MODE === "true") {
-      return;
-    }
+    if (process.env.TEST_MODE === "true") return;
 
     toast.show({ type: "success", message: "Auto remove", duration: 100 });
     expect(toast.toasts).toHaveLength(1);
 
-    // Wait for duration + small margin
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // FIXED: Use deterministic fake timers to fast forward execution safely
+    vi.advanceTimersByTime(150);
 
     expect(toast.toasts).toHaveLength(0);
   });
@@ -116,7 +115,7 @@ describe("ToastStore", () => {
     toast.show({ type: "info", message: "Persistent", duration: Infinity });
     expect(toast.toasts).toHaveLength(1);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    vi.advanceTimersByTime(200);
 
     expect(toast.toasts).toHaveLength(1);
   });

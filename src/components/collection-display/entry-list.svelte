@@ -865,19 +865,19 @@ bulk actions, and predictive preloading.
 			{/if}
 
 			<!-- Collection type with icon -->
-			<div class="mr-1 flex flex-col {!ui.state.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="me-1 flex flex-col {!ui.state.leftSidebar ? 'ms-2' : 'ms-1 sm:ms-2'}">
 				{#if categoryName}
 					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-50 rtl:text-left">{categoryName}</div>
 				{/if}
 				<h1 class="-mt-2 flex justify-start text-sm font-bold capitalize dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}
-						<span> <iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon> </span>
+						<span> <iconify-icon icon={currentCollection.icon} width="24" class="me-1 text-error-500 sm:mr-2"></iconify-icon> </span>
 					{/if}
 					{#if currentCollection?.name}
 						<div class="flex max-w-21.25 whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
 							{#if collectionStats}
-								<span class="ml-2 text-xs font-normal text-surface-500">({collectionStats.count})</span>
+								<span class="ms-2 text-xs font-normal text-surface-500">({collectionStats.count})</span>
 							{/if}
 						</div>
 					{/if}
@@ -939,7 +939,7 @@ bulk actions, and predictive preloading.
 			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
 				<div class="flex items-center gap-2">
 					<label class="flex items-center">
-						<input type="checkbox" bind:checked={selectAllColumns.value} class="mr-1" aria-label="select-all-columns" />
+						<input type="checkbox" bind:checked={selectAllColumns.value} class="me-1" aria-label="select-all-columns" />
 
 						{entrylist_all()}
 					</label>
@@ -963,7 +963,7 @@ bulk actions, and predictive preloading.
 								aria-label="toggle-column-visibility"
 							 class="chip {header.visible ? 'dark: ' : 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move">
 								{#if header.visible}
-									<iconify-icon icon="fa:check" width={24} class="mr-1"></iconify-icon>
+									<iconify-icon icon="fa:check" width={24} class="me-1"></iconify-icon>
 								{/if}
 								<span class="capitalize">{header.label}</span>
 							</Button>
@@ -1055,7 +1055,7 @@ bulk actions, and predictive preloading.
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
 										{const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-										<iconify-icon icon={sortIcon} width="16" class="ml-1 origin-center"></iconify-icon>
+										<iconify-icon icon={sortIcon} width="16" class="ms-1 origin-center"></iconify-icon>
 									{/if}
 								</button>
 							</th>

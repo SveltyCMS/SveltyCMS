@@ -79,7 +79,7 @@
 		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
 		<span>{entrylist_of()}</span>
 		<span class="text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
-		<span class="ml-4" aria-label="Current items shown">
+		<span class="ms-4" aria-label="Current items shown">
 			{#if totalItems > 0}
 				{entrylist_showing()} <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
 					class="text-tertiary-500 dark:text-primary-500">{endItem}</span

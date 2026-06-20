@@ -137,7 +137,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							<div
 								class="absolute inset-s-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-0.5 {stepCompleted[i]
 									? 'bg-tertiary-500 dark:bg-primary-500'
-									: 'border-l-2 border-dashed border-slate-200'}"
+									: 'border-s-2 border-dashed border-slate-200'}"
 							></div>
 						{/if}
 					</div>

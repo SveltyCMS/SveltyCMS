@@ -78,7 +78,7 @@
 		<div class="w-full overflow-x-auto">
 			<table class="w-full border-collapse text-sm">
 				<thead>
-					<tr class="border-b border-surface-200 text-left text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800">
+					<tr class="border-b border-surface-200 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800">
 						<th class="pb-3 font-semibold">From Path</th>
 						<th class="pb-3 font-semibold">To Path</th>
 						<th class="pb-3 font-semibold">Type</th>

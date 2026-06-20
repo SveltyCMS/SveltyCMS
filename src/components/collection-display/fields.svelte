@@ -718,14 +718,14 @@
               onclick={handleRevert}
               disabled={!selectedRevision?.data}
              aria-label="Revert revision" class="dark:">
-              <iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
+              <iconify-icon icon="mdi:restore" class="me-1"></iconify-icon>
               {applayout_version()}
             </Button>
             <Button variant="primary"
               onclick={() => (isDiffModalOpen = true)}
               disabled={!selectedRevision?.data}
              aria-label="Show diff">
-              <iconify-icon icon="mdi:compare" class="mr-1"></iconify-icon>
+              <iconify-icon icon="mdi:compare" class="me-1"></iconify-icon>
               Compare
             </Button>
           </div>

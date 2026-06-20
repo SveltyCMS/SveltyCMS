@@ -506,7 +506,7 @@ $effect(() => {
 								<th class="px-2 py-2"></th>
 							</tr>
 						{/if}
-						<tr class="border-b border-surface-200 dark:border-surface-800 text-left text-xs uppercase tracking-wider text-surface-400">
+						<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
 							<th class="w-10 px-2 py-3 text-center">
 								<Checkbox
 									checked={selectedTokens.size === tokens.length && tokens.length > 0}

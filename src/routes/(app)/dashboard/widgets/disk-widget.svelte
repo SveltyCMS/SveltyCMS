@@ -140,7 +140,7 @@ export const widgetMeta = {
 						<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Used</span>
 					</div>
 
-					<div class="text-right text-sm">
+					<div class="text-end text-sm">
 						<div class="font-medium tabular-nums">{disk.free.toFixed(1)} GB <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">free</span></div>
 					</div>
 				</div>

@@ -346,7 +346,7 @@ Features:
 						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_system_site_name?.() || 'CMS Name'}</span>
 						<SystemTooltip title={setup_help_site_name()}>
-							<button type="button" tabindex="-1" aria-label="Help: Site Name" class="ml-1 text-slate-400 hover:text-tertiary-500">
+							<button type="button" tabindex="-1" aria-label="Help: Site Name" class="ms-1 text-slate-400 hover:text-tertiary-500">
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
@@ -369,7 +369,7 @@ Features:
 						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_system_host_prod?.() || 'Production URL'}</span>
 						<SystemTooltip title={setup_help_host_prod?.() || 'The production URL...'}>
-							<button type="button" tabindex="-1" aria-label="Help: Production URL" class="ml-1 text-slate-400 hover:text-tertiary-500">
+							<button type="button" tabindex="-1" aria-label="Help: Production URL" class="ms-1 text-slate-400 hover:text-tertiary-500">
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
@@ -392,7 +392,7 @@ Features:
 						<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_system_timezone?.() || 'Timezone'}</span>
 						<SystemTooltip title={setup_help_timezone?.() || 'Default system timezone'}>
-							<button type="button" tabindex="-1" aria-label="Help: Timezone" class="ml-1 text-slate-400 hover:text-tertiary-500">
+							<button type="button" tabindex="-1" aria-label="Help: Timezone" class="ms-1 text-slate-400 hover:text-tertiary-500">
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
@@ -429,7 +429,7 @@ Features:
 						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_system_media_type?.() || 'Media Storage Type'}</span>
 						<SystemTooltip title={setup_help_media_type?.() || setup_help_media_path()}>
-							<button type="button" tabindex="-1" aria-label="Help: Media Storage Type" class="ml-1 text-slate-400 hover:text-tertiary-500">
+							<button type="button" tabindex="-1" aria-label="Help: Media Storage Type" class="ms-1 text-slate-400 hover:text-tertiary-500">
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
@@ -448,7 +448,7 @@ Features:
 								: setup_system_media_folder_cloud?.() || 'Bucket/Cloud Name'}
 						</span>
 						<SystemTooltip title={setup_help_media_type?.() || 'Storage path configuration'}>
-							<button type="button" tabindex="-1" aria-label="Help: Media Folder" class="ml-1 text-slate-400 hover:text-tertiary-500">
+							<button type="button" tabindex="-1" aria-label="Help: Media Folder" class="ms-1 text-slate-400 hover:text-tertiary-500">
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
@@ -485,7 +485,7 @@ Features:
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_label_default_system_language?.() || 'Default System Language'}</span>
 						<SystemTooltip title={setup_help_default_system_language()}>
-							<button tabindex="-1" type="button" aria-label="Help: Default System Language" class="ml-1 text-slate-400 hover:text-tertiary-500">
+							<button tabindex="-1" type="button" aria-label="Help: Default System Language" class="ms-1 text-slate-400 hover:text-tertiary-500">
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
@@ -503,7 +503,7 @@ Features:
 							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span class="text-black dark:text-white">{setup_label_system_languages?.() || 'System Languages'}</span>
 							<SystemTooltip title={setup_help_system_languages()}>
-								<button tabindex="-1" type="button" aria-label="Help: System Languages" class="ml-1 text-slate-400 hover:text-tertiary-500">
+								<button tabindex="-1" type="button" aria-label="Help: System Languages" class="ms-1 text-slate-400 hover:text-tertiary-500">
 									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 								</button>
 							</SystemTooltip>
@@ -586,7 +586,7 @@ Features:
 						></iconify-icon>
 						<span class="text-black dark:text-white">{setup_label_default_content_language?.() || 'Default Content Language'}</span>
 						<SystemTooltip title={setup_help_default_content_language()}>
-							<button tabindex="-1" type="button" aria-label="Help: Default Content Language" class="ml-1 text-slate-400 hover:text-tertiary-500">
+							<button tabindex="-1" type="button" aria-label="Help: Default Content Language" class="ms-1 text-slate-400 hover:text-tertiary-500">
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
@@ -604,7 +604,7 @@ Features:
 							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span class="text-black dark:text-white">{setup_label_content_languages?.() || 'Content Languages'}</span>
 							<SystemTooltip title={setup_help_content_languages()}>
-								<button tabindex="-1" type="button" aria-label="Help: Content Languages" class="ml-1 text-slate-400 hover:text-tertiary-500">
+								<button tabindex="-1" type="button" aria-label="Help: Content Languages" class="ms-1 text-slate-400 hover:text-tertiary-500">
 									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 								</button>
 							</SystemTooltip>

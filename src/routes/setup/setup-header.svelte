@@ -71,7 +71,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 										<span class="hidden xs:inline">{getLanguageName(currentLanguageTag)}</span>
 										<span class="xs:hidden">{currentLanguageTag.toUpperCase()}</span>
 									</span>
-									<iconify-icon icon="mdi:chevron-down" class="ml-1 h-4 w-4 transition-transform"></iconify-icon>
+									<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
 								</Button>
 							{/snippet}
 							<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
@@ -112,7 +112,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 						{#snippet trigger()}
 							<Button variant="outline" type="button" class="h-10 rounded px-3 gap-1">
 								<span class="text-sm font-bold">{getLanguageName(currentLanguageTag)}</span>
-								<iconify-icon icon="mdi:chevron-down" class="ml-1 h-4 w-4 transition-transform"></iconify-icon>
+								<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
 							</Button>
 						{/snippet}
 						<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">

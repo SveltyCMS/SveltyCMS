@@ -830,13 +830,13 @@ const conditionOperatorOptions = [
 								{#each flow.trigger.events || [] as event (event)}
 									{const meta = AUTOMATION_EVENTS.find((e) => e.event === event)}
 									<Badge preset="tonal" color="primary" size="sm">
-										<iconify-icon icon={meta?.icon || 'mdi:flash'} class="mr-1"></iconify-icon>
+										<iconify-icon icon={meta?.icon || 'mdi:flash'} class="me-1"></iconify-icon>
 										{meta?.label || event}
 									</Badge>
 								{/each}
 							{:else if flow.trigger.type === 'schedule'}
 								<Badge preset="tonal" color="warning" size="sm">
-									<iconify-icon icon="mdi:clock-outline" class="mr-1"></iconify-icon>
+									<iconify-icon icon="mdi:clock-outline" class="me-1"></iconify-icon>
 									{flow.trigger.cronLabel || flow.trigger.cron || 'Schedule'}
 								</Badge>
 							{:else}
@@ -850,7 +850,7 @@ const conditionOperatorOptions = [
 							{#each flow.operations as op, i (op.id)}
 								{const meta = getOperationMeta(op.type)}
 								<Badge preset="tonal" color="secondary" size="sm">
-									<iconify-icon icon={meta?.icon || 'mdi:cog'} class="mr-1"></iconify-icon>
+									<iconify-icon icon={meta?.icon || 'mdi:cog'} class="me-1"></iconify-icon>
 									{meta?.label || op.type}
 								</Badge>
 								{#if i < flow.operations.length - 1}

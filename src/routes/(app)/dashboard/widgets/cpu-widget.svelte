@@ -103,7 +103,7 @@ export const widgetMeta = {
 							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">now</span>
 						</div>
 
-						<div class="text-right">
+						<div class="text-end">
 							<div class="text-sm font-medium tabular-nums">{cpu.average.toFixed(1)}% <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">avg</span></div>
 						</div>
 					</div>
@@ -195,7 +195,7 @@ export const widgetMeta = {
 				{#if size.h !== 1 && (size.w >= 2 || size.h >= 2)}
 					<div class="flex justify-between text-xs pt-1 {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} border-t border-gray-100/50 dark:border-gray-800/50">
 						<span>Cores: <span class="font-medium text-gray-700 dark:text-gray-300">{data?.cpuInfo?.cores?.count ?? '—'}</span></span>
-						<span class="text-right truncate max-w-85">
+						<span class="text-end truncate max-w-85">
 							{data?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 3).join(' ') ?? 'Unknown'}
 						</span>
 					</div>

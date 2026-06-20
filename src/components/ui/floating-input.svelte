@@ -157,7 +157,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 								: 'bg-[#242728] text-white focus:bg-[#242728] focus:text-white'
 					  ),
 				invalid && 'border-error-500! dark:border-error-500!',
-				type === 'security' && 'pr-10',
+				type === 'security' && 'pe-10',
 				textColor === 'black' ? 'autofill-light' : 'autofill-dark',
 				inputClass
 			)}

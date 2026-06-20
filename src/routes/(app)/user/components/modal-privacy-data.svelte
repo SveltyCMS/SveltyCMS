@@ -112,7 +112,7 @@
 						portability.
 					</p>
 					<Button variant="secondary" onclick={handleExportData} class="mt-4 w-full sm:w-auto">
-						<iconify-icon icon="mdi:download" class="mr-2"></iconify-icon>
+						<iconify-icon icon="mdi:download" class="me-2"></iconify-icon>
 						Request Data Export
 					</Button>
 				</div>
@@ -135,7 +135,7 @@
 							irreversible.
 						</p>
 						<Button variant="error" onclick={handleAnonymize} class="mt-4 w-full sm:w-auto">
-							<iconify-icon icon="mdi:alert-circle" class="mr-2"></iconify-icon>
+							<iconify-icon icon="mdi:alert-circle" class="me-2"></iconify-icon>
 							Permanently Anonymize Account
 						</Button>
 					</div>

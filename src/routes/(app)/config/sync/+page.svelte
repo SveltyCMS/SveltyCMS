@@ -188,7 +188,7 @@ onMount(() => {
 						<AdminCard class="overflow-x-auto w-full border border-surface-200 dark:border-surface-800">
 							<table class="w-full text-sm border-collapse">
 								<thead>
-									<tr class="border-b border-surface-200 dark:border-surface-800 text-left text-xs uppercase tracking-wider text-surface-400">
+									<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
 										<th class="px-4 py-3 font-semibold">Name</th>
 										<th class="px-4 py-3 font-semibold">Type</th>
 										<th class="px-4 py-3 font-semibold">Change</th>

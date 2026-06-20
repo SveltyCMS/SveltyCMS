@@ -265,12 +265,12 @@ functionality for image editing and basic file information display.
 			<div class="mx-2 flex flex-col gap-2">
 				<!-- Image Header -->
 				<div class="flex items-center justify-between gap-2">
-					<p class="text-left">
+					<p class="text-start">
 						{widget_ImageUpload_Name()}
 						<span class="text-tertiary-500 dark:text-primary-500">{value instanceof File ? value.name : (value as MediaImage).path}</span>
 					</p>
 
-					<p class="text-left">
+					<p class="text-start">
 						{widget_ImageUpload_Size()}
 						<span class="text-tertiary-500 dark:text-primary-500">{((value.size ?? 0) / 1024).toFixed(2)} KB</span>
 					</p>
@@ -298,7 +298,7 @@ functionality for image editing and basic file information display.
 							{/if}
 						</div>
 					{:else}
-						<div class="col-span-11 ms-2 grid grid-cols-2 gap-1 text-left">
+						<div class="col-span-11 ms-2 grid grid-cols-2 gap-1 text-start">
 							<p class="">{widget_ImageUpload_Type()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).type}</p>
 							<p class="">Path:</p>

@@ -427,7 +427,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			<!-- Save -->
 			<Button variant="tertiary" onclick={onFormSubmit} disabled={!files.length || isUploading} class="dark:">
 				{#if isUploading}
-					<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+					<div class="me-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 					Uploading...
 				{:else}
 					{button_save()}

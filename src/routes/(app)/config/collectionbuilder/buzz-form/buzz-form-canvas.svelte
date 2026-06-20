@@ -85,7 +85,7 @@ function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
 		>
 			{#each items as item, index (item.id)}
 				<div animate:flip={{ duration: flipDurationMs }}>
-					<button onclick={() => onSelectField(item, index)} class="group relative w-full text-left" aria-label="Select field">
+					<button onclick={() => onSelectField(item, index)} class="group relative w-full text-start" aria-label="Select field">
 						<!-- Selection Indicator -->
 						{#if selectedFieldId === item.id}
 							<div class="absolute -left-1 -top-1 -right-1 -bottom-1 rounded border-2 border-primary-500 ring-4 ring-primary-500/10"></div>
@@ -111,7 +111,7 @@ function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
 								<div class="mt-1 text-xs text-surface-500 line-clamp-1">
 									Type: <span class="text-primary-500 font-medium">{item.widget?.key || 'Generic'}</span>
 									{#if item.required}
-										<span class="ml-2 text-error-500">* Required</span>
+										<span class="ms-2 text-error-500">* Required</span>
 									{/if}
 								</div>
 							</div>

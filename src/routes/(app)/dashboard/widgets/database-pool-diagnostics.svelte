@@ -121,7 +121,7 @@ export const widgetMeta = {
 			<!-- Health Status Badge -->
 			<div class="mb-4">
 				<span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium {getHealthColor(diagnostics.healthStatus)}">
-					<span class="mr-2 h-2 w-2 rounded-full bg-current"></span>
+					<span class="me-2 h-2 w-2 rounded-full bg-current"></span>
 					{diagnostics.healthStatus.charAt(0).toUpperCase() + diagnostics.healthStatus.slice(1)}
 				</span>
 			</div>

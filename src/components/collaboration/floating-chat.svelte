@@ -192,7 +192,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 		{#if isOpen}
 			<div
 				transition:scale={{ duration: 200, start: 0.9 }}
-				class={screen.isMobile ? '' : `${layoutInfo.expandUp ? 'origin-bottom' : 'origin-top'}-${layoutInfo.expandLeft ? 'right' : 'start'} mb-2`}
+				class={screen.isMobile ? '' : `${layoutInfo.expandUp ? 'origin-bottom' : 'origin-top'}-${layoutInfo.expandLeft ? 'end' : 'start'} mb-2`}
 				style={panelStyle}
 			>
 				<ActivityStream ondrag={drag} />

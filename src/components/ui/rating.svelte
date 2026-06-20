@@ -180,7 +180,7 @@ function starFill(displayVal: number, index: number): number {
 	{/each}
 
 	{#if showValue}
-		<span class="ml-2 text-sm font-medium text-surface-500 dark:text-surface-400 tabular-nums">
+		<span class="ms-2 text-sm font-medium text-surface-500 dark:text-surface-400 tabular-nums">
 			{value} / {count}
 		</span>
 	{/if}

@@ -186,7 +186,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 				onclick={toggleText}
 				aria-expanded={isExpanded}
 				aria-label={isExpanded ? 'Show less text' : 'Show more text'}
-				class="ml-1"
+				class="ms-1"
 			>
 				{isExpanded ? 'Show Less' : 'Show More'}
 				<iconify-icon icon={isExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="16" aria-hidden="true"></iconify-icon>
@@ -199,7 +199,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 		<div transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }} class="inline">
 			<Badge variant="tertiary"
 				title="Number of matches found"
-				class="ml-2"
+				class="ms-2"
 			>
 				<iconify-icon icon="mdi:magnify" width="12" aria-hidden="true"></iconify-icon>
 				{matchCount}

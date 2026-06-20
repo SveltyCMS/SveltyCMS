@@ -289,7 +289,7 @@ onMount(loadFlows);
 
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center gap-2 mb-0.5">
-										<a class="font-bold text-lg truncate hover:text-tertiary-600 dark:text-primary-600 transition-colors text-left" href={`/config/automations/${flow.id}`} data-sveltekit-preload-data="hover">
+										<a class="font-bold text-lg truncate hover:text-tertiary-600 dark:text-primary-600 transition-colors text-start" href={`/config/automations/${flow.id}`} data-sveltekit-preload-data="hover">
 											{flow.name}
 										</a>
 										{#if flow.active}

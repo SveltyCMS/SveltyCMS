@@ -41,6 +41,6 @@
 {:else}
 	<div class="flex aspect-video w-full items-center justify-center rounded bg-surface-100 dark:bg-surface-800 text-surface-400">
 		<iconify-icon icon="mdi:video-off" width="48"></iconify-icon>
-		<span class="ml-2">Embed not available for this platform</span>
+		<span class="ms-2">Embed not available for this platform</span>
 	</div>
 {/if}

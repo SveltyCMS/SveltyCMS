@@ -100,7 +100,7 @@ export const widgetMeta = {
 							</div>
 							<span class="font-bold tabular-nums text-sm capitalize {scim.status === 'healthy' ? 'text-emerald-600 dark:text-emerald-400' : scim.status === 'degraded' ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}">{scim.status}</span>
 						</div>
-						<div class="flex items-center gap-2 text-right">
+						<div class="flex items-center gap-2 text-end">
 							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{scim.activeUsers} Active Users</span>
 							{#if scim.syncedToday > 0}
 								<span class="text-gray-400 dark:text-gray-500">| +{scim.syncedToday} Today</span>

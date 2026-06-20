@@ -87,10 +87,10 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 						<iconify-icon icon="mdi:checkbox-marked-circle-outline" width="20"></iconify-icon>
 					</th>
 					<th class="w-20 p-4">Preview</th>
-					<th class="p-4 text-left">Name</th>
-					<th class="p-4 text-left">Type</th>
-					<th class="p-4 text-left">Size</th>
-					<th class="p-4 text-right">Actions</th>
+					<th class="p-4 text-start">Name</th>
+					<th class="p-4 text-start">Type</th>
+					<th class="p-4 text-start">Size</th>
+					<th class="p-4 text-end">Actions</th>
 				</tr>
 			</thead>
 
@@ -133,7 +133,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							<Badge preset="tonal" color="surface" class="uppercase">{file.mimeType.split('/')[1] || file.type}</Badge>
 						</td>
 						<td class="p-4 text-xs font-mono opacity-70">{formatBytes(file.size)}</td>
-						<td class="p-4 text-right">
+						<td class="p-4 text-end">
 							<div class="flex justify-end gap-1">
 								<Button variant="tertiary"
 									onclick={(e: MouseEvent) => { e.stopPropagation(); onEditImage(file as MediaImage); }}

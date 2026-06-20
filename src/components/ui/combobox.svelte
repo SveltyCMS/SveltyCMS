@@ -282,7 +282,7 @@ $effect(() => {
 				isOpen && "rounded-b-none",
 				error && "border-error-500 ring-error-500/20 focus:border-error-500 focus:ring-error-500/20",
 				disabled && "opacity-50 cursor-not-allowed",
-				clearable && value !== undefined && !disabled ? "pr-20" : "pr-10"
+				clearable && value !== undefined && !disabled ? "pe-20" : "pe-10"
 			)}
 			onfocus={() => (isOpen = true)}
 			onkeydown={handleKeydown}

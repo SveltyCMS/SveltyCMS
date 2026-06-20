@@ -90,13 +90,13 @@ onMount(loadLogs);
 			<div class="overflow-x-auto w-full">
 				<table class="w-full border-collapse text-sm">
 					<thead>
-						<tr class="border-b border-surface-200 text-left text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800">
+						<tr class="border-b border-surface-200 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800">
 							<th class="px-4 py-3 font-semibold">Webhook / Event</th>
 							<th class="px-4 py-3 font-semibold">Status</th>
 							<th class="px-4 py-3 font-semibold">Attempts</th>
 							<th class="px-4 py-3 font-semibold">Last Attempt</th>
 							<th class="px-4 py-3 font-semibold">Error</th>
-							<th class="px-4 py-3 text-right font-semibold">Actions</th>
+							<th class="px-4 py-3 text-end font-semibold">Actions</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -120,7 +120,7 @@ onMount(loadLogs);
 								<td class="max-w-xs truncate px-4 py-3 font-mono text-xs text-error-500">
 									{log.lastError || '-'}
 								</td>
-								<td class="px-4 py-3 text-right">
+								<td class="px-4 py-3 text-end">
 									{#if log.status === 'failed'}
 										<Button variant="primary" onclick={() => retryWebhook(log._id)} size="sm">
 											Retry Now

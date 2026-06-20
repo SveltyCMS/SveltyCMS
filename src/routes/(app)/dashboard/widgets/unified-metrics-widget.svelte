@@ -166,7 +166,7 @@ export const widgetMeta = {
 								<div class="text-xs text-surface-500">System Health</div>
 							</div>
 						</div>
-						<div class="text-right">
+						<div class="text-end">
 							<div class="text-xs text-surface-500">Uptime</div>
 							<div class="font-mono text-sm tabular-nums">{fmtUptime(m.uptime)}</div>
 						</div>

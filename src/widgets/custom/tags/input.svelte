@@ -118,7 +118,7 @@
 	{/if}
 
 	{#if field.maxTags && Array.isArray(value)}
-		<p class="text-[10px] text-surface-400 text-right">
+		<p class="text-[10px] text-surface-400 text-end">
 			{value.length} / {field.maxTags} tags
 		</p>
 	{/if}

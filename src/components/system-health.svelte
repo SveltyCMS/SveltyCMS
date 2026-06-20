@@ -515,7 +515,7 @@ Displays real-time system state and individual service health with comprehensive
 				<div class="mt-2 space-y-1">
 					<p><strong>Returns:</strong> JSON with system status and component health</p>
 					<p><strong>Status codes:</strong></p>
-					<ul class="ml-4 list-disc space-y-0.5">
+					<ul class="ms-4 list-disc space-y-0.5">
 						<li>200 = READY/DEGRADED</li>
 						<li>503 = INITIALIZING/FAILED/IDLE</li>
 					</ul>

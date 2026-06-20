@@ -187,7 +187,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					sizeTokens.height,
 					sizeTokens.text,
 					sizeTokens.padding,
-					'pr-10',
+					'pe-10',
 					invalid
 						? 'border-error-500 focus:ring-error-500/20 focus:border-error-500'
 						: 'border-surface-200 dark:border-surface-700',

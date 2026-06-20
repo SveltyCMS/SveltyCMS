@@ -172,27 +172,49 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
 
     // Directional Tailwind → logical properties
     const dirRegex =
-      /(?:^|\s)(pl|pr|ml|mr|left|right|border-l|border-r|rounded-l|rounded-r|text-left|text-right)(?=-\d|\[|\s|$)/g;
+      /(?:^|[\s"'`])(pl|pr|ml|mr|left|right|border-l|border-r|rounded-l|rounded-r|text-left|text-right)(-\d+|-\[[^\]]+\]|)(?=[\s"'`]|$)/g;
     let m: RegExpExecArray | null;
+    let lineFixed = line;
+    let lineHasFixes = false;
+
     while ((m = dirRegex.exec(line)) !== null) {
-      const cls = m[0].trim();
+      const prefix = m[1];
+      const suffix = m[2];
+      const fullMatch = prefix + suffix;
+
       report(
         relPath,
         i + 1,
         "rtl",
-        `"${cls}" → use logical properties (ps-/pe-/ms-/me-/start-/end-)`,
+        `"${fullMatch}" → use logical properties (ps-/pe-/ms-/me-/start-/end-)`,
         "warning",
         true,
       );
+
       if (shouldFix) {
         for (const [from, to] of Object.entries(RTL_MAP)) {
-          if (cls.startsWith(from)) {
-            const newCls = cls.replace(from, to);
-            const escaped = cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            fixed = fixed.replace(new RegExp(`\\b${escaped}\\b`, "g"), newCls);
+          if (prefix === from) {
+            const newCls = to + suffix;
+            // Only replace the full class match with boundaries to avoid partial matches
+            const escaped = fullMatch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            lineFixed = lineFixed.replace(
+              new RegExp(`(?<=^|[\\s"'\`])${escaped}(?=[\\s"'\`]|$)|\\b${escaped}\\b`, "g"),
+              newCls,
+            );
+            lineHasFixes = true;
             break;
           }
         }
+      }
+    }
+
+    if (shouldFix && lineHasFixes) {
+      // Find the exact line in the original `fixed` string to replace.
+      // Since `fixed` is a single string and we want to replace this specific line:
+      const linesArr = fixed.split("\n");
+      if (linesArr[i] === line) {
+        linesArr[i] = lineFixed;
+        fixed = linesArr.join("\n");
       }
     }
   }

@@ -39,7 +39,7 @@ Features:
 	<section id="welcome-body" class="space-y-4 p-4">
 		<p>{welcome_modal_body()}</p>
 		<p class="text-sm text-surface-500 dark:text-surface-50">
-			<span class="mr-1 inline-block text-xl">⏱️</span>
+			<span class="me-1 inline-block text-xl">⏱️</span>
 			{welcome_modal_eta()}
 		</p>
 	</section>
@@ -47,7 +47,7 @@ Features:
 	<footer class="flex justify-center">
 		<Button variant="tertiary" onclick={handleGetStarted} class="dark:">
 			{welcome_modal_cta()}
-			<iconify-icon icon="mdi:arrow-right" width="20" class="ml-2"></iconify-icon>
+			<iconify-icon icon="mdi:arrow-right" width="20" class="ms-2"></iconify-icon>
 		</Button>
 	</footer>
 </div>

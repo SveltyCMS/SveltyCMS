@@ -51,7 +51,7 @@ function formatBytes(bytes: number, decimals = 2) {
 		<div class="w-full overflow-x-auto">
 			<table class="w-full border-collapse text-sm">
 				<thead>
-					<tr class="border-b border-surface-200 text-left text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800">
+					<tr class="border-b border-surface-200 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800">
 						<th class="px-4 py-3 font-semibold">Name</th>
 						<th class="px-4 py-3 font-semibold">Status</th>
 						<th class="px-4 py-3 font-semibold">Users</th>
@@ -59,7 +59,7 @@ function formatBytes(bytes: number, decimals = 2) {
 						<th class="px-4 py-3 font-semibold">Collections</th>
 						<th class="px-4 py-3 font-semibold">Plan</th>
 						<th class="px-4 py-3 font-semibold">Created</th>
-						<th class="px-4 py-3 text-right font-semibold">Actions</th>
+						<th class="px-4 py-3 text-end font-semibold">Actions</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -90,7 +90,7 @@ function formatBytes(bytes: number, decimals = 2) {
 							<td class="px-4 py-3">{tenant.usage.collectionsCount} / {tenant.quota.maxCollections}</td>
 							<td class="px-4 py-3 text-xs font-bold uppercase opacity-70">{tenant.plan}</td>
 							<td class="px-4 py-3">{new Date(tenant.createdAt).toLocaleDateString()}</td>
-							<td class="px-4 py-3 text-right">
+							<td class="px-4 py-3 text-end">
 								<Button
 									variant={tenant.status === 'active' ? 'outline' : 'primary'}
 									size="sm"

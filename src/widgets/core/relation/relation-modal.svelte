@@ -220,7 +220,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 				type="button"
 				onclick={handleSave}
 			 class="dark:">
-				<iconify-icon icon="mdi:check" class="mr-1"></iconify-icon>
+				<iconify-icon icon="mdi:check" class="me-1"></iconify-icon>
 				{button_save()}
 			</Button>
 		</div>

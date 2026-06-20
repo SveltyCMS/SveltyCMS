@@ -16,7 +16,7 @@ Displays the current step title and icon, and a reset button.
 <div class="flex shrink-0 justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
 	<h2 class="flex justify-center items-center text-lg font-semibold tracking-tight sm:text-xl text-black dark:text-white">
 		{#if icons[currentStep]}
-			<iconify-icon icon={icons[currentStep]} class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+			<iconify-icon icon={icons[currentStep]} class="me-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
 		{/if}
 		{steps[currentStep]?.label || 'Loading...'}
 	</h2>
@@ -26,7 +26,7 @@ Displays the current step title and icon, and a reset button.
 			type="button"
 			aria-label="Reset data"
 		 size="sm" class="flex items-center dark:text-secondary-50 preset-outlined dark:border-surface-600 rounded">
-			<iconify-icon icon="mdi:backup-restore" width={24} class="mr-1"></iconify-icon>
+			<iconify-icon icon="mdi:backup-restore" width={24} class="me-1"></iconify-icon>
 			<span class="">Reset Data</span>
 		</Button>
 	</SystemTooltip>

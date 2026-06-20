@@ -170,7 +170,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 <span class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={tooltipText}>
 	<span>{formattedRange}</span>
 	{#if duration}
-		<span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400" aria-label="Duration: {duration}"> ({duration}) </span>
+		<span class="ms-2 text-sm font-normal text-gray-500 dark:text-gray-400" aria-label="Duration: {duration}"> ({duration}) </span>
 	{/if}
 	{#if relativeContext}
 		<span class={contextClasses} aria-label="Time context: {relativeContext}"> {relativeContext} </span>

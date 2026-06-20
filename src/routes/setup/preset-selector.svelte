@@ -115,7 +115,7 @@ Default value is 'blank'.
 			<Button variant="ghost"
 				type="button"
 				onclick={() => scrollBy(-1)}
-				aria-label="Scroll left"
+				aria-label="Scroll start"
 				disabled={!canScrollLeft}
 			 class="p-0! min-w-0 preset-filled rounded-full disabled:hidden">
 				<iconify-icon icon="mdi:chevron-left" width="20"></iconify-icon>
@@ -123,7 +123,7 @@ Default value is 'blank'.
 			<Button variant="ghost"
 				type="button"
 				onclick={() => scrollBy(1)}
-				aria-label="Scroll right"
+				aria-label="Scroll end"
 				disabled={!canScrollRight}
 			 class="p-0! min-w-0 preset-filled rounded-full disabled:hidden">
 				<iconify-icon icon="mdi:chevron-right" width="20"></iconify-icon>

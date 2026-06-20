@@ -381,7 +381,7 @@ This component provides a user interface for managing 2FA settings:
 							{/each}
 						</div>
 						<p class="text-sm text-warning-600 dark:text-warning-400">
-							<iconify-icon icon="mdi:alert" width={16} class="mr-1"></iconify-icon>
+							<iconify-icon icon="mdi:alert" width={16} class="me-1"></iconify-icon>
 							{twofa_backup_codes_warning()}
 						</p>
 					</div>
@@ -402,7 +402,7 @@ This component provides a user interface for managing 2FA settings:
 					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
 					{twofa_verifying()}
 				{:else}
-					<iconify-icon icon="mdi:check-circle" width={20} class="mr-2"></iconify-icon>
+					<iconify-icon icon="mdi:check-circle" width={20} class="me-2"></iconify-icon>
 					{twofa_verify_button()}
 				{/if}
 			</Button>

@@ -186,14 +186,14 @@ function getFilterUrl(status?: string) {
 		<div class="overflow-x-auto w-full">
 			<table class="w-full text-sm border-collapse whitespace-nowrap">
 				<thead>
-					<tr class="border-b border-surface-200 dark:border-surface-800 text-left text-xs uppercase tracking-wider text-surface-400">
+					<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
 						<th class="px-4 py-3 font-semibold">Job ID</th>
 						<th class="px-4 py-3 font-semibold">Task Type</th>
 						<th class="px-4 py-3 font-semibold">Status</th>
 						<th class="px-4 py-3 font-semibold">Attempts</th>
 						<th class="px-4 py-3 font-semibold">Next Run</th>
 						<th class="px-4 py-3 font-semibold">Created</th>
-						<th class="px-4 py-3 font-semibold text-right">Actions</th>
+						<th class="px-4 py-3 font-semibold text-end">Actions</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -233,7 +233,7 @@ function getFilterUrl(status?: string) {
 							<td class="px-4 py-3 text-sm">
 								{formatDate(job.createdAt)}
 							</td>
-							<td class="px-4 py-3 text-right">
+							<td class="px-4 py-3 text-end">
 								<div class="flex items-center justify-end gap-1">
 									{#if job.status === 'failed'}
 										<Button variant="primary" title="Retry Job" disabled={isRetrying} onclick={async () => {

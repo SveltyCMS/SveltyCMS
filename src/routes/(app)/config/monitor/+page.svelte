@@ -146,7 +146,7 @@ function formatUptime(seconds: number): string {
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-surface-200 text-left dark:border-surface-700">
+                        <tr class="border-b border-surface-200 text-start dark:border-surface-700">
                             <th class="pb-2 text-xs font-bold uppercase opacity-50">Service</th>
                             <th class="pb-2 text-xs font-bold uppercase opacity-50">Status</th>
                             <th class="hidden pb-2 text-xs font-bold uppercase opacity-50 sm:table-cell">Init Time</th>

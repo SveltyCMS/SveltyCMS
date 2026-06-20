@@ -80,12 +80,12 @@ onMount(loadTrash);
 			<div class="overflow-x-auto w-full">
 				<table class="w-full text-sm border-collapse">
 					<thead>
-						<tr class="border-b border-surface-200 dark:border-surface-800 text-left text-xs uppercase tracking-wider text-surface-400">
+						<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
 							<th class="pb-3 font-semibold">Content</th>
 							<th class="pb-3 font-semibold">Collection</th>
 							<th class="pb-3 font-semibold">Deleted At</th>
 							<th class="pb-3 font-semibold">Deleted By</th>
-							<th class="pb-3 font-semibold text-right">Actions</th>
+							<th class="pb-3 font-semibold text-end">Actions</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -100,7 +100,7 @@ onMount(loadTrash);
 								</td>
 								<td class="py-3">{formatDate(item.deletedAt)}</td>
 								<td class="py-3">{item.deletedBy || 'System'}</td>
-								<td class="py-3 text-right">
+								<td class="py-3 text-end">
 									<Button variant="tertiary"
 										onclick={() => restoreItem(item.collectionId, item._id)}
 									 size="sm" class="dark:" leadingIcon="mdi:restore">
