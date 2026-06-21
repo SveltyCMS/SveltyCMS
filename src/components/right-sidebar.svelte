@@ -287,7 +287,7 @@
 		{#if showSidebar}
 		<!-- Special "Next" button for Menu wizard -->
 		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
-			<Button variant="tertiary" type="button" onclick={nextAction!} class="dark: w-full gap-2 shadow-lg">
+			<Button variant="tertiary" type="button" onclick={nextAction!} class="w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
 				{button_next()}
 			</Button>
@@ -300,7 +300,7 @@
 					disabled={!isFormValid || !canWrite}
 					aria-label="Save"
 					title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
-				 class="dark: w-full gap-2 shadow-lg transition-all">
+				 class="w-full gap-2 shadow-lg transition-all">
 					<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
 					{button_save()}
 				</Button>

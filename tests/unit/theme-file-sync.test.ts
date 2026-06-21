@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  * @file tests/unit/theme-file-sync.test.ts
- * @description Unit tests for /themes/*.json boot-time sync helpers.
+ * @description Unit tests for /src/themes/*.json boot-time sync helpers.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -21,7 +21,7 @@ vi.mock("../../src/services/core/admin-theme-service", () => ({
 }));
 
 describe("theme-file-sync", () => {
-  const testThemesDir = join(process.cwd(), "themes");
+  const testThemesDir = join(process.cwd(), "src", "themes");
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,7 +51,7 @@ describe("theme-file-sync", () => {
 
   it("parseThemeFileContent maps shorthand corporate palette to customCss", async () => {
     const { parseThemeFileContent } = await import("../../src/services/core/theme-file-sync");
-    const raw = readFileSync(join(process.cwd(), "themes", "corporate.json"), "utf-8");
+    const raw = readFileSync(join(process.cwd(), "src", "themes", "corporate.json"), "utf-8");
     const payload = parseThemeFileContent(raw, "corporate.json");
     expect(payload.name).toBe("Corporate");
     expect(payload.customCss).toContain("--color-primary-500: #0f766e");
@@ -93,7 +93,7 @@ describe("theme-file-sync", () => {
   });
 
   it("syncThemeFile reports parse errors", async () => {
-    const badDir = join(process.cwd(), "themes", "__test-bad");
+    const badDir = join(process.cwd(), "src", "themes", "__test-bad");
     mkdirSync(badDir, { recursive: true });
     const badFile = join(badDir, "broken.json");
     writeFileSync(badFile, "{ not-json");

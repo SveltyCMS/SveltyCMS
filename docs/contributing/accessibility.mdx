@@ -6,7 +6,7 @@ order: 3
 icon: mdi:human-wheelchair
 author: "SveltyCMS Team"
 created: 2026-01-27
-updated: "2026-05-27"
+updated: "2026-06-21"
 tags:
   - accessibility
   - wcag
@@ -92,6 +92,9 @@ onMount(() => {
 
 - [ ] **Screen Reader Support**:
   - Interactive elements have accessible names (`aria-label`, `aria-labelledby`, or visible text).
+  - **CRITICAL — Svelte Attribute Placement**: `aria-label`, `role`, `type`, and all HTML attributes MUST be on the **opening tag** of the element. Placing an attribute string between child elements in a Svelte template renders it as **visible plaintext**, not as an HTML attribute.
+    - ✅ `<button aria-label="Save" onclick={...}><icon/> Save</button>`
+    - ❌ `<button onclick={...}><icon/> aria-label="Save" Save</button>` — "aria-label=\"Save\"" appears as visible text in the browser
   - Status changes are announced via `aria-live` regions.
   - Page structure uses HTML5 landmarks (`<main>`, `<nav>`, `<aside>`, `<header>`, `<footer>`).
 - [ ] **Forms**:
@@ -173,7 +176,11 @@ Before submitting PRs:
 
 1.  **Keyboard Test**: Tab through the interface. Can you do everything without a mouse?
 2.  **Zoom Test**: Zoom to 200%. Does the layout break?
-3.  **Automated Test**: Run any available accessibility linters or audit tools (e.g., Lighthouse, Axe).
+3.  **Dark Mode Contrast Test**: Toggle dark mode and verify:
+    - All text has ≥4.5:1 contrast (use DevTools → Rendering → CSS Overview, or Lighthouse).
+    - Selected/active states preserve readable text (no invisible icons or unreadable labels).
+    - Outline buttons and low-opacity text remain legible.
+4.  **Automated Test**: Run any available accessibility linters or audit tools (e.g., Lighthouse, Axe).
 
 ---
 

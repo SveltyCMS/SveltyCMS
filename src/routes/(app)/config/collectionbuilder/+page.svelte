@@ -587,7 +587,7 @@ function modalLoadPreset(): void {
 		disabled={isLoading || Object.keys(nodesToSave).length === 0}
 		title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
 		aria-keyshortcuts="mod+s"
-	 size="sm" class="flex items-center gap-1 {isHeader ? ' sm: dark: ' : ' dark: '}">
+	 size="sm" class="flex items-center gap-1 {isHeader ? ' sm: ' : ''}">
 		{#if isLoading}
 			<iconify-icon icon="mdi:loading" width={isHeader ? '18' : '24'} class="animate-spin"></iconify-icon>
 		{:else}

@@ -465,7 +465,7 @@
                 onclick={handleAddTag}
                 disabled={isSavingTags || !newTagInput.trim()}
                 aria-label="add-tag-button"
-               class="dark: text-xs py-1.5 px-3">
+               class="text-xs py-1.5 px-3">
                 Add
               </Button>
             </div>
@@ -493,7 +493,7 @@
               onclick={triggerFileInput}
               disabled={isUploadingVersion}
               aria-label="upload-new-version-button"
-             class="dark: text-xs px-4">
+             class="text-xs px-4">
               {#if isUploadingVersion}
                 <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
                 <span>Uploading...</span>
@@ -640,7 +640,7 @@
               onclick={handleGenerateShareLink}
               disabled={isCreatingShare}
               aria-label="generate-sharing-link"
-             class="dark: text-xs py-1.5 w-full mt-2">
+             class="text-xs py-1.5 w-full mt-2">
               {#if isCreatingShare}
                 <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
                 <span>Generating...</span>

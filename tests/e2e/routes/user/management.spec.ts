@@ -27,8 +27,8 @@ test.describe("User Management Flow", () => {
     await expect(page.locator("h1")).toContainText(/user profile/i);
 
     // ✅ UPDATE operation - Edit user info
-    await page.getByRole("button", { name: /edit/i }).click();
-    await page.getByPlaceholder(/username/i).fill("updatedUser");
+    await page.getByRole("button", { name: /edit user settings/i }).click();
+    await page.locator('input[name="username"]:not([disabled])').fill("updatedUser");
     await page.getByRole("button", { name: /save/i }).first().click();
 
     // Confirm update saved
@@ -42,11 +42,16 @@ test.describe("User Management Flow", () => {
     // Go to User Profile
     await page.getByRole("link", { name: /user profile/i }).click();
 
-    const actions = ["Delete", "Block", "Unblock"];
+    // Block, then Unblock, and finally Delete the seeded user
+    const actions = ["Block", "Unblock", "Delete"];
 
     for (const action of actions) {
+      // Find row for author@example.com (since we cannot block/delete admins) and check the checkbox
+      const row = page.locator("tr", { hasText: "author@example.com" });
+      await row.getByRole("checkbox", { name: "Toggle selection" }).click();
+
       // Click dropdown button to open menu
-      await page.getByRole("button", { name: /open actions menu/i }).click();
+      await page.getByRole("button", { name: /Toggle bulk actions menu/i }).click();
 
       // Select action
       await page.getByRole("menuitem", { name: new RegExp(action, "i") }).click();
@@ -72,21 +77,21 @@ test.describe("User Management Flow", () => {
     await page.getByRole("button", { name: /email user registration token/i }).click();
 
     // Fill form
-    await page.fill('input[name="email"]', "newuser@example.com");
-    await page.fill('input[name="username"]', "newuser");
-    await page.selectOption('select[name="role"]', "user");
+    await page.locator('input[name="email"]:not([disabled])').fill("newuser@example.com");
+    await page.getByRole("button", { name: "user", exact: true }).click();
     await page.getByRole("button", { name: /save/i }).first().click();
 
-    // Assume invite sent, now simulate user following invite link
-    await page.goto(
-      "/signup?email=newuser@example.com&token=5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80",
-    );
+    // Extract dynamic invite URL from copy input
+    const inviteLinkInput = page.locator('input[value*="invite_token="]');
+    await expect(inviteLinkInput).toBeVisible({ timeout: 10_000 });
+    const inviteUrl = await inviteLinkInput.inputValue();
 
-    // Check prefilled fields
+    // Go to generated invite URL
+    await page.goto(inviteUrl);
+
+    // Check prefilled fields on signup page
     await expect(page.locator('input[name="email"]')).toHaveValue("newuser@example.com");
-    await expect(page.locator('input[name="token"]')).toHaveValue(
-      "5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80",
-    );
+    await expect(page.locator('input[name="token"]')).not.toHaveValue("");
 
     // Fill remaining signup fields
     await page.fill('input[name="username"]', "newuser");

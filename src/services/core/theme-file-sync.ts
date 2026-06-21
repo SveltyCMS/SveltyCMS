@@ -1,6 +1,6 @@
 /**
  * @file src/services/core/theme-file-sync.ts
- * @description Sync `/themes/*.json` files into the theme database.
+ * @description Sync `/src/themes/*.json` files into the theme database.
  *
  * Used on server boot (production/preview) and by the Vite dev plugin (HMR).
  * Keeps Git-tracked theme files and the DB in sync without requiring Vite.
@@ -15,9 +15,9 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { logger } from "@utils/logger";
 import type { StoredAdminTheme } from "./admin-theme-service";
-import { normalizeSkeletonThemePayload } from "@utils/skeleton-preset-mapper";
+import { normalizeSkeletonThemePayload } from "@utils/theme-preset-mapper";
 
-export const THEMES_DIR = join(process.cwd(), "themes");
+export const THEMES_DIR = join(process.cwd(), "src", "themes");
 
 export type ThemeFileSyncAction = "created" | "updated" | "skipped" | "error";
 
@@ -81,18 +81,18 @@ export async function syncThemeFile(
 }
 
 /**
- * Scan `/themes/*.json` and import all files into the database.
+ * Scan `/src/themes/*.json` and import all files into the database.
  * Safe to call on every server boot — updates existing themes by name.
  */
 export async function syncAllThemeFiles(tenantId?: string | null): Promise<ThemeFileSyncResult[]> {
   if (!existsSync(THEMES_DIR)) {
-    logger.debug("[ThemeFileSync] /themes directory not found — skipping");
+    logger.debug("[ThemeFileSync] /src/themes directory not found — skipping");
     return [];
   }
 
   const files = readdirSync(THEMES_DIR).filter((f) => f.endsWith(".json"));
   if (files.length === 0) {
-    logger.debug("[ThemeFileSync] No theme JSON files in /themes");
+    logger.debug("[ThemeFileSync] No theme JSON files in /src/themes");
     return [];
   }
 

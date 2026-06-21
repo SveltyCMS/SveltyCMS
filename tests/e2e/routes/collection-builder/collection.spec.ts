@@ -8,20 +8,52 @@
  */
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 test.describe("Full Collection & Widget Flow", () => {
   test.setTimeout(120_000); // 2 minutes
 
   test("Login, create collection, perform actions, and add widget", async ({ page }) => {
-    // 1. Login
-    await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
+    // 0. Create Names collection schema
+    const schemaResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "create-collection",
+        schema: {
+          _id: "Names",
+          name: "Names",
+          slug: "Names",
+          fields: [
+            {
+              db_fieldName: "first_name",
+              label: "First Name",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "last_name",
+              label: "Last Name",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+          ],
+        },
+      },
+    });
+    expect(schemaResponse.ok()).toBeTruthy();
 
-    // 2. Create Collection
+    // 1. Login
+    await loginAsAdmin(page);
+
+    // Navigate directly to Names collection list page
+    await page.goto("/en/collection/Names");
+
+    // 2. Create Entry
     await page.getByRole("button", { name: /create/i }).click();
     await page.getByPlaceholder(/first name/i).fill("First Name");
     await page.getByPlaceholder(/last name/i).fill("Last Name");
     await page.getByRole("button", { name: /save/i }).first().click();
-    await expect(page).toHaveURL(/\/en\/Collections\/Names/);
+    await expect(page).toHaveURL(/\/en\/collection\/Names/i);
 
     // 3. Perform Collection Actions
     const actions = ["Published", "Unpublished", "Scheduled", "Cloned", "Delete", "Testing"];
@@ -39,7 +71,7 @@ test.describe("Full Collection & Widget Flow", () => {
       await page.getByRole("button", { name: /save/i }).first().click();
 
       // Confirm redirect to collection list
-      await expect(page).toHaveURL(/\/en\/Collections\/Names/);
+      await expect(page).toHaveURL(/\/en\/collection\/Names/i);
     }
 
     // 4. Add a Widget to Dashboard

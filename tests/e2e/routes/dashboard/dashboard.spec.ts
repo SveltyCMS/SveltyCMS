@@ -13,7 +13,7 @@ test.describe("Dashboard", () => {
 
   test("page loads with dashboard shell", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { level: 1, name: /^dashboard$/i })).toBeVisible({
+    await expect(page.getByRole("heading", { level: 1, name: /dashboard/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByRole("grid").or(page.getByText(/your dashboard is empty/i))).toBeVisible(

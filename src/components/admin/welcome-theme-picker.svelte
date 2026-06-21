@@ -136,7 +136,7 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
             <Button
               variant="tertiary"
               size="sm"
-              class="dark: mt-1 w-full"
+              class="mt-1 w-full"
               loading={activating === preset.id}
             >
               {activating === preset.id ? 'Applying...' : `Use ${preset.name}`}

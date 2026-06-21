@@ -94,7 +94,7 @@
 				<Button variant="tertiary"
 					onclick={() => toggleGroupType(value!)}
 					aria-label="toggle-condition-type"
-				 size="sm" class="font-mono tracking-wider px-4 {value.type === 'AND' ? ' dark: ' : ' '}">
+				 size="sm" class="font-mono tracking-wider px-4 {value.type === 'AND' ? '' : ''}">
 					{value.type}
 				</Button>
 				<span class="text-xs uppercase tracking-[1px] font-medium opacity-60">

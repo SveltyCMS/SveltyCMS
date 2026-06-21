@@ -3,8 +3,7 @@
 @component
 **Admin Theme Settings — Multi-Theme Management + Live Preview**
 
-Manage multiple named admin themes (like Drupal Gin vs DXPR).
-Create, switch, clone, and delete themes. Each theme stores its own
+Manage multiple named admin themes. Create, switch, clone, and delete themes. Each theme stores its own
 density, variant, features, and custom CSS.
 
 Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.

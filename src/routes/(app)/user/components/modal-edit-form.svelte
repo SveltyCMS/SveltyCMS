@@ -360,7 +360,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
 							{#if roles && roles.length > 0}
 								{#each roles as r (r._id)}
-									<Button variant="outline">
+									<Button
+										variant="outline"
 										type="button"
 										role="radio"
 										aria-checked={editForm.data.role === r._id}

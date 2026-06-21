@@ -25,7 +25,7 @@ interface AccessRecord {
 interface CollectionHeat {
   collections: Map<string, AccessRecord>;
   entries: Map<string, AccessRecord>;
-  transitions: Map<string, number>;
+  transitions: Map<string, AccessRecord>;
 }
 
 interface TenantBehavior {
@@ -47,7 +47,11 @@ function getOrCreateTenant(tenantId: string): TenantBehavior {
   let t = _tenants.get(tenantId);
   if (!t) {
     t = {
-      heat: { collections: new Map(), entries: new Map(), transitions: new Map() },
+      heat: {
+        collections: new Map(),
+        entries: new Map(),
+        transitions: new Map(),
+      },
       lastPersisted: Date.now(),
     };
     _tenants.set(tenantId, t);
@@ -96,7 +100,112 @@ export function recordEntryAccess(tenantId: string, collectionId: string, entryI
 export function recordNavigation(tenantId: string, fromPath: string, toPath: string): void {
   const t = getOrCreateTenant(tenantId);
   const key = `${fromPath}→${toPath}`;
-  t.heat.transitions.set(key, (t.heat.transitions.get(key) || 0) + 1);
+  const now = Date.now();
+  let rec = t.heat.transitions.get(key);
+  if (!rec) {
+    rec = { count: 0, lastAccess: now, score: 0 };
+    t.heat.transitions.set(key, rec);
+  }
+  applyDecay(rec, now);
+  rec.count++;
+  rec.lastAccess = now;
+  rec.score += 1;
+}
+
+/**
+ * Positive Reinforcement (Operant Conditioning):
+ * Strengthens a navigation transition score when the system's prediction is successfully followed.
+ */
+export function reinforceTransition(tenantId: string, fromPath: string, toPath: string): void {
+  const t = getOrCreateTenant(tenantId);
+  const key = `${fromPath}→${toPath}`;
+  const now = Date.now();
+  let rec = t.heat.transitions.get(key);
+  if (rec) {
+    applyDecay(rec, now);
+    rec.count++;
+    rec.score += 2.0; // Positive reinforcement reward
+    trackPredictionResult(tenantId, fromPath, true);
+    rec.lastAccess = now;
+  }
+}
+
+/**
+ * Punishment (Operant Conditioning):
+ * Reduces transition score when the user immediately bounces back (e.g. within 2 seconds).
+ */
+export function penalizeTransition(tenantId: string, fromPath: string, toPath: string): void {
+  const t = getOrCreateTenant(tenantId);
+  const key = `${fromPath}→${toPath}`;
+  const now = Date.now();
+  let rec = t.heat.transitions.get(key);
+  if (rec) {
+    applyDecay(rec, now);
+    rec.score = Math.max(0, rec.score - 1.5); // Punishment penalty
+    rec.lastAccess = now;
+  }
+}
+
+/**
+ * Extinction (Operant Conditioning):
+ * Accelerates the decay of alternative (ignored) predictions when a different path is taken.
+ */
+export function applyExtinction(
+  tenantId: string,
+  currentPath: string,
+  actualNextPath: string,
+): void {
+  const t = getOrCreateTenant(tenantId);
+  const prefix = `${currentPath}→`;
+  const now = Date.now();
+  for (const [key, rec] of t.heat.transitions) {
+    if (key.startsWith(prefix) && key !== `${prefix}${actualNextPath}`) {
+      applyDecay(rec, now);
+      rec.score *= 0.8; // Extinction decay factor
+      trackPredictionResult(tenantId, currentPath, false);
+      rec.lastAccess = now;
+    }
+  }
+}
+
+// ─── Confidence & Adaptive Prediction ────────────────────────────────────
+
+interface PredictionStats {
+  correct: number;
+  total: number;
+  lastCorrect: number;
+}
+
+const _predictionStats = new Map<string, PredictionStats>();
+const MIN_CONFIDENCE_THRESHOLD = 0.3;
+
+function trackPredictionResult(tenantId: string, from: string, wasCorrect: boolean): void {
+  const key = `${tenantId}:${from}`;
+  let stats = _predictionStats.get(key);
+  if (!stats) {
+    stats = { correct: 0, total: 0, lastCorrect: 0 };
+    _predictionStats.set(key, stats);
+  }
+  stats.total++;
+  if (wasCorrect) {
+    stats.correct++;
+    stats.lastCorrect = Date.now();
+  }
+  if (stats.total > 1000 && Date.now() - stats.lastCorrect > 7 * 24 * 3600 * 1000)
+    _predictionStats.delete(key);
+}
+
+export function getPredictionConfidence(tenantId: string, fromPath: string): number {
+  const key = `${tenantId}:${fromPath}`;
+  const stats = _predictionStats.get(key);
+  if (!stats || stats.total < 5) return 0;
+  return stats.correct / stats.total;
+}
+
+export function predictNextPathAdaptive(tenantId: string, currentPath: string): string | null {
+  const confidence = getPredictionConfidence(tenantId, currentPath);
+  if (confidence < MIN_CONFIDENCE_THRESHOLD) return null;
+  return predictNextPath(tenantId, currentPath);
 }
 
 export function getHotCollections(tenantId: string, limit = 10): { id: string; score: number }[] {
@@ -137,12 +246,17 @@ export function predictNextPath(tenantId: string, currentPath: string): string |
   const t = _tenants.get(tenantId);
   if (!t) return null;
   let best = "";
-  let bestCount = 0;
+  let bestScore = 0;
   const prefix = `${currentPath}→`;
-  for (const [key, count] of t.heat.transitions) {
-    if (key.startsWith(prefix) && count > bestCount) {
-      bestCount = count;
-      best = key.slice(prefix.length);
+  const now = Date.now();
+  for (const [key, rec] of t.heat.transitions) {
+    if (key.startsWith(prefix)) {
+      applyDecay(rec, now);
+      rec.lastAccess = now;
+      if (rec.score > bestScore) {
+        bestScore = rec.score;
+        best = key.slice(prefix.length);
+      }
     }
   }
   return best || null;
@@ -171,7 +285,17 @@ export async function restoreBehavioralData(): Promise<void> {
       const t = getOrCreateTenant("global");
       for (const [k, v] of data.collections || []) t.heat.collections.set(k, v);
       for (const [k, v] of data.entries || []) t.heat.entries.set(k, v);
-      for (const [k, v] of data.transitions || []) t.heat.transitions.set(k, v);
+      for (const [k, v] of data.transitions || []) {
+        if (typeof v === "number") {
+          t.heat.transitions.set(k, {
+            count: v,
+            lastAccess: Date.now(),
+            score: v,
+          });
+        } else {
+          t.heat.transitions.set(k, v);
+        }
+      }
     }
   } catch {
     /* first run */

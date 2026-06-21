@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-06-09"
+updated: "2026-06-21"
 tags:
   - "style-guide"
   - "gui"
@@ -329,6 +329,15 @@ When writing custom styles:
 - **Backgrounds**: `bg-surface-50 dark:bg-surface-950`
 - **Text**: `text-surface-700 dark:text-surface-200`
 
+### Dark Mode Contrast Requirements
+
+- **Normal text** (body, labels, descriptions): Must achieve **≥4.5:1** contrast ratio against its background in both light and dark modes.
+- **Large text** (18px+ or 14px+ bold): Must achieve **≥3:1** contrast ratio.
+- **Selected/active states**: When a card, row, or tab is selected, the text-inside-background contrast must be maintained (never drop below 4.5:1 on selection).
+- **Outline buttons in dark mode**: The outline variant (`preset-outlined-surface-500`) may have insufficient contrast on dark backgrounds. Always add `dark:text-white` (or `dark:text-surface-50`) to outline buttons when used in dark mode contexts.
+- **Icons on colored backgrounds**: Never use the same color for both icon and background (e.g., a check icon colored `dark:text-primary-500` on a `dark:bg-primary-500` background is invisible). For selected cards, use contrasting icon colors like `text-white`.
+- **Use browser DevTools** or automated audits (Lighthouse) to verify contrast ratios in both modes.
+
 ## 📄 Unified Page Structural Architecture
 
 To stop layout drift and prevent interfaces from looking different across views, every single view in SveltyCMS must match this precise structural layer blueprint exactly. No raw background overrides or variable wrapper styles are permitted.
@@ -481,10 +490,19 @@ Tables must scale natively across view bounds and feature explicit alignment bre
 
 ### Status Badges
 
+Always use the native `<Badge>` component from `@components/ui/badge.svelte`. Never use raw `<span class="badge">`.
+
+```svelte
+<script>
+  import Badge from '@components/ui/badge.svelte';
+</script>
+
+<Badge variant="success">Active</Badge>
+<Badge variant="primary" preset="tonal">In Progress</Badge>
+<Badge variant="error" size="sm">Failed</Badge>
 ```
-<span class="badge text-[10px] preset-filled-success-500">Active</span>
-<span class="badge text-[10px] preset-tonal-primary-500">In Progress</span>
-```
+
+**Props**: `variant` (`primary`|`secondary`|`tertiary`|`success`|`warning`|`error`|`surface`|`outline`), `preset` (`filled`|`tonal`|`outlined`), `color`, `size` (`sm`|`md`|`lg`), `rounded`.
 
 ### Quick Action Links
 
@@ -508,6 +526,9 @@ Tables must scale natively across view bounds and feature explicit alignment bre
 - ❌ Heavy background fills (`bg-surface-100 dark:bg-surface-800`) for container separation — use `border border-surface-200 dark:border-surface-800` with translucent backgrounds
 - ❌ Active accent styling on unselected/inactive segment controls — use `text-surface-500 bg-transparent` for dormant options
 - ❌ Unbounded table regions placed directly on the page without `overflow-x-auto` wrapper
+- ❌ `class="badge"` on a `<Button>` or `class="btn"` on a `<Badge>` — each component owns its base CSS class; never mix them
+- ❌ `aria-label="…"` placed between child elements instead of on the opening tag — renders as visible plaintext in Svelte templates
+- ❌ Empty Tailwind variant prefixes (`dark:` followed by a space, e.g. `class="dark: flex"`) — invalid syntax; variant must attach to a utility like `dark:bg-white`
 
 ---
 
@@ -519,7 +540,8 @@ Before submitting a PR:
 - [ ] **Use Native Components**: Prefer `src/components/ui/` over building from scratch.
 - [ ] **Semantic Colors**: Use preset classes (`preset-filled-primary-500`) or CSS variables (`var(--color-primary-500)`). No hardcoded hex/Tailwind colors.
 - [ ] **Dynamic Accent Pairing**: Interactive accents use `tertiary-500` (light) / `primary-500` (dark), or are intentionally overridden by AdminTheme.
-- [ ] **Dark Mode**: All custom styles have `dark:` variants.
+- [ ] **Dark Mode**: All custom styles have `dark:` variants. Contrast ≥4.5:1 for normal text, ≥3:1 for large text, verified in both modes.
+- [ ] **Selected State Contrast**: When an active/selected state changes the background, text and icons on that background maintain ≥4.5:1 contrast (no invisible icons or unreadable text on selection).
 - [ ] **Error Handling**: Correct error pattern used (Absolute via component `error` prop, Static, or Banner).
 - [ ] **WCAG 3.0**: `aria-label` on icon-only buttons, `role="alert"` on errors, `role="status"` on live regions, 24px touch targets.
 - [ ] **`prefers-reduced-motion`**: Any custom animation checks the media query.

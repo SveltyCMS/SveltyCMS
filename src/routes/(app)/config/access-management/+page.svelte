@@ -126,7 +126,7 @@ beforeNavigate(({ cancel }) => {
 			onclick={saveAllChanges}
 			aria-label="Save all changes"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
-		 class="dark: font-semibold shadow-xs">
+		 class="font-semibold shadow-xs">
 			{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
 				Saving...
 			{:else}

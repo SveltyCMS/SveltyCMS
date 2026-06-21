@@ -67,7 +67,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 </script>
 
 <div
-	class="admin-theme-container absolute inset-0 bg-surface-50 p-6 dark:bg-surface-950 {spaceClass} {fullHeight
+	class="admin-theme-container absolute inset-0 bg-surface-50 p-2 dark:bg-surface-950 {spaceClass} {fullHeight
 		? 'flex flex-col overflow-hidden'
 		: 'overflow-y-auto'}"
 	in:adminFade={animate ? { duration: 200 } : { duration: 0 }}

@@ -52,6 +52,12 @@ async function createLiveNode(id: string) {
 }
 
 async function runEdgeSyncAudit() {
+  const useRedis = process.env.USE_REDIS === "true";
+  if (!useRedis) {
+    console.log("⏭️ Redis not enabled — edge sync test requires Redis. Skipping.");
+    return;
+  }
+
   // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Edge Sync Audit (Live Redis)...\n");
 

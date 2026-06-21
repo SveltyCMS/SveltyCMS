@@ -33,7 +33,6 @@ import { fileURLToPath } from "node:url";
 import adapter from "svelte-adapter-uws";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
-import { svelteInspector } from "@sveltejs/vite-plugin-svelte-inspector";
 import tailwindcss from "@tailwindcss/vite";
 import uws from "svelte-adapter-uws/vite";
 import realtime from "svelte-realtime/vite";
@@ -846,6 +845,31 @@ function browserShimsPlugin(): Plugin {
   };
 }
 
+/**
+ * Patches vite-plus client module to inject Svelte Inspector.
+ * The built-in inspector only matches `vite/dist/client/client.mjs`,
+ * but vite-plus serves its client from `@voidzero-dev/vite-plus-core/dist/vite/client/client.mjs`.
+ * This plugin uses a broad match to catch all vite-plus client variants.
+ */
+function vitePlusInspectorPatchPlugin(): Plugin {
+  return {
+    name: "vite-plus-inspector-patch",
+    apply: "serve",
+    enforce: "post",
+    transform(code, id) {
+      // Match both vite-plus re-export and the actual core client module
+      if (
+        (id.includes("vite-plus") || id.includes("vite-plus-core")) &&
+        id.includes("client.mjs")
+      ) {
+        return {
+          code: `${code}\nimport('virtual:svelte-inspector-path:load-inspector.js')`,
+        };
+      }
+    },
+  };
+}
+
 // --- Main Vite Configuration ---
 const setupComplete = isSetupComplete();
 const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
@@ -874,6 +898,14 @@ export default defineConfig((): any => {
           runes: true,
           experimental: {
             async: true,
+          },
+        },
+        vitePlugin: {
+          inspector: {
+            toggleKeyCombo: "meta-shift",
+            holdMode: false,
+            showToggleButton: "always",
+            toggleButtonPos: "bottom-right",
           },
         },
         adapter: adapter({
@@ -918,63 +950,53 @@ export default defineConfig((): any => {
             "http://localhost:4173",
           ],
         },
-        csp: {
-          mode: "nonce",
-          directives: {
-            "default-src": ["self"],
-            "script-src": [
-              "self",
-              "blob:",
-              // 'unsafe-inline' is required in dev because Vite's HMR client and
-              // some web-component libraries (iconify-icon) inject inline scripts
-              // that do not carry SvelteKit's nonce. In production the nonce-mode
-              // CSP handles everything; 'unsafe-inline' is intentionally absent there.
-              ...(!isBuild ? (["'unsafe-inline'"] as any[]) : []),
-              "https://*.iconify.design",
-              "https://code.iconify.design",
-            ],
-            "worker-src": ["self", "blob:"],
-            // 'unsafe-inline' is always needed for style-src because CSS-in-JS and
-            // Tailwind v4 generate inline <style> blocks that cannot carry nonces.
-            "style-src": ["self", "https://*.iconify.design"],
-            "img-src": [
-              "self",
-              "data:",
-              "blob:",
-              "https://*.iconify.design",
-              "https://*.simplesvg.com",
-              "https://*.unisvg.com",
-              "https://placehold.co",
-              "https://api.qrserver.com",
-              "https://github.com",
-              "https://raw.githubusercontent.com",
-            ],
-            "font-src": ["self", "data:"],
-            "connect-src": [
-              "self",
-              "https://*.iconify.design",
-              "https://*.simplesvg.com",
-              "https://*.unisvg.com",
-              "https://code.iconify.design",
-              "https://raw.githubusercontent.com",
-              "wss://*" as any,
-              "ws://*" as any,
-            ],
-            "object-src": ["none"],
-            "base-uri": ["self"],
-            "form-action": ["self"],
-            "frame-src": ["self", "https://127.0.0.1:5173", "https://localhost:5173"],
-          },
-        },
+        csp: !isBuild
+          ? undefined
+          : {
+              mode: "nonce",
+              directives: {
+                "default-src": ["self"],
+                "script-src": [
+                  "self",
+                  "blob:",
+                  "https://*.iconify.design",
+                  "https://code.iconify.design",
+                ],
+                "worker-src": ["self", "blob:"],
+                "style-src": ["self", "https://*.iconify.design"],
+                "img-src": [
+                  "self",
+                  "data:",
+                  "blob:",
+                  "https://*.iconify.design",
+                  "https://*.simplesvg.com",
+                  "https://*.unisvg.com",
+                  "https://placehold.co",
+                  "https://api.qrserver.com",
+                  "https://github.com",
+                  "https://raw.githubusercontent.com",
+                ],
+                "font-src": ["self", "data:"],
+                "connect-src": [
+                  "self",
+                  "https://*.iconify.design",
+                  "https://*.simplesvg.com",
+                  "https://*.unisvg.com",
+                  "https://code.iconify.design",
+                  "https://raw.githubusercontent.com",
+                  "wss://*" as any,
+                  "ws://*" as any,
+                ],
+                "object-src": ["none"],
+                "base-uri": ["self"],
+                "form-action": ["self"],
+                "frame-src": ["self", "https://127.0.0.1:5173", "https://localhost:5173"],
+              },
+            },
       }),
+      vitePlusInspectorPatchPlugin(),
       uws(),
       realtime({ typedImports: !isBuild }),
-      svelteInspector({
-        toggleKeyCombo: "meta-shift",
-        holdMode: true,
-        showToggleButton: "always",
-        toggleButtonPos: "bottom-right",
-      }),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
       suppressThirdPartyWarningsPlugin(),

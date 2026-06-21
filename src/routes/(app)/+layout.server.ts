@@ -28,6 +28,8 @@ import {
   predictNextPath,
   recordCollectionAccess,
   recordNavigation,
+  reinforceTransition,
+  applyExtinction,
 } from "@src/services/intelligence/behavioral-learner";
 import type { LayoutServerLoad } from "./$types";
 
@@ -111,6 +113,14 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
         const fromPath = new URL(referer).pathname;
         if (fromPath !== currentPath) {
           recordNavigation(tid, fromPath, currentPath);
+          // 🧠 Skinnerian Reinforcement: reward correct predictions
+          const wasPredicted = predictNextPath(tid, fromPath);
+          if (wasPredicted === currentPath) {
+            reinforceTransition(tid, fromPath, currentPath);
+          }
+
+          // 🧠 Extinction: weaken alternatives not chosen
+          applyExtinction(tid, fromPath, currentPath);
         }
       } catch {
         /* invalid referer URL — skip */

@@ -139,7 +139,7 @@
 				bind:value={userIdExport}
 			/>
 
-			<Button variant="tertiary" disabled={!userIdExport || loadingExport} onclick={handleExport} class="dark: w-full">
+			<Button variant="tertiary" disabled={!userIdExport || loadingExport} onclick={handleExport} class="w-full">
 				{#if loadingExport}
 					<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
 					Exporting...

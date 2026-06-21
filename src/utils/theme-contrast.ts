@@ -11,7 +11,7 @@
  * - shorthand and full `--color-*` property extraction
  */
 
-import { expandShorthandPaletteProperties } from "@utils/skeleton-preset-mapper";
+import { expandShorthandPaletteProperties } from "@utils/theme-preset-mapper";
 
 export interface ContrastWarning {
   pair: string;

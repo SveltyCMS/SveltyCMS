@@ -261,7 +261,7 @@
 	{/if}
 
 	<!-- Expand/Collapse Button -->
-	<SystemTooltip title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'} positioning={{ placement: 'end' }}>
+	<SystemTooltip title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'} positioning={{ placement: 'right' }}>
 		<Button variant="ghost"
 			type="button"
 			onclick={toggleSidebar}
@@ -276,8 +276,8 @@
 					? 'rotate-0 rtl:rotate-180'
 					: 'rotate-180 rtl:rotate-0'}"
 			></iconify-icon>
-		</Button>
-	</SystemTooltip>
+			</Button>
+		</SystemTooltip>
 
 	<!-- Navigation: Collapsible Sections -->
 	<div

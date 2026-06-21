@@ -53,6 +53,12 @@ Based on publicly available documentation as of June 2026, SveltyCMS offers MCP 
 | **Behavioral Learning**      | ✅ Server-side access pattern tracking + prefetch  | ❌                                     | ❌                        | ❌             |
 | **Security**                 | ✅ Draft airgap + prompt injection shield + tarpit | ✅ API Key + granular opt-in           | ❌ (just permissions)     | ✅ OAuth flow  |
 | **Local inference**          | ✅ Ollama + LanceDB                                | ❌                                     | ❌                        | ❌             |
+| **Content similarity**       | ✅ Semantic index + collaborative filtering        | ❌                                     | ❌                        | ❌             |
+| **Smart field defaults**     | ✅ Learns from recent entries per collection       | ❌                                     | ❌                        | ❌             |
+| **Auto-Tagging (NPU)**       | ✅ Ollama NPU or keyword extraction                | ❌                                     | ❌                        | ❌             |
+| **Anomaly detection**        | ✅ Statistical z-score analysis                    | ❌                                     | ❌                        | ❌             |
+| **Adaptive UI reordering**   | ✅ Sorts sidebar by usage frequency                | ❌                                     | ❌                        | ❌             |
+| **Smart scheduling**         | ✅ Suggests publish times from editor activity     | ❌                                     | ❌                        | ❌             |
 | **SSE real-time**            | ✅                                                 | ✅                                     | ✅                        | ✅             |
 
 ---
@@ -297,6 +303,118 @@ All three integrations are active and wired:
 | **Dashboard Order** | `getHotCollections()` | Sorts widgets by actual usage frequency              |
 
 See [Behavioral Learning Architecture](../../architecture/behavioral-learning.mdx) for full documentation.
+
+n---
+
+## 6d. Content Intelligence (Similarity, Defaults, Quality, Auto-Tagging)
+
+The **Content Intelligence** service (`src/services/intelligence/content-insights.ts`) provides four AI-powered editorial assistants — all server-side, privacy-first, NPU-accelerated when Ollama is available:
+
+### Content Similarity Suggestions
+
+When editing an entry, the system queries the semantic index for similar entries in the same collection — "Editors who worked on this also edited..." style recommendations.
+
+```typescript
+import { findSimilarEntries } from "@src/services/intelligence/content-insights";
+
+const similar = await findSimilarEntries("posts", "entry-abc123", 5);
+// → [{ entryId: "def456", title: "Related Post", score: 0.82, reason: "Similar content" }]
+```
+
+### Smart Field Defaults
+
+Learns from the most recent entries in a collection to suggest default field values. For example, if 80% of recent blog posts have `category: "technology"`, the field auto-suggests that value.
+
+```typescript
+import { suggestFieldDefaults } from "@src/services/intelligence/content-insights";
+
+const default_category = await suggestFieldDefaults("posts", "category");
+// → { fieldName: "category", suggestedValue: "technology", confidence: 0.8, basedOn: 15 }
+```
+
+### Content Quality Scoring
+
+Analyzes content across three dimensions — readability, completeness, and SEO — with specific, actionable suggestions:
+
+```typescript
+import { scoreContentQuality } from "@src/services/intelligence/content-insights";
+
+const quality = scoreContentQuality({
+  title: "My Post",
+  body: "...",
+  description: "...",
+  hasImage: true,
+  hasTags: false,
+});
+// → { overall: 72, readability: 80, completeness: 65, seo: 70, suggestions: ["Add tags..."] }
+```
+
+### Auto-Tagging
+
+Generates tags from content analysis — uses Ollama NPU for intelligent tag extraction when available, keyword frequency analysis as fallback. See `src/utils/auto-tag.ts` for the save-integration wrapper.
+
+```typescript
+import { generateTags } from "@src/services/intelligence/content-insights";
+
+const tags = await generateTags(
+  "A guide to headless CMS architecture and performance optimization",
+);
+// → [{ tag: "headless-cms", confidence: 0.9, source: "ai" }, { tag: "performance", confidence: 0.85, source: "ai" }]
+```
+
+---
+
+## 6e. Anomaly Detection
+
+The **Anomaly Detector** (`src/services/intelligence/anomaly-detector.ts`) uses statistical z-score analysis to flag unusual editorial patterns — no ML training data needed:
+
+| Detection Type     | Method                               | Example                       |
+| :----------------- | :----------------------------------- | :---------------------------- |
+| Edit spikes        | z-score > 2.5 on hourly edit rate    | Bulk content attack detection |
+| Bulk changes       | z-score > 2.5 on average edit size   | Potential defacement          |
+| Deletion rate      | z-score > 2.5 on hourly deletions    | Mass deletion anomaly         |
+| Off-hours activity | >3 collections edited at 22:00–06:00 | Unauthorized access pattern   |
+
+```typescript
+import {
+  recordEdit,
+  recordDeletion,
+  detectAnomalies,
+} from "@src/services/intelligence/anomaly-detector";
+
+recordEdit("posts", 12500); // Called after each save
+const anomalies = detectAnomalies(); // Run periodically or on-demand
+```
+
+---
+
+## 6f. Adaptive UI & Smart Scheduling
+
+### Adaptive UI Reordering
+
+The sidebar, dashboard widgets, and navigation items automatically reorder based on actual usage frequency — zero configuration. Powered by `getAdaptiveUISortOrder()` and `reorderByUsage()`.
+
+```typescript
+import { reorderByUsage } from "@src/utils/adaptive-ui.svelte";
+
+const items = [
+  { id: "posts", label: "Posts", path: "/en/posts" },
+  { id: "pages", label: "Pages", path: "/en/pages" },
+];
+const reordered = reorderByUsage(items, tenantId);
+// Posts (47x/week) appears before Pages (12x/week)
+```
+
+### Smart Scheduling
+
+Suggests optimal publish times based on editor activity patterns. Falls back to industry-standard recommendations (Tue-Thu, 8-10 AM) when insufficient behavioral data exists.
+
+```typescript
+import { suggestPublishTimes } from "@src/services/intelligence/content-insights";
+
+const times = suggestPublishTimes(tenantId);
+// → [{ hour: 9, dayOfWeek: 2, confidence: 0.8, rationale: "Based on 5 active collections..." }]
+```
 
 ---
 

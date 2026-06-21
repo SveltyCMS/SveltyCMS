@@ -134,7 +134,7 @@ function findClosestRoute(path: string): string | undefined {
 function levenshtein(a: string, b: string): number {
   const m = a.length,
     n = b.length;
-  const dp = new Array(n + 1).fill(0).map((_, i) => [i]);
+  const dp = Array.from({ length: n + 1 }, (_, i) => [i]);
   for (let j = 0; j <= m; j++) dp[0][j] = j;
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {

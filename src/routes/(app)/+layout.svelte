@@ -309,6 +309,7 @@ onMount(() => {
 
 		// Initialize predictive preloading (physics cone + behavioral smart)
 		import("@utils/predictive-preload").then(m => m.initPredictivePreload());
+		import("@utils/bounce-detector").then(m => m.initBounceDetector());
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
 	initializeUserAvatar(data.user);
@@ -442,7 +443,7 @@ afterNavigate(() => {
 					<aside
 						class="max-h-dvh transition-[width] duration-300 ease-in-out {ui.state.leftSidebar === 'full'
 							? ''
-							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>
@@ -459,7 +460,7 @@ afterNavigate(() => {
 						{@render children?.()}
 					</div>
 
-					<!-- Sticky action bar (theme-controlled via features.stickyActionBar) -->
+					<!-- Sticky action bar (only rendered when content exists) -->
 										{#if theme.features.stickyActionBar && ui.stickyActionContent}
 											<div class="sticky bottom-0 z-20 w-full border-t border-surface-200 dark:border-surface-700 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
 												style="min-height: var(--admin-sticky-bar-height, 56px);"
