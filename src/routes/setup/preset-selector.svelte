@@ -6,6 +6,7 @@ Default value is 'blank'.
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { Preset } from './presets';
 
@@ -159,49 +160,53 @@ Default value is 'blank'.
 					role="option"
 					aria-selected={selected === preset.id}
 					aria-label={preset.title}
-					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-start cursor-pointer snap-start bg-white  dark:backdrop-blur-md border border-black/10  rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-tertiary-500 dark:bg-primary-500/5 dark:hover:bg-primary-300/5 hover:border-tertiary-500 dark:border-primary-500/30 dark:hover:border-primary-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
-					preset.id
-						? 'bg-tertiary-500 dark:bg-primary-500! border-tertiary-500 dark:border-primary-500!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.2),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.1)]! -translate-y-1!'
-						: ''}"
+					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-start cursor-pointer snap-start bg-white  dark:backdrop-blur-md border border-black/10  rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:hover:bg-primary-400/10 hover:border-tertiary-500 dark:border-primary-500/30 dark:hover:border-primary-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
+						preset.id
+							? 'bg-tertiary-500 dark:bg-primary-900! border-tertiary-500 dark:border-primary-700!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
+							: ''}"
 					onclick={() => select(preset.id)}
 				>
 					<div class="  mt-2 flex items-center gap-2">
-						<iconify-icon icon={preset.icon} width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<span class="flex-1 text-black dark:text-white font-bold text-[0.88rem] leading-[1.2]">{preset.title}</span>
+						<iconify-icon icon={preset.icon} width="22" class="{selected === preset.id ? 'text-white dark:text-white' : 'text-tertiary-500 dark:text-primary-500'}"></iconify-icon>
+						<span class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id ? 'text-white dark:text-white' : 'text-black dark:text-white'}">{preset.title}</span>
 
 						{#if preset.complexity}
-							<div
-								class="absolute top-1 inset-e-1 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
-								'simple'
-									? 'text-tertiary-600 dark:text-primary-600 bg-tertiary-600 dark:bg-primary-600/10 border-primary-600/30 dark:border-primary-400/40'
-									: preset.complexity === 'moderate'
-										? 'text-warning-600 dark:text-warning-400 bg-warning-600/10 dark:bg-warning-400/10 border-warning-600/30 dark:border-warning-400/40'
-										: 'text-error-600 dark:text-error-500 bg-error-600/10 dark:bg-error-400/10 border-error-600/30 dark:border-error-400/40'}"
+							<Badge
+								variant={preset.complexity === 'simple' ? 'tertiary' : preset.complexity === 'moderate' ? 'warning' : 'error'}
+								preset="tonal"
+								size="sm"
+								class="absolute top-1 inset-e-1 shrink-0"
 							>
 								{preset.complexity}
-							</div>
+							</Badge>
 						{/if}
 					</div>
 
-					<div class="line-clamp-3 text-xs leading-relaxed text-black/60 dark:text-white/40">{preset.description}</div>
+					<div class="line-clamp-3 text-xs leading-relaxed {selected === preset.id ? 'text-white/90 dark:text-white/90' : 'text-black/60 dark:text-white/40'}">{preset.description}</div>
 
 					<div class="flex flex-wrap gap-1 mt-auto">
 						{#each preset.features.slice(0, 2) as f}
-							<span
-								class="px-2 py-0.5 text-[0.62rem] text-black dark:text-white bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/10 rounded-full"
-								>{f}</span
+							<Badge
+								variant="surface"
+								size="sm"
+								class="{selected === preset.id ? '!text-white/90 !bg-white/15 !border-white/20' : ''}"
 							>
+								{f}
+							</Badge>
 						{/each}
 						{#if preset.features.length > 2}
-							<span
-								class="px-2 py-0.5 text-[0.62rem] text-black dark:text-white bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full"
-								>+{preset.features.length - 2}</span
+							<Badge
+								variant="surface"
+								size="sm"
+								class="{selected === preset.id ? '!text-white/70 !bg-white/10 !border-white/20' : ''}"
 							>
+								+{preset.features.length - 2}
+							</Badge>
 						{/if}
 					</div>
 
 					{#if selected === preset.id}
-						<iconify-icon icon="mdi:check-circle" width="24" class="absolute inset-e-1 bottom-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" width="24" class="absolute inset-e-1 bottom-2 text-white dark:text-white"></iconify-icon>
 					{/if}
 				</button>
 			{/each}

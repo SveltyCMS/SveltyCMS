@@ -255,6 +255,10 @@ When generating/modifying code:
     - **AdminPageShell**: Every `(app)` `+page.svelte` MUST use `<AdminPageShell>`. Do NOT create hand-rolled `absolute inset-0` page shells or inline `<h1>` headers.
     - **AdminCard**: Wrap content blocks in `<AdminCard>`, never bare `<div class="card">` with inline `var(--admin-radius-card)`.
     - **Native Components**: Always prefer `<Button>`, `<Badge>`, `<Input>`, `<Select>`, `<Textarea>` over raw `<button class="btn">`, `<span class="badge">`, or `<input class="input">`. Raw utility classes are deprecated.
+      - **Mixing component CSS classes is forbidden**: Never use `class="badge"` on a `<Button>` or `class="btn"` on a `<Badge>`. Each component owns its base class.
+    - **Svelte Attribute Placement (CRITICAL)**: HTML attributes (`aria-label`, `role`, `type`, etc.) MUST be on the **opening tag** of the element. Placing an attribute string between child elements causes Svelte to render it as **visible text content**, not as an HTML attribute.
+      - ✅ `<button aria-label="Save" onclick={...}> <icon/> Save </button>`
+      - ❌ `<button onclick={...}> <icon/> aria-label="Save" Save </button>` — renders the text "aria-label=\"Save\""
     - **CI Gate**: Run `bun run lint:admin-theme` before committing admin route changes — blocks missing `AdminPageShell`, `class="input"`, and legacy table classes.
       - **Reference**: `docs/contributing/style-guide-gui.mdx`, `docs/project/admin-theme-plan.mdx`
 12. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.

@@ -26,7 +26,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	const {
 		showTooltip = true,
 		tooltipPlacement = 'bottom',
-		buttonClass = 'preset-outline-surface-500 btn-icon rounded-full',
+		buttonClass = 'preset-outline-surface-500 btn-icon rounded-full dark:text-white',
 		iconSize = 22
 	}: Props = $props();
 

@@ -8,7 +8,7 @@ Features:
 - Complete button
 - Step indicator
 - Loading state
-- Error state	
+- Error state
 
 -->
 <script lang="ts">
@@ -58,7 +58,7 @@ Features:
 					<Button variant="tertiary"
 						onclick={() => onprev()}
 						aria-label={button_previous?.() || 'Go to previous step'}
-					 class="dark: flex items-center gap-1">
+					 class="flex items-center gap-2">
 						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
 						<span class="inline">{button_previous()}</span>
 					</Button>
@@ -81,7 +81,7 @@ Features:
 						disabled={!canProceed || isLoading}
 						aria-disabled={!canProceed || isLoading}
 						aria-label={button_next?.() || 'Go to next step'}
-					 class="transition-all dark: {canProceed ? '' : ' opacity-60'} flex items-center gap-1">
+					 class="transition-all flex items-center gap-2 {!canProceed && !isLoading ? 'opacity-60' : ''}">
 						{#if isLoading && currentStep === 0}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
 							{#if canProceed}
@@ -105,7 +105,7 @@ Features:
 						disabled={isLoading}
 						aria-disabled={isLoading}
 						aria-label={button_complete?.() || 'Complete setup'}
-					 class="transition-all dark: {isLoading ? ' opacity-60' : ''} flex items-center gap-1">
+					 class="transition-all flex items-center gap-2 {isLoading ? 'opacity-60' : ''}">
 						{#if isLoading}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
 							<span class="inline">Completing...</span>

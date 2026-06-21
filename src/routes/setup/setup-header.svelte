@@ -66,7 +66,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 					<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 						<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-[75vw] max-w-64">
 							{#snippet trigger()}
-								<Button variant="outline" type="button" class="h-9.5 rounded px-2 py-0 sm:h-10 sm:px-3 gap-1">
+								<Button variant="outline" type="button" class="h-9.5 rounded px-2 py-0 sm:h-10 sm:px-3 gap-1 dark:text-white">
 									<span class="text-[10px] font-bold sm:text-sm">
 										<span class="hidden xs:inline">{getLanguageName(currentLanguageTag)}</span>
 										<span class="xs:hidden">{currentLanguageTag.toUpperCase()}</span>
@@ -110,7 +110,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 				<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 					<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-64">
 						{#snippet trigger()}
-							<Button variant="outline" type="button" class="h-10 rounded px-3 gap-1">
+							<Button variant="outline" type="button" class="h-10 rounded px-3 gap-1 dark:text-white">
 								<span class="text-sm font-bold">{getLanguageName(currentLanguageTag)}</span>
 								<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
 							</Button>

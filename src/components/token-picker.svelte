@@ -479,7 +479,7 @@
 						<iconify-icon icon="mdi:plus"></iconify-icon>
 						Add Another
 					</Button>
-					<Button variant="tertiary" onclick={insert} class="dark: flex-1">Insert Token</Button>
+					<Button variant="tertiary" onclick={insert} class="flex-1">Insert Token</Button>
 				</div>
 			</div>
 		{/if}

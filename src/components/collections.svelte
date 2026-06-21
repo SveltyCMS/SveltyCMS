@@ -667,7 +667,7 @@ Provides an organized interface for navigating hierarchical content structures.
 					<Button variant="tertiary"
 						type="button"
 						onclick={saveTags}
-					 class="dark: text-white px-4 py-2 rounded text-sm font-semibold">
+					 class="text-white px-4 py-2 rounded text-sm font-semibold">
 						Save
 					</Button>
 				</div>

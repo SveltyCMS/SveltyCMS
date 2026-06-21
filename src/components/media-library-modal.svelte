@@ -156,17 +156,17 @@
 				<div class="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
 				<Button variant="tertiary"
 										onclick={() => (activeTab = 'local')}
-									 class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? ' dark: ' : 'preset-outline-surface-500'}">
+									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? '' : 'preset-outline-surface-500'}">
 					Local Upload
 				</Button>
 				<Button variant="tertiary"
 										onclick={() => (activeTab = 'library')}
-									 class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? ' dark: ' : 'preset-outline-surface-500'}">
+									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? '' : 'preset-outline-surface-500'}">
 					Library
 				</Button>
 				<Button variant="tertiary"
 										onclick={() => (activeTab = 'remote')}
-									 class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? ' dark: ' : 'preset-outline-surface-500'}">
+									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? '' : 'preset-outline-surface-500'}">
 					Remote Upload
 				</Button>
 				</div>
@@ -192,7 +192,7 @@
 					<div class="flex h-full flex-col items-center justify-center text-error-500">
 						<iconify-icon icon="mdi:alert-circle" width="48"></iconify-icon>
 						<p>{error}</p>
-						<Button variant="tertiary" onclick={fetchMedia} class="dark: mt-4">Retry</Button>
+						<Button variant="tertiary" onclick={fetchMedia} class="mt-4">Retry</Button>
 					</div>
 				{:else}
 					{#if files.length === 0}
@@ -280,7 +280,7 @@
 		<footer class="mt-4 flex flex-col gap-2 border-t border-surface-200 pt-4 dark:border-surface-600 sm:flex-row sm:justify-end">
 			<Button variant="outline" type="button" onclick={handleClose} class="w-full sm:w-auto">Cancel</Button>
 			{#if activeTab === 'library' && selectedFiles.size > 0}
-				<Button variant="tertiary" type="button" onclick={handleConfirm} class="dark: w-full sm:w-auto">
+				<Button variant="tertiary" type="button" onclick={handleConfirm} class="w-full sm:w-auto">
 					Select {selectedFiles.size} Item{selectedFiles.size > 1 ? 's' : ''}
 				</Button>
 			{/if}

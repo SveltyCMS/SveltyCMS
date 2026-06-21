@@ -288,14 +288,14 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 				onclick={() => (currentViewMode.value = 'grid')}
 				aria-label="Grid view"
 				aria-pressed={currentViewMode.value === 'grid'}
-			 class="p-0! min-w-0 {currentViewMode.value === 'grid' ? ' dark: ' : ' '}">
+			 class="p-0! min-w-0 {currentViewMode.value === 'grid' ? '' : ''}">
 				<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
 			</Button>
 			<Button variant="tertiary"
 				onclick={() => (currentViewMode.value = 'list')}
 				aria-label="List view"
 				aria-pressed={currentViewMode.value === 'list'}
-			 class="p-0! min-w-0 {currentViewMode.value === 'list' ? ' dark: ' : ' '}">
+			 class="p-0! min-w-0 {currentViewMode.value === 'list' ? '' : ''}">
 				<iconify-icon icon="mdi:view-list" width="18"></iconify-icon>
 			</Button>
 		</div>

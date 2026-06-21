@@ -961,7 +961,7 @@ bulk actions, and predictive preloading.
 								type="button"
 								onclick={() => handleColumnVisibilityToggle(header)}
 								aria-label="toggle-column-visibility"
-							 class="chip {header.visible ? 'dark: ' : 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move">
+							 class="chip {header.visible ? '' : 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move">
 								{#if header.visible}
 									<iconify-icon icon="fa:check" width={24} class="me-1"></iconify-icon>
 								{/if}

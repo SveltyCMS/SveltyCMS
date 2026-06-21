@@ -134,7 +134,7 @@ const availableTransitions = $derived.by(() => {
                          aria-label="Textarea"></textarea>
                         <div class="flex justify-end gap-2">
                                 <Button variant="ghost" onclick={() => showComment = false} size="sm" class="text-[10px]">Cancel</Button>
-                                <Button variant="tertiary" onclick={() => triggerTransition(selectedTargetStateId)} size="sm" class="dark: text-[10px]">Confirm Move</Button>
+                                <Button variant="tertiary" onclick={() => triggerTransition(selectedTargetStateId)} size="sm" class="text-[10px]">Confirm Move</Button>
                         </div>
                     </div>
                 {/if}

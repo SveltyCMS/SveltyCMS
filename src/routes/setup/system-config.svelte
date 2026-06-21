@@ -531,11 +531,11 @@ Features:
 								<Button variant="surface"
 									type="button"
 									onclick={openSystemPicker}
-																		aria-label="add-system-language"
-																		aria-haspopup="dialog"
+									aria-label="add-system-language"
+									aria-haspopup="dialog"
 									aria-expanded={showSystemPicker}
 									aria-controls="system-lang-picker"
-								 class="badge absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full">
+								 class="absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full">
 									<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 									{button_add?.() || 'Add'}
 								</Button>
@@ -566,9 +566,9 @@ Features:
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
 												onclick={() => addSystemLanguage(sug)}
+												aria-label="Add language: {displayLang(sug)}"
 											>
 												<span class="text-black dark:text-white">{displayLang(sug)}</span>
-										aria-label="add-language-{displayLang(sug)}"
 												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 												></iconify-icon>
 											</button>
@@ -635,11 +635,11 @@ Features:
 							<Button variant="surface"
 								type="button"
 								onclick={openContentPicker}
-							aria-label="add-content-language"
+								aria-label="add-content-language"
 								aria-haspopup="dialog"
 								aria-expanded={showContentPicker}
 								aria-controls="content-lang-picker"
-							 class="badge absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full">
+							 class="absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full">
 								<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 								{button_add?.() || 'Add'}
 							</Button>
@@ -669,7 +669,7 @@ Features:
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-start text-xs hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10"
 												onclick={() => addContentLanguage(sug.code)}
-										aria-label="add-content-language-{sug.name}"
+												aria-label="Add content language: {sug.name}"
 											>
 												<span class="text-black dark:text-white"
 													>{sug.name} ({sug.code.toUpperCase()}) <span class="text-slate-500 dark:text-white/40">- {sug.native}</span></span
@@ -798,9 +798,9 @@ Features:
 				type="button"
 				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-500 hover:text-tertiary-500 transition-colors"
 				onclick={() => (showScaling = !showScaling)}
+				aria-label={showScaling ? 'Collapse enterprise scaling' : 'Expand enterprise scaling'}
 			>
 				<iconify-icon icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'} width="18"></iconify-icon>
-			aria-label="toggle-enterprise-scaling"
 				Advanced: Enterprise Scaling (Cloudflare CDN)
 			</button>
 
