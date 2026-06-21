@@ -7,7 +7,6 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import { Readable } from "node:stream";
 import { lookup } from "mime-types";
 
 import { getPublicSettingSync } from "@src/services/core/settings-service";
