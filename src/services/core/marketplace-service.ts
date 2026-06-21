@@ -3,7 +3,7 @@
  * @description Marketplace proxy for themes, widgets, and plugins.
  *
  * Fetches catalog items from marketplace.sveltycms.com when available.
- * Falls back to local `/themes/*.json` builtins when the remote API is offline.
+ * Falls back to local `/src/themes/*.json` builtins when the remote API is offline.
  *
  * ### Features:
  * - remote catalog proxy with timeout

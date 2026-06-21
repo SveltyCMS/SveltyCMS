@@ -170,11 +170,11 @@ keyboard navigation, and motion-respecting transitions.
 			<label
 				for={generatedId}
 				class={cn(
-					'flex items-start w-full rounded border-2 p-4 transition-all',
+					'flex items-start w-full rounded border p-4 transition-all',
 					sizeTokens.gap,
 					cardActive
-						? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-sm'
-						: 'border-surface-200 dark:border-surface-700 hover:border-surface-300 dark:hover:border-surface-600 bg-surface-50 dark:bg-surface-900',
+						? 'border-tertiary-500/70 dark:border-primary-500 bg-tertiary-500/5 dark:bg-primary-500/10 shadow-sm'
+						: 'border-surface-200 dark:border-surface-700 hover:border-surface-300 dark:hover:border-surface-600 bg-white dark:bg-surface-800',
 					invalid && 'border-error-500! bg-error-50! dark:bg-error-500/10!',
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}

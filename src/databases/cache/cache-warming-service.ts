@@ -12,6 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { isSetupComplete } from "@utils/setup-check-fast";
 import { cacheService } from "./cache-service";
 import { CacheCategory } from "./types";
 
@@ -107,6 +108,12 @@ export class CacheWarmingService {
    * Proactively pre-warms the cache using in-memory getHotCollections and getHotEntries.
    */
   async warmFromBehavioralLearning(tenantId: string, db: any) {
+    // Skip pre-warming during setup — database tables don't exist yet
+    if (!isSetupComplete()) {
+      logger.trace("[PredictiveCache] Setup not complete, skipping behavioral pre-warming");
+      return false;
+    }
+
     try {
       const { getHotCollections, getHotEntries } =
         await import("@src/services/intelligence/behavioral-learner");

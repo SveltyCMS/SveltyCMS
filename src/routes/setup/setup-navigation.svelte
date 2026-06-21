@@ -50,7 +50,7 @@ Features:
 		</div>
 	{/if}
 
-	<div class="flex shrink-0 items-center justify-between px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
+	<div class="flex shrink-0 items-center justify-between p-2">
 		<!-- Previous Button -->
 		<div class="flex-1">
 			{#if currentStep > 0}

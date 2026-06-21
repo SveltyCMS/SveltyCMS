@@ -118,7 +118,8 @@ Default value is 'blank'.
 				onclick={() => scrollBy(-1)}
 				aria-label="Scroll start"
 				disabled={!canScrollLeft}
-			 class="p-0! min-w-0 preset-filled rounded-full disabled:hidden">
+				rounded
+			 class="p-0! min-w-0 preset-filled disabled:hidden">
 				<iconify-icon icon="mdi:chevron-left" width="20"></iconify-icon>
 			</Button>
 			<Button variant="ghost"
@@ -126,7 +127,8 @@ Default value is 'blank'.
 				onclick={() => scrollBy(1)}
 				aria-label="Scroll end"
 				disabled={!canScrollRight}
-			 class="p-0! min-w-0 preset-filled rounded-full disabled:hidden">
+				rounded
+			 class="p-0! min-w-0 preset-filled disabled:hidden">
 				<iconify-icon icon="mdi:chevron-right" width="20"></iconify-icon>
 			</Button>
 		</div>
@@ -160,14 +162,14 @@ Default value is 'blank'.
 					role="option"
 					aria-selected={selected === preset.id}
 					aria-label={preset.title}
-					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-start cursor-pointer snap-start bg-white  dark:backdrop-blur-md border border-black/10  rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:hover:bg-primary-400/10 hover:border-tertiary-500 dark:border-primary-500/30 dark:hover:border-primary-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
+					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-start cursor-pointer snap-start dark:backdrop-blur-md border rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] {selected ===
 						preset.id
 							? 'bg-tertiary-500 dark:bg-primary-900! border-tertiary-500 dark:border-primary-700!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
-							: ''}"
+							: 'bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:bg-slate-50/80 dark:hover:bg-surface-700/50 hover:border-tertiary-500 dark:hover:border-primary-500'}"
 					onclick={() => select(preset.id)}
 				>
 					<div class="  mt-2 flex items-center gap-2">
-						<iconify-icon icon={preset.icon} width="22" class="{selected === preset.id ? 'text-white dark:text-white' : 'text-tertiary-500 dark:text-primary-500'}"></iconify-icon>
+						<iconify-icon icon={preset.icon} width="22" class={selected === preset.id ? 'text-white dark:text-white' : 'text-tertiary-500 dark:text-primary-500'}></iconify-icon>
 						<span class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id ? 'text-white dark:text-white' : 'text-black dark:text-white'}">{preset.title}</span>
 
 						{#if preset.complexity}
@@ -189,7 +191,7 @@ Default value is 'blank'.
 							<Badge
 								variant="surface"
 								size="sm"
-								class="{selected === preset.id ? '!text-white/90 !bg-white/15 !border-white/20' : ''}"
+								class={selected === preset.id ? 'text-white/90! bg-white/15! border-white/20!' : ''}
 							>
 								{f}
 							</Badge>
@@ -198,7 +200,7 @@ Default value is 'blank'.
 							<Badge
 								variant="surface"
 								size="sm"
-								class="{selected === preset.id ? '!text-white/70 !bg-white/10 !border-white/20' : ''}"
+								class={selected === preset.id ? 'text-white/70 bg-white/10! border-white/20!' : ''}
 							>
 								+{preset.features.length - 2}
 							</Badge>

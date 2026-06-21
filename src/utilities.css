@@ -281,9 +281,20 @@ select:focus {
 /* ------------------------------------------------------------------ */
 /* Svelte Inspector (dev only)                                         */
 /* ------------------------------------------------------------------ */
+svelte-inspector,
 #svelte-inspector-host {
   position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
   z-index: 2147483647 !important;
+  pointer-events: none !important;
+}
+
+/* Allow clicks to pass through the inspector container but not its children */
+#svelte-inspector-host > * {
+  pointer-events: auto !important;
 }
 
 /* ------------------------------------------------------------------ */

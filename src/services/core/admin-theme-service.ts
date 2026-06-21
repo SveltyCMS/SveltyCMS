@@ -2,7 +2,7 @@
  * @file src/services/core/admin-theme-service.ts
  * @description Server-side service for admin theme management.
  *
- * Manages multiple named admin themes (like Drupal Gin vs DXPR).
+ * Manages multiple named admin themes.
  * Each Theme DB record stores its admin settings in `config.adminTheme`.
  *
  * ### Features:
@@ -20,8 +20,8 @@ import { logger } from "@utils/logger";
 import {
   isSkeletonCssExport,
   isSkeletonPreset,
-  mapSkeletonPresetToAdminTheme,
-} from "@utils/skeleton-preset-mapper";
+  mapPresetToAdminTheme,
+} from "@utils/theme-preset-mapper";
 import { auditPresetJson, type ContrastWarning } from "@utils/theme-contrast";
 import type { DatabaseId } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
@@ -342,7 +342,7 @@ export class AdminThemeService {
       (typeof preset.code === "string" && isSkeletonCssExport(preset.code));
 
     if (isSkeletonPreset(preset) || hasSkeletonCss) {
-      const skeleton = mapSkeletonPresetToAdminTheme(preset);
+      const skeleton = mapPresetToAdminTheme(preset);
       mapped.name = skeleton.name;
       if (skeleton.customCss) mapped.customCss = skeleton.customCss;
     } else if (preset.id && preset.density) {

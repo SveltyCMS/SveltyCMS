@@ -1,5 +1,5 @@
 /**
- * @file src/utils/skeleton-preset-mapper.ts
+ * @file src/utils/theme-preset-mapper.ts
  * @description Maps Skeleton.dev theme generator exports to SveltyCMS admin runtime CSS.
  *
  * Skeleton presets use the same Tailwind v4 `--color-{palette}-{shade}` tokens as SveltyCMS.
@@ -20,7 +20,7 @@ const PALETTE_ALIASES: Record<string, string> = {
   accent: "tertiary",
 };
 
-/** Shorthand palette keys in `/themes/*.json` (e.g. `"primary": "#0f766e"`) */
+/** Shorthand palette keys in `/src/themes/*.json` (e.g. `"primary": "#0f766e"`) */
 export const SHORTHAND_PALETTES = new Set([
   "primary",
   "secondary",
@@ -277,10 +277,8 @@ export function mapSkeletonPropertiesToCss(properties: Record<string, unknown>):
   return `${ADMIN_SCOPE_SELECTOR} {\n${lines.join("\n")}\n}`;
 }
 
-/** Map a Skeleton preset object to SveltyCMS admin theme fields */
-export function mapSkeletonPresetToAdminTheme(
-  preset: Record<string, unknown>,
-): SkeletonMappedTheme {
+/** Map a preset object to SveltyCMS admin theme fields */
+export function mapPresetToAdminTheme(preset: Record<string, unknown>): SkeletonMappedTheme {
   const name =
     typeof preset.name === "string" && preset.name.trim() ? preset.name.trim() : "Imported Theme";
 
@@ -299,7 +297,7 @@ export function normalizeSkeletonThemePayload(
   preset: Record<string, unknown>,
 ): Partial<SkeletonMappedTheme> | null {
   if (!isSkeletonPreset(preset) && !isSkeletonCssField(preset)) return null;
-  const mapped = mapSkeletonPresetToAdminTheme(preset);
+  const mapped = mapPresetToAdminTheme(preset);
   return {
     name: mapped.name,
     customCss: mapped.customCss || undefined,

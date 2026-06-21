@@ -1,19 +1,19 @@
 /**
  * @vitest-environment node
- * @file tests/unit/skeleton-preset-mapper.test.ts
- * @description Unit tests for Skeleton.dev preset → SveltyCMS admin CSS mapping.
+ * @file tests/unit/theme-preset-mapper.test.ts
+ * @description Unit tests for theme preset → SveltyCMS admin CSS mapping.
  */
 
 import { describe, it, expect } from "vitest";
 import {
   isSkeletonPreset,
   isSkeletonCssExport,
-  mapSkeletonPresetToAdminTheme,
+  mapPresetToAdminTheme,
   mapSkeletonPropertiesToCss,
   parseSkeletonCssBlock,
   normalizeSkeletonThemePayload,
   expandShorthandPaletteProperties,
-} from "../../src/utils/skeleton-preset-mapper";
+} from "../../src/utils/theme-preset-mapper";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -27,7 +27,7 @@ const sampleProperties = {
   "--spacing": "0.22rem",
 };
 
-describe("skeleton-preset-mapper", () => {
+describe("theme-preset-mapper", () => {
   it("detects Skeleton JSON presets", () => {
     expect(isSkeletonPreset({ name: "Cerberus", properties: {} })).toBe(true);
     expect(isSkeletonPreset({ name: "Svelty", density: "cozy" })).toBe(false);
@@ -58,7 +58,7 @@ describe("skeleton-preset-mapper", () => {
   });
 
   it("maps Skeleton JSON preset to admin theme fields", () => {
-    const mapped = mapSkeletonPresetToAdminTheme({
+    const mapped = mapPresetToAdminTheme({
       name: "Midnight",
       properties: sampleProperties,
     });
@@ -78,7 +78,7 @@ describe("skeleton-preset-mapper", () => {
   });
 
   it("maps CSS-only Skeleton exports with name", () => {
-    const mapped = mapSkeletonPresetToAdminTheme({
+    const mapped = mapPresetToAdminTheme({
       name: "From CSS",
       css: "[data-theme='x'] { --color-primary-500: oklch(0.5 0.2 260deg); }",
     });
@@ -111,9 +111,9 @@ describe("skeleton-preset-mapper", () => {
 
   it("maps corporate.json shorthand properties to customCss", () => {
     const corporate = JSON.parse(
-      readFileSync(join(process.cwd(), "themes", "corporate.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "src", "themes", "corporate.json"), "utf-8"),
     );
-    const mapped = mapSkeletonPresetToAdminTheme(corporate);
+    const mapped = mapPresetToAdminTheme(corporate);
     expect(mapped.customCss).toContain("--color-primary-500: #0f766e");
     expect(mapped.customCss).toContain("--color-tertiary-500: #1d4ed8");
     expect(mapped.customCss).toContain(".admin-theme-container, [data-admin-theme]");

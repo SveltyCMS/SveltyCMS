@@ -1,7 +1,7 @@
 ---
 path: "docs/guides/configuration/admin-theme-settings.mdx"
 title: "Admin Theme Settings"
-description: "Customize the admin panel with multiple themes, density presets, visual styles, custom CSS, and live preview — inspired by Drupal Gin."
+description: "Customize the admin panel with multiple themes, density presets, visual styles, custom CSS, and live preview."
 order: 7
 icon: "mdi:palette-outline"
 author: "SveltyCMS Team"
@@ -18,7 +18,7 @@ tags:
 
 # Admin Theme Settings
 
-SveltyCMS's admin theme system lets you create, switch, and customize **multiple named themes** — like Drupal's Gin or DXPR themes — each with its own density, visual style, features, and custom CSS. Changes preview instantly before saving.
+SveltyCMS's admin theme system lets you create, switch, and customize **multiple named themes**, each with its own density, visual style, features, and custom CSS. Changes preview instantly before saving.
 
 The Appearance page is located at `/config/appearance`.
 
@@ -74,7 +74,7 @@ Changing density updates the sidebar width, card padding, button sizes, and font
 
 ## 🖌️ Visual Style
 
-The **Visual Style** tab controls card borders and shadows — directly inspired by Drupal Gin's structural theming.
+The **Visual Style** tab controls card borders and shadows.
 
 | Variant      | Border | Shadow         | Effect                            |
 | :----------- | :----- | :------------- | :-------------------------------- |
@@ -179,7 +179,7 @@ Custom CSS is **sanitized server-side** before storage. Dangerous constructs (`u
 
 #### Default install (Corporate workspace)
 
-Fresh installs seed the active theme with the **Corporate** workspace from `/themes/corporate.json`:
+Fresh installs seed the active theme with the **Corporate** workspace from `/src/themes/corporate.json`:
 
 - **Layout:** cozy density, bordered cards, sticky action bar, collapsible sidebar
 - **Branding:** `brandedLogin: true` — login shows tenant site name + accent colors immediately
@@ -189,7 +189,7 @@ Users land on a polished default — no need to discover Appearance first. Custo
 
 #### Skeleton.dev color import
 
-Skeleton's theme generator exports JSON with a `properties` map (`--color-primary-500`, `--color-surface-950`, etc.). SveltyCMS also accepts a **shorthand palette** format in `/themes/*.json` for quick branding:
+Skeleton's theme generator exports JSON with a `properties` map (`--color-primary-500`, `--color-surface-950`, etc.). SveltyCMS also accepts a **shorthand palette** format in `/src/themes/*.json` for quick branding:
 
 ```
 "properties": {
@@ -224,19 +224,19 @@ Skeleton CSS exports (`[data-theme='...'] { ... }`) pasted as JSON with a `css` 
 
 All users can override density, card style, reduced motion, high contrast, and **layout regions** (sidebars, page header/footer) in **Appearance → My Overrides**. Use **My Layout** to set each region to visible, hidden, or theme default; click **Use current layout** to snapshot the panels as they are now. Sidebar toggles also auto-save to your profile after 2 seconds (non-admins store only differences from the tenant theme). Preferences apply **immediately** across the admin shell without a page reload (optimistic client overlay + `app:user-prefs` invalidation).
 
-### Theme Files (`/themes/*.json`)
+### Theme Files (`/src/themes/*.json`)
 
-Drop a `.json` file into the `/themes/` directory and Vite auto-imports it to the database on next save. This is the **File + DB hybrid** — files are version-controlled distribution artifacts, DB is the runtime source of truth.
+Drop a `.json` file into the `/src/themes/` directory and Vite auto-imports it to the database on next save. This is the **File + DB hybrid** — files are version-controlled distribution artifacts, DB is the runtime source of truth.
 
 > [!TIP]
 > Theme files are Git-trackable, shareable between instances, and marketplace-ready. Copy a `.json` between servers and it works identically.
 
-**Example — Corporate (default on install)** (`/themes/corporate.json`):
+**Example — Corporate (default on install)** (`/src/themes/corporate.json`):
 
 ```
 {
   "name": "Corporate",
-  "description": "Gin-inspired enterprise default — cozy density, bordered cards.",
+  "description": "Enterprise default theme preset — cozy density, bordered cards.",
   "density": "cozy",
   "variant": "bordered",
   "features": {
@@ -330,14 +330,14 @@ Beyond visual styling, SveltyCMS's admin layout is built on a **highly flexible 
 
 The `+layout.svelte` (`src/routes/(app)/+layout.svelte`) wraps every admin page with **six independently toggleable regions**, all content-injectable via Svelte 5 `<Slot>`:
 
-| Region            | `ui.state` key | Slot Name        | Purpose                                                  |
-| :---------------- | :------------- | :--------------- | :------------------------------------------------------- |
-| **Top Toolbar**   | `header`       | `global-toolbar` | Theme-injectable global toolbar (Gin Toolbar equivalent) |
-| **Left Sidebar**  | `leftSidebar`  | _(built-in)_     | Navigation: collections, media, user, settings           |
-| **Right Sidebar** | `rightSidebar` | _(built-in)_     | Entry inspector: save, status, schedule, metadata        |
-| **Page Header**   | `pageheader`   | _(built-in)_     | Collection breadcrumb + action buttons                   |
-| **Page Footer**   | `pagefooter`   | _(built-in)_     | Entry metadata (created/updated timestamps)              |
-| **Bottom Bar**    | `footer`       | `global-footer`  | Theme-injectable status bar                              |
+| Region            | `ui.state` key | Slot Name        | Purpose                                           |
+| :---------------- | :------------- | :--------------- | :------------------------------------------------ |
+| **Top Toolbar**   | `header`       | `global-toolbar` | Theme-injectable global toolbar                   |
+| **Left Sidebar**  | `leftSidebar`  | _(built-in)_     | Navigation: collections, media, user, settings    |
+| **Right Sidebar** | `rightSidebar` | _(built-in)_     | Entry inspector: save, status, schedule, metadata |
+| **Page Header**   | `pageheader`   | _(built-in)_     | Collection breadcrumb + action buttons            |
+| **Page Footer**   | `pagefooter`   | _(built-in)_     | Entry metadata (created/updated timestamps)       |
+| **Bottom Bar**    | `footer`       | `global-footer`  | Theme-injectable status bar                       |
 
 Additionally, a **sticky action bar** region (`Slot name="sticky-action-bar"`) appears at the bottom of the main content area when `theme.features.stickyActionBar` is enabled.
 
@@ -454,7 +454,7 @@ flowchart LR
     TM -->|"sizes + styles + layout"| Shell
 ```
 
-This architecture matches or exceeds Drupal Gin's toolbar, sidebar, and layout builder modules — all without PHP/Twig overhead, using native Svelte 5 reactivity.
+This architecture provides a highly optimized toolbar, sidebar, and layout system — all without PHP/Twig overhead, using native Svelte 5 reactivity.
 
 ---
 
@@ -543,7 +543,7 @@ SveltyCMS's admin theme system is designed for both GUI configuration and progra
 
 ### Quick Start: Theme JSON File
 
-Drop a `.json` file into `/themes/` and Vite auto-imports it:
+Drop a `.json` file into `/src/themes/` and Vite auto-imports it:
 
 ```
 {
@@ -616,7 +616,7 @@ Three theme-injectable slots are available for plugin or theme content:
 
 | Slot Name           | Region              | Purpose                                               |
 | ------------------- | ------------------- | ----------------------------------------------------- |
-| `global-toolbar`    | Top header          | Global navigation toolbar (Gin Toolbar equivalent)    |
+| `global-toolbar`    | Top header          | Global navigation toolbar                             |
 | `global-footer`     | Bottom bar          | System status, version info                           |
 | `sticky-action-bar` | Main content bottom | Page action buttons (via `<StickyActions>` component) |
 

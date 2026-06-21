@@ -108,7 +108,7 @@
 	}
 </script>
 
-<div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-2 backdrop-blur-sm dark:bg-surface-950/95">
+<div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-1.5 backdrop-blur-sm dark:bg-surface-950/95">
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
 			<Button variant="outline"

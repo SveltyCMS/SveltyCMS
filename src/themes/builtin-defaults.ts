@@ -1,6 +1,6 @@
 /**
  * @file src/themes/builtin-defaults.ts
- * @description Built-in default admin theme config sourced from `/themes/corporate.json`.
+ * @description Built-in default admin theme config sourced from `/src/themes/corporate.json`.
  *
  * Keeps setup seed, ThemeManager fallback, and file-based presets in sync.
  *
@@ -13,11 +13,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { StoredAdminTheme } from "@src/services/core/admin-theme-service";
-import { mapSkeletonPresetToAdminTheme } from "@utils/skeleton-preset-mapper";
+import { mapPresetToAdminTheme } from "@utils/theme-preset-mapper";
 
-/** Read a built-in theme JSON file from `/themes/` */
+/** Read a built-in theme JSON file from `/src/themes/` */
 export function loadBuiltinThemeFile(basename: string): Record<string, unknown> | null {
-  const filePath = join(process.cwd(), "themes", `${basename}.json`);
+  const filePath = join(process.cwd(), "src", "themes", `${basename}.json`);
   if (!existsSync(filePath)) return null;
   try {
     return JSON.parse(readFileSync(filePath, "utf-8")) as Record<string, unknown>;
@@ -33,7 +33,7 @@ export function buildDefaultAdminThemeConfig(): Partial<StoredAdminTheme> {
     return inlineCorporateFallback();
   }
 
-  const mapped = mapSkeletonPresetToAdminTheme(corporate);
+  const mapped = mapPresetToAdminTheme(corporate);
   const {
     name: _name,
     description: _description,

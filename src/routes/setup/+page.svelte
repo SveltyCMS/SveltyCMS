@@ -264,7 +264,7 @@
 
 	<div class="flex flex-1 overflow-hidden">
 		<!-- Left Sidebar: Stepper -->
-		<aside class="hidden lg:flex w-80 xl:w-96 flex-col border-e border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 overflow-hidden h-full">
+		<aside class="hidden lg:flex w-64 xl:w-72 flex-col border-e border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 overflow-hidden h-full">
 			<div class="flex-1">
 				<SetupStepper
 					{steps}
@@ -299,9 +299,9 @@
 			</div>
 
 			<!-- Scrollable Step Content -->
-			<div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 scroll-smooth" id="step-content" tabindex="-1">
+			<div class="flex-1 overflow-y-auto p-2 scroll-smooth" id="step-content" tabindex="-1">
 				<div class="mx-auto max-w-8xl">
-					<div class="mb-8">
+					<div class="mb-4">
 						<SetupCardHeader
 							currentStep={wizard.currentStep}
 							{steps}
@@ -398,7 +398,8 @@
 											type="button"
 											aria-label="Close message"
 											onclick={setupStore.clearDbTestError}
-										 size="sm" class="p-0! min-w-0 h-7 w-7 rounded-full hover:bg-black/5 dark:hover:bg-white/5">
+											rounded
+										 size="sm" class="p-0! min-w-0 h-7 w-7 hover:bg-black/5 dark:hover:bg-white/5">
 											<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
 										</Button>
 									</div>

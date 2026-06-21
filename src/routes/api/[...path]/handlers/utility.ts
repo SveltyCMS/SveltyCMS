@@ -108,7 +108,7 @@ export async function handleUtilityRoutes(
       return handleSendMail(event, cms, tenantId);
     }
 
-    // ── Marketplace (remote proxy + local /themes fallback) ──
+    // ── Marketplace (remote proxy + local /src/themes fallback) ──
     if (namespace === "marketplace") {
       const service = await getMarketplaceService();
 

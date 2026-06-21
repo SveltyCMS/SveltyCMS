@@ -75,7 +75,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 
 			<Button
 				onclick={onAddCollection}
-				variant="primary"
+				variant="error"
 				rounded={true}
 				size="lg"
 				class="group w-52 justify-center"

@@ -16,9 +16,9 @@ Features:
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import Dropdown from '@components/ui/dropdown.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
-	import Autocomplete from '@src/components/autocomplete.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Paraglide Messages
 	import {
@@ -56,6 +56,7 @@ Features:
 		setup_system_media_type,
 		setup_system_multi_tenant,
 		setup_system_multi_tenant_desc,
+		setup_search_placeholder,
 		setup_system_site_name,
 		setup_system_site_name_placeholder,
 		setup_system_timezone,
@@ -274,8 +275,9 @@ Features:
 		);
 	});
 
-	// Options for Autocomplete
+	// Timezone options for Dropdown
 	const allTimezones = Intl.supportedValuesOf('timeZone');
+	const timezoneOptions = $derived(allTimezones.map((tz: string) => ({ label: tz, value: tz })));
 	let showScaling = $state(false);
 
 	const mediaStorageOptions = $derived([
@@ -312,7 +314,7 @@ Features:
 
 	<div class="space-y-2">
 		{#if redisAvailable && !systemSettings.useRedis}
-			<Alert variant="warning" title="Performance Optimization Detected" class="animate-in fade-in slide-in-from-top-4 duration-500">
+			<Alert variant="info" title="Performance Optimization Detected" class="animate-in fade-in slide-in-from-top-4 duration-500">
 				<div class="flex items-center justify-between gap-4">
 					<div class="flex items-center gap-2">
 						<Badge variant="error" class="uppercase">Recommended</Badge>
@@ -320,11 +322,13 @@ Features:
 					<Button
 						variant="outline"
 						type="button"
+						size="sm"
 						onclick={() => (redisAvailable = false)}
 						aria-label="Dismiss recommendation"
-						class="p-0! min-w-0 rounded-full preset-outlined shrink-0"
+						rounded
+						class="p-0 aspect-square min-w-0 shrink-0 flex items-center justify-center"
 					>
-						<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+						<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 					</Button>
 				</div>
 				<p class="mt-1 text-sm leading-relaxed italic">
@@ -386,29 +390,42 @@ Features:
 					/>
 				</div>
 
-				<!-- Timezone (Enhanced with Autocomplete) -->
-				<div class="flex flex-col gap-1">
-					<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-black dark:text-white">{setup_system_timezone?.() || 'Timezone'}</span>
-						<SystemTooltip title={setup_help_timezone?.() || 'Default system timezone'}>
-							<button type="button" tabindex="-1" aria-label="Help: Timezone" class="ms-1 text-slate-400 hover:text-tertiary-500">
-								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-							</button>
-						</SystemTooltip>
-					</label>
+				<!-- Timezone -->
+					<div class="flex flex-col gap-1">
+						<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
+							<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+							<span class="text-black dark:text-white">{setup_system_timezone?.() || 'Timezone'}</span>
+							<SystemTooltip title={setup_help_timezone?.() || 'Default system timezone'}>
+								<button type="button" tabindex="-1" aria-label="Help: Timezone" class="ms-1 text-slate-400 hover:text-tertiary-500">
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+								</button>
+							</SystemTooltip>
+						</label>
 
-					<Autocomplete
-						options={allTimezones}
-						bind:value={systemSettings.timezone}
-						placeholder="Search timezone..."
-						onSelect={() => handleBlur('timezone')}
-						className="w-full rounded border border-slate-300 dark:border-surface-600  "
-					/>
-					{#if displayErrors.timezone}
-						<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.timezone}</div>
-					{/if}
-				</div>
+						<Dropdown
+							options={timezoneOptions}
+							bind:value={systemSettings.timezone}
+							onchange={() => handleBlur('timezone')}
+							closeOnSelect={true}
+							searchable={true}
+							searchPlaceholder={setup_search_placeholder?.() || 'Search timezones...'}
+							emptyMessage={setup_help_no_matches?.() || 'No matches found'}
+							position="bottom"
+						>
+							{#snippet trigger()}
+								<Button
+									variant="outline"
+									class="w-full h-10 justify-between border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 font-normal hover:border-surface-300 dark:hover:border-surface-600 px-3 py-2"
+								>
+									<span class="truncate text-sm">{systemSettings.timezone || 'Select timezone...'}</span>
+									<iconify-icon icon="mdi:chevron-down" width="16" class="ms-auto shrink-0 text-surface-400"></iconify-icon>
+								</Button>
+							{/snippet}
+						</Dropdown>
+						{#if displayErrors.timezone}
+							<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.timezone}</div>
+						{/if}
+					</div>
 
 				<!-- Password Minimum Length -->
 				<!-- Min Password Length moved to system settings page -->
@@ -509,7 +526,7 @@ Features:
 							</SystemTooltip>
 						</div>
 
-						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2 pe-16">
+						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2">
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<span
 									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
@@ -535,7 +552,9 @@ Features:
 									aria-haspopup="dialog"
 									aria-expanded={showSystemPicker}
 									aria-controls="system-lang-picker"
-								 class="absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full">
+									rounded
+									size="sm"
+									class="flex items-center gap-1">
 									<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 									{button_add?.() || 'Add'}
 								</Button>
@@ -611,7 +630,7 @@ Features:
 						</div>
 
 						<div
-							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 pe-16 {displayErrors.contentLanguages
+							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 								: 'border-surface-200 dark:border-white/5 '}"
 						>
@@ -639,7 +658,9 @@ Features:
 								aria-haspopup="dialog"
 								aria-expanded={showContentPicker}
 								aria-controls="content-lang-picker"
-							 class="absolute inset-e-2 top-1/2 -translate-y-1/2 rounded-full">
+								rounded
+								size="sm"
+								class="flex items-center gap-1">
 								<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 								{button_add?.() || 'Add'}
 							</Button>
@@ -726,7 +747,7 @@ Features:
 
 		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
 		<section id="redis-section" class="space-y-2 border-t border-surface-200 dark:border-white/10 pt-2">
-			<div class="rounded border border-surface-200 dark:border-white/5 p-3 space-y-4">
+			<div class="space-y-4 py-3">
 				<Checkbox
 					bind:checked={systemSettings.useRedis}
 					label="Enable Redis Caching"

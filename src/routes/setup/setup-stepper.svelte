@@ -21,7 +21,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 	}
 </script>
 
-<div class="w-full shrink-0 h-full lg:w-80 xl:w-96">
+<div class="w-full shrink-0 h-full lg:w-64 xl:w-72">
 	<div class="flex flex-col h-full bg-white dark:bg-surface-800">
 		<!-- Mobile: Horizontal step indicator -->
 		<div class="relative flex items-start justify-between p-4 lg:hidden" role="list" aria-label="Setup progress">
@@ -79,7 +79,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 		</div>
 
 		<!-- Desktop: Vertical step indicator -->
-		<div class="hidden flex-1 flex-col overflow-hidden p-6 lg:flex">
+		<div class="hidden flex-1 flex-col overflow-hidden p-4 lg:flex">
 			<div class="flex-1 overflow-y-auto overflow-x-hidden pe-2 [scrollbar:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
 				{#each steps as step, i (i)}
 					<div class="relative last:pb-0">
