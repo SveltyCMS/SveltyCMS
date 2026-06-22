@@ -303,18 +303,18 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
 
 ### Documentation Matrix
 
-| Feature Type          | Primary MDX Location                         | Also Update                                           |
-| :-------------------- | :------------------------------------------- | :---------------------------------------------------- |
-| **Database**          | `docs/database/`                             | `technical-evaluation-2026.mdx`                       |
-| **Auth/Security**     | `docs/database/Authentication_System.mdx`    | `technical-evaluation-2026.mdx`                       |
-| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`      | `docs/project/admin-theme-plan.mdx`                   |
-| **Content/Preview**   | `docs/guides/Live_Preview_Architecture.mdx`  | Integration docs                                      |
-| **Widgets**           | `docs/widgets/`                              | `widget-system-overview.mdx`                          |
-| **API**               | `docs/api/`                                  | Relevant service docs                                 |
-| **Performance**       | `docs/database/Performance_Architecture.mdx` | `technical-evaluation-2026.mdx`                       |
-| **Intelligence / AI** | `docs/architecture/behavioral-learning.mdx`  | `ai-integration.mdx`, `technical-evaluation-2026.mdx` |
-| **Preloading**        | `docs/architecture/hover-preloading.mdx`     | `behavioral-learning.mdx`, `cache-system.mdx`         |
-| **Marketplace**       | `docs/architecture/marketplace.mdx`          | `ai-integration.mdx`                                  |
+| Feature Type          | Primary MDX Location                                   | Also Update                                           |
+| :-------------------- | :----------------------------------------------------- | :---------------------------------------------------- |
+| **Database**          | `docs/database/`                                       | `technical-evaluation-2026.mdx`                       |
+| **Auth/Security**     | `docs/architecture/security/authentication-system.mdx` | `technical-evaluation-2026.mdx`                       |
+| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`                | `docs/project/admin-theme-plan.mdx`                   |
+| **Content/Preview**   | `docs/guides/Live_Preview_Architecture.mdx`            | Integration docs                                      |
+| **Widgets**           | `docs/widgets/`                                        | `widget-system-overview.mdx`                          |
+| **API**               | `docs/api/`                                            | Relevant service docs                                 |
+| **Performance**       | `docs/database/Performance_Architecture.mdx`           | `technical-evaluation-2026.mdx`                       |
+| **Intelligence / AI** | `docs/architecture/behavioral-learning.mdx`            | `ai-integration.mdx`, `technical-evaluation-2026.mdx` |
+| **Preloading**        | `docs/architecture/hover-preloading.mdx`               | `behavioral-learning.mdx`, `cache-system.mdx`         |
+| **Marketplace**       | `docs/architecture/marketplace.mdx`                    | `ai-integration.mdx`                                  |
 
 **Key Documentation Files:**
 

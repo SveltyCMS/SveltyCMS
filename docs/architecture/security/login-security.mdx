@@ -1,12 +1,12 @@
 ---
 path: "docs/architecture/security/login-security.mdx"
 title: "Login Security"
-description: "Implementation details for IP resolution, rate limiter secrets, OAuth HMAC validation, session tracking, and accessibility fixes."
+description: "Implementation details for IP resolution, rate limiter secrets, OAuth HMAC validation, session tracking, accessibility fixes, and new auth methods (API Keys, Magic Links, Guest Auth, WebAuthn)."
 order: 4
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-05-24"
-updated: "2026-06-07"
+updated: "2026-06-22"
 tags:
   - "security"
   - "authentication"
@@ -59,7 +59,7 @@ Accounts are locked for 15 minutes after 5 consecutive failed login attempts. Th
 To ensure the authentication pages are accessible to all users, the following fixes were implemented on `sign-in.svelte` and `sign-up.svelte`:
 
 - **A1**: Removed `role="button"` from the main `<section>` element.
-- **A2**: Added programmatic focus to the `#twofa-code` input field using `tick()` when Two-Factor Authentication is required (see [2FA documentation](/docs/architecture/authentication-system.mdx#4-advanced-security-features)).
+- **A2**: Added programmatic focus to the `#twofa-code` input field using `tick()` when Two-Factor Authentication is required (see [2FA documentation](/docs/architecture/security/authentication-system.mdx#4-advanced-security-features)).
 - **A5/P7**: Implemented `prefers-reduced-motion` CSS media queries to disable animations (e.g., the `.wiggle` effect) for users who prefer reduced motion.
 - **A6**: Added skip links (`<a href="#signin-form" class="sr-only focus:not-sr-only">Skip to form</a>`) at the top of the authentication forms for keyboard navigation.
 - **A8**: Improved contrast for hint texts by changing `text-surface-500` to `text-surface-600 dark:text-surface-400`.
@@ -89,6 +89,15 @@ Users can view and manage their active sessions from the User Settings page (API
 
 - `GET /api/user/sessions` — List all active sessions for the authenticated user
 - `DELETE /api/user/sessions/:sessionId` — Revoke a specific session across all cache layers
+
+## New Auth Methods (June 2026)
+
+The SveltyCMS auth surface has been expanded with 4 additional authentication methods. See the [Authentication System Architecture](./authentication-system.mdx) for full details and security considerations:
+
+- **API Keys** (`sck_*`): Machine-to-machine bearer tokens with SHA-256 hashed storage, scoped permissions, admin REST API, and instant cache invalidation on revoke.
+- **Magic Links**: Passwordless email login via single-use tokens with 15-min TTL, TOCTOU-safe consumption, and anti-enumeration responses.
+- **Guest Auth**: Ephemeral `ANONYMOUS_USER` on public routes with read-only `guest` role — stateless, no session created.
+- **WebAuthn/Passkeys** (~75%): Biometric login via platform authenticators — challenge/response ceremony complete, COSE→JWK attestation, CBOR parsing. Settings-page UI pending.
 
 ---
 

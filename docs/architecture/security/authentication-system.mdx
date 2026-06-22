@@ -1,5 +1,5 @@
 ---
-path: "docs/architecture/authentication-system.mdx"
+path: "docs/architecture/security/authentication-system.mdx"
 title: "Authentication & Authorization"
 description: "SveltyCMS 3-layer session caching, secure rotation, RBAC, Multi-Tenancy 2.0, 2FA, Enterprise SSO (SAML 2.0), API Keys, Magic Links, Guest Auth, and WebAuthn/Passkeys."
 order: 6
@@ -172,9 +172,18 @@ API Keys provide bearer-token authentication for programmatic access — CI/CD p
 - **Revoke**: `DELETE /api/api-keys/:id` enforces owner-or-admin, purges credential cache immediately via `invalidateApiKeyAuth()`.
 - **List**: `GET /api/api-keys` returns all keys for the authenticated user (hash omitted).
 
+### Security Considerations
+
+- **Secret Management**: API keys are bearer tokens — anyone with the key has its permissions. Never commit keys to version control, expose them client-side, or log them. Treat keys like passwords.
+- **Rotation**: Rotate keys every 90 days. Create a new key, update the consuming service, then revoke the old one.
+- **Least Privilege**: Assign the minimum `scopes` needed per key (e.g., `["content:read"]` for a CI build badge, not `["content:write"]`).
+- **Network Restrictions**: Where possible, restrict API key usage by IP range at the infrastructure level (reverse proxy, WAF).
+- **Distinct Keys per Service**: Use separate API keys for each consuming service. If one service is compromised, only its key needs revocation.
+- **Instant Revocation**: The credential cache (60s TTL) is purged on revoke via `invalidateApiKeyAuth()`. Revoked keys stop authenticating within 60 seconds.
+
 ### Bearer Credential Caching
 
-API keys use the same hash-keyed credential cache as website tokens (see [Cache System](./cache-system.mdx)):
+API keys use the same hash-keyed credential cache as website tokens (see [Cache System](../cache-system.mdx)):
 
 | Key prefix               | Category  | TTL | Tags                   | Invalidation                    |
 | :----------------------- | :-------- | :-- | :--------------------- | :------------------------------ |
@@ -199,9 +208,16 @@ Magic Links allow users to authenticate without a password — an email is sent 
 ### Security Properties
 
 - **Single-use**: Tokens are consumed atomically (TOCTOU guard via `consumeToken`)
-- **Time-limited**: Short expiry window prevents lingering attack surface
+- **Time-limited**: 15-minute TTL prevents lingering attack surface
 - **Email-bound**: Token is only valid for the email it was issued to
 - **Audit-logged**: Every magic link request and verification creates a crypto-chained audit entry
+
+### Security Considerations
+
+- **Email Channel Security**: Magic links are only as secure as the user's email account. If the email is compromised, the link can be intercepted. Consider enforcing 2FA for admin accounts even with magic link auth.
+- **Token Expiry**: Tokens expire after 15 minutes — short enough to limit window of opportunity, long enough for email delivery latency.
+- **Account Lockout**: The system checks lockout state before sending a magic link. Locked accounts cannot bypass controls via magic links.
+- **No Account Enumeration**: The API returns a uniform response regardless of whether the email exists, preventing user enumeration attacks.
 
 ---
 
@@ -227,6 +243,12 @@ Configured in `default-roles.ts`:
 | `media:read`    | ✅      |
 | `media:write`   | ❌      |
 | `admin:access`  | ❌      |
+
+### Security Considerations
+
+- **Strict Isolation**: Guest sessions are ephemeral and stateless — no session cookie is created, no database entry is written. This prevents session fixation and cookie-based attacks.
+- **No Privilege Escalation**: The `guest` role has hardcoded read-only permissions. Even if the middleware were misconfigured, guests cannot mutate content or access admin routes.
+- **Scope Limitation**: Guest access is limited to public routes only. The middleware skips guest assignment for mutation endpoints (POST/PUT/DELETE) and admin paths.
 
 ---
 
@@ -277,13 +299,21 @@ interface Authenticator {
 - 🏗️ Settings-page UI for managing registered passkeys (pending)
 - 🏗️ `db:push` for `authenticators` column on SQL deployments (pending)
 
+### Security Considerations
+
+- **Phishing Resistance**: WebAuthn credentials are bound to the origin (RP ID), making them inherently phishing-resistant. An attacker cannot replay credentials on a different domain.
+- **User Verification**: Platform authenticators require biometric (fingerprint, face) or PIN verification. This prevents unauthorized use even with physical device access.
+- **Clone Detection**: The signature counter (`counter` field) is incremented on each authentication. If a cloned authenticator presents a lower counter, the server detects the clone and rejects it.
+- **No Shared Secrets**: Unlike passwords, private keys never leave the authenticator. The server only stores the public key — a database breach reveals nothing usable for authentication.
+- **Downgrade Prevention**: The server enforces `userVerification: "required"` in authentication options, preventing downgrade to less secure methods.
+
 ---
 
 ## Related Documentation
 
-- [Login Security](./security/login-security.mdx) — Session & device tracking, 2FA accessibility, OAuth hardening
-- [Cache System Architecture](./cache-system.mdx) — Bearer credential cache, tag invalidation, negative Bloom filter
+- [Login Security](./login-security.mdx) — Session & device tracking, 2FA accessibility, OAuth hardening
+- [Cache System Architecture](../cache-system.mdx) — Bearer credential cache, tag invalidation, negative Bloom filter
 - [Multi-Tenant Isolation](./multi-tenancy.mdx)
-- [Audit Logging & Compliance](./user-management-overview.mdx)
-- [Authentication API Reference](../api/auth.mdx)
-- [Login Security](./security/login-security.mdx)
+- [Audit Logging & Compliance](../user-management-overview.mdx)
+- [Authentication API Reference](../../api/auth.mdx)
+- [Login Security](./login-security.mdx)

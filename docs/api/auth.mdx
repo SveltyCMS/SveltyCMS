@@ -1,18 +1,21 @@
 ---
 path: "docs/api/auth.mdx"
 title: "Authentication & Identity API Reference"
-description: "Programmatic API reference for the SveltyCMS identity layer — login, profiles, 2FA, SAML SSO, and RBAC permissions. For browser-based login flows, see Login Security."
+description: "Programmatic API reference for the SveltyCMS identity layer — login, profiles, 2FA, SAML SSO, RBAC permissions, API Keys, Magic Links, and WebAuthn/Passkeys."
 order: 45
 icon: "mdi:shield-account-outline"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-05-25"
+updated: "2026-06-22"
 tags:
   - "api"
   - "auth"
   - "2fa"
   - "saml"
   - "security"
+  - "api-keys"
+  - "magic-links"
+  - "webauthn"
 ---
 
 # Authentication & Identity API Reference
@@ -25,23 +28,29 @@ The Authentication API handles the complete lifecycle of a user identity within 
 
 ## ⚡ Quick Reference
 
-| Feature          | HTTP Endpoint                | Method | Permission Required |
-| :--------------- | :--------------------------- | :----- | :------------------ |
-| **Login**        | `/api/auth/login`            | `POST` | **Public**          |
-| **Logout**       | `/api/auth/logout`           | `POST` | **Authenticated**   |
-| **Current User** | `/api/auth`                  | `GET`  | **Authenticated**   |
-| **List Users**   | `/api/user`                  | `GET`  | `manage:user`       |
-| **Create User**  | `/api/auth/create-user`      | `POST` | `manage:user`       |
-| **2FA Status**   | `/api/auth/2fa/status`       | `GET`  | **Authenticated**   |
-| **2FA Setup**    | `/api/auth/2fa/setup`        | `POST` | **Authenticated**   |
-| **2FA Enable**   | `/api/auth/2fa/enable`       | `POST` | **Authenticated**   |
-| **2FA Verify**   | `/api/auth/2fa/verify`       | `POST` | **Authenticated**   |
-| **2FA Disable**  | `/api/auth/2fa/disable`      | `POST` | **Authenticated**   |
-| **Backup Codes** | `/api/auth/2fa/backup-codes` | `GET`  | **Authenticated**   |
-| **SAML Login**   | `/api/auth/saml/login`       | `GET`  | **Public**          |
-| **SAML ACS**     | `/api/auth/saml/acs`         | `POST` | **Public**          |
-| **SAML Config**  | `/api/auth/saml/config`      | `POST` | `manage:system`     |
-| **Permissions**  | `/api/permission/list`       | `GET`  | `manage:system`     |
+| Feature          | HTTP Endpoint                | Method   | Permission Required |
+| :--------------- | :--------------------------- | :------- | :------------------ |
+| **Login**        | `/api/auth/login`            | `POST`   | **Public**          |
+| **Logout**       | `/api/auth/logout`           | `POST`   | **Authenticated**   |
+| **Current User** | `/api/auth`                  | `GET`    | **Authenticated**   |
+| **List Users**   | `/api/user`                  | `GET`    | `manage:user`       |
+| **Create User**  | `/api/auth/create-user`      | `POST`   | `manage:user`       |
+| **API Keys**     | `/api/api-keys`              | `GET`    | **Authenticated**   |
+| **Create Key**   | `/api/api-keys`              | `POST`   | **Authenticated**   |
+| **Revoke Key**   | `/api/api-keys/{id}`         | `DELETE` | Owner or Admin      |
+| **Magic Link**   | `auth.remote.ts` (remote fn) | `POST`   | **Public**          |
+| **Passkey Auth** | `auth.remote.ts` (remote fn) | `POST`   | **Public**          |
+| **Passkey Reg**  | `auth.remote.ts` (remote fn) | `POST`   | **Authenticated**   |
+| **2FA Status**   | `/api/auth/2fa/status`       | `GET`    | **Authenticated**   |
+| **2FA Setup**    | `/api/auth/2fa/setup`        | `POST`   | **Authenticated**   |
+| **2FA Enable**   | `/api/auth/2fa/enable`       | `POST`   | **Authenticated**   |
+| **2FA Verify**   | `/api/auth/2fa/verify`       | `POST`   | **Authenticated**   |
+| **2FA Disable**  | `/api/auth/2fa/disable`      | `POST`   | **Authenticated**   |
+| **Backup Codes** | `/api/auth/2fa/backup-codes` | `GET`    | **Authenticated**   |
+| **SAML Login**   | `/api/auth/saml/login`       | `GET`    | **Public**          |
+| **SAML ACS**     | `/api/auth/saml/acs`         | `POST`   | **Public**          |
+| **SAML Config**  | `/api/auth/saml/config`      | `POST`   | `manage:system`     |
+| **Permissions**  | `/api/permission/list`       | `GET`    | `manage:system`     |
 
 ---
 
@@ -140,10 +149,116 @@ The authorization system is built on granular permissions assigned to user roles
 
 ---
 
+## 5. API Keys (Machine-to-Machine)
+
+API Keys enable programmatic access for CI/CD pipelines, external services, and headless clients. Keys use the `sck_*` prefix and are stored as SHA-256 hashes — plaintext is never persisted.
+
+### Key Management
+
+| Operation      | Endpoint               | Method   | Description                                      |
+| :------------- | :--------------------- | :------- | :----------------------------------------------- |
+| **List Keys**  | `/api/api-keys`        | `GET`    | Returns all keys for authenticated user (no hash) |
+| **Create Key** | `/api/api-keys`        | `POST`   | Returns plaintext `sck_*` key **once**            |
+| **Revoke Key** | `/api/api-keys/{id}`   | `DELETE` | Owner or admin only; purges credential cache      |
+
+> **Security**: Plaintext keys are shown exactly once at creation. After that, only the SHA-256 hash is stored. Revoked keys stop authenticating within 60 seconds (credential cache TTL).
+
+### Create Key Request
+
+```json
+POST /api/api-keys
+{
+  "name": "Staging CI",
+  "scopes": ["content:read", "media:read"],
+  "expiresAt": "2026-12-31T23:59:59Z"
+}
+```
+
+### Create Key Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "key_abc123",
+    "name": "Staging CI",
+    "prefix": "sck_a1b2c3d4",
+    "key": "sck_a1b2c3d4e5f6...",
+    "scopes": ["content:read", "media:read"]
+  }
+}
+```
+
+---
+
+## 6. Magic Links (Passwordless)
+
+Magic Links provide passwordless authentication via email. Implemented as **SvelteKit Remote Functions** in `auth.remote.ts` for type-safe client-server communication.
+
+### Flow
+
+1. **Request**: Client calls `requestMagicLink({ email })` remote function
+2. **Token Creation**: Server creates a single-use `magic_link` token (15-min TTL) and emails it
+3. **Verification**: `+page.server.ts` load function detects `magic_token` query param, calls `verifyMagicLink()`
+4. **Session**: On success, a session is created and the user is redirected
+
+### Security Properties
+
+- Tokens are consumed atomically (TOCTOU-safe `consumeToken`)
+- Uniform response prevents email enumeration
+- Account lockout is checked before sending
+- Every request and verification is audit-logged
+
+---
+
+## 7. WebAuthn / Passkeys
+
+WebAuthn provides phishing-resistant biometric authentication via platform authenticators. Implemented as **SvelteKit Remote Functions**.
+
+### Remote Functions
+
+| Function                     | Auth Required | Description                              |
+| :--------------------------- | :-----------: | :--------------------------------------- |
+| `getPasskeyAuthOptions`      |      No       | Returns challenge for login              |
+| `verifyPasskeyAuth`          |      No       | Validates assertion, creates session     |
+| `getPasskeyRegisterOptions`  |      Yes      | Returns challenge for registration       |
+| `verifyPasskeyRegister`      |      Yes      | Validates attestation, stores credential |
+
+### Database
+
+Authenticators are stored as a JSON array on the User record:
+
+```typescript
+interface Authenticator {
+  credentialId: string;
+  publicKey: JsonWebKey;  // COSE to JWK converted
+  counter: number;         // Clone detection
+  transports?: string[];   // ["internal", "usb", "nfc", "ble"]
+}
+```
+
+---
+
+## 8. Guest / Anonymous Auth
+
+Public routes automatically receive an ephemeral `ANONYMOUS_USER` identity with the `guest` role. No session is created — access is stateless and read-only.
+
+| Permission      | Granted |
+| :-------------- | :-----: |
+| `content:read`  |   ✅    |
+| `content:write` |   ❌    |
+| `media:read`    |   ✅    |
+| `media:write`   |   ❌    |
+| `admin:access`  |   ❌    |
+
+Guest identity is assigned by `handle-authentication.ts` middleware when no valid session or bearer token is present. On subsequent authentication, the guest context is transparently upgraded to the real user session.
+
+---
+
 ## Related Documents
 
 - [Token Management (tokens.ts)](./tokens.mdx)
 - [SCIM 2.0 Provisioning (scim.ts)](./scim.mdx)
 - [Login Security](../architecture/security/login-security.mdx)
-- [Authentication System Architecture](../architecture/authentication-system.mdx)
+- [Authentication System Architecture](../architecture/security/authentication-system.mdx)
 ````

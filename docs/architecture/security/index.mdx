@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-06-14"
+updated: "2026-06-22"
 tags:
   - "security"
   - "documentation"
@@ -49,7 +49,7 @@ SveltyCMS security architecture includes:
 
 **Weighted**: 100×0.25 + 98×0.20 + 98×0.15 + 100×0.15 + 98×0.15 + 98×0.10 = **~99/100**
 
-> ℹ️ Self-assessed (June 2026). Remaining gap: third-party penetration test, WebAuthn.
+> Self-assessed (June 2026). Remaining gap: third-party penetration test, WebAuthn passkey management UI.
 
 ---
 
@@ -57,7 +57,7 @@ SveltyCMS security architecture includes:
 
 ### Authentication & Access Control
 
-- **[Authentication System](/docs/architecture/authentication-system.mdx)** - Enterprise-grade authentication with 3-layer caching, automatic session rotation, and multi-tenancy support
+- **[Authentication System](/docs/architecture/security/authentication-system.mdx)** - Enterprise-grade authentication with 3-layer caching, automatic session rotation, multi-tenancy, API Keys, Magic Links, Guest Auth, and WebAuthn/Passkeys
 - **[Login Security](/docs/architecture/security/login-security.mdx)** - IP resolution, rate limiter secrets, OAuth HMAC validation, session/device tracking, and accessibility fixes.
 - **[Access Management](/docs/guides/configuration/access-management.mdx)** - Roles, Granular Permissions, and Website Token management
   - Session management
@@ -565,7 +565,7 @@ SveltyCMS security features support compliance with:
 
 ### Architecture
 
-- [Authentication System](/docs/architecture/authentication-system.mdx)
+- [Authentication System](/docs/architecture/security/authentication-system.mdx)
 - [Cryptography Module](/docs/architecture/cryptography-module.mdx)
 - [Security Plugin](/docs/architecture/security-plugin.mdx)
 - [Database Resilience](/docs/architecture/database/database-resilience.mdx)
