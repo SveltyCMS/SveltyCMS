@@ -12,14 +12,16 @@ import { loginAsAdmin } from "../../helpers/auth";
 test.describe("Permission Management Flow", () => {
   test.setTimeout(60_000); // 1 min
 
-  test("Login and change permissions in Access Management", async ({ page }) => {
+  test("Login and change permissions in Access Management", async ({
+    page,
+  }) => {
     // 1. Login
     await loginAsAdmin(page);
 
     // 2. Navigate to System Configuration
 
     // 2. Navigate to System Configuration
-    await page.getByRole("button", { name: /system configuration/i }).click();
+    await page.getByRole("link", { name: /system configuration/i }).click();
 
     // 3. Click Access Management
     await page.getByRole("link", { name: /access management/i }).click();
