@@ -62,6 +62,17 @@ export interface User extends BaseEntity {
   samlProvider?: string; // Identifier for the SAML Identity Provider (IdP)
   totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
   username?: string; // Username of the user
+  authenticators?: Authenticator[]; // WebAuthn/Passkey credentials
+}
+
+export interface Authenticator {
+  credentialID: string; // Base64URL encoded unique ID
+  credentialPublicKey: string; // Base64URL encoded public key
+  counter: number; // Signature counter
+  credentialDeviceType: string; // e.g. single-device or multi-device
+  credentialBackedUp: boolean; // Whether the credential has been backed up
+  transports?: string[]; // Optional transport mediums
+  createdAt: string; // ISO date string
 }
 
 // Role Interface
@@ -129,6 +140,35 @@ export interface Token {
   updatedAt?: ISODateString; // When the token was last updated
   user_id: DatabaseId; // The ID of the user who owns the token
   username?: string; // Username associated with the token
+}
+
+// API Key Types
+export type ApiKeyScope =
+  | "content:read"
+  | "content:write"
+  | "content:delete"
+  | "media:read"
+  | "media:write"
+  | "graphql"
+  | "users:read"
+  | "users:write"
+  | "webhooks";
+
+export interface ApiKey {
+  _id: DatabaseId; // Unique identifier for the API key
+  createdAt: ISODateString; // When the key was created
+  expiresAt?: ISODateString; // Optional expiration
+  hash: string; // SHA-256 hashed full key for secure storage
+  lastUsedAt?: ISODateString; // Timestamp of last usage
+  lastUsedIp?: string; // IP address of last usage
+  name: string; // Human-readable name (e.g., "Production CMS frontend")
+  permissions: string[]; // Generic permission bitset from existing system
+  prefix: string; // First 12 chars for UI display (e.g., "sck_a1b2c3d4")
+  revoked: boolean; // Whether the key has been revoked
+  scopes: ApiKeyScope[]; // Granular permissions specific to this key
+  tenantId?: DatabaseId | null; // Multi-tenancy support
+  usageCount: number; // Number of times the key has been used
+  userId: DatabaseId; // User who owns the key
 }
 
 // Session Store Interface

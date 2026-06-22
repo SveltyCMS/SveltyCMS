@@ -61,7 +61,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 		}
 	}
 
-	function getComplexityColor(complexity?: string): string {
+	function getComplexityColor(complexity: string | undefined = undefined): string {
 		switch (complexity) {
 			case "simple":
 				return "text-tertiary-500 dark:text-primary-500";

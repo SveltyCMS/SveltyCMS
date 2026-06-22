@@ -236,7 +236,7 @@ const paths = {
     process.env.COMPILED_COLLECTIONS_DIR || ".compiledCollections",
   ),
   widgets: path.resolve(CWD, "src/widgets"),
-  themes: path.resolve(CWD, "themes"),
+  themes: path.resolve(CWD, "src/themes"),
 };
 
 // --- Utilities ---
@@ -603,7 +603,7 @@ function sveltyCmsPlugin(): Plugin {
       }, 150);
     }
 
-    // 🎨 THEME FILE SYNC: /themes/*.json → DB auto-import (shared with boot-time scan)
+    // 🎨 THEME FILE SYNC: /src/themes/*.json → DB auto-import (shared with boot-time scan)
     const isThemeFile = absoluteFile.startsWith(paths.themes) && file.endsWith(".json");
     if (isThemeFile) {
       setTimeout(async () => {
@@ -1068,7 +1068,7 @@ export default defineConfig((): any => {
     build: {
       target: "esnext",
       minify: "esbuild",
-      sourcemap: true,
+      sourcemap: process.env.CI ? false : true,
       chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
       // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
       rolldownOptions: {

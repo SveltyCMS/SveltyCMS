@@ -42,6 +42,7 @@ export default defineConfig({
       ),
     },
   },
+  define: { "import.meta.env.SSR": "true" },
   test: {
     globals: true,
     testTimeout: 15000,

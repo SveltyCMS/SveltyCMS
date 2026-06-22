@@ -81,7 +81,7 @@ Features:
     return () => observer.disconnect();
   });
 
-  function formatMimeType(mime?: string): string {
+  function formatMimeType(mime: string | undefined = undefined): string {
     if (!mime) return "Unknown";
     const parts = mime.split("/");
     return parts[1] ? parts[1].toUpperCase() : parts[0].toUpperCase();
@@ -211,7 +211,7 @@ Features:
         <div
           class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
         >
-          <SystemTooltip title="Edit" positioning={{ placement: "start" }}>
+          <SystemTooltip title="Edit" positioning={{ placement: "left" }}>
             <Button variant="ghost"
               data-testid="media-edit-button"
               onclick={(e: MouseEvent) => {

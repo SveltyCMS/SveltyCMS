@@ -51,7 +51,7 @@ function getPaginationUrl(offset: number) {
 	return `?${params.toString()}`;
 }
 
-function getFilterUrl(status?: string) {
+function getFilterUrl(status: string | undefined = undefined) {
 	const params = new URLSearchParams(page.url.searchParams);
 	if (status) {
 		params.set("status", status);

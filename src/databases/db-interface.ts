@@ -27,7 +27,7 @@ import type {
   Schema,
   WebsiteToken,
 } from "../content/types";
-import type { Role, Session, Token, User } from "./auth/types";
+import type { ApiKey, Role, Session, Token, User } from "./auth/types";
 import { BaseAdapter } from "./core/base-adapter";
 
 /** * Utility Types for DRY CRUD Operations
@@ -77,6 +77,7 @@ export type {
   Token,
   Role,
   WebsiteToken,
+  ApiKey,
 };
 
 /**
@@ -603,6 +604,10 @@ export interface IAuthAdapter {
     sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ user: User; session: Session }>>;
+  createApiKey(
+    apiKeyData: Partial<ApiKey>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey>>;
   deleteExpiredSessions(): Promise<DatabaseResult<number>>;
   deleteExpiredTokens(): Promise<DatabaseResult<number>>;
   deleteRole(roleId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
@@ -624,6 +629,12 @@ export interface IAuthAdapter {
     userId: DatabaseId,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Session[]>>;
+  getApiKey(hash: string, options?: BaseQueryOptions): Promise<DatabaseResult<ApiKey | null>>;
+  getApiKeyById(id: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<ApiKey | null>>;
+  listApiKeys(
+    filter?: { userId?: DatabaseId; tenantId?: DatabaseId | null },
+    options?: { limit?: number; skip?: number },
+  ): Promise<DatabaseResult<ApiKey[]>>;
   getAllActiveSessions(options?: BaseQueryOptions): Promise<DatabaseResult<Session[]>>;
   getAllRoles(options?: BaseQueryOptions): Promise<Role[]>;
   getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>>;
@@ -663,6 +674,7 @@ export interface IAuthAdapter {
     userId: DatabaseId,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<void>>;
+  revokeApiKey(id: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
   rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>>;
   setupAuthModels(options?: BaseQueryOptions): Promise<void>;
   unblockTokens(
@@ -678,6 +690,11 @@ export interface IAuthAdapter {
     roleData: Partial<Role>,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Role>>;
+  updateApiKeyUsage(
+    id: DatabaseId,
+    ip?: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<void>>;
   updateSessionExpiry(
     sessionId: DatabaseId,
     newExpiry: ISODateString,
@@ -1129,16 +1146,39 @@ export interface ISystemAdapter {
     getDefaultTheme(tenantId?: DatabaseId | null): Promise<DatabaseResult<Theme | null>>;
   };
   websiteTokens: {
-    create(token: Omit<WebsiteToken, "_id" | "createdAt">): Promise<DatabaseResult<WebsiteToken>>;
-    getAll(options: {
-      limit?: number;
-      skip?: number;
-      sort?: string;
-      order?: string;
-    }): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>>;
-    getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>>;
-    getByToken(token: string): Promise<DatabaseResult<WebsiteToken | null>>;
-    delete(tokenId: DatabaseId): Promise<DatabaseResult<void>>;
+    create(
+      token: Omit<WebsiteToken, "_id" | "createdAt">,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<WebsiteToken>>;
+    getAll(
+      options: {
+        limit?: number;
+        skip?: number;
+        sort?: string;
+        order?: string;
+      },
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>>;
+    getByName(
+      name: string,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<WebsiteToken | null>>;
+    getByToken(
+      token: string,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<WebsiteToken | null>>;
+    getByTokenHash(
+      tokenHash: string,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<WebsiteToken | null>>;
+    getById(
+      tokenId: DatabaseId,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<WebsiteToken | null>>;
+    delete(
+      tokenId: DatabaseId,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<void>>;
   };
   jobs: {
     create(job: EntityCreate<Job>): Promise<DatabaseResult<Job>>;

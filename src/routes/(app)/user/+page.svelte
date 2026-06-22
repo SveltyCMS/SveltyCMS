@@ -224,8 +224,8 @@
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
 					<Button variant="error"
-						onclick={open2FAModal}
-					 size="sm" class="{user?.is2FAEnabled ? ' ' : ' '} w-full max-w-xs border border-surface-500/20">
+											onclick={open2FAModal}
+										 size="sm" class="w-full max-w-xs border border-surface-500/20">
 						<div class="flex w-full items-center justify-between py-1">
 							<div class="flex items-center gap-2">
 								<iconify-icon icon="mdi:shield-lock" width={20} class="text-error-500"></iconify-icon>
@@ -244,8 +244,8 @@
 				{/if}
 
 				<!-- Workspace Appearance -->
-				<AdminCard class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm">
-					<div class="space-y-2">
+				<AdminCard class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm">
+									<div class="space-y-2">
 						<div class="flex items-center gap-2">
 							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<span class="text-sm font-semibold">Workspace Appearance</span>
@@ -271,7 +271,7 @@
 
 				<!-- Collaboration Settings -->
 				<AdminCard
-					class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm"
+									class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm"
 				>
 					<div in:fly={{ y: 10, delay: 300, duration: 300 }} class="space-y-3">
 						<div class="flex items-center justify-between gap-3">

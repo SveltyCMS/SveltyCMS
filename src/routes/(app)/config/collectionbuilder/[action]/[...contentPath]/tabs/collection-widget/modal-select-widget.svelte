@@ -62,7 +62,7 @@ const cHeader =
 
 		<!-- Search -->
 		<div class="relative my-4">
-			<iconify-icon icon="mdi:magnify" width="24" class="absolute start-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
+			<iconify-icon icon="mdi:magnify" width="24" class="absolute inset-s-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
 			<input type="text" placeholder="Search widgets..." class="input h-12 w-full ps-12 text-lg" bind:value={searchTerm}  aria-label="Input" />
 		</div>
 

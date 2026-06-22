@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-06-20"
+updated: "2026-06-22"
 tags:
   - "evaluation"
   - "technical"
@@ -292,6 +292,44 @@ Replaced the 503 error page during INITIALIZING with a premium warming-up experi
 - **Real-Time Polling**: `/api/health` endpoint checked every 1 second
 - **Auto-Redirect**: Seamless transition when system reaches READY state
 - **Service Visibility**: Database, Auth, Cache, Content status shown in real-time
+
+#### Auth Expansion — API Keys, Magic Links, Guest Auth, WebAuthn/Passkeys
+
+Closed the remaining auth surface gaps to match and exceed enterprise CMS platforms (based on publicly available documentation as of June 2026):
+
+**API Keys (Machine-to-Machine Auth)**
+
+- `sck_*` prefix bearer tokens with SHA-256 hashed storage — plaintext never persisted
+- `generateApiKey()` returns plaintext once; `createApiKey` / `revokeApiKey` / `listApiKeys` across all 4 DB adapters
+- Admin REST API: `GET/POST/DELETE /api/api-keys` with owner-or-admin enforcement
+- Credential cache: hash-keyed `SESSION` category entries with tag invalidation (`apikey:{sha256-b64url}`)
+- Cache purge on revoke: `invalidateApiKeyAuth()` clears both L1/L2 and tag buckets immediately
+- Dispatcher wired via `ENDPOINT_PERMISSIONS` + `api:api-keys` permission
+
+**Magic Links (Passwordless Auth)**
+
+- `sendMagicLinkForEmail()` creates single-use `type: "magic_link"` token with short TTL
+- `verifyMagicLink()` atomically consumes token and creates session (TOCTOU guard)
+- Remote function `requestMagicLink` wired in `auth.remote.ts`; Magic Link tab in `sign-in.svelte`
+- Every request and verification audit-logged with crypto-chained entry
+
+**Guest / Anonymous Auth**
+
+- Ephemeral `ANONYMOUS_USER` assigned on public routes when no session or bearer token present
+- `guest` role with read-only permissions (`content:read`, `media:read` only)
+- Stateless — no session created, no cookie, transparent upgrade on real authentication
+
+**WebAuthn / Passkeys (Biometric Auth — ~75%)**
+
+- `webauthn-service.ts`: challenge generation, RP ID validation, credential verification
+- `attestation.ts`: COSE key → JWK conversion, assertion signature verification
+- `cbor-decoder.ts`: CBOR binary parsing for `navigator.credentials` responses
+- Remote functions: `getPasskeyAuthOptions` / `verifyPasskeyAuth` (login), `getPasskeyRegisterOptions` / `verifyPasskeyRegister` (registration)
+- Passkey button on sign-in form; `Authenticator` schema on User across all adapters
+- Unit tests: `webauthn-cbor` (7 pass), `webauthn-attestation` (4 pass)
+- Pending: settings-page UI for managing registered passkeys
+
+**Authentication test suite**: 32 auth expansion-specific tests + 68 defense-in-depth security regression tests — all passing.
 
 ### 3.4 June 2026 All-Phase Performance Optimization Sprint
 

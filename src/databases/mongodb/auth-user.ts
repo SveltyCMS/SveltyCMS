@@ -21,6 +21,7 @@ import {
 import { safeQuery } from "@src/utils/security/safe-query";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";
+import { SessionSchema } from "./auth-session";
 
 // Define the User schema
 export const UserSchema = new Schema(
@@ -51,6 +52,7 @@ export const UserSchema = new Schema(
     totpSecret: String,
     backupCodes: [String],
     last2FAVerification: { type: Date },
+    authenticators: [{ type: Schema.Types.Mixed }],
   },
   {
     timestamps: true,
@@ -434,7 +436,6 @@ export class UserAdapter {
       // If model isn't available on mongoose.models, explicitly register the schema.
       // This handles the HMR case where module re-evaluation clears model registrations.
       if (!SessionModel) {
-        const { SessionSchema } = await import("./auth-session");
         SessionModel = mongoose.model("auth_sessions", SessionSchema);
       }
 

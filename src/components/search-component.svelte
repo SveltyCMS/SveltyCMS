@@ -175,7 +175,7 @@ import SearchComponent from './search-component.svelte';
 	}, 150);
 
 	// Navigate and execute trigger actions
-	async function handleResultClick(result: SearchResult, triggerKey: string, event?: MouseEvent | KeyboardEvent) {
+	async function handleResultClick(result: SearchResult, triggerKey: string, event: MouseEvent | KeyboardEvent | undefined = undefined) {
 		event?.stopPropagation();
 		event?.preventDefault();
 

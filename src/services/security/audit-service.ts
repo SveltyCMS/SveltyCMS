@@ -3,8 +3,25 @@
  * @description Unified Audit Service providing high-integrity, multi-tenant audit logging.
  */
 
-import { appendFile, mkdir } from "node:fs/promises";
-import { createHash } from "node:crypto";
+// Lazy Node API accessors — completely tree-shaken during client builds (import.meta.env.SSR is false)
+// Vitest sets import.meta.env.SSR = true in vitest.config.ts for integration tests.
+let _createHash: typeof import("node:crypto").createHash | undefined;
+async function _getCreateHash() {
+  if (!_createHash && import.meta.env.SSR) {
+    _createHash = (await import("node:crypto")).createHash;
+  }
+  if (!_createHash) throw new Error("createHash not available (server-only)");
+  return _createHash;
+}
+let _fsPromises: typeof import("node:fs/promises") | undefined;
+async function _getFsPromises() {
+  if (!_fsPromises && import.meta.env.SSR) {
+    _fsPromises = await import("node:fs/promises");
+  }
+  if (!_fsPromises) throw new Error("fs/promises not available (server-only)");
+  return _fsPromises;
+}
+
 import path from "node:path";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import type {
@@ -37,6 +54,10 @@ export enum AuditEventType {
   PASSWORD_RESET_REQUESTED = "password_reset_requested",
   PASSWORD_RESET_SUCCESS = "password_reset_success",
   WEBHOOK_TRIGGERED = "webhook_triggered",
+  API_KEY_CREATED = "api_key_created",
+  API_KEY_REVOKED = "api_key_revoked",
+  MAGIC_LINK_REQUESTED = "magic_link_requested",
+  MAGIC_LINK_SUCCESS = "magic_link_success",
 }
 
 export interface AuditLogEntry extends BaseEntity {
@@ -136,12 +157,12 @@ export class AuditService {
       }
 
       const logData = entriesToFlush.map((e) => JSON.stringify(e)).join("\n") + "\n";
-      await appendFile(this.logFile, logData);
+      await (await _getFsPromises()).appendFile(this.logFile, logData);
     } catch (error) {
       if (this.isMissingAuditStoreError(error)) {
         logger.warn("[Audit] Audit store unavailable during flush; dropping buffered entries");
         const logData = entriesToFlush.map((e) => JSON.stringify(e)).join("\n") + "\n";
-        await appendFile(this.logFile, logData).catch(() => {});
+        await (await _getFsPromises()).appendFile(this.logFile, logData).catch(() => {});
         return;
       }
 
@@ -182,7 +203,11 @@ export class AuditService {
 
         await this.log(
           "Automatic Audit",
-          { id: "system" as DatabaseId, email: "system@svelty.cms", role: "system" },
+          {
+            id: "system" as DatabaseId,
+            email: "system@svelty.cms",
+            role: "system",
+          },
           { type: collection, id: (data as any)?._id || "unknown" },
           AuditEventType.DATA_IMPORT,
           "low",
@@ -201,7 +226,7 @@ export class AuditService {
       return;
     }
     try {
-      await mkdir(path.dirname(this.logFile), { recursive: true });
+      await (await _getFsPromises()).mkdir(path.dirname(this.logFile), { recursive: true });
       this.initialized = true;
     } catch (err) {
       logger.error("Failed to initialize AuditService storage", err);
@@ -240,7 +265,7 @@ export class AuditService {
       previousHash: this.lastHash,
     };
 
-    const hash = createHash("sha256").update(JSON.stringify(entry)).digest("hex");
+    const hash = (await _getCreateHash())("sha256").update(JSON.stringify(entry)).digest("hex");
     const fullEntry = { ...entry, hash };
     this.lastHash = hash;
 

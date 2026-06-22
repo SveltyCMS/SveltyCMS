@@ -102,8 +102,38 @@ export interface ParsedEntry {
   tags?: string[];
   seo?: Record<string, unknown>;
   customFields?: Record<string, unknown>;
+  /** WordPress: post parent ID for hierarchical content */
+  parentId?: string;
+  /** Menu/display order */
+  order?: number;
+  /** Post format (standard, aside, gallery, etc.) */
+  format?: string;
+  /** Comment status (open, closed) */
+  commentStatus?: string;
+  /** WordPress/Drupal: imported comments */
+  comments?: ParsedComment[];
+  /** Drupal: richtext format identifier */
+  contentFormat?: string;
+  /** Drupal: language code */
+  language?: string;
+  /** Drupal: UUID for relationship resolution */
+  guid?: string;
+  /** Entity references (source UUIDs) */
+  relatedContent?: string[];
   type: string;
   [key: string]: unknown;
+}
+
+/** A comment extracted from WordPress WXR or other import formats. */
+export interface ParsedComment {
+  author: string;
+  email?: string;
+  url?: string;
+  ip?: string;
+  date?: string;
+  content: string;
+  status: string;
+  parentId?: string;
 }
 
 // ============================================================================
@@ -175,16 +205,30 @@ const KNOWN_MAPPINGS: Record<
     title: { target: "title", confidence: "high" },
     body: { target: "content", confidence: "high" },
     field_body: { target: "content", confidence: "high" },
+    field_description: { target: "content", confidence: "high" },
     field_summary: { target: "excerpt", confidence: "high" },
     field_image: { target: "featuredImage", confidence: "high" },
+    field_media: { target: "featuredImage", confidence: "high" },
+    field_media_image: { target: "featuredImage", confidence: "high" },
     field_tags: { target: "tags", confidence: "high" },
     field_category: { target: "categories", confidence: "high" },
+    field_categories: { target: "categories", confidence: "high" },
+    field_taxonomy: { target: "tags", confidence: "medium" },
+    field_related_content: { target: "relatedContent", confidence: "medium" },
+    field_author: { target: "author", confidence: "high" },
+    field_article_author: { target: "author", confidence: "medium" },
     created: { target: "createdAt", confidence: "high" },
     changed: { target: "updatedAt", confidence: "high" },
     status: { target: "status", confidence: "high" },
     path: { target: "slug", confidence: "high" },
+    alias: { target: "slug", confidence: "high" },
     uuid: { target: "guid", confidence: "medium" },
     uid: { target: "author", confidence: "medium" },
+    langcode: { target: "language", confidence: "high" },
+    promote: { target: "featured", confidence: "medium" },
+    sticky: { target: "sticky", confidence: "medium" },
+    body_value: { target: "content", confidence: "high" },
+    body_format: { target: "contentFormat", confidence: "medium" },
   },
 };
 
@@ -674,12 +718,15 @@ export class SmartImporter {
 
   /**
    * Parse WordPress WXR XML export file.
-   * Handles posts, pages, and custom post types.
+   * Handles posts, pages, custom post types, hierarchical content, comments, and media.
    * Detects ACF/CMB2 advanced custom fields.
+   * Returns extended metadata for author mapping and media import UI.
    */
   async importWordPress(file: File): Promise<ParsedEntry[]> {
     const xml = await this.readFileAsText(file);
     const entries: ParsedEntry[] = [];
+    const authors = new Set<string>();
+    const attachmentMap = new Map<string, { url: string; title: string; alt: string }>();
 
     // Simple XML parsing using regex (no XML parser dependency needed)
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
@@ -689,8 +736,9 @@ export class SmartImporter {
       const itemXml = itemMatch[1];
 
       try {
+        const postType = this.extractXmlTag(itemXml, "wp:post_type") || "post";
         const entry: ParsedEntry = {
-          type: this.extractXmlTag(itemXml, "wp:post_type") || "post",
+          type: postType,
           title: this.extractXmlTag(itemXml, "title") || "Untitled",
           content: this.extractXmlTag(itemXml, "content:encoded") || "",
           excerpt: this.extractXmlTag(itemXml, "excerpt:encoded") || "",
@@ -700,6 +748,27 @@ export class SmartImporter {
           updatedAt: this.extractXmlTag(itemXml, "wp:post_modified") || undefined,
           author: this.extractXmlTag(itemXml, "dc:creator") || undefined,
         };
+
+        // Collect unique authors for mapping UI
+        if (entry.author) authors.add(entry.author);
+
+        // Post parent (hierarchical content like pages)
+        const parentId = this.extractXmlTag(itemXml, "wp:post_parent");
+        if (parentId && parentId !== "0") {
+          entry.parentId = `wp:${parentId}`;
+        }
+
+        // Menu order
+        const menuOrder = this.extractXmlTag(itemXml, "wp:menu_order");
+        if (menuOrder) entry.order = parseInt(menuOrder, 10);
+
+        // Post format
+        const postFormat = this.extractXmlTag(itemXml, "wp:post_format");
+        if (postFormat) entry.format = postFormat;
+
+        // Comment/ping status
+        const commentStatus = this.extractXmlTag(itemXml, "wp:comment_status");
+        if (commentStatus) entry.commentStatus = commentStatus;
 
         // Extract categories
         const catRegex =
@@ -720,6 +789,25 @@ export class SmartImporter {
           tags.push(tagMatch2[1]);
         }
         if (tags.length > 0) entry.tags = tags;
+
+        // Extract comments
+        const comments: ParsedComment[] = [];
+        const commentRegex = /<wp:comment>[\s\S]*?<\/wp:comment>/g;
+        let commentBlock: RegExpExecArray | null;
+        while ((commentBlock = commentRegex.exec(itemXml)) !== null) {
+          const cxml = commentBlock[0];
+          comments.push({
+            author: this.extractXmlTag(cxml, "wp:comment_author") || "Anonymous",
+            email: this.extractXmlTag(cxml, "wp:comment_author_email") || undefined,
+            url: this.extractXmlTag(cxml, "wp:comment_author_url") || undefined,
+            ip: this.extractXmlTag(cxml, "wp:comment_author_IP") || undefined,
+            date: this.extractXmlTag(cxml, "wp:comment_date") || undefined,
+            content: this.extractXmlTag(cxml, "wp:comment_content") || "",
+            status: this.extractXmlTag(cxml, "wp:comment_approved") || "0",
+            parentId: this.extractXmlTag(cxml, "wp:comment_parent") || undefined,
+          });
+        }
+        if (comments.length > 0) entry.comments = comments;
 
         // Extract post meta (ACF/CMB2 fields)
         const customFields: Record<string, unknown> = {};
@@ -750,16 +838,47 @@ export class SmartImporter {
       }
     }
 
-    // Also extract attachments/media
-    const attachmentRegex = /<wp:attachment_url><!\[CDATA\[([^\]]*)\]\]><\/wp:attachment_url>/g;
-    let attMatch: RegExpExecArray | null;
-    const mediaUrls: string[] = [];
-    while ((attMatch = attachmentRegex.exec(xml)) !== null) {
-      mediaUrls.push(attMatch[1]);
+    // Extract attachment metadata for media download UI
+    const attItemRegex =
+      /<item>[\s\S]*?<wp:post_type><!\[CDATA\[attachment\]\]><\/wp:post_type>[\s\S]*?<\/item>/g;
+    let attItem: RegExpExecArray | null;
+    while ((attItem = attItemRegex.exec(xml)) !== null) {
+      const attXml = attItem[0];
+      const attId = this.extractXmlTag(attXml, "wp:post_id");
+      const attUrl = this.extractXmlTag(attXml, "wp:attachment_url");
+      const attTitle = this.extractXmlTag(attXml, "title");
+      if (attId && attUrl) {
+        attachmentMap.set(attId, {
+          url: attUrl,
+          title: attTitle || "",
+          alt: this.extractXmlTag(attXml, "wp:postmeta") || attTitle || "",
+        });
+      }
     }
 
+    // Fall back to simpler attachment regex if no structured items found
+    if (attachmentMap.size === 0) {
+      const attachmentRegex = /<wp:attachment_url><!\[CDATA\[([^\]]*)\]\]><\/wp:attachment_url>/g;
+      let attMatch: RegExpExecArray | null;
+      let idx = 1;
+      while ((attMatch = attachmentRegex.exec(xml)) !== null) {
+        attachmentMap.set(`att_${idx++}`, {
+          url: attMatch[1],
+          title: "",
+          alt: "",
+        });
+      }
+    }
+
+    // Store metadata on the returned array for later use
+    (entries as any).__authors = [...authors];
+    (entries as any).__attachments = [...attachmentMap.entries()].map(([id, meta]) => ({
+      id,
+      ...meta,
+    }));
+
     logger.info(
-      `SmartImporter: parsed ${entries.length} entries, ${mediaUrls.length} media URLs from WXR`,
+      `SmartImporter: parsed ${entries.length} entries, ${authors.size} authors, ${attachmentMap.size} attachments from WXR`,
     );
 
     return entries;
@@ -836,66 +955,359 @@ export class SmartImporter {
   }
 
   /**
-   * Parse Drupal migration YAML.
+   * Parse Drupal content export (YAML from Single Content Sync, or CSV from Content Export CSV).
+   *
+   * Handles:
+   * - YAML: Single Content Sync exports with nested field structures
+   * - CSV: Content Export CSV with comma-separated fields
+   * - Richtext detection: body fields with format (text_with_summary, text_long)
+   * - Taxonomy: field_tags, field_category → categories/tags arrays
+   * - Entity references: target_type / target_id → relatedContent
    */
-  async importDrupal(yamlContent: string): Promise<ParsedEntry[]> {
+  async importDrupal(content: string): Promise<ParsedEntry[]> {
+    const trimmed = content.trim();
+
+    // Detect format: CSV starts with header row, YAML uses key: value
+    if (trimmed.startsWith("-") || /^[a-z_]+:\s/.test(trimmed.split("\n")[0])) {
+      return this.importDrupalYaml(trimmed);
+    }
+    if (trimmed.includes(",") && !trimmed.includes(": ")) {
+      return this.importDrupalCsv(trimmed);
+    }
+
+    // Fallback: try YAML
+    return this.importDrupalYaml(trimmed);
+  }
+
+  /**
+   * Parse Drupal Single Content Sync YAML format.
+   * Structure: list of entities with _entity_type, field_name: [{ value: "...", format: "..." }]
+   */
+  private importDrupalYaml(yaml: string): ParsedEntry[] {
     const entries: ParsedEntry[] = [];
-
-    // Basic YAML parsing for Drupal migration format
-    // Drupal migrations typically have source → process mappings
-    const lines = yamlContent.split("\n");
-    let currentEntry: Partial<ParsedEntry> = {};
+    const lines = yaml.split("\n");
+    let current: Record<string, unknown> = {};
     let inEntry = false;
+    let _currentKey = "";
+    let currentIndent = 0;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
 
-      if (trimmed.startsWith("-") && !trimmed.startsWith("- ")) {
-        if (inEntry && currentEntry.title) {
-          entries.push(currentEntry as ParsedEntry);
+      // Detect new entry (top-level list item starting with "-")
+      const leadingSpaces = line.length - line.trimStart().length;
+      if (trimmed.startsWith("- ") && leadingSpaces === 0) {
+        if (inEntry && Object.keys(current).length > 0) {
+          entries.push(this.buildDrupalEntry(current));
         }
-        currentEntry = { type: "entry" };
+        current = {};
         inEntry = true;
+        currentIndent = 2;
         continue;
       }
 
-      if (inEntry) {
-        const colonIdx = trimmed.indexOf(":");
-        if (colonIdx > 0) {
-          const key = trimmed.substring(0, colonIdx).trim();
-          const value = trimmed
-            .substring(colonIdx + 1)
-            .trim()
-            .replace(/^['"]|['"]$/g, "");
+      if (!inEntry) continue;
 
-          switch (key.toLowerCase()) {
-            case "title":
-              currentEntry.title = value;
-              break;
-            case "body":
-            case "content":
-              currentEntry.content = value;
-              break;
-            case "summary":
-              currentEntry.excerpt = value;
-              break;
-            case "path":
-            case "alias":
-              currentEntry.slug = value;
-              break;
-            case "status":
-              currentEntry.status = value;
-              break;
+      // Parse key: value at current indent level
+      const colonIdx = trimmed.indexOf(":");
+      if (colonIdx > 0 && leadingSpaces <= currentIndent + 2) {
+        const key = trimmed.substring(0, colonIdx).trim();
+        let value = trimmed.substring(colonIdx + 1).trim();
+
+        // Remove quotes
+        value = value.replace(/^['"]|['"]$/g, "");
+
+        // Detect nested YAML structure (value starts on next line at deeper indent)
+        if (value === "" && i + 1 < lines.length) {
+          const nextLine = lines[i + 1];
+          const nextIndent = nextLine.length - nextLine.trimStart().length;
+          if (nextIndent > leadingSpaces) {
+            // Collect multi-line / nested structure
+            const nested: string[] = [];
+            let j = i + 1;
+            while (j < lines.length) {
+              const nl = lines[j];
+              const nlIndent = nl.length - nl.trimStart().length;
+              if (nlIndent <= leadingSpaces && nl.trim() !== "") break;
+              nested.push(nl.trim());
+              j++;
+            }
+            value = nested.join("\n");
+            i = j - 1;
           }
+        }
+
+        _currentKey = key;
+
+        // Handle field arrays (e.g. field_tags: [{...}, {...}])
+        if (value.startsWith("-")) {
+          const items: unknown[] = [];
+          let k = i + 1;
+          while (k < lines.length) {
+            const nl = lines[k].trim();
+            if (nl.startsWith("-")) {
+              items.push(nl.substring(1).trim());
+            } else if (nl === "" || /^[a-z_]+:\s/.test(nl)) {
+              break;
+            }
+            k++;
+          }
+          current[key] = items.length > 0 ? items : value;
+        } else {
+          current[key] = value || true;
         }
       }
     }
 
-    if (inEntry && currentEntry.title) {
-      entries.push(currentEntry as ParsedEntry);
+    if (inEntry && Object.keys(current).length > 0) {
+      entries.push(this.buildDrupalEntry(current));
     }
 
     return entries;
+  }
+
+  /**
+   * Parse Drupal Content Export CSV format.
+   * Header row defines field names, subsequent rows are entries.
+   */
+  private importDrupalCsv(csv: string): ParsedEntry[] {
+    const entries: ParsedEntry[] = [];
+    const lines = csv.split("\n").filter((l) => l.trim());
+    if (lines.length < 2) return entries;
+
+    const headers = this.parseCsvLine(lines[0]);
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = this.parseCsvLine(lines[i]);
+      if (values.length === 0) continue;
+
+      const raw: Record<string, string> = {};
+      for (let j = 0; j < headers.length && j < values.length; j++) {
+        raw[headers[j]] = values[j];
+      }
+
+      entries.push(this.buildDrupalEntry(raw));
+    }
+
+    return entries;
+  }
+
+  /**
+   * Parse a single CSV line, handling quoted fields.
+   */
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  /**
+   * Build a ParsedEntry from raw Drupal field data.
+   * Handles richtext detection for body fields, taxonomy term extraction.
+   */
+  private buildDrupalEntry(raw: Record<string, unknown>): ParsedEntry {
+    const entry: ParsedEntry = { type: "entry" };
+
+    // Detect title
+    entry.title = String(raw.title || raw.name || raw.label || "Untitled");
+
+    // Detect content: check body, field_body, body_value (richtext)
+    const bodyRaw =
+      raw.body ||
+      raw.field_body ||
+      raw.body_value ||
+      raw.content ||
+      raw.field_content ||
+      raw.field_description;
+
+    if (bodyRaw) {
+      // If it's a richtext object { value: "...", format: "..." }
+      if (typeof bodyRaw === "object" && (bodyRaw as Record<string, unknown>).value) {
+        entry.content = String((bodyRaw as Record<string, unknown>).value);
+        entry.contentFormat = String((bodyRaw as Record<string, unknown>).format || "");
+      } else {
+        entry.content = String(bodyRaw);
+      }
+    }
+
+    // Excerpt
+    entry.excerpt = String(raw.field_summary || raw.summary || raw.excerpt || "");
+
+    // Slug
+    entry.slug = String(raw.path || raw.alias || raw.slug || raw.url || "");
+
+    // Status
+    const statusVal = String(raw.status || "published").toLowerCase();
+    entry.status = statusVal === "1" || statusVal === "true" ? "published" : statusVal;
+
+    // Dates
+    entry.createdAt = String(raw.created || raw.createdAt || "");
+    entry.updatedAt = String(raw.changed || raw.updatedAt || "");
+
+    // Author
+    entry.author = String(raw.uid || raw.author || raw.field_author || "");
+
+    // Language
+    if (raw.langcode) entry.language = String(raw.langcode);
+
+    // GUID from UUID
+    if (raw.uuid) entry.guid = String(raw.uuid);
+
+    // Featured image
+    if (raw.field_image) {
+      const img = raw.field_image;
+      entry.featuredImage =
+        typeof img === "object"
+          ? String(
+              (img as Record<string, unknown>).url ||
+                (img as Record<string, unknown>).target_id ||
+                "",
+            )
+          : String(img);
+    }
+
+    // Taxonomy: field_tags, field_category
+    const taxonomyFields = ["field_tags", "field_category", "field_categories", "field_taxonomy"];
+    const tags: string[] = [];
+    const cats: string[] = [];
+
+    for (const tf of taxonomyFields) {
+      const val = raw[tf];
+      if (!val) continue;
+
+      const names = this.extractTaxonomyNames(val);
+      if (tf.includes("tag") || tf.includes("taxonomy")) {
+        tags.push(...names);
+      } else {
+        cats.push(...names);
+      }
+    }
+
+    if (tags.length > 0) entry.tags = tags;
+    if (cats.length > 0) entry.categories = cats;
+
+    // Entity references (related content)
+    const relatedFields = ["field_related_content", "field_related", "field_reference"];
+    for (const rf of relatedFields) {
+      const val = raw[rf];
+      if (val && Array.isArray(val)) {
+        entry.relatedContent = (val as unknown[])
+          .map((r) =>
+            typeof r === "string"
+              ? r
+              : String(
+                  (r as Record<string, unknown>).target_id ||
+                    (r as Record<string, unknown>).target_uuid ||
+                    "",
+                ),
+          )
+          .filter(Boolean);
+        break;
+      }
+    }
+
+    // Custom fields: everything not mapped above
+    const knownKeys = new Set([
+      "title",
+      "name",
+      "label",
+      "body",
+      "field_body",
+      "body_value",
+      "content",
+      "field_content",
+      "field_description",
+      "field_summary",
+      "summary",
+      "excerpt",
+      "path",
+      "alias",
+      "slug",
+      "url",
+      "status",
+      "created",
+      "createdAt",
+      "changed",
+      "updatedAt",
+      "uid",
+      "author",
+      "field_author",
+      "langcode",
+      "uuid",
+      "field_image",
+      "field_tags",
+      "field_category",
+      "field_categories",
+      "field_taxonomy",
+      "field_related_content",
+      "field_related",
+      "field_reference",
+      "field_media",
+    ]);
+    const custom: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(raw)) {
+      if (!knownKeys.has(key) && val !== undefined && val !== "") {
+        custom[key] =
+          typeof val === "object"
+            ? (val as Record<string, unknown>).value || JSON.stringify(val)
+            : val;
+      }
+    }
+    if (Object.keys(custom).length > 0) entry.customFields = custom;
+
+    return entry;
+  }
+
+  /**
+   * Extract taxonomy term names from Drupal field data.
+   * Handles: string, array of strings, array of objects with name/target_id
+   */
+  private extractTaxonomyNames(val: unknown): string[] {
+    if (typeof val === "string") {
+      // Could be comma-separated tag names
+      return val
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(val)) {
+      return (val as unknown[])
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (typeof item === "object" && item !== null) {
+            const obj = item as Record<string, unknown>;
+            return String(obj.name || obj.title || obj.target_id || obj.target_uuid || "");
+          }
+          return "";
+        })
+        .filter(Boolean);
+    }
+
+    if (typeof val === "object" && val !== null) {
+      const obj = val as Record<string, unknown>;
+      return [String(obj.name || obj.title || obj.target_id || obj.target_uuid || "")].filter(
+        Boolean,
+      );
+    }
+
+    return [];
   }
 
   /**

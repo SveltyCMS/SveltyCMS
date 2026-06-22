@@ -151,7 +151,7 @@ function getFileIcon(file: File): string {
 }
 
 // Format MIME type for display
-function formatMimeType(mime?: string): string {
+function formatMimeType(mime: string | undefined = undefined): string {
 	if (!mime) {
 		return "Unknown";
 	}
@@ -434,7 +434,7 @@ async function uploadLocalFiles() {
 
 				<div class="group relative overflow-hidden rounded border border-surface-200 shadow-sm transition-all hover:shadow-md dark:border-surface-50">
 					<!-- Delete button -->
-					<div class="absolute end-1 top-1 z-10 flex cursor-pointer shadow-sm">
+					<div class="absolute inset-e-1 top-1 z-10 flex cursor-pointer shadow-sm">
 						<SystemTooltip title="Remove file" positioning={{ placement: 'top' }}>
 							<Button variant="ghost" type="button" onclick={() => handleDeleteFile(file)} aria-label="Remove file" class="p-0! min-w-0 bg-error-500 rounded-full">
 								<iconify-icon icon="material-symbols:delete" width={24} class="text-white"></iconify-icon>

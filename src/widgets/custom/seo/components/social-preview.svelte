@@ -8,12 +8,12 @@ Displays a preview of the shared link for different platforms.
 <script module lang="ts">
 	import Button from '@components/ui/button.svelte';
 	const PLATFORMS = [
-		{ id: 'facebook', icon: 'mdi:facebook', color: 'text-blue-600', label: 'Facebook' },
-		{ id: 'whatsapp', icon: 'mdi:whatsapp', color: 'text-green-500', label: 'WhatsApp' },
-		{ id: 'twitter', icon: 'mdi:twitter', color: 'text-black dark:text-white', label: 'X (Twitter)' },
-		{ id: 'linkedin', icon: 'mdi:linkedin', color: 'text-blue-700', label: 'LinkedIn' },
-		{ id: 'discord', icon: 'mdi:discord', color: 'text-indigo-500', label: 'Discord' }
-	] as const;
+				{ id: 'facebook', icon: 'mdi:facebook', color: 'text-tertiary-500 dark:text-primary-500', label: 'Facebook' },
+				{ id: 'whatsapp', icon: 'mdi:whatsapp', color: 'text-success-500', label: 'WhatsApp' },
+				{ id: 'twitter', icon: 'mdi:twitter', color: 'text-surface-900 dark:text-surface-50', label: 'X (Twitter)' },
+				{ id: 'linkedin', icon: 'mdi:linkedin', color: 'text-tertiary-600 dark:text-primary-400', label: 'LinkedIn' },
+				{ id: 'discord', icon: 'mdi:discord', color: 'text-secondary-500', label: 'Discord' }
+			] as const;
 </script>
 
 <script lang="ts">
@@ -51,7 +51,7 @@ Displays a preview of the shared link for different platforms.
 	let displayImage = $derived(activePlatform === 'twitter' && twitterImage ? twitterImage : ogImage);
 </script>
 
-<div class="card preset-tonal-surface p-4 rounded-container-token mb-6">
+<div class="card preset-tonal-surface p-4 rounded-lg mb-6">
 	<div class="flex items-center gap-2 mb-4">
 		<iconify-icon icon="mdi:share-variant" width="24" class="text-secondary-500 text-xl"></iconify-icon>
 		<h3 class="h3">Social Share Preview</h3>
@@ -65,7 +65,7 @@ Displays a preview of the shared link for different platforms.
 					type="button"
 					onclick={() => (activePlatform = platform.id)}
 					aria-label={platform.label}
-				 class="p-0! min-w-0 transition-all {activePlatform === platform.id ? ' ring-2 ring-surface-900 dark:ring-white scale-110' : ' hover: '}">
+				 class="p-0! min-w-0 transition-all {activePlatform === platform.id ? ' ring-2 ring-surface-900 dark:ring-white scale-110' : ' hover:bg-surface-100 dark:hover:bg-surface-700'}">
 					<iconify-icon icon={platform.icon} width="24" class="text-xl {activePlatform === platform.id ? 'text-white' : platform.color}"
 					></iconify-icon>
 				</Button>
@@ -76,7 +76,7 @@ Displays a preview of the shared link for different platforms.
 	<!-- Preview Card Area -->
 	<div class="bg-surface-50 dark:bg-surface-900 rounded p-4 md:p-8 flex justify-center border border-surface-200 dark:text-surface-50">
 		<!-- Dynamic Preview Styling based on Platform -->
-		<div class="w-full max-w-[500px] bg-white text-black overflow-hidden shadow-lg rounded transition-all duration-300">
+		<div class="w-full max-w-125 bg-white text-black overflow-hidden shadow-lg rounded transition-all duration-300">
 			<!-- Image Area -->
 			<div class="relative bg-gray-100 aspect-[1.91/1] flex items-center justify-center overflow-hidden">
 				{#if displayImage}

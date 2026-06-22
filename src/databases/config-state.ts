@@ -20,7 +20,7 @@ export type AppPrivateConfig = Readonly<InferOutput<typeof privateConfigSchema>>
 type RawEnv = Partial<Record<string, string | number | boolean>>;
 
 // In-memory singleton
-export let privateEnv: AppPrivateConfig | null = null;
+let privateEnv: AppPrivateConfig | null = null;
 let loadPromise: Promise<AppPrivateConfig | null> | null = null;
 
 export function setPrivateEnv(env: AppPrivateConfig | null) {

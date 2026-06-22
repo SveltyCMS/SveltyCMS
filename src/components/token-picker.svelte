@@ -299,7 +299,7 @@
 
 {#if activeInput.current}
 	<div
-		class="token-window card fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-surface-200-700 bg-surface-100-800-token p-4 shadow-xl"
+		class="token-window card fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-4 shadow-xl"
 		style="bottom: 2rem; right: {rightPosition};"
 		transition:fade={{ duration: 150 }}
 	>
@@ -438,7 +438,7 @@
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m (m.name)}
-							<Button variant="surface" onclick={() => addModifier(m)} aria-label="Add {m.label} modifier" class="chip hover:">
+							<Button variant="surface" onclick={() => addModifier(m)} aria-label="Add {m.label} modifier" class="chip hover:bg-surface-100 dark:hover:bg-surface-700">
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}
 							</Button>

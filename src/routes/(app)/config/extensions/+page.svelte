@@ -38,8 +38,8 @@ const tabs = [
 						variant="ghost"
 						onclick={() => (activeTab = tab.id)}
 						class="relative px-6 py-4 font-medium {activeTab === tab.id
-							? '!text-tertiary-500 dark:!text-primary-500'
-							: '!text-surface-500 dark:!text-surface-50 hover:!text-surface-900 dark:hover:!text-surface-100'}"
+							? 'text-tertiary-500 dark:text-primary-500'
+							: 'text-surface-500 dark:text-surface-50 hover:text-surface-900 dark:hover:text-surface-100'}"
 						aria-selected={activeTab === tab.id}
 						role="tab"
 					>

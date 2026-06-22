@@ -688,7 +688,8 @@ export async function handleTestingRoutes(
       eventBus.emit(eventName, payload);
 
       // Direct WebSocket broadcast via svelte-realtime platform
-      const { globalPlatform } = await import("@src/live/ws-platform");
+      const { getGlobalPlatform } = await import("@src/live/ws-platform");
+      const globalPlatform = getGlobalPlatform();
       if (globalPlatform) {
         const topic = `system_events:${tenantId || "default"}`;
         try {
@@ -729,7 +730,8 @@ export async function handleTestingRoutes(
       pubSub.publish("entryUpdated", payload as any);
 
       // Direct WebSocket broadcast for connected clients
-      const { globalPlatform } = await import("@src/live/ws-platform");
+      const { getGlobalPlatform } = await import("@src/live/ws-platform");
+      const globalPlatform = getGlobalPlatform();
       if (globalPlatform) {
         const topic = `system_events:${tenantId || "default"}`;
         try {
