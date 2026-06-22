@@ -963,6 +963,8 @@ export async function handleHealthRoutes(
   }
 
   const isUp = await cms.db.isConnected();
+  const { getDatabaseResilience } = await import("@src/databases/database-resilience");
+  const metrics = getDatabaseResilience().getMetrics();
   const report = {
     status: isUp ? "healthy" : "degraded",
     database: isUp ? "connected" : "disconnected",
@@ -970,6 +972,11 @@ export async function handleHealthRoutes(
     serverTime: new Date().toISOString(),
     uptime: process.uptime(),
     dbType: process.env.DB_TYPE || "unknown",
+    resilience: {
+      circuitState: metrics.circuitState,
+      totalRetries: metrics.totalRetries,
+      successfulReconnections: metrics.successfulReconnections,
+    },
   };
 
   const reportString = JSON.stringify({ success: true, data: report });

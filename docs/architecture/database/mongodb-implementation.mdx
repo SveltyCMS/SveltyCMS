@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:leaf"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-05-24"
+updated: "2026-06-22"
 tags:
   - database
   - mongodb
@@ -123,7 +123,7 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 **Phase 8: Platinum Performance & Zero-Allocation**
 
 - **Zero-Allocation Dates (`processDates`)**: Implemented a "dirty-bit" check to prevent object cloning when no date transformation is needed.
-- **Security Fast-Path (`bypassSafeQuery`)**: High-performance toggle for internal system lookups, bypassing redundant tenant/security checks.
+- **Security Fast-Path (`bypassSafeQuery`)**: High-performance toggle for selected internal lookups that skip `safeQuery` allocation entirely. **Not used for website-token CRUD** — those routes through `MongoCrudMethods` + `safeQuery` (soft-delete + tenant injection).
 - **ID Lookup Fast-Path (`isLookupQuery`)**: Direct collection access for ID/token queries, bypassing the (inlined) Query IR translation entirely.
 
 ---
@@ -136,7 +136,7 @@ To maintain strict parity with SQL engines, the MongoDB adapter no longer intera
 
 1. **Raw Query**: `{ status: 'active', tags: { $in: ['news'] } }`
 2. **IR Map**: Decouples MongoDB-specific operators into a standard `LogicalGroup`.
-3. **Security Injection**: Automatically injects `tenantId` and `isDeleted: false` filters.
+3. **Security Injection**: Automatically injects `tenantId` and `isDeleted: { $ne: true }` filters (matches legacy documents missing the field).
 4. **NoSQL Injection Protection**: `sanitizeMongoQuery()` recursively blocks dangerous operators (`$where`, `$function`, `$expr`, `$accumulator`) and validates `$regex` patterns against ReDoS attacks before the query reaches the database.
 5. **Native Compilation**: The `mapQuery` utility compiles the IR back into an optimized MongoDB filter, with sanitization applied as the final security layer.
 
@@ -150,13 +150,14 @@ As of April 2026, the MongoDB adapter has been fully modularized to align with t
 
 ### Module Breakdown
 
-| Module                 | Responsibility                                          | Optimization                                         |
-| :--------------------- | :------------------------------------------------------ | :--------------------------------------------------- |
-| **auth-user.ts**       | Session validation, RBAC, and JIT provisioning.         | Platinum Fast-Path for sub-0.5ms validation.         |
-| **crud-methods.ts**    | High-speed document operations with name normalization. | `.lean()` with zero-allocation `processDates` logic. |
-| **media-methods.ts**   | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.       |
-| **content-methods.ts** | Advanced content tree and structure management.         | Optimized recursive lookups for large hierarchies.   |
-| **adapter-core.ts**    | Unified connection and (inlined) Query IR translation.  | Hardened `isLookupQuery` ID-bypass.                  |
+| Module                       | Responsibility                                          | Optimization                                                   |
+| :--------------------------- | :------------------------------------------------------ | :------------------------------------------------------------- |
+| **auth-user.ts**             | Session validation, RBAC, and JIT provisioning.         | Platinum Fast-Path for sub-0.5ms validation.                   |
+| **crud-methods.ts**          | High-speed document operations with name normalization. | `.lean()` with zero-allocation `processDates` logic.           |
+| **media-methods.ts**         | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.                 |
+| **content-methods.ts**       | Advanced content tree and structure management.         | Optimized recursive lookups for large hierarchies.             |
+| **website-token-methods.ts** | External API credential CRUD (`system_website_tokens`). | SHA-256 at rest, parallel list+count, `safeQuery` soft-delete. |
+| **adapter-core.ts**          | Unified connection and (inlined) Query IR translation.  | Hardened `isLookupQuery` ID-bypass.                            |
 
 ### Explicit Schema Registration
 
@@ -1536,6 +1537,7 @@ The MongoDB implementation provides:
 1. **NoSQL Injection Protection**: `sanitizeMongoQuery()` in `src/utils/security/mongo-sanitize.ts` recursively blocks dangerous MongoDB operators (`$where`, `$function`, `$expr`, `$accumulator`) at the `mapQuery` level — every query, including fast-path ID lookups, is sanitized before reaching the database.
 2. **ReDoS Prevention**: `$regex` patterns validated to maximum 500 characters, preventing catastrophic backtracking attacks.
 3. **Soft-Delete Filter Enforcement**: `safeQuery()` now always applies the `isDeleted: { $ne: true }` filter unless explicitly opted out — closing a gap where callers could bypass soft-deletion by setting `isDeleted` in their query.
+4. **Website Token Parity (June 2026)**: `website-token-methods.ts` declares `tenantId` and `isDeleted` on the Mongoose schema (`strict: true`), routes all CRUD through `safeQuery` (no `bypassSafeQuery`), and aligns with the SQL `ISystemAdapter.websiteTokens` contract. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
 
 ### Performance Summary
 

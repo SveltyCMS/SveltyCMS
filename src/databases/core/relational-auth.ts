@@ -19,6 +19,7 @@ import type {
   Token,
   User,
   ISqlAdapter,
+  ApiKey,
 } from "../db-interface";
 import * as utils from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
@@ -111,6 +112,21 @@ export class RelationalAuthModule implements IAuthAdapter {
       tenantId: role.tenantId as DatabaseId | null,
       permissions: utils.parseJsonField<string[]>(role.permissions, []),
     } as unknown as Role;
+  }
+
+  protected mapApiKey(dbKey: any): ApiKey {
+    if (!dbKey) throw new Error("API Key not found");
+    const converted = utils.convertDatesToISO(dbKey);
+    return {
+      ...converted,
+      _id: converted._id as DatabaseId,
+      userId: converted.userId as DatabaseId,
+      scopes: utils.parseJsonField<string[]>(converted.scopes, []),
+      permissions: utils.parseJsonField<string[]>(converted.permissions, []),
+      revoked: !!converted.revoked,
+      usageCount: Number(converted.usageCount || 0),
+      tenantId: converted.tenantId as DatabaseId | null,
+    } as unknown as ApiKey;
   }
 
   protected isSQLiteAdapter(): boolean {
@@ -1260,5 +1276,186 @@ export class RelationalAuthModule implements IAuthAdapter {
         .limit(1);
       return res ? (utils.convertDatesToISO(res) as unknown as Token) : null;
     }, "GET_TOKEN_DATA_FAILED");
+  }
+
+  async createApiKey(
+    apiKeyData: Partial<ApiKey>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey>> {
+    return this.adapter.wrap(
+      async () => {
+        const id = (apiKeyData._id || utils.generateId()) as string;
+        const now = isoDateStringToDate(nowISODateString());
+        const values: any = {
+          _id: id,
+          name: apiKeyData.name || "API Key",
+          hash: apiKeyData.hash,
+          prefix: apiKeyData.prefix,
+          userId: apiKeyData.userId as string,
+          scopes: apiKeyData.scopes || [],
+          permissions: apiKeyData.permissions || [],
+          revoked: apiKeyData.revoked || false,
+          usageCount: apiKeyData.usageCount || 0,
+          lastUsedAt: apiKeyData.lastUsedAt ? isoDateStringToDate(apiKeyData.lastUsedAt) : null,
+          lastUsedIp: apiKeyData.lastUsedIp || null,
+          expiresAt: apiKeyData.expiresAt ? isoDateStringToDate(apiKeyData.expiresAt) : null,
+          tenantId: apiKeyData.tenantId || null,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const db = this.getDb(options);
+        const preparedValues = utils.convertISOToDates(values);
+        await db.insert(this.schema.authApiKeys).values(preparedValues);
+
+        const [result] = await db
+          .select(this.adapter.getPhysicalSelection(this.schema.authApiKeys))
+          .from(this.schema.authApiKeys)
+          .where(eq(this.schema.authApiKeys._id, id))
+          .limit(1);
+
+        return this.mapApiKey(result);
+      },
+      "CREATE_API_KEY_FAILED",
+      undefined,
+      { isWrite: true, transaction: options?.transaction },
+    );
+  }
+
+  async getApiKey(
+    hash: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey | null>> {
+    return this.adapter.wrap(
+      async () => {
+        const conditions = [eq(this.schema.authApiKeys.hash, hash)];
+        if (options?.tenantId !== undefined) {
+          conditions.push(
+            options.tenantId === null
+              ? isNull(this.schema.authApiKeys.tenantId)
+              : eq(this.schema.authApiKeys.tenantId, options.tenantId as string),
+          );
+        }
+        const [result] = await this.getDb(options)
+          .select(this.adapter.getPhysicalSelection(this.schema.authApiKeys))
+          .from(this.schema.authApiKeys)
+          .where(and(...conditions))
+          .limit(1);
+        return result ? this.mapApiKey(result) : null;
+      },
+      "GET_API_KEY_FAILED",
+      undefined,
+      { transaction: options?.transaction },
+    );
+  }
+
+  async getApiKeyById(
+    id: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey | null>> {
+    return this.adapter.wrap(
+      async () => {
+        const conditions = [eq(this.schema.authApiKeys._id, id as string)];
+        if (options?.tenantId !== undefined) {
+          conditions.push(
+            options.tenantId === null
+              ? isNull(this.schema.authApiKeys.tenantId)
+              : eq(this.schema.authApiKeys.tenantId, options.tenantId as string),
+          );
+        }
+        const [result] = await this.getDb(options)
+          .select(this.adapter.getPhysicalSelection(this.schema.authApiKeys))
+          .from(this.schema.authApiKeys)
+          .where(and(...conditions))
+          .limit(1);
+        return result ? this.mapApiKey(result) : null;
+      },
+      "GET_API_KEY_BY_ID_FAILED",
+      undefined,
+      { transaction: options?.transaction },
+    );
+  }
+
+  async listApiKeys(
+    filter: { userId?: DatabaseId; tenantId?: DatabaseId | null } = {},
+    options?: { limit?: number; skip?: number },
+  ): Promise<DatabaseResult<ApiKey[]>> {
+    return this.adapter.wrap(async () => {
+      const conditions = [eq(this.schema.authApiKeys.revoked, false)];
+      if (filter.userId) {
+        conditions.push(eq(this.schema.authApiKeys.userId, filter.userId as string));
+      }
+      if (filter.tenantId) {
+        conditions.push(eq(this.schema.authApiKeys.tenantId, filter.tenantId as string));
+      }
+
+      let q = this.getDb()
+        .select(this.adapter.getPhysicalSelection(this.schema.authApiKeys))
+        .from(this.schema.authApiKeys)
+        .where(and(...conditions))
+        .orderBy(desc(this.schema.authApiKeys.createdAt))
+        .$dynamic();
+
+      if (options?.limit) q = q.limit(options.limit);
+      if (options?.skip) q = q.offset(options.skip);
+
+      const rows = await q;
+      return rows.map((row) => this.mapApiKey(row));
+    }, "LIST_API_KEYS_FAILED");
+  }
+
+  async revokeApiKey(id: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>> {
+    return this.adapter.wrap(
+      async () => {
+        const conditions = [eq(this.schema.authApiKeys._id, id as string)];
+        if (options?.tenantId !== undefined) {
+          conditions.push(
+            options.tenantId === null
+              ? isNull(this.schema.authApiKeys.tenantId)
+              : eq(this.schema.authApiKeys.tenantId, options.tenantId as string),
+          );
+        }
+        await this.getDb(options)
+          .update(this.schema.authApiKeys)
+          .set({ revoked: true, updatedAt: isoDateStringToDate(nowISODateString()) })
+          .where(and(...conditions));
+      },
+      "REVOKE_API_KEY_FAILED",
+      undefined,
+      { isWrite: true, transaction: options?.transaction },
+    );
+  }
+
+  async updateApiKeyUsage(
+    id: DatabaseId,
+    ip?: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<void>> {
+    return this.adapter.wrap(
+      async () => {
+        const conditions = [eq(this.schema.authApiKeys._id, id as string)];
+        if (options?.tenantId !== undefined) {
+          conditions.push(
+            options.tenantId === null
+              ? isNull(this.schema.authApiKeys.tenantId)
+              : eq(this.schema.authApiKeys.tenantId, options.tenantId as string),
+          );
+        }
+
+        const now = isoDateStringToDate(nowISODateString());
+        await this.getDb(options)
+          .update(this.schema.authApiKeys)
+          .set({
+            lastUsedAt: now,
+            lastUsedIp: ip || null,
+            usageCount: sql`${this.schema.authApiKeys.usageCount} + 1`,
+            updatedAt: now,
+          })
+          .where(and(...conditions));
+      },
+      "UPDATE_API_KEY_USAGE_FAILED",
+      undefined,
+      { isWrite: true, transaction: options?.transaction },
+    );
   }
 }

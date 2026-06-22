@@ -37,6 +37,10 @@ export enum AuditEventType {
   PASSWORD_RESET_REQUESTED = "password_reset_requested",
   PASSWORD_RESET_SUCCESS = "password_reset_success",
   WEBHOOK_TRIGGERED = "webhook_triggered",
+  API_KEY_CREATED = "api_key_created",
+  API_KEY_REVOKED = "api_key_revoked",
+  MAGIC_LINK_REQUESTED = "magic_link_requested",
+  MAGIC_LINK_SUCCESS = "magic_link_success",
 }
 
 export interface AuditLogEntry extends BaseEntity {

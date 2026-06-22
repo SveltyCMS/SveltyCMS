@@ -399,8 +399,17 @@ export class WebsiteTokensNamespace extends BaseNamespace {
       tenantId ?? null,
       async () => {
         const websiteTokens = this._dbAdapter.system.websiteTokens as any;
+        const existing = await websiteTokens.getById(tokenId as any, tenantId ?? undefined);
+        const storedHash =
+          existing?.success && existing.data?.token ? String(existing.data.token) : null;
+
         const result = await websiteTokens.delete(tokenId as any, tenantId ?? undefined);
         if (!result.success) throw new AppError(result.message, 500);
+
+        const { invalidateWebsiteTokenAuth } =
+          await import("@src/databases/auth/credential-auth-cache");
+        await invalidateWebsiteTokenAuth(tokenId, tenantId ?? undefined, storedHash);
+
         return result.data;
       },
       { collection: "websiteTokens" },

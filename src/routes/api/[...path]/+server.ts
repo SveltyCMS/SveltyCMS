@@ -34,6 +34,9 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   utility: () => import("./handlers/utility"),
   setup: () => import("./handlers/setup"),
   version: () => import("./handlers/version"),
+  database: () => import("./handlers/database"),
+  logs: () => import("./handlers/logs"),
+  "api-keys": () => import("./handlers/api-keys"),
 };
 
 // Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
@@ -97,6 +100,9 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   trash: { handler: "utility", fn: "handleUtilityRoutes" },
   debug: { handler: "utility", fn: "handleUtilityRoutes" },
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
+  database: { handler: "database", fn: "handleDatabaseRoutes" },
+  logs: { handler: "logs", fn: "handleLogsRoutes" },
+  "api-keys": { handler: "api-keys", fn: "handleApiKeyRoutes" },
   webhooks: { handler: "system", fn: "handleWebhookRoutes" },
   "system-webhooks": { handler: "system", fn: "handleWebhookRoutes" },
   "system-virtual-folder": {
@@ -162,6 +168,11 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "system-jobs": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   dashboard: "dashboard:read",
+  database: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  logs: "system:admin",
+  "api-keys": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
 };
 
 /**
@@ -266,6 +277,8 @@ export const _handler = async (event: RequestEvent) => {
   // 🚀 HYPER-TURBO: Direct Health Check
   if (namespace === "system" && segments[1] === "health") {
     const connected = isDbConnected();
+    const { getDatabaseResilience } = await import("@src/databases/database-resilience");
+    const metrics = getDatabaseResilience().getMetrics();
     return json(
       {
         status: connected ? "healthy" : "initializing",
@@ -275,6 +288,12 @@ export const _handler = async (event: RequestEvent) => {
         timestamp: Date.now(),
         dbType: process.env.DB_TYPE || "unknown",
         memory: process.memoryUsage(),
+        resilience: {
+          circuitState: metrics.circuitState,
+          totalRetries: metrics.totalRetries,
+          successfulReconnections: metrics.successfulReconnections,
+          averageRecoveryTime: metrics.averageRecoveryTime,
+        },
       },
       { status: connected ? 200 : 533 }, // Use 533 to differentiate from standard 503 if needed
     );

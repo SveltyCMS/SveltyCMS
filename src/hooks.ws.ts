@@ -29,7 +29,7 @@ export { message } from "svelte-realtime/server";
 
 // 🚀 Platform reference lives in src/lib/ws-platform.ts (extracted here
 // to avoid SvelteKit's "unknown export" warning on non-hook exports).
-// Import directly: import { globalPlatform } from "@src/lib/ws-platform";
+// Import directly: import { getGlobalPlatform } from "@src/live/ws-platform";
 import { initWsPlatform } from "@src/live/ws-platform";
 
 /** Initialize platform for global broadcasting */

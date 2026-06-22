@@ -51,6 +51,7 @@ export const UserSchema = new Schema(
     totpSecret: String,
     backupCodes: [String],
     last2FAVerification: { type: Date },
+    authenticators: [{ type: Schema.Types.Mixed }],
   },
   {
     timestamps: true,

@@ -22,6 +22,7 @@ import type {
   MediaItem,
   ISqlAdapter,
 } from "../db-interface";
+import { hashCredentialSha256Hex } from "@src/utils/security/credential-hash";
 import * as utils from "./relational-utils";
 
 function looksJsonEncoded(value: string): boolean {
@@ -83,19 +84,6 @@ export class RelationalSystemModule implements ISystemAdapter {
 
   protected getDb(options?: BaseQueryOptions) {
     return options?.transaction?.db || this.db;
-  }
-
-  /**
-   * Helper to hash tokens before storage or comparison.
-   * Website tokens represent API credentials and must NEVER be stored in plaintext.
-   */
-  private async _hashToken(token: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(token);
-    const hash = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(hash))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
   }
 
   // ============================================================
@@ -931,6 +919,7 @@ export class RelationalSystemModule implements ISystemAdapter {
   public readonly websiteTokens = {
     create: async (
       token: Omit<import("../db-interface").WebsiteToken, "_id" | "createdAt">,
+      tenantId?: DatabaseId | string | null,
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken>> => {
       // Capture the original plaintext token before hashing.
       // The raw token MUST be returned to the caller on creation (only storage is hashed).
@@ -938,13 +927,14 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         const id = utils.generateId();
         const now = new Date();
-        const hashedTokenValue = await this._hashToken(originalToken);
+        const hashedTokenValue = await hashCredentialSha256Hex(originalToken);
         const values = {
           ...token,
           token: hashedTokenValue,
           _id: id,
           createdAt: now,
           updatedAt: now,
+          ...(tenantId ? { tenantId } : {}),
         };
         await this.db
           .insert(this.schema.websiteTokens)
@@ -961,22 +951,32 @@ export class RelationalSystemModule implements ISystemAdapter {
       }, "CREATE_WEBSITE_TOKEN_FAILED");
     },
 
-    getAll: async (options: {
-      limit?: number;
-      skip?: number;
-      sort?: string;
-      order?: string;
-    }): Promise<
+    getAll: async (
+      options: {
+        limit?: number;
+        skip?: number;
+        sort?: string;
+        order?: string;
+      },
+      tenantId?: DatabaseId | string | null,
+    ): Promise<
       DatabaseResult<{
         data: import("../db-interface").WebsiteToken[];
         total: number;
       }>
     > => {
       return this.adapter.wrap(async () => {
+        const tenantConditions: any[] = [];
+        utils.applyTenantFilter(tenantConditions, this.schema.websiteTokens.tenantId, {
+          tenantId: tenantId as DatabaseId,
+        });
+        const tenantWhere = tenantConditions.length > 0 ? and(...tenantConditions) : undefined;
+
         let q = this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .$dynamic();
+        if (tenantWhere) q = q.where(tenantWhere);
         if (options.sort) {
           const orderFn = options.order === "desc" ? desc : asc;
           const column = (this.schema.websiteTokens as any)[options.sort];
@@ -985,10 +985,15 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (options.limit) q = q.limit(options.limit);
         if (options.skip) q = q.offset(options.skip);
 
-        const results = await q;
-        const [totalResult] = await this.db
+        let countQ = this.db
           .select({ count: sql<number>`count(*)` })
-          .from(this.schema.websiteTokens);
+          .from(this.schema.websiteTokens)
+          .$dynamic();
+        if (tenantWhere) countQ = countQ.where(tenantWhere);
+
+        const [results, totalResultArr] = await Promise.all([q, countQ]);
+        const [totalResult] = totalResultArr;
+
         const stored = utils.convertArrayDatesToISO(results, {
           mariaDoubleParseJson: this.adapter.type === "mariadb",
         }) as unknown as import("../db-interface").WebsiteToken[];
@@ -1006,12 +1011,17 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     getByName: async (
       name: string,
+      tenantId?: DatabaseId | string | null,
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
       return this.adapter.wrap(async () => {
+        const conditions = [eq(this.schema.websiteTokens.name, name)];
+        utils.applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, {
+          tenantId: tenantId as DatabaseId,
+        });
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
-          .where(eq(this.schema.websiteTokens.name, name))
+          .where(and(...conditions))
           .limit(1);
         return result
           ? (utils.convertDatesToISO(result, {
@@ -1023,13 +1033,25 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     getByToken: async (
       token: string,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
+      const hashedToken = await hashCredentialSha256Hex(token);
+      return this.websiteTokens.getByTokenHash(hashedToken, tenantId);
+    },
+
+    getByTokenHash: async (
+      tokenHash: string,
+      tenantId?: DatabaseId | string | null,
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
       return this.adapter.wrap(async () => {
-        const hashedToken = await this._hashToken(token);
+        const conditions = [eq(this.schema.websiteTokens.token, tokenHash)];
+        utils.applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, {
+          tenantId: tenantId as DatabaseId,
+        });
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
-          .where(eq(this.schema.websiteTokens.token, hashedToken))
+          .where(and(...conditions))
           .limit(1);
         return result
           ? (utils.convertDatesToISO(result, {
@@ -1039,11 +1061,38 @@ export class RelationalSystemModule implements ISystemAdapter {
       }, "GET_WEBSITE_TOKEN_BY_TOKEN_FAILED");
     },
 
-    delete: async (tokenId: DatabaseId): Promise<DatabaseResult<void>> => {
+    getById: async (
+      tokenId: DatabaseId,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
       return this.adapter.wrap(async () => {
-        await this.db
-          .delete(this.schema.websiteTokens)
-          .where(eq(this.schema.websiteTokens._id, tokenId));
+        const conditions = [eq(this.schema.websiteTokens._id, tokenId)];
+        utils.applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, {
+          tenantId: tenantId as DatabaseId,
+        });
+        const [result] = await this.db
+          .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
+          .from(this.schema.websiteTokens)
+          .where(and(...conditions))
+          .limit(1);
+        return result
+          ? (utils.convertDatesToISO(result, {
+              mariaDoubleParseJson: this.adapter.type === "mariadb",
+            }) as unknown as import("../db-interface").WebsiteToken)
+          : null;
+      }, "GET_WEBSITE_TOKEN_BY_ID_FAILED");
+    },
+
+    delete: async (
+      tokenId: DatabaseId,
+      tenantId?: DatabaseId | string | null,
+    ): Promise<DatabaseResult<void>> => {
+      return this.adapter.wrap(async () => {
+        const conditions = [eq(this.schema.websiteTokens._id, tokenId)];
+        utils.applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, {
+          tenantId: tenantId as DatabaseId,
+        });
+        await this.db.delete(this.schema.websiteTokens).where(and(...conditions));
       }, "DELETE_WEBSITE_TOKEN_FAILED");
     },
   };

@@ -11,7 +11,10 @@
  * - initialized by hooks.ws.ts init() and consumed by live/system.ts
  */
 
-export let globalPlatform: App.Platform | null = null;
+let globalPlatform: App.Platform | null = null;
+export function getGlobalPlatform() {
+  return globalPlatform;
+}
 
 /** Initialize platform for global broadcasting (called by hooks.ws.ts init) */
 export function initWsPlatform(platform: App.Platform) {

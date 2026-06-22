@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:elephant"
 author: "SveltyCMS Team"
 created: "2026-02-04"
-updated: "2026-06-14"
+updated: "2026-06-22"
 tags:
   - "database"
   - "postgresql"
@@ -123,6 +123,7 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 - **Trigram Search**: High-performance `ilike` searching for media filenames using `pg_trgm` GIN indexes (`media_items_filename_trgm_idx`).
 - **`gen_random_uuid()`**: Native UUID generation via pgcrypto extension
 - **Tenants Table**: Full multi-tenancy with quota, usage, and settings JSONB columns
+- **Website Tokens**: `website_tokens` via shared `relational-system.ts` — SHA-256 hash at rest, unique index on `token`, compound `{ tenantId, name }`, parallel list+count. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
 
 ## Development Guide
 

@@ -72,4 +72,16 @@ describe("safeQuery Hardening", () => {
     const result = safeQuery(query, undefined, { bypassTenantCheck: true });
     expect(result.name).toBe("test");
   });
+
+  it("should exclude soft-deleted and legacy rows by default", () => {
+    (globalThis as any).__privateEnv = { MULTI_TENANT: false };
+    const result = safeQuery({ name: "test" }, undefined);
+    expect((result as any).isDeleted).toEqual({ $ne: true });
+  });
+
+  it("should omit soft-delete filter when includeDeleted is true", () => {
+    (globalThis as any).__privateEnv = { MULTI_TENANT: false };
+    const result = safeQuery({ name: "test" }, undefined, { includeDeleted: true });
+    expect((result as any).isDeleted).toBeUndefined();
+  });
 });

@@ -216,10 +216,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       let options: any;
 
+      const { createPostgresOnCloseHandler } = await import("../resilience-integration");
+      const onclose = createPostgresOnCloseHandler(this);
+
       if (typeof finalConnection === "string") {
         options = {
           max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 200,
           connect_timeout: 30,
+          onclose,
         };
         let poolerUrl = process.env.DATABASE_POOLER_URL;
         let effectivePrepare = true;
@@ -248,6 +252,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           ssl:
             url.searchParams.get("sslmode") === "require" ? { rejectUnauthorized: false } : false,
           onnotice: () => {},
+          onclose,
           transform: { undefined: null },
           max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 200,
           connect_timeout: 30,
@@ -271,6 +276,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           connect_timeout: c.connect_timeout || 30,
           ssl: c.ssl || false,
           onnotice: () => {},
+          onclose,
           transform: { undefined: null },
           prepare: usePrepared,
           idle_timeout: c.idle_timeout || 60,
