@@ -70,7 +70,6 @@ export function parseAuthData(authDataBuffer: Buffer | Uint8Array): ParsedAuthDa
     // Translate COSE public key map to JWK format
     const jwk: any = {};
     const kty = coseKey[1]; // Label 1: Key Type (kty)
-    const alg = coseKey[3]; // Label 3: Algorithm (alg)
 
     if (kty === 2) {
       // EC2 Key Type
