@@ -15,7 +15,7 @@ Features:
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
   import { formatBytes } from "@utils/utils";
   import { SvelteSet } from "svelte/reactivity";
-  import { scale } from "svelte/transition";
+  import { fade, scale } from "svelte/transition";
 
   interface Props {
     filteredFiles?: (MediaBase | MediaImage)[];
@@ -43,6 +43,37 @@ Features:
   	let taggingFile = $state<MediaImage | null>(null);
   	let fileUploadInput = $state<HTMLInputElement>();
   	let failedImages = $state(new SvelteSet<string>());
+
+  // ⚡ Infinite scroll — progressively reveal items as the user scrolls (web + mobile).
+  const BATCH_SIZE = 60;
+  let visibleCount = $state(BATCH_SIZE);
+  let scrollRoot = $state<HTMLElement>();
+  let sentinel = $state<HTMLElement>();
+
+  const visibleFiles = $derived(filteredFiles.slice(0, visibleCount));
+  const hasMore = $derived(visibleCount < filteredFiles.length);
+
+  // Restart from the top whenever the filtered set changes (search / filter / folder).
+  $effect(() => {
+    filteredFiles; // track reference changes
+    visibleCount = BATCH_SIZE;
+    scrollRoot?.scrollTo({ top: 0 });
+  });
+
+  // Reveal the next batch when the sentinel nears the viewport.
+  $effect(() => {
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && visibleCount < filteredFiles.length) {
+          visibleCount = Math.min(visibleCount + BATCH_SIZE, filteredFiles.length);
+        }
+      },
+      { root: scrollRoot ?? null, rootMargin: "600px 0px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  });
 
   function formatMimeType(mime?: string): string {
     if (!mime) return "Unknown";
@@ -97,6 +128,7 @@ Features:
 </script>
 
 <div
+  bind:this={scrollRoot}
   class="flex min-h-0 flex-1 flex-wrap content-start items-start gap-4 overflow-y-auto overflow-x-hidden pt-1"
   role="grid"
   aria-label="Media asset grid"
@@ -139,7 +171,7 @@ Features:
       		/>
     </div>
   {:else}
-    {#each filteredFiles as file (file._id || file.filename)}
+    {#each visibleFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
 
@@ -158,6 +190,7 @@ Features:
               : 'w-80'}"
         role="gridcell"
         aria-selected={isSelected}
+        in:fade={{ duration: 200 }}
       >
         <!-- Selection UI -->
         {#if isSelectionMode || isSelected}
@@ -267,6 +300,17 @@ Features:
         </div>
       </div>
     {/each}
+
+    {#if hasMore}
+      <div
+        bind:this={sentinel}
+        class="flex w-full items-center justify-center gap-2 py-6 text-surface-400 dark:text-surface-500"
+        aria-hidden="true"
+      >
+        <iconify-icon icon="mdi:loading" width="22" class="animate-spin"></iconify-icon>
+        <span class="text-xs font-medium">Loading more…</span>
+      </div>
+    {/if}
   {/if}
 </div>
 

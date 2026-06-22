@@ -11,7 +11,6 @@ import { onMount } from "svelte";
 import type { PageData } from "./$types";
 import MediaGrid from "./media-grid.svelte";
 import MediaTable from "./media-table.svelte";
-import VirtualMediaGrid from "./virtual-media-grid.svelte";
 import { mediaUrl } from "@utils/media/media-utils";
 import ImageEditorModal from "@src/components/image-editor/image-editor-modal.svelte";
 import ModalPrompt from "@components/modal-prompt.svelte";
@@ -69,11 +68,6 @@ const filteredFiles = $derived.by(() => {
 		return matchesSearch && matchesType;
 	});
 });
-
-const USE_VIRTUAL_THRESHOLD = 100;
-const useVirtualScrolling = $derived(
-	filteredFiles.length > USE_VIRTUAL_THRESHOLD,
-);
 
 onMount(() => {
 	// Register Keyboard Shortcuts
@@ -362,25 +356,14 @@ async function handleOpenFileDetails(file: any) {
 		<!-- Content -->
 		<div class="relative flex min-h-0 flex-1 flex-col" data-testid="media-gallery-content">
 			{#if view === 'grid'}
-				{#if useVirtualScrolling}
-					<VirtualMediaGrid
-						filteredFiles={filteredFiles}
-						{gridSize}
-						{isSelectionMode}
-						bind:selectedFiles={selectedFiles}
-						onEditImage={handleEditImage}
-						onOpenFileDetails={handleOpenFileDetails}
-					/>
-				{:else}
-					<MediaGrid
-						filteredFiles={filteredFiles}
-						{gridSize}
-						{isSelectionMode}
-						bind:selectedFiles={selectedFiles}
-						onEditImage={handleEditImage}
-						onOpenFileDetails={handleOpenFileDetails}
-					/>
-				{/if}
+				<MediaGrid
+					filteredFiles={filteredFiles}
+					{gridSize}
+					{isSelectionMode}
+					bind:selectedFiles={selectedFiles}
+					onEditImage={handleEditImage}
+					onOpenFileDetails={handleOpenFileDetails}
+				/>
 			{:else}
 				<MediaTable
 					filteredFiles={filteredFiles}
