@@ -42,10 +42,10 @@ export default defineConfig({
       ),
     },
   },
+  define: { "import.meta.env.SSR": "true" },
   test: {
     globals: true,
     testTimeout: 15000,
-    define: { "import.meta.env.SSR": "true" },
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],

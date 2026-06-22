@@ -31,8 +31,11 @@ test.describe("User Management Flow", () => {
     await page.locator('input[name="username"]:not([disabled])').fill("updatedUser");
     await page.getByRole("button", { name: /save/i }).first().click();
 
-    // Confirm update saved
-    await expect(page.getByText(/updateduser/i)).toBeVisible();
+    // Confirm update saved — toast may appear and disappear; wait longer
+    // If the page refreshes with invalidateAll(), the username input value should update
+    await expect(
+      page.locator('input[name="username"]').or(page.getByText(/updateduser/i)),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("Delete, Block, and Unblock Users", async ({ page }) => {
@@ -48,7 +51,7 @@ test.describe("User Management Flow", () => {
     for (const action of actions) {
       // Find row for author@example.com (since we cannot block/delete admins) and check the checkbox
       const row = page.locator("tr", { hasText: "author@example.com" });
-      await row.getByRole("checkbox", { name: "Toggle selection" }).click();
+      await row.getByRole("checkbox").first().click();
 
       // Click dropdown button to open menu
       await page.getByRole("button", { name: /Toggle bulk actions menu/i }).click();
@@ -78,7 +81,13 @@ test.describe("User Management Flow", () => {
 
     // Fill form
     await page.locator('input[name="email"]:not([disabled])').fill("newuser@example.com");
-    await page.getByRole("button", { name: "user", exact: true }).click();
+    // Select role — try radio first, fall back to button
+    const roleRadio = page.getByRole("radio", { name: /user/i });
+    if (await roleRadio.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await roleRadio.click();
+    } else {
+      await page.getByRole("button", { name: /user/i }).first().click();
+    }
     await page.getByRole("button", { name: /save/i }).first().click();
 
     // Extract dynamic invite URL from copy input

@@ -12,9 +12,7 @@ import { loginAsAdmin } from "../../helpers/auth";
 test.describe("Permission Management Flow", () => {
   test.setTimeout(60_000); // 1 min
 
-  test("Login and change permissions in Access Management", async ({
-    page,
-  }) => {
+  test("Login and change permissions in Access Management", async ({ page }) => {
     // 1. Login
     await loginAsAdmin(page);
 
