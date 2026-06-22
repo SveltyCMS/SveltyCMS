@@ -266,7 +266,7 @@ async function handleOpenFileDetails(file: any) {
 }
 </script>
 
-<AdminPageShell title="Media Gallery" icon="bi:images" showBackButton={true} backUrl="/" spaceY="4">
+<AdminPageShell title="Media Gallery" icon="bi:images" showBackButton={true} backUrl="/" fullHeight={true} spaceY="4">
 	{#snippet actions()}
 		<div class="flex items-center gap-2">
 			<Button variant="surface"
@@ -294,101 +294,102 @@ async function handleOpenFileDetails(file: any) {
 		</div>
 	{/snippet}
 
-	<!-- Toolbar -->
-	<AdminCard
-		class="flex flex-wrap items-end justify-between gap-3 border border-surface-200 bg-white p-4 shadow-sm dark:border-surface-700 dark:bg-surface-900/50"
-		data-testid="media-gallery-toolbar"
-	>
-		<div class="relative min-w-75 flex-1">
-			<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
-			<Input
-				id="media-gallery-search"
-				bind:value={globalSearchValue}
-				type="search"
-				placeholder="Search media... (Mod+F)"
-				class="ps-10 w-full"
-				aria-label="Search media assets"
-			/>
-		</div>
-
-		<div class="flex shrink-0 flex-wrap items-end gap-2">
-			<Select
-				bind:value={selectedMediaType}
-				options={mediaTypeOptions}
-				placeholder="Type"
-				size="sm"
-				class="w-36"
-				label="Filter by type"
-			/>
-
-			<div class="flex h-8 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
-				<Button
-					variant={view === 'grid' ? 'primary' : 'ghost'}
-					size="sm"
-					color={view === 'grid' ? 'var(--color-primary-500)' : undefined}
-					onclick={() => (view = 'grid')}
-					class="h-full rounded-none px-2 {view !== 'grid' ? 'hover:bg-surface-200 dark:hover:bg-surface-700' : ''}"
-					aria-label="Grid view"
-					aria-pressed={view === 'grid'}
-				>
-					<iconify-icon icon="mdi:grid-large" width="20"></iconify-icon>
-				</Button>
-				<Button
-					variant={view === 'table' ? 'primary' : 'ghost'}
-					size="sm"
-					color={view === 'table' ? 'var(--color-primary-500)' : undefined}
-					onclick={() => (view = 'table')}
-					class="h-full rounded-none px-2 {view !== 'table' ? 'hover:bg-surface-200 dark:hover:bg-surface-700' : ''}"
-					aria-label="Table view"
-					aria-pressed={view === 'table'}
-				>
-					<iconify-icon icon="mdi:format-list-bulleted" width="20"></iconify-icon>
-				</Button>
+	<div class="flex min-h-0 flex-1 flex-col gap-3">
+		<!-- Toolbar -->
+		<AdminCard
+			class="flex shrink-0 flex-col gap-2.5 border border-surface-200 bg-white p-2.5 shadow-sm sm:flex-row sm:items-center dark:border-surface-700 dark:bg-surface-900/50"
+			data-testid="media-gallery-toolbar"
+		>
+			<div class="relative w-full sm:flex-1 sm:min-w-48">
+				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
+				<Input
+					id="media-gallery-search"
+					bind:value={globalSearchValue}
+					type="search"
+					placeholder="Search media... (Mod+F)"
+					class="ps-10 w-full"
+					aria-label="Search media assets"
+				/>
 			</div>
 
-			<Button
-				variant={isSelectionMode ? 'surface' : 'outline'}
-				color={isSelectionMode ? 'var(--color-primary-500)' : undefined}
-				size="sm"
-				onclick={() => (isSelectionMode = !isSelectionMode)}
-				aria-label="Toggle selection mode"
-				aria-pressed={isSelectionMode}
-			>
-				{isSelectionMode ? 'Exit Selection' : 'Select'}
-			</Button>
-		</div>
-	</AdminCard>
-
-	<!-- Content -->
-	<div class="relative min-h-100" data-testid="media-gallery-content">
-		{#if view === 'grid'}
-			{#if useVirtualScrolling}
-				<VirtualMediaGrid
-					filteredFiles={filteredFiles}
-					{gridSize}
-					{isSelectionMode}
-					bind:selectedFiles={selectedFiles}
-					onEditImage={handleEditImage}
-					onOpenFileDetails={handleOpenFileDetails}
+			<div class="flex flex-wrap items-center gap-2">
+				<label for="media-type-filter" class="sr-only">Filter by media type</label>
+				<Select
+					id="media-type-filter"
+					bind:value={selectedMediaType}
+					options={mediaTypeOptions}
+					placeholder="Type"
+					class="w-32 sm:w-36"
 				/>
+
+				<div class="flex h-10 shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+					<Button
+						variant={view === 'grid' ? 'primary' : 'ghost'}
+						size="sm"
+						color={view === 'grid' ? 'var(--color-primary-500)' : undefined}
+						onclick={() => (view = 'grid')}
+						class="h-full rounded-none px-3 {view !== 'grid' ? 'hover:bg-surface-200 dark:hover:bg-surface-700' : ''}"
+						aria-label="Grid view"
+						aria-pressed={view === 'grid'}
+					>
+						<iconify-icon icon="mdi:grid-large" width="20"></iconify-icon>
+					</Button>
+					<Button
+						variant={view === 'table' ? 'primary' : 'ghost'}
+						size="sm"
+						color={view === 'table' ? 'var(--color-primary-500)' : undefined}
+						onclick={() => (view = 'table')}
+						class="h-full rounded-none px-3 {view !== 'table' ? 'hover:bg-surface-200 dark:hover:bg-surface-700' : ''}"
+						aria-label="Table view"
+						aria-pressed={view === 'table'}
+					>
+						<iconify-icon icon="mdi:format-list-bulleted" width="20"></iconify-icon>
+					</Button>
+				</div>
+
+				<Button
+					variant={isSelectionMode ? 'surface' : 'outline'}
+					color={isSelectionMode ? 'var(--color-primary-500)' : undefined}
+					onclick={() => (isSelectionMode = !isSelectionMode)}
+					aria-label="Toggle selection mode"
+					aria-pressed={isSelectionMode}
+				>
+					{isSelectionMode ? 'Exit Selection' : 'Select'}
+				</Button>
+			</div>
+		</AdminCard>
+
+		<!-- Content -->
+		<div class="relative flex min-h-0 flex-1 flex-col" data-testid="media-gallery-content">
+			{#if view === 'grid'}
+				{#if useVirtualScrolling}
+					<VirtualMediaGrid
+						filteredFiles={filteredFiles}
+						{gridSize}
+						{isSelectionMode}
+						bind:selectedFiles={selectedFiles}
+						onEditImage={handleEditImage}
+						onOpenFileDetails={handleOpenFileDetails}
+					/>
+				{:else}
+					<MediaGrid
+						filteredFiles={filteredFiles}
+						{gridSize}
+						{isSelectionMode}
+						bind:selectedFiles={selectedFiles}
+						onEditImage={handleEditImage}
+						onOpenFileDetails={handleOpenFileDetails}
+					/>
+				{/if}
 			{:else}
-				<MediaGrid
+				<MediaTable
 					filteredFiles={filteredFiles}
-					{gridSize}
 					{isSelectionMode}
 					bind:selectedFiles={selectedFiles}
 					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
 				/>
 			{/if}
-		{:else}
-			<MediaTable
-				filteredFiles={filteredFiles}
-				{isSelectionMode}
-				bind:selectedFiles={selectedFiles}
-				onEditImage={handleEditImage}
-				onOpenFileDetails={handleOpenFileDetails}
-			/>
-		{/if}
+		</div>
 	</div>
 </AdminPageShell>

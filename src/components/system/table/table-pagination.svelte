@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/system/table/table-pagination.svelte
 @component
 **Optimized table pagination component for displaying pagination controls in a CMS.**
@@ -70,99 +70,119 @@
 		// Call the callback to handle the change
 		onUpdateRowsPerPage?.(rows);
 	}
+
+	const navButtonClass =
+		'h-8 w-9 rounded-none p-0! min-w-0 text-surface-600 hover:bg-surface-200 dark:text-surface-300 dark:hover:bg-surface-700';
 </script>
 
 <!-- Pagination info -->
-<div class="mb-1 flex items-center justify-between text-xs md:mb-0 md:text-sm" role="status" aria-live="polite">
-	<div>
-		<span>{entrylist_page()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-		<span>{entrylist_of()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
-		<span class="ms-4" aria-label="Current items shown">
-			{#if totalItems > 0}
-				{entrylist_showing()} <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
-					class="text-tertiary-500 dark:text-primary-500">{endItem}</span
-				>
-				{entrylist_of()}
-				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span>
-				{entrylist_items()}
-			{:else}
-				{entrylist_showing()}
-				0 {entrylist_of()} 0 {entrylist_items()}
-			{/if}
-		</span>
-	</div>
+<div
+	class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500 dark:text-surface-400 md:text-sm"
+	role="status"
+	aria-live="polite"
+>
+	<span>
+		{entrylist_page()}
+		<span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+		{entrylist_of()}
+		<span class="font-semibold text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
+	</span>
+
+	<span class="hidden h-3 w-px bg-surface-300 dark:bg-surface-600 sm:inline-block" aria-hidden="true"></span>
+
+	<span aria-label="Current items shown">
+		{#if totalItems > 0}
+			{entrylist_showing()}
+			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
+				class="font-semibold text-tertiary-500 dark:text-primary-500">{endItem}</span
+			>
+			{entrylist_of()}
+			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{totalItems}</span>
+			{entrylist_items()}
+		{:else}
+			{entrylist_showing()} 0 {entrylist_of()} 0 {entrylist_items()}
+		{/if}
+	</span>
 </div>
 
 <!-- Pagination controls -->
-<nav class="btn-group" aria-label="Table pagination">
-	<!-- First page button -->
-	<SystemTooltip title="First Page">
-		<Button variant="outline"
-			onclick={() => goToPage(1)}
-			disabled={isFirstPage}
-			type="button"
-			aria-label="Go to first page"
-			aria-disabled={isFirstPage}
-		 class="h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
-			<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</Button>
-	</SystemTooltip>
+<nav class="flex items-center" aria-label="Table pagination">
+	<div class="inline-flex items-center overflow-hidden rounded-md border border-surface-300 dark:border-surface-600">
+		<!-- First page button -->
+		<SystemTooltip title="First Page">
+			<Button
+				variant="ghost"
+				onclick={() => goToPage(1)}
+				disabled={isFirstPage}
+				type="button"
+				aria-label="Go to first page"
+				aria-disabled={isFirstPage}
+				class="{navButtonClass} border-e border-surface-300 dark:border-surface-600"
+			>
+				<iconify-icon icon="material-symbols:first-page" width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		</SystemTooltip>
 
-	<!-- Previous page button -->
-	<SystemTooltip title="Previous Page">
-		<Button variant="outline"
-			onclick={() => goToPage(currentPage - 1)}
-			disabled={isFirstPage}
-			type="button"
-			aria-label="Go to previous page"
-			aria-disabled={isFirstPage}
-		 class="h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
-			<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</Button>
-	</SystemTooltip>
+		<!-- Previous page button -->
+		<SystemTooltip title="Previous Page">
+			<Button
+				variant="ghost"
+				onclick={() => goToPage(currentPage - 1)}
+				disabled={isFirstPage}
+				type="button"
+				aria-label="Go to previous page"
+				aria-disabled={isFirstPage}
+				class="{navButtonClass} border-e border-surface-300 dark:border-surface-600"
+			>
+				<iconify-icon icon="material-symbols:chevron-left" width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		</SystemTooltip>
 
-	<!-- Rows per page select dropdown -->
-	<SystemTooltip title="Rows per page">
-		<select
-			bind:value={rowsPerPage}
-			onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
-			aria-label="Select number of rows per page"
-			class="appearance-none bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 hover:bg-surface-200 dark:border-surface-50 dark:text-primary-500 dark:hover:bg-surface-800 sm:px-4"
-		>
-			{#each rowsPerPageOptions as pageSize (pageSize)}
-				<option class="bg-surface-300 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
-					{pageSize}
-					{entrylist_rows()}
-				</option>
-			{/each}
-		</select>
-	</SystemTooltip>
+		<!-- Rows per page select dropdown -->
+		<SystemTooltip title="Rows per page">
+			<select
+				bind:value={rowsPerPage}
+				onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
+				aria-label="Select number of rows per page"
+				class="h-8 cursor-pointer appearance-none border-e border-surface-300 bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:border-surface-600 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
+			>
+				{#each rowsPerPageOptions as pageSize (pageSize)}
+					<option class="bg-surface-100 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
+						{pageSize}
+						{entrylist_rows()}
+					</option>
+				{/each}
+			</select>
+		</SystemTooltip>
 
-	<!-- Next page button -->
-	<SystemTooltip title="Next Page">
-		<Button variant="outline"
-			onclick={() => goToPage(currentPage + 1)}
-			disabled={isLastPage}
-			type="button"
-			aria-label="Go to next page"
-			aria-disabled={isLastPage}
-		 class="h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
-			<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</Button>
-	</SystemTooltip>
+		<!-- Next page button -->
+		<SystemTooltip title="Next Page">
+			<Button
+				variant="ghost"
+				onclick={() => goToPage(currentPage + 1)}
+				disabled={isLastPage}
+				type="button"
+				aria-label="Go to next page"
+				aria-disabled={isLastPage}
+				class="{navButtonClass} border-e border-surface-300 dark:border-surface-600"
+			>
+				<iconify-icon icon="material-symbols:chevron-right" width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		</SystemTooltip>
 
-	<!-- Last page button -->
-	<SystemTooltip title="Last Page">
-		<Button variant="outline"
-			onclick={() => goToPage(computedPagesCount)}
-			disabled={isLastPage}
-			type="button"
-			aria-label="Go to last page"
-			aria-disabled={isLastPage}
-		 class="h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
-			<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</Button>
-	</SystemTooltip>
+		<!-- Last page button -->
+		<SystemTooltip title="Last Page">
+			<Button
+				variant="ghost"
+				onclick={() => goToPage(computedPagesCount)}
+				disabled={isLastPage}
+				type="button"
+				aria-label="Go to last page"
+				aria-disabled={isLastPage}
+				class={navButtonClass}
+			>
+				<iconify-icon icon="material-symbols:last-page" width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		</SystemTooltip>
+	</div>
 </nav>

@@ -14,7 +14,7 @@ Features:
   import SystemTooltip from "@src/components/system/system-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
   import { formatBytes } from "@utils/utils";
-  import type { SvelteSet } from "svelte/reactivity";
+  import { SvelteSet } from "svelte/reactivity";
   import { scale } from "svelte/transition";
 
   interface Props {
@@ -42,6 +42,7 @@ Features:
   	let showTagModal = $state(false);
   	let taggingFile = $state<MediaImage | null>(null);
   	let fileUploadInput = $state<HTMLInputElement>();
+  	let failedImages = $state(new SvelteSet<string>());
 
   function formatMimeType(mime?: string): string {
     if (!mime) return "Unknown";
@@ -96,28 +97,28 @@ Features:
 </script>
 
 <div
-  class="flex min-h-100 flex-wrap content-start items-start gap-4 overflow-auto"
+  class="flex min-h-0 flex-1 flex-wrap content-start items-start gap-4 overflow-y-auto overflow-x-hidden pt-1"
   role="grid"
   aria-label="Media asset grid"
   data-testid="media-grid"
 >
   {#if filteredFiles.length === 0}
     <div
-      class="flex flex-col items-center justify-center w-full min-h-75 border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50 dark:bg-surface-800"
+      class="flex flex-col items-center justify-center gap-3 w-full min-h-full border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50 dark:bg-surface-800"
       transition:scale={{ duration: 200 }}
       data-testid="media-grid-empty"
     >
-      <iconify-icon icon="mdi:cloud-upload-outline" width="64" class=""
+      <iconify-icon icon="mdi:cloud-upload-outline" width="56" class="text-surface-400 dark:text-surface-600"
       ></iconify-icon>
-      <h3 class="text-xl font-semibold">No media found</h3>
+      <h3 class="text-lg font-semibold">No media found</h3>
       <p
-        class="text-sm text-surface-400 dark:text-surface-50 mb-6 text-center max-w-xs"
+        class="text-sm text-surface-500 dark:text-surface-400 text-center max-w-xs"
       >
         Drop files here or use the upload button to start building your library.
       </p>
 
-      		<Button variant="tertiary" size="lg" onclick={() => fileUploadInput?.click()} class="shadow-lg hover:shadow-primary-500/20 transition-all">
-      			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
+      		<Button variant="tertiary" onclick={() => fileUploadInput?.click()} class="mt-1 shadow-sm hover:shadow-md transition-all">
+      			<iconify-icon icon="mdi:plus" width="20"></iconify-icon>
       			<span>Upload First File</span>
       		</Button>
       		<input
@@ -173,7 +174,7 @@ Features:
 
         <!-- Actions overlay (visible on hover or focus) -->
         <div
-          class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+          class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
         >
           <SystemTooltip title="Edit" positioning={{ placement: "start" }}>
             <Button variant="ghost"
@@ -183,21 +184,22 @@ Features:
                 onEditImage(file as MediaImage);
               }}
               aria-label="Edit {file.filename}"
-             class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm">
+             class="flex h-8 w-8 items-center justify-center p-0! min-w-0 rounded-md bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
               <iconify-icon icon="mdi:pencil" width={16}></iconify-icon>
             </Button>
           </SystemTooltip>
 
-          <Button variant="ghost"
-            onclick={(e: MouseEvent) => {
-              e.stopPropagation();
-              ondeleteImage(file);
-            }}
-            aria-label="Delete {file.filename}"
-           class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm">
-            <iconify-icon icon="mdi:trash-can-outline" width={16}
-            ></iconify-icon>
-          </Button>
+          <SystemTooltip title="Delete" positioning={{ placement: "start" }}>
+            <Button variant="ghost"
+              onclick={(e: MouseEvent) => {
+                e.stopPropagation();
+                ondeleteImage(file);
+              }}
+              aria-label="Delete {file.filename}"
+             class="flex h-8 w-8 items-center justify-center p-0! min-w-0 rounded-md bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm hover:text-error-600">
+              <iconify-icon icon="mdi:trash-can-outline" width={16}></iconify-icon>
+            </Button>
+          </SystemTooltip>
         </div>
 
         <!-- Image / Icon -->
@@ -207,7 +209,7 @@ Features:
           onkeydown={(e) => handleKeyDown(e, file)}
           aria-label="Preview {file.filename}"
         >
-          {#if file.type === "image"}
+          {#if file.type === "image" && !failedImages.has(fileId)}
             <div
               class="h-full w-full bg-surface-100 dark:bg-surface-800 transition-colors duration-500"
               style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
@@ -230,6 +232,7 @@ Features:
                   ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
                   : "center"}
                 loading="lazy"
+                onerror={() => failedImages.add(fileId)}
                 onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
               />
             </div>
@@ -237,7 +240,7 @@ Features:
             <div
               class="flex h-full w-full items-center justify-center text-surface-300 dark:text-surface-600"
             >
-              <iconify-icon icon={getFileIcon(file)} width={64}></iconify-icon>
+              <iconify-icon icon={file.type === "image" ? "mdi:image-off-outline" : getFileIcon(file)} width={48}></iconify-icon>
             </div>
           {/if}
 
