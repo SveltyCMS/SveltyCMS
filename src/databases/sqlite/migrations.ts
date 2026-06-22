@@ -56,11 +56,6 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
       );
 
-      -- Add missing columns for existing databases (idempotent)
-      ALTER TABLE "auth_users" ADD COLUMN "authenticators" TEXT;
-      ALTER TABLE "auth_users" ADD COLUMN "failedAttempts" INTEGER DEFAULT 0;
-      ALTER TABLE "auth_users" ADD COLUMN "lockoutUntil" INTEGER;
-
       CREATE TABLE IF NOT EXISTS "auth_sessions" (
         "_id" TEXT PRIMARY KEY,
         "user_id" TEXT NOT NULL,
@@ -443,6 +438,11 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       SELECT "_id", COALESCE("name", ''), COALESCE("description", ''), COALESCE("data", '')
       FROM "content_nodes";
     `);
+
+    // 🚀 MIGRATION: Add missing auth columns for upgraded databases (idempotent)
+    execute(`ALTER TABLE "auth_users" ADD COLUMN "authenticators" TEXT`);
+    execute(`ALTER TABLE "auth_users" ADD COLUMN "failedAttempts" INTEGER DEFAULT 0`);
+    execute(`ALTER TABLE "auth_users" ADD COLUMN "lockoutUntil" INTEGER`);
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed
     try {
