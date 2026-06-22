@@ -10,6 +10,7 @@ Features:
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
   import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
   import SystemTooltip from "@src/components/system/system-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
@@ -38,6 +39,11 @@ Features:
     onUpdateImage = () => {},
     onOpenFileDetails = () => {},
   }: Props = $props();
+
+  // Responsive grid: minimum column width by density; columns stretch to fill the row.
+  const minColWidth = $derived(
+    gridSize === "tiny" ? 120 : gridSize === "small" ? 180 : gridSize === "medium" ? 240 : 300,
+  );
 
   	let showTagModal = $state(false);
   	let taggingFile = $state<MediaImage | null>(null);
@@ -129,14 +135,15 @@ Features:
 
 <div
   bind:this={scrollRoot}
-  class="flex min-h-0 flex-1 flex-wrap content-start items-start gap-4 overflow-y-auto overflow-x-hidden pt-1"
+  class="grid min-h-0 flex-1 content-start items-start gap-4 overflow-y-auto overflow-x-hidden pt-1"
+  style:grid-template-columns="repeat(auto-fill, minmax({minColWidth}px, 1fr))"
   role="grid"
   aria-label="Media asset grid"
   data-testid="media-grid"
 >
   {#if filteredFiles.length === 0}
     <div
-      class="flex flex-col items-center justify-center gap-3 w-full min-h-full border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50 dark:bg-surface-800"
+      class="flex flex-col items-center justify-center gap-3 col-span-full min-h-full border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50 dark:bg-surface-800"
       transition:scale={{ duration: 200 }}
       data-testid="media-grid-empty"
     >
@@ -180,14 +187,7 @@ Features:
 					hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 focus-within:ring-4 focus-within:ring-primary-500
 					{isSelected
           ? 'border-primary-500 ring-2 ring-primary-500/20'
-          : 'border-surface-200 dark:border-surface-800'}
-					{gridSize === 'tiny'
-          ? 'w-32'
-          : gridSize === 'small'
-            ? 'w-48'
-            : gridSize === 'medium'
-              ? 'w-64'
-              : 'w-80'}"
+          : 'border-surface-200 dark:border-surface-800'}"
         role="gridcell"
         aria-selected={isSelected}
         in:fade={{ duration: 200 }}
@@ -195,13 +195,15 @@ Features:
         <!-- Selection UI -->
         {#if isSelectionMode || isSelected}
           <div class="absolute inset-s-3 top-3 z-20" in:scale={{ duration: 200 }}>
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onchange={() => toggleSelection(file)}
-              class="checkbox h-6 w-6 cursor-pointer rounded-full border-2 border-surface-400 shadow-lg checked:bg-primary-500"
-              aria-label="Select {file.filename}"
-            />
+            <div class="rounded-md bg-white/85 p-1 shadow-md backdrop-blur-sm dark:bg-surface-900/85">
+              <Checkbox
+                checked={isSelected}
+                onchange={() => toggleSelection(file)}
+                label="Select {file.filename}"
+                hideLabel
+                size="sm"
+              />
+            </div>
           </div>
         {/if}
 
@@ -304,7 +306,7 @@ Features:
     {#if hasMore}
       <div
         bind:this={sentinel}
-        class="flex w-full items-center justify-center gap-2 py-6 text-surface-400 dark:text-surface-500"
+        class="col-span-full flex items-center justify-center gap-2 py-6 text-surface-400 dark:text-surface-500"
         aria-hidden="true"
       >
         <iconify-icon icon="mdi:loading" width="22" class="animate-spin"></iconify-icon>
