@@ -102,8 +102,38 @@ export interface ParsedEntry {
   tags?: string[];
   seo?: Record<string, unknown>;
   customFields?: Record<string, unknown>;
+  /** WordPress: post parent ID for hierarchical content */
+  parentId?: string;
+  /** Menu/display order */
+  order?: number;
+  /** Post format (standard, aside, gallery, etc.) */
+  format?: string;
+  /** Comment status (open, closed) */
+  commentStatus?: string;
+  /** WordPress/Drupal: imported comments */
+  comments?: ParsedComment[];
+  /** Drupal: richtext format identifier */
+  contentFormat?: string;
+  /** Drupal: language code */
+  language?: string;
+  /** Drupal: UUID for relationship resolution */
+  guid?: string;
+  /** Entity references (source UUIDs) */
+  relatedContent?: string[];
   type: string;
   [key: string]: unknown;
+}
+
+/** A comment extracted from WordPress WXR or other import formats. */
+export interface ParsedComment {
+  author: string;
+  email?: string;
+  url?: string;
+  ip?: string;
+  date?: string;
+  content: string;
+  status: string;
+  parentId?: string;
 }
 
 // ============================================================================
@@ -688,12 +718,15 @@ export class SmartImporter {
 
   /**
    * Parse WordPress WXR XML export file.
-   * Handles posts, pages, and custom post types.
+   * Handles posts, pages, custom post types, hierarchical content, comments, and media.
    * Detects ACF/CMB2 advanced custom fields.
+   * Returns extended metadata for author mapping and media import UI.
    */
   async importWordPress(file: File): Promise<ParsedEntry[]> {
     const xml = await this.readFileAsText(file);
     const entries: ParsedEntry[] = [];
+    const authors = new Set<string>();
+    const attachmentMap = new Map<string, { url: string; title: string; alt: string }>();
 
     // Simple XML parsing using regex (no XML parser dependency needed)
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
@@ -703,8 +736,9 @@ export class SmartImporter {
       const itemXml = itemMatch[1];
 
       try {
+        const postType = this.extractXmlTag(itemXml, "wp:post_type") || "post";
         const entry: ParsedEntry = {
-          type: this.extractXmlTag(itemXml, "wp:post_type") || "post",
+          type: postType,
           title: this.extractXmlTag(itemXml, "title") || "Untitled",
           content: this.extractXmlTag(itemXml, "content:encoded") || "",
           excerpt: this.extractXmlTag(itemXml, "excerpt:encoded") || "",
@@ -714,6 +748,27 @@ export class SmartImporter {
           updatedAt: this.extractXmlTag(itemXml, "wp:post_modified") || undefined,
           author: this.extractXmlTag(itemXml, "dc:creator") || undefined,
         };
+
+        // Collect unique authors for mapping UI
+        if (entry.author) authors.add(entry.author);
+
+        // Post parent (hierarchical content like pages)
+        const parentId = this.extractXmlTag(itemXml, "wp:post_parent");
+        if (parentId && parentId !== "0") {
+          entry.parentId = `wp:${parentId}`;
+        }
+
+        // Menu order
+        const menuOrder = this.extractXmlTag(itemXml, "wp:menu_order");
+        if (menuOrder) entry.order = parseInt(menuOrder, 10);
+
+        // Post format
+        const postFormat = this.extractXmlTag(itemXml, "wp:post_format");
+        if (postFormat) entry.format = postFormat;
+
+        // Comment/ping status
+        const commentStatus = this.extractXmlTag(itemXml, "wp:comment_status");
+        if (commentStatus) entry.commentStatus = commentStatus;
 
         // Extract categories
         const catRegex =
@@ -734,6 +789,25 @@ export class SmartImporter {
           tags.push(tagMatch2[1]);
         }
         if (tags.length > 0) entry.tags = tags;
+
+        // Extract comments
+        const comments: ParsedComment[] = [];
+        const commentRegex = /<wp:comment>[\s\S]*?<\/wp:comment>/g;
+        let commentBlock: RegExpExecArray | null;
+        while ((commentBlock = commentRegex.exec(itemXml)) !== null) {
+          const cxml = commentBlock[0];
+          comments.push({
+            author: this.extractXmlTag(cxml, "wp:comment_author") || "Anonymous",
+            email: this.extractXmlTag(cxml, "wp:comment_author_email") || undefined,
+            url: this.extractXmlTag(cxml, "wp:comment_author_url") || undefined,
+            ip: this.extractXmlTag(cxml, "wp:comment_author_IP") || undefined,
+            date: this.extractXmlTag(cxml, "wp:comment_date") || undefined,
+            content: this.extractXmlTag(cxml, "wp:comment_content") || "",
+            status: this.extractXmlTag(cxml, "wp:comment_approved") || "0",
+            parentId: this.extractXmlTag(cxml, "wp:comment_parent") || undefined,
+          });
+        }
+        if (comments.length > 0) entry.comments = comments;
 
         // Extract post meta (ACF/CMB2 fields)
         const customFields: Record<string, unknown> = {};
@@ -764,16 +838,47 @@ export class SmartImporter {
       }
     }
 
-    // Also extract attachments/media
-    const attachmentRegex = /<wp:attachment_url><!\[CDATA\[([^\]]*)\]\]><\/wp:attachment_url>/g;
-    let attMatch: RegExpExecArray | null;
-    const mediaUrls: string[] = [];
-    while ((attMatch = attachmentRegex.exec(xml)) !== null) {
-      mediaUrls.push(attMatch[1]);
+    // Extract attachment metadata for media download UI
+    const attItemRegex =
+      /<item>[\s\S]*?<wp:post_type><!\[CDATA\[attachment\]\]><\/wp:post_type>[\s\S]*?<\/item>/g;
+    let attItem: RegExpExecArray | null;
+    while ((attItem = attItemRegex.exec(xml)) !== null) {
+      const attXml = attItem[0];
+      const attId = this.extractXmlTag(attXml, "wp:post_id");
+      const attUrl = this.extractXmlTag(attXml, "wp:attachment_url");
+      const attTitle = this.extractXmlTag(attXml, "title");
+      if (attId && attUrl) {
+        attachmentMap.set(attId, {
+          url: attUrl,
+          title: attTitle || "",
+          alt: this.extractXmlTag(attXml, "wp:postmeta") || attTitle || "",
+        });
+      }
     }
 
+    // Fall back to simpler attachment regex if no structured items found
+    if (attachmentMap.size === 0) {
+      const attachmentRegex = /<wp:attachment_url><!\[CDATA\[([^\]]*)\]\]><\/wp:attachment_url>/g;
+      let attMatch: RegExpExecArray | null;
+      let idx = 1;
+      while ((attMatch = attachmentRegex.exec(xml)) !== null) {
+        attachmentMap.set(`att_${idx++}`, {
+          url: attMatch[1],
+          title: "",
+          alt: "",
+        });
+      }
+    }
+
+    // Store metadata on the returned array for later use
+    (entries as any).__authors = [...authors];
+    (entries as any).__attachments = [...attachmentMap.entries()].map(([id, meta]) => ({
+      id,
+      ...meta,
+    }));
+
     logger.info(
-      `SmartImporter: parsed ${entries.length} entries, ${mediaUrls.length} media URLs from WXR`,
+      `SmartImporter: parsed ${entries.length} entries, ${authors.size} authors, ${attachmentMap.size} attachments from WXR`,
     );
 
     return entries;
