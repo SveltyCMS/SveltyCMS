@@ -93,6 +93,7 @@ bulk actions, and predictive preloading.
 	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	// Svelte-dnd-action
+	// @ts-ignore - IDE module resolution issue
 	import { dndzone } from 'svelte-dnd-action';
 	import { browser } from '$app/environment';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -685,7 +686,7 @@ bulk actions, and predictive preloading.
 
 	const hasActiveFilters = $derived(Object.values(entryListPaginationSettings.filters).some((f) => !!f) || !!globalSearchValue);
 
-	setModifyEntry(async (status?: keyof typeof statusMap): Promise<void> => {
+	setModifyEntry(async (status: keyof typeof statusMap | undefined = undefined): Promise<void> => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
 			toast.warning('No entries selected');

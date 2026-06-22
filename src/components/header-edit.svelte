@@ -119,7 +119,7 @@
 		return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 	}
 
-	function getDisplayName(value?: string | null): string {
+	function getDisplayName(value: string | null | undefined = undefined): string {
 		if (!value || isUUID(value)) {
 			if (user?.username && !isUUID(user.username)) {
 				return user.username;

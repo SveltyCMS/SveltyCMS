@@ -270,7 +270,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			return total;
 		}
 
-		function getBadgeColor(status?: StatusType): string {
+		function getBadgeColor(status: StatusType | undefined = undefined): string {
 			const map: Record<StatusType, string> = {
 				[StatusTypes.publish]: 'bg-tertiary-500 dark:bg-primary-500',
 				[StatusTypes.draft]: 'bg-warning-500',

@@ -91,7 +91,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	});
 
 	// Function to close all open states except the specified one
-	function closeOpenStates(except?: 'search' | 'filter' | 'column' | 'density') {
+	function closeOpenStates(except: 'search' | 'filter' | 'column' | 'density' | undefined = undefined) {
 		if (except !== 'search') {
 			searchShow = false;
 		}

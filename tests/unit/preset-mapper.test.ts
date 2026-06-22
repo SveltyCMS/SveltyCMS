@@ -111,7 +111,7 @@ describe("skeleton-preset-mapper", () => {
 
   it("maps corporate.json shorthand properties to customCss", () => {
     const corporate = JSON.parse(
-      readFileSync(join(process.cwd(), "themes", "corporate.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "src", "themes", "corporate.json"), "utf-8"),
     );
     const mapped = mapSkeletonPresetToAdminTheme(corporate);
     expect(mapped.customCss).toContain("--color-primary-500: #0f766e");

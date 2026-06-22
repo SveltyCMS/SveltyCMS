@@ -38,7 +38,7 @@ async function loadCustomThemes() {
 	// I need ../themes/custom as well if themes are in src/routes/(app)/config/themes
 
 	const customThemesFiles = import.meta.glob(
-		"../../themes/custom/*/theme.css",
+		"../../../../themes/custom/*/theme.css",
 		{ eager: true },
 	);
 

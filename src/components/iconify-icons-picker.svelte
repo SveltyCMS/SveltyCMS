@@ -362,7 +362,7 @@ Advanced icon picker with search, pagination, and favorites.
 	}
 
 	// Favorites management
-	function toggleFavorite(icon?: string): void {
+	function toggleFavorite(icon: string | undefined = undefined): void {
 		const targetIcon = icon || iconselected;
 		if (!targetIcon) {
 			return;
