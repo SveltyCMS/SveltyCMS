@@ -4,19 +4,22 @@
  */
 
 // Lazy Node API accessors — completely tree-shaken during client builds (import.meta.env.SSR is false)
+// Vitest sets import.meta.env.SSR = true in vitest.config.ts for integration tests.
 let _createHash: typeof import("node:crypto").createHash | undefined;
 async function _getCreateHash() {
   if (!_createHash && import.meta.env.SSR) {
     _createHash = (await import("node:crypto")).createHash;
   }
-  return _createHash!;
+  if (!_createHash) throw new Error("createHash not available (server-only)");
+  return _createHash;
 }
 let _fsPromises: typeof import("node:fs/promises") | undefined;
 async function _getFsPromises() {
   if (!_fsPromises && import.meta.env.SSR) {
     _fsPromises = await import("node:fs/promises");
   }
-  return _fsPromises!;
+  if (!_fsPromises) throw new Error("fs/promises not available (server-only)");
+  return _fsPromises;
 }
 
 import path from "node:path";

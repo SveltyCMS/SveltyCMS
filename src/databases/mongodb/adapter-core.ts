@@ -3,13 +3,9 @@
  * @description Core functionality shared across MongoDB adapter modules.
  */
 
-// CJS interop polyfill — dynamically loaded, completely tree-shaken during client builds
+import { createRequire } from "node:module";
 if (import.meta.env.SSR && typeof (globalThis as any).require === "undefined") {
-  import("node:module")
-    .then(({ createRequire }) => {
-      (globalThis as any).require = createRequire(import.meta.url);
-    })
-    .catch(() => {});
+  (globalThis as any).require = createRequire(import.meta.url);
 }
 
 import mongoose from "mongoose";

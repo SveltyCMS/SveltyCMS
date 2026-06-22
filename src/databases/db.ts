@@ -15,13 +15,9 @@
  * - clean state resets for test isolation
  */
 
-// CJS interop polyfill — dynamically loaded, completely tree-shaken during client builds
+import { createRequire } from "node:module";
 if (import.meta.env.SSR && typeof (globalThis as any).require === "undefined") {
-  import("node:module")
-    .then(({ createRequire }) => {
-      (globalThis as any).require = createRequire(import.meta.url);
-    })
-    .catch(() => {});
+  (globalThis as any).require = createRequire(import.meta.url);
 }
 
 import { logger } from "@utils/logger";
