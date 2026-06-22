@@ -46,7 +46,7 @@ sequenceDiagram
 
 - **5-Format Auto-Detection**: Automatically identifies WordPress WXR XML, Strapi JSON, Directus JSON, Drupal YAML/CSV, and SveltyCMS JSON exports — no manual format selection needed.
 - **AI-Powered Field Mapping**: 30+ heuristic field mappings with format-specific lookup tables (e.g., `post_title→title`, `body→content`, ACF fields→widget types). Confidence levels (high/medium/low) for each suggestion.
-- **Drupal Enhanced Support**: Detects complex text fields (body with format → richtext), taxonomy terms (field_tags, field_category → tags/categories), entity references (target_type/target_id → relatedContent), and media fields. Supports Single Content Sync YAML and Content Export CSV formats.
+- **Drupal Enhanced Support**: Detects complex text fields (body with format → richtext), taxonomy terms (field_tags, field_category → tags/categories), entity references (target_type/target_id → relatedContent), and media fields. Supports Single Content Sync YAML and Content Export CSV formats. **Post-import**: entity references are resolved to actual SveltyCMS document IDs using a source→destination map table (like Drupal Migrate API). **Revision import**: Drupal revision history (`vid`, `revision_log`) is imported as SveltyCMS `contentRevisions`.
 - **WordPress Enhanced Support**: Full WXR parsing with ACF/CMB2 custom field detection, category/tag taxonomy extraction, richtext content detection (`content:encoded`, rendered HTML), and featured image/media attachment extraction.
 - **Drag-and-Drop UI**: Upload any supported export file via `src/routes/(app)/config/importer/+page.svelte` — the importer auto-detects the format and shows an editable field mapping preview before import.
 - **ACF/CMB2 Detection**: Automatically detects Advanced Custom Fields and Custom Meta Boxes in WordPress exports and maps them to corresponding widget types.
@@ -77,6 +77,8 @@ Access the Smart Importer via the admin panel. The component is at `src/componen
 - **YAML (Single Content Sync)**: The importer parses nested YAML structures with entity references. Fields like `field_body` with `format: text_with_summary` are detected as richtext. Taxonomy references (`field_tags`, `field_category`) are extracted as tag/category arrays. Entity references (`field_related_content`) are preserved as related content IDs.
 - **CSV (Content Export CSV)**: Headers are used as field names. The importer auto-detects field types from column names (e.g., `field_image` → media, `field_tags` → tags).
 - **JSON:API (Live Sync)**: Use the `fetchDrupalData()` adapter in `source-adapters.ts` for live migration from a running Drupal instance. The adapter detects richtext fields (format + processed), taxonomy relationships (term type), and media references automatically.
+- **Relationship Resolution**: After all items are imported, the importer builds a source-UUID → SveltyCMS-ID map (like Drupal Migrate API's map tables) and resolves entity references in a second pass. Taxonomy terms are imported as tag/category arrays; entity references become proper SveltyCMS relation fields.
+- **Revision Import**: If the target collection supports revisions (`revision: true`), Drupal revision history is imported as `contentRevisions`. Each revision stores the full attribute snapshot, `vid` as version number, and `revision_log` as commit message.
 
 ### WordPress-Specific Notes
 

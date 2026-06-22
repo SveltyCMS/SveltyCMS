@@ -303,11 +303,25 @@ export class ImporterNamespace {
     const mediaService = new MediaService(this._dbAdapter);
     let importedCount = 0,
       errorCount = 0;
+
+    // Source ID → SveltyCMS document ID map for post-import relationship resolution
+    const idMap = new Map<string, string>();
+    // Pending references to resolve after all items are imported
+    const pendingRefs: Array<{
+      docId: string;
+      field: string;
+      sourceIds: string[];
+    }> = [];
+
     for (const item of externalData.items) {
       try {
         const transformed: Record<string, any> = {};
         const attributes = sourceType === "drupal" ? item.attributes || {} : item;
         const relationships = sourceType === "drupal" ? item.relationships || {} : {};
+        const sourceUuid = item.id || (item as any).uuid || undefined;
+
+        // Preserve source UUID for relationship resolution
+        if (sourceUuid) transformed._importSourceId = sourceUuid;
 
         // Resolve Drupal taxonomy terms from relationships into tags/categories
         if (sourceType === "drupal" && Object.keys(relationships).length > 0) {
@@ -321,14 +335,15 @@ export class ImporterNamespace {
 
             const items = Array.isArray(data) ? data : [data];
             const names: string[] = [];
+            const refIds: string[] = [];
             for (const ref of items) {
-              // Try to use the resource name from included data or just the ID
               if (ref?.id) {
                 const resolvedName = resolveDrupalTermName(
                   ref,
                   (externalData as any)._included || [],
                 );
                 names.push(resolvedName || ref.id);
+                refIds.push(ref.id);
               }
             }
 
@@ -338,8 +353,8 @@ export class ImporterNamespace {
             } else if (lower.includes("categor")) {
               categoryNames.push(...names);
             }
-            // Store relationship data as-is for explicit mapping
-            transformed[relName] = names;
+            // Store as array for direct mapping and for later resolution
+            transformed[relName] = refIds;
           }
 
           if (taxonomyNames.length > 0) transformed.tags = taxonomyNames;
@@ -381,21 +396,133 @@ export class ImporterNamespace {
           }
           transformed[targetKey] = value;
         }
+
         const result = await this._dbAdapter.crud.insert(
           `collection_${targetCollection}`,
           transformed,
           { tenantId: tenantId as DatabaseId },
         );
-        if (result.success) importedCount++;
-        else errorCount++;
+        if (result.success) {
+          const newId = (result.data as any)?._id || "";
+          if (sourceUuid && newId) {
+            idMap.set(sourceUuid, newId);
+          }
+
+          // Collect entity references that need post-import resolution
+          for (const [relName, relData] of Object.entries(relationships)) {
+            const rel = relData as any;
+            const data = rel?.data;
+            if (!data) continue;
+            const refItems = Array.isArray(data) ? data : [data];
+            const sourceRefIds = refItems.map((r: any) => r?.id).filter(Boolean);
+            if (sourceRefIds.length > 0) {
+              // Skip taxonomy references (handled as tags/categories)
+              const lower = relName.toLowerCase();
+              if (
+                !lower.includes("tag") &&
+                !lower.includes("taxonomy") &&
+                !lower.includes("categor")
+              ) {
+                pendingRefs.push({
+                  docId: newId,
+                  field: relName,
+                  sourceIds: sourceRefIds,
+                });
+              }
+            }
+          }
+
+          importedCount++;
+        } else errorCount++;
       } catch {
         errorCount++;
       }
     }
+
+    // Phase 2: Resolve entity references using the idMap
+    let resolvedRefs = 0;
+    for (const ref of pendingRefs) {
+      try {
+        const resolvedIds = ref.sourceIds
+          .map((srcId) => idMap.get(srcId))
+          .filter(Boolean) as string[];
+        if (resolvedIds.length > 0) {
+          await this._dbAdapter.crud.update(
+            `collection_${targetCollection}`,
+            ref.docId,
+            { [ref.field]: resolvedIds },
+            { tenantId: tenantId as DatabaseId },
+          );
+          resolvedRefs++;
+        }
+      } catch {
+        // Best-effort resolution
+      }
+    }
+
+    // Phase 3: Import revisions if Drupal source
+    let revisionCount = 0;
+    if (sourceType === "drupal") {
+      const collectionSchema = (
+        await this._dbAdapter.collection.listSchemas(tenantId as DatabaseId)
+      ).data?.find((c: any) => c.name === targetCollection);
+      const supportsRevisions = collectionSchema?.revision !== false;
+
+      if (supportsRevisions) {
+        for (const item of externalData.items) {
+          try {
+            const sourceUuid = item.id || (item as any).uuid;
+            const destId = sourceUuid ? idMap.get(sourceUuid) : undefined;
+            if (!destId) continue;
+
+            const attrs = sourceType === "drupal" ? item.attributes || {} : item;
+            // Drupal revisions: check for revision fields
+            const revisionId = attrs.vid || attrs.revision_id || attrs.drupal_internal__vid;
+            const _revisionTimestamp = attrs.revision_timestamp || attrs.changed;
+            const revisionLog = attrs.revision_log || attrs.revision_log_message;
+
+            if (revisionId) {
+              // Build the revision data from attributes
+              const revisionData: Record<string, any> = {};
+              for (const [sourceField, targetField] of Object.entries(finalMapping)) {
+                const targetKey =
+                  typeof targetField === "string" ? targetField : (targetField as any).target;
+                let value = attrs[sourceField];
+                if (value && typeof value === "object" && "value" in value) {
+                  value = (value as Record<string, unknown>).value;
+                }
+                if (value !== undefined) revisionData[targetKey] = value;
+              }
+
+              await this._dbAdapter.crud.insert(
+                "content_revisions",
+                {
+                  contentId: destId,
+                  data: JSON.stringify(revisionData),
+                  version: Number(revisionId) || 1,
+                  commitMessage: String(revisionLog || `Imported revision ${revisionId}`).slice(
+                    0,
+                    255,
+                  ),
+                  authorId: (user?._id as string) || "system",
+                },
+                { tenantId: tenantId as DatabaseId, skipMeta: true } as any,
+              );
+              revisionCount++;
+            }
+          } catch {
+            // Revision import is best-effort
+          }
+        }
+      }
+    }
+
     return {
       success: true,
       imported: importedCount,
       errors: errorCount,
+      resolvedRefs,
+      revisions: revisionCount,
       total: externalData.items.length,
     };
   }
