@@ -60,6 +60,8 @@ export const authUsers = mysqlTable(
     backupCodes: json("backupCodes").$type<string[]>(),
     last2FAVerification: datetime("last2FAVerification"),
     authenticators: json("authenticators").$type<import("../auth/types").Authenticator[]>(),
+    failedAttempts: int("failedAttempts").notNull().default(0),
+    lockoutUntil: datetime("lockoutUntil"),
     tenantId: tenantField(),
     ...timestamps,
   },

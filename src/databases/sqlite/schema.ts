@@ -73,6 +73,8 @@ export const authUsers = sqliteTable(
     authenticators: text("authenticators", { mode: "json" }).$type<
       import("../auth/types").Authenticator[]
     >(),
+    failedAttempts: integer("failedAttempts").notNull().default(0),
+    lockoutUntil: integer("lockoutUntil", { mode: "timestamp_ms" }),
     tenantId: tenantField(),
     ...timestamps,
   },

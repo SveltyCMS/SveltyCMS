@@ -59,6 +59,8 @@ export const authUsers = pgTable(
     backupCodes: jsonb("backupCodes").$type<string[]>(),
     last2FAVerification: timestamp("last2FAVerification"),
     authenticators: jsonb("authenticators").$type<import("../auth/types").Authenticator[]>(),
+    failedAttempts: integer("failedAttempts").notNull().default(0),
+    lockoutUntil: timestamp("lockoutUntil"),
     tenantId: tenantField(),
     ...timestamps,
   },

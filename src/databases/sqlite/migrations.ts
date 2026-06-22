@@ -48,10 +48,18 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "totpSecret" TEXT,
         "backupCodes" TEXT,
         "last2FAVerification" INTEGER,
+        "authenticators" TEXT,
+        "failedAttempts" INTEGER DEFAULT 0,
+        "lockoutUntil" INTEGER,
         "tenantId" TEXT,
         "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
         "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
       );
+
+      -- Add missing columns for existing databases (idempotent)
+      ALTER TABLE "auth_users" ADD COLUMN "authenticators" TEXT;
+      ALTER TABLE "auth_users" ADD COLUMN "failedAttempts" INTEGER DEFAULT 0;
+      ALTER TABLE "auth_users" ADD COLUMN "lockoutUntil" INTEGER;
 
       CREATE TABLE IF NOT EXISTS "auth_sessions" (
         "_id" TEXT PRIMARY KEY,
@@ -74,6 +82,24 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "isRegistered" INTEGER DEFAULT 0,
         "role" TEXT,
         "username" TEXT,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "auth_api_keys" (
+        "_id" TEXT PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "hash" TEXT NOT NULL,
+        "prefix" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "scopes" TEXT DEFAULT '[]',
+        "permissions" TEXT DEFAULT '[]',
+        "revoked" INTEGER DEFAULT 0,
+        "usageCount" INTEGER DEFAULT 0,
+        "lastUsedAt" INTEGER,
+        "lastUsedIp" TEXT,
+        "expiresAt" INTEGER,
         "tenantId" TEXT,
         "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
         "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
