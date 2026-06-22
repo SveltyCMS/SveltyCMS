@@ -46,7 +46,7 @@ Values form StatusTypes
 					: value === StatusTypes.clone
 						? 'gradient-secondary'
 						: value === StatusTypes.draft
-							? 'preset-outlined-surface-500 text-surface-900-50-token'
+							? 'preset-outlined-surface-500 text-surface-900 dark:text-surface-50'
 							: value === StatusTypes.archive
 								? 'bg-surface-600'
 								: 'badge'}"

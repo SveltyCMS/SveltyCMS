@@ -167,7 +167,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 <div class="space-y-4 relative">
 	{#if !isCheckingLicense}
 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
-			<div class="alert variant-soft-warning flex items-center justify-between p-4 rounded-container-token">
+			<div class="alert bg-warning-500/10 text-warning-700 dark:text-warning-300 flex items-center justify-between p-4 rounded-lg">
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
 					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days left to test the Advanced, Social, and Schema SEO features.</span>
@@ -205,7 +205,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden">
 		
 		{#if !isCheckingLicense && !licenseStatus.active}
-			<div class="absolute inset-0 z-10 bg-surface-50-900-token/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-container-token" style="top: 60px;">
+			<div class="absolute inset-0 z-10 bg-surface-50 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg" style="top: 60px;">
 				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-50 dark:bg-error-900/20">
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>

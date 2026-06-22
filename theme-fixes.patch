@@ -1,0 +1,296 @@
+diff --git a/src/components/collaboration/activity-stream.svelte b/src/components/collaboration/activity-stream.svelte
+index 0867616..05eaf57 100644
+--- a/src/components/collaboration/activity-stream.svelte
++++ b/src/components/collaboration/activity-stream.svelte
+@@ -75,13 +75,13 @@ with the AI collaboration assistant.
+ </script>
+ 
+ <div
+-	class="flex flex-col bg-surface-100-800-token border border-surface-500/30 dark:border-white/10 rounded shadow-2xl dark:shadow-primary-500/10 overflow-hidden backdrop-blur-md transition-all h-full"
++	class="flex flex-col bg-white dark:bg-surface-900 border border-surface-500/30 dark:border-white/10 rounded shadow-2xl dark:shadow-primary-500/10 overflow-hidden backdrop-blur-md transition-all h-full"
+ 	style={screen.isMobile ? 'width: 100%;' : 'width: 350px;'}
+ >
+ 	<!-- Header -->
+ 	<div
+ 		use:ondrag
+-		class="flex items-center justify-between p-4 bg-surface-200-700-token border-b border-surface-500/30 dark:border-white/10 shrink-0 cursor-grab active:cursor-grabbing"
++		class="flex items-center justify-between p-4 bg-surface-100 dark:bg-surface-800 border-b border-surface-500/30 dark:border-white/10 shrink-0 cursor-grab active:cursor-grabbing"
+ 	>
+ 		<h3 class="font-bold text-lg flex items-center gap-2 pointer-events-none select-none">
+ 			<iconify-icon icon="material-symbols:Forum-outline" width="24"></iconify-icon>
+@@ -144,7 +144,7 @@ with the AI collaboration assistant.
+ 					</div>
+ 				{/if}
+ 				{#each collaboration.activities as activity (activity.timestamp)}
+-					<div transition:slide|local class="flex gap-3 p-3 rounded bg-surface-300-600-token/30 border border-surface-500/10">
++					<div transition:slide|local class="flex gap-3 p-3 rounded bg-surface-200 dark:bg-surface-700/30 border border-surface-500/10">
+ 						<div class="mt-1"><iconify-icon icon={getEventIcon(activity.event)} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon></div>
+ 						<div class="flex-1 min-w-0">
+ 							<p class="text-sm">
+@@ -186,7 +186,7 @@ with the AI collaboration assistant.
+ 							<div
+ 								class="p-3 rounded-2xl text-sm wrap-break-word overflow-hidden {msg.role === 'user'
+ 									? 'bg-tertiary-500 dark:bg-primary-500 text-white rounded-br-none'
+-									: 'bg-surface-300-600-token rounded-bl-none'} shadow-sm"
++									: 'bg-surface-200 dark:bg-surface-700 rounded-bl-none'} shadow-sm"
+ 							>
+ 								{msg.content}
+ 								<div class="text-[9px] mt-1 opacity-50 {msg.role === 'user' ? 'text-white' : ''}">{formatTimestamp(msg.timestamp)}</div>
+@@ -196,7 +196,7 @@ with the AI collaboration assistant.
+ 				{/each}
+ 				{#if collaboration.isTyping}
+ 					<div class="flex justify-start">
+-						<div class="bg-surface-300-600-token p-3 rounded-2xl rounded-bl-none shadow-sm">
++						<div class="bg-surface-200 dark:bg-surface-700 p-3 rounded-2xl rounded-bl-none shadow-sm">
+ 							<div class="flex gap-1">
+ 								<span class="w-1.5 h-1.5 bg-tertiary-500 dark:bg-primary-500 rounded-full animate-bounce"></span>
+ 								<span class="w-1.5 h-1.5 bg-tertiary-500 dark:bg-primary-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+@@ -211,7 +211,7 @@ with the AI collaboration assistant.
+ 
+ 	<!-- Footer / Input (only for Chat) -->
+ 	{#if collaboration.activeTab === 'chat'}
+-		<div transition:slide|local class="p-4 bg-surface-200-700-token border-t border-surface-500/30 shrink-0">
++		<div transition:slide|local class="p-4 bg-surface-100 dark:bg-surface-800 border-t border-surface-500/30 shrink-0">
+ 			<form class="flex gap-2" onsubmit={handleSendMessage}>
+ 				<input
+ 					type="text"
+diff --git a/src/components/collection-display/schedule-modal.svelte b/src/components/collection-display/schedule-modal.svelte
+index 5d8c712..b3b13b7 100644
+--- a/src/components/collection-display/schedule-modal.svelte
++++ b/src/components/collection-display/schedule-modal.svelte
+@@ -93,7 +93,7 @@
+ 	// --- Base Classes ---
+ 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
+ 	const cHeader = 'text-2xl font-bold';
+-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
++	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
+ </script>
+ 
+ {#if modalState.active}
+diff --git a/src/components/header-edit.svelte b/src/components/header-edit.svelte
+index f49b49d..55bca9f 100644
+--- a/src/components/header-edit.svelte
++++ b/src/components/header-edit.svelte
+@@ -278,7 +278,7 @@
+ </script>
+ 
+ <header
+-	class="border-secondary-600-300-token sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14"
++	class="border-secondary-600 dark:border-secondary-300 sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14"
+ 	class:border-b-0={showMore}
+ >
+ 	<div class="flex items-center gap-2 flex-1 min-w-0">
+diff --git a/src/components/left-sidebar.svelte b/src/components/left-sidebar.svelte
+index 203251f..c3119db 100644
+--- a/src/components/left-sidebar.svelte
++++ b/src/components/left-sidebar.svelte
+@@ -242,7 +242,7 @@
+ 	{#if isSidebarFull}
+ 		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex items-center pt-1 no-underline!" data-sveltekit-preload-data="hover">
+ 			<SveltyCMSLogo fill="red" className="h-9" />
+-			<span class="base-font-color relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
++			<span class="text-surface-900 dark:text-surface-50 relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
+ 		</a>
+ 	{:else}
+ 		<div class="flex justify-start gap-2">
+diff --git a/src/components/system/table/status.svelte b/src/components/system/table/status.svelte
+index 41bcb80..0d9669c 100644
+--- a/src/components/system/table/status.svelte
++++ b/src/components/system/table/status.svelte
+@@ -46,7 +46,7 @@ Values form StatusTypes
+ 					: value === StatusTypes.clone
+ 						? 'gradient-secondary'
+ 						: value === StatusTypes.draft
+-							? 'preset-outlined-surface-500 text-surface-900-50-token'
++							? 'preset-outlined-surface-500 text-surface-900 dark:text-surface-50'
+ 							: value === StatusTypes.archive
+ 								? 'bg-surface-600'
+ 								: 'badge'}"
+diff --git a/src/components/token-picker.svelte b/src/components/token-picker.svelte
+index d125fe9..06027aa 100644
+--- a/src/components/token-picker.svelte
++++ b/src/components/token-picker.svelte
+@@ -299,7 +299,7 @@
+ 
+ {#if activeInput.current}
+ 	<div
+-		class="token-window card fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-surface-200-700 bg-surface-100-800-token p-4 shadow-xl"
++		class="token-window card fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-4 shadow-xl"
+ 		style="bottom: 2rem; right: {rightPosition};"
+ 		transition:fade={{ duration: 150 }}
+ 	>
+diff --git a/src/components/ui/segmented-control.svelte b/src/components/ui/segmented-control.svelte
+index ec633d2..e138737 100644
+--- a/src/components/ui/segmented-control.svelte
++++ b/src/components/ui/segmented-control.svelte
+@@ -8,7 +8,7 @@
+ - `value` (any): Bindable selected value.
+ - `name` (string): Name of the control (defaults to random UUID).
+ - `disabled` (boolean): Disable the entire segmented control.
+-- `rounded` (string): Tailored rounded class (default: 'rounded-token').
++- `rounded` (string): Tailored rounded class (default: 'rounded').
+ - `class` (string): Additional CSS classes.
+ - `onchange` (function): Triggered when selection changes.
+ 
+@@ -45,7 +45,7 @@ let {
+ 	value = $bindable(),
+ 	name = crypto.randomUUID(),
+ 	disabled = false,
+-	rounded = 'rounded-token',
++	rounded = 'rounded',
+ 	class: className,
+ 	onchange,
+ 	...rest
+diff --git a/src/routes/(app)/user/+page.svelte b/src/routes/(app)/user/+page.svelte
+index 44eba37..a851b6a 100644
+--- a/src/routes/(app)/user/+page.svelte
++++ b/src/routes/(app)/user/+page.svelte
+@@ -244,7 +244,7 @@
+ 				{/if}
+ 
+ 				<!-- Workspace Appearance -->
+-				<AdminCard class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm">
++				<AdminCard class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm">
+ 					<div class="space-y-2">
+ 						<div class="flex items-center gap-2">
+ 							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
+@@ -271,7 +271,7 @@
+ 
+ 				<!-- Collaboration Settings -->
+ 				<AdminCard
+-					class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm"
++					class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm"
+ 				>
+ 					<div in:fly={{ y: 10, delay: 300, duration: 300 }} class="space-y-3">
+ 						<div class="flex items-center justify-between gap-3">
+diff --git a/src/routes/(app)/user/components/modal-edit-avatar.svelte b/src/routes/(app)/user/components/modal-edit-avatar.svelte
+index aaaac31..78f7eb6 100644
+--- a/src/routes/(app)/user/components/modal-edit-avatar.svelte
++++ b/src/routes/(app)/user/components/modal-edit-avatar.svelte
+@@ -413,7 +413,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
+ 	<footer class="modal-footer justify-between pt-4 border-t border-surface-500/20">
+ 		<!-- Delete Avatar -->
+ 		{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
+-			<Button variant="error" type="button" onclick={deleteAvatar}>
++			<Button variant="error" type="button" onclick={deleteAvatar} aria-label="Delete Avatar">
+ 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
+ 				<span class="hidden sm:block">{button_delete()}</span>
+ 			</Button>
+diff --git a/src/widgets/custom/repeater/input.svelte b/src/widgets/custom/repeater/input.svelte
+index 3815395..004f441 100644
+--- a/src/widgets/custom/repeater/input.svelte
++++ b/src/widgets/custom/repeater/input.svelte
+@@ -124,7 +124,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop
+ 	>
+ 		{#each items as item, index (item.id)}
+ 			<div
+-				class="rounded-container-token border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
++				class="rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
+ 				animate:flip={{ duration: 300 }}
+ 			>
+ 				<!-- Header / Handle -->
+diff --git a/src/widgets/custom/seo/components/analysis-modal.svelte b/src/widgets/custom/seo/components/analysis-modal.svelte
+index a002405..7514b15 100644
+--- a/src/widgets/custom/seo/components/analysis-modal.svelte
++++ b/src/widgets/custom/seo/components/analysis-modal.svelte
+@@ -36,7 +36,7 @@ Displays detailed SEO analysis results in a modal overlay.
+ {#if show}
+ 	<!-- Backdrop -->
+ 	<div
+-		class="fixed inset-0 z-999 bg-surface-backdrop-token backdrop-blur-sm"
++		class="fixed inset-0 z-999 bg-surface-900/50 backdrop-blur-sm"
+ 		transition:fade={{ duration: 150 }}
+ 		onclick={close}
+ 		role="presentation"
+@@ -49,7 +49,7 @@ Displays detailed SEO analysis results in a modal overlay.
+ 		role="dialog"
+ 		aria-modal="true"
+ 	>
+-		<div class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-surface-100-800-token">
++		<div class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-white dark:bg-surface-900">
+ 			<!-- Header -->
+ 			<header class="card-header flex items-center justify-between border-b border-surface-500/20 p-4">
+ 				<h3 class="h3 flex items-center gap-2">
+@@ -65,7 +65,7 @@ Displays detailed SEO analysis results in a modal overlay.
+ 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
+ 				{#if analysisResult}
+ 					<!-- Score Overview -->
+-					<div class="flex items-center justify-center p-4 bg-surface-200-700-token rounded-container-token mb-6">
++					<div class="flex items-center justify-center p-4 bg-surface-100 dark:bg-surface-800 rounded-lg mb-6">
+ 						<div class="text-center">
+ 							<div
+ 								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
+diff --git a/src/widgets/custom/seo/components/robots-meta-input.svelte b/src/widgets/custom/seo/components/robots-meta-input.svelte
+index 881b0ac..30432b5 100644
+--- a/src/widgets/custom/seo/components/robots-meta-input.svelte
++++ b/src/widgets/custom/seo/components/robots-meta-input.svelte
+@@ -30,7 +30,7 @@
+ </script>
+ 
+ <label for="robots-meta-select" class="label text-black dark:text-primary-500">
+-	<span class="text-token">Robots Meta Data:</span>
++	<span class="text-surface-900 dark:text-surface-50">Robots Meta Data:</span>
+ 	<select class="select" id="robots-meta-select" bind:value>
+ 		{#each ROBOTS_OPTIONS as opt (opt.value)}
+ 			<option value={opt.value}>{opt.label}</option>
+diff --git a/src/widgets/custom/seo/components/seo-analysis-panel.svelte b/src/widgets/custom/seo/components/seo-analysis-panel.svelte
+index ce0b78d..42523af 100644
+--- a/src/widgets/custom/seo/components/seo-analysis-panel.svelte
++++ b/src/widgets/custom/seo/components/seo-analysis-panel.svelte
+@@ -67,7 +67,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
+ <div class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-125' : 'h-16'}">
+ 	<button
+ 		type="button"
+-		class="flex items-center gap-4 w-full p-3 bg-surface-100-800-token hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
++		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
+ 		onclick={() => (expanded = !expanded)}
+ 		aria-label="Toggle SEO analysis"
+ 		aria-expanded={expanded}
+diff --git a/src/widgets/custom/seo/components/social-preview.svelte b/src/widgets/custom/seo/components/social-preview.svelte
+index 25eff45..66a7def 100644
+--- a/src/widgets/custom/seo/components/social-preview.svelte
++++ b/src/widgets/custom/seo/components/social-preview.svelte
+@@ -51,7 +51,7 @@ Displays a preview of the shared link for different platforms.
+ 	let displayImage = $derived(activePlatform === 'twitter' && twitterImage ? twitterImage : ogImage);
+ </script>
+ 
+-<div class="card preset-tonal-surface p-4 rounded-container-token mb-6">
++<div class="card preset-tonal-surface p-4 rounded-lg mb-6">
+ 	<div class="flex items-center gap-2 mb-4">
+ 		<iconify-icon icon="mdi:share-variant" width="24" class="text-secondary-500 text-xl"></iconify-icon>
+ 		<h3 class="h3">Social Share Preview</h3>
+diff --git a/src/widgets/custom/seo/input.svelte b/src/widgets/custom/seo/input.svelte
+index 2920a0b..9d09138 100644
+--- a/src/widgets/custom/seo/input.svelte
++++ b/src/widgets/custom/seo/input.svelte
+@@ -167,7 +167,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
+ <div class="space-y-4 relative">
+ 	{#if !isCheckingLicense}
+ 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
+-			<div class="alert variant-soft-warning flex items-center justify-between p-4 rounded-container-token">
++			<div class="alert bg-warning-500/10 text-warning-700 dark:text-warning-300 flex items-center justify-between p-4 rounded-lg">
+ 				<div class="flex items-center gap-2">
+ 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
+ 					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days left to test the Advanced, Social, and Schema SEO features.</span>
+@@ -205,7 +205,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
+ 	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden">
+ 		
+ 		{#if !isCheckingLicense && !licenseStatus.active}
+-			<div class="absolute inset-0 z-10 bg-surface-50-900-token/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-container-token" style="top: 60px;">
++			<div class="absolute inset-0 z-10 bg-surface-50 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg" style="top: 60px;">
+ 				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-50 dark:bg-error-900/20">
+ 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
+ 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
+diff --git a/tests/e2e/routes/user/profile.spec.ts b/tests/e2e/routes/user/profile.spec.ts
+index b3945c0..34d9c0c 100644
+--- a/tests/e2e/routes/user/profile.spec.ts
++++ b/tests/e2e/routes/user/profile.spec.ts
+@@ -67,7 +67,7 @@ test.describe("User Profile Management", () => {
+     await page.goto("/user");
+     await page.getByRole("button", { name: "Edit Avatar" }).click({ force: true });
+ 
+-    const deleteBtn = page.locator("button.variant-filled-error");
++    const deleteBtn = page.getByRole("button", { name: "Delete Avatar" });
+     await expect(deleteBtn).toBeVisible();
+     await deleteBtn.click();
+ 

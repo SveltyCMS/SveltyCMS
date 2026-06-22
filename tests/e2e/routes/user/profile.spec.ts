@@ -67,7 +67,7 @@ test.describe("User Profile Management", () => {
     await page.goto("/user");
     await page.getByRole("button", { name: "Edit Avatar" }).click({ force: true });
 
-    const deleteBtn = page.locator("button.variant-filled-error");
+    const deleteBtn = page.getByRole("button", { name: "Delete Avatar" });
     await expect(deleteBtn).toBeVisible();
     await deleteBtn.click();
 

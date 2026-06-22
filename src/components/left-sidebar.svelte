@@ -242,7 +242,7 @@
 	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex items-center pt-1 no-underline!" data-sveltekit-preload-data="hover">
 			<SveltyCMSLogo fill="red" className="h-9" />
-			<span class="base-font-color relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
+			<span class="text-surface-900 dark:text-surface-50 relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
 		</a>
 	{:else}
 		<div class="flex justify-start gap-2">

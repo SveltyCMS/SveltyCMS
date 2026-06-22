@@ -36,7 +36,7 @@ Displays detailed SEO analysis results in a modal overlay.
 {#if show}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-999 bg-surface-backdrop-token backdrop-blur-sm"
+		class="fixed inset-0 z-999 bg-surface-900/50 backdrop-blur-sm"
 		transition:fade={{ duration: 150 }}
 		onclick={close}
 		role="presentation"
@@ -49,7 +49,7 @@ Displays detailed SEO analysis results in a modal overlay.
 		role="dialog"
 		aria-modal="true"
 	>
-		<div class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-surface-100-800-token">
+		<div class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-white dark:bg-surface-900">
 			<!-- Header -->
 			<header class="card-header flex items-center justify-between border-b border-surface-500/20 p-4">
 				<h3 class="h3 flex items-center gap-2">
@@ -65,7 +65,7 @@ Displays detailed SEO analysis results in a modal overlay.
 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
 				{#if analysisResult}
 					<!-- Score Overview -->
-					<div class="flex items-center justify-center p-4 bg-surface-200-700-token rounded-container-token mb-6">
+					<div class="flex items-center justify-center p-4 bg-surface-100 dark:bg-surface-800 rounded-lg mb-6">
 						<div class="text-center">
 							<div
 								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80

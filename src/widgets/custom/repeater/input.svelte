@@ -124,7 +124,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	>
 		{#each items as item, index (item.id)}
 			<div
-				class="rounded-container-token border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
+				class="rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
 				animate:flip={{ duration: 300 }}
 			>
 				<!-- Header / Handle -->

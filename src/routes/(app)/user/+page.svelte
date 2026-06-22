@@ -244,7 +244,7 @@
 				{/if}
 
 				<!-- Workspace Appearance -->
-				<AdminCard class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm">
+				<AdminCard class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm">
 					<div class="space-y-2">
 						<div class="flex items-center gap-2">
 							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
@@ -271,7 +271,7 @@
 
 				<!-- Collaboration Settings -->
 				<AdminCard
-					class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm"
+					class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm"
 				>
 					<div in:fly={{ y: 10, delay: 300, duration: 300 }} class="space-y-3">
 						<div class="flex items-center justify-between gap-3">

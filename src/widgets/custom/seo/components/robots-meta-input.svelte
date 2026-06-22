@@ -30,7 +30,7 @@
 </script>
 
 <label for="robots-meta-select" class="label text-black dark:text-primary-500">
-	<span class="text-token">Robots Meta Data:</span>
+	<span class="text-surface-900 dark:text-surface-50">Robots Meta Data:</span>
 	<select class="select" id="robots-meta-select" bind:value>
 		{#each ROBOTS_OPTIONS as opt (opt.value)}
 			<option value={opt.value}>{opt.label}</option>

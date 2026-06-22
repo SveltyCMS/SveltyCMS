@@ -75,13 +75,13 @@ with the AI collaboration assistant.
 </script>
 
 <div
-	class="flex flex-col bg-surface-100-800-token border border-surface-500/30 dark:border-white/10 rounded shadow-2xl dark:shadow-primary-500/10 overflow-hidden backdrop-blur-md transition-all h-full"
+	class="flex flex-col bg-white dark:bg-surface-900 border border-surface-500/30 dark:border-white/10 rounded shadow-2xl dark:shadow-primary-500/10 overflow-hidden backdrop-blur-md transition-all h-full"
 	style={screen.isMobile ? 'width: 100%;' : 'width: 350px;'}
 >
 	<!-- Header -->
 	<div
 		use:ondrag
-		class="flex items-center justify-between p-4 bg-surface-200-700-token border-b border-surface-500/30 dark:border-white/10 shrink-0 cursor-grab active:cursor-grabbing"
+		class="flex items-center justify-between p-4 bg-surface-100 dark:bg-surface-800 border-b border-surface-500/30 dark:border-white/10 shrink-0 cursor-grab active:cursor-grabbing"
 	>
 		<h3 class="font-bold text-lg flex items-center gap-2 pointer-events-none select-none">
 			<iconify-icon icon="material-symbols:Forum-outline" width="24"></iconify-icon>
@@ -144,7 +144,7 @@ with the AI collaboration assistant.
 					</div>
 				{/if}
 				{#each collaboration.activities as activity (activity.timestamp)}
-					<div transition:slide|local class="flex gap-3 p-3 rounded bg-surface-300-600-token/30 border border-surface-500/10">
+					<div transition:slide|local class="flex gap-3 p-3 rounded bg-surface-200 dark:bg-surface-700/30 border border-surface-500/10">
 						<div class="mt-1"><iconify-icon icon={getEventIcon(activity.event)} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon></div>
 						<div class="flex-1 min-w-0">
 							<p class="text-sm">
@@ -186,7 +186,7 @@ with the AI collaboration assistant.
 							<div
 								class="p-3 rounded-2xl text-sm wrap-break-word overflow-hidden {msg.role === 'user'
 									? 'bg-tertiary-500 dark:bg-primary-500 text-white rounded-br-none'
-									: 'bg-surface-300-600-token rounded-bl-none'} shadow-sm"
+									: 'bg-surface-200 dark:bg-surface-700 rounded-bl-none'} shadow-sm"
 							>
 								{msg.content}
 								<div class="text-[9px] mt-1 opacity-50 {msg.role === 'user' ? 'text-white' : ''}">{formatTimestamp(msg.timestamp)}</div>
@@ -196,7 +196,7 @@ with the AI collaboration assistant.
 				{/each}
 				{#if collaboration.isTyping}
 					<div class="flex justify-start">
-						<div class="bg-surface-300-600-token p-3 rounded-2xl rounded-bl-none shadow-sm">
+						<div class="bg-surface-200 dark:bg-surface-700 p-3 rounded-2xl rounded-bl-none shadow-sm">
 							<div class="flex gap-1">
 								<span class="w-1.5 h-1.5 bg-tertiary-500 dark:bg-primary-500 rounded-full animate-bounce"></span>
 								<span class="w-1.5 h-1.5 bg-tertiary-500 dark:bg-primary-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
@@ -211,7 +211,7 @@ with the AI collaboration assistant.
 
 	<!-- Footer / Input (only for Chat) -->
 	{#if collaboration.activeTab === 'chat'}
-		<div transition:slide|local class="p-4 bg-surface-200-700-token border-t border-surface-500/30 shrink-0">
+		<div transition:slide|local class="p-4 bg-surface-100 dark:bg-surface-800 border-t border-surface-500/30 shrink-0">
 			<form class="flex gap-2" onsubmit={handleSendMessage}>
 				<input
 					type="text"

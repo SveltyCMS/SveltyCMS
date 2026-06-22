@@ -51,7 +51,7 @@ Displays a preview of the shared link for different platforms.
 	let displayImage = $derived(activePlatform === 'twitter' && twitterImage ? twitterImage : ogImage);
 </script>
 
-<div class="card preset-tonal-surface p-4 rounded-container-token mb-6">
+<div class="card preset-tonal-surface p-4 rounded-lg mb-6">
 	<div class="flex items-center gap-2 mb-4">
 		<iconify-icon icon="mdi:share-variant" width="24" class="text-secondary-500 text-xl"></iconify-icon>
 		<h3 class="h3">Social Share Preview</h3>

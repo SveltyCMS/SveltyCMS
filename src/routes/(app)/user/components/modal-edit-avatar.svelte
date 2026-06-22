@@ -413,7 +413,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	<footer class="modal-footer justify-between pt-4 border-t border-surface-500/20">
 		<!-- Delete Avatar -->
 		{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
-			<Button variant="error" type="button" onclick={deleteAvatar}>
+			<Button variant="error" type="button" onclick={deleteAvatar} aria-label="Delete Avatar">
 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 				<span class="hidden sm:block">{button_delete()}</span>
 			</Button>

@@ -67,7 +67,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 <div class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-125' : 'h-16'}">
 	<button
 		type="button"
-		class="flex items-center gap-4 w-full p-3 bg-surface-100-800-token hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
+		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
 		onclick={() => (expanded = !expanded)}
 		aria-label="Toggle SEO analysis"
 		aria-expanded={expanded}

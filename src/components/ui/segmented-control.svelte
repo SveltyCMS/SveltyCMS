@@ -8,7 +8,7 @@
 - `value` (any): Bindable selected value.
 - `name` (string): Name of the control (defaults to random UUID).
 - `disabled` (boolean): Disable the entire segmented control.
-- `rounded` (string): Tailored rounded class (default: 'rounded-token').
+- `rounded` (string): Tailored rounded class (default: 'rounded').
 - `class` (string): Additional CSS classes.
 - `onchange` (function): Triggered when selection changes.
 
@@ -45,7 +45,7 @@ let {
 	value = $bindable(),
 	name = crypto.randomUUID(),
 	disabled = false,
-	rounded = 'rounded-token',
+	rounded = 'rounded',
 	class: className,
 	onchange,
 	...rest
