@@ -30,6 +30,7 @@ import FloatingPaths from "@src/components/system/floating-paths.svelte";
 import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
 import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
 import FloatingInput from "@components/ui/floating-input.svelte";
+import Input from "@components/ui/input.svelte";
 import Button from "@components/ui/button.svelte";
 // ParaglideJS
 import {
@@ -270,15 +271,16 @@ async function handlePasskeySignIn() {
 		}
 
 		const credential = (await navigator.credentials.get({
-			publicKey: {
-				...opts.options,
-				challenge: base64UrlToBuffer(opts.options.challenge),
-				allowCredentials: opts.options.allowCredentials?.map((c: { id: string; type: string; transports?: string[] }) => ({
-					...c,
-					id: base64UrlToBuffer(c.id),
-				})),
-			},
-		})) as PublicKeyCredential | null;
+				publicKey: {
+					...opts.options,
+					challenge: base64UrlToBuffer(opts.options.challenge) as BufferSource,
+					allowCredentials: opts.options.allowCredentials?.map((c) => ({
+												type: 'public-key' as const,
+												id: base64UrlToBuffer(c.id),
+												transports: c.transports as AuthenticatorTransport[] | undefined,
+											})) as PublicKeyCredentialDescriptor[],
+				},
+			})) as PublicKeyCredential | null;
 
 		if (!credential) {
 			toast.error({ title: "Cancelled", description: "Passkey sign-in was cancelled." });
@@ -714,7 +716,7 @@ $effect(() => {
 							<div class="flex flex-col gap-3">
 								<div class="relative">
 									<!-- FIX: aria-label added to 2FA input -->
-									<input
+									<Input
 										type="text"
 										id="twofa-code"
 										bind:value={twoFACode}
@@ -722,9 +724,7 @@ $effect(() => {
 										onkeydown={(e) => e.key === "Enter" && submitTwoFA()}
 										placeholder={useBackupCode ? "Enter backup code" : twofa_code_placeholder()}
 										aria-label={useBackupCode ? "Backup recovery code" : "Authenticator code"}
-										class="input text-center font-mono tracking-wider"
-										class:text-2xl={!useBackupCode}
-										class:text-lg={useBackupCode}
+										class="text-center font-mono tracking-wider {!useBackupCode ? 'text-2xl' : 'text-lg'}"
 										maxlength={useBackupCode ? 10 : 6}
 										autocomplete="one-time-code"
 										inputmode={useBackupCode ? "text" : "numeric"}
@@ -737,14 +737,15 @@ $effect(() => {
 								</div>
 
 								<div class="text-center">
-									<button
+									<Button
+										variant="ghost"
 										type="button"
 										onclick={toggle2FACodeType}
-										class="text-sm text-tertiary-500  underline hover:text-tertiary-600 dark:text-primary-600"
+										class="text-sm underline"
 										aria-label={useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
 									>
 										{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
-									</button>
+										</Button>
 								</div>
 
 								<div class="flex gap-3">
@@ -758,14 +759,14 @@ $effect(() => {
 									</Button>
 
 									<Button variant="tertiary"
-										type="button"
-										onclick={submitTwoFA}
-										disabled={!twoFACode.trim() ||
-											isVerifying2FA ||
-											(!useBackupCode && twoFACode.length !== 6) ||
-											(useBackupCode && twoFACode.length < 8)}
-										aria-label={twofa_verify_button()}
-									 class="dark: flex-1">
+																				type="button"
+																				onclick={submitTwoFA}
+																				disabled={!twoFACode.trim() ||
+																					isVerifying2FA ||
+																					(!useBackupCode && twoFACode.length !== 6) ||
+																					(useBackupCode && twoFACode.length < 8)}
+																				aria-label={twofa_verify_button()}
+																			 class="flex-1">
 										{#if isVerifying2FA}
 											<!-- FIX: alt="" + aria-hidden on spinner image -->
 											<img src="/Spinner.svg" alt="" aria-hidden="true" class="me-2 h-5 invert filter" />

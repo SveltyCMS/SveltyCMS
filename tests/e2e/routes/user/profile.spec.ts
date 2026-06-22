@@ -32,10 +32,14 @@ test.describe("User Profile Management", () => {
 
   test("Workspace Appearance link navigates to appearance settings", async ({ page }) => {
     await page.goto("/user");
-    await expect(page.getByText("Workspace Appearance")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Workspace Appearance")).toBeVisible({
+      timeout: 10_000,
+    });
     await page.getByRole("button", { name: "Open Appearance Settings" }).click();
     await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 10_000 });
-    await expect(page.getByText("My Overrides")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("My Overrides")).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("Edit Avatar", async ({ page }) => {
@@ -67,7 +71,7 @@ test.describe("User Profile Management", () => {
     await page.goto("/user");
     await page.getByRole("button", { name: "Edit Avatar" }).click({ force: true });
 
-    const deleteBtn = page.locator("button.variant-filled-error");
+    const deleteBtn = page.getByRole("button", { name: "Delete Avatar" });
     await expect(deleteBtn).toBeVisible();
     await deleteBtn.click();
 

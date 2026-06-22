@@ -1068,7 +1068,7 @@ export default defineConfig((): any => {
     build: {
       target: "esnext",
       minify: "esbuild",
-      sourcemap: true,
+      sourcemap: process.env.CI ? false : true,
       chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
       // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
       rolldownOptions: {

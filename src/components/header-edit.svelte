@@ -278,7 +278,7 @@
 </script>
 
 <header
-	class="border-secondary-600-300-token sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14"
+	class="border-surface-200 dark:border-surface-700 sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14"
 	class:border-b-0={showMore}
 >
 	<div class="flex items-center gap-2 flex-1 min-w-0">
@@ -315,7 +315,7 @@
 						onclick={save}
 						disabled={!isFormValid || !canWrite}
 						aria-label="Save"
-					 class="p-0! min-w-0 dark:">
+					 class="p-0! min-w-0">
 						<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
 					</Button>
 				{/if}
@@ -327,7 +327,7 @@
 
 				{#if ['edit', 'create'].includes(currentMode)}
 					{#if showNextButton}
-						<Button variant="tertiary" onclick={next} aria-label="Next" class="p-0! min-w-0 dark:">
+						<Button variant="tertiary" onclick={next} aria-label="Next" class="p-0! min-w-0">
 							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
 						</Button>
 					{:else}
@@ -335,7 +335,7 @@
 							onclick={save}
 							disabled={!isFormValid || !canWrite}
 							aria-label="Save"
-						 class="p-0! min-w-0 dark:">
+						 class="p-0! min-w-0">
 							<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
 						</Button>
 					{/if}
