@@ -6,7 +6,7 @@ order: 8
 icon: mdi:puzzle
 author: "SveltyCMS Team"
 created: "2026-03-04"
-updated: "2026-06-04"
+updated: "2026-06-22"
 tags:
   - plugins
   - development
@@ -45,10 +45,10 @@ graph TB
 
     subgraph "UI Injection Zones"
         D["dashboard"]
-        SID["sidebar"]
-        EE["entry_edit"]
-        CFG["config"]
-        ELA["entry_list_actions"]
+        SID["config_grid"]
+        EE["collection_builder"]
+        CFG["media_gallery"]
+        ELA["user_profile"]
     end
 
     R --> M
@@ -63,7 +63,7 @@ graph TB
 
 Create a new directory in `src/plugins/my-plugin/` and define your plugin in `index.ts`:
 
-```
+```typescript
 // src/plugins/my-plugin/index.ts
 import type { Plugin } from "@src/plugins/types";
 
@@ -83,13 +83,13 @@ Because SveltyCMS features **System Discovery & Autoloading**, there is no need 
 
 ## Plugin Interface
 
-```
+```typescript
 interface Plugin {
   metadata: PluginMetadata; // Required: id, name, version, enabled
   config?: PluginConfig; // Public/private settings
   hooks?: PluginLifecycleHooks; // CRUD interception
   ssrHook?: PluginSSRHook; // SSR data enrichment
-  ui?: PluginUIContribution; // UI columns, actions, tabs
+  ui?: PluginUIContribution; // UI columns, actions, tabs, slots
   migrations?: PluginMigration[]; // DB schema migrations
   enabledCollections?: string[]; // Restrict to specific collections
 }
@@ -99,7 +99,7 @@ interface Plugin {
 
 Hooks intercept CRUD operations with a sandboxed context:
 
-```
+```typescript
 hooks: {
   beforeSave: async (context, collection, data) => {
     // Validate, transform, or enrich data before save
@@ -133,9 +133,8 @@ hooks: {
 
 Add custom data to entry lists during server-side rendering:
 
-```
+```typescript
 ssrHook: async (context, entries) => {
-  // Return enriched data for each entry
   return entries.map((entry) => ({
     entryId: String(entry._id),
     updatedAt: new Date().toISOString(),
@@ -146,26 +145,43 @@ ssrHook: async (context, entries) => {
 
 ## UI Injection Zones
 
-Plugins can inject UI components into predefined zones:
+Plugins can inject UI components into 16 predefined zones. All zones are rendered via the `<Slot>` component (`src/components/system/slot.svelte`).
 
-| Zone                 | Location       | Use Case             |
-| -------------------- | -------------- | -------------------- |
-| `dashboard`          | Main dashboard | Stats, widgets       |
-| `sidebar`            | Admin sidebar  | Navigation links     |
-| `entry_edit`         | Entry editor   | Custom tabs/panels   |
-| `config`             | Settings page  | Plugin configuration |
-| `entry_list_actions` | Entry list     | Custom actions       |
+| Zone                    | Location                | Used By              |
+| ----------------------- | ----------------------- | -------------------- |
+| `dashboard`             | Main dashboard          | Stats, widgets       |
+| `sidebar`               | Admin sidebar           | Navigation links     |
+| `entry_edit`            | Entry editor            | Custom tabs/panels   |
+| `entry_edit_sidebar`    | Entry editor sidebar    | SEO metadata         |
+| `entry_edit_header`     | Entry editor header     | Workflow actions     |
+| `config`                | Settings page           | Plugin configuration |
+| `config_grid`           | Config page icon grid   | Conditional tiles    |
+| `collection_builder`    | Collection builder page | Schema extensions    |
+| `media_gallery`         | Media gallery page      | Media plugins        |
+| `media_gallery_toolbar` | Media gallery toolbar   | Image optimizers     |
+| `user_profile`          | User profile page       | Profile extensions   |
+| `user_profile_sidebar`  | User profile sidebar    | Account settings     |
+| `entry_list_actions`    | Entry list              | Custom actions       |
+| `global-toolbar`        | Top toolbar (layout)    | System status        |
+| `global-footer`         | Footer (layout)         | Debug info           |
+| `sticky-action-bar`     | Bottom sticky bar       | Bulk operations      |
 
-```
-// Plugin Slot definition
-export interface PluginSlot {
-  component: () => Promise<any>; // Lazy loaded Svelte component
-  condition?: (context: any) => boolean; // Optional: Show/hide slot based on context (e.g. collection settings)
-  id: string;
-  permissions?: string[]; // RBAC roles
-  position?: number;
-  props?: Record<string, any>;
-  zone: InjectionZone;
+```typescript
+ui: {
+  slots: [
+    {
+      id: "my-widget",
+      zone: "dashboard",
+      position: 10,
+      component: () => import("./components/Widget.svelte"),
+      permissions: ["admin"],
+    },
+    {
+      id: "my-config-tile",
+      zone: "config_grid",
+      component: () => import("./components/ConfigTile.svelte"),
+    },
+  ];
 }
 ```
 
@@ -173,7 +189,7 @@ export interface PluginSlot {
 
 Plugins create their own collections via migrations:
 
-```
+```typescript
 migrations: [
   {
     id: "001_create_results",
@@ -181,11 +197,16 @@ migrations: [
     version: 1,
     description: "Create results collection",
     up: async (dbAdapter) => {
-      await dbAdapter.crud.insert("plugin_my-plugin_results", {
-        _id: "__INIT__",
-        initialized: true,
-      });
-      await dbAdapter.crud.deleteMany("plugin_my-plugin_results", { _id: "__INIT__" });
+      await dbAdapter.collection.createModel({
+        _id: "plugin_my-plugin_results",
+        name: "plugin_my-plugin_results",
+        slug: "plugin_my-plugin_results",
+        fields: [
+          { label: "Score", name: "score", type: "number" },
+          { label: "Timestamp", name: "timestamp", type: "text" },
+        ],
+        status: "publish",
+      } as any);
     },
   },
 ];
@@ -207,7 +228,7 @@ All plugin hooks execute within a sandboxed context (`src/plugins/sandbox.ts`):
 
 Plugins can be enabled/disabled per tenant:
 
-```
+```typescript
 // Toggle via registry
 await pluginRegistry.togglePlugin("my-plugin", true, tenantId, userId);
 
@@ -215,14 +236,37 @@ await pluginRegistry.togglePlugin("my-plugin", true, tenantId, userId);
 const state = await pluginRegistry.getPluginState("my-plugin", tenantId);
 ```
 
-## Existing Plugins
+## Conditional Config Tiles
 
-| Plugin               | Description                            | Collections Used           |
-| -------------------- | -------------------------------------- | -------------------------- |
-| **PageSpeed**        | Lighthouse-based performance scoring   | `plugin_pagespeed_results` |
-| **Editable Website** | Live preview with enterprise handshake | —                          |
-| **WebMCP**           | MCP server for AI assistants           | —                          |
-| **Cookie Consent**   | GDPR cookie banner                     | —                          |
+For plugins that add tiles to the Config page grid, make them conditional by checking the plugin state in `+page.server.ts`:
+
+```typescript
+// In config/+page.server.ts
+import { pluginRegistry } from "@src/plugins/registry";
+
+const smartImporterPlugin = pluginRegistry.get("smart-importer");
+const state = await pluginRegistry.getPluginState("smart-importer", tenantId);
+const isEnabled = state?.enabled ?? smartImporterPlugin?.metadata.enabled;
+```
+
+Then in `+page.svelte`:
+
+```svelte
+{#if data?.pluginState?.smartImporter}
+  <a href="/config/migration" class="...">Migration</a>
+{/if}
+```
+
+## Existing Plugins (Reference Implementations)
+
+| Plugin                            | Description                          | Docs                                                                       |
+| --------------------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| **Smart AI-Driven Migration Pro** | 36+ platform content migration       | [smart-importer.mdx](/src/plugins/smart-importer/smart-importer.mdx)       |
+| PageSpeed                         | Lighthouse-based performance scoring | [pagespeed.mdx](/src/plugins/pagespeed/pagespeed.mdx)                      |
+| WebMCP                            | MCP server for AI assistants         | [webmcp.mdx](/src/plugins/webmcp/webmcp.mdx)                               |
+| Cookie Consent                    | GDPR cookie banner                   | [cookie-consent.mdx](/src/plugins/cookie-consent/cookie-consent.mdx)       |
+| Redirect Manager                  | Auto-redirect + MV caching           | [redirect-manager.mdx](/src/plugins/redirect-manager/redirect-manager.mdx) |
+| Stripe                            | Payment processing                   | [stripe.mdx](/src/plugins/stripe/stripe.mdx)                               |
 
 ## Best Practices
 
@@ -232,11 +276,14 @@ const state = await pluginRegistry.getPluginState("my-plugin", tenantId);
 4. **Use migrations** for DB schema — don't create collections in hooks
 5. **Keep hooks fast** — stay under the 5s timeout
 6. **Test independently** — mock the `PluginContext` for unit tests
+7. **Use conditional tiles** — check `pluginRegistry` before showing config tiles
+8. **Document** — every plugin must have an `.mdx` in its directory
 
 ---
 
 ## Related
 
-- [Development Guides](../../index.mdx)
-- [Widget System](../../../architecture/index.mdx)
+- [Plugin Architecture Guide](architecture.mdx) — Deep dive into the system design
+- [Marketplace System](../../../architecture/marketplace.mdx) — Plugin distribution
+- [AI Integration](../../ai-integration.mdx) — Widget scaffolder + behavioral learning
 - [Security Overview](../../../architecture/security/index.mdx)

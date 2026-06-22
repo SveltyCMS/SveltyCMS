@@ -919,6 +919,7 @@ export default defineConfig((): any => {
         },
         alias: {
           $paraglide: "./src/paraglide",
+          "@plugins": "./src/plugins",
           "@api": "./src/routes/api",
           "@auth": "./src/databases/auth",
           "@collections": "./config/collections",

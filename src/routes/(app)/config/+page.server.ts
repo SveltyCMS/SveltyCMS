@@ -19,6 +19,7 @@ import {
 import { error, redirect } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
+import { pluginRegistry } from "@src/plugins/registry";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -48,9 +49,20 @@ export const load: PageServerLoad = async ({ locals }) => {
       permissions: user.permissions,
     };
 
+    // Check which optional plugins are installed and enabled
+    const pluginState: Record<string, boolean> = {};
+    try {
+      const tenantId = (locals as any)?.tenantId || "default";
+      const smartImporterPlugin = pluginRegistry.get("smart-importer");
+      if (smartImporterPlugin) {
+        const state = await pluginRegistry.getPluginState("smart-importer", tenantId);
+        pluginState.smartImporter = state?.enabled ?? smartImporterPlugin.metadata.enabled;
+      }
+    } catch {
+      // Plugin check is non-critical — if it fails, hide the tile
+    }
+
     // Fine-grained permission checking for each config item
-    // This allows control where each setting group,
-    // menu item, or feature can have individual permissions assigned
     const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
 
     // Admin bypass — skip cache, return all true immediately
@@ -62,38 +74,48 @@ export const load: PageServerLoad = async ({ locals }) => {
           isRateLimited: false,
         };
       }
-    } else {
-      // Non-admin: cache permission set per user for 5 minutes
-      const permCacheKey = `config:permissions:${user._id}`;
-      const cached = await cacheService.get<typeof permissions>(permCacheKey);
-      if (cached) {
-        return {
-          user: serializableUser,
-          permissions: cached,
-          permissionConfigs,
-          allPermissions,
-          isAdmin,
-        };
-      }
 
-      for (const key in permissionConfigs) {
-        if (!Object.hasOwn(permissionConfigs, key)) continue;
-        const config = permissionConfigs[key];
-        const permissionCheck = await hasPermissionByAction(
-          user,
-          config.action,
-          config.type,
-          config.contextId,
-          locals.roles || [],
-        );
-        permissions[config.contextId] = {
-          hasPermission: permissionCheck,
-          isRateLimited: false,
-        };
-      }
-
-      await cacheService.set(permCacheKey, permissions, 300_000); // 5 min TTL
+      return {
+        user: serializableUser,
+        permissions,
+        permissionConfigs,
+        allPermissions,
+        isAdmin,
+        pluginState,
+      };
     }
+
+    // Non-admin: cache permission set per user for 5 minutes
+    const permCacheKey = `config:permissions:${user._id}`;
+    const cached = await cacheService.get<typeof permissions>(permCacheKey);
+    if (cached) {
+      return {
+        user: serializableUser,
+        permissions: cached,
+        permissionConfigs,
+        allPermissions,
+        isAdmin,
+        pluginState,
+      };
+    }
+
+    for (const key in permissionConfigs) {
+      if (!Object.hasOwn(permissionConfigs, key)) continue;
+      const config = permissionConfigs[key];
+      const permissionCheck = await hasPermissionByAction(
+        user,
+        config.action,
+        config.type,
+        config.contextId,
+        locals.roles || [],
+      );
+      permissions[config.contextId] = {
+        hasPermission: permissionCheck,
+        isRateLimited: false,
+      };
+    }
+
+    await cacheService.set(permCacheKey, permissions, 300_000); // 5 min TTL
 
     return {
       user: serializableUser,
@@ -101,6 +123,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       permissionConfigs,
       allPermissions,
       isAdmin,
+      pluginState,
     };
   } catch (err: any) {
     if (err && typeof err === "object" && "status" in err) {

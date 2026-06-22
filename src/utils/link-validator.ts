@@ -36,7 +36,7 @@ const KNOWN_ROUTES = new Map<string, string>([
   ["/config/automations", "Automations"],
   ["/config/queue", "Background Queue"],
   ["/config/sync", "Data Sync"],
-  ["/config/importer", "Smart Importer"],
+  ["/config/migration", "Smart Importer"],
   ["/config/webhooks", "Webhooks"],
   ["/config/redirects", "Redirects"],
   ["/config/trash", "Trash"],

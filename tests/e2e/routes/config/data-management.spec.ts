@@ -11,9 +11,9 @@ test.describe("Data Management Pages", () => {
     await loginAsAdmin(page);
   });
 
-  test("importer page loads", async ({ page }) => {
-    await page.goto("/config/importer");
-    await expect(page.getByRole("heading", { level: 1, name: /import/i })).toBeVisible({
+  test("migration page loads", async ({ page }) => {
+    await page.goto("/config/migration");
+    await expect(page.getByRole("heading", { level: 1, name: /migration|import/i })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText(/upload|select file|drag|choose|source/i).first()).toBeVisible({

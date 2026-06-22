@@ -125,7 +125,7 @@ export const globalSearchIndex = writable<SearchData[]>([
     keywords: ["sync", "import", "export", "migrate", "wordpress", "strapi", "directus"],
     triggers: {
       "Go to Data Sync": { path: "/config/sync" },
-      "Smart Importer": { path: "/config/importer" },
+      "Smart Importer": { path: "/config/migration" },
     },
   },
   {

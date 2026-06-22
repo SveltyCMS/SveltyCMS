@@ -169,20 +169,30 @@ export interface PluginUIContribution {
     }>;
     sidebar?: any[]; // Svelte components
   };
+
+  /** UI slots for injection zones (config, dashboard, sidebar, etc.) */
+  slots?: PluginSlot[];
 }
 
 // Injection Zones for Slot System
+// Any plugin can target these zones to inject UI into CMS routes
 export type InjectionZone =
-  | "dashboard"
-  | "sidebar"
-  | "entry_edit"
-  | "entry_edit_sidebar"
-  | "entry_edit_header"
-  | "config"
-  | "entry_list_actions"
-  | "global-toolbar"
-  | "global-footer"
-  | "sticky-action-bar";
+  | "dashboard" // Dashboard widgets
+  | "sidebar" // Global sidebar
+  | "entry_edit" // Content entry editor
+  | "entry_edit_sidebar" // Entry editor sidebar
+  | "entry_edit_header" // Entry editor header
+  | "config" // System configuration page
+  | "config_grid" // Config page icon grid (additional tiles)
+  | "collection_builder" // Collection builder page
+  | "media_gallery" // Media gallery page
+  | "media_gallery_toolbar" // Media gallery toolbar
+  | "user_profile" // User profile/settings page
+  | "user_profile_sidebar" // User profile sidebar
+  | "entry_list_actions" // Entry list action buttons
+  | "global-toolbar" // Top-level toolbar (all routes)
+  | "global-footer" // Footer (all routes)
+  | "sticky-action-bar"; // Sticky action bar at bottom
 
 // Plugin Slot definition
 export interface PluginSlot {

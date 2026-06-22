@@ -18,6 +18,7 @@ import type { DatabaseResult, IDBAdapter } from "@databases/db-interface";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import { PluginSettingsService } from "./settings";
+import { slotRegistry } from "./slot-registry";
 import type {
   IPluginService,
   Plugin,
@@ -46,6 +47,23 @@ class PluginRegistry implements IPluginService {
       logger.debug(
         `🔌 Plugin registered: ${plugin.metadata.name} (${plugin.metadata.id}) v${plugin.metadata.version}`,
       );
+
+      // Auto-register UI slots from plugin config
+      if (plugin.ui?.slots && Array.isArray(plugin.ui.slots)) {
+        for (const slot of plugin.ui.slots) {
+          try {
+            slotRegistry.register(slot);
+          } catch (err) {
+            logger.error(
+              `Failed to register slot '${slot.id}' for plugin '${plugin.metadata.id}'`,
+              err,
+            );
+          }
+        }
+        logger.debug(
+          `🔌 Registered ${plugin.ui.slots.length} slots for plugin: ${plugin.metadata.name}`,
+        );
+      }
 
       return { success: true, data: undefined };
     } catch (error) {
