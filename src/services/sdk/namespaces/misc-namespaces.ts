@@ -130,6 +130,32 @@ export class SettingsNamespace {
 }
 
 /**
+ * Resolve a Drupal taxonomy term name from JSON:API included data or reference ID.
+ * JSON:API includes resolved entities in `included[]` with type and attributes.name.
+ */
+function resolveDrupalTermName(
+  ref: { type?: string; id?: string },
+  included: any[],
+): string | null {
+  if (!ref?.id) return null;
+
+  // Try to find the term in the included data
+  const resolved = included.find((inc: any) => inc?.type === ref.type && inc?.id === ref.id);
+  if (resolved?.attributes?.name) {
+    return resolved.attributes.name;
+  }
+  if (resolved?.attributes?.title) {
+    return resolved.attributes.title;
+  }
+  if (resolved?.attributes?.drupal_internal__target_id) {
+    return String(resolved.attributes.drupal_internal__target_id);
+  }
+
+  // Fall back to the UUID/ID
+  return ref.id;
+}
+
+/**
  * Importer Namespace (Helper for SystemNamespace)
  */
 export class ImporterNamespace {
@@ -280,13 +306,62 @@ export class ImporterNamespace {
     for (const item of externalData.items) {
       try {
         const transformed: Record<string, any> = {};
-        const attributes = sourceType === "drupal" ? item.attributes : item;
+        const attributes = sourceType === "drupal" ? item.attributes || {} : item;
+        const relationships = sourceType === "drupal" ? item.relationships || {} : {};
+
+        // Resolve Drupal taxonomy terms from relationships into tags/categories
+        if (sourceType === "drupal" && Object.keys(relationships).length > 0) {
+          const taxonomyNames: string[] = [];
+          const categoryNames: string[] = [];
+
+          for (const [relName, relData] of Object.entries(relationships)) {
+            const rel = relData as any;
+            const data = rel?.data;
+            if (!data) continue;
+
+            const items = Array.isArray(data) ? data : [data];
+            const names: string[] = [];
+            for (const ref of items) {
+              // Try to use the resource name from included data or just the ID
+              if (ref?.id) {
+                const resolvedName = resolveDrupalTermName(
+                  ref,
+                  (externalData as any)._included || [],
+                );
+                names.push(resolvedName || ref.id);
+              }
+            }
+
+            const lower = relName.toLowerCase();
+            if (lower.includes("tag") || lower.includes("taxonomy")) {
+              taxonomyNames.push(...names);
+            } else if (lower.includes("categor")) {
+              categoryNames.push(...names);
+            }
+            // Store relationship data as-is for explicit mapping
+            transformed[relName] = names;
+          }
+
+          if (taxonomyNames.length > 0) transformed.tags = taxonomyNames;
+          if (categoryNames.length > 0) transformed.categories = categoryNames;
+        }
+
         for (const [sourceField, targetField] of Object.entries(finalMapping)) {
           let targetKey =
             typeof targetField === "string" ? targetField : (targetField as any).target;
           let transform =
             typeof targetField === "string" ? undefined : (targetField as any).transform;
           let value = attributes[sourceField];
+
+          // Flatten Drupal richtext fields (body → { value, format })
+          if (sourceType === "drupal" && value && typeof value === "object" && "value" in value) {
+            const fmt = (value as Record<string, unknown>).format;
+            if (fmt) {
+              transformed[`${targetKey}Format`] = fmt;
+            }
+            value = (value as Record<string, unknown>).value;
+          }
+
           if (transform === "media" && value) {
             try {
               const media = await mediaService.saveRemoteMedia(

@@ -6,7 +6,7 @@ order: 20
 icon: "mdi:import"
 author: "SveltyCMS Team"
 created: "2026-03-17"
-updated: "2026-06-07"
+updated: "2026-06-22"
 tags:
   - "migration"
   - "import"
@@ -44,9 +44,11 @@ sequenceDiagram
 
 ## 🚀 Key Features
 
-- **5-Format Auto-Detection**: Automatically identifies WordPress WXR XML, Strapi JSON, Directus JSON, Drupal YAML, and SveltyCMS JSON exports — no manual format selection needed.
+- **5-Format Auto-Detection**: Automatically identifies WordPress WXR XML, Strapi JSON, Directus JSON, Drupal YAML/CSV, and SveltyCMS JSON exports — no manual format selection needed.
 - **AI-Powered Field Mapping**: 30+ heuristic field mappings with format-specific lookup tables (e.g., `post_title→title`, `body→content`, ACF fields→widget types). Confidence levels (high/medium/low) for each suggestion.
-- **Drag-and-Drop UI**: Upload any supported export file via `src/components/admin/smart-importer.svelte` — the importer auto-detects the format and shows an editable field mapping preview before import.
+- **Drupal Enhanced Support**: Detects complex text fields (body with format → richtext), taxonomy terms (field_tags, field_category → tags/categories), entity references (target_type/target_id → relatedContent), and media fields. Supports Single Content Sync YAML and Content Export CSV formats.
+- **WordPress Enhanced Support**: Full WXR parsing with ACF/CMB2 custom field detection, category/tag taxonomy extraction, richtext content detection (`content:encoded`, rendered HTML), and featured image/media attachment extraction.
+- **Drag-and-Drop UI**: Upload any supported export file via `src/routes/(app)/config/importer/+page.svelte` — the importer auto-detects the format and shows an editable field mapping preview before import.
 - **ACF/CMB2 Detection**: Automatically detects Advanced Custom Fields and Custom Meta Boxes in WordPress exports and maps them to corresponding widget types.
 - **Media Handling**: Extracts image URLs from exports, offers to download and import or reference externally.
 - **Batch Processing**: 100 items per batch with event-loop yielding via `setTimeout` — handles 10,000+ item datasets without server starvation.
@@ -63,12 +65,23 @@ Access the Smart Importer via the admin panel. The component is at `src/componen
 
 1. **Drag and Drop** your export file onto the upload area.
 2. **Auto-Detection**: The `SmartImporter.detectFormat()` method instantly identifies the format from file structure:
-   - **WordPress**: WXR XML files (`.xml` with `<rss>` / `<channel>` / `<item>` structure)
+   - **WordPress**: WXR XML files (`.xml` with `<rss>` / `<channel>` / `<item>` structure) — handles posts, pages, custom post types, ACF/CMB2 fields
    - **Strapi**: JSON export files with `data` / `contentTypes` structure
    - **Directus**: JSON schema + data exports with `collections` / `fields` structure
-   - **Drupal**: Content export YAML with migration templates
+   - **Drupal**: Single Content Sync YAML (`.yml`), Content Export CSV (`.csv`), or JSON:API responses — detects richtext body format, taxonomy terms, entity references
    - **SveltyCMS**: Native JSON export format with `metadata` / `collections` structure
 3. **Target Collection**: Select an existing collection or let the importer scaffold a new one based on detected fields.
+
+### Drupal-Specific Notes
+
+- **YAML (Single Content Sync)**: The importer parses nested YAML structures with entity references. Fields like `field_body` with `format: text_with_summary` are detected as richtext. Taxonomy references (`field_tags`, `field_category`) are extracted as tag/category arrays. Entity references (`field_related_content`) are preserved as related content IDs.
+- **CSV (Content Export CSV)**: Headers are used as field names. The importer auto-detects field types from column names (e.g., `field_image` → media, `field_tags` → tags).
+- **JSON:API (Live Sync)**: Use the `fetchDrupalData()` adapter in `source-adapters.ts` for live migration from a running Drupal instance. The adapter detects richtext fields (format + processed), taxonomy relationships (term type), and media references automatically.
+
+### WordPress-Specific Notes
+
+- **WXR Format**: The importer extracts posts, pages, and custom post types from WordPress export files. `content:encoded` fields with HTML are detected as richtext content. Categories and tags are extracted from their respective taxonomy domains. ACF/CMB2 custom fields are collected as `customFields` for manual mapping.
+- **Rich Text Detection**: WordPress REST API responses with `rendered` HTML objects are automatically detected as richtext type. WXR `content:encoded` fields with HTML tags are similarly treated as richtext content.
 
 ### Step 2: Review Field Mappings
 
