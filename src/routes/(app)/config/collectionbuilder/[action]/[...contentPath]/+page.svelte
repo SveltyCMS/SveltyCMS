@@ -38,7 +38,7 @@ let originalName = $state("");
 let isLoading = $state(false);
 let lastCollectionSyncKey = $state<string | null>(null);
 
-function createDraftCollection(contentPath?: string): Schema {
+function createDraftCollection(contentPath: string | undefined = undefined): Schema {
 	const urlName = contentPath
 		? contentPath.split("/").filter(Boolean).pop()
 		: "";

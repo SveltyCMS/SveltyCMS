@@ -285,7 +285,7 @@ search filtering, and RTL support.
     // Node lookup map for parent/depth resolution
     const nodeMap = $derived.by(() => {
         const map = new Map<string, { item: TreeItem; parentId?: string; depth: number }>();
-        const collect = (nodes: TreeItem[], depth = 0, parentId?: string) => {
+        const collect = (nodes: TreeItem[], depth = 0, parentId: string | undefined = undefined) => {
             nodes.forEach(node => {
                 map.set(node.id, { item: node, parentId, depth });
                 if (node.children) collect(node.children, depth + 1, node.id);

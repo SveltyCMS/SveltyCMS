@@ -23,12 +23,12 @@
   let isDownloading = $state(false);
 
   // Helper to format file types
-  function formatMime(mime?: string) {
+  function formatMime(mime: string | undefined = undefined) {
     if (!mime) return "FILE";
     return mime.split("/")[1]?.toUpperCase() || mime.toUpperCase();
   }
 
-  function getFileIcon(type?: string) {
+  function getFileIcon(type: string | undefined = undefined) {
     switch (type) {
       case "image": return "mdi:image-outline";
       case "video": return "mdi:video-outline";
@@ -153,7 +153,7 @@
           <Button
             href="/api/media/share?id={data.mediaId}&token={data.token}"
             onclick={handleDownloadClick}
-            class="glow-effect download-link w-full !rounded-xl !bg-gradient-to-br !from-blue-500 !to-blue-600 !py-3.5 !px-6 !font-semibold !text-white !shadow-[0_10px_15px_-3px_rgba(37,99,235,0.3)] hover:!-translate-y-0.5 hover:!shadow-[0_15px_20px_-3px_rgba(37,99,235,0.4)] active:!translate-y-0 disabled:!cursor-not-allowed disabled:!opacity-60 disabled:hover:!translate-y-0"
+            class="glow-effect download-link w-full rounded-xl bg-linear-to-br from-blue-500 to-blue-600 py-3.5 px-6 font-semibold text-white shadow-[0_10px_15px_-3px_rgba(37,99,235,0.3)] hover:translate-y-0.5 hover:shadow-[0_15px_20px_-3px_rgba(37,99,235,0.4)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
             download={data.filename}
             disabled={isDownloading}
           >

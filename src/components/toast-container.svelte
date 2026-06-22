@@ -112,7 +112,7 @@
 	};
 
 	// Get per-toast position or fall back to container position
-	function getToastPosition(toastPosition?: ToastPosition): Exclude<ToastPosition, 'responsive'> {
+	function getToastPosition(toastPosition: ToastPosition | undefined = undefined): Exclude<ToastPosition, 'responsive'> {
 		return toast.getEffectivePosition(toastPosition ?? position);
 	}
 

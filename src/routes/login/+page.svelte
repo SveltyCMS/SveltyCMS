@@ -232,7 +232,7 @@ function resetToInitialState() {
 }
 
 // Special case for the first user on fresh installation
-function handleSignInClick(event?: Event) {
+function handleSignInClick(event: Event | undefined = undefined) {
 	if (event) {
 		event.stopPropagation();
 	}
@@ -255,7 +255,7 @@ function handleSignInClick(event?: Event) {
 }
 
 // Handle SignUp click
-function handleSignUpClick(event?: Event) {
+function handleSignUpClick(event: Event | undefined = undefined) {
 	if (event) {
 		event.stopPropagation();
 	}
