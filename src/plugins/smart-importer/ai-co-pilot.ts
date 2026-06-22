@@ -12,6 +12,7 @@
  */
 
 import type { SNCEntry } from "./types";
+import { inferTargetCollectionFromMigration } from "./infer-collection";
 
 // ============================================================================
 // Types
@@ -354,8 +355,11 @@ export function generateSmartDefaults(
 ): SmartDefaults {
   const samples = entries.slice(0, sampleSize);
 
-  // 1. Suggest target collection name
-  const targetCollection = inferCollectionName(entries, sourcePlatform);
+  // 1. Suggest target collection name from source content types
+  const targetCollection = inferTargetCollectionFromMigration({
+    format: sourcePlatform,
+    entries: samples,
+  });
 
   // 2. Analyze all available fields and suggest mappings
   const allFields = collectAllFields(samples);
@@ -388,30 +392,6 @@ export function generateSmartDefaults(
   };
 }
 
-function inferCollectionName(entries: SNCEntry[], platform: string): string {
-  // Check for common patterns
-  const firstType =
-    (entries[0]?.rawCustomFields as any)?._sourceTable ||
-    (entries[0]?.rawCustomFields as any)?._drupalType ||
-    "";
-  if (firstType) return firstType;
-
-  switch (platform) {
-    case "wordpress":
-      return entries.some((e) => e.parentExternalId) ? "pages" : "posts";
-    case "drupal":
-      return "nodes";
-    case "shopify":
-      return "products";
-    case "markdown":
-      return "pages";
-    case "csv":
-      return "imported_data";
-    default:
-      return `imported_${platform}`;
-  }
-}
-
 function collectAllFields(entries: SNCEntry[]): string[] {
   const fields = new Set<string>();
   for (const entry of entries) {
@@ -422,7 +402,7 @@ function collectAllFields(entries: SNCEntry[]): string[] {
   return [...fields];
 }
 
-function inferMappings(fields: string[], platform: string): FieldMapping[] {
+function inferMappings(fields: string[], _platform: string): FieldMapping[] {
   const mappings: FieldMapping[] = [];
   const _knownTargets = [
     "title",
@@ -711,7 +691,11 @@ export function getPlatformGuidance(platform: string, contentType: string): stri
 export function generatePreview(
   entry: SNCEntry,
   mappings: FieldMapping[],
-): { source: Record<string, any>; target: Record<string, any>; confidence: string } {
+): {
+  source: Record<string, any>;
+  target: Record<string, any>;
+  confidence: string;
+} {
   const source: Record<string, any> = {};
   const target: Record<string, any> = {};
 

@@ -241,10 +241,18 @@ export async function saveResized(
     let mimeType = mime.lookup(ext) || "application/octet-stream";
     let instance = baseVariant.clone();
 
-    if (format !== "original") {
-      instance = instance.toFormat(format as "webp" | "avif", { quality });
-      outExt = format;
-      mimeType = `image/${format}`;
+    if (format === "webp") {
+      instance = instance.webp({ quality });
+      outExt = "webp";
+      mimeType = "image/webp";
+    } else if (format === "avif") {
+      instance = instance.avif({ quality });
+      outExt = "avif";
+      mimeType = "image/avif";
+    } else if (format === "jpg") {
+      instance = instance.jpeg({ quality });
+      outExt = "jpg";
+      mimeType = "image/jpeg";
     }
 
     const fileName = `${baseName}-${hash}.${outExt}`;

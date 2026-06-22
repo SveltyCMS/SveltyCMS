@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-06-22"
+updated: "2026-06-23"
 tags:
   - "roadmap"
   - "todo"
@@ -19,6 +19,16 @@ tags:
 > **EU Compliance**: Based on publicly available documentation as of June 2026. Performance measurements where cited: Intel i7-13700H, 32GB DDR5, Bun 1.3.14, SQLite WAL. Reproduce with BENCHMARK_RECORD=1 bun test tests/benchmarks/. See Technical Evaluation for details.
 
 This document is the **living TODO list** — only in-progress and planned work. Completed achievements are documented in [Technical Evaluation](./technical-evaluation-2026.mdx).
+
+## ✅ Recently Completed (June 2026)
+
+- **Smart Importer v2.1** — 5-step visual wizard (`/config/migration`), unified `import-runner` orchestration, SSE streaming import, delta/PII Pro gates, full CMS media parity (`saveResizedImages`), background job queue (500+ entries).
+- **Auto-scaffold collections** — `collection-scaffold.ts` mirrors Collection Builder pipeline (TS → compile → refresh → `createModel`); wizard Step 3 **Create Collection from Mappings** + auto-provision on import.
+- **Data-driven collection naming** — `infer-collection.ts` derives target collection from source content types (`wp:post_type` → `post`) with manual override in the wizard.
+- **Shared mappings & permissions** — `known-mappings.ts` (wizard + CLI); `hasCollectionBuilderPermission()` (`config:collectionbuilder`) for scaffold/import.
+- **E2E coverage** — WordPress WXR detect, dry-run scaffold UI, full import → API verification (`tests/e2e/helpers/migration-wizard.ts`).
+
+See [Technical Evaluation — Smart Importer](./technical-evaluation-2026.mdx#smart-ai-driven-migration-pro-v21) for full detail.
 
 ## 🏗️ In Progress
 
@@ -33,6 +43,7 @@ This document is the **living TODO list** — only in-progress and planned work.
 - **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare).
 - **AI-Verified Zero-Downtime Deployments**: Visual regression + Lighthouse CI pre-promote.
 - **Autonomous Import Optimization**: Dynamic concurrency for 30k+ row datasets.
+- **Per-Content-Type Collection Split** _(planned — v2.1 imports all selected types into one collection; primary type sets the target id)_: When multiple source types are selected (e.g. WordPress `post` + `page`), optionally import into separate SveltyCMS collections instead of today's single primary-type destination.
 - **"Time-Travel" Git-Style Content Branching**: Multi-collection branching with visual diffs.
 - **Decentralized WebGPU Media Engine**: Client-side WASM/WebGPU image processing.
 - **Dynamic Administration Theme System**: Gin-level layout flexibility via Svelte 5 design tokens.

@@ -5,6 +5,24 @@
  */
 
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
+
+/** Normalizes adapter findOne/insert responses ({ success, data } or raw doc). */
+export function unwrapCrudDoc<T extends Record<string, unknown> = Record<string, unknown>>(
+  result: unknown,
+): T | null {
+  if (!result || typeof result !== "object") return null;
+  if ("success" in result) {
+    const wrapped = result as { success: boolean; data: T | null };
+    return wrapped.success ? (wrapped.data ?? null) : null;
+  }
+  return result as T;
+}
+
+function unwrapInsertId(result: unknown): string {
+  const doc = unwrapCrudDoc(result);
+  return String(doc?._id ?? "");
+}
 
 export interface StubResolutionResult {
   action: "created_stub" | "updated_stub" | "inserted_fresh";
@@ -24,12 +42,18 @@ export async function ensureRelationStub(
 ): Promise<StubResolutionResult> {
   const db = context.dbAdapter;
 
-  const existing = await db.crud.findOne(targetCollection, {
-    _externalId: externalId,
-  });
+  if (!db || !db.crud) {
+    throw new Error("UCP Advanced: Invalid database adapter context provided.");
+  }
+
+  const existing = unwrapCrudDoc(
+    await db.crud.findOne(targetCollection, {
+      _externalId: externalId,
+    }),
+  );
 
   if (existing) {
-    return { action: "updated_stub", id: existing._id };
+    return { action: "updated_stub", id: String(existing._id) };
   }
 
   const stubPayload = {
@@ -40,14 +64,14 @@ export async function ensureRelationStub(
     _externalId: externalId,
     _transactionToken: transactionToken,
     _isMigrationPayload: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: nowISODateString(),
+    updatedAt: nowISODateString(),
   };
 
   const inserted = await db.crud.insert(targetCollection, stubPayload);
   logger.info(`[Advanced] Created relational stub for [${externalId}] in [${targetCollection}].`);
 
-  return { action: "created_stub", id: inserted._id };
+  return { action: "created_stub", id: unwrapInsertId(inserted) };
 }
 
 /**
@@ -62,30 +86,41 @@ export async function resolveRelationStub(
 ): Promise<StubResolutionResult> {
   const db = context.dbAdapter;
 
-  const existingStub = await db.crud.findOne(targetCollection, {
-    _externalId: externalId,
-  });
+  if (!db || !db.crud) {
+    throw new Error("UCP Advanced: Invalid database adapter context provided.");
+  }
 
-  if (existingStub && existingStub._isStub) {
+  const existingStub = unwrapCrudDoc(
+    await db.crud.findOne(targetCollection, {
+      _externalId: externalId,
+    }),
+  );
+
+  if (existingStub?.["_isStub"]) {
+    const stubId = String(existingStub._id);
     const updatedPayload = {
       ...fullPayload,
       _isStub: false,
-      _id: existingStub._id,
+      _id: stubId,
     };
 
-    await db.crud.updateOne(targetCollection, { _id: existingStub._id }, updatedPayload);
+    await db.crud.updateOne(targetCollection, { _id: stubId }, updatedPayload);
     logger.info(`[Advanced] Resolved and upgraded relation stub for [${externalId}].`);
-    return { action: "updated_stub", id: existingStub._id };
+    return { action: "updated_stub", id: stubId };
+  }
+
+  if (existingStub) {
+    await db.crud.updateOne(targetCollection, { _id: existingStub._id }, fullPayload);
+    return { action: "updated_stub", id: String(existingStub._id) };
   }
 
   const inserted = await db.crud.insert(targetCollection, fullPayload);
-  return { action: "inserted_fresh", id: inserted._id };
+  return { action: "inserted_fresh", id: unwrapInsertId(inserted) };
 }
 
 /**
  * Evaluates a dot-notated string query path against deeply-nested payload trees.
  * Supports array offsets, nested sys schemas, and fallback defaults.
- * E.g., "entry.fields.author[0].sys.id"
  */
 export function resolveDeepJsonPath(obj: any, path: string, fallback: any = undefined): any {
   if (!obj || !path) return fallback;
@@ -190,6 +225,11 @@ export async function harvestInBodyMedia(
 ): Promise<string> {
   if (!htmlContent) return htmlContent;
 
+  if (!context?.mediaService?.saveBinary) {
+    logger.warn("[Advanced] Media service not available. Skipping inline asset harvesting.");
+    return htmlContent;
+  }
+
   const imgRegex = /<img[^>]+src=["'](https?:\/\/[^"']+)["'][^>]*>/gi;
   let match;
   let updatedHtml = htmlContent;
@@ -198,7 +238,12 @@ export async function harvestInBodyMedia(
     const remoteUrl = match[1];
     try {
       const response = await fetch(remoteUrl);
-      if (!response.ok) continue;
+      if (!response.ok) {
+        logger.warn(
+          `[Advanced] Failed to fetch inline media: ${remoteUrl} (HTTP ${response.status})`,
+        );
+        continue;
+      }
 
       const buffer = await response.arrayBuffer();
       const filename =
@@ -212,9 +257,11 @@ export async function harvestInBodyMedia(
         altText: `Auto-harvested migration asset: ${filename}`,
       });
 
-      mirroredPaths.push(savedMedia.absolutePath);
+      if (savedMedia?.absolutePath) {
+        mirroredPaths.push(savedMedia.absolutePath);
+      }
 
-      const localUrl = `/public/uploads/${savedMedia.filename}`;
+      const localUrl = `/public/uploads/${savedMedia.filename || filename}`;
       updatedHtml = updatedHtml.replace(remoteUrl, localUrl);
       logger.info(`[Advanced] Harvested inline media: ${remoteUrl} → ${localUrl}`);
     } catch (err) {
@@ -232,8 +279,7 @@ export interface CycleSortResult {
 
 /**
  * Pro: Directed Acyclic Graph (DAG) sorting with Cyclic dependency detection.
- * Resolves complex loops by parsing dependencies and returning a valid
- * topological execution order.
+ * Uses DFS with Tarjan-style tracking to safely detect and report cycles.
  */
 export function resolveCyclicDependencies(graph: Record<string, string[]>): CycleSortResult {
   const visited = new Map<string, "visiting" | "visited">();

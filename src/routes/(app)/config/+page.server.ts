@@ -49,17 +49,17 @@ export const load: PageServerLoad = async ({ locals }) => {
       permissions: user.permissions,
     };
 
-    // Check which optional plugins are installed and enabled
-    const pluginState: Record<string, boolean> = {};
+    // Plugin enablement for config_grid slots (keyed by plugin id)
+    const pluginStates: Record<string, boolean> = {};
     try {
       const tenantId = (locals as any)?.tenantId || "default";
-      const smartImporterPlugin = pluginRegistry.get("smart-importer");
-      if (smartImporterPlugin) {
-        const state = await pluginRegistry.getPluginState("smart-importer", tenantId);
-        pluginState.smartImporter = state?.enabled ?? smartImporterPlugin.metadata.enabled;
+      for (const plugin of pluginRegistry.getAll()) {
+        if (!plugin.ui?.slots?.some((s) => s.zone === "config_grid")) continue;
+        const state = await pluginRegistry.getPluginState(plugin.metadata.id, tenantId);
+        pluginStates[plugin.metadata.id] = state?.enabled ?? plugin.metadata.enabled;
       }
     } catch {
-      // Plugin check is non-critical — if it fails, hide the tile
+      // Plugin check is non-critical — if it fails, hide plugin tiles
     }
 
     // Fine-grained permission checking for each config item
@@ -81,7 +81,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         permissionConfigs,
         allPermissions,
         isAdmin,
-        pluginState,
+        pluginStates,
       };
     }
 
@@ -95,7 +95,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         permissionConfigs,
         allPermissions,
         isAdmin,
-        pluginState,
+        pluginStates,
       };
     }
 
@@ -123,7 +123,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       permissionConfigs,
       allPermissions,
       isAdmin,
-      pluginState,
+      pluginStates,
     };
   } catch (err: any) {
     if (err && typeof err === "object" && "status" in err) {

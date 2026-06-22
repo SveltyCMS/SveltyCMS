@@ -2,39 +2,72 @@
   @file src/plugins/smart-importer/ui/ConfigTile.svelte
   @component
   **Config grid tile for Smart AI-Driven Migration Pro.**
-  Rendered conditionally in the config page when the plugin is enabled.
+  Opens the plugin workspace slot — no dedicated route.
+
+  ### Features:
+  - Slot-driven launcher (plugin_workspace overlay)
+  - Keyboard-accessible with focus-visible ring
+  - Pro/Free badge
 -->
 <script lang="ts">
-  import { slide } from 'svelte/transition';
+  import { pluginWorkspace } from '@stores/plugin-workspace.svelte';
 
   interface Props {
-    /** Whether Pro license is active */
+    pluginId?: string;
     isPro?: boolean;
-    /** Plugin enabled state */
     enabled?: boolean;
+    subtitle?: string;
   }
 
-  let { isPro = false, enabled = true }: Props = $props();
+  let {
+    pluginId = 'smart-importer',
+    isPro = false,
+    enabled = true,
+    subtitle = '36+ platforms • AI mapping • Background jobs',
+  }: Props = $props();
+
+  function openWorkspace() {
+    if (!enabled) return;
+    pluginWorkspace.open(pluginId);
+  }
 </script>
 
-<a
-  href="/config/migration"
-  class="group flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
-  aria-label="Migration — Smart AI-driven content migration from 36+ CMS platforms"
-  data-sveltekit-preload-data="hover"
+<button
+  type="button"
+  onclick={openWorkspace}
+  class="group flex h-24 w-full flex-col items-center justify-center gap-2 rounded border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out
+         hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl
+         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 focus-visible:ring-offset-2
+         dark:bg-surface-800 dark:border-surface-700 dark:hover:border-tertiary-500 dark:hover:bg-surface-700
+         lg:h-32
+         {enabled ? '' : 'pointer-events-none opacity-60 grayscale'}"
+  aria-label="Open Smart AI-Driven Migration Pro — migrate content from 36+ CMS platforms"
+  aria-disabled={!enabled}
 >
   <iconify-icon
     icon="mdi:database-import-outline"
     class="text-3xl lg:text-4xl text-tertiary-500 transition-transform duration-300 group-hover:scale-110"
   ></iconify-icon>
+
   <div class="flex flex-col items-center gap-0.5">
-    <p class="text-xs font-medium uppercase tracking-wide text-surface-600 group-hover:text-tertiary-600 dark:text-primary-600 dark:group-hover:text-tertiary-500 lg:text-sm">
+    <p class="w-full truncate text-xs font-medium uppercase tracking-wide text-surface-600 group-hover:text-tertiary-600 dark:text-primary-500 dark:group-hover:text-tertiary-500 lg:text-sm">
       Migration
     </p>
+
+    {#if subtitle}
+      <p class="text-[9px] text-surface-400 dark:text-surface-500 line-clamp-1">
+        {subtitle}
+      </p>
+    {/if}
+
     {#if isPro}
-      <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold">PRO</span>
+      <span class="mt-0.5 text-[9px] px-2 py-px rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 font-bold tracking-wider">
+        PRO
+      </span>
     {:else}
-      <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-surface-100 text-surface-400 dark:bg-surface-800 dark:text-surface-500">Free</span>
+      <span class="mt-0.5 text-[9px] px-2 py-px rounded-full bg-surface-100 text-surface-500 dark:bg-surface-700 dark:text-surface-400 font-medium">
+        Free
+      </span>
     {/if}
   </div>
-</a>
+</button>

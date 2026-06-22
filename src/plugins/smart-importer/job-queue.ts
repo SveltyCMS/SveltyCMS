@@ -3,13 +3,12 @@
  * @description Background job queue integration for large imports.
  *
  * For 100K+ item migrations, offloads processing to a background queue
- * (BullMQ / SvelteKit workers) instead of blocking the HTTP request.
- *
- * The UI polls job status via SSE for real-time progress updates.
+ * instead of blocking the HTTP request. The UI polls job status via SSE.
  */
 
 import { logger } from "@utils/logger";
-import type { SNCEnvelope } from "./types";
+import type { FieldMapping, SNCEnvelope } from "./types";
+import type { IngestionOptions } from "./index.server";
 import { nowISODateString } from "@utils/date";
 
 export type JobStatus = "queued" | "processing" | "completed" | "failed" | "rolled_back";
@@ -31,12 +30,21 @@ export interface ImportJob {
   error?: string;
 }
 
+interface QueuedImportWork {
+  jobId: string;
+  envelope: SNCEnvelope;
+  mappings: FieldMapping[];
+  targetCollection: string;
+  dbAdapter: unknown;
+  options: IngestionOptions;
+}
+
 /**
- * In-memory job store (replace with BullMQ/Redis for production).
- * For SvelteKit deployments, this can be backed by the database.
+ * In-memory job store (replace with BullMQ/Redis for multi-instance production).
  */
 class ImportJobQueue {
   private jobs = new Map<string, ImportJob>();
+  private pending: QueuedImportWork[] = [];
   private processing = false;
   private listeners = new Set<(job: ImportJob) => void>();
 
@@ -48,7 +56,8 @@ class ImportJobQueue {
     envelope: SNCEnvelope,
     mappings: FieldMapping[],
     targetCollection: string,
-    dbAdapter: any,
+    dbAdapter: unknown,
+    options: IngestionOptions,
   ): ImportJob {
     const job: ImportJob = {
       id: crypto.randomUUID?.() || `job_${Date.now()}`,
@@ -65,48 +74,44 @@ class ImportJobQueue {
     };
 
     this.jobs.set(job.id, job);
+    this.pending.push({
+      jobId: job.id,
+      envelope,
+      mappings,
+      targetCollection,
+      dbAdapter,
+      options,
+    });
     this.notifyListeners(job);
 
-    // Start processing if not already running
     if (!this.processing) {
-      this.processQueue(dbAdapter);
+      void this.processQueue();
     }
 
     return job;
   }
 
-  /**
-   * Get current status of a job (for SSE polling).
-   */
   getStatus(jobId: string): ImportJob | null {
     return this.jobs.get(jobId) || null;
   }
 
-  /**
-   * Subscribe to job status updates (SSE-compatible).
-   */
   subscribe(callback: (job: ImportJob) => void): () => void {
     this.listeners.add(callback);
     return () => this.listeners.delete(callback);
   }
 
-  /**
-   * List all jobs (for admin dashboard).
-   */
   listJobs(): ImportJob[] {
     return [...this.jobs.values()].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }
 
-  /**
-   * Cancel a queued job.
-   */
   cancel(jobId: string): boolean {
     const job = this.jobs.get(jobId);
     if (job && (job.status === "queued" || job.status === "processing")) {
       job.status = "failed";
       job.error = "Cancelled by user";
+      this.pending = this.pending.filter((w) => w.jobId !== jobId);
       this.notifyListeners(job);
       return true;
     }
@@ -123,34 +128,31 @@ class ImportJobQueue {
     }
   }
 
-  private async processQueue(dbAdapter: any) {
+  private async processQueue() {
     this.processing = true;
 
-    for (const job of this.jobs.values()) {
-      if (job.status !== "queued") continue;
+    while (this.pending.length > 0) {
+      const work = this.pending.shift()!;
+      const job = this.jobs.get(work.jobId);
+      if (!job || job.status === "failed") continue;
 
       job.status = "processing";
       job.startedAt = nowISODateString();
+      job.totalEntries = work.envelope.entries.length;
       this.notifyListeners(job);
 
       try {
         const { executeUCPIngestion } = await import("./index.server");
-        const envelope: SNCEnvelope = {
-          sourcePlatform: job.sourcePlatform as any,
-          version: "1.0",
-          transactionToken: job.transactionToken,
-          entries: [], // Would be hydrated from a persistent store
-        };
-
         const result = await executeUCPIngestion(
-          dbAdapter,
-          envelope,
-          [],
-          job.targetCollection,
-          { importMedia: false, overwrite: false, batchSize: 100 },
+          work.dbAdapter,
+          work.envelope,
+          work.mappings,
+          work.targetCollection,
+          work.options,
           (progress) => {
             job.importedCount = progress.current;
-            job.progressPercent = Math.round((progress.current / progress.total) * 100);
+            job.progressPercent =
+              progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
             job.currentItem = progress.currentItem;
             this.notifyListeners(job);
           },
@@ -161,9 +163,9 @@ class ImportJobQueue {
         job.failedCount = result.failed;
         job.progressPercent = 100;
         job.completedAt = nowISODateString();
-      } catch (err: any) {
+      } catch (err: unknown) {
         job.status = "failed";
-        job.error = err.message || "Unknown error";
+        job.error = err instanceof Error ? err.message : "Unknown error";
         logger.error(`[JobQueue] Job ${job.id} failed:`, err);
       }
 

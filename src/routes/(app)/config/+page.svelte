@@ -6,6 +6,7 @@
 
 <script lang="ts">
 import AdminPageShell from "@components/admin-page-shell.svelte";
+import Slot from "@components/system/slot.svelte";
 import PermissionGuard from "@src/components/permission-guard.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte.ts";
@@ -140,7 +141,6 @@ const configItems = [
 		},
 	},
 	// ── Operations ──
-	// Note: Migration tile is rendered conditionally below (depends on smart-importer plugin)
 	{
 		id: "automations",
 		href: "/config/automations",
@@ -340,35 +340,29 @@ const configItems = [
 			{/if}
 		{/each}
 
-		<!-- Conditional: Migration tile (only when smart-importer plugin is installed & enabled) -->
-		{#if data?.pluginState?.smartImporter}
-			<div in:fly={{ y: 20, delay: configItems.length * 50, duration: 300 }}>
+		<!-- Plugin config_grid slots (each plugin supplies its own tile GUI) -->
+		<div class="contents" in:fly={{ y: 20, delay: configItems.length * 50, duration: 300 }}>
 			<PermissionGuard config={{
-				contextId: "config:migration",
-				name: "Migration",
-				description: "Smart AI-driven content migration from 36+ CMS platforms",
+				contextId: "config:extensions",
+				name: "Plugin Extensions",
+				description: "Plugin-owned config tiles and tools",
 				requiredRole: "admin",
 				action: "manage",
-				contextType: "system",
+				contextType: "configuration",
 			}}>
-				<a
-					href="/config/migration"
-					class="flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
-					aria-label="Migration — Smart AI-driven content migration from 36+ CMS platforms"
-					data-sveltekit-preload-data="hover"
-					onclick={handleMobileSidebarClose}
-				>
-					<iconify-icon
-						icon="mdi:database-import-outline"
-						class="text-3xl lg:text-4xl text-tertiary-500 transition-transform duration-300 group-hover:scale-110"
-					></iconify-icon>
-					<p class="w-full truncate text-xs font-medium uppercase tracking-wide group-hover:text-tertiary-600 dark:group-hover:text-tertiary-500 dark:text-primary-500 lg:text-sm">
-						Migration
-					</p>
-				</a>
+				<Slot
+					name="config_grid"
+					inline={true}
+					props={{
+						pluginStates: data?.pluginStates ?? {},
+						isPro: false,
+						enabled: data?.pluginStates?.['smart-importer'] ?? true,
+					}}
+				/>
 			</PermissionGuard>
-			</div>
-		{/if}
+		</div>
+
+		<Slot name="config" props={{ pluginStates: data?.pluginStates ?? {} }} />
 	</div>
 </div>
 </AdminPageShell>

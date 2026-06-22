@@ -116,6 +116,9 @@ export function parseWordPressWXR(xmlText: string, transactionToken: string): SN
         entry.rawCustomFields._postFormat = postFormat;
       }
 
+      // Content type for wizard filtering (post, page, custom post types)
+      entry.rawCustomFields.type = postType;
+
       // ── Comment status ──
       const commentStatus = extractCData(itemXml, "wp:comment_status");
       if (commentStatus) {

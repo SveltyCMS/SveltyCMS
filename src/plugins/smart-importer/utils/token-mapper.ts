@@ -37,20 +37,56 @@ export interface TokenMapping {
  * WordPress shortcode → SveltyCMS token mappings
  */
 const WORDPRESS_TOKENS: TokenMapping[] = [
-  { source: /\[year\]/gi, target: "{{ system.year }}", description: "Current year" },
-  { source: /\[site_title\]/gi, target: "{{ site.SITE_NAME }}", description: "Site name" },
+  {
+    source: /\[year\]/gi,
+    target: "{{ system.year }}",
+    description: "Current year",
+  },
+  {
+    source: /\[site_title\]/gi,
+    target: "{{ site.SITE_NAME }}",
+    description: "Site name",
+  },
   {
     source: /\[current_date(?:\s+format="([^"]*)")?\]/gi,
     target: '{{ system.now | date("$1") }}',
     description: "Current date",
   },
-  { source: /\[the_author\]/gi, target: "{{ entry.author }}", description: "Entry author" },
-  { source: /\[the_title\]/gi, target: "{{ entry.title }}", description: "Entry title" },
-  { source: /\[the_permalink\]/gi, target: "{{ entry.slug }}", description: "Entry URL" },
-  { source: /\[the_excerpt\]/gi, target: "{{ entry.excerpt }}", description: "Entry excerpt" },
-  { source: /\[the_content\]/gi, target: "{{ entry.content }}", description: "Entry content" },
-  { source: /\[bloginfo\s+name\]/gi, target: "{{ site.SITE_NAME }}", description: "Site name" },
-  { source: /\[bloginfo\s+url\]/gi, target: "{{ site.HOST_PROD }}", description: "Site URL" },
+  {
+    source: /\[the_author\]/gi,
+    target: "{{ entry.author }}",
+    description: "Entry author",
+  },
+  {
+    source: /\[the_title\]/gi,
+    target: "{{ entry.title }}",
+    description: "Entry title",
+  },
+  {
+    source: /\[the_permalink\]/gi,
+    target: "{{ entry.slug }}",
+    description: "Entry URL",
+  },
+  {
+    source: /\[the_excerpt\]/gi,
+    target: "{{ entry.excerpt }}",
+    description: "Entry excerpt",
+  },
+  {
+    source: /\[the_content\]/gi,
+    target: "{{ entry.content }}",
+    description: "Entry content",
+  },
+  {
+    source: /\[bloginfo\s+name\]/gi,
+    target: "{{ site.SITE_NAME }}",
+    description: "Site name",
+  },
+  {
+    source: /\[bloginfo\s+url\]/gi,
+    target: "{{ site.HOST_PROD }}",
+    description: "Site URL",
+  },
   {
     source: /\[bloginfo\s+description\]/gi,
     target: "{{ site.SITE_DESCRIPTION }}",
@@ -66,8 +102,16 @@ const WORDPRESS_TOKENS: TokenMapping[] = [
     target: "{{ user.name }}",
     description: "User display name",
   },
-  { source: /\[user_email\]/gi, target: "{{ user.email }}", description: "User email" },
-  { source: /\[user_role\]/gi, target: "{{ user.role }}", description: "User role" },
+  {
+    source: /\[user_email\]/gi,
+    target: "{{ user.email }}",
+    description: "User email",
+  },
+  {
+    source: /\[user_role\]/gi,
+    target: "{{ user.role }}",
+    description: "User role",
+  },
 ];
 
 /**
@@ -89,15 +133,31 @@ const DRUPAL_TOKENS: TokenMapping[] = [
     target: '{{ system.now | date("yyyy-MM-dd") }}',
     description: "ISO date",
   },
-  { source: /\[site:name\]/gi, target: "{{ site.SITE_NAME }}", description: "Site name" },
+  {
+    source: /\[site:name\]/gi,
+    target: "{{ site.SITE_NAME }}",
+    description: "Site name",
+  },
   {
     source: /\[site:slogan\]/gi,
     target: "{{ site.SITE_DESCRIPTION }}",
     description: "Site slogan",
   },
-  { source: /\[site:mail\]/gi, target: "{{ site.ADMIN_EMAIL }}", description: "Site email" },
-  { source: /\[site:url\]/gi, target: "{{ site.HOST_PROD }}", description: "Site URL" },
-  { source: /\[node:title\]/gi, target: "{{ entry.title }}", description: "Node title" },
+  {
+    source: /\[site:mail\]/gi,
+    target: "{{ site.ADMIN_EMAIL }}",
+    description: "Site email",
+  },
+  {
+    source: /\[site:url\]/gi,
+    target: "{{ site.HOST_PROD }}",
+    description: "Site URL",
+  },
+  {
+    source: /\[node:title\]/gi,
+    target: "{{ entry.title }}",
+    description: "Node title",
+  },
   {
     source: /\[node:created:custom:Y-m-d\]/gi,
     target: '{{ entry.createdAt | date("yyyy-MM-dd") }}',
@@ -118,24 +178,52 @@ const DRUPAL_TOKENS: TokenMapping[] = [
     target: "{{ user.name }}",
     description: "User display name",
   },
-  { source: /\[user:mail\]/gi, target: "{{ user.email }}", description: "User email" },
-  { source: /\[user:roles\]/gi, target: "{{ user.role }}", description: "User role" },
+  {
+    source: /\[user:mail\]/gi,
+    target: "{{ user.email }}",
+    description: "User email",
+  },
+  {
+    source: /\[user:roles\]/gi,
+    target: "{{ user.role }}",
+    description: "User role",
+  },
 ];
 
 /**
  * Joomla placeholder → SveltyCMS token mappings
  */
 const JOOMLA_TOKENS: TokenMapping[] = [
-  { source: /\{year\}/gi, target: "{{ system.year }}", description: "Current year" },
-  { source: /\{sitename\}/gi, target: "{{ site.SITE_NAME }}", description: "Site name" },
+  {
+    source: /\{year\}/gi,
+    target: "{{ system.year }}",
+    description: "Current year",
+  },
+  {
+    source: /\{sitename\}/gi,
+    target: "{{ site.SITE_NAME }}",
+    description: "Site name",
+  },
   {
     source: /\{date\}/gi,
     target: '{{ system.now | date("yyyy-MM-dd") }}',
     description: "Current date",
   },
-  { source: /\{title\}/gi, target: "{{ entry.title }}", description: "Entry title" },
-  { source: /\{author\}/gi, target: "{{ entry.author }}", description: "Entry author" },
-  { source: /\{email\}/gi, target: "{{ user.email }}", description: "User email" },
+  {
+    source: /\{title\}/gi,
+    target: "{{ entry.title }}",
+    description: "Entry title",
+  },
+  {
+    source: /\{author\}/gi,
+    target: "{{ entry.author }}",
+    description: "Entry author",
+  },
+  {
+    source: /\{email\}/gi,
+    target: "{{ user.email }}",
+    description: "User email",
+  },
 ];
 
 /**
@@ -188,15 +276,31 @@ const SHOPIFY_TOKENS: TokenMapping[] = [
  * Ghost Handlebars → SveltyCMS token mappings
  */
 const GHOST_TOKENS: TokenMapping[] = [
-  { source: /\{\{@site\.title\}\}/gi, target: "{{ site.SITE_NAME }}", description: "Site title" },
+  {
+    source: /\{\{@site\.title\}\}/gi,
+    target: "{{ site.SITE_NAME }}",
+    description: "Site title",
+  },
   {
     source: /\{\{@site\.description\}\}/gi,
     target: "{{ site.SITE_DESCRIPTION }}",
     description: "Site description",
   },
-  { source: /\{\{@site\.url\}\}/gi, target: "{{ site.HOST_PROD }}", description: "Site URL" },
-  { source: /\{\{title\}\}/gi, target: "{{ entry.title }}", description: "Post title" },
-  { source: /\{\{excerpt\}\}/gi, target: "{{ entry.excerpt }}", description: "Post excerpt" },
+  {
+    source: /\{\{@site\.url\}\}/gi,
+    target: "{{ site.HOST_PROD }}",
+    description: "Site URL",
+  },
+  {
+    source: /\{\{title\}\}/gi,
+    target: "{{ entry.title }}",
+    description: "Post title",
+  },
+  {
+    source: /\{\{excerpt\}\}/gi,
+    target: "{{ entry.excerpt }}",
+    description: "Post excerpt",
+  },
   {
     source: /\{\{date\s+format="YYYY"\}\}/gi,
     target: "{{ system.year }}",
@@ -218,8 +322,16 @@ const GHOST_TOKENS: TokenMapping[] = [
  * Contentful GraphQL-style → SveltyCMS token mappings
  */
 const CONTENTFUL_TOKENS: TokenMapping[] = [
-  { source: /\{entry\.fields\.title\}/gi, target: "{{ entry.title }}", description: "Entry title" },
-  { source: /\{entry\.fields\.slug\}/gi, target: "{{ entry.slug }}", description: "Entry slug" },
+  {
+    source: /\{entry\.fields\.title\}/gi,
+    target: "{{ entry.title }}",
+    description: "Entry title",
+  },
+  {
+    source: /\{entry\.fields\.slug\}/gi,
+    target: "{{ entry.slug }}",
+    description: "Entry slug",
+  },
   {
     source: /\{entry\.sys\.createdAt\}/gi,
     target: "{{ entry.createdAt }}",
@@ -237,19 +349,51 @@ const CONTENTFUL_TOKENS: TokenMapping[] = [
  * Catches %VAR%, {var}, [var], ${var} patterns
  */
 const GENERIC_TOKENS: TokenMapping[] = [
-  { source: /%YEAR%/gi, target: "{{ system.year }}", description: "Current year" },
+  {
+    source: /%YEAR%/gi,
+    target: "{{ system.year }}",
+    description: "Current year",
+  },
   {
     source: /%DATE%/gi,
     target: '{{ system.now | date("yyyy-MM-dd") }}',
     description: "Current date",
   },
-  { source: /%SITE_NAME%/gi, target: "{{ site.SITE_NAME }}", description: "Site name" },
-  { source: /%SITE_URL%/gi, target: "{{ site.HOST_PROD }}", description: "Site URL" },
-  { source: /%TITLE%/gi, target: "{{ entry.title }}", description: "Entry title" },
-  { source: /%AUTHOR%/gi, target: "{{ entry.author }}", description: "Entry author" },
-  { source: /%EMAIL%/gi, target: "{{ user.email }}", description: "User email" },
-  { source: /\$\{year\}/gi, target: "{{ system.year }}", description: "Current year" },
-  { source: /\$\{title\}/gi, target: "{{ entry.title }}", description: "Entry title" },
+  {
+    source: /%SITE_NAME%/gi,
+    target: "{{ site.SITE_NAME }}",
+    description: "Site name",
+  },
+  {
+    source: /%SITE_URL%/gi,
+    target: "{{ site.HOST_PROD }}",
+    description: "Site URL",
+  },
+  {
+    source: /%TITLE%/gi,
+    target: "{{ entry.title }}",
+    description: "Entry title",
+  },
+  {
+    source: /%AUTHOR%/gi,
+    target: "{{ entry.author }}",
+    description: "Entry author",
+  },
+  {
+    source: /%EMAIL%/gi,
+    target: "{{ user.email }}",
+    description: "User email",
+  },
+  {
+    source: /\$\{year\}/gi,
+    target: "{{ system.year }}",
+    description: "Current year",
+  },
+  {
+    source: /\$\{title\}/gi,
+    target: "{{ entry.title }}",
+    description: "Entry title",
+  },
 ];
 
 // ============================================================================
@@ -304,7 +448,7 @@ export function replaceTokens(content: string, sourcePlatform: string): TokenRep
     const before = replaced;
     if (mapping.source instanceof RegExp) {
       // Handle regex with capture groups for format parameters
-      replaced = replaced.replace(mapping.source, (match, ...captureGroups) => {
+      replaced = replaced.replace(mapping.source, (_match, ...captureGroups) => {
         // Substitute $1, $2, etc. in the target with capture groups
         let target = mapping.target;
         for (let i = 0; i < captureGroups.length; i++) {
@@ -438,7 +582,10 @@ export function detectTokenSystem(content: string): string | null {
  * Token replacement statistics for reporting.
  */
 export function getTokenStats(
-  entries: Array<{ content?: string; rawCustomFields: Record<string, unknown> }>,
+  entries: Array<{
+    content?: string;
+    rawCustomFields: Record<string, unknown>;
+  }>,
   sourcePlatform: string,
 ): {
   entriesWithTokens: number;

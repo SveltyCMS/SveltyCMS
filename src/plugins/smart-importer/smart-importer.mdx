@@ -1,7 +1,7 @@
 ---
 id: "smart-importer"
 title: "Smart AI-Driven Migration Pro"
-description: "Enterprise Universal Content Pipeline — 36+ platforms, AI mapping, visual wizard, background jobs, audit logging, PII scrubbing."
+description: "Enterprise Universal Content Pipeline — 40+ platforms, AI mapping, visual wizard, background jobs, audit logging, PII scrubbing."
 category: "Migration"
 version: "2.1.0"
 author: "SveltyCMS Team"
@@ -11,16 +11,90 @@ tags: [migration, AI, wordpress, drupal, contentful, sanity, shopify, headless]
 
 # Smart AI-Driven Migration Pro v2.1
 
-A comprehensive migration tool for headless CMS platforms — as of June 2026, supporting 36+ source platforms, spreadsheets, databases, APIs, and Markdown — with AI-guided field mapping, visual transformation, background jobs, and enterprise-grade security.
+A comprehensive migration tool for headless CMS platforms — as of June 2026, supporting 40+ source platforms, spreadsheets, databases, APIs, and Markdown — with AI-guided field mapping, visual transformation, background jobs, and enterprise-grade security.
+
+## 🚀 v2.1 Highlights
+
+- **40+ CMS platforms** — WordPress, Drupal, Shopify, Contentful, Strapi, Ghost, Webflow, and 34 more
+- **Forward-Reference Auto-Stubbing** — handles circular dependencies automatically with placeholder resolution
+- **In-Body Media Harvesting** — scans HTML content for `<img>` tags, downloads images, rewrites paths
+- **Cyclic Dependency Resolution** — DFS-based topological sort with cycle detection for complex graphs
+- **Direct DB Cursor Streaming** — stream from MySQL/PostgreSQL/SQLite directly, no file export needed
+- **Deep JSONPath Resolution** — `resolveDeepJsonPath(obj, "store.books[0].meta.pages")` for complex payloads
+- **Schema Diff Previews** — Git-style color-coded diff of what will change before scaffold runs
+- **4 conflict strategies** — skip, overwrite, merge, keep_both
+- **5 pipeline steps** — Detect → Map → Dry Run → Import → Verify
+- **Zero-risk rollback** — full transactional undo with ledger tracking
+
+```mermaid
+flowchart LR
+    A[Upload Export] --> B[Detect Platform]
+    B --> C[AI Field Mapping]
+    C --> D[Dry Run]
+    D --> E{Review}
+    E -->|Adjust| C
+    E -->|Approve| F[Import Data]
+    F --> G[Verify]
+    G --> H{Success?}
+    H -->|Yes| I[Complete]
+    H -->|No| J[Rollback]
+```
+
+## Visual Wizard Architecture (v2.1)
+
+The 5-step wizard opens via the `plugin_workspace` slot (`/config?plugin=smart-importer`) and is backed by shared orchestration modules:
+
+| Module                           | Role                                                                                                |
+| :------------------------------- | :-------------------------------------------------------------------------------------------------- |
+| `import-runner.ts`               | Parse → filter → delta → ingest; license gates; background queue at 500+ entries                    |
+| `import-options.ts`              | Wizard JSON → control-plane `ImportFilter`                                                          |
+| `mapping-tree.ts`                | Flat mappings ↔ `TransformationTree` nodes                                                          |
+| `schema-preview.ts`              | Dry-run schema diff vs target collection                                                            |
+| `known-mappings.ts`              | Shared default field mappings per platform (wizard + CLI)                                           |
+| `infer-collection.ts`            | Auto-detect target collection from content types / parsed entries                                   |
+| `collection-scaffold.ts`         | Auto-provision missing collections via Collection Builder pipeline (TS → compile → refresh → model) |
+| `delta-engine.ts`                | Highwater marks + checksum delta (`plugin_importer_delta`)                                          |
+| `job-queue.ts`                   | Background imports with SSE progress polling                                                        |
+| `utils/migrated-media.server.ts` | Full CMS media pipeline: original on disk + `saveResizedImages` variants (sm/md/lg + WebP sidecars) |
+| `utils/media-optimize.ts`        | Standalone sharp helper; migration uses `saveResizedImages` for parity with gallery uploads         |
+
+**Pro-gated wizard options:** delta/incremental import, PII scrubbing.  
+**SSE endpoint:** `POST /api/migration/import` streams `progress` → `complete` events.
+
+### Auto-Scaffold (Fresh CMS)
+
+When the target collection does not exist, Step 3 (Validate) offers **Create Collection from Mappings**. This mirrors the official Collection Builder save path:
+
+1. `buildCollectionSchemaFromMappings()` — maps importer field types → SveltyCMS widgets
+2. `generateCollectionSourceFile()` — writes `config/collections/{id}.ts`
+3. `markFileDirty()` → `compile()` → `contentSystem.refresh()` → `createModel()`
+
+Imports also call `ensureTargetCollectionProvisioned()` before ingestion when mappings are present, so CLI/API paths auto-create missing collections. Target collection names are **inferred from migration data** (e.g. WordPress `wp:post_type` → `post`, Strapi `type` → collection id) via `infer-collection.ts`; IDs are normalized (`My Posts` → `my_posts`) for file paths and CRUD.
+
+### Multi-content-type imports (v2.1)
+
+When multiple source content types are selected (e.g. WordPress `post` + `page`), the wizard still imports into **one** SveltyCMS collection:
+
+| Scenario                             | Primary type rule                                                      |
+| :----------------------------------- | :--------------------------------------------------------------------- |
+| Parsed entries available             | Highest count among selected types (e.g. 80 posts + 20 pages → `post`) |
+| Wizard detect only (no entry sample) | First type in the active selection order                               |
+| User override                        | Target Collection field always wins                                    |
+
+All selected types are still **filtered in** via `contentTypes` on import — only the **destination collection name** uses the primary type. Splitting into separate collections per type (e.g. `post` and `page` as distinct targets) is **planned**; see [Roadmap — Per-Content-Type Collection Split](../../../docs/project/roadmap-2026.mdx).
+
+**Permission:** scaffold and import-into-new-collection require admin or the registered `config:collectionbuilder` permission (see `hasCollectionBuilderPermission()` in `permissions.ts`).
+
+**Import result:** when auto-provision runs, `scaffold: { created, collectionId, fieldCount }` is included in the SSE `complete` event and wizard review step.
 
 ## Quick Start
 
 ```bash
 # UI mode: Config → Migration tile
-# CLI mode:
+# CLI mode (uses runMigrationImport + known-mappings + auto-scaffold):
 bun run migrate import --file=export.xml --format=wordpress --collection=posts
 bun run migrate validate --file=data.json --format=strapi
-bun run migrate scaffold --file=products.csv --format=csv
+bun run migrate scaffold --file=export.xml --format=wordpress --collection=posts
 bun run migrate delta --file=export.xml --format=wordpress --since=2025-01-01
 bun run migrate rollback --token=txn_abc123
 bun run migrate status
@@ -28,11 +102,11 @@ bun run migrate status
 
 ## Feature Matrix
 
-### Import Features (All Tiers)
+### Core Features (Free Tier)
 
 | #   | Feature                                                                   |
 | :-- | :------------------------------------------------------------------------ |
-| 1   | Auto-detect 36+ CMS platforms + CSV/Markdown/SQL/API                      |
+| 1   | Auto-detect 40+ CMS platforms + CSV/Markdown/SQL/API                      |
 | 2   | AI field mapping with confidence scores (🟢 🟡 🔴)                        |
 | 3   | Content type selection (choose what to import)                            |
 | 4   | 7 transform actions: map, split, merge, transform, enrich, relink, filter |
@@ -111,6 +185,20 @@ Source platform tokens, shortcodes, and placeholders are automatically converted
 | `{{title}}`       | `{{ entry.title }}`    |
 
 50+ token mappings across 6 source platforms. Content is immediately dynamic after import — no manual template migration needed.
+
+```mermaid
+sequenceDiagram
+    participant S as Source Content
+    participant P as Parser
+    participant T as Token Mapper
+    participant D as SveltyCMS DB
+
+    S->>P: Raw content with [shortcodes]
+    P->>T: Extract tokens (WP shortcodes, Drupal tokens, Liquid, Handlebars)
+    T->>T: Map to SveltyCMS {{ tokens }}
+    T->>D: Write transformed content
+    D-->>S: Live dynamic rendering
+```
 
 ### Field Transformations (7 Actions)
 
@@ -420,6 +508,20 @@ bun run migrate preset    --save --name=<name> --format=<platform>
 bun run migrate preset    --list
 bun run migrate preset    --apply=<name>
 ```
+
+## Limitations & Known Edge Cases
+
+| Scenario                                | Behavior                                 | Workaround                                                                        |
+| :-------------------------------------- | :--------------------------------------- | :-------------------------------------------------------------------------------- |
+| **Gutenberg blocks**                    | Preserved as raw HTML comments           | RichText widget renders common blocks; custom blocks need manual migration        |
+| **Paragraphs (Drupal)**                 | Stored in `rawCustomFields`              | Restructure into Group widgets after import                                       |
+| **Custom PHP modules**                  | Not migratable                           | Rebuild as Svelte 5 widgets or plugins                                            |
+| **WooCommerce variants**                | Product variants with >100 SKUs          | Use batch mode with `--batch-size=20`                                             |
+| **Very large WXR files (>500MB)**       | Memory pressure                          | Use CLI streaming mode: `bun run migrate import --file=... --stream`              |
+| **Deeply nested relations (>5 levels)** | May require multiple passes              | Use forward-reference stubbing; resolve in 2nd pass                               |
+| **Non-UTF-8 exports**                   | May cause encoding issues                | Convert to UTF-8 before import: `iconv -f ISO-8859-1 -t UTF-8 export.xml`         |
+| **S3/CDN-hosted media**                 | Requires accessible URLs                 | Media download works with any public URL; authenticated CDNs need pre-signed URLs |
+| **Real-time DB migrations**             | Direct DB cursor mode is simulation-only | Use file export as intermediate step for production                               |
 
 ## Related
 

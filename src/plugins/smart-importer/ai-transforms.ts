@@ -16,9 +16,6 @@
  * require a marketplace license.
  */
 
-import type { SNCEnvelope, SNCEntry, FieldMapping } from "./types";
-import { logger } from "@utils/logger";
-
 // ============================================================================
 // Transform Types
 // ============================================================================
@@ -152,7 +149,11 @@ export function analyzeDataFlow(
         tier,
         description: `Target widget: ${inferWidget(bestMatch.target, sourceField)}`,
       });
-      edges.push({ from: `src_${sourceField}`, to: `tgt_${bestMatch.target}`, transform: action });
+      edges.push({
+        from: `src_${sourceField}`,
+        to: `tgt_${bestMatch.target}`,
+        transform: action,
+      });
     }
   }
 
@@ -376,8 +377,8 @@ function generateReasoning(
 
 function generateAIEnrichments(
   sourceFields: string[],
-  targetFields: Array<{ name: string; type: string }>,
-  platform: string,
+  _targetFields: Array<{ name: string; type: string }>,
+  _platform: string,
 ): TransformSuggestion[] {
   const enrichments: TransformSuggestion[] = [];
 

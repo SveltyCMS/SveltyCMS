@@ -212,7 +212,7 @@ export async function bulkInsert(
 ): Promise<{ count: number; strategy: string }> {
   if (entries.length === 0) return { count: 0, strategy: "none" };
 
-  const dbType = (dbAdapter as any).type || dbAdapter?.type || "unknown";
+  const dbType = (dbAdapter as any)?.type || "unknown";
   let count = 0;
   let strategy = "individual";
 
@@ -331,7 +331,6 @@ export async function concurrentMultiStreamImport(
   const completed = new Set<string>();
 
   // Resolve dependencies: run independent streams in parallel
-  const resolved = new Set<string>();
   let remaining = [...streams];
 
   while (remaining.length > 0) {
@@ -385,13 +384,19 @@ export async function concurrentMultiStreamImport(
  */
 export async function* streamParseFile(
   filePath: string,
-  format: string,
+  _format: string,
 ): AsyncGenerator<SNCEntry[], void, unknown> {
   const fs = await import("node:fs");
   const readline = await import("node:readline");
 
-  const fileStream = fs.createReadStream(filePath, { encoding: "utf-8", highWaterMark: 64 * 1024 });
-  const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+  const fileStream = fs.createReadStream(filePath, {
+    encoding: "utf-8",
+    highWaterMark: 64 * 1024,
+  });
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
 
   let batch: string[] = [];
   const batchSize = 1000;
@@ -400,7 +405,6 @@ export async function* streamParseFile(
     batch.push(line);
     if (batch.length >= batchSize) {
       // Parse current batch
-      const text = batch.join("\n");
       // Minimal parse — in production, delegate to format-specific stream parsers
       batch = [];
       yield []; // Placeholder — actual parsing depends on format

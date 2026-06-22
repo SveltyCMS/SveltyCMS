@@ -45,16 +45,6 @@ export interface MigrationPreset {
   updatedAt: string;
 }
 
-export interface ScaffoldSchema {
-  collectionName: string;
-  fields: Array<{
-    name: string;
-    type: string;
-    required: boolean;
-    label: string;
-  }>;
-}
-
 // ============================================================================
 // Delta Engine
 // ============================================================================
@@ -92,11 +82,17 @@ export function computeDelta(
       newCount++;
     } else if (prevHash !== currentHash) {
       // Changed entry
-      delta.push({ ...entry, rawCustomFields: { ...entry.rawCustomFields, _deltaChanged: true } });
+      delta.push({
+        ...entry,
+        rawCustomFields: { ...entry.rawCustomFields, _deltaChanged: true },
+      });
       changed++;
     } else if (entry.updatedAt && entry.updatedAt > previousState.lastHighwater) {
       // Updated since last import
-      delta.push({ ...entry, rawCustomFields: { ...entry.rawCustomFields, _deltaUpdated: true } });
+      delta.push({
+        ...entry,
+        rawCustomFields: { ...entry.rawCustomFields, _deltaUpdated: true },
+      });
       changed++;
     } else {
       skipped++;
@@ -108,6 +104,120 @@ export function computeDelta(
   );
 
   return { delta, skipped, changed, new: newCount };
+}
+
+const DELTA_STATE_COLLECTION = "plugin_importer_delta";
+
+function unwrapDoc<T extends Record<string, unknown>>(result: unknown): T | null {
+  if (!result || typeof result !== "object") return null;
+  if ("success" in result) {
+    const wrapped = result as { success: boolean; data: T | null };
+    return wrapped.success ? (wrapped.data ?? null) : null;
+  }
+  return result as T;
+}
+
+/** Load persisted delta/highwater state for a collection + platform pair */
+export async function loadDeltaState(
+  dbAdapter: { crud: { findOne: (...args: unknown[]) => Promise<unknown> } },
+  collection: string,
+  sourcePlatform: string,
+): Promise<DeltaState | null> {
+  try {
+    const row = unwrapDoc<Record<string, unknown>>(
+      await dbAdapter.crud.findOne(DELTA_STATE_COLLECTION, {
+        collection,
+        sourcePlatform,
+      }),
+    );
+    if (!row) return null;
+
+    let checksums: Record<string, string> = {};
+    if (typeof row.checksumsJson === "string") {
+      try {
+        checksums = JSON.parse(row.checksumsJson) as Record<string, string>;
+      } catch {
+        checksums = {};
+      }
+    }
+
+    return {
+      collection: String(row.collection),
+      sourcePlatform: String(row.sourcePlatform),
+      lastHighwater: String(row.lastHighwater || ""),
+      importedCount: Number(row.importedCount || 0),
+      lastImportToken: String(row.lastImportToken || ""),
+      checksums,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Persist delta state after a successful import */
+export async function saveDeltaState(
+  dbAdapter: {
+    crud: {
+      findOne: (...args: unknown[]) => Promise<unknown>;
+      insert: (...args: unknown[]) => Promise<unknown>;
+      updateOne: (...args: unknown[]) => Promise<unknown>;
+    };
+  },
+  state: DeltaState,
+): Promise<void> {
+  const payload = {
+    collection: state.collection,
+    sourcePlatform: state.sourcePlatform,
+    lastHighwater: state.lastHighwater,
+    importedCount: state.importedCount,
+    lastImportToken: state.lastImportToken,
+    checksumsJson: JSON.stringify(state.checksums),
+    updatedAt: nowISODateString(),
+  };
+
+  const existing = unwrapDoc<{ _id: string }>(
+    await dbAdapter.crud.findOne(DELTA_STATE_COLLECTION, {
+      collection: state.collection,
+      sourcePlatform: state.sourcePlatform,
+    }),
+  );
+
+  if (existing?._id) {
+    await dbAdapter.crud.updateOne(DELTA_STATE_COLLECTION, { _id: existing._id }, payload);
+  } else {
+    await dbAdapter.crud.insert(DELTA_STATE_COLLECTION, {
+      _id: `${state.sourcePlatform}_${state.collection}`,
+      ...payload,
+    });
+  }
+}
+
+/** Build updated delta state from imported entries */
+export function buildDeltaStateFromImport(
+  collection: string,
+  sourcePlatform: string,
+  transactionToken: string,
+  importedEntries: SNCEntry[],
+  previous: DeltaState | null,
+): DeltaState {
+  const checksums: Record<string, string> = previous?.checksums ? { ...previous.checksums } : {};
+  let lastHighwater = previous?.lastHighwater ?? "";
+
+  for (const entry of importedEntries) {
+    checksums[entry.externalId] = computeContentHash(entry);
+    if (entry.updatedAt && entry.updatedAt > lastHighwater) {
+      lastHighwater = entry.updatedAt;
+    }
+  }
+
+  return {
+    collection,
+    sourcePlatform,
+    lastHighwater: lastHighwater || nowISODateString(),
+    importedCount: (previous?.importedCount ?? 0) + importedEntries.length,
+    lastImportToken: transactionToken,
+    checksums,
+  };
 }
 
 /**
@@ -153,7 +263,10 @@ export function resolveConflict(
       return { action: "skip", data: existing };
 
     case "overwrite":
-      return { action: "update", data: { ...existing, ...incoming, _id: existing._id } };
+      return {
+        action: "update",
+        data: { ...existing, ...incoming, _id: existing._id },
+      };
 
     case "merge":
       // Deep merge: keep existing values, only add missing fields from incoming
@@ -170,136 +283,16 @@ export function resolveConflict(
       // Insert as new entry with modified slug to avoid collision
       return {
         action: "insert",
-        data: { ...incoming, slug: `${incoming.slug}-imported-${Date.now()}`, _isDuplicate: true },
+        data: {
+          ...incoming,
+          slug: `${incoming.slug}-imported-${Date.now()}`,
+          _isDuplicate: true,
+        },
       };
 
     default:
       return { action: "insert", data: incoming };
   }
-}
-
-// ============================================================================
-// Schema Scaffolding
-// ============================================================================
-
-/**
- * Analyzes source fields and auto-generates a SveltyCMS collection schema.
- * Inspired by Directus' schema-first import and Strapi's content-type builder.
- */
-export function scaffoldCollectionSchema(
-  sourceFields: string[],
-  sourcePlatform: string,
-  suggestedName: string,
-): ScaffoldSchema {
-  const fields: ScaffoldSchema["fields"] = [];
-  const seen = new Set<string>();
-
-  // Required base fields
-  fields.push({ name: "title", type: "text", required: true, label: "Title" });
-  seen.add("title");
-
-  for (const field of sourceFields) {
-    const normalized = normalizeFieldName(field);
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-
-    const { type, label } = inferFieldType(field, sourcePlatform);
-    fields.push({
-      name: normalized,
-      type,
-      required: ["title", "slug", "status"].includes(normalized),
-      label,
-    });
-  }
-
-  return {
-    collectionName: suggestedName || `imported_${sourcePlatform}`,
-    fields,
-  };
-}
-
-function normalizeFieldName(field: string): string {
-  // Convert WP-style (post_title) and Drupal-style (field_tags) to camelCase
-  return field
-    .replace(/^(wp:|post_|field_)/, "")
-    .replace(/[^a-zA-Z0-9]/g, "_")
-    .replace(/_([a-z])/g, (_, c) => c.toUpperCase())
-    .replace(/^[A-Z]/, (c) => c.toLowerCase());
-}
-
-function inferFieldType(field: string, platform: string): { type: string; label: string } {
-  const lower = field.toLowerCase();
-
-  if (lower.includes("title") || lower.includes("name")) return { type: "text", label: "Title" };
-  if (
-    lower.includes("content") ||
-    lower.includes("body") ||
-    lower.includes("richtext") ||
-    lower.includes("encoded")
-  )
-    return { type: "richtext", label: "Content" };
-  if (lower.includes("excerpt") || lower.includes("summary") || lower.includes("description"))
-    return { type: "text", label: "Excerpt" };
-  if (
-    lower.includes("slug") ||
-    lower.includes("path") ||
-    lower.includes("alias") ||
-    lower.includes("handle") ||
-    lower.includes("url")
-  )
-    return { type: "text", label: "Slug" };
-  if (lower.includes("status") || lower.includes("state"))
-    return { type: "select", label: "Status" };
-  if (
-    lower.includes("date") ||
-    lower.includes("created") ||
-    lower.includes("updated") ||
-    lower.includes("published") ||
-    lower.includes("_at")
-  )
-    return { type: "date", label: "Date" };
-  if (
-    lower.includes("author") ||
-    lower.includes("creator") ||
-    lower.includes("uid") ||
-    lower.includes("user")
-  )
-    return { type: "text", label: "Author" };
-  if (
-    lower.includes("image") ||
-    lower.includes("media") ||
-    lower.includes("thumbnail") ||
-    lower.includes("cover") ||
-    lower.includes("photo")
-  )
-    return { type: "media", label: "Media" };
-  if (
-    lower.includes("tag") ||
-    lower.includes("category") ||
-    lower.includes("taxonomy") ||
-    lower.includes("topic")
-  )
-    return { type: "tags", label: "Taxonomy" };
-  if (
-    lower.includes("price") ||
-    lower.includes("cost") ||
-    lower.includes("amount") ||
-    lower.includes("count") ||
-    lower.includes("quantity") ||
-    lower.includes("weight") ||
-    lower.includes("order") ||
-    lower.includes("sort")
-  )
-    return { type: "number", label: "Number" };
-  if (lower.includes("email")) return { type: "text", label: "Email" };
-  if (lower.includes("phone") || lower.includes("tel")) return { type: "text", label: "Phone" };
-  if (lower.includes("color") || lower.includes("colour")) return { type: "text", label: "Color" };
-  if (lower.includes("id") || lower.includes("uuid") || lower.includes("guid"))
-    return { type: "text", label: "ID" };
-  if (lower.includes("lang") || lower.includes("locale") || lower.includes("language"))
-    return { type: "text", label: "Language" };
-
-  return { type: "text", label: field.charAt(0).toUpperCase() + field.slice(1) };
 }
 
 // ============================================================================

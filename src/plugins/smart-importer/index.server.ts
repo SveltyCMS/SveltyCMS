@@ -345,7 +345,7 @@ export async function verifyMarketplaceLicense(
         const result = await response.json();
         return !!result.valid;
       }
-    } catch (err) {
+    } catch {
       if (attempt === 5) {
         logger.error("[SmartImporter] License verification failed after 5 attempts.");
         return false;
@@ -361,110 +361,259 @@ export async function verifyMarketplaceLicense(
  * Executable Core: normalizes, downloads assets, resolves relations,
  * and writes records in non-blocking batches.
  */
+const BULK_INSERT_THRESHOLD = 10;
+
+export interface IngestionOptions {
+  importMedia: boolean;
+  overwrite: boolean;
+  batchSize?: number;
+  /** Use database-native bulk insert when batch is large enough (default: true) */
+  useBulk?: boolean;
+  /** Forward-reference stub resolution for parent/child relations (default: true) */
+  resolveStubs?: boolean;
+  /** Optimize downloaded media via sharp (default: true when importMedia is on) */
+  optimizeMedia?: boolean;
+  /** Scrub PII from entry payloads before insert (Pro feature) */
+  scrubPii?: boolean;
+}
+
+/** Build parent→child dependency graph from entries in the same import batch */
+export function buildEntryDependencyGraph(entries: SNCEntry[]): Record<string, string[]> {
+  const ids = new Set(entries.map((e) => e.externalId));
+  const graph: Record<string, string[]> = {};
+
+  for (const entry of entries) {
+    graph[entry.externalId] = [];
+    if (entry.parentExternalId && ids.has(entry.parentExternalId)) {
+      graph[entry.externalId].push(entry.parentExternalId);
+    }
+  }
+
+  return graph;
+}
+
+async function prepareEntryPayload(
+  dbAdapter: unknown,
+  entry: SNCEntry,
+  mappings: FieldMapping[],
+  platform: string,
+  transactionToken: string,
+  targetCollection: string,
+  options: IngestionOptions,
+  mirroredPaths: string[],
+  resolveStubs: boolean,
+): Promise<Record<string, unknown>> {
+  let processedPayload = applyPlatformTransformations(entry, mappings, platform);
+
+  if (options.scrubPii) {
+    const { scrubPII } = await import("./enterprise");
+    const { cleaned } = scrubPII(processedPayload);
+    processedPayload = cleaned;
+  }
+
+  if (options.importMedia && entry.assetsToMirror.length > 0) {
+    const localMediaIds = await mirrorAssetsLocally(
+      dbAdapter,
+      entry.assetsToMirror,
+      mirroredPaths,
+      options.optimizeMedia !== false,
+    );
+    if (localMediaIds.length > 0) {
+      processedPayload.featuredImage = localMediaIds[0];
+    }
+  }
+
+  if (entry.ecommerce) {
+    processedPayload.ecommerce = {
+      sku: entry.ecommerce.sku || "",
+      price: entry.ecommerce.price || 0,
+      compareAtPrice: entry.ecommerce.compareAtPrice || null,
+      inventoryQuantity: entry.ecommerce.inventoryQuantity || 0,
+      variants: processEcommerceVariants(entry.ecommerce.variants),
+    };
+  }
+
+  processedPayload._isMigrationPayload = true;
+  processedPayload._externalId = entry.externalId;
+  processedPayload._transactionToken = transactionToken;
+  processedPayload.status = "draft";
+
+  if (resolveStubs && entry.parentExternalId) {
+    const { ensureRelationStub } = await import("./advanced-features");
+    const stub = await ensureRelationStub(
+      { dbAdapter },
+      targetCollection,
+      entry.parentExternalId,
+      transactionToken,
+    );
+    processedPayload.parentId = stub.id;
+  }
+
+  return processedPayload;
+}
+
+async function persistEntry(
+  dbAdapter: unknown,
+  targetCollection: string,
+  entry: SNCEntry,
+  payload: Record<string, unknown>,
+  options: IngestionOptions,
+  resolveStubs: boolean,
+): Promise<void> {
+  if (resolveStubs && !options.overwrite) {
+    const { resolveRelationStub } = await import("./advanced-features");
+    await resolveRelationStub({ dbAdapter }, targetCollection, entry.externalId, payload);
+    return;
+  }
+
+  if (options.overwrite) {
+    const existingResult = await (dbAdapter as any).crud.findOne(targetCollection, {
+      _externalId: entry.externalId,
+    });
+    const existing = existingResult?.success ? existingResult.data : null;
+    if (existing) {
+      await (dbAdapter as any).crud.updateOne(targetCollection, { _id: existing._id }, payload);
+    } else {
+      await (dbAdapter as any).crud.insert(targetCollection, payload);
+    }
+    return;
+  }
+
+  await (dbAdapter as any).crud.insert(targetCollection, payload);
+}
+
+async function pushToDlq(
+  dbAdapter: unknown,
+  transactionToken: string,
+  entry: SNCEntry,
+  err: unknown,
+): Promise<void> {
+  try {
+    await (dbAdapter as any).crud.insert("plugin_importer_dlq", {
+      transactionToken,
+      externalId: entry.externalId,
+      rawEntry: JSON.stringify(entry),
+      errorTrace: err instanceof Error ? err.message : String(err),
+      timestamp: nowISODateString(),
+    });
+  } catch {
+    /* DLQ insert failure is non-fatal */
+  }
+}
+
+export async function orderEntriesForIngestion(entries: SNCEntry[]): Promise<{
+  ordered: SNCEntry[];
+  cycles: string[][];
+}> {
+  const graph = buildEntryDependencyGraph(entries);
+  const { resolveCyclicDependencies } = await import("./advanced-features");
+  const { orderedCollections, cyclesDetected } = resolveCyclicDependencies(graph);
+  const rank = new Map(orderedCollections.map((id, index) => [id, index]));
+
+  const ordered = [...entries].sort(
+    (a, b) => (rank.get(a.externalId) ?? 0) - (rank.get(b.externalId) ?? 0),
+  );
+
+  return { ordered, cycles: cyclesDetected };
+}
+
 export async function executeUCPIngestion(
   dbAdapter: any,
   envelope: SNCEnvelope,
   mappings: FieldMapping[],
   targetCollection: string,
-  options: { importMedia: boolean; overwrite: boolean; batchSize?: number },
+  options: IngestionOptions,
   onProgress?: (progress: MigrationProgress) => void,
 ): Promise<{ success: boolean; imported: number; failed: number }> {
   const batchSize = options.batchSize || 100;
-  const totalEntries = envelope.entries.length;
+  const useBulk = options.useBulk !== false;
+  const resolveStubs = options.resolveStubs !== false;
+
+  const { ordered, cycles } = await orderEntriesForIngestion(envelope.entries);
+  if (cycles.length > 0) {
+    logger.warn(
+      `[SmartImporter] ${cycles.length} dependency cycle(s) detected — using best-effort order`,
+    );
+  }
+
+  const totalEntries = ordered.length;
   let imported = 0;
   let failed = 0;
   const mirroredPaths: string[] = [];
 
+  const emitProgress = (currentItem: string, phase: MigrationProgress["phase"] = "processing") => {
+    onProgress?.({
+      current: imported + failed,
+      total: totalEntries,
+      currentItem,
+      phase,
+    });
+  };
+
   for (let i = 0; i < totalEntries; i += batchSize) {
-    const chunk = envelope.entries.slice(i, i + batchSize);
+    const chunk = ordered.slice(i, i + batchSize);
+    const prepared: Array<{ entry: SNCEntry; payload: Record<string, unknown> }> = [];
 
-    await Promise.all(
-      chunk.map(async (entry) => {
-        try {
-          // 1. Platform-specific formatting & AST compilation
-          const processedPayload = applyPlatformTransformations(
-            entry,
-            mappings,
-            envelope.sourcePlatform,
+    for (const entry of chunk) {
+      try {
+        const payload = await prepareEntryPayload(
+          dbAdapter,
+          entry,
+          mappings,
+          envelope.sourcePlatform,
+          envelope.transactionToken,
+          targetCollection,
+          options,
+          mirroredPaths,
+          resolveStubs,
+        );
+        prepared.push({ entry, payload });
+      } catch (err) {
+        failed++;
+        await pushToDlq(dbAdapter, envelope.transactionToken, entry, err);
+        emitProgress(entry.title);
+      }
+    }
+
+    const canBulk =
+      useBulk &&
+      !options.overwrite &&
+      prepared.length >= BULK_INSERT_THRESHOLD &&
+      prepared.every(({ entry }) => !entry.parentExternalId);
+
+    if (canBulk) {
+      const { bulkInsert } = await import("./performance");
+      const payloads = prepared.map((p) => p.payload);
+      const { count } = await bulkInsert(dbAdapter, targetCollection, payloads, {});
+      imported += count;
+      const bulkFailed = payloads.length - count;
+      failed += bulkFailed;
+
+      if (bulkFailed > 0) {
+        for (const item of prepared.slice(count)) {
+          await pushToDlq(
+            dbAdapter,
+            envelope.transactionToken,
+            item.entry,
+            new Error("Bulk insert skipped or failed"),
           );
+        }
+      }
 
-          // 2. Download and mirror remote assets
-          if (options.importMedia && entry.assetsToMirror.length > 0) {
-            const localMediaIds = await mirrorAssetsLocally(
-              dbAdapter,
-              entry.assetsToMirror,
-              mirroredPaths,
-            );
-            if (localMediaIds.length > 0) {
-              processedPayload.featuredImage = localMediaIds[0];
-            }
-          }
-
-          // 3. Resolve e-commerce variants
-          if (entry.ecommerce) {
-            processedPayload.ecommerce = {
-              sku: entry.ecommerce.sku || "",
-              price: entry.ecommerce.price || 0,
-              compareAtPrice: entry.ecommerce.compareAtPrice || null,
-              inventoryQuantity: entry.ecommerce.inventoryQuantity || 0,
-              variants: processEcommerceVariants(entry.ecommerce.variants),
-            };
-          }
-
-          // 4. Mark programmatic safety properties
-          processedPayload._isMigrationPayload = true;
-          processedPayload._externalId = entry.externalId;
-          processedPayload._transactionToken = envelope.transactionToken;
-          processedPayload.status = "draft"; // Draft-by-Default Airgap
-
-          // 5. Upsert into database
-          if (options.overwrite) {
-            const existingResult = await dbAdapter.crud.findOne(targetCollection, {
-              _externalId: entry.externalId,
-            });
-            const existing = existingResult.success ? existingResult.data : null;
-            if (existing) {
-              await dbAdapter.crud.updateOne(
-                targetCollection,
-                { _id: existing._id },
-                processedPayload,
-              );
-            } else {
-              await dbAdapter.crud.insert(targetCollection, processedPayload);
-            }
-          } else {
-            await dbAdapter.crud.insert(targetCollection, processedPayload);
-          }
-
+      emitProgress(prepared.at(-1)?.entry.title ?? "Batch complete");
+    } else {
+      for (const { entry, payload } of prepared) {
+        try {
+          await persistEntry(dbAdapter, targetCollection, entry, payload, options, resolveStubs);
           imported++;
-        } catch (err: any) {
+        } catch (err) {
           failed++;
-          // Push to Dead-Letter Queue
-          try {
-            await dbAdapter.crud.insert("plugin_importer_dlq", {
-              transactionToken: envelope.transactionToken,
-              externalId: entry.externalId,
-              rawEntry: JSON.stringify(entry),
-              errorTrace: err.message || String(err),
-              timestamp: nowISODateString(),
-            });
-          } catch {
-            // DLQ insert failure is non-fatal
-          }
+          await pushToDlq(dbAdapter, envelope.transactionToken, entry, err);
         }
+        emitProgress(entry.title);
+      }
+    }
 
-        if (onProgress) {
-          onProgress({
-            current: imported + failed,
-            total: totalEntries,
-            currentItem: entry.title,
-            phase: "processing",
-          });
-        }
-      }),
-    );
-
-    // Yield event loop
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
 
@@ -538,6 +687,59 @@ export async function rollbackTransaction(
 }
 
 // ============================================================================
+// Wizard → Pipeline Mapping Bridge
+// ============================================================================
+
+/** Field mapping row from the migration wizard UI */
+export interface WizardMappingRow {
+  source: string;
+  target: string;
+  confidence: number;
+  type: string;
+  action?: string;
+}
+
+/** Converts wizard mapping rows into pipeline FieldMapping descriptors */
+export function wizardMappingsToFieldMappings(rows: WizardMappingRow[]): FieldMapping[] {
+  return rows.map((m) => ({
+    sourceField: m.source,
+    targetField: m.target,
+    widgetType: m.type,
+    confidence: m.confidence >= 80 ? "high" : m.confidence >= 50 ? "medium" : "low",
+    action: m.action === "ignore" ? "ignore" : "map",
+  }));
+}
+
+const KNOWN_SOURCE_ALIASES: Record<string, (entry: SNCEntry) => unknown> = {
+  post_title: (e) => e.title,
+  title: (e) => e.title,
+  "content:encoded": (e) => e.content,
+  content: (e) => e.content,
+  "excerpt:encoded": (e) => e.excerpt,
+  excerpt: (e) => e.excerpt,
+  "wp:post_name": (e) => e.slug,
+  slug: (e) => e.slug,
+  "wp:status": (e) => e.status,
+  status: (e) => e.status,
+  "wp:post_date": (e) => e.createdAt,
+  createdAt: (e) => e.createdAt,
+  "wp:post_modified": (e) => e.updatedAt,
+  updatedAt: (e) => e.updatedAt,
+  "dc:creator": (e) => e.authorName,
+  author: (e) => e.authorName,
+  "wp:post_parent": (e) => e.parentExternalId,
+  parentId: (e) => e.parentExternalId,
+  "wp:menu_order": (e) => e.menuOrder,
+  order: (e) => e.menuOrder,
+};
+
+function resolveMappingSourceValue(entry: SNCEntry, sourceField: string): unknown {
+  const resolver = KNOWN_SOURCE_ALIASES[sourceField];
+  if (resolver) return resolver(entry);
+  return entry.rawCustomFields[sourceField];
+}
+
+// ============================================================================
 // Internal Routing & Sanitization Filters
 // ============================================================================
 
@@ -576,10 +778,10 @@ function applyPlatformTransformations(
 
   output.content = compiledContent;
 
-  // Apply field mappings
+  // Apply field mappings (wizard aliases + raw custom fields)
   for (const map of mappings) {
     if (map.action === "ignore") continue;
-    const value = rawFields[map.sourceField];
+    const value = resolveMappingSourceValue(entry, map.sourceField);
     if (value !== undefined) {
       output[map.targetField] = value;
     }
@@ -592,30 +794,48 @@ async function mirrorAssetsLocally(
   dbAdapter: any,
   assets: SNCEntry["assetsToMirror"],
   mirroredPaths: string[],
+  _optimize = true,
 ): Promise<string[]> {
   const localIds: string[] = [];
+  const { validateEgressUrl } = await import("@src/utils/http/egress-guard");
+  const { persistMigratedAsset } = await import("./utils/migrated-media.server");
+  const { getMimeType } = await import("@src/utils/media/media-utils");
 
   for (const asset of assets) {
     try {
-      const response = await fetch(asset.externalUrl);
-      if (!response.ok) throw new Error(`Asset download failed: ${asset.externalUrl}`);
+      validateEgressUrl(asset.externalUrl, {
+        allowHttp: process.env.NODE_ENV === "development",
+      });
 
-      const buffer = await response.arrayBuffer();
-      const filename = asset.externalUrl.split("/").pop() || `migrated_${asset.originalId}.png`;
-      const mimeType = response.headers.get("Content-Type") || "image/png";
+      const response = await fetch(asset.externalUrl, {
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!response.ok) {
+        throw new Error(`Asset download failed: ${asset.externalUrl} (HTTP ${response.status})`);
+      }
 
-      // Save via media adapter
-      const mediaResult = await dbAdapter.crud.insert("media", {
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength > 100 * 1024 * 1024) {
+        throw new Error(`Asset too large: ${asset.externalUrl}`);
+      }
+
+      const filename =
+        asset.externalUrl.split("/").pop()?.split("?")[0] || `migrated_${asset.originalId}.png`;
+      const mimeType =
+        response.headers.get("Content-Type")?.split(";")[0]?.trim() ||
+        getMimeType(filename) ||
+        "application/octet-stream";
+
+      const mediaId = await persistMigratedAsset(dbAdapter, {
+        buffer: Buffer.from(arrayBuffer),
         filename,
         mimeType,
-        altText: asset.altText || filename,
-        binary: buffer,
-        absolutePath: `/media/migrated/${filename}`,
-        createdAt: nowISODateString(),
-      } as any);
+        altText: asset.altText,
+        userId: "migration",
+      });
 
-      if (mediaResult.success && mediaResult.data) {
-        localIds.push(String(mediaResult.data._id || mediaResult.data));
+      if (mediaId) {
+        localIds.push(mediaId);
         mirroredPaths.push(`/media/migrated/${filename}`);
       }
     } catch (err) {
@@ -1067,43 +1287,16 @@ export function parseGenericJSON(
 // ============================================================================
 
 /**
- * Master parser: auto-detects file content and routes to the correct platform-specific parser.
- * Returns an SNCEnvelope ready for the UCP ingestion pipeline.
+ * Master parser: delegates to parsers/index.ts for full platform coverage
+ * (WordPress, Drupal, 36+ CMS platforms, universal formats).
  */
-export function parseFileToSNC(
+export async function parseFileToSNC(
   rawText: string,
-  platform: SNCEnvelope["sourcePlatform"],
+  platform: SNCEnvelope["sourcePlatform"] | string,
   transactionToken: string,
-): SNCEnvelope | null {
-  switch (platform) {
-    case "contentful":
-      return parseContentfulExport(rawText, transactionToken);
-    case "sanity":
-      return parseSanityExport(rawText, transactionToken);
-    case "ghost":
-      return parseGhostExport(rawText, transactionToken);
-    case "webflow":
-      return parseWebflowExport(rawText, transactionToken);
-    case "shopify":
-      return parseShopifyExport(rawText, transactionToken);
-    case "storyblok":
-      return parseStoryblokExport(rawText, transactionToken);
-    case "prismic":
-      return parsePrismicExport(rawText, transactionToken);
-    // Generic JSON for Directus, Strapi, Payload, Dato, Hygraph, etc.
-    case "strapi":
-    case "directus":
-    case "payload":
-    case "dato":
-    case "hygraph":
-    case "contentstack":
-    case "kontent":
-    case "builder":
-      return parseGenericJSON(rawText, platform, transactionToken);
-    default:
-      // Fallback: try generic JSON
-      return parseGenericJSON(rawText, platform, transactionToken);
-  }
+): Promise<SNCEnvelope | null> {
+  const { parseFileToSNC: dispatchParse } = await import("./parsers/index");
+  return dispatchParse(rawText, platform, transactionToken);
 }
 
 // ============================================================================

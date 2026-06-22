@@ -571,3 +571,20 @@ export function getUserRoles(user: User, roles: Role[] = []): Role[] {
   const userRole = getUserRole(user, safeRoles);
   return userRole ? [userRole] : [];
 }
+
+/** Registered permission for Collection Builder create/edit operations */
+export const COLLECTION_BUILDER_PERMISSION_ID = "config:collectionbuilder";
+
+/**
+ * Check whether a user may create or edit collections (Collection Builder pipeline).
+ * Admins and users with `config:collectionbuilder` are allowed.
+ */
+export function hasCollectionBuilderPermission(
+  user: User | null | undefined,
+  roles: Role[] = [],
+  isAdmin = false,
+): boolean {
+  if (!user) return false;
+  if (isAdmin || user.isAdmin) return true;
+  return hasPermissionWithRoles(user, COLLECTION_BUILDER_PERMISSION_ID, roles);
+}

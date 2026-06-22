@@ -19,7 +19,6 @@
  */
 
 import { logger } from "@utils/logger";
-import { nowISODateString } from "@utils/date";
 
 interface CLIArgs {
   command: string;
@@ -56,7 +55,7 @@ export function parseCLIArgs(args: string[]): CLIArgs {
 /**
  * Main CLI entry point
  */
-export async function runMigrationCLI(_args: CLIArgs, dbAdapter?: any): Promise<void> {
+export async function runMigrationCLI(args: CLIArgs, dbAdapter?: any): Promise<void> {
   const startTime = Date.now();
 
   switch (args.command) {
@@ -73,7 +72,7 @@ export async function runMigrationCLI(_args: CLIArgs, dbAdapter?: any): Promise<
       await handleValidate(args);
       break;
     case "scaffold":
-      await handleScaffold(args);
+      await handleScaffold(args, dbAdapter);
       break;
     case "delta":
       await handleDelta(args);
@@ -99,37 +98,45 @@ async function handleImport(args: CLIArgs, dbAdapter?: any) {
   console.log(`📥 Importing ${args.file} (format: ${args.format}) → ${args.collection}...`);
 
   try {
-    const { parseFileToSNC, executeUCPIngestion } = await import("./index.server");
+    const { runMigrationImport } = await import("./import-runner");
+    const { getKnownMappingsForFormat } = await import("./known-mappings");
+    const { inferTargetCollectionFromMigration } = await import("./infer-collection");
+    const { parseFileToSNC } = await import("./index.server");
     const fs = await import("node:fs");
     const text = fs.readFileSync(args.file, "utf-8");
-    const txnToken = crypto.randomUUID?.() || `cli_${Date.now()}`;
-    const envelope = parseFileToSNC(text, args.format as any, txnToken);
+    const mappings = getKnownMappingsForFormat(args.format);
+    const envelope = await parseFileToSNC(text, args.format as never, "cli_import");
+    const targetCollection =
+      args.collection ||
+      inferTargetCollectionFromMigration({
+        format: args.format,
+        entries: envelope?.entries,
+      });
 
-    if (!envelope || envelope.entries.length === 0) {
-      console.error("❌ No entries found in file");
-      process.exit(1);
-    }
-
-    console.log(`📊 ${envelope.entries.length} entries detected`);
-
-    const result = await executeUCPIngestion(
+    const result = await runMigrationImport({
       dbAdapter,
-      envelope,
-      [],
-      args.collection,
-      {
-        importMedia: args.importMedia || false,
-        overwrite: args.overwrite || false,
-        batchSize: args.batchSize || 100,
-      },
-      (progress) => {
+      fileText: text,
+      format: args.format,
+      targetCollection,
+      licenseTier: "free",
+      mappingsRaw: mappings.length ? JSON.stringify(mappings) : null,
+      importMedia: args.importMedia ?? false,
+      onProgress: (progress) => {
         process.stdout.write(
           `\r   Progress: ${progress.current}/${progress.total} - ${progress.currentItem}`,
         );
       },
-    );
+    });
 
+    if (result.scaffold?.created) {
+      console.log(
+        `\n🏗 Created collection "${result.scaffold.collectionId}" (${result.scaffold.fieldCount} fields)`,
+      );
+    }
     console.log(`\n✅ Import complete: ${result.imported} imported, ${result.failed} failed`);
+    if (result.transactionToken) {
+      console.log(`   Transaction: ${result.transactionToken}`);
+    }
   } catch (err: any) {
     console.error(`❌ Import failed: ${err.message}`);
     process.exit(1);
@@ -192,7 +199,7 @@ async function handleValidate(args: CLIArgs) {
     const { parseFileToSNC } = await import("./index.server");
     const fs = await import("node:fs");
     const text = fs.readFileSync(args.file, "utf-8");
-    const envelope = parseFileToSNC(text, args.format as any, "validate");
+    const envelope = await parseFileToSNC(text, args.format as any, "validate");
 
     if (!envelope) {
       console.log("❌ Could not parse file");
@@ -215,49 +222,68 @@ async function handleValidate(args: CLIArgs) {
   }
 }
 
-async function handleScaffold(args: CLIArgs) {
+async function handleScaffold(args: CLIArgs, dbAdapter?: any) {
   if (!args.file || !args.format) {
     console.error("❌ scaffold requires --file and --format");
     process.exit(1);
   }
 
-  console.log(`🏗 Scaffolding collection from ${args.file}...`);
+  const { parseFileToSNC } = await import("./index.server");
+  const { inferTargetCollectionFromMigration } = await import("./infer-collection");
+  const fs = await import("node:fs");
+  const text = fs.readFileSync(args.file!, "utf-8");
+  const envelope = await parseFileToSNC(text, args.format as never, "cli_scaffold");
+  const collectionName =
+    args.collection ||
+    inferTargetCollectionFromMigration({
+      format: args.format!,
+      entries: envelope?.entries,
+    });
+  console.log(`🏗 Scaffolding collection "${collectionName}" from ${args.file}...`);
 
   try {
-    const { parseFileToSNC } = await import("./index.server");
-    const { scaffoldCollectionSchema } = await import("./delta-engine");
-    const fs = await import("node:fs");
-    const text = fs.readFileSync(args.file, "utf-8");
-    const envelope = parseFileToSNC(text, args.format as any, "scaffold");
+    const { getKnownMappingsForFormat } = await import("./known-mappings");
+    const {
+      buildCollectionSchemaFromMappings,
+      normalizeCollectionId,
+      provisionCollectionFromMappings,
+    } = await import("./collection-scaffold");
 
-    if (!envelope || envelope.entries.length === 0) {
-      console.log("❌ No entries found");
+    const mappings = getKnownMappingsForFormat(args.format);
+    if (!mappings.length) {
+      console.error(`❌ No default mappings for format "${args.format}"`);
+      process.exit(1);
+    }
+
+    if (dbAdapter) {
+      const result = await provisionCollectionFromMappings(
+        dbAdapter,
+        null,
+        collectionName,
+        mappings,
+        args.format,
+      );
+      console.log(
+        result.created
+          ? `✅ Created collection "${result.collectionId}" with ${result.fieldCount} fields`
+          : `ℹ️ Collection "${result.collectionId}" already exists (${result.fieldCount} fields)`,
+      );
+      if (result.filePath) console.log(`   File: ${result.filePath}`);
       return;
     }
 
-    // Extract all unique field names from entries
-    const allFields = new Set<string>();
-    for (const entry of envelope.entries.slice(0, 100)) {
-      for (const key of Object.keys(entry.rawCustomFields)) {
-        if (!key.startsWith("_")) allFields.add(key);
-      }
-    }
-
-    const schema = scaffoldCollectionSchema(
-      [...allFields],
-      envelope.sourcePlatform,
-      args.collection || `imported_${args.format}`,
-    );
-
-    console.log(`\n📋 Collection: ${schema.collectionName}`);
+    const collectionId = normalizeCollectionId(collectionName);
+    const schema = buildCollectionSchemaFromMappings(collectionId, mappings, args.format);
+    console.log(`\n📋 Collection: ${schema._id} (preview — pass dbAdapter to write)`);
     console.log("   Fields:");
     for (const field of schema.fields) {
       console.log(
-        `   - ${field.name} (${field.type})${field.required ? " *required" : ""} — ${field.label}`,
+        `   - ${field.name} (${field.widget.Name})${field.required ? " *required" : ""} — ${field.label}`,
       );
     }
   } catch (err: any) {
     console.error(`❌ Scaffold failed: ${err.message}`);
+    process.exit(1);
   }
 }
 
@@ -274,7 +300,7 @@ async function handleDelta(args: CLIArgs) {
     const { computeDelta } = await import("./delta-engine");
     const fs = await import("node:fs");
     const text = fs.readFileSync(args.file, "utf-8");
-    const envelope = parseFileToSNC(text, args.format as any, "delta");
+    const envelope = await parseFileToSNC(text, args.format as any, "delta");
 
     if (!envelope) {
       console.log("❌ Could not parse file");
@@ -290,7 +316,7 @@ async function handleDelta(args: CLIArgs) {
   }
 }
 
-async function handlePreset(args: CLIArgs) {
+async function handlePreset(_args: CLIArgs) {
   console.log("📦 Migration Presets:");
   console.log("   (Presets are saved via the visual wizard UI or API)");
   console.log("   Use --save to create, --list to view, --load to apply");

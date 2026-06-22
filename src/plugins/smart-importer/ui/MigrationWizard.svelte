@@ -1,5 +1,5 @@
 <!--
-  @file src/routes/(app)/config/migration/+page.svelte
+  @file src/plugins/smart-importer/ui/MigrationWizard.svelte
   @component
   **Smart AI-Driven Migration Pro — Visual Step Wizard**
 
@@ -28,6 +28,12 @@
   import Input from '@components/ui/input.svelte';
   import Progress from '@components/ui/progress.svelte';
   import StickyActions from '@components/ui/sticky-actions.svelte';
+  import { inferTargetCollectionFromMigration } from '@plugins/smart-importer/infer-collection';
+  import {
+    postDetectAction,
+    postDryRunAction,
+    postRollbackAction,
+  } from '@plugins/smart-importer/ui/migration-form-actions';
 
   // ============================================================================
   // Props & State
@@ -119,18 +125,25 @@
       const formData = new FormData();
       formData.set('file', f);
 
-      const response = await fetch('?/detect', { method: 'POST', body: formData });
-      const result = await response.json();
+      const data = await postDetectAction(formData);
 
-      if (result.success) {
-        detectedFormat = result.format;
-        estimatedCount = result.estimatedCount || 0;
-        fieldMappings = result.fieldMappings || [];
-        availableContentTypes = result.contentTypes || [];
+      if (data.success) {
+        detectedFormat = data.format || '';
+        estimatedCount = data.estimatedCount || 0;
+        fieldMappings = data.fieldMappings || [];
+        availableContentTypes = data.contentTypes || [];
         selectedContentTypes = new Set(availableContentTypes);
+        if (data.suggestedTargetCollection) {
+          targetCollection = data.suggestedTargetCollection;
+        } else {
+          targetCollection = inferTargetCollectionFromMigration({
+            format: detectedFormat,
+            contentTypes: availableContentTypes,
+          });
+        }
         logger.info(`Migration: detected "${detectedFormat}" with ${estimatedCount} items`);
       } else {
-        toast.error(result.error || 'Format detection failed');
+        toast.error(data.error || 'Format detection failed');
       }
     } catch (err) {
       toast.error('Failed to analyze file');
@@ -144,11 +157,21 @@
     fieldMappings = [];
   }
 
+  function syncTargetCollectionFromSelection() {
+    if (!detectedFormat || selectedContentTypes.size === 0) return;
+    targetCollection = inferTargetCollectionFromMigration({
+      format: detectedFormat,
+      contentTypes: availableContentTypes,
+      selectedContentTypes: [...selectedContentTypes],
+    });
+  }
+
   function toggleContentType(type: string) {
     const next = new Set(selectedContentTypes);
     if (next.has(type)) next.delete(type); else next.add(type);
     selectedContentTypes = next;
     selectAllContentTypes = next.size === availableContentTypes.length;
+    syncTargetCollectionFromSelection();
   }
 
   function toggleAllContentTypes() {
@@ -159,6 +182,7 @@
       selectedContentTypes = new Set(availableContentTypes);
       selectAllContentTypes = true;
     }
+    syncTargetCollectionFromSelection();
   }
 
   // ============================================================================
@@ -188,18 +212,17 @@
       const formData = new FormData();
       formData.set('file', file);
       formData.set('format', detectedFormat);
-      formData.set('targetCollection', targetCollection || 'imported_content');
+      formData.set('targetCollection', targetCollection);
       formData.set('contentTypes', JSON.stringify([...selectedContentTypes]));
       formData.set('mappings', JSON.stringify(fieldMappings));
 
-      const response = await fetch('?/dryRun', { method: 'POST', body: formData });
-      const result = await response.json();
+      const data = await postDryRunAction(formData);
 
-      if (result.success) {
-        toast.success(`Dry run: ${result.estimatedItems} items would be imported`);
+      if (data.success) {
+        toast.success(`Dry run: ${data.estimatedItems} items would be imported`);
         goToStep(4);
       } else {
-        toast.error(result.error || 'Validation failed');
+        toast.error(data.error || 'Validation failed');
       }
     } catch (err) {
       toast.error('Dry run failed');
@@ -223,28 +246,61 @@
       const formData = new FormData();
       formData.set('file', file);
       formData.set('format', detectedFormat);
-      formData.set('targetCollection', targetCollection || 'imported_content');
+      formData.set('targetCollection', targetCollection);
       formData.set('contentTypes', JSON.stringify([...selectedContentTypes]));
       formData.set('mappings', JSON.stringify(fieldMappings));
 
-      // Connect SSE stream for progress
-      const sseToken = crypto.randomUUID?.() || `sse_${Date.now()}`;
-      addLog('info', 'Starting import...');
+      addLog('info', 'Starting import (SSE stream)...');
 
-      const response = await fetch('?/import', { method: 'POST', body: formData });
-      const result = await response.json();
+      const response = await fetch('/api/migration/import', { method: 'POST', body: formData });
+      if (!response.ok) {
+        const errText = await response.text();
+        addLog('error', errText || `HTTP ${response.status}`);
+        toast.error(errText || 'Import failed');
+        return;
+      }
 
-      if (result.success) {
-        importResult = result;
-        transactionToken = result.transactionToken || '';
-        importPercent = 100;
-        importPhase = 'Complete';
-        addLog('success', `Import complete: ${result.imported || 0} imported, ${result.failed || 0} failed`);
-        toast.success(`Import complete! ${result.imported || 0} items imported`);
-        goToStep(5);
-      } else {
-        addLog('error', `Import failed: ${result.error}`);
-        toast.error(result.error || 'Import failed');
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response stream');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split('\n\n');
+        buffer = blocks.pop() || '';
+
+        for (const block of blocks) {
+          const line = block.trim();
+          if (!line.startsWith('data: ')) continue;
+
+          const payload = JSON.parse(line.slice(6));
+
+          if (payload.type === 'progress') {
+            importPhase = payload.phase || 'processing';
+            importCurrent = payload.current ?? importCurrent;
+            importTotal = payload.total ?? importTotal;
+            importPercent = payload.percent ?? (importTotal > 0 ? (importCurrent / importTotal) * 100 : 0);
+          } else if (payload.type === 'complete') {
+            importResult = payload;
+            transactionToken = payload.transactionToken || '';
+            importPercent = 100;
+            importPhase = 'completed';
+            if (payload.scaffold?.collectionId) {
+              targetCollection = payload.scaffold.collectionId;
+            }
+            addLog('success', `Import complete: ${payload.imported || 0} imported, ${payload.failed || 0} failed`);
+            toast.success(`Import complete! ${payload.imported || 0} items imported`);
+            goToStep(5);
+          } else if (payload.type === 'error') {
+            addLog('error', payload.error || 'Import failed');
+            toast.error(payload.error || 'Import failed');
+          }
+        }
       }
     } catch (err: any) {
       addLog('error', `Error: ${err.message}`);
@@ -268,16 +324,15 @@
       const formData = new FormData();
       formData.set('transactionToken', transactionToken);
 
-      const response = await fetch('?/rollback', { method: 'POST', body: formData });
-      const result = await response.json();
+      const data = await postRollbackAction(formData);
 
-      if (result.success) {
+      if (data.success) {
         toast.success('Migration rolled back successfully');
         importResult = null;
         transactionToken = '';
         step = 2; // Go back to mapping
       } else {
-        toast.error(result.message || 'Rollback failed');
+        toast.error(data.message || data.error || 'Rollback failed');
       }
     } catch (err) {
       toast.error('Rollback failed');
@@ -436,7 +491,7 @@
 
             <!-- Target Collection -->
             <div class="mt-4">
-              <Input label="Target Collection" type="text" placeholder="e.g. posts, articles, imported_content" bind:value={targetCollection} />
+              <Input label="Target Collection" type="text" placeholder="Auto-detected from source content type (e.g. post, page)" bind:value={targetCollection} />
             </div>
 
             <div class="mt-5 flex justify-end">
@@ -554,7 +609,7 @@
               {importResult ? 'Import Complete!' : 'Ready to Import'}
             </h3>
             <p class="mt-1 text-sm text-surface-500">
-              {estimatedCount.toLocaleString()} entries → {targetCollection || 'imported_content'}
+              {estimatedCount.toLocaleString()} entries → {targetCollection || 'detecting…'}
             </p>
           </div>
 

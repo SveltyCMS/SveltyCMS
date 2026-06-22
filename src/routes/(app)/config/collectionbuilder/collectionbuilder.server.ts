@@ -9,7 +9,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import { error, fail } from "@sveltejs/kit";
 import { contentSystem } from "@src/content/index.server";
-import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import path from "node:path";
 import fs from "node:fs";
@@ -31,9 +31,9 @@ export interface UpsertOperation {
 }
 
 function requirePermission(event: RequestEvent) {
-  const { user, roles: tenantRoles } = event.locals as any;
+  const { user, roles: tenantRoles, isAdmin } = event.locals as any;
   if (!user) throw error(401, "Authentication required");
-  if (!hasPermissionWithRoles(user, "config:collectionbuilder", tenantRoles))
+  if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin))
     throw error(403, "Insufficient permissions");
 }
 

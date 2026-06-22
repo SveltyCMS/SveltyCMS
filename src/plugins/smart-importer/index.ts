@@ -127,11 +127,22 @@ export const smartImporterPlugin: Plugin = {
     slots: [
       {
         id: "migration-config-tile",
-        zone: "config",
+        zone: "config_grid",
         position: 15,
         component: () => import("./ui/ConfigTile.svelte").then((m) => m.default as any),
         permissions: ["admin", "developer"],
-        condition: (ctx: any) => ctx?.isEnabled?.("smart-importer") ?? true,
+        props: { pluginId: "smart-importer" },
+        condition: (ctx: { pluginStates?: Record<string, boolean> }) =>
+          ctx?.pluginStates?.["smart-importer"] ?? true,
+      },
+      {
+        id: "migration-workspace",
+        zone: "plugin_workspace",
+        position: 0,
+        component: () => import("./ui/MigrationWizard.svelte").then((m) => m.default as any),
+        server: () => import("./migration-page.server"),
+        permissions: ["admin", "developer"],
+        condition: (ctx: { activePluginId?: string }) => ctx?.activePluginId === "smart-importer",
       },
     ],
   },

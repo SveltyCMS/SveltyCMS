@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+	import '@src/plugins/index';
 	import { slotRegistry } from '@src/plugins/slot-registry';
 	import type { InjectionZone } from '@src/plugins/types';
 
@@ -14,9 +15,11 @@
 	interface Props {
 		name: InjectionZone;
 		props?: Record<string, any>; // Context props passed to the slotted component
+		/** When true, omit block wrappers so slots participate in parent CSS grid/flex */
+		inline?: boolean;
 	}
 
-	const { name, props = {} }: Props = $props();
+	const { name, props = {}, inline = false }: Props = $props();
 
 	// In a real implementation, this would be reactive to registry changes if we had a comprehensive store.
 	// For now, we fetch on mount/reactivity.
@@ -29,9 +32,9 @@
 	const slots = $derived(slotRegistry.getSlots(name).filter(slot => !slot.condition || slot.condition(props)));
 </script>
 
-<div class="slot-zone" data-zone={name}>
+<div class={inline ? 'contents' : 'slot-zone'} data-zone={name}>
 	{#each slots as slot (slot.id)}
-		<div class="slot-item mb-4 last:mb-0">
+		<div class={inline ? 'contents' : 'slot-item mb-4 last:mb-0'}>
 			{#await slot.component()}
 				<div class="h-20 w-full animate-pulse rounded bg-surface-100 dark:bg-surface-800"></div>
 			{:then Component}

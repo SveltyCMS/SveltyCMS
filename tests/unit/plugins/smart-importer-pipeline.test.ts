@@ -7,7 +7,7 @@
  * without requiring a real database connection.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // ============================================================================
 // In-Memory Mock DB Adapter (simulates SQLite/MongoDB behavior)
@@ -245,10 +245,20 @@ describe("UCP Pipeline — End-to-End", () => {
   });
 
   // ── 5. Schema Scaffolding ──
-  it("scaffolds collection from source fields", async () => {
-    const { scaffoldCollectionSchema } = await import("@plugins/smart-importer/delta-engine");
-    const s = scaffoldCollectionSchema(["title", "body"], "wp", "test");
-    expect(s.collectionName).toBe("test");
+  it("scaffolds collection from field mappings via collection-scaffold", async () => {
+    const { buildCollectionSchemaFromMappings } =
+      await import("@plugins/smart-importer/collection-scaffold");
+    const schema = buildCollectionSchemaFromMappings(
+      "test",
+      [
+        { source: "post_title", target: "title", type: "text" },
+        { source: "content:encoded", target: "content", type: "richtext" },
+      ],
+      "wordpress",
+    );
+    expect(schema._id).toBe("test");
+    expect(schema.fields.some((f) => f.name === "title")).toBe(true);
+    expect(schema.fields.some((f) => f.name === "content")).toBe(true);
   });
 
   // ── 6. PII Scrubbing ──
@@ -347,7 +357,416 @@ describe("UCP Pipeline — End-to-End", () => {
     globalThis.fetch = originalFetch;
   });
 
-  // ── 10. Smart Defaults ──
+  // ── 10. Unified Parser (index.server → parsers/index) ──
+  it("routes WordPress WXR through index.server parseFileToSNC", async () => {
+    const { parseFileToSNC } = await import("@plugins/smart-importer/index.server");
+    const envelope = await parseFileToSNC(WORDPRESS_WXR_FIXTURE, "wordpress", "txn_unified");
+    expect(envelope).not.toBeNull();
+    expect(envelope!.sourcePlatform).toBe("wordpress");
+    expect(envelope!.entries.length).toBeGreaterThanOrEqual(2);
+    expect(envelope!.entries[0].title).toBe("Hello World");
+  });
+
+  // ── 11. Wizard Mappings Flow Into Ingestion ──
+  it("applies wizard field mappings via source aliases during ingestion", async () => {
+    const { parseWordPressWXR } = await import("@plugins/smart-importer/parsers/wordpress");
+    const { executeUCPIngestion, wizardMappingsToFieldMappings } =
+      await import("@plugins/smart-importer/index.server");
+
+    const envelope = parseWordPressWXR(WORDPRESS_WXR_FIXTURE, "txn_mappings");
+    const mappings = wizardMappingsToFieldMappings([
+      { source: "post_title", target: "headline", confidence: 95, type: "text" },
+      { source: "content:encoded", target: "body", confidence: 90, type: "richtext" },
+    ]);
+
+    const result = await executeUCPIngestion(db, envelope!, mappings, "posts", {
+      importMedia: false,
+      overwrite: false,
+      batchSize: 50,
+    });
+    expect(result.imported).toBe(2);
+
+    const allEntries = await db.crud.findMany("posts", {});
+    const post1 = allEntries.data.find((e: any) => e.slug === "hello-world");
+    expect(post1.headline).toBe("Hello World");
+    expect(post1.body).toContain("Welcome to the first post");
+  });
+
+  // ── 12. Content Type Filtering ──
+  it("filters WordPress entries by selected content types", async () => {
+    const { parseWordPressWXR } = await import("@plugins/smart-importer/parsers/wordpress");
+    const { applyImportFilters } = await import("@plugins/smart-importer/control-plane");
+
+    const envelope = parseWordPressWXR(WORDPRESS_WXR_FIXTURE, "txn_filter")!;
+    const { filtered } = applyImportFilters(envelope, { contentTypes: ["post"] });
+    expect(filtered.entries).toHaveLength(1);
+    expect(filtered.entries[0].title).toBe("Hello World");
+  });
+
+  // ── 13. Dependency ordering + stub resolution ──
+  it("orders parent entries before children", async () => {
+    const { orderEntriesForIngestion } = await import("@plugins/smart-importer/index.server");
+
+    const entries = [
+      { ...createMockEntry("child", "Child", "child", "c"), parentExternalId: "parent" },
+      createMockEntry("parent", "Parent", "parent", "p"),
+    ];
+
+    const { ordered } = await orderEntriesForIngestion(entries);
+    expect(ordered[0].externalId).toBe("parent");
+    expect(ordered[1].externalId).toBe("child");
+  });
+
+  it("resolves parent stubs before child insert", async () => {
+    const { executeUCPIngestion } = await import("@plugins/smart-importer/index.server");
+
+    const envelope = {
+      sourcePlatform: "wordpress" as const,
+      version: "1.0",
+      transactionToken: "txn_stub_test",
+      entries: [
+        { ...createMockEntry("2", "Child Page", "child", "child body"), parentExternalId: "1" },
+        createMockEntry("1", "Parent Page", "parent", "parent body"),
+      ],
+    };
+
+    const result = await executeUCPIngestion(db, envelope, [], "posts", {
+      importMedia: false,
+      overwrite: false,
+      batchSize: 10,
+      resolveStubs: true,
+    });
+
+    expect(result.imported).toBe(2);
+    const parent = (await db.crud.findOne("posts", { _externalId: "1" })).data;
+    const child = (await db.crud.findOne("posts", { _externalId: "2" })).data;
+    expect(parent).toBeDefined();
+    expect(child?.parentId).toBe(parent?._id);
+  });
+
+  // ── 14. Import Options (wizard → control-plane) ──
+  it("parses wizard import options into control-plane filters", async () => {
+    const { parseWizardImportOptions, wizardOptionsToImportFilter } =
+      await import("@plugins/smart-importer/import-options");
+
+    expect(parseWizardImportOptions(null)).toEqual({});
+    expect(parseWizardImportOptions("not-json")).toEqual({});
+
+    const options = parseWizardImportOptions(
+      JSON.stringify({
+        contentTypes: ["post"],
+        createdAfter: "2024-01-01",
+        statuses: ["published", "draft"],
+        sampleType: "first",
+        sampleCount: 5,
+        deltaMode: true,
+      }),
+    );
+
+    const filter = wizardOptionsToImportFilter(options);
+    expect(filter.contentTypes).toEqual(["post"]);
+    expect(filter.createdAfter).toBe("2024-01-01");
+    expect(filter.statuses).toEqual(["published", "draft"]);
+    expect(filter.sample).toEqual({ type: "first", count: 5 });
+    expect(filter).not.toHaveProperty("deltaMode");
+  });
+
+  // ── 15. Schema Diff Preview ──
+  it("computes schema diff between existing collection and proposed mappings", async () => {
+    const { computeSchemaDiffReport } = await import("@plugins/smart-importer/schema-preview");
+
+    const existingSchema = {
+      fields: [
+        { name: "title", widget: { Name: "text" } },
+        { name: "content", widget: { Name: "richtext" } },
+        { name: "legacyField", widget: { Name: "text" } },
+      ],
+    } as any;
+
+    const diff = computeSchemaDiffReport(existingSchema, [
+      { source: "post_title", target: "headline", type: "text" },
+      { source: "body", target: "content", type: "richtext" },
+      { source: "old", target: "legacyField", type: "number", action: "ignore" },
+    ]);
+
+    expect(diff.collectionExists).toBe(true);
+    expect(diff.proposedFieldCount).toBeGreaterThan(0);
+    expect(diff.additions.some((a) => a.fieldName === "headline")).toBe(true);
+    expect(diff.deletions.some((d) => d.fieldName === "legacyField")).toBe(true);
+  });
+
+  // ── 16. Delta State Persistence ──
+  it("loads, saves, and rebuilds delta state across imports", async () => {
+    const { loadDeltaState, saveDeltaState, buildDeltaStateFromImport, computeDelta } =
+      await import("@plugins/smart-importer/delta-engine");
+
+    const entries = [
+      { ...createMockEntry("1", "Hello", "hello", "v1"), updatedAt: "2024-01-01T00:00:00Z" },
+      { ...createMockEntry("2", "About", "about", "v1"), updatedAt: "2024-02-01T00:00:00Z" },
+    ];
+
+    const envelope = {
+      sourcePlatform: "wordpress" as const,
+      version: "1.0",
+      transactionToken: "txn_delta_1",
+      entries,
+    };
+
+    const firstRun = buildDeltaStateFromImport("posts", "wordpress", "txn_delta_1", entries, null);
+    await saveDeltaState(db, firstRun);
+
+    const loaded = await loadDeltaState(db, "posts", "wordpress");
+    expect(loaded?.importedCount).toBe(2);
+    expect(loaded?.checksums["1"]).toBeDefined();
+
+    const unchanged = computeDelta(envelope, loaded);
+    expect(unchanged.skipped).toBe(2);
+    expect(unchanged.delta).toHaveLength(0);
+
+    const changedEnvelope = {
+      ...envelope,
+      entries: [{ ...entries[0], content: "v2 updated" }, entries[1]],
+    };
+    const secondPass = computeDelta(changedEnvelope, loaded);
+    expect(secondPass.changed).toBe(1);
+    expect(secondPass.skipped).toBe(1);
+  });
+
+  // ── 17. prepareMigrationEnvelope filters + delta gating ──
+  it("prepareMigrationEnvelope applies content-type filters", async () => {
+    const { prepareMigrationEnvelope } = await import("@plugins/smart-importer/import-runner");
+
+    const prepared = await prepareMigrationEnvelope(
+      WORDPRESS_WXR_FIXTURE,
+      "wordpress",
+      "txn_prepare_filter",
+      JSON.stringify({ contentTypes: ["post"] }),
+      null,
+      db,
+      "posts",
+      "free",
+    );
+
+    expect(prepared?.envelope.entries).toHaveLength(1);
+    expect(prepared?.envelope.entries[0].title).toBe("Hello World");
+    expect(prepared?.filterReport?.excluded).toBe(1);
+  });
+
+  it("rejects delta mode without Pro license", async () => {
+    const { prepareMigrationEnvelope, MigrationDeltaError } =
+      await import("@plugins/smart-importer/import-runner");
+
+    await expect(
+      prepareMigrationEnvelope(
+        WORDPRESS_WXR_FIXTURE,
+        "wordpress",
+        "txn_delta_gate",
+        JSON.stringify({ deltaMode: true }),
+        null,
+        db,
+        "posts",
+        "free",
+      ),
+    ).rejects.toBeInstanceOf(MigrationDeltaError);
+  });
+
+  // ── 18. Media Optimization ──
+  it("optimizeMedia returns buffer via sharp or graceful fallback", async () => {
+    const { optimizeMedia } = await import("@plugins/smart-importer/utils/media-optimize");
+    const tinyPng = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+    const result = await optimizeMedia(tinyPng.buffer, "pixel.png");
+    expect(result.optimized.byteLength).toBeGreaterThan(0);
+    expect(result.format).toBeTruthy();
+  });
+
+  it("persistMigratedAsset saves thumbnails via saveResizedImages", async () => {
+    const storage = await import("@src/utils/media/media-storage.server");
+    const processing = await import("@src/utils/media/media-processing.server");
+
+    const saveFileSpy = vi.spyOn(storage, "saveFile").mockResolvedValue("/files/test");
+    const saveResizedSpy = vi.spyOn(storage, "saveResizedImages").mockResolvedValue({
+      sm: {
+        url: "/files/migrated/sm/photo.webp",
+        width: 600,
+        height: 400,
+        mimeType: "image/webp",
+        size: 1200,
+      },
+    });
+    const hashSpy = vi.spyOn(processing, "hashFileContent").mockResolvedValue("abc123hash");
+
+    const { persistMigratedAsset } =
+      await import("@plugins/smart-importer/utils/migrated-media.server");
+    const tinyPng = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+
+    const mediaId = await persistMigratedAsset(db, {
+      buffer: Buffer.from(tinyPng),
+      filename: "photo.jpg",
+      mimeType: "image/jpeg",
+      altText: "Test photo",
+    });
+
+    expect(mediaId).toBeTruthy();
+    expect(saveFileSpy).toHaveBeenCalled();
+    expect(saveResizedSpy).toHaveBeenCalled();
+
+    saveFileSpy.mockRestore();
+    saveResizedSpy.mockRestore();
+    hashSpy.mockRestore();
+  });
+
+  it("optimizeMedia converts JPG to AVIF when CMS format is avif", async () => {
+    const { updatePublicEnv } = await import("@src/stores/global-settings.svelte");
+    const { optimizeMedia, getMediaOutputFormatSettings } =
+      await import("@plugins/smart-importer/utils/media-optimize");
+
+    updatePublicEnv("MEDIA_OUTPUT_FORMAT_QUALITY", { format: "avif", quality: 85 });
+    expect(getMediaOutputFormatSettings()).toEqual({ convertTo: "avif", quality: 85 });
+
+    const tinyPng = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+    const result = await optimizeMedia(tinyPng.buffer, "photo.jpg");
+    expect(result.format).toBe("avif");
+  });
+
+  // ── 19. PII Scrubbing During Ingestion ──
+  it("scrubs PII from payloads when scrubPii option is enabled", async () => {
+    const { executeUCPIngestion } = await import("@plugins/smart-importer/index.server");
+
+    const envelope = {
+      sourcePlatform: "wordpress" as const,
+      version: "1.0",
+      transactionToken: "txn_pii",
+      entries: [
+        {
+          ...createMockEntry("1", "Contact", "contact", "Reach us at john@example.com"),
+          rawCustomFields: { contact_email: "john@example.com" },
+        },
+      ],
+    };
+
+    await executeUCPIngestion(
+      db,
+      envelope,
+      [{ sourceField: "contact_email", targetField: "contactEmail", action: "map" }],
+      "posts",
+      { importMedia: false, overwrite: false, scrubPii: true },
+    );
+
+    const saved = (await db.crud.findOne("posts", { _externalId: "1" })).data;
+    expect(saved?.contactEmail).toBe("[REDACTED]");
+  });
+
+  // ── 20. Background Job Queue ──
+  it("background job queue completes ingestion", async () => {
+    const { importJobQueue } = await import("@plugins/smart-importer/job-queue");
+
+    const entries = [
+      createMockEntry("j1", "Job Post 1", "job-1", "one"),
+      createMockEntry("j2", "Job Post 2", "job-2", "two"),
+    ];
+    const envelope = {
+      sourcePlatform: "wordpress" as const,
+      version: "1.0",
+      transactionToken: "txn_job_complete",
+      entries,
+    };
+
+    const job = importJobQueue.enqueue(envelope, [], "posts", db, {
+      importMedia: false,
+      overwrite: false,
+      batchSize: 10,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Job timed out")), 5000);
+      const unsubscribe = importJobQueue.subscribe((updated) => {
+        if (updated.id !== job.id) return;
+        if (updated.status === "completed") {
+          clearTimeout(timeout);
+          unsubscribe();
+          resolve();
+        } else if (updated.status === "failed") {
+          clearTimeout(timeout);
+          unsubscribe();
+          reject(new Error(updated.error || "Job failed"));
+        }
+      });
+    });
+
+    const final = importJobQueue.getStatus(job.id);
+    expect(final?.status).toBe("completed");
+    expect(final?.importedCount).toBe(2);
+
+    const all = await db.crud.findMany("posts", { _transactionToken: "txn_job_complete" });
+    expect(all.data).toHaveLength(2);
+  });
+
+  it("rejects PII scrubbing without Pro license", async () => {
+    const { prepareMigrationEnvelope, MigrationPiiError } =
+      await import("@plugins/smart-importer/import-runner");
+
+    await expect(
+      prepareMigrationEnvelope(
+        WORDPRESS_WXR_FIXTURE,
+        "wordpress",
+        "txn_pii_gate",
+        JSON.stringify({ scrubPii: true }),
+        null,
+        db,
+        "posts",
+        "free",
+      ),
+    ).rejects.toBeInstanceOf(MigrationPiiError);
+  });
+
+  // ── 21. Smart Defaults ──
+  it("auto-provisions collection before import when mappings are provided", async () => {
+    const { runMigrationImport } = await import("@plugins/smart-importer/import-runner");
+    const scaffoldMod = await import("@plugins/smart-importer/collection-scaffold");
+    const provisionSpy = vi
+      .spyOn(scaffoldMod, "ensureTargetCollectionProvisioned")
+      .mockResolvedValue({
+        created: true,
+        collectionId: "wp_import_test",
+        fieldCount: 8,
+        filePath: "/tmp/wp_import_test.ts",
+      });
+
+    const result = await runMigrationImport({
+      dbAdapter: db,
+      fileText: WORDPRESS_WXR_FIXTURE,
+      format: "wordpress",
+      targetCollection: "wp_import_test",
+      licenseTier: "free",
+      mappingsRaw: JSON.stringify([
+        { source: "post_title", target: "title", type: "text", confidence: 95 },
+        { source: "content:encoded", target: "content", type: "richtext", confidence: 90 },
+      ]),
+    });
+
+    expect(provisionSpy).toHaveBeenCalled();
+    expect(result.scaffold?.created).toBe(true);
+    expect(result.scaffold?.collectionId).toBe("wp_import_test");
+    expect(result.imported).toBeGreaterThan(0);
+
+    provisionSpy.mockRestore();
+  });
+
   it("generates smart defaults from sample entries", async () => {
     const { generateSmartDefaults } = await import("@plugins/smart-importer/ai-co-pilot");
 

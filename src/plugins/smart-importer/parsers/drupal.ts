@@ -193,7 +193,12 @@ export function parseDrupalYAML(yamlText: string, transactionToken: string): SNC
       entries.push(buildDrupalSNCEntry(current, transactionToken));
     }
 
-    return { sourcePlatform: "drupal", version: "1.0", transactionToken, entries };
+    return {
+      sourcePlatform: "drupal",
+      version: "1.0",
+      transactionToken,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -218,7 +223,12 @@ export function parseDrupalCSV(csvText: string, transactionToken: string): SNCEn
       entries.push(buildDrupalSNCEntry(raw, transactionToken));
     }
 
-    return { sourcePlatform: "drupal", version: "1.0", transactionToken, entries };
+    return {
+      sourcePlatform: "drupal",
+      version: "1.0",
+      transactionToken,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -247,7 +257,7 @@ function extractDrupalBody(attrs: Record<string, any>): string {
   return attrs.body || "";
 }
 
-function buildDrupalSNCEntry(raw: Record<string, any>, transactionToken: string): SNCEntry {
+function buildDrupalSNCEntry(raw: Record<string, any>, _transactionToken: string): SNCEntry {
   const itemId = String(raw.uuid || raw.nid || raw.id || raw._id || `drupal_${Date.now()}`);
 
   const entry: SNCEntry = {

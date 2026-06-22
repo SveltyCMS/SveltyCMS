@@ -170,8 +170,20 @@ export interface PluginUIContribution {
     sidebar?: any[]; // Svelte components
   };
 
-  /** UI slots for injection zones (config, dashboard, sidebar, etc.) */
+  /** UI slots for injection zones (config, dashboard, sidebar, plugin_workspace, etc.) */
   slots?: PluginSlot[];
+}
+
+/** Server handlers exported by a plugin workspace slot module */
+export interface PluginServerModule {
+  actions?: Record<
+    string,
+    (event: {
+      request: Request;
+      locals: Record<string, unknown>;
+      params: Record<string, string>;
+    }) => Promise<Record<string, unknown>>
+  >;
 }
 
 // Injection Zones for Slot System
@@ -184,6 +196,7 @@ export type InjectionZone =
   | "entry_edit_header" // Entry editor header
   | "config" // System configuration page
   | "config_grid" // Config page icon grid (additional tiles)
+  | "plugin_workspace" // Fullscreen plugin GUI overlay (slot-driven, no routes)
   | "collection_builder" // Collection builder page
   | "media_gallery" // Media gallery page
   | "media_gallery_toolbar" // Media gallery toolbar
@@ -199,9 +212,13 @@ export interface PluginSlot {
   component: () => Promise<any>; // Lazy loaded Svelte component
   condition?: (context: any) => boolean; // Optional condition to show/hide slot
   id: string;
+  /** Owning plugin id (set automatically during registration) */
+  pluginId?: string;
   permissions?: string[]; // RBAC roles
   position?: number;
   props?: Record<string, any>;
+  /** Server module for `/api/plugins/[pluginId]` action delegation */
+  server?: () => Promise<PluginServerModule>;
   zone: InjectionZone;
 }
 

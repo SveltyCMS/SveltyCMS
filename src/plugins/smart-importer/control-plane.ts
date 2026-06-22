@@ -12,9 +12,8 @@
  * 7. Dry-Run Diff:     show exact changes without writing
  */
 
-import type { SNCEnvelope, SNCEntry, FieldMapping } from "./types";
+import type { SNCEnvelope, SNCEntry } from "./types";
 import { logger } from "@utils/logger";
-import { nowISODateString } from "@utils/date";
 
 // ============================================================================
 // 1. Smart Filter Builder
@@ -423,7 +422,11 @@ export function resolvePerField(
 
 export interface PreviewDiff {
   /** Entries that would be created (don't exist in target) */
-  created: Array<{ externalId: string; title: string; preview: Record<string, string> }>;
+  created: Array<{
+    externalId: string;
+    title: string;
+    preview: Record<string, string>;
+  }>;
   /** Entries that would be updated (exist in target) */
   updated: Array<{
     externalId: string;
@@ -480,7 +483,11 @@ export async function generatePreview(
       const existingData = existing.data;
 
       if (existingData.title !== entry.title) {
-        changes.push({ field: "title", existing: existingData.title, incoming: entry.title });
+        changes.push({
+          field: "title",
+          existing: existingData.title,
+          incoming: entry.title,
+        });
       }
       if (existingData.content !== entry.content) {
         changes.push({
@@ -491,7 +498,11 @@ export async function generatePreview(
       }
 
       if (changes.length > 0) {
-        preview.updated.push({ externalId: entry.externalId, title: entry.title, changes });
+        preview.updated.push({
+          externalId: entry.externalId,
+          title: entry.title,
+          changes,
+        });
         preview.summary.update++;
       } else {
         preview.skipped.push({

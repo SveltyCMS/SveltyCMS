@@ -59,6 +59,7 @@ import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import Button from "@components/ui/button.svelte";
 import StickyActions from "@components/ui/sticky-actions.svelte";
 import AdminPageShell from "@components/admin-page-shell.svelte";
+import Slot from "@components/system/slot.svelte";
 import AdminCard from "@components/admin-card.svelte";
 // Logger
 import { logger } from "@utils/logger";
@@ -683,4 +684,6 @@ function modalLoadPreset(): void {
 {:else}
 	<EmptyState onAddCollection={handleAddCollectionClick} onAddCategory={() => modalAddCategory()} onLoadPreset={modalLoadPreset} onQuickStart={modalQuickStart} />
 {/if}
+
+<Slot name="collection_builder" />
 </AdminPageShell>

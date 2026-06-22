@@ -92,4 +92,32 @@ export const migrations: PluginMigration[] = [
       }
     },
   },
+  {
+    id: "004_create_importer_delta",
+    pluginId: "smart-importer",
+    version: 4,
+    description: "Creates plugin_importer_delta for incremental import highwater marks",
+    up: async (dbAdapter) => {
+      try {
+        await dbAdapter.collection.createModel({
+          _id: "plugin_importer_delta",
+          name: "plugin_importer_delta",
+          slug: "plugin_importer_delta",
+          fields: [
+            { label: "Collection", name: "collection", type: "text", required: true },
+            { label: "Source Platform", name: "sourcePlatform", type: "text", required: true },
+            { label: "Last Highwater", name: "lastHighwater", type: "text" },
+            { label: "Imported Count", name: "importedCount", type: "number", defaultValue: 0 },
+            { label: "Last Import Token", name: "lastImportToken", type: "text" },
+            { label: "Checksums JSON", name: "checksumsJson", type: "text" },
+            { label: "Updated At", name: "updatedAt", type: "text" },
+          ],
+          status: "publish",
+        } as any);
+        logger.info("[SmartImporter] Provisioned plugin_importer_delta.");
+      } catch (err) {
+        logger.error("[SmartImporter] Failed to provision delta state:", err);
+      }
+    },
+  },
 ];
