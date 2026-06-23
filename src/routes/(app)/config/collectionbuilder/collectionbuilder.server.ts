@@ -87,21 +87,47 @@ export async function installPreset(event: RequestEvent, presetId: string) {
 
   if (!presetId || presetId === "blank") return fail(400, { message: "Invalid preset ID" });
 
-  const presetDir = path.resolve(process.cwd(), "src", "presets", presetId);
-  const expectedBase = path.resolve(process.cwd(), "src", "presets");
+  // Use presets.ts data — single source of truth for all preset definitions
+  const { PRESETS } = await import("@src/routes/setup/presets");
+  const preset = PRESETS.find((p) => p.id === presetId);
 
-  if (!presetDir.startsWith(expectedBase) || !fs.existsSync(presetDir))
-    return fail(404, { message: "Preset not found" });
+  if (!preset || !preset.collections || preset.collections.length === 0) {
+    return fail(404, {
+      message: `No collections defined for preset "${presetId}"`,
+    });
+  }
 
-  const targetDir = tenantId
+  const collectionsDir = tenantId
     ? path.resolve(process.cwd(), "config", tenantId, "collections")
     : path.resolve(process.cwd(), "config", "collections");
 
-  fs.mkdirSync(targetDir, { recursive: true });
-  fs.cpSync(presetDir, targetDir, { recursive: true, force: true });
+  fs.mkdirSync(collectionsDir, { recursive: true });
+
+  const created: string[] = [];
+  for (const collection of preset.collections) {
+    const tsContent = generateCollectionTemplate(collection);
+    const filePath = path.join(collectionsDir, `${collection.name}.ts`);
+    fs.writeFileSync(filePath, tsContent, "utf-8");
+    created.push(collection.name);
+    logger.info(`Created collection template: ${collection.name}`);
+  }
+
+  // Compile the new .ts files so the content system can load them
+  const { compile } = await import("@src/utils/compilation/compile");
+  const compiledDir = tenantId
+    ? path.resolve(process.cwd(), ".compiledCollections", tenantId)
+    : path.resolve(process.cwd(), ".compiledCollections");
+  await compile({
+    userCollections: collectionsDir,
+    compiledCollections: compiledDir,
+  });
 
   await contentSystem.refresh(tenantId);
-  return { success: true, message: `Preset ${presetId} installed` };
+  return {
+    success: true,
+    message: `Created ${created.length} collections: ${created.join(", ")}`,
+    collections: created,
+  };
 }
 
 /**
@@ -141,6 +167,16 @@ export async function installTemplateCollections(event: RequestEvent, presetId: 
     logger.info(`Created collection template: ${collection.name}`);
   }
 
+  // Compile the new .ts files to .compiledCollections/ so the content system can load them
+  const { compile } = await import("@src/utils/compilation/compile");
+  const compiledDir = tenantId
+    ? path.resolve(process.cwd(), ".compiledCollections", tenantId)
+    : path.resolve(process.cwd(), ".compiledCollections");
+  await compile({
+    userCollections: collectionsDir,
+    compiledCollections: compiledDir,
+  });
+
   // Trigger content system refresh to pick up the new collections
   await contentSystem.refresh(tenantId);
 
@@ -172,21 +208,23 @@ function generateCollectionTemplate(collection: {
   const fieldEntries = collection.fields
     .map((f) => {
       const parts: string[] = [];
-      parts.push(`      ${f.db_fieldName}: widgets.${f.widget}({`);
-      parts.push(`        label: "${f.label}",`);
-      if (f.required) parts.push(`        required: true,`);
-      if (f.translated) parts.push(`        translated: true,`);
-      parts.push(`        helper: "${f.helper}",`);
+      parts.push(`    {`);
+      parts.push(`      db_fieldName: "${f.db_fieldName}",`);
+      parts.push(`      label: "${f.label}",`);
+      parts.push(
+        `      widget: { Name: "${f.widget.charAt(0).toUpperCase() + f.widget.slice(1)}" },`,
+      );
+      if (f.required) parts.push(`      required: true,`);
+      if (f.translated) parts.push(`      translated: true,`);
+      parts.push(`      helper: "${f.helper}",`);
       if (f.default !== undefined)
         parts.push(
-          `        default: ${typeof f.default === "string" ? `"${f.default}"` : f.default},`,
+          `      default: ${typeof f.default === "string" ? `"${f.default}"` : f.default},`,
         );
       if (f.options && f.options.length > 0) {
-        if (f.options.includes("multiple")) {
-          parts.push(`        multiple: true,`);
-        }
+        parts.push(`      options: [${f.options.map((o) => `"${o}"`).join(", ")}],`);
       }
-      parts.push(`      }),`);
+      parts.push(`    },`);
       return parts.join("\n");
     })
     .join("\n");

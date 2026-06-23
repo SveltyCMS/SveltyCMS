@@ -39,9 +39,8 @@ import realtime from "svelte-realtime/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
-import { compile } from "./src/utils/compilation/compile.ts";
-import { isSetupComplete } from "./src/utils/setup-check-fast.ts";
-import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
+import { isSetupComplete } from "./src/utils/setup-check-fast";
+import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -292,6 +291,7 @@ async function initializeCollectionsStructure() {
     if (process.env.BENCHMARK_DEBUG === "true") {
       log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
     }
+    const { compile } = await import("./src/utils/compilation/compile");
     await compile({
       userCollections: paths.userCollections,
       compiledCollections: paths.compiledCollections,
@@ -539,6 +539,7 @@ function sveltyCmsPlugin(): Plugin {
       compileTimeout = setTimeout(async () => {
         log.info("Collection change detected. Recompiling...");
         try {
+          const { compile } = await import("./src/utils/compilation/compile");
           await compile({
             userCollections: paths.userCollections,
             compiledCollections: paths.compiledCollections,

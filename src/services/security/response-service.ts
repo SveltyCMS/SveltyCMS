@@ -374,6 +374,15 @@ export class SecurityResponseService {
       return { level: "none", action: "allow" };
     }
 
+    // Skip rate limiting for setup, bootstrap, and health-check routes
+    if (
+      endpoint.startsWith("/setup") ||
+      endpoint.startsWith("/warming-up") ||
+      endpoint.startsWith("/api/system/health")
+    ) {
+      return { level: "none", action: "allow" };
+    }
+
     try {
       const limiter = await this.getOrCreateLimiter(endpoint, tenantId);
 

@@ -9,7 +9,6 @@ import path from "node:path";
 import * as ts from "typescript";
 import os from "node:os";
 import { isValidTenantId } from "../tenant.ts";
-import { getCollectionsPath, getCompiledCollectionsPath } from "../tenant.server.ts";
 import {
   addJsExtensionTransformer,
   aliasResolverTransformer,
@@ -37,6 +36,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     throw new Error(`Invalid tenant ID: ${options.tenantId}`);
   }
 
+  const { getCollectionsPath, getCompiledCollectionsPath } = await import("../tenant.server");
   const userCollections = options.userCollections || getCollectionsPath(options.tenantId);
   const compiledCollections =
     options.compiledCollections || getCompiledCollectionsPath(options.tenantId);

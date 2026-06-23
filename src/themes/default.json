@@ -1,6 +1,6 @@
 {
-  "name": "Corporate",
-  "description": "Gin-inspired enterprise default — cozy density, bordered cards, tertiary/primary accent pairing with a warm professional palette.",
+  "name": "Default",
+  "description": "SveltyCMS default admin theme — cozy density, bordered cards, tertiary/primary accent pairing.",
   "density": "cozy",
   "variant": "bordered",
   "features": {

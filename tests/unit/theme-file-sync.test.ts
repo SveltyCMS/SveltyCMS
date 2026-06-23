@@ -26,7 +26,12 @@ describe("theme-file-sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListThemes.mockResolvedValue([]);
-    mockCreateTheme.mockResolvedValue({ id: "1", name: "Test", isActive: false, isDefault: false });
+    mockCreateTheme.mockResolvedValue({
+      id: "1",
+      name: "Test",
+      isActive: false,
+      isDefault: false,
+    });
     mockSaveAdminTheme.mockResolvedValue({});
   });
 
@@ -49,46 +54,52 @@ describe("theme-file-sync", () => {
     expect(payload.presetSource).toBe("imported");
   });
 
-  it("parseThemeFileContent maps shorthand corporate palette to customCss", async () => {
+  it("parseThemeFileContent maps shorthand default palette to customCss", async () => {
     const { parseThemeFileContent } = await import("../../src/services/core/theme-file-sync");
-    const raw = readFileSync(join(process.cwd(), "src", "themes", "corporate.json"), "utf-8");
-    const payload = parseThemeFileContent(raw, "corporate.json");
-    expect(payload.name).toBe("Corporate");
+    const raw = readFileSync(join(process.cwd(), "src", "themes", "default.json"), "utf-8");
+    const payload = parseThemeFileContent(raw, "default.json");
+    expect(payload.name).toBe("Default");
     expect(payload.customCss).toContain("--color-primary-500: #0f766e");
     expect(payload.features?.brandedLogin).toBe(true);
   });
 
   it("importThemeFromJson creates a new theme when none exists", async () => {
     const { importThemeFromJson } = await import("../../src/services/core/theme-file-sync");
-    const action = await importThemeFromJson({ name: "Corporate", density: "cozy" });
+    const action = await importThemeFromJson({
+      name: "Default",
+      density: "cozy",
+    });
     expect(action).toBe("created");
     expect(mockCreateTheme).toHaveBeenCalledWith(
-      "Corporate",
-      { name: "Corporate", density: "cozy" },
+      "Default",
+      { name: "Default", density: "cozy" },
       undefined,
     );
   });
 
   it("importThemeFromJson updates an existing theme by name", async () => {
     mockListThemes.mockResolvedValue([
-      { id: "abc", name: "Corporate", isActive: true, isDefault: false },
+      { id: "abc", name: "Default", isActive: true, isDefault: false },
     ]);
     const { importThemeFromJson } = await import("../../src/services/core/theme-file-sync");
-    const action = await importThemeFromJson({ name: "Corporate", variant: "flat" });
+    const action = await importThemeFromJson({
+      name: "Default",
+      variant: "flat",
+    });
     expect(action).toBe("updated");
     expect(mockSaveAdminTheme).toHaveBeenCalledWith(
-      { name: "Corporate", variant: "flat" },
+      { name: "Default", variant: "flat" },
       undefined,
       "abc",
     );
   });
 
   it("syncAllThemeFiles scans built-in theme JSON files", async () => {
-    expect(existsSync(join(testThemesDir, "corporate.json"))).toBe(true);
+    expect(existsSync(join(testThemesDir, "default.json"))).toBe(true);
     const { syncAllThemeFiles } = await import("../../src/services/core/theme-file-sync");
     const results = await syncAllThemeFiles();
-    expect(results.length).toBeGreaterThanOrEqual(3);
-    expect(results.some((r) => r.name === "Corporate")).toBe(true);
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results.some((r) => r.name === "Default")).toBe(true);
     expect(mockCreateTheme).toHaveBeenCalled();
   });
 

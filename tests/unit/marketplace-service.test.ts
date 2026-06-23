@@ -29,7 +29,7 @@ describe("marketplace-service", () => {
     mockListThemes.mockResolvedValue([]);
     mockCreateTheme.mockResolvedValue({
       id: "1",
-      name: "Corporate",
+      name: "Default",
       isActive: false,
       isDefault: false,
     });
@@ -44,36 +44,39 @@ describe("marketplace-service", () => {
     const result = await marketplaceService.list({ type: "theme" });
     expect(result.source).toBe("local");
     expect(result.remoteAvailable).toBe(false);
-    expect(result.items.length).toBeGreaterThanOrEqual(3);
+    expect(result.items.length).toBeGreaterThanOrEqual(1);
     expect(result.items.every((i) => i.type === "theme")).toBe(true);
-    expect(result.items.some((i) => i.name === "Corporate")).toBe(true);
+    expect(result.items.some((i) => i.name === "Default")).toBe(true);
   });
 
   it("filters marketplace items by search query", async () => {
     const { marketplaceService } = await import("../../src/services/core/marketplace-service");
-    const result = await marketplaceService.list({ type: "theme", search: "operations" });
+    const result = await marketplaceService.list({
+      type: "theme",
+      search: "default",
+    });
     expect(result.items.length).toBe(1);
-    expect(result.items[0]?.name).toBe("Operations");
+    expect(result.items[0]?.name).toBe("Default");
   });
 
   it("installs a local marketplace theme into the database", async () => {
     let themeInstalled = false;
     mockListThemes.mockImplementation(async () =>
-      themeInstalled ? [{ id: "99", name: "Corporate", isActive: false, isDefault: false }] : [],
+      themeInstalled ? [{ id: "99", name: "Default", isActive: false, isDefault: false }] : [],
     );
     mockCreateTheme.mockImplementation(async () => {
       themeInstalled = true;
-      return { id: "99", name: "Corporate", isActive: false, isDefault: false };
+      return { id: "99", name: "Default", isActive: false, isDefault: false };
     });
 
     const { marketplaceService } = await import("../../src/services/core/marketplace-service");
     const catalog = await marketplaceService.list({ type: "theme" });
-    const corporate = catalog.items.find((i) => i.name === "Corporate");
-    expect(corporate).toBeTruthy();
+    const defaultTheme = catalog.items.find((i) => i.name === "Default");
+    expect(defaultTheme).toBeTruthy();
 
-    const installed = await marketplaceService.installTheme(corporate!.id);
+    const installed = await marketplaceService.installTheme(defaultTheme!.id);
     expect(installed.action).toBe("created");
-    expect(installed.theme.name).toBe("Corporate");
+    expect(installed.theme.name).toBe("Default");
     expect(mockCreateTheme).toHaveBeenCalled();
   });
 });

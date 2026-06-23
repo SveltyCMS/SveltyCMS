@@ -573,16 +573,21 @@ Provides an organized interface for navigating hierarchical content structures.
 
 	<!-- Tree -->
 	<div class="collections-list" role="tree" aria-label="Collection tree">
-		{#if !widgets.isLoaded}
+		{#if treeNodes.length === 0}
+			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
+				{#if !widgets.isLoaded}
+					<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
+					<p class="text-xs text-surface-400">Loading collections…</p>
+				{:else}
+					<iconify-icon icon="bi:collection" width={24}></iconify-icon>
+					{#if isFullSidebar}
+						<p class="text-sm text-surface-500 dark:text-surface-50">{collection_no_collections_found()}</p>
+					{/if}
+				{/if}
+			</div>
+		{:else if !widgets.isLoaded}
 			<div class="flex h-24 items-center justify-center">
 				<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
-			</div>
-		{:else if treeNodes.length === 0}
-			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
-				<iconify-icon icon="bi:collection" width={24}></iconify-icon>
-				{#if isFullSidebar}
-					<p class="text-sm text-surface-500 dark:text-surface-50">{collection_no_collections_found()}</p>
-				{/if}
 			</div>
 		{:else}
 			<TreeView nodes={treeNodes} {selectedId} compact={!isFullSidebar} search={debouncedSearch} iconColorClass="text-error-500" showBadges={true} />

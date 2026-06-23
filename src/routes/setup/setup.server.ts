@@ -94,6 +94,7 @@ export async function testDatabaseConnection(
 
     const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
       createIfMissing: createIfMissing || allowOverwrite || dbConfig.type === "sqlite",
+      skipModuleInit: true, // Don't create system tables before isEmpty() check
     });
 
     const health = await dbAdapter.getConnectionHealth();
@@ -105,16 +106,21 @@ export async function testDatabaseConnection(
       ).toClientPayload();
     }
 
-    if (dbConfig.type !== "sqlite") {
-      const isEmptyRes = await dbAdapter.isEmpty();
-      if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
-        await dbAdapter.disconnect();
-        const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
-        return new SetupDatabaseError(
-          classifyDatabaseError(new Error("Database not empty"), dbConfig.type as any, dbConfig),
-        ).toClientPayload();
-      }
+    const isEmptyRes = await dbAdapter.isEmpty();
+    if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
+      await dbAdapter.disconnect();
+      const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
+      return new SetupDatabaseError(
+        classifyDatabaseError(new Error("Database not empty"), dbConfig.type as any, dbConfig),
+      ).toClientPayload();
     }
+
+    // Database is empty (or user chose overwrite) — safe to initialize modules
+    if (dbAdapter.ensureAuth) await dbAdapter.ensureAuth();
+    if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
+    if (dbAdapter.ensureCollections) await dbAdapter.ensureCollections();
+    if (dbAdapter.ensureContent) await dbAdapter.ensureContent();
+    if (dbAdapter.auth?.setupAuthModels) await dbAdapter.auth.setupAuthModels();
 
     await dbAdapter.disconnect();
     return {
@@ -267,6 +273,19 @@ export async function completeSetup(
         await import("./utils")
       ).getSetupDatabaseAdapter(database as any, { createIfMissing: true })
     ).dbAdapter;
+  }
+
+  // 🚀 Seed preset collections if the user selected a non-blank preset.
+  // seedDatabase() runs at step 0 with "blank" — we must re-seed now with the actual preset.
+  if (system.preset && system.preset !== "blank") {
+    const { seedPresetCollections } = await import("./seed");
+    await seedPresetCollections(dbAdapter, system.preset);
+    try {
+      const { refreshCollectionsCache } = await import("@src/content/content-service.server");
+      await refreshCollectionsCache(null, dbAdapter);
+    } catch (e) {
+      logger.warn("[Setup] Content refresh after preset seeding failed:", e);
+    }
   }
 
   // Save custom configuration settings to database preferences

@@ -438,19 +438,46 @@ export async function seedPresetCollections(
     try {
       await dbAdapter.collection.createModel(schema, false, options);
     } catch (err: unknown) {
-      if (
-        (err instanceof Error ? err.message : String(err)).includes("already exists") ||
-        (err instanceof Error ? err.message : String(err)).includes("duplicate")
-      ) {
-        logger.warn(
-          `Preset collection "${schema._id}" createModel warning: ${err instanceof Error ? err.message : String(err)}`,
-        );
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("already exists") || msg.includes("duplicate")) {
+        logger.warn(`Preset collection "${schema._id}" createModel warning: ${msg}`);
+      } else {
+        logger.error(`Preset collection "${schema._id}" createModel failed: ${msg}`, err);
       }
     }
   }
 
   logger.info(`✅ ${schemas.length} preset collections seeded`);
+
+  // Write .ts source files to config/collections/ for Vite compilation
+  await writePresetCollectionFiles(schemas);
+
   return schemas;
+}
+
+/**
+ * Writes TypeScript schema files for preset collections to config/collections/.
+ */
+async function writePresetCollectionFiles(schemas: Schema[]): Promise<void> {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+  const dir = path.resolve(process.cwd(), "config", "collections");
+  await fs.mkdir(dir, { recursive: true });
+
+  for (const schema of schemas) {
+    const slug = (schema as any).slug || schema.name || schema._id;
+    const fileName = `${slug}.ts`;
+    const content = `/**
+ * @file config/collections/${fileName}
+ * @description ${schema.name || slug} collection — seeded from preset.
+ */
+import type { Schema } from '@src/content/types';
+
+export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields }, null, 2)};
+`;
+    await fs.writeFile(path.join(dir, fileName), content, "utf-8");
+    logger.info(`📄 Wrote collection file: config/collections/${fileName}`);
+  }
 }
 
 // Seeds the default theme into the database
