@@ -54,8 +54,10 @@ import {
 	uiStateToLayoutPrefs,
 } from "@utils/layout-state-prefs";
 import { userThemePrefs } from "@src/stores/user-theme-prefs.svelte";
-import { onMount, untrack } from "svelte";
-import { registerHotkey } from "@src/utils/hotkeys";
+	import { onMount, untrack } from "svelte";
+	import { initBounceDetector } from "@utils/bounce-detector";
+	import { initPredictivePreload } from "@utils/predictive-preload";
+	import { registerHotkey } from "@src/utils/hotkeys";
 import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation
 import { afterNavigate, beforeNavigate, invalidate } from "$app/navigation";
@@ -309,8 +311,8 @@ onMount(() => {
 
 
 		// Initialize predictive preloading (physics cone + behavioral smart)
-		import("@utils/predictive-preload").then(m => m.initPredictivePreload());
-		import("@utils/bounce-detector").then(m => m.initBounceDetector());
+		initPredictivePreload();
+		initBounceDetector();
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
 	initializeUserAvatar(data.user);

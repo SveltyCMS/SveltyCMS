@@ -468,13 +468,12 @@ async function writePresetCollectionFiles(schemas: Schema[]): Promise<void> {
     const slug = (schema as any).slug || schema.name || schema._id;
     const fileName = `${slug}.ts`;
     const content = `/**
- * @file config/collections/${fileName}
- * @description ${schema.name || slug} collection — seeded from preset.
- */
-import type { Schema } from '@src/content/types';
+   * @file config/collections/${fileName}
+   * @description ${schema.name || slug} collection — seeded from preset.
+   */
 
-export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields }, null, 2)};
-`;
+  export const schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields }, null, 2)};
+  `;
     await fs.writeFile(path.join(dir, fileName), content, "utf-8");
     logger.info(`📄 Wrote collection file: config/collections/${fileName}`);
   }
@@ -736,9 +735,11 @@ export async function seedCollectionsForSetup(
         updates.push({
           path: node.path,
           changes: {
+            _id: node._id,
             name: node.name,
             nodeType: "category",
             order: 0,
+            parentId: node.parentId,
             translations: [],
           } as any,
         });
@@ -749,6 +750,11 @@ export async function seedCollectionsForSetup(
         if (!schema.path) {
           continue;
         }
+        // Compute parentId from the category path
+        const pathParts = schema.path.split("/").filter(Boolean);
+        // Remove the last segment (collection name) to get parent category path
+        const parentPath = pathParts.slice(0, -1).join("/");
+        const parentId = parentPath ? `/${parentPath}`.replace(/\//g, "_") : null;
         updates.push({
           path: schema.path,
           changes: {
@@ -757,6 +763,7 @@ export async function seedCollectionsForSetup(
             nodeType: "collection",
             order: schema.order || 0,
             icon: schema.icon,
+            parentId: parentId as any,
             translations: schema.translations || [],
             collectionDef: schema,
           } as any,

@@ -17,13 +17,17 @@ This page dynamically switches between List views and Field editors based on the
 - Save or Cancel edits (triggers auto-save/draft logic).
 -->
 <script lang="ts">
-import AdminPageShell from "@components/admin-page-shell.svelte";
 import EntryList from "@src/components/collection-display/entry-list.svelte";
 import Fields from "@src/components/collection-display/fields.svelte";
 import WorkflowActions from "@src/components/collection-display/workflow-actions.svelte";
 import type { Schema } from "@src/content/types";
 import { collections } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte";
+
+function getCsrfToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return match ? match[1] : '';
+}
 import { app, validationStore } from "@src/stores/store.svelte.ts";
 import { logger } from "@utils/logger";
 import { parseURLToMode } from "@utils/navigation";
@@ -435,6 +439,7 @@ async function autoSaveDraft(): Promise<boolean> {
 			method,
 			headers: {
 				"Content-Type": "application/json",
+				"X-CSRF-Token": getCsrfToken(),
 			},
 			body: JSON.stringify({
 				data: draftData,
@@ -531,18 +536,10 @@ beforeNavigate(async ({ cancel }) => {
 
 <svelte:head><title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title></svelte:head>
 
-<AdminPageShell
-		title={collectionSchema?.name ?? 'Collection'}
-		icon={collectionSchema?.icon ?? 'bi:collection'}
-		fullHeight={true}
-		animate={false}
-		showBackButton={true}
-		backUrl="/"
-	>
 <div class="content min-h-0 flex-1">
 	<!-- Auto-save indicator -->
 	{#if isSavingDraft}
-		<div class="fixed end-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg">
+		<div class="fixed inset-e-4-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg">
 			<div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
 			<span class="text-sm font-medium">Auto-saving draft...</span>
 		</div>
@@ -579,5 +576,4 @@ beforeNavigate(async ({ cancel }) => {
 			<Fields fields={collections.active.fields} {revisions} contentLanguage={serverContentLanguage} />
 		</div>
 	{/if}
-</div>
-</AdminPageShell>
+	</div>

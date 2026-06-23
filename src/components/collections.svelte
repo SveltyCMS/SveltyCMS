@@ -363,9 +363,10 @@ Provides an organized interface for navigating hierarchical content structures.
 			];
 
 			return {
-				id: node._id,
-				name: label,
-				isExpanded,
+					id: node._id,
+					name: label,
+					type: isCategory ? 'category' : 'collection',
+					isExpanded,
 				onClick: () => selectNode(node),
 				children,
 				icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),

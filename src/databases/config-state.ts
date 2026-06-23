@@ -11,7 +11,11 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { safeParse, type InferOutput } from "valibot";
 
-if (process.env.TEST_MODE === "true" && process.env.BENCHMARK !== "true") {
+if (
+  typeof process !== "undefined" &&
+  process.env.TEST_MODE === "true" &&
+  process.env.BENCHMARK !== "true"
+) {
   logger.debug("config-state.ts initialized");
 }
 

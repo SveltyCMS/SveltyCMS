@@ -349,23 +349,25 @@
 
 			<!-- 2. Collections -->
 			<div class="space-y-1">
-				<Button variant="ghost"
-					type="button"
-					onclick={handleCollectionsClick}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-				 aria-label="Toggle collections">
-					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						{#if isSidebarFull}Collections{/if}
-					</span>
-					{#if isSidebarFull}
-						<iconify-icon
-							icon="bi:chevron-down"
-							width="12"
-							class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
-						></iconify-icon>
-					{/if}
-				</Button>
+				{#if !currentPath.includes('/collection/')}
+					<Button variant="secondary"
+						type="button"
+						onclick={handleCollectionsClick}
+						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
+					 aria-label="Toggle collections">
+						<span class="flex items-center gap-1.5">
+							<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{#if isSidebarFull}Collections{/if}
+						</span>
+						{#if isSidebarFull}
+							<iconify-icon
+								icon="bi:chevron-down"
+								width="12"
+								class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
+							></iconify-icon>
+						{/if}
+					</Button>
+				{/if}
 				{#if isCollectionsOpen && showCollectionsHere}
 					<div class="px-1">
 						<Collections />
@@ -376,8 +378,10 @@
 
 			<!-- 3. Media Gallery -->
 			<div class="space-y-1">
-				<Button variant="ghost"
+				{#if !currentPath.includes('/mediagallery')}
+				<Button variant="outline"
 					type="button"
+
 					onclick={() => {
 						goto('/mediagallery');
 						if (isMobile()) {
@@ -398,6 +402,7 @@
 						></iconify-icon>
 					{/if}
 				</Button>
+				{/if}
 				{#if isMediaOpen}
 					<div class="px-1 space-y-2">
 						{#if isSidebarFull && !currentPath.includes('/mediagallery')}

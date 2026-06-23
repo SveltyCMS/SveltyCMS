@@ -258,44 +258,75 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
           const moduleData = await loadSchema(file.fullPath, file.mtime);
           const schema = moduleData?.schema;
 
-          if (schema) {
-            // Validate schema structure before caching
-            if (!validateSchemaFields(schema)) {
-              logger.error("[Scanner] Skipping invalid schema", {
-                path: file.fullPath,
-                name: schema.name,
-              });
-              return;
+          if (!schema) {
+            // Compiled file is broken — delete it and touch source to trigger recompilation
+            logger.warn("[Scanner] Broken compiled schema, triggering recompilation", {
+              path: file.fullPath,
+            });
+            _schemaCache.delete(file.fullPath);
+            _mtimeTree.delete(file.fullPath);
+            await fsPromises.unlink(file.fullPath).catch(() => {});
+            // Touch the source .ts file to trigger Vite HMR recompilation
+            const tsPath = file.fullPath
+              .replace(".compiledCollections", "config/collections")
+              .replace(/\.js$/, ".ts");
+            try {
+              const now = new Date();
+              await fsPromises.utimes(tsPath, now, now);
+            } catch {
+              /* source may not exist */
             }
+            return;
+          }
 
-            // Run onSchemaLoad plugins (enrichment, validation, transforms)
-            let enrichedSchema = schema;
-            for (const plugin of _plugins) {
-              if (plugin.onSchemaLoad) {
-                try {
-                  enrichedSchema =
-                    (await plugin.onSchemaLoad(enrichedSchema, file.fullPath)) || enrichedSchema;
-                } catch (err: any) {
-                  logger.error(`[Plugin] ${plugin.name}.onSchemaLoad failed: ${err.message}`);
-                }
+          // Validate schema structure before caching
+          if (!validateSchemaFields(schema)) {
+            logger.error("[Scanner] Skipping invalid schema, triggering recompilation", {
+              path: file.fullPath,
+              name: schema.name,
+            });
+            _schemaCache.delete(file.fullPath);
+            _mtimeTree.delete(file.fullPath);
+            await fsPromises.unlink(file.fullPath).catch(() => {});
+            const tsPath = file.fullPath
+              .replace(".compiledCollections", "config/collections")
+              .replace(/\.js$/, ".ts");
+            try {
+              const now = new Date();
+              await fsPromises.utimes(tsPath, now, now);
+            } catch {
+              /* source may not exist */
+            }
+            return;
+          }
+
+          // Run onSchemaLoad plugins (enrichment, validation, transforms)
+          let enrichedSchema = schema;
+          for (const plugin of _plugins) {
+            if (plugin.onSchemaLoad) {
+              try {
+                enrichedSchema =
+                  (await plugin.onSchemaLoad(enrichedSchema, file.fullPath)) || enrichedSchema;
+              } catch (err: any) {
+                logger.error(`[Plugin] ${plugin.name}.onSchemaLoad failed: ${err.message}`);
               }
             }
-
-            const hash = generateSchemaHash(enrichedSchema);
-            if (cached && cached.hash === hash) {
-              await setSchemaCacheEntry(cacheKey, { ...cached, mtime: file.mtime }, enrichedSchema);
-              _schemaCache.set(file.fullPath, enrichedSchema);
-            } else {
-              enrichSchemaWithMetadata(enrichedSchema, file.fullPath, collectionsDir);
-              await setSchemaCacheEntry(
-                cacheKey,
-                { mtime: file.mtime, hash, schema: enrichedSchema },
-                enrichedSchema,
-              );
-              _schemaCache.set(file.fullPath, enrichedSchema);
-            }
-            _mtimeTree.set(file.fullPath, file.mtime);
           }
+
+          const hash = generateSchemaHash(enrichedSchema);
+          if (cached && cached.hash === hash) {
+            await setSchemaCacheEntry(cacheKey, { ...cached, mtime: file.mtime }, enrichedSchema);
+            _schemaCache.set(file.fullPath, enrichedSchema);
+          } else {
+            enrichSchemaWithMetadata(enrichedSchema, file.fullPath, collectionsDir);
+            await setSchemaCacheEntry(
+              cacheKey,
+              { mtime: file.mtime, hash, schema: enrichedSchema },
+              enrichedSchema,
+            );
+            _schemaCache.set(file.fullPath, enrichedSchema);
+          }
+          _mtimeTree.set(file.fullPath, file.mtime);
         }),
       );
 
@@ -342,6 +373,17 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
   // Merge schemas (file-based takes precedence, but DB-only ones are kept)
   const schemaMap = new Map<string, Schema>();
 
+  // Bootstrap: if no file schemas exist but DB has schemas, regenerate .ts source files
+  if (fileSchemas.length === 0 && dbSchemas.length > 0) {
+    await bootstrapCollectionFilesFromDb(dbSchemas);
+    // Re-scan to pick up the newly generated files
+    markFileDirty();
+    const regenerated = await scanCompiledCollections();
+    for (const s of regenerated) {
+      if (s._id) schemaMap.set(s._id.toLowerCase(), s);
+    }
+  }
+
   // 🚀 Standardize mapping keys to lowercase, but PRESERVE original schema ID casing
   // to avoid breaking case-sensitive consumers like GraphQL.
   for (const s of dbSchemas) {
@@ -386,6 +428,52 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
     if (typeof (dbAdapter as any).reconcile === "function") await (dbAdapter as any).reconcile();
     if ((dbAdapter.collection as any)?.ensureSystemTables)
       await (dbAdapter.collection as any).ensureSystemTables();
+  }
+}
+
+/**
+ * Bootstrap: regenerates .ts collection files from database schemas when
+ * config/collections/ is empty. Prevents blank state after cache clears.
+ */
+async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void> {
+  const path = await import("node:path");
+  const fs = await import("node:fs/promises");
+  const dir = path.resolve(process.cwd(), "config", "collections");
+  await fs.mkdir(dir, { recursive: true });
+
+  for (const schema of dbSchemas) {
+    const slug = (schema as any).slug || schema.name || schema._id;
+    if (!slug) continue;
+    const fileName = `${slug}.ts`;
+    const filePath = path.join(dir, fileName);
+
+    // Skip if file already exists
+    try {
+      await fs.access(filePath);
+      continue;
+    } catch {}
+
+    const content = `/**
+ * @file config/collections/${fileName}
+ * @description ${schema.name || slug} — regenerated from database.
+ */
+import type { Schema } from '@src/content/types';
+
+export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields || [] }, null, 2)};
+`;
+    await fs.writeFile(filePath, content, "utf-8");
+    logger.info(`[Bootstrap] Regenerated collection file: config/collections/${fileName}`);
+  }
+
+  // Trigger compilation
+  try {
+    const { compile } = await import("@src/utils/compilation/compile");
+    await compile({
+      userCollections: dir,
+      compiledCollections: path.resolve(process.cwd(), ".compiledCollections"),
+    });
+  } catch (e) {
+    logger.warn("[Bootstrap] Compilation after regeneration failed:", e);
   }
 }
 
@@ -621,7 +709,9 @@ export const contentService = {
     const fullPath = path.resolve(filePath);
 
     if (!isSafeCollectionPath(fullPath)) {
-      logger.error("[Incremental] Blocked unsafe schema path", { path: fullPath });
+      logger.error("[Incremental] Blocked unsafe schema path", {
+        path: fullPath,
+      });
       return null;
     }
 
@@ -744,7 +834,9 @@ export const contentService = {
 
     const updates = await Promise.all(
       filePaths.map((filePath) =>
-        this.handleIncrementalReload(filePath, tenantId, dbAdapter, { broadcast: false }),
+        this.handleIncrementalReload(filePath, tenantId, dbAdapter, {
+          broadcast: false,
+        }),
       ),
     );
 

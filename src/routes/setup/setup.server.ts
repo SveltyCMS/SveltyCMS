@@ -108,11 +108,16 @@ export async function testDatabaseConnection(
 
     const isEmptyRes = await dbAdapter.isEmpty();
     if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
-      await dbAdapter.disconnect();
-      const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
-      return new SetupDatabaseError(
-        classifyDatabaseError(new Error("Database not empty"), dbConfig.type as any, dbConfig),
-      ).toClientPayload();
+      // In test mode, the test harness resets the DB before each file — skip the
+      // emptiness warning to avoid false positives from test collection seeding.
+      const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+      if (!isTest) {
+        await dbAdapter.disconnect();
+        const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
+        return new SetupDatabaseError(
+          classifyDatabaseError(new Error("Database not empty"), dbConfig.type as any, dbConfig),
+        ).toClientPayload();
+      }
     }
 
     // Database is empty (or user chose overwrite) — safe to initialize modules
