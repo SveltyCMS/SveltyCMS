@@ -108,18 +108,9 @@
 	}
 </script>
 
-<div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-1.5 backdrop-blur-sm dark:bg-surface-950/95">
-	<div class="flex min-w-0 items-center">
-		{#if ui.state.leftSidebar === 'hidden'}
-			<Button variant="outline"
-				type="button"
-				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
-				aria-label="Open Sidebar"
-			 class="p-0! min-w-0 shrink-0">
-				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
-			</Button>
-		{/if}
-		<div class="flex flex-col ms-2 min-w-0">
+	<div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-1.5 backdrop-blur-sm dark:bg-surface-950/95">
+		<div class="flex min-w-0 items-center">
+			<div class="flex flex-col ms-2 min-w-0">
 			<h1
 				class="transition-max-width h1 relative flex items-center gap-1 font-bold"
 				style="font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);"

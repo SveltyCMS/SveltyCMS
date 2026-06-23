@@ -850,7 +850,7 @@ bulk actions, and predictive preloading.
 	</div>
 {:else}
 	<!-- Header -->
-	<div class="mb-2 flex justify-between dark:text-white">
+	<div class="ml-2 mb-2 flex justify-between dark:text-white">
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
@@ -885,7 +885,7 @@ bulk actions, and predictive preloading.
 				</h1>
 			</div>
 		</div>
-		<div class="flex items-center justify-between gap-1">
+		<div class="flex items-center justify-between gap-1 overflow-x-auto flex-shrink-0 max-w-full">
 			<!-- Expand/Collapse -->
 			<Button variant="outline"
 				type="button"
@@ -906,7 +906,7 @@ bulk actions, and predictive preloading.
 			</div>
 
 			<!-- MultiButton -->
-			<div class=" flex w-full items-center justify-end sm:mt-0 sm:w-auto">
+			<div class="flex items-center justify-end sm:mt-0 sm:w-auto flex-shrink-0">
 				<EntryListMultiButton
 					isCollectionEmpty={tableData?.length === 0}
 					{hasSelections}

@@ -294,7 +294,7 @@
 		{:else}
 			<!-- Main actions -->
 			<header class="flex flex-col gap-3">
-				<Button variant="tertiary"
+				<Button variant="primary"
 					type="button"
 					onclick={save}
 					disabled={!isFormValid || !canWrite}

@@ -79,9 +79,11 @@ search filtering, and RTL support.
 - full Svelte 5 runes: $props, $bindable, $derived, $state, SvelteSet
 -->
 
-<script module lang="ts">
-	import Button from '@components/ui/button.svelte';
-    export interface TreeItem {
+	<script module lang="ts">
+		import Badge from '@components/ui/badge.svelte';
+		import Button from '@components/ui/button.svelte';
+		import Loader from '@components/ui/loader.svelte';
+	    export interface TreeItem {
         id: string;
         label?: string;
         name?: string;          // Backward compat with system tree-view
@@ -437,14 +439,17 @@ search filtering, and RTL support.
         }
     });
 
-    // --- BADGE HELPER ---
-    function shouldShowBadge(node: TreeItem): boolean {
-        if (!showBadges) return false;
-        if (!node.badge) return false;
-        if (node.badge.visible === false) return false;
-        if (node.badge.count !== undefined && node.badge.count <= 0) return false;
-        return true;
-    }
+	    // --- BADGE HELPER ---
+	    function shouldShowBadge(node: TreeItem): boolean {
+	        if (!showBadges) return false;
+	        if (!node.badge) return false;
+	        if (node.badge.visible === false) return false;
+	        if (node.badge.count !== undefined && node.badge.count <= 0) return false;
+	        // Only categories that actually contain collections show badges
+	        if (node.type !== 'category') return false;
+	        if (!node.children || node.children.length === 0) return false;
+	        return true;
+	    }
 </script>
 
 {#snippet treeNode(node: TreeItem, depth: number)}
@@ -461,19 +466,20 @@ search filtering, and RTL support.
             <div class="absolute -top-0.5 inset-s-0 inset-e-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
         {/if}
 
-        <button
-            type="button"
+        <Button
+            variant="surface"
+            size="sm"
             id={`treenode-${node.id}`}
             class={cn(
-                'flex w-full items-center rounded-lg transition-all cursor-pointer group focus:outline-none text-start border border-transparent px-2',
+                'flex! w-full! items-center rounded cursor-pointer text-start justify-start! font-normal! tracking-normal! active:scale-100! hover:brightness-100! px-2',
                 densityTokens.padding,
                 densityTokens.touch,
                 isSelected
-                    ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-300 shadow-xs'
-                    : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
+                    ? 'bg-primary-500/10! border-primary-500/30! text-primary-600! dark:text-primary-300! shadow-xs'
+                    : 'hover:bg-surface-200! dark:hover:bg-surface-800! text-surface-900! dark:text-surface-100!',
                 isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
-                dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500 dark:bg-primary-500/20 border-tertiary-500 dark:border-primary-500',
+                dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500! dark:bg-primary-500/20! border-tertiary-500! dark:border-primary-500!',
                 node.disabled && 'opacity-50 cursor-not-allowed'
             )}
             style="padding-inline-start: {indentLeft(depth)}rem"
@@ -496,12 +502,12 @@ search filtering, and RTL support.
             role="treeitem"
         >
             <!-- Expand/Collapse Chevron or Loading Spinner -->
-            {#if hasChildren}
-                {#if node.isLoading}
-                    <div class="flex items-center justify-center {densityTokens.dummy}">
-                        <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-400 border-t-transparent" aria-label="Loading"></div>
-                    </div>
-                {:else}
+	            {#if hasChildren}
+	                {#if node.isLoading}
+	                    <div class="flex items-center justify-center {densityTokens.dummy}">
+	                        <Loader variant="circle" width="size-3" height="size-3" ariaLabel="Loading child nodes" />
+	                    </div>
+	                {:else}
                     <iconify-icon
                         icon="mdi:chevron-right"
                         width={densityTokens.chevron}
@@ -542,22 +548,21 @@ search filtering, and RTL support.
                 {nodeLabel}
             </span>
 
-            <!-- Count Badge -->
-            {#if showBadge}
-                <span
-                    class={cn(
-                        'ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0',
-                        node.badge?.color || 'bg-surface-200 dark:bg-surface-700 text-surface-900 dark:text-white'
-                    )}
-                    title={node.badge?.title}
-                >
-                    {#if node.badge?.icon}
-                        <iconify-icon icon={node.badge.icon} width="10" class="inline-block me-0.5" aria-hidden="true"></iconify-icon>
-                    {/if}
-                    {node.badge?.count ?? ''}
-                </span>
-            {/if}
-        </button>
+	            <!-- Count Badge -->
+	            {#if showBadge}
+	                <Badge
+	                    variant="surface"
+	                    size="sm"
+	                    class="ml-auto shrink-0 group-hover/item:hidden"
+	                    title={node.badge?.title}
+	                >
+	                    {#if node.badge?.icon}
+	                        <iconify-icon icon={node.badge.icon} width="20" class="inline-block me-0.5" aria-hidden="true"></iconify-icon>
+	                    {/if}
+	                    {node.badge?.count ?? ''}
+	                </Badge>
+	            {/if}
+        </Button>
 
         <!-- Per-node Action Buttons (hover to reveal) -->
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
@@ -565,7 +570,7 @@ search filtering, and RTL support.
                 {#each node.actions as act}
                     <Button variant="ghost"
                         type="button"
-                        onclick={(e: MouseEvent) => { e.stopPropagation(); act.onClick(); }}
+                        							onclick={(e: MouseEvent) => { e.stopPropagation(); act.onClick(node, e); }}
                         aria-label={act.label}
                         title={act.label}
                      class="p-0! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700">
