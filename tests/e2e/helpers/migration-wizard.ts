@@ -10,8 +10,12 @@ const WXR_FIXTURE = "tests/e2e/fixtures/sample-wordpress.wxr";
 /** Upload the sample WordPress WXR and wait for detection to finish */
 export async function uploadWordPressFixture(page: Page, fixturePath = WXR_FIXTURE) {
   await page.goto("/config?plugin=smart-importer");
+  // Wait for the plugin workspace to fully render before interacting
+  await page.locator("#migration-file-input").waitFor({ state: "attached", timeout: 20_000 });
   await page.locator("#migration-file-input").setInputFiles(fixturePath);
-  await expect(page.getByText(/wordpress/i).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/wordpress/i).first()).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByRole("button", { name: /next: map fields/i })).toBeEnabled({
     timeout: 15_000,
   });
