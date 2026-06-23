@@ -56,7 +56,6 @@ import {
 } from "@utils/layout-state-prefs";
 import { userThemePrefs } from "@src/stores/user-theme-prefs.svelte";
 	import { onMount, untrack } from "svelte";
-	import { initBounceDetector } from "@utils/bounce-detector";
 	import { initPredictivePreload } from "@utils/predictive-preload";
 	import { registerHotkey } from "@src/utils/hotkeys";
 import CommandBar from "@src/components/command-bar.svelte";
@@ -313,12 +312,8 @@ onMount(() => {
 
 
 		// Initialize predictive preloading (physics cone + behavioral smart)
-<<<<<<< HEAD
 		initPredictivePreload();
 		initBounceDetector();
-=======
-		import("@utils/predictive-preload").then(m => m.initPredictivePreload());
->>>>>>> 9c133826f (fix: sidebar UI + resolve API merge conflict + E2E updates + UI polishes)
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
 	initializeUserAvatar(data.user);
