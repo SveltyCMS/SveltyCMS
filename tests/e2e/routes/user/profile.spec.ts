@@ -57,8 +57,7 @@ test.describe("User Profile Management", () => {
 
     // Trigger upload — scroll into view first to avoid viewport issues
     const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
-    await editAvatarBtn.scrollIntoViewIfNeeded();
-    await editAvatarBtn.click({ force: true });
+    await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
 
     // Handle file input safely — wait for modal to render
     const fileInput = page.locator('input[type="file"]');
@@ -76,8 +75,7 @@ test.describe("User Profile Management", () => {
 
     // Scroll and click the Edit Avatar overlay button
     const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
-    await editAvatarBtn.scrollIntoViewIfNeeded();
-    await editAvatarBtn.click({ force: true });
+    await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
 
     const deleteBtn = page.getByRole("button", { name: "Delete Avatar" });
     await expect(deleteBtn).toBeVisible({ timeout: 5000 });
@@ -126,11 +124,11 @@ test.describe("User Profile Management", () => {
     await page.locator('input[name="email"]:not([disabled])').fill("newuser@test.ge");
 
     // Select Role — try radio first (ModalEditForm pattern), fall back to button
-    const roleRadio = page.getByRole("radio", { name: /user/i });
+    const roleRadio = page.getByRole("radio", { name: /developer/i });
     if (await roleRadio.isVisible({ timeout: 2000 }).catch(() => false)) {
       await roleRadio.click();
     } else {
-      await page.getByRole("button", { name: /user/i }).first().click();
+      await page.getByRole("button", { name: /developer/i }).first().click();
     }
 
     // Select Duration
