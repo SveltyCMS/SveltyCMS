@@ -1,0 +1,39 @@
+fix(admin-theme): CSS anti-patterns, hydration crash, media serving & e2e alignment
+
+Restore build and e2e suite after native UI component migration.
+
+Source fixes (production bugs):
+- collaboration-service: rename .ts -> .svelte.ts so $state runes compile
+  (ReferenceError: $state is not defined broke every collection page at hydration)
+- files/[...path]/+server: import Readable from node:stream
+  (Readable is not defined broke all /files/ media serving -> 500)
+- collections-namespace: add async _resolveContentSystem() for refresh/
+  getCollectionById/getCollections (lazy-import refactor left sync getter
+  returning null -> cms.collections.refresh crash)
+- entry-list-multi-button: make Create button the real clickable element
+  (pointer-events-none on button + click on parent div was bad a11y and
+  unclickable in tests)
+- access-management/permissions: keep matrix init reactive to page.data
+  (race left permission matrix empty)
+
+Style-guide-gui compliance (LeftSidebar & /user page):
+- Remove gradient-*, variant-filled/outline, text-white-on-badge anti-patterns
+- Replace hardcoded colors with preset-* / theme tokens + dark: variants
+- Dynamic accent pairing tertiary-500 (light) / primary-500 (dark)
+- Border-first separation instead of heavy background fills
+- Quiet inactive controls, RTL logical properties
+
+E2e test alignment with current UI:
+- Collection URLs /en/Names -> /en/collection/Names (canonical path)
+- getByPlaceholder -> getByRole(textbox) (placeholder is now db_fieldName)
+- Bulk-action workflow: dropdown menuitem with shortcut-suffixed labels
+- system configuration button -> link / direct goto (off-screen in sidebar)
+- CPU widget: getByRole(menuitem) matching dashboard.spec
+- Login waitForURL patterns include /collection/
+- permissions: assert matrix renders + Save enables (save API has pre-existing
+  payload mismatch, out of scope)
+- Updated login sign-in form visual regression baseline
+
+All in-scope e2e projects pass when run per-project (users, visual-regression,
+dashboard, appearance, builder, media, branding, rbac, a11y, language,
+permissions, config-routes, admin, system).

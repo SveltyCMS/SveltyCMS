@@ -151,7 +151,7 @@ function getFileIcon(file: File): string {
 }
 
 // Format MIME type for display
-function formatMimeType(mime?: string): string {
+function formatMimeType(mime: string | undefined = undefined): string {
 	if (!mime) {
 		return "Unknown";
 	}

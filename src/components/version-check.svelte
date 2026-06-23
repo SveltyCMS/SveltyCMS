@@ -30,7 +30,6 @@ latest version available on GitHub with comprehensive status reporting.
 	// Types
 	interface VersionStatus {
 		badgeColor: string;
-		badgeVariant: 'variant-filled' | 'variant-soft' | 'variant-outline' | 'variant-glass';
 		error: string | null;
 		githubVersion: string;
 		isLoading: boolean;
@@ -59,7 +58,6 @@ latest version available on GitHub with comprehensive status reporting.
 	// State - use publicEnv directly instead of page.data
 	const pkg = $derived(publicEnv?.PKG_VERSION || '0.0.0');
 	let githubVersion = $state('');
-	let badgeVariant = $state<'variant-filled' | 'variant-soft' | 'variant-outline' | 'variant-glass'>('variant-filled');
 	let badgeColor = $state('bg-tertiary-500 dark:bg-primary-500 text-white');
 	let versionStatusMessage = $state('Checking for updates...');
 	let statusIcon = $state('mdi:loading');
@@ -73,7 +71,6 @@ latest version available on GitHub with comprehensive status reporting.
 	const versionStatus = $derived<VersionStatus>({
 		pkg,
 		githubVersion,
-		badgeVariant,
 		badgeColor,
 		versionStatusMessage,
 		statusIcon,
@@ -135,7 +132,6 @@ latest version available on GitHub with comprehensive status reporting.
 	function updateStatus(data: VersionApiResponse) {
 		if (data.status === 'disabled') {
 			githubVersion = pkg;
-			badgeVariant = 'variant-filled';
 			badgeColor = 'bg-surface-500 text-white';
 			versionStatusMessage = 'Version check disabled';
 			statusIcon = 'mdi:shield-off';
@@ -143,7 +139,6 @@ latest version available on GitHub with comprehensive status reporting.
 			error = null;
 		} else if (data.status === 'error') {
 			githubVersion = pkg;
-			badgeVariant = 'variant-filled';
 			badgeColor = 'bg-warning-500 text-white';
 			versionStatusMessage = 'Could not check for updates';
 			statusIcon = 'mdi:wifi-off';
@@ -155,25 +150,21 @@ latest version available on GitHub with comprehensive status reporting.
 
 			// Security issue takes priority
 			if (data.security_issue) {
-				badgeVariant = 'variant-filled';
 				badgeColor = 'bg-error-500 text-white';
 				versionStatusMessage = data.message || `Critical security update to v${githubVersion} available!`;
 				statusIcon = 'mdi:shield-alert';
 				statusSeverity = 'critical';
 			} else if (comparison === 'major') {
-				badgeVariant = 'variant-filled';
 				badgeColor = 'bg-error-500 text-white';
 				versionStatusMessage = `Major update to v${githubVersion} available`;
 				statusIcon = 'mdi:alert-circle';
 				statusSeverity = 'critical';
 			} else if (comparison === 'minor' || comparison === 'patch') {
-				badgeVariant = 'variant-filled';
 				badgeColor = 'bg-warning-500 text-black';
 				versionStatusMessage = `Update to v${githubVersion} recommended`;
 				statusIcon = 'mdi:information';
 				statusSeverity = 'warning';
 			} else {
-				badgeVariant = 'variant-filled';
 				badgeColor = 'bg-tertiary-500 dark:bg-primary-500 text-white';
 				versionStatusMessage = 'You are up to date';
 				statusIcon = 'mdi:check-circle';
@@ -220,7 +211,6 @@ latest version available on GitHub with comprehensive status reporting.
 				setTimeout(() => checkVersion(retry + 1), RETRY_DELAY * 2 ** retry);
 			} else {
 				githubVersion = pkg;
-				badgeVariant = 'variant-soft';
 				badgeColor = 'bg-surface-500 text-white';
 				versionStatusMessage = 'Update check failed';
 				statusIcon = 'mdi:alert-octagon';
@@ -305,8 +295,8 @@ latest version available on GitHub with comprehensive status reporting.
 				target="_blank"
 				rel="noopener noreferrer"
 				class={compact
-					? `inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500`
-					: `inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500`}
+					? `inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeColor} rounded-full px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500`
+					: `inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeColor} rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500`}
 				aria-label={statusAriaLabel}
 				aria-live="polite"
 			>

@@ -65,7 +65,7 @@ Displays detailed SEO analysis results in a modal overlay.
 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
 				{#if analysisResult}
 					<!-- Score Overview -->
-					<div class="flex items-center justify-center p-4 bg-surface-200-700-token rounded-container-token mb-6">
+					<div class="flex items-center justify-center p-4 bg-surface-50 dark:bg-surface-900 rounded-container-token mb-6">
 						<div class="text-center">
 							<div
 								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80

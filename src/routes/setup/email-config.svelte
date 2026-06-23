@@ -648,7 +648,7 @@
 				{#if selectedPort}
 					<div class="mt-1 flex items-center gap-2">
 						{#if effectiveSecure()}
-							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
+							<span class="preset-tonal-success badge flex items-center gap-1 text-xs">
 								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
 								{setup_email_port_encrypted()}
 							</span>

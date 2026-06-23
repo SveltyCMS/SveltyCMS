@@ -156,17 +156,17 @@
 				<div class="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
 				<Button variant="tertiary"
 										onclick={() => (activeTab = 'local')}
-									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? '' : 'preset-outline-surface-500'}">
+									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'local' ? '' : 'preset-outlined-surface-500'}">
 					Local Upload
 				</Button>
 				<Button variant="tertiary"
 										onclick={() => (activeTab = 'library')}
-									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? '' : 'preset-outline-surface-500'}">
+									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'library' ? '' : 'preset-outlined-surface-500'}">
 					Library
 				</Button>
 				<Button variant="tertiary"
 										onclick={() => (activeTab = 'remote')}
-									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? '' : 'preset-outline-surface-500'}">
+									class="flex-1 whitespace-nowrap px-3 text-sm sm:flex-initial {activeTab === 'remote' ? '' : 'preset-outlined-surface-500'}">
 					Remote Upload
 				</Button>
 				</div>

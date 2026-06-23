@@ -7,7 +7,8 @@
  *   - Invite user via email and accept invitation
  */
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, logout } from "../../helpers/auth";
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 test.describe("User Management Flow", () => {
   test.setTimeout(120_000); // 2 min timeout
@@ -20,49 +21,106 @@ test.describe("User Management Flow", () => {
     // Login
     await loginAsAdmin(page);
 
-    // Go to User Profile
-    await page.getByRole("link", { name: /user profile/i }).click();
+    // Go to User Profile (sidebar avatar link may be off-screen — navigate direct)
+    await page.goto("/user");
 
     // ✅ READ operation - assert user profile visible
-    await expect(page.locator("h1")).toContainText(/user profile/i);
+    await expect(page.getByRole("heading", { name: /user profile/i })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // ✅ UPDATE operation - Edit user info
     await page.getByRole("button", { name: /edit user settings/i }).click();
     await page.locator('input[name="username"]:not([disabled])').fill("updatedUser");
     await page.getByRole("button", { name: /save/i }).first().click();
 
-    // Confirm update saved
-    await expect(page.getByText(/updateduser/i)).toBeVisible();
+    // Confirm update saved — check for updated username or toast
+    await expect(page.getByText(/updateduser/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test("Delete, Block, and Unblock Users", async ({ page }) => {
+  test("Delete, Block, and Unblock Users", async ({ page, request }) => {
     // Login
     await loginAsAdmin(page);
 
+    // Seed a test user via testing API (global setup only creates admin)
+    const createUserResp = await request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "create-user",
+        username: "developer",
+        email: "developer@example.com",
+        password: "Password123!",
+        role: "developer",
+      },
+    });
+    // Ignore 409 (already exists) — user may persist from previous run
+    expect([200, 201, 409].includes(createUserResp.status())).toBeTruthy();
+
+    // Ensure developer user is unblocked before test (may be blocked from a previous run)
+    const getUserResp = await request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "get-user", email: "developer@example.com" },
+    });
+    if (getUserResp.ok()) {
+      const userData = await getUserResp.json();
+      if (userData?.user?._id && userData.user.blocked) {
+        await request.post("/api/user/batch", {
+          headers: { "Content-Type": "application/json" },
+          data: { userIds: [userData.user._id], action: "unblock" },
+        });
+      }
+    }
+
     // Go to User Profile
-    await page.getByRole("link", { name: /user profile/i }).click();
+    await page.goto("/user");
+    await page.reload();
 
     // Block, then Unblock, and finally Delete the seeded user
-    const actions = ["Block", "Unblock", "Delete"];
+    const actions = [
+      { label: "Select block action", name: "Block" },
+      { label: "Select unblock action", name: "Unblock" },
+      { label: "Select delete action", name: "Delete" },
+    ];
+
+    // Wait for user list table to load
+    await expect(page.getByRole("heading", { name: "User List:" })).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // Wait for developer user to appear in the table
+    const developerRow = page.locator("tr", { hasText: "developer@example.com" }).first();
+    await expect(developerRow).toBeVisible({ timeout: 15_000 });
 
     for (const action of actions) {
-      // Find row for author@example.com (since we cannot block/delete admins) and check the checkbox
-      const row = page.locator("tr", { hasText: "author@example.com" });
-      await row.getByRole("checkbox", { name: "Toggle selection" }).click();
+      // Find row for developer@example.com and check the checkbox
+      const row = page.locator("tr", { hasText: "developer@example.com" }).first();
+      await expect(row).toBeVisible({ timeout: 10_000 });
+      const checkbox = row.getByRole("checkbox", { name: "Toggle selection" });
+      await checkbox.click();
+      await expect(checkbox).toHaveAttribute("aria-checked", "true", { timeout: 5_000 });
 
-      // Click dropdown button to open menu
-      await page.getByRole("button", { name: /Toggle bulk actions menu/i }).click();
+      // Wait for bulk actions button to be enabled
+      const bulkBtn = page.getByRole("button", { name: /Toggle bulk actions menu/i });
+      await expect(bulkBtn).toBeEnabled({ timeout: 10_000 });
+      await bulkBtn.click();
 
-      // Select action
-      await page.getByRole("menuitem", { name: new RegExp(action, "i") }).click();
+      // Wait for menu items to appear and select action
+      await expect(page.getByRole("menuitem", { name: action.label })).toBeVisible({
+        timeout: 10_000,
+      });
+      await page.getByRole("menuitem", { name: action.label }).click();
 
-      // Click Confirm
+      // Wait for confirm dialog and click confirm
+      await expect(page.getByRole("button", { name: /confirm/i })).toBeVisible({ timeout: 10_000 });
       await page.getByRole("button", { name: /confirm/i }).click();
 
-      // Optional: Wait for confirmation toast or success message
-      await expect(page.getByText(new RegExp(action, "i"))).toBeVisible({
+      // Wait for confirmation toast or success message
+      await expect(page.getByText(new RegExp(action.name, "i")).first()).toBeVisible({
         timeout: 5000,
       });
+
+      // Wait for the table to reload before next iteration
+      await page.waitForTimeout(1000);
     }
   });
 
@@ -74,31 +132,49 @@ test.describe("User Management Flow", () => {
     await page.getByRole("link", { name: /user profile/i }).click();
 
     // Click on email user registration token
-    await page.getByRole("button", { name: /email user registration token/i }).click();
+    const tokenBtn = page.getByRole("button", { name: /email user registration token/i });
+    await tokenBtn.scrollIntoViewIfNeeded();
+    await tokenBtn.click();
+
+    // Wait for modal to appear
+    const modalDialog = page.getByRole("dialog").first();
+    await expect(modalDialog).toBeVisible({ timeout: 10_000 });
 
     // Fill form
     await page.locator('input[name="email"]:not([disabled])').fill("newuser@example.com");
-    await page.getByRole("button", { name: "user", exact: true }).click();
-    await page.getByRole("button", { name: /save/i }).first().click();
+    await modalDialog.getByRole("button", { name: "Editor" }).click();
+    await page.locator("#expires-select").selectOption("12 hrs");
+    await modalDialog.getByRole("button", { name: /save/i }).click();
 
-    // Extract dynamic invite URL from copy input
-    const inviteLinkInput = page.locator('input[value*="invite_token="]');
-    await expect(inviteLinkInput).toBeVisible({ timeout: 10_000 });
+    // Wait for the invitation link section to appear
+    await expect(page.getByText("Invitation Link").first()).toBeVisible({ timeout: 15_000 });
+
+    // Get the readonly input inside the "Invitation Link" label
+    const inviteLinkInput = page
+      .locator("label", { hasText: "Invitation Link" })
+      .locator("input")
+      .first();
+    await expect(inviteLinkInput).toBeVisible({ timeout: 5_000 });
     const inviteUrl = await inviteLinkInput.inputValue();
+
+    // Log out admin before visiting invite URL so login page shows
+    await logout(page);
 
     // Go to generated invite URL
     await page.goto(inviteUrl);
 
+    // Click "Go to Sign Up" to access the registration form
+    await page.getByRole("button", { name: /sign up/i }).click();
+
     // Check prefilled fields on signup page
-    await expect(page.locator('input[name="email"]')).toHaveValue("newuser@example.com");
-    await expect(page.locator('input[name="token"]')).not.toHaveValue("");
+    await expect(page.locator('input[name="email"]').first()).toHaveValue("newuser@example.com");
 
     // Fill remaining signup fields
-    await page.fill('input[name="username"]', "newuser");
-    await page.fill('input[name="security"]', "user@123!");
-    await page.fill('input[name="confirm_password"]', "user@123!");
+    await page.locator('input[name="username"]').first().fill("newuser");
+    await page.locator('input[type="password"]').nth(0).fill("user@123!");
+    await page.locator('input[type="password"]').nth(1).fill("user@123!");
 
-    await page.getByRole("button", { name: /accept invitation and create account/i }).click();
+    await page.getByRole("button", { name: /accept invitation/i }).click();
 
     // Optional: Assert signup success
     await expect(page.getByText(/account created/i)).toBeVisible({

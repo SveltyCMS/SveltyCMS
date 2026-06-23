@@ -443,7 +443,7 @@ afterNavigate(() => {
 					<aside
 						class="max-h-dvh transition-[width] duration-300 ease-in-out {ui.state.leftSidebar === 'full'
 							? ''
-							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
+							: 'w-fit'} relative border-e border-surface-200 bg-surface-50 px-2! text-center dark:border-surface-700 dark:bg-surface-900 overflow-visible"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>
@@ -475,7 +475,7 @@ afterNavigate(() => {
 										{/if}
 
 					{#if ui.state.pagefooter !== 'hidden'}
-						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
+						<footer class="mt-auto w-full bg-surface-50 px-1 text-center dark:bg-surface-900">
 							<PageFooter />
 						</footer>
 					{/if}
@@ -483,7 +483,7 @@ afterNavigate(() => {
 
 				{#if ui.state.rightSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh w-60 border-s bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh w-60 border-s border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-900"
 						aria-label="Right sidebar"
 					>
 						<RightSidebar />

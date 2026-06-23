@@ -433,7 +433,7 @@ function uniquePathForCategory(name: string): string {
 	return path;
 }
 
-function modalAddCategory(existingCategory?: Partial<ContentNode>): void {
+function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = undefined): void {
 	modalState.trigger(
 		ModalCategory as any,
 		{

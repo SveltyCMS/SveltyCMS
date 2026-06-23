@@ -624,6 +624,22 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpression {
   const properties: ts.ObjectLiteralElementLike[] = [];
 
+  // Add _id property (derived from name)
+  properties.push(
+    ts.factory.createPropertyAssignment(
+      ts.factory.createIdentifier("_id"),
+      ts.factory.createStringLiteral(data.contentName.toLowerCase().replace(/[^a-z0-9-]/g, "-")),
+    ),
+  );
+
+  // Add name property
+  properties.push(
+    ts.factory.createPropertyAssignment(
+      ts.factory.createIdentifier("name"),
+      ts.factory.createStringLiteral(data.contentName),
+    ),
+  );
+
   // Add icon property
   properties.push(
     ts.factory.createPropertyAssignment(

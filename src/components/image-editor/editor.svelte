@@ -155,7 +155,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 		}
 	});
 
-	function finalizeLoadedImage(img: HTMLImageElement, file?: File) {
+	function finalizeLoadedImage(img: HTMLImageElement, file: File | undefined = undefined) {
 		imageEditorStore.setError(null);
 		imageEditorStore.setImageElement(img);
 		if (file) {
@@ -191,7 +191,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 		isProcessing = false;
 	}
 
-	function loadImage(imageSrc: string, file?: File, retryAttempt = 0, activeGeneration?: number) {
+	function loadImage(imageSrc: string, file: File | undefined = undefined, retryAttempt = 0, activeGeneration: number | undefined = undefined) {
 		let cleanedSrc = imageSrc;
 		// Handle duplicate /files/ paths correctly, allowing dynamic paths via regex
 		cleanedSrc = cleanedSrc.replace(/(?:\/files)+\//g, '/files/');

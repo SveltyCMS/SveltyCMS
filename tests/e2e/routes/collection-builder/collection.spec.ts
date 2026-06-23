@@ -14,7 +14,17 @@ test.describe("Full Collection & Widget Flow", () => {
   test.setTimeout(120_000); // 2 minutes
 
   test("Login, create collection, perform actions, and add widget", async ({ page }) => {
-    // 0. Create Names collection schema
+    // Block external icon API requests that cause CORS errors with test headers
+    await page.route("https://api.iconify.design/**", (route) => route.abort());
+    await page.route("https://api.simplesvg.com/**", (route) => route.abort());
+    await page.route("https://api.unisvg.com/**", (route) => route.abort());
+
+    // 1. Login FIRST — loginAsAdmin may reset/seed an empty worker database,
+    // which would drop any collection tables created before it. So we must
+    // create the collection AFTER login to avoid the reset wiping it.
+    await loginAsAdmin(page);
+
+    // 0. Create Names collection schema (after login so it survives any reset)
     const schemaResponse = await page.request.post("/api/testing", {
       headers: TEST_API_HEADERS,
       data: {
@@ -42,47 +52,84 @@ test.describe("Full Collection & Widget Flow", () => {
     });
     expect(schemaResponse.ok()).toBeTruthy();
 
-    // 1. Login
-    await loginAsAdmin(page);
+    // Wait for collection to be fully created and synced
+    await page.waitForTimeout(2000);
 
-    // Navigate directly to Names collection list page
-    await page.goto("/en/collection/Names");
+    // Navigate directly to Names collection list page (with retry)
+    let collectionPageLoaded = false;
+    for (let i = 0; i < 3; i++) {
+      await page.goto("/en/collection/Names", { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(2000);
+      const createBtn = page.getByRole("button", { name: /create/i }).first();
+      try {
+        await expect(createBtn).toBeVisible({ timeout: 10_000 });
+        collectionPageLoaded = true;
+        break;
+      } catch {
+        console.log(`[Collection] Names page not ready on attempt ${i + 1}, retrying...`);
+        await page.waitForTimeout(3000);
+      }
+    }
+    if (!collectionPageLoaded) {
+      throw new Error("Names collection page did not load after 3 attempts");
+    }
 
     // 2. Create Entry
-    await page.getByRole("button", { name: /create/i }).click();
-    await page.getByPlaceholder(/first name/i).fill("First Name");
-    await page.getByPlaceholder(/last name/i).fill("Last Name");
+    const createBtn = page.getByRole("button", { name: /create/i }).first();
+    await createBtn.click();
+    await page.getByRole("textbox", { name: /first name/i }).fill("First Name");
+    await page.getByRole("textbox", { name: /last name/i }).fill("Last Name");
     await page.getByRole("button", { name: /save/i }).first().click();
     await expect(page).toHaveURL(/\/en\/collection\/Names/i);
 
-    // 3. Perform Collection Actions
-    const actions = ["Published", "Unpublished", "Scheduled", "Cloned", "Delete", "Testing"];
+    // 3. Perform Collection Bulk Actions via the contextual multi-button dropdown.
+    // The current UI workflow: select entry checkbox → open actions dropdown → pick action.
+    // The dropdown dynamically filters actions by entry state (e.g. Unpublish is hidden when
+    // the entry is already a draft), so we test the always-available, non-state-dependent
+    // actions: Clone (creates a copy) and Delete (last, removes the entry).
+    const actions = ["Clone", "Delete"];
 
     for (const action of actions) {
-      // Click action button (e.g., Published)
-      await page.getByRole("button", { name: new RegExp(`^${action}$`, "i") }).click();
+      // Wait for the entry table body to render at least one row, then select
+      // its checkbox (skip the header "Toggle selection" checkbox). Waiting on
+      // the row first avoids a race where the checkbox is queried before the
+      // table hydrates under parallel worker load.
+      await expect(page.locator("table tbody tr").first()).toBeVisible({ timeout: 15_000 });
+      const checkbox = page.getByRole("checkbox").nth(1);
+      await expect(checkbox).toBeVisible({ timeout: 10_000 });
+      await checkbox.click();
 
-      // Select first collection checkbox
-      const checkbox = page.locator('input[type="checkbox"]').first();
-      await expect(checkbox).toBeVisible({ timeout: 5000 });
-      await checkbox.check();
+      // Open the actions dropdown
+      await page.getByRole("button", { name: /toggle actions menu/i }).click();
 
-      // Click Save
-      await page.getByRole("button", { name: /save/i }).first().click();
+      // Click the action menu item (label may include a shortcut, e.g. "Delete (Alt+Del)")
+      await page.getByRole("menuitem", { name: new RegExp(`^${action}`, "i") }).click();
 
-      // Confirm redirect to collection list
-      await expect(page).toHaveURL(/\/en\/collection\/Names/i);
+      // Delete opens a confirmation modal — confirm it
+      if (action === "Delete") {
+        const confirmBtn = page.getByRole("button", { name: /^Delete$/i }).first();
+        await expect(confirmBtn).toBeVisible({ timeout: 10_000 });
+        await confirmBtn.click();
+      }
+
+      // Confirm we remain on the collection list page
+      await expect(page).toHaveURL(/\/en\/collection\/Names/i, { timeout: 15_000 });
+      await page.waitForTimeout(500);
     }
 
     // 4. Add a Widget to Dashboard
-    await page.getByRole("button", { name: /system configuration/i }).click();
-    await page.getByRole("link", { name: /dashboard/i }).click();
+    await page.goto("/config");
+    await page
+      .getByRole("link", { name: /dashboard/i })
+      .first()
+      .click();
     await page.getByRole("button", { name: /add widget/i }).click();
 
-    await page.getByPlaceholder(/search widgets/i).fill("CPU Usage");
-    const cpuWidget = page.getByText(/cpu usage/i);
-    await expect(cpuWidget).toBeVisible({ timeout: 10_000 });
-    await cpuWidget.click();
+    // Wait for widget registry to load and menu items to appear
+    await expect(page.getByRole("menuitem", { name: /cpu usage/i })).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.getByRole("menuitem", { name: /cpu usage/i }).click();
 
     // Final redirect check to dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });

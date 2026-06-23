@@ -149,7 +149,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	}
 
 	// Toggle file selection
-	function toggleSelection(file: MediaImage, event?: Event): void {
+	function toggleSelection(file: MediaImage, event: Event | undefined = undefined): void {
 		event?.stopPropagation();
 
 		if (multiple) {

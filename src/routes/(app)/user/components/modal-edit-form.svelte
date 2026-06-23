@@ -159,6 +159,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			modalState.close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+			console.error('[modal-edit-form] onFormSubmit error:', err);
 			toast.error(`<CircleAlert size={24}/> ${message}`);
 		} finally {
 			editForm.submitting = false;

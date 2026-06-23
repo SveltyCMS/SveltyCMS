@@ -55,13 +55,12 @@
 
 	interface ActionConfig {
 		dangerLevel: DangerLevel;
-		gradient: string;
+		presetClass: string;
 		icon: string;
 		label: string;
 		requiresSelection: boolean;
 		shortcut?: string;
 		shortcutKey?: string;
-		textColor: string;
 		type: ActionType;
 	}
 
@@ -101,9 +100,8 @@
 		{
 			type: 'create',
 			label: entrylist_multibutton_create(),
-			gradient: 'gradient-tertiary',
+			presetClass: 'preset-filled-tertiary-500 dark:preset-filled-primary-500',
 			icon: 'ic:round-plus',
-			textColor: 'text-white',
 			shortcut: 'Alt+N',
 			shortcutKey: 'n',
 			requiresSelection: false,
@@ -112,9 +110,8 @@
 		{
 			type: 'publish',
 			label: entrylist_multibutton_publish(),
-			gradient: 'gradient-primary',
+			presetClass: 'preset-filled-tertiary-500 dark:preset-filled-primary-500',
 			icon: 'bi:hand-thumbs-up-fill',
-			textColor: 'text-white',
 			shortcut: 'Alt+P',
 			shortcutKey: 'p',
 			requiresSelection: true,
@@ -123,9 +120,8 @@
 		{
 			type: 'unpublish',
 			label: entrylist_multibutton_unpublish(),
-			gradient: 'gradient-warning',
+			presetClass: 'preset-filled-warning-500',
 			icon: 'bi:pause-circle',
-			textColor: 'text-black',
 			shortcut: 'Alt+U',
 			shortcutKey: 'u',
 			requiresSelection: true,
@@ -134,9 +130,8 @@
 		{
 			type: 'draft',
 			label: 'Draft',
-			gradient: 'gradient-secondary',
+			presetClass: 'preset-filled-secondary-500',
 			icon: 'ic:baseline-edit-note',
-			textColor: 'text-white',
 			shortcut: 'Alt+D',
 			shortcutKey: 'd',
 			requiresSelection: true,
@@ -145,27 +140,24 @@
 		{
 			type: 'schedule',
 			label: entrylist_multibutton_schedule(),
-			gradient: 'gradient-tertiary',
+			presetClass: 'preset-filled-tertiary-500 dark:preset-filled-primary-500',
 			icon: 'ic:round-schedule',
-			textColor: 'text-white',
 			requiresSelection: true,
 			dangerLevel: 'low'
 		},
 		{
 			type: 'clone',
 			label: entrylist_multibutton_clone(),
-			gradient: 'gradient-secondary',
+			presetClass: 'preset-filled-secondary-500',
 			icon: 'ic:round-content-copy',
-			textColor: 'text-white',
 			requiresSelection: true,
 			dangerLevel: 'low'
 		},
 		{
 			type: 'delete',
 			label: button_delete(),
-			gradient: 'gradient-error',
+			presetClass: 'preset-filled-error-500',
 			icon: 'ic:round-delete-forever',
-			textColor: 'text-white',
 			shortcut: 'Alt+Del',
 			shortcutKey: 'Delete',
 			requiresSelection: true,
@@ -477,19 +469,15 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
-			class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!hasSelections
-				? 'active:scale-95 cursor-pointer'
-				: ''} rounded-l-full rounded-r-md border border-white/20"
-			onclick={!hasSelections ? handleMainButtonClick : undefined}
+			class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 active:scale-95 rounded-l-full rounded-r-md border border-white/20"
 		>
 			<!-- Main Contextual Button -->
 			<button
 				type="button"
-				onclick={hasSelections ? handleMainButtonClick : undefined}
+				onclick={handleMainButtonClick}
 				disabled={isProcessing}
-				class="h-10 min-w-15 md:min-w-35 rtl:rotate-180 font-bold transition-all duration-200
-					{hasSelections ? 'active:scale-95' : 'pointer-events-none'}
-					{currentConfig.gradient} {currentConfig.textColor}
+				class="h-10 min-w-15 md:min-w-35 rtl:rotate-180 font-bold transition-all duration-200 active:scale-95 cursor-pointer
+					{currentConfig.presetClass}
 					rounded-l-full rounded-r-none px-6 flex items-center gap-2 border-e border-white
 					disabled:opacity-50 disabled:cursor-not-allowed"
 				aria-label={dynamicLabel}
@@ -522,7 +510,7 @@
 					class="h-10 w-8 border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center shadow-inner
 						{hasSelections && !isProcessing
 						? 'bg-surface-500 hover:bg-surface-400 active:scale-95 cursor-pointer'
-						: currentConfig.gradient + ' pointer-events-none opacity-90'}"
+						: currentConfig.presetClass + ' pointer-events-none opacity-90'}"
 					aria-haspopup="menu"
 					aria-expanded={isDropdownOpen}
 					aria-label={entrylist_multibutton_toggle_menu()}

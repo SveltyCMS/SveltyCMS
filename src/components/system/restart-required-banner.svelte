@@ -125,7 +125,7 @@ Displays a prominent banner when server restart is required with countdown and s
 
 {#if !isDismissed}
 	<div
-		class="variant-filled-warning relative overflow-hidden p-4 shadow-lg"
+		class="preset-filled-warning-500 relative overflow-hidden p-4 shadow-lg"
 		role="alert"
 		aria-live="assertive"
 		aria-atomic="true"

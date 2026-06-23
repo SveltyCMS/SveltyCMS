@@ -325,9 +325,12 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
   const fileSchemas = await scanCompiledCollections();
   let dbSchemas: Schema[] = [];
 
-  if (db?.collection?.listSchemas) {
+  // Resolve db adapter if not passed
+  const dbAdapter = db || (await (await import("@src/databases/db")).getDb());
+
+  if (dbAdapter?.collection?.listSchemas) {
     try {
-      const res = await db.collection.listSchemas(tenantId as DatabaseId);
+      const res = await dbAdapter.collection.listSchemas(tenantId as DatabaseId);
       if (res.success && res.data) {
         dbSchemas = res.data;
       }
@@ -373,10 +376,16 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
 
   contentStore.sync(nodes as any);
 
-  if (db) {
-    if (typeof (db as any).reconcile === "function") await (db as any).reconcile();
-    if ((db.collection as any)?.ensureSystemTables)
-      await (db.collection as any).ensureSystemTables();
+  if (dbAdapter) {
+    // Create DB tables for any new/changed schemas
+    try {
+      await ensurePhysicalModels(finalSchemas, dbAdapter);
+    } catch (err) {
+      logger.error("[RECONCILE] Failed to ensure physical models:", err);
+    }
+    if (typeof (dbAdapter as any).reconcile === "function") await (dbAdapter as any).reconcile();
+    if ((dbAdapter.collection as any)?.ensureSystemTables)
+      await (dbAdapter.collection as any).ensureSystemTables();
   }
 }
 

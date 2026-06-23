@@ -58,7 +58,7 @@
   let isCreatingShare = $state(false);
 
   // Helper for MIME display
-  function formatMime(mime?: string) {
+  function formatMime(mime: string | undefined = undefined) {
     if (!mime) return "Unknown";
     return mime.split("/")[1]?.toUpperCase() || mime.toUpperCase();
   }
@@ -305,7 +305,7 @@
     return `${window.location.origin}/share/${token}?id=${file._id}`;
   }
 
-  function isExpired(expiry?: string | null) {
+  function isExpired(expiry: string | null | undefined = undefined) {
     if (!expiry) return false;
     return new Date() > new Date(expiry);
   }

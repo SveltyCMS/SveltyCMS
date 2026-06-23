@@ -32,7 +32,7 @@ class SetupWizardPage {
       ]);
       if (confirmBtn && (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
         await confirmBtn.click({ force: true });
-        await this.page.waitForLoadState("networkidle").catch(() => {});
+        await this.page.waitForLoadState("domcontentloaded").catch(() => {});
       }
     }
   }
@@ -63,7 +63,7 @@ class SetupWizardPage {
     const nextBtn = this.page.getByLabel("Next", { exact: true }).first();
     await expect(nextBtn).toBeEnabled({ timeout: 60000 });
     await nextBtn.click();
-    await this.page.waitForLoadState("networkidle").catch(() => {});
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   async complete() {

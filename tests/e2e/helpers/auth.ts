@@ -32,6 +32,13 @@ export async function loginAs(
   console.log(`[Auth] Logging in as ${email}...`);
   await page.context().clearCookies();
 
+  // Block external icon API requests that cause CORS errors with test headers.
+  // These requests fail because x-test-mode header is not allowed by CORS policy.
+  // Aborting them speeds up page loads and prevents networkidle from hanging.
+  await page.route("https://api.iconify.design/**", (route) => route.abort());
+  await page.route("https://api.simplesvg.com/**", (route) => route.abort());
+  await page.route("https://api.unisvg.com/**", (route) => route.abort());
+
   // Navigate first to ensure we have a valid origin for localStorage access
   await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
 
@@ -66,8 +73,10 @@ export async function loginAs(
   });
 
   // Navigate to login page (reload to apply init scripts)
+  // Use domcontentloaded instead of networkidle to avoid waiting for
+  // external API requests (iconify) that may fail due to CORS with test headers
   console.log("[Auth] Navigating to /login...");
-  await page.goto("/login", { waitUntil: "networkidle", timeout: 30_000 });
+  await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
 
   // Check if we got redirected to setup (config incomplete)
   if (page.url().includes("/setup")) {
@@ -114,7 +123,7 @@ export async function loginAs(
     }
 
     // Reload login page with seeded database
-    await page.goto("/login", { waitUntil: "networkidle", timeout: 100000 });
+    await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForTimeout(1000);
   }
 
@@ -160,56 +169,70 @@ export async function loginAs(
 
   console.log("[Auth] Modal dismissal complete.");
 
-  // Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
-  // Try data-testid first, then fallback to previous locators
-  const signInIcon = page.getByTestId("signin-icon");
-  const signInButton = page
-    .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
-    .first();
+  // Combined SIGN IN click + form wait with retry logic
+  // Handles: login selection page (SIGN IN button), direct form, and reload recovery
+  console.log("[Auth] Looking for SIGN IN button or login form...");
+  let formFound = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // First check if the login form is already visible
+    formFound = await page
+      .getByTestId("signin-email")
+      .isVisible({ timeout: 3000 })
+      .catch(() => false);
+    if (formFound) {
+      console.log(`[Auth] Login form already visible (attempt ${attempt + 1})`);
+      break;
+    }
 
-  const signInIconVisible = await signInIcon.isVisible({ timeout: 2000 }).catch(() => false);
-  const signInButtonVisible =
-    !signInIconVisible && (await signInButton.isVisible({ timeout: 2000 }).catch(() => false));
+    // Try clicking SIGN IN icon (data-testid)
+    const signInIcon = page.getByTestId("signin-icon");
+    if (await signInIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log(`[Auth] Clicking SIGN IN icon (attempt ${attempt + 1})...`);
+      await signInIcon.click({ force: true, timeout: 10000 });
+      await page.waitForTimeout(1000);
+      formFound = await page
+        .getByTestId("signin-email")
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
+      if (formFound) break;
+    }
 
-  if (signInIconVisible) {
-    console.log("[Auth] Clicking SIGN IN icon...");
-    // Use force click with retry to bypass any transient overlays
-    await signInIcon.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(1000);
-  } else if (signInButtonVisible) {
-    console.log("[Auth] Clicking SIGN IN button (fallback)...");
-    await signInButton.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(1000);
-  } else {
-    // If neither is visible, we might already be on the form, or on the SIGN UP only page (First User)
-    const signUpIcon = page.getByTestId("signup-icon");
-    if (await signUpIcon.isVisible()) {
-      console.log(
-        "[Auth] WARNING: Only SIGN UP icon visible. DB might not be seeded or isFirstUser=true.",
-      );
-      // In first user mode, we'll try to click signup and fill it, but expect error later
-      await signUpIcon.click({ force: true });
+    // Try clicking SIGN IN button (text-based fallback)
+    const signInButton = page
+      .locator(
+        'div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In"), button:has-text("Sign In"), button:has-text("SIGN IN")',
+      )
+      .first();
+    if (await signInButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log(`[Auth] Clicking SIGN IN button (attempt ${attempt + 1})...`);
+      await signInButton.click({ force: true, timeout: 10000 });
+      await page.waitForTimeout(1000);
+      formFound = await page
+        .getByTestId("signin-email")
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
+      if (formFound) break;
+    }
+
+    // Reload and retry
+    if (attempt < 2) {
+      console.log(`[Auth] Login form not found (attempt ${attempt + 1}/3), reloading...`);
+      await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
       await page.waitForTimeout(1000);
     }
   }
 
-  // Wait for login form to be visible - use data-testid
-  console.log("[Auth] Waiting for signin-email field...");
-  await page
-    .getByTestId("signin-email")
-    .waitFor({ state: "visible", timeout: 15_000 })
-    .catch(async (e) => {
-      console.error("[Auth] ERROR: signin-email field not found!");
-      // Provide debug info about available inputs
-      const inputs = await page.locator("input").all();
-      for (let i = 0; i < inputs.length; i++) {
-        const input = inputs[i];
-        const name = await input.getAttribute("name");
-        const testId = await input.getAttribute("data-testid");
-        console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
-      }
-      throw e;
-    });
+  if (!formFound) {
+    // Provide debug info about available inputs
+    const inputs = await page.locator("input").all();
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i];
+      const name = await input.getAttribute("name");
+      const testId = await input.getAttribute("data-testid");
+      console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
+    }
+    throw new Error("[Auth] ERROR: signin-email field not found after 3 attempts!");
+  }
 
   // Fill login form using data-testid selectors
   console.log(`[Auth] Filling email: ${email}`);

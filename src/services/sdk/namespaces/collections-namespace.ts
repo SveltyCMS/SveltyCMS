@@ -3,10 +3,18 @@
  * @description Collections namespace for LocalCMS SDK.
  */
 
-import { contentSystem } from "@src/content/index.server";
 import { modifyRequest, modifyStream, type EntryData } from "@utils/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
+
+let _contentSystem: any = null;
+async function getContentSystem() {
+  if (!_contentSystem) {
+    const mod = await import("@src/content/index.server");
+    _contentSystem = mod.contentSystem;
+  }
+  return _contentSystem;
+}
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -83,7 +91,17 @@ export class CollectionsNamespace {
   }
 
   private get _contentSystem() {
-    return this._contentSystemOverride || contentSystem;
+    return this._contentSystemOverride || _contentSystem;
+  }
+
+  /**
+   * Async resolver — ensures the lazily-imported content system is loaded
+   * before use. Sync callers can use the `_contentSystem` getter (which may
+   * be null until first async resolution), but async code should prefer this.
+   */
+  private async _resolveContentSystem() {
+    if (this._contentSystemOverride) return this._contentSystemOverride;
+    return await getContentSystem();
   }
 
   private normalizeRelationshipFilter(filter: any): any {
@@ -147,7 +165,8 @@ export class CollectionsNamespace {
 
     let schema = null;
     try {
-      schema = await this._contentSystem.getCollectionById(collectionId, tenantId);
+      const cs = await this._resolveContentSystem();
+      schema = await cs.getCollectionById(collectionId, tenantId);
     } catch {}
 
     const idLower = collectionId.toLowerCase();
@@ -302,7 +321,8 @@ export class CollectionsNamespace {
       }
     } catch {}
 
-    const collections = await this._contentSystem.getCollections(tenantId);
+    const cs = await this._resolveContentSystem();
+    const collections = await cs.getCollections(tenantId);
 
     // Merge in any manually registered schemas from cache
     const prefix = `${tenantId || "global"}:`;
@@ -379,7 +399,8 @@ export class CollectionsNamespace {
     if (collections && collections.length > 0) {
       collectionsToSearch = collections;
     } else {
-      const allCollections = await contentSystem.getCollections(tenantId);
+      const cs = await getContentSystem();
+      const allCollections = await cs.getCollections(tenantId);
       collectionsToSearch = allCollections
         .map((c) => c._id)
         .filter((id): id is string => id !== undefined);
@@ -395,7 +416,8 @@ export class CollectionsNamespace {
     }
 
     const searchPromises = collectionsToSearch.map(async (collectionId) => {
-      const collection = await contentSystem.getCollectionById(collectionId, tenantId);
+      const cs = await getContentSystem();
+      const collection = await cs.getCollectionById(collectionId, tenantId);
       if (!collection) return [];
 
       try {
@@ -625,7 +647,8 @@ export class CollectionsNamespace {
     } = {},
   ) {
     const { tenantId, user, publicationFilter = "all" } = options;
-    const schema = await contentSystem.getCollectionById(collectionId, tenantId);
+    const cs = await getContentSystem();
+    const schema = await cs.getCollectionById(collectionId, tenantId);
     if (!schema) throw new AppError(`Collection ${collectionId} not found`, 404);
 
     const query: any = {
@@ -709,15 +732,18 @@ export class CollectionsNamespace {
     const freshDb = getDb();
     if (freshDb) this._dbAdapter = freshDb;
 
-    return this._contentSystem.refresh(tenantId as any, skipReconciliation);
+    const cs = await this._resolveContentSystem();
+    return cs.refresh(tenantId as any, skipReconciliation);
   }
 
   async getStructure(tenantId?: DatabaseId | null) {
-    return contentSystem.getContentStructure(tenantId);
+    const cs = await getContentSystem();
+    return cs.getContentStructure(tenantId);
   }
 
   async reorderContentNodes(items: any[], tenantId?: DatabaseId | null) {
-    return contentSystem.reorderContentNodes(items, tenantId);
+    const cs = await getContentSystem();
+    return cs.reorderContentNodes(items, tenantId);
   }
 
   async getRevisions(

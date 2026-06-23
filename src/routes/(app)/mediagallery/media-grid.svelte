@@ -43,7 +43,7 @@ Features:
   	let taggingFile = $state<MediaImage | null>(null);
   	let fileUploadInput = $state<HTMLInputElement>();
 
-  function formatMimeType(mime?: string): string {
+  function formatMimeType(mime: string | undefined = undefined): string {
     if (!mime) return "Unknown";
     const parts = mime.split("/");
     return parts[1] ? parts[1].toUpperCase() : parts[0].toUpperCase();

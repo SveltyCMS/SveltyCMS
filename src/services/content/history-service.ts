@@ -4,12 +4,20 @@
  * Unified History Service handling revisions and version state management.
  */
 
-import { contentSystem } from "@src/content/index.server";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { pubSub } from "../background/pub-sub";
 import { logger } from "@utils/logger";
+
+let _contentSystem: any = null;
+async function getContentSystem() {
+  if (!_contentSystem) {
+    const mod = await import("@src/content/index.server");
+    _contentSystem = mod.contentSystem;
+  }
+  return _contentSystem;
+}
 
 export class HistoryService {
   // === Version State Management ===
@@ -70,7 +78,8 @@ export class HistoryService {
     page?: number;
     limit?: number;
   }) {
-    const schema = await contentSystem.getCollectionById(collectionId, tenantId);
+    const cs = await getContentSystem();
+    const schema = await cs.getCollectionById(collectionId, tenantId);
     if (!schema) {
       return { success: false, error: { message: "Collection not found" } };
     }

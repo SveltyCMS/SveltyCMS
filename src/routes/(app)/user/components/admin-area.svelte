@@ -665,21 +665,21 @@
 </script>
 
 <AdminCard
-	class="flex flex-col border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
+	class="flex flex-col border border-surface-200 bg-surface-50 p-6 shadow-sm backdrop-blur-md dark:border-surface-700 dark:bg-surface-900/50"
 >
-	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{adminarea_adminarea()}</p>
+	<h2 class="mb-4 text-center text-2xl font-bold text-surface-900 dark:text-white">{adminarea_adminarea()}</h2>
 
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
-		<Button variant="outline" type="button" onclick={modalTokenUser} aria-label={adminarea_emailtoken()} class="gradient-primary w-full text-white sm:max-w-xs">
+		<Button variant="primary" type="button" onclick={modalTokenUser} aria-label={adminarea_emailtoken()} class="w-full sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" width={24}></iconify-icon>
 			<span class="whitespace-normal wrap-break-word">{adminarea_emailtoken()}</span>
 		</Button>
 
-		<Button variant="outline"
+		<Button variant="secondary"
 			type="button"
 			onclick={toggleUserToken}
 			aria-label={showUsertoken ? adminarea_hideusertoken() : adminarea_showtoken()}
-		 class="gradient-secondary w-full text-white sm:max-w-xs">
+		 class="w-full sm:max-w-xs">
 			<iconify-icon icon="material-symbols:key-outline" width={24}></iconify-icon>
 			<span>{showUsertoken ? adminarea_hideusertoken() : adminarea_showtoken()}</span>
 		</Button>
@@ -690,22 +690,22 @@
 				(item): item is Token => isToken(item) && item.expires != null && new Date(String(item.expires)) < now
 			)}
 			{#if expiredTokens.length > 0}
-				<Button variant="outline"
+				<Button variant="secondary"
 					type="button"
 					onclick={() => (showExpiredTokens = !showExpiredTokens)}
 					aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
-				 class="gradient-secondary w-full text-white sm:max-w-xs">
+				 class="w-full sm:max-w-xs">
 					<iconify-icon icon="material-symbols:schedule" width={24}></iconify-icon>
 					<span>{showExpiredTokens ? 'Hide Expired' : 'Show Expired'}</span>
 				</Button>
 			{/if}
 		{/if}
 
-		<Button variant="outline"
+		<Button variant="tertiary"
 			type="button"
 			onclick={toggleUserList}
 			aria-label={showUserList ? adminarea_hideuserlist() : adminarea_showuserlist()}
-		 class="gradient-tertiary w-full text-white sm:max-w-xs">
+		 class="w-full sm:max-w-xs">
 			<iconify-icon icon="mdi:account-circle" width={24}></iconify-icon>
 			<span>{showUserList ? adminarea_hideuserlist() : adminarea_showuserlist()}</span>
 		</Button>
@@ -770,12 +770,12 @@
 			{/if}
 
 			<div class="max-h-[calc(100vh-120px)] overflow-x-auto overflow-y-auto">
-				<table class="table w-full table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
+				<table class="w-full text-sm {density === 'compact' ? 'text-xs' : density === 'comfortable' ? 'text-base' : ''}">
 					<thead
-						class="divide-x divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
+						class="divide-x divide-surface-200 dark:divide-surface-700 text-surface-500 dark:text-surface-300 bg-surface-100 dark:bg-surface-800/50"
 					>
 						{#if filterShow}
-							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
+							<tr class="divide-x divide-surface-200 dark:divide-surface-700">
 								<th>
 									{#if Object.keys(filters).length > 0}
 										<Button variant="ghost" type="button" onclick={() => (filters = {})} aria-label="Clear All Filters" class="p-0! min-w-0 preset-outline">
@@ -801,22 +801,24 @@
 						{/if}
 
 						<tr
-							class="divide-x divide-surface-300 dark:divide-surface-50 border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
+							class="divide-x divide-surface-300 dark:divide-surface-700 border-b border-surface-300 dark:border-surface-700 font-semibold tracking-wide uppercase text-xs"
 						>
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectAll}
 								onCheck={(checked: boolean) => {
 									selectAll = checked;
+									const newMap: Record<number, boolean> = {};
 									for (let i = 0; i < tableData.length; i++) {
-										selectedMap[i] = checked;
+										newMap[i] = checked;
 									}
+									selectedMap = newMap;
 								}}
 							/>
 
 							{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 								<th
-									class="cursor-pointer text-tertiary-500 dark:text-primary-500 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors"
+									class="cursor-pointer text-tertiary-500 dark:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
 									onclick={() => {
 										sorting = {
 											sortedBy: header.key,
@@ -839,13 +841,13 @@
 						</tr>
 					</thead>
 
-					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+					<tbody class="divide-y divide-surface-200 dark:divide-surface-700">
 						{#each tableData as row, index (row._id || index)}
 							{const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{const isConsumed = isToken(row) && row.consumed}
 							{const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
-								class="divide-x divide-surface-200/50 dark:divide-surface-50 {isExpired || isConsumed
+								class="divide-x divide-surface-200 dark:divide-surface-700 {isExpired || isConsumed
 									? 'bg-surface-50 opacity-60 dark:bg-surface-900/20'
 									: ''} {isExpired ? 'bg-error-50 dark:bg-error-900/10' : ''} {showUsertoken
 									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
@@ -860,7 +862,7 @@
 								<TableIcons
 									checked={selectedMap[index] ?? false}
 									onCheck={(checked: boolean) => {
-										selectedMap[index] = checked;
+										selectedMap = { ...selectedMap, [index]: checked };
 									}}
 								/>
 								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
@@ -898,7 +900,7 @@
 														: '/Default_User.svg'}
 												initials="Usr"
 												size="size-10"
-												class="rounded-full border border-surface-200/50"
+												class="rounded-full border border-surface-200 dark:border-surface-700"
 											/>
 										{:else if header.key === 'role'}
 											<Role
@@ -926,7 +928,7 @@
 																	toast.error('Failed to copy');
 																});
 														}}
-													 class="p-0! min-w-0 preset-ghost hover: hover:dark:">
+													 class="p-0! min-w-0 preset-ghost-tertiary-500 dark:preset-ghost-primary-500">
 														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
 													</Button>
 												</SystemTooltip>
@@ -952,7 +954,7 @@
 																	toast.error('Failed to copy');
 																});
 														}}
-													 class="p-0! min-w-0 preset-ghost hover: hover:dark:">
+													 class="p-0! min-w-0 preset-ghost-tertiary-500 dark:preset-ghost-primary-500">
 														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
 													</Button>
 												</SystemTooltip>

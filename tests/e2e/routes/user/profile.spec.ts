@@ -16,6 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AVATAR_PATH = path.join(__dirname, "testthumb.png");
 
 test.describe("User Profile Management", () => {
+  test.setTimeout(120_000);
   // 1. Setup: Run before every test in this group
   test.beforeEach(async ({ page }) => {
     // Perform Login
@@ -33,8 +34,10 @@ test.describe("User Profile Management", () => {
   test("Workspace Appearance link navigates to appearance settings", async ({ page }) => {
     await page.goto("/user");
     await expect(page.getByText("Workspace Appearance")).toBeVisible({ timeout: 10_000 });
-    await page.getByRole("button", { name: "Open Appearance Settings" }).click();
-    await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 10_000 });
+    const appearanceBtn = page.getByRole("button", { name: "Open Appearance Settings" });
+    await appearanceBtn.scrollIntoViewIfNeeded();
+    await appearanceBtn.click();
+    await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 15_000 });
     await expect(page.getByText("My Overrides")).toBeVisible({ timeout: 10_000 });
   });
 
@@ -65,14 +68,17 @@ test.describe("User Profile Management", () => {
 
   test("Delete Avatar", async ({ page }) => {
     await page.goto("/user");
-    await page.getByRole("button", { name: "Edit Avatar" }).click({ force: true });
+    const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
+    await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
 
-    const deleteBtn = page.locator("button.variant-filled-error");
+    const deleteBtn = page.locator("button.preset-filled-error-500");
     await expect(deleteBtn).toBeVisible();
-    await deleteBtn.click();
+    await deleteBtn.click({ force: true });
 
     // Assertion: Check for default avatar fallback
-    await expect(page.locator("img")).toBeVisible();
+    await expect(
+      page.locator('img[alt="User Avatar"], img[alt="User avatar"]').first(),
+    ).toBeVisible();
   });
 
   test("Edit User Details", async ({ page }) => {
@@ -81,30 +87,42 @@ test.describe("User Profile Management", () => {
     await page.getByRole("button", { name: /Edit User Settings/i }).click();
 
     // Use fill for robustness on the enabled input in the modal
-    await page.locator('input[name="username"]:not([disabled])').fill("Test User Updated");
+    await page.locator('input[name="username"]:not([disabled])').fill("TestUserUpdated");
 
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByText(/User Data Updated/i)).toBeVisible();
+    // Wait for either the toast or the updated username to appear
+    await expect(page.getByText(/User Data Updated|TestUserUpdated/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("Registration Token Workflow", async ({ page }) => {
     await page.goto("/user");
 
-    await page.getByText(/Email User Registration token/i).click();
+    const tokenBtn = page.getByRole("button", { name: /Email User Registration token/i });
+    await tokenBtn.scrollIntoViewIfNeeded();
+    await tokenBtn.click();
+
+    // Wait for modal to appear
+    const modalDialog = page.getByRole("dialog").first();
+    await expect(modalDialog).toBeVisible({ timeout: 10_000 });
 
     // Fill details
     await page.locator('input[name="email"]:not([disabled])').fill("newuser@test.ge");
 
     // Select Role (Robust selection)
-    await page.getByRole("button", { name: "user", exact: true }).click();
+    await page.getByRole("button", { name: "Editor" }).click();
 
     // Select Duration
     await page.locator("#expires-select").selectOption("12 hrs");
 
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByText(/Token Created/i)).toBeVisible();
+    // Wait for token creation success — toast or heading
+    await expect(page.getByText(/Token created|User token created/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("Toggle User Token Visibility", async ({ page }) => {

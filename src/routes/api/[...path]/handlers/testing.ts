@@ -391,8 +391,12 @@ export async function handleTestingRoutes(
       await apiSpecService.invalidateCache(tenantId);
 
       // 🚀 SDK CACHE CLEAR: Force the shared CMS instance to drop stale schemas
-      if (cms.collections?.refresh) {
-        await cms.collections.refresh(tenantId as any, true);
+      try {
+        if (cms?.collections?.refresh) {
+          await cms.collections.refresh(tenantId as any, true);
+        }
+      } catch (refreshErr) {
+        logger.warn(`[TestingHandler] Non-fatal cache refresh error: ${refreshErr}`);
       }
 
       return rawResponse({ success: results.every((r) => r.success), results });

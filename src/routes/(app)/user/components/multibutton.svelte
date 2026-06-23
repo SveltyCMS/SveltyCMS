@@ -187,7 +187,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	const actionConfig = $derived<Record<ActionType, ActionConfigItem>>({
 		edit: {
-			buttonClass: 'gradient-primary',
+			buttonClass: 'preset-filled-tertiary-500 dark:preset-filled-primary-500',
 			iconValue: 'bi:pencil-fill',
 			label: 'Edit',
 			modalTitle: () => (type === 'user' ? usermodaluser_edittitle() : multibuttontoken_modaltitle()),
@@ -195,10 +195,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			endpoint: () => (type === 'user' ? '/api/user/update-user-attributes' : `/api/token/${(safeSelectedRows[0] as Token).token}`),
 			method: () => 'PUT',
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Updated`,
-			toastBackground: 'gradient-primary'
+			toastBackground: 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
 		},
 		delete: {
-			buttonClass: 'gradient-error',
+			buttonClass: 'preset-filled-error-500',
 			iconValue: 'bi:trash3-fill',
 			label: 'Delete',
 			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Deletion`,
@@ -216,7 +216,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			toastBackground: 'preset-filled-success-500'
 		},
 		block: {
-			buttonClass: 'gradient-pink',
+			buttonClass: 'preset-filled-secondary-500',
 			iconValue: 'material-symbols:lock',
 			label: 'Block',
 			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Block`,
@@ -233,7 +233,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			toastBackground: 'preset-filled-success-500'
 		},
 		unblock: {
-			buttonClass: 'gradient-yellow',
+			buttonClass: 'preset-filled-warning-500',
 			iconValue: 'material-symbols:lock-open',
 			label: 'Unblock',
 			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Unblock`,

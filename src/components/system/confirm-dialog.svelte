@@ -41,6 +41,6 @@
 				{buttonTextCancel}
 			</Button>
 		{/if}
-		<Button variant="tertiary" onclick={onConfirm} class="dark:">{buttonTextConfirm}</Button>
+		<Button variant="tertiary" onclick={onConfirm} class="">{buttonTextConfirm}</Button>
 	</div>
 </div>

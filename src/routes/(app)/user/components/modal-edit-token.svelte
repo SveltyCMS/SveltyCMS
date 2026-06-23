@@ -123,7 +123,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 		try {
 			const isEditMode = !!tokenForm.data.token;
-			const endpoint = isEditMode ? `/api/token/${tokenForm.data.token}` : '/api/token/createToken';
+			const endpoint = isEditMode ? `/api/token/${tokenForm.data.token}` : '/api/token/create-token';
 			const method = isEditMode ? 'PUT' : 'POST';
 
 			const body = isEditMode
@@ -176,17 +176,17 @@ It handles token creation, updates, and deletion with proper validation and erro
 				toast.success({ title: 'Success', description: isEditMode ? 'Token updated' : 'User token created' });
 			}
 
-			// Invalidate data first
-			await invalidateAll();
-
 			// If it's a new token and we have the value, don't close yet so user can copy it
 			if (!isEditMode && createdToken) {
 				toast.info({
 					title: 'Token Created',
 					description: 'Please copy the invitation link below or the token itself.'
 				});
+				// Don't invalidate or close — let user copy the link
 			} else if (close) {
 				close({ success: true });
+				// Invalidate data after modal is closed
+				await invalidateAll();
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -257,7 +257,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 <div class="modal-example-form space-y-4 text-black dark:text-white p-4">
 	{#if createdToken}
-		<div class="card p-6 space-y-4 variant-soft-success border border-success-500/30 shadow-lg">
+		<div class="card p-6 space-y-4 preset-tonal-success border border-success-500/30 shadow-lg">
 			<h3 class="text-xl font-bold text-success-700 dark:text-success-400">Invitation Token Created</h3>
 			<p class="text-sm opacity-80">Since email delivery might be disabled or delayed, you can provide this link to the user directly:</p>
 
@@ -367,7 +367,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				</div>
 
 				<!-- Save -->
-				<Button variant="tertiary" type="submit" form="token-form" class="dark: px-10">
+				<Button variant="tertiary" type="submit" class="dark: px-10">
 					{tokenForm.submitting ? '...' : button_save()}
 				</Button>
 			</footer>

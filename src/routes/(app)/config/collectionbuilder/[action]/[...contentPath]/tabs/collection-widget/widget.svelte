@@ -143,7 +143,7 @@ function modalWidgetForm(selectedWidget: Field): void {
 }
 
 // Modal 1 to choose a widget
-function modalSelectWidget(selected?: Field): void {
+function modalSelectWidget(selected: Field | undefined = undefined): void {
 	modalState.trigger(
 		ModalSelectWidget as any,
 		{

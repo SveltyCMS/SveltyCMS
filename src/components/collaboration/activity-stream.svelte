@@ -81,7 +81,7 @@ with the AI collaboration assistant.
 	<!-- Header -->
 	<div
 		use:ondrag
-		class="flex items-center justify-between p-4 bg-surface-200-700-token border-b border-surface-500/30 dark:border-white/10 shrink-0 cursor-grab active:cursor-grabbing"
+		class="flex items-center justify-between p-4 bg-surface-50 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 shrink-0 cursor-grab active:cursor-grabbing"
 	>
 		<h3 class="font-bold text-lg flex items-center gap-2 pointer-events-none select-none">
 			<iconify-icon icon="material-symbols:Forum-outline" width="24"></iconify-icon>
@@ -211,7 +211,7 @@ with the AI collaboration assistant.
 
 	<!-- Footer / Input (only for Chat) -->
 	{#if collaboration.activeTab === 'chat'}
-		<div transition:slide|local class="p-4 bg-surface-200-700-token border-t border-surface-500/30 shrink-0">
+		<div transition:slide|local class="p-4 bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700 shrink-0">
 			<form class="flex gap-2" onsubmit={handleSendMessage}>
 				<input
 					type="text"

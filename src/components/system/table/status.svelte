@@ -36,17 +36,17 @@ Values form StatusTypes
 <div
 	class="flex w-fit min-w-24 items-center justify-center gap-2 rounded px-3 py-1.5 text-center text-white
 		{value === StatusTypes.publish
-		? 'gradient-primary'
+		? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
 		: value === StatusTypes.unpublish
-			? 'gradient-yellow'
+			? 'preset-filled-warning-500'
 			: value === StatusTypes.schedule
-				? 'gradient-pink'
+				? 'preset-filled-secondary-500'
 				: value === StatusTypes.delete
 					? 'bg-surface-500 text-white'
 					: value === StatusTypes.clone
-						? 'gradient-secondary'
+						? 'preset-filled-secondary-500'
 						: value === StatusTypes.draft
-							? 'preset-outlined-surface-500 text-surface-900-50-token'
+							? 'preset-outlined-surface-500 text-surface-900 dark:text-surface-50'
 							: value === StatusTypes.archive
 								? 'bg-surface-600'
 								: 'badge'}"

@@ -9,6 +9,10 @@ import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { app } from "@src/stores/store.svelte";
 
+// Expose contentSystem on globalThis so server-side code (like db-init.ts)
+// that can't statically import .server.ts files can access it
+(globalThis as any).__contentSystem__ = contentSystem;
+
 // 🚀 OPTIMIZATION: Compile Regex once globally.
 // Matches unlocalized (e.g., /api) and localized (e.g., /en-US/api) paths.
 const WHITELIST_REGEX =

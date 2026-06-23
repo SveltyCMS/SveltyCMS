@@ -111,14 +111,14 @@ function handleCancel() {
 
 		<div class="mt-2 flex w-full justify-between gap-1 sm:gap-2">
 			<!-- Cancel Button -->
-			<Button variant="outline" type="button" onclick={handleCancel} aria-label={button_cancel()} class="variant-filled">{button_cancel()}</Button>
+			<Button variant="surface" type="button" onclick={handleCancel} aria-label={button_cancel()}>{button_cancel()}</Button>
 
 			<!-- Submit Button -->
-			<Button variant="outline"
+			<Button variant="primary"
 				type="submit"
 				disabled={!isFormValid || globalLoadingStore.isLoading}
 				aria-label={button_send()}
-			 class="variant-filled items-center">
+			 class="items-center">
 				<iconify-icon icon="flat-color-icons:google" width={24} aria-hidden="true"></iconify-icon>
 				<span>{oauth_signup()}</span>
 			</Button>

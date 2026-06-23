@@ -23,7 +23,7 @@ export async function clickNext(page: Page) {
   await expect(nextBtn).toBeVisible({ timeout: 10000 });
   await expect(nextBtn).toBeEnabled({ timeout: 10000 });
   await nextBtn.click({ force: true });
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
 }
 
 /**

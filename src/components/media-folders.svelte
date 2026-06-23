@@ -276,7 +276,7 @@
 						type="button"
 						onclick={() => search = ''}
 						aria-label="Clear search"
-					 class="rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 me-0.5">
+					 class="rounded-full preset-outlined-surface-500 h-9 w-9 mt-0.5 me-0.5">
 						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
 					</Button>
 				</div>

@@ -45,10 +45,10 @@ setup.describe("E2E Role-Based Setup", () => {
     const adminState = JSON.parse(readFileSync(ADMIN_AUTH_FILE, "utf-8"));
     await page.context().addCookies(adminState.cookies);
 
-    const roles = ["Editor", "Author"];
+    const roles = ["editor", "developer"];
     for (const role of roles) {
       console.log(`[Setup] Inviting ${role}...`);
-      const email = `${role.toLowerCase()}@example.com`;
+      const email = `${role}@example.com`;
       const password = "Password123!";
 
       const signupResponse = await page.request.post("/api/testing", {
@@ -72,7 +72,8 @@ setup.describe("E2E Role-Based Setup", () => {
       // Login as the new user to capture their state
       await loginAs(page, email, password);
 
-      const targetFile = role === "Editor" ? EDITOR_AUTH_FILE : AUTHOR_AUTH_FILE;
+      const targetFile = role === "editor" ? EDITOR_AUTH_FILE : AUTHOR_AUTH_FILE;
+      // Developer uses author auth file for backward compat with tests referencing author@example.com
       await page.context().storageState({ path: targetFile });
     }
   });

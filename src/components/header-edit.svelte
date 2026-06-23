@@ -119,7 +119,7 @@
 		return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 	}
 
-	function getDisplayName(value?: string | null): string {
+	function getDisplayName(value: string | null | undefined = undefined): string {
 		if (!value || isUUID(value)) {
 			if (user?.username && !isUUID(user.username)) {
 				return user.username;
@@ -371,7 +371,7 @@
 
 			<!-- Delete -->
 			<div class="flex flex-col items-center">
-				<Button variant="ghost" onclick={openDelete} disabled={!canDelete} aria-label="Delete" class="p-0! min-w-0 gradient-error">
+				<Button variant="ghost" onclick={openDelete} disabled={!canDelete} aria-label="Delete" class="p-0! min-w-0 preset-filled-error-500">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 				</Button>
 			</div>
@@ -379,14 +379,14 @@
 			{#if ['edit', 'create'].includes(currentMode)}
 				<!-- Schedule -->
 				<div class="flex flex-col items-center">
-					<Button variant="ghost" onclick={openSchedule} disabled={!canWrite} aria-label="Schedule" class="p-0! min-w-0 gradient-pink">
+					<Button variant="ghost" onclick={openSchedule} disabled={!canWrite} aria-label="Schedule" class="p-0! min-w-0 preset-filled-secondary-500">
 						<iconify-icon icon="bi:clock" width="24"></iconify-icon>
 					</Button>
 				</div>
 
 				<!-- Clone -->
 				<div class="flex flex-col items-center">
-					<Button variant="ghost" onclick={openClone} disabled={!canWrite || !canCreate} aria-label="Clone" class="p-0! min-w-0 gradient-secondary">
+					<Button variant="ghost" onclick={openClone} disabled={!canWrite || !canCreate} aria-label="Clone" class="p-0! min-w-0 preset-filled-secondary-500">
 						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>
 					</Button>
 				</div>

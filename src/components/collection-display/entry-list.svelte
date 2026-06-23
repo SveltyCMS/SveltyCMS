@@ -685,7 +685,7 @@ bulk actions, and predictive preloading.
 
 	const hasActiveFilters = $derived(Object.values(entryListPaginationSettings.filters).some((f) => !!f) || !!globalSearchValue);
 
-	setModifyEntry(async (status?: keyof typeof statusMap): Promise<void> => {
+	setModifyEntry(async (status: keyof typeof statusMap | undefined = undefined): Promise<void> => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
 			toast.warning('No entries selected');

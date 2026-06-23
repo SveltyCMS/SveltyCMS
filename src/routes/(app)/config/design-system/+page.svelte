@@ -123,7 +123,7 @@ Inputs, Cards, and semantic color palettes without Storybook.
         />
         <div class="flex flex-col gap-2">
           <span class="text-sm font-medium text-surface-700 dark:text-surface-300">Color mode</span>
-          <ThemeToggle showTooltip={false} buttonClass="preset-outline-surface-500 btn-icon" />
+          <ThemeToggle showTooltip={false} buttonClass="preset-outlined-surface-500 btn-icon" />
         </div>
         <div class="flex gap-2">
           <Button variant="outline" href="/config/appearance" leadingIcon="mdi:palette-outline">

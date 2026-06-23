@@ -305,7 +305,7 @@
 					{button_save()}
 				</Button>
 
-				<div class="gradient-secondary w-full gap-2 rounded p-2 shadow-md">
+				<div class="preset-filled-secondary-500 w-full gap-2 rounded p-2 shadow-md">
 					<Toggle
 						value={statusStore.isPublish}
 						label={statusStore.isPublish ? status_publish() : status_unpublish()}
@@ -323,7 +323,7 @@
 							type="button"
 							onclick={handleClone}
 							disabled={!canCreate}
-						 class="gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md">
+						 class="preset-filled-secondary-500 w-full gap-2 text-white shadow-md">
 							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
 							Clone <span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentCollection?.name}</span>
 						</Button>

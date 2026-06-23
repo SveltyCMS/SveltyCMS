@@ -3,11 +3,19 @@
  * @description Media namespace for LocalCMS SDK.
  */
 
-import { MediaService } from "@utils/media/media-service.server";
 import { AppError } from "@utils/error-handling";
 import { LRUCache } from "lru-cache";
 import type { DatabaseId, IDBAdapter, DatabaseResult } from "@src/databases/db-interface";
 import type { MediaItem } from "@utils/media/media-models";
+
+let _MediaService: any = null;
+async function getMediaServiceClass() {
+  if (!_MediaService) {
+    const mod = await import("@utils/media/media-service.server");
+    _MediaService = mod.MediaService;
+  }
+  return _MediaService;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +66,8 @@ interface BatchProcessOptions extends TenantOptions {
  * Media Namespace
  */
 export class MediaNamespace {
-  private mediaService: MediaService;
+  private mediaService: any = null;
+  private _dbAdapter: IDBAdapter;
 
   // Mirror the pattern used in CollectionsNamespace: static LRU for request-level dedup
   private static _requestCache = new LRUCache<string, any>({
@@ -66,8 +75,16 @@ export class MediaNamespace {
     ttl: 60_000,
   });
 
-  constructor(private _dbAdapter: IDBAdapter) {
-    this.mediaService = new MediaService(_dbAdapter);
+  constructor(_dbAdapter: IDBAdapter) {
+    this._dbAdapter = _dbAdapter;
+  }
+
+  private async getMediaService() {
+    if (!this.mediaService) {
+      const MediaService = await getMediaServiceClass();
+      this.mediaService = new MediaService(this._dbAdapter);
+    }
+    return this.mediaService;
   }
 
   private invalidateCache(tenantId?: DatabaseId | null, fileId?: string) {
@@ -102,8 +119,9 @@ export class MediaNamespace {
     );
 
     if (result.success && result.data?.items) {
+      const svc = await this.getMediaService();
       result.data.items = result.data.items.map(
-        (item: any) => this.mediaService.enrichMediaWithUrl(item, prefix) as any,
+        (item: any) => svc.enrichMediaWithUrl(item, prefix) as any,
       );
       MediaNamespace._requestCache.set(cacheKey, result);
     }
@@ -132,7 +150,8 @@ export class MediaNamespace {
     );
 
     if (result.success && result.data) {
-      result.data = this.mediaService.enrichMediaWithUrl(result.data as any, prefix);
+      const svc = await this.getMediaService();
+      result.data = svc.enrichMediaWithUrl(result.data as any, prefix);
       MediaNamespace._requestCache.set(cacheKey, result);
     }
 
@@ -175,7 +194,8 @@ export class MediaNamespace {
       if (!userId) throw new AppError("User ID is required for upload", 400);
       if (!(file instanceof File)) throw new AppError("A valid File object is required", 400);
 
-      const result = await this.mediaService.saveMedia(
+      const svc = await this.getMediaService();
+      const result = await svc.saveMedia(
         file,
         userId,
         access,
@@ -203,12 +223,8 @@ export class MediaNamespace {
       if (!url) throw new AppError("URL is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);
 
-      const result = await this.mediaService.saveRemoteMedia(
-        url,
-        userId,
-        access,
-        tenantId as DatabaseId,
-      );
+      const svc = await this.getMediaService();
+      const result = await svc.saveRemoteMedia(url, userId, access, tenantId as DatabaseId);
 
       this.invalidateCache(tenantId);
       return result;
@@ -229,7 +245,8 @@ export class MediaNamespace {
     try {
       if (!mediaId) throw new AppError("Media ID is required", 400);
 
-      await this.mediaService.updateMedia(mediaId, data, options.tenantId as DatabaseId);
+      const svc = await this.getMediaService();
+      await svc.updateMedia(mediaId, data, options.tenantId as DatabaseId);
 
       this.invalidateCache(options.tenantId, mediaId);
       return { success: true, data: undefined };
@@ -246,7 +263,8 @@ export class MediaNamespace {
     try {
       if (!fileId) throw new AppError("File ID is required", 400);
 
-      await this.mediaService.deleteMedia(fileId, options.tenantId as DatabaseId);
+      const svc = await this.getMediaService();
+      await svc.deleteMedia(fileId, options.tenantId as DatabaseId);
 
       this.invalidateCache(options.tenantId, fileId);
       return { success: true, data: undefined };
@@ -269,12 +287,8 @@ export class MediaNamespace {
       if (!id) throw new AppError("Media ID is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);
 
-      const result = await this.mediaService.manipulateMedia(
-        id,
-        manipulations,
-        userId,
-        tenantId as DatabaseId,
-      );
+      const svc = await this.getMediaService();
+      const result = await svc.manipulateMedia(id, manipulations, userId, tenantId as DatabaseId);
       return { success: true, data: result };
     } catch (err: unknown) {
       return {
@@ -291,12 +305,8 @@ export class MediaNamespace {
   ): Promise<DatabaseResult<MediaItem[]>> {
     const { userId, tenantId, ...config } = options;
     try {
-      const result = await this.mediaService.batchProcessImages(
-        ids,
-        config,
-        userId,
-        tenantId as DatabaseId,
-      );
+      const svc = await this.getMediaService();
+      const result = await svc.batchProcessImages(ids, config, userId, tenantId as DatabaseId);
       return { success: true, data: result };
     } catch (err: any) {
       return {
@@ -310,10 +320,8 @@ export class MediaNamespace {
   async references(mediaId: string, options: TenantOptions = {}): Promise<DatabaseResult<any[]>> {
     try {
       if (!mediaId) throw new AppError("Media ID is required", 400);
-      const refs = await this.mediaService.getMediaReferences(
-        mediaId,
-        options.tenantId as DatabaseId,
-      );
+      const svc = await this.getMediaService();
+      const refs = await svc.getMediaReferences(mediaId, options.tenantId as DatabaseId);
       return { success: true, data: refs };
     } catch (err: any) {
       return {
@@ -335,12 +343,8 @@ export class MediaNamespace {
       if (!userId) throw new AppError("User ID is required", 400);
       if (!(file instanceof File)) throw new AppError("Valid file is required", 400);
 
-      const result = await this.mediaService.uploadNewVersion(
-        mediaId,
-        file,
-        userId,
-        tenantId as DatabaseId,
-      );
+      const svc = await this.getMediaService();
+      const result = await svc.uploadNewVersion(mediaId, file, userId, tenantId as DatabaseId);
       this.invalidateCache(tenantId, mediaId);
       return result;
     } catch (err: unknown) {
@@ -363,7 +367,8 @@ export class MediaNamespace {
       if (!versionNumber) throw new AppError("Version number is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);
 
-      const result = await this.mediaService.restoreVersion(
+      const svc = await this.getMediaService();
+      const result = await svc.restoreVersion(
         mediaId,
         versionNumber,
         userId,

@@ -81,69 +81,18 @@ const MediaWidget = createWidget<MediaProps>({
         return {};
       }
 
-      // We only process if it's a File object (meaning it's a new upload)
+      const { processSingleUpload, processMultiUpload } = await import(
+        /* @vite-ignore */ "@src/widgets/core/media-upload/process-upload"
+      );
+
       if (value instanceof File) {
-        const { MediaService } = await import("@src/utils/media/media-service.server");
-        const { dbAdapter } = await import("@src/databases/db");
-        if (!dbAdapter) {
-          throw new Error("Database adapter not available");
-        }
-
-        const service = new MediaService(dbAdapter);
-        const f = field as any;
-
-        // DYNAMIC FOLDER RESOLUTION:
-        // 1. Explicitly configured field.folder (from schema)
-        // 2. Default to collections/[collectionName] if available
-        // 3. Fallback to tenantId or 'global'
-        const basePath =
-          f.folder ||
-          (collectionName
-            ? `collections/${String(collectionName).toLowerCase()}`
-            : tenantId || "global");
-
-        const savedMedia = await service.saveMedia(
-          value,
-          (user as any)._id.toString(),
-          "private",
-          basePath,
-        );
-        if (savedMedia.success) {
-          accessor.update(savedMedia.data._id);
+        const id = await processSingleUpload(value, field as any, user, tenantId, collectionName);
+        if (id) {
+          accessor.update(id);
         }
       } else if (Array.isArray(value)) {
-        // Handle multiupload
-        const processedIds: string[] = [];
-        const { MediaService } = await import("@src/utils/media/media-service.server");
-        const { dbAdapter } = await import("@src/databases/db");
-        if (!dbAdapter) {
-          throw new Error("Database adapter not available");
-        }
-        const service = new MediaService(dbAdapter);
-        const f = field as any;
-
-        const basePath =
-          f.folder ||
-          (collectionName
-            ? `collections/${String(collectionName).toLowerCase()}`
-            : tenantId || "global");
-
-        for (const item of value) {
-          if (item instanceof File) {
-            const savedMedia = await service.saveMedia(
-              item,
-              (user as any)._id.toString(),
-              "private",
-              basePath,
-            );
-            if (savedMedia.success) {
-              processedIds.push(savedMedia.data._id);
-            }
-          } else {
-            processedIds.push(item);
-          }
-        }
-        accessor.update(processedIds);
+        const ids = await processMultiUpload(value, field as any, user, tenantId, collectionName);
+        accessor.update(ids);
       }
     }
     return {};

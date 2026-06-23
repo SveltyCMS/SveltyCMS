@@ -23,12 +23,12 @@
   let isDownloading = $state(false);
 
   // Helper to format file types
-  function formatMime(mime?: string) {
+  function formatMime(mime: string | undefined = undefined) {
     if (!mime) return "FILE";
     return mime.split("/")[1]?.toUpperCase() || mime.toUpperCase();
   }
 
-  function getFileIcon(type?: string) {
+  function getFileIcon(type: string | undefined = undefined) {
     switch (type) {
       case "image": return "mdi:image-outline";
       case "video": return "mdi:video-outline";

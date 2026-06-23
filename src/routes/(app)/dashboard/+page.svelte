@@ -170,28 +170,35 @@ async function toggleAiMode() {
 }
 
 async function loadWidgetRegistry() {
-	const modules = import.meta.glob("./widgets/*.svelte");
-	const registry: typeof widgetRegistry = {};
-	for (const path in modules) {
-		if (Object.hasOwn(modules, path)) {
+	try {
+		const modules = import.meta.glob("./widgets/*.svelte");
+		const registry: typeof widgetRegistry = {};
+		for (const path of Object.keys(modules)) {
 			const name = path.split("/").pop()?.replace(".svelte", "");
 			if (name) {
-				const module = (await modules[path]()) as {
-					default: WidgetComponent;
-					widgetMeta: WidgetMeta;
-				};
-				registry[name] = {
-					component: module.default,
-					name: module.widgetMeta?.name || name,
-					description: module.widgetMeta?.description || "",
-					icon: module.widgetMeta?.icon || "mdi:widgets",
-					widgetMeta: module.widgetMeta,
-				};
+				try {
+					const module = (await modules[path]()) as {
+						default: WidgetComponent;
+						widgetMeta: WidgetMeta;
+					};
+					registry[name] = {
+						component: module.default,
+						name: module.widgetMeta?.name || name,
+						description: module.widgetMeta?.description || "",
+						icon: module.widgetMeta?.icon || "mdi:widgets",
+						widgetMeta: module.widgetMeta,
+					};
+				} catch (widgetErr) {
+					logger.error(`Failed to load widget ${name}:`, widgetErr);
+				}
 			}
 		}
+		widgetRegistry = registry;
+		registryLoaded = true;
+	} catch (err) {
+		logger.error("Failed to load widget registry:", err);
+		registryLoaded = true;
 	}
-	widgetRegistry = registry;
-	registryLoaded = true;
 }
 
 // Lazy load individual widget when it becomes visible
@@ -638,14 +645,14 @@ onMount(() => {
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
 						aria-label="Add Widget"
-					 class="dark:">
+					 class="">
 						<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
 						Add Widget
 					</Button>
 				{/if}
 				{#if dropdownOpen}
 					<div
-						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border border-surface-200 bg-surface-50 shadow-2xl dark:border-surface-700 dark:bg-surface-900"
 						role="menu"
 					>
 						<div class="p-2">
@@ -658,25 +665,29 @@ onMount(() => {
 							/>
 						</div>
 						<div class="max-h-64 overflow-y-auto py-1">
-							{#each filteredWidgets as widgetName (widgetName)}
-								{const widgetInfo = widgetComponentRegistry[widgetName]}
-								<Button
-									variant="ghost"
-									class="w-full justify-start gap-2 px-4 py-2 hover:bg-primary-100 dark:hover:bg-primary-900/30"
-									onclick={() => addNewWidget(widgetName)}
-									title={widgetInfo?.description}
-									role="menuitem"
-								>
-									{#if widgetInfo?.icon}
-										<iconify-icon icon={widgetInfo.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-									{:else}
-										<iconify-icon icon="mdi:view-dashboard" width={20} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-									{/if}
-									<span>{widgetInfo?.name || widgetName}</span>
-								</Button>
+							{#if !registryLoaded}
+								<div class="px-4 py-2 text-sm text-surface-500">Loading widgets...</div>
+							{:else if filteredWidgets.length === 0}
+								<div class="px-4 py-2 text-sm text-surface-500">No widgets found.</div>
 							{:else}
-								<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
-							{/each}
+								{#each filteredWidgets as widgetName (widgetName)}
+									{const widgetInfo = widgetComponentRegistry[widgetName]}
+									<Button
+										variant="ghost"
+										class="w-full justify-start gap-2 px-4 py-2 hover:bg-primary-100 dark:hover:bg-primary-900/30"
+										onclick={() => addNewWidget(widgetName)}
+										title={widgetInfo?.description}
+										role="menuitem"
+									>
+										{#if widgetInfo?.icon}
+											<iconify-icon icon={widgetInfo.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{:else}
+											<iconify-icon icon="mdi:view-dashboard" width={20} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{/if}
+										<span>{widgetInfo?.name || widgetName}</span>
+									</Button>
+								{/each}
+							{/if}
 						</div>
 					</div>
 				{/if}
@@ -797,11 +808,11 @@ onMount(() => {
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<div class="text-sm text-gray-600 dark:text-gray-400">
+				<div class="text-sm text-surface-600 dark:text-surface-400">
 					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
-				<div class="flex space-x-2"><Button variant="tertiary" onclick={() => (showImportExport = false)} class="dark:">Done</Button></div>
+				<div class="flex space-x-2"><Button variant="tertiary" onclick={() => (showImportExport = false)}>Done</Button></div>
 			</div>
 		</div>
 	</div>

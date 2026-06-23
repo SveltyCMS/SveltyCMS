@@ -221,14 +221,14 @@
 	{:else if error}
 		<!-- Error State -->
 		<div class="w-full pt-4 text-center">
-			<p class="variant-outline-error w-full rounded p-2 text-sm">{error}</p>
+			<p class="preset-outlined-error-500 w-full rounded p-2 text-sm">{error}</p>
 		</div>
 	{:else if folders.length > 0}
 		<div class="relative flex flex-wrap">
 			{#each folders.filter((f) => !currentFolder || f.parentId === currentFolder?._id) as folder (folder._id)}
 				{#if ui.state.leftSidebar === 'full'}
 					<!-- Sidebar Expanded -->
-					<div class="nowrap variant-outline-surface flex w-full">
+					<div class="nowrap preset-outlined-surface-500 flex w-full">
 						<Button
 							variant="ghost"
 							href={`/mediagallery?folderId=${folder._id}`}
@@ -264,7 +264,7 @@
 	{:else}
 		<!-- No Folders Found Message -->
 		<div class="w-full pt-4 text-center">
-			<p class="preset-outline-secondary-500 w-full rounded p-2 text-sm text-warning-500">No folders</p>
+			<p class="preset-outlined-secondary-500 w-full rounded p-2 text-sm text-warning-500">No folders</p>
 		</div>
 	{/if}
 </div>

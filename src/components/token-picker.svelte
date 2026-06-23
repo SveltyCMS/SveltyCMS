@@ -344,7 +344,7 @@
 							<div transition:slide class="mt-2 space-y-1">
 								{#each tokens as t (t.token)}
 									<div
-										class="card preset-filled-surface-500 hover:variant-soft-primary cursor-pointer p-2 transition-colors"
+										class="card preset-filled-surface-500 hover:preset-tonal-primary cursor-pointer p-2 transition-colors"
 										onclick={() => selectToken(t)}
 										onkeydown={(e) => e.key === 'Enter' && selectToken(t)}
 										tabindex="0"
@@ -383,7 +383,7 @@
 		{:else if selectedToken}
 			<div class="flex-1 space-y-4 overflow-y-auto pe-2">
 				<!-- Token Info -->
-				<div class="card variant-soft-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
+				<div class="card preset-tonal-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
 					<div class="mb-2 flex items-center justify-between">
 						<div class="text-lg font-bold text-primary-700 dark:text-primary-500">{selectedToken.name}</div>
 						<Badge variant="primary">{selectedToken.type}</Badge>
@@ -467,7 +467,7 @@
 					{#if isLoadingPreview}
 						<div class="card preset-tonal animate-pulse p-3 text-sm">Resolving...</div>
 					{:else}
-						<div class="card variant-soft-secondary p-3 text-sm font-bold">{resolvedPreview || '(Empty)'}</div>
+						<div class="card preset-tonal-secondary p-3 text-sm font-bold">{resolvedPreview || '(Empty)'}</div>
 					{/if}
 				</div>
 

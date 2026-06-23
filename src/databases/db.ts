@@ -16,8 +16,12 @@
  */
 
 import { createRequire } from "node:module";
-if (typeof (globalThis as any).require === "undefined") {
-  (globalThis as any).require = createRequire(import.meta.url);
+if (typeof window === "undefined" && typeof (globalThis as any).require === "undefined") {
+  try {
+    (globalThis as any).require = createRequire(import.meta.url);
+  } catch {
+    // createRequire not available in this context
+  }
 }
 
 import { logger } from "@utils/logger";

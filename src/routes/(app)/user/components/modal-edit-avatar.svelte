@@ -353,7 +353,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	// Base Classes
 
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded';
+	const cForm = 'border border-surface-200 dark:border-surface-700 p-4 space-y-4 rounded';
 </script>
 
 <div class="modal-avatar space-y-4">
@@ -410,7 +410,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		{/if}
 	</form>
 
-	<footer class="modal-footer justify-between pt-4 border-t border-surface-500/20">
+	<footer class="modal-footer justify-between pt-4 border-t border-surface-200 dark:border-surface-700">
 		<!-- Delete Avatar -->
 		{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
 			<Button variant="error" type="button" onclick={deleteAvatar}>

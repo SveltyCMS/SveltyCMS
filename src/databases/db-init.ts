@@ -180,7 +180,28 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     critical: true,
     initialize: async (adapter) => {
       startServiceInitialization("contentSystem");
-      const { contentSystem } = await import("@src/content/index.server");
+      let contentSystem: any;
+      // Try multiple resolution strategies for the content system
+      try {
+        // Strategy 1: Check if already loaded on globalThis (by hooks.server or other)
+        contentSystem = (globalThis as any).__contentSystem__;
+        if (!contentSystem) {
+          // Strategy 2: Dynamic import with @vite-ignore (works in dev, may fail in prod)
+          ({ contentSystem } = await import(/* @vite-ignore */ "@src/content/index.server"));
+        }
+        if (!contentSystem) {
+          // Strategy 3: Use createRequire with process.cwd() to find the source
+          const { createRequire } = await import("node:module");
+          const path = await import("node:path");
+          const require = createRequire(import.meta.url);
+          const contentPath = path.resolve(process.cwd(), "src/content/index.server");
+          contentSystem = require(contentPath).contentSystem;
+        }
+      } catch (e) {
+        logger.error("[DB Init] All content system import strategies failed:", e);
+        throw e;
+      }
+      if (!contentSystem) throw new Error("Content system module not found");
       await contentSystem.initialize(null, { skipReconciliation: true }, adapter);
       updateServiceHealth("contentSystem", "healthy", "Content system online");
     },
@@ -192,7 +213,9 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     dependencies: ["base"],
     initialize: async (adapter) => {
       startServiceInitialization("media");
-      const { MediaService } = await import("@src/utils/media/media-service.server");
+      const { MediaService } = await import(
+        /* @vite-ignore */ "@src/utils/media/media-service.server"
+      );
       (adapter as any).mediaService = new MediaService(adapter);
       updateServiceHealth("media", "healthy", "Media service online");
     },

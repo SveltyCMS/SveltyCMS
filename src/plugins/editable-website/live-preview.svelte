@@ -218,7 +218,7 @@
           onclick={copyUrl}
           disabled={!authorizedUrl}
           title="Copy Preview URL"
-         aria-label="Copy preview URL" size="sm" class="preset-outline-surface">
+         aria-label="Copy preview URL" size="sm" class="preset-outlined-surface-500">
           <iconify-icon icon="mdi:content-copy" width={16}></iconify-icon>
         </Button>
       </div>

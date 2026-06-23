@@ -167,12 +167,12 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 <div class="space-y-4 relative">
 	{#if !isCheckingLicense}
 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
-			<div class="alert variant-soft-warning flex items-center justify-between p-4 rounded-container-token">
+			<div class="alert preset-tonal-warning flex items-center justify-between p-4 rounded-container-token">
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
 					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days left to test the Advanced, Social, and Schema SEO features.</span>
 				</div>
-				<a href="https://marketplace.sveltycms.com" target="_blank" class="btn variant-filled-warning btn-sm">Get License</a>
+				<a href="https://marketplace.sveltycms.com" target="_blank" class="btn preset-filled-warning-500 btn-sm">Get License</a>
 			</div>
 		{/if}
 	{/if}
@@ -210,7 +210,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
 					<p class="mb-4">Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI features, please purchase a license.</p>
-					<a href="https://marketplace.sveltycms.com" target="_blank" class="btn variant-filled-error w-full">Purchase License</a>
+					<a href="https://marketplace.sveltycms.com" target="_blank" class="btn preset-filled-error-500 w-full">Purchase License</a>
 				</div>
 			</div>
 		{/if}

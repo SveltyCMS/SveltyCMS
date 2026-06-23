@@ -184,7 +184,7 @@ test.describe("OAuth First User Signup", () => {
     const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid`;
 
     await page.goto(testUrl, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
     });
 
     // Wait for either redirect to collection page or error handling
@@ -252,7 +252,7 @@ test.describe("OAuth First User Signup", () => {
     await page.goto(testUrl);
 
     // Wait for the response
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Check if we get the invalid_grant error
     const invalidGrantError = page.locator('text="invalid_grant"');
@@ -342,7 +342,7 @@ test.describe("OAuth First User Signup", () => {
     const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid`;
 
     await page.goto(testUrl, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
     });
 
     // Wait for processing

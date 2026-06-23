@@ -55,7 +55,7 @@ export const widgetMeta = {
 		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
 
-	function actorName(email?: string): string {
+	function actorName(email: string | undefined = undefined): string {
 		if (!email) return 'System';
 		return email.split('@')[0];
 	}
@@ -72,7 +72,7 @@ export const widgetMeta = {
 		return 'mdi:circle-small';
 	}
 
-	function actionColor(action: string, result?: string): string {
+	function actionColor(action: string, result: string | undefined = undefined): string {
 		if (result === 'failure') return 'text-red-500 dark:text-red-400';
 		const a = (action || '').toLowerCase();
 		if (a.includes('delete') || a.includes('remove')) return 'text-orange-500 dark:text-orange-400';

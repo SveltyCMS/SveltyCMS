@@ -196,36 +196,36 @@
 <AdminPageShell title={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config">
 <div in:fade={{ duration: 300 }}>
 	<h2 class="sr-only">Profile Information</h2>
-	<div class="wrapper mb-2">
-		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
+	<div class="mb-2">
+		<div class="grid grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1" in:fly={{ y: 20, delay: 100, duration: 300 }}>
 				<div class="relative group">
-					<Avatar src={normalizeAvatarUrl(avatarSrc.value)} initials="AV" size="size-32" class="rounded-full border border-white shadow-lg dark:border-surface-800" />
+					<Avatar src={normalizeAvatarUrl(avatarSrc.value)} initials="AV" size="size-32" class="rounded-full border border-surface-200 shadow-lg dark:border-surface-700" />
 
 					<!-- Edit button - icon overlay -->
 					<Button variant="ghost"
 						onclick={modalEditAvatar}
 						title={userpage_editavatar()}
-					 class="p-0! min-w-0 absolute bottom-0 inset-e-0 rounded-full gradient-tertiary dark:gradient-primary">
+					 class="p-0! min-w-0 absolute bottom-0 inset-e-0 rounded-full preset-filled-tertiary-500 dark:preset-filled-primary-500">
 						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
 					</Button>
 				</div>
 				<!-- User ID -->
-				<Badge preset="tonal" color="secondary" class="mt-1 w-full max-w-xs text-white">
+				<Badge preset="tonal" color="secondary" class="mt-1 w-full max-w-xs">
 					{userpage_user_id()}<span class="ms-2 font-bold">{user?._id || 'N/A'}</span>
 				</Badge>
 				<!-- Role -->
-				<Badge preset="tonal" color="tertiary" class="w-full max-w-xs text-white">{role()}:<span class="ms-2 font-bold">{user?.role || 'N/A'}</span></Badge>
+				<Badge preset="tonal" color="tertiary" class="w-full max-w-xs">{role()}:<span class="ms-2 font-bold">{user?.role || 'N/A'}</span></Badge>
 				<!-- Tenant ID -->
 				{#if isMultiTenant && user?.tenantId}
-					<Badge preset="tonal" color="warning" class="w-full max-w-xs text-white">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></Badge>
+					<Badge preset="tonal" color="warning" class="w-full max-w-xs">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></Badge>
 				{/if}
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
 					<Button variant="error"
 						onclick={open2FAModal}
-					 size="sm" class="{user?.is2FAEnabled ? ' ' : ' '} w-full max-w-xs border border-surface-500/20">
+					 size="sm" class="w-full max-w-xs">
 						<div class="flex w-full items-center justify-between py-1">
 							<div class="flex items-center gap-2">
 								<iconify-icon icon="mdi:shield-lock" width={20} class="text-error-500"></iconify-icon>
@@ -244,7 +244,7 @@
 				{/if}
 
 				<!-- Workspace Appearance -->
-				<AdminCard class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm">
+				<AdminCard class="w-full max-w-xs p-4">
 					<div class="space-y-2">
 						<div class="flex items-center gap-2">
 							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
@@ -271,7 +271,7 @@
 
 				<!-- Collaboration Settings -->
 				<AdminCard
-					class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm"
+					class="w-full max-w-xs p-4"
 				>
 					<div in:fly={{ y: 10, delay: 300, duration: 300 }} class="space-y-3">
 						<div class="flex items-center justify-between gap-3">
@@ -303,13 +303,14 @@
 
 				<!-- Permissions List -->
 				{#each user.permissions as permission (permission)}
-					<Badge preset="tonal" color="primary" class="mt-1 w-full max-w-xs text-white">{permission}</Badge>
+					<Badge preset="tonal" color="primary" class="mt-1 w-full max-w-xs">{permission}</Badge>
 				{/each}
 			</div>
 
 			<!-- User fields -->
 			{#if user}
-				<form class="space-y-4">
+				<AdminCard class="p-6">
+					<form class="space-y-4">
 					<Input
 						value={user.username}
 						name="username"
@@ -344,24 +345,24 @@
 					<div class="mt-3 flex flex-col items-center justify-center gap-1.5">
 						<!-- Edit Modal Button -->
 						<Button
-							variant="outline"
+							variant="tertiary"
 							size="sm"
 							leadingIcon="bi:pencil-fill"
 							onclick={modalUserForm}
 							aria-label={userpage_edit_usersetting()}
-							class="gradient-tertiary w-full max-w-xs text-white"
+							class="w-full max-w-xs"
 						>
 							{userpage_edit_usersetting()}
 						</Button>
 
 						<!-- GDPR Compact Tile -->
 						<Button
-							variant="outline"
+							variant="tertiary"
 							size="sm"
 							leadingIcon="mdi:shield-account"
 							trailingIcon="mdi:chevron-right"
 							onclick={modalPrivacyData}
-							class="gradient-tertiary w-full max-w-xs justify-between text-white"
+							class="w-full max-w-xs justify-between"
 						>
 							<span class="text-xs font-bold">Privacy & Data (GDPR)</span>
 						</Button>
@@ -369,18 +370,19 @@
 						<!-- Delete Modal Button -->
 						{#if isFirstUser}
 							<Button
-								variant="outline"
+								variant="error"
 								size="sm"
 								leadingIcon="bi:trash3-fill"
 								onclick={modalConfirm}
 								aria-label={button_delete()}
-								class="gradient-error w-full max-w-xs text-white"
+								class="w-full max-w-xs"
 							>
 								{button_delete()}
 							</Button>
 						{/if}
 					</div>
 				</form>
+				</AdminCard>
 			{/if}
 		</div>
 	</div>
@@ -396,7 +398,7 @@
 		}}
 		silent={true}
 	>
-		<div class="wrapper2" in:fly={{ y: 20, delay: 200, duration: 300 }}>
+		<div in:fly={{ y: 20, delay: 200, duration: 300 }}>
 			<AdminArea currentUser={{ ...user } as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />
 		</div>
 	</PermissionGuard>
