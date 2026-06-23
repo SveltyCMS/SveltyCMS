@@ -84,7 +84,10 @@ async function runRelationalAudit() {
           },
           body: JSON.stringify(simpleQuery),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw new Error(`HTTP ${res.status}: ${body.slice(0, 500)}`);
+        }
         await res.json();
       },
     });

@@ -185,15 +185,6 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
   if (diskCheck) return diskCheck;
 
   try {
-    if (systemData.preset && systemData.preset !== "blank") {
-      const { cpSync, existsSync: es } = await import("node:fs");
-      const { resolve } = await import("node:path");
-      const src = resolve(process.cwd(), "src", "presets", systemData.preset);
-      const tgt = resolve(process.cwd(), "config", "collections");
-      if (es(src)) {
-        cpSync(src, tgt, { recursive: true, force: true });
-      }
-    }
     const { writePrivateConfig } = await import("./write-private-config");
     await writePrivateConfig(dbConfig, {
       multiTenant: systemData.multiTenant,
@@ -280,14 +271,16 @@ export async function completeSetup(
     ).dbAdapter;
   }
 
-  // 🚀 Seed preset collections if the user selected a non-blank preset.
-  // seedDatabase() runs at step 0 with "blank" — we must re-seed now with the actual preset.
+  // Seed preset collections once the user has chosen their blueprint (step 2).
+  // Step 0 seedDatabase() always runs with preset "blank" — collections are applied here only.
   if (system.preset && system.preset !== "blank") {
     const { seedPresetCollections } = await import("./seed");
-    await seedPresetCollections(dbAdapter, system.preset);
+    await seedPresetCollections(dbAdapter, system.preset, null, undefined, {
+      replaceAll: true,
+    });
     try {
-      const { refreshCollectionsCache } = await import("@src/content/content-service.server");
-      await refreshCollectionsCache(null, dbAdapter);
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(null, { mode: "schemas", adapter: dbAdapter });
     } catch (e) {
       logger.warn("[Setup] Content refresh after preset seeding failed:", e);
     }

@@ -538,11 +538,11 @@ async function runSystemSetup() {
 
   // Create a default test collection so that dynamic endpoints (like OpenAPI and Collections)
   // are populated with at least one collection during integration testing.
-  const collectionsDir = join(ROOT, "config", "collections");
+  const collectionsDir = join(ROOT, "config", "collections", "test");
   if (!existsSync(collectionsDir)) {
     mkdirSync(collectionsDir, { recursive: true });
   }
-  const tsPath = join(collectionsDir, "test_collection.ts");
+  const tsPath = join(collectionsDir, "integration_test_collection.ts");
   const tsContent = `
 import type { Schema } from '@src/content/types';
 export const schema: Schema = {
@@ -555,13 +555,15 @@ export const schema: Schema = {
 };
 `;
   writeFileSync(tsPath, tsContent, "utf8");
-  console.log("✅ Created config/collections/test_collection.ts for build-time compilation");
+  console.log(
+    "✅ Created config/collections/test/integration_test_collection.ts for build-time compilation",
+  );
 
-  const compiledDir = join(ROOT, ".compiledCollections");
+  const compiledDir = join(ROOT, ".compiledCollections", "test");
   if (!existsSync(compiledDir)) {
     mkdirSync(compiledDir, { recursive: true });
   }
-  const jsPath = join(compiledDir, "test_collection.js");
+  const jsPath = join(compiledDir, "integration_test_collection.js");
   const jsContent = `
 export const schema = {
 	name: 'test_collection',
@@ -573,7 +575,9 @@ export const schema = {
 };
 `;
   writeFileSync(jsPath, jsContent, "utf8");
-  console.log("✅ Created .compiledCollections/test_collection.js for runtime loading");
+  console.log(
+    "✅ Created .compiledCollections/test/integration_test_collection.js for runtime loading",
+  );
 
   console.log("⚙️ Integration test config ready. /api/testing will reset/seed per test file.");
 }

@@ -4,7 +4,7 @@ title: "CI/CD Performance & Bundle Size Analysis"
 description: "Documentation on monitoring bundle sizes and other performance metrics."
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-04-19"
+updated: "2026-06-23"
 tags:
   - "testing"
   - "performance"
@@ -76,6 +76,13 @@ With the 2026 update, we've introduced specialized relational benchmarks to ensu
 
 **File**: `tests/benchmarks/relational-performance.test.ts`
 
+> [!IMPORTANT]
+> **Collection isolation (June 2026):** Filesystem benchmarks write only to `.compiledCollections/test/<workspace>/`. API benchmarks seed via LocalCMS. The matrix runs `purgeBenchmarkCollectionArtifacts()` before each audit. See [Benchmark Collection Isolation](./benchmark-isolation.mdx).
+
+### Unified benchmark runtime flags
+
+GraphQL, scanners, and `compile.ts` all use `isBenchmarkRuntime()` from `preset-collections.server.ts` (checks `BENCHMARK`, `BENCHMARK_MODE`, `BENCHMARK_STABLE`, `SVELTY_BENCHMARK_SUITE`, `TEST_MODE`). Standalone `bun test tests/benchmarks/*` and the matrix server set the same flags so behavior is consistent.
+
 ## Running Analysis Locally
 
 To check the bundle size and basic performance locally:
@@ -108,6 +115,7 @@ As part of the **Enterprise Matrix**, SveltyCMS performs a specialized overhead 
 
 ## 📚 Related Documentation
 
+- [Benchmark Collection Isolation](./benchmark-isolation.mdx)
 - [Performance Benchmarks (Progress Reports)](../project/benchmarks/index.mdx)
 - [Enterprise Monitor Dashboard](../guides/configuration/enterprise-monitor.mdx)
 - [Contributing Documentation](../contributing/contributing-docs.mdx)

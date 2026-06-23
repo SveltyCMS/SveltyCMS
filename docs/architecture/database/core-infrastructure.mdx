@@ -103,7 +103,7 @@ The `src/databases/core` directory provides shared relational utilities, query h
 
 ### Role in the Architecture
 
-The `core` directory is not a centralized security interceptor — tenant isolation, query sanitization, and permission enforcement live inside each adapter's implementation (drizzle helpers, mongo crud-methods), the `forTenant()` wrapper, and higher security layers (safe-query, content-service, API dispatcher). What `core` provides:
+The `core` directory is not a centralized security interceptor — tenant isolation, query sanitization, and permission enforcement live inside each adapter's implementation (drizzle helpers, mongo crud-methods), the `forTenant()` wrapper, and higher security layers (safe-query, content engine, API dispatcher). What `core` provides:
 
 - **Shared Relational Modules**: `relational-auth.ts`, `relational-content.ts`, `relational-media.ts`, `relational-system.ts` — implement `IAuthAdapter`, `IContentAdapter`, etc. for Drizzle-based engines. Each SQL adapter (PostgreSQL, MariaDB, SQLite) composes these modules. `relational-system.ts` owns `websiteTokens.*` (hash-at-rest, tenant-scoped list/lookup, parallel `getAll`).
 - **Credential Hashing Utility**: `src/utils/security/credential-hash.ts` — `hashCredentialSha256Hex()` shared by SQL and Mongo website-token adapters (Web Crypto, hex output for indexed equality lookups).

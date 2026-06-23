@@ -10,6 +10,18 @@ import path from "node:path";
 import { Database } from "bun:sqlite";
 import { pushTableToMdx, appendSummaryToMdx, computeAndApplyTrend } from "./benchmark-reporting";
 
+// Re-export isolation paths for benchmark modules
+export {
+  BENCHMARK_COLLECTIONS_DIR,
+  BENCHMARK_COMPILED_DIR,
+  USER_COLLECTIONS_DIR,
+  USER_COMPILED_DIR,
+  getBenchmarkWorkspace,
+  prepareBenchmarkCompiledWorkspace,
+  cleanupBenchmarkCompiledWorkspace,
+  cleanupAllBenchmarkWorkspaces,
+} from "@utils/benchmark-paths";
+
 // Auto-register educational metadata for all benchmark tests
 import "./benchmark-meta";
 
@@ -171,12 +183,21 @@ export const afterEach = (fn: any, timeout?: number) => {
 
 // ── silencing noise ─────────────────────────────────────────────────────────
 (globalThis as any).__SVELTY_QUIET__ = true;
+// Align all benchmark runtime flags (GraphQL, scanners, compile) — same contract as matrix server
 process.env.BENCHMARK = "true";
+process.env.BENCHMARK_MODE = process.env.BENCHMARK_MODE || "1";
+process.env.BENCHMARK_STABLE = process.env.BENCHMARK_STABLE || "true";
+process.env.SVELTY_BENCHMARK_SUITE = process.env.SVELTY_BENCHMARK_SUITE || "true";
+process.env.TEST_MODE = process.env.TEST_MODE || "true";
 
-// 🛡️ AUTO-CLEANUP: Global hook to prevent connection leaks
+// 🛡️ AUTO-CLEANUP: Global hook to prevent connection leaks and collection pollution
 afterAll(async () => {
   const { shutdownSystem } = await import("@src/databases/db");
   await shutdownSystem().catch(() => {});
+  if (process.env.BENCHMARK_MATRIX !== "1") {
+    const { cleanupAllBenchmarkWorkspaces } = await import("@utils/benchmark-paths");
+    await cleanupAllBenchmarkWorkspaces().catch(() => {});
+  }
 });
 
 // 🚀 UNIFIED LOGGING: High-frequency benchmarks use 'error' by default, 'debug' only if requested.
@@ -732,19 +753,14 @@ export async function setupBenchmarkServer() {
     LOG_LEVEL: "fatal",
   });
 
-  try {
-    const { spawn } = await import("node:child_process");
-    await new Promise<void>((resolve) => {
-      const proc = spawn("bun", ["run", "scripts/benchmark-matrix/setup-benchmarks.ts"], {
-        env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL },
-        stdio: "ignore",
-        shell: process.platform === "win32",
-      });
-      proc.on("close", () => resolve());
-    });
-  } catch {
-    /* ignore */
-  }
+  // Await in-process seed — spawning setup-benchmarks.ts with stdio:ignore caused
+  // Windows races where tests started before bench-shared-001 was API-visible.
+  const { runBenchmarkSeed } = await import("../../../scripts/benchmark-matrix/setup-benchmarks");
+  await runBenchmarkSeed({
+    apiBase: process.env.API_BASE_URL,
+    secret: process.env.TEST_API_SECRET,
+    tenantId: "global",
+  });
 
   return { baseUrl: process.env.API_BASE_URL, stop };
 }
@@ -1066,20 +1082,24 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
       }
 
       // Reset entry count via API PATCH
-      await fetch(
-        `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-            "x-tenant-id": tenantId,
+      if (res.ok) {
+        await fetch(
+          `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+              "x-tenant-id": tenantId,
+            },
+            body: JSON.stringify({ count: 0 }),
           },
-          body: JSON.stringify({ count: 0 }),
-        },
-      ).catch(() => {});
-      return;
+        ).catch(() => {});
+        return;
+      }
+      // create-collection action failed (not yet implemented in testing handler).
+      // Fall through to direct DB path to create the collection and entry.
     } catch (err: any) {
       if (process.env.BENCHMARK_DEBUG === "true") {
         process.stderr.write(`[DEBUG] API-based stable data seeding failed: ${err.message}\n`);

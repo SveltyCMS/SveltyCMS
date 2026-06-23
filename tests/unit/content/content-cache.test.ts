@@ -12,13 +12,13 @@ vi.mock("../../../src/utils/event-bus", () => ({
   SystemEvents: { CONTENT_UPDATE: "content:update" },
 }));
 
-describe("content-cache.server", () => {
+describe("engine.server cache helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("schemaCacheTags returns schema and collection id tags", async () => {
-    const { schemaCacheTags } = await import("../../../src/content/content-cache.server");
+    const { schemaCacheTags } = await import("../../../src/content/engine.server");
     expect(schemaCacheTags({ _id: "Posts", name: "Posts", fields: [] })).toEqual([
       "schema",
       "schema:posts",
@@ -26,7 +26,7 @@ describe("content-cache.server", () => {
   });
 
   it("invalidateSchemaCache uses schema: prefix pattern", async () => {
-    const { invalidateSchemaCache } = await import("../../../src/content/content-cache.server");
+    const { invalidateSchemaCache } = await import("../../../src/content/engine.server");
     const { cacheService } = await import("../../../src/databases/cache/cache-service");
 
     await invalidateSchemaCache(null);
@@ -34,7 +34,7 @@ describe("content-cache.server", () => {
   });
 
   it("notifyContentUpdate clears navigation and broadcasts", async () => {
-    const { notifyContentUpdate } = await import("../../../src/content/content-cache.server");
+    const { notifyContentUpdate } = await import("../../../src/content/engine.server");
     const { cacheService } = await import("../../../src/databases/cache/cache-service");
     const { eventBus } = await import("../../../src/utils/event-bus");
 
@@ -48,7 +48,7 @@ describe("content-cache.server", () => {
   });
 
   it("notifyContentUpdate can clear schema prefix on full reload", async () => {
-    const { notifyContentUpdate } = await import("../../../src/content/content-cache.server");
+    const { notifyContentUpdate } = await import("../../../src/content/engine.server");
     const { cacheService } = await import("../../../src/databases/cache/cache-service");
 
     await notifyContentUpdate(null, { invalidateSchema: true });

@@ -104,8 +104,11 @@ export async function installPreset(event: RequestEvent, presetId: string) {
   fs.mkdirSync(collectionsDir, { recursive: true });
 
   const created: string[] = [];
+  const { generateCollectionFileContent } =
+    await import("@src/routes/setup/preset-collections.server");
+
   for (const collection of preset.collections) {
-    const tsContent = generateCollectionTemplate(collection);
+    const tsContent = generateCollectionFileContent(collection);
     const filePath = path.join(collectionsDir, `${collection.name}.ts`);
     fs.writeFileSync(filePath, tsContent, "utf-8");
     created.push(collection.name);
@@ -159,8 +162,11 @@ export async function installTemplateCollections(event: RequestEvent, presetId: 
 
   const created: string[] = [];
 
+  const { generateCollectionFileContent } =
+    await import("@src/routes/setup/preset-collections.server");
+
   for (const collection of preset.collections) {
-    const tsContent = generateCollectionTemplate(collection);
+    const tsContent = generateCollectionFileContent(collection);
     const filePath = path.join(collectionsDir, `${collection.name}.ts`);
     fs.writeFileSync(filePath, tsContent, "utf-8");
     created.push(collection.name);
@@ -185,65 +191,4 @@ export async function installTemplateCollections(event: RequestEvent, presetId: 
     message: `Created ${created.length} collections: ${created.join(", ")}`,
     collections: created,
   };
-}
-
-/**
- * Generates a TypeScript collection definition file from a CollectionPreset template.
- */
-function generateCollectionTemplate(collection: {
-  name: string;
-  label: string;
-  description: string;
-  fields: Array<{
-    db_fieldName: string;
-    label: string;
-    widget: string;
-    required: boolean;
-    translated: boolean;
-    helper: string;
-    default?: unknown;
-    options?: string[];
-  }>;
-}): string {
-  const fieldEntries = collection.fields
-    .map((f) => {
-      const parts: string[] = [];
-      parts.push(`    {`);
-      parts.push(`      db_fieldName: "${f.db_fieldName}",`);
-      parts.push(`      label: "${f.label}",`);
-      parts.push(
-        `      widget: { Name: "${f.widget.charAt(0).toUpperCase() + f.widget.slice(1)}" },`,
-      );
-      if (f.required) parts.push(`      required: true,`);
-      if (f.translated) parts.push(`      translated: true,`);
-      parts.push(`      helper: "${f.helper}",`);
-      if (f.default !== undefined)
-        parts.push(
-          `      default: ${typeof f.default === "string" ? `"${f.default}"` : f.default},`,
-        );
-      if (f.options && f.options.length > 0) {
-        parts.push(`      options: [${f.options.map((o) => `"${o}"`).join(", ")}],`);
-      }
-      parts.push(`    },`);
-      return parts.join("\n");
-    })
-    .join("\n");
-
-  return `/**
- * @file config/collections/${collection.name}.ts
- * @description ${collection.label} — ${collection.description}
- * Auto-generated from Quick-Start Template.
- */
-
-import { widgets } from "@src/widgets";
-
-export default {
-  name: "${collection.name}",
-  label: "${collection.label}",
-  description: "${collection.description}",
-  fields: [
-${fieldEntries}
-  ],
-};
-`;
 }

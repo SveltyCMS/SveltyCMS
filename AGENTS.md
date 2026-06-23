@@ -453,6 +453,39 @@ bun remove drizzle-orm && bun add drizzle-orm
 
 **Note**: The `repair:drizzle` script automates this for drizzle-orm specifically.
 
+### 5. `bun:test` Imports Fail Under Quality Gate (Vitest Runner)
+
+**The Problem**: The pre-commit quality gate runs `vp test run` (Vitest), not `bun test`. Test files that import from `"bun:test"` fail with "Cannot find package 'bun:test'".
+
+**Symptoms**:
+
+- `bun test tests/unit/foo.test.ts` passes
+- `bun run test:unit` (or pre-commit gate) fails with `Cannot find package 'bun:test'`
+
+**Fix — ALWAYS use `"vitest"` imports**:
+
+```typescript
+// ❌ WRONG — fails under Vitest runner
+import { describe, expect, it } from "bun:test";
+
+// ✅ CORRECT — works under both bun test and vitest
+import { describe, expect, it } from "vitest";
+```
+
+**For Bun-only APIs (`bun:sqlite`, etc.)**: Guard with `typeof Bun !== "undefined"` and skip the test when Bun is unavailable.
+
+```typescript
+const isBun = typeof Bun !== "undefined";
+
+it("uses bun:sqlite", async () => {
+  if (!isBun) return; // Skip under Vitest/Node
+  const { Database } = await import("bun:sqlite");
+  // ...
+});
+```
+
+**Note**: The `tests/unit/bun-preload.ts` provides a `vi` shim for Bun's test runner, making vitest-compatible code work under `bun test`. Always write tests for vitest.
+
 ## Project Structure
 
 - **CMS (`/src`)**: Core logic, adapters, services, widgets (each with `.mdx` docs).

@@ -4,7 +4,7 @@
  */
 
 import { redirect, type Handle } from "@sveltejs/kit";
-import { contentSystem } from "@src/content/index.server";
+import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { app } from "@src/stores/store.svelte";
@@ -17,9 +17,6 @@ import { app } from "@src/stores/store.svelte";
 // Matches unlocalized (e.g., /api) and localized (e.g., /en-US/api) paths.
 const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews)/;
-
-// Module-level cache for initialization promises to prevent "storms"
-const initPromises = new Map<string | null, Promise<void>>();
 
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
   const { locals, url } = event;
@@ -44,32 +41,11 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
 
   // --- Phase 2: Content System Initialization ---
   if (!contentSystem.isInitializedForTenant(tenantId)) {
-    // 🛡️ SAFETY: Use a shared promise to prevent initialization storms
-    let initPromise = initPromises.get(tenantId);
-
-    if (!initPromise) {
-      initPromise = (async () => {
-        try {
-          // Give the DB a moment to finish its OWN internal warm-up if we're coming from a fresh restart
-          await getDbInitPromise(false, "CORE");
-          await contentSystem.initialize(tenantId, false);
-          // Phase 2a: Pre-warm OpenAPI spec in background after content init
-          import("@src/services/system/api-spec-service")
-            .then(({ apiSpecService }) => apiSpecService.generateFullSpec(tenantId))
-            .catch(() => {});
-        } catch (err) {
-          logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
-          initPromises.delete(tenantId); // Allow retry on failure
-          throw err;
-        }
-      })().catch((err) => {
-        // Prevent unhandled rejection since this promise might not be awaited immediately
-        logger.debug(
-          `[handleContentInitialization] Background init failed (suppressed unhandled): ${err.message}`,
-        );
-      }) as Promise<void>;
-      initPromises.set(tenantId, initPromise);
-    }
+    const initPromise = ensureContentInitialized(tenantId, false).catch((err) => {
+      logger.debug(
+        `[handleContentInitialization] Background init failed (suppressed unhandled): ${err.message}`,
+      );
+    }) as Promise<void>;
 
     // Await initialization ONLY for content-specific routes or API calls
     // Dashboard and Config Builder are fast-tracked to improve perceived performance

@@ -15,9 +15,9 @@ import {
   runBenchmark,
   exportMetric,
   setupBenchmarkServer,
+  ensureStableTestData,
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
-  ensureStableTestData,
   TEST_API_SECRET,
   generateRealisticEntry,
   printTruthTable,
@@ -30,7 +30,6 @@ let stopServer: (() => Promise<void>) | null = null;
 let apiBaseUrl: string;
 
 async function runProductionDayAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log(`\n🚀 Starting "Production Day in the Life" Composite Audit...\n`);
 
   const { stop, baseUrl } = await setupBenchmarkServer();
@@ -38,16 +37,14 @@ async function runProductionDayAudit() {
   apiBaseUrl = baseUrl;
 
   try {
-    // Ensure baseline data exists
-    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-    await ensureFullInitialization();
-    const db = getDb();
-    if (!db) throw new Error("DB Initialization Failed");
-    await ensureStableTestData(db);
+    // setupBenchmarkServer awaits runBenchmarkSeed (API-visible bench-shared-001).
+    // ensureStableTestData resets count via the same API path other benchmarks use.
+    await ensureStableTestData();
 
     const headers = {
       "x-test-mode": "true",
       "x-test-secret": TEST_API_SECRET,
+      "x-tenant-id": "global",
       "Content-Type": "application/json",
     };
 
@@ -64,7 +61,7 @@ async function runProductionDayAudit() {
       iterations: 500,
       warmupIterations: 100,
       concurrency: 8,
-      thinkTimeMs: [50, 200], // Realistic think time between actions
+      thinkTimeMs: [50, 200],
       onIteration: async (i: number) => {
         const rand = Math.random();
         let cumulativeWeight = 0;
@@ -85,9 +82,7 @@ async function runProductionDayAudit() {
           case "READ_LIST":
             const lRes = await fetch(
               `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}?limit=10`,
-              {
-                headers: requestHeaders,
-              },
+              { headers: requestHeaders },
             );
             if (!lRes.ok) throw new Error(`List failed: ${lRes.status}`);
             await lRes.json();
@@ -96,9 +91,7 @@ async function runProductionDayAudit() {
           case "READ_ENTRY":
             const vRes = await fetch(
               `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
-              {
-                headers: requestHeaders,
-              },
+              { headers: requestHeaders },
             );
             if (!vRes.ok) throw new Error(`View failed: ${vRes.status}`);
             await vRes.json();
@@ -116,7 +109,6 @@ async function runProductionDayAudit() {
             );
             if (!sRes.ok) {
               const errText = await sRes.text();
-              console.error(`[Benchmark] Update failed: ${sRes.status} - ${errText}`);
               throw new Error(`Update failed: ${sRes.status} - ${errText}`);
             }
             await sRes.json();
@@ -172,4 +164,4 @@ async function runProductionDayAudit() {
 
 test("Production Day Lifecycle Suite", async () => {
   await runProductionDayAudit();
-}, 600000); // 10 minutes
+}, 600000);

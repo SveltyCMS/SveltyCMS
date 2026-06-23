@@ -30,19 +30,19 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (17/06/2026, 10:46:55)
+## 📊 Latest Performance Audit (23/06/2026, 20:52:18)
 
 **Status:** ❌ FAIL
 
 > [!CAUTION]
-> **Anomalies Detected**: Fail-fast See console for stack trace.
+> **Anomalies Detected**: Seeding failed See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
 | :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 299ms       | ⚪ (-10.5%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 1034.333ms  | ⚪ (+39.7%) | < 5ms         | 🔴 FAIL |
+| **Cold Start**         | 358ms       | ⚪ (-15.1%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1034.333ms  | ⚪ (+3.6%)  | < 5ms         | 🔴 FAIL |
 | **Middleware Hooks**   | 1018.004ms  | ⚪          | < 2ms         | 🔴 FAIL |
 | **GraphQL (Avg)**      | N/A         | ⚪ (—)      | < 5ms         | ⚪ N/A  |
 | **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
@@ -62,7 +62,7 @@ xychart-beta
   title "SQLITE+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [1033.235, 1033.235, 1033.235, 4.250, 1026.689, 1026.689, 1026.689, 1028.120, 1028.120, 1025.754]
+  line "p95 Latency" : [1028.120, 1025.754, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -75,7 +75,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 1018.004ms | **Target:** < 2ms | **Trend:** ⚪ (+33255.3%)
+**Middleware p95:** 1018.004ms | **Target:** < 2ms | **Trend:** ⚪ (+58.8%)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -95,7 +95,7 @@ xychart-beta
 
 ### 🏷️ Relational Resolver Latency {#relationalAvg}
 
-**Relational p95:** 0.000ms | **Trend:** ⚪ (—)
+**Relational p95:** 4.656ms | **Trend:** ⚪ (-22.5%)
 
 > Tests performance of complex JOINs and nested relationship population.
 
@@ -215,9 +215,15 @@ xychart-beta
 <!-- TEMPORAL_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
-> **Measures**: Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
-> **Code**: `src/databases/<db>/relational-utils.ts`, `src/content/relation-service.ts`
-> **Why**: Relational queries are the most expensive DB operations. N+1 problems hide here.
+### 🏷️ Relational & Nested Queries ⚪ —
+> 📂 **Source**: [tests/benchmarks/relational-performance.test.ts](../../../tests/benchmarks/relational-performance.test.ts)
+> 🎯 **Proves**: Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Shallow Relational Query       │        4.753 ms │ p95:        7.738 ms │ RPS:        204 ║
+║ Deep Relational Query          │        3.089 ms │ p95:        4.656 ms │ RPS:        311 ║
+```
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- AUTH_TRACE_TABLE_START -->
@@ -435,6 +441,11 @@ xychart-beta
 > **Code**: `src/routes/api/[...path]/+server.ts`, `src/databases/<db>/crud-methods.ts`, `src/databases/cache/cache-service.ts`
 > **Why**: The ultimate test. Reveals slow memory leaks, cache churn, and connection pool drift.
 <!-- PROD_DAY_TABLE_END -->
+
+<!-- FAILOVER_TABLE_START -->
+> ⏳ **Database Failover & Reconnection**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/database-failover.test.ts](../../../tests/benchmarks/database-failover.test.ts)
+<!-- FAILOVER_TABLE_END -->
 
 
 ---

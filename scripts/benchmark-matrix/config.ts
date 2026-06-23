@@ -288,6 +288,18 @@ export const ENCRYPTION_KEY = getEncryptionKey();
 // ─────────────────────────────────────────────────────────────
 
 export const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests", "benchmarks", "results");
+
+// Collection isolation boundaries (user live vs benchmark/test)
+export {
+  USER_COLLECTIONS_DIR,
+  BENCHMARK_COLLECTIONS_DIR,
+  USER_COMPILED_DIR,
+  BENCHMARK_COMPILED_DIR,
+  getBenchmarkWorkspace,
+  prepareBenchmarkCompiledWorkspace,
+  cleanupBenchmarkCompiledWorkspace,
+  cleanupAllBenchmarkWorkspaces,
+} from "../../src/utils/benchmark-paths";
 export const BENCHMARKS_DOC = path.join(
   process.cwd(),
   "docs",

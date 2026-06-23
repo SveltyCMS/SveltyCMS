@@ -1,6 +1,6 @@
 /**
- * @file src/content/vite.ts
- * @description Vite plugin for generating TypeScript types for Content
+ * @file scripts/generate-content-types.ts
+ * @description Vite plugin for generating TypeScript types for Content.
  *
  * Features:
  * - Generate TypeScript types for collections
@@ -34,9 +34,9 @@ export async function generateContentTypes(
   server: ViteDevServer,
 ): Promise<Record<string, { fields: string[]; type: string }>> {
   try {
-    // Load content-service directly instead of full contentSystem to avoid full runtime boot (DB, Redis)
+    // Load engine directly instead of full contentSystem to avoid full runtime boot (DB, Redis)
     const { scanCompiledCollections } = await server.ssrLoadModule(
-      path.join(process.cwd(), "src/content/content-service.server.ts"),
+      path.join(process.cwd(), "src/content/engine.server.ts"),
     );
 
     // Scan compiled collections directly from filesystem
