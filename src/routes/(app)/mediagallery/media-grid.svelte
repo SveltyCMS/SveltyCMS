@@ -131,6 +131,15 @@ Features:
       }
     }
   }
+
+  function openTagEditor(file: MediaImage) {
+    taggingFile = file;
+    showTagModal = true;
+  }
+
+  function getThumbnails(file: MediaBase | MediaImage): Record<string, { url: string; width?: number; height?: number; size?: number } | undefined> {
+    return 'thumbnails' in file ? (file as MediaImage).thumbnails ?? {} : {};
+  }
 </script>
 
 <div
@@ -211,6 +220,78 @@ Features:
         <div
           class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
         >
+          <!-- Info -->
+          <SystemTooltip positioning={{ placement: "left" }}>
+            {#snippet children()}
+              <Button variant="ghost"
+                onclick={(e: MouseEvent) => e.stopPropagation()}
+                aria-label="File info for {file.filename}"
+                class="flex h-8 w-8 items-center justify-center p-0! min-w-0 rounded-md bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
+                <iconify-icon icon="mdi:information-outline" width={16}></iconify-icon>
+              </Button>
+            {/snippet}
+            {#snippet content()}
+              {const thumbs = getThumbnails(file)}
+              <div class="min-w-[200px]">
+                <div class="mb-1 border-b border-white/20 pb-1 text-center font-bold">File Info</div>
+                <table class="table-auto text-xs w-full">
+                  <thead>
+                    <tr class="divide-x divide-white/20 border-b border-white/20 text-center opacity-70">
+                      <th class="px-2 text-left">Format</th>
+                      <th class="px-2">Pixel</th>
+                      <th class="px-2">Size</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="divide-x divide-white/20 border-b border-white/20">
+                      <td class="px-2 font-bold">original</td>
+                      <td class="px-2 text-right">
+                        {#if (file as MediaImage).width && (file as MediaImage).height}
+                          {(file as MediaImage).width}x{(file as MediaImage).height}
+                        {:else}
+                          N/A
+                        {/if}
+                      </td>
+                      <td class="px-2 text-right">{formatBytes(file.size)}</td>
+                    </tr>
+                    {#each ['thumbnail', 'sm', 'md', 'lg'].filter((s) => s in thumbs) as variant (variant)}
+                      {const entry = thumbs[variant]}
+                      {#if entry}
+                        <tr class="divide-x divide-white/20 border-b border-white/20 last:border-b-0">
+                          <td class="px-2 font-bold">{variant}</td>
+                          <td class="px-2 text-right">
+                            {#if entry.width && entry.height}
+                              {entry.width}x{entry.height}
+                            {:else}
+                              N/A
+                            {/if}
+                          </td>
+                          <td class="px-2 text-right">{entry.size ? formatBytes(entry.size) : 'N/A'}</td>
+                        </tr>
+                      {/if}
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/snippet}
+          </SystemTooltip>
+
+          <!-- Tags (images only) -->
+          {#if file.type === 'image'}
+            <SystemTooltip title="Tags" positioning={{ placement: "left" }}>
+              <Button variant="ghost"
+                onclick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  openTagEditor(file as MediaImage);
+                }}
+                aria-label="Tags for {file.filename}"
+                class="flex h-8 w-8 items-center justify-center p-0! min-w-0 rounded-md bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
+                <iconify-icon icon={(file as MediaImage).metadata?.tags?.length || (file as MediaImage).metadata?.aiTags?.length ? 'mdi:tag-multiple' : 'mdi:tag-outline'} width={16}></iconify-icon>
+              </Button>
+            </SystemTooltip>
+          {/if}
+
+          <!-- Edit -->
           <SystemTooltip title="Edit" positioning={{ placement: "left" }}>
             <Button variant="ghost"
               data-testid="media-edit-button"
@@ -224,7 +305,8 @@ Features:
             </Button>
           </SystemTooltip>
 
-          <SystemTooltip title="Delete" positioning={{ placement: "start" }}>
+          <!-- Delete -->
+          <SystemTooltip title="Delete" positioning={{ placement: "left" }}>
             <Button variant="ghost"
               onclick={(e: MouseEvent) => {
                 e.stopPropagation();
@@ -320,4 +402,5 @@ Features:
   bind:show={showTagModal}
   bind:file={taggingFile}
   onUpdate={onUpdateImage}
+  hideGenerate={true}
 />

@@ -21,11 +21,13 @@ Features:
 	let {
 		show = $bindable(),
 		file = $bindable(null),
-		onUpdate = () => {}
+		onUpdate = () => {},
+		hideGenerate = false
 	}: {
 		show: boolean;
 		file: MediaImage | null;
 		onUpdate?: (updatedFile: MediaImage) => void;
+		hideGenerate?: boolean;
 	} = $props();
 
 	let newTagInput = $state('');
@@ -239,7 +241,7 @@ Features:
 							<iconify-icon icon="mdi:robot-excited-outline"></iconify-icon>
 							AI / Pending Tags
 						</span>
-						{#if !activeFile.metadata?.aiTags?.length}
+						{#if !activeFile.metadata?.aiTags?.length && !hideGenerate}
 							<Button variant="outline" onclick={handleAITagging} disabled={isGenerating} aria-label="generate-ai-tags" size="sm">
 								{#if isGenerating}
 									<iconify-icon icon="eos-icons:loading" class="animate-spin"></iconify-icon>

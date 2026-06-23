@@ -258,6 +258,31 @@ async function handleOpenFileDetails(file: any) {
 		}
 	});
 }
+
+function handleUpdateImage(updatedFile: MediaImage) {
+	const index = files.findIndex((f) => f._id === updatedFile._id);
+	if (index !== -1) {
+		files[index] = updatedFile;
+	}
+}
+
+async function handleDeleteImage(file: MediaBase | MediaImage) {
+	showConfirm({
+		title: `Delete "${file.filename}"?`,
+		body: "This action cannot be undone.",
+		onConfirm: async () => {
+			const formData = new FormData();
+			formData.append("imageData", JSON.stringify(file));
+			const response = await fetch("?/deleteMedia", { method: "POST", body: formData });
+			if (response.ok) {
+				files = files.filter((f) => f._id !== file._id);
+				toast.success("File deleted");
+			} else {
+				toast.error("Delete failed");
+			}
+		},
+	});
+}
 </script>
 
 <AdminPageShell title="Media Gallery" icon="bi:images" showBackButton={true} backUrl="/" fullHeight={true} spaceY="4">
@@ -363,6 +388,8 @@ async function handleOpenFileDetails(file: any) {
 					bind:selectedFiles={selectedFiles}
 					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
+					ondeleteImage={handleDeleteImage}
+					onUpdateImage={handleUpdateImage}
 				/>
 			{:else}
 				<MediaTable
@@ -371,6 +398,7 @@ async function handleOpenFileDetails(file: any) {
 					bind:selectedFiles={selectedFiles}
 					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
+					ondeleteImage={handleDeleteImage}
 				/>
 			{/if}
 		</div>
