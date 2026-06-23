@@ -37,7 +37,10 @@ test.describe("User Management Flow", () => {
     // Confirm update saved — toast may appear and disappear; wait longer
     // If the page refreshes with invalidateAll(), the username input value should update
     await expect(
-      page.locator('input[name="username"]').first().or(page.getByText(/updateduser/i)),
+      page
+        .locator('input[name="username"]')
+        .first()
+        .or(page.getByText(/updateduser/i)),
     ).toBeVisible({ timeout: 10_000 });
   });
 

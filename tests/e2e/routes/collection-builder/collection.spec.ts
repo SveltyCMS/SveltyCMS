@@ -104,7 +104,9 @@ test.describe("Full Collection & Widget Flow", () => {
       const checkbox = page.locator("table tbody tr").first().getByRole("checkbox").first();
       await expect(checkbox).toBeVisible({ timeout: 10_000 });
       await checkbox.click();
-      console.log(`[Collection] action=${action} rows=${await page.locator("table tbody tr").count()} aria-checked=${await checkbox.getAttribute("aria-checked")}`);
+      console.log(
+        `[Collection] action=${action} rows=${await page.locator("table tbody tr").count()} aria-checked=${await checkbox.getAttribute("aria-checked")}`,
+      );
 
       // Open the actions dropdown (enabled once a row is selected)
       const dropdownToggle = page.getByRole("button", { name: /toggle actions menu/i });

@@ -135,7 +135,10 @@ test.describe("User Profile Management", () => {
     if (await roleRadio.isVisible({ timeout: 2000 }).catch(() => false)) {
       await roleRadio.click();
     } else {
-      await page.getByRole("button", { name: /developer/i }).first().click();
+      await page
+        .getByRole("button", { name: /developer/i })
+        .first()
+        .click();
     }
 
     // Select Duration
