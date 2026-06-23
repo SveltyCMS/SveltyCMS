@@ -4,9 +4,21 @@
  */
 
 import { logger } from "@utils/logger";
-import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import type { IDBAdapter } from "./db-interface";
 import { dbPluginRegistry } from "./core/plugin-registry";
+
+/**
+ * 🚀 GLOBAL STATE HELPERS — inlined from @src/utils/native-utils to avoid
+ * runtime alias resolution issues in bundled output (CI DB integration tests).
+ */
+const setGlobal = (key: string, val: any) => {
+  (globalThis as any)[key] = val;
+  return val;
+};
+const getGlobal = <T = any>(key: string, defaultVal: T = null as any): T => {
+  const val = (globalThis as any)[key];
+  return val !== undefined ? val : defaultVal;
+};
 
 /**
  * 🚀 AGNOSTIC CORE: Loads the physical database adapter based on config.
@@ -213,9 +225,7 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     dependencies: ["base"],
     initialize: async (adapter) => {
       startServiceInitialization("media");
-      const { MediaService } = await import(
-        /* @vite-ignore */ "@src/utils/media/media-service.server"
-      );
+      const { MediaService } = await import(/* @vite-ignore */ "@utils/media/media-service.server");
       (adapter as any).mediaService = new MediaService(adapter);
       updateServiceHealth("media", "healthy", "Media service online");
     },
