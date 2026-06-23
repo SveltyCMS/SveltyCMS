@@ -376,45 +376,51 @@
 
 			<!-- 3. Media Gallery -->
 			<div class="space-y-1">
-				<Button variant="ghost"
-					type="button"
-					onclick={() => {
-						goto('/mediagallery');
-						if (isMobile()) {
-							toggleUIElement('leftSidebar', 'collapsed');
-						}
-					}}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-				>
-					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						{#if isSidebarFull}{Collections_MediaGallery()}{/if}
-					</span>
-					{#if isSidebarFull}
-						<iconify-icon
-							icon="bi:chevron-down"
-							width="12"
-							class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
-						></iconify-icon>
-					{/if}
-				</Button>
-				{#if isMediaOpen}
-					<div class="px-1 space-y-2">
-						{#if isSidebarFull && !currentPath.includes('/mediagallery')}
-							<a
-								href="/mediagallery"
-								data-sveltekit-preload-data="hover"
-								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
-								onclick={() => {
-									if (isMobile()) toggleUIElement('leftSidebar', 'collapsed');
-								}}
-							>
-								<iconify-icon icon="bi:images" width="14"></iconify-icon>
-								Open Media Gallery
-							</a>
-						{/if}
+				{#if currentPath.includes('/mediagallery') && isSidebarFull}
+					<div class="px-1">
 						<MediaFolders />
 					</div>
+				{:else}
+					<Button variant="ghost"
+						type="button"
+						onclick={() => {
+							goto('/mediagallery');
+							if (isMobile()) {
+								toggleUIElement('leftSidebar', 'collapsed');
+							}
+						}}
+						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
+					>
+						<span class="flex items-center gap-1.5">
+							<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{#if isSidebarFull}{Collections_MediaGallery()}{/if}
+						</span>
+						{#if isSidebarFull}
+							<iconify-icon
+								icon="bi:chevron-down"
+								width="12"
+								class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
+							></iconify-icon>
+						{/if}
+					</Button>
+					{#if isMediaOpen}
+						<div class="px-1 space-y-2">
+							{#if isSidebarFull && !currentPath.includes('/mediagallery')}
+								<a
+									href="/mediagallery"
+									data-sveltekit-preload-data="hover"
+									class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
+									onclick={() => {
+										if (isMobile()) toggleUIElement('leftSidebar', 'collapsed');
+									}}
+								>
+									<iconify-icon icon="bi:images" width="14"></iconify-icon>
+									Open Media Gallery
+								</a>
+							{/if}
+							<MediaFolders />
+						</div>
+					{/if}
 				{/if}
 			</div>
 		{/if}

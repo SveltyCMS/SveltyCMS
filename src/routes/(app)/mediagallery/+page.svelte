@@ -102,6 +102,12 @@ const breadcrumbs = $derived.by(() => {
 	return crumbs;
 });
 
+const assetStats = $derived.by(() => ({
+	total: files.length,
+	filtered: filteredFiles.length,
+	selected: selectedFiles.size,
+}));
+
 onMount(() => {
 	// Register Keyboard Shortcuts
 	registerHotkey("mod+f", () => document.getElementById("media-gallery-search")?.focus(), "Focus Search");
@@ -352,21 +358,43 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 }
 </script>
 
-<AdminPageShell title="Media Gallery" icon="bi:images" showBackButton={true} backUrl="/" fullHeight={true} spaceY="4">
+<AdminPageShell
+	title="Media Gallery"
+	icon="bi:images"
+	highlight="Gallery"
+	showBackButton={true}
+	backUrl="/"
+	fullHeight={true}
+	titleCompact={true}
+	spaceY="4"
+>
 	{#snippet actions()}
-		<div class="flex items-center gap-2">
-			<Button variant="surface"
+		<div class="flex items-center gap-1 sm:gap-1.5">
+			<Button
+				variant="surface"
+				size="sm"
 				onclick={handleCreateFolder}
 				aria-label="Create new virtual folder"
+				class="h-9 gap-1.5 px-2 text-surface-600 sm:px-3 dark:text-surface-300"
 			>
-				<iconify-icon icon="mdi:folder-plus" width="20"></iconify-icon>
-				<span class="hidden md:inline">New Folder</span>
+				<iconify-icon icon="mdi:folder-plus" width="18"></iconify-icon>
+				<span class="hidden sm:inline">New Folder</span>
 			</Button>
 
-			<Button color="var(--color-primary-500)" onclick={() => fileUploadInput?.click()} disabled={isUploading} aria-busy={isUploading}>
-				<iconify-icon icon={isUploading ? "mdi:loading" : "mdi:upload"} width="20" class={isUploading ? "animate-spin" : ""}></iconify-icon>
-				<span class="hidden md:inline">{isUploading ? "Uploading…" : "Upload"}</span>
+			<span class="hidden h-4 w-px bg-surface-300 sm:block dark:bg-surface-700" aria-hidden="true"></span>
+
+			<Button
+				size="sm"
+				color="var(--color-primary-500)"
+				onclick={() => fileUploadInput?.click()}
+				disabled={isUploading}
+				aria-busy={isUploading}
+				class="h-9 gap-1.5 px-2 sm:px-3"
+			>
+				<iconify-icon icon={isUploading ? "mdi:loading" : "mdi:upload"} width="18" class={isUploading ? "animate-spin" : ""}></iconify-icon>
+				<span class="hidden sm:inline">{isUploading ? "Uploading…" : "Upload"}</span>
 			</Button>
+
 			<input
 				type="file"
 				multiple
@@ -380,90 +408,120 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 		</div>
 	{/snippet}
 
-	<div class="flex min-h-0 flex-1 flex-col gap-3">
-		<!-- Breadcrumb (folder path) -->
-		{#if breadcrumbs.length > 1}
-			<nav class="flex shrink-0 items-center gap-1 overflow-x-auto text-sm text-surface-500 dark:text-surface-400" aria-label="Folder path">
-				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
-					{#if i > 0}
-						<iconify-icon icon="mdi:chevron-right" width="16" class="shrink-0 opacity-50"></iconify-icon>
-					{/if}
-					{#if i === breadcrumbs.length - 1}
-						<span class="max-w-[12rem] truncate font-semibold text-surface-700 dark:text-surface-200" aria-current="page">{crumb.name}</span>
-					{:else}
-						<a
-							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
-							class="max-w-[12rem] shrink-0 truncate transition-colors hover:text-primary-500"
-						>{crumb.name}</a>
-					{/if}
-				{/each}
-			</nav>
+	<div class="flex min-h-0 flex-1 flex-col gap-0">
+		{#if assetStats.selected > 0}
+			<div class="shrink-0 px-2 sm:px-3">
+				<p
+					class="border-b border-primary-500/30 py-2 text-xs text-surface-600 dark:text-surface-300"
+					role="status"
+					aria-live="polite"
+				>
+				<span class="font-medium text-surface-800 dark:text-surface-100">{assetStats.selected} selected</span>
+				<span class="hidden text-surface-500 sm:inline dark:text-surface-400"> · Del to remove · Esc to clear</span>
+				</p>
+			</div>
 		{/if}
 
 		<!-- Toolbar -->
-		<div
-			class="flex shrink-0 flex-col gap-2 border-b border-surface-200/70 pb-3 sm:flex-row sm:items-center dark:border-surface-700/40"
-			data-testid="media-gallery-toolbar"
-		>
-			<div class="relative w-full sm:flex-1 sm:min-w-48">
-				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="20"></iconify-icon>
+		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-toolbar">
+			<div
+				class="flex flex-col gap-2.5 py-3 sm:flex-row sm:items-center sm:gap-3"
+			>
+			<div class="relative min-w-0 w-full sm:flex-1">
+				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="18"></iconify-icon>
 				<Input
 					id="media-gallery-search"
 					bind:value={globalSearchValue}
 					type="search"
 					placeholder="Search media... (Mod+F)"
-					class="ps-10 w-full dark:border-surface-700/60 focus-visible:ring-1"
+					class="w-full ps-9 dark:border-surface-700/60 focus-visible:ring-1"
 					aria-label="Search media assets"
 				/>
 			</div>
 
-			<div class="flex flex-wrap items-center gap-2">
+			<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
 				<label for="media-type-filter" class="sr-only">Filter by media type</label>
 				<Select
 					id="media-type-filter"
 					bind:value={selectedMediaType}
 					options={mediaTypeOptions}
 					placeholder="Type"
-					class="w-36 sm:w-44"
+					class="w-full sm:w-36"
 				/>
 
-				<div class="inline-flex h-10 shrink-0 items-center gap-1 rounded-md border border-surface-200 bg-surface-50 p-1 dark:border-surface-700/60 dark:bg-surface-900" role="group" aria-label="View mode">
+				<div class="flex h-10 items-center gap-0.5" role="group" aria-label="View mode">
 					<Button
-						variant={view === 'grid' ? 'primary' : 'ghost'}
+						variant="ghost"
 						size="sm"
-						color={view === 'grid' ? 'var(--color-primary-500)' : undefined}
 						onclick={() => (view = 'grid')}
-						class="h-8 w-9 min-w-0 rounded-md p-0! {view !== 'grid' ? 'text-surface-500 hover:bg-surface-200 dark:text-surface-400 dark:hover:bg-surface-700' : ''}"
+						class="h-10 w-10 min-w-0 p-0! {view === 'grid'
+							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
+							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Grid view"
 						aria-pressed={view === 'grid'}
 					>
-						<iconify-icon icon="mdi:grid-large" width="18"></iconify-icon>
+						<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
 					</Button>
 					<Button
-						variant={view === 'table' ? 'primary' : 'ghost'}
+						variant="ghost"
 						size="sm"
-						color={view === 'table' ? 'var(--color-primary-500)' : undefined}
 						onclick={() => (view = 'table')}
-						class="h-8 w-9 min-w-0 rounded-md p-0! {view !== 'table' ? 'text-surface-500 hover:bg-surface-200 dark:text-surface-400 dark:hover:bg-surface-700' : ''}"
+						class="h-10 w-10 min-w-0 p-0! {view === 'table'
+							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
+							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Table view"
 						aria-pressed={view === 'table'}
 					>
-						<iconify-icon icon="mdi:format-list-bulleted" width="18"></iconify-icon>
+						<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
 					</Button>
 				</div>
 
 				<Button
-					variant={isSelectionMode ? 'surface' : 'outline'}
+					variant={isSelectionMode ? 'surface' : 'ghost'}
 					color={isSelectionMode ? 'var(--color-primary-500)' : undefined}
 					onclick={() => (isSelectionMode = !isSelectionMode)}
 					aria-label="Toggle selection mode"
 					aria-pressed={isSelectionMode}
-					class="border-surface-200 dark:border-surface-700/60"
+					class="h-10 text-sm"
 				>
-					{isSelectionMode ? 'Exit Selection' : 'Select'}
+					<span class="sm:hidden">{isSelectionMode ? 'Done' : 'Select'}</span>
+					<span class="hidden sm:inline">{isSelectionMode ? 'Exit Selection' : 'Select'}</span>
 				</Button>
 			</div>
+			</div>
 		</div>
+
+		{#if breadcrumbs.length > 1}
+			<div class="shrink-0 px-2 sm:px-3">
+				<nav
+					class="flex min-w-0 items-center gap-2.5 overflow-x-auto border-b border-surface-200 py-2.5 text-base text-surface-500 dark:border-surface-800 dark:text-surface-400"
+					aria-label="Folder path"
+				>
+					{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
+						{#if i > 0}
+							<iconify-icon
+								icon="mdi:chevron-right"
+								width="16"
+								class="shrink-0 text-surface-400 dark:text-surface-500"
+								aria-hidden="true"
+							></iconify-icon>
+						{/if}
+						{#if i === breadcrumbs.length - 1}
+							<span
+								class="max-w-[12rem] shrink-0 truncate font-medium text-surface-800 sm:max-w-[16rem] dark:text-surface-100"
+								aria-current="page"
+							>{crumb.name}</span>
+						{:else}
+							<a
+								href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
+								class="shrink-0 truncate hover:text-primary-500"
+								data-preload="hover"
+							>{crumb.name}</a>
+						{/if}
+					{/each}
+				</nav>
+			</div>
+		{/if}
 
 		<!-- Content -->
 		<div class="relative flex min-h-0 flex-1 flex-col" data-testid="media-gallery-content">
