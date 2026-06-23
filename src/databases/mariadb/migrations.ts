@@ -59,6 +59,9 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			totpSecret VARCHAR(255),
 			backupCodes JSON,
 			last2FAVerification DATETIME,
+			authenticators JSON,
+			failedAttempts INT NOT NULL DEFAULT 0,
+			lockoutUntil DATETIME,
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -482,6 +485,24 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     await connection.query(`ALTER TABLE auth_users ADD COLUMN totpSecret VARCHAR(255)`);
     await connection.query(`ALTER TABLE auth_users ADD COLUMN backupCodes JSON`);
     await connection.query(`ALTER TABLE auth_users ADD COLUMN last2FAVerification DATETIME`);
+    // WebAuthn + brute-force protection columns (v0.0.7+)
+    try {
+      await connection.query(`ALTER TABLE auth_users ADD COLUMN authenticators JSON`);
+    } catch {
+      /* column already exists */
+    }
+    try {
+      await connection.query(
+        `ALTER TABLE auth_users ADD COLUMN failedAttempts INT NOT NULL DEFAULT 0`,
+      );
+    } catch {
+      /* column already exists */
+    }
+    try {
+      await connection.query(`ALTER TABLE auth_users ADD COLUMN lockoutUntil DATETIME`);
+    } catch {
+      /* column already exists */
+    }
     await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`);
     await connection.query(
       `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'filesystem'`,

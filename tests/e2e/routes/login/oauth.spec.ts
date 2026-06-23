@@ -1,5 +1,5 @@
 /**
- * @file tests/playwright/oauth-signup-firstuser.spec.ts
+ * @file tests/e2e/routes/login/oauth.spec.ts
  * @description Playwright end-to-end tests for OAuth first user signup and configuration in SveltyCMS.
  *   - Mocks the OAuth flow to avoid real credentials in CI/CD
  *   - Verifies OAuth button visibility and Google icon
@@ -20,32 +20,29 @@ test.describe("OAuth First User Signup", () => {
     console.log("Testing OAuth button visibility with enabled OAuth");
 
     // Switch to Sign In mode where OAuth button should be available
-    await page.getByText(/sign in/i).click();
+    // Use testid to avoid strict mode violations from multiple "Sign In" text matches
+    const signinIcon = page.getByTestId("signin-icon");
+    if (await signinIcon.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await signinIcon.click();
+    }
 
-    // Check if OAuth button is visible (may not be available in all envs)
-    const oauthButton = page.getByRole("button", { name: /oauth/i });
+    // OAuth buttons are "Sign in with Google" / "Sign in with GitHub" — not "OAuth"
+    // These only render when GOOGLE_CLIENT_ID / GITHUB_CLIENT_ID are configured
+    const googleButton = page.getByRole("button", { name: /sign in with google/i });
+    const githubButton = page.getByRole("button", { name: /sign in with github/i });
 
-    // Wrap in try/catch since OAuth may not be configured in all environments
-    try {
-      if ((await oauthButton.count()) > 0) {
-        await expect(oauthButton).toBeVisible();
-        console.log("✓ OAuth button is visible - OAuth is properly configured");
+    const googleVisible = await googleButton.isVisible({ timeout: 3000 }).catch(() => false);
+    const githubVisible = await githubButton.isVisible({ timeout: 3000 }).catch(() => false);
 
-        // Check for Google icon
-        const googleIcon = oauthButton.locator('iconify-icon[icon="flat-color-icons:google"]');
-        await expect(googleIcon).toBeVisible();
-        console.log("✓ Google icon is visible in OAuth button");
-      } else {
-        console.log("✗ OAuth button not found - checking configuration...");
-
-        // Check if there are any console errors that might indicate configuration issues
-        const errorMessages = await page.evaluate(() => {
-          return window.console ? "Console available" : "No console";
-        });
-        console.log("Console check:", errorMessages);
-      }
-    } catch (e) {
-      console.log("⚠ OAuth availability check failed (OAuth likely disabled):", e);
+    if (googleVisible) {
+      console.log("✓ Google OAuth button is visible - OAuth is properly configured");
+      const googleIcon = googleButton.locator('iconify-icon[icon="flat-color-icons:google"]');
+      await expect(googleIcon).toBeVisible();
+    } else if (githubVisible) {
+      console.log("✓ GitHub OAuth button is visible - OAuth is properly configured");
+    } else {
+      console.log("✗ OAuth buttons not found - OAuth is not configured in this environment");
+      // This is acceptable in CI where GOOGLE_CLIENT_ID is not set
     }
   });
 
@@ -53,7 +50,10 @@ test.describe("OAuth First User Signup", () => {
     console.log("Testing OAuth redirect generation without real OAuth");
 
     // Switch to Sign In mode
-    await page.getByText(/sign in/i).click();
+    const signinIcon = page.getByTestId("signin-icon");
+    if (await signinIcon.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await signinIcon.click();
+    }
 
     // Mock the OAuth flow for automated testing
     await page.route("**/login", (route) => {
@@ -72,17 +72,17 @@ test.describe("OAuth First User Signup", () => {
       }
     });
 
-    const oauthButton = page.getByRole("button", { name: /oauth/i });
+    const googleButton = page.getByRole("button", { name: /sign in with google/i });
 
-    if ((await oauthButton.count()) > 0) {
-      console.log("✓ OAuth button found - testing redirect generation");
+    if (await googleButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log("✓ Google OAuth button found - testing redirect generation");
 
       // Test that the OAuth button generates the correct redirect
       const response = await page.waitForResponse(
         (response) => response.url().includes("/login") && response.status() === 302,
       );
 
-      await oauthButton.click();
+      await googleButton.click();
 
       if (response) {
         const location = response.headers().location;
@@ -94,7 +94,7 @@ test.describe("OAuth First User Signup", () => {
         expect(location).toContain("127.0.0.1:4173/login/oauth");
       }
     } else {
-      console.log("❌ OAuth button not found - skipping redirect test");
+      console.log("❌ Google OAuth button not found - skipping redirect test");
     }
   });
 
@@ -371,25 +371,31 @@ test.describe("OAuth Configuration Check", () => {
     const testUrl = `${baseURL}/login`;
 
     await page.goto(testUrl);
-    await page.getByText(/sign in/i).click();
 
-    const oauthButton = page.getByRole("button", { name: /oauth/i });
+    // Use testid to avoid strict mode violations from multiple "Sign In" text matches
+    const signinIcon = page.getByTestId("signin-icon");
+    if (await signinIcon.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await signinIcon.click();
+    }
 
-    if ((await oauthButton.count()) > 0) {
-      console.log("✓ OAuth button is present - USE_GOOGLE_OAUTH is enabled");
+    // OAuth buttons are "Sign in with Google" / "Sign in with GitHub" — not "OAuth"
+    const googleButton = page.getByRole("button", { name: /sign in with google/i });
+
+    if (await googleButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log("✓ Google OAuth button is present - USE_GOOGLE_OAUTH is enabled");
 
       // Check if the button has the correct styling and text
-      await expect(oauthButton).toBeVisible();
-      await expect(oauthButton).toContainText("OAuth");
+      await expect(googleButton).toBeVisible();
+      await expect(googleButton).toContainText("Google");
 
       // Check for Google icon
-      const googleIcon = oauthButton.locator('iconify-icon[icon="flat-color-icons:google"]');
+      const googleIcon = googleButton.locator('iconify-icon[icon="flat-color-icons:google"]');
       await expect(googleIcon).toBeVisible();
 
       console.log("✓ OAuth button has correct content and styling");
       console.log("✓ Test environment OAuth configuration is working");
     } else {
-      console.log("✗ OAuth button not found");
+      console.log("✗ Google OAuth button not found");
       console.log("This could indicate:");
       console.log("  - USE_GOOGLE_OAUTH is set to false");
       console.log("  - Environment variables are not being loaded correctly");
@@ -398,9 +404,6 @@ test.describe("OAuth Configuration Check", () => {
       // Let's check if we can find any OAuth-related elements
       const oauthForms = await page.locator('form[id*="oauth"]').count();
       console.log(`OAuth forms found: ${oauthForms}`);
-
-      const googleElements = await page.locator("text=google").count();
-      console.log(`Google-related elements found: ${googleElements}`);
     }
   });
 });
