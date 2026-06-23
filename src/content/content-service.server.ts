@@ -27,8 +27,14 @@ import {
 interface ContentPlugin {
   name: string;
   onSchemaLoad?: (schema: Schema, filePath: string) => Schema | Promise<Schema>;
-  onReconcile?: (operations: any[], prunedPaths: string[]) => void | Promise<void>;
-  onNodeChange?: (node: ContentNode, action: "upsert" | "delete") => void | Promise<void>;
+  onReconcile?: (
+    operations: any[],
+    prunedPaths: string[],
+  ) => void | Promise<void>;
+  onNodeChange?: (
+    node: ContentNode,
+    action: "upsert" | "delete",
+  ) => void | Promise<void>;
 }
 
 const _plugins: ContentPlugin[] = [];
@@ -57,7 +63,10 @@ export function traceStart(label: string): () => number {
   };
 }
 
-export function getTraceStats(): Record<string, { avg: number; p95: number; count: number }> {
+export function getTraceStats(): Record<
+  string,
+  { avg: number; p95: number; count: number }
+> {
   const result: Record<string, any> = {};
   for (const [label, entries] of _traces) {
     if (entries.length === 0) continue;
@@ -83,7 +92,9 @@ function validateSchemaFields(schema: Schema): boolean {
     return false;
   }
   if (!Array.isArray(schema.fields) || schema.fields.length === 0) {
-    logger.error(`Schema validation failed: 'fields' must be a non-empty array (${schema.name})`);
+    logger.error(
+      `Schema validation failed: 'fields' must be a non-empty array (${schema.name})`,
+    );
     return false;
   }
 
@@ -146,7 +157,9 @@ async function ensurePhysicalModels(schemas: Schema[], dbAdapter: IDBAdapter) {
       try {
         await dbAdapter.collection.createModel(schema);
       } catch (err) {
-        logger.error(`[RECONCILE] Failed to create physical model for ${schema._id}: ${err}`);
+        logger.error(
+          `[RECONCILE] Failed to create physical model for ${schema._id}: ${err}`,
+        );
       }
     }
   }
@@ -185,8 +198,10 @@ let _scanPromise: Promise<Schema[]> | null = null;
  * Scans the .compiledCollections directory for compiled schema files.
  */
 export async function scanCompiledCollections(): Promise<Schema[]> {
-  if (_isScanning || _scanPromise) return _scanPromise || Array.from(_schemaCache.values());
-  if (!_isDirty && _schemaCache.size > 0) return Array.from(_schemaCache.values());
+  if (_isScanning || _scanPromise)
+    return _scanPromise || Array.from(_schemaCache.values());
+  if (!_isDirty && _schemaCache.size > 0)
+    return Array.from(_schemaCache.values());
 
   _scanPromise = (async () => {
     _isScanning = true;
@@ -200,7 +215,9 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
       try {
         const entries = await fsPromises.readdir(dir, { withFileTypes: true });
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.info(`[Scanner] readdir ${dir} found ${entries.length} entries`);
+          logger.info(
+            `[Scanner] readdir ${dir} found ${entries.length} entries`,
+          );
         }
         await Promise.all(
           entries.map(async (entry) => {
@@ -218,7 +235,9 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 
     try {
       await walk(collectionsDir);
-      const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
+      const scanList = fileList.filter(
+        (f) => _mtimeTree.get(f.fullPath) !== f.mtime,
+      );
 
       if (process.env.BENCHMARK_DEBUG === "true") {
         logger.info(`[Scanner] Total files found: ${fileList.length}`);
@@ -258,44 +277,92 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
           const moduleData = await loadSchema(file.fullPath, file.mtime);
           const schema = moduleData?.schema;
 
-          if (schema) {
-            // Validate schema structure before caching
-            if (!validateSchemaFields(schema)) {
-              logger.error("[Scanner] Skipping invalid schema", {
+          if (!schema) {
+            // Compiled file is broken — delete it and touch source to trigger recompilation
+            logger.warn(
+              "[Scanner] Broken compiled schema, triggering recompilation",
+              {
+                path: file.fullPath,
+              },
+            );
+            _schemaCache.delete(file.fullPath);
+            _mtimeTree.delete(file.fullPath);
+            await fsPromises.unlink(file.fullPath).catch(() => {});
+            // Touch the source .ts file to trigger Vite HMR recompilation
+            const tsPath = file.fullPath
+              .replace(".compiledCollections", "config/collections")
+              .replace(/\.js$/, ".ts");
+            try {
+              const now = new Date();
+              await fsPromises.utimes(tsPath, now, now);
+            } catch {
+              /* source may not exist */
+            }
+            return;
+          }
+
+          // Validate schema structure before caching
+          if (!validateSchemaFields(schema)) {
+            logger.error(
+              "[Scanner] Skipping invalid schema, triggering recompilation",
+              {
                 path: file.fullPath,
                 name: schema.name,
-              });
-              return;
+              },
+            );
+            _schemaCache.delete(file.fullPath);
+            _mtimeTree.delete(file.fullPath);
+            await fsPromises.unlink(file.fullPath).catch(() => {});
+            const tsPath = file.fullPath
+              .replace(".compiledCollections", "config/collections")
+              .replace(/\.js$/, ".ts");
+            try {
+              const now = new Date();
+              await fsPromises.utimes(tsPath, now, now);
+            } catch {
+              /* source may not exist */
             }
+            return;
+          }
 
-            // Run onSchemaLoad plugins (enrichment, validation, transforms)
-            let enrichedSchema = schema;
-            for (const plugin of _plugins) {
-              if (plugin.onSchemaLoad) {
-                try {
-                  enrichedSchema =
-                    (await plugin.onSchemaLoad(enrichedSchema, file.fullPath)) || enrichedSchema;
-                } catch (err: any) {
-                  logger.error(`[Plugin] ${plugin.name}.onSchemaLoad failed: ${err.message}`);
-                }
+          // Run onSchemaLoad plugins (enrichment, validation, transforms)
+          let enrichedSchema = schema;
+          for (const plugin of _plugins) {
+            if (plugin.onSchemaLoad) {
+              try {
+                enrichedSchema =
+                  (await plugin.onSchemaLoad(enrichedSchema, file.fullPath)) ||
+                  enrichedSchema;
+              } catch (err: any) {
+                logger.error(
+                  `[Plugin] ${plugin.name}.onSchemaLoad failed: ${err.message}`,
+                );
               }
             }
-
-            const hash = generateSchemaHash(enrichedSchema);
-            if (cached && cached.hash === hash) {
-              await setSchemaCacheEntry(cacheKey, { ...cached, mtime: file.mtime }, enrichedSchema);
-              _schemaCache.set(file.fullPath, enrichedSchema);
-            } else {
-              enrichSchemaWithMetadata(enrichedSchema, file.fullPath, collectionsDir);
-              await setSchemaCacheEntry(
-                cacheKey,
-                { mtime: file.mtime, hash, schema: enrichedSchema },
-                enrichedSchema,
-              );
-              _schemaCache.set(file.fullPath, enrichedSchema);
-            }
-            _mtimeTree.set(file.fullPath, file.mtime);
           }
+
+          const hash = generateSchemaHash(enrichedSchema);
+          if (cached && cached.hash === hash) {
+            await setSchemaCacheEntry(
+              cacheKey,
+              { ...cached, mtime: file.mtime },
+              enrichedSchema,
+            );
+            _schemaCache.set(file.fullPath, enrichedSchema);
+          } else {
+            enrichSchemaWithMetadata(
+              enrichedSchema,
+              file.fullPath,
+              collectionsDir,
+            );
+            await setSchemaCacheEntry(
+              cacheKey,
+              { mtime: file.mtime, hash, schema: enrichedSchema },
+              enrichedSchema,
+            );
+            _schemaCache.set(file.fullPath, enrichedSchema);
+          }
+          _mtimeTree.set(file.fullPath, file.mtime);
         }),
       );
 
@@ -320,7 +387,10 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 /**
  * 🚀 Fast-path for benchmarks.
  */
-export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
+export async function refreshCollectionsCache(
+  tenantId?: string | null,
+  db?: IDBAdapter,
+) {
   markFileDirty();
   const fileSchemas = await scanCompiledCollections();
   let dbSchemas: Schema[] = [];
@@ -353,7 +423,10 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
       // against the DB fallback (fields: []) overwriting a richer file schema.
       const key = s._id.toLowerCase();
       const existing = schemaMap.get(key);
-      if (!existing || (existing.fields?.length ?? 0) < (s.fields?.length ?? 0)) {
+      if (
+        !existing ||
+        (existing.fields?.length ?? 0) < (s.fields?.length ?? 0)
+      ) {
         schemaMap.set(key, s);
       }
     }
@@ -374,7 +447,8 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
   contentStore.sync(nodes as any);
 
   if (db) {
-    if (typeof (db as any).reconcile === "function") await (db as any).reconcile();
+    if (typeof (db as any).reconcile === "function")
+      await (db as any).reconcile();
     if ((db.collection as any)?.ensureSystemTables)
       await (db.collection as any).ensureSystemTables();
   }
@@ -394,7 +468,8 @@ export const contentService = {
       );
     }
 
-    const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
+    const dbAdapter =
+      adapter || (await (await import("@src/databases/db")).getDb());
     if (!dbAdapter) return;
 
     const isIncremental = !!(changedFile && changedFile.endsWith(".js"));
@@ -437,7 +512,12 @@ export const contentService = {
     // 3. Persist
     await Promise.all([
       ensurePhysicalModels(schemas, dbAdapter),
-      this.syncStoreAndDatabase(operations, prunedPaths, tenantId ?? null, dbAdapter),
+      this.syncStoreAndDatabase(
+        operations,
+        prunedPaths,
+        tenantId ?? null,
+        dbAdapter,
+      ),
     ]);
 
     // Fire onReconcile plugin hooks (async, fire-and-forget)
@@ -479,7 +559,9 @@ export const contentService = {
     const processedPaths = new Set<string>();
 
     // 🛡️ HARDENING: Ensure we only map nodes with valid paths
-    const dbMapByPath = new Map(dbNodes.filter((n) => !!n.path).map((n) => [n.path!, n]));
+    const dbMapByPath = new Map(
+      dbNodes.filter((n) => !!n.path).map((n) => [n.path!, n]),
+    );
 
     const categoryIdMap = new Map(
       categoryNodes.filter((c) => !!c.path).map((c) => [c.path!, c._id]),
@@ -504,12 +586,15 @@ export const contentService = {
         existing = potentialDuplicates[0];
         if (potentialDuplicates.length > 1) {
           for (let i = 1; i < potentialDuplicates.length; i++) {
-            if (potentialDuplicates[i].path) dbMapByPath.delete(potentialDuplicates[i].path!);
+            if (potentialDuplicates[i].path)
+              dbMapByPath.delete(potentialDuplicates[i].path!);
           }
         }
       }
 
-      const parentId = categoryIdMap.get(schemaPath.split("/").slice(0, -1).join("/")) || undefined;
+      const parentId =
+        categoryIdMap.get(schemaPath.split("/").slice(0, -1).join("/")) ||
+        undefined;
       const hasChanged =
         !existing ||
         existing.source !== "filesystem" ||
@@ -518,7 +603,10 @@ export const contentService = {
 
       const node: ContentNode = {
         ...existing,
-        _id: (schema._id || existing?._id || schema.name || "unknown") as DatabaseId,
+        _id: (schema._id ||
+          existing?._id ||
+          schema.name ||
+          "unknown") as DatabaseId,
         path: schemaPath,
         name: String(schema.name),
         icon: schema.icon || "bi:file",
@@ -555,7 +643,9 @@ export const contentService = {
         if (path) prunedPaths.push(path);
       } else {
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.info(`[Reconcile] Preserving API/Internal node: ${path} (source: ${source})`);
+          logger.info(
+            `[Reconcile] Preserving API/Internal node: ${path} (source: ${source})`,
+          );
         }
         preservedNodes.push(dbNode);
       }
@@ -571,7 +661,10 @@ export const contentService = {
     tenantId: string | null,
     dbAdapter: IDBAdapter,
   ) {
-    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+    if (
+      process.env.BENCHMARK_DEBUG === "true" ||
+      process.env.BENCHMARK === "true"
+    ) {
       logger.info(
         `[RECONCILE] Syncing ${operations.length} nodes and pruning ${prunedPaths.length} paths for tenant: ${tenantId || "global"}`,
       );
@@ -584,7 +677,9 @@ export const contentService = {
       const validUpdates = operations
         .filter((op) => {
           if (!op.path && process.env.BENCHMARK_DEBUG === "true") {
-            logger.warn(`[RECONCILE] Skipping DB update for node without path: ${op._id}`);
+            logger.warn(
+              `[RECONCILE] Skipping DB update for node without path: ${op._id}`,
+            );
           }
           return !!op.path;
         })
@@ -612,7 +707,9 @@ export const contentService = {
     const fullPath = path.resolve(filePath);
 
     if (!isSafeCollectionPath(fullPath)) {
-      logger.error("[Incremental] Blocked unsafe schema path", { path: fullPath });
+      logger.error("[Incremental] Blocked unsafe schema path", {
+        path: fullPath,
+      });
       return null;
     }
 
@@ -640,14 +737,22 @@ export const contentService = {
 
     const hash = generateSchemaHash(schema);
     if (cached && cached.hash === hash) {
-      await setSchemaCacheEntry(cacheKey, { ...cached, mtime: stats.mtimeMs }, schema);
+      await setSchemaCacheEntry(
+        cacheKey,
+        { ...cached, mtime: stats.mtimeMs },
+        schema,
+      );
       return null;
     }
 
     const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
     enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
 
-    await setSchemaCacheEntry(cacheKey, { mtime: stats.mtimeMs, hash, schema }, schema);
+    await setSchemaCacheEntry(
+      cacheKey,
+      { mtime: stats.mtimeMs, hash, schema },
+      schema,
+    );
 
     const now = dateToISODateString(new Date());
     const existingResult = await dbAdapter.content.nodes.getStructure("flat", {
@@ -655,11 +760,16 @@ export const contentService = {
       tenantId: tenantId as any,
     });
     const existing =
-      existingResult.success && existingResult.data.length > 0 ? existingResult.data[0] : null;
+      existingResult.success && existingResult.data.length > 0
+        ? existingResult.data[0]
+        : null;
 
     const node: ContentNode = {
       ...existing,
-      _id: (schema._id || existing?._id || schema.name || "unknown") as DatabaseId,
+      _id: (schema._id ||
+        existing?._id ||
+        schema.name ||
+        "unknown") as DatabaseId,
       path: schema.path,
       name: String(schema.name),
       icon: schema.icon || "bi:file",
@@ -673,9 +783,12 @@ export const contentService = {
       updatedAt: now,
     };
 
-    await dbAdapter.content.nodes.bulkUpdate([{ path: node.path!, id: node._id, changes: node }], {
-      tenantId: tenantId as any,
-    });
+    await dbAdapter.content.nodes.bulkUpdate(
+      [{ path: node.path!, id: node._id, changes: node }],
+      {
+        tenantId: tenantId as any,
+      },
+    );
     contentStore.upsert(node);
 
     if (options?.broadcast !== false) {
@@ -695,7 +808,8 @@ export const contentService = {
     options?: { requireFullReload?: boolean },
   ): Promise<void> {
     const changedFiles = flushChangedFiles();
-    const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
+    const dbAdapter =
+      adapter || (await (await import("@src/databases/db")).getDb());
     if (!dbAdapter) return;
 
     if (options?.requireFullReload || changedFiles.length === 0) {
@@ -705,7 +819,9 @@ export const contentService = {
       return;
     }
 
-    const validFiles = changedFiles.filter((f) => f.endsWith(".js") && isSafeCollectionPath(f));
+    const validFiles = changedFiles.filter(
+      (f) => f.endsWith(".js") && isSafeCollectionPath(f),
+    );
 
     if (validFiles.length === 0) {
       if (options?.requireFullReload) {
@@ -730,12 +846,15 @@ export const contentService = {
     tenantId?: string | null,
     adapter?: IDBAdapter,
   ): Promise<void> {
-    const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
+    const dbAdapter =
+      adapter || (await (await import("@src/databases/db")).getDb());
     if (!dbAdapter || filePaths.length === 0) return;
 
     const updates = await Promise.all(
       filePaths.map((filePath) =>
-        this.handleIncrementalReload(filePath, tenantId, dbAdapter, { broadcast: false }),
+        this.handleIncrementalReload(filePath, tenantId, dbAdapter, {
+          broadcast: false,
+        }),
       ),
     );
 
@@ -788,7 +907,9 @@ export const contentService = {
     }
 
     if (deleteOps.length > 0) {
-      const pathsToDelete = deleteOps.map((op) => op.node.path).filter((p): p is string => !!p);
+      const pathsToDelete = deleteOps
+        .map((op) => op.node.path)
+        .filter((p): p is string => !!p);
       if (pathsToDelete.length > 0)
         await dbAdapter.content.nodes.deleteMany(pathsToDelete, {
           tenantId: tenantId as any,
