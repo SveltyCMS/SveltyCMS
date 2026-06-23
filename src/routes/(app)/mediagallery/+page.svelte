@@ -8,6 +8,8 @@ Features:
 
 <script lang="ts">
 import { onMount } from "svelte";
+import { invalidateAll } from "$app/navigation";
+import { page } from "$app/state";
 import type { PageData } from "./$types";
 import MediaGrid from "./media-grid.svelte";
 import MediaTable from "./media-table.svelte";
@@ -43,6 +45,15 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let selectedFiles = $state(new SvelteSet<string>());
 	let isSelectionMode = $state(false);
 	let fileUploadInput = $state<HTMLInputElement>();
+	let isUploading = $state(false);
+
+// Keep the grid in sync with server data: re-runs whenever `load` re-fetches
+// (e.g. after invalidateAll following an upload), so new media appears without
+// a full page reload. Local optimistic edits (delete/edit) mutate `files`
+// directly and are reconciled on the next invalidation.
+$effect(() => {
+	files = [...((data?.media ?? []) as unknown as (MediaBase | MediaImage)[])];
+});
 
 const mediaTypes = [
 	{ value: "All", label: "ALL" },
@@ -107,8 +118,14 @@ onMount(() => {
 		"Delete Selected",
 	);
 
-	// Initial data hydration
-	if (data?.media) files = data.media as unknown as (MediaBase | MediaImage)[];
+	// Wire the grid's empty-state "Upload First File" button, which dispatches
+	// an `externalUpload` event with the chosen files.
+	const onExternalUpload = (e: Event) => {
+		const detail = (e as CustomEvent<{ files: FileList }>).detail;
+		if (detail?.files) uploadFiles(detail.files);
+	};
+	document.addEventListener("externalUpload", onExternalUpload);
+	return () => document.removeEventListener("externalUpload", onExternalUpload);
 });
 
 async function handleEditImage(file: any) {
@@ -158,8 +175,8 @@ async function handleEditorSave(detail: any) {
 					files = [updatedMedia, ...files];
 				}
 			} else {
-				// Fallback if data is missing
-				window.location.reload();
+				// Fallback if data is missing: re-fetch from the server reactively
+				await invalidateAll();
 			}
 		} else {
 			const error = await response.json();
@@ -188,16 +205,20 @@ async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 	});
 }
 
-async function handleUpload(e: Event) {
-	const input = e.target as HTMLInputElement;
-	if (!input.files?.length) return;
+// Shared upload path for both the toolbar button and the grid's empty-state.
+// Re-syncs the gallery via invalidateAll() (no full page reload) so new media
+// fades in within the current folder context.
+async function uploadFiles(fileList: FileList | File[]) {
+	const list = Array.from(fileList ?? []);
+	if (!list.length || isUploading) return;
 
 	const formData = new FormData();
-	for (const file of input.files) {
+	for (const file of list) {
 		formData.append("files", file);
 	}
 	formData.append("folder", data.currentFolder?._id || "global");
 
+	isUploading = true;
 	try {
 		const response = await fetch("?/upload", {
 			method: "POST",
@@ -205,12 +226,23 @@ async function handleUpload(e: Event) {
 		});
 		if (response.ok) {
 			toast.success("Media uploaded successfully");
-			window.location.reload();
+			await invalidateAll();
+		} else {
+			toast.error("Upload failed");
 		}
 	} catch (err) {
 		logger.error("Upload failed", err);
 		toast.error("Upload failed");
+	} finally {
+		isUploading = false;
 	}
+}
+
+async function handleUpload(e: Event) {
+	const input = e.target as HTMLInputElement;
+	await uploadFiles(input.files ?? []);
+	// Reset so selecting the same file again still fires `change`.
+	input.value = "";
 }
 
 async function handleCreateFolder() {
@@ -226,9 +258,16 @@ async function handleCreateFolder() {
 			if (!name?.trim()) return;
 
 			try {
+				// The CSRF token is single-use and rotates on every successful
+				// mutation, so the cached page.data.csrfToken may be stale.
+				// Refresh it right before posting to guarantee a valid token.
+				await invalidateAll();
 				const response = await fetch("/api/system-virtual-folder", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						"X-CSRF-Token": page.data.csrfToken ?? "",
+					},
 					body: JSON.stringify({
 						name: name.trim(),
 						parent: data.currentFolder?._id,
@@ -236,7 +275,13 @@ async function handleCreateFolder() {
 				});
 				if (response.ok) {
 					toast.success("Folder created");
-					window.location.reload();
+					// Refresh the sidebar folder tree and re-fetch gallery data
+					// without a full page reload.
+					document.dispatchEvent(new CustomEvent("folderCreated"));
+					await invalidateAll();
+				} else {
+					const result = await response.json().catch(() => null);
+					toast.error(result?.error?.message || result?.message || "Folder creation failed");
 				}
 			} catch (err) {
 				logger.error("Folder creation failed", err);
@@ -296,9 +341,9 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				<span class="hidden md:inline">New Folder</span>
 			</Button>
 
-			<Button color="var(--color-primary-500)" onclick={() => fileUploadInput?.click()}>
-				<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
-				<span class="hidden md:inline">Upload</span>
+			<Button color="var(--color-primary-500)" onclick={() => fileUploadInput?.click()} disabled={isUploading} aria-busy={isUploading}>
+				<iconify-icon icon={isUploading ? "mdi:loading" : "mdi:upload"} width="20" class={isUploading ? "animate-spin" : ""}></iconify-icon>
+				<span class="hidden md:inline">{isUploading ? "Uploading…" : "Upload"}</span>
 			</Button>
 			<input
 				type="file"

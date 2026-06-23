@@ -55,7 +55,8 @@
 
 	// Mutable state
 	let folders = $state<FolderNode[]>([]);
-	let expandedNodes = new SvelteSet<string>();
+	// Seed with 'root' so the tree root starts expanded and its folders are visible.
+	let expandedNodes = $state(new SvelteSet<string>(['root']));
 	let selectedFolderId = $derived(page.url.searchParams.get('folderId') || 'root');
 	let isEditMode = $state(false);
 	let isLoading = $state(true);
@@ -71,7 +72,10 @@
 		isLoading = true;
 		error = null;
 		try {
-			const res = await fetch('/api/system-virtual-folder');
+			// Cache-bust: the API layer caches GET /api/system-* responses for 300s,
+			// so a freshly created/renamed/deleted folder would otherwise not appear
+			// until the cache expired. A unique query param sidesteps the L1 cache.
+			const res = await fetch(`/api/system-virtual-folder?t=${Date.now()}`);
 			if (!res.ok) {
 				throw new Error('Network error');
 			}
@@ -222,7 +226,7 @@
 		try {
 			const res = await fetch('/api/system-virtual-folder', {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
 				body: JSON.stringify({
 					action: 'reorder',
 					parentId: newParentId,
@@ -332,6 +336,7 @@
 		{:else if tree.length > 0}
 			<TreeView
 				nodes={tree}
+				bind:expandedIds={expandedNodes}
 				selectedId={selectedFolderId}
 				compact={!isSidebarFull}
 				iconColorClass="text-tertiary-500 dark:text-primary-500"
