@@ -18,11 +18,14 @@ export const saveContentStructure = query(
   },
 );
 
-export const deleteContentNodes = query("unchecked", async (ids: string[]) => {
-  const { deleteContentNodes: fn } = await import("./collectionbuilder.server");
-  const event = (await import("$app/server")).getRequestEvent();
-  return fn(event, ids);
-});
+export const deleteContentNodes = query(
+  "unchecked",
+  async (items: { id: string; path?: string }[]) => {
+    const { deleteContentNodes: fn } = await import("./collectionbuilder.server");
+    const event = (await import("$app/server")).getRequestEvent();
+    return fn(event, items);
+  },
+);
 
 export const installPreset = query("unchecked", async (presetId: string) => {
   const { installPreset: fn } = await import("./collectionbuilder.server");

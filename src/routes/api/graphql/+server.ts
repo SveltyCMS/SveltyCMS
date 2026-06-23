@@ -307,6 +307,21 @@ async function handleRequest(event: RequestEvent) {
       publicationFilter,
     });
 
+    // Fix GraphiQL viewport: inject CSS so page fills viewport exactly (no scroll below the IDE)
+    const contentType = yogaResponse.headers.get("content-type") || "";
+    if (contentType.includes("text/html")) {
+      const html = await yogaResponse.text();
+      const fixed = html.replace(
+        "</head>",
+        "<style>html,body{height:100%;margin:0;padding:0;overflow:hidden}#root{height:100%}#root>*{height:100%}</style></head>",
+      );
+      return new Response(fixed, {
+        status: yogaResponse.status,
+        statusText: yogaResponse.statusText,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
+
     return new Response(yogaResponse.body, {
       status: yogaResponse.status,
       statusText: yogaResponse.statusText,

@@ -48,6 +48,7 @@ import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 import { isSearchVisible } from "@utils/global-search-index";
 import { getTextDirection } from "@utils/utils";
 import { mergeAdminThemeWithUserPrefs } from "@utils/theme-merge";
+import { initBounceDetector } from "@utils/bounce-detector";
 import {
 	applyLayoutPrefsToUiState,
 	diffLayoutPrefsFromTenant,
@@ -164,6 +165,7 @@ $effect(() => {
 	if (userLayout && !layoutLocked && serialized !== lastAppliedUserLayout) {
 		for (const [key, val] of Object.entries(userLayout)) {
 			if ((key === "leftSidebar" || key === "rightSidebar") && !screen.isDesktop) continue;
+			if (key === "leftSidebar" && screen.isDesktop) continue; // Respect userPreferred from localStorage
 			if (val === "full" || val === "hidden") {
 				ui.state[key as keyof typeof ui.state] = val;
 			}
@@ -311,8 +313,12 @@ onMount(() => {
 
 
 		// Initialize predictive preloading (physics cone + behavioral smart)
+<<<<<<< HEAD
 		initPredictivePreload();
 		initBounceDetector();
+=======
+		import("@utils/predictive-preload").then(m => m.initPredictivePreload());
+>>>>>>> 9c133826f (fix: sidebar UI + resolve API merge conflict + E2E updates + UI polishes)
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
 	initializeUserAvatar(data.user);
@@ -374,6 +380,8 @@ afterNavigate(() => {
 		}
 	}, 100);
 });
+
+initBounceDetector();
 </script>
 
 	<svelte:head>
@@ -442,17 +450,15 @@ afterNavigate(() => {
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
-				{#if ui.state.leftSidebar !== 'hidden'}
-					<aside
-						class="max-h-dvh transition-[width] duration-300 ease-in-out {ui.state.leftSidebar === 'full'
-							? ''
-							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
-						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
-						aria-label="Left sidebar navigation"
-					>
+				<aside
+					class="max-h-dvh transition-[width] duration-300 ease-in-out relative {ui.state.leftSidebar !== 'hidden' ? 'border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900' : 'overflow-hidden'} {ui.state.leftSidebar !== 'full' && ui.state.leftSidebar !== 'hidden' ? 'ms-1' : ''}"
+					style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ui.state.leftSidebar === 'collapsed' ? 'var(--admin-sidebar-collapsed, 60px)' : '0px'}"
+					aria-label="Left sidebar navigation"
+				>
+					{#if ui.state.leftSidebar !== 'hidden'}
 						<LeftSidebar />
-					</aside>
-				{/if}
+					{/if}
+				</aside>
 
 				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
 					{#if ui.state.pageheader !== 'hidden'}

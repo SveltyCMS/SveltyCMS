@@ -83,7 +83,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 	const id = generateId('toggle');
 </script>
 
-<div class={cn('flex items-start gap-3', className)} {...rest}>
+<div class={cn('flex items-center gap-3', className)} {...rest}>
 	<div class="relative flex h-full items-center">
 		<input aria-label="Input"
 			type="checkbox"

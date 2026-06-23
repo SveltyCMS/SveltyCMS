@@ -7,6 +7,7 @@
 import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
+<<<<<<< HEAD
 export type ContentTypes = "Authors" | "Categories" | "Posts" | (string & {});
 
 export interface CollectionMap {
@@ -24,5 +25,11 @@ export interface CollectionMap {
     publishDate: ISODateString;
     seo: string;
   };
+=======
+export type ContentTypes = string & {};
+
+export interface CollectionMap {
+  [key: string]: CollectionEntry & Record<string, any>;
+>>>>>>> 9c133826f (fix: sidebar UI + resolve API merge conflict + E2E updates + UI polishes)
 }
 /* AUTOGEN_END: ContentTypes */

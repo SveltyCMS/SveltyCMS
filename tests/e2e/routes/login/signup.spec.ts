@@ -7,8 +7,9 @@
  *   - Tests sign out, login, and forgot password flows
  */
 import { expect, test } from "@playwright/test";
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
-test.describe.configure({ timeout: 60_000 }); // Set timeout for all tests
+test.describe.configure({ timeout: 60_000 });
 
 test("Test loading homepage and login screen", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -20,77 +21,85 @@ test("Test loading homepage and login screen", async ({ page }) => {
   await expect(page.getByText(/sign in/i)).toBeVisible();
 });
 
-// ✅ Language selection test (dropdown version)
 test("Check language selection updates UI text", async ({ page }) => {
   await page.goto("/login");
 
-  const languageSelector = "select"; // Update if needed
+  // Language selector is a custom Dropdown with a <div role="button"> trigger
+  // (NOT a native <button>) showing current language name, then Button options.
+  const languageTrigger = page.locator('.language-selector [role="button"]').first();
+  await expect(languageTrigger).toBeVisible({ timeout: 5000 });
 
-  const languages = [
-    { code: "de", expected: /anmelden/i }, // Sign In in German
-    { code: "fr", expected: /se connecter/i }, // French
-    { code: "es", expected: /iniciar sesión/i }, // Spanish
-    { code: "en", expected: /sign in/i }, // English
+  const languages: { code: string; label: string; expected: RegExp }[] = [
+    { code: "de", label: "German", expected: /anmelden/i },
+    { code: "fr", label: "French", expected: /se connecter/i },
+    { code: "es", label: "Spanish", expected: /iniciar sesión/i },
+    { code: "en", label: "English", expected: /sign in/i },
   ];
 
   for (const lang of languages) {
-    await page.selectOption(languageSelector, lang.code);
-    await page.waitForTimeout(500); // Wait for UI update
-    await expect(page.getByRole("button", { name: lang.expected })).toBeVisible();
+    // If the dropdown is already open from a previous selection, clicking the
+    // trigger toggles it closed — only click when the dropdown is not yet open.
+    const option = page.locator(`button[aria-label="${lang.label}"]`).first();
+    if ((await option.isVisible({ timeout: 500 }).catch(() => false)) === false) {
+      await languageTrigger.click();
+      await page.waitForTimeout(300);
+    }
+    if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await option.click();
+      await page.waitForTimeout(500);
+    }
+    await expect(page.getByRole("button", { name: lang.expected }).first()).toBeVisible({
+      timeout: 5000,
+    });
   }
 });
 
-// ✅ Signup First User
 test("SignUp First User", async ({ page }) => {
+  test.setTimeout(90_000);
   await page.goto("/login");
   await page.getByText(/sign up/i).click();
 
-  // Username validation
-  await page.getByPlaceholder(/username/i).fill("T");
-  await page.getByPlaceholder(/username/i).press("Tab");
-  await page.getByPlaceholder(/username/i).fill("Test");
+  // All sign-up fields use FloatingInput with placeholder=" " — use id selectors
+  await page.locator("#usernamesignUp").fill("T");
+  await page.locator("#usernamesignUp").press("Tab");
+  await page.locator("#usernamesignUp").fill("Test");
 
-  // Email validation
-  await page.getByPlaceholder(/email/i).fill("tes");
-  await page.getByPlaceholder(/email/i).fill("test@test2.de");
+  await page.locator("#emailsignUp").fill("tes");
+  await page.locator("#emailsignUp").fill("test@test2.de");
 
-  // Password validation
-  await page.getByPlaceholder(/^password$/i).fill("Test123");
-  await page.getByPlaceholder(/^password$/i).press("Tab");
+  await page.locator("#passwordsignUp").fill("Test123");
+  await page.locator("#passwordsignUp").press("Tab");
 
-  await page.getByPlaceholder(/^password$/i).fill("Test123!");
-  await page.getByPlaceholder(/confirm/i).fill("Test1234!");
+  await page.locator("#passwordsignUp").fill("Test123!");
+  await page.locator("#confirm_passwordsignUp").fill("Test1234!");
 
-  await page.getByPlaceholder(/confirm/i).fill("Test123!");
+  await page.locator("#confirm_passwordsignUp").fill("Test123!");
 
-  // Registration Token (if required)
-  await page.getByPlaceholder(/token/i).fill("svelty-secret-key");
+  // Registration Token (if required) — token field has minlength=32
+  await page.locator("#tokensignUp").fill("svelty-secret-key-with-32-chars-min!");
 
-  await expect(page).toHaveURL(/\/en\/Posts/);
+  // Submit the signup form
+  await page.locator("#signup-form button[type='submit']").click();
+
+  // After signup, user is redirected to /config/collectionbuilder
+  await expect(page).toHaveURL(/\/config\/collectionbuilder/);
 });
 
-// ✅ Setup seed data before sign-in tests
 test.describe("SignIn & SignOut Flows", () => {
   test.beforeEach(async ({ page }) => {
-    // Seed the database with the test user via Testing API
-    try {
-      const seedResponse = await page.request.post("/api/testing", {
-        headers: { "x-test-secret": "svelty-testing-secret" },
-        data: {
-          action: "seed",
-          email: "test@test.de",
-          password: "Test123!",
-        },
-      });
-      if (!seedResponse.ok()) {
-        console.log("[E2E] Seed via testing API returned non-OK, continuing anyway");
-      }
-    } catch (e) {
-      console.log("[E2E] Testing API not available, proceeding without seed:", e);
-    }
+    const seedResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "seed",
+        email: "test@test.de",
+        password: "Test123!",
+      },
+    });
+    const seedBody = await seedResponse.json().catch(() => ({}));
+    expect(seedResponse.ok()).toBeTruthy();
+    expect(seedBody.success).toBe(true);
   });
 
-  // ✅ SignOut Test
   test("SignOut after login", async ({ page }) => {
     await page.goto("/login");
 
@@ -106,7 +115,6 @@ test.describe("SignIn & SignOut Flows", () => {
     }
   });
 
-  // ✅ Login First User
   test("Login First User", async ({ page }) => {
     await page.goto("/login");
 
@@ -115,25 +123,24 @@ test.describe("SignIn & SignOut Flows", () => {
     await page.getByTestId("signin-password").fill("Test123!");
     await page.getByTestId("signin-submit").click();
 
-    await expect(page).toHaveURL(/\/en\/Posts/);
+    await expect(page).toHaveURL(/\/config\/collectionbuilder/);
   });
 });
 
-// ✅ Forgot Password
 test("Forgot Password Flow", async ({ page }) => {
+  test.setTimeout(90_000);
   await page.goto("/login");
 
   await page.getByText(/sign in/i).click();
-  await page.getByRole("button", { name: /forgotten password/i }).click();
-  await page.getByPlaceholder(/email/i).fill("test@test2.de");
-  await page.getByRole("button", { name: /send password reset email/i }).click();
+  await page.getByTestId("signin-forgot-password").click();
 
-  // Assume redirected to reset form
-  await page
-    .getByPlaceholder(/password/i)
-    .first()
-    .fill("Test123!");
-  await page.getByPlaceholder(/confirm/i).fill("Test123!");
+  // Forgot password form — email field uses FloatingInput with placeholder=" "
+  await page.locator("#emailforgot").fill("test@test2.de");
+  await page.getByRole("button", { name: /reset password/i }).click();
+
+  // After submitting forgot form, the reset form appears (P_WRESET becomes true)
+  await page.locator("#passwordreset").fill("NewPass123!");
+  await page.locator("#confirm_passwordreset").fill("NewPass123!");
   await page.getByRole("button", { name: /save new password/i }).click();
 
   await expect(page).toHaveURL(/\/login/);

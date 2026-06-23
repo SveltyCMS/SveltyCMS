@@ -1,0 +1,297 @@
+/**
+ * @file tests/benchmarks/index-pressure.test.ts
+ * @description Enterprise Index Pressure audit for SveltyCMS.
+ * @summaryMeasures read performance with sorting and filtering on a large entry collection.
+ *
+ * ### Features:
+ * - smart server detection (no duplicate infrastructure)
+ * - idempotent collection provisioning
+ * - dual metric export (METRIC: stdout + JSON files)
+ * - exponential-backoff bulk seeding with retry resilience
+ */
+
+import {
+  test,
+  runBenchmark,
+  exportResult,
+  exportMetric,
+  setupBenchmarkServer,
+  ensureStableTestData,
+  forceRefreshServer,
+  stabilize,
+  printTruthTable,
+  printSummaryTable,
+  getDbLabel,
+  TEST_API_SECRET,
+  generateRealisticEntry,
+  getRecommendedConcurrency,
+} from "./modules/benchmark-utils";
+import "../unit/bun-preload.ts";
+
+const COLLECTION_ID = "bench_index_pressure";
+
+// 🚀 CI MODE: Reduced entry count for faster pipeline runs
+const IS_CI =
+  process.env.CI === "true" ||
+  process.env.BENCHMARK_CI === "true" ||
+  process.env.GITHUB_ACTIONS === "true";
+const ENTRY_COUNT = IS_CI ? 5_000 : 25_000;
+const BATCH_SIZE = IS_CI ? 250 : 500;
+const ITERATIONS = IS_CI ? 100 : 300;
+const WARMUP_ITERS = IS_CI ? 20 : 50;
+
+let stopServer: (() => Promise<void>) | null = null;
+
+async function runPressureAudit() {
+  // pre-existing unused var removed for TS strict mode
+  console.log(
+    `🚀 Starting Enterprise Index Pressure Audit (${ENTRY_COUNT.toLocaleString()} entries)...\n`,
+  );
+
+  try {
+    // ── Server Detection: Use runner's server if available, otherwise start one ──
+    let baseUrl: string;
+    const runnerBaseUrl = process.env.API_BASE_URL;
+
+    if (runnerBaseUrl) {
+      console.log(`   → Using runner's pre-warmed server at ${runnerBaseUrl}`);
+      baseUrl = runnerBaseUrl;
+    } else {
+      console.log("   → No runner detected. Starting isolated benchmark server...");
+      const server = await setupBenchmarkServer();
+      stopServer = server.stop;
+      baseUrl = server.baseUrl;
+    }
+
+    await ensureStableTestData();
+    await prepareCollection(baseUrl).catch((err) => {
+      (err as any).phase = "provisioning";
+      throw err;
+    });
+
+    // Only deep health-check when running standalone (runner already guarantees health)
+    if (!runnerBaseUrl) {
+      console.log("   → Performing Deep Health Check before seeding...");
+      let adapterReady = false;
+      for (let i = 0; i < 20; i++) {
+        try {
+          const res = await fetch(`${baseUrl}/api/system/health`, {
+            headers: {
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+            },
+          });
+          if (res.ok) {
+            const health = await res.json();
+            const status = health.status || health.data?.status;
+            if (status === "healthy") {
+              adapterReady = true;
+              break;
+            }
+          }
+        } catch {
+          /* wait */
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      if (!adapterReady) {
+        const err = new Error("Database adapter failed to reach healthy state.");
+        (err as any).phase = "health-check";
+        throw err;
+      }
+    } else {
+      // Under runner: quick verify with shorter timeout
+      await stabilize(2000);
+    }
+
+    await forceRefreshServer(baseUrl);
+    await stabilize(3000);
+
+    // Seed data efficiently
+    await seedLargeDataset(baseUrl).catch((err) => {
+      (err as any).phase = "seeding";
+      throw err;
+    });
+
+    // === Benchmarks ===
+    const scLabel = `${(ENTRY_COUNT / 1000).toFixed(0)}k rows`;
+
+    console.log(`   → Measuring Sorted Query Performance (${scLabel})...`);
+    const sortResult = await runBenchmark({
+      name: `Sorted List (${scLabel})`,
+      iterations: ITERATIONS,
+      warmupIterations: WARMUP_ITERS,
+      runs: 2,
+      concurrency: getRecommendedConcurrency(),
+      silent: true,
+      onIteration: async () => {
+        const res = await fetch(
+          `${baseUrl}/api/collections/${COLLECTION_ID}?sort=score&order=desc&limit=20`,
+          {
+            headers: {
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+            },
+          },
+        );
+        if (!res.ok) throw new Error(`Sort failed: ${res.status}`);
+        await res.json();
+      },
+    });
+
+    console.log(`   → Measuring Filtered Query Performance (${scLabel})...`);
+    const filterResult = await runBenchmark({
+      name: `Filtered Query (${scLabel})`,
+      iterations: ITERATIONS,
+      warmupIterations: WARMUP_ITERS,
+      runs: 2,
+      concurrency: getRecommendedConcurrency(),
+      silent: true,
+      onIteration: async () => {
+        const res = await fetch(
+          `${baseUrl}/api/collections/${COLLECTION_ID}?filter[category]=A&limit=20`,
+          {
+            headers: {
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+            },
+          },
+        );
+        if (!res.ok) throw new Error(`Filter failed: ${res.status}`);
+        await res.json();
+      },
+    });
+
+    const allResults = [sortResult, filterResult];
+
+    printTruthTable({
+      title: "SVELTYCMS  —  INDEX PRESSURE AUDIT",
+      subtitle: `${scLabel} • Sort + Filter • ${getDbLabel()}`,
+      results: allResults,
+    });
+
+    printSummaryTable([
+      { key: "Sorted Query (p95)", val: sortResult.p95Ms, unit: "ms" },
+      { key: "Filtered Query (p95)", val: filterResult.p95Ms, unit: "ms" },
+      {
+        key: "Index Health",
+        val: sortResult.p95Ms < 250 && filterResult.p95Ms < 250 ? "OPTIMAL" : "NEEDS WORK",
+        unit: "",
+      },
+    ]);
+
+    // ── Dual Export: JSON files (for findResult) + METRIC: lines (for getMetric) ──
+    // NOTE: METRIC keys must use only [\w.]+ chars (alphanumeric, underscore, dot) —
+    // spaces/hyphens break the runner's stdout regex parser.
+    for (const r of allResults) exportResult(r);
+    exportMetric("index.pressure.p95", sortResult.p95Ms, "ms");
+    exportMetric("index.pressure.filtered.p95", filterResult.p95Ms, "ms");
+    exportMetric("index.pressure.status", 1, "bool"); // 1 = PASS
+  } catch (err: any) {
+    // 🚀 ERROR TELEMETRY: Export failure status so the reporting system
+    // can distinguish "not run" (0) from "failed" (-1) from "passed" (1).
+    // This prevents surgical recovery from carrying forward stale historical data.
+    try {
+      exportMetric("index.pressure.status", -1, "bool"); // -1 = FAIL
+      exportMetric("index.pressure.p95", -1, "ms");
+    } catch {
+      // Best-effort; don't mask the original error
+    }
+    console.error(
+      `\n❌ INDEX PRESSURE AUDIT FAILED: ${err.message}\n` +
+        `   DB: ${process.env.DB_TYPE || "unknown"}\n` +
+        `   Phase: ${err.phase || "unknown"}\n`,
+    );
+    if (err.stack) console.error(err.stack);
+    throw err;
+  } finally {
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function prepareCollection(baseUrl: string) {
+  // Collection already seeded by setup wizard (seedPresetCollections). Just verify.
+  const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/schema`, {
+    headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+  });
+  if (!checkRes.ok)
+    throw new Error(`Collection ${COLLECTION_ID} not found — setup may have failed`);
+}
+
+async function seedLargeDataset(baseUrl: string) {
+  // 🚀 SMART SEEDING: Check if data already exists
+  try {
+    const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}?limit=1`, {
+      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+    });
+    if (checkRes.ok) {
+      const checkData = await checkRes.json();
+      const total = checkData.total || checkData.data?.total || 0;
+      if (total >= ENTRY_COUNT) {
+        console.log(`   → Data already present (${total} entries). Skipping seed.`);
+        return;
+      }
+    }
+  } catch {
+    /* proceed */
+  }
+
+  console.log(`   → Seeding ${ENTRY_COUNT.toLocaleString()} entries (Batches of ${BATCH_SIZE})...`);
+  const totalBatches = Math.ceil(ENTRY_COUNT / BATCH_SIZE);
+
+  for (let i = 0; i < totalBatches; i++) {
+    const batch = Array.from({ length: BATCH_SIZE }, (_, j) => {
+      const idx = i * BATCH_SIZE + j;
+      return generateRealisticEntry(idx, idx % 10 === 0 ? "heavy" : "medium");
+    });
+
+    let retryCount = 0;
+    const maxRetries = 5;
+    let res: Response;
+
+    while (true) {
+      // Use real bulk endpoint, not /api/testing backdoor
+      res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+        },
+        body: JSON.stringify(batch),
+      });
+
+      if (res.ok) break;
+
+      const bodyText = await res.text().catch(() => "");
+      const isRetryable =
+        res.status === 503 || bodyText.includes("BUSY") || bodyText.includes("Pool Exhausted");
+
+      if (isRetryable && retryCount < maxRetries) {
+        retryCount++;
+        const delay = 3000 * retryCount;
+        console.warn(
+          `   [WARN] Seeding batch ${i} failed (${res.status}). Reason: ${bodyText.includes("Pool Exhausted") ? "Pool Exhausted" : "Other"}. Retrying in ${delay}ms...`,
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      throw new Error(
+        `Seeding failed at batch ${i}: ${res.status} ${res.statusText}\nBody: ${bodyText}`,
+      );
+    }
+
+    if (i % 8 === 0) process.stdout.write(".");
+  }
+  process.stdout.write("\n");
+}
+
+test("100k Row Index Pressure", async () => {
+  await runPressureAudit();
+}, 1200000); // 20 minutes

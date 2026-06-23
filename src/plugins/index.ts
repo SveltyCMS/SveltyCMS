@@ -65,6 +65,7 @@ if (!isBrowser && Object.keys(pluginModulesRaw).length === 0) {
 
 // Collect all resolved plugin definitions from scanned exports
 export const availablePlugins: Plugin[] = [];
+const seenPluginIds = new Set<string>();
 
 for (const path in pluginModulesRaw) {
   const mod = pluginModulesRaw[path];
@@ -73,7 +74,11 @@ for (const path in pluginModulesRaw) {
   for (const key in mod) {
     const value = mod[key];
     if (value && typeof value === "object" && value.metadata && value.metadata.id) {
-      availablePlugins.push(value);
+      const id = value.metadata.id;
+      if (!seenPluginIds.has(id)) {
+        seenPluginIds.add(id);
+        availablePlugins.push(value);
+      }
     }
   }
 }

@@ -380,14 +380,13 @@ async function uploadLocalFiles() {
 		ondrop={handleFileDrop}
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
-		class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-secondary-50 dark:border-surface-500 dark:bg-surface-700"
+		class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col rounded border-2 border-dashed border-surface-600 bg-secondary-50 p-6 dark:border-surface-500 dark:bg-surface-700"
 		role="region"
 		aria-label="File drop zone"
 	>
-		<div class="grid grid-cols-6 items-center p-4">
-			<iconify-icon icon="fa6-solid:file-arrow-up" width={24}></iconify-icon>
+		<iconify-icon icon="fa6-solid:file-arrow-up" width={24} class="self-center"></iconify-icon>
 
-			<div class="col-span-5 space-y-4 text-center">
+		<div class="mt-4 w-full space-y-4 text-center">
 				<p class="font-bold">
 					<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
 					Drag files here to upload
@@ -404,13 +403,12 @@ async function uploadLocalFiles() {
 					type="button"
 					onclick={() => input?.click()}
 					disabled={isUploading}
-				 class="mt-3 dark:">
+				 class="mt-10 mb-6 dark:">
 					Browse Files
 				</Button>
 
 				<!-- File Size Limit -->
-				<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: 50 MB</p>
-			</div>
+				<p class="text-sm text-tertiary-500 dark:text-primary-500">Max File Size: 50 MB</p>
 		</div>
 
 		<!-- File Input -->

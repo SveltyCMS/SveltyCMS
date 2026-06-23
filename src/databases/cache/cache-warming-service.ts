@@ -180,7 +180,7 @@ export class CacheWarmingService {
       return;
     }
 
-    if (!db?.crud?.aggregate) return;
+    if (db?.type !== "mongodb") return;
 
     try {
       logger.debug(

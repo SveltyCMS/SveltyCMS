@@ -212,17 +212,23 @@ Inputs, Cards, and semantic color palettes without Storybook.
     <AdminCard class="p-5">
       <h2 class="text-base font-bold text-surface-900 dark:text-white mb-4">Cards</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <AdminCard class="p-4">
-          <p class="text-sm font-medium text-surface-900 dark:text-white">AdminCard shell</p>
-          <p class="text-xs text-surface-500 mt-1">Uses --admin-radius-card and theme shadows.</p>
+        <AdminCard class="p-4 h-full">
+          <div class="flex flex-col items-center justify-center text-center h-full">
+            <p class="text-sm font-medium text-surface-900 dark:text-white">AdminCard shell</p>
+            <p class="text-xs text-surface-500 mt-1">Uses --admin-radius-card and theme shadows.</p>
+          </div>
         </AdminCard>
         <AdminCard class="p-4" variant="tertiary" preset="tonal">
-          <p class="text-sm font-medium">Tonal Card</p>
-          <p class="text-xs text-surface-500 mt-1">Via Card preset passthrough.</p>
+          <div class="flex flex-col items-center text-center">
+            <p class="text-sm font-medium">Tonal Card</p>
+            <p class="text-xs text-surface-500 mt-1">Via Card preset passthrough.</p>
+          </div>
         </AdminCard>
         <AdminCard class="p-4" variant="primary" preset="outlined">
-          <p class="text-sm font-medium">Outlined Card</p>
-          <p class="text-xs text-surface-500 mt-1">Border + subtle fill.</p>
+          <div class="flex flex-col items-center text-center">
+            <p class="text-sm font-medium">Outlined Card</p>
+            <p class="text-xs text-surface-500 mt-1">Border + subtle fill.</p>
+          </div>
         </AdminCard>
       </div>
     </AdminCard>

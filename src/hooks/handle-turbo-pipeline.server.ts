@@ -552,10 +552,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         );
       }
 
-      if (
-        !isStaticOrInternalRequest(pathname) &&
-        (!isBootstrapRoute(pathname) || pathname === "/login")
-      ) {
+      if (!isStaticOrInternalRequest(pathname) && !isBootstrapRoute(pathname)) {
         const returnTo =
           pathname === "/" || pathname === "/login"
             ? ""

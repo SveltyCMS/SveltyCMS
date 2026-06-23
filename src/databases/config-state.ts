@@ -64,12 +64,6 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       let config: RawEnv = { ...svelteEnv };
 
-      // 🚀 HARDENING: If running in test mode and DB_TYPE is in process.env,
-      // strictly prioritize it to avoid config-file pollution from parallel runs.
-      if (isTest && process.env.DB_TYPE) {
-        config.DB_TYPE = process.env.DB_TYPE;
-      }
-
       // 2. Optional file-based override
       const fileConfig = await loadConfigFromFileIfNeeded(svelteEnv);
       if (fileConfig) {
@@ -79,6 +73,14 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       // 3. Environment variable overrides (always take precedence)
       const overrides = getEnvOverrides();
       config = { ...config, ...overrides };
+
+      // 🚀 HARDENING: In test mode, strictly default to sqlite unless
+      // process.env.DB_TYPE explicitly overrides. This prevents config file
+      // pollution (e.g. a stale private.test.ts with DB_TYPE='mariadb' from a
+      // previous run) from selecting a non-sqlite adapter.
+      if (isTest) {
+        config.DB_TYPE = process.env.DB_TYPE || "sqlite";
+      }
 
       // 4. Validate and Freeze
       const result = safeParse(privateConfigSchema, config);

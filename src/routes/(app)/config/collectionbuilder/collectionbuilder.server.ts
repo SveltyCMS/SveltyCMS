@@ -55,29 +55,113 @@ export async function saveContentStructure(event: RequestEvent, operations: Upse
   }
 }
 
-export async function deleteContentNodes(event: RequestEvent, ids: string[]) {
+export async function deleteContentNodes(
+  event: RequestEvent,
+  items: { id: string; path?: string }[],
+) {
   requirePermission(event);
   const tenantId = (event.locals as any).tenantId;
 
-  if (!(ids && Array.isArray(ids))) return fail(400, { message: "Invalid IDs" });
+  if (!(items && Array.isArray(items))) return fail(400, { message: "Invalid items" });
 
   try {
-    const current = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
-    const paths = current
-      .filter((n: any) => ids.includes(n._id?.toString()))
-      .map((n: any) => n.path);
+    // Use paths directly from client. If missing, fall back to DB lookup by _id.
+    let paths: string[] = items.filter((i) => i.path).map((i) => i.path as string);
+    if (paths.length < items.length) {
+      const current = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+      const itemIds = items.map((i) => i.id);
+      for (const node of current) {
+        const nodeId = (node as any)._id?.toString();
+        if (nodeId && itemIds.includes(nodeId) && !paths.includes((node as any).path)) {
+          paths.push((node as any).path);
+        }
+      }
+    }
+
+    // Delete compiled .js files so refresh() doesn't re-create them from disk
+    deleteCompiledFiles(paths);
 
     const operations = paths.map((p: string) => ({
       type: "delete" as const,
       node: { path: p } as any,
     }));
 
-    await contentSystem.upsertContentNodes(operations, tenantId);
+    if (operations.length > 0) {
+      await contentSystem.upsertContentNodes(operations, tenantId);
+    }
     await contentSystem.refresh(tenantId);
     return { success: true };
   } catch (err) {
     logger.error("Error deleting nodes:", err);
     return fail(500, { message: "Failed to delete" });
+  }
+}
+
+/**
+ * Removes compiled .js files for deleted collections so refresh() won't re-create them.
+ * Maps node path like `/collection/posts` to compiled file `.compiledCollections/posts.js`.
+ */
+function deleteCompiledFiles(paths: string[]): void {
+  const compiledDir = path.resolve(process.cwd(), ".compiledCollections");
+  if (!fs.existsSync(compiledDir)) return;
+
+  const pathSet = new Set(paths.filter(Boolean));
+
+  for (const p of paths) {
+    if (!p) continue;
+    let deleted = false;
+
+    if (p.startsWith("/collection/")) {
+      const relative = p.replace(/^\/collection\//, "");
+      if (!relative) continue;
+
+      // Try the full relative path: /collection/subdir/posts -> .compiledCollections/subdir/posts.js
+      let filePath = path.join(compiledDir, `${relative}.js`);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        deleted = true;
+      } else {
+        // Try just the basename for flat structure
+        filePath = path.join(compiledDir, `${path.basename(relative)}.js`);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          deleted = true;
+        }
+      }
+    }
+
+    if (!deleted) {
+      scanAndDeleteCompiledFile(compiledDir, pathSet);
+    }
+  }
+}
+
+/**
+ * Recursively scan compiled directory for a .js file containing any of the given paths/ids.
+ */
+function scanAndDeleteCompiledFile(dir: string, paths: Set<string>): void {
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        scanAndDeleteCompiledFile(path.join(dir, entry.name), paths);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith(".js") || entry.name.startsWith(".")) continue;
+      const fullPath = path.join(dir, entry.name);
+      try {
+        const content = fs.readFileSync(fullPath, "utf-8");
+        if (Array.from(paths).some((sp) => content.includes(sp))) {
+          fs.unlinkSync(fullPath);
+          logger.debug(`Deleted compiled file by content scan: ${entry.name}`);
+          return;
+        }
+      } catch {
+        // Skip unreadable files
+      }
+    }
+  } catch {
+    // Ignore directory read errors
   }
 }
 

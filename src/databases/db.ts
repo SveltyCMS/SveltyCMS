@@ -15,6 +15,15 @@
  * - clean state resets for test isolation
  */
 
+<<<<<<< HEAD
+=======
+if (import.meta.env.SSR && typeof (globalThis as any).require === "undefined") {
+  import("node:module").then(({ createRequire }) => {
+    (globalThis as any).require = createRequire(import.meta.url);
+  });
+}
+
+>>>>>>> 9c133826f (fix: sidebar UI + resolve API merge conflict + E2E updates + UI polishes)
 import { logger } from "@utils/logger";
 import { type DatabaseAdapter, type IDBAdapter } from "./db-interface";
 import {

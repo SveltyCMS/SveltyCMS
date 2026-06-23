@@ -148,6 +148,13 @@ async function ensureFullMiddleware() {
   handleTestIsolation = isolation.handleTestIsolation;
 
   fullMiddlewareInitialized = true;
+
+  // 🚀 Invalidate cached pipelines so the next request rebuilds them with
+  // the real handlers (not the passThrough placeholders). This fixes a race
+  // condition where the first request arrives before this function completes,
+  // causing wrapHandle to capture passThrough permanently.
+  cachedPipelineReady = null;
+  cachedPipelineSetup = null;
 }
 
 if (setupComplete) {

@@ -1,6 +1,12 @@
 /**
  * @file playwright.config.ts
  * @description Playwright test configuration for SveltyCMS
+ *
+ * Dual-server architecture:
+ * - READY server (port 4173): Pre-configured DB for auth-setup, login, firstuser, and all downstream tests
+ * - SETUP server (port 4174): Clean-slate for setup-wizard tests
+ *
+ * Projects using the SETUP server override baseURL to port 4174.
  */
 
 import { defineConfig, devices } from "@playwright/test";
@@ -30,17 +36,14 @@ if (!TEST_API_SECRET) {
 // Ensure workers inherit the secret so they can authenticate testing endpoints
 process.env.TEST_API_SECRET = TEST_API_SECRET;
 
+const TEST_JWT_SECRET = "e2e-test-jwt-secret-key-min-32-chars!!";
+const TEST_ENCRYPTION_KEY = "e2e-test-encryption-key-min-32-chars!!";
+
 // See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.{test,spec,spect}.ts",
-  /* Maximum time one test can run for. */
-  // timeout: 60 * 1000,
   expect: {
-    /**
-     * Maximum time expect() should wait for the condition to be met.
-     * For example in `await expect(locator).toBeVisible();`
-     */
     timeout: 10 * 1000,
     toHaveScreenshot: {
       animations: "disabled",
@@ -49,69 +52,53 @@ export default defineConfig({
     },
   },
   snapshotPathTemplate: "{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}",
-  /* Run tests in files in parallel */
   fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
-  /*
-   * ✨ Database-per-Worker Strategy:
-   * Enable parallelism. Each worker will use a unique SQLite file
-   * (e.g. cms_worker1.db) triggered by the x-test-worker-index header.
-   */
   workers: process.env.CI ? 4 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ["html", { outputFolder: "tests/playwright-report", open: "never" }],
     [process.env.CI ? "github" : "list"],
   ],
 
-  /* Set environment variables for tests */
   use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
+    // Default: READY server. Wizard project overrides this.
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
-
-    /* Tag Playwright-originated API calls without bypassing normal browser navigation. */
     extraHTTPHeaders: {
       "x-test-mode": "true",
       "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
       "x-test-secret": TEST_API_SECRET || "",
     },
-
     launchOptions: {
       slowMo: Number.parseInt(process.env.SLOW_MO || "0", 10),
     },
-    // Explicitly set PWDEBUG for local runs
-    // Set environment variables in your test runner or webServer configuration if needed
-
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
     video: "retain-on-failure",
-
-    /* Bypass CSP in tests to allow MongoDB connections */
     bypassCSP: true,
   },
 
-  /* Global Setup for artifact/secret synchronization */
   globalSetup: "./tests/e2e/global.setup.ts",
 
-  /* Configure projects for staged CI Matrix */
   projects: [
+    // ── SETUP-STATE projects (port 4174) ──
     {
       name: "wizard",
-      // Use glob (not RegExp) for reliable matching across platforms/CI/local.
-      // Matches the reorganized location under routes/.
+      use: { baseURL: "http://127.0.0.1:4174" },
       testMatch: "routes/setup/setup-wizard.spec.ts",
-      // Force sequential to avoid race conditions during database provisioning
+      workers: 1,
+    },
+
+    // ── READY-STATE projects (port 4173) ──
+    // firstuser must run before auth-setup so signup works on a userless system
+    {
+      name: "firstuser",
+      testMatch: ["**/login/signup.spec.ts", "**/login/oauth.spec.ts"],
       workers: 1,
     },
     {
       name: "auth-setup",
       testMatch: [/auth\.setup\.ts/, /routes\/login\/login\.spec\.ts/],
-      // No dependency on "wizard": in CI the wizard runs once in its own job.
-      // In local dev, run `playwright test --project=wizard` first manually if needed.
-      // Force sequential to avoid race conditions during auth bootstrapping
+      dependencies: ["firstuser"],
       workers: 1,
     },
     {
@@ -182,14 +169,12 @@ export default defineConfig({
     },
     {
       name: "users",
-      // Globs instead of RegExp to avoid "arguments are regular expressions" collection errors.
       testMatch: ["**/user/profile.spec.ts", "**/user/management.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "builder",
-      // Globs for reliability.
       testMatch: [
         "**/collection-builder/builder.spec.ts",
         "**/collection-builder/collection.spec.ts",
@@ -203,14 +188,6 @@ export default defineConfig({
       testMatch: /routes\/system\/permissions\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
-    },
-    {
-      name: "firstuser",
-      // Globs (safer than RegExp for CLI collection; avoids $/* escaping warnings in errors).
-      testMatch: ["**/login/signup.spec.ts", "**/login/oauth.spec.ts"],
-      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
-      // No dependency on auth-setup — these hit login/signup pages directly
-      workers: 1,
     },
     {
       name: "config-routes",
@@ -253,19 +230,51 @@ export default defineConfig({
     },
   ],
 
-  /* Run preview server before starting the tests (local dev only; CI starts the server manually) */
+  /* Run preview servers before starting the tests (local dev only; CI starts servers manually) */
   ...(process.env.CI
     ? {}
     : {
-        webServer: {
-          command: `cross-env TEST_MODE=true STRICT_SETUP_CHECK=true TEST_API_SECRET=${TEST_API_SECRET} node build/index.js`,
-          port: 4173,
-          timeout: 300_000,
-          reuseExistingServer: true,
-          env: {
-            HOST: "127.0.0.1",
-            PORT: "4173",
+        webServer: [
+          {
+            // READY server — pre-configured DB for login/firstuser/downstream tests
+            command: [
+              "cross-env",
+              "TEST_MODE=true",
+              "STRICT_SETUP_CHECK=false",
+              `DB_TYPE=sqlite`,
+              `DB_HOST=localhost`,
+              `DB_NAME=sveltycms_e2e_ready.db`,
+              `JWT_SECRET_KEY=${TEST_JWT_SECRET}`,
+              `ENCRYPTION_KEY=${TEST_ENCRYPTION_KEY}`,
+              `TEST_API_SECRET=${TEST_API_SECRET}`,
+              "node build/index.js",
+            ].join(" "),
+            port: 4173,
+            timeout: 300_000,
+            reuseExistingServer: true,
+            env: {
+              HOST: "127.0.0.1",
+              PORT: "4173",
+            },
           },
-        },
+          {
+            // SETUP server — clean slate for setup-wizard tests
+            command: [
+              "cross-env",
+              "TEST_MODE=true",
+              "STRICT_SETUP_CHECK=true",
+              "DB_TYPE=sqlite",
+              `TEST_API_SECRET=${TEST_API_SECRET}`,
+              "node build/index.js",
+            ].join(" "),
+            port: 4174,
+            timeout: 300_000,
+            reuseExistingServer: true,
+            env: {
+              HOST: "127.0.0.1",
+              PORT: "4174",
+            },
+          },
+        ],
       }),
 });

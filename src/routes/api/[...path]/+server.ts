@@ -173,6 +173,10 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   logs: "system:admin",
   "api-keys": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  testing: "system:admin",
+  reset: "system:admin",
+  seed: "system:admin",
+  reinitialize: "system:admin",
 };
 
 /**
@@ -354,7 +358,8 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   // Fail-closed authentication
-  const isPublic = isPublicRoute(url.pathname, (locals as any).__testBypass === true);
+  const testMode = process.env.TEST_MODE === "true" || (locals as any).__testBypass === true;
+  const isPublic = isPublicRoute(url.pathname, testMode);
   if (!user && !isPublic) {
     throw new AppError("Authentication required", 401, "UNAUTHORIZED");
   }

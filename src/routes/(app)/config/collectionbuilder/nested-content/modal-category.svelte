@@ -159,7 +159,7 @@ async function deleteCategory(): Promise<void> {
 
 	try {
 		const { deleteContentNodes } = await import("../collectionbuilder.remote");
-		const result = await deleteContentNodes([categoryId]);
+		const result = await deleteContentNodes([{ id: categoryId }]);
 
 		if ("success" in result && result.success) {
 			const newStructure = flat.filter(

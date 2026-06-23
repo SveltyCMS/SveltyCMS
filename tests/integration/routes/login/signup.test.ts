@@ -27,23 +27,22 @@ describe("Invitation-Based Signup Tests", () => {
   });
 
   describe("Setup Required (First User)", () => {
-    it("should redirect to /setup when no users exist", async () => {
+    it("should show signup form at /login when no users exist", async () => {
       // Verify database is empty
       const initialUserCount = await getUserCount();
       expect(initialUserCount).toBe(0);
 
-      // Try to access /login when no users exist - should redirect to /setup
+      // Try to access /login when no users exist - system shows first-user signup form
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: "GET",
         redirect: "manual", // Don't follow redirects automatically
       });
 
-      // Should get redirect to /setup
-      expect([301, 302, 303, 307, 308]).toContain(response.status);
-      const location = response.headers.get("location");
-      expect(location).toContain("/setup");
+      // When config/private.ts exists but no admin users exist,
+      // the login page returns 200 with a first-user sign-up form (not a redirect)
+      expect(response.status).toBe(200);
 
-      console.log("✅ Correctly redirected to /setup when no users exist");
+      console.log("✅ Correctly shows signup form at /login when no users exist");
     });
   });
 
