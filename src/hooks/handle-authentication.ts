@@ -26,9 +26,21 @@ import { BloomFilter } from "@utils/bloom-filter";
 import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
 import { SESSION_COOKIE_NAME, getSessionCookieName } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
+import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
+import {
+  getApiKeyAuthCacheSync,
+  getWebsiteTokenAuthCacheSync,
+  isApiKeyAuthNegativeHit,
+  isWebsiteTokenAuthNegativeHit,
+  recordApiKeyAuthMiss,
+  recordWebsiteTokenAuthMiss,
+  setApiKeyAuthCache,
+  setWebsiteTokenAuthCache,
+} from "@src/databases/auth/credential-auth-cache";
+import { hashCredentialSha256HexSync } from "@src/utils/security/credential-hash";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
-import { CacheCategory } from "@src/databases/cache/types";
+
 import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
@@ -539,79 +551,214 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (!locals.user && authHeader?.startsWith("Bearer ")) {
       const tokenValue = authHeader.substring(7).trim();
       if (tokenValue) {
-        // --- Performance Tweak: Negative Caching ---
-        if (negativeCache.has(tokenValue)) return await resolve(event);
+        if (isValidApiKeyFormat(tokenValue)) {
+          // --- API Key Authentication (sck_...) ---
+          const hash = hashApiKey(tokenValue);
+          if (isApiKeyAuthNegativeHit(hash, locals.tenantId as DatabaseId)) {
+            return await resolve(event);
+          }
 
-        // --- Performance Tweak: Positive Caching ---
-        const cacheKey = `apitoken:${tokenValue}`;
-        const cachedToken = cacheService.getSync<{ user: any; tenantId: string }>(
-          cacheKey,
-          locals.tenantId as DatabaseId,
-        );
+          const cachedKeyData = getApiKeyAuthCacheSync(hash, locals.tenantId as DatabaseId);
 
-        if (cachedToken) {
-          locals.user = cachedToken.user;
-          locals.permissions = cachedToken.user.permissions;
-          locals.tenantId = (cachedToken.tenantId as DatabaseId) || locals.tenantId;
-          logger.debug(`[Auth] Authenticated via API Token (Cache Hit)`);
-        } else {
-          metricsService.incrementAuthValidations();
-          const res = await dbAdapter.system.websiteTokens.getByToken(tokenValue);
+          if (cachedKeyData) {
+            locals.user = cachedKeyData.user;
+            locals.permissions = cachedKeyData.user.permissions;
+            locals.tenantId = (cachedKeyData.tenantId as DatabaseId) || locals.tenantId;
+            logger.debug(`[Auth] Authenticated via API Key (Cache Hit)`);
 
-          if (res.success && res.data) {
-            const token = res.data;
-
-            // 1. Expiry Check
-            if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
-              logger.warn(`[Auth] API Token expired: ${token.name}`);
-              metricsService.incrementAuthFailures();
-            } else {
-              // 2. Normalization (Retro-compatibility)
-              // If type is missing, normalize to 'content-api'
-              const tokenType = token.type || "content-api";
-
-              // 3. Tenant Isolation Check
-              if (token.tenantId && locals.tenantId && token.tenantId !== locals.tenantId) {
-                logger.warn(`[Auth] API Token tenant mismatch: ${token.name}`);
-                metricsService.incrementAuthFailures();
-                return await resolve(event);
-              }
-
-              // 4. Orphaned check & Virtual User building
-              // We skip fetching the full creator user to avoid redundant getById calls (as requested)
-              // SveltyCMS API tokens carry their own permissions as source of truth.
-              locals.user = {
-                _id: `token:${token._id}`,
-                email: `token@api.local`,
-                username: token.name,
-                role: tokenType === "admin-api" ? "admin" : "guest",
-                permissions: token.permissions || [],
-                tenantId: token.tenantId ?? (event.locals.tenantId as any),
-                isApiToken: true,
-              } as any;
-
-              locals.permissions = token.permissions || [];
-              locals.tenantId = (token.tenantId as DatabaseId) || locals.tenantId;
-
-              // Cache the verified token for 60 seconds to bypass DB hits
-              cacheService
-                .setWithCategory(
-                  cacheKey,
-                  { user: locals.user, tenantId: locals.tenantId as string },
-                  CacheCategory.GENERAL,
-                  locals.tenantId as DatabaseId,
-                  60, // TTL in seconds
-                )
-                .catch((err: any) => logger.warn(`Failed to cache API token: ${err.message}`));
-
-              logger.debug(`[Auth] Authenticated via API Token: ${token.name} (${tokenType})`);
-            }
+            // Fire-and-forget: update usage statistics in the background
+            const clientIp = event.getClientAddress
+              ? event.getClientAddress()
+              : event.request.headers.get("x-forwarded-for") || undefined;
+            dbAdapter.auth
+              .updateApiKeyUsage(
+                cachedKeyData.user._id.replace("apikey:", "") as DatabaseId,
+                clientIp,
+                {
+                  tenantId: locals.tenantId,
+                },
+              )
+              .catch(() => {});
           } else {
-            negativeCache.add(tokenValue);
-            metricsService.incrementAuthFailures();
-            logger.warn(`[Auth] Invalid or non-existent API Token provided`);
+            metricsService.incrementAuthValidations();
+            const res = await dbAdapter.auth.getApiKey(hash, { tenantId: locals.tenantId });
+            if (res.success && res.data) {
+              const apiKey = res.data;
+
+              // 1. Expiry Check
+              if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
+                logger.warn(`[Auth] API Key expired: ${apiKey.name}`);
+                metricsService.incrementAuthFailures();
+              } else if (apiKey.revoked) {
+                logger.warn(`[Auth] API Key is revoked: ${apiKey.name}`);
+                metricsService.incrementAuthFailures();
+              } else {
+                // 2. Tenant Isolation Check
+                if (apiKey.tenantId && locals.tenantId && apiKey.tenantId !== locals.tenantId) {
+                  logger.warn(`[Auth] API Key tenant mismatch: ${apiKey.name}`);
+                  metricsService.incrementAuthFailures();
+                  return await resolve(event);
+                }
+
+                // 3. Construct virtual API user
+                locals.user = {
+                  _id: `apikey:${apiKey._id}`,
+                  email: `apikey@api.local`,
+                  username: apiKey.name,
+                  role: "guest",
+                  permissions: apiKey.permissions || [],
+                  tenantId: apiKey.tenantId ?? (event.locals.tenantId as any),
+                  isApiKey: true,
+                  scopes: apiKey.scopes || [],
+                } as any;
+
+                locals.permissions = apiKey.permissions || [];
+                locals.tenantId = (apiKey.tenantId as DatabaseId) || locals.tenantId;
+
+                setApiKeyAuthCache(
+                  hash,
+                  { user: locals.user, tenantId: locals.tenantId as string },
+                  String(apiKey._id),
+                  locals.tenantId as DatabaseId,
+                ).catch((err: any) => logger.warn(`Failed to cache API Key: ${err.message}`));
+
+                // Fire-and-forget: update usage count and last used IP
+                const clientIp = event.getClientAddress
+                  ? event.getClientAddress()
+                  : event.request.headers.get("x-forwarded-for") || undefined;
+                dbAdapter.auth
+                  .updateApiKeyUsage(apiKey._id, clientIp, { tenantId: locals.tenantId })
+                  .catch(() => {});
+
+                logger.debug(`[Auth] Authenticated via API Key: ${apiKey.name}`);
+              }
+            } else {
+              recordApiKeyAuthMiss(hash, locals.tenantId as DatabaseId);
+              metricsService.incrementAuthFailures();
+              logger.warn(`[Auth] Invalid or non-existent API Key provided`);
+            }
+          }
+        } else {
+          // --- Website Token / Retro-compatibility token ---
+          const tokenHash = hashCredentialSha256HexSync(tokenValue);
+          if (isWebsiteTokenAuthNegativeHit(tokenHash, locals.tenantId as DatabaseId)) {
+            return await resolve(event);
+          }
+
+          const cachedToken = getWebsiteTokenAuthCacheSync(
+            tokenHash,
+            locals.tenantId as DatabaseId,
+          );
+
+          if (cachedToken) {
+            locals.user = cachedToken.user;
+            locals.permissions = cachedToken.user.permissions;
+            locals.tenantId = (cachedToken.tenantId as DatabaseId) || locals.tenantId;
+            logger.debug(`[Auth] Authenticated via API Token (Cache Hit)`);
+          } else {
+            metricsService.incrementAuthValidations();
+            const res = await dbAdapter.system.websiteTokens.getByTokenHash(
+              tokenHash,
+              locals.tenantId as DatabaseId,
+            );
+
+            if (res.success && res.data) {
+              const token = res.data;
+
+              // 1. Expiry Check
+              if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
+                logger.warn(`[Auth] API Token expired: ${token.name}`);
+                metricsService.incrementAuthFailures();
+              } else {
+                // 2. Normalization (Retro-compatibility)
+                // If type is missing, normalize to 'content-api'
+                const tokenType = token.type || "content-api";
+
+                // 3. Tenant Isolation Check
+                if (token.tenantId && locals.tenantId && token.tenantId !== locals.tenantId) {
+                  logger.warn(`[Auth] API Token tenant mismatch: ${token.name}`);
+                  metricsService.incrementAuthFailures();
+                  return await resolve(event);
+                }
+
+                // 4. Orphaned check & Virtual User building
+                locals.user = {
+                  _id: `token:${token._id}`,
+                  email: `token@api.local`,
+                  username: token.name,
+                  role: tokenType === "admin-api" ? "admin" : "guest",
+                  permissions: token.permissions || [],
+                  tenantId: token.tenantId ?? (event.locals.tenantId as any),
+                  isApiToken: true,
+                } as any;
+
+                locals.permissions = token.permissions || [];
+                locals.tenantId = (token.tenantId as DatabaseId) || locals.tenantId;
+
+                setWebsiteTokenAuthCache(
+                  tokenHash,
+                  { user: locals.user, tenantId: locals.tenantId as string },
+                  String(token._id),
+                  locals.tenantId as DatabaseId,
+                ).catch((err: any) => logger.warn(`Failed to cache API token: ${err.message}`));
+
+                logger.debug(`[Auth] Authenticated via API Token: ${token.name} (${tokenType})`);
+              }
+            } else {
+              recordWebsiteTokenAuthMiss(tokenHash, locals.tenantId as DatabaseId);
+              metricsService.incrementAuthFailures();
+              logger.warn(`[Auth] Invalid or non-existent API Token provided`);
+            }
           }
         }
+      }
+    }
+
+    // Ephemeral Guest Authentication for public API endpoints
+    const hasAuthAttempt =
+      !!authHeader ||
+      cookies.get(cookieName) ||
+      cookies.get(SESSION_COOKIE_NAME) ||
+      cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
+      cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
+
+    if (!locals.user && !hasAuthAttempt) {
+      const isPublicPath =
+        url.pathname.startsWith("/api/collections") ||
+        url.pathname.startsWith("/api/query") ||
+        url.pathname.startsWith("/api/graphql") ||
+        url.pathname.startsWith("/api/media");
+
+      const isAllowedMethod =
+        event.request.method === "GET" ||
+        event.request.method === "OPTIONS" ||
+        (event.request.method === "POST" && url.pathname === "/api/graphql");
+
+      if (isPublicPath && isAllowedMethod) {
+        locals.user = {
+          _id: "anonymous",
+          email: "anonymous@svelty.local",
+          username: "Anonymous Guest",
+          role: "guest",
+          permissions: [
+            "collections:read",
+            "api:collections",
+            "api:media",
+            "media:read",
+            "graphql:read",
+            "api:graphql",
+          ],
+          tenantId: locals.tenantId || null,
+          isAnonymous: true,
+        } as any;
+        locals.permissions = [
+          "collections:read",
+          "api:collections",
+          "api:media",
+          "media:read",
+          "graphql:read",
+          "api:graphql",
+        ];
       }
     }
 

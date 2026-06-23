@@ -257,6 +257,28 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       await limiter.cookieLimiter.preflight({ request, cookies } as any);
     }
 
+    // Magic Link Verification
+    const magicToken = url.searchParams.get("magic_token");
+    const magicEmail = url.searchParams.get("email");
+    if (magicToken && magicEmail) {
+      const { verifyMagicLink } = await import("@src/databases/auth/magic-link");
+      const result = await verifyMagicLink({
+        token: magicToken,
+        email: magicEmail,
+        cookies,
+        request,
+        userLanguage: userLanguage || "en",
+      });
+      if (result.success && result.redirectPath) {
+        throw redirect(303, result.redirectPath);
+      } else {
+        return {
+          ...errorDefaults,
+          error: result.message || "Invalid or expired magic link.",
+        };
+      }
+    }
+
     // Invite flow
     const inviteToken = url.searchParams.get("invite_token");
     if (inviteToken) {

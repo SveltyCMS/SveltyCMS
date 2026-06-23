@@ -1000,6 +1000,16 @@ export class CacheService {
    * Records a confirmed cache miss (Negative Cache).
    * Prevents repeated DB hits for non-existent items.
    */
+  /**
+   * Returns true when a key is in the Bloom negative cache (known miss).
+   * Respects negativeInvalidated overrides from recent set/delete operations.
+   */
+  public isNegativeHit(key: string, tenantId?: string | null): boolean {
+    const fullKey = this.generateKey(key, tenantId);
+    if (this.negativeInvalidated.has(fullKey)) return false;
+    return this.negativeBloom.has(fullKey);
+  }
+
   public recordMiss(key: string, tenantId?: string | null) {
     const fullKey = this.generateKey(key, tenantId);
     this.negativeBloom.add(fullKey);

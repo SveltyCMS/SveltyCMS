@@ -24,7 +24,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 // System Logger
 import { logger } from "@utils/logger";
 import { corePermissions } from "./core-permissions";
-import type { Permission, Role, Session, SessionStore, Token, User } from "./types";
+import type { Permission, Role, Session, SessionStore, Token, User, ApiKey } from "./types";
 
 export {
   checkPermissions,
@@ -62,6 +62,7 @@ export type {
   SessionStore,
   Token,
   User,
+  ApiKey,
 } from "./types";
 
 // Import shared password utilities (Argon2id)
@@ -922,6 +923,52 @@ export class Auth {
         "Password must contain uppercase, lowercase, numbers, and special characters.",
       );
     }
+  }
+
+  async createApiKey(
+    apiKeyData: Partial<ApiKey>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey>> {
+    return this.db.auth.createApiKey(apiKeyData, options);
+  }
+
+  async getApiKey(
+    hash: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey | null>> {
+    return this.db.auth.getApiKey(hash, options);
+  }
+
+  async getApiKeyById(
+    id: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey | null>> {
+    return this.db.auth.getApiKeyById(id, options);
+  }
+
+  async listApiKeys(
+    filter?: { userId?: DatabaseId; tenantId?: DatabaseId | null },
+    options?: { limit?: number; skip?: number },
+  ): Promise<DatabaseResult<ApiKey[]>> {
+    return this.db.auth.listApiKeys(filter, options);
+  }
+
+  async revokeApiKey(id: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>> {
+    const existing = await this.db.auth.getApiKeyById(id, options);
+    const result = await this.db.auth.revokeApiKey(id, options);
+    if (result.success && existing.success && existing.data?.hash) {
+      const { invalidateApiKeyAuth } = await import("./credential-auth-cache");
+      await invalidateApiKeyAuth(String(id), options?.tenantId ?? null, existing.data.hash);
+    }
+    return result;
+  }
+
+  async updateApiKeyUsage(
+    id: DatabaseId,
+    ip?: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<void>> {
+    return this.db.auth.updateApiKeyUsage(id, ip, options);
   }
 }
 

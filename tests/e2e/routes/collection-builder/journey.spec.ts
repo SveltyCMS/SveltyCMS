@@ -21,7 +21,9 @@ test.describe("Master Behavioral Journey", () => {
     // 2. Create a New Collection via editor
     const collectionName = `JourneyProj_${Date.now()}`;
     await page.goto("/config/collectionbuilder/new");
-    await expect(page.getByTestId("collection-name-input")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("collection-name-input")).toBeVisible({
+      timeout: 10_000,
+    });
     await page.getByTestId("collection-name-input").fill(collectionName);
     // Blur the input to trigger form sync
     await page.getByTestId("collection-name-input").blur();

@@ -14,6 +14,7 @@ import type {
   Token,
   User,
   ISODateString,
+  ApiKey,
 } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 import { composeMongoAuthAdapter } from "./auth-composition";
@@ -176,5 +177,26 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
   }
   validateToken(token: string, userId?: DatabaseId, type?: string, options?: BaseQueryOptions) {
     return this._auth.validateToken(token, userId, type, options);
+  }
+  createApiKey(apiKeyData: Partial<ApiKey>, options?: BaseQueryOptions) {
+    return this._auth.createApiKey(apiKeyData, options);
+  }
+  getApiKey(hash: string, options?: BaseQueryOptions) {
+    return this._auth.getApiKey(hash, options);
+  }
+  getApiKeyById(id: DatabaseId, options?: BaseQueryOptions) {
+    return this._auth.getApiKeyById(id, options);
+  }
+  listApiKeys(
+    filter?: { userId?: DatabaseId; tenantId?: DatabaseId | null },
+    options?: { limit?: number; skip?: number },
+  ) {
+    return this._auth.listApiKeys(filter, options);
+  }
+  revokeApiKey(id: DatabaseId, options?: BaseQueryOptions) {
+    return this._auth.revokeApiKey(id, options);
+  }
+  updateApiKeyUsage(id: DatabaseId, ip?: string, options?: BaseQueryOptions) {
+    return this._auth.updateApiKeyUsage(id, ip, options);
   }
 }

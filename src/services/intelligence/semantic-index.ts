@@ -20,7 +20,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { embed, cosineSimilarity, getEmbeddingBackendInfo } from "./embedding-service";
+import { embed, embedSingle, cosineSimilarity, getEmbeddingBackendInfo } from "./embedding-service";
 import { getHotCollections } from "./behavioral-learner";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ export async function indexItem(
   item: Omit<IndexedItem, "vector" | "indexedAt" | "score">,
 ): Promise<void> {
   const text = `${item.title} ${item.description} ${item.keywords.join(" ")}`;
-  const result = (await import("./embedding-service")).then(({ embedSingle }) => embedSingle(text));
+  const result = await embedSingle(text);
 
   const indexed: IndexedItem = {
     ...item,
@@ -158,9 +158,7 @@ export async function semanticSearch(
   if (_index.size === 0) return [];
 
   // Embed the query text
-  const result = (await import("./embedding-service")).then(({ embedSingle }) =>
-    embedSingle(query),
-  );
+  const result = await embedSingle(query);
   const queryVector = result.vector;
   const queryLower = query.toLowerCase();
 
@@ -386,7 +384,7 @@ async function indexHotContent(tenantId: string): Promise<void> {
       const result = await dbAdapter.crud.findMany(collectionId, {}, { limit: 20 });
       if (!result.success || !result.data) continue;
 
-      for (const entry of result.data.items || []) {
+      for (const entry of result.data as unknown[]) {
         const entryData = entry as Record<string, unknown>;
         const title = String(entryData.title || entryData.name || "");
         const desc = String(entryData.description || entryData.excerpt || "").slice(0, 200);

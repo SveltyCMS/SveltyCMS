@@ -175,7 +175,7 @@ Features:
         <div
           class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
         >
-          <SystemTooltip title="Edit" positioning={{ placement: "start" }}>
+          <SystemTooltip title="Edit" positioning={{ placement: "left" }}>
             <Button variant="ghost"
               data-testid="media-edit-button"
               onclick={(e: MouseEvent) => {

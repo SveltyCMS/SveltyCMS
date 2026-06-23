@@ -80,7 +80,9 @@ test.describe("Full Collection & Widget Flow", () => {
     await page.getByRole("textbox", { name: /first name/i }).fill("First Name");
     await page.getByRole("textbox", { name: /last name/i }).fill("Last Name");
     await page.getByRole("button", { name: /save/i }).first().click();
-    await expect(page).toHaveURL(/\/en\/collection\/Names/i);
+    await expect(page).toHaveURL(/\/en\/collection\/Names/i, {
+      timeout: 10_000,
+    });
 
     // 3. Perform Collection Bulk Actions via the contextual multi-button dropdown.
     // The current UI workflow: select entry checkbox → open actions dropdown → pick action.

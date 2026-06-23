@@ -39,9 +39,8 @@ import realtime from "svelte-realtime/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
-import { compile } from "./src/utils/compilation/compile.ts";
-import { isSetupComplete } from "./src/utils/setup-check-fast.ts";
-import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
+import { isSetupComplete } from "./src/utils/setup-check-fast";
+import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -236,7 +235,7 @@ const paths = {
     process.env.COMPILED_COLLECTIONS_DIR || ".compiledCollections",
   ),
   widgets: path.resolve(CWD, "src/widgets"),
-  themes: path.resolve(CWD, "themes"),
+  themes: path.resolve(CWD, "src/themes"),
 };
 
 // --- Utilities ---
@@ -292,6 +291,7 @@ async function initializeCollectionsStructure() {
     if (process.env.BENCHMARK_DEBUG === "true") {
       log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
     }
+    const { compile } = await import("./src/utils/compilation/compile");
     await compile({
       userCollections: paths.userCollections,
       compiledCollections: paths.compiledCollections,
@@ -539,6 +539,7 @@ function sveltyCmsPlugin(): Plugin {
       compileTimeout = setTimeout(async () => {
         log.info("Collection change detected. Recompiling...");
         try {
+          const { compile } = await import("./src/utils/compilation/compile");
           await compile({
             userCollections: paths.userCollections,
             compiledCollections: paths.compiledCollections,
@@ -603,7 +604,7 @@ function sveltyCmsPlugin(): Plugin {
       }, 150);
     }
 
-    // 🎨 THEME FILE SYNC: /themes/*.json → DB auto-import (shared with boot-time scan)
+    // 🎨 THEME FILE SYNC: /src/themes/*.json → DB auto-import (shared with boot-time scan)
     const isThemeFile = absoluteFile.startsWith(paths.themes) && file.endsWith(".json");
     if (isThemeFile) {
       setTimeout(async () => {
@@ -919,6 +920,7 @@ export default defineConfig((): any => {
         },
         alias: {
           $paraglide: "./src/paraglide",
+          "@plugins": "./src/plugins",
           "@api": "./src/routes/api",
           "@auth": "./src/databases/auth",
           "@collections": "./config/collections",
@@ -1068,7 +1070,7 @@ export default defineConfig((): any => {
     build: {
       target: "esnext",
       minify: "esbuild",
-      sourcemap: true,
+      sourcemap: process.env.CI ? false : true,
       chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
       // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
       rolldownOptions: {

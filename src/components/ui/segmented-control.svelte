@@ -41,22 +41,21 @@ type Props = Omit<HTMLAttributes<HTMLDivElement>, 'value' | 'onchange'> & {
 };
 
 let {
-	options = [],
-	value = $bindable(),
-	name = crypto.randomUUID(),
-	disabled = false,
-	rounded = 'rounded-token',
-	class: className,
-	onchange,
-	...rest
-}: Props = $props();
+		options = [],
+		value = $bindable(),
+		name = crypto.randomUUID(),
+		disabled = false,
+		rounded = 'var(--admin-radius-input, 0.375rem)',
+		class: className,
+		onchange,
+		...rest
+	}: Props = $props();
 
 const segmentClasses = $derived(cn(
-	'flex bg-surface-200/50 dark:bg-surface-800/50 p-1',
-	rounded,
-	disabled && 'opacity-50 pointer-events-none',
-	className
-));
+		'flex bg-surface-200/50 dark:bg-surface-800/50 p-1',
+		disabled && 'opacity-50 pointer-events-none',
+		className
+	));
 
 let containerElement: HTMLDivElement | undefined = $state();
 let activeIndex = $derived(options.findIndex(opt => opt.value === value));
@@ -102,33 +101,34 @@ function handleKeyDown(e: KeyboardEvent, index: number) {
 </script>
 
 <div
-	bind:this={containerElement}
-	class={segmentClasses}
-	role="radiogroup"
-	aria-label={rest['aria-label'] || 'Segmented Control'}
-	{...rest}
->
-	<input type="hidden" {name} {value}  aria-label="Input" />
+		bind:this={containerElement}
+		class={segmentClasses}
+		style="border-radius: {rounded}"
+		role="radiogroup"
+		aria-label={rest['aria-label'] || 'Segmented Control'}
+		{...rest}
+	>
+	<input type="hidden" {name} {value} />
 
 	{#each options as option, i}
 		{const active = value === option.value}
 		{const isTabFocusable = active || (activeIndex === -1 && i === 0)}
 		<button
-			type="button"
-			role="radio"
-			aria-checked={active}
-			tabindex={isTabFocusable ? 0 : -1}
-			disabled={disabled || option.disabled}
-			class={cn(
-				'flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200',
-				rounded,
-				active
-					? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm'
-					: 'text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white'
-			)}
-			onclick={() => select(option.value)}
-			onkeydown={(e) => handleKeyDown(e, i)}
-		>
+				type="button"
+				role="radio"
+				aria-checked={active}
+				tabindex={isTabFocusable ? 0 : -1}
+				disabled={disabled || option.disabled}
+				class={cn(
+					'flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200',
+					active
+						? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm'
+						: 'text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white'
+				)}
+				style="border-radius: {rounded}"
+				onclick={() => select(option.value)}
+				onkeydown={(e) => handleKeyDown(e, i)}
+			>
 			{#if option.icon}
 				<iconify-icon icon={option.icon} class="size-4"></iconify-icon>
 			{/if}

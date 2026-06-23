@@ -1,136 +1,50 @@
 ---
 path: "docs/guides/content/smart-importer.mdx"
-title: "Smart CMS Importer"
-description: "AI-powered CMS migration with auto-detection of 5 formats — WordPress WXR, Strapi, Directus, Drupal, and SveltyCMS — plus heuristic field mapping and drag-and-drop UI."
+title: "Smart CMS Migration"
+description: "Smart AI-Driven Migration Pro plugin — now a standalone plugin with 36+ platform support."
 order: 20
 icon: "mdi:import"
 author: "SveltyCMS Team"
 created: "2026-03-17"
-updated: "2026-06-07"
+updated: "2026-06-22"
 tags:
   - "migration"
-  - "import"
-  - "wordpress"
-  - "drupal"
-  - "strapi"
-  - "directus"
-  - "sveltycms"
-  - "ai"
+  - "plugin"
 ---
 
-## 🔄 Migration Workflow
+# Smart CMS Migration
 
-```mermaid
-sequenceDiagram
-    participant User as Admin (UI)
-    participant SI as SmartImporter Service
-    participant Media as Media Service
-    participant DB as Database
+> **The Smart Importer has been migrated to a standalone plugin: [Smart AI-Driven Migration Pro](/docs/plugins/smart-importer).**
 
-    User->>SI: Upload export file (WXR/JSON/YAML)
-    SI->>SI: Auto-detect format (5 formats)
-    SI-->>User: Format detected + field mapping suggestions
-    User->>User: Review & adjust mappings
-    User->>SI: Start Import (or Dry Run)
+The migration functionality is now provided by the **Smart AI-Driven Migration Pro** plugin, located at `src/plugins/smart-importer/`. This plugin expands the original 5-format importer to support **36+ CMS platforms** including WordPress, Drupal, Contentful, Sanity, Ghost, Shopify, Webflow, Storyblok, Prismic, and many more.
 
-    loop Batch Processing (100 items)
-        SI->>Media: Extract & download images
-        Media-->>DB: Save media
-        SI->>DB: Insert entries with linked media
-    end
+## Migration Path
 
-    User-->>User: Migration Complete 🎉
-```
+| Old (Core)                                   | New (Plugin)                                                      |
+| :------------------------------------------- | :---------------------------------------------------------------- |
+| `src/services/smart-importer.ts`             | `src/plugins/smart-importer/index.server.ts`                      |
+| `src/components/admin/smart-importer.svelte` | `src/plugins/smart-importer/components/TransformationTree.svelte` |
+| `/config/importer`                           | `/config/migration`                                               |
+| 5 formats supported                          | 36+ platforms supported                                           |
 
-## 🚀 Key Features
+## Quick Reference
 
-- **5-Format Auto-Detection**: Automatically identifies WordPress WXR XML, Strapi JSON, Directus JSON, Drupal YAML, and SveltyCMS JSON exports — no manual format selection needed.
-- **AI-Powered Field Mapping**: 30+ heuristic field mappings with format-specific lookup tables (e.g., `post_title→title`, `body→content`, ACF fields→widget types). Confidence levels (high/medium/low) for each suggestion.
-- **Drag-and-Drop UI**: Upload any supported export file via `src/components/admin/smart-importer.svelte` — the importer auto-detects the format and shows an editable field mapping preview before import.
-- **ACF/CMB2 Detection**: Automatically detects Advanced Custom Fields and Custom Meta Boxes in WordPress exports and maps them to corresponding widget types.
-- **Media Handling**: Extracts image URLs from exports, offers to download and import or reference externally.
-- **Batch Processing**: 100 items per batch with event-loop yielding via `setTimeout` — handles 10,000+ item datasets without server starvation.
-- **Dry-Run Mode**: Validates the entire import without inserting — see exactly what will be created before committing.
-- **Progress Tracking**: Real-time progress bar with item-by-item status during import.
+The plugin is **optional** — the Migration tile only appears in the Config page when the smart-importer plugin is installed and enabled. To install:
 
----
+1. Ensure `src/plugins/smart-importer/` exists with all required files
+2. Restart the CMS — the plugin is auto-discovered
+3. Navigate to **Config → Extensions** to verify it's enabled
+4. The **Migration** tile appears in **Config** automatically
 
-## 🛠 How to Use
+## Full Documentation
 
-### Step 1: Upload Your Export File
+For complete documentation including platform-specific migration guides, AST compilation, rollback procedures, and the UCP pipeline, see:
 
-Access the Smart Importer via the admin panel. The component is at `src/components/admin/smart-importer.svelte`.
-
-1. **Drag and Drop** your export file onto the upload area.
-2. **Auto-Detection**: The `SmartImporter.detectFormat()` method instantly identifies the format from file structure:
-   - **WordPress**: WXR XML files (`.xml` with `<rss>` / `<channel>` / `<item>` structure)
-   - **Strapi**: JSON export files with `data` / `contentTypes` structure
-   - **Directus**: JSON schema + data exports with `collections` / `fields` structure
-   - **Drupal**: Content export YAML with migration templates
-   - **SveltyCMS**: Native JSON export format with `metadata` / `collections` structure
-3. **Target Collection**: Select an existing collection or let the importer scaffold a new one based on detected fields.
-
-### Step 2: Review Field Mappings
-
-The heuristic engine (`mapFields()`) analyzes both schemas and suggests mappings with confidence levels:
-
-- **🟢 High confidence**: Direct name match (e.g., `title→title`, `slug→slug`, `createdAt→createdAt`)
-- **🟡 Medium confidence**: Semantic match (e.g., `post_content→content`, `post_excerpt→excerpt`, `featured_image→featuredImage`)
-- **🔴 Low confidence**: Best guess via alias lookup — review carefully
-
-You can **manually adjust** any mapping by selecting a different target field. The editable mapping preview updates in real-time.
-
-### Step 3: Execute or Dry-Run
-
-- **Dry Run**: Click "Validate" to process all mappings without inserting data. Detects schema mismatches and validation errors early.
-- **Full Import**: Click "Start Import" to begin the migration. A progress bar shows real-time status including items processed, errors, and estimated time remaining.
-
----
-
-## 🔒 Security & Performance (v2026 Enhanced)
-
-- **Tenant Isolation**: Imports are strictly scoped to your current `tenantId` via `dbAdapter` injection.
-- **Validation**: All imported data is run through your widget's Valibot schemas to ensure integrity before insert.
-- **Batch Processing**: 100 items per batch with `setTimeout(0)` event-loop yielding to keep the server responsive during large migrations.
-- **Progress Tracking**: `onProgress` callback fires per-batch with `{ percentage, current, total, phase }`.
-- **Graceful Error Handling**: Failed items are collected and reported — successful items are committed. No partial-corruption scenarios.
-
-## 📡 API & Service Reference
-
-The importer is a **service + UI component** — no dedicated REST endpoint needed:
-
-```
-import { SmartImporter } from "@services/smart-importer";
-
-const importer = new SmartImporter(dbAdapter, tenantId);
-
-// Auto-detect format
-const format = await importer.detectFormat(file);
-// → 'wordpress' | 'strapi' | 'directus' | 'drupal' | 'sveltycms'
-
-// Dry-run validation
-const preview = await importer.import(file, {
-  dryRun: true,
-  onProgress: (p) => console.log(`${p.percentage}% complete`),
-});
-
-// Full import
-const result = await importer.import(file, {
-  dryRun: false,
-  targetCollection: "posts",
-  fieldMapping: adjustedMappings, // optional overrides
-  onProgress: (p) => console.log(`Imported ${p.current}/${p.total}`),
-});
-
-console.log(`Imported: ${result.imported}, Skipped: ${result.skipped}, Errors: ${result.errors}`);
-```
-
-Refer to `src/services/smart-importer.ts` for the full API.
-
----
+→ **[Smart AI-Driven Migration Pro Plugin Docs](/docs/plugins/smart-importer)**
 
 ## Related
 
-- [Getting Started](../../getting-started.mdx)
-- [Architecture Overview](../../architecture/index.mdx)
-- [Security Overview](../../architecture/security/index.mdx)
+- [Plugin Architecture](../../architecture/plugin-architecture.mdx)
+- [Marketplace System](../../architecture/marketplace.mdx)
+- [AI Integration](../development/ai-integration.mdx)
+- [System Settings](../configuration/system-settings.mdx)

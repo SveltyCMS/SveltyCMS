@@ -4,7 +4,7 @@
  */
 
 import { createRequire } from "node:module";
-if (typeof (globalThis as any).require === "undefined") {
+if (import.meta.env.SSR && typeof (globalThis as any).require === "undefined") {
   (globalThis as any).require = createRequire(import.meta.url);
 }
 

@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-01-06"
-updated: "2026-05-24"
+updated: "2026-06-22"
 tags:
   - "database"
   - "mariadb"
@@ -81,7 +81,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 - themes: Theme configurations
 - widgets: Widget instances
 - system_preferences: System/user settings
-- website_tokens: API tokens
+- website_tokens: External API credentials (SHA-256 hash at rest; unique index on `token`; compound `{ tenantId, name }`; implemented in `relational-system.ts`)
 - tenants: Multi-tenant management (name, owner, plan, quota, usage, settings)
 ```
 
@@ -584,7 +584,7 @@ Key MariaDB optimizations include:
 
 - [Core Infrastructure](./core-infrastructure.mdx) - Database-agnostic architecture
 - [MongoDB Implementation](./mongodb-implementation.mdx) - MongoDB-specific guide
-- [Authentication System](../authentication-system.mdx) - Auth infrastructure
+- [Authentication System](../security/authentication-system.mdx) - Auth infrastructure
 - [Cache System](../cache-system.mdx) - Caching layer
 
 ---

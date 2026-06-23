@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+  <item>
+    <title>E2E Test Post</title>
+    <wp:post_id>101</wp:post_id>
+    <wp:post_name>e2e-test-post</wp:post_name>
+    <wp:status>publish</wp:status>
+    <wp:post_type>post</wp:post_type>
+    <content:encoded><![CDATA[<p>E2E migration wizard test content.</p>]]></content:encoded>
+  </item>
+</channel>
+</rss>

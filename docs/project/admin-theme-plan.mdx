@@ -375,6 +375,51 @@ Beyond visual theming — SveltyCMS adapts the entire workspace to the user's ro
 
 ---
 
+## 6. Default Theme & Extensibility
+
+SveltyCMS ships with a single built-in admin theme: **Default** (`src/themes/default.json`). It provides a balanced starting point:
+
+| Setting           | Value                             |
+| ----------------- | --------------------------------- |
+| Density           | `cozy` (via `--admin-density: 1`) |
+| Card variant      | `bordered`                        |
+| Branded login     | Enabled                           |
+| Sticky action bar | Enabled                           |
+| Primary accent    | Teal (#0f766e)                    |
+
+### Adding Custom Theme Presets
+
+To add additional admin theme variants, create new JSON files in `src/themes/`. They are auto-synced to the database on every server boot via `theme-file-sync.ts`.
+
+**Example** — `src/themes/compact.json`:
+
+```json
+{
+  "name": "Compact",
+  "description": "High-density variant for power users",
+  "density": "compact",
+  "variant": "flat",
+  "features": {
+    "stickyActionBar": true,
+    "collapsibleSidebar": true,
+    "brandedLogin": false
+  },
+  "properties": {
+    "primary": "#1d4ed8",
+    "surface": "#f1f5f9"
+  },
+  "presetSource": "custom"
+}
+```
+
+Admins can also create, clone, and customize themes entirely through the UI at **Config → Appearance** — no file editing required.
+
+### Density-Only Toggling
+
+Most admins only need density adjustments, which are controlled via `data-density` attribute (compact / cozy / spacious) — no separate theme file needed. These are configured per-theme in the Appearance panel.
+
+---
+
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)

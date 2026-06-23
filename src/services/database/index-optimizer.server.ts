@@ -81,7 +81,10 @@ export class IndexOptimizer {
 }
 
 // Factory for easier access
-export let indexOptimizer: IndexOptimizer | null = null;
+let indexOptimizer: IndexOptimizer | null = null;
+export function getIndexOptimizer() {
+  return indexOptimizer;
+}
 
 export function initializeIndexOptimizer(adapter: IDBAdapter) {
   indexOptimizer = new IndexOptimizer(adapter);

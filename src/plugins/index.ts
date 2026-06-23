@@ -5,8 +5,10 @@
 
 export * from "./types";
 
+import { pluginServerRegistry } from "./plugin-server-registry";
 import { pluginRegistry } from "./registry";
-export { pluginRegistry };
+import { slotRegistry } from "./slot-registry";
+export { pluginRegistry, pluginServerRegistry, slotRegistry };
 
 import { logger } from "@utils/logger";
 import type { Plugin } from "./types";
@@ -72,6 +74,22 @@ for (const path in pluginModulesRaw) {
     const value = mod[key];
     if (value && typeof value === "object" && value.metadata && value.metadata.id) {
       availablePlugins.push(value);
+    }
+  }
+}
+
+// Isomorphic UI registration — available on client and server for slot/page renderers
+for (const plugin of availablePlugins) {
+  const pluginId = plugin.metadata.id;
+
+  if (plugin.ui?.slots) {
+    for (const slot of plugin.ui.slots) {
+      const registered = { ...slot, pluginId };
+      slotRegistry.register(registered);
+
+      if (slot.zone === "plugin_workspace" && slot.server) {
+        pluginServerRegistry.register(pluginId, slot.server);
+      }
     }
   }
 }

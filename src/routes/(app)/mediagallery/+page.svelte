@@ -18,6 +18,7 @@ import ModalPrompt from "@components/modal-prompt.svelte";
 import MediaDetailsModal from "@src/components/media/media-details-modal.svelte";
 import AdminCard from '@components/admin-card.svelte';
 import AdminPageShell from "@components/admin-page-shell.svelte";
+import Slot from "@components/system/slot.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
 import {
@@ -277,6 +278,8 @@ async function handleOpenFileDetails(file: any) {
 				<span class="hidden md:inline">New Folder</span>
 			</Button>
 
+			<Slot name="media_gallery_toolbar" inline={true} />
+
 			<Button color="var(--color-primary-500)" onclick={() => fileUploadInput?.click()}>
 				<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 				<span class="hidden md:inline">Upload</span>
@@ -391,4 +394,6 @@ async function handleOpenFileDetails(file: any) {
 			/>
 		{/if}
 	</div>
+
+	<Slot name="media_gallery" />
 </AdminPageShell>

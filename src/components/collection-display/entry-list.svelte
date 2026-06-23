@@ -93,6 +93,7 @@ bulk actions, and predictive preloading.
 	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	// Svelte-dnd-action
+	// @ts-ignore - IDE module resolution issue
 	import { dndzone } from 'svelte-dnd-action';
 	import { browser } from '$app/environment';
 	import { goto, invalidateAll } from '$app/navigation';

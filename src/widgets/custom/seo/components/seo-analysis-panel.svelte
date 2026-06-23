@@ -67,7 +67,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 <div class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-125' : 'h-16'}">
 	<button
 		type="button"
-		class="flex items-center gap-4 w-full p-3 bg-surface-100-800-token hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
+		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
 		onclick={() => (expanded = !expanded)}
 		aria-label="Toggle SEO analysis"
 		aria-expanded={expanded}
@@ -209,7 +209,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 										<div class="font-bold truncate">{link.title}</div>
 										<div class="opacity-50 text-[10px] truncate">{link.url}</div>
 									</div>
-									<Button variant="ghost" size="sm" class="p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Copy relative URL" onclick={() => { navigator.clipboard.writeText(link.url); }}>
+									<Button variant="ghost" size="sm" class="p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Copy relative URL" aria-label="Copy relative URL" onclick={() => { navigator.clipboard.writeText(link.url); }}>
 										<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>
 									</Button>
 								</div>
@@ -236,7 +236,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		background: transparent;
 	}
 	.custom-scrollbar::-webkit-scrollbar-thumb {
-		background-color: rgba(156, 163, 175, 0.5);
+		background-color: var(--color-surface-400, rgba(156, 163, 175, 0.5));
 		border-radius: 20px;
 	}
 </style>

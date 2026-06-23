@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-02-09"
-updated: "2026-06-14"
+updated: "2026-06-22"
 tags:
   - "database"
   - "sqlite"
@@ -70,7 +70,8 @@ Key SQLite highlights:
 - **Drizzle Integration**: Type-safe querying without the overhead of a large ORM.
 - **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.
 - **Platinum SQL Batching**: Native Drizzle `insertMany` for 10-50x faster bulk operations.
-- **Security Fast-Path**: `bypassSafeQuery` support for zero-overhead internal lookups.
+- **Website Tokens**: `website_tokens` table via shared `relational-system.ts` — hash-at-rest, tenant-scoped queries, parallel list+count. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
+- **Mongo-only fast-path**: `bypassSafeQuery` applies to selected MongoDB internal lookups, not SQL website-token operations.
 - **Zero-Allocation Dates**: Optimized `relational-utils` with dirty-bit check.
 - **Atomic Versioning**: Native `getVersion` and `incrementVersion` support.
 

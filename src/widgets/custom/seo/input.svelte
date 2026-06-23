@@ -61,7 +61,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		if (!value || availableLanguages.length === 0) return {};
 		const stats: Record<string, number> = {};
 		const fields: Array<keyof SeoWidgetData> = ['title', 'description', 'focusKeyword', 'ogTitle', 'ogDescription', 'twitterTitle', 'twitterDescription', 'schemaMarkup'];
-		
+
 		for (const f of fields) {
 			const populated = availableLanguages.filter(l => value && value[l]?.[f]?.trim()).length;
 			stats[f] = Math.round((populated / availableLanguages.length) * 100);
@@ -190,10 +190,10 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 
 		<!-- Right: Analysis Panel -->
 		<div class="lg:col-span-1">
-			<SeoAnalysisPanel 
-				analysisResult={analysisResults} 
-				{isAnalyzing} 
-				bind:expanded={showAnalysis} 
+			<SeoAnalysisPanel
+				analysisResult={analysisResults}
+				{isAnalyzing}
+				bind:expanded={showAnalysis}
 				content={typeof (collections.activeValue as any)?.content === 'string' ? (collections.activeValue as any).content : (typeof (collections.activeValue as any)?.body === 'string' ? (collections.activeValue as any).body : '')}
 				currentId={String(collections.activeValue?._id || '')}
 				collectionId={String(collections.active?._id || '')}
@@ -203,9 +203,9 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 
 	<!-- Bottom Area: Tabs & Inputs -->
 	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden">
-		
+
 		{#if !isCheckingLicense && !licenseStatus.active}
-			<div class="absolute inset-0 z-10 bg-surface-50-900-token/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-container-token" style="top: 60px;">
+						<div class="absolute inset-0 z-10 bg-surface-50 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg">
 				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-50 dark:bg-error-900/20">
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>

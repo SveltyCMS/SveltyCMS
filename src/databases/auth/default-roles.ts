@@ -88,6 +88,23 @@ export const defaultRoles: Role[] = [
     icon: "material-symbols:edit",
     color: "gradient-tertiary",
   },
+  {
+    _id: "guest" as DatabaseId,
+    name: "Guest",
+    description:
+      "Read-only visitor - Access to read public collections, media and query GraphQL APIs",
+    isAdmin: false,
+    permissions: [
+      "collections:read",
+      "api:collections",
+      "api:media",
+      "media:read",
+      "graphql:read",
+      "api:graphql",
+    ],
+    icon: "material-symbols:person-outline",
+    color: "gradient-grey",
+  },
 ];
 
 /**

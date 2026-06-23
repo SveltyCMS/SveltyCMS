@@ -782,7 +782,7 @@ Features:
 						/>
 					</div>
 
-					<div class="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-surface-100 dark:border-white/5 pt-4">
+					<div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-surface-100 dark:border-white/5">
 						<Button variant="tertiary"
 							type="button"
 							onclick={setupStore.testRedisConnection}
@@ -798,7 +798,7 @@ Features:
 						</Button>
 
 						{#if setupStore.wizard.redisTestPassed}
-							<div class="flex items-center gap-2 text-tertiary-500 dark:text-primary-500 text-sm font-medium animate-in fade-in zoom-in duration-300">
+							<div class="flex items-center gap-2 text-primary-500 text-sm font-medium animate-in fade-in zoom-in duration-300">
 								<iconify-icon icon="mdi:check-circle" width="20"></iconify-icon>
 								<span>{setup_db_test_redis_success?.() || 'Connected successfully!'}</span>
 							</div>

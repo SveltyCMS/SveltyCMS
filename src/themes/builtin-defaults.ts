@@ -1,11 +1,13 @@
 /**
  * @file src/themes/builtin-defaults.ts
- * @description Built-in default admin theme config sourced from `/src/themes/corporate.json`.
+ * @description Built-in default admin theme config sourced from `/src/themes/default.json`.
  *
  * Keeps setup seed, ThemeManager fallback, and file-based presets in sync.
+ * Additional theme presets can be added as JSON files in `/src/themes/` —
+ * they are auto-synced to the database on server boot.
  *
  * ### Features:
- * - load corporate.json at runtime
+ * - load default.json at runtime
  * - map shorthand palette properties to scoped customCss
  * - export adminTheme config for DB seeding
  */
@@ -26,34 +28,34 @@ export function loadBuiltinThemeFile(basename: string): Record<string, unknown> 
   }
 }
 
-/** Admin theme config applied on fresh installs (Corporate workspace) */
+/** Admin theme config applied on fresh installs */
 export function buildDefaultAdminThemeConfig(): Partial<StoredAdminTheme> {
-  const corporate = loadBuiltinThemeFile("corporate");
-  if (!corporate) {
-    return inlineCorporateFallback();
+  const preset = loadBuiltinThemeFile("default");
+  if (!preset) {
+    return inlineDefaultFallback();
   }
 
-  const mapped = mapPresetToAdminTheme(corporate);
+  const mapped = mapPresetToAdminTheme(preset);
   const {
     name: _name,
     description: _description,
     properties: _properties,
     presetSource: _presetSource,
     ...layout
-  } = corporate;
+  } = preset;
 
   return {
     ...layout,
-    themeName: "corporate",
+    themeName: "default",
     customCss: mapped.customCss || undefined,
   };
 }
 
-function inlineCorporateFallback(): Partial<StoredAdminTheme> {
+function inlineDefaultFallback(): Partial<StoredAdminTheme> {
   return {
     density: "cozy",
     variant: "bordered",
-    themeName: "corporate",
+    themeName: "default",
     features: {
       stickyActionBar: true,
       collapsibleSidebar: true,

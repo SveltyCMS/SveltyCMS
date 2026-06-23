@@ -261,7 +261,11 @@
 	{/if}
 
 	<!-- Expand/Collapse Button -->
-	<SystemTooltip title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'} positioning={{ placement: 'right' }}>
+	<SystemTooltip
+		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
+		positioning={{ placement: 'right' }}
+		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
+	>
 		<Button variant="ghost"
 			type="button"
 			onclick={toggleSidebar}

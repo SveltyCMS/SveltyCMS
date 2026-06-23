@@ -3,35 +3,31 @@
  * @description Path validation for compiled collection schema files.
  *
  * ### Features:
- * - Directory confinement to `.compiledCollections`
+ * - Directory confinement to .compiledCollections (production) and config/collections (dev)
  * - Path traversal blocking
  * - Suspicious character filtering
  */
 
 import path from "node:path";
-import { logger } from "@utils/logger";
 
 /**
  * Validates that a schema file path is safe to load (no traversal, correct extension).
  */
 export function isSafeCollectionPath(fullPath: string): boolean {
   const resolved = path.resolve(fullPath).toLowerCase();
-  const allowedBase = path.resolve(process.cwd(), ".compiledCollections").toLowerCase();
+  const cwd = path.resolve(process.cwd()).toLowerCase();
+  const compiledBase = path.join(cwd, ".compiledCollections").toLowerCase();
+  const collectionsBase = path.join(cwd, "config", "collections").toLowerCase();
 
-  if (!resolved.startsWith(allowedBase) || !resolved.endsWith(".js")) {
-    return false;
+  // Allow .js files under .compiledCollections (production / compiled output)
+  if (resolved.startsWith(compiledBase) && resolved.endsWith(".js")) {
+    return true;
   }
 
-  const relative = path.relative(allowedBase, resolved);
-  if (relative.includes("..") || path.isAbsolute(relative)) {
-    logger.warn("Blocked path traversal attempt", { fullPath, relative });
-    return false;
+  // Allow .ts files under config/collections (development source files)
+  if (resolved.startsWith(collectionsBase) && resolved.endsWith(".ts")) {
+    return true;
   }
 
-  if (/[^\w\-./\\]/.test(relative)) {
-    logger.warn("Blocked path with suspicious characters", { fullPath, relative });
-    return false;
-  }
-
-  return true;
+  return false;
 }

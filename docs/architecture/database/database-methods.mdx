@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:database-cog"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-06-14"
+updated: "2026-06-22"
 tags:
   - "database"
   - "interface"
@@ -120,14 +120,61 @@ export type DatabaseResult<T> =
 
 ## ⚙️ `system.*` Namespace
 
-**Responsibility:** Preferences, Jobs, and Multi-Tenancy.
+**Responsibility:** Preferences, Jobs, Multi-Tenancy, and external API credentials.
 
-| Method                        | Description                                          |
-| :---------------------------- | :--------------------------------------------------- |
-| `preferences.get(key, scope)` | Retrieves User or System settings.                   |
-| `preferences.set(key, value)` | Persists settings with automatic cache invalidation. |
-| `tenants.create(data)`        | Provisions a new isolated workspace.                 |
-| `themes.ensure(theme)`        | Idempotent theme registration during setup.          |
+| Method                                       | Description                                                    |
+| :------------------------------------------- | :------------------------------------------------------------- |
+| `preferences.get(key, scope)`                | Retrieves User or System settings.                             |
+| `preferences.set(key, value)`                | Persists settings with automatic cache invalidation.           |
+| `tenants.create(data)`                       | Provisions a new isolated workspace.                           |
+| `themes.ensure(theme)`                       | Idempotent theme registration during setup.                    |
+| `websiteTokens.create(data, tenantId?)`      | Creates a website token; returns plaintext once.               |
+| `websiteTokens.getAll(options, tenantId?)`   | Paginated list; hashes scrubbed from response.                 |
+| `websiteTokens.getByToken(token, tenantId?)` | Auth lookup by bearer value (hashed at adapter).               |
+| `websiteTokens.getByName(name, tenantId?)`   | Resolves a token record by display name.                       |
+| `websiteTokens.delete(id, tenantId?)`        | Hard-deletes the credential (SQL) or permanent delete (Mongo). |
+
+---
+
+## 🔐 Credential Storage (Website Tokens & API Keys)
+
+SveltyCMS treats website tokens and `sck_` API keys as **credentials**, not user records. The database layer enforces the same invariants on all four engines while allowing engine-native optimizations.
+
+### Shared contract (`ISystemAdapter.websiteTokens`)
+
+| Invariant           | Behavior                                                                                                                      |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------- |
+| **Hash at rest**    | Plaintext is hashed with `hashCredentialSha256Hex()` (`src/utils/security/credential-hash.ts`) before insert.                 |
+| **One-time reveal** | `create()` returns the raw token in the response; only the digest is persisted.                                               |
+| **List scrubbing**  | `getAll()` omits the `token` field from every row in the response.                                                            |
+| **Tenant scope**    | Optional `tenantId` on all methods; SDK and handlers pass request context.                                                    |
+| **Auth alignment**  | `handle-authentication.ts` calls `getByToken(value, locals.tenantId)` — same pattern as `auth.getApiKey(hash, { tenantId })`. |
+
+### Per-engine implementation
+
+| Engine                            | Module                             | Storage                                                                                | Soft-delete                                          | List performance                 |
+| :-------------------------------- | :--------------------------------- | :------------------------------------------------------------------------------------- | :--------------------------------------------------- | :------------------------------- |
+| **MongoDB**                       | `mongodb/website-token-methods.ts` | `system_website_tokens` collection; `strict: true` schema with `tenantId`, `isDeleted` | `safeQuery` + `{ $ne: true }` via `MongoCrudMethods` | `Promise.all([findMany, count])` |
+| **PostgreSQL / MariaDB / SQLite** | `core/relational-system.ts`        | `website_tokens` table via Drizzle                                                     | Hard delete (no `isDeleted` column)                  | `Promise.all([select, count])`   |
+
+### Indexes (all SQL engines + MongoDB)
+
+- **Unique** on `token` (hashed value) — O(1) bearer authentication lookup
+- **Compound** `{ tenantId, name }` — tenant-scoped name resolution and admin list filters
+
+### MongoDB-specific notes
+
+- Mongoose `strict: true` requires every persisted field to be declared on the schema. Undeclared fields (e.g. `tenantId`) are silently stripped on insert and break tenant-scoped list queries.
+- Credential lookup without request tenant context uses `bypassTenantCheck` only (not `bypassSafeQuery`), so `safeQuery` still applies soft-delete boundaries.
+- Do **not** use `bypassSafeQuery` for routine website-token CRUD; it is reserved for other internal fast-paths documented in the MongoDB implementation guide.
+
+### SQL migration note
+
+After pulling schema changes that add the `{ tenantId, name }` compound index, run:
+
+```bash
+bun run db:push
+```
 
 ---
 
@@ -151,7 +198,7 @@ export type DatabaseResult<T> =
 
 1. **Always use the Interface**: Never cast `IDBAdapter` to a concrete class like `SQLiteAdapter` unless performing emergency maintenance.
 2. **Favor `LocalCMS`**: Use the SDK bridge in server files for 0ms internal latency.
-3. **Respect `tenantId`**: Ensure every query includes a tenant scope to maintain data isolation.
+3. **Respect `tenantId`**: Ensure every query includes a tenant scope to maintain data isolation. For bearer auth, pass `locals.tenantId` into `websiteTokens.getByToken()` when the request tenant is already resolved.
 4. **Error Checking**: Always check `result.success` before accessing `result.data`.
 
 ---

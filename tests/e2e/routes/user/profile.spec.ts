@@ -33,12 +33,14 @@ test.describe("User Profile Management", () => {
 
   test("Workspace Appearance link navigates to appearance settings", async ({ page }) => {
     await page.goto("/user");
-    await expect(page.getByText("Workspace Appearance")).toBeVisible({ timeout: 10_000 });
-    const appearanceBtn = page.getByRole("button", { name: "Open Appearance Settings" });
-    await appearanceBtn.scrollIntoViewIfNeeded();
-    await appearanceBtn.click();
-    await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 15_000 });
-    await expect(page.getByText("My Overrides")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Workspace Appearance")).toBeVisible({
+      timeout: 10_000,
+    });
+    await page.getByRole("button", { name: "Open Appearance Settings" }).click();
+    await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 10_000 });
+    await expect(page.getByText("My Overrides")).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("Edit Avatar", async ({ page }) => {
@@ -53,27 +55,39 @@ test.describe("User Profile Management", () => {
     // Wait for profile to load
     await expect(page.getByRole("heading", { level: 1, name: "User Profile" })).toBeVisible();
 
-    // Trigger upload
-    await page.getByRole("button", { name: "Edit Avatar" }).click({ force: true });
+    // Trigger upload — scroll into view first to avoid viewport issues
+    const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
+    await editAvatarBtn.scrollIntoViewIfNeeded();
+    await editAvatarBtn.click({ force: true });
 
-    // Handle file input safely
+    // Handle file input safely — wait for modal to render
     const fileInput = page.locator('input[type="file"]');
+    await expect(fileInput).toBeAttached({ timeout: 5000 });
     await fileInput.setInputFiles(AVATAR_PATH);
 
     await page.getByRole("button", { name: "Save" }).click();
 
     // Assertion: Check if the image source changes or notification appears
-    await expect(page.locator('.avatar-image, img[alt="Avatar"]')).toBeVisible();
+    await expect(page.locator('.avatar-image, img[alt="User avatar"]')).toBeVisible();
   });
 
   test("Delete Avatar", async ({ page }) => {
     await page.goto("/user");
-    const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
-    await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
 
-    const deleteBtn = page.locator("button.preset-filled-error-500");
-    await expect(deleteBtn).toBeVisible();
-    await deleteBtn.click({ force: true });
+    // Scroll and click the Edit Avatar overlay button
+    const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
+    await editAvatarBtn.scrollIntoViewIfNeeded();
+    await editAvatarBtn.click({ force: true });
+
+    const deleteBtn = page.getByRole("button", { name: "Delete Avatar" });
+    await expect(deleteBtn).toBeVisible({ timeout: 5000 });
+    await deleteBtn.click();
+
+    // Confirmation dialog appears — click Confirm
+    const confirmBtn = page.getByRole("button", { name: /confirm/i });
+    if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await confirmBtn.click();
+    }
 
     // Assertion: Check for default avatar fallback
     await expect(
@@ -91,9 +105,9 @@ test.describe("User Profile Management", () => {
 
     await page.getByRole("button", { name: "Save" }).click();
 
-    // Wait for either the toast or the updated username to appear
-    await expect(page.getByText(/User Data Updated|TestUserUpdated/i).first()).toBeVisible({
-      timeout: 15_000,
+    // Toast notification may be brief; increase timeout
+    await expect(page.getByText(/User Data Updated/i)).toBeVisible({
+      timeout: 10_000,
     });
   });
 
@@ -111,17 +125,21 @@ test.describe("User Profile Management", () => {
     // Fill details
     await page.locator('input[name="email"]:not([disabled])').fill("newuser@test.ge");
 
-    // Select Role (Robust selection)
-    await page.getByRole("button", { name: "Editor" }).click();
+    // Select Role — try radio first (ModalEditForm pattern), fall back to button
+    const roleRadio = page.getByRole("radio", { name: /user/i });
+    if (await roleRadio.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await roleRadio.click();
+    } else {
+      await page.getByRole("button", { name: /user/i }).first().click();
+    }
 
     // Select Duration
     await page.locator("#expires-select").selectOption("12 hrs");
 
     await page.getByRole("button", { name: "Save" }).click();
 
-    // Wait for token creation success — toast or heading
-    await expect(page.getByText(/Token created|User token created/i).first()).toBeVisible({
-      timeout: 15_000,
+    await expect(page.getByText(/Token Created/i)).toBeVisible({
+      timeout: 10_000,
     });
   });
 

@@ -42,6 +42,7 @@ import { widgets } from "@src/stores/widget-store.svelte.ts";
 import Portal from "@components/ui/portal.svelte";
 import BackToTop from "@components/ui/back-to-top.svelte";
 import Slot from "@components/system/slot.svelte";
+import PluginWorkspaceOverlay from "@components/system/plugin-workspace-overlay.svelte";
 import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
 import { isSearchVisible } from "@utils/global-search-index";
@@ -510,5 +511,6 @@ afterNavigate(() => {
 			</Portal>
 		{/if}
 		<BackToTop />
+		<PluginWorkspaceOverlay />
 	</div>
 {/if}

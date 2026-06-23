@@ -244,6 +244,10 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
       (await this._getMethods()).websiteTokens.getByName(name, tenantId),
     getByToken: async (token: string, tenantId?: any) =>
       (await this._getMethods()).websiteTokens.getByToken(token, tenantId),
+    getByTokenHash: async (tokenHash: string, tenantId?: any) =>
+      (await this._getMethods()).websiteTokens.getByTokenHash(tokenHash, tenantId),
+    getById: async (id: DatabaseId, tenantId?: any) =>
+      (await this._getMethods()).websiteTokens.getById(id, tenantId),
     delete: async (id: DatabaseId, tenantId?: any) =>
       (await this._getMethods()).websiteTokens.delete(id, tenantId),
   };

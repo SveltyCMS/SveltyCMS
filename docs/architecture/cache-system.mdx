@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-06-15"
+updated: "2026-06-22"
 tags:
   - "cache"
   - "redis"
@@ -52,6 +52,21 @@ L2: Redis MGET/MSET (optional)                            → cross-node schema 
 | `navigation:tree:{tenant}:{version}` | `CONTENT` | 5 min  | `navigation`, `navigation:tree`   | `clearByPattern("navigation:tree:")` on every `content:update` |
 
 **Helpers**: `src/content/content-cache.server.ts` (`setSchemaCacheEntry`, `invalidateSchemaCache`, `invalidateNavigationCache`, `notifyContentUpdate`).
+
+### Bearer credential auth (website tokens + API keys)
+
+Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
+
+| Key prefix               | Category  | TTL | Tags                                          | Invalidation                                    |
+| ------------------------ | --------- | --- | --------------------------------------------- | ----------------------------------------------- |
+| `apitoken:{sha256-hex}`  | `SESSION` | 60s | `auth`, `website-token`, `website-token:{id}` | `clearByTags(['website-token:{id}'])` on delete |
+| `apikey:{sha256-b64url}` | `SESSION` | 60s | `auth`, `api-key`, `api-key:{id}`             | `clearByTags(['api-key:{id}'])` on revoke       |
+
+**Helpers**: `src/databases/auth/credential-auth-cache.ts` (`setWebsiteTokenAuthCache`, `getWebsiteTokenAuthCacheSync`, `invalidateWebsiteTokenAuth`, `recordWebsiteTokenAuthMiss`).
+
+**Negative misses**: `cacheService.isNegativeHit()` / `recordMiss()` — Bloom filter per cache-system (not plaintext module bloom).
+
+**Auth middleware**: `handle-authentication.ts` hashes once (`hashCredentialSha256HexSync` / `hashApiKey`), looks up by hash via `getByTokenHash`, caches with `CacheCategory.SESSION`.
 
 > [!NOTE]
 > Use `clearByPattern("schema:")` — not `invalidateByCategory(SCHEMA)` — because schema keys are prefixed with `schema:`, not `*:schema:`.
@@ -140,4 +155,4 @@ const result = await cacheService.getOrSetSWR(
 
 ---
 
-**Last Updated**: 2026-06-15 (corrected L1/L2 architecture, added stampede protection, single-flight, negative cache, SWR documentation)
+**Last Updated**: 2026-06-22 (bearer credential auth cache: hash-keyed SESSION entries, tag invalidation, Bloom negative misses)
