@@ -60,10 +60,10 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.getByRole("button", { name: /Field Configuration/i }).click();
 
     // Quick-add an Input field using the quick-add bar
-    await page.getByTestId("quick-add-text").click();
+    await page.getByTestId("quick-add-input").click();
 
     // Verify field was added (widget generates label "New Text")
-    await expect(page.getByText(/New Text/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
   });
 
   test("should filter widgets by search", async ({ page }) => {
@@ -97,6 +97,8 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.getByTestId("add-field-button").click();
 
     // Select Input widget from the modal
+    // Wait for modal widgets to load
+    await expect(page.getByText(/Core Widgets/i)).toBeVisible({ timeout: 15_000 });
     await page.getByRole("button", { name: /Input/i }).first().click();
 
     // Configure label in the WidgetInspector side panel (use placeholder since aria-label overrides)
@@ -162,7 +164,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
     });
 
     // Try to save without required fields
-    await page.getByTestId("save-collection-button").click();
+    await page.getByTestId("save-collection-button").first().click();
 
     // Check for validation errors (remove invalid CSS text=required; use getByText instead)
     await expect(page.locator(".error, .alert-error").or(page.getByText(/required/i))).toBeVisible({
@@ -174,10 +176,10 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
     // Navigate to step 2 and add at least one field
     await page.getByRole("button", { name: /Field Configuration/i }).click();
-    await page.getByTestId("quick-add-text").click();
+    await page.getByTestId("quick-add-input").click();
 
     // Now save should work
-    await page.getByTestId("save-collection-button").click();
+    await page.getByTestId("save-collection-button").first().click();
 
     // Verify success (toast appears)
     await expect(page.getByText(/collection saved/i)).toBeVisible({
@@ -203,7 +205,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
       // Add multiple fields using the quick-add bar
       for (let i = 0; i < 3; i++) {
-        await page.getByTestId("quick-add-text").click();
+        await page.getByTestId("quick-add-input").click();
         await page.waitForTimeout(300);
       }
     }

@@ -47,7 +47,7 @@ let error: string | null = $state(null);
 
 // Get tenant info from page data or user session
 const tenantId = $derived(
-	data?.user?.tenantId || data?.tenantId || "default-tenant",
+	data?.user?.tenantId || data?.tenantId || null,
 );
 
 // User permissions
@@ -132,7 +132,10 @@ async function loadWidgets() {
 	error = null;
 
 	try {
-		const response = await fetch(`/api/widgets/list?tenantId=${tenantId}`);
+		// Do not pass tenantId as a query param — the API dispatcher treats any
+		// ?tenantId= override as forbidden for non-super-admins. The server
+		// resolves tenantId from the session automatically.
+		const response = await fetch(`/api/widgets/list`);
 
 		if (!response.ok) {
 			throw new Error(`Failed to load widgets: ${response.statusText}`);
@@ -179,7 +182,7 @@ async function toggleWidget(widgetName: string) {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"X-Tenant-ID": tenantId,
+				...(tenantId ? { "X-Tenant-ID": tenantId } : {}),
 			},
 			body: JSON.stringify({
 				widgetName,
@@ -226,7 +229,7 @@ async function uninstallWidget(widgetName: string) {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"X-Tenant-ID": tenantId,
+				...(tenantId ? { "X-Tenant-ID": tenantId } : {}),
 			},
 			body: JSON.stringify({ widgetName }),
 		});
