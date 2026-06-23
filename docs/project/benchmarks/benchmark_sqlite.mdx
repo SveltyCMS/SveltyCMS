@@ -30,28 +30,28 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (20/06/2026, 14:42:54)
+## 📊 Latest Performance Audit (23/06/2026, 21:40:11)
 
 **Status:** ❌ FAIL
 
 > [!CAUTION]
-> **Anomalies Detected**: Fail-fast See console for stack trace.
+> **Anomalies Detected**: Content Stress failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [1053.00ms]) See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
 | :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 348ms       | ⚪ (+27.1%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 1.708ms     | ⚪ (+48.7%) | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | 0.749ms     | ⚪          | < 2ms         | 🟢 PASS |
-| **GraphQL (Avg)**      | 5.119ms     | ⚪ (+0.2%)  | < 5ms         | 🔴 FAIL |
-| **Million-Row Index**  | 3.273ms     | ⚪          | < 250ms       | 🟢 PASS |
-| **DB Raw (p95)**       | 0.069ms     | ⚪          | < 50ms        | 🟢 PASS |
+| **Cold Start**         | 544ms       | ⚪ (+76.1%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1.369ms     | ⚪ (+17.7%) | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | 0.826ms     | ⚪          | < 2ms         | 🟢 PASS |
+| **GraphQL (Avg)**      | 4.732ms     | ⚪ (-6.8%)  | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | 4.729ms     | ⚪          | < 250ms       | 🟢 PASS |
+| **DB Raw (p95)**       | 0.075ms     | ⚪          | < 50ms        | 🟢 PASS |
 | **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
-**Mixed p95:** 5.978ms | **Trend:** ⚪ (+28.0%)
+**Mixed p95:** 5.681ms | **Trend:** ⚪ (+18.0%)
 
 > Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
 
@@ -62,26 +62,26 @@ xychart-beta
   title "SQLITE Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [1.183, 1.992, 2.193, 2.193, 0.874, 0.474, 0.474, 0.849, 0.864, 0.864]
+  line "p95 Latency" : [2.193, 0.874, 0.474, 0.474, 0.849, 0.864, 0.864, 0.823, 1.501, 1.369]
 ```
 
 ## 📈 Core Infrastructure Trends
 
 ### 🏷️ Database Adapter Performance {#dbRaw}
 
-**Raw Adapter p95:** 0.069ms | **Target:** < 50ms | **Trend:** ⚪ (+11.8%)
+**Raw Adapter p95:** 0.075ms | **Target:** < 50ms | **Trend:** ⚪ (+12.5%)
 
 > Direct database access latency (bypass CMS logic).
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 0.749ms | **Target:** < 2ms | **Trend:** ⚪ (-72.2%)
+**Middleware p95:** 0.826ms | **Target:** < 2ms | **Trend:** ⚪ (-60.9%)
 
 > Total overhead of security, logging, and auth hooks.
 
 ### 🏷️ Memory Stability Audit {#memGrowth}
 
-**Memory RSS Δ:** 8.891MB | **Target:** < 60MB | **Trend:** ⚪ (-59.8%)
+**Memory RSS Δ:** 133.953MB | **Target:** < 60MB | **Trend:** ⚪ (+514.0%)
 
 > Peak memory growth during stress workload.
 
@@ -89,19 +89,19 @@ xychart-beta
 
 ### 🏷️ Multi-Tenancy Performance {#tenancyAvg}
 
-**Tenancy p95:** 4.258ms | **Trend:** ⚪ (+270.8%)
+**Tenancy p95:** 3.031ms | **Trend:** ⚪ (+160.5%)
 
 > Measures latency across tenant isolation boundaries.
 
 ### 🏷️ Relational Resolver Latency {#relationalAvg}
 
-**Relational p95:** 4.186ms | **Trend:** ⚪ (-18.1%)
+**Relational p95:** 0.000ms | **Trend:** ⚪ (—)
 
 > Tests performance of complex JOINs and nested relationship population.
 
 ### 🏷️ Telemetry & Update Performance {#telemetryAvg}
 
-**Telemetry p95:** 0.001ms | **Trend:** ⚪ (-100.0%)
+**Telemetry p95:** 0.000ms | **Trend:** ⚪ (—)
 
 > Measures overhead of telemetry collection and cryptographic signing.
 
@@ -150,7 +150,7 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.132 ms │ p95:        0.341 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.100 ms │ p95:        0.207 ms │ RPS:          0 ║
 ```
 <!-- COLD_START_TABLE_END -->
 
@@ -161,32 +161,48 @@ xychart-beta
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,300,614 ║
-║ Local SDK (Full)               │        0.007 ms │ p95:        0.013 ms │ RPS:    138,325 ║
-║ HTTP End-to-End                │        0.740 ms │ p95:        1.708 ms │ RPS:      1,351 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,864,512 ║
+║ Local SDK (Full)               │        0.006 ms │ p95:        0.011 ms │ RPS:    162,048 ║
+║ HTTP End-to-End                │        0.674 ms │ p95:        1.437 ms │ RPS:      1,484 ║
 ```
 <!-- TRUTH_AUDIT_TABLE_END -->
 
 <!-- SCAN_TABLE_START -->
-### 🏷️ Self-Healing Content Scan ⚪ —
+### 🏷️ Self-Healing Content Scan  🔴 avg +59% p95 +168% rps -37% (23 runs)
 > 📂 **Source**: [tests/benchmarks/content-scan.test.ts](../../../tests/benchmarks/content-scan.test.ts)
-> 🎯 **Proves**: Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.
+> 🎯 **Proves**: Measures the 99.9% Self-Healing Cache scanner across .compiledCollections/test/scan (isolated from user data).
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Content Scan (Self-Healing)    │        0.005 ms │ p95:        0.008 ms │ RPS:    138,704 ║
+║ Content Scan (Self-Healing)    │        0.006 ms │ p95:        0.010 ms │ RPS:    121,782 ║
 ```
 <!-- SCAN_TABLE_END -->
 
 <!-- INCREMENTAL_TABLE_START -->
-### 🏷️ Incremental Content Reload ⚪ —
-> 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
-> 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 37% — check connection pool saturation or lock contention.
+**Severe degradation** (+59%) — review recent commits immediately.
+
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
+║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
+║          Measures surgical single-file fullReload vs full reconciliation path           ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.400 ms │ p95:        1.066 ms │ RPS:      2,501 ║
-║ Full Reconciliation Reload     │       16.488 ms │ p95:       18.247 ms │ RPS:         61 ║
+║ Incremental fullReload (1 file) │        0.391 ms │ p95:        1.355 ms │ RPS:      2,556 ║
+║ Full Reconciliation Reload     │       21.359 ms │ p95:       27.009 ms │ RPS:         47 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Incremental Reload (avg)                           │        0.391 ms       ║
+║ Full Reconciliation (avg)                          │       21.359 ms       ║
+║ Incremental Speedup Factor                         │         54.6 x        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- INCREMENTAL_TABLE_END -->
 
@@ -244,8 +260,8 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Auth Validation @ 1c           │        0.559 ms │ p95:        0.706 ms │ RPS:      1,600 ║
-║ HTTP Auth Pipeline @ 8c        │        2.000 ms │ p95:        3.435 ms │ RPS:        489 ║
+║ Auth Validation @ 1c           │        0.581 ms │ p95:        0.750 ms │ RPS:      1,561 ║
+║ HTTP Auth Pipeline @ 8c        │        1.881 ms │ p95:        3.212 ms │ RPS:        521 ║
 ```
 <!-- TELEMETRY_TABLE_END -->
 
@@ -256,7 +272,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ State Transition (READY -> IDLE -> READY) │       32.138 ms │ p95:       36.096 ms │ RPS:         31 ║
+║ State Transition (READY -> IDLE -> READY) │       62.988 ms │ p95:       63.605 ms │ RPS:         16 ║
 ```
 <!-- STATE_MACHINE_TABLE_END -->
 
@@ -274,8 +290,8 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                      │        0.390 ms │ p95:        0.673 ms │ RPS:      1,942 ║
-║ TX Rollback Integrity          │        0.206 ms │ p95:        0.269 ms │ RPS:      4,857 ║
+║ TX Commit                      │        0.493 ms │ p95:        0.909 ms │ RPS:      1,459 ║
+║ TX Rollback Integrity          │        0.271 ms │ p95:        0.375 ms │ RPS:      3,687 ║
 ```
 <!-- ACID_TABLE_END -->
 
@@ -286,8 +302,8 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ First Miss (DB)                │        6.707 ms │ p95:        6.707 ms │ RPS:        149 ║
-║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.005 ms │ RPS:    415,130 ║
+║ First Miss (DB)                │       12.484 ms │ p95:       12.484 ms │ RPS:         80 ║
+║ Cached Miss (Negative Cache)   │        0.003 ms │ p95:        0.006 ms │ RPS:    312,334 ║
 ```
 <!-- CACHE_TABLE_END -->
 
@@ -326,7 +342,7 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Timezone Ingestion             │        1.591 ms │ p95:        1.591 ms │ RPS:        628 ║
+║ Timezone Ingestion             │        3.491 ms │ p95:        3.491 ms │ RPS:        286 ║
 ```
 <!-- TEMPORAL_TABLE_END -->
 
@@ -337,21 +353,21 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 <!-- WIDGETS_TABLE_END -->
 
 <!-- UX_VITALITY_TABLE_START -->
-### 🏷️ Simulated Admin UX Vitality ⚪ —
+### 🏷️ Simulated Admin UX Vitality  🔴 avg +32% p95 +35% rps -25% (9 runs)
 > 📂 **Source**: [tests/benchmarks/admin-ux-vitality.test.ts](../../../tests/benchmarks/admin-ux-vitality.test.ts)
 > 🎯 **Proves**: Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Schema Resolution (8f)         │        1.018 ms │ p95:        1.659 ms │ RPS:        935 ║
-║ Collection List (11 cols)      │        1.055 ms │ p95:        1.811 ms │ RPS:        907 ║
+║ Schema Resolution (8f)         │        1.514 ms │ p95:        2.514 ms │ RPS:        630 ║
+║ Collection List (11 cols)      │        1.545 ms │ p95:        2.588 ms │ RPS:        633 ║
 ```
 <!-- UX_VITALITY_TABLE_END -->
 
 <!-- EDIT_HYDRATE_TABLE_START -->
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 30% — check connection pool saturation or lock contention.
-**Severe degradation** (+43%) — review recent commits immediately.
+Throughput dropped 25% — check connection pool saturation or lock contention.
+**Severe degradation** (+32%) — review recent commits immediately.
 
 
 ```text
@@ -360,10 +376,10 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 ║                   File: tests/benchmarks/entry-edit-hydration.test.ts                   ║
 ║Measures 50-field form mount (widget loader resolve + prefetch) and first-input sync latency.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 50-Field Loader Resolve        │        0.050 ms │ p95:        0.060 ms │ RPS:     19,522 ║
-║ Widget Prefetch (5 types)      │        0.018 ms │ p95:        0.025 ms │ RPS:     55,033 ║
-║ First Input (field patch)      │        0.000 ms │ p95:        0.000 ms │ RPS:  3,046,087 ║
-║ First Input (JSON.stringify)   │        0.002 ms │ p95:        0.003 ms │ RPS:    498,679 ║
+║ 50-Field Loader Resolve        │        0.062 ms │ p95:        0.081 ms │ RPS:     15,556 ║
+║ Widget Prefetch (5 types)      │        0.016 ms │ p95:        0.022 ms │ RPS:     58,079 ║
+║ First Input (field patch)      │        0.000 ms │ p95:        0.000 ms │ RPS:  2,641,519 ║
+║ First Input (JSON.stringify)   │        0.002 ms │ p95:        0.003 ms │ RPS:    410,850 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -371,8 +387,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ 50-Field Loader Resolve                            │        0.050 ms       ║
-║ Widget Prefetch (5 types)                          │        0.018 ms       ║
+║ 50-Field Loader Resolve                            │        0.062 ms       ║
+║ Widget Prefetch (5 types)                          │        0.016 ms       ║
 ║ First Input (field patch)                          │        0.000 ms       ║
 ║ First Input (legacy stringify)                     │        0.002 ms       ║
 ║ Patch vs Legacy speedup                            │     Infinity ×        ║
@@ -388,8 +404,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ SDK: Media Processing          │        2.075 ms │ p95:        2.837 ms │ RPS:        417 ║
-║ HTTP: Media Upload             │        4.928 ms │ p95:        6.985 ms │ RPS:        197 ║
+║ Single Upload (10MB)           │       30.982 ms │ p95:       41.115 ms │ RPS:         32 ║
+║ Small Upload (1MB)             │        8.291 ms │ p95:       14.135 ms │ RPS:        121 ║
 ```
 <!-- MEDIA_TABLE_END -->
 
@@ -400,8 +416,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Relational Query       │        4.437 ms │ p95:        6.685 ms │ RPS:        219 ║
-║ Deep Relational Query          │        2.997 ms │ p95:        4.186 ms │ RPS:        319 ║
+║ Shallow Relational Query       │        4.989 ms │ p95:        7.811 ms │ RPS:        195 ║
+║ Deep Relational Query          │        3.345 ms │ p95:        4.848 ms │ RPS:        288 ║
 ```
 <!-- RELATIONAL_TABLE_END -->
 
@@ -412,8 +428,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold OpenAPI Generation        │        1.353 ms │ p95:        1.353 ms │ RPS:        739 ║
-║ Warm OpenAPI Hit (Cached)      │        0.965 ms │ p95:        1.147 ms │ RPS:        937 ║
+║ Cold OpenAPI Generation        │        2.086 ms │ p95:        2.086 ms │ RPS:        480 ║
+║ Warm OpenAPI Hit (Cached)      │        1.522 ms │ p95:        1.814 ms │ RPS:        608 ║
 ```
 <!-- OPENAPI_TABLE_END -->
 
@@ -455,12 +471,12 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ WAF Deep Analysis              │        0.007 ms │ p95:        0.012 ms │ RPS:    134,343 ║
-║ Audit Log Persistence          │        0.001 ms │ p95:        0.003 ms │ RPS:  1,108,545 ║
-║ Argon2id Password Hashing      │        0.851 ms │ p95:        1.023 ms │ RPS:      1,175 ║
-║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  6,585,446 ║
-║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS:  6,250,391 ║
-║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  9,508,415 ║
+║ WAF Deep Analysis              │        0.006 ms │ p95:        0.011 ms │ RPS:    152,907 ║
+║ Audit Log Persistence          │        0.001 ms │ p95:        0.002 ms │ RPS:  1,294,778 ║
+║ Argon2id Password Hashing      │        0.811 ms │ p95:        1.030 ms │ RPS:      1,233 ║
+║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  8,021,819 ║
+║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS:  6,679,581 ║
+║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 10,473,398 ║
 ```
 <!-- SECURITY_TABLE_END -->
 
@@ -471,10 +487,10 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.937 ms │ p95:        2.003 ms │ RPS:      1,068 ║
-║ Collection Schema              │        2.492 ms │ p95:        4.405 ms │ RPS:        401 ║
-║ Collection Find (List)         │        2.813 ms │ p95:        5.113 ms │ RPS:        355 ║
-║ Collection Search              │        2.809 ms │ p95:        5.073 ms │ RPS:        356 ║
+║ Health Check                   │        0.949 ms │ p95:        1.764 ms │ RPS:      1,053 ║
+║ Collection Schema              │        2.480 ms │ p95:        4.271 ms │ RPS:        403 ║
+║ Collection Find (List)         │        2.616 ms │ p95:        4.679 ms │ RPS:        382 ║
+║ Collection Search              │        3.129 ms │ p95:        5.470 ms │ RPS:        320 ║
 ```
 <!-- REST_TABLE_END -->
 
@@ -485,13 +501,13 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        3.477 ms │ p95:        4.953 ms │ RPS:        285 ║
-║ GQL: 10c Light                 │        6.567 ms │ p95:       10.311 ms │ RPS:        151 ║
-║ GQL: 20c Moderate              │       12.420 ms │ p95:       19.006 ms │ RPS:         81 ║
-║ GQL: 40c Heavy                 │       25.606 ms │ p95:       40.175 ms │ RPS:         39 ║
-║ GQL: 60c Stress                │       39.325 ms │ p95:       61.039 ms │ RPS:         25 ║
-║ GQL: 80c Extreme               │       42.532 ms │ p95:       84.574 ms │ RPS:         24 ║
-║ GQL: 100c Max                  │       62.811 ms │ p95:      110.539 ms │ RPS:         16 ║
+║ GQL: 5c Warmup                 │        5.171 ms │ p95:        7.825 ms │ RPS:        186 ║
+║ GQL: 10c Light                 │        8.248 ms │ p95:       12.385 ms │ RPS:        120 ║
+║ GQL: 20c Moderate              │       15.544 ms │ p95:       23.862 ms │ RPS:         63 ║
+║ GQL: 40c Heavy                 │       28.928 ms │ p95:       46.870 ms │ RPS:         34 ║
+║ GQL: 60c Stress                │       45.491 ms │ p95:       69.775 ms │ RPS:         22 ║
+║ GQL: 80c Extreme               │       47.317 ms │ p95:       98.436 ms │ RPS:         21 ║
+║ GQL: 100c Max                  │       69.017 ms │ p95:      126.516 ms │ RPS:         15 ║
 ```
 <!-- GRAPHQL_TABLE_END -->
 
@@ -502,10 +518,10 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Redirect Lookup (301)          │        1.146 ms │ p95:        2.345 ms │ RPS:        873 ║
-║ Dynamic Sitemap XML            │        1.367 ms │ p95:        2.476 ms │ RPS:        732 ║
-║ Robots.txt Generation          │        0.252 ms │ p95:        0.420 ms │ RPS:      3,966 ║
-║ Missing Path (404 Log)         │        1.174 ms │ p95:        2.073 ms │ RPS:        852 ║
+║ Redirect Lookup (301)          │        1.000 ms │ p95:        1.721 ms │ RPS:      1,000 ║
+║ Dynamic Sitemap XML            │        1.604 ms │ p95:        2.745 ms │ RPS:        623 ║
+║ Robots.txt Generation          │        0.214 ms │ p95:        0.283 ms │ RPS:      4,679 ║
+║ Missing Path (404 Log)         │        1.322 ms │ p95:        2.360 ms │ RPS:        756 ║
 ```
 <!-- SEO_TABLE_END -->
 
@@ -535,8 +551,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ First Miss (DB)                │        6.707 ms │ p95:        6.707 ms │ RPS:        149 ║
-║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.005 ms │ RPS:    415,130 ║
+║ First Miss (DB)                │       12.484 ms │ p95:       12.484 ms │ RPS:         80 ║
+║ Cached Miss (Negative Cache)   │        0.003 ms │ p95:        0.006 ms │ RPS:    312,334 ║
 ```
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
@@ -547,8 +563,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Latest Read (High Revision Count) │        1.054 ms │ p95:        1.828 ms │ RPS:        949 ║
-║ History List Retrieval         │        0.642 ms │ p95:        1.102 ms │ RPS:      1,558 ║
+║ Latest Read (High Revision Count) │        1.814 ms │ p95:        3.366 ms │ RPS:        551 ║
+║ History List Retrieval         │        0.984 ms │ p95:        1.852 ms │ RPS:      1,016 ║
 ```
 <!-- REVISION_STRESS_TABLE_END -->
 
@@ -559,7 +575,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     11,595 ║
+║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     11,399 ║
 ```
 <!-- MEMORY_TABLE_END -->
 
@@ -570,8 +586,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Tenant Baseline         │        2.656 ms │ p95:        4.689 ms │ RPS:        377 ║
-║ Multi-Tenant Context Switching │        2.346 ms │ p95:        4.258 ms │ RPS:        426 ║
+║ Single Tenant Baseline         │        1.995 ms │ p95:        3.802 ms │ RPS:        501 ║
+║ Multi-Tenant Context Switching │        1.779 ms │ p95:        3.031 ms │ RPS:        562 ║
 ```
 <!-- TENANCY_TABLE_END -->
 
@@ -582,7 +598,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Mixed Workload                 │        2.745 ms │ p95:        5.978 ms │ RPS:        347 ║
+║ Mixed Workload                 │        2.625 ms │ p95:        5.681 ms │ RPS:        331 ║
 ```
 <!-- MIXED_TABLE_END -->
 
@@ -599,8 +615,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Bulk Migration (10k)           │       29.915 ms │ p95:       42.651 ms │ RPS:         33 ║
-║ Post-Migration Read            │        3.793 ms │ p95:        6.610 ms │ RPS:        264 ║
+║ Bulk Migration (10k)           │       32.284 ms │ p95:       45.080 ms │ RPS:         31 ║
+║ Post-Migration Read            │        4.535 ms │ p95:        8.024 ms │ RPS:        221 ║
 ```
 <!-- MIGRATION_TABLE_END -->
 
@@ -611,8 +627,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Sorted List (25k rows)         │        2.386 ms │ p95:        3.273 ms │ RPS:        419 ║
-║ Filtered Query (25k rows)      │        2.781 ms │ p95:        4.188 ms │ RPS:        360 ║
+║ Sorted List (25k rows)         │        3.370 ms │ p95:        4.729 ms │ RPS:        297 ║
+║ Filtered Query (25k rows)      │        2.678 ms │ p95:        3.839 ms │ RPS:        373 ║
 ```
 <!-- INDEX_PRESSURE_TABLE_END -->
 
@@ -650,7 +666,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache Miss (Bypass)            │        0.514 ms │ p95:        0.653 ms │ RPS:      1,746 ║
+║ Cache Miss (Bypass)            │        0.720 ms │ p95:        0.920 ms │ RPS:      1,251 ║
 ```
 <!-- CACHE_EFFICIENCY_TABLE_END -->
 
@@ -661,8 +677,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Upload (10MB)           │       30.503 ms │ p95:       38.970 ms │ RPS:         33 ║
-║ Small Upload (1MB)             │        9.224 ms │ p95:       20.990 ms │ RPS:        108 ║
+║ Single Upload (10MB)           │       30.982 ms │ p95:       41.115 ms │ RPS:         32 ║
+║ Small Upload (1MB)             │        8.291 ms │ p95:       14.135 ms │ RPS:        121 ║
 ```
 <!-- MEDIA_UPLOAD_TABLE_END -->
 
@@ -679,7 +695,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        1.323 ms │ p95:        1.323 ms │ RPS:        756 ║
+║ Concurrent PATCH Bomb          │        1.372 ms │ p95:        1.372 ms │ RPS:        729 ║
 ```
 <!-- CONCURRENCY_TABLE_END -->
 
@@ -690,7 +706,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Full Blast                     │        1.403 ms │ p95:        1.403 ms │ RPS:        713 ║
+║ Full Blast                     │        1.304 ms │ p95:        1.304 ms │ RPS:        767 ║
 ```
 <!-- THROUGHPUT_TABLE_END -->
 
@@ -700,7 +716,9 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 <!-- MAXRPS_TABLE_END -->
 
 <!-- LOCALSDK_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+> Within normal variance — no action needed.
+**Check**: `src/hooks/handle-system-state.ts` · `src/routes/setup/+page.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -708,8 +726,8 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 ║                  File: tests/benchmarks/local-api-performance.test.ts                   ║
 ║  Measures LocalCMS SDK overhead vs direct adapter calls to verify zero-tax dispatching  ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Direct Adapter Call            │        0.019 ms │ p95:        0.029 ms │ RPS:     52,656 ║
-║ LocalCMS SDK Call              │        0.018 ms │ p95:        0.022 ms │ RPS:     56,141 ║
+║ Direct Adapter Call            │        0.017 ms │ p95:        0.025 ms │ RPS:     59,793 ║
+║ LocalCMS SDK Call              │        0.015 ms │ p95:        0.018 ms │ RPS:     66,663 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -729,7 +747,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Circuit Breaker Fallback       │        0.807 ms │ p95:        3.470 ms │ RPS:      1,240 ║
+║ Circuit Breaker Fallback       │        0.565 ms │ p95:        1.886 ms │ RPS:      1,769 ║
 ```
 <!-- CIRCUIT_BREAKER_TABLE_END -->
 
@@ -740,7 +758,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Chaos Resilience (Brownout)    │      165.526 ms │ p95:      732.664 ms │ RPS:          6 ║
+║ Chaos Resilience (Brownout)    │      174.283 ms │ p95:      690.357 ms │ RPS:          6 ║
 ```
 <!-- RESILIENCE_TABLE_END -->
 
@@ -751,7 +769,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Throttling Enforcement         │        1.430 ms │ p95:        4.803 ms │ RPS:        700 ║
+║ Throttling Enforcement         │        1.865 ms │ p95:        6.460 ms │ RPS:        536 ║
 ```
 <!-- THROTTLING_TABLE_END -->
 
@@ -762,7 +780,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Deep Deletion Speed            │        1.258 ms │ p95:        3.162 ms │ RPS:        795 ║
+║ Deep Deletion Speed            │        1.391 ms │ p95:        2.315 ms │ RPS:        719 ║
 ```
 <!-- GDPR_TABLE_END -->
 
@@ -773,7 +791,7 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 
 ```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Production Build               │    34950.000 ms │ p95:    34950.000 ms │ RPS:          0 ║
+║ Production Build               │        0.000 ms │ p95:        0.000 ms │ RPS:          ∞ ║
 ```
 <!-- BUILD_TABLE_END -->
 
@@ -840,8 +858,31 @@ Throughput dropped 30% — check connection pool saturation or lock contention.
 <!-- SOAK_TABLE_END -->
 
 <!-- FAILOVER_TABLE_START -->
-> ⏳ **Database Failover & Reconnection**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/database-failover.test.ts](../../../tests/benchmarks/database-failover.test.ts)
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 30% — check connection pool saturation or lock contention.
+**Severe degradation** (+37%) — review recent commits immediately.
+**Check**: `src/services/RevisionService.ts`
+
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                            SVELTYCMS — DATA RESIDENCY AUDIT                             ║
+║                 File: tests/benchmarks/data-residency-failover.test.ts                  ║
+║Simulates geopolitical boundary crossing and verifies PII field blocking for residency law compliance.║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ PII Field Blocking             │        1.927 ms │ p95:        2.995 ms │ RPS:        519 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Policy Enforcement Latency                         │        1.927 ms       ║
+║ Sovereignty Stability                              │       STRICT          ║
+║ PII Scrubbing                                      │       ACTIVE          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- FAILOVER_TABLE_END -->
 
 <!-- STREAMING_TABLE_START -->
@@ -2118,14 +2159,15 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ### 📦 Core System Readiness — Fast, low-intensity tests verifying basic system health and network overhead
 
-### 🏷️ API LAYER LATENCY                   🟢 avg -54% p95 -41% rps +116% (50 runs)
+### 🏷️ API LAYER LATENCY                          🟢 avg -51% p95 -36% rps +99% (50 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
-**Check**: `src/databases/cache/cache-service.ts` · `src/databases/cache/l1-cache.ts`
+> Within normal variance — no action needed.
+Throughput dropped 29% — check connection pool saturation or lock contention.
+**Check**: `src/services/sdk/local-cms.ts` · `src/routes/api/[...path]/+server.ts`
 
 
 ```text
@@ -2134,7 +2176,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │        2.210 ms │ p95:        4.112 ms │ RPS:        447 ║
+║ HTTP: findById @ 8c            │        2.337 ms │ p95:        4.447 ms │ RPS:        412 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2142,21 +2184,22 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │        2.210 ms       ║
-║ Peak Throughput                                    │      447.000 req/s    ║
+║ HTTP Latency (findById)                            │        2.337 ms       ║
+║ Peak Throughput                                    │      412.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- API_LATENCY_TABLE_END -->
 
-### 🏷️ PHASED COLD START      🔴 avg +58% p95 +67% (50 runs)
+### 🏷️ PHASED COLD START             🟠 avg +17% p95 +6% (50 runs)
 
 > **Budget**: ≤ 10,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- COLD_START_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
-**Check**: `src/components/*.svelte` · `src/routes/(app)/config/collections/`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 14% — check connection pool saturation or lock contention.
+**Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
 
 
 ```text
@@ -2165,7 +2208,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
 ║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.132 ms │ p95:        0.341 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.103 ms │ p95:        0.231 ms │ RPS:          0 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2180,16 +2223,14 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ```
 <!-- COLD_START_TABLE_END -->
 
-### 🏷️ SRE TRUTH AUDIT     🟢 rps +37% (22 runs)
+### 🏷️ SRE TRUTH AUDIT            ⚪ avg 0% p95 +100% rps -29% (26 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 59% — check connection pool saturation or lock contention.
-**Severe degradation** (+162%) — review recent commits immediately.
-**Check**: `src/services/MediaService.ts` · `src/databases/media/`
+> Performance improved — recent optimizations or cache warming likely effective.
+**Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
 
 
 ```text
@@ -2198,9 +2239,9 @@ Throughput dropped 59% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
 ║     Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,300,614 ║
-║ Local SDK (Full)               │        0.007 ms │ p95:        0.013 ms │ RPS:    138,325 ║
-║ HTTP End-to-End                │        0.740 ms │ p95:        1.708 ms │ RPS:      1,351 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.002 ms │ RPS:  1,194,268 ║
+║ Local SDK (Full)               │        0.009 ms │ p95:        0.016 ms │ RPS:    110,530 ║
+║ HTTP End-to-End                │        0.711 ms │ p95:        1.448 ms │ RPS:      1,406 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2208,21 +2249,21 @@ Throughput dropped 59% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Baseline Harness Overhead                          │        0.000 ms       ║
-║ SDK Engine Latency                                 │        0.007 ms       ║
-║ E2E HTTP Latency                                   │        0.740 ms       ║
-║ Peak HTTP Throughput                               │     1351.000 req/s    ║
+║ Baseline Harness Overhead                          │        0.001 ms       ║
+║ SDK Engine Latency                                 │        0.009 ms       ║
+║ E2E HTTP Latency                                   │        0.711 ms       ║
+║ Peak HTTP Throughput                               │     1406.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- TRUTH_AUDIT_TABLE_END -->
 
-### 🏷️ Production Build Analysis   ⚪ avg 0% rps -7% (6 runs)
+### 🏷️ Production Build Analysis        🟢 rps +Infinity% (6 runs)
 
 > **Budget**: ≤ 85,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- BUILD_TABLE_START -->
 
-> Within normal variance — no action needed.
+> Performance improved — recent optimizations or cache warming likely effective.
 **Check**: `vite.config.ts` · `svelte.config.js`
 
 
@@ -2232,7 +2273,7 @@ Throughput dropped 59% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/build-analysis.test.ts                      ║
 ║       Measures compilation speed, bundle size trends, and tree-shaking efficiency       ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Production Build               │    34950.000 ms │ p95:    34950.000 ms │ RPS:          0 ║
+║ Production Build               │        0.000 ms │ p95:        0.000 ms │ RPS:          ∞ ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2240,9 +2281,9 @@ Throughput dropped 59% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Build Time                                         │        34950 ms       ║
-║ Total Bundle Size                                  │         0.20 MB       ║
-║ JS Chunks                                          │     1046.000          ║
+║ Build Time                                         │            0 ms       ║
+║ Total Bundle Size                                  │         0.22 MB       ║
+║ JS Chunks                                          │     1048.000          ║
 ║ Build Efficiency                                   │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -2262,15 +2303,14 @@ Throughput dropped 59% — check connection pool saturation or lock contention.
 
 ### 📦 Core System Internals — Cache, middleware, state machine, SDK, and content scanning subsystems
 
-### 🏷️ Self-Healing Content Scan     🔴 avg +25% p95 +14% rps -15% (50 runs)
+### 🏷️ Self-Healing Content Scan            🔴 avg +20% p95 +11% rps -14% (50 runs)
 
 > **Budget**: ≤ 8,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
 <!-- SCAN_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 12% — check connection pool saturation or lock contention.
-**Check**: `src/databases/<db>/relational-utils.ts` · `src/content/relation-service.ts`
+> Performance improved — recent optimizations or cache warming likely effective.
+**Check**: `src/services/TelemetryService.ts`
 
 
 ```text
@@ -2279,7 +2319,7 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ║                       File: tests/benchmarks/content-scan.test.ts                       ║
 ║    Measures filesystem + metadata processing for self-healing collections discovery     ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Content Scan (Self-Healing)    │        0.005 ms │ p95:        0.008 ms │ RPS:    138,704 ║
+║ Content Scan (Self-Healing)    │        0.006 ms │ p95:        0.010 ms │ RPS:    118,144 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2287,22 +2327,24 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Scan Latency                               │        0.005 ms       ║
-║ p95 Scan Latency                                   │        0.008 ms       ║
-║ Peak Scan Throughput                               │   138704.000 ops/s    ║
+║ Average Scan Latency                               │        0.006 ms       ║
+║ p95 Scan Latency                                   │        0.010 ms       ║
+║ Peak Scan Throughput                               │   118144.000 ops/s    ║
 ║ Collection Capacity                                │      150.000 files    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- SCAN_TABLE_END -->
 
-### 🏷️ Middleware & Hooks Performance          🟢 avg -91% p95 -92% rps +993% (50 runs)
+### 🏷️ Middleware & Hooks Performance                 🟢 avg -60% p95 -54% rps +220% (50 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `cpu`, `security` | **Level**: 2
 
 <!-- HOOKS_TRACE_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
-**Check**: `src/services/OpenAPIService.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 39% — check connection pool saturation or lock contention.
+**Severe degradation** (+69%) — review recent commits immediately.
+**Check**: `src/databases/<db>/crud-methods.ts`
 
 
 ```text
@@ -2311,11 +2353,11 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
 ║Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (No Middleware)   │        0.119 ms │ p95:        0.167 ms │ RPS:      8,403 ║
-║ Turbo Pipeline (Light)         │        0.286 ms │ p95:        0.378 ms │ RPS:      3,146 ║
-║ Full Security + Auth Pipeline  │        0.749 ms │ p95:        1.100 ms │ RPS:      1,259 ║
-║ REST with API Caching          │        0.747 ms │ p95:        0.818 ms │ RPS:      1,173 ║
-║ Mutation + Audit Logging       │        2.618 ms │ p95:        4.119 ms │ RPS:        382 ║
+║ Static Asset (No Middleware)   │        0.135 ms │ p95:        0.233 ms │ RPS:      7,401 ║
+║ Turbo Pipeline (Light)         │        0.414 ms │ p95:        0.538 ms │ RPS:      2,348 ║
+║ Full Security + Auth Pipeline  │        0.665 ms │ p95:        0.815 ms │ RPS:      1,453 ║
+║ REST with API Caching          │        0.786 ms │ p95:        0.978 ms │ RPS:      1,194 ║
+║ Mutation + Audit Logging       │        3.004 ms │ p95:        4.226 ms │ RPS:        333 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2323,13 +2365,13 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (no hooks)                            │        0.119 ms       ║
-║ Turbo Pipeline                                     │        0.286 ms       ║
-║ Full Auth Pipeline                                 │        0.749 ms       ║
-║ API Cache Overhead                                 │       -0.002 ms       ║
-║ Auth Overhead (Turbo→Full)                         │        0.463 ms       ║
-║ Audit Logging Overhead                             │        1.869 ms       ║
-║ Peak RPS                                           │     8403.000 req/s    ║
+║ Static Asset (no hooks)                            │        0.135 ms       ║
+║ Turbo Pipeline                                     │        0.414 ms       ║
+║ Full Auth Pipeline                                 │        0.665 ms       ║
+║ API Cache Overhead                                 │        0.121 ms       ║
+║ Auth Overhead (Turbo→Full)                         │        0.251 ms       ║
+║ Audit Logging Overhead                             │        2.339 ms       ║
+║ Peak RPS                                           │     7401.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- HOOKS_TRACE_TABLE_END -->
@@ -2368,16 +2410,16 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ```
 <!-- EDGE_SYNC_TABLE_END -->
 
-### 🏷️ Telemetry Collection & Signing     🟢 rps +29% (4 runs)
+### 🏷️ Telemetry Collection & Signing            🟢 rps +23% (4 runs)
 
 > **Budget**: ≤ 8,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
 <!-- TELEMETRY_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 28% — check connection pool saturation or lock contention.
-**Severe degradation** (+34%) — review recent commits immediately.
-**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
+Throughput dropped 27% — check connection pool saturation or lock contention.
+**Severe degradation** (+28%) — review recent commits immediately.
+**Check**: `src/databases/cache/cache-service.ts` · `src/databases/cache/l1-cache.ts`
 
 
 ```text
@@ -2386,8 +2428,8 @@ Throughput dropped 28% — check connection pool saturation or lock contention.
 ║                  File: tests/benchmarks/telemetry-performance.test.ts                   ║
 ║Measures telemetry update check latency and memory impact on both happy-path and failure-path scenarios.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Telemetry (Happy Path)         │        0.000 ms │ p95:        0.001 ms │ RPS:  1,479,837 ║
-║ Telemetry (Failure Path)       │        0.001 ms │ p95:        0.003 ms │ RPS:  1,173,709 ║
+║ Telemetry (Happy Path)         │        0.000 ms │ p95:        0.001 ms │ RPS:  1,413,761 ║
+║ Telemetry (Failure Path)       │        0.001 ms │ p95:        0.002 ms │ RPS:  1,476,015 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2397,7 +2439,7 @@ Throughput dropped 28% — check connection pool saturation or lock contention.
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Happy Path Latency                                 │        0.000 ms       ║
 ║ Error Path Latency                                 │        0.001 ms       ║
-║ Peak Throughput                                    │  1479837.000 req/s    ║
+║ Peak Throughput                                    │  1413761.000 req/s    ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -2410,9 +2452,9 @@ Throughput dropped 28% — check connection pool saturation or lock contention.
 <!-- STATE_MACHINE_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 35% — check connection pool saturation or lock contention.
-**Severe degradation** (+53%) — review recent commits immediately.
-**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
+Throughput dropped 31% — check connection pool saturation or lock contention.
+**Severe degradation** (+47%) — review recent commits immediately.
+**Check**: `src/components/*.svelte` · `src/routes/(app)/config/collections/`
 
 
 ```text
@@ -2421,7 +2463,7 @@ Throughput dropped 35% — check connection pool saturation or lock contention.
 ║                 File: tests/benchmarks/state-machine-transition.test.ts                 ║
 ║Simulates rapid system re-initializations and verifies valid self-healing state transitions under stress.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ State Transition (READY -> IDLE -> READY) │       32.138 ms │ p95:       36.096 ms │ RPS:         31 ║
+║ State Transition (READY -> IDLE -> READY) │       62.631 ms │ p95:       63.842 ms │ RPS:         16 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2429,7 +2471,7 @@ Throughput dropped 35% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Transition Latency                             │       32.138 ms       ║
+║ Avg Transition Latency                             │       62.631 ms       ║
 ║ Cycle Stability                                    │       STABLE          ║
 ║ Heals Performed                                    │       50.000 cycles   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -2438,21 +2480,26 @@ Throughput dropped 35% — check connection pool saturation or lock contention.
 
 > **Round 2 / Phase 1 Fix Applied**: `handle-audit-logging.ts` now uses fire-and-forget (context captured pre-`resolve()`, `logger.info` in detached `Promise.then()`) + early `__turboAuth` skip. This removes the synchronous audit block from every mutation hot path — directly targeting the "audit overhead" and hooks budget / "lock contention" warnings that point to hooks.server and cache paths. See the file header for full rationale. The matrix run in progress will capture post-fix numbers in subsequent recordings (previous data in this file reflects pre-fix build).
 
-### 🏷️ System Cache Efficiency    🟢 avg -10% rps +5% (50 runs)
+### 🏷️ System Cache Efficiency          🔴 avg +28% p95 +49% rps -27% (50 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
 <!-- CACHE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 18% — check connection pool saturation or lock contention.
+**Severe degradation** (+22%) — review recent commits immediately.
+**Check**: `src/services/RevisionService.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                           SVELTYCMS — CACHE SERVICE TELEMETRY                           ║
-║                      File: tests/benchmarks/cache-service.test.ts                       ║
-║        Measures L1 cache hit latency and pattern invalidation overhead at scale         ║
+║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
+║                      File: tests/benchmarks/negative-cache.test.ts                      ║
+║        Measures Bloom-filter style missing-key cache speedup for repeated misses        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache L1 Hit                   │        0.001 ms │ p95:        0.002 ms │ RPS:  1,019,276 ║
-║ Pattern Invalidation (1k items @ 200k noise) │        4.973 ms │ p95:       14.077 ms │ RPS:        201 ║
+║ First Miss (DB)                │       12.484 ms │ p95:       12.484 ms │ RPS:         80 ║
+║ Cached Miss (Negative Cache)   │        0.003 ms │ p95:        0.006 ms │ RPS:    312,334 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2509,36 +2556,34 @@ Throughput dropped 35% — check connection pool saturation or lock contention.
 
 <!-- LOCAL_API_TABLE_END -->
 
-### 🏷️ Setup Proxy & Bootstrap Isolation     🔴 avg +41% p95 +50% rps -25% (11 runs)
+### 🏷️ Setup Proxy & Bootstrap Isolation      🟢 avg -5% p95 -7% (16 runs)
 
 > **Budget**: ≤ 55,000ms (suite) | **Tags**: `security`, `cpu` | **Level**: 3
 
 <!-- SETUP_PROXY_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 72% — check connection pool saturation or lock contention.
-**Severe degradation** (+267%) — review recent commits immediately.
-**Check**: `src/components/*.svelte` · `src/routes/(app)/config/collections/`
+> Performance improved — recent optimizations or cache warming likely effective.
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/databases/<db>/crud-methods.ts`
 
 
-```
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                     SVELTYCMS — INFRASTRUCTURE BOOT & ROUTING AUDIT                     ║
 ║                       File: tests/benchmarks/setup-proxy.test.ts                        ║
 ║Measures cold-start initialization latency and proxy header parsing overhead for enterprise deployments.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start                     │        0.928 ms │ p95:        1.447 ms │ RPS:          0 ║
-║ Proxy Header Parsing           │        0.953 ms │ p95:        1.831 ms │ RPS:        988 ║
+║ Cold Start                     │        1.027 ms │ p95:        1.510 ms │ RPS:          0 ║
+║ Proxy Header Parsing           │        0.646 ms │ p95:        1.129 ms │ RPS:      1,369 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Query Latency                              │        6.681 ms       ║
-║ Deep Query Latency                                 │        3.612 ms       ║
-║ Peak Throughput                                    │      146.000 req/s    ║
+║ Average Cold Start                                 │            1 ms       ║
+║ p95 Cold Start                                     │            2 ms       ║
+║ Proxy Header Parsing                               │        0.646 ms       ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -2559,14 +2604,16 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 
 <!-- DB_RAW_P95_TABLE_END -->
 
-### 🏷️ ACID Transaction Overhead    🔴 avg +30% p95 +43% rps -23% (50 runs)
+### 🏷️ ACID Transaction Overhead          🔴 avg +69% p95 +94% rps -39% (50 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `disk`, `cpu` | **Level**: 1
 
 <!-- ACID_TABLE_START -->
 
-> Within normal variance — no action needed.
-**Check**: `src/databases/core/base-adapter.ts` · `src/widgets/*/index.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 30% — check connection pool saturation or lock contention.
+**Severe degradation** (+46%) — review recent commits immediately.
+**Check**: `src/databases/<db>/relational-utils.ts` · `src/content/relation-service.ts`
 
 
 ```text
@@ -2575,8 +2622,8 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/transaction-acid.test.ts                     ║
 ║  Measures transaction commit latencies and rollback overhead across database adapters   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                      │        0.390 ms │ p95:        0.673 ms │ RPS:      1,942 ║
-║ TX Rollback Integrity          │        0.206 ms │ p95:        0.269 ms │ RPS:      4,857 ║
+║ TX Commit                      │        0.519 ms │ p95:        0.956 ms │ RPS:      1,471 ║
+║ TX Rollback Integrity          │        0.284 ms │ p95:        0.425 ms │ RPS:      3,521 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2584,10 +2631,10 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Commit Latency                                 │        0.390 ms       ║
-║ Rollback Verification                              │        0.206 ms       ║
+║ Avg Commit Latency                                 │        0.519 ms       ║
+║ Rollback Verification                              │        0.284 ms       ║
 ║ Transaction Stability                              │     VERIFIED          ║
-║ Peak Throughput                                    │     1942.000 tx/s     ║
+║ Peak Throughput                                    │     1471.000 tx/s     ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- ACID_TABLE_END -->
@@ -2600,8 +2647,10 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 
 <!-- AI_OVERHEAD_TABLE_START -->
 
-> Within normal variance — no action needed.
-**Check**: `src/routes/api/[...path]/+server.ts` · `src/databases/<db>/crud-methods.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 23% — check connection pool saturation or lock contention.
+**Severe degradation** (+25%) — review recent commits immediately.
+**Check**: `src/services/OpenAPIService.ts`
 
 
 ```text
@@ -2610,8 +2659,8 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/ai-performance.test.ts                      ║
 ║ Measures the latency tax of internal CMS logic for AI enrichment and layout generation. ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ AI Text Enrichment             │        0.001 ms │ p95:        0.002 ms │ RPS:  1,142,857 ║
-║ AI Layout Spec Generation      │        0.001 ms │ p95:        0.002 ms │ RPS:  1,607,717 ║
+║ AI Text Enrichment             │        0.001 ms │ p95:        0.003 ms │ RPS:    825,878 ║
+║ AI Layout Spec Generation      │        0.001 ms │ p95:        0.002 ms │ RPS:  1,345,895 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2633,8 +2682,10 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 
 <!-- TEMPORAL_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
-**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 30% — check connection pool saturation or lock contention.
+**Severe degradation** (+50%) — review recent commits immediately.
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/services/AuditLogService.ts`
 
 
 ```text
@@ -2643,7 +2694,7 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 ║                    File: tests/benchmarks/temporal-integrity.test.ts                    ║
 ║Validates deterministic UTC normalization of ISO date strings across timezone offsets for consistent persistence.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Timezone Ingestion             │        1.591 ms │ p95:        1.591 ms │ RPS:        628 ║
+║ Timezone Ingestion             │        4.352 ms │ p95:        4.352 ms │ RPS:        230 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2670,7 +2721,7 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 
 <!-- WIDGETS_TABLE_END -->
 
-### 🏷️ Simulated Admin UX Vitality    🟢 avg -7% p95 -8% rps +7% (50 runs)
+### 🏷️ Simulated Admin UX Vitality          🔴 avg +47% p95 +52% rps -31% (50 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -2679,7 +2730,7 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
 Throughput dropped 22% — check connection pool saturation or lock contention.
 **Severe degradation** (+27%) — review recent commits immediately.
-**Check**: `src/databases/<db>/migrations.ts` · `src/content/migration-service.ts`
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
 ```text
@@ -2688,8 +2739,8 @@ Throughput dropped 22% — check connection pool saturation or lock contention.
 ║                    File: tests/benchmarks/admin-ux-vitality.test.ts                     ║
 ║             Forms and widget registry performance via real HTTP endpoints.              ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Schema Resolution (8f)         │        1.018 ms │ p95:        1.659 ms │ RPS:        935 ║
-║ Collection List (11 cols)      │        1.055 ms │ p95:        1.811 ms │ RPS:        907 ║
+║ Schema Resolution (8f)         │        1.611 ms │ p95:        2.780 ms │ RPS:        601 ║
+║ Collection List (11 cols)      │        1.630 ms │ p95:        2.787 ms │ RPS:        594 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2697,23 +2748,22 @@ Throughput dropped 22% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Schema Resolution (8f)                             │        1.018 ms       ║
-║ Collection List (11 cols)                          │        1.055 ms       ║
+║ Schema Resolution (8f)                             │        1.611 ms       ║
+║ Collection List (11 cols)                          │        1.630 ms       ║
 ║ UX Performance Tier                                │     PLATINUM          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- UX_VITALITY_TABLE_END -->
 
-### 🏷️ Media Engine & DAM Overhead      🔴 avg +26% p95 +7% rps -20% (31 runs)
+### 🏷️ Media Engine & DAM Overhead                  🔴 avg +24% p95 +11% rps -19% (37 runs)
 
 > **Budget**: ≤ 50,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
 <!-- MEDIA_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 67% — check connection pool saturation or lock contention.
-**Severe degradation** (+201%) — review recent commits immediately.
-**Check**: `src/databases/<db>/crud-methods.ts` · `src/databases/<db>/schema.ts`
+Throughput dropped 16% — check connection pool saturation or lock contention.
+**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
 ```text
@@ -2722,8 +2772,8 @@ Throughput dropped 67% — check connection pool saturation or lock contention.
 ║                    File: tests/benchmarks/media-performance.test.ts                     ║
 ║           Measures full upload, processing, and storage pipeline via HTTP E2E           ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ SDK: Media Processing          │        2.075 ms │ p95:        2.837 ms │ RPS:        417 ║
-║ HTTP: Media Upload             │        4.928 ms │ p95:        6.985 ms │ RPS:        197 ║
+║ SDK: Media Processing          │        2.754 ms │ p95:        4.346 ms │ RPS:        288 ║
+║ HTTP: Media Upload             │        6.085 ms │ p95:        7.974 ms │ RPS:        156 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2731,25 +2781,26 @@ Throughput dropped 67% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ SDK Processing Latency                             │        2.075 ms       ║
-║ HTTP Pipeline Latency                              │        4.928 ms       ║
-║ SDK Throughput                                     │      417.000 images/s ║
-║ HTTP Throughput                                    │      197.000 images/s ║
-║ HTTP p95 Latency                                   │        6.985 ms       ║
+║ SDK Processing Latency                             │        2.754 ms       ║
+║ HTTP Pipeline Latency                              │        6.085 ms       ║
+║ SDK Throughput                                     │      288.000 images/s ║
+║ HTTP Throughput                                    │      156.000 images/s ║
+║ HTTP p95 Latency                                   │        7.974 ms       ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- MEDIA_TABLE_END -->
 
-### 🏷️ Relational & Nested Queries    🟠 avg +17% p95 +14% rps -12% (50 runs)
+### 🏷️ Relational & Nested Queries           🔴 avg +46% p95 +52% rps -30% (50 runs)
 
 > **Budget**: ≤ 35,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
 <!-- RELATIONAL_TABLE_START -->
 
-> Within normal variance — no action needed.
-Throughput dropped 38% — check connection pool saturation or lock contention.
-**Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 27% — check connection pool saturation or lock contention.
+**Severe degradation** (+37%) — review recent commits immediately.
+**Check**: `src/services/SEOService.ts` · `src/hooks/handle-seo.ts`
 
 
 ```text
@@ -2758,8 +2809,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                  File: tests/benchmarks/relational-performance.test.ts                  ║
 ║Measures GraphQL resolver performance for shallow and deep relational queries including joins and nested population.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Relational Query       │        4.437 ms │ p95:        6.685 ms │ RPS:        219 ║
-║ Deep Relational Query          │        2.997 ms │ p95:        4.186 ms │ RPS:        319 ║
+║ Shallow Relational Query       │        5.592 ms │ p95:        8.980 ms │ RPS:        174 ║
+║ Deep Relational Query          │        3.846 ms │ p95:        5.875 ms │ RPS:        248 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2767,9 +2818,9 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Query Latency                              │        4.437 ms       ║
-║ Deep Query Latency                                 │        2.997 ms       ║
-║ Peak Throughput                                    │      219.000 req/s    ║
+║ Shallow Query Latency                              │        5.592 ms       ║
+║ Deep Query Latency                                 │        3.846 ms       ║
+║ Peak Throughput                                    │      174.000 req/s    ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -2777,14 +2828,14 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 
 ### 📦 API Dispatcher & Security — REST, GraphQL, Auth, WebSocket, SEO, and OpenAPI performance
 
-### 🏷️ OpenAPI Specification Performance    🟢 avg -16% p95 -19% (48 runs)
+### 🏷️ OpenAPI Specification Performance         🔴 avg +25% p95 +20% rps -23% (50 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
 <!-- OPENAPI_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
-**Check**: `src/hooks/handle-authentication.ts` · `src/routes/api/[...path]/+server.ts`
+> Within normal variance — no action needed.
+**Check**: `src/databases/core/base-adapter.ts` · `src/widgets/*/index.ts`
 
 
 ```text
@@ -2793,8 +2844,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                   File: tests/benchmarks/openapi-performance.test.ts                    ║
 ║Measures dynamic OpenAPI spec generation speed and cached documentation endpoint performance.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold OpenAPI Generation        │        1.353 ms │ p95:        1.353 ms │ RPS:        739 ║
-║ Warm OpenAPI Hit (Cached)      │        0.965 ms │ p95:        1.147 ms │ RPS:        937 ║
+║ Cold OpenAPI Generation        │        1.956 ms │ p95:        1.956 ms │ RPS:        511 ║
+║ Warm OpenAPI Hit (Cached)      │        1.519 ms │ p95:        1.782 ms │ RPS:        611 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2802,10 +2853,10 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Cold Generation                                    │        1.353 ms       ║
-║ Warm Cached Hit                                    │        0.965 ms       ║
-║ Cache Speedup                                      │          1.4 x        ║
-║ Peak Throughput                                    │      937.000 req/s    ║
+║ Cold Generation                                    │        1.956 ms       ║
+║ Warm Cached Hit                                    │        1.519 ms       ║
+║ Cache Speedup                                      │          1.3 x        ║
+║ Peak Throughput                                    │      611.000 req/s    ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -2816,7 +2867,10 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 18,000ms (suite) | **Tags**: `security` | **Level**: 4
 
 <!-- AUTH_TRACE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Within normal variance — no action needed.
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/databases/<db>/crud-methods.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2824,8 +2878,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/auth-performance.test.ts                     ║
 ║Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Auth Validation @ 1c           │        0.559 ms │ p95:        0.706 ms │ RPS:      1,600 ║
-║ HTTP Auth Pipeline @ 8c        │        2.000 ms │ p95:        3.435 ms │ RPS:        489 ║
+║ Auth Validation @ 1c           │        0.574 ms │ p95:        0.756 ms │ RPS:      1,596 ║
+║ HTTP Auth Pipeline @ 8c        │        1.891 ms │ p95:        3.309 ms │ RPS:        511 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2833,20 +2887,24 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Auth Latency (1c)                                  │        0.559 ms       ║
-║ Auth Pipeline (8c)                                 │        2.000 ms       ║
-║ Peak Auth RPS                                      │      489.000 req/s    ║
+║ Auth Latency (1c)                                  │        0.574 ms       ║
+║ Auth Pipeline (8c)                                 │        1.891 ms       ║
+║ Peak Auth RPS                                      │      511.000 req/s    ║
 ║ Auth Memory RSS Δ                                  │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- AUTH_TRACE_TABLE_END -->
 
-### 🏷️ Security Hardening & Audit    🔴 avg +75% p95 +50% rps -38% (50 runs)
+### 🏷️ Security Hardening & Audit         🔴 avg +50% p95 +37% rps -30% (50 runs)
 
 > **Budget**: ≤ 20,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
 <!-- SECURITY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 12% — check connection pool saturation or lock contention.
+**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2854,12 +2912,12 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/security-audit.test.ts                      ║
 ║Measures overhead of WAF request analysis, audit log persistence, Argon2id password hashing, and RBAC permission checks.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ WAF Deep Analysis              │        0.007 ms │ p95:        0.012 ms │ RPS:    134,343 ║
-║ Audit Log Persistence          │        0.001 ms │ p95:        0.003 ms │ RPS:  1,108,545 ║
-║ Argon2id Password Hashing      │        0.851 ms │ p95:        1.023 ms │ RPS:      1,175 ║
-║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  6,585,446 ║
-║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS:  6,250,391 ║
-║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  9,508,415 ║
+║ WAF Deep Analysis              │        0.006 ms │ p95:        0.011 ms │ RPS:    150,751 ║
+║ Audit Log Persistence          │        0.001 ms │ p95:        0.002 ms │ RPS:  1,278,228 ║
+║ Argon2id Password Hashing      │        0.677 ms │ p95:        0.819 ms │ RPS:      1,478 ║
+║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  8,066,468 ║
+║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS:  5,282,062 ║
+║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 10,187,449 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2867,9 +2925,9 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ WAF Analysis                                       │        0.007 ms       ║
+║ WAF Analysis                                       │        0.006 ms       ║
 ║ Audit Logging                                      │        0.001 ms       ║
-║ Password Hashing                                   │        0.851 ms       ║
+║ Password Hashing                                   │        0.677 ms       ║
 ║ Dispatcher Check                                   │        0.000 ms       ║
 ║ Full Defense-in-Depth                              │        0.000 ms       ║
 ║ Admin Verification                                 │        0.000 ms       ║
@@ -2879,12 +2937,15 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ```
 <!-- SECURITY_TABLE_END -->
 
-### 🏷️ REST API Performance    🔴 avg +34% p95 +32% rps -28% (50 runs)
+### 🏷️ REST API Performance         🔴 avg +27% p95 +9% rps -22% (50 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- REST_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Within normal variance — no action needed.
+**Check**: `src/databases/<db>/migrations.ts` · `src/content/migration-service.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2892,10 +2953,10 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.937 ms │ p95:        2.003 ms │ RPS:      1,068 ║
-║ Collection Schema              │        2.492 ms │ p95:        4.405 ms │ RPS:        401 ║
-║ Collection Find (List)         │        2.813 ms │ p95:        5.113 ms │ RPS:        355 ║
-║ Collection Search              │        2.809 ms │ p95:        5.073 ms │ RPS:        356 ║
+║ Health Check                   │        0.987 ms │ p95:        1.840 ms │ RPS:      1,014 ║
+║ Collection Schema              │        2.529 ms │ p95:        4.427 ms │ RPS:        395 ║
+║ Collection Find (List)         │        2.576 ms │ p95:        4.484 ms │ RPS:        388 ║
+║ Collection Search              │        2.561 ms │ p95:        4.505 ms │ RPS:        391 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2903,20 +2964,24 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.937 ms       ║
-║ Collection Schema                                  │        2.492 ms       ║
-║ Collection Find (List)                             │        2.813 ms       ║
-║ Collection Search                                  │        2.809 ms       ║
+║ Health Check                                       │        0.987 ms       ║
+║ Collection Schema                                  │        2.529 ms       ║
+║ Collection Find (List)                             │        2.576 ms       ║
+║ Collection Search                                  │        2.561 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- REST_TABLE_END -->
 
-### 🏷️ GraphQL API Performance      🟢 avg -14% p95 -23% rps +18% (42 runs)
+### 🏷️ GraphQL API Performance                  🔴 avg +27% p95 +20% rps -21% (49 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- GRAPHQL_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 20% — check connection pool saturation or lock contention.
+**Check**: `src/databases/<db>/crud-methods.ts` · `src/databases/<db>/schema.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2924,9 +2989,9 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                 File: tests/benchmarks/graphql-api-performance.test.ts                  ║
 ║   Measures GraphQL resolver performance and throughput across varied query scenarios.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health             │        1.439 ms │ p95:        2.462 ms │ RPS:        695 ║
-║ GQL: Collection List           │        5.119 ms │ p95:        8.219 ms │ RPS:        195 ║
-║ GQL: Concurrent Load           │        4.340 ms │ p95:        6.485 ms │ RPS:        230 ║
+║ GQL: System Health             │        1.161 ms │ p95:        1.975 ms │ RPS:        862 ║
+║ GQL: Collection List           │        4.739 ms │ p95:        7.933 ms │ RPS:        211 ║
+║ GQL: Concurrent Load           │        4.584 ms │ p95:        7.922 ms │ RPS:        218 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2934,20 +2999,24 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        1.439 ms       ║
-║ Collection List                                    │        5.119 ms       ║
-║ Entries Query                                      │        4.340 ms       ║
-║ Peak RPS                                           │      694.800 req/s    ║
+║ Health Check                                       │        1.161 ms       ║
+║ Collection List                                    │        4.739 ms       ║
+║ Entries Query                                      │        4.584 ms       ║
+║ Peak RPS                                           │      861.600 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- GRAPHQL_TABLE_END -->
 
-### 🏷️ Enterprise SEO Suite Audit    🔴 avg +79% p95 +103% rps -45% (28 runs)
+### 🏷️ Enterprise SEO Suite Audit         🔴 avg +37% p95 +39% rps -27% (33 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
 <!-- SEO_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Within normal variance — no action needed.
+Throughput dropped 35% — check connection pool saturation or lock contention.
+**Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2955,10 +3024,10 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/seo-performance.test.ts                      ║
 ║Measures redirect lookup latency, dynamic sitemap.xml generation, robots.txt serving, and 404 logging performance.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Redirect Lookup (301)          │        1.146 ms │ p95:        2.345 ms │ RPS:        873 ║
-║ Dynamic Sitemap XML            │        1.367 ms │ p95:        2.476 ms │ RPS:        732 ║
-║ Robots.txt Generation          │        0.252 ms │ p95:        0.420 ms │ RPS:      3,966 ║
-║ Missing Path (404 Log)         │        1.174 ms │ p95:        2.073 ms │ RPS:        852 ║
+║ Redirect Lookup (301)          │        0.896 ms │ p95:        1.698 ms │ RPS:      1,116 ║
+║ Dynamic Sitemap XML            │        1.546 ms │ p95:        2.636 ms │ RPS:        647 ║
+║ Robots.txt Generation          │        0.209 ms │ p95:        0.292 ms │ RPS:      4,784 ║
+║ Missing Path (404 Log)         │        1.284 ms │ p95:        2.254 ms │ RPS:        779 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2966,10 +3035,10 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Redirect Lookup (301)                              │        1.146 ms       ║
-║ Dynamic Sitemap XML                                │        1.367 ms       ║
-║ Robots.txt Generation                              │        0.252 ms       ║
-║ Missing Path (404 Log)                             │        1.174 ms       ║
+║ Redirect Lookup (301)                              │        0.896 ms       ║
+║ Dynamic Sitemap XML                                │        1.546 ms       ║
+║ Robots.txt Generation                              │        0.209 ms       ║
+║ Missing Path (404 Log)                             │        1.284 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- SEO_TABLE_END -->
@@ -3012,12 +3081,15 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
-### 🏷️ Revision & History Growth    🟢 avg -37% p95 -27% rps +57% (20 runs)
+### 🏷️ Revision & History Growth           🔴 avg +22% p95 +35% rps -18% (27 runs)
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- REVISION_STRESS_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Within normal variance — no action needed.
+**Check**: `src/databases/core/base-adapter.ts` · `src/widgets/*/index.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3025,8 +3097,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/revision-stress.test.ts                      ║
 ║Measures read and history list latency degradation under heavy revision history growth (100 revisions per entry).║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Latest Read (High Revision Count) │        1.054 ms │ p95:        1.828 ms │ RPS:        949 ║
-║ History List Retrieval         │        0.642 ms │ p95:        1.102 ms │ RPS:      1,558 ║
+║ Latest Read (High Revision Count) │        1.814 ms │ p95:        3.366 ms │ RPS:        551 ║
+║ History List Retrieval         │        0.984 ms │ p95:        1.852 ms │ RPS:      1,016 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3034,19 +3106,22 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Read Latency (with history)                        │        1.054 ms       ║
-║ History List Latency                               │        0.642 ms       ║
-║ History Growth Impact                              │         0.70 x        ║
+║ Read Latency (with history)                        │        1.814 ms       ║
+║ History List Latency                               │        0.984 ms       ║
+║ History Growth Impact                              │         1.21 x        ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- REVISION_STRESS_TABLE_END -->
 
-### 🏷️ Memory Stability & GC Behavior    ⚪ — baseline established (1 run)
+### 🏷️ Memory Stability & GC Behavior           ⚪ — baseline established (1 run)
 
 > **Budget**: ≤ 70,000ms (suite) | **Tags**: `memory` | **Level**: 5
 
 <!-- MEMORY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/databases/<db>/crud-methods.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3054,7 +3129,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/memory-stability.test.ts                     ║
 ║Tracks RSS, heap, and external memory growth under sustained load with automated leak detection.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     11,595 ║
+║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     11,399 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3062,12 +3137,12 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Requests                                     │   632208.000          ║
-║ Average RPS                                        │    11595.000 req/s    ║
-║ RSS Growth                                         │         8.89 MB       ║
-║ Heap Growth                                        │        48.02 MB       ║
-║ Leak Slope                                         │       -25.90 MB/min   ║
-║ Stability                                          │       STABLE          ║
+║ Total Requests                                     │   621544.000          ║
+║ Average RPS                                        │    11399.000 req/s    ║
+║ RSS Growth                                         │       133.95 MB       ║
+║ Heap Growth                                        │       100.04 MB       ║
+║ Leak Slope                                         │        26.86 MB/min   ║
+║ Stability                                          │        LEAKY          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- MEMORY_TABLE_END -->
@@ -3084,12 +3159,17 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 
 <!-- TENANCY_TABLE_END -->
 
-### 🏷️ Realistic Mixed Workload    ⚪ avg -3% p95 +7% (23 runs)
+### 🏷️ Realistic Mixed Workload           🟢 avg -8% (30 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `network`, `disk` | **Level**: 5
 
 <!-- MIXED_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 21% — check connection pool saturation or lock contention.
+**Severe degradation** (+27%) — review recent commits immediately.
+**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3097,7 +3177,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/mixed-workload.test.ts                      ║
 ║Simulates real-world traffic with a weighted mix of reads, searches, GraphQL queries, and metadata requests.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Mixed Workload                 │        2.745 ms │ p95:        5.978 ms │ RPS:        347 ║
+║ Mixed Workload                 │        2.625 ms │ p95:        5.681 ms │ RPS:        331 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3105,9 +3185,9 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Latency                                    │        2.745 ms       ║
-║ p95 Latency                                        │        5.978 ms       ║
-║ Effective Throughput                               │      347.000 req/s    ║
+║ Average Latency                                    │        2.625 ms       ║
+║ p95 Latency                                        │        5.681 ms       ║
+║ Effective Throughput                               │      331.000 req/s    ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -3119,7 +3199,12 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- GQL_STRESS_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 20% — check connection pool saturation or lock contention.
+**Severe degradation** (+26%) — review recent commits immediately.
+**Check**: `src/databases/<db>/migrations.ts` · `src/content/migration-service.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3127,13 +3212,13 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/graphql-stress.test.ts                      ║
 ║  Discovers the server's maximum sustainable GraphQL throughput by ramping concurrency   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        3.477 ms │ p95:        4.953 ms │ RPS:        285 ║
-║ GQL: 10c Light                 │        6.567 ms │ p95:       10.311 ms │ RPS:        151 ║
-║ GQL: 20c Moderate              │       12.420 ms │ p95:       19.006 ms │ RPS:         81 ║
-║ GQL: 40c Heavy                 │       25.606 ms │ p95:       40.175 ms │ RPS:         39 ║
-║ GQL: 60c Stress                │       39.325 ms │ p95:       61.039 ms │ RPS:         25 ║
-║ GQL: 80c Extreme               │       42.532 ms │ p95:       84.574 ms │ RPS:         24 ║
-║ GQL: 100c Max                  │       62.811 ms │ p95:      110.539 ms │ RPS:         16 ║
+║ GQL: 5c Warmup                 │        5.171 ms │ p95:        7.825 ms │ RPS:        186 ║
+║ GQL: 10c Light                 │        8.248 ms │ p95:       12.385 ms │ RPS:        120 ║
+║ GQL: 20c Moderate              │       15.544 ms │ p95:       23.862 ms │ RPS:         63 ║
+║ GQL: 40c Heavy                 │       28.928 ms │ p95:       46.870 ms │ RPS:         34 ║
+║ GQL: 60c Stress                │       45.491 ms │ p95:       69.775 ms │ RPS:         22 ║
+║ GQL: 80c Extreme               │       47.317 ms │ p95:       98.436 ms │ RPS:         21 ║
+║ GQL: 100c Max                  │       69.017 ms │ p95:      126.516 ms │ RPS:         15 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3142,18 +3227,23 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Max Sustainable Concurrency                        │      100.000 connections ║
-║ Max Sustainable Throughput                         │      285.000 req/s    ║
+║ Max Sustainable Throughput                         │      186.000 req/s    ║
 ║ Capacity Rating                                    │   ENTERPRISE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- GQL_STRESS_TABLE_END -->
 
-### 🏷️ Bulk Migration & Scale    🔴 avg +27% p95 +19% rps -22% (21 runs)
+### 🏷️ Bulk Migration & Scale           🔴 avg +26% p95 +15% rps -20% (28 runs)
 
 > **Budget**: ≤ 120,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- MIGRATION_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 29% — check connection pool saturation or lock contention.
+**Severe degradation** (+38%) — review recent commits immediately.
+**Check**: `src/databases/<db>/crud-methods.ts` · `src/databases/<db>/schema.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3161,8 +3251,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/migration-scale.test.ts                      ║
 ║Measures bulk ingestion throughput for 10,000 entries and post-migration random lookup performance.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Bulk Migration (10k)           │       29.915 ms │ p95:       42.651 ms │ RPS:         33 ║
-║ Post-Migration Read            │        3.793 ms │ p95:        6.610 ms │ RPS:        264 ║
+║ Bulk Migration (10k)           │       32.284 ms │ p95:       45.080 ms │ RPS:         31 ║
+║ Post-Migration Read            │        4.535 ms │ p95:        8.024 ms │ RPS:        221 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3171,19 +3261,22 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Total Migration Time                               │          0.6 s        ║
-║ Ingestion Throughput                               │    16714.000 entries/s ║
-║ Post-Migration Read                                │        3.793 ms       ║
+║ Ingestion Throughput                               │    15487.000 entries/s ║
+║ Post-Migration Read                                │        4.535 ms       ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- MIGRATION_TABLE_END -->
 
-### 🏷️ Million-Row Index Pressure   🔴 avg +201% p95 +110% rps -67% (29 runs)
+### 🏷️ Million-Row Index Pressure          🔴 avg +38% p95 +39% rps -29% (36 runs)
 
 > **Budget**: ≤ 180,000ms (suite) | **Tags**: `cpu`, `disk` | **Level**: 5
 
 <!-- INDEX_PRESSURE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.
+**Check**: `src/hooks/handle-authentication.ts` · `src/routes/api/[...path]/+server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3191,8 +3284,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/index-pressure.test.ts                      ║
 ║                     Enterprise Index Pressure audit for SveltyCMS.                      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Sorted List (25k rows)         │        2.386 ms │ p95:        3.273 ms │ RPS:        419 ║
-║ Filtered Query (25k rows)      │        2.781 ms │ p95:        4.188 ms │ RPS:        360 ║
+║ Sorted List (25k rows)         │        3.370 ms │ p95:        4.729 ms │ RPS:        297 ║
+║ Filtered Query (25k rows)      │        2.678 ms │ p95:        3.839 ms │ RPS:        373 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3200,14 +3293,14 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Sorted Query (p95)                                 │        3.273 ms       ║
-║ Filtered Query (p95)                               │        4.188 ms       ║
+║ Sorted Query (p95)                                 │        4.729 ms       ║
+║ Filtered Query (p95)                               │        3.839 ms       ║
 ║ Index Health                                       │      OPTIMAL          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- INDEX_PRESSURE_TABLE_END -->
 
-### 🏷️ Content Scale Stress   ⚪ avg 0% p95 +50% rps -38% (33 runs)
+### 🏷️ Content Scale Stress        ⚪ avg 0% p95 +20% rps -35% (38 runs)
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -3220,8 +3313,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                   File: tests/benchmarks/content-scale-stress.test.ts                   ║
 ║Measures file-scanning and content discovery performance at extreme scale (1,000+ collections)║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Stress Scan (1k)          │        0.050 ms │ p95:        0.099 ms │ RPS:     20,058 ║
-║ Warm Stress Scan (1k)          │        0.002 ms │ p95:        0.006 ms │ RPS:    402,739 ║
+║ Cold Stress Scan (1k)          │        0.044 ms │ p95:        0.096 ms │ RPS:     22,505 ║
+║ Warm Stress Scan (1k)          │        0.002 ms │ p95:        0.006 ms │ RPS:    407,830 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3229,14 +3322,14 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Cold Scan Latency                                  │        0.050 ms       ║
+║ Cold Scan Latency                                  │        0.044 ms       ║
 ║ Warm Scan Latency                                  │        0.002 ms       ║
 ║ Scale Efficiency                                   │        ELITE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- CONTENT_STRESS_TABLE_END -->
 
-### 🏷️ Full Client Journey Simulation   🟢 avg -12% p95 -11% rps +13% (19 runs)
+### 🏷️ Full Client Journey Simulation         🟢 avg -65% p95 -59% rps +186% (25 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -3249,7 +3342,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                      File: tests/benchmarks/client-journey.test.ts                      ║
 ║Measures cumulative latency of a realistic editorial user workflow: Auth → List → View → Edit → Save.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Full Journey @ 4c              │       14.590 ms │ p95:       17.703 ms │ RPS:         69 ║
+║ Full Journey @ 4c              │        5.103 ms │ p95:        7.252 ms │ RPS:        196 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3257,9 +3350,9 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Journey Latency (Avg)                        │       14.590 ms       ║
-║ Total Journey Latency (p95)                        │       17.703 ms       ║
-║ Cumulative Throughput                              │       69.000 journey/s ║
+║ Total Journey Latency (Avg)                        │        5.103 ms       ║
+║ Total Journey Latency (p95)                        │        7.252 ms       ║
+║ Cumulative Throughput                              │      196.000 journey/s ║
 ║ Error Rate                                         │         0.00 %        ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -3278,7 +3371,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/concurrency-max.test.ts                      ║
 ║                       Max Throughput — no semaphore, full blast.                        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Full Blast                     │        1.403 ms │ p95:        1.403 ms │ RPS:        713 ║
+║ Full Blast                     │        1.304 ms │ p95:        1.304 ms │ RPS:        767 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3288,8 +3381,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Database                                           │       SQLITE          ║
 ║ Total Writes                                       │     1000.000 writes   ║
-║ Duration                                           │     1403.465 ms       ║
-║ Throughput                                         │      712.522 RPS      ║
+║ Duration                                           │     1304.251 ms       ║
+║ Throughput                                         │      766.724 RPS      ║
 ║ Success Rate                                       │    1000/1000          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -3307,7 +3400,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 
 <!-- FAST_FAIL_TABLE_END -->
 
-### 🏷️ Chaos & Infrastructure Resilience   🟢 avg -9% rps +9% (24 runs)
+### 🏷️ Chaos & Infrastructure Resilience         🟢 avg -5% p95 -4% (30 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 4
 
@@ -3320,7 +3413,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/chaos-resilience.test.ts                     ║
 ║Simulates infrastructure brownouts and measures system stability and graceful degradation under stress.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Chaos Resilience (Brownout)    │      165.526 ms │ p95:      732.664 ms │ RPS:          6 ║
+║ Chaos Resilience (Brownout)    │      174.283 ms │ p95:      690.357 ms │ RPS:          6 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3328,8 +3421,8 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Latency (with jitter)                          │      165.526 ms       ║
-║ p95 Latency                                        │      732.664 ms       ║
+║ Avg Latency (with jitter)                          │      174.283 ms       ║
+║ p95 Latency                                        │      690.357 ms       ║
 ║ Availability                                       │        100.0 %        ║
 ║ Resilience Rating                                  │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -3393,7 +3486,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ║                File: tests/benchmarks/throttling-backoff-stress.test.ts                 ║
 ║Simulates high-velocity traffic from a single client IP to verify rate-limiting enforcement and backoff consistency.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Throttling Enforcement         │        1.430 ms │ p95:        4.803 ms │ RPS:        700 ║
+║ Throttling Enforcement         │        1.980 ms │ p95:        6.459 ms │ RPS:        505 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3401,7 +3494,7 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Throughput (RPS)                                   │      700.000 req/s    ║
+║ Throughput (RPS)                                   │      505.000 req/s    ║
 ║ Limiter Consistency                                │       STABLE          ║
 ║ Backoff Policy                                     │       ACTIVE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝

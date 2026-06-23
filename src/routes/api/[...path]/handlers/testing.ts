@@ -383,8 +383,8 @@ export async function handleTestingRoutes(
         await new Promise((r) => setTimeout(r, 100));
       }
       // 🚀 BATCH SYNC: Refresh once for all collections
-      const { refreshCollectionsCache } = await import("@src/content/content-service.server");
-      await refreshCollectionsCache(tenantId, initializedAdapter);
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(tenantId, { mode: "schemas", adapter: initializedAdapter });
 
       // 🚀 INVALIDATE OpenAPI spec cache so new collections appear in the API spec
       const { apiSpecService } = await import("@services/system/api-spec-service");
@@ -902,6 +902,10 @@ export async function handleTestingRoutes(
       const { LocalCMS } = await import("@src/services/sdk");
       const localCms = new LocalCMS(initializedAdapter);
 
+      for (const schema of collectionSchemas) {
+        localCms.collections.registerSchema(schema._id, schema as any, tenantId);
+      }
+
       // Seed authors
       const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
         _id: `author-${i + 1}`,
@@ -928,19 +932,31 @@ export async function handleTestingRoutes(
         system: true,
       });
 
-      // Seed stable entry and redirects in parallel
+      // Seed stable entry and redirects in parallel (upsert stable entry for re-runs)
+      const stablePayload = {
+        _id: "bench-shared-001",
+        title: "Stable Benchmark Entry",
+        content: "This is a stable entry for REST and API performance testing.",
+        count: 1,
+        tenantId,
+      };
       await Promise.all([
-        localCms.collections.create(
-          "BenchmarkStable",
-          {
-            _id: "bench-shared-001",
-            title: "Stable Benchmark Entry",
-            content: "This is a stable entry for REST and API performance testing.",
-            count: 1,
-            tenantId,
-          },
-          { tenantId, skipValidation: true, system: true },
-        ),
+        initializedAdapter.crud
+          .upsert(
+            "BenchmarkStable" as any,
+            { _id: "bench-shared-001" } as any,
+            stablePayload as any,
+            { tenantId, bypassTenantCheck: true } as any,
+          )
+          .then(async (res) => {
+            if (!res.success) {
+              await localCms.collections.create("BenchmarkStable", stablePayload, {
+                tenantId,
+                skipValidation: true,
+                system: true,
+              });
+            }
+          }),
         localCms.collections.bulkCreate(
           "redirects",
           [
@@ -962,6 +978,13 @@ export async function handleTestingRoutes(
           { tenantId, skipValidation: true, system: true },
         ),
       ]);
+
+      // Sync content store + SDK schema cache so PATCH/GET see API-seeded entries immediately
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(tenantId, { mode: "schemas", adapter: initializedAdapter });
+      if (cms.collections?.refresh) {
+        await cms.collections.refresh(tenantId as any, true);
+      }
 
       return rawResponse({
         success: true,

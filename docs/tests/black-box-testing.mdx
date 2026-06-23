@@ -88,7 +88,7 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 
 - **Dynamic Port Selection**: Tests run on isolated ports to prevent cross-process pollution.
 - **Trend Detection**: Every run automatically compares latency against historical data in `history.jsonl` with visual 🟢/🔴 indicators.
-- **Benchmark Stability**: Implementation of the `BENCHMARK_STABLE` mode and `refreshCollectionsCache()` logic. This ensures that dynamically created benchmark collections are instantly synchronized across the system via zero-latency filesystem-to-store hydration.
+- **Benchmark Stability**: `BENCHMARK_STABLE` mode and `refreshContent({ mode: "schemas" })` keep API-seeded collections (`BenchmarkStable`, `benchmark_authors`) synchronized in the temp DB. Filesystem scan benchmarks use isolated paths under `.compiledCollections/test/` — see [Benchmark Collection Isolation](./benchmark-isolation.mdx).
 - **Auto-Registration**: New benchmark modules automatically register their findings in the MDX technical ledger without manual boilerplate.
 
 ### Available Actions

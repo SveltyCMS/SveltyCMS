@@ -189,51 +189,51 @@ export const PRESET_COLLECTIONS: Record<string, Schema[]> = {
         },
       ],
     },
-    {
-      _id: "BenchmarkStable",
-      name: "BenchmarkStable",
-      icon: "mdi:database-check",
-      fields: [
-        {
-          db_fieldName: "title",
-          label: "Title",
-          widget: { Name: "Input" },
-          type: "string",
-          required: true,
-        },
-        {
-          db_fieldName: "slug",
-          label: "Slug",
-          widget: { Name: "Input" },
-          type: "string",
-        },
-        {
-          db_fieldName: "content",
-          label: "Content",
-          widget: { Name: "RichText" },
-          type: "string",
-        },
-        {
-          db_fieldName: "count",
-          label: "Count",
-          widget: { Name: "Number" },
-          type: "number",
-        },
-        {
-          db_fieldName: "publishDate",
-          label: "Publish Date",
-          widget: { Name: "DateTime" },
-          type: "string",
-        },
-      ],
-    },
   ],
   demo: [], // Extended by blog preset + demo-specific below
 };
 
-// demo preset = blog collections + additional widget-heavy test collections
+// demo preset = blog collections + benchmark-only collections
 PRESET_COLLECTIONS.demo = [
   ...PRESET_COLLECTIONS.blog!,
+  {
+    _id: "BenchmarkStable",
+    name: "BenchmarkStable",
+    icon: "mdi:database-check",
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+        required: true,
+      },
+      {
+        db_fieldName: "slug",
+        label: "Slug",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+      {
+        db_fieldName: "content",
+        label: "Content",
+        widget: { Name: "RichText" },
+        type: "string",
+      },
+      {
+        db_fieldName: "count",
+        label: "Count",
+        widget: { Name: "Number" },
+        type: "number",
+      },
+      {
+        db_fieldName: "publishDate",
+        label: "Publish Date",
+        widget: { Name: "DateTime" },
+        type: "string",
+      },
+    ],
+  },
   {
     _id: "benchmark_authors",
     name: "benchmark_authors",
@@ -428,8 +428,13 @@ export async function seedPresetCollections(
   preset: string,
   _tenantId?: string | null,
   options?: BaseQueryOptions,
+  writeOptions?: { replaceAll?: boolean },
 ): Promise<Schema[]> {
-  const schemas = PRESET_COLLECTIONS[preset] || PRESET_COLLECTIONS.blog!;
+  const { getWizardPresetSchemas, writePresetCollectionFiles } =
+    await import("./preset-collections.server");
+  const { PRESETS } = await import("./presets");
+
+  const schemas = await getWizardPresetSchemas(preset);
   if (schemas.length === 0) return [];
 
   logger.info(`📦 Seeding ${schemas.length} preset collections (preset: ${preset})...`);
@@ -449,34 +454,15 @@ export async function seedPresetCollections(
 
   logger.info(`✅ ${schemas.length} preset collections seeded`);
 
-  // Write .ts source files to config/collections/ for Vite compilation
-  await writePresetCollectionFiles(schemas);
+  const presetDef = PRESETS.find((p) => p.id === preset);
+  if (presetDef?.collections?.length) {
+    await writePresetCollectionFiles(presetDef.collections, {
+      replaceAll: writeOptions?.replaceAll ?? false,
+      tenantId: _tenantId,
+    });
+  }
 
   return schemas;
-}
-
-/**
- * Writes TypeScript schema files for preset collections to config/collections/.
- */
-async function writePresetCollectionFiles(schemas: Schema[]): Promise<void> {
-  const fs = await import("node:fs/promises");
-  const path = await import("node:path");
-  const dir = path.resolve(process.cwd(), "config", "collections");
-  await fs.mkdir(dir, { recursive: true });
-
-  for (const schema of schemas) {
-    const slug = (schema as any).slug || schema.name || schema._id;
-    const fileName = `${slug}.ts`;
-    const content = `/**
-   * @file config/collections/${fileName}
-   * @description ${schema.name || slug} collection — seeded from preset.
-   */
-
-  export const schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields }, null, 2)};
-  `;
-    await fs.writeFile(path.join(dir, fileName), content, "utf-8");
-    logger.info(`📄 Wrote collection file: config/collections/${fileName}`);
-  }
 }
 
 // Seeds the default theme into the database
@@ -624,7 +610,7 @@ export async function seedCollectionsForSetup(
 
   try {
     // Import the collection scanner directly to avoid content-manager dependency issues during setup phase
-    const contentMod = await import("@src/content/content-service.server");
+    const contentMod = await import("@src/content/engine.server");
     const scanFn =
       contentMod.scanCompiledCollections || (contentMod as any).default?.scanCompiledCollections;
 
@@ -949,7 +935,7 @@ export async function initSystemFromSetup(
         await contentSystem.initialize(tenantId, { force: false, transaction: tx }, adapter);
 
         if (isDemoSeed) {
-          const contentMod = await import("@src/content/content-service.server");
+          const contentMod = await import("@src/content/engine.server");
           const scanFn =
             contentMod.scanCompiledCollections ||
             (contentMod as any).default?.scanCompiledCollections;

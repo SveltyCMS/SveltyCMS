@@ -1,9 +1,16 @@
 /**
- * @file src/content/content-service.ts
- * @description High-performance content reconciliation and schema management.
+ * @file src/content/engine.server.ts
+ * @description
+ * Unified content engine: scanner, reconciliation, cache invalidation, watcher, and CRUD.
+ *
+ * ### Features:
+ * - Mtime-tree filesystem scanner with L2 schema cache
+ * - FS ↔ DB navigation tree reconciliation
+ * - Incremental hot-reload for dev watcher
+ * - Schema-only fast path for benchmarks
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, watch, type FSWatcher } from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@utils/logger";
@@ -14,63 +21,65 @@ import type { ContentNode, Schema, DatabaseId } from "./types";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateCategoryNodesFromPaths } from "./content-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { generateSchemaHash, loadSchema } from "./module-processor.server";
-import { isSafeCollectionPath } from "./collection-path-security.server";
-import {
-  invalidateSchemaCache,
-  notifyContentUpdate,
-  setSchemaCacheEntry,
-} from "./content-cache.server";
+import { eventBus, SystemEvents } from "@utils/event-bus";
+import { generateSchemaHash, isSafeCollectionPath, loadSchema } from "./loader.server";
 
-// ─── Plugin System ───────────────────────────────────────────────────────────
+// ─── Cache helpers ───────────────────────────────────────────────────────────
 
-interface ContentPlugin {
-  name: string;
-  onSchemaLoad?: (schema: Schema, filePath: string) => Schema | Promise<Schema>;
-  onReconcile?: (operations: any[], prunedPaths: string[]) => void | Promise<void>;
-  onNodeChange?: (node: ContentNode, action: "upsert" | "delete") => void | Promise<void>;
+export const SCHEMA_CACHE_TTL_S = 3600;
+export const NAVIGATION_CACHE_TTL_S = 300;
+
+export function schemaCacheTags(schema: Schema): string[] {
+  const id = String(schema._id || schema.name || "unknown").toLowerCase();
+  return ["schema", `schema:${id}`];
 }
 
-const _plugins: ContentPlugin[] = [];
+export function navigationCacheTags(tenantId?: string | null): string[] {
+  const tid = tenantId || "global";
+  return ["navigation", "navigation:tree", `navigation:tree:${tid}`];
+}
 
-export function registerContentPlugin(plugin: ContentPlugin): void {
-  if (_plugins.find((p) => p.name === plugin.name)) {
-    logger.warn(`[ContentPlugin] Duplicate plugin name: ${plugin.name}`);
-    return;
+export async function setSchemaCacheEntry(
+  cacheKey: string,
+  value: Record<string, unknown>,
+  schema: Schema,
+  tenantId: string | null = null,
+): Promise<void> {
+  await cacheService.set(
+    cacheKey,
+    value,
+    SCHEMA_CACHE_TTL_S,
+    tenantId,
+    CacheCategory.SCHEMA,
+    schemaCacheTags(schema),
+  );
+}
+
+export async function invalidateSchemaCache(tenantId: string | null = null): Promise<void> {
+  await cacheService.clearByPattern("schema:", tenantId);
+}
+
+export async function invalidateNavigationCache(tenantId: string | null = null): Promise<void> {
+  await cacheService.clearByPattern("navigation:tree:", tenantId);
+}
+
+export async function notifyContentUpdate(
+  tenantId?: string | null,
+  options?: { invalidateSchema?: boolean; batchSize?: number },
+): Promise<void> {
+  const tid = tenantId ?? null;
+
+  if (options?.invalidateSchema) {
+    await invalidateSchemaCache(tid);
   }
-  _plugins.push(plugin);
-  logger.info(`[ContentPlugin] Registered: ${plugin.name}`);
-}
 
-// ─── Lightweight Tracing ─────────────────────────────────────────────────────
+  await invalidateNavigationCache(tid);
 
-const _traces = new Map<string, number[]>();
-
-export function traceStart(label: string): () => number {
-  const start = performance.now();
-  return () => {
-    const elapsed = performance.now() - start;
-    const entries = _traces.get(label) || [];
-    entries.push(elapsed);
-    _traces.set(label, entries.slice(-100)); // Keep last 100 samples
-    return elapsed;
-  };
-}
-
-export function getTraceStats(): Record<string, { avg: number; p95: number; count: number }> {
-  const result: Record<string, any> = {};
-  for (const [label, entries] of _traces) {
-    if (entries.length === 0) continue;
-    const sorted = [...entries].sort((a, b) => a - b);
-    const avg = entries.reduce((a, b) => a + b, 0) / entries.length;
-    const p95 = sorted[Math.floor(sorted.length * 0.95)] || avg;
-    result[label] = {
-      avg: +avg.toFixed(3),
-      p95: +p95.toFixed(3),
-      count: entries.length,
-    };
-  }
-  return result;
+  eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
+    version: Date.now(),
+    tenantId: tenantId || "all",
+    ...(options?.batchSize !== undefined ? { batchSize: options.batchSize } : {}),
+  });
 }
 
 /**
@@ -196,6 +205,10 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
     }
     const fileList: { fullPath: string; mtime: number }[] = [];
 
+    const { isBenchmarkArtifact, isBenchmarkRuntime } =
+      await import("@src/routes/setup/preset-collections.server");
+    const skipBenchmarks = !isBenchmarkRuntime();
+
     async function walk(dir: string) {
       try {
         const entries = await fsPromises.readdir(dir, { withFileTypes: true });
@@ -207,6 +220,7 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
             const fullPath = path.join(dir, entry.name);
             if (entry.isDirectory()) return walk(fullPath);
             if (!entry.isFile() || !entry.name.endsWith(".js")) return;
+            if (skipBenchmarks && isBenchmarkArtifact(entry.name)) return;
             const stats = await fsPromises.stat(fullPath);
             fileList.push({ fullPath, mtime: stats.mtimeMs });
           }),
@@ -300,31 +314,14 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
             return;
           }
 
-          // Run onSchemaLoad plugins (enrichment, validation, transforms)
-          let enrichedSchema = schema;
-          for (const plugin of _plugins) {
-            if (plugin.onSchemaLoad) {
-              try {
-                enrichedSchema =
-                  (await plugin.onSchemaLoad(enrichedSchema, file.fullPath)) || enrichedSchema;
-              } catch (err: any) {
-                logger.error(`[Plugin] ${plugin.name}.onSchemaLoad failed: ${err.message}`);
-              }
-            }
-          }
-
-          const hash = generateSchemaHash(enrichedSchema);
+          const hash = generateSchemaHash(schema);
           if (cached && cached.hash === hash) {
-            await setSchemaCacheEntry(cacheKey, { ...cached, mtime: file.mtime }, enrichedSchema);
-            _schemaCache.set(file.fullPath, enrichedSchema);
+            await setSchemaCacheEntry(cacheKey, { ...cached, mtime: file.mtime }, schema);
+            _schemaCache.set(file.fullPath, schema);
           } else {
-            enrichSchemaWithMetadata(enrichedSchema, file.fullPath, collectionsDir);
-            await setSchemaCacheEntry(
-              cacheKey,
-              { mtime: file.mtime, hash, schema: enrichedSchema },
-              enrichedSchema,
-            );
-            _schemaCache.set(file.fullPath, enrichedSchema);
+            enrichSchemaWithMetadata(schema, file.fullPath, collectionsDir);
+            await setSchemaCacheEntry(cacheKey, { mtime: file.mtime, hash, schema }, schema);
+            _schemaCache.set(file.fullPath, schema);
           }
           _mtimeTree.set(file.fullPath, file.mtime);
         }),
@@ -429,14 +426,32 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
 async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void> {
   const path = await import("node:path");
   const fs = await import("node:fs/promises");
-  const dir = path.resolve(process.cwd(), "config", "collections");
-  await fs.mkdir(dir, { recursive: true });
+  const baseDir = path.resolve(process.cwd(), "config", "collections");
+  await fs.mkdir(baseDir, { recursive: true });
+  // Ensure test subdirectory exists for bench/test collections
+  const testDir = path.join(baseDir, "test");
+  await fs.mkdir(testDir, { recursive: true });
+
+  const SYSTEM_COLLECTIONS = new Set(["redirects", "404_logs", "redirects_mv", "benchmarkstable"]);
+  const { isBenchmarkArtifact, isBenchmarkRuntime } =
+    await import("@src/routes/setup/preset-collections.server");
+  const skipBenchmarks = !isBenchmarkRuntime();
 
   for (const schema of dbSchemas) {
-    const slug = (schema as any).slug || schema.name || schema._id;
-    if (!slug) continue;
+    const slug = String((schema as any).slug || schema._id || schema.name || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "");
+    if (!slug || SYSTEM_COLLECTIONS.has(slug)) continue;
+    if (skipBenchmarks && isBenchmarkArtifact(`${slug}.ts`)) continue;
+    if (!Array.isArray(schema.fields) || schema.fields.length === 0) continue;
+
     const fileName = `${slug}.ts`;
-    const filePath = path.join(dir, fileName);
+    // 🧪 Route bench/test/mock collections to test/ subdirectory
+    // These are created by the benchmark matrix and should not pollute config/collections/
+    const isTestCollection =
+      slug.startsWith("bench") || slug.startsWith("mock") || slug.startsWith("test");
+    const targetDir = isTestCollection ? testDir : baseDir;
+    const filePath = path.join(targetDir, fileName);
 
     // Skip if file already exists
     try {
@@ -445,7 +460,7 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
     } catch {}
 
     const content = `/**
- * @file config/collections/${fileName}
+ * @file ${isTestCollection ? "config/collections/test/" : "config/collections/"}${fileName}
  * @description ${schema.name || slug} — regenerated from database.
  */
 import type { Schema } from '@src/content/types';
@@ -453,14 +468,16 @@ import type { Schema } from '@src/content/types';
 export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields || [] }, null, 2)};
 `;
     await fs.writeFile(filePath, content, "utf-8");
-    logger.info(`[Bootstrap] Regenerated collection file: config/collections/${fileName}`);
+    logger.info(
+      `[Bootstrap] Regenerated collection file: ${isTestCollection ? "config/collections/test/" : "config/collections/"}${fileName}`,
+    );
   }
 
   // Trigger compilation
   try {
     const { compile } = await import("@src/utils/compilation/compile");
     await compile({
-      userCollections: dir,
+      userCollections: baseDir,
       compiledCollections: path.resolve(process.cwd(), ".compiledCollections"),
     });
   } catch (e) {
@@ -527,18 +544,6 @@ export const contentService = {
       ensurePhysicalModels(schemas, dbAdapter),
       this.syncStoreAndDatabase(operations, prunedPaths, tenantId ?? null, dbAdapter),
     ]);
-
-    // Fire onReconcile plugin hooks (async, fire-and-forget)
-    for (const plugin of _plugins) {
-      if (plugin.onReconcile) {
-        const result = plugin.onReconcile(operations, prunedPaths);
-        if (result instanceof Promise) {
-          result.catch((err: Error) =>
-            logger.error(`[Plugin] ${plugin.name}.onReconcile: ${err.message}`),
-          );
-        }
-      }
-    }
 
     // 4. Invalidate navigation L1/L2 + broadcast
     await notifyContentUpdate(tenantId);
@@ -933,3 +938,116 @@ export const contentService = {
     return scanCompiledCollections();
   },
 };
+
+export type RefreshMode = "full" | "schemas" | "incremental";
+
+export interface RefreshOptions {
+  mode?: RefreshMode;
+  adapter?: IDBAdapter;
+  skipReconciliation?: boolean;
+  changedFile?: string | null;
+  requireFullReload?: boolean;
+}
+
+/** Unified refresh entry point — replaces scattered fullReload / refreshCollectionsCache paths. */
+export async function refreshContent(
+  tenantId?: string | null,
+  options: RefreshOptions = {},
+): Promise<void> {
+  const mode =
+    options.mode ??
+    (process.env.BENCHMARK === "true" || process.env.TEST_MODE === "true" ? "schemas" : "full");
+
+  if (mode === "schemas") {
+    return refreshCollectionsCache(tenantId, options.adapter);
+  }
+
+  if (mode === "incremental") {
+    if (options.changedFile) {
+      const dbAdapter = options.adapter || (await (await import("@src/databases/db")).getDb());
+      if (!dbAdapter) return;
+      await contentService.handleIncrementalReload(options.changedFile, tenantId, dbAdapter);
+      return;
+    }
+    return contentService.processChangedFiles(tenantId, options.adapter, {
+      requireFullReload: options.requireFullReload,
+    });
+  }
+
+  const dbAdapter = options.adapter || (await (await import("@src/databases/db")).getDb());
+  if (!dbAdapter) return;
+  await contentService.fullReload(
+    tenantId,
+    options.skipReconciliation ?? false,
+    dbAdapter,
+    options.changedFile ?? null,
+  );
+}
+
+// ─── Dev filesystem watcher ────────────────────────────────────────────────────
+
+let _watcher: FSWatcher | null = null;
+let _debounceTimer: NodeJS.Timeout | null = null;
+let _isReloading = false;
+let _pendingFullReload = false;
+
+/** Initializes the file system watcher for the compiled collections directory. */
+export function startContentWatcher() {
+  const targetDir = path.resolve(process.cwd(), ".compiledCollections");
+
+  if (process.env.BENCHMARK_DEBUG === "true") {
+    logger.info(`[Watcher] Monitoring collections at: ${targetDir}`);
+  }
+
+  if (!existsSync(targetDir)) {
+    logger.warn(`[Watcher] Target directory does not exist: ${targetDir}`);
+    return () => {};
+  }
+
+  _watcher = watch(targetDir, { recursive: true }, (eventType, filename) => {
+    if (!filename || !filename.endsWith(".js")) return;
+
+    const filePath = path.join(targetDir, filename);
+    const fileExists = existsSync(filePath);
+    const isDelete = eventType === "rename" && !fileExists;
+
+    markFileDirty(filePath);
+    if (isDelete) _pendingFullReload = true;
+
+    if (_debounceTimer) clearTimeout(_debounceTimer);
+
+    _debounceTimer = setTimeout(async () => {
+      if (_isReloading) return;
+
+      try {
+        _isReloading = true;
+        await contentService.processChangedFiles(null, undefined, {
+          requireFullReload: _pendingFullReload,
+        });
+        logger.info(`[Watcher] Content system re-synchronized (batched)`);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        logger.error("[Watcher] Failed to reload content system", {
+          filename,
+          message: error.message,
+          stack: error.stack,
+        });
+      } finally {
+        _pendingFullReload = false;
+        _isReloading = false;
+      }
+    }, 400);
+  });
+
+  return () => {
+    if (_watcher) {
+      _watcher.close();
+      _watcher = null;
+    }
+    if (_debounceTimer) {
+      clearTimeout(_debounceTimer);
+      _debounceTimer = null;
+    }
+    _pendingFullReload = false;
+  };
+}

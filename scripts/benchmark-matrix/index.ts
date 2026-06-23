@@ -64,25 +64,15 @@ class ConfigSafeguard {
   /** Cleans up leaked test configurations and mock collections */
   static async restore() {
     try {
-      // Clean up the transient test configuration if it exists
       await fs.rm(this.configPath, { force: true });
       log.info("🛡️ Cleanup: Transient config/private.test.ts removed.");
 
-      // Purge mock collections to prevent redirection leaks
-      const compiledDir = path.join(process.cwd(), ".compiledCollections");
-      const files = await fs.readdir(compiledDir).catch(() => []);
-      for (const file of files) {
-        if (file.includes("bench") || file.includes("mock") || file.startsWith("benchmark_")) {
-          await fs.rm(path.join(compiledDir, file), {
-            recursive: true,
-            force: true,
-          });
-        }
+      const { purgeBenchmarkCollectionArtifacts } =
+        await import("@src/routes/setup/preset-collections.server");
+      const removed = await purgeBenchmarkCollectionArtifacts();
+      if (removed > 0) {
+        log.info(`🛡️ Cleanup: Purged ${removed} benchmark collection artifact(s).`);
       }
-      // Also purge 'nested' benchmark directory if it exists
-      await fs
-        .rm(path.join(compiledDir, "nested"), { recursive: true, force: true })
-        .catch(() => {});
     } catch (err: any) {
       log.error(`Safeguard failed: ${err.message}`);
     }
@@ -194,6 +184,16 @@ async function main() {
     log.info("🛡️ Isolation: Stale SQLite files purged.");
   } catch {
     // Ignore if directory missing
+  }
+
+  // Purge leaked benchmark fixtures before any server scans user collections
+  try {
+    const { purgeBenchmarkCollectionArtifacts } =
+      await import("@src/routes/setup/preset-collections.server");
+    const purged = await purgeBenchmarkCollectionArtifacts();
+    if (purged > 0) log.info(`🛡️ Isolation: purged ${purged} benchmark collection artifact(s).`);
+  } catch (err: any) {
+    log.warn(`Isolation pre-purge skipped: ${err.message}`);
   }
 
   // Initialize Safeguard before any logic

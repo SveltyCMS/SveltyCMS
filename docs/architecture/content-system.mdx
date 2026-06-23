@@ -1,12 +1,12 @@
 ---
 path: "docs/architecture/content-system.mdx"
 title: "Content System Architecture"
-description: "The 5-pillar content architecture: Reactive, Incremental, and Real-time — with worker pool, plugin system, and tracing."
+description: "The consolidated content architecture: reactive store, unified engine, loader sandboxing, and real-time SSE sync."
 order: 1
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-06-15"
+updated: "2026-06-23"
 tags:
   - "architecture"
   - "performance"
@@ -16,7 +16,21 @@ tags:
 
 # Content System Architecture (2026 Edition)
 
-The SveltyCMS Content System is a high-performance, reactive engine. The June 2026 security audit added **worker pool sandboxing**, **plugin hooks**, and **performance tracing**.
+The SveltyCMS Content System is a high-performance, reactive engine. As of June 2026 the server tier is consolidated into **two modules** — `engine.server.ts` (scan, reconcile, cache, watcher, CRUD) and `loader.server.ts` (path security, native/pooled import, worker pool) — down from 16 files.
+
+## 📁 Module Layout (`src/content/`)
+
+| File                              | Role                                                                    |
+| :-------------------------------- | :---------------------------------------------------------------------- |
+| `index.ts`                        | Browser-safe public facade (`contentSystem`, SSE init)                  |
+| `index.server.ts`                 | Server facade + `ensureContentInitialized()` coordinator                |
+| `engine.server.ts`                | Scanner, reconciliation, cache invalidation, dev watcher, CRUD          |
+| `loader.server.ts`                | `loadSchema()`, worker pool, `isSafeCollectionPath()`, `contentRuntime` |
+| `module-worker.server.ts`         | Worker-thread entry (spawned by loader pool; must stay separate)        |
+| `content-utils.ts`                | Navigation tree, metrics, shared pure helpers                           |
+| `content-sse.svelte.ts`           | Client SSE → debounced `contentSystem.refresh()`                        |
+| `types.ts` / `types.generated.ts` | Domain types + build-time collection unions                             |
+| `vite.ts`                         | Vite plugin for `types.generated.ts`                                    |
 
 ## 🏗️ The 5 Pillars
 
@@ -27,17 +41,33 @@ Uses **Svelte 5 Runes** (`$state`, `$derived`) as the single source of truth for
 
 ### 2. Public API Facade (Universal)
 
-**File**: `src/content/index.ts`  
-Exposes `contentSystem` (with `contentSystem` as backward-compatible alias). Handles initialization, context (`useContent`), caching, and delegates to server services. Fully integrated with the **Local SDK** (`locals.cms`).
+**Files**: `src/content/index.ts` (browser), `src/content/index.server.ts` (server)  
+Exposes `contentSystem`. Handles initialization, context (`useContent`), and delegates server operations to `engine.server.ts`. Fully integrated with the **Local SDK** (`locals.cms`).
+
+**Init coordinator** — `ensureContentInitialized(tenantId, options?, adapter?)` in `index.server.ts` is the single entry point used by hooks and direct callers. One `initPromises` map per tenant prevents reload storms.
 
 ### 3. Incremental Reconciliation (Server)
 
-**File**: `src/content/content-service.server.ts`  
-The intelligent core. Uses **mtime-based scanning** + **schema diffing** (`schemasAreEqual`) to skip unchanged files and minimize database writes (up to 90% reduction in I/O).
+**File**: `src/content/engine.server.ts`  
+The intelligent core. Uses **mtime-based scanning** + schema hashing to skip unchanged files and minimize database writes.
+
+#### Unified refresh API
+
+All reload paths go through one function:
+
+```typescript
+import { refreshContent } from "@src/content/engine.server";
+
+await refreshContent(tenantId, { mode: "full", adapter: db }); // FS ↔ DB reconcile (production)
+await refreshContent(tenantId, { mode: "schemas", adapter: db }); // Schema merge only (benchmarks/setup)
+await refreshContent(tenantId, { mode: "incremental" }); // Dev watcher / hot-reload
+```
+
+`contentService.fullReload()` and `refreshCollectionsCache()` remain exported for benchmarks and internal callers.
 
 #### Vectorized Processing & API Optimization
 
-SveltyCMS utilizes a **Vectorized `modifyRequest` pipeline** to handle large data batches. This refactor moved the system from sequential object spreading to chunked parallel execution:
+SveltyCMS utilizes a **Vectorized `modifyRequest` pipeline** to handle large data batches:
 
 - **Scalability**: Handles 10,000+ item imports without blocking the event loop.
 - **Memory Efficiency**: Reduced object allocations by ~90% for standard fields.
@@ -45,26 +75,17 @@ SveltyCMS utilizes a **Vectorized `modifyRequest` pipeline** to handle large dat
 
 #### Self-Healing & Native Introspection
 
-SveltyCMS utilizes native database introspection via the unified `listSchemas` SDK method to maintain parity and recover from drift. While the interface is standardized, we use different mechanisms internally to ensure we are **fully optimized** for each platform:
+SveltyCMS utilizes native database introspection via the unified `listSchemas` SDK method to maintain parity and recover from drift:
 
-1.  **MongoDB (`listCollections`)**: Since MongoDB is a document store, it doesn't have "tables." Its native command is `listCollections`. Using this is much faster and more reliable than trying to simulate a SQL-style query.
-2.  **PostgreSQL/MariaDB (`information_schema`)**: These follow the ANSI SQL standard. The `information_schema` is a virtual database that exists specifically to allow tools to "ask" the database what tables exist. It is the most robust way to handle introspection in a multi-tenant SQL environment.
-3.  **SQLite (`sqlite_master`)**: SQLite is a serverless, file-based engine. It doesn't support the heavy `information_schema` by default to keep the file size small. Instead, it stores everything in a special internal table called `sqlite_master`. Scanning this is the high-performance way to find tables in SQLite.
-
-##### The "Self-Healing" Benefit
-
-By using these native methods instead of a generic abstraction, SveltyCMS achieves:
-
-- **Detect Drift**: If a table is manually deleted in the database, the CMS detects it instantly via native introspection and triggers automated "Repair" workflows.
-- **Zero-Overhead**: We don't need to maintain a redundant "registry" table; we ask the database for the single source of truth directly.
-- **Security**: System tables (like `pg_` or `mongodb.`) are filtered at the database level before the data reaches the application logic.
+1. **MongoDB (`listCollections`)**: Native document-store command — faster than SQL simulation.
+2. **PostgreSQL/MariaDB (`information_schema`)**: ANSI SQL standard for multi-tenant introspection.
+3. **SQLite (`sqlite_master`)**: High-performance table discovery for file-based deployments.
 
 ### 4. Smart Module Processing (Server)
 
-**File**: `src/content/module-processor.server.ts`  
-**NEW**: `src/content/module-worker.server.ts` + `module-worker-pool.server.ts`
+**Files**: `src/content/loader.server.ts` + `src/content/module-worker.server.ts`
 
-Safe sandboxed parsing of compiled collection modules with widget proxy support. Now backed by a **native `worker_threads` pool** (zero dependencies — Node.js built-in only). Each worker runs in its own V8 isolate — a crashed schema file never affects the main process.
+Safe sandboxed parsing of compiled collection modules with widget proxy support. Backed by a **native `worker_threads` pool** (zero external dependencies).
 
 **Worker Pool Features**:
 
@@ -73,14 +94,14 @@ Safe sandboxed parsing of compiled collection modules with widget proxy support.
 - Per-task 10s timeout guard
 - Idle worker cleanup after 30s (keeps 1 alive)
 - `getModuleWorkerPool()` singleton + `shutdownWorkerPool()`
-- **Production default**: `loadSchema()` routes to `loadSchemaPooled()` when `NODE_ENV=production` (native import in dev/test/benchmarks)
-- **Path hardening**: `isSafeCollectionPath()` enforced in main process and worker threads (`collection-path-security.server.ts`)
+- **Production default**: `loadSchema()` routes to `loadSchemaPooled()` when `NODE_ENV=production` (native import in dev/test/benchmarks via `contentRuntime.useWorkerPool()`)
+- **Path hardening**: `isSafeCollectionPath()` enforced in main process and worker threads
 
 **Mtime cache busting**: Dynamic imports use `?v={mtimeMs}` instead of `Date.now()`, enabling ESM module cache hits on warm scans.
 
-**Dual-layer cache alignment** (`content-cache.server.ts`): Schema entries use `CacheCategory.SCHEMA` with tags `["schema", "schema:{id}"]`; navigation trees use `CacheCategory.CONTENT`. Full reload clears `schema:` via prefix invalidation; every `content:update` clears `navigation:tree:` in L1/L2.
+**Dual-layer cache alignment** (inlined in `engine.server.ts`): Schema entries use `CacheCategory.SCHEMA` with tags `["schema", "schema:{id}"]`; navigation trees use `CacheCategory.CONTENT`. Full reload clears `schema:` via prefix invalidation; every `content:update` clears `navigation:tree:` in L1/L2.
 
-**Watcher batching**: `flushChangedFiles()` + `processBatchedIncrementalReload()` collapse multi-file saves into one debounced pass with a single `content:update` broadcast.
+**Watcher batching**: `flushChangedFiles()` + `processBatchedIncrementalReload()` collapse multi-file saves into one debounced pass with a single `content:update` broadcast. The dev watcher lives in `engine.server.ts` (`startContentWatcher()`).
 
 **Security Benefit**: Process isolation prevents supply-chain attacks from malicious collection files.
 
@@ -88,11 +109,11 @@ Safe sandboxed parsing of compiled collection modules with widget proxy support.
 
 **Files**:
 
-- `src/content/content-watcher.server.ts` (dev-only, **recursive** native `fs.watch`)
+- `engine.server.ts` → `startContentWatcher()` (dev-only, **recursive** native `fs.watch`)
 - `src/content/content-sse.svelte.ts` (client-side SSE listener)
 - `src/routes/api/[...path]/handlers/content.ts` (`normalizeSseEventPayload`)
 
-**Development flow**: A change under `.compiledCollections/` (including nested folders) triggers a debounced incremental reload via `handleIncrementalReload()` — no full SCHEMA cache wipe.
+**Development flow**: A change under `.compiledCollections/` triggers a debounced incremental reload via `handleIncrementalReload()` — no full SCHEMA cache wipe.
 
 **Production / multi-user flow**:
 
@@ -100,8 +121,6 @@ Safe sandboxed parsing of compiled collection modules with widget proxy support.
 2. The SSE handler normalizes payloads to `{ type: "content_update", event, version, tenantId, timestamp }`.
 3. The browser client (`contentLiveSync`) debounces and calls `contentSystem.refresh()`.
 4. `contentSystem.refresh()` fetches `GET /api/content-structure?action=getStructure` and syncs `contentStore`.
-
-This replaces polling while keeping the browser facade server-safe (no dynamic server imports on the client).
 
 ---
 
@@ -114,8 +133,8 @@ graph TD
         CP[.compiledCollections/*.js]
     end
     subgraph Server["Server Tier"]
-        WS[Watcher (dev)]
-        RS[content-service.server.ts]
+        LD[loader.server.ts]
+        EN[engine.server.ts]
         DB[(Database)]
     end
     subgraph Client["Client Tier"]
@@ -125,12 +144,13 @@ graph TD
     end
 
     SC -->|Build| CP
-    CP -->|mtime + cache| RS
-    WS -->|Change detected| RS
-    RS -->|Schema diff + upsert| DB
-    RS -->|Broadcast content:update| SSE
+    CP -->|mtime + cache| EN
+    EN -->|loadSchema| LD
+    EN -->|Watcher (dev)| EN
+    EN -->|Schema diff + upsert| DB
+    EN -->|Broadcast content:update| SSE
     SSE -->|type: content_update| CS
-    CS -->|GET /api/content-structure| RS
+    CS -->|GET /api/content-structure| EN
     CS -->|contentStore.sync| UI
 ```
 
@@ -142,22 +162,22 @@ The 2026 update introduced a massive architectural leap in content processing, a
 
 ### 🧵 1. Worker Thread Pooling
 
-To prevent event-loop blocking during massive schema reloads, SveltyCMS now offloads module parsing and widget proxy creation to a **dedicated pool of background workers** (`module-worker.server.ts`). This ensures the main UI thread remains responsive even when thousands of schemas are being processed simultaneously.
+Module parsing and widget proxy creation run in a **dedicated pool of background workers** (`module-worker.server.ts`, managed by `loader.server.ts`). The main UI thread stays responsive even when thousands of schemas are processed simultaneously.
 
 ### 🌳 2. Persistent Mtime Tree (Dirty Bits)
 
-The scanner now maintains a persistent, in-memory **"Dirty Bit" tree**.
+The scanner maintains a persistent, in-memory **"Dirty Bit" tree**:
 
-- **Steady State**: If the `ContentWatcher` hasn't flagged any changes, the scanner skips `fs.readdir` and `fs.stat` entirely, returning the cached schema map instantly.
-- **Micro-Surgical Invalidation**: When a file changes, only that specific node in the tree is marked dirty, triggering a single `fs.stat` and a single cache refresh.
+- **Steady State**: If no files changed, the scanner skips unnecessary work and returns the cached schema map instantly.
+- **Micro-Surgical Invalidation**: When a file changes, only that node is marked dirty.
 
 ### 📦 3. Batch Cache Retrieval (`getMany`)
 
-Individual cache lookups for every file have been replaced by a **Vectorized Batching** pattern. The system fetches all 1,000+ schema metadata blocks in a single `O(1)` trip to Redis/Memory using the new `CacheService.getMany` method.
+Individual cache lookups are replaced by **Vectorized Batching**. The system fetches all schema metadata blocks in a single `O(1)` trip to Redis/Memory via `CacheService.getMany`.
 
 ### 🔢 4. Fast Deterministic Hashing
 
-Replaced heavy cryptographic MD5 with a lightweight, numeric string hash in `module-processor.server.ts`. This reduces reconciliation time for unchanged schemas by ~40%.
+Lightweight numeric string hash in `loader.server.ts` (`generateSchemaHash`). Reduces reconciliation time for unchanged schemas by ~40%.
 
 ---
 
@@ -180,7 +200,7 @@ Replaced heavy cryptographic MD5 with a lightweight, numeric string hash in `mod
 
 **File**: `tests/benchmarks/content-incremental-reload.test.ts`
 
-The dev watcher and SSE hot path use `fullReload(changedFile)` which skips full SCHEMA cache invalidation and full DB reconciliation. Measured against the complete reload path:
+The dev watcher and SSE hot path use `fullReload(changedFile)` which skips full SCHEMA cache invalidation and full DB reconciliation:
 
 | Path                                  | SQLite (recorded 2026-06-15) |
 | :------------------------------------ | :--------------------------- |
@@ -189,81 +209,32 @@ The dev watcher and SSE hot path use `fullReload(changedFile)` which skips full 
 | **Speedup**                           | **45.8×**                    |
 | **Batch 10-file speedup**             | 2.4×                         |
 
-Fixture isolation: exactly **1,000** `.compiledCollections` files (same cardinality as `content-scale-stress`). Uses a mock adapter — measures reconcile-path delta, not DB round-trips. On production-scale trees, speedup can exceed **60×** (full path ~12ms vs incremental ~0.2ms).
-
-This validates the June 2026 optimization: single-file changes during development no longer trigger a full reconciliation storm.
+Fixture isolation: exactly **1,000** `.compiledCollections` files (same cardinality as `content-scale-stress`). Uses a mock adapter — measures reconcile-path delta, not DB round-trips.
 
 ---
 
-## 🔌 Plugin System (June 2026)
+## 🛡️ Schema Validation & Path Hardening
 
-**File**: `src/content/content-service.server.ts`
-
-The content system exposes lifecycle hooks for third-party plugins:
-
-```
-import { registerContentPlugin } from "@src/content/content-service.server";
-
-registerContentPlugin({
-  name: "my-plugin",
-  onSchemaLoad(schema, filePath) {
-    // Enrich, validate, or transform schema before caching
-    return schema;
-  },
-  onReconcile(operations, prunedPaths) {
-    // React to schema sync — notify external systems
-  },
-  onNodeChange(node, action) {
-    // Track content tree changes — audit logging
-  },
-});
-```
-
-**Features**:
-
-- `onSchemaLoad` → runs after validation, before caching — plug in transforms
-- `onReconcile` → fires when collection schemas are synced to DB
-- `onNodeChange` → tracks individual node creates/deletes in the content tree
-- Duplicate plugin names are rejected with a warning
-
-## 🛡️ Schema Validation & Path Hardening (June 2026)
-
-**Schema Validation** (`validateSchemaFields`):
+**Schema Validation** (`validateSchemaFields` in `engine.server.ts`):
 
 - Rejects schemas with missing `name` or empty `fields` array
 - Detects duplicate `db_fieldName` values (prevents silent data corruption)
 - Invalid schemas are logged and skipped — never reach cache or database
 
-**Path Security** (`isSafeCollectionPath` — 3-layer check):
+**Path Security** (`isSafeCollectionPath` in `loader.server.ts`):
 
-1. Must be within `.compiledCollections` directory and end with `.js`
-2. Blocks `..` traversal (absolute path or relative escape)
-3. Rejects special characters beyond `\w\-./\\`
-
-## 📊 Lightweight Tracing (June 2026)
-
-Zero-dependency performance tracking using `performance.now()`:
-
-```
-import { traceStart, getTraceStats } from "@src/content/content-service.server";
-
-const done = traceStart("scanCompiledCollections");
-// ... work ...
-done();
-
-const stats = getTraceStats();
-// → { "scanCompiledCollections": { avg: 0.004, p95: 0.006, count: 150 } }
-```
-
-Internal traces track `scanCompiledCollections`, `reconcile`, and `loadSchemaNative` — keeping the last 100 samples per label.
+1. Must be within `.compiledCollections` (`.js`) or `config/collections` (`.ts`)
+2. Blocks path traversal outside allowed directories
+3. Enforced in both main process and worker threads
 
 ---
 
 ## 🛠️ Developer Experience
 
-- **Zero Restart**: Adding a new collection file in `config/collections` compiles to `.compiledCollections/`, triggers the recursive watcher, incrementally reconciles the DB, and pushes a live UI update via SSE.
-- **Strong Typing**: The `LocalCMS` SDK provides full TypeScript types for all collection operations, from creation to complex joins.
-- **Tenant Isolation**: All content operations automatically respect the `tenantId` context provided by the middleware.
+- **Zero Restart**: New collection files compile to `.compiledCollections/`, trigger the watcher, incrementally reconcile the DB, and push a live UI update via SSE.
+- **Strong Typing**: The `LocalCMS` SDK provides full TypeScript types for all collection operations.
+- **Tenant Isolation**: All content operations respect the `tenantId` context from middleware.
+- **Single scanner**: Vite model registration and runtime reconciliation both use `scanCompiledCollections()` from `engine.server.ts` — no divergent scan paths.
 
 ---
 
@@ -273,3 +244,4 @@ Internal traces track `scanCompiledCollections`, `reconcile`, and `loadSchemaNat
 - [Server Hooks](./server-hooks.mdx)
 - [State Management & Readiness](./state-management.mdx)
 - [Cache System](./cache-system.mdx)
+- [Content Type System](./content-type-system.mdx)

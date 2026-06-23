@@ -13,7 +13,7 @@ export const repairContentCache = command(
     error?: string;
   }> => {
     const event = getRequestEvent();
-    const { contentService } = await import("@src/content/content-service.server");
+    const { contentService } = await import("@src/content/engine.server");
     const { logger } = await import("@utils/logger");
 
     if (!event.locals.isAdmin) {

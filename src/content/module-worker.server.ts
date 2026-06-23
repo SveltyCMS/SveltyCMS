@@ -5,13 +5,13 @@
  * Each worker runs in its own V8 isolate — a crash in one schema file
  * never affects the main process or other workers.
  *
- * Usage: Spawned by module-worker-pool.server.ts, not run directly.
+ * Usage: Spawned by loader.server.ts worker pool, not run directly.
  */
 
 import { stat } from "node:fs/promises";
 import { parentPort } from "node:worker_threads";
 import { pathToFileURL } from "node:url";
-import { isSafeCollectionPath } from "./collection-path-security.server";
+import { isSafeCollectionPath } from "./loader.server";
 
 if (!parentPort) {
   throw new Error("module-worker.server.ts must be run as a worker thread");

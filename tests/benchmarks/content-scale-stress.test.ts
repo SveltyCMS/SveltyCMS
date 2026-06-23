@@ -17,23 +17,19 @@ import {
   printSummaryTable,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
+import {
+  cleanupBenchmarkCompiledWorkspace,
+  prepareBenchmarkCompiledWorkspace,
+} from "@utils/benchmark-paths";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const COLLECTIONS_DIR = path.resolve(process.cwd(), ".compiledCollections");
+const WORKSPACE = "stress";
 const STRESS_FILE_COUNT = 1000;
 const NESTED_LEVELS = 5;
 
 async function cleanupMockFiles() {
-  const rootFiles = await fs.readdir(COLLECTIONS_DIR).catch(() => []);
-  for (const f of rootFiles) {
-    if (f.startsWith("stress_")) {
-      await fs.rm(path.join(COLLECTIONS_DIR, f), {
-        recursive: true,
-        force: true,
-      });
-    }
-  }
+  await cleanupBenchmarkCompiledWorkspace(WORKSPACE);
 }
 
 async function prepareStressEnvironment() {
@@ -41,7 +37,7 @@ async function prepareStressEnvironment() {
     `📂 Preparing stress environment (${STRESS_FILE_COUNT} files, ${NESTED_LEVELS} levels)...`,
   );
 
-  await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
+  const { compiled: stressRoot } = await prepareBenchmarkCompiledWorkspace(WORKSPACE);
 
   for (let i = 0; i < STRESS_FILE_COUNT; i++) {
     // Distribute files across nested levels
@@ -53,7 +49,7 @@ async function prepareStressEnvironment() {
         .join("/");
     }
 
-    const finalDir = path.join(COLLECTIONS_DIR, subDir);
+    const finalDir = path.join(stressRoot, subDir);
     await fs.mkdir(finalDir, { recursive: true });
 
     const fileName = `stress_collection_${i}.js`;
@@ -80,7 +76,7 @@ async function runStressAudit() {
   await cleanupMockFiles();
   await prepareStressEnvironment();
 
-  const { contentSystem } = await import("@src/content");
+  const { contentSystem } = await import("@src/content/index.server");
   const { cacheService } = await import("@src/databases/cache/cache-service");
 
   try {
@@ -131,8 +127,7 @@ async function runStressAudit() {
 
     exportResult(warmResult);
   } finally {
-    // Keep files for debugging if needed, but usually we cleanup
-    // await cleanupMockFiles();
+    await cleanupMockFiles();
   }
 }
 

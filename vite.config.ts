@@ -413,9 +413,9 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/auth/permissions.ts",
     "/src/databases/cache/redis-store.ts",
     "/src/databases/cache/inmemory-store.ts",
-    "/src/content/content-service.server.ts",
-    "/src/content/content-watcher.server.ts",
-    "/src/content/module-processor.server.ts",
+    "/src/content/engine.server.ts",
+    "/src/content/engine.server.ts",
+    "/src/content/loader.server.ts",
     "/src/components/emails/",
     "/src/services/security/audit-service.ts",
     "/src/databases/sqlite/adapter-core.ts",
@@ -556,7 +556,7 @@ function sveltyCmsPlugin(): Plugin {
               );
               if (dbAdapter?.collection) {
                 const { scanCompiledCollections } = await server.ssrLoadModule(
-                  path.join(CWD, "src/content/content-reconciler/scan-files.server.ts"),
+                  path.join(CWD, "src/content/engine.server.ts"),
                 );
                 const collections = await scanCompiledCollections();
                 log.info(`Found ${collections.length} collections, registering models...`);
@@ -573,7 +573,7 @@ function sveltyCmsPlugin(): Plugin {
           }
 
           const { generateContentTypes } = await server.ssrLoadModule(
-            path.join(CWD, "src/content/vite.ts"),
+            path.join(CWD, "scripts/generate-content-types.ts"),
           );
           await generateContentTypes(server);
           // Send targeted content-structure update instead of full-reload

@@ -28,7 +28,7 @@ vi.mock("@src/content/index.server", () => ({
   },
 }));
 
-vi.mock("@src/content/content-service.server", () => ({
+vi.mock("@src/content/engine.server", () => ({
   markFileDirty: (...args: unknown[]) => mockMarkFileDirty(...args),
 }));
 
