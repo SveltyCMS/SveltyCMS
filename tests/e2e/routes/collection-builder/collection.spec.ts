@@ -92,17 +92,24 @@ test.describe("Full Collection & Widget Flow", () => {
     const actions = ["Clone", "Delete"];
 
     for (const action of actions) {
-      // Wait for the entry table body to render at least one row, then select
-      // its checkbox (skip the header "Toggle selection" checkbox). Waiting on
-      // the row first avoids a race where the checkbox is queried before the
-      // table hydrates under parallel worker load.
+      // Reload the page to guarantee a fresh table with no lingering selection
+      // state from the previous iteration. Clone adds rows and onActionSuccess
+      // clears selection + invalidates, but the DOM may not have refreshed yet
+      // when we loop back, causing stale checkboxes.
+      await page.goto("/en/collection/Names", { waitUntil: "domcontentloaded" });
       await expect(page.locator("table tbody tr").first()).toBeVisible({ timeout: 15_000 });
-      const checkbox = page.getByRole("checkbox").nth(1);
+
+      // Select the first row's checkbox. After a fresh reload all checkboxes
+      // are unchecked, so the first row is always a valid target.
+      const checkbox = page.locator("table tbody tr").first().getByRole("checkbox").first();
       await expect(checkbox).toBeVisible({ timeout: 10_000 });
       await checkbox.click();
+      console.log(`[Collection] action=${action} rows=${await page.locator("table tbody tr").count()} aria-checked=${await checkbox.getAttribute("aria-checked")}`);
 
-      // Open the actions dropdown
-      await page.getByRole("button", { name: /toggle actions menu/i }).click();
+      // Open the actions dropdown (enabled once a row is selected)
+      const dropdownToggle = page.getByRole("button", { name: /toggle actions menu/i });
+      await expect(dropdownToggle).toBeEnabled({ timeout: 10_000 });
+      await dropdownToggle.click();
 
       // Click the action menu item (label may include a shortcut, e.g. "Delete (Alt+Del)")
       await page.getByRole("menuitem", { name: new RegExp(`^${action}`, "i") }).click();
@@ -116,7 +123,7 @@ test.describe("Full Collection & Widget Flow", () => {
 
       // Confirm we remain on the collection list page
       await expect(page).toHaveURL(/\/en\/collection\/Names/i, { timeout: 15_000 });
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(1000);
     }
 
     // 4. Add a Widget to Dashboard

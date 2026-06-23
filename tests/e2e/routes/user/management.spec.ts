@@ -37,7 +37,7 @@ test.describe("User Management Flow", () => {
     // Confirm update saved — toast may appear and disappear; wait longer
     // If the page refreshes with invalidateAll(), the username input value should update
     await expect(
-      page.locator('input[name="username"]').or(page.getByText(/updateduser/i)),
+      page.locator('input[name="username"]').first().or(page.getByText(/updateduser/i)),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -95,8 +95,11 @@ test.describe("User Management Flow", () => {
     await expect(developerRow).toBeVisible({ timeout: 15_000 });
 
     for (const action of actions) {
-      // Find row for author@example.com (since we cannot block/delete admins) and check the checkbox
-      const row = page.locator("tr", { hasText: "author@example.com" });
+      // Re-locate the developer row fresh each iteration to avoid stale
+      // locators and lingering checkbox selection from the previous action.
+      // We cannot block/delete admins, so we target the seeded developer user.
+      const row = page.locator("tr", { hasText: "developer@example.com" }).first();
+      await expect(row).toBeVisible({ timeout: 15_000 });
       await row.getByRole("checkbox").first().click();
 
       // Wait for bulk actions button to be enabled
@@ -120,7 +123,11 @@ test.describe("User Management Flow", () => {
       });
 
       // Wait for the table to reload before next iteration
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(1500);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "User List:" })).toBeVisible({
+        timeout: 10_000,
+      });
     }
   });
 
@@ -141,15 +148,18 @@ test.describe("User Management Flow", () => {
     await expect(modalDialog).toBeVisible({ timeout: 10_000 });
 
     // Fill form
-    await page.locator('input[name="email"]:not([disabled])').fill("newuser@example.com");
-    // Select role — try radio first, fall back to button
-    const roleRadio = page.getByRole("radio", { name: /user/i });
+    await modalDialog.locator('input[name="email"]:not([disabled])').fill("newuser@example.com");
+    // Select role — role buttons use role names (admin, editor, developer), not "user"
+    const roleRadio = modalDialog.getByRole("radio", { name: /developer/i });
     if (await roleRadio.isVisible({ timeout: 2000 }).catch(() => false)) {
       await roleRadio.click();
     } else {
-      await page.getByRole("button", { name: /user/i }).first().click();
+      // Role selection uses chip buttons with role names
+      const roleBtn = modalDialog.getByRole("button", { name: /developer/i }).first();
+      await expect(roleBtn).toBeVisible({ timeout: 10_000 });
+      await roleBtn.click();
     }
-    await page.getByRole("button", { name: /save/i }).first().click();
+    await modalDialog.getByRole("button", { name: /save/i }).first().click();
 
     // Wait for the invitation link section to appear
     await expect(page.getByText("Invitation Link").first()).toBeVisible({ timeout: 15_000 });

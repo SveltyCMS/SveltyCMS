@@ -8,6 +8,10 @@ import { pluginRegistry } from "@src/plugins/registry";
 import { pluginServerRegistry } from "@src/plugins/plugin-server-registry";
 import { logger } from "@utils/logger";
 import type { RequestHandler } from "./$types";
+import type { PluginServerModule } from "@src/plugins/types";
+
+// Discover plugin server modules at build time (safe in +server.ts — server-only)
+const _pluginServerGlob = import.meta.glob("@plugins/*/*.server.ts");
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
   const { pluginId } = params;
@@ -35,7 +39,17 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     return json({ error: `Plugin '${pluginId}' is not enabled` }, { status: 403 });
   }
 
-  const loader = pluginServerRegistry.getLoader(pluginId);
+  let loader = pluginServerRegistry.getLoader(pluginId);
+  if (!loader) {
+    // Fallback: discover via glob (for plugins that don't register server modules directly)
+    const matchPath = Object.keys(_pluginServerGlob).find((p) =>
+      p.includes(`/plugins/${pluginId}/`),
+    );
+    if (matchPath) {
+      loader = _pluginServerGlob[matchPath] as () => Promise<PluginServerModule>;
+      pluginServerRegistry.register(pluginId, loader);
+    }
+  }
   if (!loader) {
     return json({ error: `Plugin '${pluginId}' has no server actions` }, { status: 404 });
   }

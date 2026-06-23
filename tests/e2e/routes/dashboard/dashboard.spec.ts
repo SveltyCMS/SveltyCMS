@@ -31,12 +31,16 @@ test.describe("Dashboard", () => {
 
   test("add widget menu lists monitoring widgets", async ({ page }) => {
     await page.goto("/dashboard");
-    const addBtn = page.getByRole("button", { name: /add.*widget/i }).first();
-    await expect(addBtn).toBeVisible({ timeout: 10_000 });
+    // Use exact match on aria-label="Add Widget" — this button only renders
+    // after the widget registry has loaded (availableWidgets.length > 0).
+    // The regex /add.*widget/i also matches "Add first widget" in the empty
+    // state, which appears before the registry loads and causes a race.
+    const addBtn = page.getByRole("button", { name: "Add Widget" }).first();
+    await expect(addBtn).toBeVisible({ timeout: 15_000 });
     await addBtn.click();
     // Wait for widget registry to load and menu items to appear
     await expect(page.getByRole("menuitem", { name: /cpu usage/i })).toBeVisible({
-      timeout: 30_000,
+      timeout: 15_000,
     });
     await expect(page.getByRole("menuitem", { name: /system health/i })).toBeVisible({
       timeout: 10_000,
@@ -45,12 +49,12 @@ test.describe("Dashboard", () => {
 
   test("can add CPU usage widget to the grid", async ({ page }) => {
     await page.goto("/dashboard");
-    const addBtn = page.getByRole("button", { name: /add.*widget/i }).first();
-    await expect(addBtn).toBeVisible({ timeout: 10_000 });
+    const addBtn = page.getByRole("button", { name: "Add Widget" }).first();
+    await expect(addBtn).toBeVisible({ timeout: 15_000 });
     await addBtn.click();
     // Wait for widget registry to load and menu items to appear
     await expect(page.getByRole("menuitem", { name: /cpu usage/i })).toBeVisible({
-      timeout: 30_000,
+      timeout: 15_000,
     });
     await page.getByRole("menuitem", { name: /cpu usage/i }).click();
     await expect(page.getByRole("grid")).toBeVisible({ timeout: 15_000 });
