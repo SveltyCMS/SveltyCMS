@@ -312,7 +312,9 @@ async function signInInternal(event: RequestEvent, input: any) {
           ...(sc.attributes as Record<string, unknown>),
           path: "/",
         });
-      } catch {}
+      } catch (e) {
+        logger.error("[auth.remote] Failed to set session cookie:", e);
+      }
       // Prime in-memory session cache so getUserFromSession bypasses sqlite-proxy
       try {
         const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
