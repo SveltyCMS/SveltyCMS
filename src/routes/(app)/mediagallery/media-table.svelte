@@ -102,15 +102,15 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 			<table class="w-full border-collapse text-sm">
 				<thead class="sticky top-0 z-10 bg-surface-100/95 backdrop-blur-sm dark:bg-surface-800/95">
 					<tr class="border-b border-surface-200 text-[11px] font-bold uppercase tracking-wider text-surface-500 dark:border-surface-700">
-						<th class="w-10 px-3 py-2.5 text-center">
+						<th class="w-10 px-3 py-3 text-center">
 							<span class="sr-only">Select</span>
 							<iconify-icon icon="mdi:checkbox-marked-circle-outline" width="16" class="opacity-60"></iconify-icon>
 						</th>
-						<th class="w-16 px-3 py-2.5 text-start">Preview</th>
-						<th class="px-3 py-2.5 text-start">Name</th>
-						<th class="hidden px-3 py-2.5 text-start md:table-cell">Type</th>
-						<th class="hidden whitespace-nowrap px-3 py-2.5 text-end sm:table-cell">Size</th>
-						<th class="w-24 px-3 py-2.5 text-end">Actions</th>
+						<th class="w-16 px-3 py-3 text-start">Preview</th>
+						<th class="px-3 py-3 text-start">Name</th>
+						<th class="hidden px-3 py-3 text-start md:table-cell">Type</th>
+						<th class="hidden whitespace-nowrap px-3 py-3 text-end sm:table-cell">Size</th>
+						<th class="w-24 px-3 py-3 text-end">Actions</th>
 					</tr>
 				</thead>
 
@@ -126,7 +126,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							tabindex="0"
 							aria-selected={isSelected}
 						>
-							<td class="px-3 py-2 text-center" onclick={(e) => e.stopPropagation()}>
+							<td class="px-3 py-2.5 text-center" onclick={(e) => e.stopPropagation()}>
 								<Checkbox
 									checked={isSelected}
 									onchange={() => toggleSelection(file)}
@@ -135,8 +135,8 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 									size="sm"
 								/>
 							</td>
-							<td class="px-3 py-2">
-								<div class="flex h-11 w-11 items-center justify-center overflow-hidden rounded bg-surface-100 dark:bg-surface-800">
+							<td class="px-3 py-2.5">
+								<div class="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-surface-100 dark:bg-surface-800">
 									{#if file.type === 'image' && !failedImages.has(fileId)}
 										<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" onerror={() => failedImages.add(fileId)} />
 									{:else if file.type === 'image'}
@@ -146,15 +146,15 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 									{/if}
 								</div>
 							</td>
-							<td class="w-full max-w-0 px-3 py-2">
+							<td class="w-full max-w-0 px-3 py-2.5">
 								<div class="truncate font-medium" title={file.filename}>{file.filename}</div>
 								<div class="truncate font-mono text-[10px] text-surface-500 dark:text-surface-400" title={file.path}>{file.path}</div>
 							</td>
-							<td class="hidden px-3 py-2 md:table-cell">
+							<td class="hidden px-3 py-2.5 md:table-cell">
 								<Badge preset="tonal" color="surface" class="uppercase">{typeLabel(file)}</Badge>
 							</td>
-							<td class="hidden whitespace-nowrap px-3 py-2 text-end font-mono text-xs text-surface-500 dark:text-surface-400 sm:table-cell">{formatBytes(file.size)}</td>
-							<td class="px-3 py-2">
+							<td class="hidden whitespace-nowrap px-3 py-2.5 text-end font-mono text-xs text-surface-500 dark:text-surface-400 sm:table-cell">{formatBytes(file.size)}</td>
+							<td class="px-3 py-2.5">
 								<div class="flex items-center justify-end gap-1">
 									<Button
 										variant="ghost"

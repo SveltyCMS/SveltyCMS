@@ -142,57 +142,50 @@ Features:
   }
 </script>
 
-<div
-  bind:this={scrollRoot}
-  class="grid min-h-0 flex-1 content-start items-start gap-4 overflow-y-auto overflow-x-hidden pt-1"
-  style:grid-template-columns="repeat(auto-fill, minmax({minColWidth}px, 1fr))"
-  role="grid"
-  aria-label="Media asset grid"
-  data-testid="media-grid"
->
-  {#if filteredFiles.length === 0}
-    <div
-      class="flex flex-col items-center justify-center gap-3 col-span-full min-h-full border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50 dark:bg-surface-800"
-      transition:scale={{ duration: 200 }}
-      data-testid="media-grid-empty"
-    >
-      <iconify-icon icon="mdi:cloud-upload-outline" width="56" class="text-surface-400 dark:text-surface-600"
-      ></iconify-icon>
-      <h3 class="text-lg font-semibold">No media found</h3>
-      <p
-        class="text-sm text-surface-500 dark:text-surface-400 text-center max-w-xs"
-      >
-        Drop files here or use the upload button to start building your library.
-      </p>
-
-      		<Button variant="tertiary" onclick={() => fileUploadInput?.click()} class="mt-1 shadow-sm hover:shadow-md transition-all">
-      			<iconify-icon icon="mdi:plus" width="20"></iconify-icon>
-      			<span>Upload First File</span>
-      		</Button>
-      		<input
-      			type="file"
-      			multiple
-      			class="hidden"
-      			bind:this={fileUploadInput}
-      			onchange={(e) => {
-      				const input = e.target as HTMLInputElement;
-      				if (input.files?.length) {
-      					const event = new CustomEvent("externalUpload", {
-      						detail: { files: input.files },
-      					});
-      					document.dispatchEvent(event);
-      				}
-      			}}
-      			accept="image/*,video/*,audio/*,application/pdf"
-      		/>
-    </div>
-  {:else}
+{#if filteredFiles.length === 0}
+  <div
+    class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded border-2 border-dashed border-surface-300 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
+    transition:scale={{ duration: 200 }}
+    data-testid="media-grid-empty"
+  >
+    <iconify-icon icon="mdi:cloud-upload-outline" width="56" class="text-surface-400 dark:text-surface-600"></iconify-icon>
+    <h3 class="text-lg font-semibold">No media found</h3>
+    <p class="max-w-xs text-center text-sm text-surface-500 dark:text-surface-400">
+      Drop files here or use the upload button to start building your library.
+    </p>
+    <Button variant="tertiary" onclick={() => fileUploadInput?.click()} class="mt-1 shadow-sm transition-all hover:shadow-md">
+      <iconify-icon icon="mdi:plus" width="20"></iconify-icon>
+      <span>Upload First File</span>
+    </Button>
+    <input
+      type="file"
+      multiple
+      class="hidden"
+      bind:this={fileUploadInput}
+      onchange={(e) => {
+        const input = e.target as HTMLInputElement;
+        if (input.files?.length) {
+          document.dispatchEvent(new CustomEvent("externalUpload", { detail: { files: input.files } }));
+        }
+      }}
+      accept="image/*,video/*,audio/*,application/pdf"
+    />
+  </div>
+{:else}
+  <div
+    bind:this={scrollRoot}
+    class="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overflow-x-hidden pt-1"
+    style:grid-template-columns="repeat(auto-fill, minmax({minColWidth}px, 1fr))"
+    role="grid"
+    aria-label="Media asset grid"
+    data-testid="media-grid"
+  >
     {#each visibleFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
 
       <div
-        class="group relative flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-300
+        class="group relative flex h-full flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-300
 					hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 focus-within:ring-4 focus-within:ring-primary-500
 					{isSelected
           ? 'border-primary-500 ring-2 ring-primary-500/20'
@@ -204,7 +197,7 @@ Features:
         <!-- Selection UI -->
         {#if isSelectionMode || isSelected}
           <div class="absolute inset-s-3 top-3 z-20" in:scale={{ duration: 200 }}>
-            <div class="rounded-md bg-white/85 p-1 shadow-md backdrop-blur-sm dark:bg-surface-900/85">
+            <div class="rounded-full bg-white/85 p-1 shadow-md backdrop-blur-sm dark:bg-surface-900/85">
               <Checkbox
                 checked={isSelected}
                 onchange={() => toggleSelection(file)}
@@ -218,7 +211,7 @@ Features:
 
         <!-- Actions overlay (visible on hover or focus) -->
         <div
-          class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+          class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
         >
           <!-- Info -->
           <SystemTooltip positioning={{ placement: "left" }}>
@@ -226,8 +219,8 @@ Features:
               <Button variant="ghost"
                 onclick={(e: MouseEvent) => e.stopPropagation()}
                 aria-label="File info for {file.filename}"
-                class="flex h-8 w-8 items-center justify-center p-0! min-w-0 rounded-md bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
-                <iconify-icon icon="mdi:information-outline" width={16}></iconify-icon>
+                class="flex h-7 w-7 items-center justify-center p-0! min-w-0 rounded-full bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
+                <iconify-icon icon="mdi:information-outline" width={14}></iconify-icon>
               </Button>
             {/snippet}
             {#snippet content()}
@@ -285,8 +278,8 @@ Features:
                   openTagEditor(file as MediaImage);
                 }}
                 aria-label="Tags for {file.filename}"
-                class="flex h-8 w-8 items-center justify-center p-0! min-w-0 rounded-md bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
-                <iconify-icon icon={(file as MediaImage).metadata?.tags?.length || (file as MediaImage).metadata?.aiTags?.length ? 'mdi:tag-multiple' : 'mdi:tag-outline'} width={16}></iconify-icon>
+                class="flex h-7 w-7 items-center justify-center p-0! min-w-0 rounded-full bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
+                <iconify-icon icon={(file as MediaImage).metadata?.tags?.length || (file as MediaImage).metadata?.aiTags?.length ? 'mdi:tag-multiple' : 'mdi:tag-outline'} width={14}></iconify-icon>
               </Button>
             </SystemTooltip>
           {/if}
@@ -300,8 +293,8 @@ Features:
                 onEditImage(file as MediaImage);
               }}
               aria-label="Edit {file.filename}"
-             class="flex h-8 w-8 items-center justify-center p-0! min-w-0 rounded-md bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
-              <iconify-icon icon="mdi:pencil" width={16}></iconify-icon>
+             class="flex h-7 w-7 items-center justify-center p-0! min-w-0 rounded-full bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm hover:text-primary-500">
+              <iconify-icon icon="mdi:pencil" width={14}></iconify-icon>
             </Button>
           </SystemTooltip>
 
@@ -313,8 +306,8 @@ Features:
                 ondeleteImage(file);
               }}
               aria-label="Delete {file.filename}"
-             class="flex h-8 w-8 items-center justify-center p-0! min-w-0 rounded-md bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm hover:text-error-600">
-              <iconify-icon icon="mdi:trash-can-outline" width={16}></iconify-icon>
+             class="flex h-7 w-7 items-center justify-center p-0! min-w-0 rounded-full bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm hover:text-error-600">
+              <iconify-icon icon="mdi:trash-can-outline" width={14}></iconify-icon>
             </Button>
           </SystemTooltip>
         </div>
@@ -367,19 +360,15 @@ Features:
         </button>
 
         <!-- Meta -->
-        <div
-          class="p-3 border-t border-surface-100 dark:border-surface-800 bg-white dark:bg-surface-900"
-        >
-          <div class="truncate text-xs font-semibold" title={file.filename}>
+        <div class="flex flex-col gap-3 px-3 pt-2.5 pb-3 border-t border-surface-100 dark:border-surface-800 bg-white dark:bg-surface-900">
+          <div class="truncate text-[11px] font-semibold leading-tight" title={file.filename}>
             {file.filename}
           </div>
-          <div
-            class="flex items-center gap-2 mt-1 text-[10px] opacity-60 font-mono"
-          >
-            <span class="rounded bg-surface-100 px-1 dark:bg-surface-800"
-              >{formatMimeType(file.mimeType)}</span
-            >
-            <span>{formatBytes(file.size)}</span>
+          <div class="flex items-center justify-between gap-1">
+            <span class="rounded-full bg-surface-100 dark:bg-surface-800 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400">
+              {formatMimeType(file.mimeType)}
+            </span>
+            <span class="text-[10px] font-mono text-surface-400 dark:text-surface-500">{formatBytes(file.size)}</span>
           </div>
         </div>
       </div>
@@ -395,8 +384,8 @@ Features:
         <span class="text-xs font-medium">Loading more…</span>
       </div>
     {/if}
-  {/if}
-</div>
+  </div>
+{/if}
 
 <TagEditorModal
   bind:show={showTagModal}

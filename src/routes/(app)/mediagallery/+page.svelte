@@ -17,7 +17,6 @@ import { mediaUrl } from "@utils/media/media-utils";
 import ImageEditorModal from "@src/components/image-editor/image-editor-modal.svelte";
 import ModalPrompt from "@components/modal-prompt.svelte";
 import MediaDetailsModal from "@src/components/media/media-details-modal.svelte";
-import AdminCard from '@components/admin-card.svelte';
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
@@ -78,6 +77,29 @@ const filteredFiles = $derived.by(() => {
 			selectedMediaType === "All" || file.type === selectedMediaType;
 		return matchesSearch && matchesType;
 	});
+});
+
+// Breadcrumb trail mirroring the sidebar folder path. Each ancestor segment of
+// the current folder's path is resolved back to its folder via systemVirtualFolders.
+const breadcrumbs = $derived.by(() => {
+	const crumbs: Array<{ name: string; folderId: string | null }> = [
+		{ name: "Media Gallery", folderId: null },
+	];
+	const current = data.currentFolder as { path?: string } | null;
+	if (current?.path && current.path !== "/") {
+		const all = (data.systemVirtualFolders ?? []) as Array<{
+			_id: string;
+			name: string;
+			path: string;
+		}>;
+		let ancestor = "";
+		for (const segment of current.path.split("/").filter(Boolean)) {
+			ancestor += `/${segment}`;
+			const match = all.find((f) => f.path === ancestor);
+			crumbs.push({ name: match?.name ?? segment, folderId: match?._id ?? null });
+		}
+	}
+	return crumbs;
 });
 
 onMount(() => {
@@ -359,9 +381,28 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 	{/snippet}
 
 	<div class="flex min-h-0 flex-1 flex-col gap-3">
+		<!-- Breadcrumb (folder path) -->
+		{#if breadcrumbs.length > 1}
+			<nav class="flex shrink-0 items-center gap-1 overflow-x-auto text-sm text-surface-500 dark:text-surface-400" aria-label="Folder path">
+				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
+					{#if i > 0}
+						<iconify-icon icon="mdi:chevron-right" width="16" class="shrink-0 opacity-50"></iconify-icon>
+					{/if}
+					{#if i === breadcrumbs.length - 1}
+						<span class="max-w-[12rem] truncate font-semibold text-surface-700 dark:text-surface-200" aria-current="page">{crumb.name}</span>
+					{:else}
+						<a
+							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
+							class="max-w-[12rem] shrink-0 truncate transition-colors hover:text-primary-500"
+						>{crumb.name}</a>
+					{/if}
+				{/each}
+			</nav>
+		{/if}
+
 		<!-- Toolbar -->
-		<AdminCard
-			class="flex shrink-0 flex-col gap-2.5 border border-surface-200 bg-white p-2.5 shadow-sm sm:flex-row sm:items-center dark:border-surface-700 dark:bg-surface-900/50"
+		<div
+			class="flex shrink-0 flex-col gap-2 border-b border-surface-200/70 pb-3 sm:flex-row sm:items-center dark:border-surface-700/40"
 			data-testid="media-gallery-toolbar"
 		>
 			<div class="relative w-full sm:flex-1 sm:min-w-48">
@@ -371,7 +412,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					bind:value={globalSearchValue}
 					type="search"
 					placeholder="Search media... (Mod+F)"
-					class="ps-10 w-full"
+					class="ps-10 w-full dark:border-surface-700/60 focus-visible:ring-1"
 					aria-label="Search media assets"
 				/>
 			</div>
@@ -383,31 +424,31 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					bind:value={selectedMediaType}
 					options={mediaTypeOptions}
 					placeholder="Type"
-					class="w-32 sm:w-36"
+					class="w-36 sm:w-44"
 				/>
 
-				<div class="flex h-10 shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+				<div class="inline-flex h-10 shrink-0 items-center gap-1 rounded-md border border-surface-200 bg-surface-50 p-1 dark:border-surface-700/60 dark:bg-surface-900" role="group" aria-label="View mode">
 					<Button
 						variant={view === 'grid' ? 'primary' : 'ghost'}
 						size="sm"
 						color={view === 'grid' ? 'var(--color-primary-500)' : undefined}
 						onclick={() => (view = 'grid')}
-						class="h-full rounded-none px-3 {view !== 'grid' ? 'hover:bg-surface-200 dark:hover:bg-surface-700' : ''}"
+						class="h-8 w-9 min-w-0 rounded-md p-0! {view !== 'grid' ? 'text-surface-500 hover:bg-surface-200 dark:text-surface-400 dark:hover:bg-surface-700' : ''}"
 						aria-label="Grid view"
 						aria-pressed={view === 'grid'}
 					>
-						<iconify-icon icon="mdi:grid-large" width="20"></iconify-icon>
+						<iconify-icon icon="mdi:grid-large" width="18"></iconify-icon>
 					</Button>
 					<Button
 						variant={view === 'table' ? 'primary' : 'ghost'}
 						size="sm"
 						color={view === 'table' ? 'var(--color-primary-500)' : undefined}
 						onclick={() => (view = 'table')}
-						class="h-full rounded-none px-3 {view !== 'table' ? 'hover:bg-surface-200 dark:hover:bg-surface-700' : ''}"
+						class="h-8 w-9 min-w-0 rounded-md p-0! {view !== 'table' ? 'text-surface-500 hover:bg-surface-200 dark:text-surface-400 dark:hover:bg-surface-700' : ''}"
 						aria-label="Table view"
 						aria-pressed={view === 'table'}
 					>
-						<iconify-icon icon="mdi:format-list-bulleted" width="20"></iconify-icon>
+						<iconify-icon icon="mdi:format-list-bulleted" width="18"></iconify-icon>
 					</Button>
 				</div>
 
@@ -417,11 +458,12 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					onclick={() => (isSelectionMode = !isSelectionMode)}
 					aria-label="Toggle selection mode"
 					aria-pressed={isSelectionMode}
+					class="border-surface-200 dark:border-surface-700/60"
 				>
 					{isSelectionMode ? 'Exit Selection' : 'Select'}
 				</Button>
 			</div>
-		</AdminCard>
+		</div>
 
 		<!-- Content -->
 		<div class="relative flex min-h-0 flex-1 flex-col" data-testid="media-gallery-content">
