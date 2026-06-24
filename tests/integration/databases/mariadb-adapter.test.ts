@@ -33,7 +33,7 @@ describeMariaDB("MariaDB Adapter Integration", () => {
       const port = privateEnv.DB_PORT || "3306";
       const user = privateEnv.DB_USER || "root";
       const pass = privateEnv.DB_PASSWORD || "mariadb";
-      const dbName = `${privateEnv.DB_NAME || "sveltycms_test"}_integration`;
+      const dbName = privateEnv.DB_NAME || "sveltycms_test";
 
       const connStr = `mariadb://${user}:${pass}@${host}:${port}/${dbName}`;
 
@@ -136,7 +136,9 @@ describeMariaDB("MariaDB Adapter Integration", () => {
       }
 
       // 5. Delete cleanup
-      const deleteRes = await db.crud.delete(testCollection, createdId, { tenantId: TEST_TENANT });
+      const deleteRes = await db.crud.delete(testCollection, createdId, {
+        tenantId: TEST_TENANT,
+      });
       expect(deleteRes.success).toBe(true);
 
       // 6. Verify deletion
