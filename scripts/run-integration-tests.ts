@@ -70,9 +70,8 @@ let serverRunningMode: "normal" | "setup" | "none" = "none";
 
 function getEnvValue(name: string): string | undefined {
   if (Object.prototype.hasOwnProperty.call(process.env, name)) {
-    return process.env[name] ?? "";
+    return process.env[name];
   }
-
   return undefined;
 }
 
