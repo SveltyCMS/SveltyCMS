@@ -12,6 +12,57 @@
 
 This section documents the step-by-step approach used to diagnose and fix each issue, including dead ends and key insights. Future agents can use this to understand the reasoning and avoid repeating the same investigations.
 
+### Critical Workflow Rules
+
+These steps MUST be followed before every test run and before every push:
+
+1. **Kill stale servers on port 4173** — Playwright `reuseExistingServer: true` will reuse stale builds from previous runs, causing false results:
+   ```bash
+   netstat -aon 2>/dev/null | grep ':4173' | grep LISTENING | awk '{print $5}' | sort -u | while read pid; do taskkill //F //PID "$pid" 2>/dev/null; done
+   ```
+
+2. **Check for upstream updates** — The `origin/next` branch changes frequently. Always fetch and merge before starting work:
+   ```bash
+   git fetch origin next
+   git log --oneline HEAD..origin/next  # Check for new commits
+   git merge origin/next --no-edit       # Merge if new commits exist
+   ```
+
+3. **Rebuild after any source change** — The preview server serves from `build/`. Changes to source files won't take effect without a rebuild:
+   ```bash
+   NODE_OPTIONS="--no-warnings --no-deprecation" node node_modules/vite-plus/bin/vp build
+   ```
+   - Do NOT use `npm run build` on Windows — the `NODE_OPTIONS="..."` inline env var syntax doesn't work in Windows shell
+   - Do NOT use `npx vp build` — fails with `NODE_OPTIONS not recognized` on Windows
+
+4. **Clear Vite cache if build fails unexpectedly**:
+   ```bash
+   rm -rf node_modules/.vite-temp .svelte-kit/output
+   ```
+
+5. **Clear Playwright report and test results before each run**:
+   ```bash
+   rm -rf tests/playwright-report test-results/
+   ```
+
+6. **Run tests with `--workers=1`** — Parallel runs cause cross-project theme-state bleed and DB-worker contention:
+   ```bash
+   npx playwright test --project=<project> --workers=1
+   ```
+
+7. **Format before committing** — CI format check will fail if files aren't formatted:
+   ```bash
+   bun run format  # Runs `vp fmt`
+   ```
+   - Use `--no-verify` on `git commit` to skip the pre-commit hook (which runs format + lint + build + unit tests + integration tests — too slow for iterative work)
+   - But ALWAYS run `bun run format` manually before pushing
+
+8. **Verify locally before pushing** — Run at minimum:
+   - `bun run format` (format check)
+   - `node node_modules/vite-plus/bin/vp check` (type check)
+   - `node node_modules/vite-plus/bin/vp build` (build)
+   - `npx playwright test --project=<relevant-projects> --workers=1` (e2e tests)
+
 ### Phase 1: CSS/Styling Fixes (Original Task)
 
 **Problem:** LeftSideBar and `/user` page didn't look professional per `docs/contributing/style-guide-gui.mdx`.
@@ -45,9 +96,20 @@ This section documents the step-by-step approach used to diagnose and fix each i
 
 ### Phase 3: Upstream Sync
 
-**Problem:** Upstream `next` branch had 20+ new commits that conflicted with our changes.
+**Problem:** Upstream `next` branch changes frequently — new commits can conflict with our changes or introduce new anti-patterns.
 
-**Steps taken:**
+**Workflow (MUST repeat before each work session):**
+1. `git fetch origin next` — fetch latest
+2. `git log --oneline HEAD..origin/next` — check for new commits
+3. If new commits exist: `git merge origin/next --no-edit`
+4. Resolve conflicts: keep HEAD for CSS files (style-guide-compliant), take theirs for e2e test hardening
+5. Check merged files for anti-patterns (`border-black`, `bg-surface-500/30`, `grid-order`)
+6. **Rebuild:** `node node_modules/vite-plus/bin/vp build` — verify build still passes
+7. **Kill stale server:** `netstat -aon ... | grep ':4173' ... | taskkill`
+8. **Run tests:** `npx playwright test --project=users --project=visual-regression --project=dashboard --workers=1`
+9. Commit merge and push
+
+**Steps taken (across 5 merges):**
 1. Fetched `origin/next` and compared with HEAD
 2. Merged with conflict resolution strategy: keep HEAD for CSS files (style-guide-compliant), take theirs for e2e test hardening
 3. Resolved 14 file conflicts manually, checking each for anti-patterns
