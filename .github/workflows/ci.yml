@@ -241,7 +241,7 @@ jobs:
       - name: Start Database (Docker Compose)
         if: matrix.db != 'sqlite'
         run: |
-          docker compose -f test/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
+          docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
       - name: Create MongoDB test user
@@ -271,7 +271,7 @@ jobs:
 
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'
-        run: docker compose -f test/docker-compose.yml --profile ${{ matrix.db }} logs
+        run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
 
       - name: Upload Logs
         if: always()
@@ -533,7 +533,7 @@ jobs:
       - name: Start Database (Docker Compose)
         if: matrix.db != 'sqlite'
         run: |
-          docker compose -f test/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
+          docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
       - name: Create MongoDB benchmark user
@@ -563,7 +563,7 @@ jobs:
 
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'
-        run: docker compose -f test/docker-compose.yml --profile ${{ matrix.db }} logs
+        run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
 
       - uses: actions/upload-artifact@v7
         if: always()

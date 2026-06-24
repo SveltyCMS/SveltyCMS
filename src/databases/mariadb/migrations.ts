@@ -474,35 +474,26 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
   // Add isRegistered column if it doesn't exist (for existing databases)
   try {
     await connection.query(
-      `ALTER TABLE auth_users ADD COLUMN isRegistered BOOLEAN NOT NULL DEFAULT FALSE`,
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS isRegistered BOOLEAN NOT NULL DEFAULT FALSE`,
     );
     await connection.query(
-      `ALTER TABLE auth_users ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'user'`,
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'user'`,
     );
     await connection.query(
-      `ALTER TABLE auth_users ADD COLUMN is2FAEnabled BOOLEAN NOT NULL DEFAULT FALSE`,
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS is2FAEnabled BOOLEAN NOT NULL DEFAULT FALSE`,
     );
-    await connection.query(`ALTER TABLE auth_users ADD COLUMN totpSecret VARCHAR(255)`);
-    await connection.query(`ALTER TABLE auth_users ADD COLUMN backupCodes JSON`);
-    await connection.query(`ALTER TABLE auth_users ADD COLUMN last2FAVerification DATETIME`);
-    // WebAuthn + brute-force protection columns (v0.0.7+)
-    try {
-      await connection.query(`ALTER TABLE auth_users ADD COLUMN authenticators JSON`);
-    } catch {
-      /* column already exists */
-    }
-    try {
-      await connection.query(
-        `ALTER TABLE auth_users ADD COLUMN failedAttempts INT NOT NULL DEFAULT 0`,
-      );
-    } catch {
-      /* column already exists */
-    }
-    try {
-      await connection.query(`ALTER TABLE auth_users ADD COLUMN lockoutUntil DATETIME`);
-    } catch {
-      /* column already exists */
-    }
+    await connection.query(
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS totpSecret VARCHAR(255)`,
+    );
+    await connection.query(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS backupCodes JSON`);
+    await connection.query(
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS last2FAVerification DATETIME`,
+    );
+    await connection.query(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS authenticators JSON`);
+    await connection.query(
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS failedAttempts INT NOT NULL DEFAULT 0`,
+    );
+    await connection.query(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS lockoutUntil DATETIME`);
     await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`);
     await connection.query(
       `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'filesystem'`,

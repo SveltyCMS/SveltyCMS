@@ -7,28 +7,26 @@
 import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = "Authors" | "BenchmarkStable" | "Categories" | "Posts" | (string & {});
+export type ContentTypes = "authors" | "categories" | "posts" | (string & {});
 
 export interface CollectionMap {
   [key: string]: CollectionEntry & Record<string, any>;
-  Authors: CollectionEntry & { name: string; bio: string; avatar: string | string[] };
-  BenchmarkStable: CollectionEntry & {
-    title: string;
-    slug: string;
-    content: string;
-    count: number;
-    publishDate: ISODateString;
+  authors: CollectionEntry & {
+    name: string;
+    bio: string;
+    avatar: string | string[];
+    email: string;
   };
-  Categories: CollectionEntry & { name: string; slug: string; description: string };
-  Posts: CollectionEntry & {
+  categories: CollectionEntry & { name: string; slug: string; description: string };
+  posts: CollectionEntry & {
     title: string;
     slug: string;
     content: string;
     excerpt: string;
-    category: DatabaseId;
+    featuredImage: string | string[];
     author: DatabaseId;
-    status: string;
-    publishDate: ISODateString;
+    categories: DatabaseId;
+    tags: string;
     seo: string;
   };
 }

@@ -507,7 +507,6 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     await sql.unsafe(
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "last2FAVerification" TIMESTAMP WITH TIME ZONE`,
     );
-    // WebAuthn + brute-force protection columns
     await sql.unsafe(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "authenticators" JSONB`);
     await sql.unsafe(
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "failedAttempts" INT NOT NULL DEFAULT 0`,
