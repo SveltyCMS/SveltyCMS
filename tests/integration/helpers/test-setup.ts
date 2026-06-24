@@ -103,29 +103,75 @@ export async function cleanupTestDatabase(): Promise<void> {
 export async function prepareAuthenticatedContext(
   options: { skipReset?: boolean } = {},
 ): Promise<string> {
+  const isMongoDB = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
+
   if (!options.skipReset) {
-    // 1. Reset database
-    await cleanupTestDatabase();
+    const maxSeedRetries = isMongoDB ? 5 : 3;
+    let seedAttempt = 0;
 
-    // 2. Seed database
-    console.log("🌱 Seeding test database...");
-    const seedResp = await safeFetch(`${API_BASE_URL}/api/testing`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-test-secret": TEST_API_SECRET,
-        Origin: API_BASE_URL,
-      },
-      body: JSON.stringify({
-        action: "seed",
-        email: testFixtures.adminUser.email,
-        password: testFixtures.adminUser.password,
-      }),
-    });
+    while (seedAttempt < maxSeedRetries) {
+      seedAttempt++;
+      try {
+        // 1. Reset database
+        await cleanupTestDatabase();
 
-    if (!seedResp.ok) {
-      const error = await seedResp.text();
-      throw new Error(`Failed to seed database: ${error}`);
+        // For MongoDB: wait for server to stabilize after collection drops
+        if (isMongoDB) {
+          console.log("\u23F3 MongoDB: waiting for server to stabilize after reset...");
+          for (let w = 0; w < 30; w++) {
+            try {
+              const healthResp = await safeFetch(`${API_BASE_URL}/api/system/health`, {
+                headers: { "x-test-secret": TEST_API_SECRET },
+              });
+              if (healthResp.ok) break;
+            } catch {
+              /* server still booting */
+            }
+            await new Promise((r) => setTimeout(r, 1000));
+          }
+          // Extra settling time for Mongoose connection pool
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+
+        // 2. Seed database
+        console.log(
+          `\u{1F331} Seeding test database (attempt ${seedAttempt}/${maxSeedRetries})...`,
+        );
+        const seedResp = await safeFetch(`${API_BASE_URL}/api/testing`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-secret": TEST_API_SECRET,
+            Origin: API_BASE_URL,
+          },
+          body: JSON.stringify({
+            action: "seed",
+            email: testFixtures.adminUser.email,
+            password: testFixtures.adminUser.password,
+          }),
+        });
+
+        if (seedResp.ok) break; // Success
+
+        const error = await seedResp.text();
+        if (seedAttempt >= maxSeedRetries) {
+          throw new Error(`Failed to seed database after ${maxSeedRetries} attempts: ${error}`);
+        }
+        console.log(
+          `\u23F3 Seed attempt ${seedAttempt} failed (${error.slice(0, 100)}). Retrying in 3s...`,
+        );
+        await new Promise((r) => setTimeout(r, 3000));
+      } catch (err: any) {
+        if (seedAttempt >= maxSeedRetries) {
+          throw new Error(
+            `Failed to seed database after ${maxSeedRetries} attempts: ${err.message}`,
+          );
+        }
+        console.log(
+          `\u23F3 Seed attempt ${seedAttempt} crashed (${err.message?.slice(0, 100)}). Retrying in 3s...`,
+        );
+        await new Promise((r) => setTimeout(r, 3000));
+      }
     }
   }
 
