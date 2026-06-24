@@ -19,7 +19,6 @@ import {
 } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createServer } from "node:net";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,16 +27,6 @@ const ROOT = join(__dirname, "..");
 let PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
 let API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
-
-function getFreePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, () => {
-      const port = (server.address() as any).port;
-      server.close(() => resolve(port));
-    });
-  });
-}
 
 type IntegrationSuite = "all" | "db" | "api";
 
@@ -81,9 +70,8 @@ let serverRunningMode: "normal" | "setup" | "none" = "none";
 
 function getEnvValue(name: string): string | undefined {
   if (Object.prototype.hasOwnProperty.call(process.env, name)) {
-    return process.env[name] ?? "";
+    return process.env[name];
   }
-
   return undefined;
 }
 
@@ -729,9 +717,10 @@ async function main() {
     throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
   }
 
-  // 🚀 DYNAMIC PORT RESOLUTION: Avoid port collisions by selecting a fresh port
-  const freePortNum = await getFreePort();
-  PORT = String(freePortNum);
+  // Use PORT from env (4173) — fixed per DB for CI parity, overridable locally
+  if (process.env.PORT) {
+    PORT = process.env.PORT;
+  }
   API_BASE_URL = `http://${HOST}:${PORT}`;
 
   let passed = 0;

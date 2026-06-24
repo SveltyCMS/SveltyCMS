@@ -272,7 +272,7 @@
         <span class="shrink-0 text-[10px] font-mono border px-1.5 py-0.5 rounded-full {confidenceColor(node.confidence)}">{node.confidence}%</span>
       </div>
 
-      <div class="flex items-center gap-1.5 ml-7" onclick={(e) => e.stopPropagation()}>
+      <div class="flex items-center gap-1.5 ms-7" onclick={(e) => e.stopPropagation()}>
         <span class="text-[10px] text-surface-400 shrink-0">→</span>
         <input type="text" bind:value={node.suggestedTarget} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-md px-1.5 py-0.5 text-[10px] font-mono text-surface-700 dark:text-surface-300 focus:outline-none focus:border-tertiary-500 w-24" aria-label="Target for {node.label}" />
         <select value={node.action} onchange={(e) => { node.action = (e.target as HTMLSelectElement).value as any; onActionChange?.(node.id, node.action); }} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 text-[10px] rounded-md px-1.5 py-0.5 text-surface-600 focus:outline-none" aria-label="Action">
@@ -288,7 +288,7 @@
       </div>
 
       {#if nodeRecommendations.length > 0}
-        <div class="flex flex-wrap gap-1 ml-7">
+        <div class="flex flex-wrap gap-1 ms-7">
           {#each nodeRecommendations as rec}
             <div class="text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 {rec.level === 'critical' ? 'bg-rose-500/5 text-rose-500 border-rose-500/20' : 'bg-amber-500/5 text-amber-500 border-amber-500/20'}" title={rec.description}>
               <iconify-icon icon={rec.level === 'critical' ? 'mdi:alert-octagon' : 'mdi:lightbulb'} width="10"></iconify-icon>

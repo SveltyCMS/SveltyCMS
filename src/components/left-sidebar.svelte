@@ -241,8 +241,8 @@
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex items-center pt-1 no-underline!" data-sveltekit-preload-data="hover">
-			<SveltyCMSLogo className="h-9 text-error-500 dark:text-error-500" />
-			<span class="relative -ms-1 text-2xl font-bold text-surface-900 dark:text-white"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
+			<SveltyCMSLogo fill="red" className="h-9" />
+			<span class="base-font-color relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
 		</a>
 	{:else}
 		<div class="flex justify-start gap-2">
@@ -250,12 +250,12 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-			 class="p-0! min-w-0 preset-outlined-surface-500 mt-1">
+			 class="p-0! min-w-0 preset-outline-surface-500 mt-1">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</Button>
 
 			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 no-underline!">
-				<SveltyCMSLogo className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2 text-error-500 dark:text-error-500" />
+				<SveltyCMSLogo fill="red" className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2" />
 			</a>
 		</div>
 	{/if}
@@ -263,7 +263,7 @@
 	<!-- Expand/Collapse Button -->
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		positioning={{ placement: 'right' }}
+		positioning={{ placement: 'end' }}
 		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
 	>
 		<Button variant="ghost"
@@ -271,12 +271,12 @@
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			aria-expanded={isSidebarFull}
-			class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-surface-400 p-0! min-w-0 dark:border-surface-500 ltr:-inset-e-4 rtl:-inset-s-4"
+			class="flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0! min-w-0 dark:border-white"
 		>
 			<iconify-icon
 				icon="bi:arrow-left-circle-fill"
 				width="34"
-				class="rounded-full bg-surface-400 text-white transition-transform hover:cursor-pointer hover:bg-error-500 dark:bg-surface-500 dark:text-surface-100 dark:hover:bg-error-500 {isSidebarFull
+				class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
 					? 'rotate-0 rtl:rotate-180'
 					: 'rotate-180 rtl:rotate-0'}"
 			></iconify-icon>
@@ -285,7 +285,7 @@
 
 	<!-- Navigation: Collapsible Sections -->
 	<div
-		class="flex-1 pe-1 space-y-4 my-4 overflow-y-auto navigation-scroll-container {ui.routeContext.isSystemSettings
+		class="flex-1 pe-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container {ui.routeContext.isSystemSettings
 			? 'overflow-y-hidden flex flex-col'
 			: 'overflow-y-auto'}"
 	>
@@ -316,7 +316,7 @@
 					{#if isPinnedOpen}
 						<div class="space-y-0.5" transition:scale={{ duration: 150, start: 0.95 }}>
 							{#each pinnedStore.items as item (item.id)}
-								<div class="group relative flex items-center justify-between rounded hover:bg-surface-200 dark:hover:bg-surface-700">
+								<div class="group relative flex items-center justify-between rounded hover:bg-surface-100/50 dark:hover:bg-surface-500/20">
 									<a
 										href={item.path}
 										data-sveltekit-preload-data="hover"
@@ -344,7 +344,7 @@
 						</div>
 					{/if}
 				</div>
-				<div class="mx-1 border-0 border-t border-surface-200 dark:border-surface-700"></div>
+				<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
 			{/if}
 
 			<!-- 2. Collections -->
@@ -374,7 +374,7 @@
 					</div>
 				{/if}
 			</div>
-			<div class="mx-1 border-0 border-t border-surface-200 dark:border-surface-700"></div>
+			<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
 
 			<!-- 3. Media Gallery -->
 			<div class="space-y-1">
@@ -429,20 +429,20 @@
 	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
 	<!-- Footer -->
 	<div class="mb-2 mt-auto w-full px-1">
-		<div class="mx-1 mb-2 border-0 border-t border-surface-200 dark:border-surface-700"></div>
+		<div class="mx-1 mb-2 border-0 border-t border-surface-500"></div>
 
-		<div class="flex w-full flex-col items-center gap-2 text-surface-700 dark:text-surface-200">
+		<div class="grid w-full items-center justify-center gap-1 text-surface-700 dark:text-surface-200 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
 			<!-- Avatar -->
-			<div class="flex items-center justify-center">
-				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
+			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
+				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'end' }}>
 					<a
 						href="/user"
 						data-sveltekit-preload-data="hover"
 						onclick={handleUserClick}
 						aria-label="User Profile"
 						class="{isSidebarFull
-							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-surface-200 dark:hover:bg-surface-700'
-							: 'h-8 w-8 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700'} relative flex items-center justify-center text-center no-underline!"
+							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-surface-500/20'
+							: 'h-8 w-8 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
 						>
 							<Avatar src={avatarUrl} alt="User Avatar" size={isSidebarFull ? 'size-12' : 'size-10'} rounded="rounded-full" class="mx-auto" />
 						{#if isSidebarFull && user?.username}
@@ -458,18 +458,18 @@
 			</div>
 
  			<!-- Theme Toggle -->
- 			<div class="flex items-center justify-center">
- 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+ 			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
+ 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'end' }}>
  					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
  					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon rounded-full hover:bg-surface-200 dark:hover:bg-surface-700" iconSize={28} />
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={28} />
  					</div>
  				</SystemTooltip>
  			</div>
 
  			<!-- Language Selector -->
- 			<div class="flex items-center justify-center px-1">
- 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
+ 			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
+ 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'end' }}>
  					<div class="language-selector relative">
  						<Dropdown position="right-start" class="w-56">
  							{#snippet trigger()}
@@ -477,24 +477,24 @@
  									variant="surface"
  									rounded
  									aria-label="Select language"
- 									class="flex items-center justify-center uppercase hover:bg-surface-200 dark:hover:bg-surface-700 {isSidebarFull ? 'h-12 w-12 text-xs font-semibold' : 'h-11 w-11 text-xs font-semibold'}"
+ 									class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 {isSidebarFull ? 'h-12 w-12 text-xs font-semibold' : 'h-11 w-11 text-xs font-semibold'}"
  								>
  									{languageTag}
  								</Button>
  							{/snippet}
 
  							<!-- Header to inform user about System Language context -->
- 							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-700 mb-1">
+ 							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
  								{applayout_systemlanguage()}
  							</div>
 
  							{#if showLanguageDropdown}
- 								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-700">
+ 								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
  									<input
  										type="text"
  										bind:value={searchQuery}
  										placeholder="Search language..."
- 										class="w-full rounded bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-tertiary-500 dark:focus:ring-primary-500 text-surface-900 dark:text-white"
+ 										class="w-full rounded bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
  										aria-label="Search languages"
  										onclick={(e) => e.stopPropagation()}
  									/>
@@ -503,7 +503,7 @@
  								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
  									{#each filteredLanguages as lang (lang)}
 										<button
-											class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-200"
+											class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
 											onclick={() => handleLanguageSelection(lang)}
 										>
 											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
@@ -514,7 +514,7 @@
 							{:else}
 								{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
 									<button
-										class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-200"
+										class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
 										onclick={() => handleLanguageSelection(lang)}
 									>
 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
@@ -528,8 +528,8 @@
  			</div>
 
 			<!-- Sign Out -->
-			<div class="flex items-center justify-center">
-				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
+			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
+				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'end' }}>
 					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0">
 						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
 					</Button>
@@ -537,14 +537,14 @@
 			</div>
 
  			<!-- Config -->
- 			<div class="flex items-center justify-center">
- 				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
+ 			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
+ 				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'end' }}>
 					<a
 						href="/config"
 						data-sveltekit-preload-data="hover"
 						onclick={handleConfigClick}
 						aria-label="System Configuration"
-						class="flex items-center justify-center rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
+						class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
 					>
 						<iconify-icon icon="material-symbols:build-circle" width="35" class=""></iconify-icon>
  					</a>
@@ -552,18 +552,18 @@
  			</div>
 
  			<!-- Version -->
- 			<div class="flex items-center justify-center"><VersionCheck compact={true} /></div>
+ 			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
 
  			<!-- Community Links (only when expanded) -->
  			{#if isSidebarFull}
- 				<div class="flex items-center justify-center gap-1">
- 					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+ 				<div class="order-7 flex items-center justify-center gap-1">
+ 					<SystemTooltip title="Discord Community" positioning={{ placement: 'end' }}>
  						<a
  							href="https://discord.gg/VrvZF6e2sC"
  							target="_blank"
  							rel="noopener noreferrer"
  							aria-label="Discord Community"
- 							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-200 dark:hover:bg-surface-700"
+ 							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
  						>
  							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
  						</a>
