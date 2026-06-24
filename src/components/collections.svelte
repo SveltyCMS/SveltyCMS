@@ -573,7 +573,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	</div>
 
 	<!-- Tree -->
-	<div class="collections-list" role="tree" aria-label="Collection tree">
+	<div class="collections-list" role={treeNodes.length > 0 ? 'tree' : undefined} aria-label={treeNodes.length > 0 ? 'Collection tree' : undefined}>
 		{#if treeNodes.length === 0}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
 				{#if !widgets.isLoaded}
