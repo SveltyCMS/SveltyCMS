@@ -205,8 +205,19 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
     }
     const fileList: { fullPath: string; mtime: number }[] = [];
 
-    const { isBenchmarkArtifact, isBenchmarkRuntime } =
-      await import("@src/routes/setup/preset-collections.server");
+    let isBenchmarkArtifact = (_name: string) => false;
+    let isBenchmarkRuntime = () => false;
+    try {
+      const presetCollectionsPath = new URL(
+        "../routes/setup/preset-collections.server.ts",
+        import.meta.url,
+      ).href;
+      const mod = await import(presetCollectionsPath);
+      isBenchmarkArtifact = mod.isBenchmarkArtifact;
+      isBenchmarkRuntime = mod.isBenchmarkRuntime;
+    } catch {
+      // Fallback: on platforms where dynamic TS imports fail, skip benchmark filtering
+    }
     const skipBenchmarks = !isBenchmarkRuntime();
 
     async function walk(dir: string) {
@@ -442,8 +453,19 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
   await fs.mkdir(testDir, { recursive: true });
 
   const SYSTEM_COLLECTIONS = new Set(["redirects", "404_logs", "redirects_mv", "benchmarkstable"]);
-  const { isBenchmarkArtifact, isBenchmarkRuntime } =
-    await import("@src/routes/setup/preset-collections.server");
+  let isBenchmarkArtifact = (_name: string) => false;
+  let isBenchmarkRuntime = () => false;
+  try {
+    const presetCollectionsPath = new URL(
+      "../routes/setup/preset-collections.server.ts",
+      import.meta.url,
+    ).href;
+    const mod = await import(presetCollectionsPath);
+    isBenchmarkArtifact = mod.isBenchmarkArtifact;
+    isBenchmarkRuntime = mod.isBenchmarkRuntime;
+  } catch {
+    // Fallback: on platforms where dynamic TS imports fail, skip benchmark filtering
+  }
   const skipBenchmarks = !isBenchmarkRuntime();
 
   for (const schema of dbSchemas) {
