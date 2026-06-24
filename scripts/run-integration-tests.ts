@@ -314,9 +314,9 @@ async function prepareIsolatedServerForTestFile(filePath: string) {
 
   testFileRunCount++;
 
-  // MongoDB: restart server every 10 tests to prevent connection pool degradation
+  // MongoDB: restart server every 5 tests to prevent connection pool degradation
   const needsMongoRestart =
-    isMongoDB && !setupModeTest && testFileRunCount > 1 && testFileRunCount % 8 === 0;
+    isMongoDB && !setupModeTest && testFileRunCount > 1 && testFileRunCount % 5 === 0;
 
   if (needsMongoRestart) {
     console.log(
@@ -344,6 +344,11 @@ async function prepareIsolatedServerForTestFile(filePath: string) {
   // Reset state between tests — security rate-limiters, caches, DB tables
   console.log("🧹 Resetting test data for isolated test file...");
   await testingAction("reset");
+
+  // MongoDB: wait for connection pool to stabilize after collection drops
+  if (isMongoDB) {
+    await new Promise((r) => setTimeout(r, 3000));
+  }
 
   if (setupModeTest) {
     console.log("⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.");
