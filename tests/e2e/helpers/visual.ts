@@ -11,7 +11,9 @@ export const STABLE_VIEWPORT = { width: 1280, height: 720 } as const;
 /** Default screenshot options — tolerates minor font raster differences */
 export const SCREENSHOT_OPTS = {
   animations: "disabled" as const,
-  maxDiffPixelRatio: 0.02,
+  // Cross-platform font rendering (ClearType vs FreeType) can cause ~3% pixel diff.
+  // 4% threshold catches real regressions while allowing platform variance.
+  maxDiffPixelRatio: 0.04,
   threshold: 0.25,
 };
 
