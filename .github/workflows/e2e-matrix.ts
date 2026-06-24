@@ -3,15 +3,12 @@
  * @description
  * Generates a GitHub Actions matrix JSON for Playwright E2E test sharding.
  *
- * Defines three project types:
- * - "chromium": split across 2 shards for parallel execution.
- * - "Wizard": single shard, no parallelism (setup wizard requires sequential
- *   execution).
- * - "Auth": single shard, no parallelism (authentication state setup must
- *   run sequentially).
+ * Defines project types for the sharded E2E job. Wizard and Auth projects
+ * are run separately in e2e-prep (sequential, state-dependent), so they
+ * are excluded from this matrix.
  *
  * Usage:
- *   bun run .github/workflows/e2e-matrix.ts
+ *   node .github/workflows/e2e-matrix.ts
  *   # Prints JSON to stdout, suitable for workflow matrix generation.
  */
 
@@ -27,15 +24,13 @@ interface E2eMatrix {
   include: E2eMatrixInclude[];
 }
 
+// Wizard and Auth run in e2e-prep (state-dependent, must be sequential).
+// Only chromium runs in the sharded parallel matrix.
 const projectDefinitions: Array<{
   name: string;
   shards: number;
   parallel: boolean;
-}> = [
-  { name: "chromium", shards: 2, parallel: true },
-  { name: "Wizard", shards: 1, parallel: false },
-  { name: "Auth", shards: 1, parallel: false },
-];
+}> = [{ name: "chromium", shards: 2, parallel: true }];
 
 const include: E2eMatrixInclude[] = [];
 

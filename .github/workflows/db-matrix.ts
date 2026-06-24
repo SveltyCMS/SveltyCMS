@@ -33,7 +33,7 @@ const dbMatrix: DbMatrix = {
     },
     {
       db: "mongodb",
-      image: "mongo:7",
+      image: "mongo:8",
       port: 27017,
     },
     {
