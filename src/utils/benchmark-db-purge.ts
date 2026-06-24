@@ -21,11 +21,7 @@ import {
 } from "@src/routes/setup/preset-collections.server";
 import { logger } from "@utils/logger";
 
-export const DEFAULT_DATABASE_DIR = path.resolve(
-  process.cwd(),
-  "config",
-  "database",
-);
+export const DEFAULT_DATABASE_DIR = path.resolve(process.cwd(), "config", "database");
 
 export type BenchmarkDbScope = "user" | "benchmark-shared" | "test-ephemeral";
 
@@ -39,9 +35,7 @@ const BENCHMARK_SHARED_KEEP_IDS = new Set([
 /** Normalizes a `collection_*` table name to a collection id. */
 export function collectionTableToId(tableName: string): string {
   const prefix = "collection_";
-  return tableName.startsWith(prefix)
-    ? tableName.slice(prefix.length)
-    : tableName;
+  return tableName.startsWith(prefix) ? tableName.slice(prefix.length) : tableName;
 }
 
 /** Resolves purge scope from a database filename. */
@@ -127,9 +121,7 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
   if (!dbPaths) {
     if (!existsSync(databaseDir)) return result;
     const entries = await fs.readdir(databaseDir);
-    dbPaths = entries
-      .filter(isSqliteDatabaseFile)
-      .map((f) => path.join(databaseDir, f));
+    dbPaths = entries.filter(isSqliteDatabaseFile).map((f) => path.join(databaseDir, f));
   }
 
   for (const dbPath of dbPaths) {
@@ -175,22 +167,14 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
 
       try {
         const nodes = db
-          .query(
-            `SELECT path, slug FROM content_nodes WHERE nodeType = 'collection'`,
-          )
+          .query(`SELECT path, slug FROM content_nodes WHERE nodeType = 'collection'`)
           .all() as { path: string; slug: string | null }[];
 
         const deleteStmt = db.prepare(
           `DELETE FROM content_nodes WHERE nodeType = 'collection' AND path = ?`,
         );
         for (const node of nodes) {
-          if (
-            isStaleCollectionContentNode(
-              node.path ?? "",
-              node.slug ?? "",
-              scope,
-            )
-          ) {
+          if (isStaleCollectionContentNode(node.path ?? "", node.slug ?? "", scope)) {
             deleteStmt.run(node.path ?? "");
             result.nodesDeleted++;
           }
@@ -206,11 +190,7 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
     }
   }
 
-  if (
-    result.tablesDropped > 0 ||
-    result.nodesDeleted > 0 ||
-    result.tempDbsRemoved > 0
-  ) {
+  if (result.tablesDropped > 0 || result.nodesDeleted > 0 || result.tempDbsRemoved > 0) {
     logger.info(
       `🧹 DB purge: ${result.tablesDropped} table(s), ${result.nodesDeleted} content_node(s), ${result.tempDbsRemoved} temp DB(s)`,
     );

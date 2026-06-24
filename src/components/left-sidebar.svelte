@@ -263,7 +263,7 @@
 	<!-- Expand/Collapse Button -->
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		positioning={{ placement: 'right' }}
+		positioning={{ placement: 'end' }}
 		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
 	>
 		<Button variant="ghost"
@@ -434,7 +434,7 @@
 		<div class="grid w-full items-center justify-center gap-1 text-surface-700 dark:text-surface-200 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
 			<!-- Avatar -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
-				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
+				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'end' }}>
 					<a
 						href="/user"
 						data-sveltekit-preload-data="hover"
@@ -459,7 +459,7 @@
 
  			<!-- Theme Toggle -->
  			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
- 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+ 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'end' }}>
  					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
  					<div class="flex items-center justify-center">
 						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={28} />
@@ -469,7 +469,7 @@
 
  			<!-- Language Selector -->
  			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
- 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
+ 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'end' }}>
  					<div class="language-selector relative">
  						<Dropdown position="right-start" class="w-56">
  							{#snippet trigger()}
@@ -529,7 +529,7 @@
 
 			<!-- Sign Out -->
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
-				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
+				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'end' }}>
 					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0">
 						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
 					</Button>
@@ -538,7 +538,7 @@
 
  			<!-- Config -->
  			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
- 				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
+ 				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'end' }}>
 					<a
 						href="/config"
 						data-sveltekit-preload-data="hover"
@@ -557,7 +557,7 @@
  			<!-- Community Links (only when expanded) -->
  			{#if isSidebarFull}
  				<div class="order-7 flex items-center justify-center gap-1">
- 					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+ 					<SystemTooltip title="Discord Community" positioning={{ placement: 'end' }}>
  						<a
  							href="https://discord.gg/VrvZF6e2sC"
  							target="_blank"

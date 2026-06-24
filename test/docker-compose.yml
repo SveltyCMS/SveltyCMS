@@ -1,0 +1,73 @@
+# Docker Compose for local database testing
+# Start a profile: docker compose -f test/docker-compose.yml --profile <name> up -d
+# Examples:
+#   docker compose -f test/docker-compose.yml --profile mongodb up -d
+#   docker compose -f test/docker-compose.yml --profile mariadb up -d
+#   docker compose -f test/docker-compose.yml --profile postgresql up -d
+#
+# Stop all: docker compose -f test/docker-compose.yml --profile '*' down
+
+services:
+  mongodb:
+    image: mongo:8
+    profiles: [mongodb]
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: testuser
+      MONGO_INITDB_ROOT_PASSWORD: testpass
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "-u",
+          "testuser",
+          "-p",
+          "testpass",
+          "--authenticationDatabase",
+          "admin",
+          "--eval",
+          "db.runCommand({ ping: 1 }).ok",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  mariadb:
+    image: mariadb:11
+    profiles: [mariadb]
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "yes"
+      MARIADB_DATABASE: sveltycms_test
+      MARIADB_USER: testuser
+      MARIADB_PASSWORD: testpass
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  postgresql:
+    image: postgres:16
+    profiles: [postgresql]
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: sveltycms_test
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "testuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s

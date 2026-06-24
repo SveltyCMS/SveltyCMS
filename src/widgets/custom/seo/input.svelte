@@ -170,7 +170,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 						<div class="alert bg-warning-500/10 text-warning-700 dark:text-warning-300 flex items-center justify-between p-4 rounded-lg">
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
-					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days left to test the Advanced, Social, and Schema SEO features.</span>
+					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days start to test the Advanced, Social, and Schema SEO features.</span>
 				</div>
 				<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-warning text-sm px-3 py-1">Get License</a>
 			</div>

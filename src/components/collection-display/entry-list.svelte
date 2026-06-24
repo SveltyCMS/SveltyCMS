@@ -850,7 +850,7 @@ bulk actions, and predictive preloading.
 	</div>
 {:else}
 	<!-- Header -->
-	<div class="ml-2 mb-2 flex justify-between dark:text-white">
+	<div class="ms-2 mb-2 flex justify-between dark:text-white">
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
