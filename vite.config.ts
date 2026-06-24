@@ -1042,7 +1042,6 @@ export default defineConfig((): any => {
     },
     resolve: {
       alias: [
-        { find: "@root", replacement: path.resolve(CWD, "./") },
         { find: "@src", replacement: path.resolve(CWD, "./src") },
         {
           find: "@components",
