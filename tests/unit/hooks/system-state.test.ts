@@ -373,11 +373,12 @@ describe("handleSystemState - State Machine Logic", () => {
       mck.setSetupComplete(false);
     });
 
-    it("should allow /login during IDLE state", async () => {
+    it("should redirect /login to /setup during IDLE state when setup is incomplete", async () => {
       const event = createMockEvent("/login");
       const response = await handleSystemState({ event, resolve: mockResolve });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe("/setup");
     });
 
     it("should allow /assets during IDLE state", async () => {

@@ -275,6 +275,17 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         });
       }
 
+      // 🛡️ Redirect /login to /setup when system is configured but no admin users exist
+      if (pathname === "/login" && !setupComplete) {
+        logger.info(
+          `[handleSystemState] Login blocked — no admin users, redirecting to /setup (state: ${systemState.overallState})`,
+        );
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "/setup" },
+        });
+      }
+
       return resolve(event);
     }
 

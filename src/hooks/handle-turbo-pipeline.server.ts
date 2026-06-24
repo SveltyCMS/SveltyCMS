@@ -464,7 +464,24 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     const isSetupRoute =
       pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 
-    if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
+    // 🛡️ Redirect /login to /setup when system is not fully configured (missing admin)
+    if (isLoginDuringSetup) {
+      logger.info(
+        `[Turbo] Login blocked — setup incomplete (${setupState}), redirecting to /setup`,
+      );
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...baseHeaderMap,
+          Location: "/setup",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      });
+    }
+
+    if (isBootstrapRoute(pathname)) {
       // Security Gate: Block /setup routes if setup is already complete
       const isTestMode =
         process.env.TEST_MODE === "true" ||
