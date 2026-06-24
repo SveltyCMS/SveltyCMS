@@ -16,8 +16,9 @@ import {
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import { getClientIp } from "@utils/hook-utils";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
-import { sendMail } from "@utils/email.server";
 import { publicEnv } from "@src/stores/global-settings.svelte";
+import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
@@ -27,6 +28,11 @@ import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { command, query, getRequestEvent } from "$app/server";
+
+function isSecureConnection(event: RequestEvent): boolean {
+  const isProd = process.env.NODE_ENV !== "development" && process.env.TEST_MODE !== "true";
+  return event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+}
 
 const limiter = new RateLimiter({
   IP: [10, "m"],
@@ -103,6 +109,21 @@ export const resetPW = command("unchecked", async (data: any) => {
   }
 });
 
+export const requestMagicLink = command("unchecked", async (data: any) => {
+  const event = getRequestEvent();
+  try {
+    return await requestMagicLinkInternal(event, data);
+  } catch (err: any) {
+    if (isRedirect(err)) {
+      return { success: true, redirectPath: err.location };
+    }
+    return {
+      success: false,
+      message: err.message || "Failed to process magic link request",
+    };
+  }
+});
+
 export const verify2FA = command(
   "unchecked",
   async ({ userId, code }: { userId: string; code: string }) => {
@@ -127,10 +148,10 @@ export const verify2FA = command(
     const user = await auth.getUserById(userId);
     if (!user) return { success: false, message: "User not found." };
 
-    const sessionCookie = auth.createSessionCookie(userId as any as DatabaseId);
+    const sc = auth.createSessionCookie(userId as any as DatabaseId, isSecureConnection(event));
     try {
-      event.cookies.set(sessionCookie.name, sessionCookie.value, {
-        ...(sessionCookie.attributes as Record<string, unknown>),
+      event.cookies.set(sc.name, sc.value, {
+        ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
     } catch {}
@@ -148,14 +169,9 @@ export const verify2FA = command(
         logger.debug("2FA verify user attribute update failed silently");
       });
 
-    let finalCollectionPath: string | null = null;
-    try {
-      finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
-    } catch {}
-
     return {
       success: true,
-      redirectPath: finalCollectionPath ?? "/config/collectionbuilder",
+      redirectPath: "/config/collectionbuilder",
     };
   },
 );
@@ -290,7 +306,7 @@ async function signInInternal(event: RequestEvent, input: any) {
           message: "2FA required",
         };
       ok = true;
-      const sc = auth.createSessionCookie(ar.sessionId!);
+      const sc = auth.createSessionCookie(ar.sessionId!, isSecureConnection(event));
       try {
         event.cookies.set(sc.name, sc.value, {
           ...(sc.attributes as Record<string, unknown>),
@@ -320,7 +336,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       user_id: user._id,
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
     });
-    const sc = auth.createSessionCookie(s._id);
+    const sc = auth.createSessionCookie(s._id, isSecureConnection(event));
     try {
       event.cookies.set(sc.name, sc.value, {
         ...(sc.attributes as Record<string, unknown>),
@@ -361,8 +377,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       logger.debug("Telemetry background check failed silently");
     });
 
-  const path = await getCachedFirstCollectionPath("en" as any).catch(() => null);
-  return { success: true, redirectPath: path ?? "/config/collectionbuilder" };
+  return { success: true, redirectPath: "/config/collectionbuilder" };
 }
 
 async function signUpInternal(event: RequestEvent, input: any) {
@@ -438,7 +453,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
 
   const session = ur.data?.session;
   if (session) {
-    const sc = auth.createSessionCookie(session._id);
+    const sc = auth.createSessionCookie(session._id, isSecureConnection(event));
     try {
       event.cookies.set(sc.name, sc.value, {
         ...(sc.attributes as Record<string, unknown>),
@@ -582,3 +597,272 @@ async function resetPWInternal(event: RequestEvent, input: any) {
 
   return { success: true, redirectPath: "/login?reset=success" };
 }
+
+async function requestMagicLinkInternal(event: RequestEvent, input: any) {
+  if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
+    try {
+      event.setHeaders({ "Retry-After": "60" });
+    } catch {}
+    return { success: false, message: "Too many requests." };
+  }
+  await dbInitPromise;
+  if (!auth) return { success: false, message: "Authentication system unavailable." };
+
+  const email = input.email as string;
+  const result = safeParse(forgotFormSchema, { email });
+  if (!result.success) return { success: false, errors: flatten(result.issues).nested };
+
+  const { sendMagicLinkForEmail } = await import("@src/databases/auth/magic-link");
+  const sendResult = await sendMagicLinkForEmail(event, result.output.email);
+
+  return {
+    success: true,
+    message: "If an account exists, a magic link has been sent.",
+    smtpConfigured: sendResult.smtpConfigured,
+  };
+}
+
+// ────────────────────────────────────────────────────────────
+// WebAuthn / Passkeys
+// ────────────────────────────────────────────────────────────
+
+const WEBAUTHN_CHALLENGE_PREFIX = "webauthn:challenge:";
+
+async function storeWebAuthnChallenge(
+  challenge: string,
+  payload: { userId: string; type: "registration" | "authentication" },
+) {
+  await cacheService.set(
+    `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`,
+    payload,
+    300,
+    null,
+    CacheCategory.SESSION,
+  );
+}
+
+async function consumeWebAuthnChallenge(
+  challenge: string,
+): Promise<{ userId: string; type: "registration" | "authentication" } | null> {
+  const key = `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`;
+  const stored = await cacheService.get<{
+    userId: string;
+    type: "registration" | "authentication";
+  }>(key, null);
+  await cacheService.delete(key, null);
+  return stored;
+}
+
+export const getPasskeyAuthOptions = command("unchecked", async (data: { email: string }) => {
+  const event = getRequestEvent();
+  await dbInitPromise;
+  if (!auth) return { success: false, message: "Authentication system unavailable." };
+
+  const email = String(data?.email || "")
+    .trim()
+    .toLowerCase();
+  if (!email) return { success: false, message: "Email is required." };
+
+  const user = await auth.checkUser({ email });
+  if (!user?._id || !user.authenticators?.length) {
+    return {
+      success: false,
+      message: "No passkey registered for this account.",
+    };
+  }
+
+  const { generateWebAuthnChallenge, buildAuthenticationOptions, resolveRpId } =
+    await import("@src/databases/auth/webauthn/webauthn-service");
+
+  const challenge = generateWebAuthnChallenge();
+  const rpId = resolveRpId(new URL(event.request.url).hostname);
+
+  await storeWebAuthnChallenge(challenge, {
+    userId: String(user._id),
+    type: "authentication",
+  });
+
+  const options = buildAuthenticationOptions(
+    rpId,
+    challenge,
+    user.authenticators.map((a) => ({
+      id: a.credentialID,
+      type: "public-key" as const,
+      transports: a.transports,
+    })),
+  );
+
+  return {
+    success: true,
+    options: {
+      ...options,
+      challenge: Buffer.from(options.challenge).toString("base64url"),
+      allowCredentials: options.allowCredentials?.map((c) => ({
+        ...c,
+        id: Buffer.from(c.id).toString("base64url"),
+      })),
+    },
+  };
+});
+
+export const verifyPasskeyAuth = command(
+  "unchecked",
+  async (data: { email: string; assertion: any }) => {
+    const event = getRequestEvent();
+    await dbInitPromise;
+    if (!auth) return { success: false, message: "Authentication system unavailable." };
+
+    try {
+      const email = String(data?.email || "")
+        .trim()
+        .toLowerCase();
+      const user = await auth.checkUser({ email });
+      if (!user?._id) return { success: false, message: "Invalid passkey authentication." };
+
+      const clientData = JSON.parse(
+        Buffer.from(data.assertion.response.clientDataJSON, "base64url").toString("utf8"),
+      );
+      const challengePayload = await consumeWebAuthnChallenge(clientData.challenge);
+      if (!challengePayload || challengePayload.userId !== String(user._id)) {
+        return {
+          success: false,
+          message: "Passkey challenge expired or invalid.",
+        };
+      }
+
+      const { verifyAuthenticationResponse, findAuthenticatorByCredentialId, resolveRpId } =
+        await import("@src/databases/auth/webauthn/webauthn-service");
+
+      const stored = findAuthenticatorByCredentialId(user.authenticators, data.assertion.id);
+      if (!stored) return { success: false, message: "Unknown passkey credential." };
+
+      const rpId = resolveRpId(new URL(event.request.url).hostname);
+      const { verified, newCounter } = verifyAuthenticationResponse(
+        data.assertion,
+        clientData.challenge,
+        rpId,
+        stored,
+      );
+
+      if (!verified)
+        return {
+          success: false,
+          message: "Passkey signature verification failed.",
+        };
+
+      const updatedAuthenticators = (user.authenticators || []).map((a) =>
+        a.credentialID === stored.credentialID ? { ...a, counter: newCounter } : a,
+      );
+      await auth.updateUserAttributes(
+        user._id as DatabaseId,
+        {
+          authenticators: updatedAuthenticators,
+          lastAuthMethod: "passkey" as any,
+        },
+        { bypassTenantCheck: true },
+      );
+
+      const session = await auth.createSession({
+        user_id: user._id as DatabaseId,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+      });
+      const sessionCookie = auth.createSessionCookie(session._id as DatabaseId);
+      event.cookies.set(sessionCookie.name, sessionCookie.value, {
+        ...(sessionCookie.attributes as Record<string, unknown>),
+        path: "/",
+      });
+
+      return {
+        success: true,
+        redirectPath: "/config/collectionbuilder",
+      };
+    } catch (err: any) {
+      logger.error("Passkey authentication failed:", err.message);
+      return { success: false, message: "Passkey authentication failed." };
+    }
+  },
+);
+
+export const getPasskeyRegisterOptions = command("unchecked", async () => {
+  const event = getRequestEvent();
+  await dbInitPromise;
+  if (!auth) return { success: false, message: "Authentication system unavailable." };
+
+  const sessionId = event.locals.session_id;
+  const user = event.locals.user;
+  if (!sessionId || !user?._id) {
+    return {
+      success: false,
+      message: "You must be signed in to register a passkey.",
+    };
+  }
+
+  const { generateWebAuthnChallenge, buildRegistrationOptions, resolveRpId } =
+    await import("@src/databases/auth/webauthn/webauthn-service");
+
+  const challenge = generateWebAuthnChallenge();
+  const rpId = resolveRpId(new URL(event.request.url).hostname);
+  await storeWebAuthnChallenge(challenge, {
+    userId: String(user._id),
+    type: "registration",
+  });
+
+  const options = buildRegistrationOptions(user as any, rpId, challenge);
+  return {
+    success: true,
+    options: {
+      ...options,
+      challenge: Buffer.from(options.challenge).toString("base64url"),
+      user: {
+        ...options.user,
+        id: Buffer.from(options.user.id).toString("base64url"),
+      },
+    },
+  };
+});
+
+export const verifyPasskeyRegister = command("unchecked", async (data: { attestation: any }) => {
+  const event = getRequestEvent();
+  await dbInitPromise;
+  if (!auth) return { success: false, message: "Authentication system unavailable." };
+
+  const user = event.locals.user;
+  if (!user?._id)
+    return {
+      success: false,
+      message: "You must be signed in to register a passkey.",
+    };
+
+  try {
+    const clientData = JSON.parse(
+      Buffer.from(data.attestation.response.clientDataJSON, "base64url").toString("utf8"),
+    );
+    const challengePayload = await consumeWebAuthnChallenge(clientData.challenge);
+    if (!challengePayload || challengePayload.userId !== String(user._id)) {
+      return {
+        success: false,
+        message: "Passkey registration challenge expired.",
+      };
+    }
+
+    const { verifyRegistrationResponse, resolveRpId } =
+      await import("@src/databases/auth/webauthn/webauthn-service");
+    const rpId = resolveRpId(new URL(event.request.url).hostname);
+    const authenticator = verifyRegistrationResponse(data.attestation, clientData.challenge, rpId);
+
+    const existing = user.authenticators || [];
+    await auth.updateUserAttributes(
+      user._id as DatabaseId,
+      { authenticators: [...existing, authenticator] },
+      { bypassTenantCheck: true },
+    );
+
+    return { success: true, message: "Passkey registered successfully." };
+  } catch (err: any) {
+    logger.error("Passkey registration failed:", err.message);
+    return {
+      success: false,
+      message: err.message || "Passkey registration failed.",
+    };
+  }
+});

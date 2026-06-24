@@ -17,6 +17,7 @@ import { getOrCreateModel } from "./mongodb-utils";
 import { SessionAdapter } from "./auth-session";
 import { TokenAdapter } from "./auth-token";
 import { UserAdapter } from "./auth-user";
+import { ApiKeyAdapter } from "./auth-api-key";
 
 import { MongoAuthModelRegistrar } from "./auth-methods";
 
@@ -58,6 +59,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
   const userAdapter = new UserAdapter();
   const sessionAdapter = new SessionAdapter();
   const tokenAdapter = new TokenAdapter();
+  const apiKeyAdapter = new ApiKeyAdapter();
   const modelRegistrar = new MongoAuthModelRegistrar(mongoose);
 
   // Link adapters for cross-model validation (e.g. validateSession)
@@ -72,6 +74,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
       userAdapter.setModel(activeConnection);
       sessionAdapter.setModel(activeConnection);
       tokenAdapter.setModel(activeConnection);
+      apiKeyAdapter.setModel(activeConnection);
       await modelRegistrar.setupAuthModels(activeConnection);
     },
 
@@ -190,6 +193,14 @@ export function composeMongoAuthAdapter(): AuthInterface {
     deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
     blockTokens: tokenAdapter.blockTokens.bind(tokenAdapter),
     unblockTokens: tokenAdapter.unblockTokens.bind(tokenAdapter),
+
+    // API Key Management Methods
+    createApiKey: apiKeyAdapter.createApiKey.bind(apiKeyAdapter),
+    getApiKey: apiKeyAdapter.getApiKey.bind(apiKeyAdapter),
+    getApiKeyById: apiKeyAdapter.getApiKeyById.bind(apiKeyAdapter),
+    listApiKeys: apiKeyAdapter.listApiKeys.bind(apiKeyAdapter),
+    revokeApiKey: apiKeyAdapter.revokeApiKey.bind(apiKeyAdapter),
+    updateApiKeyUsage: apiKeyAdapter.updateApiKeyUsage.bind(apiKeyAdapter),
 
     // Role Management Methods
     createRole: async (role: Role): Promise<DatabaseResult<Role>> => {

@@ -8,6 +8,7 @@ import { handleAuthentication, clearAllSessionCaches } from "@src/hooks/handle-a
 import { dbAdapter } from "@src/databases/db";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { DatabaseId } from "@src/content/types";
+import { hashCredentialSha256HexSync } from "@src/utils/security/credential-hash";
 
 // Mock dependencies
 vi.mock("$app/environment", () => ({
@@ -23,6 +24,7 @@ vi.mock("@src/databases/db", () => ({
     system: {
       websiteTokens: {
         getByToken: vi.fn(),
+        getByTokenHash: vi.fn(),
       },
     },
   },
@@ -38,10 +40,15 @@ vi.mock("@src/services/metrics/metrics-service", () => ({
 }));
 
 vi.mock("@src/databases/cache/cache-service", () => ({
+  SESSION_CACHE_TTL_MS: 86400000,
   cacheService: {
+    get: vi.fn().mockResolvedValue(null),
     getSync: vi.fn().mockReturnValue(null),
     setWithCategory: vi.fn().mockResolvedValue(true),
+    set: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(true),
+    isNegativeHit: vi.fn().mockReturnValue(false),
+    recordMiss: vi.fn(),
   },
 }));
 
@@ -81,8 +88,8 @@ describe("handleAuthentication Middleware - Bearer Token", () => {
     mockResolve = vi.fn(() => Promise.resolve(new Response("OK", { status: 200 })));
 
     // Explicitly set up the mock for each test to avoid Bun stale module issues
-    if ((dbAdapter.system.websiteTokens.getByToken as any).mockImplementation) {
-      (dbAdapter.system.websiteTokens.getByToken as any).mockImplementation(() =>
+    if ((dbAdapter.system.websiteTokens.getByTokenHash as any).mockImplementation) {
+      (dbAdapter.system.websiteTokens.getByTokenHash as any).mockImplementation(() =>
         Promise.resolve({ success: false, data: null }),
       );
     }
@@ -99,13 +106,17 @@ describe("handleAuthentication Middleware - Bearer Token", () => {
     };
 
     const event = createMockEvent("/api/collections/posts", "Bearer valid-token");
-    (dbAdapter.system.websiteTokens.getByToken as any).mockResolvedValue({
+    (dbAdapter.system.websiteTokens.getByTokenHash as any).mockResolvedValue({
       success: true,
       data: mockToken,
     });
 
     await handleAuthentication({ event, resolve: mockResolve });
 
+    expect(dbAdapter.system.websiteTokens.getByTokenHash).toHaveBeenCalledWith(
+      hashCredentialSha256HexSync("valid-token"),
+      "t1",
+    );
     const user = event.locals.user as any;
     expect(user).toBeDefined();
     expect(user?._id).toBe("token:token-123");
@@ -123,7 +134,7 @@ describe("handleAuthentication Middleware - Bearer Token", () => {
 
   it("should handle non-existent Bearer token", async () => {
     const event = createMockEvent("/api/collections/posts", "Bearer missing-token");
-    (dbAdapter.system.websiteTokens.getByToken as any).mockResolvedValue({
+    (dbAdapter.system.websiteTokens.getByTokenHash as any).mockResolvedValue({
       success: false,
       data: null,
     });
@@ -145,13 +156,17 @@ describe("handleAuthentication Middleware - Bearer Token", () => {
 
     const event = createMockEvent("/api/collections/posts", "Bearer valid-token");
     event.locals.tenantId = "correct-tenant" as DatabaseId;
-    (dbAdapter.system.websiteTokens.getByToken as any).mockResolvedValue({
+    (dbAdapter.system.websiteTokens.getByTokenHash as any).mockResolvedValue({
       success: true,
       data: mockToken,
     });
 
     await handleAuthentication({ event, resolve: mockResolve });
 
+    expect(dbAdapter.system.websiteTokens.getByTokenHash).toHaveBeenCalledWith(
+      hashCredentialSha256HexSync("valid-token"),
+      "correct-tenant",
+    );
     // Middleware should clear user on tenant mismatch
     expect(event.locals.user).toBeNull();
     expect(mockResolve).toHaveBeenCalled();
@@ -168,7 +183,7 @@ describe("handleAuthentication Middleware - Bearer Token", () => {
 
     const event = createMockEvent("/api/collections/posts", "Bearer valid-token");
     event.locals.tenantId = "t1" as DatabaseId;
-    (dbAdapter.system.websiteTokens.getByToken as any).mockResolvedValue({
+    (dbAdapter.system.websiteTokens.getByTokenHash as any).mockResolvedValue({
       success: true,
       data: mockToken,
     });

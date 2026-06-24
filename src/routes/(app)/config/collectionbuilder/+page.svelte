@@ -59,6 +59,7 @@ import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import Button from "@components/ui/button.svelte";
 import StickyActions from "@components/ui/sticky-actions.svelte";
 import AdminPageShell from "@components/admin-page-shell.svelte";
+import Slot from "@components/system/slot.svelte";
 import AdminCard from "@components/admin-card.svelte";
 // Logger
 import { logger } from "@utils/logger";
@@ -169,25 +170,29 @@ async function handleNodeUpdate(updatedNodes: ContentNode[]) {
 }
 
 /** Collect category id and all descendant node ids from flat list (for category delete). */
-function getDescendantIds(categoryId: string, flat: ContentNode[]): string[] {
-	const idSet = new SvelteSet<string>();
+function getDescendantItems(
+	categoryId: string,
+	flat: ContentNode[],
+): { id: string; path?: string }[] {
+	const items: { id: string; path?: string }[] = [];
 	const add = (id: string) => {
-		if (idSet.has(id)) return;
-		idSet.add(id);
+		if (items.some((i) => i.id === id)) return;
+		const node = flat.find((n) => n._id?.toString() === id);
+		items.push({ id, path: node?.path ?? undefined });
 		flat
 			.filter((n) => n.parentId?.toString() === id)
 			.forEach((n) => add(n._id?.toString() ?? ""));
 	};
 	add(categoryId);
-	return Array.from(idSet);
+	return items;
 }
 
-async function doDelete(idsToDelete: string[]) {
+async function doDelete(items: { id: string; path?: string }[]) {
 	try {
 		const { deleteContentNodes } = await import("./collectionbuilder.remote");
-		const result = await deleteContentNodes(idsToDelete);
+		const result = await deleteContentNodes(items);
 		if ("success" in result && result.success) {
-			const idSet = new SvelteSet(idsToDelete);
+			const idSet = new SvelteSet(items.map((i) => i.id));
 			currentConfig = currentConfig.filter(
 				(n) => !idSet.has(n._id?.toString() ?? ""),
 			);
@@ -195,7 +200,7 @@ async function doDelete(idsToDelete: string[]) {
 			// Invalidate layout so edit/create page sidebar gets fresh structure (no deleted items)
 			await invalidate("app:content");
 			toast.success(
-				idsToDelete.length > 1
+				items.length > 1
 					? "Category and attached items deleted"
 					: "Item deleted successfully",
 			);
@@ -217,10 +222,21 @@ function handleDeleteNode(node: Partial<ContentNode>) {
 		return;
 	}
 
+	// Look up the real content path from currentConfig (TreeViewItem path is a tree path, not content path)
+	const configNode = currentConfig.find(
+		(n) => n._id?.toString() === nodeId || n.name === node.name,
+	);
+	const realPath = configNode?.path;
+
 	const isCategory = node.nodeType === "category";
 	if (isCategory) {
-		const idsToDelete = getDescendantIds(nodeId, currentConfig);
-		const attachedCount = idsToDelete.length - 1; // exclude the category itself
+		const itemsToDelete = getDescendantItems(nodeId, currentConfig);
+		// Attach real paths from currentConfig for items that have them
+		const itemsWithPaths = itemsToDelete.map((item) => {
+			const cn = currentConfig.find((n) => n._id?.toString() === item.id || n.name === item.name);
+			return { ...item, path: cn?.path ?? item.path };
+		});
+		const attachedCount = itemsToDelete.length - 1;
 		const body =
 			attachedCount > 0
 				? `Delete category "${node.name}" and all ${attachedCount} attached collection(s) and sub-categories? This action cannot be undone.`
@@ -232,7 +248,7 @@ function handleDeleteNode(node: Partial<ContentNode>) {
 			onConfirm: async () => {
 				try {
 					isLoading = true;
-					await doDelete(idsToDelete);
+					await doDelete(itemsWithPaths);
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
 					logger.error("Delete failed", msg);
@@ -249,7 +265,7 @@ function handleDeleteNode(node: Partial<ContentNode>) {
 			onConfirm: async () => {
 				try {
 					isLoading = true;
-					await doDelete([nodeId]);
+					await doDelete([{ id: nodeId, path: realPath }]);
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
 					logger.error("Delete failed", msg);
@@ -284,7 +300,7 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
 		const newName = `${baseName}_copy`;
 		const rootCount = currentConfig.filter((n) => !n.parentId).length;
 		const newNode: ContentNode = {
-			...structuredClone(original),
+			...(JSON.parse(JSON.stringify(original)) as typeof original),
 			_id: newId,
 			name: newName,
 			parentId: undefined,
@@ -322,8 +338,8 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
 	const idBasedPath =
 		parentId != null ? `${String(parentId)}.${String(newId)}` : String(newId);
 
-	const newNode: ContentNode = structuredClone({
-		...original,
+	const newNode: ContentNode = {
+		...(JSON.parse(JSON.stringify(original)) as typeof original),
 		_id: newId,
 		name: newName,
 		parentId: parentId ?? undefined,
@@ -331,7 +347,7 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
 		slug: undefined,
 		updatedAt: new Date().toISOString() as ISODateString,
 		createdAt: new Date().toISOString() as ISODateString,
-	});
+	};
 
 	if (newNode.collectionDef) {
 		(newNode.collectionDef as { name?: string; path?: string }).name = newName;
@@ -683,4 +699,6 @@ function modalLoadPreset(): void {
 {:else}
 	<EmptyState onAddCollection={handleAddCollectionClick} onAddCategory={() => modalAddCategory()} onLoadPreset={modalLoadPreset} onQuickStart={modalQuickStart} />
 {/if}
+
+<Slot name="collection_builder" />
 </AdminPageShell>

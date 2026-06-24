@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database-settings"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-06-22"
 tags:
   - "database"
   - "infrastructure"
@@ -105,7 +105,8 @@ The `src/databases/core` directory provides shared relational utilities, query h
 
 The `core` directory is not a centralized security interceptor — tenant isolation, query sanitization, and permission enforcement live inside each adapter's implementation (drizzle helpers, mongo crud-methods), the `forTenant()` wrapper, and higher security layers (safe-query, content-service, API dispatcher). What `core` provides:
 
-- **Shared Relational Modules**: `relational-auth.ts`, `relational-content.ts`, `relational-media.ts`, `relational-system.ts` — implement `IAuthAdapter`, `IContentAdapter`, etc. for Drizzle-based engines. Each SQL adapter (PostgreSQL, MariaDB, SQLite) composes these modules.
+- **Shared Relational Modules**: `relational-auth.ts`, `relational-content.ts`, `relational-media.ts`, `relational-system.ts` — implement `IAuthAdapter`, `IContentAdapter`, etc. for Drizzle-based engines. Each SQL adapter (PostgreSQL, MariaDB, SQLite) composes these modules. `relational-system.ts` owns `websiteTokens.*` (hash-at-rest, tenant-scoped list/lookup, parallel `getAll`).
+- **Credential Hashing Utility**: `src/utils/security/credential-hash.ts` — `hashCredentialSha256Hex()` shared by SQL and Mongo website-token adapters (Web Crypto, hex output for indexed equality lookups).
 - **Drizzle SQL Helpers**: `drizzle-sql-helpers.ts` — centralized table aliases, physical column selection maps (defeating minifier ghost columns), and Drizzle condition builders.
 - **Relational Utilities**: `relational-utils.ts` — JSON field detection (zero-clone dirty-bit transform), DATE field normalization, ID generation, pagination, and tenant filter injection.
 - **Query IR translation**: Inlined into the two `mapQuery()` implementations (drizzle-sql-helpers and mongodb/adapter-core) for a slimmed abstraction layer. Types remain in `db-interface.ts`. The parser normalizes Mongo-style operators for cross-engine use in filter building.
@@ -126,7 +127,7 @@ The `core` directory is not a centralized security interceptor — tenant isolat
 ### Key Responsibilities
 
 1. **Adapter Loading**: Delegates adapter selection to `db-init.ts:loadAdapters()` which dynamically imports the correct engine based on `DB_TYPE` config
-2. **Connection Management**: Establishes and maintains database connections via `DatabaseResilience.executeWithRetry()` with circuit breaker protection
+2. **Connection Management**: `connectDatabaseWithResilience()` during boot; disconnect hooks via `bindAdapterResilienceHooks()`; self-healing proxy via `createSelfHealingProxy` — see [Database Resilience](./database-resilience.mdx)
 3. **Initialization**: Coordinates startup of all database-dependent services via `DBPluginRegistry.bootAll()` (topological, parallelized)
 4. **Settings Cache**: Synchronizes database settings with in-memory cache
 5. **Self-Healing Proxy**: `createInstanceProxy` wraps the adapter in a Proxy that survives Vite HMR chunking and auto-recovers on connection loss
@@ -1107,7 +1108,7 @@ _Last Updated: 2026-06-14_
 ## 📚 Related Documentation
 
 - [Cache System Files](../cache-system.mdx) - Cache infrastructure
-- [Authentication & Authorization](../authentication-system.mdx) - Auth system
+- [Authentication & Authorization](../security/authentication-system.mdx) - Auth system
 - [MongoDB Implementation](./mongodb-implementation.mdx) - MongoDB adapter details
 - [Database Architecture](./index.mdx)
 - [Performance Benchmarks](../../project/benchmarks/index.mdx)

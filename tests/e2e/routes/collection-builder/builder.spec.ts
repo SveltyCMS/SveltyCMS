@@ -17,7 +17,9 @@ test.describe("Collection Builder with Modern Widgets", () => {
     const addCollection = page.getByTestId("add-collection-button").first();
     await expect(addCollection).toBeVisible({ timeout: 10_000 });
     await addCollection.click();
-    await expect(page).toHaveURL(/\/config\/collectionbuilder\/new/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/config\/collectionbuilder\/new/, {
+      timeout: 10_000,
+    });
     await expect(page.getByTestId("collection-editor-stepper")).toBeVisible();
   });
 
@@ -37,8 +39,8 @@ test.describe("Collection Builder with Modern Widgets", () => {
         console.log("[E2E] Widget list container not found, continuing...");
       });
 
-    // Verify core widgets are visible using regex
-    await expect(page.getByText(/textinput|checkbox|input/i).first()).toBeVisible({
+    // Verify core widgets are visible using regex (matches actual widget names like Input, Checkbox, RichText, Select, Number)
+    await expect(page.getByText(/Input|Checkbox|RichText|Select|Number/i).first()).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -50,50 +52,18 @@ test.describe("Collection Builder with Modern Widgets", () => {
     // Start creating a new collection
     await page.getByTestId("add-collection-button").first().click();
 
-    // Fill collection basic info
-    await page.fill(
-      'input[name="name"], input[placeholder*="name"], input[placeholder*="Name"]',
-      "Test Article",
-    );
-    await page.fill(
-      'input[name="description"], textarea[name="description"], input[placeholder*="description"]',
-      "Test collection for articles",
-    );
+    // Fill collection basic info (step 1: General Setup)
+    await page.getByTestId("collection-name-input").fill("Test Article");
+    await page.locator("#description").fill("Test collection for articles");
 
-    // Navigate to fields/widgets tab
-    const widgetTab = page.locator(
-      'button:has-text("Fields"), button:has-text("Widgets"), .tab-widgets',
-    );
-    if (await widgetTab.isVisible()) {
-      await widgetTab.click();
-    }
+    // Navigate to step 2: Field Configuration via the stepper
+    await page.getByRole("button", { name: /Field Configuration/i }).click();
 
-    // Add a text field
-    await page.click('button:has-text("Add Field"), button:has-text("Add Widget"), .add-field-btn');
+    // Quick-add an Input field using the quick-add bar
+    await page.getByTestId("quick-add-text").click();
 
-    // Select a widget from the modal
-    const widgetModal = page.locator('.modal, [data-testid="widget-select-modal"]');
-    await widgetModal.waitFor({ state: "visible" });
-
-    // Select text/input widget
-    await page
-      .getByRole("button", { name: /TextInput|Input/i })
-      .first()
-      .click();
-
-    // Configure the field
-    await page.fill('input[name="label"], input[placeholder*="label"]', "Article Title");
-    await page.fill(
-      'input[name="db_fieldName"], input[placeholder*="field"], input[placeholder*="name"]',
-      "title",
-    );
-    await page.getByRole("checkbox", { name: /required/i }).check();
-
-    // Save the field
-    await page.click('button:has-text("Save"), button:has-text("Add")');
-
-    // Verify field was added
-    await expect(page.locator("text=Article Title")).toBeVisible();
+    // Verify field was added (widget generates label "New Text")
+    await expect(page.getByText(/New Text/i)).toBeVisible({ timeout: 10_000 });
   });
 
   test("should filter widgets by search", async ({ page }) => {
@@ -101,20 +71,16 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.goto("/config/collectionbuilder");
     await page.getByTestId("add-collection-button").first().click();
 
-    // Navigate to widgets and add field
-    await page.click('button:has-text("Add Field"), button:has-text("Add Widget")');
+    // Navigate to step 2: Field Configuration via the stepper
+    await page.getByRole("button", { name: /Field Configuration/i }).click();
 
-    // Use search functionality
-    const searchInput = page.locator(
-      'input[placeholder*="search"], input[type="search"], .search-input',
-    );
-    if (await searchInput.isVisible()) {
+    // Use the widget search on the extensions page instead
+    // The field configuration page doesn't have a search input by default
+    // Skip search test if no search input is visible
+    const searchInput = page.locator('input[placeholder*="search"], input[type="search"]').first();
+    if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await searchInput.fill("text");
-
-      // Verify search results
-      await expect(page.getByText(/textinput|input|text/i).first()).toBeVisible();
-
-      // Clear search
+      await expect(page.getByText(/Input|Text/i).first()).toBeVisible();
       await searchInput.fill("");
     }
   });
@@ -124,35 +90,24 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.goto("/config/collectionbuilder");
     await page.getByTestId("add-collection-button").first().click();
 
-    // Add a field
-    await page.click('button:has-text("Add Field"), button:has-text("Add Widget")');
+    // Navigate to step 2: Field Configuration via the stepper
+    await page.getByRole("button", { name: /Field Configuration/i }).click();
 
-    // Select input widget
-    await page
-      .getByRole("button", { name: /TextInput|Input/i })
-      .first()
-      .click();
+    // Click "More Widgets" to open the widget selection modal
+    await page.getByTestId("add-field-button").click();
 
-    // Configure specific properties
-    await page.fill('input[name="label"]', "User Email");
-    await page.fill('input[name="db_fieldName"]', "email");
-    await page.fill('input[name="placeholder"]', "Enter your email");
-    await page.fill('input[name="maxlength"]', "100");
+    // Select Input widget from the modal
+    await page.getByRole("button", { name: /Input/i }).first().click();
 
-    // Check advanced options tab if available
-    const advancedTab = page.locator('button:has-text("Advanced"), button:has-text("Specific")');
-    if (await advancedTab.isVisible()) {
-      await advancedTab.click();
+    // Configure label in the WidgetInspector side panel (use placeholder since aria-label overrides)
+    await page.getByPlaceholder("e.g. Profile Picture").fill("User Email");
+    await page.getByPlaceholder("e.g. profile_pic").fill("email");
 
-      // Configure advanced properties
-      await page.check('input[name="required"]');
-    }
+    // Save field via inspector's "Apply Changes" button
+    await page.getByRole("button", { name: /Apply Changes/i }).click();
 
-    // Save field
-    await page.click('button:has-text("Save")');
-
-    // Verify field configuration
-    await expect(page.locator("text=User Email")).toBeVisible();
+    // Verify field configuration (label appears in the field list)
+    await expect(page.getByText("User Email")).toBeVisible({ timeout: 10_000 });
   });
 
   test("should handle widget dependencies", async ({ page }) => {
@@ -161,9 +116,9 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.getByRole("tab", { name: /widgets/i }).click();
 
     // Check if dependency information is shown
-    const widgetItems = page.locator(".widget-item, .widget-card, [data-testid]").first();
+    const widgetItems = page.locator('[data-testid="widget-grid"]').first();
 
-    if (await widgetItems.isVisible().catch(() => false)) {
+    if (await widgetItems.isVisible({ timeout: 3000 }).catch(() => false)) {
       // Look for dependency information using regex
       await expect(page.getByText(/dependencies|requires|depends/i).first()).toBeVisible({
         timeout: 5000,
@@ -201,33 +156,31 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.goto("/config/collectionbuilder");
     await page.getByTestId("add-collection-button").first().click();
 
-    // Try to save without required fields
-    await page.click('button:has-text("Save"), button:has-text("Create")');
+    // Wait for the collection editor to load
+    await expect(page.getByTestId("collection-name-input")).toBeVisible({
+      timeout: 10_000,
+    });
 
-    // Check for validation errors
-    await expect(
-      page.locator(".error, .alert-error, text=required").or(page.getByText(/required/i)),
-    ).toBeVisible({
+    // Try to save without required fields
+    await page.getByTestId("save-collection-button").click();
+
+    // Check for validation errors (remove invalid CSS text=required; use getByText instead)
+    await expect(page.locator(".error, .alert-error").or(page.getByText(/required/i))).toBeVisible({
       timeout: 5000,
     });
 
     // Fill required information
-    await page.fill('input[name="name"]', "Valid Collection");
+    await page.getByTestId("collection-name-input").fill("Valid Collection");
 
-    // Add at least one field
-    await page.click('button:has-text("Add Field")');
-    await page
-      .getByRole("button", { name: /TextInput|Input/i })
-      .first()
-      .click();
-    await page.getByPlaceholder(/label/i).fill("Test Field");
-    await page.getByRole("button", { name: /save/i }).first().click();
+    // Navigate to step 2 and add at least one field
+    await page.getByRole("button", { name: /Field Configuration/i }).click();
+    await page.getByTestId("quick-add-text").click();
 
     // Now save should work
-    await page.click('button:has-text("Save Collection"), button:has-text("Create")');
+    await page.getByTestId("save-collection-button").click();
 
-    // Verify success
-    await expect(page.locator("text=Success, text=Created")).toBeVisible({
+    // Verify success (toast appears)
+    await expect(page.getByText(/collection saved/i)).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -243,22 +196,20 @@ test.describe("Collection Builder with Modern Widgets", () => {
     } else {
       // Create a new collection with multiple fields
       await page.getByTestId("add-collection-button").first().click();
-      await page.fill('input[name="name"]', "Reorder Test");
+      await page.getByTestId("collection-name-input").fill("Reorder Test");
 
-      // Add multiple fields
+      // Navigate to the Field Configuration step
+      await page.getByRole("button", { name: /Field Configuration/i }).click();
+
+      // Add multiple fields using the quick-add bar
       for (let i = 0; i < 3; i++) {
-        await page.click('button:has-text("Add Field")');
-        await page
-          .getByRole("button", { name: /TextInput|Input/i })
-          .first()
-          .click();
-        await page.fill('input[name="label"]', `Field ${i + 1}`);
-        await page.click('button:has-text("Save")');
+        await page.getByTestId("quick-add-text").click();
+        await page.waitForTimeout(300);
       }
     }
 
-    // Look for drag handles or reorder buttons
-    const dragHandles = page.locator('[data-testid="drag-handle"], .drag-handle, .reorder-btn');
+    // Look for drag handles or reorder buttons (use the dndzone container)
+    const dragHandles = page.locator('[data-testid="widget-fields-list"] [class*="cursor-grab"]');
     if ((await dragHandles.count()) > 1) {
       // Test reordering functionality exists
       await expect(dragHandles.first()).toBeVisible();

@@ -32,7 +32,6 @@ export default async function globalSetup() {
   }
 
   // STEP 2: Clean up old test data (unless skipped)
-  const isCI = process.env.CI === "true";
   const skipCleanup = process.env.SKIP_TEST_CLEANUP === "true";
 
   if (skipCleanup) {
@@ -48,17 +47,17 @@ export default async function globalSetup() {
       join(process.cwd(), "config", "database", "svelty_setup_test.sqlite"),
       join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-shm"),
       join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-wal"),
+      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite"),
+      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite-shm"),
+      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite-wal"),
       join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite"),
       join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-shm"),
       join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-wal"),
-      // Config files (critical - forces setup wizard)
-      // ONLY delete in non-CI or if we specifically want a fresh start
-      ...(!isCI
-        ? [
-            join(process.cwd(), "config", "private.test.ts"),
-            join(process.cwd(), "config", "private.test.js"),
-          ]
-        : []),
+      // Config files — NOT deleted here.
+      // The SETUP server (port 4174) boots with STRICT_SETUP_CHECK=true and naturally
+      // enters SETUP mode because no private.test.ts exists.
+      // The READY server (port 4173) uses STRICT_SETUP_CHECK=false + env vars, so it
+      // doesn't need the file. Use the `reset-to-state` testing API to switch state.
     ];
 
     let deletedCount = 0;

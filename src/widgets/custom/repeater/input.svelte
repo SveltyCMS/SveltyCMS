@@ -124,30 +124,31 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	>
 		{#each items as item, index (item.id)}
 			<div
-				class="rounded-container-token border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
+				class="rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
 				animate:flip={{ duration: 300 }}
 			>
 				<!-- Header / Handle -->
 				<header class="flex items-center justify-between border-b border-surface-200 p-2 dark:border-surface-700">
 					<div class="flex items-center gap-2">
 						<!-- Drag Handle -->
-						<button
-							class="cursor-grab active:cursor-grabbing p-1 text-surface-400 hover:text-tertiary-500 dark:text-primary-500"
+						<Button
+							variant="ghost"
+							class="cursor-grab active:cursor-grabbing p-1"
 							aria-label="Drag to reorder"
 							title="Drag to reorder"
 						>
 							<iconify-icon icon="mdi:drag" width="20"></iconify-icon>
-						</button>
+						</Button>
 
-						<button onclick={() => toggleCollapse(item.id)} class="flex items-center gap-2 text-sm font-semibold">
+						<Button variant="ghost" onclick={() => toggleCollapse(item.id)} class="flex items-center gap-2 text-sm font-semibold">
 							<iconify-icon icon={collapsedItems[item.id] ? 'mdi:chevron-right' : 'mdi:chevron-down'} width="16"></iconify-icon>
 							{getItemLabel(item.data, index)}
-						</button>
-					</div>
+													</Button>
+												</div>
 
-					<button onclick={() => removeItem(item.id)} class="text-error-500 hover:text-error-600 p-1" aria-label="Remove Item" title="Remove Item">
-						<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-					</button>
+												<Button variant="ghost" onclick={() => removeItem(item.id)} class="text-error-500 hover:text-error-600 p-1" aria-label="Remove Item" title="Remove Item">
+													<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
+												</Button>
 				</header>
 
 				<!-- Body -->

@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-06-15"
+updated: "2026-06-22"
 tags:
   - "performance"
   - "optimization"
@@ -34,17 +34,22 @@ SveltyCMS delivers enterprise-grade performance through its database-agnostic ar
 
 ### Cross-Database Impact (All 4 Engines)
 
-| Optimization                   | SQLite  | PostgreSQL | MariaDB  | MongoDB        |
-| ------------------------------ | ------- | ---------- | -------- | -------------- |
-| Schema-aware row conversion    | ✅ Full | ✅ Full    | ✅ Full  | N/A (own path) |
-| Ring-buffer result pool        | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
-| Conditions array pool          | ✅ Full | ✅ Full    | ✅ Full  | N/A (own path) |
-| Fused mapQuery (no IR objects) | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
-| for...in (zero Object.entries) | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
-| Pre-allocated meta object      | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
-| MariaDB double-parse isolated  | N/A     | ✅ Benefit | ✅ Owner | N/A            |
+| Optimization                                   | SQLite  | PostgreSQL | MariaDB  | MongoDB        |
+| ---------------------------------------------- | ------- | ---------- | -------- | -------------- |
+| Schema-aware row conversion                    | ✅ Full | ✅ Full    | ✅ Full  | N/A (own path) |
+| Ring-buffer result pool                        | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
+| Conditions array pool                          | ✅ Full | ✅ Full    | ✅ Full  | N/A (own path) |
+| Fused mapQuery (no IR objects)                 | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
+| for...in (zero Object.entries)                 | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
+| Pre-allocated meta object                      | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
+| MariaDB double-parse isolated                  | N/A     | ✅ Benefit | ✅ Owner | N/A            |
+| Parallel list + count (`websiteTokens.getAll`) | ✅ Full | ✅ Full    | ✅ Full  | ✅ Full        |
 
 > **SQL family gets ~5-8 fewer allocations per filtered query. MongoDB gets ~2-3 fewer (result pool + fused mapQuery). All 4 databases benefit from shared BaseAdapter optimizations.**
+
+### Credential list hot-path
+
+`system.websiteTokens.getAll()` issues the row query and `COUNT(*)` in parallel on all four engines (`Promise.all` in `relational-system.ts` and `website-token-methods.ts`). Combined with the `{ tenantId, name }` compound index, admin token tables stay sub-millisecond even under multi-tenant filtering.
 
 ## Philosophy
 

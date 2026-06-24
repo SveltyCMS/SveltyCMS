@@ -11,7 +11,7 @@
 // System Logger
 import { contentSystem } from "@src/content/index.server";
 // Auth - Use cached roles from locals instead of global config
-import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { error, fail, redirect, isRedirect, isHttpError } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { Actions, PageServerLoad } from "./$types";
@@ -28,8 +28,7 @@ function requireCollectionBuilderPermission(locals: any): void {
   if (!user) {
     throw error(401, "Authentication required");
   }
-  if (isAdmin) return;
-  if (!hasPermissionWithRoles(user, "config:collectionbuilder", tenantRoles)) {
+  if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
     logger.warn("[CollectionBuilder] Permission denied for action.", {
       userId: user._id,
     });

@@ -419,6 +419,8 @@ function stubServerModulesPlugin(): Plugin {
     "/src/components/emails/",
     "/src/services/security/audit-service.ts",
     "/src/databases/sqlite/adapter-core.ts",
+    "/src/utils/compilation/compile.ts",
+    "/src/utils/tenant.server.ts",
   ]);
 
   return {
@@ -472,7 +474,9 @@ export const needsRehash = () => false;
 
       // 3. Regex check (High-performance combined pattern matching)
       if (serverOnlyRegex.test(id)) {
-        return `export default {}; export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };`;
+        return `export default {}; export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+export const getCollectionsPath = () => "";
+export const getCompiledCollectionsPath = () => "";`;
       }
 
       // 4. File-based check
@@ -919,6 +923,7 @@ export default defineConfig((): any => {
         },
         alias: {
           $paraglide: "./src/paraglide",
+          "@plugins": "./src/plugins",
           "@api": "./src/routes/api",
           "@auth": "./src/databases/auth",
           "@collections": "./config/collections",
@@ -1068,7 +1073,7 @@ export default defineConfig((): any => {
     build: {
       target: "esnext",
       minify: "esbuild",
-      sourcemap: true,
+      sourcemap: process.env.CI ? false : true,
       chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
       // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
       rolldownOptions: {

@@ -15,9 +15,10 @@
  * - clean state resets for test isolation
  */
 
-import { createRequire } from "node:module";
-if (typeof (globalThis as any).require === "undefined") {
-  (globalThis as any).require = createRequire(import.meta.url);
+if (import.meta.env.SSR && typeof (globalThis as any).require === "undefined") {
+  import("node:module").then(({ createRequire }) => {
+    (globalThis as any).require = createRequire(import.meta.url);
+  });
 }
 
 import { logger } from "@utils/logger";
@@ -190,7 +191,11 @@ export async function ensureFullInitialization(): Promise<any | null> {
       if (!adapter) throw new Error("Failed to load database adapter");
       logger.info(`[Boot] Adapter loaded. Connecting...`);
 
-      const connectionResult = await adapter.connect();
+      const { connectDatabaseWithResilience } = await import("./resilience-integration");
+      const connectionResult = await connectDatabaseWithResilience(
+        adapter,
+        `Database Boot (${cfg?.DB_TYPE || "unknown"})`,
+      );
       logger.info(`[Boot] Connection result: ${connectionResult.success}`);
       if (!connectionResult.success) {
         throw new Error(`Database connection failed: ${connectionResult.message}`);
@@ -205,7 +210,12 @@ export async function ensureFullInitialization(): Promise<any | null> {
         const type = (adapter as any).type || (adapter as any).DB_TYPE || "sqlite";
         const reloaded = await dbInit.loadAdapters({ DB_TYPE: type });
         if (reloaded) {
-          await reloaded.connect();
+          const { connectDatabaseWithResilience: reconnectWithResilience } =
+            await import("./resilience-integration");
+          const rehydrate = await reconnectWithResilience(reloaded, "Database Re-hydration");
+          if (!rehydrate.success) {
+            throw new Error(rehydrate.message || "Database re-hydration failed");
+          }
           adapter = reloaded;
           setGlobal(ADAPTER_KEY, adapter);
         }

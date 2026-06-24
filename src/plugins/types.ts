@@ -169,29 +169,56 @@ export interface PluginUIContribution {
     }>;
     sidebar?: any[]; // Svelte components
   };
+
+  /** UI slots for injection zones (config, dashboard, sidebar, plugin_workspace, etc.) */
+  slots?: PluginSlot[];
+}
+
+/** Server handlers exported by a plugin workspace slot module */
+export interface PluginServerModule {
+  actions?: Record<
+    string,
+    (event: {
+      request: Request;
+      locals: Record<string, unknown>;
+      params: Record<string, string>;
+    }) => Promise<Record<string, unknown>>
+  >;
 }
 
 // Injection Zones for Slot System
+// Any plugin can target these zones to inject UI into CMS routes
 export type InjectionZone =
-  | "dashboard"
-  | "sidebar"
-  | "entry_edit"
-  | "entry_edit_sidebar"
-  | "entry_edit_header"
-  | "config"
-  | "entry_list_actions"
-  | "global-toolbar"
-  | "global-footer"
-  | "sticky-action-bar";
+  | "dashboard" // Dashboard widgets
+  | "sidebar" // Global sidebar
+  | "entry_edit" // Content entry editor
+  | "entry_edit_sidebar" // Entry editor sidebar
+  | "entry_edit_header" // Entry editor header
+  | "config" // System configuration page
+  | "config_grid" // Config page icon grid (additional tiles)
+  | "plugin_workspace" // Fullscreen plugin GUI overlay (slot-driven, no routes)
+  | "collection_builder" // Collection builder page
+  | "media_gallery" // Media gallery page
+  | "media_gallery_toolbar" // Media gallery toolbar
+  | "user_profile" // User profile/settings page
+  | "user_profile_sidebar" // User profile sidebar
+  | "entry_list_actions" // Entry list action buttons
+  | "global-toolbar" // Top-level toolbar (all routes)
+  | "global-footer" // Footer (all routes)
+  | "sticky-action-bar"; // Sticky action bar at bottom
 
 // Plugin Slot definition
 export interface PluginSlot {
   component: () => Promise<any>; // Lazy loaded Svelte component
   condition?: (context: any) => boolean; // Optional condition to show/hide slot
   id: string;
+  /** Owning plugin id (set automatically during registration) */
+  pluginId?: string;
   permissions?: string[]; // RBAC roles
   position?: number;
   props?: Record<string, any>;
+  /** Server module for `/api/plugins/[pluginId]` action delegation */
+  server?: () => Promise<PluginServerModule>;
   zone: InjectionZone;
 }
 

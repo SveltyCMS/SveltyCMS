@@ -93,11 +93,11 @@
 	// --- Base Classes ---
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 {#if modalState.active}
-	<div class="modal-schedule {cBase}" role="dialog" aria-labelledby="schedule-modal-title">
+	<div class="modal-schedule {cBase}" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
 		<header id="schedule-modal-title" class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader}`}>Schedule Entry</header>
 		<article class="text-center text-sm">Set a date and time to publish this entry.</article>
 
@@ -125,9 +125,9 @@
 
 		<footer class="modal-footer flex items-center justify-end space-x-4">
 			<Button variant="outline" onclick={() => modalState.close()}>{button_cancel()}</Button>
-			<Button variant="tertiary" onclick={() => handleSubmission()} disabled={!isFormValid} class="dark:">
-				{entrylist_multibutton_schedule()}
-			</Button>
+			<Button variant="tertiary" onclick={() => handleSubmission()} disabled={!isFormValid} class="dark:preset-filled-primary-500">
+								{entrylist_multibutton_schedule()}
+							</Button>
 		</footer>
 	</div>
 {/if}

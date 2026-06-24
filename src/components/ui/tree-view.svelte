@@ -465,7 +465,10 @@ search filtering, and RTL support.
             type="button"
             id={`treenode-${node.id}`}
             class={cn(
-                'flex w-full items-center rounded-lg transition-all cursor-pointer group focus:outline-none text-start border border-transparent px-2',
+                computedDensity === 'compact'
+                    ? 'border-0 justify-center'
+                    : 'border border-transparent text-start px-2',
+                'flex w-full items-center rounded-lg transition-all cursor-pointer group focus:outline-none',
                 densityTokens.padding,
                 densityTokens.touch,
                 isSelected
@@ -476,7 +479,7 @@ search filtering, and RTL support.
                 dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500 dark:bg-primary-500/20 border-tertiary-500 dark:border-primary-500',
                 node.disabled && 'opacity-50 cursor-not-allowed'
             )}
-            style="padding-inline-start: {indentLeft(depth)}rem"
+            style={computedDensity === 'compact' ? undefined : `padding-inline-start: ${indentLeft(depth)}rem`}
             onclick={() => toggleNode(node)}
             onkeydown={(e) => handleKeyDown(e, node)}
             onmouseenter={() => handleHover?.(node)}
@@ -495,28 +498,30 @@ search filtering, and RTL support.
             aria-setsize={-1}
             role="treeitem"
         >
-            <!-- Expand/Collapse Chevron or Loading Spinner -->
-            {#if hasChildren}
-                {#if node.isLoading}
-                    <div class="flex items-center justify-center {densityTokens.dummy}">
-                        <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-400 border-t-transparent" aria-label="Loading"></div>
-                    </div>
+            <!-- Expand/Collapse Chevron or Loading Spinner (hidden in compact mode) -->
+            {#if computedDensity !== 'compact'}
+                {#if hasChildren}
+                    {#if node.isLoading}
+                        <div class="flex items-center justify-center {densityTokens.dummy}">
+                            <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-400 border-t-transparent" aria-label="Loading"></div>
+                        </div>
+                    {:else}
+                        <iconify-icon
+                            icon="mdi:chevron-right"
+                            width={densityTokens.chevron}
+                            class={cn(
+                                'transition-transform shrink-0 opacity-60',
+                                prefersReducedMotion ? 'duration-0' : 'duration-200',
+                                expanded && 'rotate-90',
+                                dir === 'rtl' && 'rotate-180'
+                            )}
+                            aria-hidden="true"
+                        ></iconify-icon>
+                    {/if}
                 {:else}
-                    <iconify-icon
-                        icon="mdi:chevron-right"
-                        width={densityTokens.chevron}
-                        class={cn(
-                            'transition-transform shrink-0 opacity-60',
-                            prefersReducedMotion ? 'duration-0' : 'duration-200',
-                            expanded && 'rotate-90',
-                            dir === 'rtl' && 'rotate-180'
-                        )}
-                        aria-hidden="true"
-                    ></iconify-icon>
+                    <!-- Spacer when no children, matching chevron width -->
+                    <div class={densityTokens.dummy} aria-hidden="true"></div>
                 {/if}
-            {:else}
-                <!-- Spacer when no children, matching chevron width -->
-                <div class={densityTokens.dummy} aria-hidden="true"></div>
             {/if}
 
             <!-- Node Icon -->
@@ -525,22 +530,24 @@ search filtering, and RTL support.
                     <iconify-icon
                         icon={node.icon}
                         width={densityTokens.icon}
-                        class={cn(isSelected ? 'text-primary-600 dark:text-primary-500' : iconColorClass)}
+                        class={cn(isSelected && computedDensity !== 'compact' ? 'text-primary-600 dark:text-primary-500' : iconColorClass)}
                         aria-hidden="true"
                     ></iconify-icon>
                 </div>
             {/if}
 
-            <!-- Label -->
-            <span class={cn(
-                'truncate transition-colors',
-                densityTokens.font,
-                isSelected
-                    ? 'font-bold text-primary-600 dark:text-primary-500'
-                    : 'font-medium text-surface-900 dark:text-surface-100'
-            )}>
-                {nodeLabel}
-            </span>
+            <!-- Label (hidden in compact mode) -->
+            {#if computedDensity !== 'compact'}
+                <span class={cn(
+                    'truncate transition-colors',
+                    densityTokens.font,
+                    isSelected
+                        ? 'font-bold text-primary-600 dark:text-primary-500'
+                        : 'font-medium text-surface-900 dark:text-surface-100'
+                )}>
+                    {nodeLabel}
+                </span>
+            {/if}
 
             <!-- Count Badge -->
             {#if showBadge}

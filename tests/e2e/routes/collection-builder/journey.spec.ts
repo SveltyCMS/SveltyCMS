@@ -18,19 +18,24 @@ test.describe("Master Behavioral Journey", () => {
     // 2. Create a New Collection via editor
     const collectionName = `JourneyProj_${Date.now()}`;
     await page.goto("/config/collectionbuilder/new");
-    await expect(page.getByTestId("collection-name-input")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("collection-name-input")).toBeVisible({
+      timeout: 10_000,
+    });
     await page.getByTestId("collection-name-input").fill(collectionName);
 
-    // 3. Configure Collection Fields (GUI)
+    // 3. Configure Collection Fields (GUI) — click step 2 in the stepper
     await page.getByRole("button", { name: /field configuration/i }).click();
     await page.getByTestId("quick-add-text").click();
-    await expect(page.getByTestId("widget-fields-list")).toContainText(/new text/i, {
+    // The widget generates a field with label "New Text"
+    await expect(page.getByText(/New Text/i)).toBeVisible({
       timeout: 10_000,
     });
 
     // 4. Save & Compile Schema
     await page.getByTestId("save-collection-button").click();
-    await expect(page.getByText(/collection saved/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/collection saved/i)).toBeVisible({
+      timeout: 15_000,
+    });
 
     // 6. Create an Entry in the New Collection
     // Navigate to the newly created collection page

@@ -58,6 +58,9 @@ export const authUsers = pgTable(
     totpSecret: text("totpSecret"),
     backupCodes: jsonb("backupCodes").$type<string[]>(),
     last2FAVerification: timestamp("last2FAVerification"),
+    authenticators: jsonb("authenticators").$type<import("../auth/types").Authenticator[]>(),
+    failedAttempts: integer("failedAttempts").notNull().default(0),
+    lockoutUntil: timestamp("lockoutUntil"),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -406,6 +409,7 @@ export const websiteTokens = pgTable(
     tokenIdx: unique("website_tokens_token_unique").on(table.token),
     nameIdx: index("website_tokens_name_idx").on(table.name),
     tenantIdx: index("website_tokens_tenant_idx").on(table.tenantId),
+    tenantNameIdx: index("website_tokens_tenant_name_idx").on(table.tenantId, table.name),
   }),
 );
 
@@ -557,11 +561,41 @@ export const tenants = pgTable(
   }),
 );
 
+// Auth API Keys Table
+export const authApiKeys = pgTable(
+  "auth_api_keys",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 255 }).notNull(),
+    hash: varchar("hash", { length: 255 }).notNull(),
+    prefix: varchar("prefix", { length: 12 }).notNull(),
+    userId: varchar("userId", { length: 36 }).notNull(),
+    scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
+    permissions: jsonb("permissions").$type<string[]>().notNull().default([]),
+    revoked: boolean("revoked").notNull().default(false),
+    usageCount: integer("usageCount").notNull().default(0),
+    lastUsedAt: timestamp("lastUsedAt"),
+    lastUsedIp: varchar("lastUsedIp", { length: 45 }),
+    expiresAt: timestamp("expiresAt"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    hashIdx: unique("auth_api_keys_hash_unique").on(table.hash),
+    userIdx: index("auth_api_keys_user_idx").on(table.userId),
+    tenantIdx: index("auth_api_keys_tenant_idx").on(table.tenantId),
+    tenantHashIdx: index("auth_api_keys_tenant_hash_idx").on(table.tenantId, table.hash),
+  }),
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
   authUsers,
   authSessions,
   authTokens,
+  authApiKeys,
   roles,
   contentNodes,
   contentDrafts,

@@ -3,9 +3,10 @@
  * @description Core functionality shared across MongoDB adapter modules.
  */
 
-import { createRequire } from "node:module";
-if (typeof (globalThis as any).require === "undefined") {
-  (globalThis as any).require = createRequire(import.meta.url);
+if (import.meta.env.SSR && typeof (globalThis as any).require === "undefined") {
+  import("node:module").then(({ createRequire }) => {
+    (globalThis as any).require = createRequire(import.meta.url);
+  });
 }
 
 import mongoose from "mongoose";

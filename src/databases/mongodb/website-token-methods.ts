@@ -1,21 +1,23 @@
 /**
- * @file src/databases/mongodb/models/websiteToken.ts
- * @description Mongoose model for Website Tokens used for external access
+ * @file src/databases/mongodb/website-token-methods.ts
+ * @description Secure CRUD operations for WebsiteToken collection with tenant isolation and token hashing.
  *
- * ### Fields
- * - `_id`: Unique identifier for the token
- * - `name`: Human-readable name for the token
- * - `token`: The actual token string used for authentication
- * - `createdAt`: Timestamp of when the token was created
- * - `updatedAt`: Timestamp of the last update to the token
- * - `createdBy`: User ID of the creator of the token
+ * ### Features:
+ * - mandatory token hashing before persistence
+ * - safeQuery-enforced soft-delete and tenant boundaries
+ * - parallel list + count queries
+ * - credential lookup aligned with API key auth (tenant-scoped when context exists)
  */
 
 import { generateId } from "@src/databases/mongodb/mongodb-utils";
 import type { WebsiteToken } from "@src/content/types";
+import { hashCredentialSha256Hex } from "@src/utils/security/credential-hash";
 import { nowISODateString } from "@utils/date";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";
+import type { DatabaseId, DatabaseResult, QueryFilter } from "../db-interface";
+import { MongoCrudMethods } from "./crud-methods";
+import { createDatabaseError } from "./mongodb-utils";
 
 export const websiteTokenSchema = new Schema<WebsiteToken>(
   {
@@ -27,32 +29,21 @@ export const websiteTokenSchema = new Schema<WebsiteToken>(
     createdBy: { type: String, required: true },
     permissions: { type: [String], default: [] },
     expiresAt: { type: String, required: false },
+    tenantId: { type: String, index: true },
+    isDeleted: { type: Boolean, default: false },
   },
   {
-    // ⚠️ timestamps: true conflicts with explicit createdAt/updatedAt String types.
-    // crud.insert() manually sets both to nowISODateString() — timestamps plugin
-    // would coerce them to Date, breaking type consistency and toObject() output.
     collection: "system_website_tokens",
     strict: true,
   },
 );
 
 websiteTokenSchema.index({ createdBy: 1 });
+websiteTokenSchema.index({ tenantId: 1, name: 1 });
 
 export const WebsiteTokenModel =
   (mongoose.models?.WebsiteToken as Model<WebsiteToken> | undefined) ||
   mongoose.model<WebsiteToken>("WebsiteToken", websiteTokenSchema);
-
-// --- Merged from website-token.ts (model + statics) into methods for file reduction pilot ---
-
-/**
- * @file src/databases/mongodb/methods/website-token-methods.ts
- * @description Secure CRUD operations for WebsiteToken collection with mandatory tenant isolation and token hashing.
- */
-
-import type { DatabaseId, DatabaseResult, QueryFilter } from "../db-interface";
-import { MongoCrudMethods } from "./crud-methods";
-import { createDatabaseError } from "./mongodb-utils";
 
 export class MongoWebsiteTokenMethods {
   private readonly crud: MongoCrudMethods<WebsiteToken>;
@@ -61,17 +52,11 @@ export class MongoWebsiteTokenMethods {
     this.crud = new MongoCrudMethods(websiteTokenModel, adapter);
   }
 
-  /**
-   * Helper to hash tokens before storage or comparison.
-   * Website tokens represent API credentials and must NEVER be stored in plaintext.
-   */
-  private async _hashToken(token: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(token);
-    const hash = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(hash))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+  private _tenantOpts(tenantId?: string, credentialLookup = false) {
+    return {
+      ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
+      ...(credentialLookup && !tenantId ? { bypassTenantCheck: true } : {}),
+    };
   }
 
   async create(
@@ -79,28 +64,23 @@ export class MongoWebsiteTokenMethods {
     tenantId?: string,
   ): Promise<DatabaseResult<WebsiteToken>> {
     try {
-      // Capture the original plaintext token before hashing.
-      // The raw token MUST be returned to the caller on creation (only storage is hashed).
       const originalToken = tokenData.token;
-
-      // Hash the sensitive token value before it touches the database layer
-      const hashedToken = await this._hashToken(originalToken);
+      const hashedToken = await hashCredentialSha256Hex(originalToken);
 
       const secureToken: Record<string, unknown> = {
         ...tokenData,
         token: hashedToken,
+        isDeleted: false,
       };
       if (tenantId) {
         secureToken.tenantId = tenantId as DatabaseId;
       }
 
       const result = await this.crud.insert(
-        secureToken as any as WebsiteToken,
+        secureToken as WebsiteToken,
         tenantId ? { tenantId: tenantId as DatabaseId } : {},
       );
 
-      // Override the stored hash with the original plaintext token in the response.
-      // The hash remains in the database; only the API response carries the raw value.
       if (result.success && result.data) {
         result.data = { ...result.data, token: originalToken };
       }
@@ -126,10 +106,8 @@ export class MongoWebsiteTokenMethods {
     tenantId?: string,
   ): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
     try {
-      // Sanitize filter to prevent raw MongoDB operator injection/credential enumeration
       const allowedFilters = ["name", "isActive"];
-      const sanitizedFilter: Record<string, any> = {};
-      if (tenantId) sanitizedFilter.tenantId = tenantId;
+      const sanitizedFilter: Record<string, unknown> = {};
 
       if (options.filter) {
         for (const [key, value] of Object.entries(options.filter)) {
@@ -139,31 +117,28 @@ export class MongoWebsiteTokenMethods {
         }
       }
 
-      const sort: any =
+      const sort: Record<string, 1 | -1> =
         options.sort && options.order
-          ? { [options.sort]: options.order as "asc" | "desc" | 1 | -1 }
+          ? { [options.sort]: options.order === "desc" ? -1 : 1 }
           : { createdAt: -1 };
 
-      const findManyOpts: any = {
+      const queryOpts = {
+        ...this._tenantOpts(tenantId),
         limit: options.limit || 100,
         offset: options.skip,
         sort,
       };
-      if (tenantId) {
-        findManyOpts.tenantId = tenantId as DatabaseId;
-      }
-
-      const countOpts: any = tenantId ? { tenantId: tenantId as DatabaseId } : {};
 
       const [dataRes, totalRes] = await Promise.all([
-        this.crud.findMany(sanitizedFilter as QueryFilter<WebsiteToken>, findManyOpts),
-        this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, countOpts),
+        this.crud.findMany(sanitizedFilter as QueryFilter<WebsiteToken>, queryOpts),
+        this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, this._tenantOpts(tenantId)),
       ]);
 
-      if (!dataRes.success) return dataRes as any;
-      if (!totalRes.success) return totalRes as any;
+      if (!dataRes.success)
+        return dataRes as DatabaseResult<{ data: WebsiteToken[]; total: number }>;
+      if (!totalRes.success)
+        return totalRes as DatabaseResult<{ data: WebsiteToken[]; total: number }>;
 
-      // Scrub tokens from the list for security
       const scrubbedData = dataRes.data.map((t) => {
         const { token: _, ...rest } = t;
         return rest as WebsiteToken;
@@ -192,21 +167,15 @@ export class MongoWebsiteTokenMethods {
   }
 
   async getByName(name: string, tenantId?: string): Promise<DatabaseResult<WebsiteToken | null>> {
-    const filter: QueryFilter<WebsiteToken> = tenantId
-      ? ({ name, tenantId } as QueryFilter<WebsiteToken>)
-      : ({ name } as QueryFilter<WebsiteToken>);
-    return this.crud.findOne(filter, tenantId ? { tenantId: tenantId as DatabaseId } : {});
+    return this.crud.findOne({ name } as QueryFilter<WebsiteToken>, this._tenantOpts(tenantId));
   }
 
-  /**
-   * Verified a token against its stored hash.
-   */
   async verifyToken(
     plaintextToken: string,
     tenantId: string,
   ): Promise<DatabaseResult<WebsiteToken | null>> {
     try {
-      const hashed = await this._hashToken(plaintextToken);
+      const hashed = await hashCredentialSha256Hex(plaintextToken);
       return this.crud.findOne({ token: hashed, tenantId } as QueryFilter<WebsiteToken>, {
         tenantId: tenantId as DatabaseId,
       });
@@ -224,13 +193,8 @@ export class MongoWebsiteTokenMethods {
     tenantId?: string,
   ): Promise<DatabaseResult<WebsiteToken | null>> {
     try {
-      const hashed = await this._hashToken(plaintextToken);
-      const filter: any = { token: hashed };
-      if (tenantId) filter.tenantId = tenantId;
-
-      return this.crud.findOne(filter as QueryFilter<WebsiteToken>, {
-        tenantId: tenantId as DatabaseId,
-      });
+      const hashed = await hashCredentialSha256Hex(plaintextToken);
+      return this.getByTokenHash(hashed, tenantId);
     } catch (error: any) {
       return {
         success: false,
@@ -238,5 +202,33 @@ export class MongoWebsiteTokenMethods {
         error: createDatabaseError(error, "TOKEN_GET_FAILED", error.message),
       };
     }
+  }
+
+  async getByTokenHash(
+    tokenHash: string,
+    tenantId?: string,
+  ): Promise<DatabaseResult<WebsiteToken | null>> {
+    try {
+      return this.crud.findOne(
+        { token: tokenHash } as QueryFilter<WebsiteToken>,
+        this._tenantOpts(tenantId, true),
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        message: "Failed to get token by hash",
+        error: createDatabaseError(error, "TOKEN_GET_FAILED", error.message),
+      };
+    }
+  }
+
+  async getById(
+    tokenId: DatabaseId,
+    tenantId?: string,
+  ): Promise<DatabaseResult<WebsiteToken | null>> {
+    return this.crud.findOne(
+      { _id: tokenId } as QueryFilter<WebsiteToken>,
+      this._tenantOpts(tenantId),
+    );
   }
 }

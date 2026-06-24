@@ -141,6 +141,7 @@ async function handleGoogleUser(
   cookies: Cookies,
   fetchFn: typeof fetch,
   request: Request,
+  url: URL,
 ): Promise<void> {
   const email = googleUser.email;
   if (!email) {
@@ -310,7 +311,12 @@ async function handleGoogleUser(
     user_id: user._id,
     expires: expiresAt.toISOString() as ISODateString,
   });
-  const sessionCookie = auth.createSessionCookie(session._id);
+  const isSecure =
+    url.protocol === "https:" ||
+    (url.hostname !== "localhost" &&
+      process.env.NODE_ENV !== "development" &&
+      process.env.TEST_MODE !== "true");
+  const sessionCookie = auth.createSessionCookie(session._id, isSecure);
   const cookieAttributes = sessionCookie.attributes as Record<string, unknown>;
   cookies.set(sessionCookie.name, sessionCookie.value, {
     ...cookieAttributes,
@@ -483,6 +489,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
         cookies,
         fetch,
         request,
+        url,
       );
 
       logger.info("Successfully processed OAuth callback and created session");

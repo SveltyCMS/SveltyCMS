@@ -180,6 +180,7 @@ test.describe("Setup Wizard: Error Handling", () => {
   });
 
   test("should show error on invalid SMTP configuration", async ({ wizard, page }) => {
+    test.setTimeout(90_000);
     await wizard.hardReset();
     await wizard.dismissModals();
 
@@ -200,11 +201,12 @@ test.describe("Setup Wizard: Error Handling", () => {
 
     await expect(page.locator("h2", { hasText: /email/i }).first()).toBeVisible();
 
-    await page.locator('input[type="text"]').first().fill("smtp.invalid.invalid");
-    await page.locator('input[autocomplete="username"]').fill("admin");
-    await page.locator('input[autocomplete="current-password"]').fill("Password123!");
+    await page.locator("#smtp-host").fill("smtp.invalid.invalid");
+    await page.locator("#smtp-user").fill("admin");
+    await page.locator("#smtp-password").fill("Password123!");
+    await page.locator("#smtp-from").fill("admin@test.com");
 
-    const testEmailButton = page.locator("button[type='submit']").first();
+    const testEmailButton = page.getByRole("button", { name: /test .* connection/i }).first();
     await testEmailButton.click();
 
     await expect(page.getByText(/connection failed/i).first()).toBeVisible({

@@ -83,7 +83,7 @@ async function uploadRemoteUrls() {
 		bind:value={remoteUrls}
 		placeholder="Paste Remote URLs here, one per line..."
 		rows="6"
-		class="textarea w-full bg-secondary-50 dark:bg-secondary-800"
+		class="textarea w-full bg-secondary-50 p-4 dark:bg-secondary-800"
 		oninput={handleRemoteUrlInput}
 		aria-label="Remote URLs to upload"
 	></textarea>

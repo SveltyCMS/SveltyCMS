@@ -56,6 +56,7 @@ import { page } from "$app/state";
 import type { PageData } from "../$types";
 import type { LoginBranding } from "@utils/theme-merge";
 import SignupIcon from "./icons/signup-icon.svelte";
+import { fade } from 'svelte/transition';
 
 // Props
 const {
@@ -288,7 +289,7 @@ $effect(() => {
 	class:hover={isHover}
 >
 	{#if active === 1}
-		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+		<div transition:fade={{ duration: 250 }} class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
 			{#if screen.isDesktop}
 				<div class="absolute inset-0 z-0">
 					<FloatingPaths position={1} background="dark" mirrorAnimation />
@@ -565,7 +566,7 @@ $effect(() => {
 		flex-grow: 1;
 		width: var(--width);
 		background: #242728;
-		transition: 0.4s;
+		transition: width 0.15s ease-out, border-radius 0.15s ease-out;
 	}
 	.active {
 		--width: 90%;

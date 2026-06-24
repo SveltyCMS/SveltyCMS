@@ -86,7 +86,7 @@
     aria-describedby="cookie-description"
   >
     <div
-      class="rounded border border-surface-200 bg-white p-3 shadow-2xl dark:border-surface-700 dark:bg-surface-900"
+      class="gradient-border-card rounded-2xl bg-white/70 p-4 shadow-2xl backdrop-blur-[12px] dark:bg-surface-900/70"
     >
       <!-- Header -->
       <div class="flex items-start gap-3">
@@ -189,3 +189,28 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .gradient-border-card {
+    position: relative;
+  }
+
+  .gradient-border-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid transparent;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.35),
+      rgba(255, 255, 255, 0.08)
+    ) border-box;
+    mask:
+      linear-gradient(#fff 0 0) padding-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+</style>

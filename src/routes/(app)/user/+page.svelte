@@ -197,19 +197,21 @@
 <div in:fade={{ duration: 300 }}>
 	<h2 class="sr-only">Profile Information</h2>
 	<div class="wrapper mb-2">
-		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
+		<div class="grid grid-cols-1 gap-1 overflow-hidden md:grid-cols-2">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1" in:fly={{ y: 20, delay: 100, duration: 300 }}>
 				<div class="relative group">
 					<Avatar src={normalizeAvatarUrl(avatarSrc.value)} initials="AV" size="size-32" class="rounded-full border border-white shadow-lg dark:border-surface-800" />
 
 					<!-- Edit button - icon overlay -->
-					<Button variant="ghost"
+					<button
+						type="button"
 						onclick={modalEditAvatar}
 						title={userpage_editavatar()}
-					 class="p-0! min-w-0 absolute bottom-0 inset-e-0 rounded-full gradient-tertiary dark:gradient-primary">
-						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
-					</Button>
+						class="p-1 min-w-0 absolute bottom-0 inset-e-0 rounded-full bg-transparent hover:bg-surface-900/10 dark:hover:bg-white/10 transition-colors"
+						aria-label={userpage_editavatar()}>
+						<iconify-icon icon="mdi:pencil" width={18} class="text-surface-500 dark:text-surface-400"></iconify-icon>
+					</button>
 				</div>
 				<!-- User ID -->
 				<Badge preset="tonal" color="secondary" class="mt-1 w-full max-w-xs text-white">
@@ -224,8 +226,8 @@
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
 					<Button variant="error"
-						onclick={open2FAModal}
-					 size="sm" class="{user?.is2FAEnabled ? ' ' : ' '} w-full max-w-xs border border-surface-500/20">
+											onclick={open2FAModal}
+										 size="sm" class="w-full max-w-xs border border-surface-500/20">
 						<div class="flex w-full items-center justify-between py-1">
 							<div class="flex items-center gap-2">
 								<iconify-icon icon="mdi:shield-lock" width={20} class="text-error-500"></iconify-icon>
@@ -244,8 +246,8 @@
 				{/if}
 
 				<!-- Workspace Appearance -->
-				<AdminCard class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm">
-					<div class="space-y-2">
+				<AdminCard class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm">
+									<div class="space-y-2">
 						<div class="flex items-center gap-2">
 							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<span class="text-sm font-semibold">Workspace Appearance</span>
@@ -271,7 +273,7 @@
 
 				<!-- Collaboration Settings -->
 				<AdminCard
-					class="w-full max-w-xs border border-surface-500 bg-surface-200-700-token p-4 shadow-sm"
+									class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm"
 				>
 					<div in:fly={{ y: 10, delay: 300, duration: 300 }} class="space-y-3">
 						<div class="flex items-center justify-between gap-3">
@@ -309,7 +311,7 @@
 
 			<!-- User fields -->
 			{#if user}
-				<form class="space-y-4">
+				<div class="flex flex-col items-center justify-center gap-1">
 					<Input
 						value={user.username}
 						name="username"
@@ -340,9 +342,7 @@
 						aria-label={form_password()}
 					/>
 
-
 					<div class="mt-3 flex flex-col items-center justify-center gap-1.5">
-						<!-- Edit Modal Button -->
 						<Button
 							variant="outline"
 							size="sm"
@@ -354,7 +354,6 @@
 							{userpage_edit_usersetting()}
 						</Button>
 
-						<!-- GDPR Compact Tile -->
 						<Button
 							variant="outline"
 							size="sm"
@@ -366,7 +365,6 @@
 							<span class="text-xs font-bold">Privacy & Data (GDPR)</span>
 						</Button>
 
-						<!-- Delete Modal Button -->
 						{#if isFirstUser}
 							<Button
 								variant="outline"
@@ -380,7 +378,7 @@
 							</Button>
 						{/if}
 					</div>
-				</form>
+				</div>
 			{/if}
 		</div>
 	</div>

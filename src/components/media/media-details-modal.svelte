@@ -450,22 +450,23 @@
               {/each}
             </div>
 
-            <div class="flex gap-2">
-              <Input
-                type="text"
-                bind:value={newTagInput}
-                onkeydown={handleAddTag}
-                label="Add tag..."
-                inputClass="text-sm py-1.5 h-9"
-                disabled={isSavingTags}
-                aria-label="add-tag"
-                class="flex-1"
-              />
+            <div class="flex items-end gap-2">
+              <div class="flex-1">
+                <Input
+                  type="text"
+                  bind:value={newTagInput}
+                  onkeydown={handleAddTag}
+                  label="Add tag..."
+                  inputClass="text-sm py-1.5 h-9"
+                  disabled={isSavingTags}
+                  aria-label="add-tag"
+                />
+              </div>
               <Button variant="tertiary"
                 onclick={handleAddTag}
                 disabled={isSavingTags || !newTagInput.trim()}
                 aria-label="add-tag-button"
-               class="text-xs py-1.5 px-3">
+               class="text-xs py-1.5 min-w-20 justify-center">
                 Add
               </Button>
             </div>
@@ -714,7 +715,7 @@
 
 <style>
   .media-details-container {
-    width: 850px;
+    width: 1200px;
     max-width: 100%;
   }
 

@@ -166,6 +166,13 @@ function isTrustedHost(event: RequestEvent): boolean {
 // ──────────────────────────────────────────────────────────────
 
 export const handleSystemState: Handle = async ({ event, resolve }) => {
+  // 🧪 TEST MODE BYPASS: Verified test requests skip ALL system state gating.
+  // This ensures /api/testing/reset, /api/testing/seed, and test API calls
+  // work reliably after system state transitions (reset sets state to IDLE/SETUP).
+  if ((event.locals as any).__testBypass === true) {
+    return resolve(event);
+  }
+
   const { pathname, search } = event.url;
   // 🚀 Reuse pre-computed flags from handleTurboPipeline (classifyRequest)
   const flags = getRequestFlags(event.locals as any);

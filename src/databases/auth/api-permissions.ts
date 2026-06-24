@@ -39,6 +39,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
   // Website Tokens - Admin only
   "api:website-tokens": ["admin"],
 
+  // API Keys (machine-to-machine) - Admin only
+  "api:api-keys": ["admin"],
+
   // Authentication & Security - All authenticated users can manage their own auth/2FA
   "api:auth": ["*"], // Authentication endpoints (2FA setup, disable, backup codes, etc.)
   "api:events": ["*"], // Real-time collaboration stream

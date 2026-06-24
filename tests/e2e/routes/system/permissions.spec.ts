@@ -19,7 +19,7 @@ test.describe("Permission Management Flow", () => {
     // 2. Navigate to System Configuration
 
     // 2. Navigate to System Configuration
-    await page.getByRole("button", { name: /system configuration/i }).click();
+    await page.getByRole("link", { name: /system configuration/i }).click();
 
     // 3. Click Access Management
     await page.getByRole("link", { name: /access management/i }).click();

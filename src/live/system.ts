@@ -9,7 +9,7 @@
 
 import { live } from "svelte-realtime/server";
 import { eventBus } from "@utils/event-bus";
-import { globalPlatform } from "@src/live/ws-platform";
+import { getGlobalPlatform } from "@src/live/ws-platform";
 import { logger } from "@utils/logger";
 
 // ====================== TYPES ======================
@@ -86,6 +86,7 @@ function shouldBridgeEvent(event: string): boolean {
  */
 eventBus.on("*", (payload: any) => {
   try {
+    const globalPlatform = getGlobalPlatform();
     if (!globalPlatform) {
       // This can happen during startup or in certain test environments
       return;

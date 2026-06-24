@@ -1,12 +1,12 @@
 ---
 path: "docs/guides/development/plugin/architecture.mdx"
 title: Plugin Architecture
-description: Comprehensive guide to the SveltyCMS Enterprise Plugin System — slots, hooks, migrations, and the config-page pattern.
+description: Comprehensive guide to the SveltyCMS Enterprise Plugin System — slots, hooks, migrations, sandbox, and config-page pattern.
 icon: mdi:puzzle-outline
 order: 10
 author: "SveltyCMS Team"
 created: 2026-02-05
-updated: "2026-05-31"
+updated: "2026-06-22"
 tags:
   - plugins
   - architecture
@@ -59,7 +59,7 @@ SveltyCMS dynamically scans and registers plugins on system boot. There are no s
 - **Vite Dev/Build**: Scans all `src/plugins/*/index.ts` paths using Vite's native eager glob tool `import.meta.glob("./*/index.ts", { eager: true })`.
 - **Bun/Node runtime (CLI/Vitest)**: Utilizes a resilient directory scanning fallback (`fs.readdirSync`) to import plugins dynamically.
 
-This allows any custom or optional plugin to be added to or deleted from the `src/plugins/` directory without causing compile-time compile/build errors.
+This allows any custom or optional plugin to be added to or deleted from the `src/plugins/` directory without causing compile-time errors.
 
 ---
 
@@ -71,10 +71,10 @@ Every plugin lives in `src/plugins/{plugin-id}/` and follows this structure:
 src/plugins/my-plugin/
 ├── index.ts                  ← Plugin definition + metadata
 ├── index.server.ts           ← Server-only: hooks, migrations (optional)
+├── components/               ← Svelte components (optional)
+│   └── MyComponent.svelte
 ├── server/                   ← Server-side services (optional)
 │   └── service.ts
-├── ui/                       ← Svelte components (optional)
-│   └── MyComponent.svelte
 └── my-plugin.mdx             ← Plugin documentation
 ```
 
@@ -82,28 +82,15 @@ src/plugins/my-plugin/
 
 ## Plugin Interface
 
-```
+```typescript
 export interface Plugin {
-  /** Required: name, version, icon, category */
-  metadata: PluginMetadata;
-
-  /** Optional: public/private settings schema */
-  config?: PluginConfig;
-
-  /** Optional: CRUD interception (beforeSave, afterSave, etc.) */
-  hooks?: PluginLifecycleHooks;
-
-  /** Optional: server-side entry data enrichment */
-  ssrHook?: PluginSSRHook;
-
-  /** Optional: UI columns, actions, edit tabs, sidebar slots */
-  ui?: PluginUIContribution;
-
-  /** Optional: database table provisioning */
-  migrations?: PluginMigration[];
-
-  /** Optional: restrict plugin to specific collections */
-  enabledCollections?: string[];
+  metadata: PluginMetadata; // Required: name, version, icon, category
+  config?: PluginConfig; // Optional: public/private settings schema
+  hooks?: PluginLifecycleHooks; // Optional: CRUD interception
+  ssrHook?: PluginSSRHook; // Optional: server-side data enrichment
+  ui?: PluginUIContribution; // Optional: UI columns, actions, edit tabs, slots
+  migrations?: PluginMigration[]; // Optional: database table provisioning
+  enabledCollections?: string[]; // Optional: restrict to specific collections
 }
 ```
 
@@ -111,34 +98,47 @@ export interface Plugin {
 
 ## Injection Zones
 
-Plugins inject UI components into predefined zones:
+Plugins inject UI components into predefined zones. All zones are rendered via the `<Slot>` component (`src/components/system/slot.svelte`).
 
-| Zone                 | Location                    | Used By                     |
-| -------------------- | --------------------------- | --------------------------- |
-| `dashboard`          | Main dashboard widgets      | PageSpeed, Stripe           |
-| `sidebar`            | Admin sidebar navigation    | Editable Website            |
-| `entry_edit`         | Entry editor tabs/panels    | Any content plugin          |
-| `entry_edit_sidebar` | Entry editor sidebar        | SEO plugins                 |
-| `entry_edit_header`  | Entry editor header actions | Workflow actions            |
-| `config`             | System configuration area   | Stripe, any settings plugin |
-| `entry_list_actions` | Entry list action buttons   | PageSpeed refresh           |
+| Zone                    | Location                    | Used By                            |
+| ----------------------- | --------------------------- | ---------------------------------- |
+| `dashboard`             | Main dashboard widgets      | PageSpeed, Stripe                  |
+| `sidebar`               | Admin sidebar navigation    | Editable Website                   |
+| `entry_edit`            | Entry editor tabs/panels    | Any content plugin                 |
+| `entry_edit_sidebar`    | Entry editor sidebar        | SEO plugins                        |
+| `entry_edit_header`     | Entry editor header actions | Workflow actions                   |
+| `config`                | System configuration area   | Stripe, settings plugins           |
+| `config_grid`           | Config page icon grid       | Smart Importer, any config plugin  |
+| `collection_builder`    | Collection builder page     | Schema plugins                     |
+| `media_gallery`         | Media gallery page          | Media plugins                      |
+| `media_gallery_toolbar` | Media gallery toolbar       | Image optimization plugins         |
+| `user_profile`          | User profile/settings page  | Profile extensions                 |
+| `user_profile_sidebar`  | User profile sidebar        | Account plugins                    |
+| `entry_list_actions`    | Entry list action buttons   | PageSpeed refresh                  |
+| `global-toolbar`        | Top toolbar (all routes)    | System status (rendered in layout) |
+| `global-footer`         | Footer (all routes)         | Debug bar (rendered in layout)     |
+| `sticky-action-bar`     | Bottom sticky bar           | Bulk operations                    |
+
+**Adding slots to a route page:**
+
+```svelte
+<script lang="ts">
+  import Slot from "@src/components/system/slot.svelte";
+</script>
+
+<Slot name="user_profile" />
+<Slot name="collection_builder" />
+```
 
 ---
 
 ## Lifecycle Hooks
 
-```
+```typescript
 hooks: {
-  /** Transform or validate data before it's saved. Must return data. */
   beforeSave: async (context, collection, data) => { return data; },
-
-  /** Trigger side effects after a successful save. */
   afterSave: async (context, collection, result) => {},
-
-  /** Guard or archive before deletion. */
   beforeDelete: async (context, collection, id) => {},
-
-  /** Cleanup related data after deletion. */
   afterDelete: async (context, collection, id) => {},
 }
 ```
@@ -173,7 +173,19 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 └──────────────────────────────────────────┘
 ```
 
-**Example: Redirect Manager**
+### Case Study: Smart AI-Driven Migration Pro
+
+| Layer       | File                               | Purpose                                            |
+| ----------- | ---------------------------------- | -------------------------------------------------- |
+| Config Page | `config/migration/+page.svelte`    | Drag-drop upload, format detection, progress UI    |
+| Config Page | `config/migration/+page.server.ts` | Server actions: detect, dryRun, import, rollback   |
+| Plugin      | `smart-importer/index.ts`          | Plugin metadata, config, slot registration         |
+| Plugin      | `smart-importer/index.server.ts`   | 7 AST compilers, 8 format parsers, UCP engine, DLQ |
+| Plugin      | `smart-importer/components/`       | TransformationTree.svelte (visual schema mapper)   |
+
+**Conditional tile**: The Migration tile only appears in the Config grid when the plugin is installed and enabled. The config page's `+page.server.ts` checks `pluginRegistry.getPluginState('smart-importer', tenantId)`.
+
+### Case Study: Redirect Manager
 
 | Layer             | File                               | Purpose                                     |
 | ----------------- | ---------------------------------- | ------------------------------------------- |
@@ -182,69 +194,20 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 | Plugin migrations | `redirect-manager/index.server.ts` | Creates `redirects` + `redirects_mv` tables |
 | Plugin services   | `redirect-manager/index.server.ts` | Edge KV sync, Materialized View sync        |
 
-**The config page calls `LocalCMS` to write data. The plugin's `afterSave` hook fires automatically, handling cache invalidation and sync.** This separation keeps business logic in the plugin while the config page handles UI.
-
 ---
 
 ## Available Plugins
 
-| Plugin               | Category    | Status | Documentation                                                              |
-| -------------------- | ----------- | ------ | -------------------------------------------------------------------------- |
-| **PageSpeed**        | Performance | v1.1.0 | [pagespeed.mdx](/src/plugins/pagespeed/pagespeed.mdx)                      |
-| **Editable Website** | Editing     | Stable | [editable-website.mdx](/src/plugins/editable-website/editable-website.mdx) |
-| **Redirect Manager** | SEO         | Stable | [redirect-manager.mdx](/src/plugins/redirect-manager/redirect-manager.mdx) |
-| **Sitemap**          | SEO         | Stable | [sitemap.mdx](/src/plugins/sitemap/sitemap.mdx)                            |
-| **WebMCP**           | AI          | Stable | [webmcp.mdx](/src/plugins/webmcp/webmcp.mdx)                               |
-| **Cookie Consent**   | Privacy     | Stable | [cookie-consent.mdx](/src/plugins/cookie-consent/cookie-consent.mdx)       |
-| **Stripe**           | Payments    | v1.0.0 | [stripe.mdx](/src/plugins/stripe/stripe.mdx)                               |
-
----
-
-## Case Study: Stripe Payments (Implemented)
-
-The Stripe plugin demonstrates a full plugin implementation:
-
-### 1. Configuration
-
-```
-config: {
-  public: {
-    publishableKey: "",   // Client-safe key (pk_...)
-    currency: "usd",      // Default currency
-  },
-  private: {
-    secretKey: "",        // Server-only key (sk_...)
-    webhookSecret: "",    // Webhook signing secret
-  },
-}
-```
-
-### 2. Migrations
-
-Creates `plugin_stripe_payments` and `plugin_stripe_customers` collections for transaction records and customer mapping.
-
-### 3. Lifecycle Hooks
-
-```
-beforeSave: async (context, _collection, data) => {
-  // Verify Stripe payment before allowing content save
-  if (data._stripePaymentIntent) {
-    const intent = await stripe.paymentIntents.retrieve(data._stripePaymentIntent);
-    if (intent.status !== "succeeded") throw new Error("Payment required");
-  }
-  return data;
-};
-```
-
-### 4. UI Components
-
-- `payment-form.svelte` — Stripe Elements card input (PCI-compliant iframe)
-- `payment-status.svelte` — Payment status badge in entry lists
-- Server endpoints for intent creation and webhook handling
-
-### 5. Optional Dependency
-
-The `stripe` npm package is dynamically imported only when the plugin is enabled — zero overhead when unused.
+| Plugin                            | Category    | Docs                                                                       |
+| --------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| **Smart AI-Driven Migration Pro** | Migration   | [smart-importer.mdx](/src/plugins/smart-importer/smart-importer.mdx)       |
+| PageSpeed                         | Performance | [pagespeed.mdx](/src/plugins/pagespeed/pagespeed.mdx)                      |
+| Editable Website                  | Editing     | [editable-website.mdx](/src/plugins/editable-website/editable-website.mdx) |
+| Redirect Manager                  | SEO         | [redirect-manager.mdx](/src/plugins/redirect-manager/redirect-manager.mdx) |
+| Sitemap                           | SEO         | [sitemap.mdx](/src/plugins/sitemap/sitemap.mdx)                            |
+| WebMCP                            | AI          | [webmcp.mdx](/src/plugins/webmcp/webmcp.mdx)                               |
+| Cookie Consent                    | Privacy     | [cookie-consent.mdx](/src/plugins/cookie-consent/cookie-consent.mdx)       |
+| Stripe                            | Payments    | [stripe.mdx](/src/plugins/stripe/stripe.mdx)                               |
 
 ---
 
@@ -257,11 +220,13 @@ The `stripe` npm package is dynamically imported only when the plugin is enabled
 5. **Optional Dependencies**: Dynamic import server-side deps so plugins are truly optional.
 6. **Documentation**: Every plugin must have an `.mdx` file in its directory.
 7. **Config Page Pattern**: Admin-facing plugins should pair with a config page for CRUD.
+8. **Conditional Tiles**: Check `pluginRegistry` in `+page.server.ts` to show/hide tiles.
 
 ---
 
 ## Related
 
-- [Development Guides](../../index.mdx)
-- [Widget System](../../../architecture/index.mdx)
+- [Plugin Development Guide](development.mdx)
+- [Marketplace System](../../../architecture/marketplace.mdx)
+- [AI Integration](../../ai-integration.mdx)
 - [Security Overview](../../../architecture/security/index.mdx)
