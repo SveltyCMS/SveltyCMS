@@ -6,10 +6,7 @@
  * The form actions below parse formData and delegate to those functions.
  */
 
-import {
-  generateGoogleAuthUrl,
-  googleAuth,
-} from "@src/databases/auth/google-auth";
+import { generateGoogleAuthUrl, googleAuth } from "@src/databases/auth/google-auth";
 import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
 import { readSessionCookie } from "@src/databases/auth/constants";
@@ -48,8 +45,7 @@ const AUTH_SERVICE_TIMEOUT_MS = 10_000;
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 const DB_HEALTH_CACHE_TTL_MS = 30_000;
 
-const rateLimitSecret =
-  process.env.RATE_LIMIT_SECRET || process.env.JWT_SECRET_KEY + "-ratelimit";
+const rateLimitSecret = process.env.RATE_LIMIT_SECRET || process.env.JWT_SECRET_KEY + "-ratelimit";
 
 const limiter = new RateLimiter({
   IP: [10, "m"],
@@ -87,19 +83,13 @@ async function checkDatabaseHealth(): Promise<{
   const now = Date.now();
   // Only cache positive results. Negative results are retried to avoid
   // showing the error modal when the boot engine hasn't reported in yet.
-  if (
-    _dbHealthCache?.healthy &&
-    now - _dbHealthCache.timestamp < DB_HEALTH_CACHE_TTL_MS
-  ) {
+  if (_dbHealthCache?.healthy && now - _dbHealthCache.timestamp < DB_HEALTH_CACHE_TTL_MS) {
     return { healthy: true };
   }
 
   try {
     if (auth && typeof auth.getUserCount === "function") {
-      const roleCount = await auth.getUserCount(
-        {},
-        { bypassTenantCheck: true },
-      );
+      const roleCount = await auth.getUserCount({}, { bypassTenantCheck: true });
       if (roleCount === 0) {
         const reason = "Database is empty — setup may not have completed";
         _dbHealthCache = { healthy: false, reason, timestamp: now };
@@ -148,21 +138,12 @@ async function shouldShowGoogleOAuth(hasInvite?: boolean): Promise<boolean> {
 
 async function loadLoginBranding(tenantId?: string | null) {
   try {
-    const [tenantSiteName, logoUrl, accentColor, adminTheme] =
-      await Promise.all([
-        getPublicSetting("SITE_NAME", tenantId ?? undefined),
-        getUntypedSetting<string>(
-          "LOGO_URL",
-          "public",
-          tenantId ?? undefined,
-        ).catch(() => null),
-        getUntypedSetting<string>(
-          "ACCENT_COLOR",
-          "public",
-          tenantId ?? undefined,
-        ).catch(() => null),
-        adminThemeService.getAdminTheme(tenantId),
-      ]);
+    const [tenantSiteName, logoUrl, accentColor, adminTheme] = await Promise.all([
+      getPublicSetting("SITE_NAME", tenantId ?? undefined),
+      getUntypedSetting<string>("LOGO_URL", "public", tenantId ?? undefined).catch(() => null),
+      getUntypedSetting<string>("ACCENT_COLOR", "public", tenantId ?? undefined).catch(() => null),
+      adminThemeService.getAdminTheme(tenantId),
+    ]);
     return resolveLoginBranding(
       adminTheme,
       (tenantSiteName as string) || publicEnv.SITE_NAME || "SveltyCMS",
@@ -189,13 +170,7 @@ async function shouldShowGithubOAuth(hasInvite?: boolean): Promise<boolean> {
 // Load
 // ---------------------------------------------------------------------------
 
-export const load: PageServerLoad = async ({
-  url,
-  cookies,
-  fetch,
-  request,
-  locals,
-}) => {
+export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
   const demoMode = getPrivateSettingSync("DEMO");
   const multiTenant = getPrivateSettingSync("MULTI_TENANT");
   const userLanguage = getUserLanguage();
@@ -232,8 +207,7 @@ export const load: PageServerLoad = async ({
         showDatabaseError: true,
         authNotReady: true,
         errorReason: lastFailure?.reason || "System initialisation failed.",
-        authNotReadyMessage:
-          lastFailure?.reason || "System initialisation failed.",
+        authNotReadyMessage: lastFailure?.reason || "System initialisation failed.",
         canReset: true,
       };
     }
@@ -274,9 +248,7 @@ export const load: PageServerLoad = async ({
     if (locals.user) {
       let finalCollectionPath: string | null = null;
       try {
-        finalCollectionPath = await getCachedFirstCollectionPath(
-          userLanguage as any,
-        );
+        finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
       } catch {
         throw redirect(302, "/");
       }
@@ -291,8 +263,7 @@ export const load: PageServerLoad = async ({
     const magicToken = url.searchParams.get("magic_token");
     const magicEmail = url.searchParams.get("email");
     if (magicToken && magicEmail) {
-      const { verifyMagicLink } =
-        await import("@src/databases/auth/magic-link");
+      const { verifyMagicLink } = await import("@src/databases/auth/magic-link");
       const result = await verifyMagicLink({
         token: magicToken,
         email: magicEmail,
@@ -331,8 +302,7 @@ export const load: PageServerLoad = async ({
         hasAdminUser: locals.isFirstUser === false,
         showGoogleOAuth: await shouldShowGoogleOAuth(true),
         showGithubOAuth: await shouldShowGithubOAuth(true),
-        inviteError:
-          "This invitation token appears to be invalid, expired, or already used.",
+        inviteError: "This invitation token appears to be invalid, expired, or already used.",
         signUpForm: { token: inviteToken },
       };
     }
@@ -342,10 +312,7 @@ export const load: PageServerLoad = async ({
     let hasAdminUser = false;
     if (auth && typeof auth.getUserCount === "function") {
       try {
-        const adminCount = await auth.getUserCount(
-          { role: "admin" },
-          { bypassTenantCheck: true },
-        );
+        const adminCount = await auth.getUserCount({ role: "admin" }, { bypassTenantCheck: true });
         hasAdminUser = adminCount > 0;
       } catch {
         // Fall back to DB health check if role filter fails
@@ -359,24 +326,18 @@ export const load: PageServerLoad = async ({
     if (publicEnv.USE_GOOGLE_OAUTH && code) {
       try {
         const googleAuthInstance = await googleAuth();
-        if (!googleAuthInstance)
-          throw new Error("Google OAuth client is not initialised");
+        if (!googleAuthInstance) throw new Error("Google OAuth client is not initialised");
         const { tokens } = await googleAuthInstance.getToken(code);
         if (!tokens) throw new Error("Failed to retrieve Google OAuth tokens.");
         googleAuthInstance.setCredentials(tokens);
 
-        const userInfoResponse = await fetch(
-          "https://www.googleapis.com/oauth2/v2/userinfo",
-          {
-            headers: { Authorization: `Bearer ${tokens.access_token}` },
-          },
-        );
-        if (!userInfoResponse.ok)
-          throw new Error("Failed to retrieve Google user information.");
+        const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        if (!userInfoResponse.ok) throw new Error("Failed to retrieve Google user information.");
         const googleUser = await userInfoResponse.json();
 
-        const { verifyOAuthState } =
-          await import("@src/databases/auth/google-auth");
+        const { verifyOAuthState } = await import("@src/databases/auth/google-auth");
         const stateParam = url.searchParams.get("state");
         const oauthInviteToken = verifyOAuthState(stateParam);
         if (stateParam && !oauthInviteToken)
@@ -388,8 +349,7 @@ export const load: PageServerLoad = async ({
         const existingUser = await auth.checkUser({ email });
 
         if (!existingUser && oauthInviteToken) {
-          const tokenData: any =
-            await auth.validateRegistrationToken(oauthInviteToken);
+          const tokenData: any = await auth.validateRegistrationToken(oauthInviteToken);
           if (
             tokenData.isValid &&
             tokenData.details &&
@@ -405,8 +365,7 @@ export const load: PageServerLoad = async ({
             });
             await auth.consumeRegistrationToken(oauthInviteToken);
 
-            const hostLink =
-              publicEnv.HOST_PROD || `https://${request.headers.get("host")}`;
+            const hostLink = publicEnv.HOST_PROD || `https://${request.headers.get("host")}`;
             const sitename = publicEnv.SITE_NAME || "SveltyCMS";
             sendMail({
               recipientEmail: email,
@@ -428,13 +387,9 @@ export const load: PageServerLoad = async ({
         if (existingUser) {
           const session = await auth.createSession({
             user_id: existingUser._id as DatabaseId,
-            expires: new Date(
-              Date.now() + SESSION_DURATION_MS,
-            ).toISOString() as ISODateString,
+            expires: new Date(Date.now() + SESSION_DURATION_MS).toISOString() as ISODateString,
           });
-          const sessionCookie = auth.createSessionCookie(
-            session._id as DatabaseId,
-          );
+          const sessionCookie = auth.createSessionCookie(session._id as DatabaseId);
           cookies.set(sessionCookie.name, sessionCookie.value, {
             ...(sessionCookie.attributes as Record<string, unknown>),
             path: "/",
@@ -455,14 +410,9 @@ export const load: PageServerLoad = async ({
 
           let finalCollectionPath: string | null = null;
           try {
-            finalCollectionPath = await getCachedFirstCollectionPath(
-              userLanguage as any,
-            );
+            finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
           } catch {}
-          throw redirect(
-            303,
-            finalCollectionPath ?? "/config/collectionbuilder",
-          );
+          throw redirect(303, finalCollectionPath ?? "/config/collectionbuilder");
         }
       } catch (err: any) {
         if (isRedirect(err)) throw err;
@@ -479,19 +429,15 @@ export const load: PageServerLoad = async ({
     const showGoogleOAuth = await shouldShowGoogleOAuth();
     const showGithubOAuth = await shouldShowGithubOAuth();
     const showPasskey = !!(
-      getPrivateSettingSync("WEBAUTHN_RP_ID") ||
-      getPrivateSettingSync("PASSKEY_ENABLED")
+      getPrivateSettingSync("WEBAUTHN_RP_ID") || getPrivateSettingSync("PASSKEY_ENABLED")
     );
     const showMagicLink = !!(
-      getPrivateSettingSync("SMTP_HOST") ||
-      getPrivateSettingSync("MAGIC_LINK_ENABLED")
+      getPrivateSettingSync("SMTP_HOST") || getPrivateSettingSync("MAGIC_LINK_ENABLED")
     );
 
     let firstCollectionPath: string | null = null;
     try {
-      firstCollectionPath = await getCachedFirstCollectionPath(
-        userLanguage as any,
-      );
+      firstCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
     } catch {}
 
     const pkgVersion = pkg.version;
@@ -514,10 +460,7 @@ export const load: PageServerLoad = async ({
       // so this only flags lapsed sessions → default to the Sign In form (no extra cookie needed).
       returningUser: Boolean(
         locals.returningUser ??
-        readSessionCookie(
-          cookies,
-          url.protocol === "https:" || url.hostname !== "localhost",
-        ),
+        readSessionCookie(cookies, url.protocol === "https:" || url.hostname !== "localhost"),
       ),
     };
   } catch (err: any) {
