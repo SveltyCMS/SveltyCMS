@@ -244,6 +244,16 @@ jobs:
           docker compose -f test/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
+      - name: Create MongoDB test user
+        if: matrix.db == 'mongodb'
+        run: |
+          docker exec $(docker ps -q -f "ancestor=mongo:8" | head -1) \
+            mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
+            db = db.getSiblingDB("sveltycms_test");
+            db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "readWrite", db: "sveltycms_test" }] });
+            print("MongoDB test user created for sveltycms_test");
+          ' || echo "MongoDB user may already exist"
+
       - name: Run Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
@@ -525,6 +535,16 @@ jobs:
         run: |
           docker compose -f test/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+
+      - name: Create MongoDB benchmark user
+        if: matrix.db == 'mongodb'
+        run: |
+          docker exec $(docker ps -q -f "ancestor=mongo:8" | head -1) \
+            mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
+            db = db.getSiblingDB("sveltycms_bench");
+            db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "readWrite", db: "sveltycms_bench" }] });
+            print("MongoDB benchmark user created for sveltycms_bench");
+          ' || echo "MongoDB user may already exist"
 
       - name: Run Enterprise Benchmark Matrix
         env:

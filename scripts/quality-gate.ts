@@ -60,10 +60,7 @@ function runCommand(
   return true;
 }
 
-function runCommandSilent(
-  cmd: string,
-  args: string[] = [],
-): { success: boolean; stdout: string } {
+function runCommandSilent(cmd: string, args: string[] = []): { success: boolean; stdout: string } {
   const result = spawnSync(cmd, args, {
     encoding: "utf8",
     shell: IS_WINDOWS,
@@ -168,9 +165,7 @@ async function main() {
       run: () => {
         if (hasUnstagedChanges()) {
           console.error("\n❌ Working tree is dirty after formatting.");
-          console.error(
-            "   Run 'bun run format' locally, stage the fixes, and retry.",
-          );
+          console.error("   Run 'bun run format' locally, stage the fixes, and retry.");
           return false;
         }
         return true;
@@ -180,8 +175,7 @@ async function main() {
       name: "Slop Scanner",
       ciJob: "lint",
       skip: () => !hasTsOrSvelte,
-      run: () =>
-        runCommand("bun", ["run", "scripts/slop-scanner.ts", "--strict"]),
+      run: () => runCommand("bun", ["run", "scripts/slop-scanner.ts", "--strict"]),
     },
     {
       name: "Lint (oxlint)",
@@ -211,15 +205,9 @@ async function main() {
       ciJob: "security-audit",
       run: () => {
         console.log("   (non-blocking — CI enforces this separately)");
-        const { success } = runCommandSilent("bun", [
-          "audit",
-          "--level",
-          "critical",
-        ]);
+        const { success } = runCommandSilent("bun", ["audit", "--level", "critical"]);
         if (!success) {
-          console.warn(
-            "   ⚠️  Critical vulnerabilities found (CI will block PR)",
-          );
+          console.warn("   ⚠️  Critical vulnerabilities found (CI will block PR)");
         }
         return true; // Non-blocking locally
       },
@@ -262,9 +250,7 @@ async function main() {
   let failedTasks: string[] = [];
 
   for (const task of activeTasks) {
-    console.log(
-      `▶️  ${task.name}${task.ciJob ? ` [maps to CI: ${task.ciJob}]` : ""}`,
-    );
+    console.log(`▶️  ${task.name}${task.ciJob ? ` [maps to CI: ${task.ciJob}]` : ""}`);
     const start = performance.now();
 
     let success = false;
@@ -278,9 +264,7 @@ async function main() {
 
     const elapsed = (performance.now() - start).toFixed(0);
     if (!success) {
-      console.error(
-        `\n❌ ${task.name} failed (${elapsed}ms). Fix above before committing.`,
-      );
+      console.error(`\n❌ ${task.name} failed (${elapsed}ms). Fix above before committing.`);
       failedTasks.push(task.name);
       // Continue running other tasks to show full picture, but will exit at end
     } else {
@@ -302,9 +286,7 @@ async function main() {
   // =========================================================================
 
   console.log("\n🔒 FINAL 100% CI PARITY VERIFICATION");
-  console.log(
-    "   These commands MUST match .github/workflows/ci.yml exactly.\n",
-  );
+  console.log("   These commands MUST match .github/workflows/ci.yml exactly.\n");
 
   let parityFailed = false;
   for (const p of CI_PARITY_COMMANDS) {
@@ -314,9 +296,7 @@ async function main() {
     const elapsed = (performance.now() - start).toFixed(0);
 
     if (!ok) {
-      console.error(
-        `\n   ❌ FINAL PARITY CHECK FAILED on "${p.name}" (${elapsed}ms).`,
-      );
+      console.error(`\n   ❌ FINAL PARITY CHECK FAILED on "${p.name}" (${elapsed}ms).`);
       parityFailed = true;
     } else {
       console.log(`   ✅ ${p.name} passed (${elapsed}ms)`);
@@ -339,9 +319,7 @@ async function main() {
     console.error(
       "\n❌ FINAL CHECK FAILED: Working tree is not clean after re-verification and re-staging.",
     );
-    console.error(
-      "   Inspect 'git status' and 'git diff', then re-run the hook.",
-    );
+    console.error("   Inspect 'git status' and 'git diff', then re-run the hook.");
     process.exit(1);
   }
 
