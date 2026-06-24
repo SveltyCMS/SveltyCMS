@@ -57,7 +57,6 @@
     "dev": "vp dev",
     "devv": "LAUNCH_EDITOR='code' vp dev --open",
     "-- BUILD ---------------------------------------------": "",
-    "prebuild": "bun run scripts/fix-tailwind-build.ts",
     "build": "NODE_OPTIONS=\"--no-warnings --no-deprecation\" vp build",
     "build:verbose": "NODE_OPTIONS=\"--no-warnings --no-deprecation\" vp build",
     "build:high-memory": "NODE_OPTIONS=\"--max-old-space-size=16384\" vp build",

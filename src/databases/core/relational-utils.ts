@@ -23,7 +23,8 @@ import { eq, isNull } from "drizzle-orm";
 export { isoDateStringToDate, nowISODateString };
 
 export const generateId = () => uuidv4().replace(/-/g, "") as DatabaseId;
-export const validateId = (id: string) => /^[0-9a-f]{32}$/i.test(id) || /^[0-9a-f-]{36}$/i.test(id);
+export const validateId = (id: string) =>
+  /^[0-9a-f]{32}$/i.test(id) || /^[0-9a-f-]{36}$/i.test(id);
 
 export const createDatabaseError = (
   code: string,
@@ -34,11 +35,13 @@ export const createDatabaseError = (
   code,
   message,
   statusCode,
-  originalCode: originalError?.code || (originalError as any)?.originalError?.code,
+  originalCode:
+    originalError?.code || (originalError as any)?.originalError?.code,
   details: originalError,
 });
 
-export const normalizePath = (p: string) => p.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
+export const normalizePath = (p: string) =>
+  p.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
 
 const JSON_FIELDS = new Set([
   "data",
@@ -132,7 +135,11 @@ import type { SQL } from "drizzle-orm";
 // ============================================================================
 
 export const safeDate = (input: any): Date => {
-  if (input && typeof input === "object" && typeof (input as any).getTime === "function") {
+  if (
+    input &&
+    typeof input === "object" &&
+    typeof (input as any).getTime === "function"
+  ) {
     return new Date((input as any).getTime());
   }
   return new Date(input);
@@ -166,7 +173,9 @@ export function convertDatesToISO(
         v instanceof Date ||
         (v && typeof v === "object" && typeof (v as any).getTime === "function")
       ) {
-        result[k] = (v instanceof Date ? v : new Date((v as any).getTime())).toISOString();
+        result[k] = (
+          v instanceof Date ? v : new Date((v as any).getTime())
+        ).toISOString();
       } else {
         result[k] = v;
       }
@@ -177,7 +186,11 @@ export function convertDatesToISO(
     for (let i = 0; i < jsonCols.length; i++) {
       const k = jsonCols[i];
       let v = row[k];
-      if (typeof v === "string" && v.length > 1 && (v[0] === "{" || v[0] === "[" || v[0] === '"')) {
+      if (
+        typeof v === "string" &&
+        v.length > 1 &&
+        (v[0] === "{" || v[0] === "[" || v[0] === '"')
+      ) {
         try {
           v = JSON.parse(v);
         } catch {}
@@ -204,7 +217,8 @@ export function convertDatesToISO(
   // Copy remaining keys (neither date nor JSON) — only if schema registered
   if (dateCols) {
     // With schema: copy non-date, non-json keys (cached skipKeys Set — zero per-row allocation)
-    const skipKeys = _tableSkipKeys.get(table!) || new Set([...dateCols, ...(jsonCols || [])]);
+    const skipKeys =
+      _tableSkipKeys.get(table!) || new Set([...dateCols, ...(jsonCols || [])]);
     for (const k in row) {
       if (!Object.prototype.hasOwnProperty.call(row, k)) continue;
       if (skipKeys.has(k) || result[k] !== undefined) continue;
@@ -220,7 +234,9 @@ export function convertDatesToISO(
         v instanceof Date ||
         (v && typeof v === "object" && typeof (v as any).getTime === "function")
       ) {
-        v = (v instanceof Date ? v : new Date((v as any).getTime())).toISOString();
+        v = (
+          v instanceof Date ? v : new Date((v as any).getTime())
+        ).toISOString();
       } else if (
         JSON_FIELDS.has(k) &&
         typeof v === "string" &&
@@ -276,7 +292,11 @@ export function convertISOToDates(
       const val = result[key];
       if (typeof val === "string" && val.length > 5) {
         result[key] = isoDateStringToDate(val as any);
-      } else if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
+      } else if (
+        val &&
+        typeof val === "object" &&
+        typeof (val as any).getTime === "function"
+      ) {
         result[key] = new Date((val as any).getTime());
       }
     }
@@ -300,10 +320,18 @@ export function convertISOToDates(
       if (DATE_FIELDS.has(key)) {
         if (typeof val === "string" && val.length > 5) {
           result[key] = isoDateStringToDate(val as any);
-        } else if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
+        } else if (
+          val &&
+          typeof val === "object" &&
+          typeof (val as any).getTime === "function"
+        ) {
           result[key] = new Date((val as any).getTime());
         }
-      } else if (JSON_FIELDS.has(key) && val !== null && typeof val === "object") {
+      } else if (
+        JSON_FIELDS.has(key) &&
+        val !== null &&
+        typeof val === "object"
+      ) {
         result[key] = Array.isArray(val) ? JSON.stringify(val) : val;
       }
     }
@@ -341,7 +369,9 @@ export const parseJsonField = <T = any>(v: any, fallback?: T): T => {
       return (fallback !== undefined ? fallback : v) as T;
     }
   }
-  return (v !== undefined && v !== null ? v : fallback !== undefined ? fallback : v) as T;
+  return (
+    v !== undefined && v !== null ? v : fallback !== undefined ? fallback : v
+  ) as T;
 };
 
 // ============================================================================
@@ -352,13 +382,18 @@ export function shouldBypassTenantCheck(options?: BaseQueryOptions): boolean {
   return !!(options as any)?.bypassTenantCheck;
 }
 
-export function getEffectiveTenantId(options?: BaseQueryOptions): DatabaseId | null | undefined {
+export function getEffectiveTenantId(
+  options?: BaseQueryOptions,
+): DatabaseId | null | undefined {
   const t = options?.tenantId;
   if (t === undefined || t === "global") return undefined;
   return t as DatabaseId | null;
 }
 
-export function getTenantCondition(tenantCol: any, options?: BaseQueryOptions): any {
+export function getTenantCondition(
+  tenantCol: any,
+  options?: BaseQueryOptions,
+): any {
   if (shouldBypassTenantCheck(options)) return undefined;
   const tenantId = getEffectiveTenantId(options);
   if (tenantId === undefined) return undefined;
@@ -386,10 +421,9 @@ export function applyTenantFilterToObject<T extends Record<string, unknown>>(
   return { ...conditions, tenantId } as T;
 }
 
-export function applyTenantFilterToMongoQuery<T extends Record<string, unknown>>(
-  query: T,
-  options?: BaseQueryOptions,
-): T {
+export function applyTenantFilterToMongoQuery<
+  T extends Record<string, unknown>,
+>(query: T, options?: BaseQueryOptions): T {
   if (shouldBypassTenantCheck(options)) return query;
   const tenantId = getEffectiveTenantId(options);
   if (tenantId === undefined) return query;
@@ -401,16 +435,13 @@ export function buildRawTenantFilter(
   options?: BaseQueryOptions,
   dialect: "mysql" | "postgres" | "sqlite" = "sqlite",
 ): string {
-  if (options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global") return "";
+  if (
+    options?.bypassTenantCheck ||
+    !options?.tenantId ||
+    options?.tenantId === "global"
+  )
+    return "";
   const id = String(options.tenantId).replace(/'/g, "''");
   if (dialect === "mysql") return ` AND \`tenantId\` = '${id}'`;
   return ` AND "tenantId" = '${id}'`;
 }
-
-// Pre-register all system table schemas for optimal row conversion.
-// Uses dynamic import to avoid circular dependency with drizzle-sql-helpers.
-import("./drizzle-sql-helpers").then(({ SYSTEM_LITERAL_COLUMNS }) => {
-  for (const [tableName, columns] of Object.entries(SYSTEM_LITERAL_COLUMNS)) {
-    registerTableSchema(tableName, columns as string[]);
-  }
-});
