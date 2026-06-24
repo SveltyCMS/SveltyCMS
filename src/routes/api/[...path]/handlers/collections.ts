@@ -17,6 +17,7 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 import { streamingJsonResponse } from "./streaming";
+import { setCollectionOrder } from "@utils/collection-order.server";
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
@@ -36,6 +37,11 @@ export async function handleCollectionsRoutes(
     // ── Cross-collection search ──
     if (collectionId === "search" && request.method === "GET") {
       return handleCollectionSearch(event, cms, tenantId, user, url, locals);
+    }
+
+    // ── Collection order persistence ──
+    if (collectionId === "reorder" && request.method === "POST") {
+      return handleCollectionReorder(event, tenantId);
     }
 
     // ── Revision history ──
@@ -557,4 +563,19 @@ export async function handleCollectionSearch(
       isAdmin: (locals as any).isAdmin,
     }),
   );
+}
+
+// ─── Collection Order Persistence ───────────────────────────────────────────
+
+/**
+ * Persists the sidebar collection display order to the compilation manifest.
+ * POST /api/collections/reorder  { order: { posts: 0, authors: 1, ... } }
+ */
+async function handleCollectionReorder(event: RequestEvent, tenantId: DatabaseId) {
+  const { order } = await event.request.json();
+  if (!order || typeof order !== "object") {
+    throw new AppError("Invalid order payload — expected { order: { [id]: number } }", 400);
+  }
+  await setCollectionOrder(order, tenantId as string | null);
+  return successResponse(event, { success: true, order });
 }

@@ -101,9 +101,9 @@ const generatedId = $derived(label ? label.toLowerCase().replace(/\s+/g, '-') : 
 const currentId = $derived(id || generatedId);
 const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
 const effectiveType = $derived(showPassword && type === 'security' ? 'text' : type === 'security' ? 'password' : type);
-/** 18px icon flush left — caret starts immediately after icon */
-const inputPaddingStart = $derived(icon ? 'ps-[1.125rem]' : 'ps-2');
-const labelStart = $derived(icon ? 'start-[1.125rem]' : 'start-2');
+/** 22px — 18px icon + 4px breathing room */
+const inputPaddingStart = $derived(icon ? 'ps-7' : 'ps-2');
+const labelStart = $derived(icon ? 'start-5' : 'start-2');
 
 $effect(() => {
 	if (autofocus && inputElement) {
@@ -153,7 +153,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 					: cn(
 							'border-surface-300 focus:border-tertiary-600 focus:outline-2 focus:outline-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 dark:focus:outline-tertiary-500',
 							textColor === 'black'
-								? 'bg-white text-black focus:bg-white focus:text-black text-surface-900'
+								? 'bg-white  focus:bg-white focus:text-black text-surface-900'
 								: 'bg-[#242728] text-white focus:bg-[#242728] focus:text-white'
 					  ),
 				invalid && 'border-error-500! dark:border-error-500!',
@@ -172,7 +172,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 				{icon}
 				width="18"
 				class={cn(
-					"absolute start-0 top-3",
+					"absolute inset-s-0 top-3",
 					bgTransparent
 						? "text-white"
 						: iconColor
@@ -214,10 +214,10 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 					labelStart,
 					"peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-placeholder-shown:text-base",
 					"peer-focus:-translate-y-2 peer-focus:scale-75",
-					"peer-[:not(:placeholder-shown)]:-translate-y-2 peer-[:not(:placeholder-shown)]:scale-75",
+					"peer-not-placeholder-shown:-translate-y-2 peer-not-placeholder-shown:scale-75",
 					bgTransparent
-						? "text-white/80 peer-focus:text-white peer-[:not(:placeholder-shown)]:text-white"
-						: "text-surface-500 peer-focus:text-tertiary-500 peer-[:not(:placeholder-shown)]:text-tertiary-500",
+						? "text-white/80 peer-focus:text-white peer-not-placeholder-shown:text-white"
+						: "text-surface-500 peer-focus:text-tertiary-500 peer-not-placeholder-shown:text-tertiary-500",
 					invalid && "text-error-500!",
 					labelClass
 				)}
@@ -236,7 +236,13 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 </div>
 
 <style>
-	/* Chrome autofill + focus: keep background stable across all pseudo-states */
+	/* Override Tailwind's global input:focus !important in dark mode */
+	:global(.autofill-light:focus) {
+		background-color: white !important;
+		color: black !important;
+	}
+
+	/* Chrome/Brave autofill — keep background stable across all pseudo-states */
 	:global(.autofill-light) {
 		color-scheme: light;
 	}
@@ -245,6 +251,8 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 		color-scheme: dark;
 	}
 
+	/* Standard autofill */
+	:global(.autofill-light:autofill),
 	:global(.autofill-light:-webkit-autofill),
 	:global(.autofill-light:-webkit-autofill:hover),
 	:global(.autofill-light:-webkit-autofill:focus),
@@ -253,9 +261,12 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 		box-shadow: 0 0 0 1000px white inset !important;
 		-webkit-text-fill-color: black !important;
 		caret-color: black !important;
+		background-color: white !important;
+		color: black !important;
 		transition: background-color 99999s ease-out 0s;
 	}
 
+	:global(.autofill-dark:autofill),
 	:global(.autofill-dark:-webkit-autofill),
 	:global(.autofill-dark:-webkit-autofill:hover),
 	:global(.autofill-dark:-webkit-autofill:focus),
@@ -264,9 +275,12 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 		box-shadow: 0 0 0 1000px #242728 inset !important;
 		-webkit-text-fill-color: white !important;
 		caret-color: white !important;
+		background-color: #242728 !important;
+		color: white !important;
 		transition: background-color 99999s ease-out 0s;
 	}
 
+	/* Selection */
 	:global(.autofill-light)::selection {
 		background-color: color-mix(in srgb, var(--color-tertiary-500, #0ea5e9) 35%, white);
 		color: black;

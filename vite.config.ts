@@ -506,7 +506,7 @@ function sveltyCmsPlugin(): Plugin {
   let compileTimeout: NodeJS.Timeout;
   let widgetTimeout: NodeJS.Timeout;
 
-  const handleHmr = async (server: ViteDevServer, file: string) => {
+  const handleHmr = async (server: ViteDevServer, file: string, event: string = "change") => {
     // Use absolute paths for comparison to avoid Windows issues
     const absoluteFile = path.resolve(file);
     const isCollectionFile =
@@ -544,6 +544,8 @@ function sveltyCmsPlugin(): Plugin {
             userCollections: paths.userCollections,
             compiledCollections: paths.compiledCollections,
             targetFile: file,
+            // On file deletion, skip targetFile so orphan cleanup runs
+            ...(event === "unlink" ? { targetFile: undefined } : {}),
           });
           log.success(`Re-compilation successful for ${path.basename(file)}!`);
 
@@ -651,7 +653,7 @@ function sveltyCmsPlugin(): Plugin {
       // Watch for changes regardless of setup status
       server.watcher.on("all", (event, file) => {
         if (event === "add" || event === "change" || event === "unlink") {
-          handleHmr(server, file);
+          handleHmr(server, file, event);
         }
       });
 

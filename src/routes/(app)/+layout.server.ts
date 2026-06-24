@@ -21,9 +21,10 @@ import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { error } from "@sveltejs/kit";
+import { error, redirect, fail } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getPrivateSetting } from "@src/services/core/settings-service";
+import { getCollectionOrder } from "@utils/collection-order.server";
 import {
   predictNextPath,
   recordCollectionAccess,
@@ -171,6 +172,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       totalUsers,
       aiEnabled,
       publicSettings: publicEnv, // Use the reactive store
+      collectionOrder: getCollectionOrder(tenantId),
       cspNonce,
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker
