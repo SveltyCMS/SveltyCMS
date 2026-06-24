@@ -97,9 +97,19 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.getByTestId("add-field-button").click();
 
     // Select Input widget from the modal
-    // Wait for modal widgets to load
-    await expect(page.getByText(/Core Widgets/i)).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("button", { name: /Input/i }).first().click();
+    // Wait for modal to open and widgets to load — the modal renders category
+    // headers (e.g. "Core Widgets") only after the widget store initializes.
+    // Use a broader locator that matches any widget card button in the modal.
+    const widgetCard = page.locator("button[aria-label]").filter({
+      has: page.locator("iconify-icon"),
+    });
+    await expect(widgetCard.first()).toBeVisible({ timeout: 20_000 });
+
+    // Click the Input widget
+    await page
+      .getByRole("button", { name: /^Input$/i })
+      .first()
+      .click();
 
     // Configure label in the WidgetInspector side panel (use placeholder since aria-label overrides)
     await page.getByPlaceholder("e.g. Profile Picture").fill("User Email");
@@ -166,9 +176,9 @@ test.describe("Collection Builder with Modern Widgets", () => {
     // Try to save without required fields
     await page.getByTestId("save-collection-button").first().click();
 
-    // Check for validation errors (remove invalid CSS text=required; use getByText instead)
-    await expect(page.locator(".error, .alert-error").or(page.getByText(/required/i))).toBeVisible({
-      timeout: 5000,
+    // Check for validation errors — the collection builder shows a toast
+    await expect(page.getByText(/fix validation errors/i)).toBeVisible({
+      timeout: 5_000,
     });
 
     // Fill required information
