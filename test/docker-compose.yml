@@ -1,15 +1,19 @@
-# Docker Compose for local database testing
+# Docker Compose for local & CI database testing
 # Start a profile: docker compose -f test/docker-compose.yml --profile <name> up -d
 # Examples:
 #   docker compose -f test/docker-compose.yml --profile mongodb up -d
 #   docker compose -f test/docker-compose.yml --profile mariadb up -d
 #   docker compose -f test/docker-compose.yml --profile postgresql up -d
+#   docker compose -f test/docker-compose.yml --profile redis up -d
 #
 # Stop all: docker compose -f test/docker-compose.yml --profile '*' down
+#
+# Uses :latest tags to match local Docker Desktop development setup.
+# CI pins these via db-matrix.ts for reproducibility.
 
 services:
   mongodb:
-    image: mongo:8
+    image: mongo:latest
     profiles: [mongodb]
     restart: unless-stopped
     ports:
@@ -38,7 +42,7 @@ services:
       start_period: 15s
 
   mariadb:
-    image: mariadb:11
+    image: mariadb:latest
     profiles: [mariadb]
     restart: unless-stopped
     ports:
@@ -56,7 +60,7 @@ services:
       start_period: 15s
 
   postgresql:
-    image: postgres:16
+    image: postgres:latest
     profiles: [postgresql]
     restart: unless-stopped
     ports:
@@ -71,3 +75,16 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+
+  redis:
+    image: redis:latest
+    profiles: [redis]
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s

@@ -247,7 +247,7 @@ jobs:
       - name: Create MongoDB test user
         if: matrix.db == 'mongodb'
         run: |
-          docker exec $(docker ps -q -f "ancestor=mongo:8" | head -1) \
+          docker exec $(docker ps -q -f "ancestor=mongo:latest" | head -1) \
             mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
             db = db.getSiblingDB("sveltycms_test");
             db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "readWrite", db: "sveltycms_test" }] });
@@ -539,7 +539,7 @@ jobs:
       - name: Create MongoDB benchmark user
         if: matrix.db == 'mongodb'
         run: |
-          docker exec $(docker ps -q -f "ancestor=mongo:8" | head -1) \
+          docker exec $(docker ps -q -f "ancestor=mongo:latest" | head -1) \
             mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
             db = db.getSiblingDB("sveltycms_bench");
             db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "readWrite", db: "sveltycms_bench" }] });

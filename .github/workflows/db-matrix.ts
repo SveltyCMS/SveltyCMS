@@ -4,11 +4,12 @@
  * Generates a GitHub Actions matrix JSON for database integration tests.
  *
  * Outputs a matrix with 4 database targets — sqlite, mongodb, mariadb,
- * and postgresql — each with the appropriate Docker image, port, and
- * health-check command for use in service containers.
+ * and postgresql — each with the Docker image, port, and health-check.
+ *
+ * Image tags match docker-compose.yml and local Docker Desktop setup.
  *
  * Usage:
- *   bun run .github/workflows/db-matrix.ts
+ *   node .github/workflows/db-matrix.ts
  *   # Prints JSON to stdout, suitable for workflow matrix generation.
  */
 
@@ -33,17 +34,17 @@ const dbMatrix: DbMatrix = {
     },
     {
       db: "mongodb",
-      image: "mongo:8",
+      image: "mongo:latest",
       port: 27017,
     },
     {
       db: "mariadb",
-      image: "mariadb:11",
+      image: "mariadb:latest",
       port: 3306,
     },
     {
       db: "postgresql",
-      image: "postgres:16",
+      image: "postgres:latest",
       port: 5432,
     },
   ],
