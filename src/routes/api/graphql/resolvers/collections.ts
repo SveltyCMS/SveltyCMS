@@ -137,7 +137,10 @@ export async function registerCollections(tenantId?: string | null) {
   if (isBenchmark) {
     const { getDb } = await import("@src/databases/db");
     const { refreshContent } = await import("@src/content/engine.server");
-    await refreshContent(tenantId, { mode: "schemas", adapter: getDb() || undefined });
+    await refreshContent(tenantId, {
+      mode: "schemas",
+      adapter: getDb() || undefined,
+    });
   }
 
   const collections: Schema[] = await contentSystem.getCollections(tenantId);

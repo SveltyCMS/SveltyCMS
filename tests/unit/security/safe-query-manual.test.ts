@@ -81,7 +81,9 @@ describe("safeQuery Hardening", () => {
 
   it("should omit soft-delete filter when includeDeleted is true", () => {
     (globalThis as any).__privateEnv = { MULTI_TENANT: false };
-    const result = safeQuery({ name: "test" }, undefined, { includeDeleted: true });
+    const result = safeQuery({ name: "test" }, undefined, {
+      includeDeleted: true,
+    });
     expect((result as any).isDeleted).toBeUndefined();
   });
 });

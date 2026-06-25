@@ -48,7 +48,9 @@ export async function handleApiKeyRoutes(
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 100);
     const skip = (page - 1) * limit;
 
-    const filter: { userId?: DatabaseId; tenantId?: DatabaseId | null } = { tenantId };
+    const filter: { userId?: DatabaseId; tenantId?: DatabaseId | null } = {
+      tenantId,
+    };
     if (!userIsAdmin) {
       filter.userId = locals.user._id as DatabaseId;
     } else {

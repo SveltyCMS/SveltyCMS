@@ -135,7 +135,12 @@ export function parseWebflowExport(csvText: string, token: string): SNCEnvelope 
       entries.push(entry);
     }
 
-    return { sourcePlatform: "webflow", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "webflow",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -185,7 +190,12 @@ export function parseHubSpotExport(jsonText: string, token: string): SNCEnvelope
       });
     }
 
-    return { sourcePlatform: "hubspot", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "hubspot",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -228,7 +238,12 @@ export function parseWixExport(jsonText: string, token: string): SNCEnvelope | n
       });
     }
 
-    return { sourcePlatform: "wix", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "wix",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -273,7 +288,12 @@ export function parseSquarespaceExport(jsonText: string, token: string): SNCEnve
       });
     }
 
-    return { sourcePlatform: "squarespace", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "squarespace",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -310,7 +330,12 @@ export function parseGenericSaaS(
       }),
     );
 
-    return { sourcePlatform: platform as any, version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: platform as any,
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }

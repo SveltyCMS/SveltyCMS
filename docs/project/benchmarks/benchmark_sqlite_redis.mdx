@@ -30,24 +30,24 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (23/06/2026, 20:52:18)
+## 📊 Latest Performance Audit (25/06/2026, 14:21:16)
 
 **Status:** ❌ FAIL
 
 > [!CAUTION]
-> **Anomalies Detected**: Seeding failed See console for stack trace.
+> **Anomalies Detected**: Environment unready See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
-| :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 358ms       | ⚪ (-15.1%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 1034.333ms  | ⚪ (+3.6%)  | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | 1018.004ms  | ⚪          | < 2ms         | 🔴 FAIL |
-| **GraphQL (Avg)**      | N/A         | ⚪ (—)      | < 5ms         | ⚪ N/A  |
-| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | N/A         | ⚪          | < 50ms        | ⚪ N/A  |
-| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend      | Target Budget | Result  |
+| :--------------------- | :---------- | :--------- | :------------ | :------ |
+| **Cold Start**         | 358ms       | ⚪ (-9.3%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1034.333ms  | ⚪ (+0.0%) | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | 1018.004ms  | ⚪         | < 2ms         | 🔴 FAIL |
+| **GraphQL (Avg)**      | N/A         | ⚪ (—)     | < 5ms         | ⚪ N/A  |
+| **Million-Row Index**  | N/A         | ⚪         | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | N/A         | ⚪         | < 50ms        | ⚪ N/A  |
+| **Setup Quality**      | HEALTHY     | ⚪         | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -62,7 +62,7 @@ xychart-beta
   title "SQLITE+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [1028.120, 1025.754, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333]
+  line "p95 Latency" : [1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333, 1034.333]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -75,7 +75,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 1018.004ms | **Target:** < 2ms | **Trend:** ⚪ (+58.8%)
+**Middleware p95:** 1018.004ms | **Target:** < 2ms | **Trend:** ⚪ (+5.0%)
 
 > Total overhead of security, logging, and auth hooks.
 

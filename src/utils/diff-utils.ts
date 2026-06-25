@@ -56,13 +56,37 @@ export function computeFieldDiff(
     const newVal = newData?.[key];
 
     if (oldVal === undefined && newVal !== undefined) {
-      diffs.push({ fieldName: key, label, oldValue: null, newValue: newVal, type: "added" });
+      diffs.push({
+        fieldName: key,
+        label,
+        oldValue: null,
+        newValue: newVal,
+        type: "added",
+      });
     } else if (oldVal !== undefined && newVal === undefined) {
-      diffs.push({ fieldName: key, label, oldValue: oldVal, newValue: null, type: "removed" });
+      diffs.push({
+        fieldName: key,
+        label,
+        oldValue: oldVal,
+        newValue: null,
+        type: "removed",
+      });
     } else if (!isEqual(oldVal, newVal)) {
-      diffs.push({ fieldName: key, label, oldValue: oldVal, newValue: newVal, type: "modified" });
+      diffs.push({
+        fieldName: key,
+        label,
+        oldValue: oldVal,
+        newValue: newVal,
+        type: "modified",
+      });
     } else {
-      diffs.push({ fieldName: key, label, oldValue: oldVal, newValue: newVal, type: "unchanged" });
+      diffs.push({
+        fieldName: key,
+        label,
+        oldValue: oldVal,
+        newValue: newVal,
+        type: "unchanged",
+      });
     }
   }
 

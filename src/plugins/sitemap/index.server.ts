@@ -14,7 +14,10 @@ async function pingSearchEngines(baseUrl: string) {
   const sitemapUrl = `${baseUrl}/sitemap.xml`;
 
   const pings = [
-    { name: "Google", url: `https://www.google.com/ping?sitemap=${sitemapUrl}` },
+    {
+      name: "Google",
+      url: `https://www.google.com/ping?sitemap=${sitemapUrl}`,
+    },
     { name: "Bing", url: `https://www.bing.com/ping?sitemap=${sitemapUrl}` },
   ];
 

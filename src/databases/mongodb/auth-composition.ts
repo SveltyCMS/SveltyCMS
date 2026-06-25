@@ -112,7 +112,9 @@ export function composeMongoAuthAdapter(): AuthInterface {
         });
 
         if (!sessionResult.success) {
-          await userAdapter.deleteUser(userResult.data._id, { tenantId: sessionData.tenantId });
+          await userAdapter.deleteUser(userResult.data._id, {
+            tenantId: sessionData.tenantId,
+          });
           return sessionResult as any;
         }
 

@@ -152,7 +152,10 @@ describe("WebhookService Security - Tenant Isolation", () => {
   });
 
   it("should enforce tenantId when saving webhooks", async () => {
-    mockDb.system.preferences.get.mockResolvedValue({ success: true, data: [] });
+    mockDb.system.preferences.get.mockResolvedValue({
+      success: true,
+      data: [],
+    });
     mockDb.system.preferences.set.mockResolvedValue({ success: true });
 
     const newHook = {

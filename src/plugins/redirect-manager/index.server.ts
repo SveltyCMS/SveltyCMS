@@ -27,8 +27,18 @@ export const migrations: PluginMigration[] = [
             { label: "From", name: "source", type: "text", required: true },
             { label: "To", name: "target", type: "text", required: true },
             { label: "Type", name: "type", type: "number", defaultValue: 301 },
-            { label: "Active", name: "active", type: "boolean", defaultValue: true },
-            { label: "Is Regex", name: "isRegex", type: "boolean", defaultValue: false },
+            {
+              label: "Active",
+              name: "active",
+              type: "boolean",
+              defaultValue: true,
+            },
+            {
+              label: "Is Regex",
+              name: "isRegex",
+              type: "boolean",
+              defaultValue: false,
+            },
           ],
           status: "publish",
         } as any);
@@ -328,10 +338,14 @@ async function syncToMaterializedView(tenantId: string, dbAdapter: IDBAdapter) {
 
           // Use the new relational core's insertMany if available, or fallback to sequential
           if (dbAdapter.crud.insertMany) {
-            await dbAdapter.crud.insertMany("redirects_mv", mvEntries as any, { transaction: tx });
+            await dbAdapter.crud.insertMany("redirects_mv", mvEntries as any, {
+              transaction: tx,
+            });
           } else {
             for (const entry of mvEntries) {
-              await dbAdapter.crud.insert("redirects_mv", entry as any, { transaction: tx });
+              await dbAdapter.crud.insert("redirects_mv", entry as any, {
+                transaction: tx,
+              });
             }
           }
         }

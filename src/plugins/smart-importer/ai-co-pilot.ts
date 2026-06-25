@@ -488,6 +488,12 @@ export function getPlatformGuidance(platform: string, contentType: string): stri
     case "contentful":
       tips.push("💡 Rich text is compiled from Contentful AST nodes to HTML (Pro feature).");
       break;
+    case "csv":
+      tips.push(
+        "💡 CSV imports map column headers to target fields automatically.",
+        "💡 Use Dry Run mode first to verify column-to-field mappings.",
+      );
+      break;
     default:
       tips.push("💡 Use Dry Run mode first to validate without writing data.");
   }

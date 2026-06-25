@@ -23,7 +23,12 @@ describe("Tags Widget - Validation", () => {
   });
 
   it("should respect minTags and maxTags", () => {
-    const field = TagsWidget({ label: "Tags", required: true, minTags: 2, maxTags: 3 });
+    const field = TagsWidget({
+      label: "Tags",
+      required: true,
+      minTags: 2,
+      maxTags: 3,
+    });
     const schema = (field.widget.validationSchema as any)(field);
 
     expect(safeParse(schema, ["tag1"]).success).toBe(false); // Too few

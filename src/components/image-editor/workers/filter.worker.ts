@@ -245,7 +245,10 @@ self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
   try {
     if (type === "buildFilterString" && filters) {
       const data = buildFilterString(filters);
-      self.postMessage({ type: "filterString", data } satisfies FilterWorkerOutput);
+      self.postMessage({
+        type: "filterString",
+        data,
+      } satisfies FilterWorkerOutput);
     } else if (type === "applySharpness" && imageData && width && height && filters) {
       const data = applySharpness(imageData, width, height, filters);
       // Transfer the buffer back (zero-copy)

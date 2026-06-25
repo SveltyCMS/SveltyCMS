@@ -113,7 +113,10 @@ export const contentNavigation = {
     const nodesMap = new Map<string, ContentNode>();
     for (const node of filteredNodes) {
       // Fix: getContentStructure key/lookup type mismatch between _id and parentId
-      nodesMap.set(node._id.toString(), { ...node, children: [] as ContentNode[] });
+      nodesMap.set(node._id.toString(), {
+        ...node,
+        children: [] as ContentNode[],
+      });
     }
 
     const tree: ContentNode[] = [];

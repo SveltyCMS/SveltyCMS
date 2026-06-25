@@ -63,10 +63,22 @@ describe("collection-scaffold", () => {
   });
 
   it("importTypeToWidget maps importer types to widgets", () => {
-    expect(importTypeToWidget("richtext")).toEqual({ Name: "RichText", fieldType: "string" });
-    expect(importTypeToWidget("media")).toEqual({ Name: "MediaUpload", fieldType: "string" });
-    expect(importTypeToWidget("number")).toEqual({ Name: "Number", fieldType: "number" });
-    expect(importTypeToWidget("unknown")).toEqual({ Name: "Input", fieldType: "string" });
+    expect(importTypeToWidget("richtext")).toEqual({
+      Name: "RichText",
+      fieldType: "string",
+    });
+    expect(importTypeToWidget("media")).toEqual({
+      Name: "MediaUpload",
+      fieldType: "string",
+    });
+    expect(importTypeToWidget("number")).toEqual({
+      Name: "Number",
+      fieldType: "number",
+    });
+    expect(importTypeToWidget("unknown")).toEqual({
+      Name: "Input",
+      fieldType: "string",
+    });
   });
 
   it("buildCollectionSchemaFromMappings builds schema with mapped fields", () => {

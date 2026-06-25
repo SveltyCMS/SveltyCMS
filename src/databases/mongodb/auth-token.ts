@@ -95,11 +95,18 @@ export class TokenAdapter {
     type?: string,
     options?: BaseQueryOptions,
   ): Promise<
-    DatabaseResult<{ success: boolean; message: string; email?: string; details?: Token }>
+    DatabaseResult<{
+      success: boolean;
+      message: string;
+      email?: string;
+      details?: Token;
+    }>
   > {
     try {
       const tenantId = options?.tenantId;
-      const filter = safeQuery({ token } as any, tenantId as string, { includeDeleted: true });
+      const filter = safeQuery({ token } as any, tenantId as string, {
+        includeDeleted: true,
+      });
       if (userId) filter.user_id = userId;
       if (type) filter.type = type;
 
@@ -108,7 +115,10 @@ export class TokenAdapter {
         return {
           success: false,
           message: "Invalid or expired token",
-          error: { code: "TOKEN_INVALID", message: "Token not found or expired" },
+          error: {
+            code: "TOKEN_INVALID",
+            message: "Token not found or expired",
+          },
         };
       }
       return {
@@ -140,7 +150,9 @@ export class TokenAdapter {
     try {
       const tenantId = options?.tenantId;
       // Atomic findOneAndDelete fixes TOCTOU race condition
-      const filter = safeQuery({ token } as any, tenantId as string, { includeDeleted: true });
+      const filter = safeQuery({ token } as any, tenantId as string, {
+        includeDeleted: true,
+      });
       if (userId) filter.user_id = userId;
       if (type) filter.type = type;
 
@@ -150,7 +162,10 @@ export class TokenAdapter {
         return {
           success: false,
           message: "Invalid or expired token",
-          error: { code: "TOKEN_INVALID", message: "Token not found or expired" },
+          error: {
+            code: "TOKEN_INVALID",
+            message: "Token not found or expired",
+          },
         };
       }
 
@@ -210,7 +225,9 @@ export class TokenAdapter {
   ): Promise<DatabaseResult<Token[]>> {
     try {
       const tenantId = options?.tenantId;
-      const safeFilter = safeQuery(filter, tenantId as string, { includeDeleted: true });
+      const safeFilter = safeQuery(filter, tenantId as string, {
+        includeDeleted: true,
+      });
       const tokens = await this.TokenModel.find(safeFilter).lean();
       return { success: true, data: tokens as Token[] };
     } catch (err) {
@@ -313,7 +330,9 @@ export class TokenAdapter {
 
   async deleteExpiredTokens(): Promise<DatabaseResult<number>> {
     try {
-      const res = await this.TokenModel.deleteMany({ expires: { $lt: new Date() } } as any);
+      const res = await this.TokenModel.deleteMany({
+        expires: { $lt: new Date() },
+      } as any);
       return { success: true, data: res.deletedCount };
     } catch (err) {
       return {

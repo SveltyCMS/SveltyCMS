@@ -421,7 +421,10 @@ export class MongoThemeMethods {
       } = themeData as unknown as Record<string, unknown>;
       const result = await this.themeModel
         .findOneAndUpdate(
-          { name: themeData.name, tenantId: (themeData as any).tenantId || null } as any,
+          {
+            name: themeData.name,
+            tenantId: (themeData as any).tenantId || null,
+          } as any,
           { $setOnInsert: { ...rest, _id: _id || uuidv4().replace(/-/g, "") } },
           { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
         )
@@ -538,7 +541,10 @@ export class MongoThemeMethods {
       await this.themeModel.bulkWrite([
         {
           updateMany: {
-            filter: { _id: { $ne: themeId }, tenantId: effectiveTenantId } as any,
+            filter: {
+              _id: { $ne: themeId },
+              tenantId: effectiveTenantId,
+            } as any,
             update: { $set: { [flag]: false } },
           },
         },

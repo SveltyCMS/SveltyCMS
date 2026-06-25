@@ -29,7 +29,9 @@ export interface VerificationResult {
 /**
  * Creates a listener for live preview updates from the CMS admin.
  */
-export function createLivePreviewListener(options: LivePreviewOptions): { destroy: () => void } {
+export function createLivePreviewListener(options: LivePreviewOptions): {
+  destroy: () => void;
+} {
   const { onUpdate, origin, visualEditing = false } = options;
 
   function handleMessage(event: MessageEvent) {

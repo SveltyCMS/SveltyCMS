@@ -134,7 +134,10 @@ describe("Token Resolution Middleware", () => {
       throw new Error("Network error");
     });
 
-    const response = await handleTokenResolution({ event: mockEvent, resolve: mockResolve });
+    const response = await handleTokenResolution({
+      event: mockEvent,
+      resolve: mockResolve,
+    });
     expect(response.status).toBe(500);
     const body = await response.json();
     expect(body.message).toBe("Network error");

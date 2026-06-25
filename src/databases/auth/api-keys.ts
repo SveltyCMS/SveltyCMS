@@ -14,7 +14,11 @@ import { generateSecureToken } from "@src/utils/native-utils";
  * - prefix: The first 12 characters (e.g. "sck_a1b2c3d4") safe for UI display.
  * - hash: The SHA-256 hash of the full key (stored in the database).
  */
-export function generateApiKey(): { full: string; prefix: string; hash: string } {
+export function generateApiKey(): {
+  full: string;
+  prefix: string;
+  hash: string;
+} {
   // SveltyCMS Key ("sck_") + 48 bytes of entropy (approx 64 characters)
   const randomHex = generateSecureToken(48); // We use the existing crypto token util
 

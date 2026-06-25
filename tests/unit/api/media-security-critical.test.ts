@@ -27,9 +27,10 @@ describe("Media Security Critical Unit Tests", () => {
         files: {
           getByFolder: vi.fn().mockResolvedValue({ success: true, data: [] }),
           getByHash: vi.fn().mockResolvedValue({ success: true, data: null }),
-          upload: vi
-            .fn()
-            .mockResolvedValue({ success: true, data: { _id: "m1", path: "test.jpg" } }),
+          upload: vi.fn().mockResolvedValue({
+            success: true,
+            data: { _id: "m1", path: "test.jpg" },
+          }),
         },
         updateMedia: vi.fn().mockResolvedValue({ success: true }),
         saveMedia: vi.fn().mockResolvedValue({ success: true, _id: "m1" }),
@@ -44,9 +45,13 @@ describe("Media Security Critical Unit Tests", () => {
       auth: { getUserById: vi.fn(), validateSession: vi.fn() },
       system: {
         preferences: { getMany: vi.fn().mockResolvedValue({}) },
-        widgets: { getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }) },
+        widgets: {
+          getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        },
       },
-      collection: { getModel: vi.fn().mockResolvedValue({ name: "test", fields: [] }) },
+      collection: {
+        getModel: vi.fn().mockResolvedValue({ name: "test", fields: [] }),
+      },
     };
 
     return {
@@ -61,7 +66,14 @@ describe("Media Security Critical Unit Tests", () => {
         __testBypass: true,
         user: { ...user, role: "admin", isAdmin: true },
         tenantId: "t1",
-        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+        roles: [
+          {
+            _id: "admin",
+            name: "Administrator",
+            isAdmin: true,
+            permissions: [],
+          },
+        ],
         dbAdapter: adapter,
       },
       cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },

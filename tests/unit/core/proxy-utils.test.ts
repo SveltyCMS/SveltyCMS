@@ -77,7 +77,9 @@ describe("proxy-utils (core database + SDK proxies)", () => {
       const reinitialize = vi.fn().mockImplementation(async () => {
         current = {
           isConnected: () => true,
-          crud: { count: vi.fn().mockResolvedValue({ success: true, data: 42 }) },
+          crud: {
+            count: vi.fn().mockResolvedValue({ success: true, data: 42 }),
+          },
         };
       });
 
@@ -178,14 +180,19 @@ describe("proxy-utils (core database + SDK proxies)", () => {
       // Call with single id (no options)
       (proxied as any).delete("doc-1");
 
-      expect(ns.delete).toHaveBeenCalledWith("doc-1", { tenantId: defaultTenant });
+      expect(ns.delete).toHaveBeenCalledWith("doc-1", {
+        tenantId: defaultTenant,
+      });
     });
 
     it("merges into existing options object (preserves other fields)", () => {
       const ns = { findMany: vi.fn() };
       const proxied = createTenantInjectingProxy(ns, makeInject(defaultTenant));
 
-      (proxied as any).findMany("coll", { filter: { status: "published" }, limit: 10 });
+      (proxied as any).findMany("coll", {
+        filter: { status: "published" },
+        limit: 10,
+      });
 
       expect(ns.findMany).toHaveBeenCalledWith(
         "coll",
@@ -201,7 +208,9 @@ describe("proxy-utils (core database + SDK proxies)", () => {
       const ns = { findOne: vi.fn() };
       const proxied = createTenantInjectingProxy(ns, makeInject(defaultTenant));
 
-      (proxied as any).findOne("coll", { tenantId: "other-tenant" as DatabaseId });
+      (proxied as any).findOne("coll", {
+        tenantId: "other-tenant" as DatabaseId,
+      });
 
       expect(ns.findOne).toHaveBeenCalledWith(
         "coll",

@@ -260,7 +260,11 @@ export interface LocalizedField {
 export function extractLocalizedContent(
   rawField: any,
   _sourcePlatform: string,
-): { defaultLocale: string; locales: Record<string, string>; isLocalized: boolean } {
+): {
+  defaultLocale: string;
+  locales: Record<string, string>;
+  isLocalized: boolean;
+} {
   const locales: Record<string, string> = {};
   let defaultLocale = "en";
 
@@ -291,7 +295,11 @@ export function extractLocalizedContent(
         locales[lang] = String(val || "");
       }
       defaultLocale = Object.keys(locales)[0] || "en";
-      return { defaultLocale, locales, isLocalized: Object.keys(locales).length > 1 };
+      return {
+        defaultLocale,
+        locales,
+        isLocalized: Object.keys(locales).length > 1,
+      };
     }
   }
 

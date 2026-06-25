@@ -110,7 +110,11 @@ export function parseSpreadsheet(
         content: buildContentFromRow(raw, headers, columnTypes),
         createdAt: nowISODateString(),
         taxonomies: { vocabularies: [], terms: {} },
-        rawCustomFields: { ...raw, _sourceFormat: "csv", _columnTypes: columnTypes },
+        rawCustomFields: {
+          ...raw,
+          _sourceFormat: "csv",
+          _columnTypes: columnTypes,
+        },
         assetsToMirror: findAssetUrls(raw),
       });
     }
@@ -355,7 +359,11 @@ export function parseMarkdownFiles(
                 : [],
           },
         },
-        rawCustomFields: { ...frontmatter, _sourceFormat: "markdown", _sourcePath: file.path },
+        rawCustomFields: {
+          ...frontmatter,
+          _sourceFormat: "markdown",
+          _sourcePath: file.path,
+        },
         assetsToMirror: frontmatter?.image
           ? [
               {
@@ -405,7 +413,10 @@ function extractFrontmatter(content: string): {
   const jsonMatch = content.match(/^\{[\s\S]*?\}\r?\n([\s\S]*)$/);
   if (jsonMatch) {
     try {
-      return { frontmatter: JSON.parse(jsonMatch[0]), body: jsonMatch[1].trim() };
+      return {
+        frontmatter: JSON.parse(jsonMatch[0]),
+        body: jsonMatch[1].trim(),
+      };
     } catch {
       return { frontmatter: null, body: content };
     }
@@ -642,7 +653,11 @@ export async function fetchFromAPI(
     method?: string;
     headers?: Record<string, string>;
     body?: any;
-    pagination?: { type: "offset" | "cursor" | "page"; param: string; limit?: number };
+    pagination?: {
+      type: "offset" | "cursor" | "page";
+      param: string;
+      limit?: number;
+    };
     dataPath?: string; // JSONPath to data array (e.g., 'data', 'results', 'items')
     fieldMapping?: Record<string, string>; // source → target field names
     isGraphQL?: boolean;
@@ -725,7 +740,11 @@ export async function fetchFromAPI(
       createdAt: item.createdAt || item.created_at || item.date_created || nowISODateString(),
       updatedAt: item.updatedAt || item.updated_at || item.date_updated || nowISODateString(),
       taxonomies: { vocabularies: [], terms: {} },
-      rawCustomFields: { ...item, _sourceFormat: "api", _sourceUrl: config.url },
+      rawCustomFields: {
+        ...item,
+        _sourceFormat: "api",
+        _sourceUrl: config.url,
+      },
       assetsToMirror: findAssetUrls(item),
     }));
 
@@ -783,7 +802,10 @@ export function parseJSONDatabase(
       items = data.results.map((r: any) => extractNotionProperties(r));
     } else if (typeof data === "object" && !Array.isArray(data)) {
       // Firebase Realtime DB (key-value object)
-      items = Object.entries(data).map(([key, value]) => ({ id: key, ...(value as any) }));
+      items = Object.entries(data).map(([key, value]) => ({
+        id: key,
+        ...(value as any),
+      }));
     } else if (Array.isArray(data)) {
       // Plain array / MongoDB export
       items = data;

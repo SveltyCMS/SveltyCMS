@@ -106,7 +106,11 @@ describe("Export/Import API Security - Tenant Isolation", () => {
     it("should allow super-admin to override tenantId", async () => {
       const event = {
         params: { path: "export" },
-        locals: { user: mockSuperAdmin, tenantId: myTenant, __testBypass: true },
+        locals: {
+          user: mockSuperAdmin,
+          tenantId: myTenant,
+          __testBypass: true,
+        },
         request: {
           method: "POST",
           json: vi.fn().mockResolvedValue({ type: "users" }),

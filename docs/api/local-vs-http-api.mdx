@@ -111,7 +111,12 @@ await cms.media.list({ folderId: "uploads" });
 
 // Identity & Access
 await cms.auth.listUsers({ tenantId });
-await cms.websiteTokens.create({ name: "API Key", permissions: ["content:read"], user, tenantId });
+await cms.websiteTokens.create({
+  name: "API Key",
+  permissions: ["content:read"],
+  user,
+  tenantId,
+});
 
 // System & Infrastructure
 await cms.system.settings.getAll();
@@ -143,7 +148,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 ```typescript
 // Collections namespace supports bulkCreate, bulkUpdate, bulkDelete
-const result = await cms.collections.bulkCreate("products", largeDataArray, { tenantId });
+const result = await cms.collections.bulkCreate("products", largeDataArray, {
+  tenantId,
+});
 ```
 
 ---

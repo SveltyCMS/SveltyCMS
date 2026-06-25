@@ -19,7 +19,9 @@ test.describe("Appearance — My Overrides", () => {
     await expect(page.getByRole("heading", { level: 1, name: /my overrides/i })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByText(/^my layout$/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/^my layout$/i)).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByRole("button", { name: /save my preferences/i })).toBeVisible();
   });
 
@@ -27,20 +29,30 @@ test.describe("Appearance — My Overrides", () => {
     await page.goto("/config/appearance");
     await page.getByLabel(/left sidebar/i).selectOption("hidden");
     await page.getByRole("button", { name: /save my preferences/i }).click();
-    await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/preferences applied/i)).toBeVisible({
+      timeout: 10_000,
+    });
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByLabel(/left sidebar/i)).toHaveValue("hidden", { timeout: 10_000 });
+    await expect(page.getByLabel(/left sidebar/i)).toHaveValue("hidden", {
+      timeout: 10_000,
+    });
   });
 
   test("clear overrides resets layout to theme default", async ({ page }) => {
     await page.goto("/config/appearance");
     await page.getByLabel(/left sidebar/i).selectOption("hidden");
     await page.getByRole("button", { name: /save my preferences/i }).click();
-    await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/preferences applied/i)).toBeVisible({
+      timeout: 10_000,
+    });
 
     await page.getByRole("button", { name: /clear overrides/i }).click();
-    await expect(page.getByText(/overrides cleared/i)).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByLabel(/left sidebar/i)).toHaveValue("", { timeout: 10_000 });
+    await expect(page.getByText(/overrides cleared/i)).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByLabel(/left sidebar/i)).toHaveValue("", {
+      timeout: 10_000,
+    });
   });
 });

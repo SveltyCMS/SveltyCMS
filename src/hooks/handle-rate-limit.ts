@@ -20,14 +20,15 @@
  * - Auto-cleanup: expired entries pruned every 60s
  */
 
+import crypto from "node:crypto";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
-// Default: 100 requests per 60s window per IP
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX_REQUESTS = 100;
+const MAX_TRACKED_BUCKETS = 10000;
 const CLEANUP_INTERVAL_MS = 60_000;
 
 // Paths excluded from rate limiting
@@ -49,24 +50,26 @@ interface RateLimitEntry {
 // ─── State ────────────────────────────────────────────────────────────────
 
 const _buckets = new Map<string, RateLimitEntry>();
-let _cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function getClientKey(event: Parameters<Handle>[0]["event"]): string {
   // Use X-Forwarded-For if behind proxy, otherwise remote address
   const forwarded = event.request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || event.getClientAddress();
-  return ip || "unknown";
+  const rawIp = forwarded?.split(",")[0]?.trim() || event.getClientAddress();
+  return crypto
+    .createHash("sha1")
+    .update(rawIp || "unknown")
+    .digest("hex");
 }
 
 function isExcluded(pathname: string): boolean {
   return EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-function startCleanupTimer(): void {
-  if (_cleanupInterval) return;
-  _cleanupInterval = setInterval(() => {
+const LIMITER_CLEANUP_KEY = Symbol.for("svelty.limiter.cleanup");
+if (typeof setInterval !== "undefined" && !(globalThis as any)[LIMITER_CLEANUP_KEY]) {
+  (globalThis as any)[LIMITER_CLEANUP_KEY] = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of _buckets) {
       if (now - entry.windowStart > DEFAULT_WINDOW_MS * 2) {
@@ -172,7 +175,11 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   }
 
   // Start cleanup timer on first request
-  startCleanupTimer();
+  // Bounded map eviction: prevent OOM under distributed attacks
+  if (_buckets.size >= MAX_TRACKED_BUCKETS) {
+    const oldestKey = _buckets.keys().next().value;
+    if (oldestKey) _buckets.delete(oldestKey);
+  }
 
   const response = await resolve(event);
 
