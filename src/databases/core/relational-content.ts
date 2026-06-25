@@ -336,9 +336,6 @@ export class RelationalContentModule implements IContentAdapter {
               tenantId: options?.tenantId,
             },
           );
-          // Remove internal fields that shouldn't be in the set for conflict
-          delete (preparedValues as any)._id;
-          delete (preparedValues as any).createdAt;
           return preparedValues;
         });
 
@@ -353,7 +350,7 @@ export class RelationalContentModule implements IContentAdapter {
           if (preparedValuesList.length > 0) {
             const sample = preparedValuesList[0];
             Object.keys(sample).forEach((k) => {
-              if (k !== "path" && k !== "tenantId") {
+              if (k !== "_id" && k !== "createdAt" && k !== "path" && k !== "tenantId") {
                 setObj[k] = sql`VALUES(${sql.identifier(k)})`;
               }
             });
@@ -368,7 +365,7 @@ export class RelationalContentModule implements IContentAdapter {
           if (preparedValuesList.length > 0) {
             const sample = preparedValuesList[0];
             Object.keys(sample).forEach((k) => {
-              if (k !== "path" && k !== "tenantId") {
+              if (k !== "_id" && k !== "createdAt" && k !== "path" && k !== "tenantId") {
                 setObj[k] = sql`excluded.${sql.identifier(k)}`;
               }
             });

@@ -110,7 +110,7 @@ function handleKeyDown(e: KeyboardEvent, index: number) {
 	>
 	<input type="hidden" {name} {value} />
 
-	{#each options as option, i}
+	{#each options as option, i (i)}
 		{const active = value === option.value}
 		{const isTabFocusable = active || (activeIndex === -1 && i === 0)}
 		<button

@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-05-11"
+updated: "2026-06-23"
 tags:
   - "architecture"
   - "media"
@@ -43,10 +43,16 @@ graph TB
     end
 
     subgraph "Media Engine (src/utils/media/)"
-        MS[mediaService.server.ts]
-        MPS[mediaProcessing.server.ts]
-        MST[mediaStorage.server.ts]
-        CS[cloudStorage.ts]
+        MS[media-service.server.ts]
+        MPS[media-processing.server.ts]
+        MST[media-storage.server.ts]
+        CS[cloud-storage.ts]
+        SHARING[sharing.ts]
+        SNIFF[slim-sniffer.server.ts]
+        ANALYTICS[storage-analytics.ts]
+        BULK[bulk-download.ts]
+        STREAM[streaming-upload.ts]
+        VERSIONS[version-history.ts]
     end
 
     subgraph "Infrastructure"

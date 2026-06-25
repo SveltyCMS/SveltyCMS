@@ -61,9 +61,7 @@ flowchart TD
     PREFETCH -->|"link rel=prefetch"| UI["Browser"]
     DASH -->|"Sorts by usage"| ADMIN["Admin Dashboard"]
 
-    style Learner fill:#4ade80,stroke:#166534,stroke-width:2px,color:#000
-    style Request fill:#fef08a,stroke:#854d0e,color:#000
-    style Consumers fill:#93c5fd,stroke:#1e40af,color:#000
+
 ```
 
 ---
@@ -76,8 +74,9 @@ flowchart TD
 | **Privacy-first**        | Tenant-scoped, no PII, data never leaves the server, no external analytics services        |
 | **Decay-weighted**       | Exponential decay with 24h half-life — recent activity counts more than stale data         |
 | **Sub-microsecond**      | In-memory `Map` operations only — no per-request I/O, no database queries                  |
-| **Self-pruning**         | Scores below 0.01 are filtered out — dead entries don't accumulate                         |
-| **Survives restarts**    | Auto-persisted to cache layer every 15 minutes, restored on startup                        |
+
+| **Self-pruning** | Scores below 0.01 are filtered out — dead entries don't accumulate |
+| **Survives restarts** | Auto-persisted to cache layer every 15 minutes, restored on startup |
 
 ---
 
@@ -304,9 +303,7 @@ flowchart LR
     MAPS --> PREFETCH
     MAPS --> DASH
 
-    style Record fill:#fef08a,stroke:#854d0e,color:#000
-    style Learn fill:#4ade80,stroke:#166534,color:#000
-    style Act fill:#93c5fd,stroke:#1e40af,color:#000
+
 ```
 
 ## Related
@@ -317,5 +314,6 @@ flowchart LR
 - [Access Management](./admin-user-management.mdx) — User roles and tenant isolation; the behavioral engine respects tenant boundaries
 - [AI Integration](../guides/development/ai-integration.mdx) — AI widget scaffolder and hosted MCP knowledge core
 - [Marketplace System](./marketplace.mdx) — Plugin ecosystem; the behavioral engine can surface popular plugin categories
+
 - [API Security & Token Hardening](./api-security.mdx) — Security model the behavioral engine operates within
 - [Core Database Infrastructure](./database/core-infrastructure.mdx) — The adapter layer that serves the pre-warmed cache

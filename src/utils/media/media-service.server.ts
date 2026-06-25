@@ -23,6 +23,7 @@ import type { MediaItem } from "./media-models";
 import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
 import { getUrl } from "./cloud-storage";
 import { validateEgressUrl, safeFetch } from "@src/utils/http/egress-guard";
+import { sniffMimeType } from "./slim-sniffer.server";
 
 /**
  * 🛡️ Lightweight SVG sanitizer — strips dangerous elements and attributes
@@ -89,7 +90,12 @@ function isSvgFile(mimeType: string, filename: string): boolean {
 }
 
 function validateMime(mimeType: string, filename: string) {
-  if (!mimeType) throw new Error("Missing MIME type");
+  if (!mimeType) {
+    // Fall back to extension-based lookup
+    const ext = filename.split(".").pop()?.toLowerCase();
+    if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
+    return; // Allow through — binary sniffing will run downstream
+  }
   if (!ALLOWED_MIME_PREFIXES.some((p) => mimeType.startsWith(p))) {
     const ext = filename.split(".").pop()?.toLowerCase();
     if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
@@ -193,8 +199,12 @@ export class MediaService {
         // Small file: Buffer is fine and faster for small items
         let buffer = Buffer.from(await file.arrayBuffer());
 
-        // 🛡️ SVG Sanitization: strip scripts, event handlers, and foreignObject before storage
-        if (isSvgFile(file.type, file.name)) {
+        // Binary MIME sniffing as defense-in-depth
+        const sniffed = sniffMimeType(buffer.subarray(0, 2048));
+        const effectiveType = file.type || sniffed?.mime || "application/octet-stream";
+
+        // 🛡️ SVG Sanitization
+        if (isSvgFile(effectiveType, file.name)) {
           const raw = buffer.toString("utf-8");
           const sanitized = sanitizeSvg(raw);
           buffer = Buffer.from(sanitized, "utf-8");
@@ -208,7 +218,9 @@ export class MediaService {
         if (existing.success && existing.data) {
           const record = existing.data as any;
           if (record.path !== relPath) {
-            await this.db.crud.update("media_items", record._id, { path: relPath } as any);
+            await this.db.crud.update("media_items", record._id, {
+              path: relPath,
+            } as any);
             record.path = relPath;
           }
           return {
@@ -253,7 +265,9 @@ export class MediaService {
         if (existing.success && existing.data) {
           const record = existing.data as any;
           if (record.path !== relPath) {
-            await this.db.crud.update("media_items", record._id, { path: relPath } as any);
+            await this.db.crud.update("media_items", record._id, {
+              path: relPath,
+            } as any);
             record.path = relPath;
           }
           return {
@@ -422,7 +436,7 @@ export class MediaService {
    */
   public async getMediaReferences(mediaId: string, tenantId?: DatabaseId | null): Promise<any[]> {
     try {
-      const { scanCompiledCollections } = await import("@src/content/content-service.server");
+      const { scanCompiledCollections } = await import("@src/content/engine.server");
       const schemas = await scanCompiledCollections();
       const references: any[] = [];
 

@@ -207,7 +207,7 @@ export class ApiSpecService {
     }
 
     try {
-      const { contentService } = await import("@src/content/content-service.server");
+      const { contentService } = await import("@src/content/engine.server");
       const collections = await contentService.getContentStructureFromDatabase("flat", tenantId);
       const schemaMap = new Map<string, Schema>();
 

@@ -21,7 +21,7 @@ High-quality documentation is what makes SveltyCMS accessible to everyone — fr
 **Jump to your section:**
 
 - 👥 **[For All Contributors](#for-all-contributors)** — Style, tone, and the writing approach that makes our docs excellent.
-- 🛠️ **[For Developers & AI Agents](#for-developers--ai-agents)** — Non-negotiable technical rules, canonical locations, frontmatter spec, and PR process.
+- 🛠️ **[For Developers & AI Agents](#for-developers-ai-agents)** — Non-negotiable technical rules, canonical locations, frontmatter spec, and PR process.
 
 ---
 
@@ -153,7 +153,7 @@ const result = await db.collections.findOne({ id });
 
 ---
 
-## For Developers & AI Agents
+## For Developers & AI Agents {#for-developers-ai-agents}
 
 This section contains non-negotiable rules. All PRs are checked against these standards before review.
 
@@ -331,9 +331,17 @@ bun run slop
 
 ```
 
-# Run quality gate (915+ tests)
+# Run pre-commit checks (staged files, ~2-3s)
 
-bun run lint && bun run check && bun run test:unit
+bun run gate:fast
+
+# Run pre-push checks (type check + unit tests, ~15-45s)
+
+bun run gate
+
+# Run full CI simulation locally
+
+bun run ci:local
 
 # Run performance audit (if applicable)
 

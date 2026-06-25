@@ -23,18 +23,19 @@ These components power the collection route at `src/routes/(app)/[language]/[...
 
 ## Component Map
 
-| Component                       | File                                 | Role                                                                           |
-| ------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
-| **entry-list**                  | `entry-list.svelte`                  | SSR-backed data table: search, filters, sort, pagination, bulk actions         |
-| **entry-list-multi-button**     | `entry-list-multi-button.svelte`     | Contextual bulk/create action bar + keyboard shortcuts                         |
-| **fields**                      | `fields.svelte`                      | Tabbed entry editor: widgets, revisions, API tab, plugin slots                 |
-| **widget-loader**               | `widget-loader.svelte`               | Async mount wrapper for dynamically imported widget `input.svelte`             |
-| **translation-status**          | `translation-status.svelte`          | Language switcher (view) / per-language progress (edit)                        |
-| **revision-diff-modal**         | `revision-diff-modal.svelte`         | Field-aware revision comparison modal                                          |
-| **schedule-modal**              | `schedule-modal.svelte`              | Future publish/unpublish/delete scheduling (via `modalState`)                  |
-| **workflow-actions**            | `workflow-actions.svelte`            | Workflow state transitions on edit page                                        |
-| **generativecollectiondisplay** | `generativecollectiondisplay.svelte` | AI/json-render layout when `schema.displaySpec` is set                         |
-| **table-controller**            | `table-controller.svelte.ts`         | Optional Svelte 5 runes class for table state (not used by `entry-list` today) |
+| Component                   | File                             | Role                                                                   |
+| --------------------------- | -------------------------------- | ---------------------------------------------------------------------- |
+| **entry-list**              | `entry-list.svelte`              | SSR-backed data table: search, filters, sort, pagination, bulk actions |
+| **entry-list-multi-button** | `entry-list-multi-button.svelte` | Contextual bulk/create action bar + keyboard shortcuts                 |
+| **fields**                  | `fields.svelte`                  | Tabbed entry editor: widgets, revisions, API tab, plugin slots         |
+| **widget-loader**           | `widget-loader.svelte`           | Async mount wrapper for dynamically imported widget `input.svelte`     |
+| **translation-status**      | `translation-status.svelte`      | Language switcher (view) / per-language progress (edit)                |
+| **revision-diff-modal**     | `revision-diff-modal.svelte`     | Field-aware revision comparison modal                                  |
+| **schedule-modal**          | `schedule-modal.svelte`          | Future publish/unpublish/delete scheduling (via `modalState`)          |
+| **workflow-actions**        | `workflow-actions.svelte`        | Workflow state transitions on edit page                                |
+
+| **generativecollectiondisplay** | `generativecollectiondisplay.svelte` | AI/json-render layout when `schema.displaySpec` is set |
+| **table-controller** | `table-controller.svelte.ts` | Optional Svelte 5 runes class for table state (not used by `entry-list` today) |
 
 ## Data Flow (Actual)
 

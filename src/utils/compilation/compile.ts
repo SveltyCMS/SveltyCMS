@@ -9,7 +9,6 @@ import path from "node:path";
 import * as ts from "typescript";
 import os from "node:os";
 import { isValidTenantId } from "../tenant.ts";
-import { getCollectionsPath, getCompiledCollectionsPath } from "../tenant.server.ts";
 import {
   addJsExtensionTransformer,
   aliasResolverTransformer,
@@ -37,6 +36,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     throw new Error(`Invalid tenant ID: ${options.tenantId}`);
   }
 
+  const { getCollectionsPath, getCompiledCollectionsPath } = await import("../tenant.server");
   const userCollections = options.userCollections || getCollectionsPath(options.tenantId);
   const compiledCollections =
     options.compiledCollections || getCompiledCollectionsPath(options.tenantId);
@@ -60,7 +60,18 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
     // 2. Load compilation manifest for high-speed change detection
     const manifest = await loadManifest(compiledCollections);
-    const sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
+    let sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
+
+    // Outside benchmark runtime, never compile test/ fixtures into the live tree
+    const { isBenchmarkArtifact, isBenchmarkRuntime } =
+      await import("@src/routes/setup/preset-collections.server");
+    const { isBenchmarkRelativePath } = await import("@utils/benchmark-paths");
+    if (!isBenchmarkRuntime()) {
+      sourceFiles = sourceFiles.filter((relativePath) => {
+        if (isBenchmarkRelativePath(relativePath)) return false;
+        return !isBenchmarkArtifact(path.basename(relativePath));
+      });
+    }
 
     await createOutputDirectories(sourceFiles, compiledCollections);
 

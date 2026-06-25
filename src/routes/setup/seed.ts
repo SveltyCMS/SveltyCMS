@@ -189,51 +189,51 @@ export const PRESET_COLLECTIONS: Record<string, Schema[]> = {
         },
       ],
     },
-    {
-      _id: "BenchmarkStable",
-      name: "BenchmarkStable",
-      icon: "mdi:database-check",
-      fields: [
-        {
-          db_fieldName: "title",
-          label: "Title",
-          widget: { Name: "Input" },
-          type: "string",
-          required: true,
-        },
-        {
-          db_fieldName: "slug",
-          label: "Slug",
-          widget: { Name: "Input" },
-          type: "string",
-        },
-        {
-          db_fieldName: "content",
-          label: "Content",
-          widget: { Name: "RichText" },
-          type: "string",
-        },
-        {
-          db_fieldName: "count",
-          label: "Count",
-          widget: { Name: "Number" },
-          type: "number",
-        },
-        {
-          db_fieldName: "publishDate",
-          label: "Publish Date",
-          widget: { Name: "DateTime" },
-          type: "string",
-        },
-      ],
-    },
   ],
   demo: [], // Extended by blog preset + demo-specific below
 };
 
-// demo preset = blog collections + additional widget-heavy test collections
+// demo preset = blog collections + benchmark-only collections
 PRESET_COLLECTIONS.demo = [
   ...PRESET_COLLECTIONS.blog!,
+  {
+    _id: "BenchmarkStable",
+    name: "BenchmarkStable",
+    icon: "mdi:database-check",
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+        required: true,
+      },
+      {
+        db_fieldName: "slug",
+        label: "Slug",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+      {
+        db_fieldName: "content",
+        label: "Content",
+        widget: { Name: "RichText" },
+        type: "string",
+      },
+      {
+        db_fieldName: "count",
+        label: "Count",
+        widget: { Name: "Number" },
+        type: "number",
+      },
+      {
+        db_fieldName: "publishDate",
+        label: "Publish Date",
+        widget: { Name: "DateTime" },
+        type: "string",
+      },
+    ],
+  },
   {
     _id: "benchmark_authors",
     name: "benchmark_authors",
@@ -428,8 +428,13 @@ export async function seedPresetCollections(
   preset: string,
   _tenantId?: string | null,
   options?: BaseQueryOptions,
+  writeOptions?: { replaceAll?: boolean },
 ): Promise<Schema[]> {
-  const schemas = PRESET_COLLECTIONS[preset] || PRESET_COLLECTIONS.blog!;
+  const { getWizardPresetSchemas, writePresetCollectionFiles } =
+    await import("./preset-collections.server");
+  const { PRESETS } = await import("./presets");
+
+  const schemas = await getWizardPresetSchemas(preset);
   if (schemas.length === 0) return [];
 
   logger.info(`📦 Seeding ${schemas.length} preset collections (preset: ${preset})...`);
@@ -438,18 +443,25 @@ export async function seedPresetCollections(
     try {
       await dbAdapter.collection.createModel(schema, false, options);
     } catch (err: unknown) {
-      if (
-        (err instanceof Error ? err.message : String(err)).includes("already exists") ||
-        (err instanceof Error ? err.message : String(err)).includes("duplicate")
-      ) {
-        logger.warn(
-          `Preset collection "${schema._id}" createModel warning: ${err instanceof Error ? err.message : String(err)}`,
-        );
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("already exists") || msg.includes("duplicate")) {
+        logger.warn(`Preset collection "${schema._id}" createModel warning: ${msg}`);
+      } else {
+        logger.error(`Preset collection "${schema._id}" createModel failed: ${msg}`, err);
       }
     }
   }
 
   logger.info(`✅ ${schemas.length} preset collections seeded`);
+
+  const presetDef = PRESETS.find((p) => p.id === preset);
+  if (presetDef?.collections?.length) {
+    await writePresetCollectionFiles(presetDef.collections, {
+      replaceAll: writeOptions?.replaceAll ?? false,
+      tenantId: _tenantId,
+    });
+  }
+
   return schemas;
 }
 
@@ -598,7 +610,7 @@ export async function seedCollectionsForSetup(
 
   try {
     // Import the collection scanner directly to avoid content-manager dependency issues during setup phase
-    const contentMod = await import("@src/content/content-service.server");
+    const contentMod = await import("@src/content/engine.server");
     const scanFn =
       contentMod.scanCompiledCollections || (contentMod as any).default?.scanCompiledCollections;
 
@@ -709,9 +721,11 @@ export async function seedCollectionsForSetup(
         updates.push({
           path: node.path,
           changes: {
+            _id: node._id,
             name: node.name,
             nodeType: "category",
             order: 0,
+            parentId: node.parentId,
             translations: [],
           } as any,
         });
@@ -722,6 +736,11 @@ export async function seedCollectionsForSetup(
         if (!schema.path) {
           continue;
         }
+        // Compute parentId from the category path
+        const pathParts = schema.path.split("/").filter(Boolean);
+        // Remove the last segment (collection name) to get parent category path
+        const parentPath = pathParts.slice(0, -1).join("/");
+        const parentId = parentPath ? `/${parentPath}`.replace(/\//g, "_") : null;
         updates.push({
           path: schema.path,
           changes: {
@@ -730,6 +749,7 @@ export async function seedCollectionsForSetup(
             nodeType: "collection",
             order: schema.order || 0,
             icon: schema.icon,
+            parentId: parentId as any,
             translations: schema.translations || [],
             collectionDef: schema,
           } as any,
@@ -915,7 +935,7 @@ export async function initSystemFromSetup(
         await contentSystem.initialize(tenantId, { force: false, transaction: tx }, adapter);
 
         if (isDemoSeed) {
-          const contentMod = await import("@src/content/content-service.server");
+          const contentMod = await import("@src/content/engine.server");
           const scanFn =
             contentMod.scanCompiledCollections ||
             (contentMod as any).default?.scanCompiledCollections;

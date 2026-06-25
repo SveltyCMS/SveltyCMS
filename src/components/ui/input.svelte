@@ -56,11 +56,12 @@ corner-shape angled corners.
     shape = 'round',
     focusColor,
     class: className,
-    id = generatedId,
-    type = "text",
-    inputRef = $bindable<HTMLInputElement | null>(null),
-    ...rest
-  }: Props = $props();
+	    id = generatedId,
+	    type = "text",
+	    ...rest
+	  }: Props = $props();
+
+	  let inputRef = $state<HTMLInputElement | null>(null);
 
   const theme = getThemeContext();
 

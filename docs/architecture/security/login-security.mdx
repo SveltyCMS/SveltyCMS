@@ -61,6 +61,7 @@ To ensure the authentication pages are accessible to all users, the following fi
 - **A1**: Removed `role="button"` from the main `<section>` element.
 - **A2**: Added programmatic focus to the `#twofa-code` input field using `tick()` when Two-Factor Authentication is required (see [2FA documentation](/docs/architecture/security/authentication-system.mdx#4-advanced-security-features)).
 - **A5/P7**: Implemented `prefers-reduced-motion` CSS media queries to disable animations (e.g., the `.wiggle` effect) for users who prefer reduced motion.
+
 - **A6**: Added skip links (`<a href="#signin-form" class="sr-only focus:not-sr-only">Skip to form</a>`) at the top of the authentication forms for keyboard navigation.
 - **A8**: Improved contrast for hint texts by changing `text-surface-500` to `text-surface-600 dark:text-surface-400`.
 - **A9**: Enhanced visual focus indicators by adding `:focus-visible` outline styles to the main section.

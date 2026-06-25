@@ -104,23 +104,25 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 
 ### ✅ All Modules Implemented
 
-| Module           | Status      | Notes                                                |
-| ---------------- | ----------- | ---------------------------------------------------- |
-| `auth.*`         | ✅ Complete | Users, sessions, tokens, roles with compound indexes |
-| `crud.*`         | ✅ Complete | Full CRUD with query builder and batch operations    |
-| `content.*`      | ✅ Complete | Nodes, drafts, revisions with JSONB data storage     |
-| `media.*`        | ✅ Complete | File metadata, folders, thumbnails                   |
-| `batch.*`        | ✅ Complete | Transactional batch operations                       |
-| `performance.*`  | ✅ Complete | Latency tracking and health monitoring               |
-| `tenants.*`      | ✅ Complete | Full CRUD (create, getById, update, delete, list)    |
-| `cleanupExpired` | ✅ Complete | TTL-equivalent cleanup for sessions/tokens           |
-| `versioning`     | ✅ Complete | Atomic `getVersion` and `incrementVersion`           |
+| Module          | Status      | Notes                                                |
+| --------------- | ----------- | ---------------------------------------------------- |
+| `auth.*`        | ✅ Complete | Users, sessions, tokens, roles with compound indexes |
+| `crud.*`        | ✅ Complete | Full CRUD with query builder and batch operations    |
+| `content.*`     | ✅ Complete | Nodes, drafts, revisions with JSONB data storage     |
+| `media.*`       | ✅ Complete | File metadata, folders, thumbnails                   |
+| `batch.*`       | ✅ Complete | Transactional batch operations                       |
+| `performance.*` | ✅ Complete | Latency tracking and health monitoring               |
+
+| `tenants.*` | ✅ Complete | Full CRUD (create, getById, update, delete, list) |
+| `cleanupExpired` | ✅ Complete | TTL-equivalent cleanup for sessions/tokens |
+| `versioning` | ✅ Complete | Atomic `getVersion` and `incrementVersion` |
 
 ### PostgreSQL-Specific Optimizations
 
 - **JSONB** (not JSON): All 20 metadata columns use binary JSONB with efficient containment operators (`@>`, `?`, `?|`)
 - **GIN Indexes**: 5 GIN indexes on high-query JSONB columns (`content_nodes.data`, `content_nodes.metadata`, `media_items.metadata`, `roles.permissions`, `auth_users.roleIds`)
 - **Trigram Search**: High-performance `ilike` searching for media filenames using `pg_trgm` GIN indexes (`media_items_filename_trgm_idx`).
+
 - **`gen_random_uuid()`**: Native UUID generation via pgcrypto extension
 - **Tenants Table**: Full multi-tenancy with quota, usage, and settings JSONB columns
 - **Website Tokens**: `website_tokens` via shared `relational-system.ts` — SHA-256 hash at rest, unique index on `token`, compound `{ tenantId, name }`, parallel list+count. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).

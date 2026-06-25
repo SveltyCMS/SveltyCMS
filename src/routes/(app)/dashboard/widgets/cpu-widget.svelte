@@ -155,7 +155,7 @@ export const widgetMeta = {
 
 						<!-- Data Points (Only in rich layout) -->
 						{#if size.h !== 1}
-							{#each points as p, i}
+							{#each points as p, i (i)}
 								<circle
 									cx={p.x}
 									cy={p.y}

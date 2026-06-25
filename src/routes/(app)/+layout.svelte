@@ -56,6 +56,7 @@ import {
 } from "@utils/layout-state-prefs";
 import { userThemePrefs } from "@src/stores/user-theme-prefs.svelte";
 import { onMount, untrack } from "svelte";
+import { initPredictivePreload } from "@utils/predictive-preload";
 import { registerHotkey } from "@src/utils/hotkeys";
 import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation

@@ -431,6 +431,7 @@ export function getDatabaseConnectionString(): string {
   }
 
   const connectionString = driver.buildConnectionString(config);
+  logger.info(`[DB] Registry resolved database user: ${config.user || "default/empty"}`);
   const masked = connectionString.includes("://")
     ? connectionString.replace(/:([^@]+)@/, ":****@")
     : connectionString;

@@ -1,45 +1,116 @@
+#!/usr/bin/env bun
 /**
  * @file scripts/quality-gate.ts
- * @description Pre-commit quality gate that enforces *exact* 100% CI parity.
+ * @description Pre-push quality gate — medium-weight checks before code reaches remote.
  *
- * The explicit goal is: a commit created on this machine (Windows or Unix) is
- * only allowed if it would have passed the corresponding GitHub Actions jobs.
+ * This is the "Medium Loop" in SveltyCMS's tiered validation pipeline:
  *
- * This gate (plus pre-push) is the mechanism that makes "100% pre-commit safe".
- * Bypassing it locally is considered a serious process violation.
+ *   Fast Loop  (pre-commit)  → lint-staged: format, lint, slop on staged files  ~2-3s
+ *   Medium Loop (pre-push)   → THIS SCRIPT: type check, full unit tests         ~15-45s
+ *   Deep Loop  (CI pipeline) → ci.yml: production build, DB matrix, E2E         ~5-20min
  *
- * The gate literally runs (or very closely approximates) the exact commands
- * required in AGENTS.md and executed by ci.yml + docs-lint.yml.
+ * Runs: format verification, lint, slop scanner, type check, full unit tests.
+ * Does NOT run: production builds, integration tests, E2E (those are CI's job).
+ *
+ * Invoked by: .githooks/pre-push
+ * Manual run: bun run scripts/quality-gate.ts
+ * Skip with: git push --no-verify
+ *
+ * KEY PRINCIPLE: Every static analysis command here matches what CI runs.
+ * Builds and integration/E2E tests are deferred to CI where they run on
+ * deterministic Linux runners with Docker-backed database matrices.
  */
 
 import { spawnSync, execSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { relative, join } from "node:path";
 
 const ROOT = process.cwd();
+const IS_WINDOWS = process.platform === "win32";
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+interface Task {
+  name: string;
+  skip?: boolean | (() => boolean);
+  run: () => boolean | Promise<boolean>;
+  ciJob?: string; // Which CI job this maps to
+}
 
 function runCommand(
   cmd: string,
   args: string[] = [],
-  options: { silent?: boolean; env?: Record<string, string> } = {},
+  options: {
+    silent?: boolean;
+    env?: Record<string, string>;
+    timeout?: number;
+  } = {},
 ): boolean {
   console.log(`   $ ${cmd} ${args.join(" ")}`);
   const result = spawnSync(cmd, args, {
     stdio: options.silent ? "pipe" : "inherit",
-    shell: true,
+    shell: IS_WINDOWS,
     env: options.env ? { ...process.env, ...options.env } : process.env,
     cwd: ROOT,
+    timeout: options.timeout ?? 300_000, // 5min default
   });
-  return result.status === 0;
+
+  if (result.status !== 0) {
+    if (result.error) {
+      console.error(`   Command failed to start: ${result.error.message}`);
+    } else if (result.signal) {
+      console.error(`   Command killed by signal: ${result.signal}`);
+    }
+    return false;
+  }
+  return true;
 }
 
-function getStagedFiles(): string[] {
+function hasUnstagedChanges(): boolean {
   try {
-    return execSync("git diff --cached --name-only --diff-filter=ACMR", {
-      encoding: "utf8",
-      cwd: ROOT,
-    })
-      .trim()
+    execSync("git diff --quiet", { cwd: ROOT, stdio: "pipe" });
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+function getChangedFileExtensions(): Set<string> {
+  try {
+    // Check what file types changed in commits not yet pushed
+    const output = execSync(
+      "git diff --name-only @{u}..HEAD 2>nul || git diff --name-only HEAD~1..HEAD",
+      {
+        encoding: "utf8",
+        cwd: ROOT,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    const exts = new Set<string>();
+    for (const line of output.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const dot = trimmed.lastIndexOf(".");
+      if (dot >= 0) exts.add(trimmed.slice(dot));
+    }
+    return exts;
+  } catch {
+    // If we can't determine, assume everything changed
+    return new Set([".ts", ".js", ".svelte", ".md", ".mdx"]);
+  }
+}
+
+function getChangedPaths(): string[] {
+  try {
+    const output = execSync(
+      "git diff --name-only @{u}..HEAD 2>nul || git diff --name-only HEAD~1..HEAD",
+      {
+        encoding: "utf8",
+        cwd: ROOT,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    return output
       .split("\n")
       .map((f) => f.trim())
       .filter(Boolean);
@@ -48,52 +119,50 @@ function getStagedFiles(): string[] {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
 async function main() {
-  console.log("⚡ Running Quality Gate...\n");
+  console.log("⚡ Running Pre-Push Quality Gate...\n");
 
-  const stagedFiles = getStagedFiles();
-  if (stagedFiles.length === 0) {
-    console.log("⏩ No staged changes.");
-    process.exit(0);
+  const changedExts = getChangedFileExtensions();
+  const changedPaths = getChangedPaths();
+
+  const hasTsOrSvelte =
+    changedExts.has(".ts") || changedExts.has(".js") || changedExts.has(".svelte");
+  const hasAdminTheme = changedPaths.some(
+    (f) => f.startsWith("src/routes/(app)/") && f.endsWith(".svelte"),
+  );
+  const hasDocs = changedExts.has(".md") || changedExts.has(".mdx");
+
+  console.log(`🔎 Changes detected:`);
+  console.log(`   Source files (ts/js/svelte): ${hasTsOrSvelte ? "yes" : "no"}`);
+  console.log(`   Admin theme routes:          ${hasAdminTheme ? "yes" : "no"}`);
+  console.log(`   Documentation:               ${hasDocs ? "yes" : "no"}`);
+  if (changedPaths.length <= 12) {
+    console.log(`   Files: ${changedPaths.join(", ")}`);
+  } else {
+    console.log(`   Files: ${changedPaths.length} changed`);
   }
 
-  console.log(`🔎 Staged files: ${stagedFiles.length}`);
-  if (stagedFiles.length <= 12) {
-    console.log(`   ${stagedFiles.map((f) => relative(ROOT, f)).join(", ")}`);
-  }
+  // -------------------------------------------------------------------------
+  // Task List — static analysis + unit tests (no builds, no integration)
+  // -------------------------------------------------------------------------
 
-  const hasTsOrSvelte = stagedFiles.some((f) => /\.(ts|js|svelte)$/.test(f));
-
-  const changedPaths = {
-    database: stagedFiles.some((f) => f.startsWith("src/databases/")),
-    api: stagedFiles.some((f) => f.startsWith("src/routes/api/")),
-    services: stagedFiles.some((f) => f.startsWith("src/services/")),
-    config: stagedFiles.some((f) => f.startsWith("config/")),
-    integrationTests: stagedFiles.some((f) => f.startsWith("tests/integration/")),
-    scripts: stagedFiles.some((f) => f.startsWith("scripts/")),
-  };
-
-  const shouldRunIntegration = Object.values(changedPaths).some(Boolean);
-  const buildExists = existsSync(join(ROOT, "build/index.js"));
-
-  const tasks = [
+  const tasks: Task[] = [
     {
-      name: "Format",
-      // vite-plus 0.2 reads fmt config from vite.config.ts — no separate config file
-      run: () => runCommand("vp", ["fmt"]),
+      name: "Format Verification",
+      ciJob: "format",
+      run: () => runCommand("bun", ["run", "format"]),
     },
     {
       name: "Post-Format Tree Clean Check",
+      ciJob: "format",
       run: () => {
-        const clean = runCommand("git", ["diff", "--exit-code", "--quiet"]);
-        if (!clean) {
+        if (hasUnstagedChanges()) {
           console.error("\n❌ Working tree is dirty after formatting.");
-          console.error(
-            "   This usually means the formatter made changes that were not re-staged.",
-          );
-          console.error(
-            "   Re-run the pre-commit hook (or manually `git add` the formatted files).",
-          );
+          console.error("   Run 'bun run format' locally, commit the fixes, and retry.");
           return false;
         }
         return true;
@@ -101,82 +170,52 @@ async function main() {
     },
     {
       name: "Slop Scanner",
-      skip: () => !stagedFiles.some((f) => /\.(svelte|ts)$/.test(f)),
-      // Full scan is fast (~2s) and avoids Windows command-line length limits
+      ciJob: "lint",
+      skip: () => !hasTsOrSvelte,
       run: () => runCommand("bun", ["run", "scripts/slop-scanner.ts", "--strict"]),
     },
     {
       name: "Lint (oxlint)",
-      run: () => runCommand("vp", ["lint"]),
+      ciJob: "lint",
+      run: () => runCommand("bun", ["run", "lint"]),
     },
     {
       name: "Admin Theme Lint",
-      skip: () =>
-        !stagedFiles.some((f) => f.startsWith("src/routes/(app)/") && f.endsWith(".svelte")),
+      ciJob: "lint",
+      skip: () => !hasAdminTheme,
       run: () => runCommand("bun", ["run", "lint:admin-theme"]),
     },
     {
-      name: "Type Check",
+      name: "Docs Lint",
+      ciJob: "docs-lint",
+      skip: () => !hasDocs,
+      run: () => runCommand("bun", ["run", "lint:docs"]),
+    },
+    {
+      name: "Type Check (svelte-check)",
+      ciJob: "check",
       skip: !hasTsOrSvelte,
       run: () => runCommand("bun", ["run", "check"]),
     },
     {
-      name: "Full Unit Tests (CI parity)",
+      name: "Full Unit Tests",
+      ciJob: "unit",
       skip: !hasTsOrSvelte,
-      // Run the full test:unit (same as the dedicated CI "unit" job) for true parity.
-      // test-smart.ts is still useful for local speed during active dev but the gate now ensures
-      // the complete suite that GitHub Actions runs on every push.
-      run: () => runCommand("vp", ["test", "run"]),
-    },
-    {
-      name: "Dependency Audit",
-      run: () => {
-        console.log("   (non-blocking — CI enforces this)");
-        const ok = runCommand("bun", ["audit", "--level", "critical"], {
-          silent: true,
-        });
-        if (!ok) console.warn("   ⚠️  Critical vulnerabilities (CI will block PR)");
-        return true;
-      },
-    },
-    {
-      name: "Production Build",
-      skip: !hasTsOrSvelte,
-      run: () =>
-        runCommand("vp", ["build"], {
-          env: { COMPILE_ALL_ADAPTERS: "true" },
-        }),
-    },
-    {
-      name: "Integration Tests (SQLite)",
-      // No longer skipped under PRE_COMMIT. Local pre-commit must exercise the same
-      // black-box integration path (against built server + sqlite) that the CI db-tests
-      // matrix and docs-lint "sanity" step run. This eliminates the "passes locally, fails in GitHub" gap.
-      skip: !shouldRunIntegration,
-      run: () => {
-        if (!buildExists) {
-          console.warn("   ⚠️  Build missing — skipping integration tests");
-          return true;
-        }
-        return runCommand("bun", [
-          "run",
-          "scripts/run-integration-tests.ts",
-          "--db=sqlite",
-          "--no-build",
-        ]);
-      },
+      run: () => runCommand("bun", ["run", "test:unit"]),
     },
   ];
 
-  console.log(
-    `\n🚦 Running ${tasks.filter((t) => !t.skip || (typeof t.skip === "function" ? !t.skip() : true)).length} quality checks...\n`,
-  );
+  const activeTasks = tasks.filter((t) => {
+    if (typeof t.skip === "function") return !t.skip();
+    return !t.skip;
+  });
 
-  for (const task of tasks) {
-    const shouldSkip = typeof task.skip === "function" ? task.skip() : task.skip;
-    if (shouldSkip) continue;
+  console.log(`\n🚦 Running ${activeTasks.length} quality checks...\n`);
 
-    console.log(`▶️  ${task.name}`);
+  const failedTasks: string[] = [];
+
+  for (const task of activeTasks) {
+    console.log(`▶️  ${task.name}${task.ciJob ? ` [maps to CI: ${task.ciJob}]` : ""}`);
     const start = performance.now();
 
     let success = false;
@@ -185,65 +224,38 @@ async function main() {
       success = await result;
     } catch (err) {
       console.error(`\n❌ ${task.name} crashed:`, err);
-      process.exit(1);
+      success = false;
     }
 
     const elapsed = (performance.now() - start).toFixed(0);
     if (!success) {
-      console.error(`\n❌ ${task.name} failed (${elapsed}ms). Fix above before committing.`);
-      process.exit(1);
-    }
-
-    console.log(`✅ ${task.name} passed (${elapsed}ms)\n`);
-  }
-
-  // =============================================================================
-  // FINAL 100% PARITY VERIFICATION (the documented AGENTS.md command)
-  // =============================================================================
-  // Even if the task list above is ever changed, we *always* re-execute the
-  // exact four commands that are required before every push and that CI runs.
-  // This is the "nuclear option" that makes local pre-commit as close to
-  // 100% safe as client-side hooks can be.
-  console.log("\n🔒 FINAL 100% CI PARITY VERIFICATION (AGENTS.md mandatory command)");
-  const parityCommands = [
-    { name: "format", cmd: "bun", args: ["run", "format"] },
-    { name: "lint", cmd: "bun", args: ["run", "lint"] },
-    { name: "check", cmd: "bun", args: ["run", "check"] },
-    { name: "test:unit (full)", cmd: "bun", args: ["run", "test:unit"] },
-    { name: "lint:docs", cmd: "bun", args: ["run", "lint:docs"] },
-    { name: "lint:admin-theme", cmd: "bun", args: ["run", "lint:admin-theme"] },
-  ];
-
-  for (const p of parityCommands) {
-    console.log(`   ▶️  Re-verifying ${p.name} ...`);
-    if (!runCommand(p.cmd, p.args)) {
-      console.error(`\n❌ FINAL PARITY CHECK FAILED on "${p.name}".`);
-      console.error("   This commit is not allowed. Fix and re-run the pre-commit hook.");
-      process.exit(1);
+      console.error(`\n❌ ${task.name} failed (${elapsed}ms). Fix above before pushing.`);
+      failedTasks.push(task.name);
+      // Continue running other tasks to show full picture, but will exit at end
+    } else {
+      console.log(`✅ ${task.name} passed (${elapsed}ms)\n`);
     }
   }
 
-  // Re-stage any files that the final re-verification commands (especially format) may have changed.
-  // This mirrors the re-staging logic in the pre-commit hook.
-  console.log("📦 Re-staging any changes from final parity re-verification...");
-
-  // Stage any working-tree changes produced by the re-run commands (format, etc.)
-  runCommand("git", ["add", "-u"]); // stage modified/deleted
-  runCommand("git", ["add", "."]); // catch new files if any
-
-  // Final tree clean check
-  const finalTreeClean = runCommand("git", ["diff", "--exit-code", "--quiet"]);
-  if (!finalTreeClean) {
-    console.error(
-      "\n❌ FINAL CHECK FAILED: Working tree is not clean after full parity re-verification and re-staging.",
-    );
-    console.error(
-      "   Please inspect `git status` and `git diff`, then re-run the pre-commit hook.",
-    );
+  if (failedTasks.length > 0) {
+    console.error(`\n❌ ${failedTasks.length} task(s) failed:`);
+    for (const name of failedTasks) console.error(`   - ${name}`);
+    console.error("\n   Fix the issues above, commit, and push again.");
+    console.error("   Skip with: git push --no-verify\n");
     process.exit(1);
   }
 
-  console.log("\n✅ 100% local CI parity verified. Commit allowed.\n");
+  // Show what CI will additionally test
+  console.log("\n╔══════════════════════════════════════════════════════════════╗");
+  console.log("║  ✅ Pre-push quality gate passed — safe to push.           ║");
+  console.log("╠══════════════════════════════════════════════════════════════╣");
+  console.log("║  CI will additionally run:                                  ║");
+  console.log("║    🏗️  Production Build (COMPILE_ALL_ADAPTERS)              ║");
+  console.log("║    🧪 DB Matrix (SQLite, MongoDB, MariaDB, PostgreSQL)     ║");
+  console.log("║    🎭 E2E Playwright (sharded, 18 projects)                ║");
+  console.log("║    📊 Benchmarks (on main branch / labeled PRs)            ║");
+  console.log("╚══════════════════════════════════════════════════════════════╝\n");
+
   process.exit(0);
 }
 

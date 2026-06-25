@@ -172,7 +172,7 @@ export const widgetMeta = {
 					class="rounded border border-surface-200 bg-surface-50 px-3 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 					aria-label="Filter by log level"
 				>
-					{#each levels as opt}
+					{#each levels as opt (opt.value)}
 						<option value={opt.value}>{opt.label}</option>
 					{/each}
 				</select>

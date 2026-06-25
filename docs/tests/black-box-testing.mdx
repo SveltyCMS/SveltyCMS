@@ -20,16 +20,11 @@ Some legacy tests still need migration. The CI contract, however, is already cle
 
 ````mermaid
 graph TD
-    classDef testBed fill:#2c3e50,stroke:#34495e,stroke-width:2px,color:white;
-    classDef internal fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:white;
-    classDef server fill:#2980b9,stroke:#3498db,stroke-width:2px,color:white;
-    classDef security fill:#e74c3c,stroke:#c0392b,stroke-width:2px,color:white;
-
-    Runner[Integration Runner <br> 'bun run test:integration']:::testBed
-    GodMode[/God-Mode API: /api/testing\]:::security
-    Login[/Login API: /api/auth/login\]:::server
-    App[SvelteKit API & Pages]:::internal
-    DB[(Database Adapter <br> SQLite/Mongo/SQL)]:::internal
+    Runner[Integration Runner <br> 'bun run test:integration']
+    GodMode[/God-Mode API: /api/testing\]
+    Login[/Login API: /api/auth/login\]
+    App[SvelteKit API & Pages]
+    DB[(Database Adapter <br> SQLite/Mongo/SQL)]
 
     Runner -- 1. Orchestrate Setup & Wipe --> GodMode
     Runner -- 2. Authenticate --> Login
@@ -88,7 +83,7 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 
 - **Dynamic Port Selection**: Tests run on isolated ports to prevent cross-process pollution.
 - **Trend Detection**: Every run automatically compares latency against historical data in `history.jsonl` with visual 🟢/🔴 indicators.
-- **Benchmark Stability**: Implementation of the `BENCHMARK_STABLE` mode and `refreshCollectionsCache()` logic. This ensures that dynamically created benchmark collections are instantly synchronized across the system via zero-latency filesystem-to-store hydration.
+- **Benchmark Stability**: `BENCHMARK_STABLE` mode and `refreshContent({ mode: "schemas" })` keep API-seeded collections (`BenchmarkStable`, `benchmark_authors`) synchronized in the temp DB. Filesystem scan benchmarks use isolated paths under `.compiledCollections/test/` — see [Benchmark Collection Isolation](./benchmark-isolation.mdx).
 - **Auto-Registration**: New benchmark modules automatically register their findings in the MDX technical ledger without manual boilerplate.
 
 ### Available Actions

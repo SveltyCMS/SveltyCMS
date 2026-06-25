@@ -42,7 +42,7 @@ let {
 
 <nav aria-label="Breadcrumb" class={cn('flex py-3', className)}>
 	<ol class="flex items-center space-x-2 text-sm">
-		{#each items as item, i}
+		{#each items as item, i (i)}
 			{const isLast = i === items.length - 1}
 			<li class="flex items-center gap-2">
 				{#if i > 0}

@@ -452,6 +452,31 @@ The marketplace exposes a REST API + License v1 (`POST /api/v1/license/verify`) 
 
 Based on publicly available documentation as of June 2026, **we are not aware of other self-hosted CMS platforms offering server-side behavioral learning, LLM-ready widget code generation, or a hosted marketplace with license verification** — these capabilities are typically SaaS-only with vendor lock-in.
 
+### 3.5 June 23 Content & Media Architecture Consolidation
+
+A focused sprint to eliminate accidental complexity in the content and media subsystems while preserving all features and performance paths.
+
+**Content System (16 files → 9 files, ~200 lines removed)**
+
+- Consolidated 8 scattered modules into `engine.server.ts` (scanner + reconciliation + cache + watcher + CRUD) and `loader.server.ts` (path security + native/pooled schema loading + worker pool).
+- Single `scanCompiledCollections()` shared by Vite and runtime — fixes the old dual-scanner mismatch where Vite used a weaker implementation.
+- Unified `refreshContent({ mode: "full" | "schemas" | "incremental" })` replacing 3 scattered refresh paths.
+- Single `ensureContentInitialized()` init coordinator — stops duplicate `fullReload()` storms under concurrent requests.
+- Dead code removed: unused plugin registry, tracing helpers, `processModule()` stub (~75 lines).
+- `contentSystemBase` de-duplicated between `index.ts` and `index.server.ts` (~90 lines saved, single source of truth).
+- 20 new reconciliation unit tests (`calculateReconciledOperations`, `refreshContent` modes, shared API surface).
+- Benchmark-verified: content scan at **0.008ms** avg (150 files), stress scan at **0.044ms** warm (1,000 files).
+
+**Media System (17 files → 14 files, ~65 duplicate lines removed)**
+
+- Merged 3 duplicate modules into `media-utils.ts`: `api.ts` (fetch wrappers), `media-processing.ts` (filename sanitizer), `mime-utils.ts` (MIME table — expanded from 30 to 65 types with reverse `getExtensionFromMimeType()` lookup).
+- Wired `sharing.ts` into media handler — replaced inline crypto with `createLink()`/`validateLink()` for secure share links with expiry, password protection, IP restrictions, and download limits.
+- Wired `slim-sniffer.server.ts` as binary MIME fallback in upload flow — 2KB native magic-byte detector with zero dependencies.
+- Added 4 DAM API endpoints: bulk download (`GET /api/media/bulk-download`), storage analytics (`GET /api/media/analytics`), version list (`GET /api/media/{id}/version/list`), version compare (`GET /api/media/{id}/version/compare`).
+- Implemented real `parseMultipartStream` in `streaming-upload.ts` — chunk-based multipart parser for multi-GB uploads.
+- 40 new unit tests: sharing (13), media-utils (15), slim-sniffer (12).
+- Benchmark-verified: media upload 10MB at **32.3ms** (310 MB/s), SDK processing at **2.7ms** (319 images/s).
+
 ## 4. Final Sprint Achievements (March 2026)
 
 Having secured the "Engine War" with superior performance and security, SveltyCMS has now closed the **Editorial Depth** gap.

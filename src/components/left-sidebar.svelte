@@ -204,20 +204,28 @@
 
 	async function signOut(): Promise<void> {
 		try {
-			await fetch('/api/user/logout', {
+			let res = await fetch('/api/user/logout', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 					'X-CSRF-Token': page.data.csrfToken
 				}
 			});
+			if (!res.ok && res.status === 403) {
+				await invalidateAll();
+				await new Promise(r => setTimeout(r, 100));
+				await fetch('/api/user/logout', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': page.data.csrfToken
+					}
+				});
+			}
 		} catch (error) {
 			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
 		} finally {
-			// Always redirect to login, even if logout fails
-			if (browser) {
-				window.location.href = '/login';
-			}
+			if (browser) window.location.href = '/login';
 		}
 	}
 
@@ -357,17 +365,48 @@
 				<div class="mx-1 border-0 border-t border-surface-200/30 dark:border-surface-700/30"></div>
 			{/if}
 
-			<!-- 2. Media Gallery -->
-			<div class="{isSidebarFull ? 'space-y-1' : ''}">
+			<!-- 2. Collections -->
+			{#if isSidebarFull}
+			<div class="space-y-1">
+				{#if !currentPath.includes('/collection/')}
+					<Button variant="ghost"
+						type="button"
+						onclick={handleCollectionsClick}
+						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-100/80 dark:hover:bg-surface-700/50 px-2"
+					 aria-label="Toggle collections">
+						<span class="flex items-center gap-1.5">
+							<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							Collections
+						</span>
+						<iconify-icon
+							icon="bi:chevron-down"
+							width="12"
+							class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
+						></iconify-icon>
+					</Button>
+				{/if}
+				{#if isCollectionsOpen && showCollectionsHere}
+					<div class="px-1">
+						<Collections />
+					</div>
+				{/if}
+			</div>
+			<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+			{/if}
+
+			<!-- 3. Media Gallery -->
+			<div class="space-y-1">
+				{#if !currentPath.includes('/mediagallery')}
 				<Button variant="ghost"
 					type="button"
+
 					onclick={() => {
 						goto('/mediagallery');
 						if (isMobile()) {
 							toggleUIElement('leftSidebar', 'collapsed');
 						}
 					}}
-					class="flex w-full items-center justify-between {isSidebarFull ? 'py-2' : 'py-1.5'} text-xs font-bold uppercase tracking-wider rounded bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-100/80 dark:hover:bg-surface-700/50 {isSidebarFull ? 'px-2' : 'justify-center'}"
+					class="flex w-full items-center justify-between {isSidebarFull ? 'py-2' : 'py-1.5'} text-xs font-bold uppercase tracking-wider rounded hover:bg-surface-100/80 dark:hover:bg-surface-700/50 {isSidebarFull ? 'px-2' : 'justify-center'}"
 				>
 					<span class="flex items-center gap-1.5">
 						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -381,6 +420,7 @@
 						></iconify-icon>
 					{/if}
 				</Button>
+				{/if}
 				{#if isMediaOpen}
 					<div class="px-1 {isSidebarFull ? 'space-y-2' : ''}">
 						{#if isSidebarFull && !currentPath.includes('/mediagallery')}

@@ -87,6 +87,7 @@ graph TD
 2. **Database Agnostic**: No database-specific code in core files; adapters implement `IDBAdapter`
 3. **Type Safety**: Full TypeScript support throughout via typed interfaces and Valibot schemas
 4. **Lazy Loading**: Adapters and services initialize only when needed via dynamic `import()`
+
 5. **Graceful Degradation**: System continues working even if optional components fail
 6. **L2 Schema Persistence**: Schemas are cached in the database for instant cold starts
 7. **Elite Performance (2026)**:
@@ -103,7 +104,9 @@ The `src/databases/core` directory provides shared relational utilities, query h
 
 ### Role in the Architecture
 
-The `core` directory is not a centralized security interceptor — tenant isolation, query sanitization, and permission enforcement live inside each adapter's implementation (drizzle helpers, mongo crud-methods), the `forTenant()` wrapper, and higher security layers (safe-query, content-service, API dispatcher). What `core` provides:
+The `core` directory is not a centralized security interceptor — tenant isolation, query sanitization, and permission enforcement live inside each adapter's implementation (drizzle helpers, mongo crud-methods), the `forTenant()` wrapper, and higher security layers (safe-query, content engine, API dispatcher).
+
+What `core` provides:
 
 - **Shared Relational Modules**: `relational-auth.ts`, `relational-content.ts`, `relational-media.ts`, `relational-system.ts` — implement `IAuthAdapter`, `IContentAdapter`, etc. for Drizzle-based engines. Each SQL adapter (PostgreSQL, MariaDB, SQLite) composes these modules. `relational-system.ts` owns `websiteTokens.*` (hash-at-rest, tenant-scoped list/lookup, parallel `getAll`).
 - **Credential Hashing Utility**: `src/utils/security/credential-hash.ts` — `hashCredentialSha256Hex()` shared by SQL and Mongo website-token adapters (Web Crypto, hex output for indexed equality lookups).
@@ -124,7 +127,7 @@ The `core` directory is not a centralized security interceptor — tenant isolat
 **Size**: ~368 lines
 **Complexity**: High - This is the brain of the database layer
 
-### Key Responsibilities
+### Key Responsibilities {#db-ts-responsibilities}
 
 1. **Adapter Loading**: Delegates adapter selection to `db-init.ts:loadAdapters()` which dynamically imports the correct engine based on `DB_TYPE` config
 2. **Connection Management**: `connectDatabaseWithResilience()` during boot; disconnect hooks via `bindAdapterResilienceHooks()`; self-healing proxy via `createSelfHealingProxy` — see [Database Resilience](./database-resilience.mdx)
@@ -277,7 +280,7 @@ export async function reinitializeSystem(): Promise<void>;
 export async function shutdownSystem(): Promise<void>;
 ```
 
-### Usage Examples
+### Usage Examples {#db-ts-usage}
 
 #### In Server Hooks / .server.ts Files (Preferred: LocalCMS)
 
@@ -712,7 +715,7 @@ const posts = await cms.collections.find("posts", { tenantId });
 **Size**: 165 lines
 **Complexity**: Low - Simple singleton service
 
-### Key Responsibilities
+### Key Responsibilities {#theme-manager-responsibilities}
 
 1. **Theme Loading**: Loads themes from database
 2. **Theme Caching**: Caches themes in memory for performance
@@ -864,7 +867,7 @@ export const DEFAULT_THEME: Theme = {
 
 **Why This Matters**: If the database is unavailable (e.g., during setup), the application still has a working theme.
 
-### Usage Examples
+### Usage Examples {#theme-manager-usage}
 
 ```
 // In API routes or components

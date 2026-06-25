@@ -351,7 +351,7 @@
 		{/if}
 
 		{#if !app.headerActionButton}
-			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="p-0! min-w-0">
+			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="rounded-full p-0! min-w-0">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</Button>
 		{/if}

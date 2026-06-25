@@ -22,6 +22,8 @@ This document is the **living TODO list** — only in-progress and planned work.
 
 ## ✅ Recently Completed (June 2026)
 
+- **Content System Consolidation** — 16→9 files (engine.server.ts + loader.server.ts + unified facades). Single scanner, single init coordinator, unified `refreshContent({ mode })`, dead code removed (~200 lines), `contentSystemBase` de-duplicated. 20 new reconciliation unit tests.
+- **Media System Optimization** — 17→14 files. Duplicate MIME tables merged into `media-utils.ts` (65-type DB + reverse lookup). `sharing.ts` wired into media handler (replaced inline crypto with `createLink`/`validateLink`). `slim-sniffer.server.ts` wired as binary MIME fallback in upload flow. 40 new unit tests (sharing, MIME utils, binary sniffer).
 - **Smart Importer v2.1** — 5-step visual wizard (`/config/migration`), unified `import-runner` orchestration, SSE streaming import, delta/PII Pro gates, full CMS media parity (`saveResizedImages`), background job queue (500+ entries).
 - **Auto-scaffold collections** — `collection-scaffold.ts` mirrors Collection Builder pipeline (TS → compile → refresh → `createModel`); wizard Step 3 **Create Collection from Mappings** + auto-provision on import.
 - **Data-driven collection naming** — `infer-collection.ts` derives target collection from source content types (`wp:post_type` → `post`) with manual override in the wizard.
@@ -29,6 +31,12 @@ This document is the **living TODO list** — only in-progress and planned work.
 - **E2E coverage** — WordPress WXR detect, dry-run scaffold UI, full import → API verification (`tests/e2e/helpers/migration-wizard.ts`).
 
 See [Technical Evaluation — Smart Importer](./technical-evaluation-2026.mdx#smart-ai-driven-migration-pro-v21) for full detail.
+
+## 🗄️ Media DAM (Digital Asset Management)
+
+**Wired & Tested**: sharing.ts (secure links), slim-sniffer.server.ts (binary MIME fallback), media-utils.ts (65-type MIME DB), media-processing.server.ts (Sharp hash/metadata/thumbnails), cloud-storage.ts (SSRF-protected S3/R2), media-service.server.ts (upload + dedup + versions), advanced-search.ts (media library modal), webgpu-processor.ts (browser-side), bulk-download.ts (TAR.GZ streaming endpoint), storage-analytics.ts (breakdown/insights/trends endpoint), version-history.ts (list + compare endpoints), streaming-upload.ts (real multipart parser).
+
+**Pending UI Wiring Only** (API endpoints complete): Bulk download archive button, analytics dashboard widget, version diff UI in media details modal, streaming upload handler integration.
 
 ## 🏗️ In Progress
 
@@ -43,6 +51,7 @@ See [Technical Evaluation — Smart Importer](./technical-evaluation-2026.mdx#sm
 - **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare).
 - **AI-Verified Zero-Downtime Deployments**: Visual regression + Lighthouse CI pre-promote.
 - **Autonomous Import Optimization**: Dynamic concurrency for 30k+ row datasets.
+
 - **Per-Content-Type Collection Split** _(planned — v2.1 imports all selected types into one collection; primary type sets the target id)_: When multiple source types are selected (e.g. WordPress `post` + `page`), optionally import into separate SveltyCMS collections instead of today's single primary-type destination.
 - **"Time-Travel" Git-Style Content Branching**: Multi-collection branching with visual diffs.
 - **Decentralized WebGPU Media Engine**: Client-side WASM/WebGPU image processing.
@@ -54,6 +63,7 @@ See [Technical Evaluation — Smart Importer](./technical-evaluation-2026.mdx#sm
 - **Unbending Editorial State Visibility**: Unify draft/published/scheduled states across all views.
 - **Translation Cockpit**: Collection-level targets, glossaries, brand tone, review matrices, HITL gates.
 - **Adaptive Workspaces Theme**: Role-based layouts, density levels, client previews, WCAG 3.0/APCA.
+
 - **OAuth 2.1 for MCP**: Dynamic client registration, scoped permissions, consent dialogs, agent trace logging.
 - **Deep JSON/Object Field Filtering**: Path-based SQL/NoSQL filtering across REST, GraphQL, LocalCMS.
 - **AI Command Bar Guardrails**: Permission-aware gating, diff previews, audit logging.

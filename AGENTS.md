@@ -83,15 +83,22 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
 ## Technical Standards
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
-- **Code Quality**: Ensure 100% CI parity by running `bun run format && bun run lint && bun run check && bun run test:unit` before every push. This performs comprehensive formatting (oxfmt), linting (oxlint), type checking (svelte-check), and executes all 915+ unit tests via Vitest with full jsdom environment for white-box testing.
+- **Code Quality**: SveltyCMS uses a **tiered validation pipeline**. Developers do NOT need to manually run the full chain — git hooks handle it automatically:
+  - **Pre-commit** (`git commit`): `lint-staged` runs format, lint, and slop scanner on **staged files only** (~2-3s)
+  - **Pre-push** (`git push`): `quality-gate.ts` runs full type checking (svelte-check) and all 915+ unit tests (~15-45s)
+  - **CI** (GitHub PR): Production build, DB matrix (4 adapters), E2E Playwright (18 projects), benchmarks
+  - Manual: `bun run gate:fast` (pre-commit checks), `bun run gate` (pre-push checks), `bun run ci:local` (full CI simulation)
 
-| Category          | Convention           | Examples                                                 |
-| :---------------- | :------------------- | :------------------------------------------------------- |
-| **Naming**        | `camelCase`          | `dbAdapter`, `loadSettings` (logic, variables, props)    |
-|                   | `PascalCase`         | `Auth`, `MediaService` (types, interfaces, classes)      |
-|                   | `kebab-case`         | `user-avatar.svelte`, `auth-service.ts` (files, folders) |
-|                   | `UPPER_SNAKE_CASE`   | `DB_TYPE`, `DEFAULT_THEME` (global constants)            |
-| **Documentation** | **Mandatory Header** | `@file`, `@description`, `Features:`                     |
+| Category          | Convention           | Examples                                                                         |
+| :---------------- | :------------------- | :------------------------------------------------------------------------------- |
+| **Naming**        | `camelCase`          | `dbAdapter`, `loadSettings` (logic, variables, props)                            |
+|                   | `PascalCase`         | `Auth`, `MediaService` (types, interfaces, classes)                              |
+|                   | **`kebab-case`**     | `user-avatar.svelte`, `auth-service.ts` (**all** files, folders — no exceptions) |
+|                   | `UPPER_SNAKE_CASE`   | `DB_TYPE`, `DEFAULT_THEME` (global constants)                                    |
+| **Documentation** | **Mandatory Header** | `@file`, `@description`, `Features:`                                             |
+
+> [!CAUTION]
+> **All files and folders MUST use kebab-case.** PascalCase filenames (e.g. `ConfigTile.svelte`) will fail on Linux CI runners because the filesystem is case-sensitive. Windows may mask this issue, but CI will reject it. Run `bun run slop` to scan for violations.
 
 > [!IMPORTANT]
 > **Comprehensive Headers**: Headers MUST be readable and provide full context. Avoid single-line compression for complex modules. If the header need to be informative about the code file, use the standard format.
@@ -452,6 +459,39 @@ bun remove drizzle-orm && bun add drizzle-orm
 ```
 
 **Note**: The `repair:drizzle` script automates this for drizzle-orm specifically.
+
+### 5. `bun:test` Imports Fail Under Quality Gate (Vitest Runner)
+
+**The Problem**: The pre-commit quality gate runs `vp test run` (Vitest), not `bun test`. Test files that import from `"bun:test"` fail with "Cannot find package 'bun:test'".
+
+**Symptoms**:
+
+- `bun test tests/unit/foo.test.ts` passes
+- `bun run test:unit` (or pre-commit gate) fails with `Cannot find package 'bun:test'`
+
+**Fix — ALWAYS use `"vitest"` imports**:
+
+```typescript
+// ❌ WRONG — fails under Vitest runner
+import { describe, expect, it } from "bun:test";
+
+// ✅ CORRECT — works under both bun test and vitest
+import { describe, expect, it } from "vitest";
+```
+
+**For Bun-only APIs (`bun:sqlite`, etc.)**: Guard with `typeof Bun !== "undefined"` and skip the test when Bun is unavailable.
+
+```typescript
+const isBun = typeof Bun !== "undefined";
+
+it("uses bun:sqlite", async () => {
+  if (!isBun) return; // Skip under Vitest/Node
+  const { Database } = await import("bun:sqlite");
+  // ...
+});
+```
+
+**Note**: The `tests/unit/bun-preload.ts` provides a `vi` shim for Bun's test runner, making vitest-compatible code work under `bun test`. Always write tests for vitest.
 
 ## Project Structure
 

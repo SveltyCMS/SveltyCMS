@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/tags/input.svelte
 @component
 **Interactive Chip-based Tags Input**
@@ -23,7 +23,7 @@
 
 	let inputValue = $state('');
 	let isTouched = $state(false);
-	
+
 	const fieldName = $derived(getFieldName(field));
 	const validationError = $derived(validationStore.getError(fieldName));
 	const validationSchema = $derived(createValidationSchema(field as any));
@@ -41,9 +41,9 @@
 		if (!trimmed) return;
 
 		const currentTags = Array.isArray(value) ? [...value] : [];
-		
+
 		// Duplicate check
-		if (!field.allowDuplicates && currentTags.some(t => 
+		if (!field.allowDuplicates && currentTags.some(t =>
 			field.caseSensitive ? t === trimmed : t.toLowerCase() === trimmed.toLowerCase()
 		)) {
 			inputValue = '';
@@ -80,19 +80,19 @@
 </script>
 
 <div class="space-y-2">
-	<div 
+	<div
 		role="button"
 		tabindex="0"
-		class="flex min-h-[42px] w-full flex-wrap items-center gap-2 rounded border border-surface-300 bg-surface-50 p-2 transition-all focus-within:ring-2 focus-within:ring-primary-500 dark:border-surface-600 dark:bg-surface-900 {validationError ? 'border-error-500' : ''}"
+		class="flex min-h-10.5 w-full flex-wrap items-center gap-2 rounded border border-surface-300 bg-surface-50 p-2 transition-all focus-within:ring-2 focus-within:ring-primary-500 dark:border-surface-600 dark:bg-surface-900 {validationError ? 'border-error-500' : ''}"
 		onclick={() => document.getElementById(`${fieldName}-input`)?.focus()}
 		onkeydown={(e) => { if (e.key === 'Enter') document.getElementById(`${fieldName}-input`)?.focus(); }}
 	>
 		{#if Array.isArray(value)}
-			{#each value as tag, i}
+			{#each value as tag, i (i)}
 				<Badge variant="primary" size="sm" class="flex items-center gap-1 ps-2! pe-1! py-1!">
 					{tag}
-					<Button variant="ghost" 
-						type="button" 
+					<Button variant="ghost"
+						type="button"
 						onclick={(e: MouseEvent) => { e.stopPropagation(); removeTag(i); }}
 						aria-label={`Remove tag ${tag}`}
 					 class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-error-500">
@@ -109,7 +109,7 @@
 			onkeydown={handleKeyDown}
 			onblur={() => { isTouched = true; validate(); }}
 			placeholder={value && value.length > 0 ? '' : (String(field.placeholder || '') || 'Add tag...')}
-			class="bg-transparent border-none focus:ring-0 flex-1 min-w-[120px] p-0"
+			class="bg-transparent border-none focus:ring-0 flex-1 min-w-30 p-0"
 		/>
 	</div>
 

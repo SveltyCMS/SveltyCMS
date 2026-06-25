@@ -185,7 +185,7 @@ function selectNode(id: string) {
 
 						<!-- Outgoing Transitions -->
 						<div class="mt-4 space-y-1">
-							{#each transitions.filter(t => t.from === state.id) as trans}
+							{#each transitions.filter(t => t.from === state.id) as trans (trans.id)}
 								<button
                                     class="flex w-full items-center justify-between rounded border bg-surface-50 p-1.5 text-start text-[10px] dark:bg-surface-900
                                            {selectedTransitionId === trans.id ? 'border-primary-500 ring-1 ring-primary-500/50' : 'border-surface-200/50 hover:border-surface-400'}"

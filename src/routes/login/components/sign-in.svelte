@@ -1,5 +1,5 @@
 <!--
-@file src/routes/login/components/SignIn.svelte
+@file src/routes/login/components/sign-in.svelte
 @component
 **SignIn component with OAuth support**
 
@@ -153,8 +153,8 @@ function wiggle(el: HTMLFormElement | null) {
 
 const loginForm = new Form({ email: "", password: "", isToken: false }, loginFormSchema);
 
-async function handleLoginSubmit(event: Event) {
-	event.preventDefault();
+	async function handleLoginSubmit(event: Event) {
+		event.preventDefault();
 	if (loginForm.data.email) {
 		loginForm.data.email = loginForm.data.email.toLowerCase();
 	}
@@ -600,9 +600,10 @@ $effect(() => {
 				{#if !P_WFORGOT && !P_WRESET && !P_WMAGIC}
 					<div class:hidden={requires2FA}>
 						<form
-							id="signin-form"
 							method="POST"
+							action="?/signIn"
 							onsubmit={handleLoginSubmit}
+							id="signin-form"
 							bind:this={loginFormElement}
 							class="flex w-full flex-col gap-3"
 							class:hide={active !== 0}
@@ -646,18 +647,19 @@ $effect(() => {
 								invalid={!!loginForm.errors.password}
 								errorMessage={loginForm.errors.password?.[0] || ''}
 							/>
+							<button type="submit" class="hidden" aria-hidden="true">Sign in</button>
 						</form>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<div class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto">
 								<Button
-									type="submit"
-									form="signin-form"
+									type="button"
 									variant="surface"
 									class="w-full sm:w-auto"
 									aria-label={form_signin()}
 									data-testid="signin-submit"
 									loading={isSubmitting || isAuthenticating}
+									onclick={handleLoginSubmit}
 								>
 									{form_signin()}
 								</Button>
@@ -666,6 +668,7 @@ $effect(() => {
 							</div>
 
 							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto gap-2">
+								{#if pageData.showPasskey}
 								<Button
 									type="button"
 									variant="outline"
@@ -676,6 +679,8 @@ $effect(() => {
 								>
 									Passkey
 								</Button>
+								{/if}
+								{#if pageData.showMagicLink}
 								<Button
 									type="button"
 									variant="outline"
@@ -685,6 +690,7 @@ $effect(() => {
 								>
 									Magic Link
 								</Button>
+								{/if}
 								<Button
 									type="button"
 									variant="outline"

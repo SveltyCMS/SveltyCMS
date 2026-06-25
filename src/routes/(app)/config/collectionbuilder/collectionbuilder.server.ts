@@ -10,6 +10,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { error, fail } from "@sveltejs/kit";
 import { contentSystem } from "@src/content/index.server";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
+import { setCollectionOrder } from "@utils/collection-order.server";
 import { logger } from "@utils/logger";
 import path from "node:path";
 import fs from "node:fs";
@@ -48,6 +49,20 @@ export async function saveContentStructure(event: RequestEvent, operations: Upse
     await contentSystem.upsertContentNodes(operations as any, tenantId);
     await contentSystem.refresh(tenantId);
     const updated = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+
+    // Sync collection order to manifest so sidebar reflects builder changes
+    try {
+      const orderMap: Record<string, number> = {};
+      for (const node of (updated as any[]) || []) {
+        if (node.nodeType === "collection" && node._id) {
+          orderMap[String(node._id)] = node.order ?? 0;
+        }
+      }
+      await setCollectionOrder(orderMap, tenantId as string | null);
+    } catch {
+      /* non-critical */
+    }
+
     return { success: true, contentStructure: updated };
   } catch (err) {
     logger.error("Error saving structure:", err);
@@ -171,21 +186,50 @@ export async function installPreset(event: RequestEvent, presetId: string) {
 
   if (!presetId || presetId === "blank") return fail(400, { message: "Invalid preset ID" });
 
-  const presetDir = path.resolve(process.cwd(), "src", "presets", presetId);
-  const expectedBase = path.resolve(process.cwd(), "src", "presets");
+  // Use presets.ts data — single source of truth for all preset definitions
+  const { PRESETS } = await import("@src/routes/setup/presets");
+  const preset = PRESETS.find((p) => p.id === presetId);
 
-  if (!presetDir.startsWith(expectedBase) || !fs.existsSync(presetDir))
-    return fail(404, { message: "Preset not found" });
+  if (!preset || !preset.collections || preset.collections.length === 0) {
+    return fail(404, {
+      message: `No collections defined for preset "${presetId}"`,
+    });
+  }
 
-  const targetDir = tenantId
+  const collectionsDir = tenantId
     ? path.resolve(process.cwd(), "config", tenantId, "collections")
     : path.resolve(process.cwd(), "config", "collections");
 
-  fs.mkdirSync(targetDir, { recursive: true });
-  fs.cpSync(presetDir, targetDir, { recursive: true, force: true });
+  fs.mkdirSync(collectionsDir, { recursive: true });
+
+  const created: string[] = [];
+  const { generateCollectionFileContent } =
+    await import("@src/routes/setup/preset-collections.server");
+
+  for (const collection of preset.collections) {
+    const tsContent = generateCollectionFileContent(collection);
+    const filePath = path.join(collectionsDir, `${collection.name}.ts`);
+    fs.writeFileSync(filePath, tsContent, "utf-8");
+    created.push(collection.name);
+    logger.info(`Created collection template: ${collection.name}`);
+  }
+
+  // Compile the new .ts files so the content system can load them
+  const { compile } = await import("@src/utils/compilation/compile");
+  const compiledDir = tenantId
+    ? path.resolve(process.cwd(), ".compiledCollections", tenantId)
+    : path.resolve(process.cwd(), ".compiledCollections");
+  await compile({
+    userCollections: collectionsDir,
+    compiledCollections: compiledDir,
+  });
 
   await contentSystem.refresh(tenantId);
-  return { success: true, message: `Preset ${presetId} installed` };
+  return {
+    success: true,
+    message: `Created ${created.length} collections: ${created.join(", ")}`,
+    collections: created,
+  };
 }
 
 /**
@@ -217,13 +261,26 @@ export async function installTemplateCollections(event: RequestEvent, presetId: 
 
   const created: string[] = [];
 
+  const { generateCollectionFileContent } =
+    await import("@src/routes/setup/preset-collections.server");
+
   for (const collection of preset.collections) {
-    const tsContent = generateCollectionTemplate(collection);
+    const tsContent = generateCollectionFileContent(collection);
     const filePath = path.join(collectionsDir, `${collection.name}.ts`);
     fs.writeFileSync(filePath, tsContent, "utf-8");
     created.push(collection.name);
     logger.info(`Created collection template: ${collection.name}`);
   }
+
+  // Compile the new .ts files to .compiledCollections/ so the content system can load them
+  const { compile } = await import("@src/utils/compilation/compile");
+  const compiledDir = tenantId
+    ? path.resolve(process.cwd(), ".compiledCollections", tenantId)
+    : path.resolve(process.cwd(), ".compiledCollections");
+  await compile({
+    userCollections: collectionsDir,
+    compiledCollections: compiledDir,
+  });
 
   // Trigger content system refresh to pick up the new collections
   await contentSystem.refresh(tenantId);
@@ -233,63 +290,4 @@ export async function installTemplateCollections(event: RequestEvent, presetId: 
     message: `Created ${created.length} collections: ${created.join(", ")}`,
     collections: created,
   };
-}
-
-/**
- * Generates a TypeScript collection definition file from a CollectionPreset template.
- */
-function generateCollectionTemplate(collection: {
-  name: string;
-  label: string;
-  description: string;
-  fields: Array<{
-    db_fieldName: string;
-    label: string;
-    widget: string;
-    required: boolean;
-    translated: boolean;
-    helper: string;
-    default?: unknown;
-    options?: string[];
-  }>;
-}): string {
-  const fieldEntries = collection.fields
-    .map((f) => {
-      const parts: string[] = [];
-      parts.push(`      ${f.db_fieldName}: widgets.${f.widget}({`);
-      parts.push(`        label: "${f.label}",`);
-      if (f.required) parts.push(`        required: true,`);
-      if (f.translated) parts.push(`        translated: true,`);
-      parts.push(`        helper: "${f.helper}",`);
-      if (f.default !== undefined)
-        parts.push(
-          `        default: ${typeof f.default === "string" ? `"${f.default}"` : f.default},`,
-        );
-      if (f.options && f.options.length > 0) {
-        if (f.options.includes("multiple")) {
-          parts.push(`        multiple: true,`);
-        }
-      }
-      parts.push(`      }),`);
-      return parts.join("\n");
-    })
-    .join("\n");
-
-  return `/**
- * @file config/collections/${collection.name}.ts
- * @description ${collection.label} — ${collection.description}
- * Auto-generated from Quick-Start Template.
- */
-
-import { widgets } from "@src/widgets";
-
-export default {
-  name: "${collection.name}",
-  label: "${collection.label}",
-  description: "${collection.description}",
-  fields: [
-${fieldEntries}
-  ],
-};
-`;
 }

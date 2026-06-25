@@ -406,11 +406,3 @@ export function buildRawTenantFilter(
   if (dialect === "mysql") return ` AND \`tenantId\` = '${id}'`;
   return ` AND "tenantId" = '${id}'`;
 }
-
-// Pre-register all system table schemas for optimal row conversion.
-// Uses dynamic import to avoid circular dependency with drizzle-sql-helpers.
-import("./drizzle-sql-helpers").then(({ SYSTEM_LITERAL_COLUMNS }) => {
-  for (const [tableName, columns] of Object.entries(SYSTEM_LITERAL_COLUMNS)) {
-    registerTableSchema(tableName, columns as string[]);
-  }
-});

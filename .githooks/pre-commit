@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit Quality Gate — CI parity (format → lint → check →
-# unit → build → integration)
+# SveltyCMS Pre-Commit — Fast Loop (~2-3s)
 # =============================================================================
-# Matches the CI pipeline. Only run what changed since the last commit.
-# E2E tests are deferred to pre-push (too slow for every commit).
+# Runs lint-staged: format, lint, and slop scan on STAGED FILES ONLY.
+# Heavy checks (type check, unit tests) are deferred to pre-push.
+# Production builds and integration tests are CI-only.
 #
 # Skip with: git commit --no-verify
 # =============================================================================
@@ -17,54 +17,8 @@ fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║           SveltyCMS Pre-Commit Quality Gate                  ║"
+echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-echo "▶️  Format"
-bun run format
-
-# Re-stage files modified by formatter
-staged_after_fix=$(git diff --cached --name-only --diff-filter=ACMR || true)
-if [ -n "$staged_after_fix" ]; then
-    printf '%s\n' "$staged_after_fix" | while IFS= read -r file; do
-        if [ -f "$file" ]; then git add "$file"; fi
-    done
-fi
-
-if ! git diff --exit-code --quiet; then
-    echo "❌ Working tree is dirty after formatting. Re-stage and try again."
-    exit 1
-fi
-echo "   ✓ Format passed."
-echo ""
-
-echo "▶️  Lint"
-bun run lint
-echo "   ✓ Lint passed."
-echo ""
-
-echo "▶️  Type Check"
-bun run check
-echo "   ✓ Type check passed."
-echo ""
-
-echo "▶️  Unit Tests"
-bun run test:unit
-echo "   ✓ Unit tests passed."
-echo ""
-
-echo "▶️  Build"
-bun run build
-echo "   ✓ Build passed."
-echo ""
-
-echo "▶️  Integration Tests (SQLite)"
-bun run scripts/run-integration-tests.ts --db=sqlite --no-build
-echo "   ✓ Integration tests passed."
-echo ""
-
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  ✅ All CI gates passed. Run 'git push' for E2E validation.  ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
-echo ""
+bun x lint-staged

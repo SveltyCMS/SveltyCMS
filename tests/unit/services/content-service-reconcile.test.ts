@@ -47,10 +47,11 @@ vi.mock("../../../src/utils/event-bus", () => ({
   },
 }));
 
-vi.mock("../../../src/content/module-processor.server", () => ({
+vi.mock("../../../src/content/loader.server", () => ({
   loadSchema: vi.fn(),
   loadSchemaNative: vi.fn(),
   generateSchemaHash: vi.fn(() => "abc-hash"),
+  isSafeCollectionPath: vi.fn(() => true),
 }));
 
 describe("ContentService - Incremental Reconciliation", () => {
@@ -58,12 +59,12 @@ describe("ContentService - Incremental Reconciliation", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const module = await import("../../../src/content/content-service.server");
+    const module = await import("../../../src/content/engine.server");
     contentService = module.contentService;
   });
 
   it("should perform a surgical update when a single file changes", async () => {
-    const { loadSchema } = await import("../../../src/content/module-processor.server");
+    const { loadSchema } = await import("../../../src/content/loader.server");
 
     const { contentStore } = await import("../../../src/stores/content-store.svelte");
     const { eventBus } = await import("../../../src/utils/event-bus");
@@ -118,7 +119,7 @@ describe("ContentService - Incremental Reconciliation", () => {
 
   it("should skip processing if file hash matches cache (HMR optimization)", async () => {
     const { cacheService } = await import("../../../src/databases/cache/cache-service");
-    const { loadSchema } = await import("../../../src/content/module-processor.server");
+    const { loadSchema } = await import("../../../src/content/loader.server");
     const fs = (await import("node:fs/promises")).default;
 
     (fs.stat as any).mockResolvedValue({ mtimeMs: 12345 });

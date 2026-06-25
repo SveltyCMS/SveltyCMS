@@ -114,14 +114,14 @@ async function handleContentRefresh(event: RequestEvent, cms: LocalCMS, tenantId
 
 /**
  * Smart collections refresh that preserves API-injected collections.
- * Uses refreshCollectionsCache instead of cms.collections.refresh to avoid
+ * Uses refreshContent(schemas) instead of cms.collections.refresh to avoid
  * clearing all tenant buckets (which would destroy dynamic/benchmark schemas).
  */
 async function handleCollectionsRefresh(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
-  const { refreshCollectionsCache } = await import("@src/content/content-service.server");
+  const { refreshContent } = await import("@src/content/engine.server");
   const { getDb } = await import("@src/databases/db");
 
-  await refreshCollectionsCache(tenantId, getDb() || undefined);
+  await refreshContent(tenantId, { mode: "schemas", adapter: getDb() || undefined });
 
   const list = await cms.collections.list({ tenantId, includeFields: true });
   return successResponse(event, {

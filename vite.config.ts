@@ -39,9 +39,8 @@ import realtime from "svelte-realtime/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
-import { compile } from "./src/utils/compilation/compile.ts";
-import { isSetupComplete } from "./src/utils/setup-check-fast.ts";
-import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
+import { isSetupComplete } from "./src/utils/setup-check-fast";
+import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -292,6 +291,7 @@ async function initializeCollectionsStructure() {
     if (process.env.BENCHMARK_DEBUG === "true") {
       log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
     }
+    const { compile } = await import("./src/utils/compilation/compile");
     await compile({
       userCollections: paths.userCollections,
       compiledCollections: paths.compiledCollections,
@@ -413,9 +413,9 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/auth/permissions.ts",
     "/src/databases/cache/redis-store.ts",
     "/src/databases/cache/inmemory-store.ts",
-    "/src/content/content-service.server.ts",
-    "/src/content/content-watcher.server.ts",
-    "/src/content/module-processor.server.ts",
+    "/src/content/engine.server.ts",
+    "/src/content/engine.server.ts",
+    "/src/content/loader.server.ts",
     "/src/components/emails/",
     "/src/services/security/audit-service.ts",
     "/src/databases/sqlite/adapter-core.ts",
@@ -510,7 +510,7 @@ function sveltyCmsPlugin(): Plugin {
   let compileTimeout: NodeJS.Timeout;
   let widgetTimeout: NodeJS.Timeout;
 
-  const handleHmr = async (server: ViteDevServer, file: string) => {
+  const handleHmr = async (server: ViteDevServer, file: string, event: string = "change") => {
     // Use absolute paths for comparison to avoid Windows issues
     const absoluteFile = path.resolve(file);
     const isCollectionFile =
@@ -543,10 +543,13 @@ function sveltyCmsPlugin(): Plugin {
       compileTimeout = setTimeout(async () => {
         log.info("Collection change detected. Recompiling...");
         try {
+          const { compile } = await import("./src/utils/compilation/compile");
           await compile({
             userCollections: paths.userCollections,
             compiledCollections: paths.compiledCollections,
             targetFile: file,
+            // On file deletion, skip targetFile so orphan cleanup runs
+            ...(event === "unlink" ? { targetFile: undefined } : {}),
           });
           log.success(`Re-compilation successful for ${path.basename(file)}!`);
 
@@ -559,7 +562,7 @@ function sveltyCmsPlugin(): Plugin {
               );
               if (dbAdapter?.collection) {
                 const { scanCompiledCollections } = await server.ssrLoadModule(
-                  path.join(CWD, "src/content/content-reconciler/scan-files.server.ts"),
+                  path.join(CWD, "src/content/engine.server.ts"),
                 );
                 const collections = await scanCompiledCollections();
                 log.info(`Found ${collections.length} collections, registering models...`);
@@ -576,7 +579,7 @@ function sveltyCmsPlugin(): Plugin {
           }
 
           const { generateContentTypes } = await server.ssrLoadModule(
-            path.join(CWD, "src/content/vite.ts"),
+            path.join(CWD, "scripts/generate-content-types.ts"),
           );
           await generateContentTypes(server);
           // Send targeted content-structure update instead of full-reload
@@ -654,7 +657,7 @@ function sveltyCmsPlugin(): Plugin {
       // Watch for changes regardless of setup status
       server.watcher.on("all", (event, file) => {
         if (event === "add" || event === "change" || event === "unlink") {
-          handleHmr(server, file);
+          handleHmr(server, file, event);
         }
       });
 

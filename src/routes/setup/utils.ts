@@ -79,7 +79,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 export async function getSetupDatabaseAdapter(
   config: DatabaseConfig,
-  options: { createIfMissing?: boolean } = {},
+  options: { createIfMissing?: boolean; skipModuleInit?: boolean } = {},
 ): Promise<{
   dbAdapter: IDBAdapter;
   connectionString: string;
@@ -215,25 +215,28 @@ export async function getSetupDatabaseAdapter(
 
     logger.info(`✅ Database connected: ${config.type}`);
 
-    // Initialize all database modules
-    if (dbAdapter.ensureAuth) {
-      logger.info("🛠️ Step 1: Initializing Auth module...");
-      await dbAdapter.ensureAuth();
-    }
-    if (dbAdapter.ensureSystem) {
-      logger.info("🛠️ Step 2: Initializing System module...");
-      await dbAdapter.ensureSystem();
-    }
-    if (dbAdapter.ensureCollections) {
-      logger.info("🛠️ Step 3: Initializing Collections module...");
-      await dbAdapter.ensureCollections();
-    }
-    if (dbAdapter.ensureContent) {
-      logger.info("🛠️ Step 4: Initializing Content module...");
-      await dbAdapter.ensureContent();
-    }
-    if (dbAdapter.auth?.setupAuthModels) {
-      await dbAdapter.auth.setupAuthModels();
+    // Initialize all database modules (skip during connection test to avoid
+    // populating the DB before isEmpty() check)
+    if (!options.skipModuleInit) {
+      if (dbAdapter.ensureAuth) {
+        logger.info("🛠️ Step 1: Initializing Auth module...");
+        await dbAdapter.ensureAuth();
+      }
+      if (dbAdapter.ensureSystem) {
+        logger.info("🛠️ Step 2: Initializing System module...");
+        await dbAdapter.ensureSystem();
+      }
+      if (dbAdapter.ensureCollections) {
+        logger.info("🛠️ Step 3: Initializing Collections module...");
+        await dbAdapter.ensureCollections();
+      }
+      if (dbAdapter.ensureContent) {
+        logger.info("🛠️ Step 4: Initializing Content module...");
+        await dbAdapter.ensureContent();
+      }
+      if (dbAdapter.auth?.setupAuthModels) {
+        await dbAdapter.auth.setupAuthModels();
+      }
     }
 
     return { dbAdapter: dbAdapter!, connectionString };

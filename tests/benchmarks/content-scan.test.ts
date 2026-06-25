@@ -20,25 +20,28 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
+import {
+  cleanupBenchmarkCompiledWorkspace,
+  prepareBenchmarkCompiledWorkspace,
+} from "@utils/benchmark-paths";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const COLLECTIONS_DIR = path.resolve(process.cwd(), ".compiledCollections");
+const WORKSPACE = "scan";
 const TARGET_FILE_COUNT = parseInt(process.env.BENCHMARK_SCAN_FILES || "150", 10);
 
 async function cleanupMockFiles() {
-  await fs.rm(COLLECTIONS_DIR, { recursive: true, force: true }).catch(() => {});
-  await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
+  await cleanupBenchmarkCompiledWorkspace(WORKSPACE);
 }
 
 async function prepareRealisticScanEnvironment() {
   console.log(`📂 Preparing realistic content scan environment (${TARGET_FILE_COUNT} files)...`);
 
-  await cleanupMockFiles();
+  const { compiled: scanRoot } = await prepareBenchmarkCompiledWorkspace(WORKSPACE);
 
   for (let i = 0; i < TARGET_FILE_COUNT; i++) {
     const subDir = i % 7 === 0 ? "nested/deep" : i % 3 === 0 ? "nested" : "";
-    const dir = path.join(COLLECTIONS_DIR, subDir);
+    const dir = path.join(scanRoot, subDir);
     await fs.mkdir(dir, { recursive: true });
 
     const fileName = `mock_collection_${i}.js`;

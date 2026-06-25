@@ -37,26 +37,32 @@ vi.mock("@src/content/index.server", () => ({
   },
 }));
 
-vi.mock("@src/content/content-service.server", () => ({
-  contentService: {
-    getContentStructureFromDatabase: vi.fn().mockResolvedValue([
-      {
-        nodeType: "collection",
-        collectionDef: {
-          _id: "Posts",
-          name: "Posts",
-          fields: [
-            { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, translated: true },
-            {
-              db_fieldName: "views",
-              label: "Views",
-              widget: { Name: "Number" },
-              translated: false,
+vi.mock("@src/services/system/api-spec-service", () => ({
+  apiSpecService: {
+    generateFullSpec: vi.fn().mockResolvedValue({
+      openapi: "3.1.0",
+      info: { title: "SveltyCMS API" },
+      paths: {
+        "/collections/Posts": {
+          get: { operationId: "collections.Posts.list" },
+          post: { operationId: "collections.Posts.create" },
+        },
+        "/system/health": { get: { operationId: "system.health" } },
+        "/auth/login": { post: { operationId: "auth.login" } },
+        "/media/upload": { post: { operationId: "media.upload" } },
+      },
+      components: {
+        schemas: {
+          Collection_Posts: {
+            properties: {
+              title: { type: "object", example: { en: "Hello" } },
+              views: { type: "number", example: 42 },
             },
-          ],
+          },
         },
       },
-    ]),
+    }),
+    invalidateCache: vi.fn(),
   },
 }));
 

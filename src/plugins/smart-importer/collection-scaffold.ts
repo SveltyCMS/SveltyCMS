@@ -155,7 +155,7 @@ export async function provisionCollectionFromMappings(
     fs.writeFileSync(filePath, generateCollectionSourceFile(schema, displayPath), "utf-8");
   }
 
-  const { markFileDirty } = await import("@src/content/content-service.server");
+  const { markFileDirty } = await import("@src/content/engine.server");
   const { compile } = await import("@src/utils/compilation/compile");
   markFileDirty(filePath);
   await compile({ logger, tenantId: tenantId ?? null });

@@ -27,7 +27,7 @@ tags:
 
 ---
 
-## Test Coverage by Store
+## Test Coverage by Store {#content-store-coverage}
 
 ### 1. Content Store (`tests/unit/stores/content-store.test.ts`)
 
@@ -35,7 +35,7 @@ tags:
 
 #### Audit Integration
 
-- ✅ **Zero-Latency Sync**: Verified `refreshCollectionsCache()` logic for benchmark stability.
+- ✅ **Zero-Latency Sync**: Verified `refreshContent({ mode: "schemas" })` logic for benchmark stability.
 - ✅ **HMR Optimization**: Verified hash-based change detection (15ms reconciliation).
 - ✅ **Multi-Tenant Safety**: Atomic node isolation per `tenantId`.
 
@@ -58,7 +58,7 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 
 ---
 
-## Test Coverage by Store
+## Test Coverage by Store {#system-store-coverage}
 
 ### 1. System Store (`tests/unit/stores/system.test.ts`)
 

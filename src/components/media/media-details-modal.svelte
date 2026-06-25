@@ -434,7 +434,7 @@
             <h3 class="font-bold text-sm mb-2">Asset Tags</h3>
 
             <div class="flex flex-wrap gap-1.5 mb-3">
-              {#each file.metadata?.tags || [] as tag}
+              {#each file.metadata?.tags || [] as tag (tag)}
                 <span class="tag-badge bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-600 dark:text-primary-600 border border-tertiary-500 dark:border-primary-500/20 px-2 py-0.5 rounded text-xs flex items-center gap-1">
                   <span>{tag}</span>
                   <button
@@ -523,7 +523,7 @@
               </div>
 
               <!-- History versions -->
-              {#each file.versions || [] as ver}
+              {#each file.versions || [] as ver (ver.versionNumber)}
                 <div class="version-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex justify-between items-center text-xs">
                   <div class="flex items-center gap-3">
                     <div class="version-badge bg-surface-300 dark:bg-surface-700 text-surface-800 dark:text-surface-200 font-bold px-2 py-0.5 rounded text-[10px]">
@@ -579,7 +579,7 @@
               <p class="text-xs opacity-60 mb-4">Lists all content entries where this media asset is referenced.</p>
 
               <div class="flex flex-col gap-2">
-                {#each references as ref}
+                {#each references as ref (ref.collection + ref.entryId + ref.field)}
                   <div class="reference-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex justify-between items-center text-xs">
                     <div>
                       <span class="font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-[10px]">{ref.collection}</span>
@@ -656,7 +656,7 @@
           <div class="shares-list">
             <h3 class="font-bold text-sm mb-2">Active Sharing Links</h3>
             <div class="flex flex-col gap-2">
-              {#each file.metadata?.sharedLinks || [] as link}
+              {#each file.metadata?.sharedLinks || [] as link (link.token)}
                 {const expired = isExpired(link.expiry)}
                 <div class="share-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex flex-col gap-2 text-xs">
                   <div class="flex justify-between items-center">

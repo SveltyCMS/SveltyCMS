@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/mediagallery/transcode-modal.svelte
 @component Advanced Video Transcoding Interface
  -->
@@ -110,7 +110,7 @@ function toggleResolution(res: string) {
 	<div class="space-y-3">
 		<span class="block text-sm font-bold uppercase tracking-widest opacity-60">Resolutions to Generate</span>
 		<div class="flex flex-wrap gap-2">
-			{#each availableResolutions as res}
+			{#each availableResolutions as res (res)}
 				<Button variant="secondary"
 					onclick={() => toggleResolution(res)}
 				 size="sm" class="px-4 {resolutions.includes(res) ? ' ' : ' '}">
@@ -135,7 +135,7 @@ function toggleResolution(res: string) {
 
 	<div class="flex gap-3 pt-4">
 		<Button variant="surface" onclick={onClose} class="flex-1">Cancel</Button>
-		<Button variant="tertiary" 
+		<Button variant="tertiary"
 			onclick={startTranscoding}
 			disabled={isProcessing || resolutions.length === 0}
 		 class="dark: flex-1 gap-2">

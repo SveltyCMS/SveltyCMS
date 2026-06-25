@@ -203,7 +203,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 
 					{#if linkSuggestions.length > 0}
 						<div class="space-y-2">
-							{#each linkSuggestions as link}
+							{#each linkSuggestions as link (link.url)}
 								<div class="card p-2 preset-soft-surface text-xs flex items-center justify-between gap-2 group">
 									<div class="truncate flex-1">
 										<div class="font-bold truncate">{link.title}</div>

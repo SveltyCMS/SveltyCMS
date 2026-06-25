@@ -21,6 +21,10 @@ import { successResponse, rawResponse } from "./base";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { createLink, validateLink, type ShareLink } from "@src/utils/media/sharing";
+import { createBulkArchive, streamArchive, cleanupArchive } from "@src/utils/media/bulk-download";
+import { analyze, insights, trends, quota, formatBytes } from "@src/utils/media/storage-analytics";
+import { compareVersions, getVersionStats } from "@src/utils/media/version-history";
 
 /**
  * Media permission gate. Admins bypass granular permissions — consistent with the
@@ -94,6 +98,12 @@ async function handleGetRoutes(
   if (method === "exists") return handleMediaExists(event, cms, tenantId);
   if (method === "references") return handleMediaReferences(event, cms, tenantId, segments);
   if (method === "share") return handleMediaShareDownload(event, cms, tenantId);
+  if (method === "analytics") return handleMediaAnalytics(event, cms, tenantId);
+  if (method === "bulk-download") return handleMediaBulkDownload(event, cms, tenantId);
+  if (method === "version" && segments[2]) {
+    if (segments[3] === "list") return handleMediaVersionList(event, cms, tenantId, segments);
+    if (segments[3] === "compare") return handleMediaVersionCompare(event, cms, tenantId, segments);
+  }
 
   // List all or find by ID
   if (!method || method === "list") {
@@ -147,6 +157,11 @@ async function handlePostRoutes(
   // Manipulation
   if (method === "manipulate" || method === "edit") {
     return handleMediaManipulate(event, cms, tenantId, user, segments);
+  }
+
+  // Bulk download
+  if (method === "bulk-download") {
+    return handleMediaBulkDownload(event, cms, tenantId);
   }
 
   throw new AppError(`Unknown POST method: ${method}`, 404);
@@ -422,7 +437,9 @@ export async function handleMediaPostDelete(
   let targetId = id;
   if (!targetId && legacyUrl) {
     const mediaFilter = cms.db.type === "mongodb" ? { url: legacyUrl } : { path: legacyUrl };
-    const mediaResult = await cms.db.crud.findOne<any>("media", mediaFilter, { tenantId });
+    const mediaResult = await cms.db.crud.findOne<any>("media", mediaFilter, {
+      tenantId,
+    });
     const mediaId = mediaResult.success ? mediaResult.data?._id : null;
 
     if (!mediaId) {
@@ -577,15 +594,10 @@ export async function handleMediaShareCreate(
   const { expiryHours, password } = body;
 
   const crypto = await import("node:crypto");
-  const token = crypto.randomUUID();
-  const expiry = expiryHours
-    ? new Date(Date.now() + Number(expiryHours) * 60 * 60 * 1000).toISOString()
-    : null;
-
-  let passwordHash: string | undefined;
-  if (password) {
-    passwordHash = crypto.createHash("sha256").update(password).digest("hex");
-  }
+  const link = createLink(mediaId as DatabaseId, "system" as DatabaseId, {
+    hours: expiryHours ? Number(expiryHours) : 24,
+    passwordHash: password ? crypto.createHash("sha256").update(password).digest("hex") : undefined,
+  });
 
   // Get current media item and its existing shared links
   const mediaRes = await cms.media.findById(mediaId, { tenantId });
@@ -597,11 +609,13 @@ export async function handleMediaShareCreate(
   const sharedLinks = mediaItem.metadata?.sharedLinks || [];
 
   const newLink = {
-    token,
-    expiry,
-    passwordHash,
+    token: link.rawToken,
+    tokenHash: link.token,
+    expiresAt: link.expiresAt,
+    passwordHash: link.passwordHash,
     downloadCount: 0,
-    createdAt: new Date().toISOString(),
+    createdAt: link.createdAt,
+    active: true,
   };
 
   const updateRes = await cms.media.update(
@@ -619,7 +633,10 @@ export async function handleMediaShareCreate(
     throw new AppError("Failed to update media metadata with share link", 500);
   }
 
-  return successResponse(event, { token, expiry });
+  return successResponse(event, {
+    token: link.rawToken,
+    expiresAt: link.expiresAt,
+  });
 }
 
 /** Revokes a share link by token. */
@@ -677,15 +694,35 @@ export async function handleMediaShareDownload(
   const link = (mediaItem.metadata?.sharedLinks || []).find((l: any) => l.token === token);
 
   if (!link) throw new AppError("Invalid or expired share link", 404);
-  if (link.expiry && new Date() > new Date(link.expiry)) {
-    throw new AppError("Share link has expired", 410);
+
+  // Use sharing.ts for validation
+  const shareLink: ShareLink = {
+    _id: id as DatabaseId,
+    token: link.tokenHash || link.token,
+    active: link.active !== false,
+    expiresAt: link.expiresAt || link.expiry,
+    downloadCount: link.downloadCount || 0,
+    fileId: id as DatabaseId,
+    createdBy: "system" as DatabaseId,
+    createdAt: (link.createdAt || new Date().toISOString()) as any,
+    passwordHash: link.passwordHash,
+    logs: [],
+  };
+
+  const validation = validateLink(shareLink);
+  if (!validation.ok) {
+    throw new AppError(
+      `Share link ${validation.reason}`,
+      validation.reason === "expired" ? 410 : 404,
+    );
   }
 
   // Validate password if set
-  if (link.passwordHash) {
+  if (shareLink.passwordHash) {
     const crypto = await import("node:crypto");
     const hash = crypto.createHash("sha256").update(password).digest("hex");
-    if (hash !== link.passwordHash) {
+    const pwCheck = validateLink(shareLink, undefined, hash);
+    if (!pwCheck.ok && pwCheck.reason === "security") {
       return successResponse(event, { passwordRequired: true });
     }
   }
@@ -730,4 +767,124 @@ export async function handleMediaShareDownload(
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
+}
+
+// ─── DAM: Bulk Download Handler ──────────────────────────────────────────
+
+export async function handleMediaBulkDownload(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
+  const ids = event.url.searchParams.getAll("id");
+  if (!ids.length) throw new AppError("No media IDs provided", 400);
+
+  const files: any[] = [];
+  for (const id of ids) {
+    const res = await cms.media.findById(id, { tenantId });
+    if (res.success && res.data) files.push(res.data);
+  }
+  if (!files.length) throw new AppError("No valid media files found", 404);
+
+  const os = await import("node:os");
+  const tmpDir = os.tmpdir();
+  const archive = await createBulkArchive(files as any, tmpDir);
+
+  const headers: Record<string, string> = {};
+  streamArchive(archive.path, archive.filename, (k, v) => {
+    headers[k] = v;
+  });
+
+  const nodeStream = (await import("node:fs")).createReadStream(archive.path);
+  const stream = new ReadableStream({
+    start(ctrl) {
+      nodeStream.on("data", (c) => ctrl.enqueue(c));
+      nodeStream.on("end", () => ctrl.close());
+    },
+    cancel() {
+      nodeStream.destroy();
+      cleanupArchive(archive.path).catch(() => {});
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: { ...headers, "Content-Length": String(archive.size) },
+  });
+}
+
+// ─── DAM: Storage Analytics Handler ───────────────────────────────────────
+
+export async function handleMediaAnalytics(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
+  const listRes = await cms.media.list({ tenantId, limit: 10000 });
+  const files = (listRes.success ? listRes.data : []) as any[];
+
+  const breakdown = analyze(files);
+  const insightList = insights(files, breakdown);
+  const trendData = trends(files);
+  const topTypes = Object.entries(breakdown.byType)
+    .sort(([, a]: any, [, b]: any) => b.size - a.size)
+    .slice(0, 5)
+    .map(([k, v]: any) => ({ type: k, ...v }));
+  const quotaInfo = quota(breakdown.total.size, 10 * 1024 * 1024 * 1024);
+
+  return successResponse(event, {
+    total: {
+      ...breakdown.total,
+      formattedSize: formatBytes(breakdown.total.size),
+    },
+    byType: topTypes,
+    insights: insightList,
+    trends: trendData.slice(-12),
+    quota: quotaInfo,
+  });
+}
+
+// ─── DAM: Version History Handlers ────────────────────────────────────────
+
+export async function handleMediaVersionList(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const mediaId = segments[2];
+  if (!mediaId) throw new AppError("Media ID is required", 400);
+
+  const res = await cms.media.findById(mediaId, { tenantId });
+  if (!res.success || !res.data) throw new AppError("Media not found", 404);
+
+  const item = res.data as any;
+  const versions = item.versions || [];
+  const stats = getVersionStats(versions);
+
+  return successResponse(event, { versions, stats });
+}
+
+export async function handleMediaVersionCompare(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const mediaId = segments[2];
+  const fromV = event.url.searchParams.get("from");
+  const toV = event.url.searchParams.get("to");
+  if (!mediaId || !fromV || !toV) throw new AppError("mediaId, from, and to are required", 400);
+
+  const res = await cms.media.findById(mediaId, { tenantId });
+  if (!res.success || !res.data) throw new AppError("Media not found", 404);
+
+  const item = res.data as any;
+  const versions: any[] = item.versions || [];
+  const from = versions.find((v: any) => v.version === Number(fromV));
+  const to = versions.find((v: any) => v.version === Number(toV));
+  if (!from || !to) throw new AppError("Version not found", 404);
+
+  const comparison = compareVersions(from, to);
+  return successResponse(event, comparison);
 }

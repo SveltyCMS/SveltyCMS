@@ -41,16 +41,18 @@ The Authentication API handles the complete lifecycle of a user identity within 
 | **Magic Link**   | `auth.remote.ts` (remote fn) | `POST`   | **Public**          |
 | **Passkey Auth** | `auth.remote.ts` (remote fn) | `POST`   | **Public**          |
 | **Passkey Reg**  | `auth.remote.ts` (remote fn) | `POST`   | **Authenticated**   |
-| **2FA Status**   | `/api/auth/2fa/status`       | `GET`    | **Authenticated**   |
-| **2FA Setup**    | `/api/auth/2fa/setup`        | `POST`   | **Authenticated**   |
-| **2FA Enable**   | `/api/auth/2fa/enable`       | `POST`   | **Authenticated**   |
-| **2FA Verify**   | `/api/auth/2fa/verify`       | `POST`   | **Authenticated**   |
-| **2FA Disable**  | `/api/auth/2fa/disable`      | `POST`   | **Authenticated**   |
-| **Backup Codes** | `/api/auth/2fa/backup-codes` | `GET`    | **Authenticated**   |
-| **SAML Login**   | `/api/auth/saml/login`       | `GET`    | **Public**          |
-| **SAML ACS**     | `/api/auth/saml/acs`         | `POST`   | **Public**          |
-| **SAML Config**  | `/api/auth/saml/config`      | `POST`   | `manage:system`     |
-| **Permissions**  | `/api/permission/list`       | `GET`    | `manage:system`     |
+
+| **2FA Status** | `/api/auth/2fa/status` | `GET` | **Authenticated** |
+| **2FA Setup** | `/api/auth/2fa/setup` | `POST` | **Authenticated** |
+| **2FA Enable** | `/api/auth/2fa/enable` | `POST` | **Authenticated** |
+| **2FA Verify** | `/api/auth/2fa/verify` | `POST` | **Authenticated** |
+| **2FA Disable** | `/api/auth/2fa/disable` | `POST` | **Authenticated** |
+| **Backup Codes** | `/api/auth/2fa/backup-codes` | `GET` | **Authenticated** |
+
+| **SAML Login** | `/api/auth/saml/login` | `GET` | **Public** |
+| **SAML ACS** | `/api/auth/saml/acs` | `POST` | **Public** |
+| **SAML Config** | `/api/auth/saml/config` | `POST` | `manage:system` |
+| **Permissions** | `/api/permission/list` | `GET` | `manage:system` |
 
 ---
 

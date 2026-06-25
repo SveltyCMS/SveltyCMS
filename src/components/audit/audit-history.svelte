@@ -172,7 +172,7 @@
 					</div>
 					{#if verifyResult.details && verifyResult.details.length > 0}
 						<div class="mt-1 space-y-0.5 ps-4">
-							{#each verifyResult.details as detail}
+							{#each verifyResult.details as detail, i (i)}
 								<div class="text-[11px] opacity-80">{detail}</div>
 							{/each}
 						</div>

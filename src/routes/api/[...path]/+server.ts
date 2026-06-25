@@ -50,7 +50,9 @@ function ensureHotPreload() {
       HANDLERS.auth(),
       HANDLERS.system(),
       HANDLERS.tokens(),
-    ]).catch(() => {});
+    ])
+      .then(() => {})
+      .catch(() => {});
   }
   return _hotPreload;
 }

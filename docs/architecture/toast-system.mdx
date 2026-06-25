@@ -3,7 +3,7 @@ path: docs/architecture/toast-system.mdx
 title: Toast Notification System
 description: Architecture and API guide for the SveltyCMS Toast Notification System
 order: 6
-icon: mdi:bell-ring
+icon: "mdi:bell-ring"
 author: "SveltyCMS Team"
 created: 2026-03-02
 updated: "2026-03-27"
@@ -23,6 +23,7 @@ SveltyCMS utilizes a custom, enterprise-grade Toast Notification System built or
 - **Store-Driven Reactivity:** Relies on a unified singleton `$state` for cross-component stability.
 - **Responsive Positioning:** Dynamically repositions to `bottom-center` on mobile, while allowing granular `desktop` and `tablet` setups through global responsive configurations or per-toast overrides.
 - **Smart Queueing:** Queues notifications seamlessly with a hard limit (default: 5) to prevent screen pollution, replacing the oldest non-persistent toasts first.
+
 - **Pause-on-Hover:** Halts internal progress timers when users hover over notifications.
 - **Flash Messaging:** Bridges server redirects seamlessly via `sessionStorage`.
 - **Navigation Safety:** Intelligently pauses and calculates time diffs during SvelteKit page transitions.

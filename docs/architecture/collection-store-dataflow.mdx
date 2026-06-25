@@ -243,6 +243,7 @@ The SSR architecture combined with refined initialization provides:
 2. **Zero-Restart Setup Hydration**: The system transitions from SETUP to READY state without requiring a server restart, thanks to in-memory configuration passing.
 3. **Pre-Seeded Database Models**: Database tables and collections are created during the setup seeding process, ensuring the CMS is ready for data entry immediately upon completion.
 4. **Intelligent First Collection Redirect**: The `FIRST_COLLECTION_REDIRECT_URL` is provided to the client during the initial handshake, ensuring users land on the most relevant collection page immediately after setup or login.
+
 5. **Better Caching**: Redis cache shared across all users, not per-browser.
 6. **SEO Friendly**: Full HTML with content on first load.
 7. **Reduced Bundle Size**: No client-side data fetching libraries needed.

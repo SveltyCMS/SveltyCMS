@@ -335,7 +335,7 @@ const viewOptions = [
 				<!-- Add Bar -->
 				<Card class="p-4 flex flex-wrap items-center gap-2 bg-surface-50 dark:bg-surface-900 border-dashed">
 					<span class="text-xs font-bold text-surface-500 dark:text-surface-50 me-2 uppercase tracking-tight">Quick Add:</span>
-					{#each quickWidgets as qw}
+					{#each quickWidgets as qw (qw.key)}
 						<Button
 							variant="outline"
 							size="sm"

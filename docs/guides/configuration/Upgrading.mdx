@@ -1,5 +1,5 @@
 ---
-path: "docs/guides/configuration/upgrading.mdx"
+path: "docs/guides/configuration/Upgrading.mdx"
 title: "Upgrading SveltyCMS"
 description: "Guide on how to safely upgrade your SveltyCMS installation."
 order: 10
@@ -45,6 +45,7 @@ graph TD
 3. **Rollback Tag**: Creates a local Git tag (e.g., `pre-upgrade-2026-04-06-12-00-00`) as a safety net before any changes are merged.
 4. **Upstream Fetch**: Fetches the latest changes from the official SveltyCMS repository.
 5. **Pre-commit Merge**: Merges changes into your local branch without committing, allowing you to review.
+
 6. **Dependency Refresh**: Runs `bun install` to ensure all new packages are installed.
 7. **Codemods**: Automatically executes scripts in `scripts/codemods/`. Scripts starting with an underscore (e.g., `_utils.ts`) are ignored by the runner.
 8. **Database & Tests**: Runs `db:push` and `test:unit` to ensure everything is working correctly.

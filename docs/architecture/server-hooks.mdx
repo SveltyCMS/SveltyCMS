@@ -365,27 +365,30 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 **Per-Hook Latency Breakdown** (measured via `getHookTimings()` on `/api/system/health`):
 
-| Hook                   | Est. cold cost    | Turbo HOT cost   | Note                                                           |
-| ---------------------- | ----------------- | ---------------- | -------------------------------------------------------------- |
-| `hyper-turbo`          | ~0.01ms           | —                | Env-gated, skipped in prod                                     |
-| `turbo-pipeline`       | ~0.80ms           | ~0.80ms          | Classification + state + health + CORS                         |
-| `security-headers`     | ~0.02ms           | —                | Header setting; turbo response includes its own                |
-| `test-isolation`       | ~0.01ms           | —                | Test-only                                                      |
-| `static-asset-caching` | ~0.01ms           | —                | Regex check                                                    |
-| `security`             | ~0.05ms           | ~0.05ms          | Rate limit + firewall (runs before turbo)                      |
-| `system-state`         | ~0.02ms           | ~0.02ms          | `isSystemReady()` — module-level cached                        |
-| `redirects`            | ~0.02ms           | ~0.02ms          | Materialized view check                                        |
-| `compression`          | ~0.05ms           | ~0.05ms          | Streaming setup                                                |
-| **`turbo-get`**        | **0.02ms** (miss) | **0.02ms** (hit) | 5 gate checks; returns pre-encoded on HIT, passthrough on MISS |
-| `user-preferences`     | ~0.01ms           | **skipped**      | Cookie check for i18n/theme                                    |
-| **`authentication`**   | **~2.0ms**        | **skipped**      | Main cost center: session DB + tenant + CSRF                   |
-| `authorization`        | ~0.5ms            | **skipped**      | Role loading + permission checks                               |
-| `local-sdk`            | ~0.01ms           | ~0.01ms          | LocalCMS context injection                                     |
-| `content-init`         | ~0.01ms           | ~0.01ms          | Per-tenant content manager setup                               |
-| `audit-logging`        | ~0.02ms           | ~0.02ms          | Buffer push (mutation-only, skipped on GET)                    |
-| `api-requests`         | ~0.30ms           | ~0.30ms          | ETag + cache dispatch + response handling                      |
-| `token-resolution`     | ~0.01ms           | ~0.01ms          | Post-processing RBAC token replacement                         |
-| **Total**              | **~3.9ms**        | **~0.9ms**       | **~4.3× faster** on turbo HIT                                  |
+| Hook                   | Est. cold cost | Turbo HOT cost | Note                                            |
+| ---------------------- | -------------- | -------------- | ----------------------------------------------- |
+| `hyper-turbo`          | ~0.01ms        | —              | Env-gated, skipped in prod                      |
+| `turbo-pipeline`       | ~0.80ms        | ~0.80ms        | Classification + state + health + CORS          |
+| `security-headers`     | ~0.02ms        | —              | Header setting; turbo response includes its own |
+| `test-isolation`       | ~0.01ms        | —              | Test-only                                       |
+| `static-asset-caching` | ~0.01ms        | —              | Regex check                                     |
+| `security`             | ~0.05ms        | ~0.05ms        | Rate limit + firewall (runs before turbo)       |
+
+| `system-state` | ~0.02ms | ~0.02ms | `isSystemReady()` — module-level cached |
+| `redirects` | ~0.02ms | ~0.02ms | Materialized view check |
+| `compression` | ~0.05ms | ~0.05ms | Streaming setup |
+| **`turbo-get`** | **0.02ms** (miss) | **0.02ms** (hit) | 5 gate checks; returns pre-encoded on HIT, passthrough on MISS |
+
+| `user-preferences` | ~0.01ms | **skipped** | Cookie check for i18n/theme |
+| **`authentication`** | **~2.0ms** | **skipped** | Main cost center: session DB + tenant + CSRF |
+| `authorization` | ~0.5ms | **skipped** | Role loading + permission checks |
+
+| `local-sdk` | ~0.01ms | ~0.01ms | LocalCMS context injection |
+| `content-init` | ~0.01ms | ~0.01ms | Per-tenant content manager setup |
+| `audit-logging` | ~0.02ms | ~0.02ms | Buffer push (mutation-only, skipped on GET) |
+| `api-requests` | ~0.30ms | ~0.30ms | ETag + cache dispatch + response handling |
+| `token-resolution` | ~0.01ms | ~0.01ms | Post-processing RBAC token replacement |
+| **Total** | **~3.9ms** | **~0.9ms** | **~4.3× faster** on turbo HIT |
 
 > **Hook timing diagnostics** are now live at `GET /api/system/health` under the `hooks` key (avg/min/max/count per hook). Use this in production to identify bottlenecks and validate pipeline optimizations.
 
@@ -402,6 +405,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 2. **Terminal Test Bypass** — Cryptographic `x-test-secret` verification; resolves real user from session for test isolation.
 3. **Terminal Health Check Bypass** — `/health` and `/api/system/health` return instantly with DB + memory diagnostics.
 4. **Static Asset Delegation** — Regex short-circuit for `/_app/`, `/static/`, `/files/` paths.
+
 5. **System State Gate** — Blocks when `INITIALIZING` (waits for CORE boot) or `FAILED` (returns 503).
 6. **Setup Completeness Gate** — Redirects to `/setup` if config missing; blocks `/setup` if already complete.
 7. **Bootstrap Route Bypass** — `/setup` and `/login` skip remaining middleware during installation.
@@ -485,6 +489,7 @@ The auth context (`{ user, roles, bitset, tenantId }`) is populated by `handleAu
 
 - **Rate Limiting (Global)**: All requests pass through `securityResponseService.analyzeRequest()` which performs IP-based, IP+UA, and cookie-based rate limiting with Redis-backed distributed state. Returns `action: "block"` (403) or `action: "challenge"` (429 with `Retry-After` header) when limits are exceeded.
 - **Firewall & Payload Inspection**: ReDoS-safe scanning of JSON, Forms, and URLs for SQLi/XSS/Command Injection. Large bodies (>10MB) rejected before memory allocation.
+
 - **AST-Level GraphQL Complexity Shield**: 2-phase analysis — ultra-fast string pre-filter (<0.01ms) catches obvious recursion bombs; full AST parser calculates `depth × fieldCost × listMultiplier` to block queries exceeding `MAX_COMPLEXITY` (1000). This prevents attacks like `users(first: 99999) { posts(first: 99999) { ... } }`.
 - **Load Shedding (Memory Pressure)**: When heap usage exceeds 98%, mutation requests (POST/PUT/PATCH/DELETE) are rejected with 503 + `Retry-After: 30` to protect read availability. System-critical routes (`/api/system`, `/setup`) are exempt.
 - **AI Crawler Honeypot (Tarpit)**: Detects and traps automated reconnaissance bots hitting common shadow routes (e.g., `/wp-admin`, `/.env`). Returns misleading 200 OK while flagging the IP for automatic blocking.
@@ -665,6 +670,7 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
     - If missing, it generates a new UUID `tenantId`, sets the cookie (**60 min** TTL), and **automatically seeds** the new tenant with default data (roles, settings, admin user).
     - In this mode, users can register without a token, and the registration UI is optimized to hide the token field.
 - **Session Validation**: Verifies the `session_id` cookie against the database/cache.
+
 - **Tenant Isolation**: Ensures the authenticated user belongs to the resolved `tenantId`.
 - **Global Administrator**: Recognizes and preserves the global administrator (`tenantId: null`), who is exempted from automated cleanup processes.
 - **Session Rotation**: Rotates session tokens every 15 minutes for active users (industry standard).
@@ -773,7 +779,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 **File**: `src/hooks/handle-api-requests.ts`
 **Purpose**: Authorizes API requests and caches GET responses with ETag-based conditional revalidation.
 
-> See [Standard Middleware: handleApiRequests](#handleapirequests---api-authorization-caching--etags) below for full implementation details including ETag generation, `apiData` fast path, SWR pre-warming, and X-Cache header values.
+> See [Standard Middleware: handleApiRequests](#handleapirequests-api-authorization-caching-etags) below for full implementation details including ETag generation, `apiData` fast path, SWR pre-warming, and X-Cache header values.
 
 ---
 
@@ -1052,17 +1058,19 @@ bun test tests/bun/hooks/firewall.test.ts      # 27 tests
 
 Simpler hooks with straightforward logic are tested through integration and API tests:
 
-| Hook                       | Tested Via                       | Test Count | Reasoning                                             |
-| -------------------------- | -------------------------------- | ---------- | ----------------------------------------------------- |
-| `handleAuthentication`     | User API tests                   | 47         | Session validation tested via authenticated API calls |
-| `handleAuthorization`      | Collections API tests            | 19         | RBAC tested via role-specific endpoints               |
-| `handleSecurity`           | Firewall + security unit tests   | 27+        | Rate limiting, payload scanning, GraphQL shield       |
-| `handleSystemState`        | System state unit tests          | 26         | Full state machine (IDLE to READY to FAILED)          |
-| `handleUserPreferences`    | UI rendering & i18n tests        | 5+         | Language + theme sync tested in SSR tests             |
-| `handleStaticAssetCaching` | Static asset integration tests   | Implicit   | Simple regex matching, validated via asset requests   |
-| `handleSecurityHeaders`    | Security & CSP integration tests | 8          | Header validation in security service tests           |
-| `handleApiRequests`        | All API endpoint tests           | 80+        | API authorization/caching tested across APIs          |
-| `handleTurboPipeline`      | Hooks performance benchmark      | 1          | Full pipeline latency measured in benchmark           |
+| Hook                   | Tested Via                     | Test Count | Reasoning                                             |
+| ---------------------- | ------------------------------ | ---------- | ----------------------------------------------------- |
+| `handleAuthentication` | User API tests                 | 47         | Session validation tested via authenticated API calls |
+| `handleAuthorization`  | Collections API tests          | 19         | RBAC tested via role-specific endpoints               |
+| `handleSecurity`       | Firewall + security unit tests | 27+        | Rate limiting, payload scanning, GraphQL shield       |
+| `handleSystemState`    | System state unit tests        | 26         | Full state machine (IDLE to READY to FAILED)          |
+
+| `handleUserPreferences` | UI rendering & i18n tests | 5+ | Language + theme sync tested in SSR tests |
+| `handleStaticAssetCaching` | Static asset integration tests | Implicit | Simple regex matching, validated via asset requests |
+| `handleSecurityHeaders` | Security & CSP integration tests | 8 | Header validation in security service tests |
+
+| `handleApiRequests` | All API endpoint tests | 80+ | API authorization/caching tested across APIs |
+| `handleTurboPipeline` | Hooks performance benchmark | 1 | Full pipeline latency measured in benchmark |
 
 ### Testing Philosophy
 

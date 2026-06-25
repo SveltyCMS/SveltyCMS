@@ -41,7 +41,7 @@ The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L
 The content scanner adds a **process-local L0** on top of the dual-layer cache:
 
 ```
-L0: Mtime Tree + _schemaCache (content-service.server.ts) → skip fs/import when unchanged
+L0: Mtime Tree + _schemaCache (engine.server.ts) → skip fs/import when unchanged
 L1: cacheService LRU (schema:*, navigation:tree:*)       → sub-µs metadata hits
 L2: Redis MGET/MSET (optional)                            → cross-node schema + nav snapshots
 ```
@@ -51,7 +51,7 @@ L2: Redis MGET/MSET (optional)                            → cross-node schema 
 | `schema:{filePath}`                  | `SCHEMA`  | 1 hour | `schema`, `schema:{collectionId}` | `clearByPattern("schema:")` on full reload                     |
 | `navigation:tree:{tenant}:{version}` | `CONTENT` | 5 min  | `navigation`, `navigation:tree`   | `clearByPattern("navigation:tree:")` on every `content:update` |
 
-**Helpers**: `src/content/content-cache.server.ts` (`setSchemaCacheEntry`, `invalidateSchemaCache`, `invalidateNavigationCache`, `notifyContentUpdate`).
+**Helpers**: `src/content/engine.server.ts` (`setSchemaCacheEntry`, `invalidateSchemaCache`, `invalidateNavigationCache`, `notifyContentUpdate`).
 
 ### Bearer credential auth (website tokens + API keys)
 

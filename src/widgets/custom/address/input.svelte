@@ -487,7 +487,7 @@ Part of the Three Pillars Architecture for the widget system.
 					{#if !googleMapsApiKey && showSuggestions && suggestions.length > 0}
 						<div class="absolute z-50 inset-s-0 inset-e-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
 							<ul class="list-none p-0 m-0">
-								{#each suggestions as sug}
+								{#each suggestions as sug (sug.label)}
 									<li>
 										<button
 											type="button"

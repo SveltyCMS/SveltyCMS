@@ -185,7 +185,7 @@ export const widgetMeta = {
 
 							{#if isOpen && hasLink(msgText(msg))}
 								<div class="mt-2 space-y-1">
-									{#each extractLinks(msgText(msg)) as link}
+									{#each extractLinks(msgText(msg)) as link (link.url)}
 										<a
 											href={link.url}
 											target="_blank"

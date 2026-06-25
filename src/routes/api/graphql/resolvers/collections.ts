@@ -129,16 +129,42 @@ export async function registerCollections(tenantId?: string | null) {
   await contentSystem.initialize(tenantId);
   await widgets.initialize(tenantId || "default");
 
+  const { isMockScanCollection, isBenchmarkRuntime } =
+    await import("@src/routes/setup/preset-collections.server");
+  const isBenchmark = isBenchmarkRuntime();
+
   // 🚀 BENCHMARK HARDENING: Force collection list refresh if in benchmark mode
-  if (process.env.BENCHMARK === "true") {
+  if (isBenchmark) {
     const { getDb } = await import("@src/databases/db");
-    const { refreshCollectionsCache } = await import("@src/content/content-service.server");
-    await refreshCollectionsCache(tenantId, getDb() || undefined);
+    const { refreshContent } = await import("@src/content/engine.server");
+    await refreshContent(tenantId, { mode: "schemas", adapter: getDb() || undefined });
   }
 
   const collections: Schema[] = await contentSystem.getCollections(tenantId);
+
+  // 🧪 Filter test collections from GraphQL schema registration.
+  // Mock scan artifacts (content-scan benchmark) are ALWAYS excluded — even in
+  // benchmark runtime the matrix would otherwise register 150+ mock types → HTTP 500.
+  // bench_* / test_* remain available in benchmark mode for relational audits.
+  const filtered = collections.filter((c) => {
+    const id = String(c._id || "");
+    const name = typeof c.name === "string" ? c.name : "";
+    if (isMockScanCollection(id, name)) {
+      logger.debug(`[GraphQL] Excluding mock scan artifact: ${c._id}`);
+      return false;
+    }
+    const idLower = id.toLowerCase();
+    const isBenchTestCollection =
+      idLower.startsWith("bench_") || idLower.startsWith("test-") || idLower.startsWith("test_");
+    if (isBenchTestCollection && !isBenchmark) {
+      logger.debug(`[GraphQL] Excluding test collection: ${c._id}`);
+      return false;
+    }
+    return true;
+  });
+
   logger.debug(
-    `[DEBUG] Collections list count: ${collections.length}. IDs: ${collections.map((c) => c._id).join(", ")}`,
+    `[DEBUG] Collections total: ${collections.length}, after test filter: ${filtered.length}. IDs: ${filtered.map((c) => c._id).join(", ")}`,
   );
 
   const typeIDs = new Set<string>();
@@ -152,7 +178,9 @@ export async function registerCollections(tenantId?: string | null) {
     Array<{ otherCollection: Schema; otherField: FieldInstance }>
   >();
 
-  for (const collection of collections) {
+  const iterable = filtered;
+
+  for (const collection of iterable) {
     if (process.env.BENCHMARK_DEBUG === "true") {
       console.log(
         `[GraphQL Debug] Processing collection: id=${collection._id}, name=${collection.name}`,
@@ -169,7 +197,7 @@ export async function registerCollections(tenantId?: string | null) {
   }
 
   // --- Optimization: Pre-calculate Relations to avoid O(N^2) lookup ---
-  for (const otherCollection of collections) {
+  for (const otherCollection of iterable) {
     if (!otherCollection.name) continue;
     for (const otherField of otherCollection.fields as FieldInstance[]) {
       const otherWidgetName =
@@ -184,7 +212,7 @@ export async function registerCollections(tenantId?: string | null) {
     }
   }
 
-  for (const collection of collections) {
+  for (const collection of iterable) {
     if (process.env.BENCHMARK_DEBUG === "true") {
       console.log(
         `[GraphQL Debug] Processing collection: id=${collection._id}, name=${collection.name}`,
@@ -339,6 +367,46 @@ export async function registerCollections(tenantId?: string | null) {
     collectionSchemas.push(`${collectionSchema}\n`);
     queryFields.push(`${cleanTypeName}(pagination: PaginationInput): [${cleanTypeName}]`);
   }
+
+  // Add allCollections query for listing all collection schemas.
+  // This is used by the benchmark matrix and is useful for API clients.
+  typeDefsSet.add(`
+	type CollectionInfo {
+		_id: String!
+		name: String!
+		slug: String!
+		icon: String
+		description: String
+		fieldCount: Int!
+	}`);
+  queryFields.push(`allCollections: [CollectionInfo!]!`);
+  resolvers.Query["allCollections"] = async (_parent: unknown, _args: unknown, context: any) => {
+    if (!context.user) {
+      throw new Error("Authentication required");
+    }
+    const { contentSystem } = await import("@src/content/index.server");
+    const all: Schema[] = await contentSystem.getCollections(context.tenantId);
+    const { isMockScanCollection, isBenchmarkRuntime } =
+      await import("@src/routes/setup/preset-collections.server");
+    const isBenchmark = isBenchmarkRuntime();
+    const filtered = all.filter((c) => {
+      const id = String(c._id || "");
+      const name = typeof c.name === "string" ? c.name : "";
+      if (isMockScanCollection(id, name)) return false;
+      const idLower = id.toLowerCase();
+      const isBenchTestCollection =
+        idLower.startsWith("bench_") || idLower.startsWith("test-") || idLower.startsWith("test_");
+      return isBenchmark || !isBenchTestCollection;
+    });
+    return filtered.map((col) => ({
+      _id: col._id,
+      name: col.name,
+      slug: col.slug || col.name,
+      icon: col.icon || null,
+      description: col.description || null,
+      fieldCount: (col.fields || []).length,
+    }));
+  };
 
   if (process.env.BENCHMARK_DEBUG === "true") {
     console.log(

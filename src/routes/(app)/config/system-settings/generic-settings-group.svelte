@@ -23,6 +23,7 @@ import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 import Alert from "@components/ui/alert.svelte";
+import Badge from "@components/ui/badge.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
 import Input from "@components/ui/input.svelte";
 import Select from "@components/ui/select.svelte";
@@ -212,6 +213,16 @@ async function loadSettings(bypassCache = false) {
 	} catch (err) {
 		logger.error(`[${group.id}] Load error:`, err);
 		error = err instanceof Error ? err.message : "Failed to load settings";
+		// Initialize all fields to safe defaults so the UI doesn't crash
+		const fallback: Record<string, unknown> = {};
+		for (const field of group.fields) {
+			if (field.type === 'boolean') fallback[field.key] = false;
+			else if (field.type === 'array' || field.type === 'language-multi' || field.type === 'loglevel-multi') fallback[field.key] = [];
+			else if (field.type === 'number') fallback[field.key] = null;
+			else fallback[field.key] = '';
+		}
+		values = fallback;
+		originalValues = JSON.parse(JSON.stringify(fallback));
 	} finally {
 		loading = false;
 	}
@@ -719,6 +730,8 @@ onMount(() => {
 		</h2>
 		<p class="text-sm text-surface-600 dark:text-surface-300">{group.description}</p>
 	</div>
+
+
 
 	<!-- Restart Warning -->
 	{#if group.requiresRestart}
@@ -1393,9 +1406,9 @@ onMount(() => {
 					{/if}
 
 					<StickyActions>
+
 					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
 						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-
 							<Button variant="error"
 								type="button"
 								onclick={resetToDefaults}
@@ -1414,6 +1427,30 @@ onMount(() => {
 								<span>Export Group JSON</span>
 							</Button>
 						</div>
+
+						<!-- System Status -->
+							<div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs sm:text-sm text-center">
+								<div class="flex items-center gap-1.5 shrink-0">
+									<span class="text-2xl text-tertiary-500 dark:text-primary-500 leading-none">●</span>
+									<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
+								</div>
+								<span class="hidden sm:inline text-dark dark:text-white">|</span>
+								<div class="flex items-center gap-1 shrink-0">
+									<span class="text-surface-600 dark:text-surface-50">Settings:</span>
+									<span class="font-semibold text-tertiary-500 dark:text-primary-500">Loaded</span>
+								</div>
+								<span class="hidden sm:inline text-dark dark:text-white">|</span>
+								<div class="flex items-center gap-1 shrink-0">
+									<span class="text-surface-600 dark:text-surface-50">Groups:</span>
+									<span class="font-semibold text-tertiary-500 dark:text-primary-500">{group.fields?.length ?? 0}</span>
+								</div>
+								<span class="hidden sm:inline text-dark dark:text-white">|</span>
+								<div class="flex items-center gap-1 shrink-0">
+									<span class="text-surface-600 dark:text-surface-50">Environment:</span>
+									<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
+								</div>
+							</div>
+
 
 						<Button variant="tertiary"
 							type="submit"

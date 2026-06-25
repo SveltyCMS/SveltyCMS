@@ -100,7 +100,7 @@ onMount(loadLogs);
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
-						{#each logs as log}
+						{#each logs as log (log._id)}
 							<tr class="text-surface-700 transition-colors hover:bg-surface-50/40 dark:text-surface-200 dark:hover:bg-surface-900/30">
 								<td class="px-4 py-3">
 									<div class="font-medium">{log.payload?.webhook?.name}</div>
