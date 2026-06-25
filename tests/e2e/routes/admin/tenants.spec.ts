@@ -18,7 +18,8 @@ test.describe("Tenant Management", () => {
     await expect(
       page
         .getByRole("heading", { level: 1 })
-        .or(page.getByText(/tenant|multi.tenant|no tenants|not found|access denied/i)),
+        .or(page.getByText(/tenant|multi.tenant|no tenants|not found|access denied/i))
+        .first(),
     ).toBeVisible({
       timeout: 15_000,
     });

@@ -88,16 +88,6 @@ function getStagedFiles(): string[] {
   }
 }
 
-function isTreeClean(): boolean {
-  try {
-    execSync("git diff --quiet", { cwd: ROOT, stdio: "pipe" });
-    execSync("git diff --cached --quiet", { cwd: ROOT, stdio: "pipe" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function hasUnstagedChanges(): boolean {
   try {
     execSync("git diff --quiet", { cwd: ROOT, stdio: "pipe" });
@@ -314,10 +304,13 @@ async function main() {
   runCommand("git", ["add", "-u"]);
   runCommand("git", ["add", "."]);
 
-  // Final tree clean check
-  if (!isTreeClean()) {
+  // Final check: only the working tree (unstaged) must be clean — staged
+  // changes are expected here (they ARE the commit). The earlier isTreeClean()
+  // variant also asserted the index was empty, which made this check impossible
+  // to satisfy for any real commit and forced --no-verify in the past.
+  if (hasUnstagedChanges()) {
     console.error(
-      "\n❌ FINAL CHECK FAILED: Working tree is not clean after re-verification and re-staging.",
+      "\n❌ FINAL CHECK FAILED: Working tree has unstaged changes after re-verification and re-staging.",
     );
     console.error("   Inspect 'git status' and 'git diff', then re-run the hook.");
     process.exit(1);

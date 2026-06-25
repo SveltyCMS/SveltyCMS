@@ -30,6 +30,13 @@ import type {
 } from "./types";
 
 // ============================================================================
+// Server Actions (re-exported so the plugin API dispatcher resolves `actions`
+// regardless of which `.server.ts` glob match it picks)
+// ============================================================================
+
+export { actions } from "./migration-page.server";
+
+// ============================================================================
 // Migrations
 // ============================================================================
 
@@ -625,7 +632,7 @@ export async function executeUCPIngestion(
       targetCollection,
       timestamp: nowISODateString(),
       importedCount: imported,
-      mirroredAssetPaths,
+      mirroredAssetPaths: mirroredPaths,
     });
   } catch (err) {
     logger.error("[SmartImporter] Failed to write ledger record:", err);

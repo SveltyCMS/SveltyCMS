@@ -16,28 +16,33 @@ export async function uploadWordPressFixture(page: Page, fixturePath = WXR_FIXTU
   await expect(page.getByText(/wordpress/i).first()).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByRole("button", { name: /next: map fields/i })).toBeEnabled({
+  // Scope to the plugin workspace overlay: StickyActions mirrors primary actions
+  // into the AdminPageShell sticky bar too, which would break strict-mode locators.
+  const workspace = page.getByLabel("Plugin workspace");
+  await expect(workspace.getByRole("button", { name: /next: map fields/i })).toBeEnabled({
     timeout: 15_000,
   });
 }
 
 /** Step 1 → 2 → 3 (validate) */
 export async function advanceToValidateStep(page: Page) {
-  await page.getByRole("button", { name: /next: map fields/i }).click();
-  await expect(page.getByRole("button", { name: /next: validate/i })).toBeEnabled({
+  const workspace = page.getByLabel("Plugin workspace");
+  await workspace.getByRole("button", { name: /next: map fields/i }).click();
+  await expect(workspace.getByRole("button", { name: /next: validate/i })).toBeEnabled({
     timeout: 10_000,
   });
-  await page.getByRole("button", { name: /next: validate/i }).click();
+  await workspace.getByRole("button", { name: /next: validate/i }).click();
 }
 
 /** Run dry-run then start SSE import on step 4 */
 export async function runMigrationImport(page: Page) {
-  await page.getByRole("button", { name: /run dry run/i }).click();
-  await expect(page.getByRole("button", { name: /start import/i })).toBeEnabled({
+  const workspace = page.getByLabel("Plugin workspace");
+  await workspace.getByRole("button", { name: /run dry run/i }).click();
+  await expect(workspace.getByRole("button", { name: /start import/i })).toBeEnabled({
     timeout: 30_000,
   });
-  await page.getByRole("button", { name: /start import/i }).click();
-  await expect(page.getByRole("heading", { name: /migration complete/i })).toBeVisible({
+  await workspace.getByRole("button", { name: /start import/i }).click();
+  await expect(workspace.getByRole("heading", { name: /migration complete/i })).toBeVisible({
     timeout: 60_000,
   });
 }

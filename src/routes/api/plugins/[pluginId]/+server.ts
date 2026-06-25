@@ -6,6 +6,7 @@
 import { json } from "@sveltejs/kit";
 import { pluginRegistry } from "@src/plugins/registry";
 import { pluginServerRegistry } from "@src/plugins/plugin-server-registry";
+import { availablePlugins } from "@src/plugins/index";
 import { logger } from "@utils/logger";
 import type { RequestHandler } from "./$types";
 import type { PluginServerModule } from "@src/plugins/types";
@@ -21,7 +22,12 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const plugin = pluginRegistry.get(pluginId);
+  // Primary lookup is the runtime registry (populated during the full db-boot).
+  // Fallback to the statically-scanned `availablePlugins` list so plugin server
+  // actions resolve even when the formal boot hasn't run yet — e.g. during
+  // initial setup / test seeding, where only critical base+auth services boot.
+  const plugin =
+    pluginRegistry.get(pluginId) ?? availablePlugins.find((p) => p.metadata.id === pluginId);
   if (!plugin) {
     return json({ error: `Plugin not found: ${pluginId}` }, { status: 404 });
   }
@@ -54,9 +60,14 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     return json({ error: `Plugin '${pluginId}' has no server actions` }, { status: 404 });
   }
 
-  const formData = await request.formData();
+  // Read `__action` from a CLONE so the original request body stays intact for
+  // the action handler, which re-reads it via `request.formData()`. Consuming
+  // the body here and then passing the same request to the handler causes the
+  // handler's `request.formData()` to reject (body already used).
+  const actionProbe = request.clone();
+  const probeData = await actionProbe.formData().catch(() => null);
   const actionName =
-    (formData.get("__action") as string) || new URL(request.url).searchParams.get("action");
+    (probeData?.get("__action") as string) || new URL(request.url).searchParams.get("action");
   if (!actionName) {
     return json({ error: "Missing __action" }, { status: 400 });
   }

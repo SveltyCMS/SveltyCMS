@@ -50,7 +50,8 @@
   "type": "module",
   "sideEffects": [
     "*.css",
-    "*.svelte"
+    "*.svelte",
+    "./src/plugins/index.ts"
   ],
   "scripts": {
     "-- DEVELOP -------------------------------------------": "",

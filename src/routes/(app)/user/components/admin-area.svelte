@@ -97,6 +97,7 @@
 	// @ts-ignore - flip is used in template via animate:flip directive
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import Multibutton from './multibutton.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
@@ -267,12 +268,21 @@
 	let selectedMap: Record<number, boolean> = $state({});
 
 	// Derived rows to display and selection will be defined below
-	let density = $state(
-		(() => {
-			const settings = localStorage.getItem('userPaginationSettings');
-			return settings ? (JSON.parse(settings).density ?? 'normal') : 'normal';
-		})()
-	);
+	// Density is loaded client-side in $effect below — guarded so SSR doesn't touch localStorage
+	let density: 'compact' | 'normal' | 'comfortable' = $state('normal');
+	$effect(() => {
+		if (!browser) return;
+		const settings = localStorage.getItem('userPaginationSettings');
+		if (!settings) return;
+		try {
+			const parsed = JSON.parse(settings);
+			if (parsed?.density) {
+				density = parsed.density;
+			}
+		} catch {
+			// keep default
+		}
+	});
 	let selectAllColumns = $state(true);
 	// pagesCount becomes derived below
 	let currentPage = $state(1);
