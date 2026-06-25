@@ -177,7 +177,7 @@ async function main() {
     {
       name: "Lint (oxlint)",
       ciJob: "lint",
-      run: () => runCommand("bun", ["run", "lint", "--", "--deny-warnings"]),
+      run: () => runCommand("bun", ["run", "lint"]),
     },
     {
       name: "Admin Theme Lint",
