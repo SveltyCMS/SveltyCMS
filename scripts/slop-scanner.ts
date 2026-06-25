@@ -350,46 +350,51 @@ async function main() {
 
   console.log(`📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files...\n`);
 
-  // Scan Svelte Files
-  await Promise.all(
-    svelteFiles.map(async (file) => {
-      try {
-        const content = await fs.readFile(file, "utf8");
-        const rel = relative(ROOT, file).replace(/\\/g, "/");
-        await scanSvelteFile(rel, content, shouldFix);
-        scanTodos(rel, content);
-        checkFileNaming(rel);
-        checkDuplicateContent(rel, content);
+  const BATCH_SIZE = 10;
 
-        const size = (await fs.stat(file)).size;
-        if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
-          report(rel, 0, "file-size", `Large file (${(size / 1024).toFixed(0)}KB)`, "warning");
-        }
-      } catch {
-        console.warn(`⚠️  Could not process Svelte file: ${file}`);
+  async function processBatch<T>(items: T[], processor: (item: T) => Promise<void>): Promise<void> {
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+      const batch = items.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(processor));
+    }
+  }
+
+  // Scan Svelte Files
+  await processBatch(svelteFiles, async (file) => {
+    try {
+      const content = await fs.readFile(file, "utf8");
+      const rel = relative(ROOT, file).replace(/\\/g, "/");
+      await scanSvelteFile(rel, content, shouldFix);
+      scanTodos(rel, content);
+      checkFileNaming(rel);
+      checkDuplicateContent(rel, content);
+
+      const size = (await fs.stat(file)).size;
+      if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
+        report(rel, 0, "file-size", `Large file (${(size / 1024).toFixed(0)}KB)`, "warning");
       }
-    }),
-  );
+    } catch {
+      console.warn(`⚠️  Could not process Svelte file: ${file}`);
+    }
+  });
 
   // Scan TS/JS Files
-  await Promise.all(
-    tsFiles.map(async (file) => {
-      try {
-        const content = await fs.readFile(file, "utf8");
-        const rel = relative(ROOT, file).replace(/\\/g, "/");
-        scanTodos(rel, content);
-        checkFileNaming(rel);
-        checkDuplicateContent(rel, content);
+  await processBatch(tsFiles, async (file) => {
+    try {
+      const content = await fs.readFile(file, "utf8");
+      const rel = relative(ROOT, file).replace(/\\/g, "/");
+      scanTodos(rel, content);
+      checkFileNaming(rel);
+      checkDuplicateContent(rel, content);
 
-        const size = (await fs.stat(file)).size;
-        if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
-          report(rel, 0, "file-size", `Large file (${(size / 1024).toFixed(0)}KB)`, "warning");
-        }
-      } catch {
-        console.warn(`⚠️  Could not process TS/JS file: ${file}`);
+      const size = (await fs.stat(file)).size;
+      if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
+        report(rel, 0, "file-size", `Large file (${(size / 1024).toFixed(0)}KB)`, "warning");
       }
-    }),
-  );
+    } catch {
+      console.warn(`⚠️  Could not process TS/JS file: ${file}`);
+    }
+  });
 
   // Summary Report
   const errors = violations.filter((v) => v.severity === "error");

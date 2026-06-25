@@ -1,7 +1,10 @@
 {
-  "src/**/*.{ts,js,svelte}": [
+  "src/**/*.{ts,js,svelte.ts}": [
     "oxfmt",
-    "oxlint",
+    "oxlint --threads 2",
+    "bun run scripts/slop-scanner.ts --strict --files"
+  ],
+  "src/**/*.svelte": [
     "bun run scripts/slop-scanner.ts --strict --files"
   ],
   "src/routes/(app)/**/*.svelte": ["bun run scripts/lint-admin-theme.ts"],
