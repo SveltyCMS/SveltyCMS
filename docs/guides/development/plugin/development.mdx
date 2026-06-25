@@ -163,6 +163,7 @@ hooks: {
 ```
 
 **Draft-by-Default applies to:**
+
 - WebMCP AI agent tools (all mutations force `status: "draft"`)
 - Stripe webhook payment events
 - Smart Importer content migrations
@@ -304,13 +305,13 @@ External frontends fetch structured data from these endpoints and render using t
 
 All plugin hooks execute within a sandboxed context (`src/plugins/sandbox.ts`) with **dynamic scaling**:
 
-| Boundary                  | Limit | Why |
-| ------------------------- | ----- | --- |
-| **Collection access** | Only `plugin_<id>_*` for writes | Prevent data corruption |
-| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data |
-| **Query count** | 100 per hook (default); up to 500 for migrations | Dynamic scaling prevents resource abuse |
-| **Timeout** | 5s per hook; 30s for migrations | Extended timeout for schema provisioning |
-| **Error boundary** | Catches all errors | Plugin crash ≠ CMS crash |
+| Boundary                  | Limit                                                        | Why                                      |
+| ------------------------- | ------------------------------------------------------------ | ---------------------------------------- |
+| **Collection access**     | Only `plugin_<id>_*` for writes                              | Prevent data corruption                  |
+| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data                   |
+| **Query count**           | 100 per hook (default); up to 500 for migrations             | Dynamic scaling prevents resource abuse  |
+| **Timeout**               | 5s per hook; 30s for migrations                              | Extended timeout for schema provisioning |
+| **Error boundary**        | Catches all errors                                           | Plugin crash ≠ CMS crash                 |
 
 > **Dynamic Scaling**: Migrations receive relaxed limits (500 queries, 30s timeout) to handle complex schema provisioning. Hooks retain strict limits to keep runtime operations fast.
 

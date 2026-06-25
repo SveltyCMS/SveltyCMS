@@ -29,9 +29,7 @@ interface StructuredPermissions {
 }
 
 async function run(): Promise<void> {
-  console.log(
-    pc.bold(pc.blue("\n🚀 Running Update Permissions Structure Codemod")),
-  );
+  console.log(pc.bold(pc.blue("\n🚀 Running Update Permissions Structure Codemod")));
 
   const project = createCodemodProject();
   const collectionsDir = path.join(process.cwd(), "config", "collections");
@@ -40,14 +38,10 @@ async function run(): Promise<void> {
   try {
     const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
     files = entries
-      .filter(
-        (e) => e.isFile() && (e.name.endsWith(".ts") || e.name.endsWith(".js")),
-      )
+      .filter((e) => e.isFile() && (e.name.endsWith(".ts") || e.name.endsWith(".js")))
       .map((e) => path.join(collectionsDir, e.name));
   } catch {
-    console.log(
-      pc.yellow("   ⚠️  No config/collections directory found. Skipping."),
-    );
+    console.log(pc.yellow("   ⚠️  No config/collections directory found. Skipping."));
     return;
   }
 
@@ -58,33 +52,22 @@ async function run(): Promise<void> {
     const sourceFile = project.addSourceFileAtPath(filePath);
 
     if (!isCollectionSchema(sourceFile)) {
-      console.log(
-        pc.dim(`   ⏭️  Skipping non-schema file: ${path.basename(filePath)}`),
-      );
+      console.log(pc.dim(`   ⏭️  Skipping non-schema file: ${path.basename(filePath)}`));
       skippedCount++;
       continue;
     }
 
     const obj = getDefaultExportedObject(sourceFile);
     if (!obj) {
-      console.log(
-        pc.dim(`   ⏭️  No default export found: ${path.basename(filePath)}`),
-      );
+      console.log(pc.dim(`   ⏭️  No default export found: ${path.basename(filePath)}`));
       skippedCount++;
       continue;
     }
 
     // Check if permissions already exist
     const existingPerms = obj.getProperty("permissions");
-    if (
-      existingPerms &&
-      !existingPerms.isKind(SyntaxKind.ShorthandPropertyAssignment)
-    ) {
-      console.log(
-        pc.dim(
-          `   ⏭️  Permissions already structured: ${path.basename(filePath)}`,
-        ),
-      );
+    if (existingPerms && !existingPerms.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
+      console.log(pc.dim(`   ⏭️  Permissions already structured: ${path.basename(filePath)}`));
       skippedCount++;
       continue;
     }
@@ -93,10 +76,7 @@ async function run(): Promise<void> {
     const publicAccessProp = obj.getProperty("publicAccess");
     let newPermissions: StructuredPermissions;
 
-    if (
-      publicAccessProp &&
-      publicAccessProp.isKind(SyntaxKind.PropertyAssignment)
-    ) {
+    if (publicAccessProp && publicAccessProp.isKind(SyntaxKind.PropertyAssignment)) {
       const initText = publicAccessProp.getInitializer()?.getText() || "false";
       const isPublic = initText === "true";
 
@@ -126,9 +106,7 @@ async function run(): Promise<void> {
     // Backup before saving
     await backupFile(filePath);
     await sourceFile.save();
-    console.log(
-      pc.green(`   ✅ Migrated permissions: ${path.basename(filePath)}`),
-    );
+    console.log(pc.green(`   ✅ Migrated permissions: ${path.basename(filePath)}`));
     migratedCount++;
   }
 

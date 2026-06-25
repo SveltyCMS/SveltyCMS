@@ -169,13 +169,13 @@ hooks: {
 
 All plugin hooks execute within a sandbox (`src/plugins/sandbox.ts`) with **architecture-aware dynamic scaling**:
 
-| Boundary                  | Limit | Why |
-| ------------------------- | ----- | --- |
-| **Collection access** | Only `plugin_{id}_*` for writes | Prevent data corruption |
-| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data |
-| **Query count** | 100 queries per hook (default); dynamically scaled up for migrations | Prevent resource abuse |
-| **Timeout** | 5 seconds per hook (default); 30s for migrations | Prevent hangs |
-| **Error boundary** | Catches all errors | Plugin crash ≠ CMS crash |
+| Boundary                  | Limit                                                                | Why                      |
+| ------------------------- | -------------------------------------------------------------------- | ------------------------ |
+| **Collection access**     | Only `plugin_{id}_*` for writes                                      | Prevent data corruption  |
+| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked         | Never access auth data   |
+| **Query count**           | 100 queries per hook (default); dynamically scaled up for migrations | Prevent resource abuse   |
+| **Timeout**               | 5 seconds per hook (default); 30s for migrations                     | Prevent hangs            |
+| **Error boundary**        | Catches all errors                                                   | Plugin crash ≠ CMS crash |
 
 > **Dynamic Scaling**: The sandbox adapts limits based on the execution context. **Migrations** receive a higher query budget (up to 500 queries) and extended timeout (30s) since they provision infrastructure. **Hooks** retain the strict 100-query / 5s limits to prevent runtime performance degradation. This architecture-aware approach ensures migrations can complete complex schema provisioning while hooks remain fast and safe.
 
@@ -213,6 +213,7 @@ POST /api/preview/authorize  →  { previewUrl: "https://myfrontend.com?preview=
 ### 3. Stateless API Contracts
 
 All plugin interaction with external frontends goes through **documented REST/GraphQL endpoints** with:
+
 - **Origin validation** via plugin config (`allowedOrigins`, `frontendBaseUrl`, `allowedCheckoutOrigins`)
 - **Fail-closed semantics**: If a plugin configures `failClosedOnCacheMiss: true`, missing cache entries return 404 instead of falling through
 - **Edge KV synchronization**: Redirects and sitemaps push to edge stores for sub-10ms resolution on decoupled frontends
@@ -282,17 +283,19 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 
    ```typescript
    // ✅ Recommended: abstract migration
-   migrations: [{
-     up: async (dbAdapter) => {
-       await dbAdapter.schema.ensureCollection("plugin_my-plugin_logs", {
-         fields: [
-           { label: "Action", name: "action", type: "text", required: true },
-           { label: "Timestamp", name: "timestamp", type: "text" },
-         ],
-         status: "publish",
-       });
+   migrations: [
+     {
+       up: async (dbAdapter) => {
+         await dbAdapter.schema.ensureCollection("plugin_my-plugin_logs", {
+           fields: [
+             { label: "Action", name: "action", type: "text", required: true },
+             { label: "Timestamp", name: "timestamp", type: "text" },
+           ],
+           status: "publish",
+         });
+       },
      },
-   }];
+   ];
 
    // ❌ Legacy: raw createModel
    up: async (dbAdapter) => {
