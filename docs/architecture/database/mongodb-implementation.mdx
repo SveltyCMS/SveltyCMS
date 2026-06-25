@@ -440,7 +440,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 
 **NEW in 2024**: Smart field selection reduces payload sizes by 50-80% for list views.
 
-### How It Works {#field-selection-how}
+### How It Works {#how-it-works-2}
 
 ```
 // File: src/utils/fieldselection.ts
@@ -468,7 +468,7 @@ if (!editEntryId) {
 }
 ```
 
-### Performance Impact {#field-selection-perf}
+### Performance Impact {#performance-impact-2}
 
 | Collection Config       | Before | After  | Reduction |
 | ----------------------- | ------ | ------ | --------- |
@@ -923,7 +923,7 @@ const page3 = await db
 
 Streaming provides **O(1) memory usage** for processing large datasets, unlike fetching all records which uses **O(n) memory**.
 
-#### Implementation {#streaming-impl}
+#### Implementation {#implementation-2}
 
 ```
 // File: src/databases/mongodb/MongoQueryBuilder.ts
@@ -1032,7 +1032,7 @@ if (stream.success) {
 // Processes millions of records without memory issues
 ```
 
-#### Performance Comparison {#streaming-comparison}
+#### Performance Comparison {#performance-comparison-2}
 
 | Records   | Fetch All (Memory) | Streaming (Memory) | Savings    |
 | --------- | ------------------ | ------------------ | ---------- |
@@ -1046,7 +1046,7 @@ if (stream.success) {
 
 Query hints force MongoDB to use specific indexes or set execution limits.
 
-#### Implementation {#query-hints-impl}
+#### Implementation {#implementation-3}
 
 ```
 // File: src/databases/mongodb/MongoQueryBuilder.ts
@@ -1073,7 +1073,7 @@ private async executeQuery(): Promise<T[]> {
 }
 ```
 
-#### Usage Examples {#query-hints-usage}
+#### Usage Examples {#usage-examples-2}
 
 ##### Force Specific Index
 
@@ -1144,7 +1144,7 @@ const user = await User.findOne({ email: "user@example.com" }).lean();
 // Access: user.name (direct property access)
 ```
 
-#### Implementation {#lean-impl}
+#### Implementation {#implementation-4}
 
 All CRUD methods in `crudMethods.ts` use `.lean()`:
 
@@ -1168,7 +1168,7 @@ async find(query: FilterQuery<T>): Promise<T[]> {
 }
 ```
 
-#### Performance Impact {#lean-perf}
+#### Performance Impact {#performance-impact-3}
 
 | Operation  | Without .lean() | With .lean() | Improvement |
 | ---------- | --------------- | ------------ | ----------- |
@@ -1193,7 +1193,7 @@ interface QueryMeta {
 }
 ```
 
-#### Usage Example {#querymeta-usage}
+#### Usage Example {#usage-example-2}
 
 ```
 const result = await db.queryBuilder("users").where({ tenantId: "acme", role: "admin" }).execute();
@@ -1453,7 +1453,7 @@ Key MongoDB highlights include:
 
 ## 🚀 Quick Reference
 
-### Cursor Pagination {#quick-ref-cursor}
+### Cursor Pagination {#cursor-pagination-2}
 
 ```
 const page = await db
@@ -1471,7 +1471,7 @@ for await (const item of stream.data) {
 }
 ```
 
-### Query Hints {#quick-ref-query-hints}
+### Query Hints {#query-hints-2}
 
 ```
 const result = await db

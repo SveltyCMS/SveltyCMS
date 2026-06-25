@@ -1,6 +1,8 @@
 ---
 title: Vite 8 + Tailwind v4 Build Fix
 description: Fixing @src/routes resolution during vite build with junction shims
+path: docs/contributing/vite8-tailwind-build-fix.md
+updated: 2026-06-25
 ---
 
 # Vite 8 + Tailwind v4 Build Fix

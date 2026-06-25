@@ -185,9 +185,14 @@ function buildFileIndex(docsDir: string): Set<string> {
   walk(docsDir, (fp) => {
     const rel = path.relative(docsDir, fp).replace(/\\/g, "/");
     const base = rel.replace(/\.(mdx|md)$/, "");
-    [rel, base, `/docs/${rel}`, `/docs/${base}`, `docs/${rel}`, `docs/${base}`].forEach((p) =>
-      idx.add(p),
-    );
+    [
+      rel,
+      base,
+      `/docs/${rel}`,
+      `/docs/${base}`,
+      `docs/${rel}`,
+      `docs/${base}`,
+    ].forEach((p) => idx.add(p));
   });
   // Index test files + plugin docs
   for (const [dir, exts] of [
@@ -294,7 +299,9 @@ function getHeadingAnchors(fp: string): Set<string> {
   const anchors = new Set<string>();
   if (fs.existsSync(fp)) {
     const { body } = parseFrontmatter(fs.readFileSync(fp, "utf8"));
-    for (const m of stripCodeBlocks(body).matchAll(/^#{1,6}\s+(.+?)(?:\s*\{#([\w-]+)\})?$/gm)) {
+    for (const m of stripCodeBlocks(body).matchAll(
+      /^#{1,6}\s+((?:(?!\{\#).)+)(?:\s*\{#([\w-]+)\})?$/gm,
+    )) {
       anchors.add((m[2] || normalizeHeadingSlug(m[1])).toLowerCase());
     }
   }
@@ -366,7 +373,8 @@ function checkPlaceholderLeaks(body: string, relPath: string) {
     ["FIXME", /\bFIXME\b/g],
     ["Lorem Ipsum", /\blorem\s+ipsum\b/gi],
   ] as const) {
-    if (re.test(body)) addWarning("readability", relPath, `Stale placeholder: "${label}"`);
+    if (re.test(body))
+      addWarning("readability", relPath, `Stale placeholder: "${label}"`);
   }
 }
 
@@ -414,8 +422,10 @@ function validateHeadingHierarchy(body: string, relPath: string) {
 
 function detectDuplicateHeadings(body: string, relPath: string) {
   const seen = new Map<string, number>();
-  for (const m of stripCodeBlocks(body).matchAll(/^#{1,6}\s+(.+?)(?:\s*\{#.*\})?$/gm)) {
-    const t = m[1].trim().toLowerCase();
+  for (const m of stripCodeBlocks(body).matchAll(
+    /^#{1,6}\s+((?:(?!\{\#).)+)(?:\s*\{#([\w-]+)\})?$/gm,
+  )) {
+    const t = (m[2] || normalizeHeadingSlug(m[1])).toLowerCase();
     seen.set(t, (seen.get(t) || 0) + 1);
   }
   for (const [t, n] of seen) {
@@ -453,13 +463,15 @@ function validateMDXComponents(body: string, relPath: string) {
     const tag = m[1],
       attrs = m[2];
     if (attrs.trimEnd().endsWith("/")) continue;
-    if (!body.includes(`</${tag}>`)) addError("mdx", relPath, `Unclosed MDX component: <${tag}>`);
+    if (!body.includes(`</${tag}>`))
+      addError("mdx", relPath, `Unclosed MDX component: <${tag}>`);
   }
   for (const m of clean.matchAll(simpleAttrRe)) {
     const tag = m[1];
     if (checked.has(tag)) continue;
     checked.add(tag);
-    if (!body.includes(`</${tag}>`)) addError("mdx", relPath, `Unclosed MDX component: <${tag}>`);
+    if (!body.includes(`</${tag}>`))
+      addError("mdx", relPath, `Unclosed MDX component: <${tag}>`);
   }
 }
 
@@ -482,9 +494,11 @@ async function checkExternalLink(url: string): Promise<boolean> {
 
 async function validateExternalLinks(body: string, relPath: string) {
   const urls = new Set<string>();
-  for (const m of body.matchAll(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g)) urls.add(m[2]);
+  for (const m of body.matchAll(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g))
+    urls.add(m[2]);
   if (!urls.size) return;
-  if (isVerbose) console.log(`   🌐 Probing ${urls.size} external URLs in: ${relPath}`);
+  if (isVerbose)
+    console.log(`   🌐 Probing ${urls.size} external URLs in: ${relPath}`);
   for (const { url, ok } of await Promise.all(
     [...urls].map(async (u) => ({ url: u, ok: await checkExternalLink(u) })),
   )) {
@@ -533,7 +547,11 @@ async function lintSingleFile(fp: string) {
       .replace(/\.(mdx|md)$/, "");
     // Accept both with and without docs/ prefix
     if (declared !== actualPath && declared !== `docs/${actualPath}`) {
-      addWarning("frontmatter", relPath, `path mismatch: "${pathM[1].trim()}" vs "${actualPath}"`);
+      addWarning(
+        "frontmatter",
+        relPath,
+        `path mismatch: "${pathM[1].trim()}" vs "${actualPath}"`,
+      );
     }
   }
 
@@ -584,13 +602,17 @@ async function lintSingleFile(fp: string) {
     } else if (updatedMatch[1] > today) {
       addError("frontmatter", relPath, `Future date: ${updatedMatch[1]}`);
       if (shouldAutofix && !isDryRun) {
-        updatedFm = updatedFm.replace(/^updated:\s*.*$/m, `updated: "${today}"`);
+        updatedFm = updatedFm.replace(
+          /^updated:\s*.*$/m,
+          `updated: "${today}"`,
+        );
         fileModified = true;
       }
     } else {
       const yr = new Date();
       yr.setFullYear(yr.getFullYear() - 1);
-      if (d < yr) addWarning("frontmatter", relPath, `Stale (>1yr): ${updatedMatch[1]}`);
+      if (d < yr)
+        addWarning("frontmatter", relPath, `Stale (>1yr): ${updatedMatch[1]}`);
     }
   } else {
     addWarning("frontmatter", relPath, "Missing 'updated'");
@@ -611,7 +633,10 @@ async function lintSingleFile(fp: string) {
           .basename(img, path.extname(img))
           .replace(/[-_]+/g, " ")
           .replace(/\b\w/g, (c) => c.toUpperCase());
-        updatedBody = updatedBody.replace(`![${m[1]}](${m[2]})`, `![${placeholder}](${m[2]})`);
+        updatedBody = updatedBody.replace(
+          `![${m[1]}](${m[2]})`,
+          `![${placeholder}](${m[2]})`,
+        );
         fileModified = true;
       }
     }
@@ -623,8 +648,13 @@ async function lintSingleFile(fp: string) {
           fileModified = true;
         }
       }
-      const resolved = path.posix.normalize(path.posix.join(docDir, img.replace(/\\/g, "/")));
-      if (!fs.existsSync(path.join(process.cwd(), resolved)) && !hasStaticAsset(img))
+      const resolved = path.posix.normalize(
+        path.posix.join(docDir, img.replace(/\\/g, "/")),
+      );
+      if (
+        !fs.existsSync(path.join(process.cwd(), resolved)) &&
+        !hasStaticAsset(img)
+      )
         addWarning("links", relPath, `Image not found: ${img}`);
     }
   }
@@ -683,13 +713,16 @@ async function lintSingleFile(fp: string) {
   // --- EU Compliance ---
   if (COMPETITOR_NAMES.some((n) => updatedBody.includes(n))) {
     competitorDocs++;
-    const isCompDoc = /comparison|competitive|benchmark|vs\.?|versus|alternative/i.test(
-      relPath + updatedBody.slice(0, 600),
-    );
+    const isCompDoc =
+      /comparison|competitive|benchmark|vs\.?|versus|alternative/i.test(
+        relPath + updatedBody.slice(0, 600),
+      );
     for (const p of DISCREDITING_PATTERNS)
-      if (p.pattern.test(updatedBody)) addError("eu-discredit", relPath, p.message, p.suggestion);
+      if (p.pattern.test(updatedBody))
+        addError("eu-discredit", relPath, p.message, p.suggestion);
     for (const p of ABSOLUTE_PATTERNS)
-      if (p.pattern.test(updatedBody)) addError("eu-absolute", relPath, p.message, p.suggestion);
+      if (p.pattern.test(updatedBody))
+        addError("eu-absolute", relPath, p.message, p.suggestion);
     if (isCompDoc) {
       if (!REQUIRED_QUALIFIERS.some((r) => r.test(updatedBody))) {
         addError("eu-qualifier", relPath, "Missing EU compliance qualifier");
@@ -698,9 +731,19 @@ async function lintSingleFile(fp: string) {
           fileModified = true;
         }
       }
-      const hasPerf = /\b(?:ms|RPS|faster|throughput|latency|benchmark)\b/i.test(updatedBody);
-      if (hasPerf && !/methodology|reproduce|measured on|hardware|bun test/i.test(updatedBody))
-        addError("eu-methodology", relPath, "Performance claims without methodology");
+      const hasPerf =
+        /\b(?:ms|RPS|faster|throughput|latency|benchmark)\b/i.test(updatedBody);
+      if (
+        hasPerf &&
+        !/methodology|reproduce|measured on|hardware|bun test/i.test(
+          updatedBody,
+        )
+      )
+        addError(
+          "eu-methodology",
+          relPath,
+          "Performance claims without methodology",
+        );
     }
   }
 
@@ -724,14 +767,18 @@ async function lintSingleFile(fp: string) {
 
   // --- Complexity ---
   totalWordCount += getWordCount(updatedBody);
-  const hCount = (stripCodeBlocks(updatedBody).match(/^#{1,6}\s+/gm) || []).length;
+  const hCount = (stripCodeBlocks(updatedBody).match(/^#{1,6}\s+/gm) || [])
+    .length;
   if (hCount > 60)
     addWarning(
       "structure",
       relPath,
       `High heading density (${hCount} sections) — consider splitting`,
     );
-  if (!updatedFm.match(/^description:/m) && (hCount >= 6 || body.length > 2200)) {
+  if (
+    !updatedFm.match(/^description:/m) &&
+    (hCount >= 6 || body.length > 2200)
+  ) {
     addWarning("frontmatter", relPath, "Missing 'description'");
     if (shouldAutofix && !isDryRun) {
       updatedFm += `\ndescription: "Documentation for ${actualPath.split("/").pop() || "SveltyCMS"}"`;
@@ -744,7 +791,11 @@ async function lintSingleFile(fp: string) {
 
   // --- Write ---
   if (shouldAutofix && fileModified && !isDryRun) {
-    fs.writeFileSync(fp, `---\n${updatedFm.trim()}\n---\n${updatedBody}`, "utf8");
+    fs.writeFileSync(
+      fp,
+      `---\n${updatedFm.trim()}\n---\n${updatedBody}`,
+      "utf8",
+    );
     console.log(`🛠️  Autofixed: ${relPath}`);
   }
 }
@@ -779,11 +830,15 @@ async function main() {
     `\n📊 ${totalFiles} files, ${competitorDocs} competitive. ${errors} errors, ${warnings} warnings.`,
   );
   if (warnings) {
-    for (const [c, n] of Object.entries(warningsByCategory).sort(([, a], [, b]) => b - a))
+    for (const [c, n] of Object.entries(warningsByCategory).sort(
+      ([, a], [, b]) => b - a,
+    ))
       console.log(`   ⚠️  ${c.padEnd(18)} ${n}`);
   }
   if (errors) {
-    for (const [c, n] of Object.entries(errorsByCategory).sort(([, a], [, b]) => b - a))
+    for (const [c, n] of Object.entries(errorsByCategory).sort(
+      ([, a], [, b]) => b - a,
+    ))
       console.log(`   ❌ ${c.padEnd(18)} ${n}`);
     console.error(`\n❌ ${errors} errors — blocked.\n`);
     process.exit(1);

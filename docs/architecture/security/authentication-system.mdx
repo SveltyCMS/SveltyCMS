@@ -213,7 +213,7 @@ Magic Links allow users to authenticate without a password — an email is sent 
 - **Email-bound**: Token is only valid for the email it was issued to
 - **Audit-logged**: Every magic link request and verification creates a crypto-chained audit entry
 
-### Security Considerations {#magic-links-security}
+### Security Considerations {#security-considerations-2}
 
 - **Email Channel Security**: Magic links are only as secure as the user's email account. If the email is compromised, the link can be intercepted. Consider enforcing 2FA for admin accounts even with magic link auth.
 - **Token Expiry**: Tokens expire after 15 minutes — short enough to limit window of opportunity, long enough for email delivery latency.
@@ -245,7 +245,7 @@ Configured in `default-roles.ts`:
 | `media:write`   | ❌      |
 | `admin:access`  | ❌      |
 
-### Security Considerations {#guest-auth-security}
+### Security Considerations {#security-considerations-3}
 
 - **Strict Isolation**: Guest sessions are ephemeral and stateless — no session cookie is created, no database entry is written. This prevents session fixation and cookie-based attacks.
 - **No Privilege Escalation**: The `guest` role has hardcoded read-only permissions. Even if the middleware were misconfigured, guests cannot mutate content or access admin routes.
@@ -300,7 +300,7 @@ interface Authenticator {
 - 🏗️ Settings-page UI for managing registered passkeys (pending)
 - 🏗️ `db:push` for `authenticators` column on SQL deployments (pending)
 
-### Security Considerations {#webauthn-security}
+### Security Considerations {#security-considerations-4}
 
 - **Phishing Resistance**: WebAuthn credentials are bound to the origin (RP ID), making them inherently phishing-resistant. An attacker cannot replay credentials on a different domain.
 - **User Verification**: Platform authenticators require biometric (fingerprint, face) or PIN verification. This prevents unauthorized use even with physical device access.
