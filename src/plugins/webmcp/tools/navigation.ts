@@ -114,7 +114,7 @@ function registerHeadlessTopologyTools(db: IDBAdapter): void {
 
   async function discoverTopology() {
     try {
-      const collections = await db.schema.listCollections();
+      const collections = await db.collection.listSchemas();
       const topology = {
         collections: collections.map((c: any) => ({
           id: c._id,
@@ -139,7 +139,7 @@ function registerHeadlessTopologyTools(db: IDBAdapter): void {
 
   async function getContentGraph() {
     try {
-      const collections = await db.schema.listCollections();
+      const collections = await db.collection.listSchemas();
       const graph: Record<string, { entries: number; relations: string[] }> = {};
 
       for (const col of collections) {

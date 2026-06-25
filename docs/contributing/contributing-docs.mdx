@@ -166,7 +166,10 @@ These rules are enforced. A PR that violates them will not be merged.
 > 3. **Current Functionality Only**: Document only what exists in the current codebase. Do not document planned features, unmerged branches, or aspirational behavior.
 > 4. **Comprehensive Indexing**: Index pages (e.g., `api/index.mdx`) must serve as a complete map. They **must** link to every child document in their category. A partial index that misses sub-pages is considered broken navigation.
 > 5. **Assets in `/static/docs/`**: All non-MDX assets (images, SVGs, diagrams) **must** be placed in `/static/docs/` and referenced via absolute paths. No assets in `/docs/` itself.
-> 6. **Widget API Sync Rule**: Any change to `src/routes/api/[...path]/handlers/widgets.ts` or `src/stores/widget-store.svelte.ts` — adding, removing, or renaming an endpoint, or changing a response shape — **must** update `/docs/api/Widget_API.mdx` in the same PR. This means refreshing the `updated` date, updating the status table, and removing any obsolete endpoints. Never leave these out of sync.
+> 6. **Widget API Sync Rule**: Any change to `src/routes/api/[...path]/handlers/widgets.ts` or `src/stores/widget-store.svelte.ts` — adding, removing, or renaming an endpoint, or changing a response shape — **must** update `/docs/api/Widget_API.mdx` in the same PR.
+>
+>    This means refreshing the `updated` date, updating the status table, and removing any obsolete endpoints. Never leave these out of sync.
+>
 > 7. **Thin API Pattern**: All data access logic should reside in the **Local SDK** (`src/routes/api/cms.ts`) or a dedicated service. The Unified Gatekeeper handlers in `src/routes/api/[...path]/handlers/` should only handle request parsing, calling `locals.cms`, and returning a JSON response.
 > 8. **Local SDK Alignment**: When adding or modifying core CMS functionality, ensure it is exposed through the `LocalCMS` class. Documentation for these features must highlight the performance benefits of using the Local SDK over external HTTP calls.
 > 9. **"Next Steps" footer required**: Every guide and architecture page **must** end with a `## Next Steps` or `## Related` section linking to 2-3 relevant pages. This keeps users flowing through the docs instead of dead-ending.
@@ -373,12 +376,14 @@ Before opening a PR, verify every item:
 - [ ] All required frontmatter fields are present and correctly typed
 - [ ] `updated` field reflects today's date
 - [ ] Content documents only current, existing functionality
+
 - [ ] Every parameter name and return value verified against `src/`
 - [ ] Code examples are tested and functional
 - [ ] Assets are in `/static/docs/` with mirrored directory structure
 - [ ] All asset references use absolute paths
 - [ ] Alt text provided for every image
 - [ ] Tags are lowercase and kebab-case
+
 - [ ] Internal links use correct canonical paths
 - [ ] Linter passes: `bun ./tests/lint-docs.ts` and `bun run slop`
 - [ ] **915+ Test Suite passes**: All unit tests are green (`bun run test:unit`).

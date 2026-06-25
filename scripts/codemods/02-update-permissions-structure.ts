@@ -87,7 +87,7 @@ async function run(): Promise<void> {
       };
 
       // Remove the legacy publicAccess field
-      obj.removeProperty("publicAccess");
+      obj.getProperty("publicAccess")?.remove();
     } else {
       // No publicAccess — default to authenticated-only
       newPermissions = {

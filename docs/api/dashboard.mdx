@@ -198,25 +198,30 @@ Returns users with active sessions. Session duration is estimated from expiry mi
 
 The admin dashboard is composed of 16 modular Svelte 5 widgets, each backed by one or more API endpoints:
 
-| Widget                        | File                               | Data Source                              |
-| :---------------------------- | :--------------------------------- | :--------------------------------------- |
-| **System Health**             | `system-health-widget.svelte`      | `/api/dashboard/health`                  |
-| **Unified Metrics**           | `unified-metrics-widget.svelte`    | `/api/dashboard/metrics`                 |
-| **CPU Monitor**               | `cpu-widget.svelte`                | `/api/dashboard/system-info?type=cpu`    |
-| **Memory Monitor**            | `memory-widget.svelte`             | `/api/dashboard/system-info?type=memory` |
-| **Disk Monitor**              | `disk-widget.svelte`               | `/api/dashboard/system-info?type=disk`   |
-| **Cache Monitor**             | `cache-monitor-widget.svelte`      | `/api/dashboard/cache-metrics`           |
-| **Performance**               | `performance-widget.svelte`        | `/api/dashboard/metrics?detailed=true`   |
-| **Audit Log**                 | `audit-log-widget.svelte`          | `/api/dashboard/audit`                   |
-| **Activity Logs**             | `logs-widget.svelte`               | `/api/dashboard/logs`                    |
-| **System Messages**           | `system-messages-widget.svelte`    | `/api/dashboard/system-messages`         |
-| **Last 5 Content**            | `last5-content-widget.svelte`      | `/api/dashboard/last5-content`           |
-| **Last 5 Media**              | `last5-media-widget.svelte`        | `/api/dashboard/last5media`              |
-| **Online Users**              | `user-online-widget.svelte`        | `/api/dashboard/online-user`             |
-| **Security**                  | `security-widget.svelte`           | `/api/dashboard/security`                |
-| **Database Pool Diagnostics** | `database-pool-diagnostics.svelte` | `/api/database/pool-diagnostics`         |
+| Widget              | File                            | Data Source                              |
+| :------------------ | :------------------------------ | :--------------------------------------- |
+| **System Health**   | `system-health-widget.svelte`   | `/api/dashboard/health`                  |
+| **Unified Metrics** | `unified-metrics-widget.svelte` | `/api/dashboard/metrics`                 |
+| **CPU Monitor**     | `cpu-widget.svelte`             | `/api/dashboard/system-info?type=cpu`    |
+| **Memory Monitor**  | `memory-widget.svelte`          | `/api/dashboard/system-info?type=memory` |
+| **Disk Monitor**    | `disk-widget.svelte`            | `/api/dashboard/system-info?type=disk`   |
 
-| **SCIM Status** | `scim-status-widget.svelte` | `/api/dashboard/scim` |
+| Widget              | File                            | Data Source                            |
+| :------------------ | :------------------------------ | :------------------------------------- |
+| **Cache Monitor**   | `cache-monitor-widget.svelte`   | `/api/dashboard/cache-metrics`         |
+| **Performance**     | `performance-widget.svelte`     | `/api/dashboard/metrics?detailed=true` |
+| **Audit Log**       | `audit-log-widget.svelte`       | `/api/dashboard/audit`                 |
+| **Activity Logs**   | `logs-widget.svelte`            | `/api/dashboard/logs`                  |
+| **System Messages** | `system-messages-widget.svelte` | `/api/dashboard/system-messages`       |
+
+| Widget                        | File                               | Data Source                      |
+| :---------------------------- | :--------------------------------- | :------------------------------- |
+| **Last 5 Content**            | `last5-content-widget.svelte`      | `/api/dashboard/last5-content`   |
+| **Last 5 Media**              | `last5-media-widget.svelte`        | `/api/dashboard/last5media`      |
+| **Online Users**              | `user-online-widget.svelte`        | `/api/dashboard/online-user`     |
+| **Security**                  | `security-widget.svelte`           | `/api/dashboard/security`        |
+| **Database Pool Diagnostics** | `database-pool-diagnostics.svelte` | `/api/database/pool-diagnostics` |
+| **SCIM Status**               | `scim-status-widget.svelte`        | `/api/dashboard/scim`            |
 
 ### Widget Discovery (dual registration)
 
@@ -267,7 +272,11 @@ The `dashboard` namespace is mapped in `ENDPOINT_PERMISSIONS` to `dashboard:read
 
 ### Performance Impact
 
-Dashboard endpoints use lightweight queries and cached data where possible. The metrics and cache-metrics endpoints aggregate pre-computed statistics rather than scanning large datasets. Recent content uses cross-collection search with a configurable limit (default 5).
+Dashboard endpoints use lightweight queries and cached data where possible.
+
+The metrics and cache-metrics endpoints aggregate pre-computed statistics rather than scanning large datasets.
+
+Recent content uses cross-collection search with a configurable limit (default 5).
 
 ---
 

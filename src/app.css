@@ -6,16 +6,8 @@
 @import "tailwindcss";
 @import "./utilities.css";
 
-@source "../src/components";
-@source "../src/widgets";
-@source "../src/plugins";
-@source "../src/routes/(app)";
-@source "../src/routes/(admin)";
-@source "../src/routes/login";
-@source "../src/routes/email-previews";
-@source "../src/routes/share";
-@source "../src/routes/warming-up";
-@source "../src/themes";
+@source "../src/**/*.svelte";
+@source "../src/**/*.html";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

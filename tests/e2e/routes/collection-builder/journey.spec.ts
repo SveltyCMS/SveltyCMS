@@ -8,7 +8,7 @@ import { loginAsAdmin } from "../../helpers/auth";
  */
 
 test.describe("Master Behavioral Journey", () => {
-  test("Full Lifecycle: Builder -> Schema -> Entry -> API", async ({ page, request }) => {
+  test("Full Lifecycle: Builder -> Schema -> Entry -> API", async ({ page }) => {
     test.setTimeout(120_000);
     // Block external icon API requests that cause CORS errors with test headers
     await page.route("https://api.iconify.design/**", (route) => route.abort());

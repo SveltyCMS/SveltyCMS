@@ -53,10 +53,21 @@ export async function handleStripeWebhook(
     const status = event.type === "payment_intent.succeeded" ? "succeeded" : "failed";
     const now = new Date().toISOString();
 
-    // Use upsert for idempotent webhook handling
-    await dbAdapter.crud.upsert("plugin_stripe_payments", {
-      where: { stripeIntentId: intent.id },
-      create: {
+    // Use findOne + insert/update for idempotent webhook handling
+    const existing = await dbAdapter.crud.findOne("plugin_stripe_payments", {
+      stripeIntentId: intent.id,
+    });
+
+    if (existing?.success && existing.data) {
+      await dbAdapter.crud.update("plugin_stripe_payments", (existing.data as any)._id, {
+        status,
+        amount: intent.amount,
+        currency: intent.currency,
+        metadata: intent.metadata || {},
+        updatedAt: now,
+      });
+    } else {
+      await dbAdapter.crud.insert("plugin_stripe_payments", {
         _id: `stripe_${intent.id}`,
         stripeIntentId: intent.id,
         status,
@@ -66,15 +77,8 @@ export async function handleStripeWebhook(
         createdAt: now,
         updatedAt: now,
         tenantId,
-      },
-      update: {
-        status,
-        amount: intent.amount,
-        currency: intent.currency,
-        metadata: intent.metadata || {},
-        updatedAt: now,
-      },
-    });
+      });
+    }
 
     return { received: true };
   } catch (err: any) {
