@@ -40,96 +40,96 @@ src/utils/
 
 ### Data & Strings
 
-| File | Key exports |
-|---|---|
-| `string.ts` | `cn`, `parse`, `getEditDistance`, `getTextDirection`, `escapeRegex`, `hex2arrayBuffer`, `arrayBuffer2hex`, `sha256` |
-| `file.ts` | `formatBytes`, `obj2formdata`, `ReadableExpireIn`, `sanitize`, `removeExtension` |
-| `object-utils.ts` | `deepCopy` |
-| `array-utils.ts` | `uniqueItems` |
-| `diff-utils.ts` | `computeFieldDiff`, `DiffEntry` |
+| File              | Key exports                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `string.ts`       | `cn`, `parse`, `getEditDistance`, `getTextDirection`, `escapeRegex`, `hex2arrayBuffer`, `arrayBuffer2hex`, `sha256` |
+| `file.ts`         | `formatBytes`, `obj2formdata`, `ReadableExpireIn`, `sanitize`, `removeExtension`                                    |
+| `object-utils.ts` | `deepCopy`                                                                                                          |
+| `array-utils.ts`  | `uniqueItems`                                                                                                       |
+| `diff-utils.ts`   | `computeFieldDiff`, `DiffEntry`                                                                                     |
 
 ### Async & Performance
 
-| File | Key exports |
-|---|---|
-| `debounce.ts` | `debounce()`, `debounce.create()` |
-| `server/batch-loader.ts` | `BatchLoader`, `BatchFunction` |
-| `mutex.ts` | Async mutex for concurrent access |
-| `predictive-preload.ts` | `initPredictivePreload` — MutationObserver-based preloading |
+| File                     | Key exports                                                 |
+| ------------------------ | ----------------------------------------------------------- |
+| `debounce.ts`            | `debounce()`, `debounce.create()`                           |
+| `server/batch-loader.ts` | `BatchLoader`, `BatchFunction`                              |
+| `mutex.ts`               | Async mutex for concurrent access                           |
+| `predictive-preload.ts`  | `initPredictivePreload` — MutationObserver-based preloading |
 
 ### Date & Time
 
-| File | Key exports |
-|---|---|
+| File      | Key exports                                                                                                                                                                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `date.ts` | `nowISODateString`, `toISOString`, `dateToISODateString`, `isoDateStringToDate`, `isISODateString`, `formatDisplayDate`, `formatRelativeDate`, `formatDateString`, `formatUptime`, `formatIsoDuration`, `ReadableExpireIn`, `getCurrentDate` |
 
 ### Security (flat, in addition to `security/` subdir)
 
-| File | Key exports |
-|---|---|
+| File              | Key exports                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------- |
 | `egress-guard.ts` | `validateEgressUrl()`, `safeFetch()` — SSRF prevention, URL validation, timeout + size caps |
-| `cookie-utils.ts` | `parseCookies()` — WebSocket auth bridge |
+| `cookie-utils.ts` | `parseCookies()` — WebSocket auth bridge                                                    |
 | `native-utils.ts` | `generateSecureToken()`, `generateUUID()`, `getGlobal()`, `setGlobal()`, `pc` (ANSI colors) |
 
 ### Media Engine (`media/` subdirectory)
 
 All 14 files are **wired to API handlers** or planned for wiring:
 
-| File | Key exports | API endpoint |
-|---|---|---|
-| `media-utils.ts` | `getMimeType`, `mediaUrl`, `sanitizedFilename`, `SIZES` | Multiple |
-| `media-models.ts` | `MediaBase`, `MediaImage`, `MediaItem`, `MediaType` | Type definitions |
-| `media-service.server.ts` | `MediaService` class | Core CRUD |
-| `media-storage.server.ts` | `saveFile`, `deleteFile`, `getImageSizes`, `saveResizedImages` | Storage abstraction |
-| `cloud-storage.ts` | `upload`, `download`, `getUrl`, `isCloud`, `getConfig` | S3/R2/local |
-| `sharing.ts` | `createLink`, `validateLink`, `revoke`, `extend`, `newToken` | Share API |
-| `bulk-download.ts` | `createBulkArchive`, `streamArchive`, `cleanupArchive` | Bulk download |
-| `storage-analytics.ts` | `analyze`, `insights`, `trends`, `quota`, `formatBytes` | Analytics |
-| `version-history.ts` | `compareVersions`, `getVersionStats`, `createVersion` | Version API |
-| `advanced-search.ts` | `advancedSearch`, `getSuggestions`, `SearchCriteria` | Search API |
-| `streaming-upload.ts` | `parseMultipartStream` | Stream upload |
-| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService` | Processing |
-| `slim-sniffer.server.ts` | `sniffMimeType` | Binary MIME detection |
-| `webgpu-processor.ts` | `optimizeImage` | Client-side GPU optimization |
+| File                         | Key exports                                                    | API endpoint                 |
+| ---------------------------- | -------------------------------------------------------------- | ---------------------------- |
+| `media-utils.ts`             | `getMimeType`, `mediaUrl`, `sanitizedFilename`, `SIZES`        | Multiple                     |
+| `media-models.ts`            | `MediaBase`, `MediaImage`, `MediaItem`, `MediaType`            | Type definitions             |
+| `media-service.server.ts`    | `MediaService` class                                           | Core CRUD                    |
+| `media-storage.server.ts`    | `saveFile`, `deleteFile`, `getImageSizes`, `saveResizedImages` | Storage abstraction          |
+| `cloud-storage.ts`           | `upload`, `download`, `getUrl`, `isCloud`, `getConfig`         | S3/R2/local                  |
+| `sharing.ts`                 | `createLink`, `validateLink`, `revoke`, `extend`, `newToken`   | Share API                    |
+| `bulk-download.ts`           | `createBulkArchive`, `streamArchive`, `cleanupArchive`         | Bulk download                |
+| `storage-analytics.ts`       | `analyze`, `insights`, `trends`, `quota`, `formatBytes`        | Analytics                    |
+| `version-history.ts`         | `compareVersions`, `getVersionStats`, `createVersion`          | Version API                  |
+| `advanced-search.ts`         | `advancedSearch`, `getSuggestions`, `SearchCriteria`           | Search API                   |
+| `streaming-upload.ts`        | `parseMultipartStream`                                         | Stream upload                |
+| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`                    | Processing                   |
+| `slim-sniffer.server.ts`     | `sniffMimeType`                                                | Binary MIME detection        |
+| `webgpu-processor.ts`        | `optimizeImage`                                                | Client-side GPU optimization |
 
 ### Infrastructure
 
-| File | Key exports |
-|---|---|
-| `logger.ts` | Structured logging with browser/server awareness, pre-compiled highlight regex |
-| `event-bus.ts` | Server-only wildcard event emitter with `IS_SERVER` guard |
-| `id-generator.ts` | Hydration-safe SSR deterministic IDs |
-| `hook-utils.ts` | Pre-compiled regexes, request classification, `isPublicRoute` |
-| `error-handling.ts` | `AppError`, `handleApiError`, `getErrorMessage` |
-| `lazy-rune.ts` | Shim for Bun test environments |
-| `auto-tag.ts` | AI-powered auto-tagging on publish |
+| File                | Key exports                                                                    |
+| ------------------- | ------------------------------------------------------------------------------ |
+| `logger.ts`         | Structured logging with browser/server awareness, pre-compiled highlight regex |
+| `event-bus.ts`      | Server-only wildcard event emitter with `IS_SERVER` guard                      |
+| `id-generator.ts`   | Hydration-safe SSR deterministic IDs                                           |
+| `hook-utils.ts`     | Pre-compiled regexes, request classification, `isPublicRoute`                  |
+| `error-handling.ts` | `AppError`, `handleApiError`, `getErrorMessage`                                |
+| `lazy-rune.ts`      | Shim for Bun test environments                                                 |
+| `auto-tag.ts`       | AI-powered auto-tagging on publish                                             |
 
 ### Data Structures
 
-| File | Key exports |
-|---|---|
+| File              | Key exports                                |
+| ----------------- | ------------------------------------------ |
 | `bloom-filter.ts` | Probabilistic set membership (Uint32Array) |
-| `trie.ts` | Prefix tree with O(L) lookup |
+| `trie.ts`         | Prefix tree with O(L) lookup               |
 
 ### UI & Components
 
-| File | Key exports |
-|---|---|
-| `cn.ts` | Class name joiner |
-| `form.svelte.ts` | `obj2formData`, `Form` class |
-| `use-dialog.svelte.ts` | Native `<dialog>` lifecycle with focus trapping |
-| `admin-transitions.ts` | `adminFade`, `motion` — prefers-reduced-motion aware |
-| `adaptive-ui.ts` | `getAdaptiveUISortOrder` — adaptive dashboard grids |
-| `readability.ts` | `calculateReadability`, `getReadingEaseDescription` — SEO scoring |
+| File                   | Key exports                                                       |
+| ---------------------- | ----------------------------------------------------------------- |
+| `cn.ts`                | Class name joiner                                                 |
+| `form.svelte.ts`       | `obj2formData`, `Form` class                                      |
+| `use-dialog.svelte.ts` | Native `<dialog>` lifecycle with focus trapping                   |
+| `admin-transitions.ts` | `adminFade`, `motion` — prefers-reduced-motion aware              |
+| `adaptive-ui.ts`       | `getAdaptiveUISortOrder` — adaptive dashboard grids               |
+| `readability.ts`       | `calculateReadability`, `getReadingEaseDescription` — SEO scoring |
 
 ### Domain-Specific
 
-| File | Key exports |
-|---|---|
-| `entry-actions.ts` | Entry CRUD, status management, `meta_data` accumulator |
-| `language-utils.ts` | `getLanguageName()` via `Intl.DisplayNames` |
-| `scim-utils.ts` | SCIM 2.0 protocol helpers |
-| `bounce-detector.ts` | Behavioral learning bounce detection |
+| File                 | Key exports                                            |
+| -------------------- | ------------------------------------------------------ |
+| `entry-actions.ts`   | Entry CRUD, status management, `meta_data` accumulator |
+| `language-utils.ts`  | `getLanguageName()` via `Intl.DisplayNames`            |
+| `scim-utils.ts`      | SCIM 2.0 protocol helpers                              |
+| `bounce-detector.ts` | Behavioral learning bounce detection                   |
 
 ---
 
@@ -137,11 +137,11 @@ All 14 files are **wired to API handlers** or planned for wiring:
 
 ### `compilation/` — AST Compilation
 
-| File | Purpose |
-|---|---|
-| `compile.ts` | Content scanner compilation entry point |
+| File              | Purpose                                                              |
+| ----------------- | -------------------------------------------------------------------- |
+| `compile.ts`      | Content scanner compilation entry point                              |
 | `transformers.ts` | AST transformation rules (widget, commonjs, schema, alias resolving) |
-| `types.ts` | `CompileOptions`, `ManifestEntry`, `CompilationResult` |
+| `types.ts`        | `CompileOptions`, `ManifestEntry`, `CompilationResult`               |
 
 ### `media/` — DAM Engine
 
@@ -149,37 +149,37 @@ All functions wired or planned for wiring to API handlers. See **Section 2: Medi
 
 ### `schema/` — Schema Management
 
-| File | Purpose |
-|---|---|
-| `field-utils.ts` | `getFieldName()`, `getGuiFields()`, `extractData()`, `GuiFieldConfig` |
-| `comparison.ts` | Schema diffing |
-| `tree.ts` | Content tree operations |
-| `validation.ts` | Schema validation |
-| `validation.worker.ts` | Web Worker for async validation |
+| File                   | Purpose                                                               |
+| ---------------------- | --------------------------------------------------------------------- |
+| `field-utils.ts`       | `getFieldName()`, `getGuiFields()`, `extractData()`, `GuiFieldConfig` |
+| `comparison.ts`        | Schema diffing                                                        |
+| `tree.ts`              | Content tree operations                                               |
+| `validation.ts`        | Schema validation                                                     |
+| `validation.worker.ts` | Web Worker for async validation                                       |
 
 ### `security/` — Security Infrastructure
 
-| File | Purpose |
-|---|---|
-| `crypto.ts` | Argon2 hashing, AES encryption/decryption, worker pool |
-| `constants.ts` | CSP headers, security configuration |
-| `auth-utils.ts` | Session duration parsing |
-| `csrf-utils.ts` | CSRF token generation and validation |
-| `cors-utils.ts` | CORS header construction |
-| `credential-hash.ts` | SHA-256 credential hashing |
-| `mongo-sanitize.ts` | MongoDB injection prevention |
-| `permission-cache.ts` | Permission caching |
-| `safe-query.ts` | Safe query construction |
-| `index.ts` | Barrel re-export for `@utils/security` |
+| File                  | Purpose                                                |
+| --------------------- | ------------------------------------------------------ |
+| `crypto.ts`           | Argon2 hashing, AES encryption/decryption, worker pool |
+| `constants.ts`        | CSP headers, security configuration                    |
+| `auth-utils.ts`       | Session duration parsing                               |
+| `csrf-utils.ts`       | CSRF token generation and validation                   |
+| `cors-utils.ts`       | CORS header construction                               |
+| `credential-hash.ts`  | SHA-256 credential hashing                             |
+| `mongo-sanitize.ts`   | MongoDB injection prevention                           |
+| `permission-cache.ts` | Permission caching                                     |
+| `safe-query.ts`       | Safe query construction                                |
+| `index.ts`            | Barrel re-export for `@utils/security`                 |
 
 ### `server/` — Server-Side Utilities
 
-| File | Purpose |
-|---|---|
-| `setup-check.ts` | Setup completion detection, test secrets, `invalidateSetupCache` |
-| `setup-check-fast.ts` | Fast synchronous setup check |
-| `batch-loader.ts` | DataLoader-style request batching |
-| `deferred-elements.ts` | SSR deferred hydration callback registry (planned) |
+| File                   | Purpose                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| `setup-check.ts`       | Setup completion detection, test secrets, `invalidateSetupCache` |
+| `setup-check-fast.ts`  | Fast synchronous setup check                                     |
+| `batch-loader.ts`      | DataLoader-style request batching                                |
+| `deferred-elements.ts` | SSR deferred hydration callback registry (planned)               |
 
 ---
 
@@ -206,13 +206,13 @@ import { cn, deepCopy, debounce } from "@utils/utils";
 
 Utilities connected to REST API handlers:
 
-| Endpoint | Method | Utility | Handler |
-|---|---|---|---|
-| `/api/media/share/{id}/{token}` | DELETE | `revoke()` in `sharing.ts` | `handleMediaShareRevoke` |
-| `/api/media/share/{id}/{token}` | PATCH | `extend()` in `sharing.ts` | `handleMediaShareExtend` |
-| `/api/media/{id}/version` | POST | `createVersion()` in `version-history.ts` | `handleMediaVersionCreate` |
-| `/api/media/stream` | POST | `parseMultipartStream()` in `streaming-upload.ts` | `handleMediaStreamUpload` |
-| `/api/media/search` | GET | `advancedSearch()` in `advanced-search.ts` | `handleMediaSearch` |
+| Endpoint                        | Method | Utility                                           | Handler                    |
+| ------------------------------- | ------ | ------------------------------------------------- | -------------------------- |
+| `/api/media/share/{id}/{token}` | DELETE | `revoke()` in `sharing.ts`                        | `handleMediaShareRevoke`   |
+| `/api/media/share/{id}/{token}` | PATCH  | `extend()` in `sharing.ts`                        | `handleMediaShareExtend`   |
+| `/api/media/{id}/version`       | POST   | `createVersion()` in `version-history.ts`         | `handleMediaVersionCreate` |
+| `/api/media/stream`             | POST   | `parseMultipartStream()` in `streaming-upload.ts` | `handleMediaStreamUpload`  |
+| `/api/media/search`             | GET    | `advancedSearch()` in `advanced-search.ts`        | `handleMediaSearch`        |
 
 ---
 

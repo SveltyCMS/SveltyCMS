@@ -107,13 +107,9 @@ describe("Circular Import Detection (utils barrel)", () => {
       const withIndex = join(resolved, "index.ts");
       const withSvelteTs = resolved + ".svelte.ts";
 
-      const found =
-        existsSync(withTs) || existsSync(withIndex) || existsSync(withSvelteTs);
+      const found = existsSync(withTs) || existsSync(withIndex) || existsSync(withSvelteTs);
 
-      expect(
-        found,
-        `Barrel export "${exp}" does not resolve to an existing file`,
-      ).toBe(true);
+      expect(found, `Barrel export "${exp}" does not resolve to an existing file`).toBe(true);
     }
   });
 });

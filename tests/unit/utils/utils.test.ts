@@ -68,15 +68,11 @@ describe("General Utilities (utils.ts)", () => {
     });
 
     it("should generate a sanitized field name from label", () => {
-      expect(getFieldName({ label: "My Special Field!" } as any)).toBe(
-        "my_special_field",
-      );
+      expect(getFieldName({ label: "My Special Field!" } as any)).toBe("my_special_field");
     });
 
     it("should return the raw name if rawName is true", () => {
-      expect(getFieldName({ label: "My Special Field!" } as any, true)).toBe(
-        "My Special Field!",
-      );
+      expect(getFieldName({ label: "My Special Field!" } as any, true)).toBe("My Special Field!");
     });
 
     it("should handle unknown fields", () => {

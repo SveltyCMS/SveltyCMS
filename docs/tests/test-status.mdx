@@ -86,7 +86,7 @@ These measures ensure zero cross-test contamination and deterministic test resul
 | Security-specific | 64 (defense-in-depth, auth, RBAC)               |
 | Content-specific  | 24 (cache helpers, reconciliation, API surface) |
 | Media-specific    | 40 (sharing, MIME utils, binary sniffer)        |
-| Utils integrity   | 4 (circular import detection, barrel health)     |
+| Utils integrity   | 4 (circular import detection, barrel health)    |
 
 **June 2026 additions**:
 
@@ -122,9 +122,9 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 `tests/unit/utils/` — 4 barrel integrity tests:
 
-| Test file               | Tests | Covers                                                                              |
-| ----------------------- | ----- | ----------------------------------------------------------------------------------- |
-| circular-imports.test.ts | 4    | No `@utils/utils` barrel imports from utils files, barrel export existence, dead exports |
+| Test file                | Tests | Covers                                                                                   |
+| ------------------------ | ----- | ---------------------------------------------------------------------------------------- |
+| circular-imports.test.ts | 4     | No `@utils/utils` barrel imports from utils files, barrel export existence, dead exports |
 
 > **Why**: Rolldown (Vite 8 config bundler) traces static imports. A circular reference `utils.ts → file.ts → @utils/utils` causes Rolldown to expand the entire dependency graph into `.svelte` files, which it cannot parse. This test prevents regressions.
 
