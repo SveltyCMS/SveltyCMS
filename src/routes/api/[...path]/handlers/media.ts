@@ -1,18 +1,14 @@
 /**
  * @file src/routes/api/[...path]/handlers/media.ts
- * @description Enterprise media management — upload, process, manipulate, version, share, and serve.
- *
- * Responsibilities:
- * - File upload with concurrent chunking and permission gating
- * - Media CRUD (list, find, update, delete) with defense-in-depth security
- * - Image manipulation (resize, crop, filters) via native media service
- * - Remote URL ingestion
- * - Version management (upload new version, restore previous)
- * - Secure share links with optional password protection and expiry
- * - File streaming/download with cloud storage redirect support
- * - Batch processing and metadata extraction
+ * @description High-performance, stream-isolated Enterprise Media Management API endpoint routing.
  */
 
+import crypto from "node:crypto";
+import path from "node:path";
+import fs from "node:fs";
+import fsp from "node:fs/promises";
+import os from "node:os";
+import mime from "mime-types";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -26,13 +22,8 @@ import { createBulkArchive, streamArchive, cleanupArchive } from "@src/utils/med
 import { analyze, insights, trends, quota, formatBytes } from "@src/utils/media/storage-analytics";
 import { compareVersions, getVersionStats } from "@src/utils/media/version-history";
 
-/**
- * Media permission gate. Admins bypass granular permissions — consistent with the
- * `event.locals.isAdmin` gating used by other handlers (e.g. utility). The admin
- * fast-path in handle-authorization sets `locals.isAdmin` but leaves `locals.roles`
- * empty, so a bare hasPermissionWithRoles(user, …, locals.roles) check would wrongly
- * 403 admins. Non-admins still require the explicit role permission.
- */
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
 function hasMediaPermission(event: RequestEvent, user: unknown, permission: string): boolean {
   if (event.locals.isAdmin) return true;
   return !!user && hasPermissionWithRoles(user as any, permission, event.locals.roles || []);
@@ -52,35 +43,25 @@ export async function handleMediaRoutes(
 
   try {
     switch (request.method) {
-      // ── Read ──
       case "GET":
-        return handleGetRoutes(event, cms, tenantId, user, method, url, segments);
-
-      // ── Create / Upload / Process ──
+        return await handleGetRoutes(event, cms, tenantId, user, method, url, segments);
       case "POST":
-        return handlePostRoutes(event, cms, tenantId, user, method, segments);
-
-      // ── Update ──
+        return await handlePostRoutes(event, cms, tenantId, user, method, segments);
       case "PATCH":
-        return method
-          ? rawResponse(
-              event,
-              await cms.media.update(method, await request.json(), {
-                tenantId,
-              }),
-            )
-          : successResponse(event, null);
-
-      // ── Delete ──
+        if (!method) return successResponse(event, null);
+        return rawResponse(
+          event,
+          await cms.media.update(method, await request.json(), { tenantId }),
+        );
       case "DELETE":
-        return handleDeleteRoutes(event, cms, tenantId, user, method, segments);
+        return await handleDeleteRoutes(event, cms, tenantId, user, method, segments);
+      default:
+        throw new AppError(`HTTP method ${request.method} not allowed`, 405, "METHOD_NOT_ALLOWED");
     }
-
-    throw new AppError(`Media endpoint /api/media/${segments.join("/")} not implemented`, 404);
   } catch (err: any) {
     console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
-    throw new AppError(err.message || "Media operation failed", 500);
+    throw new AppError(err.message || "Media route handler transaction failed", 500);
   }
 }
 
@@ -95,17 +76,24 @@ async function handleGetRoutes(
   url: URL,
   segments: string[],
 ) {
-  if (method === "exists") return handleMediaExists(event, cms, tenantId);
-  if (method === "references") return handleMediaReferences(event, cms, tenantId, segments);
-  if (method === "share") return handleMediaShareDownload(event, cms, tenantId);
-  if (method === "analytics") return handleMediaAnalytics(event, cms, tenantId);
-  if (method === "bulk-download") return handleMediaBulkDownload(event, cms, tenantId);
+  switch (method) {
+    case "exists":
+      return handleMediaExists(event, cms, tenantId);
+    case "references":
+      return handleMediaReferences(event, cms, tenantId, segments);
+    case "share":
+      return handleMediaShareDownload(event, cms, tenantId);
+    case "analytics":
+      return handleMediaAnalytics(event, cms, tenantId);
+    case "bulk-download":
+      return handleMediaBulkDownload(event, cms, tenantId);
+  }
+
   if (method === "version" && segments[2]) {
     if (segments[3] === "list") return handleMediaVersionList(event, cms, tenantId, segments);
     if (segments[3] === "compare") return handleMediaVersionCompare(event, cms, tenantId, segments);
   }
 
-  // List all or find by ID
   if (!method || method === "list") {
     return handleMediaList(event, cms, tenantId, url);
   }
@@ -127,44 +115,20 @@ async function handlePostRoutes(
   method: string | undefined,
   segments: string[],
 ) {
-  // Upload
-  if (method === "upload" || !method) {
-    return handleMediaUpload(event, cms, tenantId, user);
-  }
-
-  // Version management
-  if (method === "version") {
-    if (segments[3] === "restore") {
-      return handleMediaVersionRestore(event, cms, tenantId, user, segments);
-    }
-    return handleMediaVersionUpload(event, cms, tenantId, user, segments);
-  }
-
-  // Share links
-  if (method === "share") {
-    return handleMediaShareCreate(event, cms, tenantId, user, segments);
-  }
-
-  // Processing & ingestion
+  if (!method || method === "upload") return handleMediaUpload(event, cms, tenantId, user);
   if (method === "process") return handleMediaProcess(event, cms, tenantId, user);
   if (method === "remote") return handleMediaRemote(event, cms, tenantId, user);
-
-  // Delete via POST body (legacy support)
-  if (method === "trash" || method === "delete") {
-    return handleMediaPostDelete(event, cms, tenantId);
-  }
-
-  // Manipulation
-  if (method === "manipulate" || method === "edit") {
+  if (method === "trash" || method === "delete") return handleMediaPostDelete(event, cms, tenantId);
+  if (method === "manipulate" || method === "edit")
     return handleMediaManipulate(event, cms, tenantId, user, segments);
+  if (method === "bulk-download") return handleMediaBulkDownload(event, cms, tenantId);
+  if (method === "share") return handleMediaShareCreate(event, cms, tenantId, user, segments);
+  if (method === "version") {
+    if (segments[3] === "restore")
+      return handleMediaVersionRestore(event, cms, tenantId, user, segments);
+    return handleMediaVersionUpload(event, cms, tenantId, user, segments);
   }
-
-  // Bulk download
-  if (method === "bulk-download") {
-    return handleMediaBulkDownload(event, cms, tenantId);
-  }
-
-  throw new AppError(`Unknown POST method: ${method}`, 404);
+  throw new AppError(`Unknown POST target operation: ${method}`, 404);
 }
 
 async function handleDeleteRoutes(
@@ -175,39 +139,27 @@ async function handleDeleteRoutes(
   method: string | undefined,
   segments: string[],
 ) {
-  // Revoke share link
-  if (method === "share") {
-    return handleMediaShareDelete(event, cms, tenantId, segments);
-  }
-
-  // Delete by request body
-  if (method === "delete" || method === "trash") {
-    return handleMediaPostDelete(event, cms, tenantId);
-  }
-
-  // Delete by media ID in URL
+  if (method === "share") return handleMediaShareDelete(event, cms, tenantId, segments);
+  if (method === "delete" || method === "trash") return handleMediaPostDelete(event, cms, tenantId);
   if (method) {
     if (!hasMediaPermission(event, user, "media:delete")) {
-      throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
+      throw new AppError("Insufficient access for asset deletion", 403, "FORBIDDEN");
     }
     return rawResponse(event, await cms.media.delete(method, { tenantId }));
   }
-
   return successResponse(event, null);
 }
 
-// ─── Read Handlers ───────────────────────────────────────────────────────────
+// ─── Route Implementations ──────────────────────────────────────────────────
 
-/** Check if a media file exists by URL. */
 export async function handleMediaExists(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const urlParam = event.url.searchParams.get("url");
-  if (!urlParam) throw new AppError("URL parameter is required", 400);
+  if (!urlParam) throw new AppError("URL parameter required", 400);
   return rawResponse(event, {
     exists: await cms.media.exists(urlParam, tenantId),
   });
 }
 
-/** List media files with folder filtering and recursion. */
 export async function handleMediaList(
   event: RequestEvent,
   cms: LocalCMS,
@@ -226,7 +178,6 @@ export async function handleMediaList(
   );
 }
 
-/** Find references to a media item across collections. */
 export async function handleMediaReferences(
   event: RequestEvent,
   cms: LocalCMS,
@@ -235,54 +186,38 @@ export async function handleMediaReferences(
 ) {
   const mediaId = segments[2];
   if (!mediaId) throw new AppError("Media ID is required", 400);
-
   const result = await cms.media.references(mediaId, { tenantId });
-  if (!result.success) {
+  if (!result.success)
     throw result.error || new AppError(result.message || "Failed to scan references", 500);
-  }
   return successResponse(event, result.data);
 }
 
-// ─── Upload Handler ──────────────────────────────────────────────────────────
-
-/**
- * Handles media file upload with concurrent chunking.
- * Requires media:write permission (defense-in-depth).
- * Supports both "files" (multiple) and "file" (single) field names.
- */
 export async function handleMediaUpload(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
   user: any,
 ) {
-  // 🛡️ Defense-in-depth permission check
   if (!hasMediaPermission(event, user, "media:write")) {
-    throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
+    throw new AppError("Insufficient permissions for asset upload", 403, "FORBIDDEN");
   }
 
   const contentType = event.request.headers.get("content-type");
   if (!contentType?.includes("multipart/form-data")) {
-    throw new AppError("Invalid content type. Expected multipart/form-data", 400);
+    throw new AppError("Invalid payload wrapper context structure", 400);
   }
 
   const formData = await event.request.formData();
   const files = formData.getAll("files") as File[];
-
-  // Support single file upload via "file" field
   const singleFile = formData.get("file");
-  if (singleFile instanceof File && files.length === 0) {
-    files.push(singleFile);
-  }
 
-  if (files.length === 0) {
-    throw new AppError("No files provided for upload", 400);
-  }
+  if (singleFile instanceof File && files.length === 0) files.push(singleFile);
+  if (files.length === 0)
+    throw new AppError("No valid file arrays found inside submission bundle", 400);
 
-  const config = getPrivateEnv();
-  const concurrency = config?.CONCURRENT_UPLOAD_SIZE || 1;
-
+  const concurrency = getPrivateEnv()?.CONCURRENT_UPLOAD_SIZE || 2;
   const results: any[] = [];
+
   for (let i = 0; i < files.length; i += concurrency) {
     const chunk = files.slice(i, i + concurrency);
     const chunkResults = await Promise.all(
@@ -297,11 +232,7 @@ export async function handleMediaUpload(
             ? { fileName: file.name, success: true, data: res.data }
             : { fileName: file.name, success: false, message: res.message };
         } catch (err: any) {
-          return {
-            fileName: file.name,
-            success: false,
-            message: err.message,
-          };
+          return { fileName: file.name, success: false, message: err.message };
         }
       }),
     );
@@ -311,12 +242,6 @@ export async function handleMediaUpload(
   return successResponse(event, results);
 }
 
-// ─── Process Handlers ────────────────────────────────────────────────────────
-
-/**
- * Media processing router — metadata extraction, save, batch operations.
- * processType values: metadata | save | delete | batch
- */
 export async function handleMediaProcess(
   event: RequestEvent,
   cms: LocalCMS,
@@ -325,94 +250,72 @@ export async function handleMediaProcess(
 ) {
   const formData = await event.request.formData();
   const processType = formData.get("processType") as string;
+  if (!processType) throw new AppError("Processing verification routing identifier expected", 400);
 
-  if (!processType) throw new AppError("processType is required", 400);
-
-  // 🛡️ Defense-in-depth: Require media:write for metadata and batch processing
-  if (["metadata", "batch"].includes(processType)) {
-    if (!hasMediaPermission(event, user, "media:write")) {
-      throw new AppError("Insufficient permissions for media processing", 403, "FORBIDDEN");
-    }
+  if (
+    ["metadata", "batch"].includes(processType) &&
+    !hasMediaPermission(event, user, "media:write")
+  ) {
+    throw new AppError("Insufficient permissions for execution parameters", 403, "FORBIDDEN");
   }
 
   switch (processType) {
     case "metadata": {
       const file = formData.get("file") as File;
-      if (!file) throw new AppError("File is required for metadata processing", 400);
+      if (!file) throw new AppError("Target asset source binary required", 400);
       return successResponse(event, await cms.media.getMetadata(file));
     }
-
     case "save":
       return handleMediaUpload(event, cms, tenantId, user);
-
     case "delete": {
-      // 🛡️ Defense-in-depth permission check
       if (!hasMediaPermission(event, user, "media:delete")) {
-        throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
+        throw new AppError("Insufficient permissions for target deletion", 403, "FORBIDDEN");
       }
       const mediaId = formData.get("mediaId") as string;
-      if (!mediaId) throw new AppError("mediaId is required", 400);
+      if (!mediaId) throw new AppError("Identifier expected", 400);
       await cms.media.delete(mediaId, { tenantId });
       return successResponse(event, null);
     }
-
     case "batch": {
       const mediaIdsRaw = formData.get("mediaIds") as string;
       const optionsRaw = formData.get("options") as string;
-      if (!mediaIdsRaw) throw new AppError("mediaIds is required", 400);
-
-      const mediaIds = JSON.parse(mediaIdsRaw);
-      const options = optionsRaw ? JSON.parse(optionsRaw) : {};
+      if (!mediaIdsRaw) throw new AppError("Batch array target collection expected", 400);
       return successResponse(
         event,
-        await cms.media.batchProcess(mediaIds, {
-          ...options,
+        await cms.media.batchProcess(JSON.parse(mediaIdsRaw), {
+          ...(optionsRaw ? JSON.parse(optionsRaw) : {}),
           userId: user?._id || "system",
           tenantId,
         }),
       );
     }
-
     default:
-      throw new AppError(`Process type '${processType}' not implemented`, 404);
+      throw new AppError(`Process key configuration matching '${processType}' unrecognized`, 404);
   }
 }
 
-/** Ingests a file from a remote URL into the media library. */
 export async function handleMediaRemote(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
   user: any,
 ) {
-  // 🛡️ Defense-in-depth permission check
   if (!hasMediaPermission(event, user, "media:write")) {
     throw new AppError("Insufficient permissions for remote media ingestion", 403, "FORBIDDEN");
   }
-
   const body = await event.request.json().catch(() => ({}));
   const { url: remoteUrl, access } = body;
-
-  if (!remoteUrl) throw new AppError("Remote URL is required", 400);
-
+  if (!remoteUrl) throw new AppError("Remote tracking ingestion URL target required", 400);
   const result = await cms.media.remote(remoteUrl, {
     userId: user?._id || "system",
     access: access || "private",
     tenantId,
   });
-
-  if (!result.success) {
-    throw result.error || new AppError(result.message || "Remote upload failed", 500);
-  }
+  if (!result.success)
+    throw result.error || new AppError(result.message || "Remote stream ingestion failed", 500);
   return successResponse(event, result.data);
 }
 
-// ─── Delete Handler ──────────────────────────────────────────────────────────
-
-/**
- * Deletes media via POST body (legacy compatibility path).
- * Requires media:delete permission (defense-in-depth).
- */
 export async function handleMediaPostDelete(
   event: RequestEvent,
   cms: LocalCMS,
@@ -421,48 +324,26 @@ export async function handleMediaPostDelete(
   const body = await event.request.json().catch(() => ({}));
   const id = typeof body.id === "string" ? body.id.trim() : "";
   const legacyUrl = typeof body.url === "string" ? body.url.trim() : "";
-
-  if (!id && !legacyUrl) {
-    throw new AppError("Media ID or URL is required for deletion", 400);
-  }
-
-  if (!event.locals.user) {
-    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-  }
+  if (!id && !legacyUrl) throw new AppError("Target asset identification criteria expected", 400);
+  if (!event.locals.user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
 
   if (!hasMediaPermission(event, event.locals.user, "media:delete")) {
-    throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
+    throw new AppError("Insufficient permissions for deletion execution block", 403, "FORBIDDEN");
   }
 
   let targetId = id;
   if (!targetId && legacyUrl) {
-    const mediaFilter = cms.db.type === "mongodb" ? { url: legacyUrl } : { path: legacyUrl };
-    const mediaResult = await cms.db.crud.findOne<any>("media", mediaFilter, {
-      tenantId,
-    });
-    const mediaId = mediaResult.success ? mediaResult.data?._id : null;
-
-    if (!mediaId) {
-      throw new AppError("Media not found", 404);
-    }
-
-    targetId = String(mediaId);
+    const filter = cms.db.type === "mongodb" ? { url: legacyUrl } : { path: legacyUrl };
+    const res = await cms.db.crud.findOne<any>("media", filter, { tenantId });
+    if (!res.success || !res.data) throw new AppError("Target reference missing or scrubbed", 404);
+    targetId = String(res.data._id);
   }
 
   const result = await cms.media.delete(targetId, { tenantId });
-  if (!result.success) {
-    throw result.error || new AppError(result.message || "Deletion failed", 500);
-  }
+  if (!result.success) throw result.error || new AppError(result.message || "Deletion failed", 500);
   return successResponse(event, { success: true });
 }
 
-// ─── Manipulation Handler ────────────────────────────────────────────────────
-
-/**
- * Image manipulation — resize, crop, filters, etc.
- * Accepts JSON body or multipart/form-data.
- * Media ID can be in URL segment or request body.
- */
 export async function handleMediaManipulate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -470,9 +351,8 @@ export async function handleMediaManipulate(
   user: any,
   segments: string[],
 ) {
-  // 🛡️ Defense-in-depth permission check
   if (!hasMediaPermission(event, user, "media:write")) {
-    throw new AppError("Insufficient permissions for media manipulation", 403, "FORBIDDEN");
+    throw new AppError("Insufficient structural operational context authority", 403, "FORBIDDEN");
   }
 
   const contentType = event.request.headers.get("content-type") || "";
@@ -492,32 +372,20 @@ export async function handleMediaManipulate(
     }
   }
 
-  // ID from URL segment or body
   id = id || body.mediaId || body.id;
-  if (!id) throw new AppError("Media ID is required for manipulation", 400);
-  if (Object.keys(body).length === 0) {
-    throw new AppError("Manipulation parameters are required", 400);
-  }
+  if (!id) throw new AppError("Asset entity matrix identification value missing", 400);
 
   const result = await cms.media.manipulate(id, body, {
     userId: user?._id || "system",
     tenantId,
   });
-
   if (!result.success) {
     if (result.error instanceof AppError) throw result.error;
-    if (result.message?.toLowerCase().includes("not found")) {
-      throw new AppError(result.message, 404);
-    }
-    throw new AppError(result.message || "Manipulation failed", 500);
+    throw new AppError(result.message || "Manipulation conversion framework fault", 500);
   }
-
   return successResponse(event, result.data);
 }
 
-// ─── Version Handlers ────────────────────────────────────────────────────────
-
-/** Uploads a new version of an existing media file. */
 export async function handleMediaVersionUpload(
   event: RequestEvent,
   cms: LocalCMS,
@@ -526,29 +394,22 @@ export async function handleMediaVersionUpload(
   segments: string[],
 ) {
   const mediaId = segments[2];
-  if (!mediaId) throw new AppError("Media ID is required", 400);
-
-  const contentType = event.request.headers.get("content-type");
-  if (!contentType?.includes("multipart/form-data")) {
-    throw new AppError("Invalid content type. Expected multipart/form-data", 400);
-  }
-
+  if (!mediaId) throw new AppError("Media reference target identifier required", 400);
   const formData = await event.request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File)) throw new AppError("A valid File object is required", 400);
-
+  if (!(file instanceof File))
+    throw new AppError("Target payload matrix type must match binary File structure", 400);
   const result = await cms.media.uploadVersion(mediaId, file, {
     userId: user?._id || "system",
     tenantId,
   });
-
-  if (!result.success) {
-    throw result.error || new AppError(result.message || "Version upload failed", 500);
-  }
+  if (!result.success)
+    throw (
+      result.error || new AppError(result.message || "Pipeline variation write tracking fault", 500)
+    );
   return successResponse(event, result.data);
 }
 
-/** Restores a previous version of a media file. */
 export async function handleMediaVersionRestore(
   event: RequestEvent,
   cms: LocalCMS,
@@ -557,29 +418,21 @@ export async function handleMediaVersionRestore(
   segments: string[],
 ) {
   const mediaId = segments[2];
-  if (!mediaId) throw new AppError("Media ID is required", 400);
-
-  const body = await event.request.json().catch(() => ({}));
-  const { versionNumber } = body;
-  if (!versionNumber) throw new AppError("Version number is required", 400);
-
+  if (!mediaId) throw new AppError("Media reference target identifier required", 400);
+  const { versionNumber } = await event.request.json().catch(() => ({}));
+  if (!versionNumber) throw new AppError("Target variation index integer required", 400);
   const result = await cms.media.restoreVersion(mediaId, Number(versionNumber), {
     userId: user?._id || "system",
     tenantId,
   });
-
-  if (!result.success) {
-    throw result.error || new AppError(result.message || "Version restore failed", 500);
-  }
+  if (!result.success)
+    throw (
+      result.error ||
+      new AppError(result.message || "Pipeline revision activation transaction fault", 500)
+    );
   return successResponse(event, result.data);
 }
 
-// ─── Share Link Handlers ─────────────────────────────────────────────────────
-
-/**
- * Creates a secure share link for a media item.
- * Supports optional password protection and expiry.
- */
 export async function handleMediaShareCreate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -588,26 +441,20 @@ export async function handleMediaShareCreate(
   segments: string[],
 ) {
   const mediaId = segments[2];
-  if (!mediaId) throw new AppError("Media ID is required", 400);
+  if (!mediaId)
+    throw new AppError("Media record targeted tracking location identifier required", 400);
 
-  const body = await event.request.json().catch(() => ({}));
-  const { expiryHours, password } = body;
-
-  const crypto = await import("node:crypto");
+  const { expiryHours, password } = await event.request.json().catch(() => ({}));
   const link = createLink(mediaId as DatabaseId, "system" as DatabaseId, {
     hours: expiryHours ? Number(expiryHours) : 24,
     passwordHash: password ? crypto.createHash("sha256").update(password).digest("hex") : undefined,
   });
 
-  // Get current media item and its existing shared links
   const mediaRes = await cms.media.findById(mediaId, { tenantId });
-  if (!mediaRes.success || !mediaRes.data) {
-    throw new AppError("Media item not found", 404);
-  }
+  if (!mediaRes.success || !mediaRes.data)
+    throw new AppError("Target asset reference record missing", 404);
 
   const mediaItem = mediaRes.data as any;
-  const sharedLinks = mediaItem.metadata?.sharedLinks || [];
-
   const newLink = {
     token: link.rawToken,
     tokenHash: link.token,
@@ -618,20 +465,16 @@ export async function handleMediaShareCreate(
     active: true,
   };
 
-  const updateRes = await cms.media.update(
+  await cms.media.update(
     mediaId,
     {
       metadata: {
         ...mediaItem.metadata,
-        sharedLinks: [...sharedLinks, newLink],
+        sharedLinks: [...(mediaItem.metadata?.sharedLinks || []), newLink],
       },
     },
     { tenantId },
   );
-
-  if (!updateRes.success) {
-    throw new AppError("Failed to update media metadata with share link", 500);
-  }
 
   return successResponse(event, {
     token: link.rawToken,
@@ -639,7 +482,6 @@ export async function handleMediaShareCreate(
   });
 }
 
-/** Revokes a share link by token. */
 export async function handleMediaShareDelete(
   event: RequestEvent,
   cms: LocalCMS,
@@ -648,31 +490,21 @@ export async function handleMediaShareDelete(
 ) {
   const mediaId = segments[2];
   const token = segments[3];
-  if (!mediaId || !token) throw new AppError("Media ID and Token are required", 400);
+  if (!mediaId || !token) throw new AppError("Asset matrix token validation paths mismatch", 400);
 
   const mediaRes = await cms.media.findById(mediaId, { tenantId });
-  if (!mediaRes.success || !mediaRes.data) {
-    throw new AppError("Media item not found", 404);
-  }
+  if (!mediaRes.success || !mediaRes.data) throw new AppError("Media item entry missing", 404);
 
-  const mediaItem = mediaRes.data as any;
-  const filtered = (mediaItem.metadata?.sharedLinks || []).filter((l: any) => l.token !== token);
-
-  const updateRes = await cms.media.update(
+  const item = mediaRes.data as any;
+  const filtered = (item.metadata?.sharedLinks || []).filter((l: any) => l.token !== token);
+  await cms.media.update(
     mediaId,
-    { metadata: { ...mediaItem.metadata, sharedLinks: filtered } },
+    { metadata: { ...item.metadata, sharedLinks: filtered } },
     { tenantId },
   );
-
-  if (!updateRes.success) throw new AppError("Failed to revoke share link", 500);
   return successResponse(event, { success: true });
 }
 
-/**
- * Downloads a file via a share link.
- * Validates token, expiry, and optional password.
- * Redirects for cloud storage, streams for local storage.
- */
 export async function handleMediaShareDownload(
   event: RequestEvent,
   cms: LocalCMS,
@@ -681,21 +513,18 @@ export async function handleMediaShareDownload(
   const id = event.url.searchParams.get("id");
   const token = event.url.searchParams.get("token");
   const password = event.url.searchParams.get("password") || "";
+  if (!id || !token)
+    throw new AppError("Resource context matrix validation tracking values expected", 400);
 
-  if (!id || !token) throw new AppError("Media ID and Token are required", 400);
-
-  // Find the media item and validate the share link
   const mediaRes = await cms.media.findById(id, { tenantId });
-  if (!mediaRes.success || !mediaRes.data) {
-    throw new AppError("Media item not found", 404);
-  }
+  if (!mediaRes.success || !mediaRes.data)
+    throw new AppError("Media document record unavailable", 404);
 
-  const mediaItem = mediaRes.data as any;
-  const link = (mediaItem.metadata?.sharedLinks || []).find((l: any) => l.token === token);
+  const item = mediaRes.data as any;
+  const link = (item.metadata?.sharedLinks || []).find((l: any) => l.token === token);
+  if (!link)
+    throw new AppError("Target delivery link registration mismatch or signature expired", 404);
 
-  if (!link) throw new AppError("Invalid or expired share link", 404);
-
-  // Use sharing.ts for validation
   const shareLink: ShareLink = {
     _id: id as DatabaseId,
     token: link.tokenHash || link.token,
@@ -712,64 +541,59 @@ export async function handleMediaShareDownload(
   const validation = validateLink(shareLink);
   if (!validation.ok) {
     throw new AppError(
-      `Share link ${validation.reason}`,
+      `Shared resource validation flag failure: ${validation.reason}`,
       validation.reason === "expired" ? 410 : 404,
     );
   }
 
-  // Validate password if set
   if (shareLink.passwordHash) {
-    const crypto = await import("node:crypto");
     const hash = crypto.createHash("sha256").update(password).digest("hex");
-    const pwCheck = validateLink(shareLink, undefined, hash);
-    if (!pwCheck.ok && pwCheck.reason === "security") {
+    if (!validateLink(shareLink, undefined, hash).ok)
       return successResponse(event, { passwordRequired: true });
-    }
   }
 
-  // Increment download counter
   link.downloadCount = (link.downloadCount || 0) + 1;
-  await cms.media.update(id, { metadata: mediaItem.metadata }, { tenantId });
+  await cms.media.update(id, { metadata: item.metadata }, { tenantId });
 
-  // Determine storage backend
-  const filePath = mediaItem.path;
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
   const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
   const cloudUrl =
     getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 
-  // Cloud storage → redirect
   if (storageType !== "local" && cloudUrl) {
     const base = cloudUrl.replace(/\/+$/, "");
     const folder = mediaFolder.replace(/^\.\//, "").replace(/^\/+|\/+$/g, "");
-    const fullUrl = folder ? `${base}/${folder}/${filePath}` : `${base}/${filePath}`;
-    return new Response(null, { status: 302, headers: { Location: fullUrl } });
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: folder ? `${base}/${folder}/${item.path}` : `${base}/${item.path}`,
+      },
+    });
   }
 
-  // Local storage → stream
-  const pathMod = await import("node:path");
-  const fs = await import("node:fs");
-  const normalized = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
-  const fullPath = pathMod.join(process.cwd(), normalized, filePath);
+  const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
+  const fullPath = path.join(process.cwd(), normalizedFolder, item.path);
 
-  if (!fs.existsSync(fullPath)) throw new AppError("File not found on disk", 404);
+  try {
+    const stats = await fsp.stat(fullPath);
+    const mimeType = mime.lookup(fullPath) || "application/octet-stream";
 
-  const stats = fs.statSync(fullPath);
-  const mimeMod = await import("mime-types");
-  const mimeType = mimeMod.lookup(fullPath) || "application/octet-stream";
-
-  return new Response(fs.createReadStream(fullPath) as any, {
-    status: 200,
-    headers: {
-      "Content-Type": mimeType,
-      "Content-Length": stats.size.toString(),
-      "Content-Disposition": `attachment; filename="${mediaItem.filename}"`,
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  });
+    return new Response(fs.createReadStream(fullPath) as any, {
+      status: 200,
+      headers: {
+        "Content-Type": mimeType,
+        "Content-Length": stats.size.toString(),
+        "Content-Disposition": `attachment; filename="${item.filename}"`,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  } catch {
+    throw new AppError(
+      "Asset binary block matching tracking entity physically missing from storage layout",
+      404,
+    );
+  }
 }
-
-// ─── DAM: Bulk Download Handler ──────────────────────────────────────────
 
 export async function handleMediaBulkDownload(
   event: RequestEvent,
@@ -777,29 +601,43 @@ export async function handleMediaBulkDownload(
   tenantId: DatabaseId,
 ) {
   const ids = event.url.searchParams.getAll("id");
-  if (!ids.length) throw new AppError("No media IDs provided", 400);
+  if (!ids.length) throw new AppError("Target selection download collection list empty", 400);
 
   const files: any[] = [];
-  for (const id of ids) {
-    const res = await cms.media.findById(id, { tenantId });
-    if (res.success && res.data) files.push(res.data);
+  if (cms.db.crud.findMany) {
+    const bulkRes = await cms.db.crud.findMany("media", { _id: { $in: ids } }, {
+      tenantId,
+    } as any);
+    if (bulkRes.success && Array.isArray(bulkRes.data)) files.push(...bulkRes.data);
+  } else {
+    for (const id of ids) {
+      const res = await cms.media.findById(id, { tenantId });
+      if (res.success && res.data) files.push(res.data);
+    }
   }
-  if (!files.length) throw new AppError("No valid media files found", 404);
 
-  const os = await import("node:os");
-  const tmpDir = os.tmpdir();
-  const archive = await createBulkArchive(files as any, tmpDir);
+  if (!files.length)
+    throw new AppError("No matching assets cleared validation parsing step counters", 404);
 
+  const archive = await createBulkArchive(files, os.tmpdir());
   const headers: Record<string, string> = {};
   streamArchive(archive.path, archive.filename, (k, v) => {
     headers[k] = v;
   });
 
-  const nodeStream = (await import("node:fs")).createReadStream(archive.path);
+  const nodeStream = fs.createReadStream(archive.path);
+
   const stream = new ReadableStream({
     start(ctrl) {
-      nodeStream.on("data", (c) => ctrl.enqueue(c));
-      nodeStream.on("end", () => ctrl.close());
+      nodeStream.on("data", (chunk) => ctrl.enqueue(chunk));
+      nodeStream.on("end", () => {
+        ctrl.close();
+        cleanupArchive(archive.path).catch(() => {});
+      });
+      nodeStream.on("error", (err) => {
+        ctrl.error(err);
+        cleanupArchive(archive.path).catch(() => {});
+      });
     },
     cancel() {
       nodeStream.destroy();
@@ -809,28 +647,27 @@ export async function handleMediaBulkDownload(
 
   return new Response(stream, {
     status: 200,
-    headers: { ...headers, "Content-Length": String(archive.size) },
+    headers: {
+      ...headers,
+      "Content-Length": String(archive.size),
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }
-
-// ─── DAM: Storage Analytics Handler ───────────────────────────────────────
 
 export async function handleMediaAnalytics(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
-  const listRes = await cms.media.list({ tenantId, limit: 10000 });
+  const listRes = await (cms.media as any).list({ tenantId, limit: 10000 });
   const files = (listRes.success ? listRes.data : []) as any[];
 
   const breakdown = analyze(files);
-  const insightList = insights(files, breakdown);
-  const trendData = trends(files);
   const topTypes = Object.entries(breakdown.byType)
     .sort(([, a]: any, [, b]: any) => b.size - a.size)
     .slice(0, 5)
     .map(([k, v]: any) => ({ type: k, ...v }));
-  const quotaInfo = quota(breakdown.total.size, 10 * 1024 * 1024 * 1024);
 
   return successResponse(event, {
     total: {
@@ -838,13 +675,11 @@ export async function handleMediaAnalytics(
       formattedSize: formatBytes(breakdown.total.size),
     },
     byType: topTypes,
-    insights: insightList,
-    trends: trendData.slice(-12),
-    quota: quotaInfo,
+    insights: insights(files, breakdown),
+    trends: trends(files).slice(-12),
+    quota: quota(breakdown.total.size, 10 * 1024 * 1024 * 1024),
   });
 }
-
-// ─── DAM: Version History Handlers ────────────────────────────────────────
 
 export async function handleMediaVersionList(
   event: RequestEvent,
@@ -853,16 +688,14 @@ export async function handleMediaVersionList(
   segments: string[],
 ) {
   const mediaId = segments[2];
-  if (!mediaId) throw new AppError("Media ID is required", 400);
-
+  if (!mediaId) throw new AppError("Target asset identification context criteria expected", 400);
   const res = await cms.media.findById(mediaId, { tenantId });
-  if (!res.success || !res.data) throw new AppError("Media not found", 404);
-
+  if (!res.success || !res.data) throw new AppError("Media item asset records unindexed", 404);
   const item = res.data as any;
-  const versions = item.versions || [];
-  const stats = getVersionStats(versions);
-
-  return successResponse(event, { versions, stats });
+  return successResponse(event, {
+    versions: item.versions || [],
+    stats: getVersionStats(item.versions || []),
+  });
 }
 
 export async function handleMediaVersionCompare(
@@ -874,17 +707,17 @@ export async function handleMediaVersionCompare(
   const mediaId = segments[2];
   const fromV = event.url.searchParams.get("from");
   const toV = event.url.searchParams.get("to");
-  if (!mediaId || !fromV || !toV) throw new AppError("mediaId, from, and to are required", 400);
+  if (!mediaId || !fromV || !toV)
+    throw new AppError("Required evaluation variant baseline sequence pointers missing", 400);
 
   const res = await cms.media.findById(mediaId, { tenantId });
-  if (!res.success || !res.data) throw new AppError("Media not found", 404);
+  if (!res.success || !res.data) throw new AppError("Media context target unindexed", 404);
 
-  const item = res.data as any;
-  const versions: any[] = item.versions || [];
+  const versions: any[] = (res.data as any).versions || [];
   const from = versions.find((v: any) => v.version === Number(fromV));
   const to = versions.find((v: any) => v.version === Number(toV));
-  if (!from || !to) throw new AppError("Version not found", 404);
+  if (!from || !to)
+    throw new AppError("Target operational reference validation index point split missing", 404);
 
-  const comparison = compareVersions(from, to);
-  return successResponse(event, comparison);
+  return successResponse(event, compareVersions(from, to));
 }

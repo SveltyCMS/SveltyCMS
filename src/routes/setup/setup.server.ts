@@ -287,7 +287,6 @@ export async function completeSetup(
   }
 
   // Save custom configuration settings to database preferences
-  const { logger } = await import("@utils/logger");
   if (dbAdapter?.system?.preferences) {
     try {
       const p = dbAdapter.system.preferences;

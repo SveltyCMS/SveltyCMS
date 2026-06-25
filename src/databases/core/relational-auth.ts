@@ -811,25 +811,21 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         const db = this.getDb(options);
 
-        // Verify the token exists and has not been consumed yet
-        const [existing] = await db
-          .select({ _id: this.schema.authTokens._id })
-          .from(this.schema.authTokens)
-          .where(and(...conditions))
-          .limit(1);
-
-        if (!existing) {
-          return {
-            status: false,
-            message: "Token not found or already consumed",
-          };
-        }
-
-        // Atomically mark as consumed with the same strict conditions
-        await db
+        // Atomic single-update: eliminates SELECT→UPDATE race condition
+        const result = await db
           .update(this.schema.authTokens)
           .set({ consumed: true })
           .where(and(...conditions));
+
+        const isClaimed =
+          (result as any).changes > 0 || (result as any).affectedRows > 0 || result.length > 0;
+
+        if (!isClaimed) {
+          return {
+            status: false,
+            message: "Token not found, already consumed, or claimed by parallel request",
+          };
+        }
 
         return { status: true, message: "Consumed" };
       },
@@ -1400,7 +1396,7 @@ export class RelationalAuthModule implements IAuthAdapter {
       if (options?.skip) q = q.offset(options.skip);
 
       const rows = await q;
-      return rows.map((row) => this.mapApiKey(row));
+      return rows.map((row: any) => this.mapApiKey(row));
     }, "LIST_API_KEYS_FAILED");
   }
 
@@ -1417,7 +1413,10 @@ export class RelationalAuthModule implements IAuthAdapter {
         }
         await this.getDb(options)
           .update(this.schema.authApiKeys)
-          .set({ revoked: true, updatedAt: isoDateStringToDate(nowISODateString()) })
+          .set({
+            revoked: true,
+            updatedAt: isoDateStringToDate(nowISODateString()),
+          })
           .where(and(...conditions));
       },
       "REVOKE_API_KEY_FAILED",

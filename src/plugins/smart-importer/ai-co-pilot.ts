@@ -11,7 +11,7 @@
  * - Contextual tips based on source platform and content type
  */
 
-import type { SNCEntry } from "./types";
+import type { SNCEntry, FieldMapping } from "./types";
 import { inferTargetCollectionFromMigration } from "./infer-collection";
 
 // ============================================================================
