@@ -243,13 +243,18 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ **Informative 403 Feedback**: The Admin Area natively detects authorization failures and provides granular feedback including the specific required permission.
 - ✅ **UUIDv4 Primary Keys Out-of-the-box**: Protects against Cross-Collection IDOR (Insecure Direct Object Reference) vulnerability collision chains.
 
-- ✅ **Defense-in-Depth Handler Checks**: System handlers (`handleSettingsRoutes`, `handleSystemMgmtRoutes`, `handleAutomationRoutes`) enforce admin verification. Media handlers enforce `media:write` and `media:delete` permissions. Page actions use centralized permission guards.
+- ✅ **Defense-in-Depth Handler Checks**: System handlers (`handleSettingsRoutes`, `handleSystemMgmtRoutes`, `handleAutomationRoutes`) enforce admin verification.
+
+  Media handlers enforce `media:write` and `media:delete` permissions. Page actions use centralized permission guards.
+
 - ✅ **Cookie Prefix Hardening**: `__Host-` prefixed session cookies strictly enforced on secure connections; never leaked on insecure connections.
 - ✅ **Setup Session Cookie Consistency**: Setup handler now uses the same `__Host-` cookie prefix logic as the authentication hook, eliminating the prefix inconsistency between setup and runtime session cookies.
+
 - ✅ **Zero-Bias Token Generation**: `generateRandomToken` uses rejection sampling to eliminate the ~3.125% modulo bias, guaranteeing uniform distribution across all characters for session tokens and API keys.
 - ✅ **Setup Completion Gating**: All `/api/setup` endpoints blocked with 403 after initialization; bootstrap routes redirect to login.
 - ✅ Permission-based authorization
 - ✅ Multi-tenant isolation
+
 - ✅ Resource-level permissions
 - ✅ Admin privilege separation
 - ✅ Automated Setup Guard (blocks installation endpoints after initialization)

@@ -15,6 +15,7 @@ tags: ["testing", "utilities", "coverage", "unit-tests", "vitest"]
 ## Executive Summary
 
 **Unit Tests:** 1,293+ (Vitest/jsdom across 150+ files — verify via `bun run test:unit`)
+
 **Strategy:** Pure algorithms get white-box unit tests. I/O-heavy modules are covered by black-box integration and E2E Playwright tests. Every function is verified — the difference is _where_.
 
 ---
@@ -23,24 +24,27 @@ tags: ["testing", "utilities", "coverage", "unit-tests", "vitest"]
 
 ### ✅ White-Box Unit Tests (Vitest — pure logic, no I/O)
 
-| File                              | Tests   | What's Tested                                              |
-| --------------------------------- | ------- | ---------------------------------------------------------- |
-| `utils/date.test.ts`              | 18      | ISO validation, conversions, formatting, leap years        |
-| `utils/security.test.ts`          | 39      | Argon2id, CSPRNG tokens, SHA-256 checksums, timing attacks |
-| `utils/error-handling.test.ts`    | 22      | AppError class, type guards, message extraction, wrapping  |
-| `utils/language-utils.test.ts`    | 11      | Intl.DisplayNames, 30+ languages, RTL fallbacks            |
-| `utils/cn.test.ts`                | 6       | Tailwind class merging                                     |
-| `utils/pluralize.test.ts`         | 5       | Pluralization rules                                        |
-| `utils/transformers.test.ts`      | 6       | Data transformation pipelines                              |
-| `utils/logic-builder.test.ts`     | 5       | Query builder logic                                        |
-| `utils/tree-view-adapter.test.ts` | 14      | Tree data structure transforms                             |
-| `utils/navigation.test.ts`        | 3       | Navigation utilities                                       |
-| `utils/file-uploading.test.ts`    | 11      | File upload validation                                     |
-| `utils/status-toggle.test.ts`     | 7       | Entry status state machine                                 |
-| `utils/preview.test.ts`           | 3       | Preview message handling                                   |
-| `utils/api.test.ts`               | 12      | API helper utilities                                       |
-| `utils/utils.test.ts`             | 22      | General utilities, form data conversion                    |
-| **Total Utility Unit Tests**      | **224** | All pure functions across 18+ files                        |
+| File                           | Tests | What's Tested                                              |
+| ------------------------------ | ----- | ---------------------------------------------------------- |
+| `utils/date.test.ts`           | 18    | ISO validation, conversions, formatting, leap years        |
+| `utils/security.test.ts`       | 39    | Argon2id, CSPRNG tokens, SHA-256 checksums, timing attacks |
+| `utils/error-handling.test.ts` | 22    | AppError class, type guards, message extraction, wrapping  |
+| `utils/language-utils.test.ts` | 11    | Intl.DisplayNames, 30+ languages, RTL fallbacks            |
+| `utils/cn.test.ts`             | 6     | Tailwind class merging                                     |
+| `utils/pluralize.test.ts`      | 5     | Pluralization rules                                        |
+| `utils/transformers.test.ts`   | 6     | Data transformation pipelines                              |
+| `utils/logic-builder.test.ts`  | 5     | Query builder logic                                        |
+
+| File                              | Tests   | What's Tested                           |
+| --------------------------------- | ------- | --------------------------------------- |
+| `utils/tree-view-adapter.test.ts` | 14      | Tree data structure transforms          |
+| `utils/navigation.test.ts`        | 3       | Navigation utilities                    |
+| `utils/file-uploading.test.ts`    | 11      | File upload validation                  |
+| `utils/status-toggle.test.ts`     | 7       | Entry status state machine              |
+| `utils/preview.test.ts`           | 3       | Preview message handling                |
+| `utils/api.test.ts`               | 12      | API helper utilities                    |
+| `utils/utils.test.ts`             | 22      | General utilities, form data conversion |
+| **Total Utility Unit Tests**      | **224** | All pure functions across 18+ files     |
 
 ### 🔵 Black-Box Integration Tests (API layer — real server, real DB)
 
@@ -57,20 +61,23 @@ tags: ["testing", "utilities", "coverage", "unit-tests", "vitest"]
 
 ### 🟡 E2E Playwright Tests (full browser — user journeys)
 
-| Module                        | Covered By                  | What's Verified                                                         |
-| ----------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| `logger.ts` (client)          | All E2E specs               | Console output, error reporting in browser                              |
-| `form.svelte.ts` (Form class) | Login/setup E2E flows       | Form submission, validation, reset                                      |
-| `schemas.ts` (Valibot)        | Login/setup E2E flows       | Validation error display, field-level messages                          |
-| `global-search-index.ts`      | Collection builder E2E      | Search filtering, index population                                      |
-| `media-utils.ts`              | 15 unit + Media library E2E | MIME lookup, sanitization, URL construction, validation                 |
-| `sharing.ts`                  | 13 unit + Media library E2E | Share link generation, validation, expiry, limits                       |
-| `slim-sniffer.server.ts`      | 12 unit tests               | Binary MIME detection (JPEG, PNG, GIF, WebP, SVG, PDF, DOCX, MP4, WebM) |
-| `advanced-search.ts`          | Media library E2E           | Filter UI, suggestions, duplicate detection                             |
-| `storage-analytics.ts`        | Media library E2E           | Storage breakdown charts, insights display                              |
-| `version-history.ts`          | Media library E2E           | Version comparison, diff display, restore flow                          |
-| `bulk-download.ts`            | Integration runner          | TAR.GZ archive creation, streaming, cleanup                             |
-| `streaming-upload.ts`         | Integration (planned)       | Multi-GB multipart upload parsing                                       |
+| Module                        | Covered By                  | What's Verified                                         |
+| ----------------------------- | --------------------------- | ------------------------------------------------------- |
+| `logger.ts` (client)          | All E2E specs               | Console output, error reporting in browser              |
+| `form.svelte.ts` (Form class) | Login/setup E2E flows       | Form submission, validation, reset                      |
+| `schemas.ts` (Valibot)        | Login/setup E2E flows       | Validation error display, field-level messages          |
+| `global-search-index.ts`      | Collection builder E2E      | Search filtering, index population                      |
+| `media-utils.ts`              | 15 unit + Media library E2E | MIME lookup, sanitization, URL construction, validation |
+| `sharing.ts`                  | 13 unit + Media library E2E | Share link generation, validation, expiry, limits       |
+
+| Module                   | Covered By            | What's Verified                                                         |
+| ------------------------ | --------------------- | ----------------------------------------------------------------------- |
+| `slim-sniffer.server.ts` | 12 unit tests         | Binary MIME detection (JPEG, PNG, GIF, WebP, SVG, PDF, DOCX, MP4, WebM) |
+| `advanced-search.ts`     | Media library E2E     | Filter UI, suggestions, duplicate detection                             |
+| `storage-analytics.ts`   | Media library E2E     | Storage breakdown charts, insights display                              |
+| `version-history.ts`     | Media library E2E     | Version comparison, diff display, restore flow                          |
+| `bulk-download.ts`       | Integration runner    | TAR.GZ archive creation, streaming, cleanup                             |
+| `streaming-upload.ts`    | Integration (planned) | Multi-GB multipart upload parsing                                       |
 
 ---
 

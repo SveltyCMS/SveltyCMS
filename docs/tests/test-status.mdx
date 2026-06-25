@@ -46,6 +46,8 @@ tags:
 - Widget auto-registration → fixes 404 for valid widgets in fresh DB
 - All caches + state stores cleared per-test → true isolation
 
+These measures ensure zero cross-test contamination and deterministic test results.
+
 ## 2. Playwright E2E Tests (`tests/e2e/`)
 
 | Status                   | Count | Notes                                                                            |
@@ -123,19 +125,22 @@ tags:
 
 ## 5. Gaps — What's NOT Tested
 
-| Gap                                      | Risk                                                                                         | Priority  |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------- | --------- |
-| **Image editor save E2E**                | Editor open + crop/focal tools covered; manipulate save not browser-tested                   | 🟢 Low    |
-| **GraphQL E2E**                          | Only integration-tested; no browser-level GQL query test                                     | 🟡 Medium |
-| **SSO/OAuth integration**                | Mock-only test; no real IdP flow validation                                                  | 🟡 Medium |
-| **Dashboard drag-reorder E2E**           | Widget grid smoke covered; drag-and-drop reorder not browser-tested                          | 🟢 Low    |
-| **Performance regression**               | Benchmarks gated to `main` only; no per-PR perf diff                                         | 🟡 Medium |
-| **Plugin/extension E2E**                 | Stripe, cookie-consent, editable-website untested at browser level                           | 🟢 Low    |
-| **Mobile viewport**                      | All tests run Desktop Chrome only                                                            | 🟢 Low    |
-| **Multi-tenant E2E**                     | No cross-tenant isolation test at browser level                                              | 🟢 Low    |
-| **✅ Media sharing & MIME** (resolved)   | Now covered by `tests/unit/media/` (40 tests: sharing, MIME utils, binary sniffer)           | —         |
-| **✅ Content reconciliation** (resolved) | Now covered by `tests/unit/content/content-reconcile.test.ts` (20 tests)                     | —         |
-| **✅ Proxy & tenant filter** (resolved)  | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests) | —         |
+| Gap                            | Risk                                                                       | Priority  |
+| ------------------------------ | -------------------------------------------------------------------------- | --------- |
+| **Image editor save E2E**      | Editor open + crop/focal tools covered; manipulate save not browser-tested | 🟢 Low    |
+| **GraphQL E2E**                | Only integration-tested; no browser-level GQL query test                   | 🟡 Medium |
+| **SSO/OAuth integration**      | Mock-only test; no real IdP flow validation                                | 🟡 Medium |
+| **Dashboard drag-reorder E2E** | Widget grid smoke covered; drag-and-drop reorder not browser-tested        | 🟢 Low    |
+| **Performance regression**     | Benchmarks gated to `main` only; no per-PR perf diff                       | 🟡 Medium |
+
+| Gap                                      | Risk                                                                                         | Priority |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------- | -------- |
+| **Plugin/extension E2E**                 | Stripe, cookie-consent, editable-website untested at browser level                           | 🟢 Low   |
+| **Mobile viewport**                      | All tests run Desktop Chrome only                                                            | 🟢 Low   |
+| **Multi-tenant E2E**                     | No cross-tenant isolation test at browser level                                              | 🟢 Low   |
+| **✅ Media sharing & MIME** (resolved)   | Now covered by `tests/unit/media/` (40 tests: sharing, MIME utils, binary sniffer)           | —        |
+| **✅ Content reconciliation** (resolved) | Now covered by `tests/unit/content/content-reconcile.test.ts` (20 tests)                     | —        |
+| **✅ Proxy & tenant filter** (resolved)  | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests) | —        |
 
 ## 6. Recommended Next Actions
 
