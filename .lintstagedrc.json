@@ -1,9 +1,9 @@
 {
   "src/**/*.{ts,js,svelte}": [
     "oxfmt",
-    "oxlint",
+    "oxlint --deny-warnings",
     "bun run scripts/slop-scanner.ts --strict --files"
   ],
   "src/routes/(app)/**/*.svelte": ["bun run scripts/lint-admin-theme.ts"],
-  "docs/**/*.{md,mdx}": ["bun run tests/lint-docs.ts"]
+  "docs/**/*.{md,mdx}": ["bun run tests/lint-docs.ts --strict"]
 }

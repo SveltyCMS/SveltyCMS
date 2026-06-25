@@ -334,7 +334,7 @@ function registerServerTools(db: IDBAdapter): void {
   // get_collections — server
   async function getCollections() {
     try {
-      const collections = await db.schema.listCollections();
+      const collections = await db.collection.listSchemas();
       return {
         collections: collections.map((c: any) => ({
           id: c._id,
@@ -369,7 +369,7 @@ function registerServerTools(db: IDBAdapter): void {
         offset: opts.offset || 0,
         sort: {
           field: opts.sortField || "updatedAt",
-          direction: opts.sortDirection || "desc",
+          direction: (opts.sortDirection as "asc" | "desc") || "desc",
         },
       });
       return result;
@@ -386,7 +386,7 @@ function registerServerTools(db: IDBAdapter): void {
   async function createEntry(collectionId: string, data: any) {
     try {
       const safeData = { ...data, status: "draft" };
-      const result = await db.crud.insertOne(collectionId, safeData);
+      const result = await db.crud.insert(collectionId, safeData);
       return result;
     } catch (err: any) {
       logger.error("[WebMCP] headless create_entry failed", {

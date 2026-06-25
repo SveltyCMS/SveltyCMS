@@ -50,7 +50,7 @@ function ensureParent(dirPath: string): void {
   if (!existsSync(parent)) mkdirSync(parent, { recursive: true });
 }
 
-function createJunction(aliasDir: string, targetAbs: string, label: string): boolean {
+function createJunction(aliasDir: string, targetAbs: string, _label: string): boolean {
   ensureParent(aliasDir);
   removeExisting(aliasDir);
   try {

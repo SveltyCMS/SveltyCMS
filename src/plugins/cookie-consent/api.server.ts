@@ -52,7 +52,7 @@ export async function handleConsentLog(
     }
 
     // Record the consent decision
-    await db.crud.insertOne("sys_consent_audit", {
+    await db.crud.insert("sys_consent_audit", {
       consentId: payload.consentId,
       categories: payload.categories,
       acceptedAt: payload.acceptedAt,
@@ -69,7 +69,10 @@ export async function handleConsentLog(
 
     return { success: true, message: "Consent logged successfully" };
   } catch (err: any) {
-    logger.error("[CookieConsent] Failed to log consent", { error: err, tenantId });
+    logger.error("[CookieConsent] Failed to log consent", {
+      error: err,
+      tenantId,
+    });
     return { success: false, message: err.message };
   }
 }

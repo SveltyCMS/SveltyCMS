@@ -24,7 +24,9 @@ export const migrations: PluginMigration[] = [
     description: "Creates the redirects collection via abstract schema adapter",
     up: async (dbAdapter: IDBAdapter) => {
       try {
-        await dbAdapter.schema.ensureCollection("plugin_redirect-manager_redirects", {
+        await dbAdapter.collection.createModel({
+          _id: "plugin_redirect-manager_redirects",
+          name: "plugin_redirect-manager_redirects",
           fields: [
             {
               label: "Source Path",
@@ -59,7 +61,7 @@ export const migrations: PluginMigration[] = [
             { label: "Tenant ID", name: "tenantId", type: "text" },
           ],
           status: "publish",
-        });
+        } as any);
         logger.info("[RedirectManager] Provisioned redirects collection via ensureCollection.");
       } catch (err) {
         logger.error("[RedirectManager] Failed to provision redirects collection:", err);
@@ -73,7 +75,9 @@ export const migrations: PluginMigration[] = [
     description: "Creates the 404 logs collection via abstract schema adapter",
     up: async (dbAdapter: IDBAdapter) => {
       try {
-        await dbAdapter.schema.ensureCollection("plugin_redirect-manager_404_logs", {
+        await dbAdapter.collection.createModel({
+          _id: "plugin_redirect-manager_404_logs",
+          name: "plugin_redirect-manager_404_logs",
           fields: [
             { label: "Path", name: "path", type: "text", required: true },
             { label: "Hits", name: "hits", type: "number", defaultValue: 1 },
@@ -81,7 +85,7 @@ export const migrations: PluginMigration[] = [
             { label: "Tenant ID", name: "tenantId", type: "text" },
           ],
           status: "publish",
-        });
+        } as any);
         logger.info("[RedirectManager] Provisioned 404_logs collection via ensureCollection.");
       } catch (err) {
         logger.error("[RedirectManager] Failed to provision 404_logs collection:", err);
@@ -306,12 +310,8 @@ async function syncToEdgeKV(tenantId: string, context?: PluginContext): Promise<
     }
   })();
 
-  // If context has waitUntil (edge/serverless runtimes), register the async work
-  if (context?.waitUntil) {
-    context.waitUntil(syncPromise);
-  } else {
-    await syncPromise;
-  }
+  // Await the sync promise directly (PluginContext does not expose waitUntil)
+  await syncPromise;
 }
 
 const syncLocks: Record<string, Promise<void>> = {};

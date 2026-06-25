@@ -65,7 +65,9 @@ export const stripePlugin: Plugin = {
       version: 1,
       description: "Ensure plugin_stripe_payments collection exists via abstract schema adapter",
       up: async (dbAdapter) => {
-        await dbAdapter.schema.ensureCollection("plugin_stripe_payments", {
+        await dbAdapter.collection.createModel({
+          _id: "plugin_stripe_payments",
+          name: "plugin_stripe_payments",
           fields: [
             {
               label: "Stripe Intent ID",
@@ -80,7 +82,7 @@ export const stripePlugin: Plugin = {
             { label: "Tenant ID", name: "tenantId", type: "text" },
           ],
           status: "publish",
-        });
+        } as any);
       },
     },
     {
@@ -89,7 +91,9 @@ export const stripePlugin: Plugin = {
       version: 2,
       description: "Ensure plugin_stripe_customers collection exists via abstract schema adapter",
       up: async (dbAdapter) => {
-        await dbAdapter.schema.ensureCollection("plugin_stripe_customers", {
+        await dbAdapter.collection.createModel({
+          _id: "plugin_stripe_customers",
+          name: "plugin_stripe_customers",
           fields: [
             {
               label: "Stripe Customer ID",
@@ -103,7 +107,7 @@ export const stripePlugin: Plugin = {
             { label: "Tenant ID", name: "tenantId", type: "text" },
           ],
           status: "publish",
-        });
+        } as any);
       },
     },
   ],

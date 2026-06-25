@@ -85,7 +85,7 @@
     "audit:security": "bun run scripts/security-audit.ts",
     "audit:sbom": "bun run scripts/generate-sbom.ts",
     "-- LINT & FORMAT --------------------------------------": "",
-    "lint": "oxlint --ignore-pattern 'src/types/**'",
+    "lint": "oxlint --deny-warnings --ignore-pattern 'src/types/**'",
     "lint:docs": "bun tests/lint-docs.ts",
     "lint:admin-theme": "bun run scripts/lint-admin-theme.ts",
     "-- BENCHMARKS ----------------------------------------": "",
