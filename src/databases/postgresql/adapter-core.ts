@@ -217,7 +217,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       let options: any;
 
       const { createPostgresOnCloseHandler } = await import("../resilience-integration");
-      const onclose = createPostgresOnCloseHandler(this);
+      const onclose = createPostgresOnCloseHandler(
+        this as unknown as import("../db-interface").IDBAdapter,
+      );
 
       if (typeof finalConnection === "string") {
         options = {

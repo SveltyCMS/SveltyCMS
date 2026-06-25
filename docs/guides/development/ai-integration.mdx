@@ -258,8 +258,20 @@ await generateWidget({
   description: "A 5-star rating widget with half-star support",
   icon: "mdi:star",
   fields: [
-    { name: "rating", label: "Rating", type: "number", required: true, min: 1, max: 5 },
-    { name: "label", label: "Label", type: "text", placeholder: "e.g. Quality" },
+    {
+      name: "rating",
+      label: "Rating",
+      type: "number",
+      required: true,
+      min: 1,
+      max: 5,
+    },
+    {
+      name: "label",
+      label: "Label",
+      type: "text",
+      placeholder: "e.g. Quality",
+    },
   ],
 });
 
@@ -336,7 +348,7 @@ const default_category = await suggestFieldDefaults("posts", "category");
 // → { fieldName: "category", suggestedValue: "technology", confidence: 0.8, basedOn: 15 }
 ```
 
-### Content Quality Scoring {#content-intelligence-scoring}
+### Content Quality Scoring {#content-quality-scoring-2}
 
 Analyzes content across three dimensions — readability, completeness, and SEO — with specific, actionable suggestions:
 

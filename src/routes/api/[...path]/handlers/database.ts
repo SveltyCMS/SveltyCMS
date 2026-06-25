@@ -15,9 +15,15 @@ import { successResponse } from "./base";
 import { getDatabaseResilience } from "@src/databases/database-resilience";
 import { getSystemStatus } from "@src/databases/resilience-integration";
 
+/**
+ * Validates admin authorization against the standardized SvelteKit locals context.
+ */
 function requireAdmin(event: RequestEvent): void {
-  const { user, locals } = event;
-  if (locals.isAdmin || user?.role === "admin" || user?.role === "super-admin") return;
+  const { locals } = event;
+  const user = locals.user as Record<string, any> | undefined;
+  const role = user?.role;
+
+  if (locals.isAdmin || role === "admin" || role === "super-admin") return;
   throw new AppError("Admin access required", 403, "FORBIDDEN");
 }
 
@@ -29,18 +35,23 @@ export async function handleDatabaseRoutes(
 ) {
   requireAdmin(event);
 
-  const action = segments[1];
+  const method = event.request.method;
+  const action = segments.length > 1 ? segments[1] : "status";
 
-  if (event.request.method === "GET" && action === "pool-diagnostics") {
+  if (action === "pool-diagnostics") {
+    if (method !== "GET")
+      throw new AppError(`Method ${method} not allowed`, 405, "METHOD_NOT_ALLOWED");
     const resilience = getDatabaseResilience();
     const diagnostics = await resilience.getPoolDiagnostics();
     return successResponse(event, diagnostics);
   }
 
-  if (event.request.method === "GET" && (action === "status" || !action)) {
+  if (action === "status") {
+    if (method !== "GET")
+      throw new AppError(`Method ${method} not allowed`, 405, "METHOD_NOT_ALLOWED");
     const status = await getSystemStatus(cms.db);
     return successResponse(event, status);
   }
 
-  throw new AppError(`Database endpoint /api/database/${action || ""} not implemented`, 404);
+  throw new AppError(`Database endpoint /api/database/${action} not implemented`, 404);
 }

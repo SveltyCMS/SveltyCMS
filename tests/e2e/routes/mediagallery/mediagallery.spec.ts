@@ -21,7 +21,9 @@ test.describe("Media Gallery", () => {
     await expect(page.getByRole("heading", { level: 1, name: /media gallery/i })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByTestId("media-gallery-content")).toBeVisible();
     await expect(page.getByTestId("media-grid").or(page.getByRole("table"))).toBeVisible({
       timeout: 10_000,
@@ -30,10 +32,14 @@ test.describe("Media Gallery", () => {
 
   test("search and filter controls are interactive", async ({ page }) => {
     await page.goto("/mediagallery");
-    const search = page.getByRole("searchbox", { name: /search media assets/i });
+    const search = page.getByRole("searchbox", {
+      name: /search media assets/i,
+    });
     await expect(search).toBeVisible({ timeout: 10_000 });
     await search.fill("e2e-no-match-xyz");
-    await expect(page.getByTestId("media-grid-empty")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("media-grid-empty")).toBeVisible({
+      timeout: 10_000,
+    });
 
     await page.getByLabel(/filter by type/i).selectOption("IMAGE");
     await page.getByRole("button", { name: /table view/i }).click();
@@ -47,7 +53,11 @@ test.describe("Media Gallery", () => {
 
     await uploadInput.setInputFiles(TEST_IMAGE);
     await page.waitForLoadState("domcontentloaded");
-    await expect(page.getByTestId("media-grid-empty")).toHaveCount(0, { timeout: 20_000 });
-    await expect(page.getByRole("gridcell").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("media-grid-empty")).toHaveCount(0, {
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("gridcell").first()).toBeVisible({
+      timeout: 20_000,
+    });
   });
 });

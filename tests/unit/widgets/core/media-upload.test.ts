@@ -24,7 +24,11 @@ describe("MediaUpload Widget", () => {
   });
 
   it("should reject empty array when required and multiupload enabled", () => {
-    const field = MediaWidget({ label: "Gallery", multiupload: true, required: true });
+    const field = MediaWidget({
+      label: "Gallery",
+      multiupload: true,
+      required: true,
+    });
     const schema = (field.widget.validationSchema as any)(field);
 
     expect(safeParse(schema, []).success).toBe(false);
@@ -32,7 +36,11 @@ describe("MediaUpload Widget", () => {
   });
 
   it("should handle single ID required constraint", () => {
-    const field = MediaWidget({ label: "Avatar", multiupload: false, required: true });
+    const field = MediaWidget({
+      label: "Avatar",
+      multiupload: false,
+      required: true,
+    });
     const schema = (field.widget.validationSchema as any)(field);
 
     expect(safeParse(schema, null).success).toBe(false);

@@ -33,16 +33,26 @@ beforeAll(async () => {
 
   // WARMUP: Trigger some cache and API activity so metrics are not zero
   // This avoids failures in 'should calculate hit rate correctly' and structure tests
-  await safeFetch(`${BASE_URL}/api/dashboard/health`, { headers: { Cookie: authCookie } });
-  await safeFetch(`${BASE_URL}/api/dashboard/system-info`, { headers: { Cookie: authCookie } });
+  await safeFetch(`${BASE_URL}/api/dashboard/health`, {
+    headers: { Cookie: authCookie },
+  });
+  await safeFetch(`${BASE_URL}/api/dashboard/system-info`, {
+    headers: { Cookie: authCookie },
+  });
 
   // Make redundant calls to ensure cache hits/misses are registered
   // First call is a miss, second should be a hit for many endpoints
-  await safeFetch(`${BASE_URL}/api/dashboard/metrics`, { headers: { Cookie: authCookie } });
-  await safeFetch(`${BASE_URL}/api/dashboard/metrics`, { headers: { Cookie: authCookie } });
+  await safeFetch(`${BASE_URL}/api/dashboard/metrics`, {
+    headers: { Cookie: authCookie },
+  });
+  await safeFetch(`${BASE_URL}/api/dashboard/metrics`, {
+    headers: { Cookie: authCookie },
+  });
 
   // Trigger cache category activity
-  await safeFetch(`${BASE_URL}/api/dashboard/cache-metrics`, { headers: { Cookie: authCookie } });
+  await safeFetch(`${BASE_URL}/api/dashboard/cache-metrics`, {
+    headers: { Cookie: authCookie },
+  });
 });
 
 describe("Dashboard API - Health Endpoint", () => {

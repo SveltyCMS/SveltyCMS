@@ -74,7 +74,14 @@ describe("ContentService - Incremental Reconciliation", () => {
       _id: "test-col",
       name: "Test Collection",
       path: "/collection/posts/test",
-      fields: [{ db_fieldName: "title", label: "Title", required: true, translated: false }],
+      fields: [
+        {
+          db_fieldName: "title",
+          label: "Title",
+          required: true,
+          translated: false,
+        },
+      ],
     };
 
     // Setup mocks
@@ -123,11 +130,21 @@ describe("ContentService - Incremental Reconciliation", () => {
     const fs = (await import("node:fs/promises")).default;
 
     (fs.stat as any).mockResolvedValue({ mtimeMs: 12345 });
-    (cacheService.get as any).mockResolvedValue({ hash: "abc-hash", mtime: 12000 });
+    (cacheService.get as any).mockResolvedValue({
+      hash: "abc-hash",
+      mtime: 12000,
+    });
     (loadSchema as any).mockResolvedValue({
       schema: {
         name: "Same",
-        fields: [{ db_fieldName: "title", label: "Title", required: true, translated: false }],
+        fields: [
+          {
+            db_fieldName: "title",
+            label: "Title",
+            required: true,
+            translated: false,
+          },
+        ],
       },
     });
 

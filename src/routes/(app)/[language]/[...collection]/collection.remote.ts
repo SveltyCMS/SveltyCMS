@@ -53,7 +53,9 @@ export const deleteEntry = query(
     collectionId: string;
     entryId: string;
   }): Promise<{ success: boolean; error?: string }> => {
-    const r = await fetch(`/api/collections/${collectionId}/${entryId}`, { method: "DELETE" });
+    const r = await fetch(`/api/collections/${collectionId}/${entryId}`, {
+      method: "DELETE",
+    });
     const d = await r.json();
     return r.ok ? { success: true } : { success: false, error: d.message };
   },

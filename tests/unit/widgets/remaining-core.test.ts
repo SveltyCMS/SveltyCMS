@@ -64,19 +64,28 @@ describe("MediaUpload widget", () => {
 
 describe("Select widget (fixed)", () => {
   it("has validationSchema", () => {
-    const f = SelectWidget({ label: "S", options: [{ label: "A", value: "a" }] });
+    const f = SelectWidget({
+      label: "S",
+      options: [{ label: "A", value: "a" }],
+    });
     expect(f.widget.validationSchema).toBeDefined();
   });
 
   it("accepts valid option", () => {
-    const f = SelectWidget({ label: "S", options: [{ label: "A", value: "a" }] });
+    const f = SelectWidget({
+      label: "S",
+      options: [{ label: "A", value: "a" }],
+    });
     const s = getSchema(f);
     const result = safeParse(s, "a");
     expect(result.success).toBe(true);
   });
 
   it("rejects invalid option", () => {
-    const f = SelectWidget({ label: "S", options: [{ label: "A", value: "a" }] });
+    const f = SelectWidget({
+      label: "S",
+      options: [{ label: "A", value: "a" }],
+    });
     const s = getSchema(f);
     const result = safeParse(s, "invalid");
     expect(result.success).toBe(false);

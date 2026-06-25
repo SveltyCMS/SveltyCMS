@@ -252,7 +252,12 @@ export function checkLicenseWithGrace(
   const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   if (!isProActivated || !licenseKey) {
-    return { tier: "free", valid: true, graceMode: false, downgradeWarning: false };
+    return {
+      tier: "free",
+      valid: true,
+      graceMode: false,
+      downgradeWarning: false,
+    };
   }
 
   // If last verified within grace period, allow Pro features
@@ -276,5 +281,10 @@ export function checkLicenseWithGrace(
 
   // Grace expired — downgrade to free
   logger.warn("[License] Pro grace period expired — downgrading to free tier");
-  return { tier: "free", valid: true, graceMode: false, downgradeWarning: true };
+  return {
+    tier: "free",
+    valid: true,
+    graceMode: false,
+    downgradeWarning: true,
+  };
 }

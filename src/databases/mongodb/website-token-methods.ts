@@ -7,6 +7,7 @@
  * - safeQuery-enforced soft-delete and tenant boundaries
  * - parallel list + count queries
  * - credential lookup aligned with API key auth (tenant-scoped when context exists)
+ * - compound index on { token, tenantId } for high-throughput auth lookups
  */
 
 import { generateId } from "@src/databases/mongodb/mongodb-utils";
@@ -40,6 +41,7 @@ export const websiteTokenSchema = new Schema<WebsiteToken>(
 
 websiteTokenSchema.index({ createdBy: 1 });
 websiteTokenSchema.index({ tenantId: 1, name: 1 });
+websiteTokenSchema.index({ token: 1, tenantId: 1 });
 
 export const WebsiteTokenModel =
   (mongoose.models?.WebsiteToken as Model<WebsiteToken> | undefined) ||
@@ -77,7 +79,7 @@ export class MongoWebsiteTokenMethods {
       }
 
       const result = await this.crud.insert(
-        secureToken as WebsiteToken,
+        secureToken as unknown as WebsiteToken,
         tenantId ? { tenantId: tenantId as DatabaseId } : {},
       );
 
@@ -126,7 +128,7 @@ export class MongoWebsiteTokenMethods {
         ...this._tenantOpts(tenantId),
         limit: options.limit || 100,
         offset: options.skip,
-        sort,
+        sort: sort as any,
       };
 
       const [dataRes, totalRes] = await Promise.all([
@@ -134,10 +136,8 @@ export class MongoWebsiteTokenMethods {
         this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, this._tenantOpts(tenantId)),
       ]);
 
-      if (!dataRes.success)
-        return dataRes as DatabaseResult<{ data: WebsiteToken[]; total: number }>;
-      if (!totalRes.success)
-        return totalRes as DatabaseResult<{ data: WebsiteToken[]; total: number }>;
+      if (!dataRes.success) return dataRes as any;
+      if (!totalRes.success) return totalRes as any;
 
       const scrubbedData = dataRes.data.map((t) => {
         const { token: _, ...rest } = t;

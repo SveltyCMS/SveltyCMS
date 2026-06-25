@@ -34,7 +34,11 @@ describe("Checkbox Widget", () => {
   });
 
   it("should allow overriding defaults", () => {
-    const field = CheckboxWidget({ label: "Active", color: "secondary", size: "lg" });
+    const field = CheckboxWidget({
+      label: "Active",
+      color: "secondary",
+      size: "lg",
+    });
 
     expect(field.color).toBe("secondary");
     expect(field.size).toBe("lg");

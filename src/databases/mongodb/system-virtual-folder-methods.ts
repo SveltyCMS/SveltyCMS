@@ -194,7 +194,11 @@ export class MongoSystemVirtualFolderMethods {
       if (tenantId) query.tenantId = tenantId;
 
       // Step 1: Find the folder by path.
-      const folderRes = await SystemVirtualFolderModel.findOne(query, { _id: 1 }).lean().exec();
+      const folderRes = await SystemVirtualFolderModel.findOne(query, {
+        _id: 1,
+      })
+        .lean()
+        .exec();
       if (!folderRes) {
         return {
           success: false,
@@ -213,7 +217,10 @@ export class MongoSystemVirtualFolderMethods {
         // The folder was deleted or became inaccessible after initial lookup.
         return {
           success: false,
-          error: { code: "FOLDER_DELETED", message: "Target folder was deleted after lookup." },
+          error: {
+            code: "FOLDER_DELETED",
+            message: "Target folder was deleted after lookup.",
+          },
           message: "Target folder no longer exists.",
         };
       }

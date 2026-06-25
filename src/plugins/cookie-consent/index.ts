@@ -1,7 +1,12 @@
 /**
  * @file src/plugins/cookie-consent/index.ts
- * @description Cookie Consent Manager plugin for GDPR compliance.
- * Provides granular consent controls for analytics and marketing cookies.
+ * @description Cookie Consent Manager plugin for GDPR compliance — headless + server-aware.
+ *
+ * Features:
+ * - GDPR-compliant cookie banner with granular consent controls
+ * - Server-side consent logging for audit trails
+ * - Geo-IP filtering for jurisdiction-aware display
+ * - Allowed origins for cross-origin headless frontends
  */
 
 import type { Plugin } from "@src/plugins/types";
@@ -24,6 +29,11 @@ export const cookieConsentPlugin: Plugin = {
       showCloseButton: false,
       delayMs: 800,
       theme: "system", // "light" | "dark" | "system"
+    },
+    private: {
+      allowedOrigins: [],
+      persistConsentLog: true,
+      geoIpFiltering: false,
     },
   },
 };

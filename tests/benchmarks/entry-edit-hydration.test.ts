@@ -113,7 +113,11 @@ async function runHydrationAudit() {
       );
     },
   });
-  results.push({ ...prefetchResult, layer: "Client", shortLabel: "Prefetch-5w" });
+  results.push({
+    ...prefetchResult,
+    layer: "Client",
+    shortLabel: "Prefetch-5w",
+  });
 
   console.log("   → Measuring first-input latency (field patch vs JSON.stringify)...");
   const globalSnapshot = { ...entry };
@@ -132,7 +136,11 @@ async function runHydrationAudit() {
       }
     },
   });
-  results.push({ ...patchInputResult, layer: "Client", shortLabel: "Input-Patch" });
+  results.push({
+    ...patchInputResult,
+    layer: "Client",
+    shortLabel: "Input-Patch",
+  });
 
   const legacyInputResult = await runBenchmark({
     name: "First Input (JSON.stringify)",
@@ -148,7 +156,11 @@ async function runHydrationAudit() {
       }
     },
   });
-  results.push({ ...legacyInputResult, layer: "Client", shortLabel: "Input-Legacy" });
+  results.push({
+    ...legacyInputResult,
+    layer: "Client",
+    shortLabel: "Input-Legacy",
+  });
 
   const speedup =
     legacyInputResult.avgMs > 0
@@ -164,8 +176,16 @@ async function runHydrationAudit() {
   printSummaryTable([
     { key: "50-Field Loader Resolve", val: mountResult.avgMs, unit: "ms" },
     { key: "Widget Prefetch (5 types)", val: prefetchResult.avgMs, unit: "ms" },
-    { key: "First Input (field patch)", val: patchInputResult.avgMs, unit: "ms" },
-    { key: "First Input (legacy stringify)", val: legacyInputResult.avgMs, unit: "ms" },
+    {
+      key: "First Input (field patch)",
+      val: patchInputResult.avgMs,
+      unit: "ms",
+    },
+    {
+      key: "First Input (legacy stringify)",
+      val: legacyInputResult.avgMs,
+      unit: "ms",
+    },
     { key: "Patch vs Legacy speedup", val: speedup, unit: "×" },
     {
       key: "Hydration Tier",

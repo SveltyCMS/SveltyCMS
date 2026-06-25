@@ -196,7 +196,9 @@ describe("UCP Pipeline — End-to-End", () => {
     expect(typeof rolledBack).toBe("boolean");
 
     // Step 6: Verify entries are gone
-    const afterRollback = await db.crud.findMany("posts", { _transactionToken: txnToken });
+    const afterRollback = await db.crud.findMany("posts", {
+      _transactionToken: txnToken,
+    });
     expect(afterRollback).toBeDefined();
 
     // Step 7: Verify ledger is gone
@@ -233,8 +235,14 @@ describe("UCP Pipeline — End-to-End", () => {
     const { computeDelta } = await import("@plugins/smart-importer/delta-engine");
 
     const entries = [
-      { ...createMockEntry("1", "Old Post", "old", "content"), updatedAt: "2024-01-01T00:00:00Z" },
-      { ...createMockEntry("2", "New Post", "new", "content"), updatedAt: "2024-12-01T00:00:00Z" },
+      {
+        ...createMockEntry("1", "Old Post", "old", "content"),
+        updatedAt: "2024-01-01T00:00:00Z",
+      },
+      {
+        ...createMockEntry("2", "New Post", "new", "content"),
+        updatedAt: "2024-12-01T00:00:00Z",
+      },
     ];
 
     const dr = computeDelta(
@@ -340,8 +348,16 @@ describe("UCP Pipeline — End-to-End", () => {
     }) as any;
 
     const assets = [
-      { externalUrl: "https://example.com/img1.jpg", originalId: "1", fieldTarget: "image" },
-      { externalUrl: "https://example.com/img2.jpg", originalId: "2", fieldTarget: "image" },
+      {
+        externalUrl: "https://example.com/img1.jpg",
+        originalId: "1",
+        fieldTarget: "image",
+      },
+      {
+        externalUrl: "https://example.com/img2.jpg",
+        originalId: "2",
+        fieldTarget: "image",
+      },
     ];
 
     const results = await downloadMediaWithRateLimit(assets, {
@@ -375,8 +391,18 @@ describe("UCP Pipeline — End-to-End", () => {
 
     const envelope = parseWordPressWXR(WORDPRESS_WXR_FIXTURE, "txn_mappings");
     const mappings = wizardMappingsToFieldMappings([
-      { source: "post_title", target: "headline", confidence: 95, type: "text" },
-      { source: "content:encoded", target: "body", confidence: 90, type: "richtext" },
+      {
+        source: "post_title",
+        target: "headline",
+        confidence: 95,
+        type: "text",
+      },
+      {
+        source: "content:encoded",
+        target: "body",
+        confidence: 90,
+        type: "richtext",
+      },
     ]);
 
     const result = await executeUCPIngestion(db, envelope!, mappings, "posts", {
@@ -398,7 +424,9 @@ describe("UCP Pipeline — End-to-End", () => {
     const { applyImportFilters } = await import("@plugins/smart-importer/control-plane");
 
     const envelope = parseWordPressWXR(WORDPRESS_WXR_FIXTURE, "txn_filter")!;
-    const { filtered } = applyImportFilters(envelope, { contentTypes: ["post"] });
+    const { filtered } = applyImportFilters(envelope, {
+      contentTypes: ["post"],
+    });
     expect(filtered.entries).toHaveLength(1);
     expect(filtered.entries[0].title).toBe("Hello World");
   });
@@ -408,7 +436,10 @@ describe("UCP Pipeline — End-to-End", () => {
     const { orderEntriesForIngestion } = await import("@plugins/smart-importer/index.server");
 
     const entries = [
-      { ...createMockEntry("child", "Child", "child", "c"), parentExternalId: "parent" },
+      {
+        ...createMockEntry("child", "Child", "child", "c"),
+        parentExternalId: "parent",
+      },
       createMockEntry("parent", "Parent", "parent", "p"),
     ];
 
@@ -425,7 +456,10 @@ describe("UCP Pipeline — End-to-End", () => {
       version: "1.0",
       transactionToken: "txn_stub_test",
       entries: [
-        { ...createMockEntry("2", "Child Page", "child", "child body"), parentExternalId: "1" },
+        {
+          ...createMockEntry("2", "Child Page", "child", "child body"),
+          parentExternalId: "1",
+        },
         createMockEntry("1", "Parent Page", "parent", "parent body"),
       ],
     };
@@ -486,7 +520,12 @@ describe("UCP Pipeline — End-to-End", () => {
     const diff = computeSchemaDiffReport(existingSchema, [
       { source: "post_title", target: "headline", type: "text" },
       { source: "body", target: "content", type: "richtext" },
-      { source: "old", target: "legacyField", type: "number", action: "ignore" },
+      {
+        source: "old",
+        target: "legacyField",
+        type: "number",
+        action: "ignore",
+      },
     ]);
 
     expect(diff.collectionExists).toBe(true);
@@ -501,8 +540,14 @@ describe("UCP Pipeline — End-to-End", () => {
       await import("@plugins/smart-importer/delta-engine");
 
     const entries = [
-      { ...createMockEntry("1", "Hello", "hello", "v1"), updatedAt: "2024-01-01T00:00:00Z" },
-      { ...createMockEntry("2", "About", "about", "v1"), updatedAt: "2024-02-01T00:00:00Z" },
+      {
+        ...createMockEntry("1", "Hello", "hello", "v1"),
+        updatedAt: "2024-01-01T00:00:00Z",
+      },
+      {
+        ...createMockEntry("2", "About", "about", "v1"),
+        updatedAt: "2024-02-01T00:00:00Z",
+      },
     ];
 
     const envelope = {
@@ -630,8 +675,14 @@ describe("UCP Pipeline — End-to-End", () => {
     const { optimizeMedia, getMediaOutputFormatSettings } =
       await import("@plugins/smart-importer/utils/media-optimize");
 
-    updatePublicEnv("MEDIA_OUTPUT_FORMAT_QUALITY", { format: "avif", quality: 85 });
-    expect(getMediaOutputFormatSettings()).toEqual({ convertTo: "avif", quality: 85 });
+    updatePublicEnv("MEDIA_OUTPUT_FORMAT_QUALITY", {
+      format: "avif",
+      quality: 85,
+    });
+    expect(getMediaOutputFormatSettings()).toEqual({
+      convertTo: "avif",
+      quality: 85,
+    });
 
     const tinyPng = Uint8Array.from(
       atob(
@@ -662,7 +713,13 @@ describe("UCP Pipeline — End-to-End", () => {
     await executeUCPIngestion(
       db,
       envelope,
-      [{ sourceField: "contact_email", targetField: "contactEmail", action: "map" }],
+      [
+        {
+          sourceField: "contact_email",
+          targetField: "contactEmail",
+          action: "map",
+        },
+      ],
       "posts",
       { importMedia: false, overwrite: false, scrubPii: true },
     );
@@ -712,7 +769,9 @@ describe("UCP Pipeline — End-to-End", () => {
     expect(final?.status).toBe("completed");
     expect(final?.importedCount).toBe(2);
 
-    const all = await db.crud.findMany("posts", { _transactionToken: "txn_job_complete" });
+    const all = await db.crud.findMany("posts", {
+      _transactionToken: "txn_job_complete",
+    });
     expect(all.data).toHaveLength(2);
   });
 
@@ -755,7 +814,12 @@ describe("UCP Pipeline — End-to-End", () => {
       licenseTier: "free",
       mappingsRaw: JSON.stringify([
         { source: "post_title", target: "title", type: "text", confidence: 95 },
-        { source: "content:encoded", target: "content", type: "richtext", confidence: 90 },
+        {
+          source: "content:encoded",
+          target: "content",
+          type: "richtext",
+          confidence: 90,
+        },
       ]),
     });
 

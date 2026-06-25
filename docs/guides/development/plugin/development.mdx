@@ -1,22 +1,23 @@
 ---
 path: "docs/guides/development/plugin/development.mdx"
 title: Plugin Development Guide
-description: Create, register, and extend SveltyCMS with isomorphic plugins featuring lifecycle hooks, RBAC slots, and sandboxed execution.
+description: Create, register, and extend SveltyCMS with isomorphic plugins featuring lifecycle hooks, RBAC slots, sandboxed execution, and headless API contracts.
 order: 8
 icon: "mdi:puzzle"
 author: "SveltyCMS Team"
 created: "2026-03-04"
-updated: "2026-06-22"
+updated: "2026-06-25"
 tags:
   - plugins
   - development
   - extensions
   - guide
+  - headless
 ---
 
 # Plugin Development Guide
 
-SveltyCMS features an isomorphic plugin system that runs on both server and client, with full TypeScript support, RBAC-gated UI slots, lifecycle hooks for CRUD operations, and sandboxed execution boundaries.
+SveltyCMS features an isomorphic plugin system that runs on both server and client, with full TypeScript support, RBAC-gated UI slots, lifecycle hooks for CRUD operations, sandboxed execution boundaries, and headless API contracts for decoupled frontends.
 
 ## Architecture Overview
 
@@ -25,7 +26,7 @@ graph TB
     subgraph "Plugin System"
         R["Plugin Registry"]
         S["Plugin Settings"]
-        SB["Sandbox"]
+        SB["Sandbox (dynamic scaling)"]
     end
 
     subgraph "Plugin Structure"
@@ -34,6 +35,7 @@ graph TB
         U["ui (slots/columns)"]
         MG["migrations"]
         SR["ssrHook"]
+        HL["headless (virtual slots)"]
     end
 
     subgraph "Execution"
@@ -41,6 +43,12 @@ graph TB
         AF["afterSave"]
         BD["beforeDelete"]
         AD["afterDelete"]
+    end
+
+    subgraph "Headless Delivery"
+        API["Stateless REST/GraphQL"]
+        VS["Virtual Slots"]
+        PA["Preview Auth"]
     end
 
     subgraph "UI Injection Zones"
@@ -55,6 +63,7 @@ graph TB
     R --> H --> SB --> BF & AF & BD & AD
     R --> U --> D & SID & EE & CFG & ELA
     R --> MG
+    R --> HL --> VS & PA & API
     R --> SR --> SB
     S --> R
 ```
@@ -129,6 +138,39 @@ hooks: {
 }
 ```
 
+## Security: Draft-by-Default Airgap
+
+All external mutations (API, webhooks, AI agents) that create or update content MUST default to `draft` status. This prevents unauthorized publishing from non-human actors:
+
+```typescript
+// ✅ Correct: Draft-by-Default airgap
+hooks: {
+  beforeSave: async (context, collection, data) => {
+    // AI agents, webhooks, and headless API mutations always draft
+    if (context.source === 'api' || context.source === 'webhook') {
+      data.status = 'draft';
+    }
+    return data;
+  },
+}
+
+// ❌ Wrong: Allowing external sources to publish directly
+hooks: {
+  afterSave: async (context, collection, result) => {
+    // No status enforcement — external agents could publish malicious content
+  },
+}
+```
+
+**Draft-by-Default applies to:**
+
+- WebMCP AI agent tools (all mutations force `status: "draft"`)
+- Stripe webhook payment events
+- Smart Importer content migrations
+- Any public-facing API POST/PATCH that doesn't explicitly require `publish` permission
+
+Human review is required to transition draft entries to published status. This airgap is enforced at the hook level and cannot be bypassed by external callers.
+
 ## SSR Data Enrichment
 
 Add custom data to entry lists during server-side rendering:
@@ -190,7 +232,7 @@ ui: {
 
 ## Database Migrations
 
-Plugins create their own collections via migrations:
+Plugins create their own collections via abstract migrations using `dbAdapter.schema.ensureCollection()`:
 
 ```typescript
 migrations: [
@@ -198,34 +240,80 @@ migrations: [
     id: "001_create_results",
     pluginId: "my-plugin",
     version: 1,
-    description: "Create results collection",
+    description: "Create results collection via abstract schema adapter",
     up: async (dbAdapter) => {
-      await dbAdapter.collection.createModel({
-        _id: "plugin_my-plugin_results",
-        name: "plugin_my-plugin_results",
-        slug: "plugin_my-plugin_results",
+      // ✅ Recommended: abstract ensureCollection
+      await dbAdapter.schema.ensureCollection("plugin_my-plugin_results", {
         fields: [
           { label: "Score", name: "score", type: "number" },
           { label: "Timestamp", name: "timestamp", type: "text" },
         ],
         status: "publish",
-      } as any);
+      });
     },
   },
 ];
 ```
 
+**Why `ensureCollection`?** It abstracts away database-specific details, works across all four adapters (MongoDB, PostgreSQL, MariaDB, SQLite), and handles idempotent creation (won't error if the collection already exists).
+
+```typescript
+// ❌ Legacy: raw createModel — adapter-specific, no abstraction
+up: async (dbAdapter) => {
+  await (dbAdapter as any).createModel({
+    _id: "plugin_my-plugin_results",
+    name: "plugin_my-plugin_results",
+    slug: "plugin_my-plugin_results",
+    fields: [...],
+    status: "publish",
+  } as any);
+};
+```
+
+## Headless API Contracts
+
+Plugins designed for headless delivery expose **virtual slots** — API-only layout definitions that external frontends (Next.js, Astro, React Native) render using their own component libraries:
+
+```typescript
+// Extend your plugin with virtual slot definitions
+export const virtualSlots = [
+  {
+    id: "headless-product-card",
+    zone: "collection_item",
+    schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        price: { type: "number" },
+        imageUrl: { type: "string" },
+      },
+    },
+    endpoint: "/api/plugins/shop/product-card",
+  },
+  {
+    id: "headless-cart-widget",
+    zone: "page_sidebar",
+    schema: { type: "object", properties: { itemCount: "number", total: "number" } },
+    endpoint: "/api/plugins/shop/cart-data",
+  },
+];
+```
+
+External frontends fetch structured data from these endpoints and render using their native components — no Svelte dependency required. The CMS serves as a pure data source with well-typed API contracts.
+
 ## Security Boundaries (Sandbox)
 
-All plugin hooks execute within a sandboxed context (`src/plugins/sandbox.ts`):
+All plugin hooks execute within a sandboxed context (`src/plugins/sandbox.ts`) with **dynamic scaling**:
 
-| Boundary                  | Limit                                                        | Why                      |
-| ------------------------- | ------------------------------------------------------------ | ------------------------ |
-| **Collection access**     | Only `plugin_<id>_*` for writes                              | Prevent data corruption  |
-| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data   |
-| **Query count**           | 100 queries per hook                                         | Prevent resource abuse   |
-| **Timeout**               | 5 seconds per hook                                           | Prevent hangs            |
-| **Error boundary**        | Catches all errors                                           | Plugin crash ≠ CMS crash |
+| Boundary                  | Limit                                                        | Why                                      |
+| ------------------------- | ------------------------------------------------------------ | ---------------------------------------- |
+| **Collection access**     | Only `plugin_<id>_*` for writes                              | Prevent data corruption                  |
+| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data                   |
+| **Query count**           | 100 per hook (default); up to 500 for migrations             | Dynamic scaling prevents resource abuse  |
+| **Timeout**               | 5s per hook; 30s for migrations                              | Extended timeout for schema provisioning |
+| **Error boundary**        | Catches all errors                                           | Plugin crash ≠ CMS crash                 |
+
+> **Dynamic Scaling**: Migrations receive relaxed limits (500 queries, 30s timeout) to handle complex schema provisioning. Hooks retain strict limits to keep runtime operations fast.
 
 ## Per-Tenant Plugin State
 
@@ -266,21 +354,23 @@ Then in `+page.svelte`:
 | --------------------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
 | **Smart AI-Driven Migration Pro** | 36+ platform content migration       | [smart-importer.mdx](/src/plugins/smart-importer/smart-importer.mdx)       |
 | PageSpeed                         | Lighthouse-based performance scoring | [pagespeed.mdx](/src/plugins/pagespeed/pagespeed.mdx)                      |
-| WebMCP                            | MCP server for AI assistants         | [webmcp.mdx](/src/plugins/webmcp/webmcp.mdx)                               |
-| Cookie Consent                    | GDPR cookie banner                   | [cookie-consent.mdx](/src/plugins/cookie-consent/cookie-consent.mdx)       |
-| Redirect Manager                  | Auto-redirect + MV caching           | [redirect-manager.mdx](/src/plugins/redirect-manager/redirect-manager.mdx) |
-| Stripe                            | Payment processing                   | [stripe.mdx](/src/plugins/stripe/stripe.mdx)                               |
+| WebMCP                            | Headless MCP server for AI agents    | [webmcp.mdx](/src/plugins/webmcp/webmcp.mdx)                               |
+| Cookie Consent                    | GDPR cookie banner with consent log  | [cookie-consent.mdx](/src/plugins/cookie-consent/cookie-consent.mdx)       |
+| Redirect Manager                  | Headless redirect router + MV cache  | [redirect-manager.mdx](/src/plugins/redirect-manager/redirect-manager.mdx) |
+| Stripe                            | Payment processing + webhooks        | [stripe.mdx](/src/plugins/stripe/stripe.mdx)                               |
 
 ## Best Practices
 
 1. **Always prefix** your collections with `plugin_<your-id>_`
 2. **Return data** from `beforeSave` — it's required
 3. **Handle errors** gracefully — thrown errors in hooks are caught by the sandbox
-4. **Use migrations** for DB schema — don't create collections in hooks
-5. **Keep hooks fast** — stay under the 5s timeout
+4. **Use abstract migrations** — prefer `dbAdapter.schema.ensureCollection()` over raw `createModel`
+5. **Keep hooks fast** — stay under the 5s timeout; use migrations for heavy provisioning
 6. **Test independently** — mock the `PluginContext` for unit tests
 7. **Use conditional tiles** — check `pluginRegistry` before showing config tiles
 8. **Document** — every plugin must have an `.mdx` in its directory
+9. **Draft-by-Default Airgap** — all external mutations must save as draft; human review required for publish
+10. **Headless contracts** — export virtual slot definitions for external frontend consumption
 
 ---
 

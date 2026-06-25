@@ -119,7 +119,10 @@ export function parseSanityExport(ndjsonText: string, token: string): SNCEnvelop
             vocabularies: extractSanityTaxonomies(doc).vocabularies,
             terms: extractSanityTaxonomies(doc).terms,
           },
-          rawCustomFields: { ...doc, _portableText: doc.body || doc.content || doc.richText },
+          rawCustomFields: {
+            ...doc,
+            _portableText: doc.body || doc.content || doc.richText,
+          },
           assetsToMirror: extractSanityAssets(doc, imageRefs),
         });
       } catch {
@@ -127,7 +130,12 @@ export function parseSanityExport(ndjsonText: string, token: string): SNCEnvelop
       }
     }
 
-    return { sourcePlatform: "sanity", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "sanity",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -199,7 +207,12 @@ export function parseStrapiExport(jsonText: string, token: string): SNCEnvelope 
       });
     }
 
-    return { sourcePlatform: "strapi", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "strapi",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -280,7 +293,12 @@ export function parseDirectusExport(jsonText: string, token: string): SNCEnvelop
       });
     }
 
-    return { sourcePlatform: "directus", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "directus",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -323,7 +341,12 @@ export function parsePayloadExport(jsonText: string, token: string): SNCEnvelope
       });
     }
 
-    return { sourcePlatform: "payload", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "payload",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -352,10 +375,16 @@ export function parseStoryblokExport(jsonText: string, token: string): SNCEnvelo
         taxonomies: {
           vocabularies: [],
           terms: story.tag_list
-            ? { tags: Array.isArray(story.tag_list) ? story.tag_list : [story.tag_list] }
+            ? {
+                tags: Array.isArray(story.tag_list) ? story.tag_list : [story.tag_list],
+              }
             : {},
         },
-        rawCustomFields: { ...content, _slices: content.body || [], _component: content.component },
+        rawCustomFields: {
+          ...content,
+          _slices: content.body || [],
+          _component: content.component,
+        },
         assetsToMirror: content.image?.filename
           ? [
               {
@@ -369,7 +398,12 @@ export function parseStoryblokExport(jsonText: string, token: string): SNCEnvelo
       });
     }
 
-    return { sourcePlatform: "storyblok", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "storyblok",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -403,7 +437,12 @@ export function parsePrismicExport(jsonText: string, token: string): SNCEnvelope
       });
     }
 
-    return { sourcePlatform: "prismic", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "prismic",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }

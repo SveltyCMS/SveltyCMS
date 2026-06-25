@@ -14,8 +14,16 @@ export function createMockDb() {
       delete: vi.fn(),
     },
     system: { preferences: { get: vi.fn(), set: vi.fn(), getMany: vi.fn() } },
-    auth: { getUserById: vi.fn(), updateUserAttributes: vi.fn(), validateSession: vi.fn() },
-    collection: { getModel: vi.fn(), createModel: vi.fn(), listSchemas: vi.fn() },
+    auth: {
+      getUserById: vi.fn(),
+      updateUserAttributes: vi.fn(),
+      validateSession: vi.fn(),
+    },
+    collection: {
+      getModel: vi.fn(),
+      createModel: vi.fn(),
+      listSchemas: vi.fn(),
+    },
     media: { getByHash: vi.fn(), upload: vi.fn(), delete: vi.fn() },
     isConnected: vi.fn().mockReturnValue(true),
   };

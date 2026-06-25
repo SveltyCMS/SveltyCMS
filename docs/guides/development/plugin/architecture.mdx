@@ -1,22 +1,23 @@
 ---
 path: "docs/guides/development/plugin/architecture.mdx"
 title: Plugin Architecture
-description: Comprehensive guide to the SveltyCMS Enterprise Plugin System — slots, hooks, migrations, sandbox, and config-page pattern.
+description: Comprehensive guide to the SveltyCMS Enterprise Plugin System — slots, hooks, migrations, sandbox, headless delivery, and config-page pattern.
 icon: "mdi:puzzle-outline"
 order: 10
 author: "SveltyCMS Team"
 created: 2026-02-05
-updated: "2026-06-22"
+updated: "2026-06-25"
 tags:
   - plugins
   - architecture
   - guide
   - extensions
+  - headless
 ---
 
 # Plugin Architecture
 
-SveltyCMS features a robust, enterprise-grade plugin architecture for deep customization without modifying the core. Plugins leverage **Slots** for UI injection, **Lifecycle Hooks** for CRUD interception, **Migrations** for database provisioning, and a **Sandbox** for security isolation.
+SveltyCMS features a robust, enterprise-grade plugin architecture for deep customization without modifying the core. Plugins leverage **Slots** for UI injection, **Lifecycle Hooks** for CRUD interception, **Migrations** for database provisioning, a **Sandbox** for security isolation, and **Headless Delivery** boundaries for decoupled frontends.
 
 ---
 
@@ -27,7 +28,19 @@ graph TD
     subgraph "Plugin System"
         Registry["Plugin Registry"]
         Plugin["Plugin Definition"]
-        Sandbox["Sandbox (5s timeout, 100 queries)"]
+        Sandbox["Sandbox (dynamic scaling)"]
+    end
+
+    subgraph "Headless Clients"
+        NextJS["Next.js / React"]
+        Astro["Astro / SSG"]
+        Mobile["Mobile App"]
+    end
+
+    subgraph "Headless Boundary"
+        API["Stateless API Contracts"]
+        Preview["Dynamic Preview Auth"]
+        Slots["Virtual UI Injection"]
     end
 
     subgraph "Host Application"
@@ -45,6 +58,10 @@ graph TD
     Plugin -->|registers with| Registry
     Plugin -->|defines| Migrations
     Plugin -->|intercepts| HookRunner
+    NextJS & Astro & Mobile -->|consume via| API
+    API -->|routes through| HookRunner
+    Preview -->|authorizes| HookRunner
+    Slots -->|injects into| NextJS & Astro & Mobile
     ConfigPage -->|provides admin UI for| Plugin
     SlotComp -->|renders from| Plugin
     HookRunner -->|reads/writes via| Content
@@ -150,15 +167,56 @@ hooks: {
 
 ## Sandbox Boundaries
 
-All plugin hooks execute within a sandbox (`src/plugins/sandbox.ts`):
+All plugin hooks execute within a sandbox (`src/plugins/sandbox.ts`) with **architecture-aware dynamic scaling**:
 
-| Boundary                  | Limit                                                        | Why                      |
-| ------------------------- | ------------------------------------------------------------ | ------------------------ |
-| **Collection access**     | Only `plugin_{id}_*` for writes                              | Prevent data corruption  |
-| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked | Never access auth data   |
-| **Query count**           | 100 queries per hook                                         | Prevent resource abuse   |
-| **Timeout**               | 5 seconds per hook                                           | Prevent hangs            |
-| **Error boundary**        | Catches all errors                                           | Plugin crash ≠ CMS crash |
+| Boundary                  | Limit                                                                | Why                      |
+| ------------------------- | -------------------------------------------------------------------- | ------------------------ |
+| **Collection access**     | Only `plugin_{id}_*` for writes                                      | Prevent data corruption  |
+| **Protected collections** | `users`, `sessions`, `tokens`, `roles`, `audit_logs` blocked         | Never access auth data   |
+| **Query count**           | 100 queries per hook (default); dynamically scaled up for migrations | Prevent resource abuse   |
+| **Timeout**               | 5 seconds per hook (default); 30s for migrations                     | Prevent hangs            |
+| **Error boundary**        | Catches all errors                                                   | Plugin crash ≠ CMS crash |
+
+> **Dynamic Scaling**: The sandbox adapts limits based on the execution context. **Migrations** receive a higher query budget (up to 500 queries) and extended timeout (30s) since they provision infrastructure. **Hooks** retain the strict 100-query / 5s limits to prevent runtime performance degradation. This architecture-aware approach ensures migrations can complete complex schema provisioning while hooks remain fast and safe.
+
+---
+
+## Headless Delivery Boundaries
+
+SveltyCMS plugins support **decoupled frontend architectures** through three key headless mechanisms:
+
+### 1. Virtual UI Injection
+
+Plugins can register **API-only layout definitions** for consumption by external frontends. Instead of injecting Svelte components into the admin UI, plugins export JSON-serializable slot contracts that external frontends (Next.js, Astro, mobile apps) render natively.
+
+```typescript
+// Plugin exports virtual slot definitions for headless frontends
+export const virtualSlots = [
+  {
+    id: "headless-blog-header",
+    zone: "page_header",
+    schema: { type: "object", properties: { title: "string", author: "string" } },
+    endpoint: "/api/plugins/blog/header-data",
+  },
+];
+```
+
+### 2. Dynamic Preview Authentication
+
+Live preview uses **ephemeral signed tokens** (`/api/preview/authorize`) to grant temporary access to draft content on external frontend domains. The collection schema's `previewTargetUrl` determines the allowed origin — no hardcoded localhost assumptions.
+
+```typescript
+// Preview token flow
+POST /api/preview/authorize  →  { previewUrl: "https://myfrontend.com?preview=abc123&token=eyJ..." }
+```
+
+### 3. Stateless API Contracts
+
+All plugin interaction with external frontends goes through **documented REST/GraphQL endpoints** with:
+
+- **Origin validation** via plugin config (`allowedOrigins`, `frontendBaseUrl`, `allowedCheckoutOrigins`)
+- **Fail-closed semantics**: If a plugin configures `failClosedOnCacheMiss: true`, missing cache entries return 404 instead of falling through
+- **Edge KV synchronization**: Redirects and sitemaps push to edge stores for sub-10ms resolution on decoupled frontends
 
 ---
 
@@ -220,8 +278,31 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 
 1. **Lazy Loading**: Use `() => import(...)` for UI components to keep bundle size low.
 2. **Type Safety**: Import from `@src/plugins/types` for all interfaces.
-3. **Sandbox Compliance**: Stay within 100 queries and 5s timeout per hook.
-4. **Collection Prefixing**: Use `plugin_{id}_` for all plugin-owned collections.
+3. **Sandbox Compliance**: Stay within 100 queries and 5s timeout per hook (migrations receive dynamic scaling).
+4. **Collection Prefixing**: Use `plugin_{id}_` for all plugin-owned collections. For abstract migrations, use `dbAdapter.schema.ensureCollection()` instead of raw `createModel`:
+
+   ```typescript
+   // ✅ Recommended: abstract migration
+   migrations: [
+     {
+       up: async (dbAdapter) => {
+         await dbAdapter.schema.ensureCollection("plugin_my-plugin_logs", {
+           fields: [
+             { label: "Action", name: "action", type: "text", required: true },
+             { label: "Timestamp", name: "timestamp", type: "text" },
+           ],
+           status: "publish",
+         });
+       },
+     },
+   ];
+
+   // ❌ Legacy: raw createModel
+   up: async (dbAdapter) => {
+     await (dbAdapter as any).createModel({ _id: "plugin_my-plugin_logs" });
+   };
+   ```
+
 5. **Optional Dependencies**: Dynamic import server-side deps so plugins are truly optional.
 6. **Documentation**: Every plugin must have an `.mdx` file in its directory.
 7. **Config Page Pattern**: Admin-facing plugins should pair with a config page for CRUD.

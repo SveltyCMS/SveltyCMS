@@ -80,7 +80,11 @@ export async function optimizeMedia(
   focalPoint?: { x: number; y: number };
   srcSet?: Array<{ width: number; url: string }>;
 }> {
-  const cfg = { ...DEFAULT_OPTIMIZE_CONFIG, ...getMediaOutputFormatSettings(), ...config };
+  const cfg = {
+    ...DEFAULT_OPTIMIZE_CONFIG,
+    ...getMediaOutputFormatSettings(),
+    ...config,
+  };
   const ext = filename.split(".").pop()?.toLowerCase() || "png";
   const inputSize = buffer.byteLength;
 
@@ -131,7 +135,10 @@ export async function optimizeMedia(
         ? detectFocalPoint(meta.width ?? 0, meta.height ?? 0)
         : undefined,
       srcSet: cfg.generateSrcSet
-        ? cfg.srcSetWidths.map((w) => ({ width: w, url: `/media/optimized/${w}w_${filename}` }))
+        ? cfg.srcSetWidths.map((w) => ({
+            width: w,
+            url: `/media/optimized/${w}w_${filename}`,
+          }))
         : undefined,
     };
   } catch (err) {
@@ -144,7 +151,10 @@ export async function optimizeMedia(
       sizeReduction: 0,
       focalPoint: cfg.detectFocalPoint ? detectFocalPoint(0, 0) : undefined,
       srcSet: cfg.generateSrcSet
-        ? cfg.srcSetWidths.map((w) => ({ width: w, url: `/media/optimized/${w}w_${filename}` }))
+        ? cfg.srcSetWidths.map((w) => ({
+            width: w,
+            url: `/media/optimized/${w}w_${filename}`,
+          }))
         : undefined,
     };
   }

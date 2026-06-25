@@ -117,3 +117,20 @@ export function renameProperty(
   prop.getNameNode().replaceWithText(newName);
   return true;
 }
+
+/**
+ * Sanitizes a collection name for headless API compatibility.
+ * - Replaces spaces and special chars with hyphens
+ * - Lowercases the result
+ * - Removes leading/trailing hyphens and underscores
+ * - Collapses consecutive hyphens
+ *
+ * Example: "Blog Posts 2024!" → "blog-posts-2024"
+ */
+export function sanitizeHeadlessCollectionName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}

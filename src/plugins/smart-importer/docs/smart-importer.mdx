@@ -396,7 +396,12 @@ customParserRegistry.register({
   version: "1.0.0",
   extensions: [".mycms", ".mcx"],
   parse: async (rawText, token) => {
-    return { sourcePlatform: "mycms", version: "1.0", transactionToken: token, entries: [] };
+    return {
+      sourcePlatform: "mycms",
+      version: "1.0",
+      transactionToken: token,
+      entries: [],
+    };
   },
   detect: (header) => header.includes("MYCMS_EXPORT"),
 });

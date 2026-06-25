@@ -225,7 +225,9 @@ export async function handleTokenRoutes(
 
     if (isWebsite) {
       // Website token update: delegate to websiteTokens module
-      const result = await cms.websiteTokens.update(tokenId, updateData, { tenantId });
+      const result = await cms.websiteTokens.update(tokenId, updateData, {
+        tenantId,
+      });
       if (!result) throw new AppError("Website token not found", 404);
       return successResponse(event, result);
     }

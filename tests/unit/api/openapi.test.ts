@@ -29,8 +29,18 @@ vi.mock("@src/content/index.server", () => ({
         _id: "Posts",
         name: "Posts",
         fields: [
-          { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, translated: true },
-          { db_fieldName: "views", label: "Views", widget: { Name: "Number" }, translated: false },
+          {
+            db_fieldName: "title",
+            label: "Title",
+            widget: { Name: "Input" },
+            translated: true,
+          },
+          {
+            db_fieldName: "views",
+            label: "Views",
+            widget: { Name: "Number" },
+            translated: false,
+          },
         ],
       },
     ]),

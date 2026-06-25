@@ -212,7 +212,11 @@ const SeoWidget = createWidget({
 
     // Resolve tokens in title and description
     const entry = (data as any).entry || {};
-    const context = { entry, user, tenantId: (tenantId as string) || "default" };
+    const context = {
+      entry,
+      user,
+      tenantId: (tenantId as string) || "default",
+    };
 
     if (
       (value.title && value.title.includes("{{")) ||

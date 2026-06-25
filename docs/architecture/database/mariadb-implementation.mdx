@@ -432,7 +432,7 @@ const hashedPassword = await argon2.hash(plainPassword);
 const isValid = await argon2.verify(hashedPassword, plainPassword);
 ```
 
-### Tenant Isolation {#security-tenant-isolation}
+### Tenant Isolation {#tenant-isolation-2}
 
 ```
 // Always apply tenant filter for user queries

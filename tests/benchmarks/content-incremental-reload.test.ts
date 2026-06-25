@@ -122,8 +122,16 @@ test("Incremental vs Full Content Reload", async () => {
 
     printSummaryTable(
       [
-        { key: "Incremental Reload (avg)", val: incrementalResult.avgMs, unit: "ms" },
-        { key: "Full Reconciliation (avg)", val: fullReconcileResult.avgMs, unit: "ms" },
+        {
+          key: "Incremental Reload (avg)",
+          val: incrementalResult.avgMs,
+          unit: "ms",
+        },
+        {
+          key: "Full Reconciliation (avg)",
+          val: fullReconcileResult.avgMs,
+          unit: "ms",
+        },
         { key: "Incremental Speedup Factor", val: speedup, unit: "x" },
       ],
       "Incremental",
