@@ -24,7 +24,7 @@ import { resolveLoginBranding } from "@utils/theme-merge";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { sendMail } from "@utils/email.server";
-import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
+
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import pkg from "../../../package.json";
 
@@ -89,13 +89,9 @@ async function checkDatabaseHealth(): Promise<{
 
   try {
     if (auth && typeof auth.getUserCount === "function") {
-      const roleCount = await auth.getUserCount({}, { bypassTenantCheck: true });
-      if (roleCount === 0) {
-        const reason = "Database is empty — setup may not have completed";
-        _dbHealthCache = { healthy: false, reason, timestamp: now };
-        return { healthy: false, reason };
-      }
-      // roleCount > 0 — users exist, DB is healthy
+      await auth.getUserCount({}, { bypassTenantCheck: true });
+      // Users exist or DB is empty — neither is an error.
+      // An empty database is the normal state for first-user signup.
       _dbHealthCache = { healthy: true, timestamp: now };
       return { healthy: true };
     }
@@ -124,16 +120,9 @@ async function waitForAuthService(): Promise<boolean> {
   return !!(auth && typeof auth.getUserCount === "function");
 }
 
-async function shouldShowGoogleOAuth(hasInvite?: boolean): Promise<boolean> {
+async function shouldShowGoogleOAuth(_hasInvite?: boolean): Promise<boolean> {
   if (!getPrivateSettingSync("GOOGLE_CLIENT_ID")) return false;
-  if (hasInvite) return true;
-  if (!auth || typeof auth.getUserCount !== "function") return false;
-  try {
-    const count = await auth.getUserCount({}, { bypassTenantCheck: true });
-    return count > 0;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 async function loadLoginBranding(tenantId?: string | null) {
@@ -154,16 +143,9 @@ async function loadLoginBranding(tenantId?: string | null) {
   }
 }
 
-async function shouldShowGithubOAuth(hasInvite?: boolean): Promise<boolean> {
+async function shouldShowGithubOAuth(_hasInvite?: boolean): Promise<boolean> {
   if (!getPrivateSettingSync("GITHUB_CLIENT_ID")) return false;
-  if (hasInvite) return true;
-  if (!auth || typeof auth.getUserCount !== "function") return false;
-  try {
-    const count = await auth.getUserCount({}, { bypassTenantCheck: true });
-    return count > 0;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -246,13 +228,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     if (!locals) locals = {} as App.Locals;
 
     if (locals.user) {
-      let finalCollectionPath: string | null = null;
-      try {
-        finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
-      } catch {
-        throw redirect(302, "/");
-      }
-      throw redirect(302, finalCollectionPath ?? "/config/collectionbuilder");
+      throw redirect(302, "/config/collectionbuilder");
     }
 
     if (limiter.cookieLimiter?.preflight) {
@@ -389,7 +365,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
             user_id: existingUser._id as DatabaseId,
             expires: new Date(Date.now() + SESSION_DURATION_MS).toISOString() as ISODateString,
           });
-          const sessionCookie = auth.createSessionCookie(session._id as DatabaseId);
+          const isSecure =
+            url.protocol === "https:" ||
+            (url.hostname !== "localhost" &&
+              process.env.NODE_ENV !== "development" &&
+              process.env.TEST_MODE !== "true");
+          const sessionCookie = auth.createSessionCookie(session._id as DatabaseId, isSecure);
           cookies.set(sessionCookie.name, sessionCookie.value, {
             ...(sessionCookie.attributes as Record<string, unknown>),
             path: "/",
@@ -408,11 +389,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
               logger.debug("Google user attribute update failed silently");
             });
 
-          let finalCollectionPath: string | null = null;
-          try {
-            finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
-          } catch {}
-          throw redirect(303, finalCollectionPath ?? "/config/collectionbuilder");
+          throw redirect(303, "/config/collectionbuilder");
         }
       } catch (err: any) {
         if (isRedirect(err)) throw err;
@@ -435,11 +412,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       getPrivateSettingSync("SMTP_HOST") || getPrivateSettingSync("MAGIC_LINK_ENABLED")
     );
 
-    let firstCollectionPath: string | null = null;
-    try {
-      firstCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
-    } catch {}
-
     const pkgVersion = pkg.version;
     const loginBranding = await loadLoginBranding(locals.tenantId);
 
@@ -451,7 +423,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       showPasskey,
       showMagicLink,
       hasExistingOAuthUsers: false,
-      firstCollectionPath,
+      firstCollectionPath: "/config/collectionbuilder",
       pkgVersion,
       loginBranding,
       // Returning user: handle-authentication sets locals.returningUser when a session cookie was

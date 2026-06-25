@@ -26,24 +26,22 @@ describe("Invitation-Based Signup Tests", () => {
     console.log("🧹 Database cleaned for test");
   });
 
-  describe("Setup Required (First User)", () => {
-    it("should redirect to /setup when no users exist", async () => {
+  describe("Login Page (First User)", () => {
+    it("should render login page when no users exist", async () => {
       // Verify database is empty
       const initialUserCount = await getUserCount();
       expect(initialUserCount).toBe(0);
 
-      // Try to access /login when no users exist - should redirect to /setup
+      // Access /login when no users exist - should render login page
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: "GET",
         redirect: "manual", // Don't follow redirects automatically
       });
 
-      // Should get redirect to /setup
-      expect([301, 302, 303, 307, 308]).toContain(response.status);
-      const location = response.headers.get("location");
-      expect(location).toContain("/setup");
+      // Should render login page (handles first-user signup when config exists)
+      expect(response.status).toBe(200);
 
-      console.log("✅ Correctly redirected to /setup when no users exist");
+      console.log("✅ Login page rendered when no users exist");
     });
   });
 
