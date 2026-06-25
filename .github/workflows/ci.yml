@@ -363,10 +363,10 @@ jobs:
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
 
           # Run Wizard first (sets up the system)
-          bun x playwright test --project=Wizard
+          bun x playwright test --project=wizard
 
           # Then run Auth Setup to generate auth state for other E2E tests
-          bun x playwright test --project=Auth
+          bun x playwright test --project=auth-setup
 
       - name: Archive E2E Environment (single artifact)
         run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts

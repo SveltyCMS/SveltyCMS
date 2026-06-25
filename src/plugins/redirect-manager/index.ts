@@ -1,6 +1,12 @@
 /**
  * @file src/plugins/redirect-manager/index.ts
- * @description High-performance redirect manager for SveltyCMS.
+ * @description Headless Redirect Router — enterprise-grade redirect manager for SveltyCMS.
+ *
+ * Features:
+ * - Auto-slug tracking with 301 redirect generation
+ * - Edge KV sync for headless frontends
+ * - Fail-closed semantics on cache miss
+ * - Multi-tenant support
  */
 
 import type { Plugin } from "../types";
@@ -8,10 +14,10 @@ import type { Plugin } from "../types";
 export const redirectManagerPlugin: Plugin = {
   metadata: {
     id: "redirect-manager",
-    name: "Redirect Manager",
-    version: "1.0.0",
+    name: "Headless Redirect Router",
+    version: "2.0.0",
     description:
-      "Enterprise-grade redirect manager with auto-slug tracking and multi-tenant support.",
+      "Enterprise-grade redirect manager with auto-slug tracking, edge KV sync, and multi-tenant support for headless frontends.",
     author: "SveltyCMS",
     icon: "mdi:directions-fork",
     enabled: true,
@@ -32,6 +38,11 @@ export const redirectManagerPlugin: Plugin = {
       autoRedirectOnSlugChange: true,
       trailingSlash: "ignore", // 'ignore', 'add', 'remove'
       forceLowercase: true,
+    },
+    private: {
+      frontendBaseUrl: "",
+      syncToEdgeOnPublish: false,
+      failClosedOnCacheMiss: true,
     },
   },
 };
