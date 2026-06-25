@@ -5,7 +5,9 @@
 
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
-import { auditLogService, AuditEventType } from "../security/audit-service";
+import { dbAdapter } from "@src/databases/db";
+import { jobQueue } from "./jobs/job-queue-service";
+import { webhookDeliveryHandler } from "./jobs/webhook-jobs";
 
 export interface Webhook {
   id: string;
@@ -29,8 +31,6 @@ export type WebhookEvent =
   | "entry:unpublish"
   | "media:upload"
   | "media:delete";
-
-const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter;
 
 export class WebhookService {
   private static instance: WebhookService | null = null;
@@ -102,8 +102,6 @@ export class WebhookService {
 
     logger.debug(`Queueing ${event} for ${matchingHooks.length} webhooks (tenant: ${tenantId})`);
 
-    const { jobQueue } = await import("./jobs/job-queue-service");
-
     for (const webhook of matchingHooks) {
       await jobQueue.dispatch("webhook-delivery", { webhook, event, payload }, tenantId);
     }
@@ -117,7 +115,6 @@ export class WebhookService {
     event: WebhookEvent,
     payload: unknown,
   ): Promise<void> {
-    const { webhookDeliveryHandler } = await import("./jobs/webhook-jobs");
     await webhookDeliveryHandler({ webhook, event, payload });
   }
 
@@ -133,7 +130,7 @@ export class WebhookService {
     }
 
     try {
-      const db = await getDbAdapter();
+      const db = dbAdapter;
       if (!db?.system?.preferences) {
         logger.warn(`Database adapter not available for webhooks (tenant: ${tenantId})`);
         return [];
@@ -169,7 +166,7 @@ export class WebhookService {
       throw new Error("tenantId is required to save webhook");
     }
 
-    const db = await getDbAdapter();
+    const db = dbAdapter;
     if (!db?.system?.preferences) {
       throw new Error("Database adapter not available");
     }
@@ -215,7 +212,7 @@ export class WebhookService {
   public async deleteWebhook(id: string, tenantId: string): Promise<void> {
     if (!tenantId) return;
 
-    const db = await getDbAdapter();
+    const db = dbAdapter;
     if (!db?.system?.preferences) return;
 
     const current = await this.getWebhooks(tenantId);

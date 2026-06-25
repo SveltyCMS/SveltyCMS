@@ -3,9 +3,28 @@
  * @description
  * Ultra-lightweight, high-performance event bus for server-side communication.
  * Primary backplane for SSE (Server-Sent Events) and multi-instance synchronization.
+ *
+ * ⚠️ SERVER-ONLY: This module uses Node.js `EventEmitter` and must never be
+ * imported in browser bundles. A guard throws at module init if run client-side.
+ *
+ * ### Features:
+ * - Wildcard `*` listeners for catch-all event monitoring
+ * - `broadcast()` convenience method
+ * - Configurable max listeners (default 1000 for concurrent SSE connections)
  */
 import { EventEmitter } from "node:events";
 import { logger } from "./logger";
+
+// 🛡️ Server-only guard — prevents accidental import in browser bundles
+// Server-only — block in browser bundles, allow in Node/Bun (including jsdom tests)
+if (
+  typeof window !== "undefined" &&
+  typeof (globalThis as any).process?.versions?.node === "undefined"
+) {
+  throw new Error(
+    "[event-bus] This module is server-only. Do not import it in browser code or Svelte components.",
+  );
+}
 
 class EventBus extends EventEmitter {
   constructor() {

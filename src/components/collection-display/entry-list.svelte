@@ -68,10 +68,10 @@ bulk actions, and predictive preloading.
 		collectionValue,
 		mode,
 		setCollectionValue,
-		setMode,
 		setModifyEntry,
 		type statusMap
 	} from '@src/stores/collection-store.svelte.ts';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	// Config
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
@@ -745,7 +745,7 @@ bulk actions, and predictive preloading.
 
 		// ✅ GUI-FIRST PATTERN: Instant mode switch (no data loading needed for create)
 		// 1. Update stores INSTANTLY (no navigation wait)
-		setMode('create');
+		modeTransitionGuard.setMode('create');
 		setCollectionValue(newEntry);
 
 		// 2. Reflect in URL (passive, no reload)
@@ -1141,7 +1141,7 @@ bulk actions, and predictive preloading.
 
 														// 2. Update stores INSTANTLY (no waiting)
 														// The URL pattern document mandates GUI-First: state first, URL second
-														setMode("edit");
+														modeTransitionGuard.setMode("edit");
 														setCollectionValue(originalEntry);
 
 														// 3. Reflect in URL (passive, no reload if we use replaceState, but we want history so we use reflectModeInURL)

@@ -1,6 +1,6 @@
 /**
- * @file src/stores/config-store.svelte.ts
- * @description Global store for configuration UI state
+ * @file src/stores/settings-config-state.svelte.ts
+ * @description Tracks which settings groups need configuration (empty required fields)
  */
 
 import { SvelteSet } from "svelte/reactivity";

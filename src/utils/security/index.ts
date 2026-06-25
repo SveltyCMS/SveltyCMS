@@ -1,17 +1,25 @@
 /**
  * @file src/utils/security/index.ts
- * @description
- * Barrel re-export that forwards all exports from the main `../security.ts`
- * module. This file exists to resolve an ambiguity in Node.js native module
- * resolution: when `@utils/security` is imported, Node may find the
- * `security/` directory before the `security.ts` file. Without this barrel,
- * directory resolution fails because there is no index file.
+ * @description Security barrel — re-exports from all security domain files.
  *
- * Vite handles this transparently via its alias + resolver system, but the
- * Tailwind CSS v4 Node.js loader hook uses native resolution and requires
- * a real `index.js` (or `index.ts`) to be present.
- *
- * All callers of `@utils/security` expect the exports from `security.ts`.
+ * Files:
+ *   - crypto.ts       — argon2 hashing, encryption/decryption, worker pool
+ *   - constants.ts    — CSP headers, security config
+ *   - auth-utils.ts   — session duration parsing
+ *   - csrf-utils.ts   — CSRF token generation/validation
+ *   - cors-utils.ts   — CORS header utilities
+ *   - credential-hash.ts — SHA-256 credential hashing
+ *   - mongo-sanitize.ts — MongoDB injection prevention
+ *   - permission-cache.ts — Permission caching
+ *   - safe-query.ts   — Safe query construction
  */
 
-export * from "../security";
+export * from "./crypto";
+export * from "./constants";
+export * from "./auth-utils";
+export * from "./csrf-utils";
+export * from "./cors-utils";
+export * from "./credential-hash";
+export * from "./mongo-sanitize";
+export * from "./permission-cache";
+export * from "./safe-query";

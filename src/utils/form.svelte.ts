@@ -16,7 +16,6 @@
  */
 
 import { type BaseSchema, flatten, safeParse } from "valibot";
-import { logger } from "./logger";
 
 // --- Utilities (Merged from form.ts) ---
 
@@ -30,28 +29,6 @@ export function obj2formData(obj: Record<string, unknown>): FormData {
     if (value instanceof Blob) {
       formData.append(key, value);
     } else if (typeof value === "object") {
-      formData.append(key, JSON.stringify(value));
-    } else {
-      formData.append(key, String(value));
-    }
-  }
-  return formData;
-}
-
-/**
- * Converts data to FormData object with optimized file handling and type safety.
- */
-export async function col2formData(
-  getData: Record<string, () => Promise<unknown> | unknown>,
-): Promise<FormData> {
-  const formData = new FormData();
-  for (const [key, getter] of Object.entries(getData)) {
-    let value = getter();
-    if (value instanceof Promise) value = await value;
-
-    if (value instanceof Blob) {
-      formData.append(key, value);
-    } else if (typeof value === "object" && value !== null) {
       formData.append(key, JSON.stringify(value));
     } else {
       formData.append(key, String(value));
@@ -148,24 +125,5 @@ export class Form<T extends Record<string, unknown>> {
     } finally {
       this.submitting = false;
     }
-  }
-}
-
-// --- Global Validation Helper ---
-
-/**
- * Procedural validation for one-off checks.
- */
-export function validateData<T>(
-  schema: BaseSchema<T, T, any>,
-  value: T,
-): Record<string, string[]> | null {
-  try {
-    const result = safeParse(schema, value);
-    if (result.success) return null;
-    return flatten(result.issues).nested as Record<string, string[]>;
-  } catch (error) {
-    logger.error("Validation error:", error);
-    return null;
   }
 }

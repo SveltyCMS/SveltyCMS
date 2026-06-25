@@ -46,10 +46,11 @@
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	import { goto } from '$app/navigation';
 	// Stores
-	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
-	import { ui, uiStateManager, toggleUIElement, userPreferredState } from '@src/stores/ui-store.svelte';
+	import { contentStructure } from '@src/stores/collection-store.svelte';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
+	import { ui, uiStateManager, toggleUIElement } from '@src/stores/ui-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { avatarSrc, systemLanguage } from '@src/stores/store.svelte';
+	import { systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
@@ -135,7 +136,7 @@
 	);
 
 	const avatarUrl = $derived.by(() => {
-		let src = avatarSrc.value;
+		let src = user?.avatar ?? '/Default_User.svg';
 		if (!src || src === 'Default_User.svg' || src === '/Default_User.svg') {
 			return '/Default_User.svg';
 		}
@@ -144,11 +145,8 @@
 		}
 
 		// Normalize path
-		// 1. Remove leading slashes
 		src = src.replace(/^\/+/, '');
-		// 2. Remove prefixes
 		src = src.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-		// 3. Remove leading slashes again just in case
 		src = src.replace(/^\/+/, '');
 
 		return `/files/${src}?t=${AVATAR_CACHE_BUSTER}`;
@@ -181,24 +179,22 @@
 	// Unused settings helper removed
 
 	function toggleSidebar(): void {
-		const current = uiStateManager.uiState.value.leftSidebar;
-		const newState: SidebarState = current === 'full' ? 'collapsed' : 'full';
+		const newState: SidebarState = ui.state.leftSidebar === 'full' ? 'collapsed' : 'full';
 		toggleUIElement('leftSidebar', newState);
-		userPreferredState.set(newState);
 	}
 
 	function handleUserClick(): void {
 		if (isMobile()) {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
-		setMode('view');
+		modeTransitionGuard.setMode('view');
 	}
 
 	function handleConfigClick(): void {
 		if (isMobile()) {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
-		setMode('view');
+		modeTransitionGuard.setMode('view');
 	}
 
 	async function signOut(): Promise<void> {

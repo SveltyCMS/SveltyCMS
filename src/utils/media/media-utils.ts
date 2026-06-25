@@ -12,8 +12,31 @@
  */
 
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { formatBytes, sanitize } from "@utils/utils";
 import { logger } from "@utils/logger";
+
+// ─── Inline helpers (avoid circular import from barrel) ───────────────────
+
+/** Human-readable file size */
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / 1024 ** i).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+/** Basic filename string sanitizer — removes path traversal and control chars */
+function sanitize(input: string): string {
+  // Remove path-traversal and special chars
+  let result = input.replace(/[<>:"/\\|?*]/g, "_");
+  // Remove control characters (except tab, newline, carriage return)
+  result = Array.from(result)
+    .filter((c) => {
+      const code = c.charCodeAt(0);
+      return code > 31 || code === 9 || code === 10 || code === 13;
+    })
+    .join("");
+  return result.replace(/^[. ]+|[. ]+$/g, "").slice(0, 255);
+}
 
 import type { MediaBase } from "./media-models";
 
@@ -319,3 +342,11 @@ export async function fetchWatermarks(collectionId = "Watermarks"): Promise<Wate
   logger.warn("No watermarks found", { collectionId });
   return [];
 }
+
+// --- Image Sizes ---
+const _imageEnvSizes = publicEnv.IMAGE_SIZES || {};
+export const SIZES = {
+  ..._imageEnvSizes,
+  original: 0,
+  thumbnail: 200,
+} as const;

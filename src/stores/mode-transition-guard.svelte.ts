@@ -1,14 +1,20 @@
 /**
- * @file src/stores/ui-mode-store.svelte.ts
- * @description Centralized state machine for managing UI modes
+ * @file src/stores/mode-transition-guard.svelte.ts
+ * @description Single source of truth for mode changes.
+ *
+ * Consolidates mode management into one place:
+ * - `setMode(mode)` — instant, no validation (GUI clicks, save/delete actions)
+ * - `transitionTo(mode)` — validated (NavigationManager, programmatic transitions)
+ *
+ * Validation blocks edit/create → view if there are unsaved changes.
  *
  * Features:
- * - Standardized mode transitions (view, edit, create, modify, media)
- * - URL/State consistency
- * - Global mode store management
+ * - Unsaved changes detection (edit/create → view blocked)
+ * - beforeTransition / afterTransition hooks
+ * - Graceful force-reset to 'view' from unexpected states
  */
 import { logger } from "@utils/logger";
-import { mode, setMode } from "./collection-store.svelte";
+import { mode, setMode as _setMode } from "./collection-store.svelte";
 import { dataChangeStore } from "./store.svelte";
 
 type Mode = "view" | "edit" | "create" | "modify" | "media";
@@ -26,8 +32,16 @@ interface ModeTransition {
  * Ensures transitions between View, Edit, and Create are safe and valid.
  */
 class ModeStateMachine {
-  // We use the existing mode store as the source of truth for now to maintain compatibility
-  // In the future, this class should own the state directly.
+  // Use collection-store.mode as the underlying reactive value.
+  // All writes go through this class — setMode() for instant, transitionTo() for validated.
+
+  /**
+   * Instant mode change — no validation (GUI clicks, save/delete).
+   * For safe programmatic transitions, use transitionTo().
+   */
+  setMode(newMode: Mode): void {
+    _setMode(newMode);
+  }
 
   private readonly transitions: ModeTransition[] = [
     { from: "view", to: "create" },
@@ -92,7 +106,7 @@ class ModeStateMachine {
     }
 
     // Perform the state change
-    setMode(newMode);
+    _setMode(newMode);
 
     if (transition?.afterTransition) {
       await transition.afterTransition();
@@ -111,4 +125,4 @@ class ModeStateMachine {
   }
 }
 
-export const uiModeStore = new ModeStateMachine();
+export const modeTransitionGuard = new ModeStateMachine();

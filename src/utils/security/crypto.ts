@@ -1,5 +1,5 @@
 /**
- * @file src/utils/security.ts
+ * @file src/utils/security/crypto.ts
  * @description Unified security and cryptography system for SveltyCMS.
  *
  * Consolidates:
@@ -9,8 +9,9 @@
  * - SHA256 checksums
  */
 
-import { logger } from "./logger";
-import { generateSecureToken, generateUUID as uuidv4 } from "./native-utils";
+import { createRequire } from "node:module";
+
+const nodeRequire = createRequire(import.meta.url);
 
 // --- Types & Constants ---
 
@@ -43,117 +44,22 @@ export const ENCRYPTION_CONFIG = {
   authTagLength: 16,
 };
 
-const IS_SERVER =
-  typeof window === "undefined" || (typeof process !== "undefined" && process.versions != null);
+// server-only guard (used by encryption functions)
 
-// --- Worker Pool (for Argon2) ---
+// --- Note: Worker pool removed — hashPassword/verifyPassword now use
+// nodeRequire("argon2") directly to bypass Vite's SSR module runner.
 
-let _maxWorkers = 2;
-let _isMaxWorkersInitialized = false;
-
-const workerPool: any[] = [];
-let nextWorker = 0;
-let msgIdCounter = 0;
-const pendingPromises = new Map<
-  number,
-  { resolve: (val: any) => void; reject: (err: any) => void }
->();
-
-async function getWorker(): Promise<any> {
-  if (!IS_SERVER) throw new Error("Security workers are only available on the server");
-
-  const { Worker } = await import(/* @vite-ignore */ "node:worker_threads");
-  const path = await import(/* @vite-ignore */ "node:path");
-
-  if (!_isMaxWorkersInitialized) {
-    try {
-      const os = await import(/* @vite-ignore */ "node:os");
-      _maxWorkers = Math.max(2, Math.floor((os.cpus?.().length || 4) / 2));
-    } catch {
-      _maxWorkers = 2;
-    }
-    _isMaxWorkersInitialized = true;
-  }
-
-  if (workerPool.length < _maxWorkers) {
-    // Resolve worker path relative to this module, not process.cwd() —
-    // works in both dev (src/utils/) and production builds (build/).
-    const { fileURLToPath } = await import(/* @vite-ignore */ "node:url");
-    const workerPath = path.resolve(
-      path.dirname(fileURLToPath(import.meta.url)),
-      "security.worker.ts",
-    );
-    const worker = new Worker(workerPath);
-    worker.on("message", (msg) => {
-      const p = pendingPromises.get(msg.id);
-      if (p) {
-        pendingPromises.delete(msg.id);
-        if (msg.error) p.reject(new Error(msg.error));
-        else p.resolve(msg.result);
-      }
-    });
-    worker.on("error", (err) => {
-      logger.error("Security worker error — removing from pool", err);
-      // Remove crashed worker from pool so it gets replaced on next request
-      const idx = workerPool.indexOf(worker);
-      if (idx !== -1) workerPool.splice(idx, 1);
-    });
-    workerPool.push(worker);
-    return worker;
-  }
-  const worker = workerPool[nextWorker];
-  nextWorker = (nextWorker + 1) % workerPool.length;
-  return worker;
-}
-
-async function runSecurityTask(action: string, payload: any): Promise<any> {
-  if (!IS_SERVER) {
-    const argon2 = await import("argon2");
-    if (action === "hash") return argon2.hash(payload.password, payload.config);
-    if (action === "verify") return argon2.verify(payload.hash, payload.password);
-  }
-
-  // In Bun's test environment, worker threads may not be reliable, or when running in test mode.
-  // Fall back to direct argon2 import for robustness.
-  if (
-    typeof process !== "undefined" &&
-    (process.env.BUN_TEST === "true" ||
-      process.env.TEST_MODE === "true" ||
-      process.env.NODE_ENV === "test" ||
-      (process.env.NODE_ENV === "production" && process.env.TEST_MODE === "true"))
-  ) {
-    const argon2 = await import("argon2");
-    if (action === "hash") return argon2.hash(payload.password, payload.config);
-    if (action === "verify") return argon2.verify(payload.hash, payload.password);
-  }
-
-  const worker = await getWorker();
-
-  return new Promise((resolve, reject) => {
-    const id = ++msgIdCounter;
-    pendingPromises.set(id, { resolve, reject });
-    worker.postMessage({ id, action, ...payload });
-  });
-}
-
-// --- Password Utilities ---
+// Use createRequire for argon2 to bypass Vite's ESM loader entirely
+const _loadArgon2 = () => nodeRequire("argon2");
 
 export async function hashPassword(password: string): Promise<string> {
-  // Ensure consistent UTF-8 encoding for unicode passwords
-  const pwd = Buffer.from(password, "utf8");
-  return runSecurityTask("hash", { password: pwd, config: ARGON2_CONFIG });
+  const argon2 = _loadArgon2();
+  return argon2.hash(Buffer.from(password, "utf8"), ARGON2_CONFIG);
 }
 
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
-  // Ensure consistent UTF-8 encoding for unicode passwords
-  const pwd = Buffer.from(password, "utf8");
-  return runSecurityTask("verify", { hash, password: pwd });
-}
-
-export async function needsRehashing(hash: string): Promise<boolean> {
-  if (!IS_SERVER) return true;
-  const argon2 = await import("argon2");
-  return argon2.needsRehash(hash, ARGON2_CONFIG);
+  const argon2 = _loadArgon2();
+  return argon2.verify(hash, Buffer.from(password, "utf8"));
 }
 
 // --- Encryption Utilities ---
@@ -231,22 +137,6 @@ export async function decryptData(encryptedData: string, password: string): Prom
 }
 
 // --- Token & Hash Utilities ---
-
-/**
- * Generates a high-entropy secure token.
- * Uses platform-native CSPRNG via native-utils.
- */
-export async function generateRandomToken(length = 32): Promise<string> {
-  return generateSecureToken(length);
-}
-
-/**
- * Generates a RFC 4122 compliant v4 UUID.
- * Uses platform-native CSPRNG via native-utils.
- */
-export async function generateUUID(): Promise<string> {
-  return uuidv4();
-}
 
 /**
  * Creates a SHA-256 checksum for the provided data.

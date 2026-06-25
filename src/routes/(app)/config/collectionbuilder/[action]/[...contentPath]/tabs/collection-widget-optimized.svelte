@@ -19,7 +19,7 @@ import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 import { sveltyRegistry } from "@src/services/json-render/catalog";
 import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
 import { modalState } from "@utils/modal.svelte";
-import { asAny, getGuiFields } from "@utils/utils";
+import { getGuiFields } from "@utils/utils";
 import { untrack } from "svelte";
 import { flip } from "svelte/animate";
 import type { DndEvent } from "svelte-dnd-action";
@@ -120,7 +120,7 @@ function addField() {
 					widget: { key: r.selectedWidget, Name: r.selectedWidget } as any,
 					GuiFields: getGuiFields(
 						{ key: r.selectedWidget },
-						asAny(widgetInstance.GuiSchema),
+						(widgetInstance.GuiSchema as any),
 					),
 					permissions: {},
 				};
@@ -265,7 +265,7 @@ function addQuickWidget(key: string) {
 			label: `New ${key}`,
 			db_fieldName: `new_${key.toLowerCase()}`,
 			widget: { key, Name: key } as any,
-			GuiFields: getGuiFields({ key }, asAny(widgetInstance.GuiSchema)),
+			GuiFields: getGuiFields({ key }, (widgetInstance.GuiSchema as any)),
 			permissions: {},
 		};
 		items = [

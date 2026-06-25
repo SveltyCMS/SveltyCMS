@@ -17,7 +17,7 @@ All dynamic CMS settings organized into logical groups
 <script lang="ts">
 // Components
 import GDPRSettings from "@src/components/system/gdpr-settings.svelte";
-import { groupsNeedingConfig } from "@src/stores/config-store.svelte.ts";
+import { groupsNeedingConfig } from "@src/stores/settings-config-state.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
 	import AdminPageShell from '@components/admin-page-shell.svelte';

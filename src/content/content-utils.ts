@@ -4,7 +4,7 @@
  * Shared utility functions, navigation logic, and performance metrics.
  * Safe for both client-side UI and server-side reconciliation.
  */
-import { contentStore } from "@stores/content-store.svelte";
+import { contentStore } from "@stores/content-registry.svelte";
 import type { ContentNode, NavigationNode, Schema } from "./types";
 import { logger } from "@utils/logger";
 

@@ -32,7 +32,7 @@ if (typeof (globalThis as any).__dirname === "undefined") {
   (globalThis as any).__dirname = dirname((globalThis as any).__filename);
 }
 
-import { isSetupComplete } from "@utils/setup-check-fast";
+import { isSetupComplete } from "./utils/setup-check-fast";
 import { resetIdCounters } from "@utils/id-generator";
 
 // 🚀 ZERO-RESTART ARCHITECTURE:
@@ -53,7 +53,7 @@ import { handleTurboGet } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 
-import { getTestSecret } from "@src/utils/setup-check";
+import { getTestSecret } from "./utils/server/setup-check";
 
 // 🚀 HYPER-TURBO BYPASS (Enterprise)
 // In benchmark mode, injects a system admin user for non-auth requests

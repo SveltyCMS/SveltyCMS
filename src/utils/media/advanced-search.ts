@@ -222,12 +222,4 @@ export function getSuggestions(files: MediaBase[]) {
 /** Alias for backward compatibility */
 export const getSearchSuggestions = getSuggestions;
 
-/** Human-readable bytes */
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) {
-    return "0 B";
-  }
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / 1024 ** i).toFixed(1)} ${units[i]}`;
-}
+// formatBytes — canonical source is ../file.ts

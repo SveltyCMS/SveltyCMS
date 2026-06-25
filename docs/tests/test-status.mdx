@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-23"
+updated: "2026-06-25"
 tags:
   - "testing"
   - "status"
@@ -80,12 +80,13 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 | Metric            | Value                                           |
 | ----------------- | ----------------------------------------------- |
-| Total tests       | **1,174**                                       |
+| Total tests       | **1,210**                                       |
 | Pass rate         | 100%                                            |
-| Test files        | 125                                             |
+| Test files        | 126                                             |
 | Security-specific | 64 (defense-in-depth, auth, RBAC)               |
 | Content-specific  | 24 (cache helpers, reconciliation, API surface) |
 | Media-specific    | 40 (sharing, MIME utils, binary sniffer)        |
+| Utils integrity   | 4 (circular import detection, barrel health)     |
 
 **June 2026 additions**:
 
@@ -95,6 +96,15 @@ These measures ensure zero cross-test contamination and deterministic test resul
 | ------------------------ | ----- | ---------------------------------------------------------- |
 | proxy-utils.test.ts      | 16    | Self-healing HMR, hot-swap getters, tenant auto-injection  |
 | relational-utils.test.ts | 7     | Tenant filter, bypass flags, null handling, Mongo symmetry |
+
+`tests/unit/stores/` — 32 store architecture and reactivity tests:
+
+| Test file                         | Tests | Covers                                                                         |
+| --------------------------------- | ----- | ------------------------------------------------------------------------------ |
+| mode-transition-guard.test.ts     | 12    | Validated mode transitions, unsaved changes blocking, force-reset, idempotency |
+| content-registry.test.ts          | 11    | `$state` reactivity, event-driven `waitForReload`, multi-tenant support        |
+| collection-store-reactive.test.ts | 9     | Reactive getter snapshot fix, selection management, content structure dedup    |
+| ui-store.test.ts                  | 6     | Toggle visibility, screen-size reactivity, singleton                           |
 
 `tests/unit/content/` — 20 reconciliation and API surface tests:
 
@@ -109,6 +119,14 @@ These measures ensure zero cross-test contamination and deterministic test resul
 | sharing.test.ts      | 13    | Share link generation, validation, revocation, expiry, download limits, IP checks                           |
 | media-utils.test.ts  | 15    | MIME lookup, reverse extension mapping, filename sanitization, file/buffer validation, hash-path resolution |
 | slim-sniffer.test.ts | 12    | Binary MIME detection for JPEG, PNG, GIF, WebP, SVG, PDF, DOCX, MP4, WebM                                   |
+
+`tests/unit/utils/` — 4 barrel integrity tests:
+
+| Test file               | Tests | Covers                                                                              |
+| ----------------------- | ----- | ----------------------------------------------------------------------------------- |
+| circular-imports.test.ts | 4    | No `@utils/utils` barrel imports from utils files, barrel export existence, dead exports |
+
+> **Why**: Rolldown (Vite 8 config bundler) traces static imports. A circular reference `utils.ts → file.ts → @utils/utils` causes Rolldown to expand the entire dependency graph into `.svelte` files, which it cannot parse. This test prevents regressions.
 
 ## 4. CI Pipeline Gates
 

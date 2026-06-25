@@ -21,7 +21,7 @@ import Tabs from "@components/ui/tabs";
 import InputSwitch from "@src/components/system/builder/input-switch.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { asAny } from "@utils/utils";
+
 import type { Component } from "svelte";
 import Permission from "../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/permission.svelte";
 import Specific from "../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/specific.svelte";
@@ -41,7 +41,7 @@ const widgetKey = $derived(
 );
 const availableWidgets = $derived(widgets.widgetFunctions || {});
 const guiSchema = $derived(
-	(asAny<any>(availableWidgets)[widgetKey]?.GuiSchema || {}) as Record<
+	((availableWidgets as any)[widgetKey]?.GuiSchema || {}) as Record<
 		string,
 		{ widget: Component<any> }
 	>,
@@ -149,7 +149,7 @@ function handleUpdate(detail: { value: any }, property: string) {
 										<InputSwitch
 											value={target[property] ?? defaultValue(property)}
 											icon={target[property] as string}
-											widget={asAny(guiSchema[property]?.widget)}
+											widget={(guiSchema[property]?.widget as any)}
 											key={property}
 											onupdate={(e: { value: any }) => handleUpdate(e, property)}
 										/>

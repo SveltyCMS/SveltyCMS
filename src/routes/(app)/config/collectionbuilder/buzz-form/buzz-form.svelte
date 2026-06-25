@@ -9,7 +9,7 @@ import {
 } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { asAny, getGuiFields } from "@utils/utils";
+import { getGuiFields } from "@utils/utils";
 import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount } from "svelte";
 import BuzzFormCanvas from "./buzz-form-canvas.svelte";
@@ -39,7 +39,7 @@ onMount(() => {
 });
 
 function handleAddWidget(key: string) {
-	const widgetInstance = asAny<any>(widgets.widgetFunctions)[key];
+	const widgetInstance = (widgets.widgetFunctions as any)[key];
 	if (widgetInstance) {
 		const newId = fields.length + 1;
 		const newField = {
@@ -48,7 +48,7 @@ function handleAddWidget(key: string) {
 			db_fieldName: `field_${newId}_${key.toLowerCase()}`,
 			widget: { key, Name: key } as any,
 			icon: widgetInstance.Icon || "mdi:widgets",
-			GuiFields: getGuiFields({ key }, asAny(widgetInstance.GuiSchema)),
+			GuiFields: getGuiFields({ key }, (widgetInstance.GuiSchema as any)),
 			permissions: {},
 			required: false,
 		};

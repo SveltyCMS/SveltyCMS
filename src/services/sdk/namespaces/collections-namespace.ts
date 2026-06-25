@@ -1290,7 +1290,7 @@ export class CollectionsNamespace {
   ) {
     await this.invalidateCache(schema, tenantId);
     try {
-      const { contentStore } = await import("@src/stores/content-store.svelte");
+      const { contentStore } = await import("@src/stores/content-registry.svelte");
       contentStore.updateVersion();
     } catch {}
     try {

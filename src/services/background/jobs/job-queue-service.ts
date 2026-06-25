@@ -10,14 +10,21 @@ import { getDb } from "@src/databases/db";
 import type { Job, DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 import { cleanupTempStore } from "@utils/temp-store";
+import { pubSub } from "@src/services/background/pub-sub";
 
-/** Lazy-loaded handler registry — avoids importing all job families at module load */
+// Static imports — background jobs run outside Vite's request-scoped module runner
+import { processMediaHandler } from "./media-jobs";
+import { webhookDeliveryHandler } from "./webhook-jobs";
+import { importDataHandler } from "./import-jobs";
+import { bulkTranslateHandler } from "./translation-jobs";
+import { scheduledPublishHandler } from "./scheduled-jobs";
+
 const HANDLER_IMPORTS: Record<string, () => Promise<JobHandler>> = {
-  "process-media": () => import("./media-jobs").then((m) => m.processMediaHandler),
-  "webhook-delivery": () => import("./webhook-jobs").then((m) => m.webhookDeliveryHandler),
-  "import-data": () => import("./import-jobs").then((m) => m.importDataHandler),
-  "bulk-translate": () => import("./translation-jobs").then((m) => m.bulkTranslateHandler),
-  "publish-scheduled": () => import("./scheduled-jobs").then((m) => m.scheduledPublishHandler),
+  "process-media": () => Promise.resolve(processMediaHandler),
+  "webhook-delivery": () => Promise.resolve(webhookDeliveryHandler),
+  "import-data": () => Promise.resolve(importDataHandler),
+  "bulk-translate": () => Promise.resolve(bulkTranslateHandler),
+  "publish-scheduled": () => Promise.resolve(scheduledPublishHandler),
 };
 
 import os from "node:os";
@@ -137,7 +144,16 @@ class JobQueueService {
       for (const job of jobs) {
         this.currentRunning++;
         this.executeJob(job, db)
-          .catch((err) => logger.error(`[JobQueue] Critical error in job ${job._id}:`, err))
+          .catch((err) => {
+            // Vite 8 dev-mode: request-scoped module runner closes between ticks — non-fatal
+            if (err.message?.includes("module runner has been closed")) {
+              logger.debug(
+                `[JobQueue] Module runner closed (Vite 8 dev-mode HMR cycle), job will retry: ${job._id}`,
+              );
+            } else {
+              logger.error(`[JobQueue] Critical error in job ${job._id}:`, err);
+            }
+          })
           .finally(() => {
             this.currentRunning--;
           });
@@ -218,7 +234,6 @@ class JobQueueService {
       // If it's a webhook failure, we might want to emit an event for the UI
       if (job.taskType === "webhook-delivery" && status === "failed") {
         try {
-          const { pubSub } = await import("@src/services/background/pub-sub");
           pubSub.publish("webhook:failed", {
             webhookId: (job.payload as any).webhook.id,
             deliveryId: job._id as string,

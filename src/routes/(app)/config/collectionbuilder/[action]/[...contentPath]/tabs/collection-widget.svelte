@@ -11,7 +11,7 @@ import {
 } from "@src/stores/collection-store.svelte";
 import { getWidgetFunction, getWidgetNames } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";
-import { asAny, getGuiFields } from "@utils/utils";
+import { getGuiFields } from "@utils/utils";
 // Using iconify-icon web component
 // Stores
 import { page } from "$app/state";
@@ -27,7 +27,7 @@ import {
 	collection_widgetfield_addrequired,
 	collection_widgetfield_drag,
 } from "@src/paraglide/messages";
-import { tabSet } from "@src/stores/store.svelte.ts";
+import { app } from "@src/stores/store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
 import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
@@ -110,7 +110,7 @@ function modalSelectWidget(): void {
 					widget: { key: selectedWidget, Name: selectedWidget },
 					GuiFields: getGuiFields(
 						{ key: selectedWidget },
-						asAny(widgetInstance.GuiSchema),
+						(widgetInstance.GuiSchema as any),
 					),
 					permissions: {}, // Initialize empty permissions object
 				};
@@ -176,7 +176,7 @@ async function handleSave() {
 			if (field.widget?.Name && widgetInstance) {
 				const GUI_FIELDS = getGuiFields(
 					{ key: field.widget.Name },
-					asAny(widgetInstance.GuiSchema),
+					(widgetInstance.GuiSchema as any),
 				);
 				for (const [property, value] of Object.entries(field)) {
 					if (typeof value !== "object" && property !== "id") {
@@ -240,7 +240,7 @@ async function handleSave() {
 			</Button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<Button variant="secondary" onclick={() => tabSet.set(0)} type="button" aria-label={button_previous()} class="mt-2 justify-end">
+			<Button variant="secondary" onclick={() => (app.tabSetState = 0)} type="button" aria-label={button_previous()} class="mt-2 justify-end">
 				{button_previous()}
 			</Button>
 			<Button variant="tertiary"

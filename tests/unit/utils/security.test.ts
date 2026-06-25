@@ -13,7 +13,6 @@
 
 import {
   createChecksum,
-  generateRandomToken,
   hashPassword,
   verifyPassword,
   encryptData,
@@ -226,48 +225,6 @@ describe("Crypto Utils - Password Hashing", () => {
     const isValid = await verifyPassword(hash, password);
     expect(isValid).toBe(true);
   }, 60000);
-});
-
-describe("Crypto Utils - Random Token Generation", () => {
-  it("should generate random token of default length", async () => {
-    const token = await generateRandomToken();
-
-    expect(typeof token).toBe("string");
-    expect(token.length).toBe(64); // 32 bytes = 64 hex chars
-  });
-
-  it("should generate token of specified length", async () => {
-    const token = await generateRandomToken(16);
-
-    expect(typeof token).toBe("string");
-    expect(token.length).toBe(32); // 16 bytes = 32 hex chars
-  });
-
-  it("should generate unique tokens", async () => {
-    const token1 = await generateRandomToken();
-    const token2 = await generateRandomToken();
-
-    expect(token1).not.toBe(token2);
-  });
-
-  it("should generate hexadecimal tokens", async () => {
-    const token = await generateRandomToken();
-
-    // Should only contain hex characters (0-9, a-f)
-    expect(/^[0-9a-f]+$/.test(token)).toBe(true);
-  });
-
-  it("should handle small token sizes", async () => {
-    const token = await generateRandomToken(1);
-
-    expect(token.length).toBe(2); // 1 byte = 2 hex chars
-  });
-
-  it("should handle large token sizes", async () => {
-    const token = await generateRandomToken(256);
-
-    expect(token.length).toBe(512); // 256 bytes = 512 hex chars
-  });
 });
 
 describe("Crypto Utils - Checksum", () => {

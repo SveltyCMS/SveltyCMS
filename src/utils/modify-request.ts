@@ -8,7 +8,7 @@ import type { User } from "@src/databases/auth/types";
 import type { CollectionModel } from "@src/databases/db-interface";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { logger } from "@utils/logger";
-import { getFieldName } from "@utils/utils";
+import { getFieldName } from "@utils/schema/field-utils";
 
 export interface EntryData {
   _id?: string;

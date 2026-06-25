@@ -144,9 +144,11 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			{/if}
 
 			<!-- Body -->
-			<div class={cn(
-				'flex-1',
-				isFullscreen ? 'h-full overflow-hidden p-0' : 'max-h-[80vh] overflow-y-auto p-4 sm:p-6',
+			<div
+				data-dialog-body
+				class={cn(
+				'flex-1 min-h-0',
+				isFullscreen ? 'overflow-hidden p-0' : 'overflow-y-auto p-4 sm:p-6',
 			)}>
 				{#if children}
 					{@render children()}
@@ -163,26 +165,36 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	</dialog>
 </Portal>
 
-<style>
-	dialog::backdrop {
-		animation: fade-in 0.3s ease-out forwards;
-	}
+	<style>
+		dialog::backdrop {
+			animation: fade-in 0.3s ease-out forwards;
+		}
 
-	dialog[open] > div {
-		animation: zoom-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-	}
+		/* Prevent scroll chaining — scrolling past modal bounds stays inside modal */
+		dialog {
+			overscroll-behavior: contain;
+		}
 
-	@keyframes fade-in {
-		from { opacity: 0; }
-		to { opacity: 1; }
-	}
+		/* Prevent width shift when scrollbar appears in modal body */
+		[data-dialog-content] [data-dialog-body] {
+			scrollbar-gutter: stable;
+		}
 
-	@keyframes zoom-in {
-		from { transform: scale(0.95); opacity: 0; }
-		to { transform: scale(1); opacity: 1; }
-	}
+		dialog[open] > div {
+			animation: zoom-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+		}
 
-	dialog:focus {
-		outline: none;
-	}
-</style>
+		@keyframes fade-in {
+			from { opacity: 0; }
+			to { opacity: 1; }
+		}
+
+		@keyframes zoom-in {
+			from { transform: scale(0.95); opacity: 0; }
+			to { transform: scale(1); opacity: 1; }
+		}
+
+		dialog:focus {
+			outline: none;
+		}
+	</style>

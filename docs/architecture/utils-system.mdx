@@ -1,0 +1,236 @@
+---
+path: "docs/architecture/utils-system.mdx"
+title: "Utility System Architecture"
+description: "Complete reference for SveltyCMS utility modules — structure, patterns, wired API endpoints."
+order: 28
+icon: "mdi:tools"
+author: "SveltyCMS Team"
+created: "2026-06-25"
+updated: "2026-06-25"
+tags:
+  - "architecture"
+  - "utilities"
+  - "tree-shaking"
+  - "media-engine"
+---
+
+# Utility System Architecture
+
+SveltyCMS utilities are organized by domain into flat files and subdirectories. The `@utils/*` path alias enables direct, tree-shakeable imports. The `utils.ts` barrel exists for backward compatibility — prefer direct imports.
+
+---
+
+## 1. Directory Structure
+
+```
+src/utils/
+├── compilation/      3 files   AST compilation for content scanner
+├── media/           14 files   DAM engine — storage, processing, search, sharing, MIME, WebGPU
+├── schema/           5 files   Validation, comparison, tree, field utilities, Web Worker
+├── security/        11 files   Crypto, CSRF, CORS, credential hashing, auth utils
+├── server/           5 files   Setup checks, batch loading, deferred SSR elements
+│
+├── ~35 flat utility files (see below)
+└── utils.ts                    Barrel re-export — prefer direct imports
+```
+
+---
+
+## 2. Flat Utilities by Category
+
+### Data & Strings
+
+| File | Key exports |
+|---|---|
+| `string.ts` | `cn`, `parse`, `getEditDistance`, `getTextDirection`, `escapeRegex`, `hex2arrayBuffer`, `arrayBuffer2hex`, `sha256` |
+| `file.ts` | `formatBytes`, `obj2formdata`, `ReadableExpireIn`, `sanitize`, `removeExtension` |
+| `object-utils.ts` | `deepCopy` |
+| `array-utils.ts` | `uniqueItems` |
+| `diff-utils.ts` | `computeFieldDiff`, `DiffEntry` |
+
+### Async & Performance
+
+| File | Key exports |
+|---|---|
+| `debounce.ts` | `debounce()`, `debounce.create()` |
+| `server/batch-loader.ts` | `BatchLoader`, `BatchFunction` |
+| `mutex.ts` | Async mutex for concurrent access |
+| `predictive-preload.ts` | `initPredictivePreload` — MutationObserver-based preloading |
+
+### Date & Time
+
+| File | Key exports |
+|---|---|
+| `date.ts` | `nowISODateString`, `toISOString`, `dateToISODateString`, `isoDateStringToDate`, `isISODateString`, `formatDisplayDate`, `formatRelativeDate`, `formatDateString`, `formatUptime`, `formatIsoDuration`, `ReadableExpireIn`, `getCurrentDate` |
+
+### Security (flat, in addition to `security/` subdir)
+
+| File | Key exports |
+|---|---|
+| `egress-guard.ts` | `validateEgressUrl()`, `safeFetch()` — SSRF prevention, URL validation, timeout + size caps |
+| `cookie-utils.ts` | `parseCookies()` — WebSocket auth bridge |
+| `native-utils.ts` | `generateSecureToken()`, `generateUUID()`, `getGlobal()`, `setGlobal()`, `pc` (ANSI colors) |
+
+### Media Engine (`media/` subdirectory)
+
+All 14 files are **wired to API handlers** or planned for wiring:
+
+| File | Key exports | API endpoint |
+|---|---|---|
+| `media-utils.ts` | `getMimeType`, `mediaUrl`, `sanitizedFilename`, `SIZES` | Multiple |
+| `media-models.ts` | `MediaBase`, `MediaImage`, `MediaItem`, `MediaType` | Type definitions |
+| `media-service.server.ts` | `MediaService` class | Core CRUD |
+| `media-storage.server.ts` | `saveFile`, `deleteFile`, `getImageSizes`, `saveResizedImages` | Storage abstraction |
+| `cloud-storage.ts` | `upload`, `download`, `getUrl`, `isCloud`, `getConfig` | S3/R2/local |
+| `sharing.ts` | `createLink`, `validateLink`, `revoke`, `extend`, `newToken` | Share API |
+| `bulk-download.ts` | `createBulkArchive`, `streamArchive`, `cleanupArchive` | Bulk download |
+| `storage-analytics.ts` | `analyze`, `insights`, `trends`, `quota`, `formatBytes` | Analytics |
+| `version-history.ts` | `compareVersions`, `getVersionStats`, `createVersion` | Version API |
+| `advanced-search.ts` | `advancedSearch`, `getSuggestions`, `SearchCriteria` | Search API |
+| `streaming-upload.ts` | `parseMultipartStream` | Stream upload |
+| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService` | Processing |
+| `slim-sniffer.server.ts` | `sniffMimeType` | Binary MIME detection |
+| `webgpu-processor.ts` | `optimizeImage` | Client-side GPU optimization |
+
+### Infrastructure
+
+| File | Key exports |
+|---|---|
+| `logger.ts` | Structured logging with browser/server awareness, pre-compiled highlight regex |
+| `event-bus.ts` | Server-only wildcard event emitter with `IS_SERVER` guard |
+| `id-generator.ts` | Hydration-safe SSR deterministic IDs |
+| `hook-utils.ts` | Pre-compiled regexes, request classification, `isPublicRoute` |
+| `error-handling.ts` | `AppError`, `handleApiError`, `getErrorMessage` |
+| `lazy-rune.ts` | Shim for Bun test environments |
+| `auto-tag.ts` | AI-powered auto-tagging on publish |
+
+### Data Structures
+
+| File | Key exports |
+|---|---|
+| `bloom-filter.ts` | Probabilistic set membership (Uint32Array) |
+| `trie.ts` | Prefix tree with O(L) lookup |
+
+### UI & Components
+
+| File | Key exports |
+|---|---|
+| `cn.ts` | Class name joiner |
+| `form.svelte.ts` | `obj2formData`, `Form` class |
+| `use-dialog.svelte.ts` | Native `<dialog>` lifecycle with focus trapping |
+| `admin-transitions.ts` | `adminFade`, `motion` — prefers-reduced-motion aware |
+| `adaptive-ui.ts` | `getAdaptiveUISortOrder` — adaptive dashboard grids |
+| `readability.ts` | `calculateReadability`, `getReadingEaseDescription` — SEO scoring |
+
+### Domain-Specific
+
+| File | Key exports |
+|---|---|
+| `entry-actions.ts` | Entry CRUD, status management, `meta_data` accumulator |
+| `language-utils.ts` | `getLanguageName()` via `Intl.DisplayNames` |
+| `scim-utils.ts` | SCIM 2.0 protocol helpers |
+| `bounce-detector.ts` | Behavioral learning bounce detection |
+
+---
+
+## 3. Subdirectory Details
+
+### `compilation/` — AST Compilation
+
+| File | Purpose |
+|---|---|
+| `compile.ts` | Content scanner compilation entry point |
+| `transformers.ts` | AST transformation rules (widget, commonjs, schema, alias resolving) |
+| `types.ts` | `CompileOptions`, `ManifestEntry`, `CompilationResult` |
+
+### `media/` — DAM Engine
+
+All functions wired or planned for wiring to API handlers. See **Section 2: Media Engine** for the full table.
+
+### `schema/` — Schema Management
+
+| File | Purpose |
+|---|---|
+| `field-utils.ts` | `getFieldName()`, `getGuiFields()`, `extractData()`, `GuiFieldConfig` |
+| `comparison.ts` | Schema diffing |
+| `tree.ts` | Content tree operations |
+| `validation.ts` | Schema validation |
+| `validation.worker.ts` | Web Worker for async validation |
+
+### `security/` — Security Infrastructure
+
+| File | Purpose |
+|---|---|
+| `crypto.ts` | Argon2 hashing, AES encryption/decryption, worker pool |
+| `constants.ts` | CSP headers, security configuration |
+| `auth-utils.ts` | Session duration parsing |
+| `csrf-utils.ts` | CSRF token generation and validation |
+| `cors-utils.ts` | CORS header construction |
+| `credential-hash.ts` | SHA-256 credential hashing |
+| `mongo-sanitize.ts` | MongoDB injection prevention |
+| `permission-cache.ts` | Permission caching |
+| `safe-query.ts` | Safe query construction |
+| `index.ts` | Barrel re-export for `@utils/security` |
+
+### `server/` — Server-Side Utilities
+
+| File | Purpose |
+|---|---|
+| `setup-check.ts` | Setup completion detection, test secrets, `invalidateSetupCache` |
+| `setup-check-fast.ts` | Fast synchronous setup check |
+| `batch-loader.ts` | DataLoader-style request batching |
+| `deferred-elements.ts` | SSR deferred hydration callback registry (planned) |
+
+---
+
+## 4. Import Patterns
+
+```typescript
+// ✅ Direct import — tree-shakeable, 1 module loaded
+import { cn } from "@utils/string";
+import { deepCopy } from "@utils/object-utils";
+import { debounce } from "@utils/debounce";
+import { formatBytes } from "@utils/file";
+import { hashPassword } from "@utils/security/crypto";
+import { isSetupComplete } from "@utils/server/setup-check-fast";
+import { advancedSearch } from "@utils/media/advanced-search";
+import { createLink, revoke } from "@utils/media/sharing";
+
+// ⚠️ Barrel import — convenient but loads all sub-modules
+import { cn, deepCopy, debounce } from "@utils/utils";
+```
+
+---
+
+## 5. Wired API Endpoints
+
+Utilities connected to REST API handlers:
+
+| Endpoint | Method | Utility | Handler |
+|---|---|---|---|
+| `/api/media/share/{id}/{token}` | DELETE | `revoke()` in `sharing.ts` | `handleMediaShareRevoke` |
+| `/api/media/share/{id}/{token}` | PATCH | `extend()` in `sharing.ts` | `handleMediaShareExtend` |
+| `/api/media/{id}/version` | POST | `createVersion()` in `version-history.ts` | `handleMediaVersionCreate` |
+| `/api/media/stream` | POST | `parseMultipartStream()` in `streaming-upload.ts` | `handleMediaStreamUpload` |
+| `/api/media/search` | GET | `advancedSearch()` in `advanced-search.ts` | `handleMediaSearch` |
+
+---
+
+## 6. Design Rules
+
+1. **No inline business logic in `utils.ts`** — the barrel only re-exports
+2. **New utilities go in domain files** — not in the barrel
+3. **No duplicate exports across modules** — use `import` instead of redefining
+4. **Server-only files must guard** — throw on browser import, or use `.server.ts` suffix
+5. **Subdirectories need 3+ related files** — single-file subdirs were flattened
+6. **Documented features keep their code** — planned API endpoints need their utilities; only delete truly dead code with 0 consumers and 0 docs
+
+---
+
+## Related
+
+- [Store System Architecture](./store-system.mdx)
+- [Sidebar States & UI Visibility](./sidebar-states.mdx)
+- [System State & Health Architecture](./state-management.mdx)
+- [Media System Architecture](./media-system.mdx)
+- [Media API Reference](../api/media.mdx)

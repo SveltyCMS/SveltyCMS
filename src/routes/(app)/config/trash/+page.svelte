@@ -7,7 +7,7 @@ import { fly } from "svelte/transition";
 import { onMount } from "svelte";
 import { fetchApi } from "@utils/api";
 import { toast } from "@src/stores/toast.svelte";
-import { formatDate } from "@utils/date";
+import { formatDisplayDate } from "@utils/date";
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Loader from '@components/ui/loader.svelte';
@@ -98,7 +98,7 @@ onMount(loadTrash);
 								<td class="py-3">
 									<Badge preset="tonal" color="secondary">{item.collectionName}</Badge>
 								</td>
-								<td class="py-3">{formatDate(item.deletedAt)}</td>
+								<td class="py-3">{formatDisplayDate(item.deletedAt)}</td>
 								<td class="py-3">{item.deletedBy || 'System'}</td>
 								<td class="py-3 text-end">
 									<Button variant="tertiary"
