@@ -103,7 +103,10 @@ The marketplace hosts community-built plugins. The scaffolder generates custom c
 import { marketplace } from "@src/services/intelligence/marketplace-client";
 
 // Browse all plugins
-const { plugins, total } = await marketplace.list({ type: "widget", limit: 10 });
+const { plugins, total } = await marketplace.list({
+  type: "widget",
+  limit: 10,
+});
 
 // Search
 const results = await marketplace.search("seo");

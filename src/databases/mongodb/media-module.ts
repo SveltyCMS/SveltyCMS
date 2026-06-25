@@ -107,7 +107,10 @@ export class MongoMediaModule extends DatabaseModule<MongoAdapterCore> implement
       })),
     uploadMany: (files: any[], tenantId?: DatabaseId | null) => this.uploadMany(files, tenantId),
     delete: (id: DatabaseId, tenantId?: DatabaseId | null) =>
-      this.deleteMany([id], tenantId).then((res) => ({ ...res, data: undefined })),
+      this.deleteMany([id], tenantId).then((res) => ({
+        ...res,
+        data: undefined,
+      })),
     deleteMany: (ids: DatabaseId[], tenantId?: DatabaseId | null) => this.deleteMany(ids, tenantId),
     getMetadata: (ids: DatabaseId[], tenantId?: DatabaseId | null) =>
       this.getMetadata(ids, tenantId),
@@ -151,7 +154,10 @@ export class MongoMediaModule extends DatabaseModule<MongoAdapterCore> implement
       };
     },
     create: (folder: any, tenantId?: DatabaseId | null) =>
-      (this.adapter as any).crud.insert("media_folders", { ...folder, tenantId }),
+      (this.adapter as any).crud.insert("media_folders", {
+        ...folder,
+        tenantId,
+      }),
     createMany: (folders: any[], tenantId?: DatabaseId | null) =>
       (this.adapter as any).crud.insertMany(
         "media_folders",

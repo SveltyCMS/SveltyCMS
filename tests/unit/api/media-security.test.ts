@@ -13,10 +13,16 @@ const mockMediaService = {
   getMedia: vi.fn(),
   updateMedia: vi.fn(),
   deleteMedia: vi.fn(),
-  saveMedia: vi.fn().mockResolvedValue({ success: true, data: { _id: "m1", path: "test.jpg" } }),
+  saveMedia: vi.fn().mockResolvedValue({
+    success: true,
+    data: { _id: "m1", path: "test.jpg" },
+  }),
   manipulateMedia: vi.fn(),
   batchProcessImages: vi.fn(),
-  enrichMediaWithUrl: vi.fn((m) => ({ ...m, url: `http://localhost/files/${m.path}` })),
+  enrichMediaWithUrl: vi.fn((m) => ({
+    ...m,
+    url: `http://localhost/files/${m.path}`,
+  })),
 };
 
 // Mock dependencies

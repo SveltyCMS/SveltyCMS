@@ -449,7 +449,7 @@ export class ImporterNamespace {
         if (resolvedIds.length > 0) {
           await this._dbAdapter.crud.update(
             `collection_${targetCollection}`,
-            ref.docId,
+            ref.docId as unknown as DatabaseId,
             { [ref.field]: resolvedIds },
             { tenantId: tenantId as DatabaseId },
           );
@@ -464,7 +464,7 @@ export class ImporterNamespace {
     let revisionCount = 0;
     if (sourceType === "drupal") {
       const collectionSchema = (
-        await this._dbAdapter.collection.listSchemas(tenantId as DatabaseId)
+        (await this._dbAdapter.collection.listSchemas(tenantId as DatabaseId)) as any
       ).data?.find((c: any) => c.name === targetCollection);
       const supportsRevisions = collectionSchema?.revision !== false;
 
@@ -478,7 +478,6 @@ export class ImporterNamespace {
             const attrs = sourceType === "drupal" ? item.attributes || {} : item;
             // Drupal revisions: check for revision fields
             const revisionId = attrs.vid || attrs.revision_id || attrs.drupal_internal__vid;
-            const _revisionTimestamp = attrs.revision_timestamp || attrs.changed;
             const revisionLog = attrs.revision_log || attrs.revision_log_message;
 
             if (revisionId) {
@@ -505,7 +504,7 @@ export class ImporterNamespace {
                     255,
                   ),
                   authorId: (user?._id as string) || "system",
-                },
+                } as any,
                 { tenantId: tenantId as DatabaseId, skipMeta: true } as any,
               );
               revisionCount++;
@@ -775,7 +774,16 @@ export class TelemetryNamespace extends BaseNamespace {
   }
 }
 
-function saveTempPayload(data: any): any {
-  const { saveTempPayload: save } = require("@utils/temp-store");
+let _tempStoreSavePromise: Promise<(data: any) => Promise<string>> | null = null;
+
+async function getTempStoreSave(): Promise<(data: any) => Promise<string>> {
+  if (!_tempStoreSavePromise) {
+    _tempStoreSavePromise = import("@utils/temp-store").then((m) => m.saveTempPayload);
+  }
+  return _tempStoreSavePromise;
+}
+
+async function saveTempPayload(data: any): Promise<string> {
+  const save = await getTempStoreSave();
   return save(data);
 }

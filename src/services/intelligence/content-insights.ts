@@ -446,15 +446,23 @@ export function getAdaptiveUISortOrder(tenantId: string): string[] {
  * Simple heuristic: most active edit hours = likely best publish hours.
  * Falls back to industry-standard recommendations (Tue-Thu, 8-10 AM).
  */
-export function suggestPublishTimes(
-  tenantId: string,
-): { hour: number; dayOfWeek: number; confidence: number; rationale: string }[] {
+export function suggestPublishTimes(tenantId: string): {
+  hour: number;
+  dayOfWeek: number;
+  confidence: number;
+  rationale: string;
+}[] {
   try {
     const hotCollections = getHotCollections(tenantId, 5);
     if (hotCollections.length === 0 || hotCollections[0].score < 2) {
       // Not enough data — return industry defaults
       return [
-        { hour: 8, dayOfWeek: 2, confidence: 0.3, rationale: "Industry standard: Tuesday morning" },
+        {
+          hour: 8,
+          dayOfWeek: 2,
+          confidence: 0.3,
+          rationale: "Industry standard: Tuesday morning",
+        },
         {
           hour: 10,
           dayOfWeek: 3,

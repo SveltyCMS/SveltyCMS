@@ -135,7 +135,10 @@ const platformHandlers: Record<VideoPlatform, (id: string, url: string) => Promi
     const twitchClientId = getPrivateSettingSync("TWITCH_CLIENT_ID");
     if (!(twitchToken && twitchClientId)) throw new Error("Twitch credentials missing");
     const res = await fetch(`https://api.twitch.tv/helix/videos?id=${id}`, {
-      headers: { "Client-ID": twitchClientId, Authorization: `Bearer ${twitchToken}` },
+      headers: {
+        "Client-ID": twitchClientId,
+        Authorization: `Bearer ${twitchToken}`,
+      },
     });
     const data = await res.json();
     return data.data?.[0] || null;

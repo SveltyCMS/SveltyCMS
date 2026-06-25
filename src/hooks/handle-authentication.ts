@@ -581,7 +581,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               .catch(() => {});
           } else {
             metricsService.incrementAuthValidations();
-            const res = await dbAdapter.auth.getApiKey(hash, { tenantId: locals.tenantId });
+            const res = await dbAdapter.auth.getApiKey(hash, {
+              tenantId: locals.tenantId,
+            });
             if (res.success && res.data) {
               const apiKey = res.data;
 
@@ -627,7 +629,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
                   ? event.getClientAddress()
                   : event.request.headers.get("x-forwarded-for") || undefined;
                 dbAdapter.auth
-                  .updateApiKeyUsage(apiKey._id, clientIp, { tenantId: locals.tenantId })
+                  .updateApiKeyUsage(apiKey._id, clientIp, {
+                    tenantId: locals.tenantId,
+                  })
                   .catch(() => {});
 
                 logger.debug(`[Auth] Authenticated via API Key: ${apiKey.name}`);

@@ -78,7 +78,9 @@ test.describe("Admin Theme Visual Regression", () => {
 
   test("system settings — cache group", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/config/system-settings?group=cache", { waitUntil: "domcontentloaded" });
+    await page.goto("/config/system-settings?group=cache", {
+      waitUntil: "domcontentloaded",
+    });
     const shell = page.locator(".admin-theme-container").first();
     await expect(shell).toBeVisible({ timeout: 15_000 });
     await expect(shell).toHaveScreenshot("system-settings-cache.png", SCREENSHOT_OPTS);

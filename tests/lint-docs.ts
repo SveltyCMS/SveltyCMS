@@ -139,6 +139,7 @@ const shouldAutofix = args.includes("--fix");
 const isDryRun = args.includes("--dry-run");
 const checkExternal = args.includes("--check-external");
 const isVerbose = args.includes("--verbose");
+const strict = args.includes("--strict");
 const targetFilesOnly = args.filter(
   (a) => !a.startsWith("-") && (a.endsWith(".md") || a.endsWith(".mdx")),
 );
@@ -294,7 +295,9 @@ function getHeadingAnchors(fp: string): Set<string> {
   const anchors = new Set<string>();
   if (fs.existsSync(fp)) {
     const { body } = parseFrontmatter(fs.readFileSync(fp, "utf8"));
-    for (const m of stripCodeBlocks(body).matchAll(/^#{1,6}\s+(.+?)(?:\s*\{#([\w-]+)\})?$/gm)) {
+    for (const m of stripCodeBlocks(body).matchAll(
+      /^#{1,6}\s+((?:(?!\{#).)+)(?:\s*\{#([\w-]+)\})?$/gm,
+    )) {
       anchors.add((m[2] || normalizeHeadingSlug(m[1])).toLowerCase());
     }
   }
@@ -414,8 +417,10 @@ function validateHeadingHierarchy(body: string, relPath: string) {
 
 function detectDuplicateHeadings(body: string, relPath: string) {
   const seen = new Map<string, number>();
-  for (const m of stripCodeBlocks(body).matchAll(/^#{1,6}\s+(.+?)(?:\s*\{#.*\})?$/gm)) {
-    const t = m[1].trim().toLowerCase();
+  for (const m of stripCodeBlocks(body).matchAll(
+    /^#{1,6}\s+((?:(?!\{#).)+)(?:\s*\{#([\w-]+)\})?$/gm,
+  )) {
+    const t = (m[2] || normalizeHeadingSlug(m[1])).toLowerCase();
     seen.set(t, (seen.get(t) || 0) + 1);
   }
   for (const [t, n] of seen) {
@@ -782,10 +787,15 @@ async function main() {
     for (const [c, n] of Object.entries(warningsByCategory).sort(([, a], [, b]) => b - a))
       console.log(`   ⚠️  ${c.padEnd(18)} ${n}`);
   }
-  if (errors) {
-    for (const [c, n] of Object.entries(errorsByCategory).sort(([, a], [, b]) => b - a))
-      console.log(`   ❌ ${c.padEnd(18)} ${n}`);
-    console.error(`\n❌ ${errors} errors — blocked.\n`);
+  if (errors || (strict && warnings)) {
+    if (errors) {
+      for (const [c, n] of Object.entries(errorsByCategory).sort(([, a], [, b]) => b - a))
+        console.log(`   ❌ ${c.padEnd(18)} ${n}`);
+      console.error(`\n❌ ${errors} errors — blocked.\n`);
+    }
+    if (strict && warnings && !errors) {
+      console.error(`\n❌ ${warnings} warnings — strict mode blocks warnings.\n`);
+    }
     process.exit(1);
   }
   console.log("\n✅ Documentation validated.\n");

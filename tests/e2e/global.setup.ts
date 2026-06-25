@@ -126,7 +126,10 @@ export default async function globalSetup() {
       content: "# Database files directory for tests",
     },
     { dir: join(process.cwd(), "logs"), content: "# Test logs directory" },
-    { dir: join(process.cwd(), "mediaFolder"), content: "# Test media directory" },
+    {
+      dir: join(process.cwd(), "mediaFolder"),
+      content: "# Test media directory",
+    },
   ];
 
   for (const { dir, content } of gitkeepMapping) {

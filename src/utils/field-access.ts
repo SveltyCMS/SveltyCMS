@@ -85,7 +85,11 @@ export async function enforceFieldAccess(
         // F3: Audit the blocked attempt
         await auditLogService.log(
           `Blocked unauthorized write to field: ${fieldName}`,
-          { id: user._id as DatabaseId, email: (user as any).email || "unknown", role: user.role },
+          {
+            id: user._id as DatabaseId,
+            email: (user as any).email || "unknown",
+            role: user.role,
+          },
           { type: "field", id: fieldName as any },
           AuditEventType.UNAUTHORIZED_ACCESS,
           "medium",

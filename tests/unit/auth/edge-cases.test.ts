@@ -84,7 +84,11 @@ describe("Permission Edge Cases", () => {
 
   it("should handle duplicate permissions", () => {
     const roles = [
-      { name: "editor", isAdmin: false, permissions: ["collection:read", "collection:read"] },
+      {
+        name: "editor",
+        isAdmin: false,
+        permissions: ["collection:read", "collection:read"],
+      },
     ];
     const deduped = [...new Set(roles.flatMap((r) => r.permissions))];
     expect(deduped).toHaveLength(1);

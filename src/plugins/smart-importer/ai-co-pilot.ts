@@ -1,17 +1,9 @@
 /**
  * @file src/plugins/smart-importer/ai-co-pilot.ts
- * @description AI Migration Co-Pilot — proactive guidance engine for 2026.
- *
- * Watches every user action during migration setup and provides:
- * - Real-time recommendations based on field analysis
- * - Migration health score (0-100) with improvement suggestions
- * - Smart defaults that eliminate manual configuration
- * - Anomaly detection for common migration pitfalls
- * - Progressive disclosure: simple first, advanced on demand
- * - Contextual tips based on source platform and content type
+ * @description Highly optimized, defensively guarded AI Migration Co-Pilot guidance engine.
  */
 
-import type { SNCEntry } from "./types";
+import type { SNCEntry, FieldMapping } from "./types";
 import { inferTargetCollectionFromMigration } from "./infer-collection";
 
 // ============================================================================
@@ -35,23 +27,18 @@ export interface AIRecommendation {
   category: RecommendationCategory;
   title: string;
   description: string;
-  action?: string; // What the user should do
-  autoFix?: boolean; // Can the system fix this automatically?
+  action?: string;
+  autoFix?: boolean;
   affectedFields?: string[];
   impact: "high" | "medium" | "low";
 }
 
 export interface MigrationHealthReport {
-  score: number; // 0-100
+  score: number;
   status: "excellent" | "good" | "fair" | "poor" | "critical";
   recommendations: AIRecommendation[];
   summary: string;
-  checks: {
-    total: number;
-    passed: number;
-    warnings: number;
-    failed: number;
-  };
+  checks: { total: number; passed: number; warnings: number; failed: number };
 }
 
 export interface SmartDefaults {
@@ -68,14 +55,6 @@ export interface SmartDefaults {
 // Health Score Engine
 // ============================================================================
 
-/**
- * Calculates a migration health score (0-100) based on configuration quality.
- * 90-100: Excellent — ready to import
- * 75-89:  Good — minor improvements suggested
- * 50-74:  Fair — several issues to address
- * 25-49:  Poor — significant gaps
- * 0-24:   Critical — major problems
- */
 export function calculateMigrationHealth(
   entries: SNCEntry[],
   mappings: FieldMapping[],
@@ -84,23 +63,33 @@ export function calculateMigrationHealth(
     hasLicense?: boolean;
     importMedia?: boolean;
     selectedContentTypes?: string[];
-  },
+  } = {},
 ): MigrationHealthReport {
   const recommendations: AIRecommendation[] = [];
-  let passed = 0;
-  let warnings = 0;
-  let failed = 0;
+  let passed = 0,
+    warnings = 0,
+    failed = 0;
   const total = 10;
 
-  // 1. Check: Has entries to import
+  // O(1) single-pass lookup map instead of repeated .some() scans
+  const mappedTargetsMap = new Map<string, FieldMapping["confidence"]>();
+  const lowConfidenceFields: string[] = [];
+
+  for (let i = 0; i < mappings.length; i++) {
+    const m = mappings[i];
+    const targetLower = m.targetField.toLowerCase();
+    mappedTargetsMap.set(targetLower, m.confidence);
+    if (m.confidence === "low") lowConfidenceFields.push(m.sourceField);
+  }
+
+  // 1. Has entries
   if (entries.length === 0) {
     recommendations.push({
       id: "no_entries",
       level: "critical",
       category: "field_mapping",
       title: "No entries found",
-      description:
-        "The source file contains no importable content. Check the file format or content type selection.",
+      description: "The source file contains no importable content.",
       action: "Try a different file or format",
       impact: "high",
     });
@@ -109,16 +98,15 @@ export function calculateMigrationHealth(
     passed++;
   }
 
-  // 2. Check: Has field mappings
+  // 2. Has mappings
   if (mappings.length === 0) {
     recommendations.push({
       id: "no_mappings",
       level: "critical",
       category: "field_mapping",
       title: "No field mappings configured",
-      description:
-        "No source fields are mapped to target fields. The AI can auto-suggest mappings.",
-      action: 'Click "AI Auto-Map" to generate suggestions',
+      description: "AI can auto-suggest mappings.",
+      action: 'Click "AI Auto-Map"',
       autoFix: true,
       impact: "high",
     });
@@ -127,15 +115,15 @@ export function calculateMigrationHealth(
     passed++;
   }
 
-  // 3. Check: Has target collection
-  if (!targetCollection || targetCollection.trim() === "") {
+  // 3. Has target collection
+  if (!targetCollection || !targetCollection.trim()) {
     recommendations.push({
       id: "no_target",
       level: "critical",
       category: "field_mapping",
-      title: "No target collection specified",
+      title: "No target collection",
       description: "Choose where to import the content.",
-      action: "Enter a collection name or let AI scaffold one",
+      action: "Enter a collection name",
       autoFix: true,
       impact: "high",
     });
@@ -144,17 +132,16 @@ export function calculateMigrationHealth(
     passed++;
   }
 
-  // 4. Check: Title field mapped
-  const hasTitleMapping = mappings.some(
-    (m) => m.targetField.toLowerCase() === "title" && m.confidence !== "low",
-  );
+  // 4. Title mapped (O(1) lookup)
+  const titleConfidence = mappedTargetsMap.get("title");
+  const hasTitleMapping = titleConfidence !== undefined && titleConfidence !== "low";
   if (!hasTitleMapping && entries.length > 0) {
     recommendations.push({
       id: "missing_title",
       level: "warning",
       category: "field_mapping",
       title: "Title field may not be mapped",
-      description: 'No high-confidence title mapping found. Entries may import as "Untitled".',
+      description: "No high-confidence title mapping found.",
       action: 'Map a source field to "title"',
       affectedFields: ["title"],
       impact: "high",
@@ -164,9 +151,9 @@ export function calculateMigrationHealth(
     passed++;
   }
 
-  // 5. Check: Content field mapped
-  const hasContentMapping = mappings.some((m) =>
-    ["content", "body", "richtext"].includes(m.targetField.toLowerCase()),
+  // 5. Content mapped (O(1) lookup)
+  const hasContentMapping = ["content", "body", "richtext"].some((key) =>
+    mappedTargetsMap.has(key),
   );
   if (!hasContentMapping && entries.some((e) => (e.content || "").length > 100)) {
     recommendations.push({
@@ -184,17 +171,16 @@ export function calculateMigrationHealth(
     passed++;
   }
 
-  // 6. Check: Low-confidence mappings
-  const lowConfidenceCount = mappings.filter((m) => m.confidence === "low").length;
-  if (lowConfidenceCount > 3) {
+  // 6. Low-confidence mappings
+  if (lowConfidenceFields.length > 3) {
     recommendations.push({
       id: "low_confidence",
       level: "warning",
       category: "field_mapping",
-      title: `${lowConfidenceCount} low-confidence mappings`,
-      description: "These mappings are guesses. Review them before importing.",
+      title: `${lowConfidenceFields.length} low-confidence mappings`,
+      description: "Review before importing.",
       action: "Review and adjust low-confidence mappings",
-      affectedFields: mappings.filter((m) => m.confidence === "low").map((m) => m.sourceField),
+      affectedFields: lowConfidenceFields,
       impact: "medium",
     });
     warnings++;
@@ -202,16 +188,16 @@ export function calculateMigrationHealth(
     passed++;
   }
 
-  // 7. Check: Media handling
+  // 7. Media handling
   const hasMedia = entries.some((e) => e.assetsToMirror && e.assetsToMirror.length > 0);
   if (hasMedia && !options.importMedia) {
     recommendations.push({
       id: "media_not_importing",
       level: "info",
       category: "media_handling",
-      title: "Media assets detected but not importing",
-      description: `${entries.filter((e) => e.assetsToMirror?.length > 0).length} entries have media. Enable media import to download them.`,
-      action: 'Enable "Import Media" option',
+      title: "Media detected but not importing",
+      description: "Entries have media assets. Enable media import.",
+      action: 'Enable "Import Media"',
       impact: "medium",
     });
     warnings++;
@@ -219,58 +205,54 @@ export function calculateMigrationHealth(
     passed++;
   }
 
-  // 8. Check: Large import performance
+  // 8. Large import
   if (entries.length > 10000) {
     recommendations.push({
       id: "large_import",
       level: "info",
       category: "performance",
       title: "Large import detected",
-      description: `${entries.length.toLocaleString()} entries — consider using CLI for better performance.`,
-      action: "Use CLI: bun run migrate import --file=... for large imports",
+      description: `${entries.length.toLocaleString()} entries — consider CLI.`,
+      action: "Use CLI for large imports",
       impact: "low",
     });
-    passed++;
-  } else {
-    passed++;
   }
+  passed++;
 
-  // 9. Check: Pro features available
+  // 9. Pro features
   if (
     !options.hasLicense &&
-    entries.some((e) => e.rawCustomFields._astContent || e.rawCustomFields._portableText)
+    entries.some(
+      (e) =>
+        e.rawCustomFields && (e.rawCustomFields._astContent || e.rawCustomFields._portableText),
+    )
   ) {
     recommendations.push({
       id: "pro_recommended",
       level: "info",
       category: "quality",
       title: "Rich text AST detected — Pro recommended",
-      description:
-        "This export contains structured rich text that benefits from Pro AST compilers.",
-      action: "Activate Pro license for best results",
+      description: "Structured rich text benefits from Pro compilers.",
+      action: "Activate Pro license",
       impact: "medium",
     });
-    passed++;
-  } else {
-    passed++;
   }
+  passed++;
 
-  // 10. Check: Taxonomy completeness
+  // 10. Taxonomy completeness (safe optional chaining)
   const hasTaxonomy = entries.some(
-    (e) => e.taxonomies?.terms && Object.keys(e.taxonomies.terms).length > 0,
+    (e) => e.taxonomies?.terms && Object.keys(e.taxonomies.terms || {}).length > 0,
   );
   if (hasTaxonomy) {
-    const taxonomyFields = mappings.filter(
-      (m) => m.widgetType === "Tags" || m.widgetType === "taxonomy",
-    );
-    if (taxonomyFields.length === 0) {
+    const hasTaxonomyMapping = mappedTargetsMap.has("tags") || mappedTargetsMap.has("categories");
+    if (!hasTaxonomyMapping) {
       recommendations.push({
         id: "taxonomy_unmapped",
         level: "warning",
         category: "taxonomy",
         title: "Taxonomy data found but not mapped",
         description: "Source has tags/categories but no taxonomy fields are mapped.",
-        action: 'Map taxonomy source fields to "tags" or "categories"',
+        action: 'Map source to "tags" or "categories"',
         impact: "medium",
       });
       warnings++;
@@ -281,7 +263,6 @@ export function calculateMigrationHealth(
     passed++;
   }
 
-  // Calculate score
   const score = Math.round((passed / total) * 100);
   const status: MigrationHealthReport["status"] =
     score >= 90
@@ -294,21 +275,18 @@ export function calculateMigrationHealth(
             ? "poor"
             : "critical";
 
-  // Generate summary
-  const summary = generateHealthSummary(
-    status,
-    passed,
-    warnings,
-    failed,
-    entries.length,
-    mappings.length,
-  );
-
   return {
     score,
     status,
     recommendations,
-    summary,
+    summary: generateHealthSummary(
+      status,
+      passed,
+      warnings,
+      failed,
+      entries.length,
+      mappings.length,
+    ),
     checks: { total, passed, warnings, failed },
   };
 }
@@ -332,7 +310,7 @@ function generateHealthSummary(
         base + `Address ${failed} critical issue(s) and ${warnings} warning(s) before importing.`
       );
     case "poor":
-      return base + `Significant issues found. AI recommends fixing ${failed} problems first.`;
+      return base + `Significant issues found. Fix ${failed} problems first.`;
     case "critical":
       return base + "Critical configuration gaps. Cannot proceed without fixes.";
     default:
@@ -344,58 +322,36 @@ function generateHealthSummary(
 // Smart Defaults Engine
 // ============================================================================
 
-/**
- * Analyzes source data and provides intelligent defaults for all migration settings.
- * Eliminates manual configuration — users only adjust what the AI gets wrong.
- */
 export function generateSmartDefaults(
   entries: SNCEntry[],
   sourcePlatform: string,
   sampleSize: number = 100,
 ): SmartDefaults {
   const samples = entries.slice(0, sampleSize);
-
-  // 1. Suggest target collection name from source content types
-  const targetCollection = inferTargetCollectionFromMigration({
-    format: sourcePlatform,
-    entries: samples,
-  });
-
-  // 2. Analyze all available fields and suggest mappings
   const allFields = collectAllFields(samples);
-  const suggestedMappings = inferMappings(allFields, sourcePlatform);
-
-  // 3. Group entries by detected content type
-  const contentTypeGrouping = groupByContentType(samples);
-
-  // 4. Auto-detect taxonomies
-  const autoDetectedTaxonomies = detectTaxonomies(samples);
-
-  // 5. Smart media strategy
-  const mediaHandlingStrategy = inferMediaStrategy(samples);
-
-  // 6. Adaptive batch size
-  const avgSize = estimateAvgEntrySize(samples);
-  const batchSize = avgSize > 10000 ? 50 : avgSize > 1000 ? 500 : 2000;
-
-  // 7. Safe conflict strategy
-  const conflictStrategy = "skip" as const; // Safest default — never overwrite
 
   return {
-    targetCollection,
-    suggestedMappings,
-    contentTypeGrouping,
-    autoDetectedTaxonomies,
-    mediaHandlingStrategy,
-    batchSize,
-    conflictStrategy,
+    targetCollection: inferTargetCollectionFromMigration({
+      format: sourcePlatform,
+      entries: samples,
+    }),
+    suggestedMappings: inferMappings(allFields, sourcePlatform),
+    contentTypeGrouping: groupByContentType(samples),
+    autoDetectedTaxonomies: detectTaxonomies(samples),
+    mediaHandlingStrategy: inferMediaStrategy(samples),
+    batchSize:
+      samples.reduce((sum, e) => sum + JSON.stringify(e).length, 0) / (samples.length || 1) > 10000
+        ? 50
+        : 500,
+    conflictStrategy: "skip",
   };
 }
 
 function collectAllFields(entries: SNCEntry[]): string[] {
   const fields = new Set<string>();
-  for (const entry of entries) {
-    for (const key of Object.keys(entry.rawCustomFields)) {
+  for (let i = 0; i < entries.length; i++) {
+    const customFields = entries[i].rawCustomFields || {};
+    for (const key of Object.keys(customFields)) {
       if (!key.startsWith("_")) fields.add(key);
     }
   }
@@ -404,57 +360,25 @@ function collectAllFields(entries: SNCEntry[]): string[] {
 
 function inferMappings(fields: string[], _platform: string): FieldMapping[] {
   const mappings: FieldMapping[] = [];
-  const _knownTargets = [
-    "title",
-    "content",
-    "excerpt",
-    "slug",
-    "status",
-    "createdAt",
-    "updatedAt",
-    "author",
-    "featuredImage",
-    "tags",
-    "categories",
-    "language",
-    "seoTitle",
-    "seoDescription",
-  ];
 
-  for (const field of fields) {
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i];
     const lower = field.toLowerCase();
     let target = "";
     let confidence: FieldMapping["confidence"] = "low";
     let widgetType = "text";
-    let action: FieldMapping["action"] = "map";
 
-    // Direct matches
     if (lower === "title" || lower === "post_title" || lower === "name") {
       target = "title";
       confidence = "high";
-    } else if (
-      lower === "content" ||
-      lower === "body" ||
-      lower === "post_content" ||
-      lower === "content:encoded"
-    ) {
+    } else if (["content", "body", "post_content", "content:encoded"].includes(lower)) {
       target = "content";
       confidence = "high";
       widgetType = "richtext";
-    } else if (
-      lower === "excerpt" ||
-      lower === "summary" ||
-      lower === "post_excerpt" ||
-      lower === "description"
-    ) {
+    } else if (["excerpt", "summary", "post_excerpt", "description"].includes(lower)) {
       target = "excerpt";
       confidence = "high";
-    } else if (
-      lower === "slug" ||
-      lower === "post_name" ||
-      lower === "handle" ||
-      lower === "path"
-    ) {
+    } else if (["slug", "post_name", "handle", "path"].includes(lower)) {
       target = "slug";
       confidence = "high";
     } else if (lower === "status" || lower === "post_status") {
@@ -464,30 +388,15 @@ function inferMappings(fields: string[], _platform: string): FieldMapping[] {
     } else if (
       lower.includes("date") ||
       lower.includes("created_at") ||
-      lower.includes("updated_at") ||
-      lower.includes("published_at")
+      lower.includes("updated_at")
     ) {
-      target =
-        lower.includes("update") || lower.includes("change") || lower.includes("modified")
-          ? "updatedAt"
-          : "createdAt";
+      target = lower.includes("update") || lower.includes("modified") ? "updatedAt" : "createdAt";
       confidence = "high";
       widgetType = "date";
-    } else if (
-      lower.includes("author") ||
-      lower.includes("creator") ||
-      lower === "dc:creator" ||
-      lower === "uid"
-    ) {
+    } else if (lower.includes("author") || lower.includes("creator") || lower === "dc:creator") {
       target = "author";
       confidence = "medium";
-    } else if (
-      lower.includes("image") ||
-      lower.includes("thumbnail") ||
-      lower.includes("cover") ||
-      lower.includes("media") ||
-      lower.includes("photo")
-    ) {
+    } else if (lower.includes("image") || lower.includes("thumbnail") || lower.includes("cover")) {
       target = "featuredImage";
       confidence = "medium";
       widgetType = "media";
@@ -499,65 +408,39 @@ function inferMappings(fields: string[], _platform: string): FieldMapping[] {
       target = "categories";
       confidence = "high";
       widgetType = "tags";
-    } else if (lower.includes("lang") || lower.includes("locale")) {
-      target = "language";
-      confidence = "medium";
-    } else if (
-      lower.includes("seo") ||
-      lower.includes("meta_title") ||
-      lower.includes("meta_description")
-    ) {
-      target = lower.includes("desc") ? "seoDescription" : "seoTitle";
-      confidence = "medium";
-    } else if (lower.includes("price") || lower.includes("cost") || lower.includes("amount")) {
+    } else if (lower.includes("price") || lower.includes("cost")) {
       target = "price";
       confidence = "high";
       widgetType = "number";
-    } else if (lower.includes("sku")) {
-      target = "sku";
-      confidence = "high";
-    } else if (lower.includes("email")) {
-      target = "email";
-      confidence = "high";
-      widgetType = "text";
-    } else if (lower.includes("phone") || lower.includes("tel")) {
-      target = "phone";
-      confidence = "medium";
-    } else if (lower.includes("url") || lower.includes("link") || lower.includes("href")) {
-      target = lower;
-      widgetType = "text";
     } else {
-      // No clear match — keep as-is with low confidence
       target = field;
       confidence = "low";
     }
 
-    if (target) {
-      mappings.push({
-        sourceField: field,
-        targetField: target,
-        widgetType,
-        confidence,
-        action,
-        reason: `AI-suggested: "${field}" → "${target}"`,
-      });
-    }
+    mappings.push({
+      sourceField: field,
+      targetField: target,
+      widgetType,
+      confidence,
+      action: "map",
+      reason: `AI-suggested: "${field}" → "${target}"`,
+    });
   }
 
-  // Sort by confidence
-  return mappings.sort((a, b) => {
-    const order = { high: 0, medium: 1, low: 2 };
-    return order[a.confidence] - order[b.confidence];
+  // Non-mutating sort (preserve original array order for consumers)
+  return [...mappings].sort((a, b) => {
+    const priority = { high: 0, medium: 1, low: 2 };
+    return priority[a.confidence] - priority[b.confidence];
   });
 }
 
 function groupByContentType(entries: SNCEntry[]): Record<string, string[]> {
   const groups: Record<string, string[]> = {};
-  for (const entry of entries) {
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
     const type =
       (entry.rawCustomFields as any)?.type ||
       (entry.rawCustomFields as any)?._drupalType ||
-      (entry.rawCustomFields as any)?._sourceTable ||
       "default";
     if (!groups[type]) groups[type] = [];
     groups[type].push(entry.externalId);
@@ -567,149 +450,86 @@ function groupByContentType(entries: SNCEntry[]): Record<string, string[]> {
 
 function detectTaxonomies(entries: SNCEntry[]): string[] {
   const taxonomies = new Set<string>();
-  for (const entry of entries) {
-    for (const vocab of entry.taxonomies?.vocabularies || []) {
-      taxonomies.add(vocab);
-    }
-    for (const key of Object.keys(entry.taxonomies?.terms || {})) {
-      taxonomies.add(key);
-    }
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const vocabularies = entry.taxonomies?.vocabularies || [];
+    const terms = entry.taxonomies?.terms || {};
+
+    vocabularies.forEach((vocab: string) => taxonomies.add(vocab));
+    Object.keys(terms).forEach((key: string) => taxonomies.add(key));
   }
   return [...taxonomies];
 }
 
 function inferMediaStrategy(entries: SNCEntry[]): "download" | "reference" | "skip" {
-  const totalAssets = entries.reduce((sum, e) => sum + (e.assetsToMirror?.length || 0), 0);
-  if (totalAssets === 0) return "skip";
-  if (totalAssets > 100) return "reference"; // Too many to download — reference externally
-  return "download";
+  let totalAssets = 0;
+  for (let i = 0; i < entries.length; i++) {
+    totalAssets += entries[i].assetsToMirror?.length || 0;
+  }
+  return totalAssets === 0 ? "skip" : totalAssets > 100 ? "reference" : "download";
 }
 
-function estimateAvgEntrySize(entries: SNCEntry[]): number {
-  if (entries.length === 0) return 2048;
-  const total = entries.reduce((sum, e) => sum + JSON.stringify(e).length, 0);
-  return Math.round(total / entries.length);
-}
-
-// ============================================================================
-// Platform-Specific Guidance
-// ============================================================================
-
-/**
- * Returns contextual tips based on the source platform and detected content type.
- * These appear as helpful banners during the migration wizard.
- */
 export function getPlatformGuidance(platform: string, contentType: string): string[] {
   const tips: string[] = [];
-
-  switch (platform) {
+  switch (platform.toLowerCase()) {
     case "wordpress":
       tips.push(
-        "💡 WordPress WXR includes posts, pages, media, and comments. Select content types to import individually.",
+        "💡 WordPress WXR includes posts, pages, media, and comments.",
+        "💡 ACF custom fields are preserved in rawCustomFields.",
       );
-      tips.push(
-        "💡 ACF custom fields are preserved in rawCustomFields. Map them manually after import.",
-      );
-      tips.push(
-        "💡 Featured images (_thumbnail_id) are automatically detected and queued for download.",
-      );
-      if (contentType === "page")
-        tips.push("💡 Page hierarchy (parent/child) is preserved via parentExternalId.");
+      if (contentType === "page") tips.push("💡 Page hierarchy is preserved via parentExternalId.");
       break;
-
     case "drupal":
-      tips.push("💡 Drupal taxonomy terms are resolved from JSON:API included data automatically.");
       tips.push(
-        "💡 Entity references are collected for post-import resolution. Check relatedContent after import.",
-      );
-      tips.push(
-        "💡 Revision history (vid, revision_log) is preserved in rawCustomFields._revisions.",
-      );
-      tips.push(
-        "💡 Field Collections and Paragraphs appear as nested rawCustomFields. Consider restructuring after import.",
+        "💡 Drupal taxonomy terms are resolved from JSON:API data automatically.",
+        "💡 Paragraphs appear as nested rawCustomFields.",
       );
       break;
-
-    case "shopify":
-      tips.push("💡 Product variants are automatically processed into nested variant arrays.");
-      tips.push("💡 SKU, price, and inventory are mapped to ecommerce fields.");
-      tips.push("💡 Product images are queued for download from Shopify CDN.");
-      break;
-
     case "contentful":
-      tips.push(
-        "💡 Rich text is compiled from Contentful AST nodes to HTML automatically (Pro feature).",
-      );
-      tips.push("💡 Embedded assets and entry blocks are resolved to local media links.");
-      tips.push("💡 Locale-aware fields are flattened to the default locale during import.");
+      tips.push("💡 Rich text is compiled from Contentful AST nodes to HTML (Pro feature).");
       break;
-
-    case "sanity":
-      tips.push("💡 Portable Text blocks are compiled to semantic HTML (Pro feature).");
-      tips.push("💡 Image references are resolved via Sanity CDN and downloaded locally.");
-      tips.push('💡 Draft documents (_id starting with "drafts.") are imported as draft status.');
-      break;
-
     case "csv":
-    case "spreadsheet":
-      tips.push("💡 Column headers become field names. Row 1 is treated as headers by default.");
-      tips.push("💡 Column types are auto-detected (number, date, url, email, boolean).");
       tips.push(
-        "💡 The first text column becomes the title. URLs in image columns are queued for download.",
+        "💡 CSV imports map column headers to target fields automatically.",
+        "💡 Use Dry Run mode first to verify column-to-field mappings.",
       );
       break;
-
-    case "markdown":
-      tips.push("💡 YAML frontmatter becomes structured fields (title, date, tags, categories).");
-      tips.push("💡 The Markdown body becomes the content field.");
-      tips.push("💡 Files in subdirectories preserve their path structure.");
-      break;
-
-    case "sql":
-      tips.push("💡 INSERT statements are parsed for table structure and data.");
-      tips.push("💡 Column types are inferred from CREATE TABLE definitions.");
-      tips.push("💡 Primary keys become externalId for deduplication.");
-      break;
-
     default:
-      tips.push("💡 The AI will analyze your data and suggest the best field mappings.");
-      tips.push("💡 Review low-confidence mappings (marked in red) before importing.");
       tips.push("💡 Use Dry Run mode first to validate without writing data.");
   }
-
   return tips;
 }
 
-// ============================================================================
-// Real-Time Preview Generator
-// ============================================================================
-
-/**
- * Generates a preview of what transformed entries will look like after import.
- * Shows side-by-side: source field → transformed value.
- */
 export function generatePreview(
   entry: SNCEntry,
   mappings: FieldMapping[],
 ): {
   source: Record<string, any>;
   target: Record<string, any>;
-  confidence: string;
+  confidence: "high" | "medium" | "low";
 } {
   const source: Record<string, any> = {};
   const target: Record<string, any> = {};
+  const customFields = entry.rawCustomFields || {};
 
-  // Show raw source values
-  for (const [key, value] of Object.entries(entry.rawCustomFields)) {
+  for (const [key, value] of Object.entries(customFields)) {
     if (!key.startsWith("_")) {
       source[key] =
         typeof value === "string" && value.length > 100 ? value.slice(0, 100) + "..." : value;
     }
   }
 
-  // Show mapped target values
-  for (const mapping of mappings) {
-    const rawValue = entry.rawCustomFields[mapping.sourceField];
+  let highCount = 0;
+  let totalMapped = 0;
+
+  for (let i = 0; i < mappings.length; i++) {
+    const mapping = mappings[i];
+    if (mapping.action === "ignore") continue;
+
+    totalMapped++;
+    if (mapping.confidence === "high") highCount++;
+
+    const rawValue = customFields[mapping.sourceField];
     if (rawValue !== undefined) {
       target[mapping.targetField] =
         typeof rawValue === "string" && rawValue.length > 100
@@ -718,11 +538,7 @@ export function generatePreview(
     }
   }
 
-  // Calculate overall confidence
-  const highCount = mappings.filter((m) => m.confidence === "high").length;
-  const totalMapped = mappings.filter((m) => m.action !== "ignore").length;
   const avgConfidence = totalMapped > 0 ? (highCount / totalMapped) * 100 : 0;
-
   return {
     source,
     target,

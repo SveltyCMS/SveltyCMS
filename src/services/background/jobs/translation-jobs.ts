@@ -94,7 +94,9 @@ export const bulkTranslateHandler: JobHandler = async (
     }
 
     if (updated) {
-      await dbAdapter.crud.update(collectionName, entry._id, entry, { tenantId: tenantId as any });
+      await dbAdapter.crud.update(collectionName, entry._id, entry, {
+        tenantId: tenantId as any,
+      });
       translatedCount++;
     }
 

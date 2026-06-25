@@ -39,7 +39,9 @@ To accurately assess SveltyCMS, one must establish the baseline for SOTA technol
   - **Production Builds (Rolldown):** Sub-18s full builds using the unified Rust-based bundler.
   - **Zero-Warning Codebase:** Automated and manual audit cleared all 84 legacy warnings.
   - **Automated Doc Integrity (March 2026):** Native `lint-docs.ts` utility achieving **100% link integrity** and **Path Alignment Strategy** (filesystem matching) across 158 files.
-- **True Database Agnosticism:** The ability to run on NoSQL (for scale), SQL (for relations), or Embedded DBs (for edge) without code changes.
+
+  - **True Database Agnosticism:** The ability to run on NoSQL (for scale), SQL (for relations), or Embedded DBs (for edge) without code changes.
+
 - **Edge Compatibility:** The ability to deploy logic and content delivery to the network edge (e.g., Cloudflare Workers, Vercel Edge).
 - **Type Safety:** End-to-end TypeScript integration from the database schema to the frontend component.
 - **Infrastructure as Code (IaC):** The ability to define content schemas, permissions, and configurations as version-controlled code.
@@ -66,10 +68,15 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
 - **Single-Trip Mutations:** Standardized `.returning()` (SQL) and `returnDocument: 'after'` (Mongo) across all adapters, eliminating redundant `SELECT` queries and reducing mutation latency by **~40%**.
 - **Cross-Adapter Prepared Statements (April 2026):** Implemented high-performance cached prepared statements for SQLite, PostgreSQL, and MariaDB. This optimization bypasses Drizzle's query compilation overhead for hot-path lookups and tenant-scoped queries, ensuring sub-millisecond database response times at scale (achieving **14,000+ RPS** and **0.007ms** latency for raw SQLite reads).
 - **Memory Stability & Allocation Efficiency (April 2026):** Resolved significant allocation overhead in the `LocalCMS` SDK by consolidating transient caches into a shared `static` LRU engine. This refactor neutralized a 524 MB/min memory leak, achieving a **STABLE** rating with < 1MB/min growth under sustained 3,400+ RPS loads.
-- **Negative Caching & Bloom Filter Protection:** Implemented a high-performance negative caching engine with an in-memory Bloom filter to track missing keys/documents. When a 404 cache miss is recorded, subsequent requests for the same missing key are resolved immediately in the current microtask tick, bypassing the database driver. This yields a verified **100,150x speedup** (improving hot-miss latency from **300ms** to **0.003ms**) and immunizes the database against resource starvation under 404 Denial of Service (DoS) attacks.
+
+- **Negative Caching & Bloom Filter Protection:** Implemented a high-performance negative caching engine with an in-memory Bloom filter to track missing keys/documents. When a 404 cache miss is recorded, subsequent requests for the same missing key are resolved immediately in the current microtask tick, bypassing the database driver.
+
+  This yields a verified **100,150x speedup** (improving hot-miss latency from **300ms** to **0.003ms**) and immunizes the database against resource starvation under 404 Denial of Service (DoS) attacks.
+
 - **Zero-Tax LocalCMS SDK Bridge:** Hardened the `LocalCMS` server-to-server bridge to bypass SvelteKit's HTTP middleware pipelines entirely. Combined with hot-swappable getter structures and microtask batching, this achieves internal query resolution in **<0.05ms** for server-side loading and internal API interactions with 0% runtime overhead.
 - **Active Driver Validation (Anti-False Positive):** Implemented mandatory `SELECT 1` verification in the MariaDB and PostgreSQL adapters. This ensures that the Setup Wizard provides immediate, clear feedback for missing or incorrect credentials, eliminating "lazy connection" false positives found in legacy ORM implementations.
 - **Micro-Telemetry:** Native per-operation timing (`performance.now()`) is bubbled up from the DB adapter to the API `meta` field, providing high-resolution observability without external dependencies.
+
 - **Security Hardening (API & Multi-Tenancy):**
   - **Universal Tenant Context:** Implemented a rigorous middleware-driven `tenantId` propagation system, ensuring every database mutation and query is explicitly scoped to the correct tenant.
   - **IDOR Prevention:** Hardened all 40+ API endpoints with role-based access control and explicit owner verification.
@@ -77,64 +84,91 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **Tenant-Aware Uniqueness:** Implemented granular control for unique field constraints. The `tenantScopedUnique` flag ensures that identifiers like slugs (e.g., `/about`) remain unique within a tenant but can safely overlap across different tenants, preventing cross-tenant namespace collisions.
   - **SSE Hygiene:** Resolved a critical memory leak in the real-time event stream and implemented tenant-aware real-time filtering.
   - **Encrypted Data Portability:** Standardized AES-256-GCM encryption for all sensitive fields during tenant-scoped data exports.
+
   - **Automated Security Response (v2026)**: Implemented a unified `SecurityResponseService` providing:
     - **Structured Payload Scanning**: JSON and Form-data aware parsing, avoiding the overhead of raw string scanning on binary/multipart payloads.
     - **Bounded ReDoS Protection**: All security regex patterns now use strictly bounded quantifiers ({0,500}), effectively eliminating the risk of accidental or malicious Regular Expression Denial of Service.
     - **Distributed Redis State**: Security incidents, IP throttles, and blocks are distributed via Redis, ensuring immediate global protection across multi-node clusters.
     - **Performance Early-Exits**: Sub-microsecond `Content-Length` checks and a 32KB processing cap for unknown payload types ensure high-volume protection without performance degradation.
+
   - **Hardened Authentication Core**:
     - **OAuth State Integrity**: Native HMAC-SHA256 signing and verification of OAuth states, neutralizing authorization code replay attacks and CSRF during external identity provider flows.
     - **Compartmentalized Rate Limiter Secrets**: Decoupled RateLimiter cryptographic keys from the primary `JWT_SECRET_KEY`, utilizing a dedicated `RATE_LIMIT_SECRET` fallback architecture. This containment strategy prevents a leaked rate-limit key from compromising the core authentication perimeter.
     - **Strict IP Resolution**: Implemented `getClientIp(event)` across all authentication mutation flows (Login, Sign-Up, Forgot Password), replacing generic "N/A" placeholders in Audit Logs to guarantee high-fidelity forensic traceability.
     - **RFC 6585 Compliance**: Enforced strict `Retry-After: 60` HTTP headers for all `429 Too Many Requests` responses generated by the authentication firewall, ensuring respectful client backoff protocols.
-    - **Demo Tenant Capacity Guard**: Integrated a hard-coded 100-user capacity limit for demo tenant signups, utilizing high-performance `getUserCount` adapters to protect the system from automated resource exhaustion attacks.
-    - **L0 Session Memory Stability**: Refactored the `InMemorySessionManager` to utilize `WeakRef` for cached User objects. This allows the V8 engine to immediately garbage-collect inactive sessions, eliminating memory bloat and preventing OOM crashes during high-concurrency traffic spikes.
+
+      - **Demo Tenant Capacity Guard**: Integrated a hard-coded 100-user capacity limit for demo tenant signups, utilizing high-performance `getUserCount` adapters to protect the system from automated resource exhaustion attacks.
+
+      - **L0 Session Memory Stability**: Refactored the `InMemorySessionManager` to utilize `WeakRef` for cached User objects. This allows the V8 engine to immediately garbage-collect inactive sessions, eliminating memory bloat and preventing OOM crashes during high-concurrency traffic spikes.
+
     - **TOTP Timing Attack Mitigation**: Replaced standard string comparisons in the 2FA layer with `crypto.timingSafeEqual`, mathematically neutralizing nanosecond-level side-channel attacks on TOTP code verification.
-    - **Fallback Garbage Collection Resilience**: Hardened the session cleanup loop to guarantee that in-memory fallback caches are continuously pruned even when a `RedisSessionManager` is actively managing the primary connection, ensuring zero memory leaks during Redis outages.
+
+      - **Fallback Garbage Collection Resilience**: Hardened the session cleanup loop to guarantee that in-memory fallback caches are continuously pruned even when a `RedisSessionManager` is actively managing the primary connection, ensuring zero memory leaks during Redis outages.
+
   - **May 2026 AI Bot Defense & Crypto Hardening**:
     - **AI Bot Detection & Blocking**: Proactive User-Agent fingerprinting detects and blocks 28 known AI crawler patterns (GPTBot, Claude, Perplexity, CommonCrawl, Bytespider) and reconnaissance tools (Nmap, SQLMap, Nikto, Burp Suite, Zgrab, Masscan, Nessus).
     - **Multi-Layer Honeypot Grid**: 45+ decoy routes covering WordPress, Drupal, Joomla, AWS metadata endpoints, config/backup file probes, and common exploit paths. Any probe triggers immediate IP blacklisting.
     - **Progressive Tarpit & Response Poisoning**: Randomized 5–15 second response delays waste bot resources. Bots receive fake JSON payloads (phantom users, false config) designed to corrupt scraper datasets rather than revealing real system information.
     - **Cross-Origin Isolation Headers**: All API responses enforce `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin`, preventing Spectre/Meltdown side-channel attacks.
-    - **Zero-Bias Token Generation**: `generateRandomToken` now uses rejection sampling to eliminate ~3.125% modulo bias, guaranteeing uniform CSPRNG distribution for session tokens and API keys.
+
+      - **Zero-Bias Token Generation**: `generateRandomToken` now uses rejection sampling to eliminate ~3.125% modulo bias, guaranteeing uniform CSPRNG distribution for session tokens and API keys.
+
     - **Setup Cookie Prefix Consistency**: Setup handler now uses consistent `__Host-` cookie prefix logic, closing the gap between runtime and initialization session cookie naming.
+
   - **June 2026 Comprehensive Security Audit & Hardening**:
     Full-stack codebase audit against dependency stack, security architecture docs, and CVE landscape. Closed 6 gaps:
     - **SVG Polyglot Upload Sanitization**: Server-side `sanitizeSvg()` strips scripts, foreignObject, event handlers, `javascript:`/`data:` URIs, CDATA, XML PIs, and DOCTYPE from uploaded SVG files.
     - **S3 Endpoint SSRF Prevention**: `validateS3Endpoint()` blocks private IPs (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16), cloud metadata hosts, and non-HTTP protocols before S3Client creation.
-    - **Ollama RAG Prompt Injection Defense**: Remote knowledge-base context relocated to `user` message role with `<rag_context>` XML delimiters and control-character stripping.
+
+      - **Ollama RAG Prompt Injection Defense**: Remote knowledge-base context relocated to `user` message role with `<rag_context>` XML delimiters and control-character stripping.
+
     - **GraphQL Introspection Explicit Blocking**: `NoSchemaIntrospectionCustomRule` applied in production, preventing unauthenticated `__schema` enumeration.
     - **Tiptap Link Protocol Hardening**: Protocol allowlist `["http", "https", "mailto", "tel"]` blocks `javascript:` and `data:` URI injection at editor level.
-    - **Rate Limiter Dependency Hygiene**: `sveltekit-rate-limiter` moved from `devDependencies` to `dependencies` to guarantee production build inclusion.
-      All 64 defense-in-depth security regression tests pass. 0 lint errors. 0 type errors.
+
+      - **Rate Limiter Dependency Hygiene**: `sveltekit-rate-limiter` moved from `devDependencies` to `dependencies` to guarantee production build inclusion.
+        All 64 defense-in-depth security regression tests pass. 0 lint errors. 0 type errors.
+
   - **4-Layer Defense-in-Depth Authorization**:
     Most CMS platforms (Payload, Strapi, Directus) rely on a **perimeter security model**: authenticate at the gate, then assume internal trust. This creates dangerous gaps where an authenticated user with low privileges can exploit deeper vulnerabilities. SveltyCMS eliminates this assumption through **4-layer zero-trust re-validation**:
     - **Layer 1 — Middleware**: `__Host-` cookie prefix enforcement (RFC 6265bis), setup completion gating, CSRF protection.
     - **Layer 2 — Dispatcher**: Fail-closed `ENDPOINT_PERMISSIONS` mapping; unmapped namespaces return 403 by default.
+
     - **Layer 3 — Handler**: Admin verification for system mutations, `media:write`/`media:delete` permission checks.
     - **Layer 4 — Page Action**: Centralized permission guards (e.g., `requireCollectionBuilderPermission`).
       Each layer re-validates permissions independently, and the system fails safely if any check fails. This "zero trust within the application" architecture is rare among open-source CMS platforms and makes entire classes of vulnerabilities impossible — a single compromised perimeter layer does not grant full access.
+
   - **ETag Conditional Requests**:
     Implemented HTTP ETag support in the central API dispatcher. Every GET 200 response receives a SHA-256-based ETag header (first 16 hex chars of the response body hash). The dispatcher checks the If-None-Match request header and returns 304 Not Modified with zero body when content has not changed. This reduces bandwidth consumption and server processing for cache-valid clients, with sub-microsecond hash computation overhead per response.
+
   - **API Versioning**:
     Added X-API-Version: 1 header to all API responses. The dispatcher automatically strips /v1/ path prefixes for backward-compatible routing (e.g., /api/v1/collections/posts to /api/collections/posts). This enables future /api/v2/ endpoints without breaking existing clients, while existing /api/ paths continue working unchanged.
+
   - **Vectorized Audit Chaining**: Moved Audit Log SHA-256 hashing to a dedicated Node.js `Worker Thread` pool. This offloads cryptographic overhead from the main event loop, preventing API starvation during high-volume bulk imports and deletions.
   - **Middleware AST Pre-compilation**: Introduced a compiled "Auth-Path" cache in the SvelteKit `handleSetup` hook. Pre-evaluating complex AST route bypasses reduced total middleware latency by ~40%.
   - **Unified Gatekeeper Consolidation (April 2026)**: Purged 13 redundant API route directories and consolidated entire REST surface into a single, high-performance `[...path]` dispatcher. This reduced AST parsing overhead in SvelteKit by 80% and minimized cold-start times for serverless environments.
+
   - **Enterprise "Immunity" Layer (April 2026)**:
     - **Global Security Guard**: A top-level wrapper ensuring HSTS, CSP, and X-Frame-Options are injected into _every_ response, including error boundaries and redirects.
     - **Self-Healing Load Shedding**: Integrated a memory-pressure monitor (90% heap threshold) that automatically rejects mutation traffic with compressed 503 responses, protecting read-availability during spikes.
     - **Graceful Shutdown Instrumentation**: Instrumented `SIGTERM` / `SIGINT` handlers to drain in-flight requests and cleanly disconnect DB/Cache pools, ensuring zero-restart integrity.
     - **Timing-Safe Cryptography**: Protected CI/CD test bypasses using `crypto.timingSafeEqual` to neutralize side-channel attacks on administrative bypass secrets.
     - **Request Tracing**: Automated `X-Request-ID` and `requestId` propagation across the entire stack via `AsyncLocalStorage` and the middleware pipeline.
+
   - **Lazy Relation Hydration**: Eliminated Depth-3 query lag on strict SQL engines (PostgreSQL/MariaDB) by utilizing Svelte 5 snippets (`{#snippet}`) and the `IntersectionObserver` API. This "Ghost Relation" pattern delays complex sub-graph `JOIN` execution until the specific relation field natively scrolls into the viewport.
-  - **High-Performance Ghost Caching & Batched Hydration (v0.0.7)**: Implemented a reactive hybrid L1 (LRU Memory) + L2 (Redis) caching engine. By bypassing the database driver for hot-path reads, we achieved a **98.8% reduction** in SDK latency (dropping from 0.612ms to **0.006ms**). Furthermore, **batched Ghost Relations** mathematically eliminate the N+1 query bottlenecks and relational choking that plague competitors like Strapi and Directus under heavy nested population.
+  - **High-Performance Ghost Caching & Batched Hydration (v0.0.7)**: Implemented a reactive hybrid L1 (LRU Memory) + L2 (Redis) caching engine. By bypassing the database driver for hot-path reads, we achieved a **98.8% reduction** in SDK latency (dropping from 0.612ms to **0.006ms**).
+
+    Furthermore, **batched Ghost Relations** mathematically eliminate the N+1 query bottlenecks and relational choking that plague competitors like Strapi and Directus under heavy nested population.
+
   - **Surgical Field-Level Caching**: Enhanced the Ghost Caching engine with `tagMap` surgical invalidation. Single-field updates (e.g., `viewCount`) now trigger targeted purges of specific document keys instead of flushing entire collections, maintaining "Hot L1" status for 99% of unrelated traffic.
+
   - **Distributed Edge Sync & Real-Time Invalidation**: Introduced a Redis Pub/Sub invalidation bridge (`svelty:cache:invalidation`). This ensures sub-millisecond global state consistency across multi-node edge clusters, with immediate local-memory purging upon remote invalidation events.
   - **Geographic Read-Replica Awareness**: Implemented a context-aware `ReplicaPoolManager` in the PostgreSQL adapter. By parsing the `x-svelty-region` header, the CMS automatically routes read traffic to the nearest global database replica (e.g., US users to `us-east-1`), while keeping all mutations on the primary instance.
-  - **Optional Edge CDN Invalidation**: Integrated a background `CdnService` for Cloudflare. Automated `purge_by_tags` calls are fired upon content updates, ensuring global Edge consistency without manual cache management. This service is 100% optional and fails gracefully if credentials are not provided.
+
+    - **Optional Edge CDN Invalidation**: Integrated a background `CdnService` for Cloudflare. Automated `purge_by_tags` calls are fired upon content updates, ensuring global Edge consistency without manual cache management. This service is 100% optional and fails gracefully if credentials are not provided.
+
   - **Hardened Telemetry Protocol**: Standardized HMAC-SHA256 registration handshakes for all lifecycle reporting, ensuring 100% instance authenticity and preventing telemetry spoofing.
   - **Persistent DoS Protection (April 2026)**: Implemented stateful rate-limiter persistence using `dump()` and `restore()` mechanisms in `SecurityResponseService`. This ensures that active IP blocks and throttles survive graceful shutdowns and node restarts, providing continuous protection across deployments.
+
   - **SQLite Multi-Tenant Index Optimization (April 2026)**: Hardened the SQLite schema with compound `(tenantId, field)` indexes across `authUsers`, `authTokens`, and `contentNodes`. This eliminated table scans for multi-tenant lookups, achieving sub-millisecond query performance (**0.000ms - 0.007ms**) even under high concurrency.
   - **Connection Resilience Hardening (June 2026)**: Identified and resolved a critical Node.js socket exhaustion vulnerability. During infrastructure brownout simulations, unconsumed rejected HTTP response bodies in edge cases caused the underlying connection pool (`undici`) to hang, resulting in 150-second timeouts. By aggressively consuming failed response bodies across all internal fetch adapters, we achieved **100% Availability** under `chaos-resilience` stochastic load testing, completely eliminating the bottleneck across all database adapters.
 
@@ -146,6 +180,7 @@ The April 2026 audit established SveltyCMS as a high-frequency data platform cap
 - **Content Scanning**: Verified sub-millisecond scanning of **1,000+ collections in 0.05ms** using a persistent Worker Thread pool and Dirty Bit Tree.
 - **Bulk Ingestion Limit**: Verified stable ingestion of **10,000 entries in ~1.2s** (8,223 entries/s), enabling massive dataset migrations without server starvation.
 - **Revision History Immunity**: Achieved **0% performance degradation** on lookups for documents with 100+ versions, proving our history-aware indexing strategy is future-proof.
+
 - **World Life Data Diagnostics**: Implemented a high-fidelity "Reality Simulator" measuring **Success/Failure Latency Splits**. Verified a **1.85x Fast-Fail Efficiency**, proving the system rejects malicious or invalid traffic significantly faster than it processes valid data, preventing resource exhaustion.
 - **Monitoring Tax Elimination**: Reduced health-probe latency to **0.45ms** via intelligent caching, protecting production CPU cycles from monitoring overhead.
 - **Simulated Form Vitality**: Proved a **sub-0.05ms** server prep time for complex 50-field forms, ensuring the Admin UX feels instantaneous regardless of schema complexity.
@@ -176,30 +211,36 @@ To support the UI migration and global dynamic content, SveltyCMS standardized i
 
 The following matrix evaluates core engineering implementations where SveltyCMS provides a distinct technical advantage over legacy and contemporary competitors.
 
-| Feature                    | SveltyCMS (v2026)                 | Strapi 5            | Payload 3.0        | Directus 11        | Sveltia CMS       |
-| :------------------------- | :-------------------------------- | :------------------ | :----------------- | :----------------- | :---------------- |
-| **Core Framework**         | **Svelte 5 (Runes)**              | React               | Next.js / React    | Vue / Node.js      | Svelte (SPA)      |
-| **Architecture**           | **Server-First (SSR)**            | Node.js / React     | Next.js / React    | Node.js / Vue      | Git-based (Local) |
-| **Multi-Tenancy**          | **Native Adapter-Level**          | Paid (Enterprise)   | Plugin-based       | Native             | N/A               |
-| **Slug Uniqueness**        | **Tenant-Scoped (Native)**        | Global Only         | Global Only        | Manual Config      | Locale-Agnostic   |
-| **AI Architecture**        | **Local (Ollama) + Cloud**        | Cloud Only (Paid)   | MCP Native (Cloud) | Cloud Only (Paid)  | N/A               |
-| **Real-time Sync**         | **uWS Native (Sub-1ms)**          | WebSockets          | None / Custom      | WebSockets         | Git Pull/Push     |
-| **Cache Repair**           | **Smart / Incremental**           | Manual Clear        | Manual Clear       | Manual Clear       | Browser Only      |
-| **SDK Latency**            | **Zero (Local Bridge)**           | 2–5ms (Local HTTP)  | ~1ms (Direct)      | 3–8ms (Local HTTP) | N/A               |
-| **Negative Caching**       | **Bloom Filter (100,000x)**       | None / DB query     | None / DB query    | None / DB query    | N/A               |
-| **SEO Redirects**          | **0.92 ms (Sub-MS)**              | ~45 ms (Plugin)     | ✅ Plugin          | ⚠️ Basic           | ⚠️ Basic          |
-| **Toolchain**              | **VoidZero (Rust)**               | Vite (JS/TS)        | Vite (JS/TS)       | Vite (JS/TS)       | Rolldown/Vite     |
-| **Scheduled Publishing**   | **✅ Adaptive Job Scheduler**     | ⚠️ Cron Plugin      | ✅ Job Queue       | ✅ Flows           | ❌                |
-| **Content Versioning**     | **✅ Revisions + Diff + Restore** | ⚠️ Basic            | ✅ Versions        | ✅ Revisions       | ❌                |
-| **Per-Field Localization** | **✅ Record<Locale,string> + AI** | ⚠️ Separate Entries | ✅                 | ✅                 | ❌                |
-| **Full-Text Search**       | **✅ DB-Native FTS (Zero Deps)**  | ⚠️ Plugin           | ⚠️ Plugin          | ⚠️ Plugin          | ❌                |
-| **Crypto-Chained Audit**   | **✅ SHA-256 Tamper-Evident**     | ❌                  | ❌                 | ❌                 | ❌                |
-| **Smart CMS Migration**    | **✅ AI-Smart 5-Format Importer** | ❌                  | ❌                 | ❌                 | ❌                |
-| **Cold Start UX**          | **✅ Warming-Up Dashboard**       | ⚠️ Spinner          | ⚠️ Spinner         | ⚠️ Spinner         | ✅ Local          |
-| **Quick-Start Templates**  | **✅ 5 Presets**                  | ❌                  | ❌                 | ❌                 | ❌                |
-| **Behavioral Learning**    | **✅ Server-side, zero PII**      | ❌                  | ❌                 | ❌                 | ❌                |
-| **AI Widget Scaffolder**   | **✅ LLM-ready code generation**  | ❌                  | ❌                 | ❌                 | ❌                |
-| **Token Security**         | **✅ SHA-256 all adapters**       | ⚠️                  | ⚠️                 | ⚠️                 | ❌                |
+| Feature             | SveltyCMS (v2026)          | Strapi 5          | Payload 3.0        | Directus 11       | Sveltia CMS       |
+| :------------------ | :------------------------- | :---------------- | :----------------- | :---------------- | :---------------- |
+| **Core Framework**  | **Svelte 5 (Runes)**       | React             | Next.js / React    | Vue / Node.js     | Svelte (SPA)      |
+| **Architecture**    | **Server-First (SSR)**     | Node.js / React   | Next.js / React    | Node.js / Vue     | Git-based (Local) |
+| **Multi-Tenancy**   | **Native Adapter-Level**   | Paid (Enterprise) | Plugin-based       | Native            | N/A               |
+| **Slug Uniqueness** | **Tenant-Scoped (Native)** | Global Only       | Global Only        | Manual Config     | Locale-Agnostic   |
+| **AI Architecture** | **Local (Ollama) + Cloud** | Cloud Only (Paid) | MCP Native (Cloud) | Cloud Only (Paid) | N/A               |
+| **Real-time Sync**  | **uWS Native (Sub-1ms)**   | WebSockets        | None / Custom      | WebSockets        | Git Pull/Push     |
+
+| Feature              | SveltyCMS (v2026)           | Strapi 5           | Payload 3.0     | Directus 11        | Sveltia CMS   |
+| :------------------- | :-------------------------- | :----------------- | :-------------- | :----------------- | :------------ |
+| **Cache Repair**     | **Smart / Incremental**     | Manual Clear       | Manual Clear    | Manual Clear       | Browser Only  |
+| **SDK Latency**      | **Zero (Local Bridge)**     | 2–5ms (Local HTTP) | ~1ms (Direct)   | 3–8ms (Local HTTP) | N/A           |
+| **Negative Caching** | **Bloom Filter (100,000x)** | None / DB query    | None / DB query | None / DB query    | N/A           |
+| **SEO Redirects**    | **0.92 ms (Sub-MS)**        | ~45 ms (Plugin)    | ✅ Plugin       | ⚠️ Basic           | ⚠️ Basic      |
+| **Toolchain**        | **VoidZero (Rust)**         | Vite (JS/TS)       | Vite (JS/TS)    | Vite (JS/TS)       | Rolldown/Vite |
+
+| Feature                    | SveltyCMS (v2026)                 | Strapi 5            | Payload 3.0  | Directus 11  | Sveltia CMS |
+| :------------------------- | :-------------------------------- | :------------------ | :----------- | :----------- | :---------- |
+| **Scheduled Publishing**   | **✅ Adaptive Job Scheduler**     | ⚠️ Cron Plugin      | ✅ Job Queue | ✅ Flows     | ❌          |
+| **Content Versioning**     | **✅ Revisions + Diff + Restore** | ⚠️ Basic            | ✅ Versions  | ✅ Revisions | ❌          |
+| **Per-Field Localization** | **✅ Record<Locale,string> + AI** | ⚠️ Separate Entries | ✅           | ✅           | ❌          |
+| **Full-Text Search**       | **✅ DB-Native FTS (Zero Deps)**  | ⚠️ Plugin           | ⚠️ Plugin    | ⚠️ Plugin    | ❌          |
+| **Crypto-Chained Audit**   | **✅ SHA-256 Tamper-Evident**     | ❌                  | ❌           | ❌           | ❌          |
+| **Smart CMS Migration**    | **✅ AI-Smart 5-Format Importer** | ❌                  | ❌           | ❌           | ❌          |
+| **Cold Start UX**          | **✅ Warming-Up Dashboard**       | ⚠️ Spinner          | ⚠️ Spinner   | ⚠️ Spinner   | ✅ Local    |
+| **Quick-Start Templates**  | **✅ 5 Presets**                  | ❌                  | ❌           | ❌           | ❌          |
+| **Behavioral Learning**    | **✅ Server-side, zero PII**      | ❌                  | ❌           | ❌           | ❌          |
+| **AI Widget Scaffolder**   | **✅ LLM-ready code generation**  | ❌                  | ❌           | ❌           | ❌          |
+| **Token Security**         | **✅ SHA-256 all adapters**       | ⚠️                  | ⚠️           | ⚠️           | ❌          |
 
 ### 3.2 Competitive Benchmark Analysis (2026)
 
@@ -270,12 +311,15 @@ Universal migration pipeline (v2.1, June 2026) — **40+ CMS platforms**, 5-step
 - **40 Platform Parsers**: WordPress (WXR XML), Drupal (JSON:API/YAML/CSV), Contentful, Sanity, Strapi, Directus, Payload, Storyblok, Prismic, Shopify, Magento, PrestaShop, OpenCart, Ghost, Webflow, HubSpot, Wix, Squarespace, Duda, Tilda, Builder, Joomla, TYPO3, Craft, Statamic, Grav, and 12 PHP CMS + 4 headless SaaS + SveltyCMS native + 9 universal formats (CSV, Markdown, SQL, API, JSON, Airtable, Notion, Firebase, MongoDB)
 - **5-Step Wizard**: Upload & Detect → Visual Mapping (`TransformationTree`) → Validate (schema diff + dry-run) → Import (SSE `/api/migration/import`) → Review & Rollback
 - **Enterprise-Grade Features**: Forward-reference auto-stubbing (circular dependency healing), deep JSONPath resolution, schema diff previews (Git-style), in-body media harvesting & CDN replacement, cyclic dependency resolution (DFS topological sort), direct DB cursor streaming
+
 - **Auto-Scaffold**: `collection-scaffold.ts` provisions missing collections via Collection Builder pipeline; wizard button + auto-provision on import
 - **Infer Collection Names**: `infer-collection.ts` sets target collection from source content types (`wp:post_type` → `post`); user can override. Multi-type selection imports into one collection — primary type wins by entry frequency
+
 - **98 Unit Tests**: Full pipeline tests covering parse → ingest → verify → rollback, conflict strategies, schema scaffolding, PII scrubbing, AI health scoring, wizard mappings, content filtering, dependency ordering
 - **Shared Orchestration**: `import-runner.ts`, `known-mappings.ts`, `mapping-tree.ts`, delta engine, PII scrubbing (Pro), background queue at 500+ entries
 - **Freemium Model**: 5 platforms + 9 universal formats free; 31 additional platforms + enterprise features (rollback, delta, PII, webhooks, audit logs) via marketplace license
 - **Full Media Parity**: `migrated-media.server.ts` + `saveResizedImages` variants; respects `MEDIA_OUTPUT_FORMAT_QUALITY`
+
 - **CLI**: `migrate import` / `scaffold` / `delta` / `rollback` / `validate` wired through `runMigrationImport` with auto-scaffold
 - **E2E**: Full import cycle verified — WXR upload → import → `GET /api/collections/{id}` entry assertion
 - **Docs**: `src/plugins/smart-importer/smart-importer.mdx`; platform guides for Drupal and WordPress
@@ -346,6 +390,7 @@ In mid-June 2026, SveltyCMS executed a comprehensive 19-file, multi-phase perfor
 - **Hook timing gate** (`HOOK_TIMING_ENABLED`): Per-request `performance.now()` + `traceSpan` + Map writes gated out in production and under `SVELTY_BENCHMARK_SUITE`. `handleFnRef()` resolved once at pipeline build time instead of per-request.
 - **Pre-compressed cache entries**: On cache MISS, the API handler stores both raw body and pre-compressed Brotli/gzip variants using shared `compressSync`. On cache HIT, pre-made compressed bytes served directly when `Accept-Encoding` matches — zero re-stringify, zero re-compress.
 - **Size observability headers**: `X-Original-Size`, `X-Compressed-Size`, `X-Compression-Ratio`, `X-Compression-Algorithm` emitted on all compressed responses. Compression metrics (`compression.avgOriginalSize`, `avgCompressedSize`, `avgRatio`, `samples`) exported on every benchmark run.
+
 - **Cache clear optimizations**: Direct Set iterators replace `Array.from()` copies in bulk clears. `lastChar` check skips regex when no glob characters. `_isBulkClearing` guard defers per-key tag cleanup to post-clear batch. CDN purge fast-path caches `_cdnActive` flag, skipping dynamic import chain when no Cloudflare credentials configured.
 - **Shared compression utilities**: `setCompressionHeaders()` provides single DRY helper. `negotiateEncoding()` and `hasNativeCompression()` exported for reuse across turbo and API layers.
 
@@ -391,7 +436,11 @@ In mid-June 2026, SveltyCMS executed a comprehensive 19-file, multi-phase perfor
 | OpenAPI cold first-hit      | ~2.2ms on-demand                        | 0ms (pre-warmed)                   |                       Eliminated |
 
 > [!NOTE]
-> **Methodology**: All gains measured via `BENCHMARK_RECORD=1` on Intel i7-13700H, 32GB DDR5, Windows 11, Bun 1.3.14, SQLite WAL mode. Reproduce with `bun run scripts/benchmark-matrix/index.ts --sql`. Pre-fix relational estimates based on N individual SELECT+UPSERT round-trips vs 1 batch query. Gains are targeted and path-specific; full mixed-workload numbers reflect heavier 53-script methodology with real seeding vs lighter historical baselines. Based on publicly available documentation as of June 2026, we are not aware of other headless CMS platforms publicly documenting similar batch-relational optimization depth or compression dictionary training.
+> **Methodology**: All gains measured via `BENCHMARK_RECORD=1` on Intel i7-13700H, 32GB DDR5, Windows 11, Bun 1.3.14, SQLite WAL mode. Reproduce with `bun run scripts/benchmark-matrix/index.ts --sql`.
+>
+> Pre-fix relational estimates based on N individual SELECT+UPSERT round-trips vs 1 batch query. Gains are targeted and path-specific; full mixed-workload numbers reflect heavier 53-script methodology with real seeding vs lighter historical baselines.
+>
+> Based on publicly available documentation as of June 2026, we are not aware of other headless CMS platforms publicly documenting similar batch-relational optimization depth or compression dictionary training.
 
 #### June 20 Stability & Security Hardening
 
@@ -409,7 +458,9 @@ The longevity soak test runs a sustained mixed workload (health checks, collecti
 | Heap Slope     | −0.3 MB/min           | No object leak. A positive slope (>1.0 MB/min) would indicate accumulating references the GC can't free          |
 | Latency Drift  | −0.6 ms/min           | The system gets **faster** under load — JIT warmup and cache population improve response times, not degrade them |
 
-> **Why this matters**: Most systems exhibit positive memory growth under load (slow leaks from unclosed file handles, event listeners, promise chains). A system that _shrinks_ under sustained load has proven its GC hygiene — every allocation is paired with proper cleanup. The negative latency drift is an additional signal: the JIT compiler, connection pool warmup, and L1/L2 cache population all compound to make the system _more_ efficient the longer it runs.
+> **Why this matters**: Most systems exhibit positive memory growth under load (slow leaks from unclosed file handles, event listeners, promise chains). A system that _shrinks_ under sustained load has proven its GC hygiene — every allocation is paired with proper cleanup.
+>
+> The negative latency drift is an additional signal: the JIT compiler, connection pool warmup, and L1/L2 cache population all compound to make the system _more_ efficient the longer it runs.
 
 **Additional stability proofs from the same sprint:**
 
@@ -421,6 +472,8 @@ The longevity soak test runs a sustained mixed workload (health checks, collecti
 | Security Hardening         | 4 fixes (2 CRITICAL token-hashing, 2 HIGH race conditions) | Website and auth tokens now SHA-256 hashed across all adapters; atomic consumeToken with TOCTOU guard                   |
 
 Based on publicly available documentation as of June 2026, **no other headless CMS publishes automated multi-hour memory stability audits with linear regression leak detection** — this class of testing is typically reserved for database engines and operating systems, not application-layer CMS platforms.
+
+This class of testing is typically reserved for database engines and operating systems.
 
 #### June 20 AI Intelligence & Ecosystem Hardening
 
@@ -452,6 +505,8 @@ The marketplace exposes a REST API + License v1 (`POST /api/v1/license/verify`) 
 
 Based on publicly available documentation as of June 2026, **we are not aware of other self-hosted CMS platforms offering server-side behavioral learning, LLM-ready widget code generation, or a hosted marketplace with license verification** — these capabilities are typically SaaS-only with vendor lock-in.
 
+These capabilities are typically SaaS-only with vendor lock-in.
+
 ### 3.5 June 23 Content & Media Architecture Consolidation
 
 A focused sprint to eliminate accidental complexity in the content and media subsystems while preserving all features and performance paths.
@@ -473,6 +528,7 @@ A focused sprint to eliminate accidental complexity in the content and media sub
 - Wired `sharing.ts` into media handler — replaced inline crypto with `createLink()`/`validateLink()` for secure share links with expiry, password protection, IP restrictions, and download limits.
 - Wired `slim-sniffer.server.ts` as binary MIME fallback in upload flow — 2KB native magic-byte detector with zero dependencies.
 - Added 4 DAM API endpoints: bulk download (`GET /api/media/bulk-download`), storage analytics (`GET /api/media/analytics`), version list (`GET /api/media/{id}/version/list`), version compare (`GET /api/media/{id}/version/compare`).
+
 - Implemented real `parseMultipartStream` in `streaming-upload.ts` — chunk-based multipart parser for multi-GB uploads.
 - 40 new unit tests: sharing (13), media-utils (15), slim-sniffer (12).
 - Benchmark-verified: media upload 10MB at **32.3ms** (310 MB/s), SDK processing at **2.7ms** (319 images/s).
@@ -486,6 +542,7 @@ Having secured the "Engine War" with superior performance and security, SveltyCM
 - **Features:** Drag-to-reorder blocks in preview, field-level pulsing highlights, and auto-scroll-to-field interactions via the Enterprise Handshake Bridge.
 - **Performance Optimization (March 2026):** Implemented **Deferred Rendering** for the preview iframe. The handshake and iframe mount are lazy-loaded only when the user first switches to the Live Preview tab, reducing initial page load CPU/Network by 60% while maintaining instant switching for subsequent use.
 - **Fail-Closed API Security (April 2026):** Implemented a central dispatcher gatekeeper requiring mandatory endpoint registration. Any unmapped or unauthorized request is denied by default, eliminating "Shadow API" data leaks.
+
 - **Widget Performance Auditing (April 2026):** Integrated an automated overhead pass into the Enterprise Matrix to measure the server-side "cost" of every core widget, ensuring "Zero-Overhead" standards are maintained as the ecosystem grows.
 - **Result:** Provides an editorial experience that feels "Magic" and exceeds the UX of legacy SaaS platforms.
 
@@ -613,6 +670,7 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **Middleware Revolution**: <0.6ms overhead across the entire security/auth pipeline.
 - **Type-Safe Widget System**: Migration to `ComponentLoader` closures with perfect tree-shaking.
 - **Multi-Adapter Database Parity**: Production-ready support for MongoDB, MariaDB, PostgreSQL, and SQLite.
+
 - **Enterprise Security & Automated Response**: Unified `SecurityResponseService` with Redis-backed state and ReDoS-safe patterns.
 - **CI Pipeline Restoration**: Playwright E2E suite stabilized across all supported databases.
 - **Active Database Driver Validation**: Eliminated "lazy connection" false positives in setup via mandatory `SELECT 1` pings.
@@ -620,10 +678,12 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **API Benchmarking Suite**: Native tests (`test:bench:rest`, `test:bench:graphql`) to prove performance superiority.
 - **Advanced Security Isolation**: Implementation of COOP/COEP headers and refined multi-tenant cookie security for cross-origin isolation.
 - **High-Performance GraphQL**: Resolver memoization and JIT execution reducing API latency and redundant database hits.
+
 - **CLI Maintenance Suite**: Native `cache:clear` utilities for system-wide and tenant-specific operations.
 - **5-Pillar Content Architecture**: Consolidation of 19 fragmented files into 5 high-performance pillars, reducing content system module overhead by **74%**.
 - **99.9% Self-Healing Cache (April 2026)**: Implemented granular "Smart Repair" and **Content Scanning** (mtime-hashing + Worker Pool), reducing structural reconciliation time by **99.9%** (210ms → 0.05ms).
 - **Real-Time SSE Synchronization (March 2026)**: Replaced 10s client polling with Push-based Server-Sent Events, achieving sub-100ms synchronization across all admin instances.
+
 - **Global Accessibility**: Intelligent RTL (Right-to-Left) support in the RichText editor for Arabic, Hebrew, and Farsi.
 - **Vectorized Request Modification**: Refactored the core data transformation pipeline to support chunked batch processing, reducing function call overhead by **70%** and ensuring the event loop remains responsive during 10,000+ item imports.
 - **Atomic Content Versioning**: Implemented `ContentVersionManager` utilizing native database atomic increments (`$inc` / `RETURNING`), eliminating race conditions in high-concurrency multi-tenant environments.
@@ -638,6 +698,7 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **Multi-Cloud Storage Engine**: Universal strategy adapters for S3, R2, and Cloudinary.
 - **Hosted MCP Server**: Model Context Protocol server live at `mcp.sveltycms.com`.
 - **Active Visual Workflow Engine (FSM)**: Production-ready Node-based editor with strict RBAC transition guards, secure crypto IDs, and true `tenantId` isolation across all workflow logic.
+
 - **Enterprise Smart Diff View**: Hardened `diff-utils` implementation performing recursive zero-latency change analysis, protected against circular DOSt vulnerabilities and optimized with Svelte 5 `$derived` metrics.
 - **Multi-Tenant Isolation 2.0**: Mathematical data separation via Universal Tenant Context.
 - **Durable Jobs & Webhooks**: Redis-backed job queue (`svelty_jobs`) and DLQ-aware webhook engine.
@@ -645,14 +706,17 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **Real-Time Collaboration**: CRDT-based concurrent editing (Yjs) over standard HTTP.
 - **Formal Server-Side SDK**: Native `locals.cms` for zero-latency SvelteKit integration.
 - **Essential Utilities**: Standardized high-performance `cn`, `pluralize`, and `slugify` utilities for robust UX foundation.
+
 - **Adaptive Job Scheduler**: Lightweight background job runner with adaptive polling and audit integration for scheduled publishing.
 - **Crypto-Chained Audit Logs**: SHA-256 tamper-evident audit trail with chain verification and per-content viewer.
 - **Per-Field Localization**: Record<Locale, string> field storage with inline locale switchers and one-click AI translation.
 - **Zero-Dependency Full-Text Search**: Database-native FTS across PostgreSQL, MariaDB, SQLite, and MongoDB with no additional npm packages.
+
 - **AI-Smart CMS Migration**: 5-format importer with heuristic field mapping, ACF/CMB2 detection, and drag-and-drop UI.
 - **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) for instant onboarding.
 - **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
 - **Behavioral Learning Engine (June 2026)**: Server-side access pattern tracking with exponential decay scoring, driving adaptive cache warming, smart prefetch, and automatic dashboard reordering.
+
 - **AI Widget Scaffolder (June 2026)**: On-demand code generation for custom 3-pillar widgets from a config object.
 - **Hosted Marketplace (June 2026)**: Plugin/widget ecosystem at marketplace.sveltycms.com with REST API, Stripe checkout, and License v1 verification.
 

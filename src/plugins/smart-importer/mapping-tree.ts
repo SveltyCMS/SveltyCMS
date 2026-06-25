@@ -29,7 +29,10 @@ export interface MappingNode {
   confidence: number;
   action: MappingNodeAction;
   children?: MappingNode[];
-  aiSuggestion?: { level: "critical" | "warning" | "info" | "success"; message: string };
+  aiSuggestion?: {
+    level: "critical" | "warning" | "info" | "success";
+    message: string;
+  };
   sampleValue?: string;
   selected?: boolean;
   open?: boolean;

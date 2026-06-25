@@ -228,7 +228,10 @@ export class WebhookService {
       });
 
       // Update cache
-      this.webhooksCache.set(tenantId, { data: updated, timestamp: Date.now() });
+      this.webhooksCache.set(tenantId, {
+        data: updated,
+        timestamp: Date.now(),
+      });
     }
   }
 

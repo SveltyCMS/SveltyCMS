@@ -72,12 +72,16 @@ export async function connectDatabaseWithResilience(
   const resilience = getDatabaseResilience();
 
   try {
-    await resilience.executeWithRetry(async () => {
-      const result = await adapter.connect();
-      if (!result.success) {
-        throw new Error(result.message || result.error?.message || "Database connection failed");
-      }
-    }, operationName);
+    await resilience.executeWithRetry(
+      async () => {
+        const result = await (adapter as any).connect();
+        if (!result.success) {
+          throw new Error(result.message || result.error?.message || "Database connection failed");
+        }
+      },
+      operationName,
+      undefined,
+    );
 
     bindAdapterResilienceHooks(adapter);
     updateServiceHealth("database", "healthy", "Database connected");
@@ -113,7 +117,7 @@ async function runAdapterReconnection(adapter: IDBAdapter, reason: string): Prom
     const resilience = getDatabaseResilience();
     const ok = await resilience.attemptReconnection(
       async () => {
-        const result = await adapter.connect();
+        const result = await (adapter as any).connect();
         if (!result.success) {
           throw new Error(result.message || result.error?.message || "Reconnect failed");
         }
@@ -144,7 +148,9 @@ export function bindAdapterResilienceHooks(adapter: IDBAdapter): void {
     if (conn?.on) {
       conn.on("disconnected", () => scheduleAdapterReconnection(adapter, "mongodb:disconnected"));
       conn.on("error", (err: Error) => {
-        logger.warn("[Resilience] MongoDB connection error", { message: err.message });
+        logger.warn("[Resilience] MongoDB connection error", {
+          message: err.message,
+        });
         if (!adapter.isConnected()) {
           scheduleAdapterReconnection(adapter, "mongodb:error");
         }

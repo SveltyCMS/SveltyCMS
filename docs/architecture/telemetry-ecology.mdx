@@ -38,7 +38,9 @@ Instead, your CMS generates a unique **Installation ID** by hashing your private
 - **We see:** `a3f0..., 7b29...` (One-way hash).
 - **We NEVER see:** Your actual specific key or domain ownership details unless publicly inferable.
 - This ensures that if you move your site to a new server/IP, your history remains consistent, but unauthorized users cannot spoof your ID without your secret key.
-- **Stable Machine ID:** We generate a secondary "Stable ID" based on hardware traits (OS type, Arch, Core count). This is **100% Anonymized**—the raw hardware data is never transmitted. Instead, it is combined and hashed into a one-way fingerprint on your server, allowing us to recognize when multiple "Installation IDs" (from fresh installs) belong to the same development machine without knowing anything about the machine itself.
+- **Stable Machine ID:** We generate a secondary "Stable ID" based on hardware traits (OS type, Arch, Core count). This is **100% Anonymized** — the raw hardware data is never transmitted.
+
+  Instead, it is combined and hashed into a one-way fingerprint on your server, allowing us to recognize when multiple "Installation IDs" (from fresh installs) belong to the same development machine without knowing anything about the machine itself.
 
 ### Data Collected
 
@@ -63,6 +65,7 @@ To ensure the telemetry service never interferes with user experience or system 
 - **Progressive Activation**: The telemetry check is scheduled during the **WARMING** phase. This ensures it runs strictly in the background after the primary API is already operational.
 - **Connection Awareness**: All external calls respect the `dbAdapter` connection status. If the database is not connected, cycles are skipped gracefully to prevent race conditions during early boot.
 - **Strict Timeouts**: All external calls have mandatory timeouts (5s for Geolocation, 10s for the Heartbeat). If the server is slow, the check is skipped.
+
 - **Fail-Safe Backgrounding**: Telemetry runs strictly in the background using "fire-and-forget" async patterns. It is never awaited by the main request cycle.
 - **Non-Fatal Failures**: Hardware metric collection and network errors are wrapped in `try-catch` blocks. The system fails silently and logs issues as warnings rather than errors.
 - **Rate Limiting**: Each IP address is limited to **1 check per 12 hours** (enforced by client and server).
@@ -82,11 +85,15 @@ To ensure the telemetry service never interferes with user experience or system 
 
 ### SveltyCMS vs. The Monoliths (WP/Drupal)
 
-Legacy monoliths typically lack a unified, non-blocking telemetry system. Users often rely on third-party security plugins or "site health" modules that can execute synchronous network requests, potentially slowing down the admin dashboard. SveltyCMS specifically designs telemetry as a **WARMING phase secondary task**, ensuring it never competes for the critical path resource.
+Legacy monoliths typically lack a unified, non-blocking telemetry system. Users often rely on third-party security plugins or "site health" modules that can execute synchronous network requests, potentially slowing down the admin dashboard.
+
+SveltyCMS specifically designs telemetry as a **WARMING phase secondary task**, ensuring it never competes for the critical path resource.
 
 ### SveltyCMS vs. SaaS (Contentful)
 
-In a SaaS environment like Contentful, "telemetry" is the platform's core—every interaction is tracked, logged, and monetized internally. There is no concept of "Ghost Mode" because the user does not own the infrastructure. SveltyCMS provides the benefits of SaaS analytics (security alerts, update notifications) while maintaining the **sovereignty** of a self-hosted platform, including the ability to completely sever external connections if required for highly secure air-gapped environments.
+In a SaaS environment like Contentful, "telemetry" is the platform's core — every interaction is tracked, logged, and monetized internally. There is no concept of "Ghost Mode" because the user does not own the infrastructure.
+
+SveltyCMS provides the benefits of SaaS analytics (security alerts, update notifications) while maintaining the **sovereignty** of a self-hosted platform, including the ability to completely sever external connections if required for highly secure air-gapped environments.
 
 ## 2. Privacy & Opt-Out
 

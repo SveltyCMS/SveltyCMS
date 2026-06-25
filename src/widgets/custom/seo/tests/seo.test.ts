@@ -91,7 +91,10 @@ describe("SEO Widget - Validation", () => {
       name: "<script>alert('xss')</script>",
     });
 
-    const dataWithMaliciousSchema = { ...validSeoData, schemaMarkup: maliciousSchema };
+    const dataWithMaliciousSchema = {
+      ...validSeoData,
+      schemaMarkup: maliciousSchema,
+    };
     expect(safeParse(schema, dataWithMaliciousSchema).success).toBe(false);
   });
 

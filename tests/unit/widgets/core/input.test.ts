@@ -25,7 +25,12 @@ describe("Input Widget", () => {
   });
 
   it("should handle min/max length constraints", () => {
-    const field = InputWidget({ label: "Title", translated: false, minLength: 5, maxLength: 10 });
+    const field = InputWidget({
+      label: "Title",
+      translated: false,
+      minLength: 5,
+      maxLength: 10,
+    });
     const schema = (field.widget.validationSchema as any)(field);
 
     expect(safeParse(schema, "1234").success).toBe(false);
@@ -34,7 +39,11 @@ describe("Input Widget", () => {
   });
 
   it("should handle required constraint", () => {
-    const field = InputWidget({ label: "Title", translated: false, required: true });
+    const field = InputWidget({
+      label: "Title",
+      translated: false,
+      required: true,
+    });
     const schema = (field.widget.validationSchema as any)(field);
 
     expect(safeParse(schema, "").success).toBe(false);

@@ -197,7 +197,10 @@ const RelationWidget = createWidget<RelationProps>({
               if (relProps.multiple && Array.isArray(val)) {
                 const results = await Promise.all(
                   val.map((id) =>
-                    cms.collections.findById(targetCollection, id, { tenantId, user }),
+                    cms.collections.findById(targetCollection, id, {
+                      tenantId,
+                      user,
+                    }),
                   ),
                 );
                 return results.map((r: any) => (r.success ? r.data : null)).filter(Boolean);

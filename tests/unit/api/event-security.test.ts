@@ -52,7 +52,11 @@ describe("Events API Security - Tenant Isolation", () => {
     try {
       const event = {
         params: { path: "events" },
-        request: { method: "GET", headers: new Headers(), signal: { addEventListener: vi.fn() } },
+        request: {
+          method: "GET",
+          headers: new Headers(),
+          signal: { addEventListener: vi.fn() },
+        },
         locals: { user: mockUser, tenantId: myTenant },
         url: new URL("http://localhost/api/events"),
         cookies: { get: vi.fn() },

@@ -262,7 +262,10 @@ contentStructureSchema.statics = {
         ...(tenantId ? { tenantId } : {}),
       } as any).lean();
       const parent = newParentId
-        ? await this.findOne({ _id: newParentId, ...(tenantId ? { tenantId } : {}) } as any).lean()
+        ? await this.findOne({
+            _id: newParentId,
+            ...(tenantId ? { tenantId } : {}),
+          } as any).lean()
         : null;
 
       if (!node) {

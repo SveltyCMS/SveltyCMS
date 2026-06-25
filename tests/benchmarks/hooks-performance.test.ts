@@ -90,7 +90,11 @@ async function runHooksAudit() {
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const results = [];
     // Collect compression diagnostics (from X- headers set by turbo/compression paths) for visibility of Smart Entropy / payload wins in reports & matrix
-    const compStats: Array<{ orig: number | null; comp: number | null; ratio: string | null }> = [];
+    const compStats: Array<{
+      orig: number | null;
+      comp: number | null;
+      ratio: string | null;
+    }> = [];
 
     for (const scenario of middlewareScenarios) {
       console.log(`   → ${scenario.name}...`);

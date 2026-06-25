@@ -6,7 +6,7 @@
 # Heavy checks (type check, unit tests) are deferred to pre-push.
 # Production builds and integration tests are CI-only.
 #
-# Skip with: git commit --no-verify
+# NEVER Skip with: git commit --no-verify
 # =============================================================================
 set -e
 

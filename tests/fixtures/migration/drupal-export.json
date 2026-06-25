@@ -6,7 +6,10 @@
       "attributes": {
         "title": "Drupal Article One",
         "status": true,
-        "body": { "value": "<p>Article body content</p>", "format": "full_html" },
+        "body": {
+          "value": "<p>Article body content</p>",
+          "format": "full_html"
+        },
         "field_summary": "Short summary",
         "path": { "alias": "/articles/article-one" },
         "created": "2024-01-01T00:00:00+00:00",
@@ -28,8 +31,16 @@
     }
   ],
   "included": [
-    { "type": "taxonomy_term--tags", "id": "tag-1", "attributes": { "name": "Technology" } },
-    { "type": "taxonomy_term--tags", "id": "tag-2", "attributes": { "name": "Design" } },
+    {
+      "type": "taxonomy_term--tags",
+      "id": "tag-1",
+      "attributes": { "name": "Technology" }
+    },
+    {
+      "type": "taxonomy_term--tags",
+      "id": "tag-2",
+      "attributes": { "name": "Design" }
+    },
     {
       "type": "file--file",
       "id": "img-1",
@@ -39,7 +50,11 @@
         "alt": "Hero image"
       }
     },
-    { "type": "user--user", "id": "user-1", "attributes": { "display_name": "Admin User" } }
+    {
+      "type": "user--user",
+      "id": "user-1",
+      "attributes": { "display_name": "Admin User" }
+    }
   ],
   "jsonapi": { "version": "1.0" }
 }

@@ -56,7 +56,9 @@ describe("File Uploading Utilities", () => {
     });
 
     it("should sanitize filename", async () => {
-      const mockFile = new File(["content"], "my file@2024!.png", { type: "image/png" });
+      const mockFile = new File(["content"], "my file@2024!.png", {
+        type: "image/png",
+      });
       (fs.access as any).mockRejectedValue({ code: "ENOENT" });
 
       const result = await uploadFile(mockFile);
@@ -78,7 +80,9 @@ describe("File Uploading Utilities", () => {
     });
 
     it("should throw error if file already exists", async () => {
-      const mockFile = new File(["content"], "exists.png", { type: "image/png" });
+      const mockFile = new File(["content"], "exists.png", {
+        type: "image/png",
+      });
       (fs.access as any).mockResolvedValue(undefined); // File exists
 
       await expect(uploadFile(mockFile)).rejects.toThrow('File "exists.png" already exists');
@@ -122,7 +126,10 @@ describe("File Uploading Utilities", () => {
 
       await deleteDirectory("heavy-folder", true);
 
-      expect(fs.rm).toHaveBeenCalledWith(expect.any(String), { recursive: true, force: true });
+      expect(fs.rm).toHaveBeenCalledWith(expect.any(String), {
+        recursive: true,
+        force: true,
+      });
     });
 
     it("should throw error for empty folder name", async () => {

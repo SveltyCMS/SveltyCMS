@@ -38,7 +38,11 @@ describe("WebAuthn attestation", () => {
     const jwk = publicKey.export({ format: "jwk" }) as JsonWebKey;
 
     const clientDataJSON = Buffer.from(
-      JSON.stringify({ type: "webauthn.get", challenge: "test", origin: "https://localhost" }),
+      JSON.stringify({
+        type: "webauthn.get",
+        challenge: "test",
+        origin: "https://localhost",
+      }),
     );
     const clientDataHash = crypto.createHash("sha256").update(clientDataJSON).digest();
     const authData = Buffer.alloc(37);

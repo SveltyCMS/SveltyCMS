@@ -11,7 +11,13 @@
  */
 export function calculateReadability(text: string) {
   if (!text || text.trim().length === 0) {
-    return { readingEase: 0, gradeLevel: 0, words: 0, sentences: 0, syllables: 0 };
+    return {
+      readingEase: 0,
+      gradeLevel: 0,
+      words: 0,
+      sentences: 0,
+      syllables: 0,
+    };
   }
 
   const cleanText = text.replace(/<[^>]*>/g, " "); // Strip HTML

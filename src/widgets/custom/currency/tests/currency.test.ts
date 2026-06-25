@@ -17,7 +17,11 @@ describe("Currency Widget - Validation", () => {
   });
 
   it("should respect min/max constraints", () => {
-    const field = CurrencyWidget({ label: "Price", minValue: 10, maxValue: 100 });
+    const field = CurrencyWidget({
+      label: "Price",
+      minValue: 10,
+      maxValue: 100,
+    });
     const schema = (field.widget.validationSchema as any)(field);
 
     expect(safeParse(schema, 50).success).toBe(true);

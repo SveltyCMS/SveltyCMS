@@ -223,7 +223,14 @@ Performs case-insensitive regex search on the language-specific key:
 
 ```typescript
 filters: async ({ field, filter, contentLanguage }) => [
-  { $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: "i" } } },
+  {
+    $match: {
+      [`${field.db_fieldName}.${contentLanguage}`]: {
+        $regex: filter,
+        $options: "i",
+      },
+    },
+  },
 ];
 ```
 

@@ -37,7 +37,9 @@ describe("CBOR Decoder Unit Tests", () => {
 
   it("should decode maps (objects)", () => {
     expect(decodeCBOR(Uint8Array.from([0xa0]))).toEqual({});
-    expect(decodeCBOR(Uint8Array.from([0xa1, 0x61, 0x61, 0x01]))).toEqual({ a: 1 });
+    expect(decodeCBOR(Uint8Array.from([0xa1, 0x61, 0x61, 0x01]))).toEqual({
+      a: 1,
+    });
   });
 
   it("should decode simple/float values", () => {

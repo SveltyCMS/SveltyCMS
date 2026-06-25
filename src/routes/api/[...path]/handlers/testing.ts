@@ -611,7 +611,10 @@ export async function handleTestingRoutes(
       }
       // 🚀 BATCH SYNC: Refresh once for all collections
       const { refreshContent } = await import("@src/content/engine.server");
-      await refreshContent(tenantId, { mode: "schemas", adapter: initializedAdapter });
+      await refreshContent(tenantId, {
+        mode: "schemas",
+        adapter: initializedAdapter,
+      });
 
       // 🚀 INVALIDATE OpenAPI spec cache so new collections appear in the API spec
       const { apiSpecService } = await import("@services/system/api-spec-service");
@@ -1208,7 +1211,10 @@ export async function handleTestingRoutes(
 
       // Sync content store + SDK schema cache so PATCH/GET see API-seeded entries immediately
       const { refreshContent } = await import("@src/content/engine.server");
-      await refreshContent(tenantId, { mode: "schemas", adapter: initializedAdapter });
+      await refreshContent(tenantId, {
+        mode: "schemas",
+        adapter: initializedAdapter,
+      });
       if (cms.collections?.refresh) {
         await cms.collections.refresh(tenantId as any, true);
       }

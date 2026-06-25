@@ -1,20 +1,13 @@
 /**
  * @file src/hooks/handle-token-resolution.ts
- * @description
- * Middleware hook for RBAC-aware token resolution in API responses.
- * Replaces dynamic tokens (e.g. [[SITE_NAME]]) with actual values based on user permissions.
- *
- * Performance:
- * - Status-gated: only processes 2xx responses.
- * - Size-gated: skips payloads > 5MB to prevent memory spikes.
- * - Internal-bypass: skips requests with X-Svelty-Internal header.
+ * @description Hardened RBAC-aware token resolution with content-length synchronization and size-safety checks.
  */
 
 import { processTokensInResponse } from "@src/services/token/helper";
 import type { Handle } from "@sveltejs/kit";
 import { handleApiError } from "@utils/error-handling";
 
-const MAX_JSON_SIZE = 5 * 1024 * 1024; // 5MB limit for token processing
+const MAX_JSON_SIZE = 5 * 1024 * 1024;
 const EXCLUDED_PREFIXES = [
   "/api/system",
   "/api/dashboard",
@@ -24,38 +17,45 @@ const EXCLUDED_PREFIXES = [
 ];
 
 export const handleTokenResolution: Handle = async ({ event, resolve }) => {
+  const pathname = event.url.pathname;
+
+  // Fast-path triage before resolve to save microtask cycles
+  if (!pathname.startsWith("/api/")) return resolve(event);
+
+  if (event.request.headers.get("X-Svelty-Internal") === "true") return resolve(event);
+
+  for (let i = 0; i < EXCLUDED_PREFIXES.length; i++) {
+    if (pathname.startsWith(EXCLUDED_PREFIXES[i])) return resolve(event);
+  }
+
   try {
     const response = await resolve(event);
 
-    // 1. PERFORMANCE: Only process successful JSON API responses
     const status = response.status;
-    if (status < 200 || status >= 300) return response;
+    if (status < 200 || status >= 300 || status === 204) return response;
 
     const contentType = response.headers.get("content-type");
     if (!contentType?.includes("application/json")) return response;
 
-    const pathname = event.url.pathname;
-    if (!pathname.startsWith("/api/")) return response;
-
-    // 2. SECURITY: Bypass if internal header is present or path is excluded
-    if (event.request.headers.get("X-Svelty-Internal") === "true") return response;
-
-    if (EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-      return response;
+    // Size gating on both content-length and actual body
+    const contentLengthStr = response.headers.get("content-length");
+    if (contentLengthStr) {
+      const contentLength = parseInt(contentLengthStr, 10);
+      if (!isNaN(contentLength) && contentLength > MAX_JSON_SIZE) return response;
     }
 
-    // 3. PERFORMANCE: Size-gating to prevent OOM on massive responses
-    const contentLength = response.headers.get("content-length");
-    if (contentLength && parseInt(contentLength, 10) > MAX_JSON_SIZE) {
-      return response;
-    }
-
-    // 4. CLONE & PARSE
-    // Clone response to read body (streaming-safe)
     const clonedResponse = response.clone();
-    const body = await clonedResponse.json();
+    const responseText = await clonedResponse.text();
 
-    // 5. RBAC-Aware Processing
+    if (responseText.length > MAX_JSON_SIZE) return response;
+
+    let body: any;
+    try {
+      body = JSON.parse(responseText);
+    } catch {
+      return response;
+    }
+
     const processed = await processTokensInResponse(
       body,
       event.locals.user || undefined,
@@ -66,14 +66,19 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
       },
     );
 
-    // Return new response with processed body
-    return new Response(JSON.stringify(processed), {
+    const serializedPayload = JSON.stringify(processed);
+
+    // Recalculate Content-Length for mutated payload
+    const mutableHeaders = new Headers(response.headers);
+    mutableHeaders.set("Content-Length", String(Buffer.byteLength(serializedPayload, "utf-8")));
+    mutableHeaders.set("X-Token-Resolved", "true");
+
+    return new Response(serializedPayload, {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers,
+      headers: mutableHeaders,
     });
   } catch (err) {
-    // Unified error handling for token processing failures
     return handleApiError(err, event);
   }
 };

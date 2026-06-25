@@ -212,7 +212,11 @@ describe("theme-merge utilities", () => {
 
   it("resolveLoginBranding exposes tenant site name when branded login is on", () => {
     const branding = resolveLoginBranding(
-      { features: { brandedLogin: true }, variant: "elevated", customCss: ".x {}" },
+      {
+        features: { brandedLogin: true },
+        variant: "elevated",
+        customCss: ".x {}",
+      },
       "Acme CMS",
     );
     expect(branding.siteName).toBe("Acme CMS");

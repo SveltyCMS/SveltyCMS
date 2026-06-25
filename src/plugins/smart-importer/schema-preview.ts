@@ -67,7 +67,10 @@ export function buildProposedFieldsFromMappings(
 export function computeSchemaDiffReport(
   existingSchema: Schema | undefined,
   mappings: MappingFieldInput[],
-): SchemaDiffReport & { collectionExists: boolean; proposedFieldCount: number } {
+): SchemaDiffReport & {
+  collectionExists: boolean;
+  proposedFieldCount: number;
+} {
   const existing = extractExistingCollectionFields(existingSchema);
   const proposed = buildProposedFieldsFromMappings(mappings);
   const diff = generateSchemaDiff(existing, proposed);

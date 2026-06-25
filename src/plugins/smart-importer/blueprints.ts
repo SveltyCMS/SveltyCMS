@@ -142,7 +142,12 @@ export const BUILT_IN_BLUEPRINTS: ImportBlueprint[] = [
     ],
     conflictStrategy: "skip",
     mediaStrategy: "optimize",
-    mediaConfig: { maxWidth: 1920, maxHeight: 1080, convertTo: "webp", quality: 80 },
+    mediaConfig: {
+      maxWidth: 1920,
+      maxHeight: 1080,
+      convertTo: "webp",
+      quality: 80,
+    },
     metadata: {
       author: "SveltyCMS",
       tags: ["wordpress", "blog"],

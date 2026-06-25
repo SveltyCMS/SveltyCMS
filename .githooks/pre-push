@@ -6,7 +6,7 @@
 # reaches the remote. This catches broken type contracts and test failures
 # that the fast pre-commit loop (staged-files-only) intentionally skips.
 #
-# Skip with: git push --no-verify
+# NEVER Skip with: git push --no-verify
 # =============================================================================
 set -e
 

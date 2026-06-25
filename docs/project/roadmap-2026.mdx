@@ -1,7 +1,7 @@
 ---
 path: "docs/project/roadmap-2026.mdx"
 title: "Project Roadmap 2026"
-description: "SveltyCMS 2026 TODO list — upcoming milestones, in-progress work, and recently completed items."
+description: "SveltyCMS 2026 roadmap — upcoming milestones, in-progress work, and recently completed items."
 order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
@@ -18,15 +18,17 @@ tags:
 > [!NOTE]
 > **EU Compliance**: Based on publicly available documentation as of June 2026. Performance measurements where cited: Intel i7-13700H, 32GB DDR5, Bun 1.3.14, SQLite WAL. Reproduce with BENCHMARK_RECORD=1 bun test tests/benchmarks/. See Technical Evaluation for details.
 
-This document is the **living TODO list** — only in-progress and planned work. Completed achievements are documented in [Technical Evaluation](./technical-evaluation-2026.mdx).
+This document is the **living roadmap** — only in-progress and planned work. Completed achievements are documented in [Technical Evaluation](./technical-evaluation-2026.mdx).
 
 ## ✅ Recently Completed (June 2026)
 
 - **Content System Consolidation** — 16→9 files (engine.server.ts + loader.server.ts + unified facades). Single scanner, single init coordinator, unified `refreshContent({ mode })`, dead code removed (~200 lines), `contentSystemBase` de-duplicated. 20 new reconciliation unit tests.
 - **Media System Optimization** — 17→14 files. Duplicate MIME tables merged into `media-utils.ts` (65-type DB + reverse lookup). `sharing.ts` wired into media handler (replaced inline crypto with `createLink`/`validateLink`). `slim-sniffer.server.ts` wired as binary MIME fallback in upload flow. 40 new unit tests (sharing, MIME utils, binary sniffer).
 - **Smart Importer v2.1** — 5-step visual wizard (`/config/migration`), unified `import-runner` orchestration, SSE streaming import, delta/PII Pro gates, full CMS media parity (`saveResizedImages`), background job queue (500+ entries).
+
 - **Auto-scaffold collections** — `collection-scaffold.ts` mirrors Collection Builder pipeline (TS → compile → refresh → `createModel`); wizard Step 3 **Create Collection from Mappings** + auto-provision on import.
 - **Data-driven collection naming** — `infer-collection.ts` derives target collection from source content types (`wp:post_type` → `post`) with manual override in the wizard.
+
 - **Shared mappings & permissions** — `known-mappings.ts` (wizard + CLI); `hasCollectionBuilderPermission()` (`config:collectionbuilder`) for scaffold/import.
 - **E2E coverage** — WordPress WXR detect, dry-run scaffold UI, full import → API verification (`tests/e2e/helpers/migration-wizard.ts`).
 
@@ -34,7 +36,9 @@ See [Technical Evaluation — Smart Importer](./technical-evaluation-2026.mdx#sm
 
 ## 🗄️ Media DAM (Digital Asset Management)
 
-**Wired & Tested**: sharing.ts (secure links), slim-sniffer.server.ts (binary MIME fallback), media-utils.ts (65-type MIME DB), media-processing.server.ts (Sharp hash/metadata/thumbnails), cloud-storage.ts (SSRF-protected S3/R2), media-service.server.ts (upload + dedup + versions), advanced-search.ts (media library modal), webgpu-processor.ts (browser-side), bulk-download.ts (TAR.GZ streaming endpoint), storage-analytics.ts (breakdown/insights/trends endpoint), version-history.ts (list + compare endpoints), streaming-upload.ts (real multipart parser).
+**Wired & Tested**: sharing.ts (secure links), slim-sniffer.server.ts (binary MIME fallback), media-utils.ts (65-type MIME DB), media-processing.server.ts (Sharp hash/metadata/thumbnails), cloud-storage.ts (SSRF-protected S3/R2), media-service.server.ts (upload + dedup + versions).
+
+Additional integrations: advanced-search.ts (media library modal), webgpu-processor.ts (browser-side), bulk-download.ts (TAR.GZ streaming endpoint), storage-analytics.ts (breakdown/insights/trends endpoint), version-history.ts (list + compare endpoints), streaming-upload.ts (real multipart parser).
 
 **Pending UI Wiring Only** (API endpoints complete): Bulk download archive button, analytics dashboard widget, version diff UI in media details modal, streaming upload handler integration.
 

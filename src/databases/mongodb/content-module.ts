@@ -65,9 +65,16 @@ export class MongoContentModule
     publishMany: async (draftIds: DatabaseId[]) => {
       const res = await (await this._getContent()).publishManyDrafts(draftIds);
       if (res.success) {
-        return { success: true as const, data: { publishedCount: res.data?.modifiedCount || 0 } };
+        return {
+          success: true as const,
+          data: { publishedCount: res.data?.modifiedCount || 0 },
+        };
       }
-      return { success: false as const, message: res.message, error: res.error };
+      return {
+        success: false as const,
+        message: res.message,
+        error: res.error,
+      };
     },
     getForContent: async (contentId: DatabaseId, options?: PaginationOptions) =>
       (await this._getContent()).getDraftsForContent(contentId, options),
@@ -85,9 +92,16 @@ export class MongoContentModule
         permanent: true,
       });
       if (res.success) {
-        return { success: true as const, data: { deletedCount: res.data?.deletedCount || 0 } };
+        return {
+          success: true as const,
+          data: { deletedCount: res.data?.deletedCount || 0 },
+        };
       }
-      return { success: false as const, message: res.message, error: res.error };
+      return {
+        success: false as const,
+        message: res.message,
+        error: res.error,
+      };
     },
   };
 
@@ -111,7 +125,11 @@ export class MongoContentModule
       if (res.success) {
         return { success: true as const, data: res.data[0] };
       }
-      return { success: false as const, message: res.message, error: res.error };
+      return {
+        success: false as const,
+        message: res.message,
+        error: res.error,
+      };
     },
     bulkUpdate: async (updates: any[], options?: any) => {
       const validUpdates = updates
@@ -132,9 +150,16 @@ export class MongoContentModule
     deleteMany: async (paths: string[], options?: any) => {
       const res = await (await this._getContent()).deleteNodesByPaths(paths, options);
       if (res.success) {
-        return { success: true as const, data: { deletedCount: res.data?.deletedCount || 0 } };
+        return {
+          success: true as const,
+          data: { deletedCount: res.data?.deletedCount || 0 },
+        };
       }
-      return { success: false as const, message: res.message, error: res.error };
+      return {
+        success: false as const,
+        message: res.message,
+        error: res.error,
+      };
     },
   };
 
@@ -157,9 +182,16 @@ export class MongoContentModule
         { permanent: true },
       );
       if (res.success) {
-        return { success: true as const, data: { deletedCount: res.data?.deletedCount || 0 } };
+        return {
+          success: true as const,
+          data: { deletedCount: res.data?.deletedCount || 0 },
+        };
       }
-      return { success: false as const, message: res.message, error: res.error };
+      return {
+        success: false as const,
+        message: res.message,
+        error: res.error,
+      };
     },
     cleanup: async (contentId: DatabaseId, keepLatest: number) =>
       (await this._getContent()).cleanupRevisions(contentId, keepLatest),

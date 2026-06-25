@@ -8,8 +8,8 @@ with the AI collaboration assistant.
 -->
 
 <script lang="ts">
-		import Button from '@components/ui/button.svelte';
-		import Input from '@components/ui/input.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';

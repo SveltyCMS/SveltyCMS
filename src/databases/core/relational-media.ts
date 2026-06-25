@@ -58,14 +58,18 @@ export class RelationalMediaModule implements IMediaAdapter {
         file: EntityCreate<MediaItem>,
         tenantId?: string | null,
       ): Promise<DatabaseResult<MediaItem>> => {
-        return this.crud.insert("media_items", file, { tenantId: tenantId as any });
+        return this.crud.insert("media_items", file, {
+          tenantId: tenantId as any,
+        });
       },
 
       uploadMany: async (
         files: EntityCreate<MediaItem>[],
         tenantId?: string | null,
       ): Promise<DatabaseResult<MediaItem[]>> => {
-        return this.crud.insertMany("media_items", files, { tenantId: tenantId as any });
+        return this.crud.insertMany("media_items", files, {
+          tenantId: tenantId as any,
+        });
       },
 
       delete: async (
@@ -226,7 +230,10 @@ export class RelationalMediaModule implements IMediaAdapter {
           if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
 
           const results = await this.db
-            .select({ _id: this.schema.mediaItems._id, metadata: this.schema.mediaItems.metadata })
+            .select({
+              _id: this.schema.mediaItems._id,
+              metadata: this.schema.mediaItems.metadata,
+            })
             .from(this.schema.mediaItems)
             .where(and(...conditions));
 
@@ -341,7 +348,10 @@ export class RelationalMediaModule implements IMediaAdapter {
 
             await this.db
               .update(this.schema.mediaItems)
-              .set({ isDeleted: false, updatedAt: isoDateStringToDate(nowISODateString()) })
+              .set({
+                isDeleted: false,
+                updatedAt: isoDateStringToDate(nowISODateString()),
+              })
               .where(and(...conditions));
           },
           "RESTORE_FILE_FAILED",
@@ -421,7 +431,9 @@ export class RelationalMediaModule implements IMediaAdapter {
         folderId: DatabaseId,
         tenantId?: DatabaseId | null,
       ): Promise<DatabaseResult<void>> => {
-        return this.crud.delete("system_virtual_folders", folderId, { tenantId: tenantId as any });
+        return this.crud.delete("system_virtual_folders", folderId, {
+          tenantId: tenantId as any,
+        });
       },
 
       deleteMany: async (
