@@ -15,15 +15,27 @@ const ROOT = join(import.meta.dir, "..");
 const APP_ROUTES = join(ROOT, "src", "routes", "(app)");
 
 const PAGE_SHELL_MARKERS = ["AdminPageShell", "admin-page-shell.svelte"];
+
+// Collection routes use their own dynamic shell — not AdminPageShell
+const SKIP_SHELL_CHECK = ["[language]/[...collection]/+page.svelte"];
 const LEGACY_ANTI_PATTERNS: { pattern: RegExp; message: string }[] = [
-  { pattern: /container\s+mx-auto/, message: "Use AdminPageShell instead of container mx-auto" },
-  { pattern: /table-container/, message: "Use overflow-x-auto + divide-y table pattern" },
+  {
+    pattern: /container\s+mx-auto/,
+    message: "Use AdminPageShell instead of container mx-auto",
+  },
+  {
+    pattern: /table-container/,
+    message: "Use overflow-x-auto + divide-y table pattern",
+  },
   { pattern: /table-hover/, message: "Remove legacy table-hover class" },
   {
     pattern: /<h1\s+class="text-3xl/,
     message: "Use PageTitle via AdminPageShell instead of inline h1",
   },
-  { pattern: /bg-surface-50\/50/, message: "Use solid bg-surface-50 dark:bg-surface-950 shell" },
+  {
+    pattern: /bg-surface-50\/50/,
+    message: "Use solid bg-surface-50 dark:bg-surface-950 shell",
+  },
   {
     pattern: /class="input"/,
     message: 'Use Input/Select components instead of legacy class="input"',
@@ -52,6 +64,7 @@ for (const file of files) {
   const content = readFileSync(file, "utf-8");
 
   if (file.endsWith("+page.svelte")) {
+    if (SKIP_SHELL_CHECK.some((p) => rel.endsWith(p))) continue;
     const hasShell = PAGE_SHELL_MARKERS.some((m) => content.includes(m));
     const hasLegacyShell =
       content.includes("admin-theme-container") ||

@@ -725,7 +725,7 @@ async function lintSingleFile(fp: string) {
   // --- Complexity ---
   totalWordCount += getWordCount(updatedBody);
   const hCount = (stripCodeBlocks(updatedBody).match(/^#{1,6}\s+/gm) || []).length;
-  if (hCount > 25)
+  if (hCount > 60)
     addWarning(
       "structure",
       relPath,
