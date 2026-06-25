@@ -28,13 +28,14 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { collection, contentStructure, setMode } from '@src/stores/collection-store.svelte.ts';
 	import { app } from '@src/stores/store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
-	import { ui } from '@src/stores/ui-store.svelte.ts';
+	import { ui, toggleUIElement, userPreferredState } from '@src/stores/ui-store.svelte.ts';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { debounce } from '@utils/utils';
 	import { validateSchemaWidgets } from '@widgets/widget-validation';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+import { collection_no_collections_found, collections_search } from '@src/paraglide/messages';
 
 	interface ExtendedContentNode extends ContentNode {
 		children?: ExtendedContentNode[];
@@ -165,6 +166,11 @@ Provides an organized interface for navigating hierarchical content structures.
 		}
 	});
 
+	// Initialize widget store on mount
+	$effect(() => {
+		widgets.initialize().catch((err) => console.error('[Collections] Widget init failed:', err));
+	});
+
 	// Compute all unique tags for filter dropdown
 	const allTags = $derived.by(() => {
 		const set = new Set<string>();
@@ -204,7 +210,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	});
 
 	// Derived UI & data
-	let isFullSidebar = $derived(ui.state.leftSidebar === 'full');
+	const isFullSidebar = $derived(ui.state.leftSidebar === 'full');
 	let currentLanguage = $derived(app.contentLanguage);
 	let selectedId = $derived(collection.value?._id ?? null);
 	let activeWidgetList = $derived(widgets.activeWidgets);
@@ -527,17 +533,16 @@ Provides an organized interface for navigating hierarchical content structures.
 	{/if}
 
 	<!-- Search -->
-	<div class="relative {isFullSidebar ? 'w-full' : 'w-12'}">
-		<Input
-			id="collections-search"
-			type="search"
-			bind:value={search}
-			placeholder="Search collections..."
-			inputClass="pe-11 {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
-			aria-label="Search collections"
-		/>
-
-		{#if isFullSidebar}
+	{#if isFullSidebar}
+		<div class="relative w-full">
+			<Input
+				id="collections-search"
+				type="search"
+				bind:value={search}
+				placeholder={collections_search()}
+				inputClass="pe-11 h-12 py-3"
+				aria-label="Search collections"
+			/>
 			<div class="absolute inset-e-0 top-0 flex h-full items-center">
 				{#if isSearching}
 					<div class="flex h-10 w-10 items-center justify-center">
@@ -548,18 +553,33 @@ Provides an organized interface for navigating hierarchical content structures.
 						variant="outline"
 						type="button"
 						onclick={() => (search = '')}
-						class="rounded-full h-9 w-9 mt-0.5 me-0.5"
-					>
-						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
+						aria-label="Clear search"
+					 class="rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 me-0.5">
+						<iconify-icon icon="ic:round-close" width={16}></iconify-icon>
 					</Button>
 				{:else}
-					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 me-0.5">
-						<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
+					<!-- Search with icon -->
+					<div class="flex items-center justify-center rounded-e h-9 w-9 mt-0.5 me-0.5">
+						<iconify-icon icon="ic:outline-search" width={18}></iconify-icon>
 					</div>
 				{/if}
 			</div>
-		{/if}
-	</div>
+		</div>
+	{:else}
+		<div class="flex justify-center">
+			<Button variant="ghost"
+				type="button"
+				onclick={() => {
+					toggleUIElement('leftSidebar', 'full');
+					userPreferredState.set('full');
+				}}
+				aria-label="Search collections"
+				class="flex h-10 w-10 items-center justify-center p-0! min-w-0 rounded-full hover:bg-surface-200/60 dark:hover:bg-surface-700/50"
+			>
+				<iconify-icon icon="ic:outline-search" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			</Button>
+		</div>
+	{/if}
 
 	<!-- Custom Order Banner -->
 	{#if orderOverrides.size > 0}
@@ -574,22 +594,10 @@ Provides an organized interface for navigating hierarchical content structures.
 	<!-- Tree -->
 	<div class="collections-list" role="tree" aria-label="Collection tree">
 		{#if treeNodes.length === 0}
-			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center text-surface-500">
-				{#if !widgets.isLoaded}
-					<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
-					<p class="text-xs">Loading collections…</p>
-				{:else if search || showOnlyFavorites || selectedTagFilter}
-					<iconify-icon icon="bi:search" width={28}></iconify-icon>
-					<p class="text-sm">No collections match your current filters.</p>
-					<Button variant="outline" type="button" size="sm" onclick={clearAllFilters}>Clear filters</Button>
-				{:else}
-					<iconify-icon icon="bi:collection" width={28}></iconify-icon>
-					<p class="text-sm">No collections found.</p>
+			<div class="flex flex-col items-center justify-center {isFullSidebar ? 'gap-2 p-6' : 'pt-4'} text-center">
+				{#if isFullSidebar}
+					<p class="text-sm text-surface-500 dark:text-surface-50">{collection_no_collections_found()}</p>
 				{/if}
-			</div>
-		{:else if !widgets.isLoaded}
-			<div class="flex h-24 items-center justify-center">
-				<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
 			</div>
 		{:else}
 			<TreeView

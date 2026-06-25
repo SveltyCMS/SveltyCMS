@@ -277,3 +277,45 @@
     @apply bg-surface-950 text-surface-100;
   }
 }
+
+/* ========================================================================
+   🎯 SCROLLBARS
+   ======================================================================== */
+/* Webkit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #171717;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #868686;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #171717 transparent;
+}
+
+/* ========================================================================
+   🎯 CURSORS
+   ======================================================================== */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+summary,
+label,
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="reset"],
+input[type="file"]::file-selector-button,
+select,
+option {
+  cursor: pointer;
+}
