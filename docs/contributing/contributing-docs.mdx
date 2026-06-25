@@ -178,19 +178,19 @@ These rules are enforced. A PR that violates them will not be merged.
 
 Place files only in these locations. No other locations are permitted.
 
-| Content Type       | Location                                           | Reason                                           |
-| :----------------- | :------------------------------------------------- | :----------------------------------------------- |
-| **API Reference**  | `/docs/api/`                                       | Single unified surface for all endpoint docs.    |
-| **General Guides** | `/docs/guides/`                                    | Central library for feature and workflow guides. |
-| **Architecture**   | `/docs/architecture/`                              | Internal mechanics and system design.            |
-| **Contributing**   | `/docs/contributing/`                              | Process and standards docs (like this file).     |
-| **Concepts**        | `/docs/concepts/`                                  | Mental model overviews — 3-4 short pages.         |
+| Content Type         | Location                                           | Reason                                           |
+| :------------------- | :------------------------------------------------- | :----------------------------------------------- |
+| **API Reference**    | `/docs/api/`                                       | Single unified surface for all endpoint docs.    |
+| **General Guides**   | `/docs/guides/`                                    | Central library for feature and workflow guides. |
+| **Architecture**     | `/docs/architecture/`                              | Internal mechanics and system design.            |
+| **Contributing**     | `/docs/contributing/`                              | Process and standards docs (like this file).     |
+| **Concepts**         | `/docs/concepts/`                                  | Mental model overviews — 3-4 short pages.        |
 | **Migration Guides** | `/docs/guides/migration/`                          | "Moving from X" guides (WordPress, Strapi, etc). |
-| **Widget Docs**    | `src/widgets/core/{widget-name}/{widget-name}.mdx` | Co-located with source for maintainability.      |
+| **Widget Docs**      | `src/widgets/core/{widget-name}/{widget-name}.mdx` | Co-located with source for maintainability.      |
 
 #### Canonical Structure Reference
 
-```text
+````text
 SveltyCMS/
 ├── docs/
 │   ├── api/                              # ALL API docs — no exceptions
