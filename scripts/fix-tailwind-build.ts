@@ -6,13 +6,7 @@
  * Usage: bun run scripts/fix-tailwind-build.ts (run once before build)
  */
 
-import {
-  mkdirSync,
-  writeFileSync,
-  existsSync,
-  rmSync,
-  symlinkSync,
-} from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { platform } from "node:os";
 
@@ -56,11 +50,7 @@ function ensureParent(dirPath: string): void {
   if (!existsSync(parent)) mkdirSync(parent, { recursive: true });
 }
 
-function createJunction(
-  aliasDir: string,
-  targetAbs: string,
-  label: string,
-): boolean {
+function createJunction(aliasDir: string, targetAbs: string, label: string): boolean {
   ensureParent(aliasDir);
   removeExisting(aliasDir);
   try {
@@ -91,10 +81,7 @@ for (const [alias, { target, main }] of Object.entries(ALIAS_MAP)) {
       type: "module",
     };
     if (main) pkg.main = `../../${main}`;
-    writeFileSync(
-      join(aliasDir, "package.json"),
-      JSON.stringify(pkg, null, 2) + "\n",
-    );
+    writeFileSync(join(aliasDir, "package.json"), JSON.stringify(pkg, null, 2) + "\n");
     console.log(`   ⚠️  ${alias} → ${target} [stub]`);
   }
 }
@@ -103,7 +90,7 @@ for (const [alias, { target, main }] of Object.entries(ALIAS_MAP)) {
 const VIRTUAL_STUBS: Record<string, { subpaths: string[]; code: string }> = {
   $app: {
     subpaths: ["environment", "navigation", "forms", "state", "paths", "stores"],
-    code: 'export const browser=false;export const dev=false;export const building=true;export const page={};export const navigating=null;export const updated={current:false,check:async()=>false};export async function goto(){};export async function invalidate(){};export async function invalidateAll(){};export async function preloadData(){};export async function preloadCode(){};export function beforeNavigate(){};export function afterNavigate(){};export function onNavigate(){};export function enhance(){return()=>{};};export const getStores=()=>({});',
+    code: "export const browser=false;export const dev=false;export const building=true;export const page={};export const navigating=null;export const updated={current:false,check:async()=>false};export async function goto(){};export async function invalidate(){};export async function invalidateAll(){};export async function preloadData(){};export async function preloadCode(){};export function beforeNavigate(){};export function afterNavigate(){};export function onNavigate(){};export function enhance(){return()=>{};};export const getStores=()=>({});",
   },
   $env: {
     subpaths: ["dynamic/private", "dynamic/public", "static/private", "static/public"],
@@ -118,7 +105,14 @@ for (const [pkgName, { subpaths, code }] of Object.entries(VIRTUAL_STUBS)) {
   writeFileSync(
     join(pkgDir, "package.json"),
     JSON.stringify(
-      { name: pkgName, version: "0.0.0", private: true, type: "module", main: "./index.js", exports: { ".": "./index.js", "./*": "./*.js" } },
+      {
+        name: pkgName,
+        version: "0.0.0",
+        private: true,
+        type: "module",
+        main: "./index.js",
+        exports: { ".": "./index.js", "./*": "./*.js" },
+      },
       null,
       2,
     ) + "\n",
@@ -133,4 +127,6 @@ for (const [pkgName, { subpaths, code }] of Object.entries(VIRTUAL_STUBS)) {
   console.log(`   ✅ ${pkgName} [${subpaths.length} subpaths]`);
 }
 
-console.log(`\n📦 Done: ${ok} junctions, ${fallback} stubs, ${Object.keys(VIRTUAL_STUBS).length} virtual stubs\n`);
+console.log(
+  `\n📦 Done: ${ok} junctions, ${fallback} stubs, ${Object.keys(VIRTUAL_STUBS).length} virtual stubs\n`,
+);
