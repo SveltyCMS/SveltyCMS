@@ -62,6 +62,7 @@
 	import { scale } from 'svelte/transition';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';
 
+
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
 	const LANGUAGE_DROPDOWN_THRESHOLD = 5;
@@ -245,17 +246,9 @@
 			<span class="base-font-color relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
 		</a>
 	{:else}
-		<div class="flex justify-start gap-2">
-			<Button variant="ghost"
-				type="button"
-				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
-				aria-label="Close Sidebar"
-			 class="p-0! min-w-0 preset-outline-surface-500 mt-1">
-				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
-			</Button>
-
-			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 no-underline!">
-				<SveltyCMSLogo fill="red" className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2" />
+		<div class="flex justify-center pt-2">
+			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center no-underline!">
+				<SveltyCMSLogo fill="red" className="h-9" />
 			</a>
 		</div>
 	{/if}
@@ -264,28 +257,45 @@
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 		positioning={{ placement: 'right' }}
-		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
+		triggerClass="absolute top-2 z-20 ltr:-end-6 rtl:-start-6"
 	>
 		<Button variant="ghost"
 			type="button"
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			aria-expanded={isSidebarFull}
-			class="flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0! min-w-0 dark:border-white"
+			class="flex h-10 w-10 items-center justify-center rounded-full! border border-surface-400 p-0! min-w-0 dark:border-surface-500"
 		>
 			<iconify-icon
-				icon="bi:arrow-left-circle-fill"
-				width="34"
-				class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
+				icon="bi:arrow-left"
+				width="24"
+				class="text-surface-700 dark:text-surface-200 transition-transform {isSidebarFull
 					? 'rotate-0 rtl:rotate-180'
 					: 'rotate-180 rtl:rotate-0'}"
 			></iconify-icon>
 			</Button>
 		</SystemTooltip>
 
+	{#if !isSidebarFull}
+		<SystemTooltip
+			title="Hide Sidebar"
+			positioning={{ placement: 'right' }}
+			triggerClass="absolute top-14 z-20 ltr:-end-6 rtl:-start-6"
+		>
+			<Button variant="ghost"
+				type="button"
+				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
+				aria-label="Hide Sidebar"
+				class="flex h-10 w-10 items-center justify-center rounded-full! border border-surface-400 p-0! min-w-0 dark:border-surface-500"
+			>
+				<iconify-icon icon="bi:list" width="24" class="text-surface-700 dark:text-surface-200"></iconify-icon>
+			</Button>
+		</SystemTooltip>
+	{/if}
+
 	<!-- Navigation: Collapsible Sections -->
 	<div
-		class="flex-1 pe-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container {ui.routeContext.isSystemSettings
+		class="flex-1 pe-1 {isSidebarFull ? 'space-y-4 my-4' : 'space-y-2 my-2'} max-h-[calc(100vh-220px)] navigation-scroll-container overflow-x-hidden {ui.routeContext.isSystemSettings
 			? 'overflow-y-hidden flex flex-col'
 			: 'overflow-y-auto'}"
 	>
@@ -298,7 +308,7 @@
 					<Button variant="ghost"
 						type="button"
 						onclick={() => isPinnedOpen = !isPinnedOpen}
-						class="flex w-full items-center justify-between py-1.5 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-1' : 'justify-center'}"
+						class="flex w-full items-center justify-between py-1.5 text-xs font-bold uppercase tracking-wider rounded bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-100/80 dark:hover:bg-surface-700/50 {isSidebarFull ? 'px-1' : 'justify-center'}"
 					 aria-label="Toggle pinned items">
 						<span class="flex items-center gap-1.5">
 							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -344,38 +354,11 @@
 						</div>
 					{/if}
 				</div>
-				<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+				<div class="mx-1 border-0 border-t border-surface-200/30 dark:border-surface-700/30"></div>
 			{/if}
 
-			<!-- 2. Collections -->
-			<div class="space-y-1">
-				<Button variant="ghost"
-					type="button"
-					onclick={handleCollectionsClick}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-				 aria-label="Toggle collections">
-					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						{#if isSidebarFull}Collections{/if}
-					</span>
-					{#if isSidebarFull}
-						<iconify-icon
-							icon="bi:chevron-down"
-							width="12"
-							class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
-						></iconify-icon>
-					{/if}
-				</Button>
-				{#if isCollectionsOpen && showCollectionsHere}
-					<div class="px-1">
-						<Collections />
-					</div>
-				{/if}
-			</div>
-			<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
-
-			<!-- 3. Media Gallery -->
-			<div class="space-y-1">
+			<!-- 2. Media Gallery -->
+			<div class="{isSidebarFull ? 'space-y-1' : ''}">
 				<Button variant="ghost"
 					type="button"
 					onclick={() => {
@@ -384,7 +367,7 @@
 							toggleUIElement('leftSidebar', 'collapsed');
 						}
 					}}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
+					class="flex w-full items-center justify-between {isSidebarFull ? 'py-2' : 'py-1.5'} text-xs font-bold uppercase tracking-wider rounded bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-100/80 dark:hover:bg-surface-700/50 {isSidebarFull ? 'px-2' : 'justify-center'}"
 				>
 					<span class="flex items-center gap-1.5">
 						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -399,7 +382,7 @@
 					{/if}
 				</Button>
 				{#if isMediaOpen}
-					<div class="px-1 space-y-2">
+					<div class="px-1 {isSidebarFull ? 'space-y-2' : ''}">
 						{#if isSidebarFull && !currentPath.includes('/mediagallery')}
 							<a
 								href="/mediagallery"
@@ -417,53 +400,173 @@
 					</div>
 				{/if}
 			</div>
+			<div class="mx-1 border-0 border-t border-surface-200/30 dark:border-surface-700/30"></div>
+
+			<!-- Search (collapsed only) -->
+			{#if !isSidebarFull}
+				<div class="flex justify-center">
+					<Button variant="ghost"
+						type="button"
+						onclick={() => {
+							toggleUIElement('leftSidebar', 'full');
+							userPreferredState.set('full');
+						}}
+						aria-label="Search collections"
+						class="flex h-10 w-10 items-center justify-center p-0! min-w-0 rounded-full hover:bg-surface-200/60 dark:hover:bg-surface-700/50"
+					>
+						<iconify-icon icon="ic:outline-search" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					</Button>
+				</div>
+			{/if}
+
+			<!-- 3. Collections -->
+			<div class="{isSidebarFull ? 'space-y-1' : ''}">
+				<Button variant="ghost"
+					type="button"
+					onclick={handleCollectionsClick}
+					class="flex w-full items-center justify-between {isSidebarFull ? 'py-2' : 'py-1.5'} text-xs font-bold uppercase tracking-wider rounded bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-100/80 dark:hover:bg-surface-700/50 {isSidebarFull ? 'px-2' : 'justify-center'}"
+				 aria-label="Toggle collections">
+					<span class="flex items-center gap-1.5">
+						<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						{#if isSidebarFull}Collections{/if}
+					</span>
+					{#if isSidebarFull}
+						<iconify-icon
+							icon="bi:chevron-down"
+							width="12"
+							class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
+						></iconify-icon>
+					{/if}
+				</Button>
+				{#if isCollectionsOpen && showCollectionsHere && isSidebarFull}
+					<div class="px-1">
+						<Collections />
+					</div>
+				{/if}
+			</div>
 		{/if}
 	</div>
 
+	<!-- Collapsed footer icons (outside navigation container) -->
+	{#if !isSidebarFull}
+		<div class="w-full px-1 mb-2 mt-auto pt-4 border-0 border-t border-surface-200/30 dark:border-surface-700/30">
+			<div class="flex flex-col items-center gap-2">
+				<!-- User Profile -->
+				<div class="flex items-center justify-center">
+					<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
+						<a href="/user" onclick={handleUserClick} aria-label="User Profile" class="flex h-8 w-8 items-center justify-center rounded-full hover:bg-surface-500/20 no-underline!">
+							<Avatar src={avatarUrl} alt="User Avatar" size="size-10" rounded="rounded-full" class="mx-auto" />
+						</a>
+					</SystemTooltip>
+				</div>
+
+				<!-- Theme Toggle -->
+				<div class="flex items-center justify-center">
+					<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+						<div class="flex items-center justify-center">
+							<ThemeToggle showTooltip={false} buttonClass="btn-icon rounded-full hover:bg-surface-300/20 dark:hover:bg-surface-700/40" iconSize={28} />
+						</div>
+					</SystemTooltip>
+				</div>
+
+				<!-- Sign Out -->
+				<div class="flex items-center justify-center">
+					<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
+						<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0">
+							<iconify-icon icon="uil:signout" width="28"></iconify-icon>
+						</Button>
+					</SystemTooltip>
+				</div>
+
+				<!-- Language Selector -->
+				<div class="flex items-center justify-center px-1">
+					<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
+						<div class="language-selector relative">
+							<Dropdown position="right-start" class="w-56">
+								{#snippet trigger()}
+									<Button
+										variant="surface"
+										rounded
+										aria-label="Select language"
+										class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 h-11 w-11 text-xs font-semibold"
+									>
+										{languageTag}
+									</Button>
+								{/snippet}
+								<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
+									{applayout_systemlanguage()}
+								</div>
+								{#if showLanguageDropdown}
+									<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
+										<input type="text" bind:value={searchQuery} placeholder="Search language..." class="w-full rounded bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none" aria-label="Search languages" onclick={(e) => e.stopPropagation()} />
+									</div>
+									<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
+										{#each filteredLanguages as lang (lang)}
+											<button class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200" onclick={() => handleLanguageSelection(lang)}>
+												<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+												<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
+											</button>
+										{/each}
+									</div>
+								{:else}
+									{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
+										<button class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200" onclick={() => handleLanguageSelection(lang)}>
+											<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
+										</button>
+									{/each}
+								{/if}
+							</Dropdown>
+						</div>
+					</SystemTooltip>
+				</div>
+
+				<!-- Config -->
+				<div class="flex items-center justify-center">
+					<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
+						<Button variant="ghost" href="/config" data-sveltekit-preload-data="hover" onclick={handleConfigClick} aria-label="System Configuration" class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0">
+							<iconify-icon icon="material-symbols:build-circle" width="28"></iconify-icon>
+						</Button>
+					</SystemTooltip>
+				</div>
+			</div>
+		</div>
+		{/if}
+
 	<!-- Plugin Sidebar Items -->
 	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
-	<!-- Footer -->
+	<!-- Footer (expanded only) -->
+	{#if isSidebarFull}
 	<div class="mb-2 mt-auto w-full px-1">
-		<div class="mx-1 mb-2 border-0 border-t border-surface-500"></div>
+		<div class="mx-1 mb-2 border-0 border-t border-surface-300 dark:border-surface-600"></div>
 
-		<div class="grid w-full items-center justify-center gap-1 text-surface-700 dark:text-surface-200 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
+		<div class="grid w-full items-center justify-center gap-0.5 text-surface-700 dark:text-surface-200 grid-cols-3">
 			<!-- Avatar -->
-			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
+			<div class="order-1 flex items-center justify-center">
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
 					<a
 						href="/user"
 						data-sveltekit-preload-data="hover"
 						onclick={handleUserClick}
 						aria-label="User Profile"
-						class="{isSidebarFull
-							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-surface-500/20'
-							: 'h-8 w-8 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
+						class="flex w-full flex-col items-center justify-center rounded p-2 hover:bg-surface-500/20 relative flex items-center justify-center text-center no-underline!"
 						>
-							<Avatar src={avatarUrl} alt="User Avatar" size={isSidebarFull ? 'size-12' : 'size-10'} rounded="rounded-full" class="mx-auto" />
-						{#if isSidebarFull && user?.username}
-							<div
-								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-xs font-semibold leading-tight"
-								title={user.username}
-							>
-								{user.username}
-							</div>
-						{/if}
+							<Avatar src={avatarUrl} alt="User Avatar" size="size-12" rounded="rounded-full" class="mx-auto" />
 					</a>
 				</SystemTooltip>
 			</div>
 
  			<!-- Theme Toggle -->
- 			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
- 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
- 					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
- 					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={28} />
- 					</div>
- 				</SystemTooltip>
- 			</div>
+  			<div class="order-8 flex items-center justify-center">
+  				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+  					<div class="flex items-center justify-center">
+  						<ThemeToggle showTooltip={false} buttonClass="btn-icon rounded-full hover:bg-surface-300/20 dark:hover:bg-surface-700/40" iconSize={28} />
+  					</div>
+  				</SystemTooltip>
+  			</div>
 
  			<!-- Language Selector -->
- 			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
+  			<div class="order-3 flex items-center justify-center px-1 mt-2">
  				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
  					<div class="language-selector relative">
  						<Dropdown position="right-start" class="w-56">
@@ -472,50 +575,35 @@
  									variant="surface"
  									rounded
  									aria-label="Select language"
- 									class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 {isSidebarFull ? 'h-12 w-12 text-xs font-semibold' : 'h-11 w-11 text-xs font-semibold'}"
+ 									class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 h-12 w-12 text-xs font-semibold"
  								>
  									{languageTag}
  								</Button>
  							{/snippet}
 
- 							<!-- Header to inform user about System Language context -->
  							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
  								{applayout_systemlanguage()}
  							</div>
 
  							{#if showLanguageDropdown}
  								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
- 									<input
- 										type="text"
- 										bind:value={searchQuery}
- 										placeholder="Search language..."
- 										class="w-full rounded bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
- 										aria-label="Search languages"
- 										onclick={(e) => e.stopPropagation()}
- 									/>
+ 									<input type="text" bind:value={searchQuery} placeholder="Search language..." class="w-full rounded bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none" aria-label="Search languages" onclick={(e) => e.stopPropagation()} />
  								</div>
-
  								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
  									{#each filteredLanguages as lang (lang)}
-										<button
-											class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
-											onclick={() => handleLanguageSelection(lang)}
-										>
-											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
-										</button>
+ 										<button class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200" onclick={() => handleLanguageSelection(lang)}>
+ 											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+ 											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
+ 										</button>
  									{/each}
  								</div>
-							{:else}
-								{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
-									<button
-										class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
-										onclick={() => handleLanguageSelection(lang)}
-									>
-										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
-									</button>
-								{/each}
+ 							{:else}
+ 								{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
+ 									<button class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200" onclick={() => handleLanguageSelection(lang)}>
+ 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+ 										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
+ 									</button>
+ 								{/each}
  							{/if}
  						</Dropdown>
  					</div>
@@ -523,51 +611,37 @@
  			</div>
 
 			<!-- Sign Out -->
-			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
+			<div class="order-4 flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
-					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0">
-						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
+					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0">
+						<iconify-icon icon="uil:signout" width="28"></iconify-icon>
 					</Button>
 				</SystemTooltip>
 			</div>
 
  			<!-- Config -->
- 			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
+ 			<div class="order-5 flex items-center justify-center">
  				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
-					<a
-						href="/config"
-						data-sveltekit-preload-data="hover"
-						onclick={handleConfigClick}
-						aria-label="System Configuration"
-						class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
-					>
-						<iconify-icon icon="material-symbols:build-circle" width="35" class=""></iconify-icon>
- 					</a>
+ 					<Button variant="ghost" href="/config" data-sveltekit-preload-data="hover" onclick={handleConfigClick} aria-label="System Configuration" class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0">
+ 						<iconify-icon icon="material-symbols:build-circle" width="28"></iconify-icon>
+ 					</Button>
  				</SystemTooltip>
  			</div>
 
- 			<!-- Version -->
- 			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
-
- 			<!-- Community Links (only when expanded) -->
- 			{#if isSidebarFull}
- 				<div class="order-7 flex items-center justify-center gap-1">
- 					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
- 						<a
- 							href="https://discord.gg/VrvZF6e2sC"
- 							target="_blank"
- 							rel="noopener noreferrer"
- 							aria-label="Discord Community"
- 							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
- 						>
- 							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
- 						</a>
- 					</SystemTooltip>
- 				</div>
- 			{/if}
-		</div>
-	</div>
-</div>
+ 			<!-- Community Links -->
+ 			<div class="order-7 flex items-center justify-center gap-1">
+ 				<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+ 					<Button variant="ghost" href="https://discord.gg/VrvZF6e2sC" target="_blank" rel="noopener noreferrer" aria-label="Discord Community" class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0">
+ 						<iconify-icon icon="ic:baseline-discord" width="28"></iconify-icon>
+ 					</Button>
+ 				</SystemTooltip>
+ 			</div>
+ 		</div>
+ 	</div>
+ 	{/if}
+ 	<!-- Version (sticky bottom) -->
+ 	<div class="flex items-center justify-center pb-1"><VersionCheck compact={true} /></div>
+ </div>
 
 <style>
 	/* Sidebar width follows admin theme token (applied on layout aside) */
@@ -579,22 +653,32 @@
 		max-width: var(--admin-sidebar-width, 240px);
 	}
 
-	/* Scrollbar styling */
-	.overflow-y-auto {
-		scrollbar-color: rgb(var(--color-surface-500)) transparent;
+	/* Navigation scroll container */
+	.navigation-scroll-container {
+		scrollbar-color: rgb(var(--color-surface-500) / 0.3) transparent;
 		scrollbar-width: thin;
 	}
 
-	.overflow-y-auto::-webkit-scrollbar {
-		width: 6px;
+	.navigation-scroll-container::-webkit-scrollbar {
+		width: 4px;
 	}
 
-	.overflow-y-auto::-webkit-scrollbar-track {
+	.navigation-scroll-container::-webkit-scrollbar-track {
 		background: transparent;
 	}
 
-	.overflow-y-auto::-webkit-scrollbar-thumb {
-		background-color: rgb(var(--color-surface-500));
-		border-radius: 3px;
+	.navigation-scroll-container::-webkit-scrollbar-thumb {
+		background-color: rgb(var(--color-surface-500) / 0.3);
+		border-radius: 2px;
+	}
+
+	.navigation-scroll-container::-webkit-scrollbar-thumb:hover {
+		background-color: rgb(var(--color-surface-500) / 0.5);
+	}
+
+	/* Smooth transitions for sidebar interactive elements */
+	.sidebar-root a,
+	.sidebar-root button {
+		transition: background-color 150ms ease, color 150ms ease;
 	}
 </style>

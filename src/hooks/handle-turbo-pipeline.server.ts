@@ -303,6 +303,18 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         return buildHealthResponse(db, event.url.searchParams);
       }
 
+      // Redirect from /setup if setup is already complete
+      if (
+        isSetupComplete() &&
+        (pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname)) &&
+        event.request.method === "GET"
+      ) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "/login" },
+        });
+      }
+
       // For Benchmarks, if it's an API route, we can skip the remaining hooks and go to the dispatcher
       // However, since we can't easily call the dispatcher here without circular imports,
       // we'll let it continue but FLAG it so other hooks skip their logic.
@@ -460,11 +472,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     // ── 4. DEPRECATED HEALTH CHECK BYPASS (Now at top) ──────────────────────
 
     // ── 5. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
-    const isLoginDuringSetup = pathname === "/login" && setupState !== SetupState.COMPLETE;
     const isSetupRoute =
       pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 
-    if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
+    if (isBootstrapRoute(pathname)) {
       // Security Gate: Block /setup routes if setup is already complete
       const isTestMode =
         process.env.TEST_MODE === "true" ||
@@ -552,10 +563,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         );
       }
 
-      if (
-        !isStaticOrInternalRequest(pathname) &&
-        (!isBootstrapRoute(pathname) || pathname === "/login")
-      ) {
+      if (!isStaticOrInternalRequest(pathname) && !isBootstrapRoute(pathname)) {
         const returnTo =
           pathname === "/" || pathname === "/login"
             ? ""

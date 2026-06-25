@@ -100,9 +100,11 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
 
     // Extract collection ID from path: /en/posts/entry-id → posts
     const pathParts = currentPath.split("/").filter(Boolean);
-    // pathParts: ["en", "posts", "entry-id"] or ["dashboard"] or ["config"]
-    const collectionId = pathParts.length >= 2 ? pathParts[1] : pathParts[0] || "root";
-    if (collectionId && !collectionId.startsWith("config") && collectionId !== "dashboard") {
+    // Skip system sections (config, dashboard, mediagallery, user) where pathParts[1] is NOT a collection ID
+    // Only treat pathParts[1] as a collection ID when pathParts[0] is a language code (e.g. "en")
+    const appSystemSections = new Set(["config", "dashboard", "mediagallery", "user"]);
+    if (pathParts.length >= 2 && !appSystemSections.has(pathParts[0])) {
+      const collectionId = pathParts[1];
       recordCollectionAccess(tid, collectionId);
     }
 

@@ -120,7 +120,27 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     const { recordCollectionAccess, recordEntryAccess } =
       await import("@src/services/intelligence/behavioral-learner");
     const pathParts = url.pathname.split("/").filter(Boolean);
-    if (pathParts.length >= 2) {
+
+    // Only record collection accesses for content routes (not system routes like config, api, login)
+    // pathParts[0] is a language code (e.g. "en") for content routes, or a system prefix for admin pages
+    const systemPrefixes = new Set([
+      "api",
+      "login",
+      "setup",
+      "config",
+      "dashboard",
+      "user",
+      "mediagallery",
+      "email-previews",
+      "files",
+      "share",
+      "warming-up",
+      "robots.txt",
+      "sitemap.xml",
+      "(app)",
+      "(admin)",
+    ]);
+    if (pathParts.length >= 2 && !systemPrefixes.has(pathParts[0])) {
       const collectionId = pathParts[1];
       recordCollectionAccess(locals.tenantId || "global", collectionId);
       if (pathParts.length >= 3) {

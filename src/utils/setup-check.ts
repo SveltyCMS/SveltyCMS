@@ -98,7 +98,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     if (!hasAdmin || !hasRoles) {
       logger
         .channel("setupCheck")
-        .warn(
+        .debug(
           `Config exists but DB is missing ${!hasAdmin ? "ADMIN" : ""}${!hasAdmin && !hasRoles ? "/" : ""}${!hasRoles ? "ROLES" : ""}`,
         );
       setupDbStatus = false;

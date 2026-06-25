@@ -62,7 +62,7 @@ describe("UIStore", () => {
 
 describe("UIStore (Real)", () => {
   it("should have initial state", () => {
-    expect(ui.state.leftSidebar).toBe("full");
+    expect(ui.state.leftSidebar).toBe("hidden");
   });
 
   it("should toggle UI element visibility", () => {

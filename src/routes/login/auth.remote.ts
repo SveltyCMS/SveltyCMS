@@ -29,6 +29,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { command, query, getRequestEvent } from "$app/server";
 
+function isSecureConnection(event: RequestEvent): boolean {
+  const isProd = process.env.NODE_ENV !== "development" && process.env.TEST_MODE !== "true";
+  return event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+}
+
 const limiter = new RateLimiter({
   IP: [10, "m"],
   IPUA: [10, "m"],
@@ -143,10 +148,10 @@ export const verify2FA = command(
     const user = await auth.getUserById(userId);
     if (!user) return { success: false, message: "User not found." };
 
-    const sessionCookie = auth.createSessionCookie(userId as any as DatabaseId);
+    const sc = auth.createSessionCookie(userId as any as DatabaseId, isSecureConnection(event));
     try {
-      event.cookies.set(sessionCookie.name, sessionCookie.value, {
-        ...(sessionCookie.attributes as Record<string, unknown>),
+      event.cookies.set(sc.name, sc.value, {
+        ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
     } catch {}
@@ -164,14 +169,9 @@ export const verify2FA = command(
         logger.debug("2FA verify user attribute update failed silently");
       });
 
-    let finalCollectionPath: string | null = null;
-    try {
-      finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
-    } catch {}
-
     return {
       success: true,
-      redirectPath: finalCollectionPath ?? "/config/collectionbuilder",
+      redirectPath: "/config/collectionbuilder",
     };
   },
 );
@@ -306,7 +306,7 @@ async function signInInternal(event: RequestEvent, input: any) {
           message: "2FA required",
         };
       ok = true;
-      const sc = auth.createSessionCookie(ar.sessionId!);
+      const sc = auth.createSessionCookie(ar.sessionId!, isSecureConnection(event));
       try {
         event.cookies.set(sc.name, sc.value, {
           ...(sc.attributes as Record<string, unknown>),
@@ -336,7 +336,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       user_id: user._id,
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
     });
-    const sc = auth.createSessionCookie(s._id);
+    const sc = auth.createSessionCookie(s._id, isSecureConnection(event));
     try {
       event.cookies.set(sc.name, sc.value, {
         ...(sc.attributes as Record<string, unknown>),
@@ -377,8 +377,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       logger.debug("Telemetry background check failed silently");
     });
 
-  const path = await getCachedFirstCollectionPath("en" as any).catch(() => null);
-  return { success: true, redirectPath: path ?? "/config/collectionbuilder" };
+  return { success: true, redirectPath: "/config/collectionbuilder" };
 }
 
 async function signUpInternal(event: RequestEvent, input: any) {
@@ -454,7 +453,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
 
   const session = ur.data?.session;
   if (session) {
-    const sc = auth.createSessionCookie(session._id);
+    const sc = auth.createSessionCookie(session._id, isSecureConnection(event));
     try {
       event.cookies.set(sc.name, sc.value, {
         ...(sc.attributes as Record<string, unknown>),
@@ -773,10 +772,9 @@ export const verifyPasskeyAuth = command(
         path: "/",
       });
 
-      const finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
       return {
         success: true,
-        redirectPath: finalCollectionPath ?? "/config/collectionbuilder",
+        redirectPath: "/config/collectionbuilder",
       };
     } catch (err: any) {
       logger.error("Passkey authentication failed:", err.message);

@@ -141,6 +141,8 @@ async function handleGoogleUser(
   cookies: Cookies,
   fetchFn: typeof fetch,
   request: Request,
+  url: URL,
+  isTestOAuthMock = false,
 ): Promise<void> {
   const email = googleUser.email;
   if (!email) {
@@ -179,7 +181,11 @@ async function handleGoogleUser(
 
     // Always try to update avatar from Google if available and user doesn't have one
     let avatarUrl: string | null = null;
-    if (googleUser.picture && (!user.avatar || user.avatar === null || user.avatar === undefined)) {
+    if (
+      !isTestOAuthMock &&
+      googleUser.picture &&
+      (!user.avatar || user.avatar === null || user.avatar === undefined)
+    ) {
       avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
     }
 
@@ -208,10 +214,10 @@ async function handleGoogleUser(
     logger.debug(`Updated user attributes for: ${user._id}`);
   } else {
     // Handle new user creation with invite token validation
-    if (isFirst && !setupComplete) {
+    if (isFirst && (!setupComplete || isTestOAuthMock)) {
       // Handle first user (admin) creation - no token required
       let avatarUrl: string | null = null;
-      if (googleUser.picture) {
+      if (!isTestOAuthMock && googleUser.picture) {
         avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
       }
       // Create the first user (admin)
@@ -250,18 +256,24 @@ async function handleGoogleUser(
       if (!token) {
         throw new Error("A valid invitation is required to create an account via OAuth");
       }
-      const tokenValidation = await auth?.validateRegistrationToken(token);
-      if (!(tokenValidation?.isValid && tokenValidation?.details)) {
-        throw new Error("This invitation is invalid, expired, or has already been used");
+      // TEST_MODE: skip real token validation for E2E test mocks
+      let inviteRole: any = undefined;
+      if (isTestOAuthMock) {
+        inviteRole = url.searchParams.get("__test_role__") || "admin";
+      } else {
+        const tokenValidation = await auth?.validateRegistrationToken(token);
+        if (!(tokenValidation?.isValid && tokenValidation?.details)) {
+          throw new Error("This invitation is invalid, expired, or has already been used");
+        }
+        // Check that the OAuth email matches the invited email
+        if (email.toLowerCase() !== tokenValidation.details.email.toLowerCase()) {
+          throw new Error("The Google account email does not match the invitation email");
+        }
+        // Use the role from the token for invited users
+        inviteRole = tokenValidation.details.role;
       }
-      // Check that the OAuth email matches the invited email
-      if (email.toLowerCase() !== tokenValidation.details.email.toLowerCase()) {
-        throw new Error("The Google account email does not match the invitation email");
-      }
-      // Use the role from the token for invited users
-      const inviteRole = tokenValidation.details.role;
       let avatarUrl: string | null = null;
-      if (googleUser.picture) {
+      if (!isTestOAuthMock && googleUser.picture) {
         avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
       }
 
@@ -310,7 +322,12 @@ async function handleGoogleUser(
     user_id: user._id,
     expires: expiresAt.toISOString() as ISODateString,
   });
-  const sessionCookie = auth.createSessionCookie(session._id);
+  const isSecure =
+    url.protocol === "https:" ||
+    (url.hostname !== "localhost" &&
+      process.env.NODE_ENV !== "development" &&
+      process.env.TEST_MODE !== "true");
+  const sessionCookie = auth.createSessionCookie(session._id, isSecure);
   const cookieAttributes = sessionCookie.attributes as Record<string, unknown>;
   cookies.set(sessionCookie.name, sessionCookie.value, {
     ...cookieAttributes,
@@ -327,14 +344,26 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
     }
 
     logger.debug("OAuth Callback called:");
-    const hasAdminUser = (await auth.getUserCount()) !== 0;
+
+    // TEST_MODE: allow overriding hasAdminUser via query param for E2E tests
+    const isTestOAuthMock =
+      process.env.TEST_MODE === "true" && url.searchParams.has("__test_oauth_mock__");
+    const hasAdminUser =
+      isTestOAuthMock && url.searchParams.has("__test_is_first__")
+        ? false
+        : (await auth.getUserCount()) !== 0;
     logger.debug(`First user exists: ${hasAdminUser}`);
 
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
     const errorParam = url.searchParams.get("error");
     const errorSubtype = url.searchParams.get("error_subtype");
-    const token = state ? decodeURIComponent(state) : null;
+    const token =
+      isTestOAuthMock && !state
+        ? url.searchParams.get("__test_token__") || "mock-e2e-token"
+        : state
+          ? decodeURIComponent(state)
+          : null;
 
     logger.debug(`Authorization code from URL: ${code}`);
     logger.debug(`Registration token from state: ${token}`);
@@ -442,9 +471,19 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
           picture: githubUser.avatar_url,
           locale: "en",
         };
+      } else if (isTestOAuthMock) {
+        logger.debug("TEST_MODE OAuth mock active — bypassing Google API calls");
+        googleUser = {
+          email: url.searchParams.get("__test_email") || "test-user@example.com",
+          name: url.searchParams.get("__test_name") || "Test User",
+          given_name: url.searchParams.get("__test_given_name") || "Test",
+          family_name: url.searchParams.get("__test_family_name") || "User",
+          picture: url.searchParams.get("__test_picture") || null,
+          locale: url.searchParams.get("__test_locale") || "en",
+        };
+        refresh_token = null;
       } else {
-        // Create a fresh OAuth client instance specifically for token exchange
-        // Use the same environment detection logic as the OAuth URL generation
+        // Real OAuth flow — exchange code with Google
         const redirectUri = getOAuthRedirectUri();
         const googleAuthClient = new OAuth2Client(
           getPrivateSettingSync("GOOGLE_CLIENT_ID"),
@@ -483,6 +522,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
         cookies,
         fetch,
         request,
+        url,
+        isTestOAuthMock,
       );
 
       logger.info("Successfully processed OAuth callback and created session");

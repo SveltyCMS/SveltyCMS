@@ -1,12 +1,20 @@
 /**
  * @file src/routes/api/[...path]/handlers/testing.ts
- * @description State-management handler for integration testing (Reset, Seed, Reinitialize).
+ * @description State-management handler for integration testing (Reset, Seed, Login, Reinitialize).
+ *
+ * Provides deterministic test infrastructure:
+ * - reset: Wipes database, caches, media, and resets system state
+ * - seed: Creates admin user + roles + collections, returns session cookie
+ * - login: Creates a session for any user, returns set-cookie header
+ * - create-user: Provisions additional test users with specified roles
+ *
+ * All actions require TEST_MODE=true and valid x-test-secret.
  */
 
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { contentSystem } from "@src/content/index.server";
-import type { DatabaseId } from "@src/databases/db-interface";
+import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
 import type { RequestEvent } from "@sveltejs/kit";
 import fs from "node:fs";
 import path from "node:path";
@@ -80,6 +88,120 @@ export async function handleTestingRoutes(
       process.stderr.write(`[TestingHandler] Params: ${JSON.stringify(params)}\n`);
     }
 
+    if (action === "reset-to-state") {
+      const targetState = params.state || event.url.searchParams.get("state");
+
+      if (!targetState || !["setup", "ready"].includes(targetState)) {
+        throw new AppError("state must be 'setup' or 'ready'", 400);
+      }
+
+      // Always wipe the DB first
+      if (cms.db?.clearDatabase) {
+        await cms.db.clearDatabase();
+      } else if (cms.db?.reset) {
+        await cms.db.reset();
+      }
+
+      if (targetState === "setup") {
+        // --- Transition to SETUP mode ---
+        // Delete config/private.test.ts so isSetupComplete() returns false
+        const { invalidateSetupCache } = await import("@src/utils/setup-check");
+        const configPath = path.resolve(process.cwd(), "config", "private.test.ts");
+        if (fs.existsSync(configPath)) {
+          fs.unlinkSync(configPath);
+          logger.info("[TestingHandler] Deleted private.test.ts for SETUP transition");
+        }
+        invalidateSetupCache(false, null);
+        (globalThis as any).__SVELTY_SETUP_COMPLETE__ = false;
+        (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = null;
+
+        const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
+        resetSystemState();
+        const { resetInitializationState } = await import("@src/hooks/handle-system-state");
+        resetInitializationState();
+
+        return rawResponse({
+          success: true,
+          message: "System transitioned to SETUP state",
+        });
+      }
+
+      // --- Transition to READY mode ---
+      // Create config file if it doesn't exist (so DB can reconnect on restart)
+      const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
+
+      try {
+        await writePrivateConfig({
+          type: "sqlite",
+          host: "localhost",
+          port: 0,
+          name: process.env.DB_NAME || "sveltycms_e2e.db.sqlite",
+          user: "",
+          password: "",
+        });
+        logger.info("[TestingHandler] Created private.test.ts for READY transition");
+      } catch (writeErr: any) {
+        logger.warn(
+          `[TestingHandler] Non-fatal: could not write private.test.ts: ${writeErr.message}`,
+        );
+      }
+
+      // Seed default settings and roles (best-effort — after clearDatabase, adapter may
+      // need table re-creation; forced-complete below handles any edge cases).
+      const seedEmail = params.email || "admin@test.com";
+      const seedPassword = params.password || "Password123!";
+
+      try {
+        const { seedRoles, seedSettings } = await import("@src/routes/setup/seed");
+        await seedSettings(cms.db, tenantId);
+        await seedRoles(cms.db, tenantId);
+      } catch (err: any) {
+        logger.warn(`[TestingHandler] Non-fatal seed error: ${err.message}`);
+      }
+
+      const { Auth } = await import("@src/databases/auth");
+      const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
+      const setupAuth = new Auth(cms.db, getDefaultSessionStore());
+      await setupAuth.createUserAndSession(
+        {
+          email: seedEmail,
+          password: seedPassword,
+          username: "admin",
+          role: "admin",
+          isAdmin: true,
+          isRegistered: true,
+          emailVerified: true,
+        },
+        {
+          expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+          tenantId,
+        },
+        { bypassTenantCheck: true },
+      );
+
+      // Initialize content system (collection tables + content_nodes)
+      try {
+        await contentSystem.initialize(tenantId, { force: true });
+        logger.info("[TestingHandler] Content system initialized for READY transition");
+      } catch (initErr: any) {
+        logger.warn(`[TestingHandler] Non-fatal content init error: ${initErr.message}`);
+      }
+
+      // Mark setup as complete
+      const { invalidateSetupCache } = await import("@src/utils/setup-check");
+      invalidateSetupCache(false, true);
+      (globalThis as any).__SVELTY_SETUP_COMPLETE__ = true;
+      (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
+
+      const { setSystemState } = await import("@src/stores/system/state.svelte.ts");
+      setSystemState("READY", "Testing API reset-to-state ready");
+
+      return rawResponse({
+        success: true,
+        message: "System transitioned to READY state",
+      });
+    }
+
     if (action === "reset") {
       process.stderr.write(`[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}\n`);
 
@@ -143,6 +265,10 @@ export async function handleTestingRoutes(
       const { resetInitializationState } = await import("@src/hooks/handle-system-state");
       resetInitializationState();
 
+      // 🧪 Ensure setup is marked as incomplete for deterministic wizard testing
+      (globalThis as any).__SVELTY_SETUP_COMPLETE__ = false;
+      (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = null;
+
       return rawResponse({
         success: true,
         message: "System reset successfully",
@@ -155,36 +281,72 @@ export async function handleTestingRoutes(
 
       logger.debug("Seeding test user", { email, tenantId });
 
-      // Seed default roles if missing (crucial after database reset/wipe)
+      // Seed roles if needed (settings are already seeded by system boot or reset-to-state)
+      // Using try/catch because roles may already exist, and this is a convenience seed
+      // in beforeEach — failure shouldn't cascade to the test.
       try {
         const { seedRoles } = await import("@src/routes/setup/seed");
         await seedRoles(cms.db, tenantId);
       } catch (err: any) {
-        logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
+        logger.debug(
+          `[TestingHandler] Role seeding skipped (likely already seeded): ${err.message}`,
+        );
       }
 
-      // Create admin user
-      const result = await cms.auth.createUser(
+      // 🛡️ IDEMPOTENT SEED: If a user with this email already exists, remove them first
+      // so that repeated calls (e.g., per-test beforeEach) always succeed.
+      const { Auth } = await import("@src/databases/auth");
+      const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
+      const setupAuth = new Auth(cms.db, getDefaultSessionStore());
+
+      try {
+        const existingUser = await setupAuth.getUserByEmail({ email, tenantId });
+        if (existingUser?._id) {
+          logger.debug(`[TestingHandler] Removing existing user ${email} before re-seed`);
+          await setupAuth.deleteUserAndSessions(existingUser._id, tenantId);
+        }
+      } catch (lookupErr: any) {
+        logger.warn(`[TestingHandler] User lookup during seed failed: ${lookupErr.message}`);
+      }
+
+      const authResult = await setupAuth.createUserAndSession(
         {
           email,
-          password,
-          username,
+          password: password,
+          username: username || email.split("@")[0],
           role: "admin",
+          isAdmin: true,
           isRegistered: true,
           emailVerified: true,
         },
-        { tenantId },
+        {
+          expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+          tenantId,
+        },
+        { bypassTenantCheck: true },
       );
 
+      if (!authResult.success || !authResult.data) {
+        throw new AppError("Failed to create admin user during seed", 500, "ADMIN_CREATION_FAILED");
+      }
+
+      // Prime the in-memory session cache so the next request gets an instant hit
+      const session = authResult.data.session;
+      const user = authResult.data.user;
+      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      primeSessionMemoryCache(session._id as string, user);
+
+      // Set session cookie on the response
+      const sc = setupAuth.createSessionCookie(session._id);
+      const cookieHeader = `${sc.name}=${sc.value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`;
+
       logger.debug("Seed user creation result", {
-        success: result.success,
-        error: (result as any).message,
+        success: authResult.success,
+        userId: user?._id,
       });
 
       // Seed default theme
       const { DEFAULT_THEME } = await import("@src/databases/theme-manager");
-
-      // 🚀 HARDENING: Ensure all DEFAULT_THEME properties are strings or null (no undefined)
       const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
       await cms.db.system.themes.ensure(safeTheme);
 
@@ -201,9 +363,14 @@ export async function handleTestingRoutes(
         logger.warn(`[TestingHandler] Non-fatal collection seeding error: ${err.message}`);
       }
 
-      // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
+      // Mark setup as complete — forces system to COMPLETE state
       const { invalidateSetupCache } = await import("@src/utils/setup-check");
       invalidateSetupCache(false, true);
+      (globalThis as any).__SVELTY_SETUP_COMPLETE__ = true;
+
+      // Transition system state to READY for deterministic testing
+      const { setSystemState } = await import("@src/stores/system/state.svelte.ts");
+      setSystemState("READY", "Test seed completed");
 
       // Invalidate roles and user count caches so they are reloaded after seeding
       try {
@@ -217,11 +384,71 @@ export async function handleTestingRoutes(
         );
       }
 
-      return rawResponse({
-        success: result.success,
-        message: result.success ? "System seeded successfully" : (result as any).message,
-        data: result.success ? result.data : null,
+      // Return session cookie + user data for immediate use by Playwright
+      const response = rawResponse({
+        success: true,
+        message: "System seeded successfully",
+        sessionId: session._id,
+        userId: user._id,
+        email,
       });
+      response.headers.append("Set-Cookie", cookieHeader);
+      // Also set a custom header for easy extraction by Playwright auth helpers
+      response.headers.set("x-test-session-id", session._id as string);
+      return response;
+    }
+
+    if (action === "login") {
+      const { email, password } = params;
+      if (!email || !password) throw new AppError("Email and password required for login", 400);
+
+      logger.debug("Test login: creating session for", { email, tenantId });
+
+      // Authenticate via the Auth module
+      const { Auth } = await import("@src/databases/auth");
+      const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
+      const setupAuth = new Auth(cms.db, getDefaultSessionStore());
+
+      const authnResult = await setupAuth.authenticate(email, password, { tenantId });
+      if (!authnResult.success || !authnResult.data) {
+        throw new AppError(
+          `Test login failed: ${authnResult.message || "Invalid credentials"}`,
+          401,
+          "TEST_LOGIN_FAILED",
+        );
+      }
+
+      const authenticatedUser = authnResult.data;
+
+      // Create a fresh session
+      const sessionResult = await setupAuth.createSession({
+        user_id: authenticatedUser._id as DatabaseId,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+        tenantId,
+      });
+
+      if (!sessionResult || !sessionResult._id) {
+        throw new AppError("Failed to create session during test login", 500);
+      }
+
+      // Prime the in-memory session cache
+      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      primeSessionMemoryCache(sessionResult._id as string, authenticatedUser);
+
+      // Set session cookie on the response
+      const sc = setupAuth.createSessionCookie(sessionResult._id);
+      const cookieHeader = `${sc.name}=${sc.value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`;
+
+      const response = rawResponse({
+        success: true,
+        message: "Test login successful",
+        sessionId: sessionResult._id,
+        userId: authenticatedUser._id,
+        email: authenticatedUser.email,
+      });
+      response.headers.append("Set-Cookie", cookieHeader);
+      response.headers.set("x-test-session-id", sessionResult._id as string);
+      return response;
     }
 
     if (action === "reinitialize") {

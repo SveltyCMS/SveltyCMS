@@ -151,10 +151,10 @@ Features:
 					{gridSize === 'tiny'
           ? 'w-32'
           : gridSize === 'small'
-            ? 'w-48'
+            ? 'w-64'
             : gridSize === 'medium'
-              ? 'w-64'
-              : 'w-80'}"
+              ? 'w-80'
+              : 'w-96'}"
         role="gridcell"
         aria-selected={isSelected}
       >

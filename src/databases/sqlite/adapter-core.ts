@@ -1041,6 +1041,14 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const [major, minor] = v.split(".").map(Number);
       if (major > 22 || (major === 22 && minor >= 5)) {
         try {
+          // Suppress Node.js ExperimentalWarning for node:sqlite
+          const origWarning = process.listeners("warning").pop();
+          process.removeAllListeners("warning");
+          process.prependListener("warning", (warn) => {
+            if (warn.name === "ExperimentalWarning" && warn.message.includes("SQLite")) return;
+            if (origWarning) origWarning(warn);
+          });
+
           const req = await getRequire();
           if (!req) throw new Error("requireFunc not available");
           const { DatabaseSync } = req("node:sqlite");

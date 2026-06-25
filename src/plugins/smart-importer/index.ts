@@ -150,8 +150,6 @@ export const smartImporterPlugin: Plugin = {
   enabledCollections: [],
 };
 
-export default smartImporterPlugin;
-
 /**
  * Clear tier definition for UI display and feature gating.
  */

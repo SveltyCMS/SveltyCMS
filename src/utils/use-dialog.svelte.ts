@@ -68,6 +68,8 @@ export function useDialog(options: DialogOptions) {
     if (isOpen && dialogEl) {
       triggerEl = document.activeElement;
       dialogEl.showModal();
+      // Lock both html and body to prevent background scrolling
+      document.documentElement.style.overflow = "hidden";
       document.body.style.overflow = "hidden";
       options.onopen?.();
 
@@ -85,6 +87,7 @@ export function useDialog(options: DialogOptions) {
         }
         triggerEl = null;
       }
+      document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
       options.onclose?.();
     }

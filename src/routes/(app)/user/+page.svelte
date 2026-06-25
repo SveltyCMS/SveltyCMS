@@ -197,19 +197,21 @@
 <div in:fade={{ duration: 300 }}>
 	<h2 class="sr-only">Profile Information</h2>
 	<div class="wrapper mb-2">
-		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
+		<div class="grid grid-cols-1 gap-1 overflow-hidden md:grid-cols-2">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1" in:fly={{ y: 20, delay: 100, duration: 300 }}>
 				<div class="relative group">
 					<Avatar src={normalizeAvatarUrl(avatarSrc.value)} initials="AV" size="size-32" class="rounded-full border border-white shadow-lg dark:border-surface-800" />
 
 					<!-- Edit button - icon overlay -->
-					<Button variant="ghost"
+					<button
+						type="button"
 						onclick={modalEditAvatar}
 						title={userpage_editavatar()}
-					 class="p-0! min-w-0 absolute bottom-0 inset-e-0 rounded-full gradient-tertiary dark:gradient-primary">
-						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
-					</Button>
+						class="p-1 min-w-0 absolute bottom-0 inset-e-0 rounded-full bg-transparent hover:bg-surface-900/10 dark:hover:bg-white/10 transition-colors"
+						aria-label={userpage_editavatar()}>
+						<iconify-icon icon="mdi:pencil" width={18} class="text-surface-500 dark:text-surface-400"></iconify-icon>
+					</button>
 				</div>
 				<!-- User ID -->
 				<Badge preset="tonal" color="secondary" class="mt-1 w-full max-w-xs text-white">
@@ -309,7 +311,7 @@
 
 			<!-- User fields -->
 			{#if user}
-				<form class="space-y-4">
+				<div class="flex flex-col items-center justify-center gap-1">
 					<Input
 						value={user.username}
 						name="username"
@@ -340,9 +342,7 @@
 						aria-label={form_password()}
 					/>
 
-
 					<div class="mt-3 flex flex-col items-center justify-center gap-1.5">
-						<!-- Edit Modal Button -->
 						<Button
 							variant="outline"
 							size="sm"
@@ -354,7 +354,6 @@
 							{userpage_edit_usersetting()}
 						</Button>
 
-						<!-- GDPR Compact Tile -->
 						<Button
 							variant="outline"
 							size="sm"
@@ -366,7 +365,6 @@
 							<span class="text-xs font-bold">Privacy & Data (GDPR)</span>
 						</Button>
 
-						<!-- Delete Modal Button -->
 						{#if isFirstUser}
 							<Button
 								variant="outline"
@@ -380,7 +378,7 @@
 							</Button>
 						{/if}
 					</div>
-				</form>
+				</div>
 			{/if}
 		</div>
 	</div>

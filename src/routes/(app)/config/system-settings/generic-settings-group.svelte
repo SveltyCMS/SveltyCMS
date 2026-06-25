@@ -64,7 +64,7 @@ let {
 	children
 }: Props = $props();
 
-let loading = $state(false);
+let loading = $state(true);
 let error = $state<string | null>(null);
 let values = $state<Record<string, unknown>>({});
 let originalValues = $state<Record<string, unknown>>({}); // Track original values

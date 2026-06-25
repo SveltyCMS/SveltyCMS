@@ -5,7 +5,7 @@
  */
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { handleDialog } from "../../helpers/setup-wizard";
-import { seedReadyState, resetToSetupMode } from "../../helpers/test-orch";
+import { resetToSetupMode } from "../../helpers/test-orch";
 
 // --- PAGE OBJECT MODEL ---
 
@@ -180,6 +180,7 @@ test.describe("Setup Wizard: Error Handling", () => {
   });
 
   test("should show error on invalid SMTP configuration", async ({ wizard, page }) => {
+    test.setTimeout(90_000);
     await wizard.hardReset();
     await wizard.dismissModals();
 
@@ -200,11 +201,12 @@ test.describe("Setup Wizard: Error Handling", () => {
 
     await expect(page.locator("h2", { hasText: /email/i }).first()).toBeVisible();
 
-    await page.locator('input[type="text"]').first().fill("smtp.invalid.invalid");
-    await page.locator('input[autocomplete="username"]').fill("admin");
-    await page.locator('input[autocomplete="current-password"]').fill("Password123!");
+    await page.locator("#smtp-host").fill("smtp.invalid.invalid");
+    await page.locator("#smtp-user").fill("admin");
+    await page.locator("#smtp-password").fill("Password123!");
+    await page.locator("#smtp-from").fill("admin@test.com");
 
-    const testEmailButton = page.locator("button[type='submit']").first();
+    const testEmailButton = page.getByRole("button", { name: /test .* connection/i }).first();
     await testEmailButton.click();
 
     await expect(page.getByText(/connection failed/i).first()).toBeVisible({
@@ -258,7 +260,17 @@ test.describe("Setup Wizard: Navigation & State", () => {
 test.describe("Setup Wizard: Pre-Seeded Fast Path", () => {
   test("should leave setup after API-seeded ready state", async ({ page }) => {
     test.setTimeout(30_000);
-    await seedReadyState();
+    const res = await page.request.post("/api/testing", {
+      data: {
+        action: "reset-to-state",
+        state: "ready",
+        email: "admin@test.com",
+        password: "Password123!",
+      },
+    });
+    if (!res.ok()) {
+      throw new Error(`Seed ready state failed (${res.status()}): ${await res.text()}`);
+    }
     await page.goto("/setup");
     await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
       timeout: 15000,

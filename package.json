@@ -59,6 +59,7 @@
     "-- BUILD ---------------------------------------------": "",
     "build": "NODE_OPTIONS=\"--no-warnings --no-deprecation\" vp build",
     "build:verbose": "NODE_OPTIONS=\"--no-warnings --no-deprecation\" vp build",
+    "build:e2e": "COMPILE_ALL_ADAPTERS=true NODE_OPTIONS=\"--no-warnings --no-deprecation\" vp build",
     "build:high-memory": "NODE_OPTIONS=\"--max-old-space-size=16384\" vp build",
     "build:low-memory": "NODE_OPTIONS=\"--max-old-space-size=4096\" vp build",
     "build:analyze": "NODE_OPTIONS=\"--max-old-space-size=8192\" npx vite-bundle-visualizer && $npm_execpath run build:verbose",

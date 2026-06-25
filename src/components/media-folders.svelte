@@ -260,6 +260,7 @@
 
 <div class="space-y-2" role="navigation" aria-label="Media folders">
 	<!-- Search Header -->
+	{#if isSidebarFull}
 	<div class="flex items-center gap-1">
 		<div class="relative w-full min-w-0">
 			<input
@@ -267,10 +268,10 @@
 				bind:value={search}
 				size="1"
 				placeholder="Search folders..."
-				class="w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-3 {isSidebarFull ? 'pe-11' : 'pe-2'} text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 h-10 py-2"
+				class="w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-3 pe-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 h-10 py-2"
 				aria-label="Search media folders"
 			/>
-			{#if isSidebarFull && search}
+			{#if search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
 					<Button variant="outline"
 						type="button"
@@ -280,7 +281,7 @@
 						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
 					</Button>
 				</div>
-			{:else if isSidebarFull && !search}
+			{:else}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
 					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 me-0.5">
 						<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
@@ -288,8 +289,7 @@
 				</div>
 			{/if}
 		</div>
-		{#if isSidebarFull}
-			<Button variant="warning"
+		<Button variant="warning"
 				type="button"
 				onclick={() => (isEditMode = !isEditMode)}
 				aria-pressed={isEditMode}
@@ -298,8 +298,8 @@
 			 class="p-0! min-w-0 h-10 w-10 shrink-0 {isEditMode ? ' ' : ' '}">
 				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
 			</Button>
-		{/if}
-	</div>
+		</div>
+	{/if}
 
 	<!-- Edit mode hint -->
 	{#if isEditMode && isSidebarFull}

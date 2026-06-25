@@ -292,7 +292,7 @@ This component provides a user interface for managing 2FA settings:
 			{#if isLoading && !setupData}
 				<!-- Loading state -->
 				<div class="flex flex-col items-center justify-center gap-4 py-8">
-					<iconify-icon icon="svg-spinners:ring-resize" width={24}></iconify-icon>
+					<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
 					<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setting_up()}</p>
 				</div>
 			{:else if setupData}
