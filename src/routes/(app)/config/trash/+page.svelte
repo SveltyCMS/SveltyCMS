@@ -89,7 +89,7 @@ onMount(loadTrash);
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
-						{#each trashedItems as item}
+						{#each trashedItems as item (item._id)}
 							<tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30">
 								<td class="py-3">
 									<span class="font-medium">{item.title || item.name || item._id}</span>

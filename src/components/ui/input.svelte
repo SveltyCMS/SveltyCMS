@@ -61,7 +61,7 @@ corner-shape angled corners.
 	    ...rest
 	  }: Props = $props();
 
-	  let inputRef = $state<HTMLInputElement | null>(null);
+	  let _inputRef = $state<HTMLInputElement | null>(null);
 
   const theme = getThemeContext();
 
@@ -119,7 +119,7 @@ corner-shape angled corners.
   {/if}
 
   <input
-    bind:this={inputRef}
+    bind:this={_inputRef}
     {id}
     {type}
     class={cn(

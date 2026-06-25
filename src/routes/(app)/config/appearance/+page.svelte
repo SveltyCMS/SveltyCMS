@@ -574,7 +574,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     class="border border-surface-200 bg-white shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
   >
     <div class="flex flex-wrap gap-1 p-2 border-b border-surface-200 dark:border-surface-700">
-      {#each tabs as tab}
+      {#each tabs as tab (tab.id)}
         <Button variant="tertiary"
           onclick={() => activeTab = tab.id}
           size="sm"
@@ -794,7 +794,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
               </p>
 
               <div class="grid grid-cols-3 gap-4">
-                {#each [{ d: 'compact', label: 'Compact', desc: 'Sidebar: 200px · Dense · Small text' }, { d: 'cozy', label: 'Cozy', desc: 'Sidebar: 240px · Balanced · Default' }, { d: 'spacious', label: 'Spacious', desc: 'Sidebar: 300px · Airy · Writer mode' }] as p}
+                {#each [{ d: 'compact', label: 'Compact', desc: 'Sidebar: 200px · Dense · Small text' }, { d: 'cozy', label: 'Cozy', desc: 'Sidebar: 240px · Balanced · Default' }, { d: 'spacious', label: 'Spacious', desc: 'Sidebar: 300px · Airy · Writer mode' }] as p (p.d)}
                   <AdminCard class="p-3 border {density === p.d ? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20' : 'border-surface-200 dark:border-surface-700'}">
                     <div class="text-xs font-bold mb-1">{p.label}</div>
                     <div class="text-[10px] text-surface-500">{p.desc}</div>

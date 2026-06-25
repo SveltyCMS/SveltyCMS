@@ -121,7 +121,10 @@ async function handleCollectionsRefresh(event: RequestEvent, cms: LocalCMS, tena
   const { refreshContent } = await import("@src/content/engine.server");
   const { getDb } = await import("@src/databases/db");
 
-  await refreshContent(tenantId, { mode: "schemas", adapter: getDb() || undefined });
+  await refreshContent(tenantId, {
+    mode: "schemas",
+    adapter: getDb() || undefined,
+  });
 
   const list = await cms.collections.list({ tenantId, includeFields: true });
   return successResponse(event, {

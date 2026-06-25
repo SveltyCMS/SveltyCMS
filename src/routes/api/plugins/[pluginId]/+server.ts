@@ -91,8 +91,13 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
       "type" in result &&
       (result as { type: string }).type === "failure"
     ) {
-      const failure = result as { status?: number; data?: Record<string, unknown> };
-      return json(failure.data ?? { error: "Action failed" }, { status: failure.status ?? 400 });
+      const failure = result as {
+        status?: number;
+        data?: Record<string, unknown>;
+      };
+      return json(failure.data ?? { error: "Action failed" }, {
+        status: failure.status ?? 400,
+      });
     }
 
     return json(result ?? { success: true });

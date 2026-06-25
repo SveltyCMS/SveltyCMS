@@ -53,6 +53,7 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 - **85-95% cache hit rate** with dual-layer Redis + MongoDB.
 - **79% smaller payloads** via smart field selection.
 - **O(log n) queries** through comprehensive indexing.
+
 - **Automatic Indexing**: Background `IndexOptimizer` ensures fields remain optimized as schemas change.
 - **O(1) pagination** with cursor-based navigation.
 - **O(1) memory** with streaming for large datasets.
@@ -157,7 +158,8 @@ As of April 2026, the MongoDB adapter has been fully modularized to align with t
 | **media-methods.ts**         | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.                 |
 | **content-methods.ts**       | Advanced content tree and structure management.         | Optimized recursive lookups for large hierarchies.             |
 | **website-token-methods.ts** | External API credential CRUD (`system_website_tokens`). | SHA-256 at rest, parallel list+count, `safeQuery` soft-delete. |
-| **adapter-core.ts**          | Unified connection and (inlined) Query IR translation.  | Hardened `isLookupQuery` ID-bypass.                            |
+
+| **adapter-core.ts** | Unified connection and (inlined) Query IR translation. | Hardened `isLookupQuery` ID-bypass. |
 
 ### Explicit Schema Registration
 
@@ -270,7 +272,7 @@ UserSchema.index({ expiresAt: 1 }, { sparse: true, expireAfterSeconds: 0 });
 
 **NEW in 2024**: SveltyCMS now automatically creates optimized indexes for **every user-defined collection** based on their schema configuration.
 
-### How It Works
+### How It Works {#dynamic-indexing-how}
 
 ```
 // File: src/databases/mongodb/methods/collectionMethods.ts
@@ -396,7 +398,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 } // Sort by date
 ```
 
-### Performance Impact
+### Performance Impact {#dynamic-indexing-perf}
 
 | Collection Size | Without Indexes | With Auto-Indexes | Improvement |
 | --------------- | --------------- | ----------------- | ----------- |
@@ -438,7 +440,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 
 **NEW in 2024**: Smart field selection reduces payload sizes by 50-80% for list views.
 
-### How It Works
+### How It Works {#how-it-works-2}
 
 ```
 // File: src/utils/fieldselection.ts
@@ -466,7 +468,7 @@ if (!editEntryId) {
 }
 ```
 
-### Performance Impact
+### Performance Impact {#performance-impact-2}
 
 | Collection Config       | Before | After  | Reduction |
 | ----------------------- | ------ | ------ | --------- |
@@ -824,11 +826,11 @@ mongoose.connection.on("error", (err) => {
 
 ## 🚀 Advanced Features
 
-### Cursor Pagination
+### Cursor Pagination {#advanced-cursor-pagination}
 
 Cursor pagination provides **O(1) time complexity** regardless of page number, unlike offset pagination which degrades to **O(n)**.
 
-#### Implementation
+#### Implementation {#cursor-pagination-impl}
 
 ```
 // File: src/databases/mongodb/MongoQueryBuilder.ts
@@ -867,7 +869,7 @@ async paginate(options: PaginateOptions): Promise<DatabaseResult<T[]>> {
 }
 ```
 
-#### Usage Example
+#### Usage Example {#cursor-pagination-usage}
 
 ```
 // Page 1: No cursor needed
@@ -904,7 +906,7 @@ const page3 = await db
   .execute();
 ```
 
-#### Performance Comparison
+#### Performance Comparison {#cursor-pagination-comparison}
 
 | Page Number | Offset Pagination | Cursor Pagination | Improvement |
 | ----------- | ----------------- | ----------------- | ----------- |
@@ -921,7 +923,7 @@ const page3 = await db
 
 Streaming provides **O(1) memory usage** for processing large datasets, unlike fetching all records which uses **O(n) memory**.
 
-#### Implementation
+#### Implementation {#implementation-2}
 
 ```
 // File: src/databases/mongodb/MongoQueryBuilder.ts
@@ -951,7 +953,7 @@ async stream(): Promise<DatabaseResult<AsyncIterable<T>>> {
 }
 ```
 
-#### Usage Examples
+#### Usage Examples {#streaming-usage}
 
 ##### Export Large Dataset
 
@@ -1030,7 +1032,7 @@ if (stream.success) {
 // Processes millions of records without memory issues
 ```
 
-#### Performance Comparison
+#### Performance Comparison {#performance-comparison-2}
 
 | Records   | Fetch All (Memory) | Streaming (Memory) | Savings    |
 | --------- | ------------------ | ------------------ | ---------- |
@@ -1044,7 +1046,7 @@ if (stream.success) {
 
 Query hints force MongoDB to use specific indexes or set execution limits.
 
-#### Implementation
+#### Implementation {#implementation-3}
 
 ```
 // File: src/databases/mongodb/MongoQueryBuilder.ts
@@ -1071,7 +1073,7 @@ private async executeQuery(): Promise<T[]> {
 }
 ```
 
-#### Usage Examples
+#### Usage Examples {#usage-examples-2}
 
 ##### Force Specific Index
 
@@ -1142,7 +1144,7 @@ const user = await User.findOne({ email: "user@example.com" }).lean();
 // Access: user.name (direct property access)
 ```
 
-#### Implementation
+#### Implementation {#implementation-4}
 
 All CRUD methods in `crudMethods.ts` use `.lean()`:
 
@@ -1166,7 +1168,7 @@ async find(query: FilterQuery<T>): Promise<T[]> {
 }
 ```
 
-#### Performance Impact
+#### Performance Impact {#performance-impact-3}
 
 | Operation  | Without .lean() | With .lean() | Improvement |
 | ---------- | --------------- | ------------ | ----------- |
@@ -1191,7 +1193,7 @@ interface QueryMeta {
 }
 ```
 
-#### Usage Example
+#### Usage Example {#usage-example-2}
 
 ```
 const result = await db.queryBuilder("users").where({ tenantId: "acme", role: "admin" }).execute();
@@ -1451,7 +1453,7 @@ Key MongoDB highlights include:
 
 ## 🚀 Quick Reference
 
-### Cursor Pagination
+### Cursor Pagination {#cursor-pagination-2}
 
 ```
 const page = await db
@@ -1469,7 +1471,7 @@ for await (const item of stream.data) {
 }
 ```
 
-### Query Hints
+### Query Hints {#query-hints-2}
 
 ```
 const result = await db
@@ -1536,6 +1538,7 @@ The MongoDB implementation provides:
 
 1. **NoSQL Injection Protection**: `sanitizeMongoQuery()` in `src/utils/security/mongo-sanitize.ts` recursively blocks dangerous MongoDB operators (`$where`, `$function`, `$expr`, `$accumulator`) at the `mapQuery` level — every query, including fast-path ID lookups, is sanitized before reaching the database.
 2. **ReDoS Prevention**: `$regex` patterns validated to maximum 500 characters, preventing catastrophic backtracking attacks.
+
 3. **Soft-Delete Filter Enforcement**: `safeQuery()` now always applies the `isDeleted: { $ne: true }` filter unless explicitly opted out — closing a gap where callers could bypass soft-deletion by setting `isDeleted` in their query.
 4. **Website Token Parity (June 2026)**: `website-token-methods.ts` declares `tenantId` and `isDeleted` on the Mongoose schema (`strict: true`), routes all CRUD through `safeQuery` (no `bypassSafeQuery`), and aligns with the SQL `ISystemAdapter.websiteTokens` contract. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
 

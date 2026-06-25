@@ -148,7 +148,7 @@ onMount(() => {
 	<!-- Results Area -->
 	<div class="max-h-100 overflow-y-auto p-2" role="listbox">
 		{#if filteredResults.length > 0}
-			{#each filteredResults as item, i}
+			{#each filteredResults as item, i (i)}
 				<button
 					id="command-result-{i}"
 					role="option"
@@ -173,7 +173,7 @@ onMount(() => {
 
 					{#if item.shortcut}
 						<div class="flex gap-1">
-							{#each item.shortcut.split(' ') as key}
+							{#each item.shortcut.split(' ') as key, i (i)}
 								<kbd class="rounded border border-surface-200 bg-surface-50 px-1.5 py-0.5 text-[10px] font-bold text-surface-400 dark:border-surface-600 dark:bg-surface-700">
 									{key}
 								</kbd>

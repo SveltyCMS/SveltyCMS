@@ -35,7 +35,11 @@ describe("layout-state-prefs", () => {
   it("converts ui state to layout prefs", () => {
     expect(
       uiStateToLayoutPrefs(
-        baseUiState({ leftSidebar: "collapsed", rightSidebar: "full", pageheader: "hidden" }),
+        baseUiState({
+          leftSidebar: "collapsed",
+          rightSidebar: "full",
+          pageheader: "hidden",
+        }),
       ),
     ).toEqual({
       leftSidebar: "full",

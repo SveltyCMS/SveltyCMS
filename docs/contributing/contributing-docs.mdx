@@ -21,7 +21,7 @@ High-quality documentation is what makes SveltyCMS accessible to everyone — fr
 **Jump to your section:**
 
 - 👥 **[For All Contributors](#for-all-contributors)** — Style, tone, and the writing approach that makes our docs excellent.
-- 🛠️ **[For Developers & AI Agents](#for-developers--ai-agents)** — Non-negotiable technical rules, canonical locations, frontmatter spec, and PR process.
+- 🛠️ **[For Developers & AI Agents](#for-developers-and-ai-agents)** — Non-negotiable technical rules, canonical locations, frontmatter spec, and PR process.
 
 ---
 
@@ -149,11 +149,9 @@ const result = await db.collections.findOne({ id });
 
 ```
 
-````
-
 ---
 
-## For Developers & AI Agents
+## For Developers & AI Agents {#for-developers-and-ai-agents}
 
 This section contains non-negotiable rules. All PRs are checked against these standards before review.
 
@@ -180,19 +178,19 @@ These rules are enforced. A PR that violates them will not be merged.
 
 Place files only in these locations. No other locations are permitted.
 
-| Content Type       | Location                                           | Reason                                           |
-| :----------------- | :------------------------------------------------- | :----------------------------------------------- |
-| **API Reference**  | `/docs/api/`                                       | Single unified surface for all endpoint docs.    |
-| **General Guides** | `/docs/guides/`                                    | Central library for feature and workflow guides. |
-| **Architecture**   | `/docs/architecture/`                              | Internal mechanics and system design.            |
-| **Contributing**   | `/docs/contributing/`                              | Process and standards docs (like this file).     |
-| **Concepts**        | `/docs/concepts/`                                  | Mental model overviews — 3-4 short pages.         |
+| Content Type         | Location                                           | Reason                                           |
+| :------------------- | :------------------------------------------------- | :----------------------------------------------- |
+| **API Reference**    | `/docs/api/`                                       | Single unified surface for all endpoint docs.    |
+| **General Guides**   | `/docs/guides/`                                    | Central library for feature and workflow guides. |
+| **Architecture**     | `/docs/architecture/`                              | Internal mechanics and system design.            |
+| **Contributing**     | `/docs/contributing/`                              | Process and standards docs (like this file).     |
+| **Concepts**         | `/docs/concepts/`                                  | Mental model overviews — 3-4 short pages.        |
 | **Migration Guides** | `/docs/guides/migration/`                          | "Moving from X" guides (WordPress, Strapi, etc). |
-| **Widget Docs**    | `src/widgets/core/{widget-name}/{widget-name}.mdx` | Co-located with source for maintainability.      |
+| **Widget Docs**      | `src/widgets/core/{widget-name}/{widget-name}.mdx` | Co-located with source for maintainability.      |
 
 #### Canonical Structure Reference
 
-```text
+````text
 SveltyCMS/
 ├── docs/
 │   ├── api/                              # ALL API docs — no exceptions
@@ -331,9 +329,17 @@ bun run slop
 
 ```
 
-# Run quality gate (915+ tests)
+# Run pre-commit checks (staged files, ~2-3s)
 
-bun run lint && bun run check && bun run test:unit
+bun run gate:fast
+
+# Run pre-push checks (type check + unit tests, ~15-45s)
+
+bun run gate
+
+# Run full CI simulation locally
+
+bun run ci:local
 
 # Run performance audit (if applicable)
 

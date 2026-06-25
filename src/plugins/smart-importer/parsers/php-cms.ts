@@ -34,7 +34,12 @@ export function parseJoomlaExport(jsonText: string, token: string): SNCEnvelope 
       });
     }
 
-    return { sourcePlatform: "joomla", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "joomla",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -86,7 +91,12 @@ export function parseTypo3Export(jsonText: string, token: string): SNCEnvelope |
         createdAt: item.crdate ? new Date(item.crdate * 1000).toISOString() : nowISODateString(),
         updatedAt: item.tstamp ? new Date(item.tstamp * 1000).toISOString() : nowISODateString(),
         taxonomies: { vocabularies: [], terms: {} },
-        rawCustomFields: { ...item, _ttContent: [item], _colPos: item.colPos, _CType: item.CType },
+        rawCustomFields: {
+          ...item,
+          _ttContent: [item],
+          _colPos: item.colPos,
+          _CType: item.CType,
+        },
         assetsToMirror:
           item.media || item.image
             ? [
@@ -100,7 +110,12 @@ export function parseTypo3Export(jsonText: string, token: string): SNCEnvelope |
       });
     }
 
-    return { sourcePlatform: "typo3", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "typo3",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -141,7 +156,12 @@ export function parseCraftExport(jsonText: string, token: string): SNCEnvelope |
       });
     }
 
-    return { sourcePlatform: "craft", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "craft",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -198,7 +218,11 @@ export function parseGravExport(jsonOrYaml: string, token: string): SNCEnvelope 
               : header.categories || [],
           },
         },
-        rawCustomFields: { ...header, _route: item.route, _template: item.template },
+        rawCustomFields: {
+          ...header,
+          _route: item.route,
+          _template: item.template,
+        },
         assetsToMirror: header.image
           ? [
               {
@@ -211,7 +235,12 @@ export function parseGravExport(jsonOrYaml: string, token: string): SNCEnvelope 
       });
     }
 
-    return { sourcePlatform: "grav", version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: "grav",
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }
@@ -260,7 +289,12 @@ export function parseGenericPHPCMS(
       }),
     );
 
-    return { sourcePlatform: platform as any, version: "1.0", transactionToken: token, entries };
+    return {
+      sourcePlatform: platform as any,
+      version: "1.0",
+      transactionToken: token,
+      entries,
+    };
   } catch {
     return null;
   }

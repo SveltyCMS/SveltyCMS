@@ -112,7 +112,11 @@ async function runBehavioralBenchmark() {
       applyExtinction(TENANT, `/from-${idx}`, `/to-${idx}`);
     },
   });
-  results.push({ ...reinforcementResult, layer: "Learner", shortLabel: "Reinforce" });
+  results.push({
+    ...reinforcementResult,
+    layer: "Learner",
+    shortLabel: "Reinforce",
+  });
 
   // --- 5. PRINT RESULTS ---
   printTruthTable({
@@ -125,7 +129,11 @@ async function runBehavioralBenchmark() {
   printSummaryTable([
     { key: "Recording Overhead", val: recordResult.avgMs, unit: "ms" },
     { key: "Prediction (Best Match)", val: predictResult.avgMs, unit: "ms" },
-    { key: "Reinforcement Loop Cycles", val: reinforcementResult.avgMs, unit: "ms" },
+    {
+      key: "Reinforcement Loop Cycles",
+      val: reinforcementResult.avgMs,
+      unit: "ms",
+    },
   ]);
 }
 

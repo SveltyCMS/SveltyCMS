@@ -68,7 +68,10 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
     const res = await this._getRepo(collection).deleteMany(query, options);
     if (res.success) {
       await this.adapter.invalidateQueryCache(collection, options?.tenantId);
-      return { success: true as const, data: { deletedCount: res.data.deletedCount } };
+      return {
+        success: true as const,
+        data: { deletedCount: res.data.deletedCount },
+      };
     }
     return res as any;
   }
@@ -102,13 +105,21 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
   async find<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options: FindOptions<T> & { rawSql?: boolean; sql?: string; params?: any[]; tx?: any } = {},
+    options: FindOptions<T> & {
+      rawSql?: boolean;
+      sql?: string;
+      params?: any[];
+      tx?: any;
+    } = {},
   ): Promise<DatabaseResult<T[]>> {
     if (options.rawSql) {
       return {
         success: false,
         message: "rawSql not supported in MongoDB",
-        error: { code: "NOT_SUPPORTED", message: "rawSql not supported in MongoDB" },
+        error: {
+          code: "NOT_SUPPORTED",
+          message: "rawSql not supported in MongoDB",
+        },
       };
     }
     return this.findMany(collection, query, options);

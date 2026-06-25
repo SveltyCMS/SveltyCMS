@@ -55,7 +55,7 @@ export const WIDGET_DIR_MAP: Record<string, string> = {
   "rich-text": "RichText",
   select: "Select",
   slug: "Slug",
-  AIEnrichment: "AIEnrichment",
+  "ai-enrichment": "AIEnrichment",
   address: "Address",
   "color-picker": "ColorPicker",
   currency: "Currency",

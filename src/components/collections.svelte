@@ -524,7 +524,7 @@ Provides an organized interface for navigating hierarchical content structures.
 
 			<!-- Tags Filter Dropdown -->
 			{#if allTags.length > 0}
-				<div class="relative flex-1">
+				<div class="relative flex-1 min-w-35">
 					<Select
 						bind:value={selectedTagFilter}
 						options={tagFilterOptions}
@@ -639,11 +639,10 @@ Provides an organized interface for navigating hierarchical content structures.
 					</span>
 				</div>
 
-				<!-- Current tags preview -->
-				{#if tagMap[activeCollectionIdForTagging] && tagMap[activeCollectionIdForTagging].length > 0}
-					<div class="flex flex-wrap gap-1.5 mt-2">
-						{#each tagMap[activeCollectionIdForTagging] as tag}
-							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500">
+				{#if tagMap[activeCollectionIdForTagging]?.length}
+					<div class="flex flex-wrap gap-1.5 mt-3">
+						{#each tagMap[activeCollectionIdForTagging] as tag, i (i)}
+							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-tertiary-500/10 text-tertiary-500">
 								{tag}
 								<Button variant="ghost"
 									type="button"

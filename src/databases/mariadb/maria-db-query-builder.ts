@@ -353,7 +353,9 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
       return {
         success: true,
         data: result
-          ? (utils.convertDatesToISO(result, { mariaDoubleParseJson: true }) as unknown as T)
+          ? (utils.convertDatesToISO(result, {
+              mariaDoubleParseJson: true,
+            }) as unknown as T)
           : null,
         meta: { executionTime: Date.now() - startTime },
       };

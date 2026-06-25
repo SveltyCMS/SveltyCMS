@@ -27,7 +27,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return new Response("Unauthorized", { status: 401 });
   }
   if (!hasCollectionBuilderPermission(user, locals.roles ?? [], locals.isAdmin)) {
-    return new Response("config:collectionbuilder permission required", { status: 403 });
+    return new Response("config:collectionbuilder permission required", {
+      status: 403,
+    });
   }
 
   const dbAdapter = locals.cms?.db ?? (locals as { dbAdapter?: unknown }).dbAdapter;

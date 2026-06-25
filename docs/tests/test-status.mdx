@@ -18,7 +18,7 @@ tags:
 
 # SveltyCMS Enterprise Test Coverage Report
 
-### 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
+## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
 
 | Metric                      | Before | After                  |
 | --------------------------- | ------ | ---------------------- |
@@ -29,14 +29,15 @@ tags:
 
 **Coverage**: 36 spec files across 4 domains
 
-| Domain          | Files | What's Tested                                                              |
-| --------------- | ----- | -------------------------------------------------------------------------- |
-| Auth & Users    | 5     | Login, 2FA, lockout, tokens, website-tokens, user CRUD                     |
-| Content & Media | 6     | Collections, content CRUD, media upload/delete, search, GraphQL            |
-| System & Config | 12    | Settings, themes, dashboard, cache, permissions, RBAC, i18n                |
-| Security        | 4     | Defense-in-depth, negative scenarios, rate-limiting, XSS/SQLi              |
-| Database        | 7     | Contract tests, adapter-specific (SQLite/Mongo/Maria/Postgres), resilience |
-| Setup & SDK     | 2     | Setup wizard, LocalCMS SDK                                                 |
+| Domain          | Files | What's Tested                                                   |
+| --------------- | ----- | --------------------------------------------------------------- |
+| Auth & Users    | 5     | Login, 2FA, lockout, tokens, website-tokens, user CRUD          |
+| Content & Media | 6     | Collections, content CRUD, media upload/delete, search, GraphQL |
+| System & Config | 12    | Settings, themes, dashboard, cache, permissions, RBAC, i18n     |
+| Security        | 4     | Defense-in-depth, negative scenarios, rate-limiting, XSS/SQLi   |
+
+| Database | 7 | Contract tests, adapter-specific (SQLite/Mongo/Maria/Postgres), resilience |
+| Setup & SDK | 2 | Setup wizard, LocalCMS SDK |
 
 **Hardening applied**:
 
@@ -45,7 +46,7 @@ tags:
 - Widget auto-registration → fixes 404 for valid widgets in fresh DB
 - All caches + state stores cleared per-test → true isolation
 
-### 2. Playwright E2E Tests (`tests/e2e/`)
+## 2. Playwright E2E Tests (`tests/e2e/`)
 
 | Status                   | Count | Notes                                                                            |
 | ------------------------ | ----- | -------------------------------------------------------------------------------- |
@@ -73,7 +74,7 @@ tags:
 | Hardcoded ports  | `localhost:5173`          | `127.0.0.1:4173` or `baseURL`-relative  |
 | Environment deps | Assertion fails hard      | `try/catch` with graceful skip          |
 
-### 3. Unit Tests
+## 3. Unit Tests
 
 | Metric            | Value                                           |
 | ----------------- | ----------------------------------------------- |
@@ -107,7 +108,7 @@ tags:
 | media-utils.test.ts  | 15    | MIME lookup, reverse extension mapping, filename sanitization, file/buffer validation, hash-path resolution |
 | slim-sniffer.test.ts | 12    | Binary MIME detection for JPEG, PNG, GIF, WebP, SVG, PDF, DOCX, MP4, WebM                                   |
 
-### 4. CI Pipeline Gates
+## 4. CI Pipeline Gates
 
 | Gate              | Runtime    | What it catches                                   |
 | ----------------- | ---------- | ------------------------------------------------- |
@@ -120,7 +121,7 @@ tags:
 | E2E Auth          | ~20s       | Login + session creation                          |
 | E2E App (×17)     | ~15s each  | Full admin surface (signup through media gallery) |
 
-### 5. Gaps — What's NOT Tested
+## 5. Gaps — What's NOT Tested
 
 | Gap                                      | Risk                                                                                         | Priority  |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------- | --------- |
@@ -136,7 +137,7 @@ tags:
 | **✅ Content reconciliation** (resolved) | Now covered by `tests/unit/content/content-reconcile.test.ts` (20 tests)                     | —         |
 | **✅ Proxy & tenant filter** (resolved)  | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests) | —         |
 
-### 6. Recommended Next Actions
+## 6. Recommended Next Actions
 
 1. **Harden builder selectors** — add `data-testid` to collection builder critical paths (`builder.spec.ts`, `journey.spec.ts`)
 2. **Image editor save E2E** — save via `/api/media/manipulate` after crop

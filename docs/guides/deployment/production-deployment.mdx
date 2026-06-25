@@ -557,7 +557,7 @@ const SESSION_CACHE_TTL_MS = 15 * 60 * 1000;
 
 ### Connection Pooling
 
-#### MongoDB
+#### MongoDB {#pooling-mongodb}
 
 ```
 import { MongoClient } from "mongodb";
@@ -575,7 +575,7 @@ const client = new MongoClient(process.env.MONGODB_URI, {
 await client.connect();
 ```
 
-#### PostgreSQL
+#### PostgreSQL {#pooling-postgresql}
 
 ```
 import { Pool } from "pg";
@@ -593,7 +593,7 @@ const pool = new Pool({
 
 Create indexes for frequently queried fields to improve performance.
 
-#### MongoDB
+#### MongoDB {#mongodb-2}
 
 ```
 // User collection
@@ -615,7 +615,7 @@ db.media.createIndex({ tenantId: 1, type: 1 });
 db.media.createIndex({ uploadedAt: -1 });
 ```
 
-#### PostgreSQL
+#### PostgreSQL {#postgresql-2}
 
 ```
 -- Users table

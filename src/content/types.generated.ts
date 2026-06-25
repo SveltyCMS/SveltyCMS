@@ -4,7 +4,7 @@
  * This file is managed by the Vite build plugin and should NOT be edited manually.
  */
 
-import type { CollectionEntry } from "./types";
+import type { CollectionEntry, DatabaseId } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
 export type ContentTypes = "authors" | "categories" | "posts" | "test_collection" | (string & {});
@@ -17,7 +17,11 @@ export interface CollectionMap {
     avatar: string | string[];
     email: string;
   };
-  categories: CollectionEntry & { name: string; slug: string; description: string };
+  categories: CollectionEntry & {
+    name: string;
+    slug: string;
+    description: string;
+  };
   posts: CollectionEntry & {
     title: string;
     slug: string;

@@ -18,7 +18,7 @@ test.describe("Design System Playground", () => {
     });
     await expect(page.getByText(/playground controls/i)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/semantic palettes/i)).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: /^appearance$/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /appearance/i })).toBeVisible();
   });
 
   test("density control updates preview context", async ({ page }) => {

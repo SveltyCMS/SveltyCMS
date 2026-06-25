@@ -109,7 +109,7 @@ const availableTransitions = $derived.by(() => {
         {:else}
             <div class="space-y-3">
                 <div class="flex flex-wrap gap-2">
-                    {#each availableTransitions as trans}
+                    {#each availableTransitions as trans (trans.id)}
                         <Button variant="primary"
                             onclick={() => { selectedTargetStateId = trans.to; showComment = true; }}
                             aria-label={trans.label}
@@ -146,7 +146,7 @@ const availableTransitions = $derived.by(() => {
                     <p class="text-[10px] font-bold opacity-30 uppercase mb-2">Recent History</p>
                     <div class="space-y-2">
                         {#if instance && instance.history}
-                            {#each instance.history.slice(-3).reverse() as log}
+                            {#each instance.history.slice(-3).reverse() as log, i (i)}
                                 <div class="text-[10px] flex items-center justify-between opacity-60">
                                     <span>{workflow.states.find(s => s.id === log.fromState)?.label} ➔ {workflow.states.find(s => s.id === log.toState)?.label}</span>
                                     <span>{new Date(log.timestamp).toLocaleDateString()}</span>

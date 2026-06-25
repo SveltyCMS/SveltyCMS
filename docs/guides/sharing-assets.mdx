@@ -17,11 +17,11 @@ tags:
 
 Sharing media assets (images, videos, documents) with external users is a critical feature for SveltyCMS. This guide covers how to generate secure, tokenized links and what the recipient experience entails.
 
-### **🎯 Goal**
+## **🎯 Goal**
 
 To make specific private files accessible to designated third parties while maintaining security through unique tokens and optional password protection.
 
-### 📄 Prerequisites (The Admin Workflow)
+## 📄 Prerequisites (The Admin Workflow)
 
 Before generating a share link, you must:
 
@@ -29,7 +29,7 @@ Before generating a share link, you must:
 2.  Navigate to the media's detailed management view.
 3.  Activate the "Sharing" toggle and configure the necessary parameters (e.g., token lifetime, password protection).
 
-### 🛠️ The Sharing Process (Step-by-step)
+## 🛠️ The Sharing Process (Step-by-step)
 
 1. **Select Asset**: Go to `Media Library` and select the file you wish to share.
 2. **Open Share Settings**: Click the 'Share' button on the asset details pane.
@@ -38,7 +38,7 @@ Before generating a share link, you must:
    - **Expiration**: Set the desired expiration date/time for the link. After this time, the link will automatically fail and become inaccessible.
    - **Password Protection (Optional)**: If the content must be restricted, enable password protection. The system will store a salted hash of your provided password in the asset's metadata.
 
-### 👤 The Recipient Experience (What happens next)
+## 👤 The Recipient Experience (What happens next)
 
 When a recipient clicks the generated link (`https://sveltycms.com/share/[token]?id=[mediaId]`), they will land on our dedicated, optimized share page:
 
@@ -51,9 +51,7 @@ When a recipient clicks the generated link (`https://sveltycms.com/share/[token]
 > [!WARNING]
 > **Do not manually share raw media URLs.** Always use the generated tokenized link provided by SveltyCMS to ensure the asset is properly tracked, time-limited, and secured.
 
-### ⚙️ Technical Mechanics (For Deep Understanding)
-
-### ⚙️ Technical Mechanics (For Deep Understanding)
+## ⚙️ Technical Mechanics (For Deep Understanding)
 
 The sharing mechanism relies on a multi-layered validation process:
 

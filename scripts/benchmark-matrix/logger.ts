@@ -29,7 +29,9 @@ export const log = {
   },
   db: (db: string, msg: string) => {
     if (process.env.QUIET === "true") return;
-    const meta = (DB_METADATA as any)[db.toLowerCase()] ?? { color: "\x1b[37m" };
+    const meta = (DB_METADATA as any)[db.toLowerCase()] ?? {
+      color: "\x1b[37m",
+    };
     const ts = new Date().toLocaleTimeString();
     console.log(`\x1b[90m[${ts}]\x1b[0m ${meta.color}[${db.toUpperCase()}]\x1b[0m ${msg}`);
   },

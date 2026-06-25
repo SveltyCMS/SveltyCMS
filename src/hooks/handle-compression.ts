@@ -25,8 +25,8 @@
 
 import type { Handle } from "@sveltejs/kit";
 import { getRequestFlags } from "@utils/hook-utils";
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import fsp from "node:fs/promises";
+import path from "node:path";
 
 const MIN_COMPRESSION_SIZE = 1024; // 1KB
 
@@ -48,6 +48,7 @@ const COMPRESSIBLE_TYPES = [
 let zlib: any = null;
 let stream: any = null;
 let isNativeChecked = false;
+let cmsDict: Buffer | null = null;
 
 // 🚀 Eager background init — avoids microtask overhead on first request
 initNativeModules().catch(() => {});
@@ -57,6 +58,13 @@ async function initNativeModules() {
   try {
     zlib = await import("node:zlib");
     stream = await import("node:stream");
+    // Async dictionary load — prevents event loop freeze on first request
+    const dictPath = path.join(process.cwd(), "static", "dictionaries", "cms-payloads.dict");
+    try {
+      cmsDict = await fsp.readFile(dictPath);
+    } catch {
+      cmsDict = null;
+    }
   } catch {
     // Edge/Deno/Workers — fall back to CompressionStream
   } finally {
@@ -121,7 +129,7 @@ function compressWithZlib(
     | import("node:zlib").Deflate;
 
   if (algorithm === "br") {
-    const dict = getCmsDict();
+    const dict = cmsDict;
     const brOpts: any = {
       params: {
         [zlib!.constants.BROTLI_PARAM_QUALITY]: 4, // Fast mode (0-11 scale, 4 is speed-optimized)
@@ -180,7 +188,7 @@ export function compressSync(
   const input = Buffer.isBuffer(data) ? data : Buffer.from(data as any);
   try {
     if (algorithm === "br") {
-      const dict = getCmsDict();
+      const dict = cmsDict;
       const brOpts: any = {
         params: {
           [zlib.constants.BROTLI_PARAM_QUALITY]: 4, // speed-optimized like streaming path
@@ -205,26 +213,6 @@ export function compressSync(
 /** Quick sync capability check (eager init makes this reliable after first requests). */
 export function hasNativeCompression(): boolean {
   return zlib !== null && stream !== null;
-}
-
-// 🚀 Phase 3b: Trained CMS payload dictionary (build artifact from scripts/build-zstd-dict.ts)
-// Loaded once, used for Brotli (and future zstd) to gain extra 10-25% ratio on repetitive
-// widget/JSON structures (field names, enums, nested objects). File is ~110KB, deterministic.
-// Falls back gracefully if missing (e.g. custom build without the artifact).
-let cmsDict: Buffer | null = null;
-function getCmsDict(): Buffer | null {
-  if (cmsDict !== null) return cmsDict;
-  try {
-    const dictPath = join(process.cwd(), "static", "dictionaries", "cms-payloads.dict");
-    if (existsSync(dictPath)) {
-      cmsDict = readFileSync(dictPath);
-    } else {
-      cmsDict = null;
-    }
-  } catch {
-    cmsDict = null;
-  }
-  return cmsDict;
 }
 
 // Phase 3b zstd native wiring (optional binding for full speed + dict on zstd path).
@@ -255,7 +243,7 @@ export async function compressZstd(data: string | Uint8Array | Buffer): Promise<
     const input = Buffer.isBuffer(data)
       ? new Uint8Array(data)
       : new Uint8Array(Buffer.from(data as any));
-    const dict = getCmsDict();
+    const dict = cmsDict;
     const opts: any = {};
     if (dict) {
       opts.dictionary = dict;

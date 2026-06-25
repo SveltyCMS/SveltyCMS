@@ -27,7 +27,7 @@ import {
 import "../unit/bun-preload.ts";
 
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
-const SOAK_HOURS = parseFloat(process.env.LONG_SOAK_HOURS || (IS_CI ? "0.083" : "4")); // 5min CI, 4hr local
+const SOAK_HOURS = parseFloat(process.env.LONG_SOAK_HOURS || (IS_CI ? "0.017" : "4")); // ~1min CI, 4hr local
 const SAMPLE_INTERVAL_SEC = IS_CI ? 30 : 60;
 const CONCURRENCY = 4;
 

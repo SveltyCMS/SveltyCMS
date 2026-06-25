@@ -21,7 +21,9 @@ export class TenantsModule extends DatabaseModule<SQLiteAdapterCore> {
   }
 
   async create(
-    tenant: Omit<Tenant, "_id" | "createdAt" | "updatedAt"> & { _id?: DatabaseId },
+    tenant: Omit<Tenant, "_id" | "createdAt" | "updatedAt"> & {
+      _id?: DatabaseId;
+    },
   ): Promise<DatabaseResult<Tenant>> {
     return this.core.wrap(async () => {
       const id = tenant._id || utils.generateId();

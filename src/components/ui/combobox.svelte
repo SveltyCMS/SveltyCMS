@@ -352,14 +352,14 @@ $effect(() => {
 
 			<!-- Grouped options -->
 			{:else if groupedOptions && groupBy}
-				{#each groupedOptions as group}
+				{#each groupedOptions as group (group.name)}
 					<div
 						class="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 bg-surface-50 dark:bg-surface-900/50 border-b border-surface-100 dark:border-surface-800"
 						role="presentation"
 					>
 						{group.name}
 					</div>
-					{#each group.items as opt}
+					{#each group.items as opt (opt.value)}
 						{const flatIndex = flatFilteredOptions.indexOf(opt)}
 						{const active = flatIndex === activeIndex}
 						{const selected = opt.value === value}

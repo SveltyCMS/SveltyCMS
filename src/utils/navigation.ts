@@ -192,7 +192,10 @@ class NavigationManager {
     await this.executeNavigation("toList", async () => {
       if (IS_BROWSER) {
         document.dispatchEvent(
-          new CustomEvent("entrySaved", { bubbles: true, detail: { timestamp: Date.now() } }),
+          new CustomEvent("entrySaved", {
+            bubbles: true,
+            detail: { timestamp: Date.now() },
+          }),
         );
       }
 
@@ -263,4 +266,9 @@ class NavigationManager {
 export const navigationManager = new NavigationManager();
 
 // --- Compatibility Exports ---
-export const navigationUtils = { preloadEntry, cancelPreload, reflectModeInURL, parseURLToMode };
+export const navigationUtils = {
+  preloadEntry,
+  cancelPreload,
+  reflectModeInURL,
+  parseURLToMode,
+};

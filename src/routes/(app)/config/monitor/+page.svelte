@@ -155,7 +155,7 @@ function formatUptime(seconds: number): string {
                         </tr>
                     </thead>
                     <tbody>
-                        {#each systemState.services as svc}
+                        {#each systemState.services as svc (svc.name)}
                             <tr class="border-b border-surface-100 dark:border-surface-800">
                                 <td class="py-2 font-medium">{svc.name}</td>
                                 <td class="py-2">
@@ -190,7 +190,7 @@ function formatUptime(seconds: number): string {
              </div>
              <div class="space-y-4">
                 {#if data.security?.recentIncidents?.length > 0}
-                    {#each data.security.recentIncidents as incident}
+                    {#each data.security.recentIncidents as incident (incident._id)}
                         {const inc = incident as any}
                         <div class="flex items-center gap-4 rounded border-s-4 border-error-500 bg-surface-50 p-3 dark:bg-surface-800">
                             <iconify-icon icon="mdi:alert-decagram" class="text-xl text-error-500"></iconify-icon>

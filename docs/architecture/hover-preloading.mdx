@@ -40,10 +40,7 @@ flowchart LR
     H --> J
     I --> J
 
-    style C fill:#fef08a,stroke:#854d0e,color:#000
-    style D fill:#93c5fd,stroke:#1e40af,color:#000
-    style E fill:#4ade80,stroke:#166534,color:#000
-    style F fill:#c084fc,stroke:#6b21a8,color:#000
+
 ```
 
 | Strategy     | Trigger                                         | Delay         | Data Attribute            |
@@ -91,7 +88,7 @@ Preloads when a link scrolls into the viewport — ideal for long lists where th
 <a href="/en/posts/789?edit=true" data-preload="predict">Edit Post</a>
 ```
 
-### How it works
+### How it works {#predict-how}
 
 ```mermaid
 sequenceDiagram
@@ -141,7 +138,7 @@ SveltyCMS-exclusive. Combines the physics cone with the behavioral learning engi
 <a href="/en/posts/789?edit=true" data-preload="smart">Edit Post</a>
 ```
 
-### How it works
+### How it works {#how-it-works-2}
 
 ```mermaid
 flowchart TD
@@ -153,8 +150,7 @@ flowchart TD
     E --> G["Hot content loads instantly"]
     F --> G
 
-    style C fill:#c084fc,stroke:#6b21a8,color:#000
-    style E fill:#4ade80,stroke:#166534,color:#000
+
 ```
 
 When multiple links fall within the prediction cone (common in dense tables), the behavioral learner's `getHotCollections()` determines which collection the link points to. Links to frequently-accessed collections get double priority — preloaded before less-used ones.

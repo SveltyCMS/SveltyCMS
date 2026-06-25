@@ -17,7 +17,10 @@ import { normalizeCollectionId } from "./infer-collection";
 export { normalizeCollectionId };
 
 /** Map importer field types to SveltyCMS widget definitions */
-export function importTypeToWidget(type: string): { Name: string; fieldType: string } {
+export function importTypeToWidget(type: string): {
+  Name: string;
+  fieldType: string;
+} {
   switch (type.toLowerCase()) {
     case "richtext":
     case "rich":

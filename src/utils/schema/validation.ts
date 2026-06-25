@@ -109,7 +109,11 @@ export async function validateInWorker(
     else throw new Error("Unknown action");
 
     const result = safeParse(schema, data);
-    return { success: result.success, output: result.output, issues: result.issues };
+    return {
+      success: result.success,
+      output: result.output,
+      issues: result.issues,
+    };
   }
 
   return new Promise((resolve, reject) => {

@@ -28,7 +28,10 @@ describe("magic-link service", () => {
 
   it("sendMagicLinkForEmail should create token when user exists", async () => {
     const { auth } = await import("@src/databases/db");
-    (auth.checkUser as any).mockResolvedValue({ _id: "u1", email: "user@test.com" });
+    (auth.checkUser as any).mockResolvedValue({
+      _id: "u1",
+      email: "user@test.com",
+    });
 
     const { sendMagicLinkForEmail } = await import("@src/databases/auth/magic-link");
     const event = {

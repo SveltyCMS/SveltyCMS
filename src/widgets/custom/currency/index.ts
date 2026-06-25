@@ -84,7 +84,11 @@ const CurrencyWidget = createWidget<CurrencyProps>({
     },
     minValue: { widget: "Input", required: false },
     maxValue: { widget: "Input", required: false },
-    step: { widget: "Input", required: false, helper: "Step value (e.g., 0.01)" },
+    step: {
+      widget: "Input",
+      required: false,
+      helper: "Step value (e.g., 0.01)",
+    },
     placeholder: { widget: "Input", required: false },
   },
 

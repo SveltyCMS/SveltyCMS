@@ -144,7 +144,12 @@ export async function safeFetch(
       const headers: Record<string, string> = {};
       response.headers.forEach((v, k) => (headers[k] = v));
 
-      return { success: response.ok, status: response.status, body: text, headers };
+      return {
+        success: response.ok,
+        status: response.status,
+        body: text,
+        headers,
+      };
     } finally {
       clearTimeout(timer);
     }
@@ -154,7 +159,10 @@ export async function safeFetch(
       return { success: false, error: err.message };
     }
     if (err?.name === "AbortError") {
-      return { success: false, error: `Request timed out after ${timeoutMs}ms` };
+      return {
+        success: false,
+        error: `Request timed out after ${timeoutMs}ms`,
+      };
     }
     return { success: false, error: err?.message || "Unknown fetch error" };
   }

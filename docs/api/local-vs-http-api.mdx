@@ -69,9 +69,7 @@ graph TB
     Logic --> DB
     Logic --> RD
 
-    style SDK fill:#4ade80,stroke:#166534,stroke-width:2px,color:#000
-    style Logic fill:#fef08a,stroke:#854d0e,stroke-width:2px,color:#000
-    style Network fill:#fecaca,stroke:#991b1b,stroke-dasharray: 5 5,color:#000
+
 ```
 
 ---
@@ -113,7 +111,12 @@ await cms.media.list({ folderId: "uploads" });
 
 // Identity & Access
 await cms.auth.listUsers({ tenantId });
-await cms.websiteTokens.create({ name: "API Key", permissions: ["content:read"], user, tenantId });
+await cms.websiteTokens.create({
+  name: "API Key",
+  permissions: ["content:read"],
+  user,
+  tenantId,
+});
 
 // System & Infrastructure
 await cms.system.settings.getAll();
@@ -145,7 +148,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 ```typescript
 // Collections namespace supports bulkCreate, bulkUpdate, bulkDelete
-const result = await cms.collections.bulkCreate("products", largeDataArray, { tenantId });
+const result = await cms.collections.bulkCreate("products", largeDataArray, {
+  tenantId,
+});
 ```
 
 ---

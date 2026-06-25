@@ -1,6 +1,6 @@
 /**
  * @file src/plugins/stripe/index.ts
- * @description Stripe Payments plugin for SveltyCMS.
+ * @description Stripe Payments plugin for SveltyCMS — headless payment processing.
  *
  * Accept payments via Stripe for gated content, memberships, or e-commerce.
  * Uses the official Stripe SDK server-side and Stripe.js via CDN client-side
@@ -13,6 +13,8 @@
  * - Payment status column in entry lists
  * - Tenant-level API key configuration
  * - Audit-logged payment transactions
+ * - Abstract migrations via dbAdapter.schema.ensureCollection()
+ * - Allowed checkout origins for headless frontends
  */
 
 import type { Plugin } from "../types";
@@ -38,6 +40,7 @@ export const stripePlugin: Plugin = {
     private: {
       secretKey: "",
       webhookSecret: "",
+      allowedCheckoutOrigins: [],
     },
   },
   ui: {
@@ -60,34 +63,47 @@ export const stripePlugin: Plugin = {
       id: "001_create_payments",
       pluginId: "stripe",
       version: 1,
-      description: "Ensure plugin_stripe_payments collection exists",
+      description: "Ensure plugin_stripe_payments collection exists via abstract schema adapter",
       up: async (dbAdapter) => {
-        if (typeof (dbAdapter as any).createModel === "function") {
-          await (dbAdapter as any).createModel({ _id: "plugin_stripe_payments" });
-        } else {
-          await dbAdapter.crud.findMany(
-            "plugin_stripe_payments",
-            {},
-            { limit: 1, bypassTenantCheck: true },
-          );
-        }
+        await dbAdapter.schema.ensureCollection("plugin_stripe_payments", {
+          fields: [
+            {
+              label: "Stripe Intent ID",
+              name: "stripeIntentId",
+              type: "text",
+              required: true,
+            },
+            { label: "Status", name: "status", type: "text" },
+            { label: "Amount", name: "amount", type: "number" },
+            { label: "Currency", name: "currency", type: "text" },
+            { label: "Metadata", name: "metadata", type: "json" },
+            { label: "Tenant ID", name: "tenantId", type: "text" },
+          ],
+          status: "publish",
+        });
       },
     },
     {
       id: "002_create_customers",
       pluginId: "stripe",
       version: 2,
-      description: "Ensure plugin_stripe_customers collection exists",
+      description: "Ensure plugin_stripe_customers collection exists via abstract schema adapter",
       up: async (dbAdapter) => {
-        if (typeof (dbAdapter as any).createModel === "function") {
-          await (dbAdapter as any).createModel({ _id: "plugin_stripe_customers" });
-        } else {
-          await dbAdapter.crud.findMany(
-            "plugin_stripe_customers",
-            {},
-            { limit: 1, bypassTenantCheck: true },
-          );
-        }
+        await dbAdapter.schema.ensureCollection("plugin_stripe_customers", {
+          fields: [
+            {
+              label: "Stripe Customer ID",
+              name: "stripeCustomerId",
+              type: "text",
+              required: true,
+            },
+            { label: "Email", name: "email", type: "text" },
+            { label: "Name", name: "name", type: "text" },
+            { label: "Metadata", name: "metadata", type: "json" },
+            { label: "Tenant ID", name: "tenantId", type: "text" },
+          ],
+          status: "publish",
+        });
       },
     },
   ],

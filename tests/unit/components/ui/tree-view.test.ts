@@ -24,19 +24,25 @@ describe("TreeView component (SSR)", () => {
   });
 
   it("handles compact layout mode correctly", () => {
-    const { body } = render(TreeView, { props: { items: mockItems, compact: true } });
+    const { body } = render(TreeView, {
+      props: { items: mockItems, compact: true },
+    });
     // compact density returns py-1 gap-1.5
     expect(body).toContain("py-1 gap-1.5");
   });
 
   it("handles density comfortable mode correctly", () => {
-    const { body } = render(TreeView, { props: { items: mockItems, density: "comfortable" } });
+    const { body } = render(TreeView, {
+      props: { items: mockItems, density: "comfortable" },
+    });
     // comfortable density returns py-1.5 gap-2
     expect(body).toContain("py-1.5 gap-2");
   });
 
   it("handles density spacious mode correctly", () => {
-    const { body } = render(TreeView, { props: { items: mockItems, density: "spacious" } });
+    const { body } = render(TreeView, {
+      props: { items: mockItems, density: "spacious" },
+    });
     // spacious density returns py-2.5 gap-2.5
     expect(body).toContain("py-2.5 gap-2.5");
   });

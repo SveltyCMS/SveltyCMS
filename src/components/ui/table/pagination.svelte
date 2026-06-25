@@ -73,7 +73,7 @@ function setPage(page: number) {
                 }}
                 class="bg-surface-100 dark:bg-surface-800 border-none rounded py-1 px-2 text-xs font-bold focus:ring-1 focus:ring-primary-500 cursor-pointer"
             >
-                {#each rowsPerPageOptions as option}
+                {#each rowsPerPageOptions as option (option)}
                     <option value={option}>{option}</option>
                 {/each}
             </select>

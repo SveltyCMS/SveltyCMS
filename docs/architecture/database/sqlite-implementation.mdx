@@ -60,6 +60,7 @@ Key SQLite highlights:
 - **Runtime Agnostic**: Automatically switches between `bun:sqlite` and `node:sqlite` based on environment.
 - **Zero-Config**: Single file database (`SveltyCMS.db`) - perfect for development.
 - **WAL Mode**: Write-Ahead Logging enabled by default for concurrent read/write performance.
+
 - **Performance PRAGMAs**: 7 optimized PRAGMAs applied on connect:
   - `synchronous = NORMAL` — 2-5x faster writes (safe with WAL)
   - `cache_size = -8000` — 8MB page cache (default ~2MB)
@@ -68,6 +69,7 @@ Key SQLite highlights:
   - `temp_store = memory` — temp tables in RAM
   - `foreign_keys = ON` — enforce referential integrity
 - **Drizzle Integration**: Type-safe querying without the overhead of a large ORM.
+
 - **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.
 - **Platinum SQL Batching**: Native Drizzle `insertMany` for 10-50x faster bulk operations.
 - **Website Tokens**: `website_tokens` table via shared `relational-system.ts` — hash-at-rest, tenant-scoped queries, parallel list+count. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).

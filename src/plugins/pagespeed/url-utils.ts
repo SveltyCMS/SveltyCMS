@@ -28,7 +28,9 @@ export function deriveEntryUrl(
     );
 
     if (!slugField) {
-      logger.warn("PageSpeed: No slug/path field found in schema", { collection: schema.name });
+      logger.warn("PageSpeed: No slug/path field found in schema", {
+        collection: schema.name,
+      });
       return null;
     }
 
@@ -58,7 +60,10 @@ export function deriveEntryUrl(
 
     return finalUrl;
   } catch (error) {
-    logger.error("PageSpeed: URL derivation failed", { error, entryId: entry._id });
+    logger.error("PageSpeed: URL derivation failed", {
+      error,
+      entryId: entry._id,
+    });
     return null;
   }
 }

@@ -221,11 +221,12 @@ Displays translation completion progress for multilingual collections:
 flowchart LR
     F[fields] --> TS[translation-status]
     TS --> |tracks| TP[translationProgress]
+    TP[translationProgress]
     TS --> |displays| Languages
     Languages --> Progress[% Complete]
 ```
 
-### Features
+### Features {#features-2}
 
 - **Per-Language Progress**: Shows completion % for each language
 - **Field-Level Tracking**: Tracks individual translatable fields
@@ -251,7 +252,7 @@ const progress = (translated.size / total.size) * 100;
 
 A floating panel for inserting dynamic tokens into input fields:
 
-### Features
+### Features {#features-3}
 
 - **Token Categories**: Entry, User, Site, System tokens
 - **Modifier Support**: date, upper, lower, truncate, etc.

@@ -53,8 +53,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (searchKeywords.length === 0) return json({ suggestions: [] });
 
     // 2. Search for other entries using QueryBuilder's search capability
-    const suggestions: Array<{ title: string; url: string; score: number; collection: string }> =
-      [];
+    const suggestions: Array<{
+      title: string;
+      url: string;
+      score: number;
+      collection: string;
+    }> = [];
 
     // Collections to search
     const allCollections = await contentSystem.getCollections(tenantId);
@@ -79,7 +83,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
           const qb = dbAdapter.queryBuilder(colId);
           const result = await qb
             .search(keyword, ["title", "content"] as any)
-            .where({ status: "published", tenantId: tenantId || "default" } as any)
+            .where({
+              status: "published",
+              tenantId: tenantId || "default",
+            } as any)
             .limit(5)
             .execute();
 

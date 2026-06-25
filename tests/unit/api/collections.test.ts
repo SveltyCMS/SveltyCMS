@@ -182,7 +182,14 @@ describe("Collections API Unit Tests", () => {
       roles:
         user === null
           ? []
-          : [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+          : [
+              {
+                _id: "admin",
+                name: "Administrator",
+                isAdmin: true,
+                permissions: [],
+              },
+            ],
       dbAdapter: mockDbAdapter,
     });
 
@@ -230,7 +237,9 @@ describe("Collections API Unit Tests", () => {
         success: true,
         data: { _id: "updated-id" },
       });
-      const event = createMockEvent("PATCH", "collections/col-1/entry-1", { title: "Updated" });
+      const event = createMockEvent("PATCH", "collections/col-1/entry-1", {
+        title: "Updated",
+      });
       const response = await PATCH_ENTRY(event);
       const data = await response!.json();
       // No-op

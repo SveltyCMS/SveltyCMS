@@ -1,11 +1,12 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit Quality Gate — delegates to quality-gate.ts
+# SveltyCMS Pre-Commit — Fast Loop (~2-3s)
 # =============================================================================
-# Matches the CI pipeline exactly via scripts/quality-gate.ts.
-# E2E tests are deferred to pre-push (too slow for every commit).
+# Runs lint-staged: format, lint, and slop scan on STAGED FILES ONLY.
+# Heavy checks (type check, unit tests) are deferred to pre-push.
+# Production builds and integration tests are CI-only.
 #
-# Skip with: git commit --no-verify
+# NEVER Skip with: git commit --no-verify
 # =============================================================================
 set -e
 
@@ -16,8 +17,8 @@ fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║           SveltyCMS Pre-Commit Quality Gate                  ║"
+echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-bun run scripts/quality-gate.ts
+bun x lint-staged

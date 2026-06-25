@@ -258,7 +258,11 @@ export class MarketplaceService {
     const theme = themes.find((t) => t.name === themeConfig.name);
     if (!theme) throw new Error("Theme installed but not found in database");
 
-    logger.info("[Marketplace] Theme installed", { itemId, name: themeConfig.name, action });
+    logger.info("[Marketplace] Theme installed", {
+      itemId,
+      name: themeConfig.name,
+      action,
+    });
     return { theme, action };
   }
 

@@ -37,29 +37,32 @@ SveltyCMS 2026 leverages a fully implemented and hosted **Model Context Protocol
 
 Based on publicly available documentation as of June 2026, SveltyCMS offers MCP capabilities that other headless CMS platforms are beginning to adopt.
 
-| Capability                   | SveltyCMS                                          | PayloadCMS (new)                       | Strapi (new)              | Directus (new) |
-| :--------------------------- | :------------------------------------------------- | :------------------------------------- | :------------------------ | :------------- |
-| **Semantic vector search**   | ✅ `search_knowledge_base`                         | ❌                                     | ❌                        | ❌             |
-| **Source code reading**      | ✅ `read_source_code`                              | ❌                                     | ❌                        | ❌             |
-| **Project file tree**        | ✅ `get_file_tree`, `list_directory`               | ❌                                     | ❌                        | ❌             |
-| **Content CRUD via MCP**     | ✅ WebMCP (7 tools, draft-gated)                   | ✅ `@payloadcms/plugin-mcp` (granular) | ✅ Collection/single-type | ❌             |
-| **Content quality scoring**  | ✅ `score_content` (AI Co-Pilot)                   | ❌                                     | ❌                        | ❌             |
-| **Generative UI layouts**    | ✅ Agentic Dashboard via `json-render-svelte`      | ❌                                     | ❌                        | ❌             |
-| **Enterprise awareness**     | ✅ Trash recovery, DLQ, Yjs presence               | ❌                                     | ❌                        | ❌             |
-| **Bulk AI translation**      | ✅ `/api/ai/translate-collection`                  | ❌                                     | ❌                        | ❌             |
-| **Agentic automation tasks** | ✅ `agentic_task` operation in Automation Builder  | ❌                                     | ❌                        | ❌             |
-| **AI Widget Scaffolder**     | ✅ Generate 3-pillar widgets from config           | ❌                                     | ❌                        | ❌             |
-| **Marketplace**              | ✅ Hosted marketplace.sveltycms.com + API client   | ✅ Built-in marketplace                | ❌ (GitHub only)          | ⚠️ Marketplace |
-| **Behavioral Learning**      | ✅ Server-side access pattern tracking + prefetch  | ❌                                     | ❌                        | ❌             |
-| **Security**                 | ✅ Draft airgap + prompt injection shield + tarpit | ✅ API Key + granular opt-in           | ❌ (just permissions)     | ✅ OAuth flow  |
-| **Local inference**          | ✅ Ollama + LanceDB                                | ❌                                     | ❌                        | ❌             |
-| **Content similarity**       | ✅ Semantic index + collaborative filtering        | ❌                                     | ❌                        | ❌             |
-| **Smart field defaults**     | ✅ Learns from recent entries per collection       | ❌                                     | ❌                        | ❌             |
-| **Auto-Tagging (NPU)**       | ✅ Ollama NPU or keyword extraction                | ❌                                     | ❌                        | ❌             |
-| **Anomaly detection**        | ✅ Statistical z-score analysis                    | ❌                                     | ❌                        | ❌             |
-| **Adaptive UI reordering**   | ✅ Sorts sidebar by usage frequency                | ❌                                     | ❌                        | ❌             |
-| **Smart scheduling**         | ✅ Suggests publish times from editor activity     | ❌                                     | ❌                        | ❌             |
-| **SSE real-time**            | ✅                                                 | ✅                                     | ✅                        | ✅             |
+| Capability                   | SveltyCMS                                         | PayloadCMS (new)                       | Strapi (new)              | Directus (new) |
+| :--------------------------- | :------------------------------------------------ | :------------------------------------- | :------------------------ | :------------- |
+| **Semantic vector search**   | ✅ `search_knowledge_base`                        | ❌                                     | ❌                        | ❌             |
+| **Source code reading**      | ✅ `read_source_code`                             | ❌                                     | ❌                        | ❌             |
+| **Project file tree**        | ✅ `get_file_tree`, `list_directory`              | ❌                                     | ❌                        | ❌             |
+| **Content CRUD via MCP**     | ✅ WebMCP (7 tools, draft-gated)                  | ✅ `@payloadcms/plugin-mcp` (granular) | ✅ Collection/single-type | ❌             |
+| **Content quality scoring**  | ✅ `score_content` (AI Co-Pilot)                  | ❌                                     | ❌                        | ❌             |
+| **Generative UI layouts**    | ✅ Agentic Dashboard via `json-render-svelte`     | ❌                                     | ❌                        | ❌             |
+| **Enterprise awareness**     | ✅ Trash recovery, DLQ, Yjs presence              | ❌                                     | ❌                        | ❌             |
+| **Bulk AI translation**      | ✅ `/api/ai/translate-collection`                 | ❌                                     | ❌                        | ❌             |
+| **Agentic automation tasks** | ✅ `agentic_task` operation in Automation Builder | ❌                                     | ❌                        | ❌             |
+
+| **AI Widget Scaffolder** | ✅ Generate 3-pillar widgets from config | ❌ | ❌ | ❌ |
+| **Marketplace** | ✅ Hosted marketplace.sveltycms.com + API client | ✅ Built-in marketplace | ❌ (GitHub only) | ⚠️ Marketplace |
+| **Behavioral Learning** | ✅ Server-side access pattern tracking + prefetch | ❌ | ❌ | ❌ |
+
+| **Security** | ✅ Draft airgap + prompt injection shield + tarpit | ✅ API Key + granular opt-in | ❌ (just permissions) | ✅ OAuth flow |
+| **Local inference** | ✅ Ollama + LanceDB | ❌ | ❌ | ❌ |
+| **Content similarity** | ✅ Semantic index + collaborative filtering | ❌ | ❌ | ❌ |
+| **Smart field defaults** | ✅ Learns from recent entries per collection | ❌ | ❌ | ❌ |
+| **Auto-Tagging (NPU)** | ✅ Ollama NPU or keyword extraction | ❌ | ❌ | ❌ |
+
+| **Anomaly detection** | ✅ Statistical z-score analysis | ❌ | ❌ | ❌ |
+| **Adaptive UI reordering** | ✅ Sorts sidebar by usage frequency | ❌ | ❌ | ❌ |
+| **Smart scheduling** | ✅ Suggests publish times from editor activity | ❌ | ❌ | ❌ |
+| **SSE real-time** | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -86,18 +89,19 @@ The **WebMCP plugin** (`src/plugins/webmcp/`) enables browser-based AI agents to
 
 ### Available WebMCP Tools
 
-| Tool                | Type  | Description                                                                     |
-| :------------------ | :---- | :------------------------------------------------------------------------------ |
-| `get_collections`   | Read  | Returns all collections with schemas and field definitions                      |
-| `list_entries`      | Read  | Paginated entry listing with sort, filter, and publication status               |
-| `search_entries`    | Read  | Full-text cross-collection search                                               |
-| `get_entry`         | Read  | Retrieve a single entry by collection and ID                                    |
-| `create_entry`      | Write | Create entry (always forced to `status: "draft"`)                               |
-| `update_entry`      | Write | Update entry (always forced to `status: "draft"`, human review required)        |
-| `delete_entry`      | Write | Soft-delete entry (moves to Trash, recoverable by admin, no permanent deletion) |
-| `score_content`     | AI    | AI-powered content quality scoring (SEO, readability, completeness)             |
-| `navigate_to`       | Nav   | Navigate to a specific admin path                                               |
-| `get_current_route` | Nav   | Returns current admin route and parameters                                      |
+| Tool              | Type  | Description                                                                     |
+| :---------------- | :---- | :------------------------------------------------------------------------------ |
+| `get_collections` | Read  | Returns all collections with schemas and field definitions                      |
+| `list_entries`    | Read  | Paginated entry listing with sort, filter, and publication status               |
+| `search_entries`  | Read  | Full-text cross-collection search                                               |
+| `get_entry`       | Read  | Retrieve a single entry by collection and ID                                    |
+| `create_entry`    | Write | Create entry (always forced to `status: "draft"`)                               |
+| `update_entry`    | Write | Update entry (always forced to `status: "draft"`, human review required)        |
+| `delete_entry`    | Write | Soft-delete entry (moves to Trash, recoverable by admin, no permanent deletion) |
+| `score_content`   | AI    | AI-powered content quality scoring (SEO, readability, completeness)             |
+
+| `navigate_to` | Nav | Navigate to a specific admin path |
+| `get_current_route` | Nav | Returns current admin route and parameters |
 
 > [!IMPORTANT]
 > **Draft-by-Default Airgap**: All mutation tools (`create_entry`, `update_entry`) forcefully set `status: "draft"`. The `delete_entry` tool only performs soft-deletes (never `permanent=true`). This ensures AI agents cannot publish or permanently destroy content without human review.
@@ -129,7 +133,7 @@ SveltyCMS provides a suite of AI-native components registered in the `sveltyRegi
 
 The `AIService` (`src/services/core/ai-service.ts`) provides schema-aware AI capabilities not commonly found in other CMS platforms:
 
-### Content Quality Scoring
+### Content Quality Scoring {#ai-copilot-scoring}
 
 Evaluates content for SEO, readability, and completeness, returning actionable suggestions:
 
@@ -254,8 +258,20 @@ await generateWidget({
   description: "A 5-star rating widget with half-star support",
   icon: "mdi:star",
   fields: [
-    { name: "rating", label: "Rating", type: "number", required: true, min: 1, max: 5 },
-    { name: "label", label: "Label", type: "text", placeholder: "e.g. Quality" },
+    {
+      name: "rating",
+      label: "Rating",
+      type: "number",
+      required: true,
+      min: 1,
+      max: 5,
+    },
+    {
+      name: "label",
+      label: "Label",
+      type: "text",
+      placeholder: "e.g. Quality",
+    },
   ],
 });
 
@@ -332,7 +348,7 @@ const default_category = await suggestFieldDefaults("posts", "category");
 // → { fieldName: "category", suggestedValue: "technology", confidence: 0.8, basedOn: 15 }
 ```
 
-### Content Quality Scoring
+### Content Quality Scoring {#content-quality-scoring-2}
 
 Analyzes content across three dimensions — readability, completeness, and SEO — with specific, actionable suggestions:
 

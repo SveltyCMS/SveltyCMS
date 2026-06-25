@@ -16,24 +16,26 @@ const APP_ROUTES = join(ROOT, "src", "routes", "(app)");
 
 const PAGE_SHELL_MARKERS = ["AdminPageShell", "admin-page-shell.svelte"];
 
-// Pages that intentionally render full-bleed WITHOUT AdminPageShell: the
-// `(app)` layout already provides the shell (header/sidebars/main), and these
-// pages fill the main area as borderless workspaces. Upstream CI does not
-// enforce `lint:admin-theme` (this is a fork-only pre-commit gate), so these
-// long-standing full-bleed pages are allowlisted here rather than retro-fitted
-// with chrome that would break their layout. Paths are repo-relative, forward-slashed.
-const SHELL_EXEMPT_PAGES = new Set<string>([
-  "src/routes/(app)/[language]/[...collection]/+page.svelte", // Collection Dashboard (full-bleed workspace)
-]);
+// Collection routes use their own dynamic shell — not AdminPageShell
+const SKIP_SHELL_CHECK = ["[language]/[...collection]/+page.svelte"];
 const LEGACY_ANTI_PATTERNS: { pattern: RegExp; message: string }[] = [
-  { pattern: /container\s+mx-auto/, message: "Use AdminPageShell instead of container mx-auto" },
-  { pattern: /table-container/, message: "Use overflow-x-auto + divide-y table pattern" },
+  {
+    pattern: /container\s+mx-auto/,
+    message: "Use AdminPageShell instead of container mx-auto",
+  },
+  {
+    pattern: /table-container/,
+    message: "Use overflow-x-auto + divide-y table pattern",
+  },
   { pattern: /table-hover/, message: "Remove legacy table-hover class" },
   {
     pattern: /<h1\s+class="text-3xl/,
     message: "Use PageTitle via AdminPageShell instead of inline h1",
   },
-  { pattern: /bg-surface-50\/50/, message: "Use solid bg-surface-50 dark:bg-surface-950 shell" },
+  {
+    pattern: /bg-surface-50\/50/,
+    message: "Use solid bg-surface-50 dark:bg-surface-950 shell",
+  },
   {
     pattern: /class="input"/,
     message: 'Use Input/Select components instead of legacy class="input"',
@@ -61,7 +63,8 @@ for (const file of files) {
   const rel = relative(ROOT, file).replace(/\\/g, "/");
   const content = readFileSync(file, "utf-8");
 
-  if (file.endsWith("+page.svelte") && !SHELL_EXEMPT_PAGES.has(rel)) {
+  if (file.endsWith("+page.svelte")) {
+    if (SKIP_SHELL_CHECK.some((p) => rel.endsWith(p))) continue;
     const hasShell = PAGE_SHELL_MARKERS.some((m) => content.includes(m));
     const hasLegacyShell =
       content.includes("admin-theme-container") ||

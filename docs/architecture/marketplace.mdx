@@ -64,8 +64,7 @@ flowchart TD
     LICENSE_V1 --> STORE
     EXT_ACTION --> STORE
 
-    style Remote fill:#93c5fd,stroke:#1e40af,color:#000
-    style Local fill:#4ade80,stroke:#166534,color:#000
+
 ```
 
 ## Marketplace API (marketplace.sveltycms.com)
@@ -104,7 +103,10 @@ The marketplace hosts community-built plugins. The scaffolder generates custom c
 import { marketplace } from "@src/services/intelligence/marketplace-client";
 
 // Browse all plugins
-const { plugins, total } = await marketplace.list({ type: "widget", limit: 10 });
+const { plugins, total } = await marketplace.list({
+  type: "widget",
+  limit: 10,
+});
 
 // Search
 const results = await marketplace.search("seo");

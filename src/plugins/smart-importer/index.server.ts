@@ -559,7 +559,10 @@ export async function executeUCPIngestion(
 
   for (let i = 0; i < totalEntries; i += batchSize) {
     const chunk = ordered.slice(i, i + batchSize);
-    const prepared: Array<{ entry: SNCEntry; payload: Record<string, unknown> }> = [];
+    const prepared: Array<{
+      entry: SNCEntry;
+      payload: Record<string, unknown>;
+    }> = [];
 
     for (const entry of chunk) {
       try {

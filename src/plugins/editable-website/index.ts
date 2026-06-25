@@ -1,7 +1,12 @@
 /**
  * @file src/plugins/editable-website/index.ts
- * @description Editable Website & Live Preview Plugin.
- * Provides real-time bidirectional live preview with visual editing and handshake protocol.
+ * @description Editable Website & Live Preview Plugin — headless-aware with dynamic preview origins.
+ *
+ * Features:
+ * - Real-time bidirectional live preview with visual editing
+ * - Dynamic origin from collection schema's previewTargetUrl
+ * - Ephemeral preview token authorization
+ * - Handshake protocol via postMessage
  */
 
 import { slotRegistry } from "@src/plugins/slot-registry";
@@ -27,7 +32,8 @@ export const editableWebsitePlugin: Plugin = {
     id: "editable-website",
     name: "Editable Website & Live Preview",
     version: "1.1.0",
-    description: "Real-time bidirectional live preview with visual editing and handshake protocol.",
+    description:
+      "Real-time bidirectional live preview with visual editing and handshake protocol. Uses collection previewTargetUrl for dynamic origin resolution.",
     icon: "mdi:web",
     enabled: true,
     category: "editing",

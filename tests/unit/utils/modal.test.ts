@@ -121,7 +121,11 @@ describe("Modal Utilities", () => {
 
   describe("showStatusChangeConfirm", () => {
     it("should trigger status change confirmation", () => {
-      showStatusChangeConfirm({ status: "published", count: 2, onConfirm: vi.fn() });
+      showStatusChangeConfirm({
+        status: "published",
+        count: 2,
+        onConfirm: vi.fn(),
+      });
       expect(modalState.trigger).toHaveBeenCalledWith(
         ConfirmDialog,
         expect.objectContaining({

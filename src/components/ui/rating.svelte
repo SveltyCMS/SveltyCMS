@@ -122,7 +122,7 @@ function starFill(displayVal: number, index: number): number {
 	}}
 	{...rest}
 >
-	{#each Array(count) as _, i}
+	{#each Array(count) as _, i (i)}
 		{const fill = starFill(displayValue, i)}
 		{const fillPercent = fill * 100}
 		{const isFull = fill >= 1}

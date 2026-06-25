@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+# =============================================================================
+# SveltyCMS Pre-Push Quality Gate — Medium Loop (~15-45s)
+# =============================================================================
+# Runs full type checking, unit tests, and quality scanning before code
+# reaches the remote. This catches broken type contracts and test failures
+# that the fast pre-commit loop (staged-files-only) intentionally skips.
+#
+# NEVER Skip with: git push --no-verify
+# =============================================================================
+set -e
+
+if [ "${CI:-false}" = "true" ]; then
+    echo "⏩ CI environment detected. Bypassing pre-push gates."
+    exit 0
+fi
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║       SveltyCMS Pre-Push — Medium Loop (~15-45s)           ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+bun run scripts/quality-gate.ts

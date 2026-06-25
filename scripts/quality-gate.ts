@@ -1,21 +1,27 @@
 #!/usr/bin/env bun
 /**
  * @file scripts/quality-gate.ts
- * @description Pre-commit quality gate with 100% CI parity.
+ * @description Pre-push quality gate — medium-weight checks before code reaches remote.
  *
- * The explicit goal is: a commit created on this machine (Windows, macOS, or Unix)
- * is only allowed if it would have passed the corresponding GitHub Actions jobs.
+ * This is the "Medium Loop" in SveltyCMS's tiered validation pipeline:
  *
- * This gate (plus pre-push) is the mechanism that makes "100% pre-commit safe".
- * Bypassing it locally is considered a serious process violation.
+ *   Fast Loop  (pre-commit)  → lint-staged: format, lint, slop on staged files  ~2-3s
+ *   Medium Loop (pre-push)   → THIS SCRIPT: type check, full unit tests         ~15-45s
+ *   Deep Loop  (CI pipeline) → ci.yml: production build, DB matrix, E2E         ~5-20min
  *
- * KEY PRINCIPLE: Every command here MUST match the exact command run in ci.yml.
- * No custom wrappers (vp), no shortcuts, no conditional skips.
+ * Runs: format verification, lint, slop scanner, type check, full unit tests.
+ * Does NOT run: production builds, integration tests, E2E (those are CI's job).
+ *
+ * Invoked by: .githooks/pre-push
+ * Manual run: bun run scripts/quality-gate.ts
+ * Skip with: git push --no-verify
+ *
+ * KEY PRINCIPLE: Every static analysis command here matches what CI runs.
+ * Builds and integration/E2E tests are deferred to CI where they run on
+ * deterministic Linux runners with Docker-backed database matrices.
  */
 
 import { spawnSync, execSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join, relative } from "node:path";
 
 const ROOT = process.cwd();
 const IS_WINDOWS = process.platform === "win32";
@@ -60,34 +66,6 @@ function runCommand(
   return true;
 }
 
-function runCommandSilent(cmd: string, args: string[] = []): { success: boolean; stdout: string } {
-  const result = spawnSync(cmd, args, {
-    encoding: "utf8",
-    shell: IS_WINDOWS,
-    cwd: ROOT,
-    env: process.env,
-  });
-  return {
-    success: result.status === 0,
-    stdout: result.stdout?.trim() ?? "",
-  };
-}
-
-function getStagedFiles(): string[] {
-  try {
-    return execSync("git diff --cached --name-only --diff-filter=ACMR", {
-      encoding: "utf8",
-      cwd: ROOT,
-    })
-      .trim()
-      .split("\n")
-      .map((f) => f.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
 function hasUnstagedChanges(): boolean {
   try {
     execSync("git diff --quiet", { cwd: ROOT, stdio: "pipe" });
@@ -97,55 +75,84 @@ function hasUnstagedChanges(): boolean {
   }
 }
 
-// ---------------------------------------------------------------------------
-// CI Parity Commands
-// ---------------------------------------------------------------------------
+function getChangedFileExtensions(): Set<string> {
+  try {
+    // Check what file types changed in commits not yet pushed
+    const output = execSync(
+      "git diff --name-only @{u}..HEAD 2>nul || git diff --name-only HEAD~1..HEAD",
+      {
+        encoding: "utf8",
+        cwd: ROOT,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    const exts = new Set<string>();
+    for (const line of output.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const dot = trimmed.lastIndexOf(".");
+      if (dot >= 0) exts.add(trimmed.slice(dot));
+    }
+    return exts;
+  } catch {
+    // If we can't determine, assume everything changed
+    return new Set([".ts", ".js", ".svelte", ".md", ".mdx"]);
+  }
+}
 
-/**
- * These are the EXACT commands run in ci.yml, in order.
- * Any change to ci.yml MUST be reflected here.
- */
-const CI_PARITY_COMMANDS = [
-  { name: "format", cmd: "bun", args: ["run", "format"] },
-  { name: "lint", cmd: "bun", args: ["run", "lint"] },
-  { name: "check", cmd: "bun", args: ["run", "check"] },
-  { name: "test:unit (full)", cmd: "bun", args: ["run", "test:unit"] },
-  { name: "lint:docs", cmd: "bun", args: ["run", "lint:docs"] },
-  { name: "lint:admin-theme", cmd: "bun", args: ["run", "lint:admin-theme"] },
-] as const;
+function getChangedPaths(): string[] {
+  try {
+    const output = execSync(
+      "git diff --name-only @{u}..HEAD 2>nul || git diff --name-only HEAD~1..HEAD",
+      {
+        encoding: "utf8",
+        cwd: ROOT,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    return output
+      .split("\n")
+      .map((f) => f.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log("⚡ Running Quality Gate...\n");
+  console.log("⚡ Running Pre-Push Quality Gate...\n");
 
-  const stagedFiles = getStagedFiles();
-  if (stagedFiles.length === 0) {
-    console.log("⏩ No staged changes.");
-    process.exit(0);
-  }
+  const changedExts = getChangedFileExtensions();
+  const changedPaths = getChangedPaths();
 
-  console.log(`🔎 Staged files: ${stagedFiles.length}`);
-  if (stagedFiles.length <= 12) {
-    console.log(`   ${stagedFiles.map((f) => relative(ROOT, f)).join(", ")}`);
-  }
-
-  const hasTsOrSvelte = stagedFiles.some((f) => /\.(ts|js|svelte)$/.test(f));
-  const hasAdminTheme = stagedFiles.some(
+  const hasTsOrSvelte =
+    changedExts.has(".ts") || changedExts.has(".js") || changedExts.has(".svelte");
+  const hasAdminTheme = changedPaths.some(
     (f) => f.startsWith("src/routes/(app)/") && f.endsWith(".svelte"),
   );
+  const hasDocs = changedExts.has(".md") || changedExts.has(".mdx");
 
-  const buildExists = existsSync(join(ROOT, "build", "index.js"));
+  console.log(`🔎 Changes detected:`);
+  console.log(`   Source files (ts/js/svelte): ${hasTsOrSvelte ? "yes" : "no"}`);
+  console.log(`   Admin theme routes:          ${hasAdminTheme ? "yes" : "no"}`);
+  console.log(`   Documentation:               ${hasDocs ? "yes" : "no"}`);
+  if (changedPaths.length <= 12) {
+    console.log(`   Files: ${changedPaths.join(", ")}`);
+  } else {
+    console.log(`   Files: ${changedPaths.length} changed`);
+  }
 
   // -------------------------------------------------------------------------
-  // Task List — mirrors ci.yml jobs exactly
+  // Task List — static analysis + unit tests (no builds, no integration)
   // -------------------------------------------------------------------------
 
   const tasks: Task[] = [
     {
-      name: "Format",
+      name: "Format Verification",
       ciJob: "format",
       run: () => runCommand("bun", ["run", "format"]),
     },
@@ -155,7 +162,7 @@ async function main() {
       run: () => {
         if (hasUnstagedChanges()) {
           console.error("\n❌ Working tree is dirty after formatting.");
-          console.error("   Run 'bun run format' locally, stage the fixes, and retry.");
+          console.error("   Run 'bun run format' locally, commit the fixes, and retry.");
           return false;
         }
         return true;
@@ -179,54 +186,22 @@ async function main() {
       run: () => runCommand("bun", ["run", "lint:admin-theme"]),
     },
     {
-      name: "Type Check",
+      name: "Docs Lint",
+      ciJob: "docs-lint",
+      skip: () => !hasDocs,
+      run: () => runCommand("bun", ["run", "lint:docs"]),
+    },
+    {
+      name: "Type Check (svelte-check)",
       ciJob: "check",
       skip: !hasTsOrSvelte,
       run: () => runCommand("bun", ["run", "check"]),
     },
     {
-      name: "Full Unit Tests (CI parity)",
+      name: "Full Unit Tests",
       ciJob: "unit",
       skip: !hasTsOrSvelte,
       run: () => runCommand("bun", ["run", "test:unit"]),
-    },
-    {
-      name: "Dependency Audit",
-      ciJob: "security-audit",
-      run: () => {
-        console.log("   (non-blocking — CI enforces this separately)");
-        const { success } = runCommandSilent("bun", ["audit", "--level", "critical"]);
-        if (!success) {
-          console.warn("   ⚠️  Critical vulnerabilities found (CI will block PR)");
-        }
-        return true; // Non-blocking locally
-      },
-    },
-    {
-      name: "Production Build",
-      ciJob: "build",
-      skip: !hasTsOrSvelte,
-      run: () =>
-        runCommand("bun", ["run", "build"], {
-          env: { COMPILE_ALL_ADAPTERS: "true" },
-          timeout: 600_000, // 10min for build
-        }),
-    },
-    {
-      name: "Integration Tests (SQLite)",
-      ciJob: "db-tests",
-      run: () => {
-        if (!buildExists) {
-          console.error("   ❌ Build missing. Run 'bun run build' first.");
-          return false; // Fail — CI always has a build, local should too
-        }
-        return runCommand("bun", [
-          "run",
-          "scripts/run-integration-tests.ts",
-          "--db=sqlite",
-          "--no-build",
-        ]);
-      },
     },
   ];
 
@@ -237,7 +212,7 @@ async function main() {
 
   console.log(`\n🚦 Running ${activeTasks.length} quality checks...\n`);
 
-  let failedTasks: string[] = [];
+  const failedTasks: string[] = [];
 
   for (const task of activeTasks) {
     console.log(`▶️  ${task.name}${task.ciJob ? ` [maps to CI: ${task.ciJob}]` : ""}`);
@@ -254,7 +229,7 @@ async function main() {
 
     const elapsed = (performance.now() - start).toFixed(0);
     if (!success) {
-      console.error(`\n❌ ${task.name} failed (${elapsed}ms). Fix above before committing.`);
+      console.error(`\n❌ ${task.name} failed (${elapsed}ms). Fix above before pushing.`);
       failedTasks.push(task.name);
       // Continue running other tasks to show full picture, but will exit at end
     } else {
@@ -265,58 +240,22 @@ async function main() {
   if (failedTasks.length > 0) {
     console.error(`\n❌ ${failedTasks.length} task(s) failed:`);
     for (const name of failedTasks) console.error(`   - ${name}`);
+    console.error("\n   Fix the issues above, commit, and push again.");
+    console.error("   Skip with: git push --no-verify\n");
     process.exit(1);
   }
 
-  // =========================================================================
-  // FINAL 100% PARITY VERIFICATION
-  // =========================================================================
-  // Even if the task list above is ever changed, we *always* re-execute the
-  // exact commands that are required in CI. This is the "nuclear option".
-  // =========================================================================
+  // Show what CI will additionally test
+  console.log("\n╔══════════════════════════════════════════════════════════════╗");
+  console.log("║  ✅ Pre-push quality gate passed — safe to push.           ║");
+  console.log("╠══════════════════════════════════════════════════════════════╣");
+  console.log("║  CI will additionally run:                                  ║");
+  console.log("║    🏗️  Production Build (COMPILE_ALL_ADAPTERS)              ║");
+  console.log("║    🧪 DB Matrix (SQLite, MongoDB, MariaDB, PostgreSQL)     ║");
+  console.log("║    🎭 E2E Playwright (sharded, 18 projects)                ║");
+  console.log("║    📊 Benchmarks (on main branch / labeled PRs)            ║");
+  console.log("╚══════════════════════════════════════════════════════════════╝\n");
 
-  console.log("\n🔒 FINAL 100% CI PARITY VERIFICATION");
-  console.log("   These commands MUST match .github/workflows/ci.yml exactly.\n");
-
-  let parityFailed = false;
-  for (const p of CI_PARITY_COMMANDS) {
-    console.log(`   ▶️  Re-verifying ${p.name} ...`);
-    const start = performance.now();
-    const ok = runCommand(p.cmd, [...p.args]);
-    const elapsed = (performance.now() - start).toFixed(0);
-
-    if (!ok) {
-      console.error(`\n   ❌ FINAL PARITY CHECK FAILED on "${p.name}" (${elapsed}ms).`);
-      parityFailed = true;
-    } else {
-      console.log(`   ✅ ${p.name} passed (${elapsed}ms)`);
-    }
-  }
-
-  if (parityFailed) {
-    console.error("\n❌ COMMIT REJECTED: Final parity verification failed.");
-    console.error("   Fix the issues above and re-run the pre-commit hook.");
-    process.exit(1);
-  }
-
-  // Re-stage any files that format may have changed
-  console.log("\n📦 Re-staging any changes from parity re-verification...");
-  runCommand("git", ["add", "-u"]);
-  runCommand("git", ["add", "."]);
-
-  // Final check: only the working tree (unstaged) must be clean — staged
-  // changes are expected here (they ARE the commit). The earlier isTreeClean()
-  // variant also asserted the index was empty, which made this check impossible
-  // to satisfy for any real commit and forced --no-verify in the past.
-  if (hasUnstagedChanges()) {
-    console.error(
-      "\n❌ FINAL CHECK FAILED: Working tree has unstaged changes after re-verification and re-staging.",
-    );
-    console.error("   Inspect 'git status' and 'git diff', then re-run the hook.");
-    process.exit(1);
-  }
-
-  console.log("\n✅ 100% local CI parity verified. Commit allowed.\n");
   process.exit(0);
 }
 

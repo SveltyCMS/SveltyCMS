@@ -21,7 +21,10 @@ export const uploadRemoteUrls = query(
     fd.append("remoteUrls", JSON.stringify(urls));
     fd.append("folder", folder);
 
-    const r = await fetch("/mediagallery?/remoteUpload", { method: "POST", body: fd });
+    const r = await fetch("/mediagallery?/remoteUpload", {
+      method: "POST",
+      body: fd,
+    });
     const d = await r.json();
 
     const ok = d.type === "success" || d.success;

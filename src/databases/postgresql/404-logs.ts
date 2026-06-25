@@ -1,5 +1,5 @@
 /**
- * @file src/databases/postgresql/modules/404Logs.ts
+ * @file src/databases/postgresql/404-logs.ts
  * @description Defines the PostgreSQL ORM schema for the 404 request logs collection.
  * This model ensures the table schema is correctly registered with the PostgreSQL adapter,
  * adhering to the principle of database agnosticism.

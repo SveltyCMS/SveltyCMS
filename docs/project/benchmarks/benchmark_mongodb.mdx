@@ -3,7 +3,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 path: docs/project/benchmarks/benchmark_mongodb.mdx
 title: MongoDB Performance Audit
 order: 11
-icon: mdi:speedometer
+icon: "mdi:speedometer"
 author: SveltyCMS Team
 created: 2026-04-26
 updated: 2026-05-30
@@ -142,7 +142,7 @@ xychart-beta
 
 <!-- INCREMENTAL_TABLE_START -->
 
-### 🏷️ Incremental Content Reload ⚪ —
+### 🏷️ Incremental Content Reload ⚪ — {#incremental-reload-audit}
 
 > 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
 > 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
@@ -157,7 +157,7 @@ xychart-beta
 
 <!-- STATE_MACHINE_TABLE_START -->
 
-### 🏷️ State Machine Transitions ⚪ —
+### 🏷️ State Machine Transitions ⚪ — {#state-machine-audit}
 
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
 > 🎯 **Proves**: Validates rapid IDLE -> READY self-healing cycles.
@@ -195,7 +195,7 @@ xychart-beta
 
 <!-- TEMPORAL_TABLE_START -->
 
-### 🏷️ Temporal Integrity Audit ⚪ —
+### 🏷️ Temporal Integrity Audit ⚪ — {#temporal-audit}
 
 > 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](../../../tests/benchmarks/temporal-integrity.test.ts)
 > 🎯 **Proves**: Verifies timezone normalization and deterministic UTC persistence.
@@ -291,7 +291,7 @@ xychart-beta
 
 <!-- REAL_TIME_TABLE_START -->
 
-### 🏷️ WebSocket & Realtime Latency ⚪ —
+### 🏷️ WebSocket & Realtime Latency ⚪ — {#websocket-audit}
 
 > 📂 **Source**: [tests/benchmarks/realtime-performance.test.ts](../../../tests/benchmarks/realtime-performance.test.ts)
 > 🎯 **Proves**: Benchmarks WebSocket connection/broadcast latency.
@@ -332,7 +332,7 @@ xychart-beta
 
 <!-- TENANCY_TABLE_START -->
 
-### 🏷️ Multi-Tenant Performance & Isolation ⚪ —
+### 🏷️ Multi-Tenant Performance & Isolation ⚪ — {#multitenant-audit}
 
 > 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](../../../tests/benchmarks/multi-tenant-performance.test.ts)
 > 🎯 **Proves**: Stress-tests cross-tenant isolation and security boundary latency.
@@ -672,7 +672,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- SCAN_TABLE_END -->
 
-### 🏷️ Incremental Content Reload ⚪ —
+### 🏷️ Incremental Content Reload ⚪ — {#incremental-content-reload---2}
 
 > **Budget**: ≤ 4,000ms (suite) | **Tags**: `cpu` | **Level**: 2
 
@@ -762,7 +762,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- TELEMETRY_TABLE_END -->
 
-### 🏷️ State Machine Transitions ⚪ —
+### 🏷️ State Machine Transitions ⚪ — {#state-machine-transitions---2}
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -926,7 +926,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- AI_OVERHEAD_TABLE_END -->
 
-### 🏷️ Temporal Integrity Audit ⚪ —
+### 🏷️ Temporal Integrity Audit ⚪ — {#temporal-integrity-audit---2}
 
 > **Budget**: ≤ 20,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -1276,7 +1276,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- BROADCAST_TABLE_END -->
 
-### 🏷️ WebSocket & Realtime Latency ⚪ —
+### 🏷️ WebSocket & Realtime Latency ⚪ — {#websocket--realtime-latency---2}
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
@@ -1364,7 +1364,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- MEMORY_TABLE_END -->
 
-### 🏷️ Multi-Tenant Performance & Isolation ⚪ —
+### 🏷️ Multi-Tenant Performance & Isolation ⚪ — {#multi-tenant-performance--isolation---2}
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 

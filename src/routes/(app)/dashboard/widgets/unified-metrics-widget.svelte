@@ -260,7 +260,7 @@ export const widgetMeta = {
 								<div>
 									<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Bottlenecks</h5>
 									<div class="space-y-1">
-										{#each m.performance.bottlenecks.slice(0, 3) as item}
+										{#each m.performance.bottlenecks.slice(0, 3) as item (item)}
 											<div class="rounded bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{item}</div>
 										{/each}
 									</div>

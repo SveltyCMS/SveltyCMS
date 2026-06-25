@@ -45,7 +45,8 @@ SveltyCMS security architecture includes:
 | **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program |
 | **Auth & Session**        |  20%   |  98   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, fully tested lockout |
 | **Input Validation**      |  15%   |  98   | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle, body limit   |
-| **Dependency Hygiene**    |  15%   |  98   | Dependabot weekly, CI audit failure, override-pinned           |
+
+| **Dependency Hygiene** | 15% | 98 | Dependabot weekly, CI audit failure, override-pinned |
 
 **Weighted**: 100×0.25 + 98×0.20 + 98×0.15 + 100×0.15 + 98×0.15 + 98×0.10 = **~99/100**
 
@@ -103,7 +104,7 @@ SveltyCMS security architecture includes:
   - Timing attack prevention
   - Information disclosure prevention
 
-- **[Middleware Security Hardening](/docs/architecture/server-hooks.mdx#handleSecurityHeaders)** - Real-time security at the protocol layer
+- **[Middleware Security Hardening](/docs/architecture/server-hooks.mdx#10-handlesecurityheaders-defense-in-depth)** - Real-time security at the protocol layer
   - **Content Security Policy**: Strictly-scoped CSP (`script-src 'self'`, zero `unsafe-inline` or `unsafe-eval`) emitted globally on all pages and API routes — the highest-leverage single-line XSS mitigation in SvelteKit
   - **Multi-Tenant Batch Isolation**: `batch-module.ts` rejects coalesced operations containing mixed tenant IDs, preventing cross-tenant data leaks in shared-DB deployments
   - **Timing-Safe Auth Cache**: Turbo auth cache uses absolute expiry (fixed at SET time, never extended on GET) — prevents attackers from inferring session liveness through TTL reset pattern analysis
@@ -134,6 +135,7 @@ SveltyCMS security architecture includes:
 - ✅ 3-layer session caching (memory, Redis, database)
 - ✅ Two-factor authentication (TOTP)
 - ✅ Account lockout after failed attempts
+
 - ✅ Secure password reset with time-limited tokens
 - ✅ API token generation with granular permissions
 - ✅ Website Tokens with expiration policies and granular access control
@@ -217,10 +219,12 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ **Multi-Layer Honeypot Grid**: 45+ decoy routes mimicking WordPress, Drupal, Joomla, AWS metadata endpoints, and common config/backup files. Any probe triggers immediate IP blacklisting.
 - ✅ **Progressive Tarpit**: Randomized 5–15 second response delays waste bot resources while legitimate users experience zero latency.
 - ✅ **Response Poisoning**: Bots receive fake JSON payloads (phantom users, false config) designed to corrupt scraper datasets rather than revealing real system information.
+
 - ✅ **Cross-Origin Isolation Headers**: All API responses include `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin` preventing Spectre-style side-channel attacks.
 - ✅ **AI Crawler Honeypot (Tarpitting)**: Detects automated reconnaissance bots hitting shadow routes (e.g., `/wp-admin`, `/.env`) and traps them in a high-latency "tarpit" while automatically flagging their IP.
 - ✅ **Draft-by-Default Airgap**: A fundamental security boundary for AI agents. Any content created or modified via the Model Context Protocol (MCP) is forcefully saved as `draft`, requiring a human administrator to manually approve/publish it.
 - ✅ **Prompt Injection Shielding**: Native `<user_data>` delimiters and strict `systemPromptPrefix` configurations prevent "Ignore previous instructions" payloads from hijacking AI enrichment workflows.
+
 - ✅ **RAG Context Isolation (Ollama)**: Remote knowledge-base context is moved to the `user` message role with `<rag_context>` XML delimiters and control-character stripping, preventing external context from overriding system-level instructions. RAG results are sanitized for hidden control characters before injection.
 - ✅ **AI Reconnaissance Blinding**: The full OpenAPI specification is strictly locked behind administrative authentication, preventing automated agents from mapping the system's API surface.
 
@@ -232,11 +236,13 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ **Memory Stability (WeakRef Isolation)**: Unlike traditional architectures that can experience memory leaks and OOM crashes under high concurrency, SveltyCMS uses **`WeakRef` session caching**.
 - ✅ **Self-Healing Load Shedding**: Detects high memory pressure and gracefully rejects mutation traffic (503) with compressed error responses to prevent OOM.
 - ✅ **Graceful Shutdown Instrumentation**: Tracks in-flight requests and ensures clean database/cache disconnection on `SIGTERM`.
+
 - ✅ **Batched Ghost Relation Hydration**: Eliminates the N+1 query bottleneck. Relational data is hydrated in optimized batches only as it enters the viewport.
 - ✅ **Fail-Closed API Authorization**: All REST API endpoints must be explicitly registered. Unmapped routes are denied by default.
 - ✅ **Tenant-Based Access Control (TBAC)**: User roles are dynamically resolved and isolated per `tenantId` during the authentication handshake.
 - ✅ **Informative 403 Feedback**: The Admin Area natively detects authorization failures and provides granular feedback including the specific required permission.
 - ✅ **UUIDv4 Primary Keys Out-of-the-box**: Protects against Cross-Collection IDOR (Insecure Direct Object Reference) vulnerability collision chains.
+
 - ✅ **Defense-in-Depth Handler Checks**: System handlers (`handleSettingsRoutes`, `handleSystemMgmtRoutes`, `handleAutomationRoutes`) enforce admin verification. Media handlers enforce `media:write` and `media:delete` permissions. Page actions use centralized permission guards.
 - ✅ **Cookie Prefix Hardening**: `__Host-` prefixed session cookies strictly enforced on secure connections; never leaked on insecure connections.
 - ✅ **Setup Session Cookie Consistency**: Setup handler now uses the same `__Host-` cookie prefix logic as the authentication hook, eliminating the prefix inconsistency between setup and runtime session cookies.
@@ -287,6 +293,7 @@ To prevent accidental exposure or exploitation of testing features, we employ a 
 
 1.  **Environment Gating**: Testing and benchmarking code paths are only active when explicit environment variables (`TEST_MODE=true`, `BENCHMARK=true`) are set at the OS level — impossible to enable via HTTP requests. In production, these paths return 401 Unauthorized.
 2.  **Cryptographic Handshake**: The `/api/testing` endpoint uses `timingSafeEqual()` from `node:crypto` for constant-time secret comparison, preventing timing side-channel attacks. The HyperTurbo hook uses standard comparison gated behind the `BENCHMARK=true` environment check.
+
 3.  **Auth Path Exclusion**: Authentication paths (`/api/auth/login`, `/api/auth/logout`) always use real password verification with full account lockout enforcement. No test bypass exists for login — tests must seed a user via `/api/testing` and authenticate with real credentials. Audit trails are always populated.
 
 ### 🧪 Secure Testing Approach
@@ -314,7 +321,7 @@ Our integration tests authenticate like real users:
 - **Compliance Ready**: Audit logs show real user-like behavior, not bypasses.
 - **No Secrets in Code**: Test secrets are generated at runtime and never persisted.
 
-### 📖 Related Documentation
+### 📖 Related Documentation {#related-documentation-compliance}
 
 - **[Tested Security Features](./tested-security-features.mdx)** - Comprehensive list of tested security features
 - **[Black-Box Testing](/docs/tests/black-box-testing.mdx)** - Test architecture and isolated test configurations
@@ -377,15 +384,16 @@ Recommended security testing tools:
 
 While the CMS provides built-in tools, a secure production deployment requires proper environmental configuration.
 
-| Item                | Requirement                                        | Status | Verification            |
-| :------------------ | :------------------------------------------------- | :----- | :---------------------- |
-| **JWT_SECRET_KEY**  | 32+ characters of high entropy.                    | [ ]    | Auth flow               |
-| **ENCRYPTION_KEY**  | 32+ characters (AES-256-GCM baseline).             | [ ]    | Data decryption         |
-| **HTTPS/SSL**       | CMS should _only_ be served over TLS 1.3.          | [ ]    | `security-headers.test` |
-| **Database Access** | DB must reside on a private VPC/Network.           | [ ]    | Infrastructure          |
-| **Admin Password**  | Enterprise standard (16+ chars, mixed).            | [ ]    | `Auth.validatePassword` |
-| **Firewall**        | Enable internal firewall via `FIREWALL_ENABLED`.   | [ ]    | `firewall.test`         |
-| **Audit Logs**      | Retention policy matches compliance (Default 365). | [ ]    | `AuditLogService`       |
+| Item                | Requirement                                      | Status | Verification            |
+| :------------------ | :----------------------------------------------- | :----- | :---------------------- |
+| **JWT_SECRET_KEY**  | 32+ characters of high entropy.                  | [ ]    | Auth flow               |
+| **ENCRYPTION_KEY**  | 32+ characters (AES-256-GCM baseline).           | [ ]    | Data decryption         |
+| **HTTPS/SSL**       | CMS should _only_ be served over TLS 1.3.        | [ ]    | `security-headers.test` |
+| **Database Access** | DB must reside on a private VPC/Network.         | [ ]    | Infrastructure          |
+| **Admin Password**  | Enterprise standard (16+ chars, mixed).          | [ ]    | `Auth.validatePassword` |
+| **Firewall**        | Enable internal firewall via `FIREWALL_ENABLED`. | [ ]    | `firewall.test`         |
+
+| **Audit Logs** | Retention policy matches compliance (Default 365). | [ ] | `AuditLogService` |
 
 ---
 
@@ -422,7 +430,7 @@ While the CMS provides built-in tools, a secure production deployment requires p
 - [ ] Data retention policies configured (not tested)
 - [ ] PII handling compliant with regulations (not tested)
 
-### Widget Security
+### Widget Security {#checklist-widget-security}
 
 - [x] All widgets reviewed for security - `docs/architecture/security/widget-security.mdx`
 - [x] Custom widgets follow security guidelines - `docs/architecture/security/widget-security.mdx`
@@ -561,7 +569,7 @@ SveltyCMS security features support compliance with:
 
 ---
 
-## 🔗 Related Documentation
+## 🔗 Related Documentation {#related-documentation-links}
 
 ### Architecture
 
@@ -576,7 +584,7 @@ SveltyCMS security features support compliance with:
 - [User Management API](/docs/api/auth.mdx)
 - [User Token Management API](/docs/api/tokens.mdx)
 
-### Widget Security
+### Widget Security {#widget-security-2}
 
 - [Widget Security](/docs/architecture/security/widget-security.mdx)
 - [Widget Development Guide](/docs/guides/development/widgets/widget-development-guide.mdx)

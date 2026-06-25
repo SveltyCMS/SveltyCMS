@@ -2,6 +2,9 @@
  @file src/plugins/editable-website/live-preview.svelte
  @component Live Preview with bidirectional handshake and visual editing.
  Securely syncs CMS state with an external website preview using Svelte 5 runes.
+
+ Uses collection schema's previewTargetUrl for dynamic origin resolution.
+ Signs ephemeral preview tokens via /api/preview/authorize.
 -->
 
 <script lang="ts">
@@ -40,11 +43,14 @@
   let isLoadingUrl = $state(false);
   let shouldRender = $state(false);
 
-  const hostProd = publicEnv.HOST_PROD || "http://localhost:5173";
+  // Dynamically resolve target host from collection schema's previewTargetUrl
+  const previewTargetUrl = $derived(
+    (collection.value as any)?.previewTargetUrl || publicEnv.HOST_PROD || "http://localhost:5173",
+  );
 
   // Strictly derive allowed origins for message validation
   const allowedOrigins = $derived(
-    [hostProd, publicEnv.HOST_DEV, "http://localhost:5173"]
+    [previewTargetUrl, publicEnv.HOST_PROD, publicEnv.HOST_DEV, "http://localhost:5173"]
       .filter(Boolean)
       .map((url) => {
         try {
@@ -57,14 +63,15 @@
   );
 
   /**
-   * Securely generates a preview URL using the CMS handshake protocol
+   * Securely generates a preview URL using the CMS handshake protocol.
+   * Signs ephemeral preview tokens via /api/preview/authorize.
    */
   async function refreshAuthorizedUrl() {
     if (!shouldRender || !currentCollectionValue) return;
 
     isLoadingUrl = true;
     try {
-      const res = await fetch("/api/preview/generate", {
+      const res = await fetch("/api/preview/authorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,6 +79,7 @@
           entry: currentCollectionValue,
           contentLanguage,
           tenantId,
+          previewTargetUrl,
         }),
       });
 
@@ -79,14 +87,15 @@
         const { previewUrl } = await res.json();
         authorizedUrl = previewUrl;
       } else {
-        // Fallback if the authorized endpoint is not yet configured
+        // Fallback: construct URL with preview query param
         const entryId =
           currentCollectionValue._id || currentCollectionValue.slug || "draft";
-        authorizedUrl = `${hostProd}?preview=${entryId}&lang=${contentLanguage}`;
+        const base = previewTargetUrl.endsWith("/") ? previewTargetUrl.slice(0, -1) : previewTargetUrl;
+        authorizedUrl = `${base}?preview=${entryId}&lang=${contentLanguage}`;
       }
     } catch (err) {
       logger.error("Failed to generate secure preview URL", { error: err });
-      authorizedUrl = `${hostProd}?preview=draft&lang=${contentLanguage}`;
+      authorizedUrl = `${previewTargetUrl}?preview=draft&lang=${contentLanguage}`;
     } finally {
       isLoadingUrl = false;
     }
@@ -121,9 +130,9 @@
       data: currentCollectionValue,
     };
 
-    // Strictly target the production origin if possible
-    const targetOrigin = hostProd.startsWith("http")
-      ? new URL(hostProd).origin
+    // Strictly target the production origin
+    const targetOrigin = previewTargetUrl.startsWith("http")
+      ? new URL(previewTargetUrl).origin
       : "*";
     iframeEl.contentWindow.postMessage(message, targetOrigin);
   }
@@ -141,7 +150,6 @@
   function handleMessage(event: MessageEvent) {
     // Security: Strict Origin Check
     if (!allowedOrigins.includes(event.origin)) {
-      // Silently ignore or log unauthorized cross-window communication
       return;
     }
 
@@ -178,7 +186,7 @@
   }
 </script>
 
-<div class="flex `h-150 flex-col p-4">
+<div class="flex h-150 flex-col p-4">
   {#if !shouldRender}
     <!-- Deferred Load State -->
     <div
@@ -228,7 +236,7 @@
             onclick={() => (visualEditingEnabled = !visualEditingEnabled)}
             title="Toggle Click-to-Edit"
             aria-label="Toggle Click-to-Edit"
-           size="sm" class="{visualEditingEnabled ? ' ' : 'preset-soft-surface'}">
+           size="sm" class={visualEditingEnabled ? '' : 'preset-soft-surface'}>
           <iconify-icon icon="mdi:cursor-default-click" width={16}
           ></iconify-icon>
           <span class="hidden sm:inline">Visual Edit</span>
@@ -250,7 +258,7 @@
 
     <!-- Device Simulation Controls -->
     <div class="mb-3 flex justify-center gap-1">
-      {#each [{ label: "Desktop", width: "100%", icon: "mdi:monitor" }, { label: "Tablet", width: "768px", icon: "mdi:tablet" }, { label: "Mobile", width: "375px", icon: "mdi:cellphone" }] as device}
+      {#each [{ label: "Desktop", width: "100%", icon: "mdi:monitor" }, { label: "Tablet", width: "768px", icon: "mdi:tablet" }, { label: "Mobile", width: "375px", icon: "mdi:cellphone" }] as device (device.label)}
         <Button variant="primary"
           onclick={() => (previewWidth = device.width)}
           title={device.label}
