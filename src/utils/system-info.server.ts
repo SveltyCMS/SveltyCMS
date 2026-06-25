@@ -107,8 +107,8 @@ export async function getSystemInfo(): Promise<SystemInfoResponse> {
     const cpuMeta = getCpuInfo();
 
     // Single O(n) loop extracts both arrays
-    const usageList: number[] = new Array(history.length);
-    const timestampList: string[] = new Array(history.length);
+    const usageList: number[] = Array.from({ length: history.length });
+    const timestampList: string[] = Array.from({ length: history.length });
 
     for (let i = 0; i < history.length; i++) {
       usageList[i] = history[i].usage;
