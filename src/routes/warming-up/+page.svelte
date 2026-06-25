@@ -183,7 +183,7 @@ Features:
   <!-- Service Status Indicators -->
   <div class="w-full max-w-md space-y-3" aria-label="Service status">
     <p class="text-xs font-medium uppercase tracking-wide text-surface-500 dark:text-surface-400">Service Status</p>
-    {#each Object.entries(services) as [name, svc]}
+    {#each Object.entries(services) as [name, svc] (name)}
       {@const displayName = name === "content" ? "Content System" : name.charAt(0).toUpperCase() + name.slice(1)}
       <div
         class="flex items-center gap-3 rounded border border-surface-200 bg-white/90 p-4 shadow-sm transition-colors backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/90"

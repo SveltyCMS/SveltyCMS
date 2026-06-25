@@ -3,7 +3,7 @@ path: "docs/guides/development/plugin/development.mdx"
 title: Plugin Development Guide
 description: Create, register, and extend SveltyCMS with isomorphic plugins featuring lifecycle hooks, RBAC slots, and sandboxed execution.
 order: 8
-icon: mdi:puzzle
+icon: "mdi:puzzle"
 author: "SveltyCMS Team"
 created: "2026-03-04"
 updated: "2026-06-22"
@@ -147,24 +147,27 @@ ssrHook: async (context, entries) => {
 
 Plugins can inject UI components into 16 predefined zones. All zones are rendered via the `<Slot>` component (`src/components/system/slot.svelte`).
 
-| Zone                    | Location                | Used By              |
-| ----------------------- | ----------------------- | -------------------- |
-| `dashboard`             | Main dashboard          | Stats, widgets       |
-| `sidebar`               | Admin sidebar           | Navigation links     |
-| `entry_edit`            | Entry editor            | Custom tabs/panels   |
-| `entry_edit_sidebar`    | Entry editor sidebar    | SEO metadata         |
-| `entry_edit_header`     | Entry editor header     | Workflow actions     |
-| `config`                | Settings page           | Plugin configuration |
-| `config_grid`           | Config page icon grid   | Conditional tiles    |
-| `collection_builder`    | Collection builder page | Schema extensions    |
-| `media_gallery`         | Media gallery page      | Media plugins        |
-| `media_gallery_toolbar` | Media gallery toolbar   | Image optimizers     |
-| `user_profile`          | User profile page       | Profile extensions   |
-| `user_profile_sidebar`  | User profile sidebar    | Account settings     |
-| `entry_list_actions`    | Entry list              | Custom actions       |
-| `global-toolbar`        | Top toolbar (layout)    | System status        |
-| `global-footer`         | Footer (layout)         | Debug info           |
-| `sticky-action-bar`     | Bottom sticky bar       | Bulk operations      |
+| Zone                 | Location             | Used By              |
+| -------------------- | -------------------- | -------------------- |
+| `dashboard`          | Main dashboard       | Stats, widgets       |
+| `sidebar`            | Admin sidebar        | Navigation links     |
+| `entry_edit`         | Entry editor         | Custom tabs/panels   |
+| `entry_edit_sidebar` | Entry editor sidebar | SEO metadata         |
+| `entry_edit_header`  | Entry editor header  | Workflow actions     |
+| `config`             | Settings page        | Plugin configuration |
+
+| `config_grid` | Config page icon grid | Conditional tiles |
+| `collection_builder` | Collection builder page | Schema extensions |
+| `media_gallery` | Media gallery page | Media plugins |
+| `media_gallery_toolbar` | Media gallery toolbar | Image optimizers |
+
+| `user_profile` | User profile page | Profile extensions |
+| `user_profile_sidebar` | User profile sidebar | Account settings |
+| `entry_list_actions` | Entry list | Custom actions |
+
+| `global-toolbar` | Top toolbar (layout) | System status |
+| `global-footer` | Footer (layout) | Debug info |
+| `sticky-action-bar` | Bottom sticky bar | Bulk operations |
 
 ```typescript
 ui: {
@@ -285,5 +288,5 @@ Then in `+page.svelte`:
 
 - [Plugin Architecture Guide](architecture.mdx) — Deep dive into the system design
 - [Marketplace System](../../../architecture/marketplace.mdx) — Plugin distribution
-- [AI Integration](../../ai-integration.mdx) — Widget scaffolder + behavioral learning
+- [AI Integration](../../development/ai-integration.mdx) — Widget scaffolder + behavioral learning
 - [Security Overview](../../../architecture/security/index.mdx)

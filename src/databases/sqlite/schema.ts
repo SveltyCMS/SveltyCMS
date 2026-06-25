@@ -16,12 +16,12 @@ import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
 // --- Direct Exports from Sub-modules ---
-export { fourOhFourLogs } from "./404Logs";
+export { fourOhFourLogs } from "./404-logs";
 export { redirectsMV } from "./seo";
 export { workflowDefinitions, workflowInstances } from "./workflow";
 
 // --- Local Schema Definitions ---
-import { fourOhFourLogs } from "./404Logs";
+import { fourOhFourLogs } from "./404-logs";
 import { redirectsMV } from "./seo";
 import { workflowDefinitions, workflowInstances } from "./workflow";
 import type { TenantQuota, TenantUsage } from "../db-interface";

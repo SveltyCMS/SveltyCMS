@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/AIEnrichment/tests/ai-enrichment.test.ts
+ @file src/widgets/custom/ai-enrichment/tests/ai-enrichment.test.ts
  * @description Unit tests for the AI Enrichment widget validation logic.
  */
 

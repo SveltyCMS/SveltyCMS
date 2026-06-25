@@ -21,7 +21,7 @@ import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { error, redirect, fail } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getPrivateSetting } from "@src/services/core/settings-service";
 import { getCollectionOrder } from "@utils/collection-order.server";

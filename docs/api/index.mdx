@@ -24,17 +24,17 @@ SveltyCMS provides a comprehensive programmatic surface for building custom fron
 
 ## ⚡ Core Access Patterns
 
-| Pattern                                      | Context                          | Latency     | Best For                            |
-| -------------------------------------------- | -------------------------------- | ----------- | ----------------------------------- |
-| [🎯 **Remote Functions**](#remote-functions) | **Client→Server** (`.server.ts`) | **Typed**   | Auth, Setup, User profile forms     |
-| [⚡ **Local SDK**](./local-vs-http-api.mdx)  | **Server-side** (`.server.ts`)   | **0–5ms**   | Native SvelteKit, high-throughput   |
-| [🌐 **REST API**](./collections.mdx)         | **External** (Mobile, Apps)      | 50–150ms    | Simple CRUD & Integrations          |
-| [📊 **GraphQL API**](./graphql.mdx)          | **Frontend** (React, Vue, SPA)   | 50–200ms    | Complex data fetching               |
-| [📖 **OpenAPI Spec**](./openapi-spec.mdx)    | **Documentation & SDKs**         | **Unified** | Fastest automated client generation |
+| Pattern                                                        | Context                          | Latency     | Best For                            |
+| -------------------------------------------------------------- | -------------------------------- | ----------- | ----------------------------------- |
+| [🎯 **Remote Functions**](#remote-functions-2026-architecture) | **Client→Server** (`.server.ts`) | **Typed**   | Auth, Setup, User profile forms     |
+| [⚡ **Local SDK**](./local-vs-http-api.mdx)                    | **Server-side** (`.server.ts`)   | **0–5ms**   | Native SvelteKit, high-throughput   |
+| [🌐 **REST API**](./collections.mdx)                           | **External** (Mobile, Apps)      | 50–150ms    | Simple CRUD & Integrations          |
+| [📊 **GraphQL API**](./graphql.mdx)                            | **Frontend** (React, Vue, SPA)   | 50–200ms    | Complex data fetching               |
+| [📖 **OpenAPI Spec**](./openapi-spec.mdx)                      | **Documentation & SDKs**         | **Unified** | Fastest automated client generation |
 
 ---
 
-## 🎯 Remote Functions (2026 Architecture)
+## 🎯 Remote Functions (2026 Architecture) {#remote-functions-2026-architecture}
 
 SveltyCMS uses **SvelteKit Remote Functions** (`.server.ts` files) for type-safe client-to-server communication. These replace traditional form actions and manual `fetch()` calls with fully typed async functions that provide complete TypeScript inference between components and server logic.
 
@@ -135,5 +135,5 @@ All REST endpoints follow a unified response shape:
 
 ---
 
-**Next Steps**: Start with the [Collections Reference](./collections.mdx) for data fetching. For real-time updates, see [Content & Search](./content.mdx). For type-safe client-server calls, use [Remote Functions](#remote-functions).
+**Next Steps**: Start with the [Collections Reference](./collections.mdx) for data fetching. For real-time updates, see [Content & Search](./content.mdx). For type-safe client-server calls, use [Remote Functions](#remote-functions-2026-architecture).
 ````

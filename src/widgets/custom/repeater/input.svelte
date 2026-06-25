@@ -155,7 +155,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 				{#if !collapsedItems[item.id]}
 					<div class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
 						{#if (field as any).fields}
-							{#each (field as any).fields as subField}
+							{#each (field as any).fields as subField (subField.db_fieldName ?? subField.label)}
 								{const subFieldName = subField.db_fieldName || getFieldName(subField)}
 								{const widgetName = subField.widget?.Name || subField.type || 'Input'}
 								{const widgetLoader = getWidgetLoader(widgetName)}

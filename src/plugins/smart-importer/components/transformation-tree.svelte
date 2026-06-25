@@ -1,5 +1,5 @@
 <!--
-  @file src/plugins/smart-importer/components/TransformationTree.svelte
+  @file src/plugins/smart-importer/components/transformation-tree.svelte
   @component
   **Production-grade visual field mapping tree — per-node open state, keyboard nav, dynamic preview.**
 
@@ -140,7 +140,7 @@
 <div class="transformation-tree space-y-4" onkeydown={handleKeydown}>
   <!-- Toolbar -->
   <div class="flex flex-wrap items-center gap-2 p-3 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl">
-    <div class="flex items-center gap-1 bg-white dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-lg px-2 py-1 flex-1 min-w-[120px] sm:min-w-[150px]">
+    <div class="flex items-center gap-1 bg-white dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-lg px-2 py-1 flex-1 min-w-30 sm:min-w-37.5">
       <iconify-icon icon="mdi:magnify" width="14" class="text-surface-400 shrink-0"></iconify-icon>
       <input type="text" bind:value={searchQuery} placeholder="Filter fields..." class="bg-transparent border-0 p-0 text-xs text-surface-700 dark:text-surface-300 focus:outline-none w-full" aria-label="Search fields" />
     </div>
@@ -206,7 +206,7 @@
   <!-- Tree -->
   <div class="space-y-0.5">
     {#each nodes as node (node.id)}
-      <TreeNode {node} {recommendations} {onActionChange} {selectNode} selectedNodeId={selectedNodeId ?? ''} />
+      {@render TreeNode({ node, recommendations, onActionChange, selectNode, selectedNodeId: selectedNodeId ?? '' })}
     {/each}
   </div>
 </div>
@@ -229,15 +229,7 @@
     aria-selected={isSelected}
   >
     <div
-      class="flex flex-col gap-1.5 p-2.5 border rounded-lg transition shadow-xs cursor-pointer"
-      class:bg-tertiary-50={isSelected}
-      class:bg-white={!isSelected}
-      class:dark:bg-surface-900={!isSelected}
-      class:dark:bg-tertiary-500/10={isSelected}
-      class:border-tertiary-500={isSelected}
-      class:border-surface-200={!isSelected}
-      class:dark:border-surface-800={!isSelected}
-      class:border-warning-500={node.confidence < 50 && !isSelected}
+      class="flex flex-col gap-1.5 p-2.5 border rounded-lg transition shadow-xs cursor-pointer {isSelected ? 'bg-tertiary-50 dark:bg-tertiary-500/10 border-tertiary-500' : 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800'} {node.confidence < 50 && !isSelected ? 'border-warning-500' : ''}"
       onclick={() => selectNode?.(node)}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode?.(node); } }}
       tabindex="0"
@@ -266,13 +258,13 @@
         {/if}
 
         {#if node.sampleValue}
-          <span class="text-[9px] text-surface-400 italic truncate max-w-[80px]" title={node.sampleValue}>{node.sampleValue.slice(0, 20)}{node.sampleValue.length > 20 ? '…' : ''}</span>
+          <span class="text-[9px] text-surface-400 italic truncate max-w-20" title={node.sampleValue}>{node.sampleValue.slice(0, 20)}{node.sampleValue.length > 20 ? '…' : ''}</span>
         {/if}
 
         <span class="shrink-0 text-[10px] font-mono border px-1.5 py-0.5 rounded-full {confidenceColor(node.confidence)}">{node.confidence}%</span>
       </div>
 
-      <div class="flex items-center gap-1.5 ms-7" onclick={(e) => e.stopPropagation()}>
+      <div role="presentation" class="flex items-center gap-1.5 ms-7" onclick={(e) => e.stopPropagation()}>
         <span class="text-[10px] text-surface-400 shrink-0">→</span>
         <input type="text" bind:value={node.suggestedTarget} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-md px-1.5 py-0.5 text-[10px] font-mono text-surface-700 dark:text-surface-300 focus:outline-none focus:border-tertiary-500 w-24" aria-label="Target for {node.label}" />
         <select value={node.action} onchange={(e) => { node.action = (e.target as HTMLSelectElement).value as any; onActionChange?.(node.id, node.action); }} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 text-[10px] rounded-md px-1.5 py-0.5 text-surface-600 focus:outline-none" aria-label="Action">
@@ -289,7 +281,7 @@
 
       {#if nodeRecommendations.length > 0}
         <div class="flex flex-wrap gap-1 ms-7">
-          {#each nodeRecommendations as rec}
+          {#each nodeRecommendations as rec (rec.title)}
             <div class="text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 {rec.level === 'critical' ? 'bg-rose-500/5 text-rose-500 border-rose-500/20' : 'bg-amber-500/5 text-amber-500 border-amber-500/20'}" title={rec.description}>
               <iconify-icon icon={rec.level === 'critical' ? 'mdi:alert-octagon' : 'mdi:lightbulb'} width="10"></iconify-icon>
               {rec.title}

@@ -202,6 +202,7 @@ flowchart TD
 - The dictionary captures _structural_ redundancy (keys, nesting, common CMS tokens) from your widget factory and collection definitions — not the variable user text/content.
 - Because pre-compression happens at MISS time (`handle-api-requests.ts` background + main `handleCompression`), every new or changed piece of data gets a fresh compression pass against the current dictionary.
 - Turbo path (`handle-turbo-get.ts`) prefers `entry.compressed[algo]` when available → zero re-stringify / re-compress for hot repeated traffic.
+
 - The `getCmsDict()` loader in `handle-compression.ts` reads the artifact at runtime (graceful fallback if missing).
 - To improve the dictionary after source changes: the script re-scans `src/widgets/core` and `config/collections` at build time.
 - Compression metrics (avg sizes + ratios) are exported during benchmarks so you can measure the real gain.

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/tags/display.svelte
 @component
 **Read-only display for the Tags widget**
@@ -14,14 +14,14 @@
 	}
 
 	let { value = [] }: Props = $props();
-	
+
 	// Ensure value is an array
 	const tags = $derived(Array.isArray(value) ? value : []);
 </script>
 
 <div class="flex flex-wrap gap-2">
 	{#if tags.length > 0}
-		{#each tags as tag}
+		{#each tags as tag, i (i)}
 			<Badge variant="secondary" size="sm" class="px-2! py-1! rounded!">
 				{tag}
 			</Badge>

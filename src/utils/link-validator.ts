@@ -176,7 +176,7 @@ export function validateLinks(): { issues: LinkIssue[]; ok: boolean } {
     if (suggestions.length > 0) {
       console.log(`\n💡 ${suggestions.length} link(s) with suggestions:`);
       for (const s of suggestions) {
-        console.log(`   ${s.file}:${s.line} → "${s.href}" — did you mean "${suggestion}"?`);
+        console.log(`   ${s.file}:${s.line} → "${s.href}" — did you mean "${s.suggestion}"?`);
       }
     }
     if (noPreload.length > 0) {

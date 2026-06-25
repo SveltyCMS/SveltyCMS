@@ -204,7 +204,7 @@ const statuses = Object.values(StatusTypes);
 					class="flex h-10 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 appearance-none cursor-pointer"
 					aria-label="Collection status"
 				>
-					{#each statuses as statusOption}
+					{#each statuses as statusOption (statusOption)}
 						<option value={statusOption}>{statusOption}</option>
 					{/each}
 				</select>

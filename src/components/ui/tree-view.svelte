@@ -484,14 +484,14 @@ search filtering, and RTL support.
             )}
             style="padding-inline-start: {indentLeft(depth)}rem"
             onclick={() => toggleNode(node)}
-            onkeydown={(e) => handleKeyDown(e, node)}
+            onkeydown={(e: KeyboardEvent) => handleKeyDown(e, node)}
             onmouseenter={() => handleHover?.(node)}
 
             draggable={allowDragDrop && node.id !== 'root'}
-            ondragstart={(e) => handleDragStart(e, node)}
-            ondragover={(e) => handleDragOver(e, node)}
+            ondragstart={(e: DragEvent) => handleDragStart(e, node)}
+            ondragover={(e: DragEvent) => handleDragOver(e, node)}
             ondragleave={handleDragLeave}
-            ondrop={(e) => handleDrop(e, node)}
+            ondrop={(e: DragEvent) => handleDrop(e, node)}
             ondragend={handleDragEnd}
 
             tabindex={isFocused || (selectedId === node.id) || (focusedNodeId === null && depth === 0) ? 0 : -1}
@@ -567,7 +567,7 @@ search filtering, and RTL support.
         <!-- Per-node Action Buttons (hover to reveal) -->
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
             <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100">
-                {#each node.actions as act}
+                {#each node.actions as act (act.label)}
                     <Button variant="ghost"
                         type="button"
                         							onclick={(e: MouseEvent) => { e.stopPropagation(); act.onClick(node, e); }}

@@ -1,24 +1,24 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit — Fast Loop (~2-3s)
+# SveltyCMS Pre-Push Quality Gate — Medium Loop (~15-45s)
 # =============================================================================
-# Runs lint-staged: format, lint, and slop scan on STAGED FILES ONLY.
-# Heavy checks (type check, unit tests) are deferred to pre-push.
-# Production builds and integration tests are CI-only.
+# Runs full type checking, unit tests, and quality scanning before code
+# reaches the remote. This catches broken type contracts and test failures
+# that the fast pre-commit loop (staged-files-only) intentionally skips.
 #
-# Skip with: git commit --no-verify
+# Skip with: git push --no-verify
 # =============================================================================
 set -e
 
 if [ "${CI:-false}" = "true" ]; then
-    echo "⏩ CI environment detected. Bypassing pre-commit gates."
+    echo "⏩ CI environment detected. Bypassing pre-push gates."
     exit 0
 fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
+echo "║       SveltyCMS Pre-Push — Medium Loop (~15-45s)           ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-bun x lint-staged
+bun run scripts/quality-gate.ts

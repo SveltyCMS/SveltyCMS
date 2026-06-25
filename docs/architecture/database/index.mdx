@@ -72,6 +72,7 @@ graph TD
 - **Tenant Isolation**: Every query scoped by `tenantId` at adapter level — architecturally impossible to bypass
 - **Credential Hashing**: Website tokens and API keys are stored as SHA-256 digests only; plaintext is returned once on creation. See [`system.websiteTokens`](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
 - **Tenant-Scoped Bearer Lookup**: Auth passes `locals.tenantId` into credential lookups (aligned with `auth.getApiKey`) to narrow multi-tenant queries.
+
 - **MongoDB Soft-Delete Safety**: `safeQuery()` applies `isDeleted: { $ne: true }` so legacy documents without the field remain visible to active queries.
 - **SSRF Prevention**: Cloud storage adapters validate endpoints before connection
 - **NoSQL Injection Protection**: `sanitizeMongoQuery` blocks `$where`, `$function`, `$expr`

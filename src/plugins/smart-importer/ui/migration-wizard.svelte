@@ -1,5 +1,5 @@
 <!--
-  @file src/plugins/smart-importer/ui/MigrationWizard.svelte
+  @file src/plugins/smart-importer/ui/migration-wizard.svelte
   @component
   **Smart AI-Driven Migration Pro — Visual Step Wizard**
 
@@ -21,7 +21,7 @@
 <script lang="ts">
   import { toast } from '@src/stores/toast.svelte';
   import { logger } from '@utils/logger';
-  import { fade, slide, fly } from 'svelte/transition';
+  import { fade, slide } from 'svelte/transition';
   import AdminCard from '@components/admin-card.svelte';
   import AdminPageShell from '@components/admin-page-shell.svelte';
   import Button from '@components/ui/button.svelte';
@@ -64,7 +64,6 @@
   // Results
   let importResult = $state<any>(null);
   let transactionToken = $state('');
-  let pastMigrations = $state<Array<any>>([]);
 
   // Selection toggle state
   let selectAllContentTypes = $state(true);
@@ -378,7 +377,7 @@
 
       <!-- Step Indicators -->
       <div class="flex items-center justify-center gap-2 text-sm" aria-label="Migration wizard steps">
-        {#each ['Upload', 'Map Fields', 'Validate', 'Import', 'Review'] as label, i}
+        {#each ['Upload', 'Map Fields', 'Validate', 'Import', 'Review'] as label, i (i)}
           {@const s = i + 1}
           <button
             onclick={() => goToStep(s)}
@@ -472,7 +471,7 @@
                   </button>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  {#each availableContentTypes as ct}
+                  {#each availableContentTypes as ct (ct)}
                     <button
                       onclick={() => toggleContentType(ct)}
                       class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border
@@ -537,7 +536,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-surface-100 dark:divide-surface-700">
-                {#each fieldMappings as mapping, i (mapping.source)}
+                {#each fieldMappings as mapping (mapping.source)}
                   <tr class="hover:bg-surface-50 dark:hover:bg-surface-800/50">
                     <td class="px-4 py-2.5 font-mono text-xs text-surface-700 dark:text-surface-300">{mapping.source}</td>
                     <td class="px-2 py-2.5 text-center text-surface-400">→</td>
@@ -628,7 +627,7 @@
           <!-- Log -->
           {#if importLog.length > 0}
             <div class="max-h-48 overflow-y-auto rounded border border-surface-200 bg-surface-50 p-3 font-mono text-xs dark:border-surface-700 dark:bg-surface-900/50">
-              {#each importLog as entry}
+              {#each importLog as entry (entry.time + entry.message)}
                 <div class="flex gap-2 {entry.level === 'error' ? 'text-error-500' : entry.level === 'success' ? 'text-tertiary-500' : 'text-surface-500'}">
                   <span class="shrink-0 text-surface-400">{entry.time}</span>
                   <span>{entry.message}</span>

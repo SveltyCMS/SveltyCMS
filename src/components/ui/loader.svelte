@@ -80,7 +80,7 @@ Respects `prefers-reduced-motion` by disabling animation when requested.
 
 <div role="status" aria-label={ariaLabel} aria-busy="true" class={cn('flex flex-col gap-2', variant === 'text' && 'w-full', className)}>
 	{#if variant === 'text'}
-		{#each Array(lines) as _, i}
+		{#each Array(lines) as _, i (i)}
 			{const isLast = i === lines - 1}
 			<div
 				class={cn(

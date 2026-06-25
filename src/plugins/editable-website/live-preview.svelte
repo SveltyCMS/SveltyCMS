@@ -228,7 +228,7 @@
             onclick={() => (visualEditingEnabled = !visualEditingEnabled)}
             title="Toggle Click-to-Edit"
             aria-label="Toggle Click-to-Edit"
-           size="sm" class="{visualEditingEnabled ? ' ' : 'preset-soft-surface'}">
+           size="sm" class={visualEditingEnabled ? '' : 'preset-soft-surface'}>
           <iconify-icon icon="mdi:cursor-default-click" width={16}
           ></iconify-icon>
           <span class="hidden sm:inline">Visual Edit</span>
@@ -250,7 +250,7 @@
 
     <!-- Device Simulation Controls -->
     <div class="mb-3 flex justify-center gap-1">
-      {#each [{ label: "Desktop", width: "100%", icon: "mdi:monitor" }, { label: "Tablet", width: "768px", icon: "mdi:tablet" }, { label: "Mobile", width: "375px", icon: "mdi:cellphone" }] as device}
+      {#each [{ label: "Desktop", width: "100%", icon: "mdi:monitor" }, { label: "Tablet", width: "768px", icon: "mdi:tablet" }, { label: "Mobile", width: "375px", icon: "mdi:cellphone" }] as device (device.label)}
         <Button variant="primary"
           onclick={() => (previewWidth = device.width)}
           title={device.label}

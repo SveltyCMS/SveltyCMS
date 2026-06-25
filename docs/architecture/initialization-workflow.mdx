@@ -28,17 +28,15 @@ This comprehensive guide covers the entire SveltyCMS lifecycle: installation, fi
 
 ## Table of Contents
 
-### Part I: Installation & Setup
+### Part I: Installation & Setup {#toc-part-i}(#prerequisites)
 
-1. [Prerequisites](#prerequisites)
 2. [Quick Installation](#quick-installation)
 3. [Manual Installation](#manual-installation)
 4. [First-Time Setup Flow](#first-time-setup-flow)
 5. [Post-Installation Configuration](#post-installation-configuration)
 
-### Part II: System Architecture
+### Part II: System Architecture {#toc-part-ii}(#visual-overview)
 
-6. [Visual Overview](#visual-overview)
 7. [Server Restart Flow](#server-restart-flow)
 8. [Collection UUID Management](#collection-uuid-management)
    > See [Compilation Pipeline](./compilation-pipeline.mdx) for detailed architecture.
@@ -46,24 +44,22 @@ This comprehensive guide covers the entire SveltyCMS lifecycle: installation, fi
 10. [State Machine](#state-machine)
 11. [Compilation Pipeline](./compilation-pipeline.mdx)
 
-### Part III: Testing & CI/CD
+### Part III: Testing & CI/CD {#toc-part-iii}(#testing-overview)
 
-11. [Testing Overview](#testing-overview)
 12. [Unit Testing with Bun](#unit-testing-with-bun)
 13. [E2E Testing with Playwright](#e2e-testing-with-playwright)
 14. [GitHub Actions CI/CD](#github-actions-cicd)
 15. [Automated Setup Scripts](#automated-setup-scripts)
 
-### Part IV: Troubleshooting & Reference
+### Part IV: Troubleshooting & Reference {#toc-part-iv}(#known-issues)
 
-16. [Known Issues](#known-issues)
 17. [Troubleshooting](#troubleshooting)
 18. [Best Practices](#best-practices)
 19. [Quick Reference](#quick-reference)
 
 ---
 
-# Part I: Installation & Setup
+# Part I: Installation & Setup {#body-part-i}
 
 ## Prerequisites
 
@@ -512,7 +508,7 @@ SveltyCMS/
 
 ---
 
-# Part II: System Architecture
+# Part II: System Architecture {#body-part-ii}
 
 ## Visual Overview
 
@@ -638,7 +634,7 @@ graph TB
 
 ## First-Time Setup Flow
 
-### Phase 1: Vite Startup (Build Time)
+### Phase 1: Vite Startup (Build Time) {#setup-phase1}
 
 **File: `vite.config.ts`**
 
@@ -1004,7 +1000,7 @@ Called when user submits admin user form.
 
 ## Server Restart Flow
 
-### Phase 1: Vite Startup (Build Time)
+### Phase 1: Vite Startup (Build Time) {#restart-phase1}
 
 **File: `vite.config.ts`**
 
@@ -1474,7 +1470,7 @@ sequenceDiagram
 
 ---
 
-# Part III: Testing & CI/CD
+# Part III: Testing & CI/CD {#body-part-iii}
 
 ## Testing Overview
 
@@ -1792,7 +1788,7 @@ bun run scripts/create-admin.js
 
 ---
 
-# Part IV: Troubleshooting & Reference
+# Part IV: Troubleshooting & Reference {#body-part-iv}
 
 ## Troubleshooting
 

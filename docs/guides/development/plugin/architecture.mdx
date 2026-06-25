@@ -2,7 +2,7 @@
 path: "docs/guides/development/plugin/architecture.mdx"
 title: Plugin Architecture
 description: Comprehensive guide to the SveltyCMS Enterprise Plugin System — slots, hooks, migrations, sandbox, and config-page pattern.
-icon: mdi:puzzle-outline
+icon: "mdi:puzzle-outline"
 order: 10
 author: "SveltyCMS Team"
 created: 2026-02-05
@@ -100,24 +100,27 @@ export interface Plugin {
 
 Plugins inject UI components into predefined zones. All zones are rendered via the `<Slot>` component (`src/components/system/slot.svelte`).
 
-| Zone                    | Location                    | Used By                            |
-| ----------------------- | --------------------------- | ---------------------------------- |
-| `dashboard`             | Main dashboard widgets      | PageSpeed, Stripe                  |
-| `sidebar`               | Admin sidebar navigation    | Editable Website                   |
-| `entry_edit`            | Entry editor tabs/panels    | Any content plugin                 |
-| `entry_edit_sidebar`    | Entry editor sidebar        | SEO plugins                        |
-| `entry_edit_header`     | Entry editor header actions | Workflow actions                   |
-| `config`                | System configuration area   | Stripe, settings plugins           |
-| `config_grid`           | Config page icon grid       | Smart Importer, any config plugin  |
-| `collection_builder`    | Collection builder page     | Schema plugins                     |
-| `media_gallery`         | Media gallery page          | Media plugins                      |
-| `media_gallery_toolbar` | Media gallery toolbar       | Image optimization plugins         |
-| `user_profile`          | User profile/settings page  | Profile extensions                 |
-| `user_profile_sidebar`  | User profile sidebar        | Account plugins                    |
-| `entry_list_actions`    | Entry list action buttons   | PageSpeed refresh                  |
-| `global-toolbar`        | Top toolbar (all routes)    | System status (rendered in layout) |
-| `global-footer`         | Footer (all routes)         | Debug bar (rendered in layout)     |
-| `sticky-action-bar`     | Bottom sticky bar           | Bulk operations                    |
+| Zone                 | Location                    | Used By                           |
+| -------------------- | --------------------------- | --------------------------------- |
+| `dashboard`          | Main dashboard widgets      | PageSpeed, Stripe                 |
+| `sidebar`            | Admin sidebar navigation    | Editable Website                  |
+| `entry_edit`         | Entry editor tabs/panels    | Any content plugin                |
+| `entry_edit_sidebar` | Entry editor sidebar        | SEO plugins                       |
+| `entry_edit_header`  | Entry editor header actions | Workflow actions                  |
+| `config`             | System configuration area   | Stripe, settings plugins          |
+| `config_grid`        | Config page icon grid       | Smart Importer, any config plugin |
+| `collection_builder` | Collection builder page     | Schema plugins                    |
+
+| `media_gallery` | Media gallery page | Media plugins |
+| `media_gallery_toolbar` | Media gallery toolbar | Image optimization plugins |
+
+| `user_profile` | User profile/settings page | Profile extensions |
+| `user_profile_sidebar` | User profile sidebar | Account plugins |
+| `entry_list_actions` | Entry list action buttons | PageSpeed refresh |
+
+| `global-toolbar` | Top toolbar (all routes) | System status (rendered in layout) |
+| `global-footer` | Footer (all routes) | Debug bar (rendered in layout) |
+| `sticky-action-bar` | Bottom sticky bar | Bulk operations |
 
 **Adding slots to a route page:**
 
@@ -198,16 +201,18 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 
 ## Available Plugins
 
-| Plugin                            | Category    | Docs                                                                       |
-| --------------------------------- | ----------- | -------------------------------------------------------------------------- |
-| **Smart AI-Driven Migration Pro** | Migration   | [smart-importer.mdx](/src/plugins/smart-importer/smart-importer.mdx)       |
-| PageSpeed                         | Performance | [pagespeed.mdx](/src/plugins/pagespeed/pagespeed.mdx)                      |
-| Editable Website                  | Editing     | [editable-website.mdx](/src/plugins/editable-website/editable-website.mdx) |
-| Redirect Manager                  | SEO         | [redirect-manager.mdx](/src/plugins/redirect-manager/redirect-manager.mdx) |
-| Sitemap                           | SEO         | [sitemap.mdx](/src/plugins/sitemap/sitemap.mdx)                            |
-| WebMCP                            | AI          | [webmcp.mdx](/src/plugins/webmcp/webmcp.mdx)                               |
-| Cookie Consent                    | Privacy     | [cookie-consent.mdx](/src/plugins/cookie-consent/cookie-consent.mdx)       |
-| Stripe                            | Payments    | [stripe.mdx](/src/plugins/stripe/stripe.mdx)                               |
+| Plugin                            | Category    | Docs                                                                 |
+| --------------------------------- | ----------- | -------------------------------------------------------------------- |
+| **Smart AI-Driven Migration Pro** | Migration   | [smart-importer.mdx](/src/plugins/smart-importer/smart-importer.mdx) |
+| PageSpeed                         | Performance | [pagespeed.mdx](/src/plugins/pagespeed/pagespeed.mdx)                |
+
+| Editable Website | Editing | [editable-website.mdx](/src/plugins/editable-website/editable-website.mdx) |
+| Redirect Manager | SEO | [redirect-manager.mdx](/src/plugins/redirect-manager/redirect-manager.mdx) |
+| Sitemap | SEO | [sitemap.mdx](/src/plugins/sitemap/sitemap.mdx) |
+
+| WebMCP | AI | [webmcp.mdx](/src/plugins/webmcp/webmcp.mdx) |
+| Cookie Consent | Privacy | [cookie-consent.mdx](/src/plugins/cookie-consent/cookie-consent.mdx) |
+| Stripe | Payments | [stripe.mdx](/src/plugins/stripe/stripe.mdx) |
 
 ---
 
@@ -228,5 +233,5 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 
 - [Plugin Development Guide](development.mdx)
 - [Marketplace System](../../../architecture/marketplace.mdx)
-- [AI Integration](../../ai-integration.mdx)
+- [AI Integration](../../development/ai-integration.mdx)
 - [Security Overview](../../../architecture/security/index.mdx)

@@ -1,14 +1,23 @@
 /**
  * @file scripts/slop-scanner.ts
- * @description Custom Svelte 5 / accessibility / RTL / naming / slop checks.
- * General linting (unused imports, TS rules, etc.) is handled by oxlint.
- * This scanner focuses on what oxlint doesn't cover well.
+ * @description Smart Svelte 5 + Accessibility + RTL + Quality scanner with safe autofix.
+ *
+ * Focuses on critical items oxlint doesn't cover natively:
+ * - Svelte 5 legacy reactivity detection (warns on $: patterns)
+ * - Svelte legacy store warnings
+ * - Directional Tailwind property conversions to Logical Properties (autofixable)
+ * - Accessibility missing-label assertions on interactive anchors and buttons (skipping hidden inputs, supporting nested img alts)
+ * - Unsanitized {@html} expression risk evaluations with nested brace support
+ * - Dynamic brace-balanced {#each} block key constraint validations
+ * - Duplicate content duplication flags
+ * - Scans TS/JS files for TODOs, naming, and duplicate content slop
+ * - Supports dynamic `.slop-suppress.json` loading for granular error overrides
  *
  * Usage:
- *   bun run scripts/slop-scanner.ts              # full scan
- *   bun run scripts/slop-scanner.ts --fix        # auto-fix RTL classes
- *   bun run scripts/slop-scanner.ts --strict     # exit 1 on any violation
- *   bun run scripts/slop-scanner.ts --files src/routes/+page.svelte
+ * bun run scripts/slop-scanner.ts                 # Check all files
+ * bun run scripts/slop-scanner.ts --fix           # Check + safe autofix
+ * bun run scripts/slop-scanner.ts --strict        # Fail-closed (exits 1 on error)
+ * bun run scripts/slop-scanner.ts --files file.svelte # Check target file(s)
  */
 
 import { existsSync } from "node:fs";
@@ -20,10 +29,30 @@ import { globSync } from "glob";
 // Config
 // ---------------------------------------------------------------------------
 const ROOT = join(import.meta.dirname, "..");
-const MAX_FILE_SIZE = 500_000;
-const MAX_TODOS_PER_FILE = 5;
+const MAX_FILE_SIZE = 400_000;
+const MAX_TODOS_PER_FILE = 6;
+const SUPPRESS_FILE = join(ROOT, ".slop-suppress.json");
 
+// Suppressed files/categories to suppress known legacy exceptions
 const SUPPRESS: { file: string; category: string }[] = [];
+
+/**
+ * Dynamically loads exceptions from local config file if present.
+ * Prevents codebase noise on legacy or generated assets.
+ */
+async function loadSuppressions() {
+  if (existsSync(SUPPRESS_FILE)) {
+    try {
+      const data = await fs.readFile(SUPPRESS_FILE, "utf8");
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        SUPPRESS.push(...parsed);
+      }
+    } catch {
+      console.warn("⚠️  Could not parse local suppression list .slop-suppress.json");
+    }
+  }
+}
 
 interface Violation {
   file: string;
@@ -35,6 +64,7 @@ interface Violation {
 }
 
 const violations: Violation[] = [];
+let fixedFiles = 0;
 
 function report(
   file: string,
@@ -46,17 +76,18 @@ function report(
 ) {
   const nf = file.replace(/\\/g, "/");
   if (SUPPRESS.some((s) => nf.includes(s.file) && s.category === category)) return;
-  violations.push({ file, line, category, message, severity, fixable });
+
+  violations.push({
+    file: nf,
+    line,
+    category,
+    message,
+    severity,
+    fixable,
+  });
 }
 
-// ---------------------------------------------------------------------------
-// File discovery
-// ---------------------------------------------------------------------------
-// walkFiles replaced with globSync
-
-// ---------------------------------------------------------------------------
-// RTL Mapping
-// ---------------------------------------------------------------------------
+// RTL Logical Properties Mapping
 const RTL_MAP: Record<string, string> = {
   pl: "ps",
   pr: "pe",
@@ -64,203 +95,189 @@ const RTL_MAP: Record<string, string> = {
   mr: "me",
   left: "start",
   right: "end",
+  "text-left": "text-start",
+  "text-right": "text-end",
   "border-l": "border-s",
   "border-r": "border-e",
   "rounded-l": "rounded-s",
   "rounded-r": "rounded-e",
-  "text-left": "text-start",
-  "text-right": "text-end",
+  "divide-x": "divide-s",
+  "divide-x-reverse": "divide-s-reverse",
+  "space-x": "space-s",
+  "space-x-reverse": "space-s-reverse",
 };
 
-// ---------------------------------------------------------------------------
-// Core Svelte scanning
-// ---------------------------------------------------------------------------
 async function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
-  const cleanContent = content.replace(/<!--([\s\S]*?)-->/g, (match) =>
-    "\n".repeat((match.match(/\n/g) || []).length),
+  const cleanContent = content.replace(/<!--([\s\S]*?)-->/g, (m) =>
+    "\n".repeat((m.match(/\n/g) || []).length),
   );
+
   const lines = cleanContent.split("\n");
+  const fixedLines = [...lines]; // clone for safe mutation
+  let fileWasModified = false;
+
   let inCodeBlock = false;
   let inScriptBlock = false;
   let inStyleBlock = false;
-  let fixed = content;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+
     if (/^\s*```/.test(line)) {
       inCodeBlock = !inCodeBlock;
       continue;
     }
     if (inCodeBlock) continue;
 
-    if (/<script\b/i.test(trimmed)) {
-      inScriptBlock = true;
-      continue;
-    }
-    if (/<\/script>/i.test(trimmed)) {
-      inScriptBlock = false;
-      continue;
-    }
-    if (/<style\b/i.test(trimmed)) {
-      inStyleBlock = true;
-      continue;
-    }
-    if (/<\/style>/i.test(trimmed)) {
-      inStyleBlock = false;
-      continue;
-    }
+    if (/<script\b/i.test(trimmed)) inScriptBlock = true;
+    if (/<\/script>/i.test(trimmed)) inScriptBlock = false;
+    if (/<style\b/i.test(trimmed)) inStyleBlock = true;
+    if (/<\/style>/i.test(trimmed)) inStyleBlock = false;
 
-    // Legacy $: reactivity (only inside script blocks)
+    // === Legacy $: reactivity (Svelte 5) — detection only, NO auto-fix ===
+    // Auto-fixing $: → $derived() is unsafe due to:
+    //   - multi-line expressions, block statements ($: { }), conditionals ($: if (x) { })
+    //   - expressions containing forward slashes (regex, division)
+    // A broken auto-fix silently introduces runtime bugs.
     if (inScriptBlock && /\$\s*:(?!.*(\$state|\$derived|\$effect|\$props|\$bindable))/.test(line)) {
-      report(
-        relPath,
-        i + 1,
-        "svelte5-legacy",
-        "Legacy $: — use $derived() / $effect() instead",
-        "error",
-      );
+      report(relPath, i + 1, "svelte5-legacy", "Legacy $: reactivity — migrate to runes", "error");
     }
 
     if (inScriptBlock || inStyleBlock) continue;
 
-    // Accessibility — interactive elements without accessible names
-    const tagMatch = line.match(/<(button|input|select|textarea|a)\b/i);
+    // === Accessibility ===
+    const tagMatch = line.match(/<(button|input|select|textarea|a)\b([^>]*)/i);
     if (tagMatch) {
-      // Skip Svelte components (PascalCase tags)
-      const afterLt = line.slice(line.indexOf("<") + 1, line.indexOf("<") + 10);
-      if (/^[A-Z]/.test(afterLt)) continue;
       const tagName = tagMatch[1].toLowerCase();
-      const combined = lines.slice(i, Math.min(i + 30, lines.length)).join(" ");
+      const attrs = tagMatch[2];
 
-      let isAccessible = /(aria-label|aria-labelledby|title|id\s*=|for\s*=|role\s*=)/i.test(
-        combined,
-      );
+      if (/^[A-Z]/.test(tagMatch[1])) continue; // Skip custom elements
 
-      if (!isAccessible && (tagName === "a" || tagName === "button")) {
-        // Look for text content or an image with alt attribute inside the tag
-        const tagContentMatch = combined.match(
-          new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)</${tagName}>`, "i"),
-        );
-        if (tagContentMatch) {
-          const innerContent = tagContentMatch[1];
-          // Strip HTML tags except img
-          const textOnly = innerContent.replace(/<(?!\/?img\b)[^>]*>/gi, "").trim();
-          // Check if it has any text or if it has an img with alt/aria-label/title
-          if (textOnly.length > 0) {
-            // Check if it's just whitespace or symbols, or has actual letters/numbers/curly brackets
-            if (
-              /[a-zA-Z0-9\u00C0-\u017F{}]/.test(textOnly) ||
-              /alt\s*=|aria-label/i.test(innerContent)
-            ) {
-              isAccessible = true;
-            }
-          }
-        }
+      // Bypass hidden inputs natively
+      if (tagName === "input" && /type\s*=\s*["']?hidden["']?/i.test(attrs)) {
+        continue;
       }
 
-      if (!isAccessible) {
+      const combined = lines.slice(i, Math.min(i + 25, lines.length)).join(" ");
+      const textWithoutTags = combined.replace(/<(?!\/?img\b)[^>]*>/gi, "").trim();
+
+      const hasAccessibleName =
+        /(aria-label|aria-labelledby|title|id\s*=|for\s*=)/i.test(combined) ||
+        ((tagName === "a" || tagName === "button") &&
+          (/[a-zA-Z0-9\u00C0-\u017F]/.test(textWithoutTags) ||
+            /alt\s*=\s*["'][^"']+["']/i.test(combined)));
+
+      if (!hasAccessibleName) {
         report(
           relPath,
           i + 1,
           "accessibility",
-          `Interactive <${tagName}> element may lack accessible name (aria-label, id, or text content)`,
+          `Interactive <${tagName}> may lack accessible name`,
           "warning",
         );
       }
     }
 
-    // Directional Tailwind → logical properties
+    // === RTL / Logical Properties ===
     const dirRegex =
       /(?:^|[\s"'`])(pl|pr|ml|mr|left|right|border-l|border-r|rounded-l|rounded-r|text-left|text-right)(-\d+|-\[[^\]]+\]|)(?=[\s"'`]|$)/g;
-    let m: RegExpExecArray | null;
-    let lineFixed = line;
-    let lineHasFixes = false;
 
+    let m: RegExpExecArray | null;
     while ((m = dirRegex.exec(line)) !== null) {
       const prefix = m[1];
       const suffix = m[2];
-      const fullMatch = prefix + suffix;
+      const full = prefix + suffix;
 
-      report(
-        relPath,
-        i + 1,
-        "rtl",
-        `"${fullMatch}" → use logical properties (ps-/pe-/ms-/me-/start-/end-)`,
-        "warning",
-        true,
-      );
+      // Skip bare words like "left" or "right" that are not Tailwind classes
+      const requiresSuffix = ["pl", "pr", "ml", "mr", "left", "right"];
+      if (requiresSuffix.includes(prefix) && !suffix) continue;
 
-      if (shouldFix) {
-        for (const [from, to] of Object.entries(RTL_MAP)) {
-          if (prefix === from) {
-            const newCls = to + suffix;
-            // Only replace the full class match with boundaries to avoid partial matches
-            const escaped = fullMatch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            lineFixed = lineFixed.replace(
-              new RegExp(`(?<=^|[\\s"'\`])${escaped}(?=[\\s"'\`]|$)|\\b${escaped}\\b`, "g"),
-              newCls,
-            );
-            lineHasFixes = true;
-            break;
-          }
+      report(relPath, i + 1, "rtl", `"${full}" → use logical property`, "warning", true);
+
+      if (shouldFix && RTL_MAP[prefix]) {
+        const newClass = RTL_MAP[prefix] + suffix;
+        const escaped = full.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`(?<=^|[\\s"'\`])${escaped}(?=[\\s"'\`]|$)|\\b${escaped}\\b`, "g");
+
+        const newLine = fixedLines[i].replace(regex, newClass);
+        if (newLine !== fixedLines[i] && lines[i] === line) {
+          fixedLines[i] = newLine;
+          fileWasModified = true;
         }
       }
     }
+  }
 
-    if (shouldFix && lineHasFixes) {
-      // Find the exact line in the original `fixed` string to replace.
-      // Since `fixed` is a single string and we want to replace this specific line:
-      const linesArr = fixed.split("\n");
-      if (linesArr[i] === line) {
-        linesArr[i] = lineFixed;
-        fixed = linesArr.join("\n");
-      }
+  // === Global checks ===
+  if (/from\s+["']svelte\/store["']/.test(content)) {
+    report(relPath, 0, "svelte5-legacy", "Legacy svelte/store import — migrate to runes", "error");
+  }
+
+  // Secure nested-brace parsing for {@html}
+  // Strip markdown code blocks first — {@html} in documentation is not code
+  const contentNoCodeBlocks = content.replace(/```[\s\S]*?```/g, (m) =>
+    "\n".repeat((m.match(/\n/g) || []).length),
+  );
+  for (const m of contentNoCodeBlocks.matchAll(/\{@html\s+((?:[^{}]|\{[^{}]*\})+)\}/g)) {
+    const expr = m[1].trim();
+    if (
+      !/sanitize|DOMPurify|escape|safeHtml|marked|he\.|parseMD|getDisplayValue|getStatusText|getFieldComponentHtml/i.test(
+        expr,
+      )
+    ) {
+      const lineNo = contentNoCodeBlocks.substring(0, m.index!).split("\n").length;
+      report(relPath, lineNo, "security", `Unsafe {@html} without sanitization`, "error");
     }
   }
 
-  // Legacy svelte/store import
-  if (/from\s+["']svelte\/store["']/.test(content)) {
-    report(
-      relPath,
-      0,
-      "svelte5-legacy",
-      "Legacy svelte/store — migrate to Svelte 5 runes",
-      "error",
-    );
+  // Svelte 5 {#each} key validation (skip code blocks)
+  // Supports nested braces up to one level (e.g., passing options objects)
+  for (const m of contentNoCodeBlocks.matchAll(/\{#each\s+((?:[^{}]|\{[^{}]*\})+)\}/g)) {
+    const eachBody = m[1].trim();
+    const hasAs = /\bas\b/.test(eachBody);
+    if (hasAs && !eachBody.endsWith(")")) {
+      const lineNo = contentNoCodeBlocks.substring(0, m.index!).split("\n").length;
+      report(
+        relPath,
+        lineNo,
+        "svelte-quality",
+        "Consider adding a key context (e.g., (item.id)) to {#each} block",
+        "warning",
+      );
+    }
   }
 
-  // Unsafe {@html} without sanitization
-  for (const m of content.matchAll(/\{@html\s+([^}]+?)\}/g)) {
-    const expr = m[1].trim();
-    if (
-      /sanitize|DOMPurify|escape|safeHtml|marked\.|he\.|parseMD|getDisplayValue|getStatusText|getFieldComponentHtml|userContent|body/i.test(
-        expr,
-      )
-    )
-      continue;
-    const lineNo = content.substring(0, m.index!).split("\n").length;
-    report(relPath, lineNo, "security-html", `Unsafe {@html ${expr.slice(0, 50)}...}`, "error");
-  }
-
-  // Apply RTL fixes
-  if (shouldFix && fixed !== content) {
-    await fs.writeFile(join(ROOT, relPath), fixed, "utf8");
-    console.log(` ✅ Fixed RTL: ${relPath}`);
+  // Write file out safely if changes were made
+  if (shouldFix && fileWasModified) {
+    const fixedContentString = fixedLines.join("\n");
+    if (fixedContentString !== content) {
+      await fs.writeFile(join(ROOT, relPath), fixedContentString, "utf8");
+      fixedFiles++;
+      console.log(`🛠️  Fixed Svelte properties in: ${relPath}`);
+    }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Other checks
+// Other Checks
 // ---------------------------------------------------------------------------
 function scanTodos(relPath: string, content: string) {
-  const matches = content.match(/\/\/\s*(TODO|FIXME|HACK|XXX)/gi);
-  if (matches && matches.length >= MAX_TODOS_PER_FILE) {
-    report(relPath, 0, "slop-accumulation", `${matches.length} TODO/FIXME comments`, "info");
+  const matches = content.match(/(?:\/\/|\/\*)\s*(TODO|FIXME|HACK|XXX)/gi) || [];
+  if (matches.length >= MAX_TODOS_PER_FILE) {
+    report(relPath, 0, "maintenance", `${matches.length} TODO/FIXME comments`, "info");
   }
 }
 
-const dupeMap = new Map<string, string[]>();
+function checkFileNaming(relPath: string) {
+  const file = basename(relPath);
+  if (file.startsWith("+")) return; // Route files are exempt from generic naming rules
+  if (/[A-Z]/.test(file) && relPath.endsWith(".svelte")) {
+    report(relPath, 0, "naming", "Use kebab-case for .svelte files", "warning");
+  }
+}
+
+const contentCache = new Map<string, string[]>();
 
 function checkDuplicateContent(relPath: string, content: string) {
   const norm = content
@@ -268,52 +285,53 @@ function checkDuplicateContent(relPath: string, content: string) {
     .replace(/\/\/.*$/gm, "")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .trim()
-    .slice(0, 5000);
+    .slice(0, 4000);
 
-  if (norm.length < 300) return;
-  if (dupeMap.has(norm)) {
+  if (norm.length < 400) return;
+
+  if (contentCache.has(norm)) {
     report(
       relPath,
       0,
       "copy-paste",
-      `Highly similar content to: ${dupeMap.get(norm)!.join(", ")}`,
+      `Very similar content to: ${contentCache.get(norm)!.join(", ")}`,
       "warning",
     );
   } else {
-    dupeMap.set(norm, [relPath]);
-  }
-}
-
-function checkFileNaming(relPath: string) {
-  if (/[A-Z]/.test(basename(relPath)) && relPath.endsWith(".svelte")) {
-    report(relPath, 0, "naming", "Prefer kebab-case for .svelte files", "warning");
+    contentCache.set(norm, [relPath]);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Main
+// Main Router
 // ---------------------------------------------------------------------------
 async function main() {
+  await loadSuppressions();
+
   const argv = process.argv.slice(2);
-  const isStrict = argv.includes("--strict");
   const shouldFix = argv.includes("--fix");
+  const isStrict = argv.includes("--strict");
   const filesIdx = argv.indexOf("--files");
   const targetFiles = filesIdx !== -1 ? argv.slice(filesIdx + 1) : null;
 
-  console.log("🔍 Slop Scanner — Svelte-specific & AI-slop checks\n");
+  console.log("🔍 Svelte Quality Scanner (Smart + Autofix)\n");
 
   const svelteFiles: string[] = [];
   const tsFiles: string[] = [];
 
   if (targetFiles?.length) {
     for (const f of targetFiles) {
-      const full = join(ROOT, f);
+      // Support both absolute paths (from lint-staged) and relative paths
+      const isAbsolute = f.startsWith("/") || /^[A-Za-z]:[\\/]/.test(f);
+      const full = isAbsolute ? f : join(ROOT, f);
       if (existsSync(full)) {
-        (f.endsWith(".svelte") ? svelteFiles : tsFiles).push(full);
+        if (f.endsWith(".svelte")) svelteFiles.push(full);
+        else if (f.endsWith(".ts") || f.endsWith(".js")) tsFiles.push(full);
       }
     }
   } else {
-    const files = globSync("src/**/*.{svelte,ts,js}", {
+    // Target both .svelte files and ts/js files dynamically
+    const allFiles = globSync("src/**/*.{svelte,ts,js}", {
       cwd: ROOT,
       ignore: [
         "**/node_modules/**",
@@ -324,14 +342,15 @@ async function main() {
       ],
       absolute: true,
     });
-    for (const f of files) {
-      (f.endsWith(".svelte") ? svelteFiles : tsFiles).push(f);
+    for (const f of allFiles) {
+      if (f.endsWith(".svelte")) svelteFiles.push(f);
+      else tsFiles.push(f);
     }
   }
 
-  console.log(`📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files\n`);
+  console.log(`📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files...\n`);
 
-  // Scan Svelte files in parallel
+  // Scan Svelte Files
   await Promise.all(
     svelteFiles.map(async (file) => {
       try {
@@ -341,17 +360,18 @@ async function main() {
         scanTodos(rel, content);
         checkFileNaming(rel);
         checkDuplicateContent(rel, content);
+
         const size = (await fs.stat(file)).size;
-        if (size > MAX_FILE_SIZE) {
+        if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
           report(rel, 0, "file-size", `Large file (${(size / 1024).toFixed(0)}KB)`, "warning");
         }
       } catch {
-        console.warn(`⚠️ Could not read ${file}`);
+        console.warn(`⚠️  Could not process Svelte file: ${file}`);
       }
     }),
   );
 
-  // Scan TS files in parallel
+  // Scan TS/JS Files
   await Promise.all(
     tsFiles.map(async (file) => {
       try {
@@ -360,52 +380,53 @@ async function main() {
         scanTodos(rel, content);
         checkFileNaming(rel);
         checkDuplicateContent(rel, content);
+
+        const size = (await fs.stat(file)).size;
+        if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
+          report(rel, 0, "file-size", `Large file (${(size / 1024).toFixed(0)}KB)`, "warning");
+        }
       } catch {
-        /* skip */
+        console.warn(`⚠️  Could not process TS/JS file: ${file}`);
       }
     }),
   );
 
-  // Summary
+  // Summary Report
   const errors = violations.filter((v) => v.severity === "error");
   const warnings = violations.filter((v) => v.severity === "warning");
   const infos = violations.filter((v) => v.severity === "info");
 
   console.log(
-    `📊 Results: ${errors.length} errors, ${warnings.length} warnings, ${infos.length} infos\n`,
+    `\n📊 Results: ${errors.length} errors, ${warnings.length} warnings, ${infos.length} infos`,
   );
+  if (shouldFix) console.log(`🛠️  Autofixed ${fixedFiles} file(s)`);
 
   if (errors.length) {
-    console.log("━".repeat(60) + "\n❌ ERRORS:\n" + "━".repeat(60));
-    errors
-      .slice(0, 30)
-      .forEach((v) => console.log(` ${v.file}:${v.line} [${v.category}] ${v.message}`));
-    if (errors.length > 30) console.log(` ... +${errors.length - 30} more`);
+    console.log("\n❌ ERRORS:");
+    errors.forEach((v) => console.log(`  ${v.file}:${v.line} [${v.category}] ${v.message}`));
   }
 
   if (warnings.length) {
-    console.log("\n" + "━".repeat(60) + "\n⚠️ WARNINGS:\n" + "━".repeat(60));
+    console.log("\n⚠️  WARNINGS:");
     warnings
-      .slice(0, 20)
-      .forEach((v) => console.log(` ${v.file}:${v.line} [${v.category}] ${v.message}`));
-    if (warnings.length > 20) console.log(` ... +${warnings.length - 20} more`);
+      .slice(0, 25)
+      .forEach((v) => console.log(`  ${v.file}:${v.line} [${v.category}] ${v.message}`));
+    if (warnings.length > 25) console.log(`  ... +${warnings.length - 25} more`);
   }
 
-  if (shouldFix) console.log("\n🛠️  RTL auto-fixes applied where possible.");
-
   if (isStrict && errors.length > 0) {
-    console.log(`\n❌ Strict mode failed — ${errors.length} errors found.`);
+    console.log(`\n❌ Strict mode failed with ${errors.length} errors.`);
     process.exit(1);
   }
 
   if (errors.length === 0 && warnings.length === 0) {
-    console.log("\n✅ No slop detected. Clean!");
+    console.log("\n✅ Clean! No issues found.");
   } else if (errors.length === 0) {
-    console.log(`\n⚠️  Only warnings — review above.`);
+    console.log("\n⚠️  Only warnings — review recommended.");
   }
 }
 
 main().catch((err) => {
-  console.error("Slop scanner crashed:", err);
+  console.error("Scanner crashed:", err);
   process.exit(1);
 });

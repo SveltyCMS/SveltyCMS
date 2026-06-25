@@ -49,10 +49,7 @@ graph TB
     ContentLang -->|Drives| WidgetSystem
     WidgetSystem -->|Read/Write| Database
 
-    style ParaglideJS fill:#4CAF50
-    style DynamicSettings fill:#2196F3
-    style SystemLang fill:#8BC34A
-    style ContentLang fill:#03A9F4
+
 ```
 
 ### 1. System Language (`systemLanguage`)
@@ -111,7 +108,7 @@ graph TB
 
 ## System Language (ParaglideJS)
 
-### Architecture
+### Architecture {#system-language-arch}
 
 ```
 Source Files → ParaglideJS Compiler → Type-Safe Messages → Runtime
@@ -252,7 +249,7 @@ src/
 
 ## Content Language (Dynamic System)
 
-### Architecture
+### Architecture {#content-language-arch}
 
 ```
 System Settings → Database → Cache → contentLanguage Store → Widgets
@@ -1092,11 +1089,7 @@ graph TD
     Adapter -->|Optimal Format| MongoDB
     Adapter -->|Optimal Format| SQL
 
-    style Page fill:#e1f5fe
-    style fields fill:#f3e5f5
-    style Widgets fill:#fff8e1
-    style Store fill:#e8f5e8
-    style Adapter fill:#fce4ec
+
 ```
 
 ### Component Responsibilities

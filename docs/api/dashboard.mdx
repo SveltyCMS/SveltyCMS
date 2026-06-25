@@ -26,21 +26,22 @@ All dashboard routes require an authenticated session and the `dashboard:read` p
 
 ## Quick Reference
 
-| Feature                | HTTP Endpoint                    | Method | Permission Required |
-| :--------------------- | :------------------------------- | :----- | :------------------ |
-| **Dashboard Stats**    | `/api/dashboard/stats`           | `GET`  | `dashboard:read`    |
-| **Health Check**       | `/api/dashboard/health`          | `GET`  | `dashboard:read`    |
-| **Metrics Report**     | `/api/dashboard/metrics`         | `GET`  | `dashboard:read`    |
-| **System Information** | `/api/dashboard/system-info`     | `GET`  | `dashboard:read`    |
-| **Audit Logs**         | `/api/dashboard/logs`            | `GET`  | `dashboard:read`    |
-| **Audit Events**       | `/api/dashboard/audit`           | `GET`  | `dashboard:read`    |
-| **Security Overview**  | `/api/dashboard/security`        | `GET`  | `dashboard:read`    |
-| **SCIM Status**        | `/api/dashboard/scim`            | `GET`  | `dashboard:read`    |
-| **Cache Metrics**      | `/api/dashboard/cache-metrics`   | `GET`  | `dashboard:read`    |
-| **Recent Content**     | `/api/dashboard/last5-content`   | `GET`  | `dashboard:read`    |
-| **Recent Media**       | `/api/dashboard/last5media`      | `GET`  | `dashboard:read`    |
-| **Online Users**       | `/api/dashboard/online-user`     | `GET`  | `dashboard:read`    |
-| **System Messages**    | `/api/dashboard/system-messages` | `GET`  | `dashboard:read`    |
+| Feature                | HTTP Endpoint                  | Method | Permission Required |
+| :--------------------- | :----------------------------- | :----- | :------------------ |
+| **Dashboard Stats**    | `/api/dashboard/stats`         | `GET`  | `dashboard:read`    |
+| **Health Check**       | `/api/dashboard/health`        | `GET`  | `dashboard:read`    |
+| **Metrics Report**     | `/api/dashboard/metrics`       | `GET`  | `dashboard:read`    |
+| **System Information** | `/api/dashboard/system-info`   | `GET`  | `dashboard:read`    |
+| **Audit Logs**         | `/api/dashboard/logs`          | `GET`  | `dashboard:read`    |
+| **Audit Events**       | `/api/dashboard/audit`         | `GET`  | `dashboard:read`    |
+| **Security Overview**  | `/api/dashboard/security`      | `GET`  | `dashboard:read`    |
+| **SCIM Status**        | `/api/dashboard/scim`          | `GET`  | `dashboard:read`    |
+| **Cache Metrics**      | `/api/dashboard/cache-metrics` | `GET`  | `dashboard:read`    |
+
+| **Recent Content** | `/api/dashboard/last5-content` | `GET` | `dashboard:read` |
+| **Recent Media** | `/api/dashboard/last5media` | `GET` | `dashboard:read` |
+| **Online Users** | `/api/dashboard/online-user` | `GET` | `dashboard:read` |
+| **System Messages** | `/api/dashboard/system-messages` | `GET` | `dashboard:read` |
 
 ---
 
@@ -214,7 +215,8 @@ The admin dashboard is composed of 16 modular Svelte 5 widgets, each backed by o
 | **Online Users**              | `user-online-widget.svelte`        | `/api/dashboard/online-user`             |
 | **Security**                  | `security-widget.svelte`           | `/api/dashboard/security`                |
 | **Database Pool Diagnostics** | `database-pool-diagnostics.svelte` | `/api/database/pool-diagnostics`         |
-| **SCIM Status**               | `scim-status-widget.svelte`        | `/api/dashboard/scim`                    |
+
+| **SCIM Status** | `scim-status-widget.svelte` | `/api/dashboard/scim` |
 
 ### Widget Discovery (dual registration)
 

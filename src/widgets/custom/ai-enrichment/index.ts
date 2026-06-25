@@ -21,8 +21,8 @@ const AIEnrichmentWidget = createWidget<AIEnrichmentProps>({
   Name: "AIEnrichment",
   Icon: "mdi:auto-fix",
   Description: "Automated content enrichment (Summarization, SEO, Translation) via AI",
-  inputComponentPath: "/src/widgets/custom/AIEnrichment/input.svelte",
-  displayComponentPath: "/src/widgets/custom/AIEnrichment/display.svelte",
+  inputComponentPath: "/src/widgets/custom/ai-enrichment/input.svelte",
+  displayComponentPath: "/src/widgets/custom/ai-enrichment/display.svelte",
 
   validationSchema: createValidationSchema,
 

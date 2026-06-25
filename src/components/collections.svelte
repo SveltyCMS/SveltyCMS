@@ -507,7 +507,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			</Button>
 
 			{#if allTags.length > 0}
-				<div class="relative flex-1 min-w-[140px]">
+				<div class="relative flex-1 min-w-35">
 					<Select
 						bind:value={selectedTagFilter}
 						options={tagFilterOptions}
@@ -629,7 +629,7 @@ Provides an organized interface for navigating hierarchical content structures.
 
 				{#if tagMap[activeCollectionIdForTagging]?.length}
 					<div class="flex flex-wrap gap-1.5 mt-3">
-						{#each tagMap[activeCollectionIdForTagging] as tag}
+						{#each tagMap[activeCollectionIdForTagging] as tag, i (i)}
 							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-tertiary-500/10 text-tertiary-500">
 								{tag}
 								<button

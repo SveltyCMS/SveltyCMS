@@ -67,14 +67,16 @@ flowchart LR
 | **Multi-select**       | Shift+click range selection; select-all checkbox                                 |
 | **Bulk actions**       | Delegated to `entry-list-multi-button.svelte`                                    |
 | **Archived view**      | `showDeleted` toggles active vs archived entries                                 |
-| **Column manager**     | Show/hide columns; **drag-and-drop reorder** (`svelte-dnd-action`)               |
-| **Density**            | `normal` / `compact` via `TableFilter` → `entryListPaginationSettings.density`   |
-| **localStorage**       | Per-collection `entryListPaginationSettings_{collectionId}` persisted            |
-| **Plugin columns**     | `availablePlugins` → dynamic headers → `PluginComponent` cells                   |
-| **Translation UI**     | Embeds `translation-status.svelte` in filter toolbar                             |
-| **Hover preload**      | `preloadEntry()` from `@utils/navigation` on row hover                           |
-| **Idle warm-cache**    | First 5 visible rows → `POST /api/collections/warm-cache` (one ID per request)   |
-| **Connection-aware**   | Disables preload on `slow-2g` / `2g` / `saveData` (Network Information API)      |
+
+| **Column manager** | Show/hide columns; **drag-and-drop reorder** (`svelte-dnd-action`) |
+| **Density** | `normal` / `compact` via `TableFilter` → `entryListPaginationSettings.density` |
+| **localStorage** | Per-collection `entryListPaginationSettings_{collectionId}` persisted |
+
+| **Plugin columns** | `availablePlugins` → dynamic headers → `PluginComponent` cells |
+| **Translation UI** | Embeds `translation-status.svelte` in filter toolbar |
+| **Hover preload** | `preloadEntry()` from `@utils/navigation` on row hover |
+| **Idle warm-cache** | First 5 visible rows → `POST /api/collections/warm-cache` (one ID per request) |
+| **Connection-aware** | Disables preload on `slow-2g` / `2g` / `saveData` (Network Information API) |
 
 ---
 
