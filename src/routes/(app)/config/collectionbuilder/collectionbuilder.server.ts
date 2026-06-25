@@ -10,6 +10,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { error, fail } from "@sveltejs/kit";
 import { contentSystem } from "@src/content/index.server";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
+import { setCollectionOrder } from "@utils/collection-order.server";
 import { logger } from "@utils/logger";
 import path from "node:path";
 import fs from "node:fs";
@@ -48,6 +49,20 @@ export async function saveContentStructure(event: RequestEvent, operations: Upse
     await contentSystem.upsertContentNodes(operations as any, tenantId);
     await contentSystem.refresh(tenantId);
     const updated = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+
+    // Sync collection order to manifest so sidebar reflects builder changes
+    try {
+      const orderMap: Record<string, number> = {};
+      for (const node of (updated as any[]) || []) {
+        if (node.nodeType === "collection" && node._id) {
+          orderMap[String(node._id)] = node.order ?? 0;
+        }
+      }
+      await setCollectionOrder(orderMap, tenantId as string | null);
+    } catch {
+      /* non-critical */
+    }
+
     return { success: true, contentStructure: updated };
   } catch (err) {
     logger.error("Error saving structure:", err);

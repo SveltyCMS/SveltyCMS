@@ -182,6 +182,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     hasAdminUser: true,
     showGoogleOAuth: false,
     showGithubOAuth: false,
+    showPasskey: false,
+    showMagicLink: false,
     hasExistingOAuthUsers: false,
     isOpenSignup,
     loginForm: {},
@@ -426,6 +428,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     const showGoogleOAuth = await shouldShowGoogleOAuth();
     const showGithubOAuth = await shouldShowGithubOAuth();
+    const showPasskey = !!(
+      getPrivateSettingSync("WEBAUTHN_RP_ID") || getPrivateSettingSync("PASSKEY_ENABLED")
+    );
+    const showMagicLink = !!(
+      getPrivateSettingSync("SMTP_HOST") || getPrivateSettingSync("MAGIC_LINK_ENABLED")
+    );
 
     let firstCollectionPath: string | null = null;
     try {
@@ -440,6 +448,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       hasAdminUser,
       showGoogleOAuth,
       showGithubOAuth,
+      showPasskey,
+      showMagicLink,
       hasExistingOAuthUsers: false,
       firstCollectionPath,
       pkgVersion,
@@ -468,8 +478,18 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 // ---------------------------------------------------------------------------
 
 export const actions: Actions = {
-  // Auth actions delegate to auth.remote.ts
-  signIn: signInFn,
+  signIn: async (event) => {
+    const formData = await event.request.formData();
+    const data: Record<string, unknown> = {};
+    formData.forEach((v, k) => {
+      data[k] = v;
+    });
+    const result = await signInFn(data);
+    if (result?.success && result?.redirectPath) {
+      throw redirect(303, result.redirectPath);
+    }
+    return fail(401, result ?? { success: false, message: "Sign in failed" });
+  },
   signUp: signUpFn,
   forgotPW: forgotPWFn,
   resetPW: resetPWFn,

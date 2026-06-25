@@ -9,6 +9,7 @@ import { collections } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { ui } from "@src/stores/ui-store.svelte";
 import { browser } from "$app/environment";
+import { page } from "$app/state";
 import { events } from "$live/system";
 import { chat, sendMessage as sendRpcMessage } from "$live/chat";
 
@@ -64,7 +65,12 @@ class CollaborationStore {
   private effectCleanup?: () => void;
 
   constructor() {
-    if (browser) {
+    // Skip real-time connections on login/setup pages — user isn't authenticated yet
+    if (
+      browser &&
+      !page.url.pathname.startsWith("/login") &&
+      !page.url.pathname.startsWith("/setup")
+    ) {
       // 1. Subscribe to the global events store
       const unsubscribeEvents = this.eventStream.subscribe((value: any) => {
         this.eventStreamValue = (value as any[]) || [];

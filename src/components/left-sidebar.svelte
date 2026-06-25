@@ -203,20 +203,28 @@
 
 	async function signOut(): Promise<void> {
 		try {
-			await fetch('/api/user/logout', {
+			let res = await fetch('/api/user/logout', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 					'X-CSRF-Token': page.data.csrfToken
 				}
 			});
+			if (!res.ok && res.status === 403) {
+				await invalidateAll();
+				await new Promise(r => setTimeout(r, 100));
+				await fetch('/api/user/logout', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': page.data.csrfToken
+					}
+				});
+			}
 		} catch (error) {
 			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
 		} finally {
-			// Always redirect to login, even if logout fails
-			if (browser) {
-				window.location.href = '/login';
-			}
+			if (browser) window.location.href = '/login';
 		}
 	}
 
