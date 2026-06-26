@@ -243,3 +243,21 @@
   color: rgba(255, 255, 255, 0.4);
   white-space: nowrap;
 }
+
+.dock-pill-apply {
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.dock-pill-apply:hover:not(:disabled) {
+  color: #141414;
+  background: var(--editor-accent, #f5c518);
+  border-color: transparent;
+}
+
+.dock-pill-warn:hover:not(:disabled) {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.22);
+}
