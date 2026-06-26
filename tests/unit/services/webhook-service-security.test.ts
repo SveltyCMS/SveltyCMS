@@ -3,16 +3,21 @@
  * @description Unit tests for WebhookService security, focusing on cache and tenant isolation.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { WebhookService, type WebhookEvent } from "@src/services/background/webhook-service";
+import {
+  WebhookService,
+  type WebhookEvent,
+} from "@src/services/background/webhook-service";
 
-const mockDb = {
-  system: {
-    preferences: {
-      get: vi.fn(),
-      set: vi.fn(),
+const { mockDb } = vi.hoisted(() => ({
+  mockDb: {
+    system: {
+      preferences: {
+        get: vi.fn(),
+        set: vi.fn(),
+      },
     },
   },
-};
+}));
 
 vi.mock("@src/databases/db", () => ({
   dbAdapter: mockDb,
@@ -82,8 +87,10 @@ describe("WebhookService Security - Tenant Isolation", () => {
     mockDb.system.preferences.get.mockImplementation(
       (_key: string, options?: { scope?: string; tenantId?: string }) => {
         const tId = options?.tenantId;
-        if (tId === tenant1) return Promise.resolve({ success: true, data: hooks1 });
-        if (tId === tenant2) return Promise.resolve({ success: true, data: hooks2 });
+        if (tId === tenant1)
+          return Promise.resolve({ success: true, data: hooks1 });
+        if (tId === tenant2)
+          return Promise.resolve({ success: true, data: hooks2 });
         return Promise.resolve({ success: true, data: [] });
       },
     );
@@ -130,8 +137,10 @@ describe("WebhookService Security - Tenant Isolation", () => {
     mockDb.system.preferences.get.mockImplementation(
       (_key: any, options?: { scope?: string; tenantId?: string }) => {
         const tId = options?.tenantId;
-        if (tId === tenant1) return Promise.resolve({ success: true, data: hooks1 });
-        if (tId === tenant2) return Promise.resolve({ success: true, data: hooks2 });
+        if (tId === tenant1)
+          return Promise.resolve({ success: true, data: hooks1 });
+        if (tId === tenant2)
+          return Promise.resolve({ success: true, data: hooks2 });
         return Promise.resolve({ success: true, data: [] });
       },
     );

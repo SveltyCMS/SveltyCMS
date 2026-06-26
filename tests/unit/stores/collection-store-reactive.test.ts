@@ -5,11 +5,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
-  let collections: typeof import("@src/stores/collection-store.svelte").collections;
+  let collections: typeof import("@src/stores/collection-store.svelte.ts").collections;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const mod = await import("@src/stores/collection-store.svelte");
+    const mod = await import("@src/stores/collection-store.svelte.ts");
     collections = mod.collections;
     // Reset state
     collections.loading = false;
@@ -19,7 +19,9 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
 
   describe("reactive getter wrappers", () => {
     it("collectionsLoading should reflect loading state changes", () => {
-      const { collectionsLoading } = require("@src/stores/collection-store.svelte");
+      const {
+        collectionsLoading,
+      } = require("@src/stores/collection-store.svelte.ts");
       collections.loading = true;
       expect(collectionsLoading.value).toBe(true);
 
@@ -28,7 +30,9 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
     });
 
     it("collectionsError should reflect error state changes", () => {
-      const { collectionsError } = require("@src/stores/collection-store.svelte");
+      const {
+        collectionsError,
+      } = require("@src/stores/collection-store.svelte.ts");
       collections.error = "Something failed";
       expect(collectionsError.value).toBe("Something failed");
 
@@ -37,13 +41,17 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
     });
 
     it("currentCollectionId should reflect id changes", () => {
-      const { currentCollectionId } = require("@src/stores/collection-store.svelte");
+      const {
+        currentCollectionId,
+      } = require("@src/stores/collection-store.svelte.ts");
       collections.currentId = "col-123";
       expect(currentCollectionId.value).toBe("col-123");
     });
 
     it("selectedEntries should reflect selection changes", () => {
-      const { selectedEntries } = require("@src/stores/collection-store.svelte");
+      const {
+        selectedEntries,
+      } = require("@src/stores/collection-store.svelte.ts");
       collections.addEntry("entry-1");
       expect(selectedEntries.value).toContain("entry-1");
 
@@ -64,7 +72,9 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
     });
 
     it("deduplication should prevent redundant content structure updates", () => {
-      const nodes = [{ _id: "1", name: "Test", nodeType: "collection" as const }];
+      const nodes = [
+        { _id: "1", name: "Test", nodeType: "collection" as const },
+      ];
       collections.setContentStructure(nodes);
       // Setting the same structure again should not change the hash
       collections.setContentStructure([...nodes]);
