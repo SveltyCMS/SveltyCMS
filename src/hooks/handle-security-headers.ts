@@ -6,7 +6,7 @@
 import type { Handle } from "@sveltejs/kit";
 import { dev } from "$app/environment";
 import { getCorsHeaders } from "@utils/security/cors-utils";
-import { API_CONTENT_SECURITY_POLICY } from "@src/utils/security-constants";
+import { API_CONTENT_SECURITY_POLICY } from "@utils/security/constants";
 import { applySecurityHeaders, STATIC_ASSET_REGEX } from "@utils/hook-utils";
 
 const PERMISSIONS_POLICY = [

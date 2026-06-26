@@ -18,7 +18,7 @@ import {
 	setCollectionValue,
 	setTargetWidget,
 } from "@src/stores/collection-store.svelte";
-import { tabSet } from "@src/stores/store.svelte.ts";
+import { app } from "@src/stores/store.svelte.ts";
 import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 // Native UI Components
 import { modalState } from "@utils/modal.svelte";
@@ -235,7 +235,7 @@ async function handleCollectionSave() {
 			<Button variant="tertiary" onclick={() => modalSelectWidget()}>{collection_widgetfield_addFields()} </Button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<Button variant="secondary" type="button" onclick={() => tabSet.set(1)} class="mt-2 justify-end">{button_previous()}</Button>
+			<Button variant="secondary" type="button" onclick={() => (app.tabSetState = 1)} class="mt-2 justify-end">{button_previous()}</Button>
 			<Button variant="tertiary"
 				type="button"
 				onclick={handleCollectionSave}

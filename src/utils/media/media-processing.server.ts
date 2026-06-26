@@ -5,7 +5,6 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
-import { sha256 } from "@utils/utils";
 import type { CmsMediaMetadata } from "./media-models";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
@@ -28,7 +27,7 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
 
   try {
     const arr = (buffer instanceof Buffer ? buffer : new Uint8Array(buffer)) as any;
-    const hash = await sha256(arr);
+    const hash = createHash("sha256").update(arr).digest("hex");
     const display = hash.slice(0, 12);
 
     logger.debug("File hashed", {

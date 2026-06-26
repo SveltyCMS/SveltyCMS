@@ -12,7 +12,7 @@ Features:
 import InputSwitch from "@src/components/system/builder/input-switch.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { asAny } from "@utils/utils";
+
 
 // Removed modalStore
 
@@ -59,7 +59,7 @@ function handleUpdate(detail: { value: any }, property: string) {
 		<InputSwitch
 			value={collections.targetWidget[property]}
 			onupdate={(e: { value: any }) => handleUpdate(e, property)}
-			widget={asAny((currentGuiSchema as any)[property]?.widget)}
+			widget={((currentGuiSchema as any)[property]?.widget as any)}
 			key={property}
 		/>
 	{/each}

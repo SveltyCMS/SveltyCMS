@@ -16,7 +16,7 @@ import path from "node:path";
 import { logger } from "@utils/logger";
 import { CacheCategory } from "@src/databases/cache/types";
 import { dateToISODateString } from "@utils/date";
-import { contentStore } from "@src/stores/content-store.svelte";
+import { contentStore } from "@src/stores/content-registry.svelte";
 import type { ContentNode, Schema, DatabaseId } from "./types";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateCategoryNodesFromPaths } from "./content-utils";

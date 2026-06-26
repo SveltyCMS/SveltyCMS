@@ -1,6 +1,6 @@
 /**
- * @file src/stores/user-theme-prefs.svelte.ts
- * @description Client-side overlay for per-user theme preferences.
+ * @file src/stores/user-prefs-overlay.svelte.ts
+ * @description Optimistic client-side overlay for per-user theme/layout preferences.
  *
  * Applies density/variant/accessibility overrides immediately after save
  * without a full page reload. Cleared when layout user data refreshes.

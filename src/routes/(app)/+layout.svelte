@@ -53,7 +53,7 @@ import {
 	diffLayoutPrefsFromTenant,
 	uiStateToLayoutPrefs,
 } from "@utils/layout-state-prefs";
-import { userThemePrefs } from "@src/stores/user-theme-prefs.svelte";
+import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
 	import { onMount, untrack } from "svelte";
 	import { initBounceDetector } from "@utils/bounce-detector";
 	import { initPredictivePreload } from "@utils/predictive-preload";
@@ -283,25 +283,6 @@ $effect(() => {
 // EVENT HANDLERS
 // =============================================
 
-// Initialize avatar from user data
-function initializeUserAvatar(user: User | null): void {
-	console.log(
-		"[AppLayout] initializeUserAvatar for user:",
-		user?.username || "Guest",
-	);
-	if (!user) {
-		app.avatarSrc = "/Default_User.svg";
-		return;
-	}
-
-	if (user.avatar && user.avatar !== "/Default_User.svg") {
-		app.avatarSrc = user.avatar;
-	} else {
-		app.avatarSrc = "/Default_User.svg";
-	}
-	console.log("[AppLayout] Avatar source set to:", app.avatarSrc);
-}
-
 // =============================================
 // LIFECYCLE HOOKS
 // =============================================
@@ -315,7 +296,6 @@ onMount(() => {
 		initBounceDetector();
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
-	initializeUserAvatar(data.user);
 
 	registerHotkey(
 		"mod+k",

@@ -1,5 +1,5 @@
 /**
- * @file src/utils/adaptive-ui.svelte.ts
+ * @file src/utils/adaptive-ui.ts
  * @description Adaptive UI reordering — sorts sidebar, dashboard, and navigation
  * based on actual editor usage frequency. Uses the behavioral learner's hot collections
  * data to bubble frequently-accessed items to the top.
@@ -7,7 +7,7 @@
  * ### Usage in sidebar:
  * ```svelte
  * <script>
- *   import { useAdaptiveOrder } from '@utils/adaptive-ui.svelte';
+ *   import { useAdaptiveOrder } from '@utils/adaptive-ui';
  *   const order = useAdaptiveOrder(tenantId);
  * </script>
  * {#each $order as item}

@@ -30,7 +30,7 @@
 	import Button from '@components/ui/button.svelte';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/db-interface';
-	import { setMode } from '@src/stores/collection-store.svelte.ts';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	// Stores
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
@@ -175,7 +175,7 @@
 
 	// Return to Collections - handle mode switching
 	function handleReturnToCollections() {
-		setMode('view');
+		modeTransitionGuard.setMode('view');
 		handleMobileSidebarClose();
 	}
 

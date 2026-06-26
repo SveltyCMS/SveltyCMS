@@ -7,7 +7,7 @@ import { redirect, type Handle } from "@sveltejs/kit";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
-import { getSetupState, SetupState } from "@utils/setup-check";
+import { getSetupState, SetupState } from "../utils/server/setup-check";
 
 // Expose contentSystem on globalThis so server-side code (like db-init.ts)
 // that can't statically import .server.ts files can access it

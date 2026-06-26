@@ -35,7 +35,8 @@
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
 	import { status_publish, status_unpublish, validation_fix_before_save } from '@src/paraglide/messages';
-	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collection-store.svelte';
+	import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collection-store.svelte';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { statusStore } from '@src/stores/status-store.svelte';
 	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
@@ -257,8 +258,8 @@
 				if (result.success) {
 					toast.success('Entry cloned successfully.');
 					invalidateCollectionCache(currentCollection._id);
-					setMode('view');
-				} else {
+						modeTransitionGuard.setMode('view');
+					} else {
 					toast.error(result.error || 'Failed to clone');
 				}
 			}

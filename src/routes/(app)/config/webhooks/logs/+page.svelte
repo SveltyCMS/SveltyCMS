@@ -6,7 +6,7 @@
 import { onMount } from "svelte";
 import { fetchApi } from "@utils/api";
 import { toast } from "@src/stores/toast.svelte";
-import { formatDate } from "@utils/date";
+import { formatDisplayDate } from "@utils/date";
 import Badge from '@components/ui/badge.svelte';
 import Button from '@components/ui/button.svelte';
 import Loader from '@components/ui/loader.svelte';
@@ -116,7 +116,7 @@ onMount(loadLogs);
 									{/if}
 								</td>
 								<td class="px-4 py-3">{log.attempts} / {log.maxAttempts || 5}</td>
-								<td class="px-4 py-3">{formatDate(log.updatedAt)}</td>
+								<td class="px-4 py-3">{formatDisplayDate(log.updatedAt)}</td>
 								<td class="max-w-xs truncate px-4 py-3 font-mono text-xs text-error-500">
 									{log.lastError || '-'}
 								</td>

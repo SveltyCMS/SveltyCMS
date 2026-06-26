@@ -275,6 +275,7 @@ export async function getRevisions(
 // --- Data & Cache Functions ---
 
 const CACHE_TTL_MS = 30 * 1000; // 30 seconds
+const MAX_CACHE_ENTRIES = 500; // 🛡️ DoS guard: prevents unbounded memory growth from unique filter strings
 
 interface CacheEntry {
   data: GetDataResponse;
@@ -282,6 +283,20 @@ interface CacheEntry {
   ttl: number;
 }
 const dataCache = new Map<string, CacheEntry>();
+
+/**
+ * Inserts a cache entry with LRU eviction.
+ * When the cache exceeds MAX_CACHE_ENTRIES, the oldest entry (first inserted) is evicted.
+ * Map preserves insertion order, so `keys().next()` returns the oldest key.
+ */
+function setCacheEntry(key: string, entry: CacheEntry): void {
+  if (dataCache.size >= MAX_CACHE_ENTRIES && !dataCache.has(key)) {
+    // Evict the oldest entry (Map iteration order = insertion order)
+    const oldestKey = dataCache.keys().next().value;
+    if (oldestKey !== undefined) dataCache.delete(oldestKey);
+  }
+  dataCache.set(key, entry);
+}
 
 function generateCacheKey(query: Record<string, unknown>): string {
   const normalizedQuery = {
@@ -353,7 +368,7 @@ export async function getData(query: {
       };
     }
 
-    dataCache.set(cacheKey, {
+    setCacheEntry(cacheKey, {
       data: result.data,
       timestamp: Date.now(),
       ttl: CACHE_TTL_MS,

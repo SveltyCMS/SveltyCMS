@@ -46,4 +46,6 @@ class ActiveInputState {
  * Use this to set which input should receive tokens from the TokenPicker.
  */
 export const activeInput = new ActiveInputState();
+
+/** @deprecated Use `activeInput` instead. Will be removed in a future release. */
 export const activeInputStore = activeInput;

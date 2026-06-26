@@ -86,7 +86,7 @@
 		username
 	} from '@src/paraglide/messages';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
-	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
+	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	// Stores
 	import { logger } from '@utils/logger';
@@ -904,7 +904,7 @@
 										{:else if showUserList && header.key === 'avatar'}
 											<Avatar
 												src={currentUser && isUser(row) && row._id === currentUser._id
-													? normalizeAvatarUrl(avatarSrc.value)
+													? normalizeAvatarUrl(currentUser.avatar ?? '/Default_User.svg')
 													: isUser(row) && header.key === 'avatar'
 														? normalizeAvatarUrl(row.avatar)
 														: '/Default_User.svg'}

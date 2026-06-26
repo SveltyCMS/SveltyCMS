@@ -12,7 +12,7 @@ import { lookup } from "mime-types";
 
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { apiHandler } from "@utils/api-handler";
-import { MEDIA_RESOURCE_HEADERS } from "@utils/security-constants";
+import { MEDIA_RESOURCE_HEADERS } from "@utils/security/constants";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 

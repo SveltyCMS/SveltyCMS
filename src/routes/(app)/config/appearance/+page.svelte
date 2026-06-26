@@ -39,7 +39,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   } from "@utils/theme-merge";
   import { getThemeContext } from "@components/ui/theme-context.svelte";
   import type { AdminTheme } from "@components/ui/theme-context.svelte";
-  import { userThemePrefs } from "@src/stores/user-theme-prefs.svelte";
+  import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
   import { ui } from "@src/stores/ui-store.svelte";
   import {
     USER_LAYOUT_PREF_KEYS,

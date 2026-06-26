@@ -22,7 +22,7 @@ import type {
 import type { MediaItem } from "./media-models";
 import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
 import { getUrl } from "./cloud-storage";
-import { validateEgressUrl, safeFetch } from "@src/utils/http/egress-guard";
+import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { sniffMimeType } from "./slim-sniffer.server";
 
 /**

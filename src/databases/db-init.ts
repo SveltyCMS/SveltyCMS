@@ -67,7 +67,7 @@ export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
 export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
   const { setSystemState, getSystemState, updateServiceHealth, startServiceInitialization } =
     await import("@src/stores/system/state.svelte.ts");
-  const { isSetupComplete } = await import("@utils/setup-check");
+  const { isSetupComplete } = await import("../utils/server/setup-check");
 
   const setupComplete = isSetupComplete();
 
@@ -161,7 +161,7 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
       updateServiceHealth("cache", "healthy", "Cache service online");
 
       // Warm critical paths on startup in background if setup complete
-      const { isSetupComplete } = await import("@utils/setup-check");
+      const { isSetupComplete } = await import("../utils/server/setup-check");
       if (isSetupComplete()) {
         const { cacheWarmingService } = await import("./cache/cache-warming-service");
         cacheWarmingService.initialize(adapter).catch((err) => {

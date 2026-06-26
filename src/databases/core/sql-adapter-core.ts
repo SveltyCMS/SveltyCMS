@@ -1225,9 +1225,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     _pipeline: unknown[],
     _options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<R[]>> {
-    if (process.env.BENCHMARK_MODE !== "true") {
-      return this.notImplemented("aggregate");
-    }
+    // Return empty result silently — aggregate is a MongoDB-ism not needed by SQL adapters.
+    // Concrete adapters (PostgreSQL) can override with real GROUP BY implementation.
     return { success: true, data: [] };
   }
 

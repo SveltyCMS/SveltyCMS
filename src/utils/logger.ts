@@ -131,6 +131,13 @@ const highlightPatterns = [
   { re: /\b-?\d+\.?\d*\b/g, color: pc.blue, css: "color:#3b82f6" },
 ];
 
+// 🚀 PERFORMANCE: Pre-compiled once at module init — NOT on every browser log call.
+// Previously `new RegExp(...)` was allocated inside log(), causing per-call GC pressure.
+const BROWSER_HIGHLIGHT_REGEX = new RegExp(
+  highlightPatterns.map((p) => p.re.source).join("|"),
+  "gi",
+);
+
 function formatMessage(msg: string): string {
   let out = msg;
   for (const { re, color } of highlightPatterns) {
@@ -286,14 +293,11 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
 
   if (IS_BROWSER) {
     const styles: string[] = [];
-    const formattedMsg = maskedMsg.replace(
-      new RegExp(highlightPatterns.map((p) => p.re.source).join("|"), "gi"),
-      (m) => {
-        const pattern = highlightPatterns.find((p) => m.match(p.re));
-        styles.push(pattern?.css || "color:inherit", "color:inherit");
-        return `%c${m}%c`;
-      },
-    );
+    const formattedMsg = maskedMsg.replace(BROWSER_HIGHLIGHT_REGEX, (m) => {
+      const pattern = highlightPatterns.find((p) => m.match(p.re));
+      styles.push(pattern?.css || "color:inherit", "color:inherit");
+      return `%c${m}%c`;
+    });
     console[method](
       `%c${ts}%c ${icon} [${level.toUpperCase()}] %c${formattedMsg}`,
       "color:#9ca3af",
