@@ -251,6 +251,15 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
+    {
+      name: "chromium",
+      // Catch-all project for CI sharded matrix.
+      // Wizard + auth-setup run sequentially in e2e-prep; all remaining
+      // tests are sharded here across parallel CI jobs.
+      testIgnore: ["**/setup/setup-wizard.spec.ts", "**/auth.setup.ts", "**/login/login.spec.ts"],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
   ],
 
   /* Run preview server before starting the tests (local dev only; CI starts the server manually) */
