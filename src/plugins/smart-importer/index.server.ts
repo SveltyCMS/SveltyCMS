@@ -800,7 +800,7 @@ async function mirrorAssetsLocally(
   _optimize = true,
 ): Promise<string[]> {
   const localIds: string[] = [];
-  const { validateEgressUrl } = await import("@src/utils/http/egress-guard");
+  const { validateEgressUrl } = await import("@src/utils/egress-guard");
   const { persistMigratedAsset } = await import("./utils/migrated-media.server");
   const { getMimeType } = await import("@src/utils/media/media-utils");
 

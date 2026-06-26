@@ -179,7 +179,7 @@ export const verify2FA = command(
 export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const { getSystemState } = await import("@src/stores/system/state.svelte.ts");
   const { shutdownSystem } = await import("@src/databases/db");
-  const { invalidateSetupCache } = await import("../utils/server/setup-check");
+  const { invalidateSetupCache } = await import("../../utils/server/setup-check");
   const { logger } = await import("@utils/logger");
   const event = getRequestEvent();
 
@@ -320,7 +320,7 @@ async function signInInternal(event: RequestEvent, input: any) {
         const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
         primeSessionMemoryCache(ar.sessionId!, user);
         // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
-        const { invalidateSetupCache } = await import("../utils/server/setup-check");
+        const { invalidateSetupCache } = await import("../../utils/server/setup-check");
         invalidateSetupCache(false, true);
       } catch {}
     } else {

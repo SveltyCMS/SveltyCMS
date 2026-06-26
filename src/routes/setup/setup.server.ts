@@ -475,7 +475,7 @@ export async function completeSetup(
   }
 
   const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
-  const { invalidateSetupCache } = await import("@src/utils/setup-check");
+  const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   invalidateSetupCache(true);
 
   // The admin now exists — clear the cached user count (TTL 1h) so the login page

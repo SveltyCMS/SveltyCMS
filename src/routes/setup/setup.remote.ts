@@ -75,7 +75,7 @@ export const completeSetup = command(
           path: "/",
         } as any);
         // Also invalidate setup cache immediately so handleSystemState allows requests
-        const { invalidateSetupCache } = await import("@src/utils/setup-check");
+        const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
       } catch (err) {
         const { logger } = await import("@src/utils/logger");

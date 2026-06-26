@@ -1519,8 +1519,8 @@ const mockSetupCheck = {
     );
   }),
 };
-moduleMock("@utils/setup-check", () => mockSetupCheck);
-moduleMock("@src/utils/setup-check", () => mockSetupCheck);
+moduleMock("@utils/server/setup-check", () => mockSetupCheck);
+moduleMock("@src/utils/server/setup-check", () => mockSetupCheck);
 setGlobal("mockSetupCheck", mockSetupCheck);
 
 moduleMock("@src/widgets/scanner", () => ({

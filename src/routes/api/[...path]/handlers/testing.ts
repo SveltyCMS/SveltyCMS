@@ -42,7 +42,7 @@ export async function handleTestingRoutes(
   const requestSecret =
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
-  const { getTestSecret } = await import("@src/utils/setup-check");
+  const { getTestSecret } = await import("@src/utils/server/setup-check");
   const expectedSecret = process.env.TEST_API_SECRET || getTestSecret();
 
   if (!isTestMode || !expectedSecret || !requestSecret) {
@@ -104,7 +104,7 @@ export async function handleTestingRoutes(
       }
 
       // Invalidate cache to reflect empty DB
-      const { invalidateSetupCache } = await import("@src/utils/setup-check");
+      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, null);
 
       try {
@@ -202,7 +202,7 @@ export async function handleTestingRoutes(
       }
 
       // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
-      const { invalidateSetupCache } = await import("@src/utils/setup-check");
+      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, true);
 
       // Invalidate roles and user count caches so they are reloaded after seeding
