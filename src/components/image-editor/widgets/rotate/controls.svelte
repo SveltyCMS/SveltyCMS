@@ -1,7 +1,7 @@
 <!--
 @file: src/components/image-editor/widgets/rotate/controls.svelte
 @component
-Rotate bottom dock — pill actions + volume-style rotation slider with center tick.
+Pintura-style rotate dock — compact glass pills, inline accent slider, single aligned row.
 -->
 <script lang="ts">
 	let {
@@ -43,6 +43,25 @@ Rotate bottom dock — pill actions + volume-style rotation slider with center t
 		if (angle > 180) angle -= 360;
 		if (angle < -180) angle += 360;
 		return Math.round(angle * 10) / 10;
+	});
+
+	const sliderProgress = $derived((rotationAngle + 180) / 360);
+
+	const sliderFillStyle = $derived.by(() => {
+		const center = 50;
+		const thumb = sliderProgress * 100;
+		const accent = 'var(--editor-accent, #f5c518)';
+		const track = 'rgba(255, 255, 255, 0.16)';
+
+		if (Math.abs(displayAngle) < 0.05) {
+			return `linear-gradient(to right, ${track} 0%, ${track} 100%)`;
+		}
+
+		if (displayAngle > 0) {
+			return `linear-gradient(to right, ${track} 0%, ${track} ${center}%, ${accent} ${center}%, ${accent} ${thumb}%, ${track} ${thumb}%, ${track} 100%)`;
+		}
+
+		return `linear-gradient(to right, ${track} 0%, ${track} ${thumb}%, ${accent} ${thumb}%, ${accent} ${center}%, ${track} ${center}%, ${track} 100%)`;
 	});
 
 	function handleAngleInput(e: Event) {
@@ -103,20 +122,17 @@ Rotate bottom dock — pill actions + volume-style rotation slider with center t
 <svelte:window onkeydown={handleKeyDown} />
 
 <div class="editor-dock rotate-dock" role="toolbar" aria-label="Rotate controls">
-	<div class="dock-row dock-row-scroll">
-		<div class="dock-pill-group">
-			<button type="button" class="dock-pill" onclick={onRotateLeft} title="Rotate left 90°" aria-label="Rotate left 90°">
+	<div class="dock-row dock-row-scroll rotate-dock-row">
+		<div class="dock-pill-group" role="group" aria-label="Rotate and flip">
+			<button type="button" class="dock-pill dock-pill-icon" onclick={onRotateLeft} title="Rotate left 90°" aria-label="Rotate left 90°">
 				<iconify-icon icon="mdi:rotate-left" width="15" aria-hidden="true"></iconify-icon>
 			</button>
-			<button type="button" class="dock-pill" onclick={onRotateRight} title="Rotate right 90°" aria-label="Rotate right 90°">
+			<button type="button" class="dock-pill dock-pill-icon" onclick={onRotateRight} title="Rotate right 90°" aria-label="Rotate right 90°">
 				<iconify-icon icon="mdi:rotate-right" width="15" aria-hidden="true"></iconify-icon>
 			</button>
-		</div>
-
-		<div class="dock-pill-group">
 			<button
 				type="button"
-				class="dock-pill"
+				class="dock-pill dock-pill-icon"
 				class:dock-pill-active={isFlippedH}
 				onclick={onFlipHorizontal}
 				title="Flip horizontal (H)"
@@ -127,7 +143,7 @@ Rotate bottom dock — pill actions + volume-style rotation slider with center t
 			</button>
 			<button
 				type="button"
-				class="dock-pill"
+				class="dock-pill dock-pill-icon"
 				class:dock-pill-active={isFlippedV}
 				onclick={onFlipVertical}
 				title="Flip vertical (V)"
@@ -138,10 +154,24 @@ Rotate bottom dock — pill actions + volume-style rotation slider with center t
 			</button>
 		</div>
 
+		<div class="dock-pill-group rotate-preset-group" role="group" aria-label="Rotation presets">
+			{#each presetAngles as angle (angle)}
+				<button
+					type="button"
+					class="dock-pill dock-pill-compact"
+					class:dock-pill-active={Math.abs(displayAngle - angle) < 0.5}
+					onclick={() => onRotationChange(angle)}
+					aria-label="Rotate to {angle} degrees"
+				>
+					{angle > 0 ? '+' : ''}{angle}°
+				</button>
+			{/each}
+		</div>
+
 		{#if onGridToggle}
 			<button
 				type="button"
-				class="dock-pill"
+				class="dock-pill dock-pill-compact"
 				class:dock-pill-active={showGrid}
 				onclick={onGridToggle}
 				title="Toggle grid (G)"
@@ -149,14 +179,13 @@ Rotate bottom dock — pill actions + volume-style rotation slider with center t
 				aria-pressed={showGrid}
 			>
 				<iconify-icon icon="mdi:grid" width="15" aria-hidden="true"></iconify-icon>
-				<span>Grid</span>
 			</button>
 		{/if}
 
 		{#if onSnapToggle}
 			<button
 				type="button"
-				class="dock-pill"
+				class="dock-pill dock-pill-compact"
 				class:dock-pill-active={snapToAngles}
 				onclick={onSnapToggle}
 				title="Snap to angles"
@@ -164,44 +193,24 @@ Rotate bottom dock — pill actions + volume-style rotation slider with center t
 				aria-pressed={snapToAngles}
 			>
 				<iconify-icon icon="mdi:magnet" width="15" aria-hidden="true"></iconify-icon>
-				<span>Snap</span>
 			</button>
 		{/if}
 
 		{#if onStraighten}
-			<button type="button" class="dock-pill" onclick={onStraighten} title="Straighten (S)" aria-label="Straighten">
+			<button type="button" class="dock-pill dock-pill-compact" onclick={onStraighten} title="Straighten (S)" aria-label="Straighten">
 				<iconify-icon icon="mdi:image-filter-center-focus-weak" width="15" aria-hidden="true"></iconify-icon>
-				<span>Straighten</span>
 			</button>
 		{/if}
 
 		{#if onAutoStraighten}
-			<button type="button" class="dock-pill" onclick={onAutoStraighten} title="Auto-straighten" aria-label="Auto-straighten">
+			<button type="button" class="dock-pill dock-pill-compact" onclick={onAutoStraighten} title="Auto-straighten" aria-label="Auto-straighten">
 				<iconify-icon icon="mdi:auto-fix" width="15" aria-hidden="true"></iconify-icon>
-				<span>Auto</span>
 			</button>
 		{/if}
-	</div>
 
-	<div class="dock-row dock-row-scroll">
-		{#each presetAngles as angle (angle)}
-			<button
-				type="button"
-				class="dock-pill"
-				class:dock-pill-active={Math.abs(displayAngle - angle) < 0.5}
-				onclick={() => onRotationChange(angle)}
-				aria-label="Rotate to {angle} degrees"
-			>
-				{angle > 0 ? '+' : ''}{angle}°
-			</button>
-		{/each}
-	</div>
-
-	<div class="volume-slider-block">
-		<span class="slider-label">rotation</span>
-		<div class="volume-slider-shell">
-			<div class="volume-slider-track">
-				<div class="center-tick" aria-hidden="true"></div>
+		<div class="rotate-slider-wrap">
+			<div class="slider-track rotate-slider-track">
+				<div class="rotate-center-tick" aria-hidden="true"></div>
 				<input
 					id="rotate-slider"
 					type="range"
@@ -210,11 +219,18 @@ Rotate bottom dock — pill actions + volume-style rotation slider with center t
 					step={snapToAngles ? '15' : '0.1'}
 					value={rotationAngle}
 					oninput={handleAngleInput}
-					class="volume-slider"
+					class="slider-input rotate-slider-input"
+					style:background={sliderFillStyle}
 					aria-label="Fine-tune rotation angle"
+					aria-valuemin={-180}
+					aria-valuemax={180}
+					aria-valuenow={rotationAngle}
 				/>
 			</div>
-			<div class="angle-display">{displayAngle}°</div>
+		</div>
+
+		<div class="dock-pill-group rotate-angle-group">
+			<span class="rotate-angle-value" aria-live="polite">{displayAngle}°</span>
 		</div>
 	</div>
 </div>
@@ -222,103 +238,101 @@ Rotate bottom dock — pill actions + volume-style rotation slider with center t
 <style>
 	@import '../../editor-dock.css';
 
-	.rotate-dock {
-		gap: 0.5rem;
-	}
-
-	.volume-slider-block {
-		display: flex;
-		flex-direction: column;
-		gap: 0.3rem;
-		width: 100%;
-		max-width: 40rem;
-		margin-inline: auto;
-	}
-
-	.volume-slider-shell {
-		display: flex;
-		gap: 0.75rem;
+	.rotate-dock-row {
+		gap: 0.375rem;
 		align-items: center;
+		justify-content: center;
 		width: 100%;
-		min-width: 0;
-		padding: 0.35rem 0.85rem;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 9999px;
+		padding-inline: 0.125rem;
 	}
 
-	.volume-slider-track {
+	.dock-pill-icon {
+		justify-content: center;
+		width: 1.75rem;
+		padding-inline: 0;
+	}
+
+	.rotate-preset-group .dock-pill-compact {
+		padding-inline: 0.4375rem;
+		font-size: 0.625rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.rotate-slider-wrap {
+		display: flex;
+		flex: 1 1 7rem;
+		align-items: center;
+		justify-content: center;
+		min-width: 6rem;
+		max-width: 14rem;
+		margin-inline: 0.125rem;
+	}
+
+	.rotate-slider-track {
 		position: relative;
-		display: flex;
-		flex: 1;
-		align-items: center;
-		height: 1.5rem;
-		padding-inline: 0.5rem;
-	}
-
-	.volume-slider {
-		position: absolute;
 		width: 100%;
-		height: 6px;
-		margin: 0;
-		appearance: none;
-		cursor: pointer;
-		outline: none;
-		background: rgba(255, 255, 255, 0.22);
-		border-radius: 3px;
 	}
 
-	.volume-slider::-webkit-slider-thumb {
-		width: 20px;
-		height: 20px;
-		margin-top: -7px;
-		appearance: none;
-		cursor: pointer;
-		background: #fff;
-		border: 2px solid rgb(var(--color-primary-500) / 1);
-		border-radius: 50%;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-		transition: transform 0.1s ease;
-	}
-
-	.volume-slider::-webkit-slider-thumb:hover {
-		box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
-		transform: scale(1.08);
-	}
-
-	.volume-slider::-webkit-slider-thumb:active {
-		background: rgb(var(--color-primary-500) / 1);
-		border-color: #fff;
-	}
-
-	.volume-slider::-moz-range-thumb {
-		width: 20px;
-		height: 20px;
-		cursor: pointer;
-		background: #fff;
-		border: 2px solid rgb(var(--color-primary-500) / 1);
-		border-radius: 50%;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-	}
-
-	.center-tick {
+	.rotate-center-tick {
 		position: absolute;
 		top: 50%;
 		left: 50%;
-		width: 2px;
-		height: 10px;
+		z-index: 1;
+		width: 1.5px;
+		height: 0.625rem;
 		pointer-events: none;
-		background: rgba(255, 255, 255, 0.35);
+		background: rgba(255, 255, 255, 0.45);
 		border-radius: 1px;
 		transform: translate(-50%, -50%);
 	}
 
-	.angle-display {
-		min-width: 3.25rem;
-		font-family: ui-monospace, monospace;
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: #fff;
-		text-align: end;
+	.rotate-slider-input {
+		position: relative;
+		z-index: 2;
+		width: 100%;
+	}
+
+	.rotate-slider-input::-webkit-slider-thumb {
+		background: var(--editor-accent-hover, #ffd43b);
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+	}
+
+	.rotate-slider-input::-moz-range-thumb {
+		background: var(--editor-accent-hover, #ffd43b);
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+	}
+
+	.rotate-angle-group {
+		flex-shrink: 0;
+		justify-content: center;
+		padding-inline: 0.5rem;
+	}
+
+	.rotate-angle-value {
+		min-width: 2.25rem;
+		font-size: 0.6875rem;
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+		line-height: 1.75rem;
+		color: var(--editor-chrome-text-hover, rgba(255, 255, 255, 0.92));
+		text-align: center;
+	}
+
+	@media (max-width: 1024px) {
+		.rotate-dock-row {
+			justify-content: flex-start;
+		}
+
+		.rotate-slider-wrap {
+			flex-basis: 100%;
+			order: 4;
+			max-width: none;
+			margin-inline: 0;
+		}
+
+		.rotate-angle-group {
+			order: 5;
+		}
 	}
 </style>
