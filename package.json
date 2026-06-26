@@ -68,6 +68,7 @@
     "gate:fast": "bun x lint-staged",
     "gate": "bun run scripts/quality-gate.ts",
     "ci:local": "bun run scripts/ci-local.ts",
+    "git": "bun run scripts/git-safe.ts",
     "-- CHECK & TEST ---------------------------------------": "",
     "format": "oxfmt",
     "check": "bun run format --check && oxlint --ignore-pattern 'src/types/**'",

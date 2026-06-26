@@ -6,7 +6,8 @@
 # Heavy checks (type check, unit tests) are deferred to pre-push.
 # Production builds and integration tests are CI-only.
 #
-# NEVER Skip with: git commit --no-verify
+# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit' instead.
+# In a true emergency, use the full path to raw git: /usr/bin/git commit --no-verify
 # =============================================================================
 set -e
 

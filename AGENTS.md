@@ -512,6 +512,8 @@ it("uses bun:sqlite", async () => {
 | Testing       | `bun run test:unit`                                                                                                                 | Unit tests (Vitest/jsdom) — 915 tests                      |
 |               | `bun run test:integration`                                                                                                          | Integration (DB required)                                  |
 |               | `bun run test:e2e`                                                                                                                  | E2E (Playwright)                                           |
+| **Git**       | `bun run git commit -m "msg"`                                                                                                       | Hardened commit (blocks --no-verify)                       |
+|               | `bun run git push`                                                                                                                  | Hardened push (blocks --no-verify)                         |
 | **Security**  | `bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts` | Fast security regression check (69 tests)                  |
 | DB Operations | `bun run db:push`                                                                                                                   | Push schema changes (Drizzle)                              |
 | i18n          | `bun run paraglide`                                                                                                                 | Compile messages                                           |
@@ -688,12 +690,12 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
   - Both pre-commit (fast full gate) and pre-push (build + integration + E2E) are required.
   - **Import validation**: `scripts/validate-imports.ts` scans ALL imports in `src/` and `tests/` — catches stale paths from file moves without a full build. Runs in ~200ms as part of pre-push.
 
-  Using `git commit --no-verify` or `git push --no-verify` is now explicitly a policy violation except genuine emergencies. **If the gate fails, FIX the underlying issue — never bypass the gate.**
+  - **Hardened Git Wrapper**: `scripts/git-safe.ts` blocks `--no-verify` on `commit` and `push`. Use it via `bun run git commit` / `bun run git push` or alias `git` to `bun run scripts/git-safe.ts`. Using raw `git --no-verify` requires explicitly invoking `/usr/bin/git` (or the full system path), making bypass a conscious and deliberate act rather than a muscle-memory flag. **If the gate fails, FIX the underlying issue — never bypass the gate.**
 
-  **Realistic maximum**: Extremely high confidence on the developer's machine (Windows or Unix) that the commit will pass the matching GitHub Actions jobs. The only true 100% guarantee is GitHub branch protection rules that require green status checks before merge to `next` or `main`. Local hooks + the final parity re-verification are defense-in-depth + team culture.
+  **Realistic maximum**: Client-side hooks can always be bypassed (you control your own machine). The only true 100% guarantee is GitHub branch protection rules that require green status checks before merge to `next` or `main`. The hardened wrapper, local hooks, and final parity re-verification are defense-in-depth + team culture.
 
 - **Roadmap Checklist**: Add Universal Accessibility Auditing to CI/CD pipeline.
 
 ---
 
-_Last Updated: 2026-06-17_
+_Last Updated: 2026-06-26_
