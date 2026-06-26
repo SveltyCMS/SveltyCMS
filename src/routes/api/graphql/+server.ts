@@ -19,6 +19,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
 import { NoSchemaIntrospectionCustomRule } from "graphql";
+import { useGraphQlJit } from "@envelop/graphql-jit";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
@@ -174,17 +175,14 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
         const schema = createSchema({ typeDefs, resolvers });
 
-        const plugins: any[] = [securityValidationPlugin];
-        if (process.env.USE_GRAPHQL_JIT === "true" || process.env.BENCHMARK === "true") {
-          const { useGraphQlJit } = await import("@envelop/graphql-jit");
-          plugins.push(useGraphQlJit());
-        }
+        const plugins: any[] = [securityValidationPlugin, useGraphQlJit()];
 
         const app = createYoga({
           schema: schema as any,
           graphqlEndpoint: "/api/graphql",
           landingPage: true,
           cors: false,
+          batching: { limit: 10 },
           plugins,
           context: async (serverContext: any) => {
             let _loaders: any = undefined;

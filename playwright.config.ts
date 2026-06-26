@@ -194,6 +194,7 @@ export default defineConfig({
         "**/collection-builder/builder.spec.ts",
         "**/collection-builder/collection.spec.ts",
         "**/collection-builder/journey.spec.ts",
+        "**/collection-builder/empty-state.spec.ts",
       ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],

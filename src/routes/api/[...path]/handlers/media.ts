@@ -32,6 +32,16 @@ function hasMediaPermission(event: RequestEvent, user: unknown, permission: stri
   return !!user && hasPermissionWithRoles(user as any, permission, event.locals.roles || []);
 }
 
+function isFileLike(value: unknown): value is File {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    "arrayBuffer" in value &&
+    typeof (value as any).arrayBuffer === "function" &&
+    "name" in value
+  );
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleMediaRoutes(
@@ -221,7 +231,7 @@ export async function handleMediaUpload(
   const files = formData.getAll("files") as File[];
   const singleFile = formData.get("file");
 
-  if (singleFile instanceof File && files.length === 0) files.push(singleFile);
+  if (isFileLike(singleFile) && files.length === 0) files.push(singleFile);
   if (files.length === 0)
     throw new AppError("No valid file arrays found inside submission bundle", 400);
 
@@ -232,7 +242,7 @@ export async function handleMediaUpload(
     const chunk = files.slice(i, i + concurrency);
     const chunkResults = await Promise.all(
       chunk.map(async (file) => {
-        if (!(file instanceof File)) return null;
+        if (!isFileLike(file)) return null;
         try {
           const res = await cms.media.upload(file, {
             userId: user?._id || "system",
@@ -408,11 +418,12 @@ export async function handleMediaVersionCreate(
 
   const formData = await event.request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File))
+  if (!isFileLike(file))
     throw new AppError("Target payload matrix type must match binary File structure", 400);
-
   const reason = (formData.get("reason") as string) || undefined;
 
+  // Parse tags from form data
+  const _tagsRaw = formData.get("tags");
   // Hash the file content for version identity tracking
   const buffer = Buffer.from(await file.arrayBuffer());
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");
@@ -456,7 +467,7 @@ export async function handleMediaVersionUpload(
   if (!mediaId) throw new AppError("Media reference target identifier required", 400);
   const formData = await event.request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File))
+  if (!isFileLike(file))
     throw new AppError("Target payload matrix type must match binary File structure", 400);
   const result = await cms.media.uploadVersion(mediaId, file, {
     userId: user?._id || "system",
@@ -731,14 +742,15 @@ export async function handleMediaBulkDownload(
 
   const files: any[] = [];
   if (cms.db.crud.findMany) {
-    const bulkRes = await cms.db.crud.findMany("media", { _id: { $in: ids } }, {
+    const bulkRes = await cms.db.crud.findMany("media", { _id: { $in: ids as any } }, {
       tenantId,
     } as any);
-    if (bulkRes.success && Array.isArray(bulkRes.data)) files.push(...bulkRes.data);
+    if (bulkRes.success && Array.isArray((bulkRes as any).data))
+      files.push(...(bulkRes as any).data);
   } else {
     for (const id of ids) {
       const res = await cms.media.findById(id, { tenantId });
-      if (res.success && res.data) files.push(res.data);
+      if (res.success && (res as any).data) files.push((res as any).data);
     }
   }
 
@@ -974,7 +986,7 @@ export async function handleMediaStreamUpload(
           uploaded.push({
             fileName: info.filename,
             success: !!res.success,
-            data: res.data,
+            data: (res as any).data,
             message: res.success ? undefined : res.message,
           });
         } catch (err: any) {

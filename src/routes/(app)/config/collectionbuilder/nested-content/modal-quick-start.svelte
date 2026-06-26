@@ -162,7 +162,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 			onclick={handleInstall}
 			disabled={isSubmitting || !selectedPreset}
 			aria-label="Install selected template collections"
-		 class="dark:">
+		>
 			{#if isSubmitting}
 				<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"></iconify-icon>
 				Installing...
