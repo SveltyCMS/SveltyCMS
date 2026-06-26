@@ -63,9 +63,33 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     let sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
 
     // Outside benchmark runtime, never compile test/ fixtures into the live tree
-    const { isBenchmarkArtifact, isBenchmarkRuntime } =
-      await import("@src/routes/setup/preset-collections.server");
-    const { isBenchmarkRelativePath } = await import("@utils/benchmark-paths");
+    // NOTE: inlined from preset-collections.server.ts to avoid @src/ alias at Node.js level
+    // during Vite config initialization (before Vite's resolver is active).
+    const isBenchmarkRuntime = (): boolean =>
+      [
+        "BENCHMARK",
+        "BENCHMARK_MODE",
+        "BENCHMARK_STABLE",
+        "SVELTY_BENCHMARK_SUITE",
+        "TEST_MODE",
+      ].some((k) => process.env[k] === "true") || process.env.BENCHMARK_MODE === "1";
+    const isBenchmarkArtifact = (fileName: string): boolean => {
+      const base = fileName.replace(/\.(ts|js)$/, "");
+      const lower = base.toLowerCase();
+      return (
+        base.includes("Mock Collection") ||
+        lower.startsWith("bench_") ||
+        lower.startsWith("benchmark_") ||
+        lower === "benchmarkstable" ||
+        base.startsWith("BenchmarkStable") ||
+        lower.startsWith("mock-collection") ||
+        lower.startsWith("mock_") ||
+        lower.startsWith("mock-") ||
+        lower.startsWith("stress_") ||
+        lower.startsWith("stress-")
+      );
+    };
+    const { isBenchmarkRelativePath } = await import("../benchmark-paths");
     if (!isBenchmarkRuntime()) {
       sourceFiles = sourceFiles.filter((relativePath) => {
         if (isBenchmarkRelativePath(relativePath)) return false;

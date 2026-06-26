@@ -65,7 +65,7 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 
 ## 📦 Architecture Overview
 
-### Performance-First Design
+**Performance-First Design**
 
 SveltyCMS MongoDB implementation is built with **enterprise-scale performance as a core requirement**:
 
@@ -213,11 +213,11 @@ async execute<T>(fn: (tx: DatabaseTransaction) => Promise<DatabaseResult<T>>) {
 
 ## 🗂️ Index Strategy
 
-### TTL Indexes (Auto-Cleanup)
+**TTL Indexes (Auto-Cleanup)**
 
 TTL (Time-To-Live) indexes automatically delete expired documents, eliminating manual cleanup jobs.
 
-#### auth_tokens Collection
+**auth_tokens Collection**
 
 ```
 // File: src/databases/mongodb/models/authToken.ts
@@ -233,7 +233,7 @@ TokenSchema.index({ expires: 1 }, { expireAfterSeconds: 0 });
 - Reduced database bloat
 - Storage cost savings
 
-#### auth_sessions Collection
+**auth_sessions Collection**
 
 ```
 // File: src/databases/mongodb/models/authSession.ts
@@ -249,7 +249,7 @@ SessionSchema.index({ expires: 1 }, { expireAfterSeconds: 0 });
 - Better security (stale sessions removed)
 - Reduced session table size
 
-#### auth_users Collection
+**auth_users Collection**
 
 ```
 // File: src/databases/mongodb/models/authUser.ts
@@ -274,7 +274,7 @@ UserSchema.index({ expiresAt: 1 }, { sparse: true, expireAfterSeconds: 0 });
 
 **NEW in 2024**: SveltyCMS now automatically creates optimized indexes for **every user-defined collection** based on their schema configuration.
 
-### How It Works {#dynamic-indexing-how}
+**How It Works**
 
 ```
 // File: src/databases/mongodb/methods/collectionMethods.ts
@@ -333,9 +333,9 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 }
 ```
 
-### Index Types Created
+**Index Types Created**
 
-#### 1. Essential Indexes (9 per collection)
+**1. Essential Indexes (9 per collection)**
 
 ```
 // Always created for every collection:
@@ -350,7 +350,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 { tenantId: 1, createdAt: -1 }     // Tenant + sort by date
 ```
 
-#### 2. Field-Specific Indexes
+**2. Field-Specific Indexes**
 
 **Unique fields**:
 
@@ -400,7 +400,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 } // Sort by date
 ```
 
-### Performance Impact {#dynamic-indexing-perf}
+**Performance Impact**
 
 | Collection Size | Without Indexes | With Auto-Indexes | Improvement |
 | --------------- | --------------- | ----------------- | ----------- |
@@ -408,7 +408,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 | 1,000 entries   | 1,200ms         | 18ms              | **66x**     |
 | 10,000 entries  | 12,000ms        | 25ms              | **480x**    |
 
-### Real-World Example: Blog Collection
+**Real-World Example: Blog Collection**
 
 ```
 // Collection schema
@@ -442,7 +442,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 
 **NEW in 2024**: Smart field selection reduces payload sizes by 50-80% for list views.
 
-### How It Works {#how-it-works-2}
+**How It Works**
 
 ```
 // File: src/utils/fieldselection.ts
@@ -453,7 +453,7 @@ private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void
 }
 ```
 
-### Integration with Page Loads
+**Integration with Page Loads**
 
 ```
 // File: src/routes/(app)/[language]/[...collection]/+page.server.ts
@@ -470,7 +470,7 @@ if (!editEntryId) {
 }
 ```
 
-### Performance Impact {#performance-impact-2}
+**Performance Impact**
 
 | Collection Config       | Before | After  | Reduction |
 | ----------------------- | ------ | ------ | --------- |
@@ -487,11 +487,11 @@ if (!editEntryId) {
 
 ---
 
-### Compound Indexes (Query Optimization)
+**Compound Indexes (Query Optimization)**
 
 Compound indexes dramatically improve multi-field query performance.
 
-#### auth_tokens (5 indexes)
+**auth_tokens (5 indexes)**
 
 ```
 // File: src/databases/mongodb/models/authToken.ts
@@ -518,7 +518,7 @@ TokenSchema.index({ tenantId: 1, user_id: 1, type: 1 });
 TokenSchema.index({ type: 1, expires: 1, blocked: 1 });
 ```
 
-#### auth_sessions (5 indexes)
+**auth_sessions (5 indexes)**
 
 ```
 // File: src/databases/mongodb/models/authSession.ts
@@ -549,7 +549,7 @@ SessionSchema.index({ rotated: 1, expires: 1 });
 SessionSchema.index({ rotatedTo: 1 });
 ```
 
-#### auth_users (9 indexes)
+**auth_users (9 indexes)**
 
 ```
 // File: src/databases/mongodb/models/authUser.ts
@@ -600,7 +600,7 @@ UserSchema.index({ tenantId: 1, blocked: 1, failedAttempts: -1 });
 UserSchema.index({ tenantId: 1, createdAt: -1 });
 ```
 
-#### system_content_structure (7 indexes)
+**system_content_structure (7 indexes)**
 
 ```
 // File: src/databases/mongodb/models/contentStructure.ts
@@ -645,7 +645,7 @@ contentStructureSchema.index({ parentId: 1, order: 1, nodeType: 1 });
 contentStructureSchema.index({ nodeType: 1, updatedAt: -1 });
 ```
 
-#### system_media (6 indexes + full-text)
+**system_media (6 indexes + full-text)**
 
 ```
 // File: src/databases/mongodb/models/media.ts
@@ -688,7 +688,7 @@ mediaSchema.index({
 });
 ```
 
-#### content_drafts (5 indexes)
+**content_drafts (5 indexes)**
 
 ```
 // File: src/databases/mongodb/models/draft.ts
@@ -719,7 +719,7 @@ draftSchema.index({ authorId: 1, createdAt: -1 });
 draftSchema.index({ tenantId: 1, status: 1, updatedAt: -1 });
 ```
 
-#### content_revisions (4 indexes)
+**content_revisions (4 indexes)**
 
 ```
 // File: src/databases/mongodb/models/revision.ts
@@ -745,7 +745,7 @@ revisionSchema.index({ contentId: 1, authorId: 1, createdAt: -1 });
 revisionSchema.index({ createdAt: -1 });
 ```
 
-#### system_widgets (3 indexes)
+**system_widgets (3 indexes)**
 
 ```
 // File: src/databases/mongodb/models/widget.ts
@@ -769,7 +769,7 @@ widgetSchema.index({ isActive: 1, updatedAt: -1 });
 
 ## ⚙️ Connection Pool Configuration
 
-### Enterprise Connection Pool
+**Enterprise Connection Pool**
 
 The MongoDB adapter uses an optimized connection pool for enterprise-scale performance.
 
@@ -797,7 +797,7 @@ const connectOptions: mongoose.ConnectOptions = {
 };
 ```
 
-### Configuration Benefits
+**Configuration Benefits**
 
 | Feature              | Benefit                          | Impact                 |
 | -------------------- | -------------------------------- | ---------------------- |
@@ -807,7 +807,7 @@ const connectOptions: mongoose.ConnectOptions = {
 | `heartbeatFrequency` | 10s topology detection           | Fast failover          |
 | `socketTimeoutMS`    | 45s zombie connection prevention | No hanging queries     |
 
-### Connection Pool Monitoring
+**Connection Pool Monitoring**
 
 ```
 // Monitor connection pool health
@@ -828,11 +828,11 @@ mongoose.connection.on("error", (err) => {
 
 ## 🚀 Advanced Features
 
-### Cursor Pagination {#advanced-cursor-pagination}
+**Cursor Pagination**
 
 Cursor pagination provides **O(1) time complexity** regardless of page number, unlike offset pagination which degrades to **O(n)**.
 
-#### Implementation {#cursor-pagination-impl}
+**Implementation**
 
 ```
 // File: src/databases/mongodb/MongoQueryBuilder.ts
@@ -871,7 +871,7 @@ async paginate(options: PaginateOptions): Promise<DatabaseResult<T[]>> {
 }
 ```
 
-#### Usage Example {#cursor-pagination-usage}
+**Usage Example**
 
 ```
 // Page 1: No cursor needed
@@ -908,7 +908,7 @@ const page3 = await db
   .execute();
 ```
 
-#### Performance Comparison {#cursor-pagination-comparison}
+**Performance Comparison**
 
 | Page Number | Offset Pagination | Cursor Pagination | Improvement |
 | ----------- | ----------------- | ----------------- | ----------- |
@@ -921,11 +921,11 @@ const page3 = await db
 
 ---
 
-### Streaming API
+**Streaming API**
 
 Streaming provides **O(1) memory usage** for processing large datasets, unlike fetching all records which uses **O(n) memory**.
 
-#### Implementation {#implementation-2}
+**Implementation**
 
 ```
 // File: src/databases/mongodb/MongoQueryBuilder.ts
@@ -955,9 +955,9 @@ async stream(): Promise<DatabaseResult<AsyncIterable<T>>> {
 }
 ```
 
-#### Usage Examples {#streaming-usage}
+**Usage Examples**
 
-##### Export Large Dataset
+**Export Large Dataset**
 
 ```
 // Export 100,000 media files
@@ -982,7 +982,7 @@ if (stream.success) {
 // vs fetching all: ~2GB (scales with data)
 ```
 
-##### Batch Processing
+**Batch Processing**
 
 ```
 // Process all users for email campaign
@@ -1011,7 +1011,7 @@ if (stream.success) {
 }
 ```
 
-##### Real-time Data Migration
+**Real-time Data Migration**
 
 ```
 // Migrate content to new schema
@@ -1034,7 +1034,7 @@ if (stream.success) {
 // Processes millions of records without memory issues
 ```
 
-#### Performance Comparison {#performance-comparison-2}
+**Performance Comparison**
 
 | Records   | Fetch All (Memory) | Streaming (Memory) | Savings    |
 | --------- | ------------------ | ------------------ | ---------- |
@@ -1044,11 +1044,11 @@ if (stream.success) {
 
 ---
 
-### Query Hints
+**Query Hints**
 
 Query hints force MongoDB to use specific indexes or set execution limits.
 
-#### Implementation {#implementation-3}
+**Implementation**
 
 ```
 // File: src/databases/mongodb/MongoQueryBuilder.ts
@@ -1075,9 +1075,9 @@ private async executeQuery(): Promise<T[]> {
 }
 ```
 
-#### Usage Examples {#usage-examples-2}
+**Usage Examples**
 
-##### Force Specific Index
+**Force Specific Index**
 
 ```
 // Force use of compound index for better performance
@@ -1090,7 +1090,7 @@ const users = await db
 // MongoDB will use the specified index instead of choosing automatically
 ```
 
-##### Set Query Timeout
+**Set Query Timeout**
 
 ```
 // Limit query execution time to prevent long-running queries
@@ -1103,7 +1103,7 @@ const results = await db
 // Query aborts after 5 seconds, preventing resource exhaustion
 ```
 
-##### Complex Query Optimization
+**Complex Query Optimization**
 
 ```
 // Force optimal index for complex multi-tenant query
@@ -1124,11 +1124,11 @@ const content = await db
 
 ---
 
-### .lean() Queries
+**.lean() Queries**
 
 All MongoDB queries use `.lean()` for optimal performance.
 
-#### What is .lean()?
+**What is .lean()?**
 
 `.lean()` returns plain JavaScript objects instead of Mongoose documents, eliminating overhead.
 
@@ -1146,7 +1146,7 @@ const user = await User.findOne({ email: "user@example.com" }).lean();
 // Access: user.name (direct property access)
 ```
 
-#### Implementation {#implementation-4}
+**Implementation**
 
 All CRUD methods in `crudMethods.ts` use `.lean()`:
 
@@ -1170,7 +1170,7 @@ async find(query: FilterQuery<T>): Promise<T[]> {
 }
 ```
 
-#### Performance Impact {#performance-impact-3}
+**Performance Impact**
 
 | Operation  | Without .lean() | With .lean() | Improvement |
 | ---------- | --------------- | ------------ | ----------- |
@@ -1195,7 +1195,7 @@ interface QueryMeta {
 }
 ```
 
-#### Usage Example {#usage-example-2}
+**Usage Example**
 
 ```
 const result = await db.queryBuilder("users").where({ tenantId: "acme", role: "admin" }).execute();
@@ -1236,7 +1236,7 @@ console.log("User cache hit rate:", userMetrics.hitRate);
 
 ### DO ✅
 
-#### 1. Use Cursor Pagination for Large Datasets
+**1. Use Cursor Pagination for Large Datasets**
 
 ```
 // ✅ Good: Cursor pagination (constant O(1) performance)
@@ -1258,7 +1258,7 @@ const page = await db
   .execute();
 ```
 
-#### 2. Use Streaming for Large Exports
+**2. Use Streaming for Large Exports**
 
 ```
 // ✅ Good: Streaming (constant ~50MB memory)
@@ -1274,7 +1274,7 @@ for (const item of allMedia) {
 }
 ```
 
-#### 3. Leverage Compound Indexes
+**3. Leverage Compound Indexes**
 
 ```
 // ✅ Good: Uses compound index (2ms)
@@ -1293,7 +1293,7 @@ const users = await db.find("users", {
 });
 ```
 
-#### 4. Cache Frequently Accessed Data
+**4. Cache Frequently Accessed Data**
 
 ```
 // ✅ Good: Check cache first
@@ -1309,7 +1309,7 @@ if (!user) {
 const user = await db.findOne("users", { id: userId });
 ```
 
-#### 5. Monitor Query Performance
+**5. Monitor Query Performance**
 
 ```
 // ✅ Good: Monitor and alert on slow queries
@@ -1325,7 +1325,7 @@ if (result.meta?.executionTime > 100) {
 
 ### DON'T ❌
 
-#### 1. Don't Use Offset Pagination for Deep Pages
+**1. Don't Use Offset Pagination for Deep Pages**
 
 ```
 // ❌ Bad: Page 100 takes 15 seconds
@@ -1336,7 +1336,7 @@ const posts = await db
   .execute();
 ```
 
-#### 2. Don't Load Large Datasets into Memory
+**2. Don't Load Large Datasets into Memory**
 
 ```
 // ❌ Bad: 10GB memory for 1M records
@@ -1346,7 +1346,7 @@ for (const user of allUsers) {
 }
 ```
 
-#### 3. Don't Use Regex Without Indexes
+**3. Don't Use Regex Without Indexes**
 
 ```
 // ❌ Bad: Full table scan (500ms)
@@ -1361,7 +1361,7 @@ const users = await db.find("users", {
 });
 ```
 
-#### 4. Don't Forget Cache Invalidation
+**4. Don't Forget Cache Invalidation**
 
 ```
 // ❌ Bad: Stale cache after update
@@ -1373,7 +1373,7 @@ await db.update("users", userId, { role: "admin" });
 await CacheService.delete("USER", `user:${userId}`);
 ```
 
-#### 5. Don't Ignore Connection Pool Limits
+**5. Don't Ignore Connection Pool Limits**
 
 ```
 // ❌ Bad: Creating 100 parallel connections
@@ -1455,7 +1455,7 @@ Key MongoDB highlights include:
 
 ## 🚀 Quick Reference
 
-### Cursor Pagination {#cursor-pagination-2}
+**Cursor Pagination**
 
 ```
 const page = await db

@@ -428,7 +428,10 @@ export const _handler = async (event: RequestEvent) => {
 
   // 🚀 Kick off hot-handler preload on first API request (non-blocking).
   // Once cached, subsequent handler imports resolve from module cache instantly.
-  ensureHotPreload();
+  // Skip during tests to avoid compiling all handler modules (saves ~15s per test file).
+  if (process.env.TEST_MODE !== "true" && !(locals as any).__testBypass) {
+    ensureHotPreload();
+  }
 
   const config = NAMESPACE_CONFIG[namespace];
   const handlerModule = await HANDLERS[config.handler]();

@@ -57,32 +57,35 @@ SvelteKit injects server data into every component via `page.data`. **Do not dup
 
 ### Core Application
 
-| Store                         | Type                       | Purpose                                                                                                                                               |
-| ----------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `store.svelte.ts`             | App singleton + re-exports | Minimal `AppStore` — `listboxValueState`, `tabSetState`, `shouldShowNextButton`, `saveLayerStore`. Re-exports from domain stores. No wrapper objects. |
-| `locale-store.svelte.ts`      | Reactive wrappers          | `systemLanguage`, `contentLanguage`, `translationProgress` — bridges server cookies → Paraglide runtime                                               |
-| `user-store.svelte.ts`        | Utility                    | `normalizeAvatarUrl()` — pure function, not a store. Avatar URL comes from `page.data.user?.avatar`.                                                  |
-| `validation-store.svelte.ts`  | Singleton class            | Per-field form validation errors, `isValid` derived                                                                                                   |
-| `data-change-store.svelte.ts` | Singleton class            | JSON snapshot comparison for unsaved changes detection                                                                                                |
-| `global-settings.svelte.ts`   | Singleton + SSE            | Public environment settings (`SITE_NAME`, `PKG_VERSION`). Proxy-based `publicEnv` for reactive access.                                                |
-| `screen-size-store.svelte.ts` | Singleton class            | Viewport dimensions (`width`, `height`), breakpoint queries (`isMobile`, `isTablet`, `isDesktop`)                                                     |
-| `ui-store.svelte.ts`          | Singleton class            | Panel visibility (`leftSidebar`, `rightSidebar`, `pageheader`, etc.). Route context + screen-size driven.                                             |
-| `theme-store.svelte.ts`       | Module-level `$state`      | Dark/light/system color scheme. Cookie persistence. OS preference listener.                                                                           |
+| Store                         | Type                       | Purpose                                                    |
+| ----------------------------- | -------------------------- | ---------------------------------------------------------- |
+| `store.svelte.ts`             | App singleton + re-exports | App state container with re-exports from domain stores     |
+| `locale-store.svelte.ts`      | Reactive wrappers          | Bridges server locale cookies to Paraglide runtime         |
+| `user-store.svelte.ts`        | Utility                    | Pure utility for normalizing avatar URLs                   |
+| `validation-store.svelte.ts`  | Singleton class            | Per-field form validation with derived validity state      |
+| `data-change-store.svelte.ts` | Singleton class            | JSON snapshot comparison for unsaved changes               |
+| `global-settings.svelte.ts`   | Singleton + SSE            | Proxy-based reactive access to public environment settings |
+| `screen-size-store.svelte.ts` | Singleton class            | Viewport dimensions and responsive breakpoint queries      |
+| `ui-store.svelte.ts`          | Singleton class            | Panel visibility driven by route context and screen size   |
+| `theme-store.svelte.ts`       | Module-level `$state`      | Color scheme with cookie persistence and OS listening      |
 
 ### Feature Stores
 
-| Store                             | Type               | Purpose                                                                                                          |
-| --------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `collection-store.svelte.ts`      | Singleton class    | Active collection context — schema, mode (view/edit/create), entry value, content structure                      |
-| `content-registry.svelte.ts`      | Singleton class    | Compiled content tree — `ContentNode` hierarchy and derived `Schema` catalog. Multi-tenant.                      |
-| `mode-transition-guard.svelte.ts` | State machine      | Validates mode transitions (blocks edit→view with unsaved changes). Consolidated `setMode()` + `transitionTo()`. |
-| `status-store.svelte.ts`          | Service + `$state` | Publish/unpublish toggle with API calls, debounce, and toast notifications                                       |
-| `widget-store.svelte.ts`          | Singleton class    | Widget registry — core/custom/marketplace widgets, dependency analysis, active set management                    |
-| `image-editor-store.svelte.ts`    | Factory function   | Canvas state — zoom, rotation, filters, crop, history stack, compare slider                                      |
-| `collaboration-store.svelte.ts`   | Singleton class    | Real-time WebSocket — activity stream, chat messages, room management via svelte-realtime                        |
-| `loading-store.svelte.ts`         | Singleton class    | Global loading state with priority queue, timeouts, progress tracking, and analytics                             |
-| `toast.svelte.ts`                 | Singleton class    | Enterprise toast notification system with responsive positioning, pause-on-hover, flash messages                 |
-| `setup-store.svelte.ts`           | Factory function   | Setup wizard form state with localStorage persistence, validation, and step management                           |
+| Store                             | Type               | Purpose                                                        |
+| --------------------------------- | ------------------ | -------------------------------------------------------------- |
+| `collection-store.svelte.ts`      | Singleton class    | Active collection context with schema, mode, and entry value   |
+| `content-registry.svelte.ts`      | Singleton class    | Compiled content tree hierarchy with multi-tenant support      |
+| `mode-transition-guard.svelte.ts` | State machine      | Guards mode transitions to prevent losing unsaved changes      |
+| `status-store.svelte.ts`          | Service + `$state` | Publish/unpublish toggle with API calls and toast feedback     |
+| `widget-store.svelte.ts`          | Singleton class    | Widget registry managing core, custom, and marketplace widgets |
+
+| Store                           | Type             | Purpose                                                 |
+| ------------------------------- | ---------------- | ------------------------------------------------------- |
+| `image-editor-store.svelte.ts`  | Factory function | Canvas state for zoom, filters, crop, and history undo  |
+| `collaboration-store.svelte.ts` | Singleton class  | Real-time WebSocket activity stream and room management |
+| `loading-store.svelte.ts`       | Singleton class  | Global loading state with priority queue and timeouts   |
+| `toast.svelte.ts`               | Singleton class  | Toast notifications with responsive positioning         |
+| `setup-store.svelte.ts`         | Factory function | Setup wizard form state with localStorage persistence   |
 
 ### User Preferences & Personalization
 

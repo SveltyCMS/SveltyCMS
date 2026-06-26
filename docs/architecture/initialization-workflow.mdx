@@ -67,15 +67,15 @@ This comprehensive guide covers the entire SveltyCMS lifecycle: installation, fi
 
 Before installing SveltyCMS, ensure you have the following installed:
 
-### Required Software
+**Required Software**
 
-#### 1. Node.js (>=24)
+**1. Node.js (>=24)**
 
 - **Download:** [https://nodejs.org/](https://nodejs.org/)
 - **Check version:** `node --version`
 - **Why:** Runtime environment for JavaScript
 
-#### 2. Package Manager
+**2. Package Manager**
 
 Choose one of the following:
 
@@ -96,13 +96,13 @@ Choose one of the following:
   npm install -g pnpm
   ```
 
-#### 3. Git
+**3. Git**
 
 - **Download:** [https://git-scm.com/](https://git-scm.com/)
 - **Check version:** `git --version`
 - **Why:** Version control and repository cloning
 
-#### 4. Database
+**4. Database**
 
 **MongoDB** (recommended for first install)
 
@@ -123,14 +123,14 @@ Choose one of the following:
 
 The fastest way to get started with SveltyCMS.
 
-### Step 1: Clone Repository
+**Step 1: Clone Repository**
 
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 ```
 
-### Step 2: Install Dependencies
+**Step 2: Install Dependencies**
 
 Choose your package manager:
 
@@ -174,7 +174,7 @@ pnpm dev
 
 </details>
 
-### Step 3: Setup Wizard
+**Step 3: Setup Wizard**
 
 The setup wizard launches automatically on first run at `http://localhost:5173/setup`:
 
@@ -213,7 +213,7 @@ The setup wizard launches automatically on first run at `http://localhost:5173/s
 
 For advanced users who need more control over the installation process.
 
-### Step 1: Clone and Install
+**Step 1: Clone and Install**
 
 ```
 git clone https://github.com/SveltyCMS/SveltyCMS.git
@@ -221,7 +221,7 @@ cd SveltyCMS
 bun install  # or npm/yarn/pnpm
 ```
 
-### Step 2: Install Database Driver
+**Step 2: Install Database Driver**
 
 Install the driver for your chosen database:
 
@@ -236,7 +236,7 @@ bun add mariadb
 bun add pg
 ```
 
-### Step 3: Create Environment File
+**Step 3: Create Environment File**
 
 Create `config/private.ts` in the project root:
 
@@ -271,7 +271,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 openssl rand -base64 32
 ```
 
-### Step 4: Test Database Connection
+**Step 4: Test Database Connection**
 
 Start the development server and test the connection:
 
@@ -294,7 +294,7 @@ curl -X POST http://localhost:5173/setup?/testDatabase \
   }'
 ```
 
-### Step 5: Seed Initial Data
+**Step 5: Seed Initial Data**
 
 Run the seed script or use the API:
 
@@ -305,7 +305,7 @@ bun run scripts/seed-cms.js
 # Or through the setup wizard at /setup
 ```
 
-### Step 6: Create Admin User
+**Step 6: Create Admin User**
 
 ```
 # Using create-admin script (recommended for CI/CD)
@@ -320,11 +320,11 @@ bun run scripts/create-admin.js
 
 After completing installation, configure your SveltyCMS instance:
 
-### 1. Login to Admin Panel
+**1. Login to Admin Panel**
 
 Visit `http://localhost:5173/admin` (or your custom URL) and login with your admin credentials.
 
-### 2. Configure System Settings
+**2. Configure System Settings**
 
 Navigate to **Settings** and configure:
 
@@ -334,7 +334,7 @@ Navigate to **Settings** and configure:
 - **Email Settings**: SMTP configuration for notifications
 - **Cache Settings**: Enable/disable caching, Redis configuration
 
-### 3. Create Collections
+**3. Create Collections**
 
 Navigate to **Collections** to:
 
@@ -343,7 +343,7 @@ Navigate to **Collections** to:
 - Set up relationships between collections
 - Configure permissions
 
-### 4. Set Up Users
+**4. Set Up Users**
 
 Navigate to **Users** to:
 
@@ -352,7 +352,7 @@ Navigate to **Users** to:
 - Configure permissions
 - Manage user sessions
 
-### 5. Install Widgets
+**5. Install Widgets**
 
 Navigate to **Widgets** to:
 
@@ -365,7 +365,7 @@ Navigate to **Widgets** to:
 
 ## Development & Production
 
-### Development Server
+**Development Server**
 
 Start the development server with hot module reload:
 
@@ -390,7 +390,7 @@ The server will start at:
 - **API:** `http://localhost:5173/api`
 - **GraphQL:** `http://localhost:5173/api/graphql`
 
-### Production Build
+**Production Build**
 
 Build for production:
 
@@ -402,23 +402,23 @@ bun run build
 bun run preview
 ```
 
-### Deployment Options
+**Deployment Options**
 
-#### Vercel
+**Vercel**
 
 ```
 npm install -g vercel
 vercel --prod
 ```
 
-#### Netlify
+**Netlify**
 
 ```
 npm install -g netlify-cli
 netlify deploy --prod
 ```
 
-#### Docker
+**Docker**
 
 ```
 FROM node:20-alpine
@@ -436,7 +436,7 @@ docker build -t sveltycms .
 docker run -p 3000:3000 --env-file .env sveltycms
 ```
 
-#### Traditional Server (PM2)
+**Traditional Server (PM2)**
 
 ```
 npm install -g pm2
@@ -446,7 +446,7 @@ pm2 save
 pm2 startup
 ```
 
-### Production Environment Variables
+**Production Environment Variables**
 
 Ensure these are set in production:
 
@@ -514,7 +514,7 @@ SveltyCMS/
 
 ## Visual Overview
 
-### Complete System Lifecycle
+**Complete System Lifecycle**
 
 ```
 graph TB
@@ -565,7 +565,7 @@ graph TB
     style B14 fill:#d0d0d0,stroke:#333,stroke-width:4px
 ```
 
-### First-Time Setup Architecture
+**First-Time Setup Architecture**
 
 ```
 graph TB
@@ -599,7 +599,7 @@ graph TB
     style T fill:#d0d0d0,stroke:#333,stroke-width:4px
 ```
 
-### Server Restart Architecture
+**Server Restart Architecture**
 
 ```
 graph TB
@@ -636,7 +636,7 @@ graph TB
 
 ## First-Time Setup Flow
 
-### Phase 1: Vite Startup (Build Time) {#setup-phase1}
+**Phase 1: Vite Startup (Build Time)**
 
 **File: `vite.config.ts`**
 
@@ -677,7 +677,7 @@ export const privateEnv = createPrivateConfig({
 });
 ```
 
-### Phase 2: Server Hooks (Runtime)
+**Phase 2: Server Hooks (Runtime)**
 
 **File: `src/hooks.server.ts`**
 
@@ -704,7 +704,7 @@ flowchart TB
     style J fill:#e0e0e0,stroke:#333,stroke-width:2px
 ```
 
-### Phase 3: Setup GUI Interaction
+**Phase 3: Setup GUI Interaction**
 
 **File: `src/routes/setup/+page.svelte`**
 
@@ -758,7 +758,7 @@ Step 5: Admin User Creation → /setup?/completeSetup
 
 ---
 
-### Phase 4: Database Test (Server Function)
+**Phase 4: Database Test (Server Function)**
 
 **Action: `src/routes/setup/+page.server.ts` (Action: `testDatabase`)**
 
@@ -841,7 +841,7 @@ Body: {
 
 ---
 
-### Phase 5: Seed Database
+**Phase 5: Seed Database**
 
 **Endpoint: `/setup?/seedDatabase/+server.ts`**
 
@@ -913,7 +913,7 @@ collection_<uuid_2>      ← Second collection (e.g., Names)
 
 ---
 
-### Phase 6: Complete Setup
+**Phase 6: Complete Setup**
 
 **Endpoint: `/setup?/completeSetup/+server.ts`**
 
@@ -1002,7 +1002,7 @@ Called when user submits admin user form.
 
 ## Server Restart Flow
 
-### Phase 1: Vite Startup (Build Time) {#phase-1-vite-startup-build-time-2}
+**Phase 1: Vite Startup (Build Time)**
 
 **File: `vite.config.ts`**
 
@@ -1022,7 +1022,7 @@ Called when user submits admin user form.
 └─────────────────────────────────────────────────────┘
 ```
 
-### Phase 2: Intelligent Collection Compilation
+**Phase 2: Intelligent Collection Compilation**
 
 **File: `src/utils/compilation/compile.ts`**
 
@@ -1085,7 +1085,7 @@ export const schema = {
 };
 ```
 
-### Phase 3: Server Initialization
+**Phase 3: Server Initialization**
 
 **File: `src/hooks.server.ts` + `src/databases/db.ts`**
 
@@ -1122,7 +1122,7 @@ export const schema = {
 
 ## Collection UUID Management
 
-### UUID Assignment Strategy
+**UUID Assignment Strategy**
 
 **The Problem:**
 Collections need stable, persistent IDs for:
@@ -1135,7 +1135,7 @@ Collections need stable, persistent IDs for:
 **The Solution:**
 UUIDs are assigned **once** at compilation and **preserved** across restarts.
 
-### UUID Lifecycle
+**UUID Lifecycle**
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -1172,7 +1172,7 @@ UUIDs are assigned **once** at compilation and **preserved** across restarts.
 └─────────────────────────────────────────────────────┘
 ```
 
-### UUID Extraction Logic
+**UUID Extraction Logic**
 
 **File: `src/utils/compilation/compile.ts`**
 
@@ -1478,14 +1478,14 @@ sequenceDiagram
 
 SveltyCMS uses a comprehensive testing strategy to ensure code quality across all environments.
 
-### Testing Layers
+**Testing Layers**
 
 - ✅ **E2E Tests (Playwright)** - Full user workflows, browser automation
 - ✅ **Integration Tests** - API endpoints, database operations
 - ✅ **Unit Tests (Bun)** - Components, utilities, functions
 - ✅ **CI/CD Automation** - GitHub Actions for testing and releases
 
-### Test Coverage
+**Test Coverage**
 
 - ✅ Authentication flows (Email, OAuth, 2FA)
 - ✅ User management (CRUD, permissions, roles)
@@ -1498,7 +1498,7 @@ SveltyCMS uses a comprehensive testing strategy to ensure code quality across al
 
 ## Unit Testing with Bun
 
-### Running Bun Tests
+**Running Bun Tests**
 
 ```bash
 # Run all tests
@@ -1514,7 +1514,7 @@ bun test --watch
 bun test --coverage
 ```
 
-### Test Structure
+**Test Structure**
 
 ```
 tests/bun/
@@ -1526,7 +1526,7 @@ tests/bun/
 └── *.test.ts          # Various unit tests
 ```
 
-### Writing Tests
+**Writing Tests**
 
 ```
 import { describe, it, expect } from "bun:test";
@@ -1545,7 +1545,7 @@ describe("ContentService", () => {
 
 ## E2E Testing with Playwright
 
-### Running Playwright Tests
+**Running Playwright Tests**
 
 ```
 # Run all tests
@@ -1561,7 +1561,7 @@ npx playwright test --debug
 npx playwright test --ui
 ```
 
-### Test Files
+**Test Files**
 
 ```
 tests/playwright/
@@ -1577,7 +1577,7 @@ tests/playwright/
 
 ## GitHub Actions CI/CD
 
-### Workflow: Playwright Tests
+**Workflow: Playwright Tests**
 
 **File:** `.github/workflows/playwright.yml`
 
@@ -1629,7 +1629,7 @@ jobs:
       - run: bunx playwright test
 ```
 
-### Workflow: Auto-Release
+**Workflow: Auto-Release**
 
 **File:** `.github/workflows/auto-release.yaml`
 
@@ -1658,7 +1658,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### CI/CD Features
+**CI/CD Features**
 
 ✅ **MongoDB Service** - Isolated database for testing
 ✅ **Matrix Testing** - Tests both dev and preview modes
@@ -1673,7 +1673,7 @@ jobs:
 
 For CI/CD environments, SveltyCMS provides scripts that replicate the setup wizard.
 
-### Script: Seed Database
+**Script: Seed Database**
 
 **File:** `scripts/seed-cms.js`
 
@@ -1720,7 +1720,7 @@ bun run scripts/seed-cms.js
 MONGO_HOST=localhost MONGO_PORT=27017 bun run scripts/seed-cms.js
 ```
 
-### Script: Create Admin User
+**Script: Create Admin User**
 
 **File:** `scripts/create-admin.js`
 
@@ -1780,7 +1780,7 @@ ADMIN_PASS=SecurePass123! \
 bun run scripts/create-admin.js
 ```
 
-### Script Benefits
+**Script Benefits**
 
 ✅ **No UI required** - Perfect for CI/CD
 ✅ **Idempotent** - Safe to run multiple times
@@ -1794,7 +1794,7 @@ bun run scripts/create-admin.js
 
 ## Troubleshooting
 
-### Setup wizard loops infinitely
+**Setup wizard loops infinitely**
 
 **Cause:** `isSetupCompleteAsync()` returns false due to missing users
 
@@ -1808,7 +1808,7 @@ mongo sveltycms --eval "db.auth_users.find().pretty()"
 # or manually create admin user via MongoDB shell
 ```
 
-### Collections not appearing after setup
+**Collections not appearing after setup**
 
 **Cause:** `seedCollectionsForSetup()` failed silently
 
@@ -1822,7 +1822,7 @@ tail -f logs/app.log | grep "seedCollections"
 # Restart server with DEBUG=true
 ```
 
-### UUID changed after recompilation
+**UUID changed after recompilation**
 
 **Cause:** Compiled collection was deleted or corrupted
 
@@ -1851,7 +1851,7 @@ This comprehensive guide covers the complete SveltyCMS lifecycle:
 ✅ **CI/CD** - Automated testing and semantic releases
 ✅ **Troubleshooting** - Common issues and solutions
 
-### Key Highlights
+**Key Highlights**
 
 🚀 **Zero-Restart Setup** - System becomes operational without server restart
 🔑 **UUID Preservation** - Collections maintain stable IDs across restarts

@@ -75,22 +75,22 @@ src/utils/
 
 All 14 files are **wired to API handlers** or planned for wiring:
 
-| File                         | Key exports                                                    | API endpoint                 |
-| ---------------------------- | -------------------------------------------------------------- | ---------------------------- |
-| `media-utils.ts`             | `getMimeType`, `mediaUrl`, `sanitizedFilename`, `SIZES`        | Multiple                     |
-| `media-models.ts`            | `MediaBase`, `MediaImage`, `MediaItem`, `MediaType`            | Type definitions             |
-| `media-service.server.ts`    | `MediaService` class                                           | Core CRUD                    |
-| `media-storage.server.ts`    | `saveFile`, `deleteFile`, `getImageSizes`, `saveResizedImages` | Storage abstraction          |
-| `cloud-storage.ts`           | `upload`, `download`, `getUrl`, `isCloud`, `getConfig`         | S3/R2/local                  |
-| `sharing.ts`                 | `createLink`, `validateLink`, `revoke`, `extend`, `newToken`   | Share API                    |
-| `bulk-download.ts`           | `createBulkArchive`, `streamArchive`, `cleanupArchive`         | Bulk download                |
-| `storage-analytics.ts`       | `analyze`, `insights`, `trends`, `quota`, `formatBytes`        | Analytics                    |
-| `version-history.ts`         | `compareVersions`, `getVersionStats`, `createVersion`          | Version API                  |
-| `advanced-search.ts`         | `advancedSearch`, `getSuggestions`, `SearchCriteria`           | Search API                   |
-| `streaming-upload.ts`        | `parseMultipartStream`                                         | Stream upload                |
-| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`                    | Processing                   |
-| `slim-sniffer.server.ts`     | `sniffMimeType`                                                | Binary MIME detection        |
-| `webgpu-processor.ts`        | `optimizeImage`                                                | Client-side GPU optimization |
+| File                         | Key exports                                                    |
+| ---------------------------- | -------------------------------------------------------------- |
+| `media-utils.ts`             | `getMimeType`, `mediaUrl`, `sanitizedFilename`, `SIZES`        |
+| `media-models.ts`            | `MediaBase`, `MediaImage`, `MediaItem`, `MediaType`            |
+| `media-service.server.ts`    | `MediaService`                                                 |
+| `media-storage.server.ts`    | `saveFile`, `deleteFile`, `getImageSizes`, `saveResizedImages` |
+| `cloud-storage.ts`           | `upload`, `download`, `getUrl`, `isCloud`, `getConfig`         |
+| `sharing.ts`                 | `createLink`, `validateLink`, `revoke`, `extend`, `newToken`   |
+| `bulk-download.ts`           | `createBulkArchive`, `streamArchive`, `cleanupArchive`         |
+| `storage-analytics.ts`       | `analyze`, `insights`, `trends`, `quota`, `formatBytes`        |
+| `version-history.ts`         | `compareVersions`, `getVersionStats`, `createVersion`          |
+| `advanced-search.ts`         | `advancedSearch`, `getSuggestions`, `SearchCriteria`           |
+| `streaming-upload.ts`        | `parseMultipartStream`                                         |
+| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`                    |
+| `slim-sniffer.server.ts`     | `sniffMimeType`                                                |
+| `webgpu-processor.ts`        | `optimizeImage`                                                |
 
 ### Infrastructure
 

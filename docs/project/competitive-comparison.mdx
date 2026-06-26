@@ -34,18 +34,27 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 The following matrix evaluates editor-facing features where SveltyCMS now leads or matches all competitors after the June 2026 Enhancement Sprint.
 
-| Feature                     | SveltyCMS                                                                  | Payload 3.x         | Strapi 5            | Directus 11      | WordPress     |
-| --------------------------- | -------------------------------------------------------------------------- | ------------------- | ------------------- | ---------------- | ------------- |
-| **Scheduled Publishing**    | ✅ Adaptive job scheduler — 1s polling, exponential retries, audit-chained | ✅ Job queue        | ⚠️ Cron (manual)    | ✅ Flows         | ⚠️ WP-Cron    |
-| **Draft/Publish Workflow**  | ✅ Full CRUD with batch operations                                         | ✅ Version-based    | ✅                  | ✅               | ✅            |
-| **Content Version History** | ✅ Per-item revisions — snapshot on save, diff, restore, auto-cleanup      | ✅ Auto             | ⚠️ Plugin           | ✅               | ⚠️ Plugin     |
-| **Crypto-Chained Audit**    | ✅ SHA-256 per-entry chain, tamper verification                            | ❌ Basic hooks      | ⚠️ Plugin           | ⚠️ Activity      | ❌ Plugin     |
-| **Per-Field Localization**  | ✅ Record<Locale,string> + inline AI translate                             | ✅                  | ⚠️ Separate entries | ✅ Sidebar       | ⚠️ WPML       |
-| **Full-Text Search**        | ✅ Zero-dependency DB-native (PG/MariaDB/SQLite/Mongo)                     | ⚠️ Plugin           | ⚠️ Plugin           | ⚠️ Extension     | ⚠️ Plugin     |
-| **Smart CMS Migration**     | ✅ AI-powered — 5 formats, 30+ field mappings, ACF detection               | ❌                  | ❌                  | ❌               | ❌            |
-| **Quick-Start Templates**   | ✅ 5 presets with full schemas                                             | ❌                  | ❌                  | ❌               | ✅ Thousands  |
-| **Cold Start UX**           | ✅ Warming-up dashboard with live service status                           | ⚠️ Connection error | ⚠️ Loading spinner  | ⚠️ System status | ✅            |
-| **Collection Builder**      | ✅ Drag-and-drop GUI + 5 templates                                         | ❌ Code-only        | ✅ GUI              | ✅ GUI           | ✅ ACF/CPT UI |
+| Feature                     | SveltyCMS                                                                  | Payload 3.x      | Strapi 5         | Directus 11 | WordPress  |
+| --------------------------- | -------------------------------------------------------------------------- | ---------------- | ---------------- | ----------- | ---------- |
+| **Scheduled Publishing**    | ✅ Adaptive job scheduler — 1s polling, exponential retries, audit-chained | ✅ Job queue     | ⚠️ Cron (manual) | ✅ Flows    | ⚠️ WP-Cron |
+| **Draft/Publish Workflow**  | ✅ Full CRUD with batch operations                                         | ✅ Version-based | ✅               | ✅          | ✅         |
+| **Content Version History** | ✅ Per-item revisions — snapshot on save, diff, restore, auto-cleanup      | ✅ Auto          | ⚠️ Plugin        | ✅          | ⚠️ Plugin  |
+
+| Feature                    | SveltyCMS                                       | Payload 3.x    | Strapi 5            | Directus 11 | WordPress |
+| -------------------------- | ----------------------------------------------- | -------------- | ------------------- | ----------- | --------- |
+| **Crypto-Chained Audit**   | ✅ SHA-256 per-entry chain, tamper verification | ❌ Basic hooks | ⚠️ Plugin           | ⚠️ Activity | ❌ Plugin |
+| **Per-Field Localization** | ✅ Record<Locale,string> + inline AI translate  | ✅             | ⚠️ Separate entries | ✅ Sidebar  | ⚠️ WPML   |
+
+| Feature                 | SveltyCMS                                                    | Payload 3.x | Strapi 5  | Directus 11  | WordPress |
+| ----------------------- | ------------------------------------------------------------ | ----------- | --------- | ------------ | --------- |
+| **Full-Text Search**    | ✅ Zero-dependency DB-native (PG/MariaDB/SQLite/Mongo)       | ⚠️ Plugin   | ⚠️ Plugin | ⚠️ Extension | ⚠️ Plugin |
+| **Smart CMS Migration** | ✅ AI-powered — 5 formats, 30+ field mappings, ACF detection | ❌          | ❌        | ❌           | ❌        |
+
+| Feature                   | SveltyCMS                                        | Payload 3.x         | Strapi 5           | Directus 11      | WordPress     |
+| ------------------------- | ------------------------------------------------ | ------------------- | ------------------ | ---------------- | ------------- |
+| **Quick-Start Templates** | ✅ 5 presets with full schemas                   | ❌                  | ❌                 | ❌               | ✅ Thousands  |
+| **Cold Start UX**         | ✅ Warming-up dashboard with live service status | ⚠️ Connection error | ⚠️ Loading spinner | ⚠️ System status | ✅            |
+| **Collection Builder**    | ✅ Drag-and-drop GUI + 5 templates               | ❌ Code-only        | ✅ GUI             | ✅ GUI           | ✅ ACF/CPT UI |
 
 | **API Tokens** | ✅ Website tokens — content-api + admin-api, expiry, per-token perms | ✅ | ✅ | ✅ | ⚠️ Plugin |
 | **Live Preview** | ✅ Bidirectional handshake via editable-website plugin | ✅ Field highlight | ❌ No native | ✅ | ✅ Gutenberg |
@@ -69,11 +78,14 @@ The following matrix evaluates editor-facing features where SveltyCMS now leads 
 | **Mutation + Audit**               | **1.90ms avg** (audit overhead eliminated, fire-and-forget) | `bun test tests/benchmarks/hooks-performance.test.ts`      |
 | **REST Read (auth+RBAC+cache)**    | **2.55ms avg** (Turbo light path)                           | `bun test tests/benchmarks/hooks-performance.test.ts`      |
 | **REST Read (full auth+security)** | **5.47ms avg** (full pipeline)                              | `bun test tests/benchmarks/hooks-performance.test.ts`      |
-| **DB Raw Read (SQLite)**           | **0.094ms p95**                                             | `bun test tests/benchmarks/database-performance.test.ts`   |
-| **DB Raw Write (SQLite)**          | **0.125ms** (INSERT)                                        | `bun test tests/benchmarks/database-performance.test.ts`   |
-| **Cache L1 Hit**                   | **<0.001ms** (pre-compressed turbo HIT, zero re-stringify)  | `bun test tests/benchmarks/cache-service.test.ts`          |
-| **Negative Cache HIT**             | **0.003ms** (5667× speedup)                                 | `bun test tests/benchmarks/cache-service.test.ts`          |
-| **Cache Invalidation (bulk)**      | Reduced alloc by ~3-5× (iterator + batch tag guard)         | `bun test tests/benchmarks/cache-service.test.ts`          |
+
+| Metric                        | SveltyCMS (measured)                                       | How to reproduce                                         |
+| :---------------------------- | :--------------------------------------------------------- | :------------------------------------------------------- |
+| **DB Raw Read (SQLite)**      | **0.094ms p95**                                            | `bun test tests/benchmarks/database-performance.test.ts` |
+| **DB Raw Write (SQLite)**     | **0.125ms** (INSERT)                                       | `bun test tests/benchmarks/database-performance.test.ts` |
+| **Cache L1 Hit**              | **<0.001ms** (pre-compressed turbo HIT, zero re-stringify) | `bun test tests/benchmarks/cache-service.test.ts`        |
+| **Negative Cache HIT**        | **0.003ms** (5667× speedup)                                | `bun test tests/benchmarks/cache-service.test.ts`        |
+| **Cache Invalidation (bulk)** | Reduced alloc by ~3-5× (iterator + batch tag guard)        | `bun test tests/benchmarks/cache-service.test.ts`        |
 
 | **Compression Ratio (Brotli)** | **~65% avg** on CMS JSON payloads | `bun test tests/benchmarks/hooks-performance.test.ts` |
 | **Setup Seeding** | **~80 round-trips → 1 batch query** (setMany + bulkUpdate) | `bun test tests/benchmarks/database-performance.test.ts` |
@@ -126,8 +138,11 @@ _Note: All SveltyCMS metrics sourced from our June 2026 benchmark matrix — 48 
 - **Zero-dependency FTS**: Full-text search across all 4 databases without requiring MeiliSearch, Typesense, or Elasticsearch.
 
 - **Relational batch upserts (June 2026)**: `bulkUpdate` + `setMany` converted from N individual SELECT+UPSERT loops to single `INSERT ... VALUES(list) ON CONFLICT` — delivering 78-88% latency reduction and 336% RPS increase on content sync paths. This is the direct result of the Phase 3a/3c multi-row Drizzle refactor.
+
 - **Smart Entropy Compression (June 2026)**: Pre-compressed Brotli/gzip variants stored on cache MISS, served directly on HIT — zero re-stringify, zero re-compress on repeated traffic. Compression metrics (`avgOriginalSize`, `avgCompressedSize`, `avgRatio`) exported on every benchmark run. zstd dictionary builder (Phase 3b) generated 110KB trained dictionary for extra 10-25% ratio on repetitive CMS JSON.
+
 - **Non-blocking audit (June 2026)**: Audit logging converted to fire-and-forget with context capture before `await resolve(event)`. Audit overhead now negative (-3.57ms delta) — the mutation path is faster than the full pipeline baseline.
+
 - **Enterprise scaling layers (June 2026)**: First-class PgBouncer/ProxySQL/Redis/Nginx documentation with `DATABASE_PREPARE` flag, pooler URL support, and deployment examples. All scaling layers are optional and composable — single-node SQLite + L1 cache remains excellent for simple deployments.
 
 ## 🔬 Self-Auditing Performance Culture
@@ -135,12 +150,19 @@ _Note: All SveltyCMS metrics sourced from our June 2026 benchmark matrix — 48 
 SveltyCMS's relentless improvement is powered by an enterprise-grade benchmark intelligence system:
 
 - **48-Test Matrix Across 9 Dimensions**: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance — all four databases (SQLite, MongoDB, MariaDB, PostgreSQL) with Redis variants.
+
 - **Smart Trend Analysis**: Rolling median baselines, 7 root cause categories, confidence levels (suspected/confirmed/watch), and adaptive budgets that learn from history.
+
 - **Cross-Test Correlation**: Single test regressions are checked against related tests in history.sqlite — "is this just auth, or is the entire middleware pipeline degraded?"
+
 - **Code Path Recommendations**: Each regression links to specific source files to investigate (`src/hooks/handle-authentication.ts` · `src/databases/<db>/crud-methods.ts`).
+
 - **8 Database Reports**: Educational MDX reports with Measures/Budget/Code/Why context, atomic writes, and trend labels.
+
 - **Differential Execution**: `--differential` flag runs only tests whose codePaths overlap with git diff.
+
 - **Predictive Forecasting**: `benchmark-intelligence.ts` predicts budget breach in N runs.
+
 - **Per-Phase Timing**: `exportSubMetric()` API for sub-component breakdown (auth.jwt.verify, auth.session.lookup).
 
 **How to reproduce:**

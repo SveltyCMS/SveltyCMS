@@ -226,17 +226,17 @@ SveltyCMS/
 
 Every `.mdx` file must begin with a complete YAML frontmatter block. All fields are required.
 
-| Field         | Type   | Purpose                                                                                                          | Example                                     |
-| :------------ | :----- | :--------------------------------------------------------------------------------------------------------------- | :------------------------------------------ |
-| `path`        | string | Full path from project root. Used for routing and identification. Must exactly match the file's actual location. | `"docs/api/Collection_API.mdx"`             |
-| `title`       | string | Main H1 heading. Shown in navigation, browser tab, and search results.                                           | `"Collection API"`                          |
-| `description` | string | One-sentence summary for SEO and link previews.                                                                  | `"CRUD operations for collection entries."` |
-| `order`       | number | Position in sidebar navigation relative to siblings. Lower = higher.                                             | `15`                                        |
-| `icon`        | string | Material Design Icon with `mdi:` prefix.                                                                         | `"mdi:api"`                                 |
-| `author`      | string | GitHub username of the original author.                                                                          | `"your-github-handle"`                      |
-| `created`     | string | Creation date in `YYYY-MM-DD` format. Set once, never change.                                                    | `"2025-10-05"`                              |
-| `updated`     | string | Date of last meaningful change. Update with every PR that modifies content.                                      | `"2026-03-27"`                              |
-| `tags`        | array  | Lowercase kebab-case keywords for search and filtering.                                                          | `["api", "collections", "crud"]`            |
+| Field         | Type   | Purpose                                                        | Example                                     |
+| :------------ | :----- | :------------------------------------------------------------- | :------------------------------------------ |
+| `path`        | string | File path from project root for routing and identification.    | `"docs/api/Collection_API.mdx"`             |
+| `title`       | string | H1 heading used in nav, browser tab, and search results.       | `"Collection API"`                          |
+| `description` | string | SEO summary for link previews.                                 | `"CRUD operations for collection entries."` |
+| `order`       | number | Sidebar position relative to siblings. Lower = higher.         | `15`                                        |
+| `icon`        | string | Material Design Icon with `mdi:` prefix.                       | `"mdi:api"`                                 |
+| `author`      | string | GitHub username of the original author.                        | `"your-github-handle"`                      |
+| `created`     | string | Creation date in `YYYY-MM-DD`. Set once, never change.         | `"2025-10-05"`                              |
+| `updated`     | string | Last modification date. Update with every PR.                  | `"2026-03-27"`                              |
+| `tags`        | array  | Lowercase kebab-case keywords for search.                      | `["api", "collections", "crud"]`            |
 
 **Correct frontmatter example:**
 

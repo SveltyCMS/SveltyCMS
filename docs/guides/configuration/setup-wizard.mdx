@@ -106,7 +106,7 @@ sequenceDiagram
     H->>H: Execute Turbo Pipeline (~0.05ms)
 ```
 
-#### Performance Benchmarks
+**Performance Benchmarks**
 
 Based on `tests/benchmarks/hooks-performance.test.ts`, the setup-aware gating achieves significantly lower latency for fresh installs:
 
@@ -631,17 +631,17 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
 
 ### Available Presets
 
-#### 1. Blank Project
+**1. Blank Project**
 
 - **Best for**: Custom builds, experimental projects.
 - **Includes**: Minimal configuration. No collections.
 
-#### 2. Demo / Test Suite
+**2. Demo / Test Suite**
 
 - **Best for**: Technical evaluations, showcasing all CMS capabilities.
 - **Includes**: All widget types, deep collection nesting, relations, and revision history.
 
-#### 3. Blog / Editorial
+**3. Blog / Editorial**
 
 - **Best for**: Content-heavy sites, news portals.
 - **Collections**:
@@ -649,7 +649,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
   - `Categories`: Hierarchical organization.
   - `Authors`: Contributor profiles.
 
-#### 4. Agency / Portfolio
+**4. Agency / Portfolio**
 
 - **Best for**: Design agencies, freelancers, creative studios.
 - **Collections**:
@@ -658,7 +658,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
   - `Clients`: Client logos and information.
   - `Testimonials`: Social proof and reviews.
 
-#### 5. SaaS Product
+**5. SaaS Product**
 
 - **Best for**: Software companies, product landing pages.
 - **Collections**:
@@ -667,7 +667,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
   - `Docs`: Nested documentation structure.
   - `Changelog`: Product updates.
 
-#### 6. Corporate Site
+**6. Corporate Site**
 
 - **Best for**: Business websites, company profiles.
 - **Collections**:
@@ -675,7 +675,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
   - `Careers`: Job openings and descriptions.
   - `Locations`: Office addresses with map coordinates.
 
-#### 7. E-commerce
+**7. E-commerce**
 
 - **Best for**: Online stores, catalogs.
 - **Collections**:
@@ -692,7 +692,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
 
 The wizard implements a two-tier validation system:
 
-#### 1. Client-Side Validation (Real-time)
+**1. Client-Side Validation (Real-time)**
 
 **Technology**: Valibot schemas with Svelte 5 runes
 
@@ -748,7 +748,7 @@ const displayErrors = $derived<Record<string, string>>({
 - Reduces form submission errors
 - Better user experience
 
-#### 2. Server-Side Validation
+**2. Server-Side Validation**
 
 **Location**: Parent component (`+page.svelte`)
 
@@ -833,7 +833,7 @@ Each input field follows this pattern:
 
 ### Error Categories
 
-#### 1. Validation Errors
+**1. Validation Errors**
 
 **Source**: Client-side or server-side validation
 
@@ -851,7 +851,7 @@ Each input field follows this pattern:
 ❌ Passwords do not match
 ```
 
-#### 2. Network Errors
+**2. Network Errors**
 
 **Source**: Failed API calls
 
@@ -868,7 +868,7 @@ Each input field follows this pattern:
 💡 Check your internet connection and try again
 ```
 
-#### 3. Database Errors
+**3. Database Errors**
 
 **Source**: Database connection test failures
 
@@ -909,7 +909,7 @@ Connection Details:
 - Ensure database user has correct permissions
 ```
 
-#### 4. Driver Installation Errors
+**4. Driver Installation Errors**
 
 **Source**: Failed automatic driver installation
 
@@ -936,7 +936,7 @@ You can:
 
 ### Error Recovery Strategies
 
-#### Auto-retry
+**Auto-retry**
 
 ```
 async function testDatabaseConnection() {
@@ -968,7 +968,7 @@ async function testDatabaseConnection() {
 }
 ```
 
-#### Graceful Degradation
+**Graceful Degradation**
 
 ```
 async function completeSetup() {
@@ -983,7 +983,7 @@ async function completeSetup() {
 }
 ```
 
-#### User Guidance
+**User Guidance**
 
 ```
 function classifyDatabaseError(error: DatabaseError): string {
@@ -1576,7 +1576,7 @@ it("should complete entire setup process", async () => {
 
 ### Common Issues
 
-#### Issue: Validation Errors Not Showing
+**Issue: Validation Errors Not Showing**
 
 **Symptoms**: Input changes but no error messages appear
 
@@ -1606,7 +1606,7 @@ const displayErrors = $derived<Record<string, string>>({
 });
 ```
 
-#### Issue: Form Data Not Persisting
+**Issue: Form Data Not Persisting**
 
 **Symptoms**: Data lost on page refresh
 
@@ -1624,7 +1624,7 @@ onMount(() => {
 });
 ```
 
-#### Issue: Duplicate Submissions
+**Issue: Duplicate Submissions**
 
 **Symptoms**: Multiple API calls on button click
 
@@ -1650,7 +1650,7 @@ async function completeSetup() {
 }
 ```
 
-#### Issue: Unsaved Changes Warning Not Working
+**Issue: Unsaved Changes Warning Not Working**
 
 **Symptoms**: No warning when closing browser with unsaved data
 
@@ -1679,7 +1679,7 @@ onMount(() => {
 });
 ```
 
-#### Issue: Database Test Fails with "Driver Not Found"
+**Issue: Database Test Fails with "Driver Not Found"**
 
 **Symptoms**: Error about missing mongoose package
 
@@ -1698,7 +1698,7 @@ pnpm add mongoose
 
 Then clear localStorage and retry test.
 
-#### Issue: Step Navigation Broken
+**Issue: Step Navigation Broken**
 
 **Symptoms**: Cannot click on completed steps
 

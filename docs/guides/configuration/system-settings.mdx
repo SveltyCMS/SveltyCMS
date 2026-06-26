@@ -73,11 +73,11 @@ sequenceDiagram
 
 ### Search & Navigation
 
-#### Global Search
+**Global Search**
 
 A search bar at the top allows you to filter setting groups by name or description, helping you quickly find relevant configurations.
 
-#### Responsive Tabs
+**Responsive Tabs**
 
 - **Desktop:** Vertical sidebar for group selection.
 - **Mobile/Tablet:** Horizontal scrolling tabs at the top for quick switching between categories.
@@ -86,13 +86,13 @@ A search bar at the top allows you to filter setting groups by name or descripti
 
 Two informational banners appear at the top:
 
-#### Administrator Warning (Yellow)
+**Administrator Warning (Yellow)**
 
 - Reminds you that these are critical system settings
 - Changes may require server restart
 - Review changes carefully before saving
 
-#### Dynamic Configuration Info (Blue)
+**Dynamic Configuration Info (Blue)**
 
 - Explains that settings are loaded dynamically from the database
 - Most changes take effect immediately without restart
@@ -139,7 +139,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 
 ### Cache Categories
 
-#### 1. Schema Cache (Default: 600 seconds / 10 minutes)
+**1. Schema Cache (Default: 600 seconds / 10 minutes)**
 
 **What it is:**
 
@@ -158,7 +158,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 - Higher TTL = Faster schema access, less database queries
 - Lower TTL = More frequent schema updates, higher database load
 
-#### 2. Widget Cache (Default: 600 seconds / 10 minutes)
+**2. Widget Cache (Default: 600 seconds / 10 minutes)**
 
 **What it is:**
 
@@ -177,7 +177,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 - Higher TTL = Faster widget loading
 - Lower TTL = More responsive to widget configuration changes
 
-#### 3. Theme Cache (Default: 300 seconds / 5 minutes)
+**3. Theme Cache (Default: 300 seconds / 5 minutes)**
 
 **What it is:**
 
@@ -196,7 +196,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 - Higher TTL = Faster page rendering
 - Lower TTL = Quicker theme update reflection
 
-#### 4. Content Cache (Default: 180 seconds / 3 minutes)
+**4. Content Cache (Default: 180 seconds / 3 minutes)**
 
 **What it is:**
 
@@ -215,7 +215,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 - Higher TTL = Less database load, faster content delivery
 - Lower TTL = More up-to-date content, higher database queries
 
-#### 5. Media Cache (Default: 300 seconds / 5 minutes)
+**5. Media Cache (Default: 300 seconds / 5 minutes)**
 
 **What it is:**
 
@@ -234,7 +234,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 - Higher TTL = Faster media library browsing
 - Lower TTL = More current media metadata
 
-#### 6. API Cache (Default: 900 seconds / 15 minutes)
+**6. API Cache (Default: 900 seconds / 15 minutes)**
 
 **What it is:**
 
@@ -242,7 +242,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 - External API data
 - Cached API calls
 
-#### 7. Static Cache (Default: 3600 seconds / 1 hour)
+**7. Static Cache (Default: 3600 seconds / 1 hour)**
 
 **What it is:**
 
@@ -250,7 +250,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 - Compiled templates
 - Build artifacts
 
-#### 8. Collection Cache (Default: 600 seconds / 10 minutes)
+**8. Collection Cache (Default: 600 seconds / 10 minutes)**
 
 **What it is:**
 
@@ -260,14 +260,14 @@ The top section displays configured TTLs in an easy-to-read grid:
 
 ### Using the Cache Interface
 
-#### Editing TTL Values
+**Editing TTL Values**
 
 1. **Input fields:** Each category has a number input field
 2. **Units:** Values are in seconds (1-86400)
 3. **Duration Display:** Shows formatted time (e.g., "5m", "10m", "3h 30m")
 4. **Validation:** Prevents invalid values (must be 1-86400)
 
-#### Saving Changes
+**Saving Changes**
 
 1. Modify one or more TTL values
 2. Click **"Save Changes"** button
@@ -275,7 +275,7 @@ The top section displays configured TTLs in an easy-to-read grid:
 4. New values take effect for future cache entries
 5. Existing cached items expire based on their original TTL
 
-#### Reset to Defaults
+**Reset to Defaults**
 
 Click **"Reset to Defaults"** to restore all TTL values to recommended defaults:
 
@@ -290,7 +290,7 @@ Click **"Reset to Defaults"** to restore all TTL values to recommended defaults:
 
 ### Recommended Settings by Environment
 
-#### Development
+**Development**
 
 ```
 Schema:  300s  (5 min)  - Frequent schema changes
@@ -303,7 +303,7 @@ Static:  60s   (1 min)  - Rapid asset changes
 Collection: 300s (5 min) - Schema testing
 ```
 
-#### Staging
+**Staging**
 
 ```
 Schema:  600s  (10 min) - Pre-production testing
@@ -316,7 +316,7 @@ Static:  600s  (10 min) - Asset validation
 Collection: 600s (10 min) - Data testing
 ```
 
-#### Production (Stable Content)
+**Production (Stable Content)**
 
 ```
 Schema:  1800s (30 min) - Schemas rarely change
@@ -329,7 +329,7 @@ Static:  3600s (1 hour) - Static assets
 Collection: 1800s (30 min) - Stable collections
 ```
 
-#### Production (Dynamic Content)
+**Production (Dynamic Content)**
 
 ```
 Schema:  900s  (15 min) - Moderate schema changes
@@ -342,7 +342,7 @@ Static:  1800s (30 min) - Occasional changes
 Collection: 900s (15 min) - Regular updates
 ```
 
-#### Production (High Traffic)
+**Production (High Traffic)**
 
 ```
 Schema:  3600s (1 hour) - Maximum caching
@@ -718,7 +718,7 @@ Settings: Loaded | Environment: Dynamic | Auto-save: Enabled
 4. Check server logs for errors
 5. Check browser console for JavaScript errors
 
-#### Problem: Content seems stale
+**Problem: Content seems stale**
 
 **Solutions:**
 
@@ -727,7 +727,7 @@ Settings: Loaded | Environment: Dynamic | Auto-save: Enabled
 3. Check if cache invalidation is working
 4. Verify database settings are correct
 
-#### Problem: High database load
+**Problem: High database load**
 
 **Solutions:**
 
@@ -736,7 +736,7 @@ Settings: Loaded | Environment: Dynamic | Auto-save: Enabled
 3. Check cache hit rates in monitoring
 4. Consider cache warming strategies
 
-#### Problem: Low cache hit rate
+**Problem: Low cache hit rate**
 
 **Solutions:**
 
@@ -745,7 +745,7 @@ Settings: Loaded | Environment: Dynamic | Auto-save: Enabled
 3. Check cache key patterns
 4. Review cache invalidation logic
 
-### Settings Issues
+**Settings Issues**
 
 ### Cannot Save Settings
 
@@ -757,7 +757,7 @@ Settings: Loaded | Environment: Dynamic | Auto-save: Enabled
 4. Check server logs for validation errors
 5. Verify field values meet validation requirements
 
-### Import/Export Issues
+**Import/Export Issues**
 
 ### Import Failed
 

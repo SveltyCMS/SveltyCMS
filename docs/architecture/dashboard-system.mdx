@@ -30,7 +30,7 @@ This document outlines the complete dashboard architecture, widget system, and i
 
 The dashboard is built on a flexible, grid-based widget system that allows administrators and users to create personalized monitoring interfaces tailored to their specific needs.
 
-### Core Architecture
+**Core Architecture**
 
 ```mermaid
 %%{ init: { 'theme': 'neutral' } }%%
@@ -82,7 +82,7 @@ graph TD
 
 ## Widget Architecture
 
-### Base Widget System
+**Base Widget System**
 
 All dashboard widgets extend the `base-widget.svelte` component, which provides:
 
@@ -135,48 +135,48 @@ export const widgetMeta = {
 
 Real-time system performance and health monitoring with adaptive h:1 compact / h:2+ rich layouts:
 
-#### **cpu-widget.svelte**
+**cpu-widget.svelte**
 
 - **Purpose**: Live CPU usage monitoring with SVG sparklines and h:1 compact mode
 - **Features**: Multi-core visualization, load average, temperature alerts
 - **Refresh**: 2-second intervals for real-time monitoring
 - **Size**: 2x2 grid units (default)
 
-#### **memory-widget.svelte**
+**memory-widget.svelte**
 
 - **Purpose**: RAM and swap usage tracking
 - **Features**: Used/available memory, swap utilization, memory pressure alerts
 - **Refresh**: 5-second intervals
 - **Size**: 2x2 grid units
 
-#### **disk-widget.svelte**
+**disk-widget.svelte**
 
 - **Purpose**: Storage usage and I/O performance
 - **Features**: Multiple disk monitoring, free space alerts, I/O statistics
 - **Refresh**: 30-second intervals (storage changes slowly)
 - **Size**: 2x2 grid units
 
-#### **cache-monitor-widget.svelte**
+**cache-monitor-widget.svelte**
 
 - **Purpose**: Application cache performance monitoring
 - **Features**: Hit/miss ratios, MB/GB size display, per-category breakdown, h:1 compact summary
 - **Refresh**: 10-second intervals
 - **Size**: 2x1 grid units
 
-#### **unified-metrics-widget.svelte** ⭐ _New_
+**unified-metrics-widget.svelte** ⭐ _New_
 
 - **Purpose**: Comprehensive system performance and security overview
 - **Features**: 3-tier layout (h:1 compact, h:2 rich, h:3+ full), health scoring, SVG sparklines
 - **Size**: 2x3 grid units (default, pollInterval: 6s)
 
-#### **system-health-widget.svelte**
+**system-health-widget.svelte**
 
 - **Purpose**: Overall system health status
 - **Features**: Aggregate health score, service status, uptime tracking
 - **Refresh**: 15-second intervals
 - **Size**: 3x1 grid units
 
-#### **database-pool-diagnostics.svelte** ⭐ _New_
+**database-pool-diagnostics.svelte** ⭐ _New_
 
 - **Purpose**: Real-time database connection pool monitoring
 - **Features**:
@@ -195,7 +195,7 @@ Real-time system performance and health monitoring with adaptive h:1 compact / h
 
 Enterprise-grade security monitoring and compliance tracking:
 
-#### **audit-log-widget.svelte** ⭐ _New_
+**audit-log-widget.svelte** ⭐ _New_
 
 - **Purpose**: Real-time audit log monitoring and security event tracking
 - **Features**:
@@ -208,7 +208,7 @@ Enterprise-grade security monitoring and compliance tracking:
 - **Size**: 3x3 grid units (accommodates rich security data)
 - **Role-Based**: Dynamically adapts content based on user permissions
 
-#### **security-widget.svelte**
+**security-widget.svelte**
 
 - **Purpose**: Advanced threat monitoring and incident response
 - **Features**: Threat level indicators, blocked IPs, CSP violations
@@ -220,14 +220,14 @@ Enterprise-grade security monitoring and compliance tracking:
 
 Content and media monitoring for editorial workflows:
 
-#### **last5-content-widget.svelte**
+**last5-content-widget.svelte**
 
 - **Purpose**: Recent content creation and editing activity
 - **Features**: Collection-based content listing, author attribution
 - **Refresh**: Manual refresh (content changes less frequently)
 - **Size**: 2x3 grid units
 
-#### **last5-media-widget.svelte**
+**last5-media-widget.svelte**
 
 - **Purpose**: Recent media uploads and management
 - **Features**: Thumbnail previews, upload statistics, storage usage
@@ -238,31 +238,31 @@ Content and media monitoring for editorial workflows:
 
 Operational insights and system communication:
 
-#### **logs-widget.svelte** ⭐ _Enhanced_
+**logs-widget.svelte** ⭐ _Enhanced_
 
 - **Purpose**: Filterable system log viewer
 - **Features**: Expandable cards, level filter, date range, text search, h:1 compact chips
 
-#### **system-messages-widget.svelte** ⭐ _Enhanced_
+**system-messages-widget.svelte** ⭐ _Enhanced_
 
 - **Purpose**: System notifications with severity indicators
 - **Features**: Severity-colored accents (critical/error/warning/info), auto-detected links, clickable expand, h:1 compact chips
 
-#### **user-online-widget.svelte** ⭐ _Enhanced_
+**user-online-widget.svelte** ⭐ _Enhanced_
 
 - **Purpose**: Real-time online user presence
 - **Features**: Role badges (admin/editor/viewer), green presence dots, Gravatar support, h:1 compact avatar chips
 
 - **Size**: 2x1 grid units
 
-#### **performance-widget.svelte**
+**performance-widget.svelte**
 
 - **Purpose**: Application performance metrics and optimization insights
 - **Features**: Response times, throughput, performance trends
 - **Refresh**: 15-second intervals
 - **Size**: 3x2 grid units
 
-#### **unified-metrics-widget.svelte**
+**unified-metrics-widget.svelte**
 
 - **Purpose**: Consolidated system metrics overview
 - **Features**: Multi-metric dashboard, customizable thresholds
@@ -403,7 +403,7 @@ function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
 - ✅ **Simpler Debugging**: Single component to trace
 - ✅ **Better DX**: One file to maintain instead of two
 
-### Performance Benchmarks
+**Performance Benchmarks**
 
 Based on production testing with 12 widgets:
 
@@ -413,7 +413,7 @@ Based on production testing with 12 widgets:
 - **Memory Usage**: 60% lower than eager loading
 - **Time to Interactive**: < 1.2s on 3G connection
 
-### Widget Categories & Defaults
+**Widget Categories & Defaults**
 
 Widgets are categorized for optimal performance configuration:
 
@@ -452,9 +452,9 @@ export const WIDGET_DEFAULTS = {
 
 The new **audit-log-widget** represents the latest advancement in dashboard security monitoring:
 
-### Role-Based Functionality
+**Role-Based Functionality**
 
-#### **Administrator View**
+**Administrator View**
 
 ```
 // Admin users see comprehensive security overview
@@ -470,7 +470,7 @@ if (isAdmin && !showPersonalOnly) {
 }
 ```
 
-#### **Regular User View**
+**Regular User View**
 
 ```
 // Regular users see personal activity only
@@ -523,7 +523,7 @@ Requests pass through the API dispatcher (`+server.ts`) which enforces authentic
 
 ### Endpoint Reference
 
-#### 1. **GET /api/dashboard/health**
+**1. GET /api/dashboard/health**
 
 System health check for dashboard widgets.
 
@@ -552,7 +552,7 @@ System health check for dashboard widgets.
 
 ---
 
-#### 2. **GET /api/dashboard/metrics**
+**2. GET /api/dashboard/metrics**
 
 Performance metrics from the MetricsService.
 
@@ -582,7 +582,7 @@ Performance metrics from the MetricsService.
 
 ---
 
-#### 3. **GET /api/dashboard/system-info**
+**3. GET /api/dashboard/system-info**
 
 Comprehensive system information: CPU, memory, disk, and OS.
 
@@ -632,7 +632,7 @@ Comprehensive system information: CPU, memory, disk, and OS.
 
 ---
 
-#### 4. **GET /api/dashboard/logs**
+**4. GET /api/dashboard/logs**
 
 System logs with ANSI color conversion to HTML.
 
@@ -676,7 +676,7 @@ System logs with ANSI color conversion to HTML.
 
 ---
 
-#### 5. **GET /api/dashboard/last5-content**
+**5. GET /api/dashboard/last5-content**
 
 Recent content from all collections via `LocalCMS.collections.search`.
 
@@ -711,7 +711,7 @@ Recent content from all collections via `LocalCMS.collections.search`.
 
 ---
 
-#### 6. **GET /api/dashboard/last5media**
+**6. GET /api/dashboard/last5media**
 
 Recent media files from the media library.
 
@@ -741,7 +741,7 @@ Recent media files from the media library.
 
 ---
 
-#### 7. **GET /api/dashboard/online-user**
+**7. GET /api/dashboard/online-user**
 
 Currently online users derived from active sessions (`getAllActiveSessions`).
 
@@ -774,7 +774,7 @@ Currently online users derived from active sessions (`getAllActiveSessions`).
 
 ---
 
-#### 8. **GET /api/dashboard/system-messages**
+**8. GET /api/dashboard/system-messages**
 
 System messages derived from audit logs.
 
@@ -810,7 +810,7 @@ System messages derived from audit logs.
 
 ---
 
-#### 9. **GET /api/dashboard/cache-metrics**
+**9. GET /api/dashboard/cache-metrics**
 
 Cache performance metrics from CacheMetrics service.
 
@@ -849,19 +849,19 @@ Cache performance metrics from CacheMetrics service.
 
 ---
 
-#### 10. **GET /api/dashboard/audit**
+**10. GET /api/dashboard/audit**
 
 Flat audit event feed for the audit-log widget.
 
 **Authentication**: Required (`dashboard:read`)
 
-#### 11. **GET /api/dashboard/security**
+**11. GET /api/dashboard/security**
 
 Security incident statistics and active threats.
 
 **Authentication**: Required (`dashboard:read`)
 
-#### 12. **GET /api/dashboard/scim**
+**12. GET /api/dashboard/scim**
 
 SCIM provisioning status for the scim-status widget.
 
