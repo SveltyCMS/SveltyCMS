@@ -67,7 +67,8 @@ export async function loginAs(
 
   // Navigate to login page (reload to apply init scripts)
   console.log("[Auth] Navigating to /login...");
-  await page.goto("/login", { waitUntil: "networkidle", timeout: 30_000 });
+  await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.waitForTimeout(500);
 
   // Check if we got redirected to setup (config incomplete)
   if (page.url().includes("/setup")) {
@@ -146,25 +147,14 @@ export async function loginAs(
     }
   }
 
-  // Strategy 4: Cookie consent banner (fixed bottom bar, z-9999, aria-modal)
-  // Try data-testid first (most reliable), then role-based fallback
+  // Strategy 4: Cookie consent banner (defense-in-depth fallback)
+  // The addInitScript above should prevent this, but dismiss if still visible
   const cookieAcceptBtn = page.getByTestId("cookie-accept-all");
   if (await cookieAcceptBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    console.log("[Auth] Cookie consent banner detected via testid, accepting...");
+    console.log("[Auth] Cookie consent still visible despite init script, accepting...");
     await cookieAcceptBtn.click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(300);
     console.log("[Auth] ✓ Cookie consent accepted");
-  } else {
-    const cookieBanner = page.locator('[role="dialog"][aria-modal="true"]').first();
-    if (await cookieBanner.isVisible({ timeout: 1000 }).catch(() => false)) {
-      console.log("[Auth] Cookie consent banner detected via role, accepting...");
-      const acceptBtn = cookieBanner.getByRole("button", { name: /accept/i });
-      if (await acceptBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await acceptBtn.click();
-        await page.waitForTimeout(500);
-        console.log("[Auth] ✓ Cookie consent accepted");
-      }
-    }
   }
 
   console.log("[Auth] Modal dismissal complete.");
