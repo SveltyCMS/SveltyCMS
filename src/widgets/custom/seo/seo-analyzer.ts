@@ -22,7 +22,7 @@ import type {
   SeoSuggestion,
   TechnicalSeo,
 } from "./seo-types";
-import { calculateReadability } from "@src/utils/seo/readability";
+import { calculateReadability } from "@src/utils/readability";
 
 export class SeoAnalyzer {
   private readonly config: SeoAnalysisConfig;

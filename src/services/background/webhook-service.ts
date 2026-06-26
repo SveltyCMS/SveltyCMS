@@ -8,6 +8,7 @@ import { generateUUID } from "@utils/native-utils";
 import { dbAdapter } from "@src/databases/db";
 import { jobQueue } from "./jobs/job-queue-service";
 import { webhookDeliveryHandler } from "./jobs/webhook-jobs";
+import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 
 export interface Webhook {
   id: string;

@@ -686,8 +686,9 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
   - The gate **ends with a literal final re-execution** of the documented parity commands (including `lint:docs`).
   - Multiple fail-closed "tree must be clean" checks (after format + at the absolute end).
   - Both pre-commit (fast full gate) and pre-push (build + integration + E2E) are required.
+  - **Import validation**: `scripts/validate-imports.ts` scans ALL imports in `src/` and `tests/` — catches stale paths from file moves without a full build. Runs in ~200ms as part of pre-push.
 
-  Using `git commit --no-verify` or `git push --no-verify` is now explicitly a policy violation except genuine emergencies.
+  Using `git commit --no-verify` or `git push --no-verify` is now explicitly a policy violation except genuine emergencies. **If the gate fails, FIX the underlying issue — never bypass the gate.**
 
   **Realistic maximum**: Extremely high confidence on the developer's machine (Windows or Unix) that the commit will pass the matching GitHub Actions jobs. The only true 100% guarantee is GitHub branch protection rules that require green status checks before merge to `next` or `main`. Local hooks + the final parity re-verification are defense-in-depth + team culture.
 

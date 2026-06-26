@@ -4,6 +4,39 @@
  */
 
 /**
+ * Forms definition for localized plural categories.
+ */
+export interface PluralForms {
+  zero?: string;
+  one?: string;
+  two?: string;
+  few?: string;
+  many?: string;
+  other: string;
+}
+
+/**
+ * i18n pluralization using Intl.PluralRules with explicit zero-form support.
+ */
+export function pluralize(
+  count: number,
+  forms: PluralForms,
+  locale = "en",
+  appendCount = false,
+): string {
+  const rule = new Intl.PluralRules(locale).select(count);
+  // Special case: Intl.PluralRules maps 0 to 'other' in many languages,
+  // but 'zero' should be used when explicitly provided.
+  let result = forms.other;
+  if (count === 0 && forms.zero !== undefined) {
+    result = forms.zero;
+  } else if (forms[rule] !== undefined) {
+    result = forms[rule]!;
+  }
+  return appendCount ? `${count} ${result}` : result;
+}
+
+/**
  * Escapes regex metacharacters in a string.
  */
 export function escapeRegex(string: string): string {

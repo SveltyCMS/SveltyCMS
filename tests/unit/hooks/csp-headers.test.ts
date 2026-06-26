@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { API_CONTENT_SECURITY_POLICY, BASE_HEADERS } from "@src/utils/security-constants";
+import { API_CONTENT_SECURITY_POLICY, BASE_HEADERS } from "@src/utils/security/constants";
 import { applyAllSecurityHeaders } from "@src/hooks/handle-security-headers";
 import { applySecurityHeaders } from "@src/utils/hook-utils";
 

@@ -10,7 +10,7 @@ import { metricsService } from "@src/services/observability/metrics-service";
 import { auditLogService } from "@src/services/security/audit-service";
 import { getSystemInfo } from "@utils/system-info.server";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { parseSessionDuration } from "@utils/auth-utils";
+import { parseSessionDuration } from "@utils/security/auth-utils";
 import type { Session } from "@src/databases/auth/types";
 import { rawResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";

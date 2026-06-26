@@ -147,7 +147,7 @@ async function handleGoogleUser(
     throw new Error("Google did not return an email address");
   }
 
-  const { isSetupCompleteAsync } = await import("@utils/setup-check");
+  const { isSetupCompleteAsync } = await import("@utils/server/setup-check");
   const setupComplete = await isSetupCompleteAsync();
 
   if (googleUser.locale) {

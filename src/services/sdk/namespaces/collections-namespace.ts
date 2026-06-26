@@ -6,24 +6,28 @@
 import { modifyRequest, modifyStream, type EntryData } from "@utils/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
-
-let _contentSystem: any = null;
-async function getContentSystem() {
-  if (!_contentSystem) {
-    const mod = await import("@src/content/index.server");
-    _contentSystem = mod.contentSystem;
-  }
-  return _contentSystem;
-}
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import * as crypto from "node:crypto";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
+import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { Schema, FieldInstance } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { pluginRegistry } from "@src/plugins/registry";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
+
+type ContentSystem = typeof serverContentSystem;
+
+let resolvedContentSystem: ContentSystem | null = null;
+
+async function getContentSystem(): Promise<ContentSystem> {
+  if (!resolvedContentSystem) {
+    const mod = await import("@src/content/index.server");
+    resolvedContentSystem = mod.contentSystem;
+  }
+  return resolvedContentSystem;
+}
 
 /**
  * Collections Namespace
@@ -44,7 +48,7 @@ export class CollectionsNamespace {
 
   constructor(
     private _dbAdapter: IDBAdapter,
-    private _contentSystemOverride?: any,
+    private _contentSystemOverride?: ContentSystem,
   ) {
     if (!(this._dbAdapter as any).collection) {
       const proto = (this._dbAdapter as any).constructor?.prototype;
@@ -90,18 +94,12 @@ export class CollectionsNamespace {
     });
   }
 
-  private get _contentSystem() {
-    return this._contentSystemOverride || _contentSystem;
+  private get _contentSystem(): ContentSystem | null {
+    return this._contentSystemOverride || resolvedContentSystem;
   }
 
-  /**
-   * Async resolver — ensures the lazily-imported content system is loaded
-   * before use. Sync callers can use the `_contentSystem` getter (which may
-   * be null until first async resolution), but async code should prefer this.
-   */
-  private async _resolveContentSystem() {
-    if (this._contentSystemOverride) return this._contentSystemOverride;
-    return await getContentSystem();
+  private async _resolveContentSystem(): Promise<ContentSystem> {
+    return this._contentSystemOverride || getContentSystem();
   }
 
   private normalizeRelationshipFilter(filter: any): any {
@@ -415,8 +413,8 @@ export class CollectionsNamespace {
       baseFilter.status = status;
     }
 
+    const cs = await getContentSystem();
     const searchPromises = collectionsToSearch.map(async (collectionId) => {
-      const cs = await getContentSystem();
       const collection = await cs.getCollectionById(collectionId, tenantId);
       if (!collection) return [];
 
@@ -732,8 +730,7 @@ export class CollectionsNamespace {
     const freshDb = getDb();
     if (freshDb) this._dbAdapter = freshDb;
 
-    const cs = await this._resolveContentSystem();
-    return cs.refresh(tenantId as any, skipReconciliation);
+    return this._contentSystem?.refresh(tenantId as any, skipReconciliation);
   }
 
   async getStructure(tenantId?: DatabaseId | null) {

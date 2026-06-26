@@ -140,7 +140,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         })
         .catch((_err) => {
           initializationState = "failed";
-          logger.error("[handleSystemState] Initialization failed", err);
+          logger.error("[handleSystemState] Initialization failed", _err);
         });
       if (!event.isDataRequest && isBootstrapRoute(pathname)) {
         logger.debug(`[handleSystemState] Backgrounding init for route: ${pathname}`);

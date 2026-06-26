@@ -5,7 +5,7 @@
 
 import type { Handle } from "@sveltejs/kit";
 import { dev } from "$app/environment";
-import { MEDIA_RESOURCE_HEADERS } from "@utils/security-constants";
+import { MEDIA_RESOURCE_HEADERS } from "@utils/security/constants";
 
 const IMMUTABLE_ASSET_REGEX =
   /^\/(?:_app\/|static\/|files\/|favicon\.ico|manifest\.webmanifest|apple-touch-icon.*\.png|robots\.txt|sitemap\.xml)|.*\.(?:js|css|map|svg|png|jpe?g|gif|webp|avif|woff2?|ttf|eot)$/i;

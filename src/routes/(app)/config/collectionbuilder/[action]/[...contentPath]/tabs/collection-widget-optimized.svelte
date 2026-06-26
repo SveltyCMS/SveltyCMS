@@ -241,18 +241,10 @@ function generatePreviewSpec(fieldsToRender: FieldInstance[]): Spec {
 }
 
 const quickWidgets = [
-	{ key: "Input", icon: "material-symbols:text-fields", label: "Short Text" },
-	{
-		key: "RichText",
-		icon: "material-symbols:format-list-bulleted-rounded",
-		label: "Rich Text",
-	},
-	{ key: "MediaUpload", icon: "material-symbols:image-outline", label: "Image" },
-	{
-		key: "Relation",
-		icon: "material-symbols:account-tree-outline",
-		label: "Relation",
-	},
+  { key: "Input", icon: "material-symbols:text-fields", label: "Short Text" },
+  { key: "RichText", icon: "material-symbols:format-list-bulleted-rounded", label: "Rich Text" },
+  { key: "MediaUpload", icon: "material-symbols:image-outline", label: "Image" },
+  { key: "Relation", icon: "material-symbols:account-tree-outline", label: "Relation" },
 ];
 
 function addQuickWidget(key: string) {
@@ -278,8 +270,6 @@ function addQuickWidget(key: string) {
 		];
 		updateStore();
 		toast.success(`Added ${key} field`);
-	} else {
-		toast.error(`Widget "${key}" not found. Widget store may still be loading.`);
 	}
 }
 

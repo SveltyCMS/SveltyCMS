@@ -35,6 +35,7 @@ import {
   type InferInput as ValibotInput,
 } from "valibot";
 import type { MediaProps } from "./types";
+import type { DatabaseId } from "@src/content/types";
 
 // ✅ SSOT: Validation Schema - Exported for use in Input.svelte
 export const createValidationSchema = (
@@ -74,26 +75,29 @@ const MediaWidget = createWidget<MediaProps>({
   },
 
   modifyRequest: async ({ data, field, user, tenantId, collectionName }) => {
-    if (import.meta.env.SSR) {
-      const accessor = data as any;
-      const value = accessor.get();
-      if (!value) {
-        return {};
-      }
+    if (!import.meta.env.SSR) return {};
 
-      const { processSingleUpload, processMultiUpload } = await import(
-        /* @vite-ignore */ "@src/widgets/core/media-upload/process-upload"
-      );
+    const accessor = data as {
+      get: () => unknown;
+      update: (v: unknown) => void;
+    };
+    const value = accessor.get();
+    if (!value) return {};
 
-      if (value instanceof File) {
-        const id = await processSingleUpload(value, field as any, user, tenantId, collectionName);
-        if (id) {
-          accessor.update(id);
-        }
-      } else if (Array.isArray(value)) {
-        const ids = await processMultiUpload(value, field as any, user, tenantId, collectionName);
-        accessor.update(ids);
-      }
+    // Delegate to extracted server-side helper — keeps widget import tree clean
+    const { processMediaUpload } = await import("./process-upload");
+    const { ids, isMulti } = await processMediaUpload(value, {
+      field: {
+        folder: (field as Record<string, unknown>).folder as string | undefined,
+        multiupload: (field as Record<string, unknown>).multiupload as boolean | undefined,
+      },
+      user: { _id: (user as Record<string, unknown>)._id as DatabaseId },
+      tenantId: String(tenantId ?? "default"),
+      collectionName: collectionName ? String(collectionName) : undefined,
+    });
+
+    if (ids.length > 0) {
+      accessor.update(isMulti ? ids : ids[0]);
     }
     return {};
   },
