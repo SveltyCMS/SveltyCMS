@@ -34,7 +34,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	interface Props {
 		open?: boolean;
 		title?: string;
-		size?: 'sm' | 'md' | 'lg' | 'xl' | 'fullscreen';
+		size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'fullscreen';
 		color?: 'surface' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error';
 		class?: string;
 		header?: Snippet;
@@ -82,6 +82,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		md: 'max-w-lg',
 		lg: 'max-w-2xl',
 		xl: 'max-w-4xl',
+		'2xl': 'max-w-7xl',
 		fullscreen: 'h-full w-full rounded-none border-0',
 	};
 
@@ -103,7 +104,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		onclick={dialog.onBackdropClick}
 		onkeydown={dialog.onKeydown}
 		class={cn(
-			'fixed inset-0 z-101 m-auto bg-transparent border-0 p-0 overflow-visible backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
+			'fixed inset-0 z-101 m-auto bg-transparent border-0 p-0 overflow-hidden w-full backdrop:bg-surface-900/70 backdrop:backdrop-blur-sm',
 			'open:flex items-center justify-center p-4 sm:p-6 lg:p-8',
 		)}
 		{...dialog.dialogAria}
@@ -114,7 +115,8 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			data-dialog-content
 			class={cn(
 				'card shadow-2xl transition-all duration-300 transform scale-100 opacity-100',
-				'flex flex-col border overflow-hidden w-full m-auto',
+				'flex flex-col border w-full m-auto',
+				isFullscreen ? 'h-full overflow-hidden rounded-none border-0' : 'max-h-[85vh] overflow-hidden',
 				sizeClasses[size],
 				colorClasses[color],
 				className,
@@ -147,9 +149,9 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			<div
 				data-dialog-body
 				class={cn(
-				'flex-1 min-h-0',
-				isFullscreen ? 'overflow-hidden p-0' : 'overflow-y-auto p-4 sm:p-6',
-			)}>
+					'flex-1 min-h-0',
+					isFullscreen ? 'overflow-hidden p-0' : 'overflow-y-auto p-4 sm:p-6',
+				)}>
 				{#if children}
 					{@render children()}
 				{/if}
@@ -165,36 +167,36 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	</dialog>
 </Portal>
 
-	<style>
-		dialog::backdrop {
-			animation: fade-in 0.3s ease-out forwards;
-		}
+<style>
+	dialog::backdrop {
+		animation: fade-in 0.3s ease-out forwards;
+	}
 
-		/* Prevent scroll chaining — scrolling past modal bounds stays inside modal */
-		dialog {
-			overscroll-behavior: contain;
-		}
+	dialog[open] > div {
+		animation: zoom-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	}
 
-		/* Prevent width shift when scrollbar appears in modal body */
-		[data-dialog-content] [data-dialog-body] {
-			scrollbar-gutter: stable;
-		}
+	/* Prevent scroll chaining — scroll inside modal stays inside modal */
+	dialog {
+		overscroll-behavior: contain;
+	}
 
-		dialog[open] > div {
-			animation: zoom-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-		}
+	/* Prevent width shift when scrollbar appears */
+	[data-dialog-content] [data-dialog-body] {
+		scrollbar-gutter: stable;
+	}
 
-		@keyframes fade-in {
-			from { opacity: 0; }
-			to { opacity: 1; }
-		}
+	@keyframes fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
 
-		@keyframes zoom-in {
-			from { transform: scale(0.95); opacity: 0; }
-			to { transform: scale(1); opacity: 1; }
-		}
+	@keyframes zoom-in {
+		from { transform: scale(0.95); opacity: 0; }
+		to { transform: scale(1); opacity: 1; }
+	}
 
-		dialog:focus {
-			outline: none;
-		}
-	</style>
+	dialog:focus {
+		outline: none;
+	}
+</style>

@@ -47,6 +47,7 @@
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
+	import { fade } from 'svelte/transition';
 
 	type DefaultBehaviorFn = () => void;
 
@@ -108,9 +109,21 @@
 	}
 </script>
 
-	<div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-1.5 backdrop-blur-sm dark:bg-surface-950/95">
-		<div class="flex min-w-0 items-center">
-			<div class="flex flex-col ms-2 min-w-0">
+<div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-1.5 backdrop-blur-sm dark:bg-surface-950/95">
+	<div class="flex min-w-0 items-center">
+		{#if ui.state.leftSidebar === 'hidden'}
+			<div transition:fade={{ duration: 300 }}>
+			<Button variant="ghost"
+				type="button"
+				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
+				aria-label="Open Sidebar"
+				class="flex h-10 w-10 items-center justify-center rounded-full! border border-surface-400 p-0! min-w-0 dark:border-surface-500"
+			>
+				<iconify-icon icon="bi:list" width="24" class="text-surface-700 dark:text-surface-200"></iconify-icon>
+			</Button>
+			</div>
+		{/if}
+		<div class="flex flex-col ms-2 min-w-0">
 			<h1
 				class="transition-max-width h1 relative flex items-center gap-1 font-bold"
 				style="font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);"
