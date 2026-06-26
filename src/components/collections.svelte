@@ -238,7 +238,7 @@ import { collection_no_collections_found, collections_search } from '@src/paragl
 			return total;
 		}
 
-		function getBadgeColor(status: StatusType | undefined = undefined) {
+		function getBadgeColor(status: StatusType | undefined = undefined): string {
 			const map: Record<StatusType, string> = {
 				[StatusTypes.publish]: 'bg-tertiary-500 dark:bg-primary-500',
 				[StatusTypes.draft]: 'bg-warning-500',

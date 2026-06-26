@@ -261,14 +261,14 @@
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 		positioning={{ placement: 'right' }}
-		triggerClass="absolute top-2 z-20 ltr:-end-6 rtl:-start-6"
+		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
 	>
 		<Button variant="ghost"
 			type="button"
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			aria-expanded={isSidebarFull}
-			class="flex h-10 w-10 items-center justify-center rounded-full! border border-surface-400 p-0! min-w-0 dark:border-surface-500"
+			class="flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0! min-w-0 dark:border-white"
 		>
 			<iconify-icon
 				icon="bi:arrow-left"
@@ -578,7 +578,7 @@
 
 		<div class="grid w-full items-center justify-center gap-0.5 text-surface-700 dark:text-surface-200 grid-cols-3">
 			<!-- Avatar -->
-			<div class="order-1 flex items-center justify-center">
+			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
 					<a
 						href="/user"
@@ -593,16 +593,17 @@
 			</div>
 
  			<!-- Theme Toggle -->
-  			<div class="order-8 flex items-center justify-center">
-  				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
-  					<div class="flex items-center justify-center">
-  						<ThemeToggle showTooltip={false} buttonClass="btn-icon rounded-full hover:bg-surface-300/20 dark:hover:bg-surface-700/40" iconSize={28} />
-  					</div>
-  				</SystemTooltip>
-  			</div>
+ 			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
+ 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+ 					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
+ 					<div class="flex items-center justify-center">
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={28} />
+ 					</div>
+ 				</SystemTooltip>
+ 			</div>
 
  			<!-- Language Selector -->
-  			<div class="order-3 flex items-center justify-center px-1 mt-2">
+ 			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
  				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
  					<div class="language-selector relative">
  						<Dropdown position="right-start" class="w-56">
@@ -647,37 +648,51 @@
  			</div>
 
 			<!-- Sign Out -->
-			<div class="order-4 flex items-center justify-center">
+			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
-					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0">
-						<iconify-icon icon="uil:signout" width="28"></iconify-icon>
+					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0">
+						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
 					</Button>
 				</SystemTooltip>
 			</div>
 
  			<!-- Config -->
- 			<div class="order-5 flex items-center justify-center">
+ 			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
  				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
- 					<Button variant="ghost" href="/config" data-sveltekit-preload-data="hover" onclick={handleConfigClick} aria-label="System Configuration" class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0">
- 						<iconify-icon icon="material-symbols:build-circle" width="28"></iconify-icon>
- 					</Button>
+					<a
+						href="/config"
+						data-sveltekit-preload-data="hover"
+						onclick={handleConfigClick}
+						aria-label="System Configuration"
+						class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
+					>
+						<iconify-icon icon="material-symbols:build-circle" width="35" class=""></iconify-icon>
+ 					</a>
  				</SystemTooltip>
  			</div>
 
- 			<!-- Community Links -->
- 			<div class="order-7 flex items-center justify-center gap-1">
- 				<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
- 					<Button variant="ghost" href="https://discord.gg/VrvZF6e2sC" target="_blank" rel="noopener noreferrer" aria-label="Discord Community" class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0">
- 						<iconify-icon icon="ic:baseline-discord" width="28"></iconify-icon>
- 					</Button>
- 				</SystemTooltip>
- 			</div>
- 		</div>
- 	</div>
- 	{/if}
- 	<!-- Version (sticky bottom) -->
- 	<div class="flex items-center justify-center pb-1"><VersionCheck compact={true} /></div>
- </div>
+ 			<!-- Version -->
+ 			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
+
+ 			<!-- Community Links (only when expanded) -->
+ 			{#if isSidebarFull}
+ 				<div class="order-7 flex items-center justify-center gap-1">
+ 					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+ 						<a
+ 							href="https://discord.gg/VrvZF6e2sC"
+ 							target="_blank"
+ 							rel="noopener noreferrer"
+ 							aria-label="Discord Community"
+ 							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
+ 						>
+ 							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
+ 						</a>
+ 					</SystemTooltip>
+ 				</div>
+ 			{/if}
+		</div>
+	</div>
+</div>
 
 <style>
 	/* Sidebar width follows admin theme token (applied on layout aside) */
