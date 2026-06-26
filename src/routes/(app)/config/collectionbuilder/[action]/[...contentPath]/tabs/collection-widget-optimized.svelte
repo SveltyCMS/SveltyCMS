@@ -241,18 +241,10 @@ function generatePreviewSpec(fieldsToRender: FieldInstance[]): Spec {
 }
 
 const quickWidgets = [
-	{ key: "Text", icon: "material-symbols:text-fields", label: "Short Text" },
-	{
-		key: "RichText",
-		icon: "material-symbols:format-list-bulleted-rounded",
-		label: "Rich Text",
-	},
-	{ key: "Image", icon: "material-symbols:image-outline", label: "Image" },
-	{
-		key: "Relation",
-		icon: "material-symbols:account-tree-outline",
-		label: "Relation",
-	},
+  { key: "Input", icon: "material-symbols:text-fields", label: "Short Text" },
+  { key: "RichText", icon: "material-symbols:format-list-bulleted-rounded", label: "Rich Text" },
+  { key: "MediaUpload", icon: "material-symbols:image-outline", label: "Image" },
+  { key: "Relation", icon: "material-symbols:account-tree-outline", label: "Relation" },
 ];
 
 function addQuickWidget(key: string) {
