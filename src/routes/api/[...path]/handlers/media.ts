@@ -281,8 +281,8 @@ export async function handleMediaProcess(
 
   switch (processType) {
     case "metadata": {
-      const file = formData.get("file") as File;
-      if (!file) throw new AppError("Target asset source binary required", 400);
+      const file = formData.get("file");
+      if (!isFileLike(file)) throw new AppError("Target asset source binary required", 400);
       return successResponse(event, await cms.media.getMetadata(file));
     }
     case "save":
@@ -422,8 +422,6 @@ export async function handleMediaVersionCreate(
     throw new AppError("Target payload matrix type must match binary File structure", 400);
   const reason = (formData.get("reason") as string) || undefined;
 
-  // Parse tags from form data
-  const _tagsRaw = formData.get("tags");
   // Hash the file content for version identity tracking
   const buffer = Buffer.from(await file.arrayBuffer());
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");

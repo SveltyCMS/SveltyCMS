@@ -255,17 +255,31 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
         return;
       }
 
-      // Event handler — normalized wire format + tenant filtering
+      // Micro-buffer queue — decouples event emission from HTTP backpressure.
+      // Events are buffered and flushed in batches every 32ms to avoid
+      // synchronous controller.enqueue() blocking the event loop under load.
+      let eventBuffer: string[] = [];
+
+      const flushBuffer = () => {
+        if (eventBuffer.length === 0 || isClosed) return;
+        try {
+          controller.enqueue(encoder.encode(eventBuffer.join("")));
+          eventBuffer = [];
+        } catch {
+          isClosed = true;
+          clearInterval(flushTimer);
+          eventBus.off("*", handler);
+        }
+      };
+
+      const flushTimer = setInterval(flushBuffer, 32);
+
+      // Event handler — buffers events instead of synchronous enqueue
       const handler = (payload: { event?: string; data?: Record<string, unknown> }) => {
         if (isClosed) return;
         const clientPayload = normalizeSseEventPayload(payload, tenantId);
         if (!clientPayload) return;
-        try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(clientPayload)}\n\n`));
-        } catch {
-          isClosed = true;
-          eventBus.off("*", handler);
-        }
+        eventBuffer.push(`data: ${JSON.stringify(clientPayload)}\n\n`);
       };
 
       eventBus.on("*", handler);
@@ -278,6 +292,7 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
           } catch {
             isClosed = true;
             clearInterval(keepAlive);
+            clearInterval(flushTimer);
             eventBus.off("*", handler);
           }
         }
@@ -287,6 +302,7 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
       event.request.signal.addEventListener("abort", () => {
         isClosed = true;
         clearInterval(keepAlive);
+        clearInterval(flushTimer);
         eventBus.off("*", handler);
         try {
           controller.close();

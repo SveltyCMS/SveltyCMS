@@ -9,6 +9,7 @@ import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId } from "@src/databases/db-interface";
 import type { RequestEvent } from "@sveltejs/kit";
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { generateUUID } from "@utils/native-utils";
 
@@ -96,8 +97,8 @@ export async function handleTestingRoutes(
       const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
       if (fs.existsSync(fullMediaRoot)) {
         try {
-          fs.rmSync(fullMediaRoot, { recursive: true, force: true });
-          fs.mkdirSync(fullMediaRoot, { recursive: true });
+          await fsp.rm(fullMediaRoot, { recursive: true, force: true });
+          await fsp.mkdir(fullMediaRoot, { recursive: true });
         } catch (err) {
           console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
         }

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-25"
+updated: "2026-06-26"
 tags:
   - "testing"
   - "status"
@@ -20,12 +20,12 @@ tags:
 
 ## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
 
-| Metric                      | Before | After                  |
-| --------------------------- | ------ | ---------------------- |
-| Execution time (SQLite)     | ~9 min | ~70 sec                |
-| Server starts/stops per run | 72     | 2 (mode switches only) |
-| Pass rate                   | 31/36  | **36/36**              |
-| Speedup                     | —      | **~7.5x**              |
+| Metric                      | Before | After                                                                  |
+| --------------------------- | ------ | ---------------------------------------------------------------------- |
+| Execution time (SQLite)     | ~9 min | ~70 sec                                                                |
+| Server starts/stops per run | 72     | 2 (mode switches only)                                                 |
+| Pass rate                   | 31/36  | **35/36** (2 FormData subtests fail in `media.test.ts`, [#regression]) |
+| Speedup                     | —      | **~7.5x**                                                              |
 
 **Coverage**: 36 spec files across 4 domains
 
@@ -60,7 +60,7 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 **Config & admin specs** (wired June 2026): `config/access-management`, `config/webhooks`, `config/automations`, `config/data-management`, `config/operations`, `admin/tenants`
 
-**New specs (June 2026)**: `dashboard/dashboard.spec.ts`, `config/appearance.spec.ts`, `config/design-system.spec.ts`, `mediagallery/mediagallery.spec.ts`, `mediagallery/image-editor.spec.ts`
+**New specs (June 2026)**: `dashboard/dashboard.spec.ts`, `config/appearance.spec.ts`, `config/design-system.spec.ts`, `mediagallery/mediagallery.spec.ts`, `mediagallery/image-editor.spec.ts`, `collection-builder/empty-state.spec.ts`
 
 **Builder hardening**: `data-testid` on collection builder + widget editor; studio stepper wired on all breakpoints
 
@@ -78,15 +78,15 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ## 3. Unit Tests
 
-| Metric            | Value                                           |
-| ----------------- | ----------------------------------------------- |
-| Total tests       | **1,210**                                       |
-| Pass rate         | 100%                                            |
-| Test files        | 126                                             |
-| Security-specific | 64 (defense-in-depth, auth, RBAC)               |
-| Content-specific  | 24 (cache helpers, reconciliation, API surface) |
-| Media-specific    | 40 (sharing, MIME utils, binary sniffer)        |
-| Utils integrity   | 4 (circular import detection, barrel health)    |
+| Metric            | Value                                                                     |
+| ----------------- | ------------------------------------------------------------------------- |
+| Total tests       | **1,221**                                                                 |
+| Pass rate         | 100%                                                                      |
+| Test files        | 127                                                                       |
+| Security-specific | 64 (defense-in-depth, auth, RBAC)                                         |
+| Content-specific  | 35 (cache helpers, reconciliation, API surface, collection builder utils) |
+| Media-specific    | 40 (sharing, MIME utils, binary sniffer)                                  |
+| Utils integrity   | 4 (circular import detection, barrel health)                              |
 
 **June 2026 additions**:
 
