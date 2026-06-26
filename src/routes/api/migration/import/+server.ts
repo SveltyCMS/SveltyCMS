@@ -40,7 +40,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const form = await request.formData();
   const file = form.get("file");
   const format = form.get("format") as string | null;
-  if (!(file instanceof File) || !format) {
+  if (
+    !(file && typeof file === "object" && "arrayBuffer" in (file as any) && "name" in file) ||
+    !format
+  ) {
     return new Response("file and format required", { status: 400 });
   }
 
@@ -60,7 +63,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     selectedContentTypes,
   });
 
-  const license = await getMigrationLicenseTier(locals);
+  const license = await getMigrationLicenseTier(locals as any);
   const fileText = await file.text();
 
   const stream = new ReadableStream({

@@ -25,7 +25,8 @@ Provides an organized interface for navigating hierarchical content structures.
 	import TreeView from '@components/ui/tree-view.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
-	import { collection, contentStructure, setMode } from '@src/stores/collection-store.svelte.ts';
+	import { collection, contentStructure } from '@src/stores/collection-store.svelte.ts';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { ui, toggleUIElement, userPreferredState } from '@src/stores/ui-store.svelte.ts';
@@ -484,7 +485,7 @@ import { collection_no_collections_found, collections_search } from '@src/paragl
 			return;
 		}
 		const same = selectedId === node._id;
-		setMode('view');
+		modeTransitionGuard.setMode('view');
 		app.shouldShowNextButton = true;
 
 		document.dispatchEvent(new CustomEvent('clearEntryListCache', {

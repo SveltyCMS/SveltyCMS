@@ -19,6 +19,10 @@ import { parse, visit, type ASTNode, type FieldNode } from "graphql";
 /** Default maximum query cost before rejection. */
 export const DEFAULT_MAX_COST = 1000;
 
+/** LRU cache for parsed query cost — avoids re-parsing repeated queries. */
+const costCache = new Map<string, CostAnalysisResult>();
+const MAX_CACHE_SIZE = 500;
+
 export interface CostAnalysisResult {
   /** Total computed cost of the query */
   cost: number;
@@ -43,6 +47,10 @@ export function analyzeQueryCost(
   queryString: string,
   maxCost: number = DEFAULT_MAX_COST,
 ): CostAnalysisResult {
+  // Cache hit — skip parse for repeated queries
+  const cached = costCache.get(queryString);
+  if (cached) return cached;
+
   let document: ReturnType<typeof parse>;
 
   try {
@@ -88,11 +96,20 @@ export function analyzeQueryCost(
     },
   });
 
-  return {
+  const result: CostAnalysisResult = {
     cost: totalCost,
     allowed: totalCost <= maxCost,
     fields,
   };
+
+  // Cache the result (LRU eviction when full)
+  if (costCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = costCache.keys().next().value;
+    if (firstKey !== undefined) costCache.delete(firstKey);
+  }
+  costCache.set(queryString, result);
+
+  return result;
 }
 
 /**

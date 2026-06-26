@@ -5,7 +5,7 @@
 
 import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
-import { SetupState } from "@utils/setup-check";
+import { SetupState } from "../utils/server/setup-check";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
@@ -49,7 +49,7 @@ function getCachedMultiTenant() {
   return multiTenantCached;
 }
 
-function getCacheKey(tenantId: DatabaseId | null | string): string {
+function getCacheKey(tenantId?: DatabaseId | null | string): string {
   const workerIndex = testWorkerContext.getStore() || "";
   const base = tenantId ? String(tenantId) : "global";
   return workerIndex ? `${workerIndex}:${base}` : base;

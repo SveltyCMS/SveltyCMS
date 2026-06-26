@@ -54,10 +54,10 @@ import {
 	diffLayoutPrefsFromTenant,
 	uiStateToLayoutPrefs,
 } from "@utils/layout-state-prefs";
-import { userThemePrefs } from "@src/stores/user-theme-prefs.svelte";
-import { onMount, untrack } from "svelte";
-import { initPredictivePreload } from "@utils/predictive-preload";
-import { registerHotkey } from "@src/utils/hotkeys";
+import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
+	import { onMount, untrack } from "svelte";
+	import { initPredictivePreload } from "@utils/predictive-preload";
+	import { registerHotkey } from "@src/utils/hotkeys";
 import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation
 import { afterNavigate, beforeNavigate, invalidate } from "$app/navigation";
@@ -284,25 +284,6 @@ $effect(() => {
 // EVENT HANDLERS
 // =============================================
 
-// Initialize avatar from user data
-function initializeUserAvatar(user: User | null): void {
-	console.log(
-		"[AppLayout] initializeUserAvatar for user:",
-		user?.username || "Guest",
-	);
-	if (!user) {
-		app.avatarSrc = "/Default_User.svg";
-		return;
-	}
-
-	if (user.avatar && user.avatar !== "/Default_User.svg") {
-		app.avatarSrc = user.avatar;
-	} else {
-		app.avatarSrc = "/Default_User.svg";
-	}
-	console.log("[AppLayout] Avatar source set to:", app.avatarSrc);
-}
-
 // =============================================
 // LIFECYCLE HOOKS
 // =============================================
@@ -315,7 +296,6 @@ onMount(() => {
 		import("@utils/predictive-preload").then(m => m.initPredictivePreload());
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
-	initializeUserAvatar(data.user);
 
 	registerHotkey(
 		"mod+k",

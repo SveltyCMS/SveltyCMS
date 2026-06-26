@@ -61,6 +61,7 @@ corner-shape angled corners.
 	    ...rest
 	  }: Props = $props();
 
+	  // @ts-expect-error bind:this template usage not seen by TS language server
 	  let _inputRef = $state<HTMLInputElement | null>(null);
 
   const theme = getThemeContext();

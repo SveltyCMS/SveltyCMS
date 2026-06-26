@@ -8,7 +8,7 @@ import { generateUUID } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 import type { Webhook, WebhookEvent } from "@src/services/background/webhook-service";
 
-import { safeFetch } from "@src/utils/http/egress-guard";
+import { safeFetch } from "../../../utils/egress-guard";
 
 export interface WebhookJobPayload {
   webhook: Webhook;

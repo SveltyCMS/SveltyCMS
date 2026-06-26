@@ -1,6 +1,6 @@
 /**
- * @file src/utils/http/cookie-utils.ts
- * @description Standardized cookie parsing utilities for SveltyCMS.
+ * @file src/utils/cookie-utils.ts
+ * @description Standardized cookie parsing utilities for SveltyCMS (WebSocket auth bridge).
  */
 
 /**

@@ -597,6 +597,23 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpression {
   const properties: ts.ObjectLiteralElementLike[] = [];
 
+  // _id — derived from content name for consistent collection identification
+  const collectionId = data.contentName.toLowerCase().replace(/\s+/g, "_");
+  properties.push(
+    ts.factory.createPropertyAssignment(
+      ts.factory.createIdentifier("_id"),
+      ts.factory.createStringLiteral(collectionId),
+    ),
+  );
+
+  // name — display name for the collection
+  properties.push(
+    ts.factory.createPropertyAssignment(
+      ts.factory.createIdentifier("name"),
+      ts.factory.createStringLiteral(data.contentName),
+    ),
+  );
+
   // Add icon property
   properties.push(
     ts.factory.createPropertyAssignment(

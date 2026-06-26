@@ -12,7 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { isSetupComplete } from "@utils/setup-check-fast";
+import { isSetupComplete } from "../../utils/setup-check-fast";
 import { cacheService } from "./cache-service";
 import { CacheCategory } from "./types";
 

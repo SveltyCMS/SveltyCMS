@@ -11,7 +11,7 @@ Sidebar navigation for System Settings
 	import type { SettingGroup } from '@src/routes/(app)/config/system-settings/settings-groups';
 	import { getSettingGroupsByRole } from '@src/routes/(app)/config/system-settings/settings-groups';
 	// Stores
-	import { groupsNeedingConfig } from '@src/stores/config-store.svelte';
+	import { groupsNeedingConfig } from '@src/stores/settings-config-state.svelte';
 	import { page } from '$app/state';
 
 	// Props

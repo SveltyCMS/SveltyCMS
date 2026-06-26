@@ -241,7 +241,7 @@ async function main() {
     console.error(`\n❌ ${failedTasks.length} task(s) failed:`);
     for (const name of failedTasks) console.error(`   - ${name}`);
     console.error("\n   Fix the issues above, commit, and push again.");
-    console.error("   Skip with: git push --no-verify\n");
+    console.error("   DO NOT bypass the gate — CI will reject the same issues.\n");
     process.exit(1);
   }
 

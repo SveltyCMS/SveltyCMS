@@ -6,8 +6,11 @@ let cacheTime = 0;
 
 /**
  * ⚡️ FAST SHALLOW CHECK
- * Checks if config/private.ts exists.
+ * Checks if config/private.ts exists and contains the required fields.
  * Safe to call from anywhere (middleware, Vite, etc.) without pulling in DB dependencies.
+ *
+ * Uses a 2-second module-level cache to avoid per-request filesystem I/O.
+ * The cache is intentionally short-lived to pick up config changes after a setup restart.
  */
 export function isSetupComplete(): boolean {
   if (
@@ -19,7 +22,7 @@ export function isSetupComplete(): boolean {
     return true;
   }
 
-  // Use a short-lived cache (2 seconds) to avoid redundant I/O and race conditions during restarts
+  // 2-second cache to avoid redundant I/O across requests in the same process
   if (cachedResult === true && Date.now() - cacheTime < 2000) {
     return true;
   }
@@ -38,37 +41,24 @@ export function isSetupComplete(): boolean {
       return false;
     }
 
-    // 3. Robust Read with retries (Handles race conditions during file write/restart)
-    let attempts = 0;
-    const maxAttempts = 5;
-    const retryDelay = 100; // ms
-
-    while (attempts < maxAttempts) {
-      try {
-        const content = fs.readFileSync(privateConfigPath, "utf8");
-        // Validate content - Must have essential keys to be considered complete
-        if (
-          content.length > 50 &&
-          content.includes("JWT_SECRET_KEY") &&
-          content.includes("DB_HOST")
-        ) {
-          // Success! Memoize for 2 seconds to bridge server restart gaps
-          cachedResult = true;
-          cacheTime = Date.now();
-          return true;
-        }
-      } catch {
-        // File might be locked or just created
+    // Single synchronous read — fs.existsSync + readFileSync is atomic enough.
+    // ⚠️ REMOVED: The previous synchronous busy-wait retry loop (`while (Date.now() - start < 100) {}`)
+    // blocked the Node.js event loop on every middleware invocation during startup.
+    // If the file exists but is temporarily empty (mid-write race), the next request
+    // will re-read it within the 2-second cache window.
+    try {
+      const content = fs.readFileSync(privateConfigPath, "utf8");
+      if (
+        content.length > 50 &&
+        content.includes("JWT_SECRET_KEY") &&
+        content.includes("DB_HOST")
+      ) {
+        cachedResult = true;
+        cacheTime = Date.now();
+        return true;
       }
-
-      attempts++;
-      if (attempts < maxAttempts) {
-        // Synchronous wait - only during bootstrap, so acceptable impact
-        const start = Date.now();
-        while (Date.now() - start < retryDelay) {
-          // block
-        }
-      }
+    } catch {
+      // File may be locked momentarily during write — treat as incomplete
     }
 
     return false;

@@ -280,11 +280,17 @@ export const _handler = async (event: RequestEvent) => {
 
   if (!namespace) return new Response("Not Found", { status: 404 });
 
+  // ── Cached imports for hot paths (avoids dynamic import on every request) ────
+  let _getDatabaseResilience: any = null;
+
   // 🚀 HYPER-TURBO: Direct Health Check
   if (namespace === "system" && segments[1] === "health") {
     const connected = isDbConnected();
-    const { getDatabaseResilience } = await import("@src/databases/database-resilience");
-    const metrics = getDatabaseResilience().getMetrics();
+    if (!_getDatabaseResilience) {
+      const mod = await import("@src/databases/database-resilience");
+      _getDatabaseResilience = mod.getDatabaseResilience;
+    }
+    const metrics = _getDatabaseResilience().getMetrics();
     return json(
       {
         status: connected ? "healthy" : "initializing",
@@ -467,7 +473,7 @@ export const _handler = async (event: RequestEvent) => {
 
     // ETag conditional response
     try {
-      const etag = `"${createHash("sha256").update(responseBody).digest("hex").substring(0, 16)}"`;
+      const etag = `"${createHash("md5").update(responseBody).digest("base64").substring(0, 16)}"`;
       const ifNoneMatch = request.headers.get("if-none-match");
 
       if (ifNoneMatch === etag || ifNoneMatch === "*") {

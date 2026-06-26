@@ -55,7 +55,7 @@ describe("ETag Conditional Requests", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("ETag")).toBeTruthy();
-    expect(response.headers.get("ETag")).toMatch(/^"[a-f0-9]{16}"$/);
+    expect(response.headers.get("ETag")).toMatch(/^"[A-Za-z0-9+/=]{16}"$/);
   });
 
   it("should return 304 when If-None-Match matches ETag", async () => {

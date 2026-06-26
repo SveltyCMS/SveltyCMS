@@ -256,10 +256,29 @@ export const entryActions = {
   clear: () => collections.clearSelected(),
 };
 
-// Direct state exports for legacy components that don't use the objects
-// Note: These might lose reactivity if rebound elsewhere, but should work for direct imports.
-export const currentCollectionId = collections.currentId;
-export const collectionsLoading = collections.loading;
-export const collectionsError = collections.error;
-export const unAssigned = collections.unassigned;
-export const selectedEntries = collections.selectedEntries;
+// Reactive getters for legacy components — reads from singleton directly
+export const currentCollectionId = {
+  get value() {
+    return collections.currentId;
+  },
+};
+export const collectionsLoading = {
+  get value() {
+    return collections.loading;
+  },
+};
+export const collectionsError = {
+  get value() {
+    return collections.error;
+  },
+};
+export const unAssigned = {
+  get value() {
+    return collections.unassigned;
+  },
+};
+export const selectedEntries = {
+  get value() {
+    return collections.selectedEntries;
+  },
+};

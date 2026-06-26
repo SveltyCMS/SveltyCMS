@@ -495,7 +495,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: playwright-report-${{ matrix.project }}-${{ matrix.shard }}
+          name: playwright-report-${{ matrix.project }}-${{ matrix.shardId }}
           path: tests/playwright-report
           if-no-files-found: ignore
           retention-days: 14
@@ -503,7 +503,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: preview-log-${{ matrix.project }}-${{ matrix.shard }}
+          name: preview-log-${{ matrix.project }}-${{ matrix.shardId }}
           path: preview.log
           if-no-files-found: ignore
           retention-days: 7

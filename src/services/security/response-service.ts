@@ -21,7 +21,7 @@ import type {
   ThreatLevel,
   AnomalyResult,
 } from "./types";
-import { safeFetch } from "@src/utils/http/egress-guard";
+import { safeFetch } from "../../utils/egress-guard";
 
 // ============================================================================
 // CONSTANTS & POLICIES

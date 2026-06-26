@@ -7,7 +7,7 @@
 
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter, DatabaseId, MediaItem } from "@src/databases/db-interface";
-import { BatchLoader } from "@src/utils/batch-loader";
+import { BatchLoader } from "@src/utils/server/batch-loader";
 
 /**
  * Creates a fresh set of loaders for a single request.

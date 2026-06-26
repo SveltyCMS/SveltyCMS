@@ -7,10 +7,18 @@
  * - Display formatting (Intl.DateTimeFormat, Intl.RelativeTimeFormat)
  * - Uptime and expiration calculators
  * - ISO duration parsing
+ *
+ * ### Note on locale
+ * `formatDisplayDate` and `formatRelativeDate` accept a `locale` parameter.
+ * Pass the app's current content language explicitly:
+ * ```ts
+ * import { app } from '@src/stores/store.svelte';
+ * formatDisplayDate(date, app.contentLanguage);
+ * ```
+ * This keeps date.ts free of store imports, making it safe to use server-side.
  */
 
 import { logger } from "./logger";
-import { app } from "@src/stores/store.svelte";
 import type { ISODateString } from "../content/types";
 
 // --- ISO Date Utilities (Merged from date-utils.ts) ---
@@ -26,12 +34,6 @@ export function isISODateString(value: unknown): value is ISODateString {
 
 // Backward compatibility wrappers
 export const nowISODateString = (): ISODateString => dateToISODateString(new Date());
-
-export function stringToISODateString(value: string): ISODateString {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) throw new Error("Invalid date string");
-  return date.toISOString() as ISODateString;
-}
 
 export function isoDateStringToDate(isoString: ISODateString): Date {
   return new Date(isoString);
@@ -68,25 +70,6 @@ export function toISOString(value: unknown): ISODateString {
     }
   }
   return new Date().toISOString() as ISODateString;
-}
-
-/**
- * Normalizes date input (Date, timestamp, or string) to ISODateString.
- */
-export function normalizeDateInput(
-  dateInput: Date | ISODateString | number | string,
-): ISODateString {
-  if (!dateInput) return dateToISODateString(new Date());
-  if (dateInput instanceof Date) return dateToISODateString(dateInput);
-  if (typeof dateInput === "number") {
-    return dateToISODateString(new Date(dateInput < 1e12 ? dateInput * 1000 : dateInput));
-  }
-  if (typeof dateInput === "string") {
-    const num = Number(dateInput);
-    if (!Number.isNaN(num)) return dateToISODateString(new Date(num < 1e12 ? num * 1000 : num));
-    return dateToISODateString(new Date(dateInput));
-  }
-  return dateToISODateString(new Date());
 }
 
 // --- Display Formatting (Merged from date.ts & date-utils.ts) ---
@@ -126,10 +109,11 @@ export function formatDateString(
 
 /**
  * Format date for localized display.
+ * Pass the app's content language explicitly: `app.contentLanguage` from `@src/stores/store.svelte`.
  */
 export function formatDisplayDate(
   dateInput: Date | number | string,
-  locale = app.contentLanguage || "en",
+  locale = "en",
   options: Intl.DateTimeFormatOptions = {
     year: "numeric",
     month: "short",
@@ -150,15 +134,11 @@ export function formatDisplayDate(
   }
 }
 
-export const formatDate = formatDisplayDate;
-
 /**
  * Relative date formatting (e.g. "2 hours ago").
+ * Pass the app's content language explicitly: `app.contentLanguage` from `@src/stores/store.svelte`.
  */
-export function formatRelativeDate(
-  dateInput: Date | number | string,
-  locale = app.contentLanguage || "en",
-): string {
+export function formatRelativeDate(dateInput: Date | number | string, locale = "en"): string {
   try {
     const date = new Date(
       typeof dateInput === "number" ? (dateInput > 1e12 ? dateInput : dateInput * 1000) : dateInput,

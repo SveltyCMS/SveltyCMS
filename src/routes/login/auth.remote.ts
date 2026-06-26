@@ -17,6 +17,7 @@ import { auditLogService, AuditEventType } from "@src/services/security/audit-se
 import { getClientIp } from "@utils/hook-utils";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
 import { publicEnv } from "@src/stores/global-settings.svelte";
+import { sendMail } from "@utils/email.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -179,7 +180,7 @@ export const verify2FA = command(
 export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const { getSystemState } = await import("@src/stores/system/state.svelte.ts");
   const { shutdownSystem } = await import("@src/databases/db");
-  const { invalidateSetupCache } = await import("@src/utils/setup-check");
+  const { invalidateSetupCache } = await import("../../utils/server/setup-check");
   const { logger } = await import("@utils/logger");
   const event = getRequestEvent();
 
@@ -320,7 +321,7 @@ async function signInInternal(event: RequestEvent, input: any) {
         const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
         primeSessionMemoryCache(ar.sessionId!, user);
         // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
-        const { invalidateSetupCache } = await import("@src/utils/setup-check");
+        const { invalidateSetupCache } = await import("../../utils/server/setup-check");
         invalidateSetupCache(false, true);
       } catch {}
     } else {
@@ -647,10 +648,10 @@ async function consumeWebAuthnChallenge(
   challenge: string,
 ): Promise<{ userId: string; type: "registration" | "authentication" } | null> {
   const key = `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`;
-  const stored = await cacheService.get<{
+  const stored = (await cacheService.get(key, null)) as {
     userId: string;
     type: "registration" | "authentication";
-  }>(key, null);
+  } | null;
   await cacheService.delete(key, null);
   return stored;
 }
@@ -687,7 +688,7 @@ export const getPasskeyAuthOptions = command("unchecked", async (data: { email: 
   const options = buildAuthenticationOptions(
     rpId,
     challenge,
-    user.authenticators.map((a) => ({
+    user.authenticators.map((a: any) => ({
       id: a.credentialID,
       type: "public-key" as const,
       transports: a.transports,
@@ -752,7 +753,7 @@ export const verifyPasskeyAuth = command(
           message: "Passkey signature verification failed.",
         };
 
-      const updatedAuthenticators = (user.authenticators || []).map((a) =>
+      const updatedAuthenticators = (user.authenticators || []).map((a: any) =>
         a.credentialID === stored.credentialID ? { ...a, counter: newCounter } : a,
       );
       await auth.updateUserAttributes(

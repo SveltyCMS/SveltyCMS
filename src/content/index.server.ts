@@ -26,12 +26,12 @@ if (!isTest && (import.meta.env.SSR === false || typeof window !== "undefined"))
 }
 
 import { logger } from "@utils/logger";
-import { contentStore } from "@stores/content-store.svelte";
+import { contentStore } from "@stores/content-registry.svelte";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import type { ContentNodeOperation } from "./types";
 import { contentSystemBase } from "./index";
 
-export { contentStore } from "@stores/content-store.svelte";
+export { contentStore } from "@stores/content-registry.svelte";
 export {
   contentNavigation,
   contentMetrics,

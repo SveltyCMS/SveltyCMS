@@ -120,7 +120,7 @@ export const hooks: PluginLifecycleHooks = {
   /**
    * Draft-by-Default Airgap: forces all migration payloads to draft status.
    */
-  beforeSave: async (_context, collection, data) => {
+  beforeSave: async (_context, _collection, data) => {
     if (data._isMigrationPayload) {
       data.status = "draft";
       logger.info(
@@ -628,7 +628,7 @@ export async function executeUCPIngestion(
       targetCollection,
       timestamp: nowISODateString(),
       importedCount: imported,
-      mirroredAssetPaths,
+      mirroredAssetPaths: mirroredPaths,
     });
   } catch (err) {
     logger.error("[SmartImporter] Failed to write ledger record:", err);
@@ -800,7 +800,7 @@ async function mirrorAssetsLocally(
   _optimize = true,
 ): Promise<string[]> {
   const localIds: string[] = [];
-  const { validateEgressUrl } = await import("@src/utils/http/egress-guard");
+  const { validateEgressUrl } = await import("@src/utils/egress-guard");
   const { persistMigratedAsset } = await import("./utils/migrated-media.server");
   const { getMimeType } = await import("@src/utils/media/media-utils");
 

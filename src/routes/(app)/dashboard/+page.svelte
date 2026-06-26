@@ -42,7 +42,7 @@ import type { PageData } from "./$types";
 
 // Using iconify-icon web component
 
-import { systemPreferences } from "@src/stores/system-preferences.svelte.ts";
+import { systemPreferences } from "@src/stores/dashboard-preferences.svelte.ts";
 // Stores
 import { themeStore } from "@src/stores/theme-store.svelte.ts";
 

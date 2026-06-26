@@ -11,7 +11,7 @@ import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { isSetupComplete, SetupState } from "@utils/setup-check";
+import { isSetupComplete, SetupState } from "../utils/server/setup-check";
 import { isBootstrapRoute, getRequestFlags } from "@utils/hook-utils";
 
 const dev = (() => {
@@ -131,7 +131,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       setupState = SetupState.COMPLETE;
     } else {
       setupConfirmedComplete = false;
-      const { getSetupState } = await import("@utils/setup-check");
+      const { getSetupState } = await import("../utils/server/setup-check");
       setupState = await getSetupState();
       if (setupState === SetupState.COMPLETE) setupConfirmedComplete = true;
     }
@@ -147,7 +147,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         })
         .catch((_err) => {
           initializationState = "failed";
-          logger.error("[handleSystemState] Initialization failed", err);
+          logger.error("[handleSystemState] Initialization failed", _err);
         });
       if (!event.isDataRequest && isBootstrapRoute(pathname)) {
         logger.debug(`[handleSystemState] Backgrounding init for route: ${pathname}`);

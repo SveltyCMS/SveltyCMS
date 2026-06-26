@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
 
 // Hoist mocks for Bun
-vi.mock("@src/utils/setup-check", () => ({
+vi.mock("@src/utils/server/setup-check", () => ({
   isSetupComplete: vi.fn(() => true),
   getSetupState: vi.fn(() => Promise.resolve("COMPLETE")),
   SetupState: {
@@ -34,7 +34,7 @@ import {
   updateServiceHealth,
 } from "@src/stores/system/state.svelte.ts";
 import { handleSystemState } from "@src/hooks/handle-system-state";
-import { isSetupComplete, getSetupState } from "@src/utils/setup-check";
+import { isSetupComplete, getSetupState } from "@src/utils/server/setup-check";
 
 /**
  * Helper to create a minimal RequestEvent for testing

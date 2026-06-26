@@ -94,9 +94,11 @@ export async function safeFetch(
     headers.set("x-test-secret", testSecret);
   }
 
-  const signal = init?.signal || AbortSignal.timeout(60000);
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // Create a fresh signal per attempt — reusing an already-fired AbortSignal
+    // causes instant failure on retries (especially for FormData uploads).
+    const signal = init?.signal || AbortSignal.timeout(attempt === 0 ? 60000 : 30000);
+
     try {
       const cookieHeader = headers.get("Cookie") || "None";
       const resp = await fetch(url, { ...init, headers, signal });

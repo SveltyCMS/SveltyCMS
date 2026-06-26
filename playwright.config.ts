@@ -179,6 +179,7 @@ export default defineConfig({
         "**/collection-builder/builder.spec.ts",
         "**/collection-builder/collection.spec.ts",
         "**/collection-builder/journey.spec.ts",
+        "**/collection-builder/empty-state.spec.ts",
       ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
@@ -225,6 +226,15 @@ export default defineConfig({
         "**/routes/mediagallery/mediagallery.spec.ts",
         "**/routes/mediagallery/image-editor.spec.ts",
       ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "chromium",
+      // Catch-all project for CI sharded matrix.
+      // Wizard + auth-setup run sequentially in e2e-prep; all remaining
+      // tests are sharded here across parallel CI jobs.
+      testIgnore: ["**/setup/setup-wizard.spec.ts", "**/auth.setup.ts", "**/login/login.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },

@@ -35,8 +35,8 @@ None (TreeView has its own keyboard navigation)
 -->
 <script lang="ts">
 import { SvelteSet } from "svelte/reactivity";
-import type { ISODateString } from "@root/src/content/types";
-import type { ContentNode, DatabaseId } from "@root/src/databases/db-interface";
+import type { ISODateString } from "@src/content/types";
+import type { ContentNode, DatabaseId } from "@src/databases/db-interface";
 import { hasDuplicateSiblingName } from "@src/content";
 import {
 	button_save,
@@ -50,8 +50,8 @@ import TreeViewBoard from "@src/routes/(app)/config/collectionbuilder/nested-con
 import {
 	setCollectionValue,
 	setContentStructure,
-	setMode,
-} from "@src/stores/collection-store.svelte";
+} from '@src/stores/collection-store.svelte';
+import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 import { useContent } from "@src/content";
 // Native UI Components
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -414,7 +414,7 @@ function handleClearCategorySelection(): void {
 }
 
 function handleAddCollectionClick(): void {
-	setMode("create");
+	modeTransitionGuard.setMode("create");
 	const parentId = selectedCategoryId ?? undefined;
 	setCollectionValue({
 		name: "new",

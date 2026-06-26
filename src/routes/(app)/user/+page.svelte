@@ -41,7 +41,7 @@
 		userpage_user_id
 	} from '@src/paraglide/messages';
 	// Stores
-	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
+	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
@@ -201,7 +201,7 @@
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1" in:fly={{ y: 20, delay: 100, duration: 300 }}>
 				<div class="relative group">
-					<Avatar src={normalizeAvatarUrl(avatarSrc.value)} initials="AV" size="size-32" class="rounded-full border border-white shadow-lg dark:border-surface-800" />
+					<Avatar src={normalizeAvatarUrl(user.avatar)} initials="AV" size="size-32" class="rounded-full border border-white shadow-lg dark:border-surface-800" />
 
 					<!-- Edit button - icon overlay -->
 					<button

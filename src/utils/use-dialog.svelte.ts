@@ -68,7 +68,7 @@ export function useDialog(options: DialogOptions) {
     if (isOpen && dialogEl) {
       triggerEl = document.activeElement;
       dialogEl.showModal();
-      // Lock both html and body to prevent background scrolling
+      // Lock both html and body to prevent background scrolling (scroll chaining)
       document.documentElement.style.overflow = "hidden";
       document.body.style.overflow = "hidden";
       options.onopen?.();

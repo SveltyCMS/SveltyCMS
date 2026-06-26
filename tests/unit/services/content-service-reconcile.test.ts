@@ -66,7 +66,7 @@ describe("ContentService - Incremental Reconciliation", () => {
   it("should perform a surgical update when a single file changes", async () => {
     const { loadSchema } = await import("../../../src/content/loader.server");
 
-    const { contentStore } = await import("../../../src/stores/content-store.svelte");
+    const { contentStore } = await import("../../../src/stores/content-registry.svelte");
     const { eventBus } = await import("../../../src/utils/event-bus");
     const fs = (await import("node:fs/promises")).default;
 
@@ -118,7 +118,10 @@ describe("ContentService - Incremental Reconciliation", () => {
     );
 
     // 3. Verify in-memory store was updated surgically
-    expect(contentStore.upsert).toHaveBeenCalledWith(expect.objectContaining({ _id: "test-col" }));
+    // contentStore.upsert is a real method — verify via store state
+    const node = contentStore.getNode("test-col");
+    expect(node).toBeDefined();
+    expect(node?.collectionDef?.name).toBe("Test Collection");
 
     // 4. Verify event was broadcast
     expect(eventBus.broadcast).toHaveBeenCalledWith("content:update", expect.any(Object));

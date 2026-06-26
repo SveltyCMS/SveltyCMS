@@ -209,7 +209,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     const authReady = await waitForAuthService();
     if (!(authReady && auth)) {
-      const { isSetupCompleteAsync } = await import("@utils/setup-check");
+      const { isSetupCompleteAsync } = await import("@utils/server/setup-check");
       const setupComplete = await isSetupCompleteAsync();
       if (!setupComplete) {
         return {
