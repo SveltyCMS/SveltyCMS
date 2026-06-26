@@ -236,30 +236,38 @@ export async function handleMediaUpload(
     throw new AppError("No valid file arrays found inside submission bundle", 400);
 
   const concurrency = getPrivateEnv()?.CONCURRENT_UPLOAD_SIZE || 2;
-  const results: any[] = [];
+  const results: any[] = Array.from({ length: files.length });
+  let nextIndex = 0;
 
-  for (let i = 0; i < files.length; i += concurrency) {
-    const chunk = files.slice(i, i + concurrency);
-    const chunkResults = await Promise.all(
-      chunk.map(async (file) => {
-        if (!isFileLike(file)) return null;
-        try {
-          const res = await cms.media.upload(file, {
-            userId: user?._id || "system",
-            tenantId,
-          });
-          return res.success
-            ? { fileName: file.name, success: true, data: res.data }
-            : { fileName: file.name, success: false, message: res.message };
-        } catch (err: any) {
-          return { fileName: file.name, success: false, message: err.message };
-        }
-      }),
-    );
-    results.push(...chunkResults.filter(Boolean));
+  async function uploadWorker() {
+    while (nextIndex < files.length) {
+      const currentIndex = nextIndex++;
+      const file = files[currentIndex];
+      if (!isFileLike(file)) continue;
+
+      try {
+        const res = await cms.media.upload(file, {
+          userId: user?._id || "system",
+          tenantId,
+        });
+        results[currentIndex] = res.success
+          ? { fileName: file.name, success: true, data: res.data }
+          : { fileName: file.name, success: false, message: res.message };
+      } catch (err: any) {
+        results[currentIndex] = {
+          fileName: file.name,
+          success: false,
+          message: err.message,
+        };
+      }
+    }
   }
 
-  return successResponse(event, results);
+  // Launch N workers — each pulls the next file as it finishes (no chunk blocking)
+  const workers = Array.from({ length: Math.min(concurrency, files.length) }, uploadWorker);
+  await Promise.all(workers);
+
+  return successResponse(event, results.filter(Boolean));
 }
 
 export async function handleMediaProcess(
@@ -800,10 +808,22 @@ export async function handleMediaAnalytics(
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
-  const listRes = await (cms.media as any).list({ tenantId, limit: 10000 });
+  // Use DB-side count for accurate total; cap in-memory sample to avoid heap pressure.
+  // TODO: push full breakdown (byType/byFolder/byUser/byMonth) to DB adapter
+  // aggregate pipelines for sub-millisecond analytics at 100K+ asset scale.
+  const countRes = await cms.db.crud.count("media", {}, { tenantId });
+  const totalFiles = countRes.success ? (countRes.data ?? 0) : 0;
+
+  const ANALYTICS_SAMPLE_LIMIT = 2000;
+  const listRes = await (cms.media as any).list({
+    tenantId,
+    limit: ANALYTICS_SAMPLE_LIMIT,
+  });
   const files = (listRes.success ? listRes.data : []) as any[];
 
   const breakdown = analyze(files);
+  breakdown.total.files = totalFiles;
+
   const topTypes = Object.entries(breakdown.byType)
     .sort(([, a]: any, [, b]: any) => b.size - a.size)
     .slice(0, 5)

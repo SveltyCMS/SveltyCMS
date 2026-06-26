@@ -18,6 +18,7 @@ import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 import { streamingJsonResponse } from "./streaming";
 import { setCollectionOrder } from "@utils/collection-order.server";
+import { cacheService } from "@src/databases/cache/cache-service";
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
@@ -354,11 +355,22 @@ export async function handleCollectionWarmCache(
     throw new AppError("warm-cache supports at most 20 entryIds per request", 400);
   }
 
-  await Promise.all(
-    entryIds.map((id) =>
-      cms.collections.findById(collectionId, id, { tenantId }).catch(() => null),
-    ),
+  // Single bulk query instead of N individual lookups
+  const sanitizedTable = `collection_${collectionId.replace(/-/g, "")}`;
+  const bulkResult = await cms.db.crud.findMany(
+    sanitizedTable,
+    { _id: { $in: entryIds } },
+    { tenantId, limit: entryIds.length },
   );
+
+  // Fire-and-forget cache backfill
+  if (bulkResult.success && Array.isArray(bulkResult.data)) {
+    for (const doc of bulkResult.data) {
+      if (!doc?._id) continue;
+      const cacheKey = `collection:${collectionId}:${doc._id}`;
+      cacheService.set(cacheKey, doc, 300, tenantId).catch(() => {});
+    }
+  }
 
   return successResponse(event, {
     warmed: entryIds.length,
