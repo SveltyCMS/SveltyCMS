@@ -1,6 +1,6 @@
 /**
- * @file src/stores/systemPreferences.svelte.ts
- * @description User preferences with server persistence (Svelte 5 runes)
+ * @file src/stores/dashboard-preferences.svelte.ts
+ * @description Dashboard widget layout preferences with server persistence (Svelte 5 runes)
  */
 
 import type { DashboardWidgetConfig, Layout } from "@src/content/types";

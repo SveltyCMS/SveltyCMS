@@ -7,7 +7,7 @@ import { redirect, type Handle } from "@sveltejs/kit";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
-import { getSetupState, SetupState } from "@utils/setup-check";
+import { getSetupState, SetupState } from "../utils/server/setup-check";
 
 const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews)/;

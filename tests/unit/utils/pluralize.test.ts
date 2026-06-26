@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { pluralize } from "@utils/pluralize";
+import { pluralize } from "@src/utils/string";
 
 describe("internationalized pluralize utility", () => {
   it("handles English (default locale)", () => {

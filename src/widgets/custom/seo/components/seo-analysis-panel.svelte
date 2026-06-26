@@ -11,7 +11,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 	import { slide } from 'svelte/transition';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SeoAnalysisResult } from '../seo-types';
-	import { getReadingEaseDescription } from '@src/utils/seo/readability';
+	import { getReadingEaseDescription } from '@src/utils/readability';
 	interface Props {
 		analysisResult: SeoAnalysisResult | null;
 		content?: string;

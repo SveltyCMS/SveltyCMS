@@ -115,13 +115,4 @@ export interface MediaRemoteVideo extends MediaBase {
 
 export type MediaItem = MediaImage | MediaVideo | MediaAudio | MediaDocument | MediaRemoteVideo;
 
-/** Virtual folder for organization */
-export interface SystemVirtualFolder {
-  _id: string;
-  color?: string;
-  icon?: string;
-  name: string;
-  parentId: string | null;
-}
-
 export { MediaType as MediaTypeEnum };

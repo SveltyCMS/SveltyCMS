@@ -82,7 +82,10 @@ describe("Events API Security - Tenant Isolation", () => {
       capturedListener(myEvent);
       capturedListener(otherEvent);
 
-      // Verify that ONLY myEvent was enqueued.
+      // Ring buffer flushes every 32ms — wait for the batch
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Verify that ONLY myEvent was enqueued (2 startup frames + 1 event batch)
       // The stream now emits a second startup comment frame so production SSE
       // flushes immediately under adapter-uws.
       expect(mockController.enqueue).toHaveBeenCalledTimes(3);

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-06-22"
+updated: "2026-06-26"
 tags:
   - "security"
   - "documentation"
@@ -20,7 +20,7 @@ tags:
 SveltyCMS implements enterprise-grade security measures across all system components to protect data, prevent vulnerabilities, and ensure compliance with security standards.
 
 > [!IMPORTANT]
-> **~97/100 Self-Assessment** (June 2026). 0 CVEs is verifiable. Dimension scores are code-review-based, not externally audited. [Full scorecard →](#-security-scorecard)
+> **~99/100 Self-Assessment** (June 2026). 0 CVEs is verifiable. Dimension scores are code-review-based, not externally audited. [Full scorecard →](#-security-scorecard)
 
 ## 🛡️ Security Overview
 
@@ -45,8 +45,7 @@ SveltyCMS security architecture includes:
 | **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program |
 | **Auth & Session**        |  20%   |  98   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, fully tested lockout |
 | **Input Validation**      |  15%   |  98   | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle, body limit   |
-
-| **Dependency Hygiene** | 15% | 98 | Dependabot weekly, CI audit failure, override-pinned |
+| **Dependency Hygiene**    |  15%   |  98   | Dependabot weekly, CI audit failure, override-pinned           |
 
 **Weighted**: 100×0.25 + 98×0.20 + 98×0.15 + 100×0.15 + 98×0.15 + 98×0.10 = **~99/100**
 

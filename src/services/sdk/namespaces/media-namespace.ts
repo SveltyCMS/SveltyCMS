@@ -9,6 +9,16 @@ import { LRUCache } from "lru-cache";
 import type { DatabaseId, IDBAdapter, DatabaseResult } from "@src/databases/db-interface";
 import type { MediaItem } from "@utils/media/media-models";
 
+function isFileLike(value: unknown): value is File {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    "arrayBuffer" in value &&
+    typeof (value as any).arrayBuffer === "function" &&
+    "name" in value
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type MediaAccess = "public" | "private";
@@ -153,7 +163,7 @@ export class MediaNamespace {
   }
 
   async getMetadata(file: File) {
-    if (!(file instanceof File)) throw new AppError("Valid file is required", 400);
+    if (!isFileLike(file)) throw new AppError("Valid file is required", 400);
     const { mediaProcessingService } = await import("@src/utils/media/media-processing.server");
     const buffer = Buffer.from(await file.arrayBuffer());
     return mediaProcessingService.getMetadata(buffer);
@@ -173,7 +183,7 @@ export class MediaNamespace {
 
     try {
       if (!userId) throw new AppError("User ID is required for upload", 400);
-      if (!(file instanceof File)) throw new AppError("A valid File object is required", 400);
+      if (!isFileLike(file)) throw new AppError("A valid File object is required", 400);
 
       const result = await this.mediaService.saveMedia(
         file,
@@ -333,7 +343,7 @@ export class MediaNamespace {
     try {
       if (!mediaId) throw new AppError("Media ID is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);
-      if (!(file instanceof File)) throw new AppError("Valid file is required", 400);
+      if (!isFileLike(file)) throw new AppError("Valid file is required", 400);
 
       const result = await this.mediaService.uploadNewVersion(
         mediaId,

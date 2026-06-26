@@ -265,7 +265,7 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-function applyRedirect(path: string, redirect: any) {
+function applyRedirect(_path: string, redirect: any) {
   return new Response(null, {
     status: redirect.type || 301,
     headers: { location: redirect.target },

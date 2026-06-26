@@ -17,14 +17,14 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { DatabaseResult, Role } from "../databases/db-interface";
+import type { DatabaseResult, Role } from "../../databases/db-interface";
 
 /**
  * ⚡️ FAST SHALLOW CHECK
  * Checks if config/private.ts exists.
  * Safe to call from anywhere (middleware, Vite, etc.)
  */
-import { isSetupComplete } from "./setup-check-fast";
+import { isSetupComplete } from "../setup-check-fast";
 export { isSetupComplete };
 
 // Memoization
@@ -73,8 +73,8 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
   try {
     // Dynamic imports to avoid Vite/SSR side-effects at top-level
     // Vite will resolve these during the main app build and bundle them correctly.
-    const { logger } = await import("./logger");
-    const db = await import("../databases/db");
+    const { logger } = await import("../logger");
+    const db = await import("../../databases/db");
 
     // Wait for DB boot
     if (typeof db.getDbInitPromise === "function") {
@@ -130,20 +130,17 @@ export async function getSetupState(): Promise<SetupState> {
   return isDeepComplete ? SetupState.COMPLETE : SetupState.MISSING_ADMIN;
 }
 
-/**
- * Sync check for fully complete system (memoized).
- */
-export function isSetupFullyComplete(): boolean {
-  return (
-    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true ||
-    (setupStatusCheckedDb && setupDbStatus === true)
-  );
-}
-
 let cachedTestSecret: string | null = null;
 
 /**
- * Robustly retrieves the test API secret with memoization to prevent per-request disk I/O.
+ * Retrieves the test API secret with memoization to prevent per-request disk I/O.
+ *
+ * Resolution order:
+ * 1. `TEST_API_SECRET` or `VITE_TEST_API_SECRET` environment variable
+ * 2. `tests/e2e/.auth/test-secret.txt` file
+ *
+ * @throws {Error} If no secret is configured — fails fast to prevent accidental use
+ *   of a hardcoded credential against production systems.
  */
 export function getTestSecret(): string {
   if (cachedTestSecret) return cachedTestSecret;
@@ -162,8 +159,16 @@ export function getTestSecret(): string {
     }
   } catch {}
 
-  cachedTestSecret = "SVELTYCMS_TEST_SECRET_2026";
-  return cachedTestSecret;
+  // ⚠️ SECURITY: No hardcoded fallback secret. A known credential in source code
+  // could be used against production if test mode is accidentally enabled.
+  // Generate a random secret for the test run instead of using a predictable one.
+  const { generateSecureToken } = require("../native-utils");
+  cachedTestSecret = generateSecureToken(32);
+  console.warn(
+    "[setupCheck] No TEST_API_SECRET env or test-secret.txt found. " +
+      "Generated a random secret for this run. Set TEST_API_SECRET for reproducible tests.",
+  );
+  return cachedTestSecret!;
 }
 
 /**
@@ -180,7 +185,7 @@ export function invalidateSetupCache(
   }
 
   if (clearPrivateEnv) {
-    import("../databases/db").then((db) => {
+    import("../../databases/db").then((db) => {
       if (typeof db.clearPrivateConfigCache === "function") {
         db.clearPrivateConfigCache(false);
       }

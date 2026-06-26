@@ -6,11 +6,11 @@
 
 const isBrowser = typeof window !== "undefined";
 import { setContext, getContext } from "svelte";
-import { contentStore } from "@stores/content-store.svelte";
+import { contentStore } from "@stores/content-registry.svelte";
 import { contentNavigation, contentMetrics } from "./content-utils";
 
 export * from "./types";
-export { contentStore } from "@stores/content-store.svelte";
+export { contentStore } from "@stores/content-registry.svelte";
 export {
   contentNavigation,
   contentMetrics,

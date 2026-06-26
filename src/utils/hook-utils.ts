@@ -11,7 +11,7 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
-import { BASE_HEADERS } from "./security-constants";
+import { BASE_HEADERS } from "./security/constants";
 
 // 🚀 Pre-cache to avoid Object.entries allocation on every request
 const BASE_HEADERS_ENTRIES = Object.entries(BASE_HEADERS);
@@ -21,11 +21,6 @@ const BASE_HEADERS_ENTRIES = Object.entries(BASE_HEADERS);
  */
 export const STATIC_ASSET_REGEX =
   /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|files\/|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
-
-/**
- * Legacy alias for STATIC_ASSET_REGEX
- */
-export const ASSET_REGEX = STATIC_ASSET_REGEX;
 
 /**
  * Pre-compiled regex for localized bootstrap and public routes.

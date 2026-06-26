@@ -9,6 +9,7 @@ import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId } from "@src/databases/db-interface";
 import type { RequestEvent } from "@sveltejs/kit";
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { generateUUID } from "@utils/native-utils";
 
@@ -42,7 +43,7 @@ export async function handleTestingRoutes(
   const requestSecret =
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
-  const { getTestSecret } = await import("@src/utils/setup-check");
+  const { getTestSecret } = await import("@src/utils/server/setup-check");
   const expectedSecret = process.env.TEST_API_SECRET || getTestSecret();
 
   if (!isTestMode || !expectedSecret || !requestSecret) {
@@ -96,15 +97,15 @@ export async function handleTestingRoutes(
       const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
       if (fs.existsSync(fullMediaRoot)) {
         try {
-          fs.rmSync(fullMediaRoot, { recursive: true, force: true });
-          fs.mkdirSync(fullMediaRoot, { recursive: true });
+          await fsp.rm(fullMediaRoot, { recursive: true, force: true });
+          await fsp.mkdir(fullMediaRoot, { recursive: true });
         } catch (err) {
           console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
         }
       }
 
       // Invalidate cache to reflect empty DB
-      const { invalidateSetupCache } = await import("@src/utils/setup-check");
+      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, null);
 
       try {
@@ -202,7 +203,7 @@ export async function handleTestingRoutes(
       }
 
       // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
-      const { invalidateSetupCache } = await import("@src/utils/setup-check");
+      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, true);
 
       // Invalidate roles and user count caches so they are reloaded after seeding

@@ -581,3 +581,27 @@ export async function saveDraftAndLeave(): Promise<boolean> {
 export function resetUnsavedChanges() {
   hasUnsavedChanges = false;
 }
+
+// --- Entry Metadata Accumulator ---
+
+interface MetaData {
+  media_images_remove?: string[];
+  [key: string]: unknown;
+}
+
+/** Per-entry metadata accumulator for tracking side-effects (e.g. media removal). */
+export const meta_data = {
+  meta_data: {} as MetaData,
+  add(key: keyof MetaData, data: unknown) {
+    this.meta_data[key] = data;
+  },
+  get(): MetaData {
+    return this.meta_data;
+  },
+  clear() {
+    this.meta_data = {};
+  },
+  is_empty(): boolean {
+    return Object.keys(this.meta_data).length === 0;
+  },
+};

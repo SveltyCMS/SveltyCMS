@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2026-05-14"
-updated: "2026-06-10"
+updated: "2026-06-26"
 tags:
   - "security"
   - "auth"
@@ -92,7 +92,7 @@ locals.user = {
 GraphQL requests pass through the same middleware pipeline as REST:
 
 - **HTTP entry**: `handleRequest()` rejects unauthenticated requests (401) before schema execution
-- **Validation plugin**: Query depth limit (7), alias limit (15)
+- **Validation plugin**: Query depth limit (8), alias limit (15)
 - **Introspection**: Explicitly blocked in production via `NoSchemaIntrospectionCustomRule`
 - **Subscriptions**: Context handler validates sessions before WebSocket upgrade
 

@@ -7,7 +7,10 @@
  */
 
 import type { IDBAdapter } from "../db-interface";
-import { toDbId } from "@src/utils/db-id";
+import type { DatabaseId } from "@src/content/types";
+
+/** Safely casts a string to the DatabaseId brand type. Inlined from deleted db-id.ts. */
+const toDbId = (id: string): DatabaseId => id as DatabaseId;
 
 /**
  * Creates a proxy that exposes collection-specific methods on the database adapter.

@@ -707,7 +707,14 @@ export class Auth {
 
       return { user, sessionId: session._id };
     } catch (err: any) {
-      logger.error(`Authentication error: ${err.message}`);
+      // Vite 8 dev-mode HMR cycle — non-fatal, retry will succeed
+      if (err.message?.includes("module runner has been closed")) {
+        logger.debug(
+          `Auth: Vite module runner closed during authenticate (HMR cycle), returning null`,
+        );
+      } else {
+        logger.error(`Authentication error: ${err.message}`);
+      }
       return null;
     }
   }

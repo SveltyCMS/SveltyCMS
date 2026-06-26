@@ -17,16 +17,29 @@ import { successResponse, rawResponse } from "./base";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { createLink, validateLink, type ShareLink } from "@src/utils/media/sharing";
+import { createLink, validateLink, revoke, extend, type ShareLink } from "@src/utils/media/sharing";
 import { createBulkArchive, streamArchive, cleanupArchive } from "@src/utils/media/bulk-download";
 import { analyze, insights, trends, quota, formatBytes } from "@src/utils/media/storage-analytics";
-import { compareVersions, getVersionStats } from "@src/utils/media/version-history";
+import { compareVersions, createVersion, getVersionStats } from "@src/utils/media/version-history";
+import { parseMultipartStream } from "@utils/media/streaming-upload";
+import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
+import type { MediaBase } from "@utils/media/media-models";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function hasMediaPermission(event: RequestEvent, user: unknown, permission: string): boolean {
   if (event.locals.isAdmin) return true;
   return !!user && hasPermissionWithRoles(user as any, permission, event.locals.roles || []);
+}
+
+function isFileLike(value: unknown): value is File {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    "arrayBuffer" in value &&
+    typeof (value as any).arrayBuffer === "function" &&
+    "name" in value
+  );
 }
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
@@ -48,6 +61,8 @@ export async function handleMediaRoutes(
       case "POST":
         return await handlePostRoutes(event, cms, tenantId, user, method, segments);
       case "PATCH":
+        if (method === "share")
+          return await handleMediaShareExtend(event, cms, tenantId, user, segments);
         if (!method) return successResponse(event, null);
         return rawResponse(
           event,
@@ -87,6 +102,8 @@ async function handleGetRoutes(
       return handleMediaAnalytics(event, cms, tenantId);
     case "bulk-download":
       return handleMediaBulkDownload(event, cms, tenantId);
+    case "search":
+      return handleMediaSearch(event, cms, tenantId, url);
   }
 
   if (method === "version" && segments[2]) {
@@ -123,10 +140,13 @@ async function handlePostRoutes(
     return handleMediaManipulate(event, cms, tenantId, user, segments);
   if (method === "bulk-download") return handleMediaBulkDownload(event, cms, tenantId);
   if (method === "share") return handleMediaShareCreate(event, cms, tenantId, user, segments);
+  if (method === "stream") return handleMediaStreamUpload(event, cms, tenantId, user);
   if (method === "version") {
     if (segments[3] === "restore")
       return handleMediaVersionRestore(event, cms, tenantId, user, segments);
-    return handleMediaVersionUpload(event, cms, tenantId, user, segments);
+    if (segments[3] === "upload")
+      return handleMediaVersionUpload(event, cms, tenantId, user, segments);
+    return handleMediaVersionCreate(event, cms, tenantId, user, segments);
   }
   throw new AppError(`Unknown POST target operation: ${method}`, 404);
 }
@@ -139,7 +159,7 @@ async function handleDeleteRoutes(
   method: string | undefined,
   segments: string[],
 ) {
-  if (method === "share") return handleMediaShareDelete(event, cms, tenantId, segments);
+  if (method === "share") return handleMediaShareRevoke(event, cms, tenantId, user, segments);
   if (method === "delete" || method === "trash") return handleMediaPostDelete(event, cms, tenantId);
   if (method) {
     if (!hasMediaPermission(event, user, "media:delete")) {
@@ -211,7 +231,7 @@ export async function handleMediaUpload(
   const files = formData.getAll("files") as File[];
   const singleFile = formData.get("file");
 
-  if (singleFile instanceof File && files.length === 0) files.push(singleFile);
+  if (isFileLike(singleFile) && files.length === 0) files.push(singleFile);
   if (files.length === 0)
     throw new AppError("No valid file arrays found inside submission bundle", 400);
 
@@ -222,7 +242,7 @@ export async function handleMediaUpload(
     const chunk = files.slice(i, i + concurrency);
     const chunkResults = await Promise.all(
       chunk.map(async (file) => {
-        if (!(file instanceof File)) return null;
+        if (!isFileLike(file)) return null;
         try {
           const res = await cms.media.upload(file, {
             userId: user?._id || "system",
@@ -261,8 +281,8 @@ export async function handleMediaProcess(
 
   switch (processType) {
     case "metadata": {
-      const file = formData.get("file") as File;
-      if (!file) throw new AppError("Target asset source binary required", 400);
+      const file = formData.get("file");
+      if (!isFileLike(file)) throw new AppError("Target asset source binary required", 400);
       return successResponse(event, await cms.media.getMetadata(file));
     }
     case "save":
@@ -386,6 +406,54 @@ export async function handleMediaManipulate(
   return successResponse(event, result.data);
 }
 
+export async function handleMediaVersionCreate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  segments: string[],
+) {
+  const mediaId = segments[2];
+  if (!mediaId) throw new AppError("Media reference target identifier required", 400);
+
+  const formData = await event.request.formData();
+  const file = formData.get("file");
+  if (!isFileLike(file))
+    throw new AppError("Target payload matrix type must match binary File structure", 400);
+  const reason = (formData.get("reason") as string) || undefined;
+
+  // Hash the file content for version identity tracking
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const hash = crypto.createHash("sha256").update(buffer).digest("hex");
+
+  // Count existing versions to determine next version number
+  const existing = await cms.media.findById(mediaId, { tenantId });
+  const versions =
+    existing.success && existing.data ? (existing.data as any).metadata?.versions || [] : [];
+
+  // Upload the new version via CMS adapter
+  const result = await cms.media.uploadVersion(mediaId, file, {
+    userId: user?._id || "system",
+    tenantId,
+  });
+  if (!result.success)
+    throw result.error || new AppError(result.message || "Version creation transaction fault", 500);
+
+  // Build structured version metadata using createVersion utility
+  const version = createVersion(
+    mediaId as DatabaseId,
+    user?._id || "system",
+    "update",
+    hash,
+    file.size,
+    [{ field: "content", type: "modify" }],
+    { path: file.name, reason },
+  );
+  (version as any).versionNumber = versions.length + 1;
+
+  return successResponse(event, { version, media: result.data });
+}
+
 export async function handleMediaVersionUpload(
   event: RequestEvent,
   cms: LocalCMS,
@@ -397,7 +465,7 @@ export async function handleMediaVersionUpload(
   if (!mediaId) throw new AppError("Media reference target identifier required", 400);
   const formData = await event.request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File))
+  if (!isFileLike(file))
     throw new AppError("Target payload matrix type must match binary File structure", 400);
   const result = await cms.media.uploadVersion(mediaId, file, {
     userId: user?._id || "system",
@@ -505,6 +573,73 @@ export async function handleMediaShareDelete(
   return successResponse(event, { success: true });
 }
 
+/** Revoke a share link (soft-deactivate) — DELETE /api/media/share/{mediaId}/{token} */
+export async function handleMediaShareRevoke(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  _user: any,
+  segments: string[],
+) {
+  const mediaId = segments[2];
+  const token = segments[3];
+  if (!mediaId || !token) throw new AppError("Media identifier and share token required", 400);
+
+  const mediaRes = await cms.media.findById(mediaId, { tenantId });
+  if (!mediaRes.success || !mediaRes.data) throw new AppError("Media item not found", 404);
+
+  const item = mediaRes.data as any;
+  const links: ShareLink[] = item.metadata?.sharedLinks || [];
+  const idx = links.findIndex((l) => l.token === token);
+  if (idx === -1) throw new AppError("Share link not found", 404);
+
+  revoke(links[idx]);
+  await cms.media.update(
+    mediaId,
+    { metadata: { ...item.metadata, sharedLinks: links } },
+    { tenantId },
+  );
+
+  return successResponse(event, { success: true });
+}
+
+/** Extend a share link expiry — PATCH /api/media/share/{mediaId}/{token} */
+export async function handleMediaShareExtend(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  _user: any,
+  segments: string[],
+) {
+  const mediaId = segments[2];
+  const token = segments[3];
+  if (!mediaId || !token) throw new AppError("Media identifier and share token required", 400);
+
+  const { expiryHours } = await event.request.json().catch(() => ({}));
+  const hours = expiryHours ? Number(expiryHours) : 24;
+  if (hours <= 0 || !Number.isFinite(hours))
+    throw new AppError("Expiry hours must be a positive number", 400);
+
+  const mediaRes = await cms.media.findById(mediaId, { tenantId });
+  if (!mediaRes.success || !mediaRes.data) throw new AppError("Media item not found", 404);
+
+  const item = mediaRes.data as any;
+  const links: ShareLink[] = item.metadata?.sharedLinks || [];
+  const idx = links.findIndex((l) => l.token === token);
+  if (idx === -1) throw new AppError("Share link not found", 404);
+
+  extend(links[idx], hours);
+  await cms.media.update(
+    mediaId,
+    { metadata: { ...item.metadata, sharedLinks: links } },
+    { tenantId },
+  );
+
+  return successResponse(event, {
+    expiresAt: links[idx].expiresAt,
+  });
+}
+
 export async function handleMediaShareDownload(
   event: RequestEvent,
   cms: LocalCMS,
@@ -605,14 +740,15 @@ export async function handleMediaBulkDownload(
 
   const files: any[] = [];
   if (cms.db.crud.findMany) {
-    const bulkRes = await cms.db.crud.findMany("media", { _id: { $in: ids } }, {
+    const bulkRes = await cms.db.crud.findMany("media", { _id: { $in: ids as any } }, {
       tenantId,
     } as any);
-    if (bulkRes.success && Array.isArray(bulkRes.data)) files.push(...bulkRes.data);
+    if (bulkRes.success && Array.isArray((bulkRes as any).data))
+      files.push(...(bulkRes as any).data);
   } else {
     for (const id of ids) {
       const res = await cms.media.findById(id, { tenantId });
-      if (res.success && res.data) files.push(res.data);
+      if (res.success && (res as any).data) files.push((res as any).data);
     }
   }
 
@@ -720,4 +856,161 @@ export async function handleMediaVersionCompare(
     throw new AppError("Target operational reference validation index point split missing", 404);
 
   return successResponse(event, compareVersions(from, to));
+}
+
+// ─── Advanced Search ─────────────────────────────────────────────────────────
+
+export async function handleMediaSearch(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  url: URL,
+) {
+  // Collect search criteria from query params
+  const criteria: SearchCriteria = {};
+
+  const filename = url.searchParams.get("filename");
+  if (filename) criteria.filename = filename;
+
+  const type = url.searchParams.get("type");
+  if (type)
+    criteria.fileTypes = type
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+  const tags = url.searchParams.get("tags");
+  if (tags)
+    criteria.tags = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+  const camera = url.searchParams.get("camera");
+  if (camera) criteria.camera = camera;
+
+  const dominantColor = url.searchParams.get("dominantColor");
+  if (dominantColor) criteria.dominantColor = dominantColor;
+
+  const minWidth = url.searchParams.get("minWidth");
+  if (minWidth) criteria.minWidth = Number(minWidth);
+
+  const maxWidth = url.searchParams.get("maxWidth");
+  if (maxWidth) criteria.maxWidth = Number(maxWidth);
+
+  const minHeight = url.searchParams.get("minHeight");
+  if (minHeight) criteria.minHeight = Number(minHeight);
+
+  const maxHeight = url.searchParams.get("maxHeight");
+  if (maxHeight) criteria.maxHeight = Number(maxHeight);
+
+  const minSize = url.searchParams.get("minSize");
+  if (minSize) criteria.minSize = Number(minSize);
+
+  const maxSize = url.searchParams.get("maxSize");
+  if (maxSize) criteria.maxSize = Number(maxSize);
+
+  const uploadedAfter = url.searchParams.get("uploadedAfter");
+  if (uploadedAfter) criteria.uploadedAfter = new Date(uploadedAfter);
+
+  const uploadedBefore = url.searchParams.get("uploadedBefore");
+  if (uploadedBefore) criteria.uploadedBefore = new Date(uploadedBefore);
+
+  const aspectRatio = url.searchParams.get("aspectRatio");
+  if (aspectRatio === "landscape" || aspectRatio === "portrait" || aspectRatio === "square") {
+    criteria.aspectRatio = aspectRatio;
+  }
+
+  // Fetch all media for client-side filtering
+  const listRes = await (cms.media as any).list({ tenantId, limit: 10000 });
+  const files: MediaBase[] = listRes.success ? (listRes.data ?? []) : [];
+
+  const result = advancedSearch(files, criteria);
+
+  return successResponse(event, {
+    files: result.files,
+    total: result.total,
+    matched: result.matched,
+  });
+}
+
+// ─── Streaming Upload ────────────────────────────────────────────────────────
+
+export async function handleMediaStreamUpload(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
+  }
+
+  const operationId = crypto.randomUUID();
+  const uploaded: {
+    fileName: string;
+    success: boolean;
+    data?: any;
+    message?: string;
+  }[] = [];
+
+  try {
+    await parseMultipartStream(event.request, {
+      onFile: async (info) => {
+        const chunks: Uint8Array[] = [];
+        const reader = info.stream.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) chunks.push(value);
+        }
+
+        const totalLength = chunks.reduce((s, c) => s + c.length, 0);
+        const buffer = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          buffer.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        try {
+          const res = await cms.media.upload(
+            new File([buffer], info.filename, { type: info.contentType }),
+            {
+              userId: user?._id || "system",
+              tenantId,
+            },
+          );
+          uploaded.push({
+            fileName: info.filename,
+            success: !!res.success,
+            data: (res as any).data,
+            message: res.success ? undefined : res.message,
+          });
+        } catch (err: any) {
+          uploaded.push({
+            fileName: info.filename,
+            success: false,
+            message: err.message,
+          });
+        }
+      },
+      onField: (_name, _value) => {
+        // Form fields captured for extensibility (e.g. folderId, tags)
+      },
+    });
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    throw new AppError(
+      err.message || "Streaming upload transaction failed",
+      500,
+      "STREAM_UPLOAD_ERROR",
+    );
+  }
+
+  return successResponse(event, {
+    operationId,
+    status: "completed",
+    files: uploaded,
+  });
 }

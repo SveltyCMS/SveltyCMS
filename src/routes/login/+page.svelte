@@ -294,7 +294,6 @@ function handleSignUpPointerEnter() {
 </svelte:head>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`} role="main" aria-label="Authentication Page">
-	<!-- Seasons (always present, opacity/position managed) -->
 	<div
 		class="pointer-events-none fixed inset-0 z-10 transition-all duration-300"
 		class:opacity-0={active === undefined}

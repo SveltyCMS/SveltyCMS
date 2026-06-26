@@ -4,14 +4,37 @@
  */
 
 /**
- * PascalCase to camelCase conversion.
+ * Forms definition for localized plural categories.
  */
-export const pascalToCamelCase = (str: string): string => {
-  if (!str) {
-    return str;
+export interface PluralForms {
+  zero?: string;
+  one?: string;
+  two?: string;
+  few?: string;
+  many?: string;
+  other: string;
+}
+
+/**
+ * i18n pluralization using Intl.PluralRules with explicit zero-form support.
+ */
+export function pluralize(
+  count: number,
+  forms: PluralForms,
+  locale = "en",
+  appendCount = false,
+): string {
+  const rule = new Intl.PluralRules(locale).select(count);
+  // Special case: Intl.PluralRules maps 0 to 'other' in many languages,
+  // but 'zero' should be used when explicitly provided.
+  let result = forms.other;
+  if (count === 0 && forms.zero !== undefined) {
+    result = forms.zero;
+  } else if (forms[rule] !== undefined) {
+    result = forms[rule]!;
   }
-  return str.charAt(0).toLowerCase() + str.slice(1);
-};
+  return appendCount ? `${count} ${result}` : result;
+}
 
 /**
  * Escapes regex metacharacters in a string.
@@ -21,45 +44,13 @@ export function escapeRegex(string: string): string {
 }
 
 /**
- * Generates a random hex string of the given byte size.
+ * @deprecated Use `generateSecureToken(size)` from `@utils/native-utils` instead.
+ * This function is kept for backward compatibility only and will be removed.
+ * `generateSecureToken` uses the same CSPRNG implementation with a cleaner API.
  */
-export function getRandomHex(size: number): string {
-  const crypto = globalThis?.crypto;
-  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-    const bytes = new Uint8Array(size);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  }
-  throw new Error("Cryptographic API unavailable");
-}
-
-/**
- * Sanitizes field names for use in GraphQL type names.
- */
-export function sanitizeGraphQLTypeName(name: string): string {
-  if (!name) {
-    return "";
-  }
-  let sanitized = name.replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "");
-  if (sanitized && !/^[A-Za-z_]/.test(sanitized)) {
-    sanitized = `_${sanitized}`;
-  }
-  return sanitized || "_invalid_name";
-}
-
-/**
- * Creates a clean GraphQL type name from collection info.
- */
-export function createCleanTypeName(collection: { _id?: string; name?: string | unknown }): string {
-  const rawName = typeof collection.name === "string" ? collection.name : "";
-  const baseName = rawName.split("/").pop() || rawName;
-  const cleanName = baseName
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .replace(/^[0-9]/, "Collection$&")
-    .replace(/^[a-z]/, (c) => c.toUpperCase());
-  const shortId = (collection._id ?? "").substring(0, 8);
-  return `${cleanName}_${shortId}`;
-}
+// getRandomHex removed — use generateSecureToken() from native-utils.ts
+// sanitizeGraphQLTypeName removed — unused
+// createCleanTypeName removed — graphql resolver has its own version
 
 /**
  * Returns the text direction (ltr/rtl) for a given language code.
@@ -152,4 +143,26 @@ export function getEditDistance(a: string, b: string): number | undefined {
   const normalizedDistance = matrix[b.length][a.length] / maxDistance;
 
   return normalizedDistance;
+}
+
+/**
+ * Recursively parses an object's string values as JSON where possible.
+ * Useful for normalizing data from form submissions or URL search params.
+ */
+export function parse<T>(obj: unknown): T {
+  if (typeof obj !== "object" || obj === null) return obj as T;
+  if (Array.isArray(obj)) return obj.map((item) => parse(item)) as unknown as T;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "string") {
+      try {
+        result[key] = JSON.parse(value);
+      } catch {
+        result[key] = value;
+      }
+    } else {
+      result[key] = parse(value);
+    }
+  }
+  return result as T;
 }

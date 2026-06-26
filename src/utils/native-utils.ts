@@ -75,7 +75,7 @@ export const pc = {
 
 /**
  * 🚀 GLOBAL STATE HELPERS
- * Safe way to manage globals that survive bundling and tree-shaking.
+ * Used by db.ts for self-healing proxy, boot phase tracking, and settings cache.
  */
 export const setGlobal = (key: string, val: any) => {
   (globalThis as any)[key] = val;

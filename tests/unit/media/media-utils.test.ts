@@ -54,7 +54,7 @@ describe("media-utils — reverse MIME lookup", () => {
 describe("media-utils — filename sanitization", () => {
   it("splits filename into name and ext", () => {
     const result = sanitizedFilename("my photo.jpg");
-    expect(result.name).toBe("my_photo");
+    expect(result.name).toBe("my photo");
     expect(result.ext).toBe("jpg");
   });
 

@@ -249,7 +249,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           const apiPathPrefix = url.pathname.includes("/local/")
             ? `/api/local/${apiEndpoint}`
             : `/api/${apiEndpoint}`;
-          const pattern = `api:${tenantIdString || "global"}:${String(locals.user._id)}:${apiPathPrefix}`;
+          const pattern = `api:${tenantIdString || "global"}:${String(locals.user!._id)}:${apiPathPrefix}`;
           await cacheService.clearByPattern(`${pattern}*`, currentTenantId);
 
           if (

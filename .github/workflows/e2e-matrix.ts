@@ -7,6 +7,10 @@
  * are run separately in e2e-prep (sequential, state-dependent), so they
  * are excluded from this matrix.
  *
+ * Each entry has two shard representations:
+ *   - shard:   "1/2" format for Playwright's --shard flag
+ *   - shardId: "1-2" format for safe artifact names (no / in filenames)
+ *
  * Usage:
  *   node .github/workflows/e2e-matrix.ts
  *   # Prints JSON to stdout, suitable for workflow matrix generation.
@@ -15,6 +19,7 @@
 interface E2eMatrixInclude {
   project: string;
   shard: string;
+  shardId: string;
   "total-shards": number;
   parallel: boolean;
 }
@@ -39,6 +44,7 @@ for (const def of projectDefinitions) {
     include.push({
       project: def.name,
       shard: `${i}/${def.shards}`,
+      shardId: `${i}-${def.shards}`,
       "total-shards": def.shards,
       parallel: def.parallel,
     });

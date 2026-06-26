@@ -23,7 +23,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		usermodaluser_edittitle
 	} from '@src/paraglide/messages';
 	// Stores
-	import { storeListboxValue } from '@src/stores/store.svelte.ts';
+	import { app } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -56,7 +56,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Sync local listboxValue with global store for TableIcons
 	$effect(() => {
-		storeListboxValue.set(listboxValue);
+		app.listboxValueState = listboxValue;
 	});
 
 	// Helper to get identifier for display
@@ -328,7 +328,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		isDropdownOpen = false;
 
 		// Sync with store for other components (like TableIcons)
-		storeListboxValue.set(action);
+		app.listboxValueState = action;
 
 		// 2. Await tick to ensure UI state reflects the change
 		await tick();

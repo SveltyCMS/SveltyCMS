@@ -1,6 +1,6 @@
 /**
- * @file src/stores/content-store.svelte.ts
- * @description Central store for managing compiled content types and schemas with HMR support.
+ * @file src/stores/content-registry.svelte.ts
+ * @description Reactive registry of the content tree — ContentNode hierarchy and derived Schema catalog with HMR support.
  */
 
 import type { ContentNode, Schema } from "@src/content/types";
@@ -16,8 +16,20 @@ class ContentStore {
   private _schemas = new Map<string, Schema>();
   private _allNodes = new Map<string, ContentNode>();
 
-  public initState: ContentState = "uninitialized";
-  public contentVersion: number = 0;
+  #initState = $state<ContentState>("uninitialized");
+  public contentVersion = $state(0);
+
+  get initState(): ContentState {
+    return this.#initState;
+  }
+
+  set initState(v: ContentState) {
+    const wasReloading = this.#initState === "initializing";
+    this.#initState = v;
+    if (wasReloading && v !== "initializing") {
+      this.#notifyReloadWaiters();
+    }
+  }
 
   constructor() {
     // No-op
@@ -31,16 +43,20 @@ class ContentStore {
     return this.initState === "initializing";
   }
 
+  // Event-driven: waiting promises resolve when initState leaves "initializing"
+  #reloadResolvers = new Set<() => void>();
+
   async waitForReload(): Promise<void> {
     if (!this.isReloading) return;
-    return new Promise((resolve) => {
-      const check = setInterval(() => {
-        if (!this.isReloading) {
-          clearInterval(check);
-          resolve();
-        }
-      }, 50);
+    return new Promise<void>((resolve) => {
+      this.#reloadResolvers.add(resolve);
     });
+  }
+
+  /** @internal — called by initState setter to notify waiters */
+  #notifyReloadWaiters(): void {
+    for (const resolve of this.#reloadResolvers) resolve();
+    this.#reloadResolvers.clear();
   }
 
   isInitializedForTenant(_tenantId?: string | null): boolean {

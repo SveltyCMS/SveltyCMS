@@ -123,7 +123,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 		try {
 			const isEditMode = !!tokenForm.data.token;
-			const endpoint = isEditMode ? `/api/token/${tokenForm.data.token}` : '/api/token/createToken';
+			const endpoint = isEditMode ? `/api/token/${tokenForm.data.token}` : '/api/token/create-token';
 			const method = isEditMode ? 'PUT' : 'POST';
 
 			const body = isEditMode

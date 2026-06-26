@@ -288,30 +288,32 @@ async function handleTrashRoutes(
     const { contentSystem } = await import("@src/content/index.server");
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
     const schemas = await contentSystem.getCollections(tenantId);
-    const allDeleted: any[] = [];
 
-    for (const schema of schemas) {
-      if (!schema._id) continue;
-      const collectionName = `collection_${schema._id.replace(/-/g, "")}`;
-      const result = await cms.db.crud.findMany(
-        collectionName,
-        { isDeleted: true },
-        {
-          tenantId: tenantId as DatabaseId,
-          includeDeleted: true,
-          limit: limit * 2,
-        },
-      );
-      if (result.success && result.data) {
-        allDeleted.push(
-          ...result.data.map((item: any) => ({
-            ...item,
-            collectionId: schema._id,
-            collectionName: schema.name || schema._id,
-          })),
+    // Parallelize — fire all DB queries concurrently to eliminate N+1
+    const queries = schemas
+      .filter((s: any) => s._id)
+      .map(async (schema: any) => {
+        const col = `collection_${schema._id.replace(/-/g, "")}`;
+        const r = await cms.db.crud.findMany(
+          col,
+          { isDeleted: true },
+          {
+            tenantId: tenantId as DatabaseId,
+            includeDeleted: true,
+            limit: limit * 2,
+          },
         );
-      }
-    }
+        return r.success && r.data
+          ? r.data.map((item: any) => ({
+              ...item,
+              collectionId: schema._id,
+              collectionName: schema.name || schema._id,
+            }))
+          : [];
+      });
+
+    const results = await Promise.all(queries);
+    const allDeleted: any[] = results.flat();
 
     allDeleted.sort(
       (a, b) => new Date(b.deletedAt || 0).getTime() - new Date(a.deletedAt || 0).getTime(),

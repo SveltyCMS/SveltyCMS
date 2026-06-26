@@ -314,10 +314,10 @@ $effect(() => {
 						<div class="wrap-break-word lg:-mt-1">
 							{#if isInviteFlow}
 								{form_signup()}
-								<span class="text-2xl text-tertiary-500 dark:text-primary-500 sm:text-3xl">: Complete Invitation</span>
+								<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
 							{:else}
 								{form_signup()}
-								<span class="text-2xl capitalize text-tertiary-500 dark:text-primary-500 sm:text-3xl">: New User</span>
+								<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
 							{/if}
 						</div>
 					</h1>

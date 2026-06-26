@@ -132,7 +132,7 @@ async function loadWidgets() {
 	error = null;
 
 	try {
-		const response = await fetch(`/api/widgets/list?tenantId=${tenantId}`);
+		const response = await fetch(`/api/widgets/list`);
 
 		if (!response.ok) {
 			throw new Error(`Failed to load widgets: ${response.statusText}`);

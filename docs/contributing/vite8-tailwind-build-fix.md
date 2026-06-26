@@ -1,8 +1,8 @@
 ---
 title: Vite 8 + Tailwind v4 Build Fix
-description: Fix @src/routes resolution during vite build with @source file globs
+description: Fix module resolution failures during vite build with Tailwind v4
 path: docs/contributing/vite8-tailwind-build-fix.md
-updated: 2026-06-25
+updated: 2026-06-26
 ---
 
 # Vite 8 + Tailwind v4 Build Fix
@@ -16,40 +16,61 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@src/routes'
   imported from node_modules/.vite-temp/vite.config.ts
 ```
 
+Followed by cascading failures for other path aliases (`@utils/logger`,
+`$app/environment`, etc.)
+
 ## Root Cause
 
-`@tailwindcss/vite` registers a Node.js ESM loader hook that intercepts module
-resolution during the SSR build. By default, Tailwind v4 auto-scans ALL project
-files. When it encounters `import("@src/routes/setup/...")` in server-only
-TypeScript files, it resolves `@src/routes` via Node.js native resolution —
-treating it as an npm scoped package and failing.
+`@tailwindcss/vite` registers a Node.js ESM loader hook that intercepts ALL
+module resolution during the SSR build — not just class scanning. Vite's
+`resolve.alias` does NOT apply through this hook. When Tailwind encounters
+`import("@src/routes/setup/...")`, Node's native resolver treats `@src/routes`
+as an npm scoped package and fails with `ERR_MODULE_NOT_FOUND`.
 
-Vite's `resolve.alias` does NOT apply through Tailwind's loader hook.
+## Why `@source` Globs Don't Fix It
 
-## Fix
+Tailwind v4's `@source` directive with file globs only limits which files
+Tailwind _scans for utility classes_. The ESM loader hook operates at the
+Node.js module resolution level — it intercepts ALL imports regardless of
+whether the file is in Tailwind's scan scope.
 
-Use `@source` with **file globs** (not directories) in `src/app.css` to tell
-Tailwind to only scan `.svelte` and `.html` files:
+This means even with `@source "../src/**/*.svelte"`, the loader hook still
+sees and tries to resolve `@src/routes/setup/...` imports from TypeScript files.
 
-```css
-@import "tailwindcss";
+## Fix: Junction Shims
 
-@source "../src/**/*.svelte";
-@source "../src/**/*.html";
+`scripts/fix-tailwind-build.ts` creates junction points (directory symlinks)
+in `node_modules/@xxx` → `actual/path` for every Vite path alias. This makes
+Node's native resolver find these "packages" successfully through the loader
+hook.
+
+The shims are:
+
+- `@src` → `src/`
+- `@utils` → `src/utils/`
+- `@components` → `src/components/`
+- (all other `@`-prefixed path aliases)
+- `$app` → `node_modules/@sveltejs/kit/src/runtime/app`
+
+The script runs automatically via the `prepare` lifecycle hook before every
+build:
+
+```json
+{
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks && bun run scripts/fix-tailwind-build.ts"
+  }
+}
 ```
 
-File globs **replace** Tailwind's default auto-scan. Directory paths
-(`@source "../src/components"`) are additive and don't fix the issue.
+The shims are gitignored (`node_modules` is always gitignored) and recreated
+on each `bun install` or `bun run prepare`.
 
-Tailwind only scans Svelte components and HTML templates — it never touches
-`src/hooks/`, `src/routes/api/`, `src/routes/setup/`, or any other server-only
-TypeScript files that contain `@src/routes` dynamic imports.
+## Manual Fix
 
-## Why Not Junction Shims
+If the build fails with `ERR_MODULE_NOT_FOUND` for a `@xxx` or `$xxx` alias:
 
-Earlier attempts used `scripts/fix-tailwind-build.ts` to create junction points
-in `node_modules/@src` → `src/`. This was removed because:
-
-- `@source` globs are simpler and more correct
-- Junction shims pollute `node_modules`
-- Tailwind has no business scanning server-side TypeScript files
+```bash
+bun run scripts/fix-tailwind-build.ts
+bun run build
+```

@@ -19,6 +19,7 @@
   import { formatBytes } from "@utils/utils";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { mediaUrl } from "@utils/media/media-utils";
+  import { screen } from "@src/stores/screen-size-store.svelte.ts";
 
   // Props
   let {
@@ -30,6 +31,14 @@
     onUpdate?: (updatedFile: any) => void;
     close?: () => void;
   } = $props();
+
+  // Adaptive modal width based on screen size
+  const modalWidth = $derived(
+    screen.width < 768 ? undefined       // mobile: let max-width:100% handle it
+      : screen.width < 1024 ? '90vw'     // tablet: 90% viewport
+      : screen.width < 1440 ? '850px'    // standard desktop
+      : '1024px'                         // large desktop: more room
+  );
 
   // Tab State
   let activeTab = $state<"info" | "versions" | "references" | "share">("info");
@@ -311,7 +320,7 @@
   }
 </script>
 
-<div class="media-details-container flex flex-col md:flex-row gap-6 max-h-[90vh] overflow-hidden text-surface-900 dark:text-surface-100 p-4">
+<div class="media-details-container flex flex-col md:flex-row gap-6 max-h-[90vh] overflow-hidden text-surface-900 dark:text-surface-100 p-4" style:width={modalWidth}>
   <!-- Left Side: Asset Preview -->
   <div class="preview-section flex-1 flex flex-col justify-center items-center bg-surface-100/50 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800 rounded-2xl p-4 min-h-75 md:min-h-125 relative">
     {#if file.type === 'image'}
