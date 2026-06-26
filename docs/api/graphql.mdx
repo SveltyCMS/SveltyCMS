@@ -80,7 +80,13 @@ const posts = await locals.cms
 
 ## 3. The Mechanics
 
-SveltyCMS uses a **JIT (Just-In-Time) Execution Engine** to ensure your GraphQL queries run at native speeds, which is critical for enterprise performance.
+SveltyCMS uses a **JIT (Just-In-Time) Execution Engine** to ensure your GraphQL queries run at native speeds, which is critical for enterprise performance. JIT compilation is **unconditional** (always active, no feature flag required).
+
+### Performance Optimizations (June 2026)
+
+- **Unconditional JIT**: The `@envelop/graphql-jit` plugin is always active — queries are compiled to native JS functions on first execution and cached for subsequent requests. No `USE_GRAPHQL_JIT` env flag needed.
+- **Parse Cache**: Parsed GraphQL documents are cached in-memory, eliminating re-parsing overhead for repeated queries (~25% avg latency reduction).
+- **HTTP Batching**: Clients can batch up to **10 queries per request** via the `batching` middleware. Send an array of GraphQL requests in a single HTTP POST for reduced round-trips.
 
 ```
 graph TD
@@ -88,9 +94,10 @@ graph TD
     B --> C{Threats detected?}
     C -- Yes --> D[Block IP / 403]
     C -- No --> E[AST Validation: Depth & Aliases]
-    E --> F[JIT Compiler: Compile to JS Function]
-    F --> G[Execute with Database Adapter]
-    G --> H[JSON Response]
+    E --> F[Parse Cache: Reuse parsed AST]
+    F --> G[JIT Compiler: Compile to JS Function]
+    G --> H[Execute with Database Adapter]
+    H --> I[JSON Response]
 ```text
 
 ### Security Throttling

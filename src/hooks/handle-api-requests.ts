@@ -10,7 +10,7 @@ import type { Handle } from "@sveltejs/kit";
 import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { isAdmin, isPublicRoute } from "@utils/hook-utils";
-import crypto from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import {
   compressSync,
   negotiateEncoding,
@@ -171,7 +171,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           if (responseBody) {
             let etag = response.headers.get("etag");
             if (!etag) {
-              etag = `"${crypto.createHash("sha1").update(responseBody).digest("hex").substring(0, 16)}"`;
+              etag = `"${await xxhash64(responseBody)}"`;
               response.headers.set("etag", etag);
             }
             response.headers.set("Vary", "Accept-Encoding");

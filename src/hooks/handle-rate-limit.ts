@@ -20,7 +20,7 @@
  * - Auto-cleanup: expired entries pruned every 60s
  */
 
-import crypto from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
@@ -53,14 +53,11 @@ const _buckets = new Map<string, RateLimitEntry>();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function getClientKey(event: Parameters<Handle>[0]["event"]): string {
+async function getClientKey(event: Parameters<Handle>[0]["event"]): Promise<string> {
   // Use X-Forwarded-For if behind proxy, otherwise remote address
   const forwarded = event.request.headers.get("x-forwarded-for");
   const rawIp = forwarded?.split(",")[0]?.trim() || event.getClientAddress();
-  return crypto
-    .createHash("sha1")
-    .update(rawIp || "unknown")
-    .digest("hex");
+  return xxhash64(rawIp || "unknown");
 }
 
 function isExcluded(pathname: string): boolean {
@@ -101,7 +98,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
-  const clientKey = getClientKey(event);
+  const clientKey = await getClientKey(event);
   const now = Date.now();
 
   // Get or create bucket

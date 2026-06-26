@@ -6,7 +6,7 @@
 
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { dev } from "$app/environment";
-import { createHash } from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -468,7 +468,7 @@ export const _handler = async (event: RequestEvent) => {
 
     // ETag conditional response
     try {
-      const etag = `"${createHash("md5").update(responseBody).digest("base64").substring(0, 16)}"`;
+      const etag = `"${await xxhash64(responseBody)}"`;
       const ifNoneMatch = request.headers.get("if-none-match");
 
       if (ifNoneMatch === etag || ifNoneMatch === "*") {
@@ -496,7 +496,7 @@ export const _handler = async (event: RequestEvent) => {
         headers: respHeaders,
       });
     } catch {
-      // Fallback: createHash unavailable (e.g., jsdom) — return body without ETag.
+      // Fallback: hash unavailable — return body without ETag.
       // responseBody was already read above; we must construct a new Response
       // because the original response.body is now consumed/disturbed.
       const fallbackHeaders: Record<string, string> = { ..._noCacheHeaders };
