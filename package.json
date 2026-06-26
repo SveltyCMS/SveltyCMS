@@ -111,6 +111,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@smithy/node-http-handler": "^4.8.2",
     "@sveltejs/kit": "^2.68.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.20",
     "@tiptap/core": "^3.27.1",
