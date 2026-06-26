@@ -85,7 +85,7 @@ function createImageEditorStore() {
     preToolSnapshot: null,
     actions: {},
     error: null,
-    viewportWidth: 0,
+    viewportWidth: typeof window !== "undefined" ? window.innerWidth : 1024,
 
     imageElement: null,
     zoom: 1,
@@ -127,10 +127,13 @@ function createImageEditorStore() {
   const canUndoState = $derived(state.stateHistory.length > 1 && state.currentHistoryIndex > 0);
   const canRedoState = $derived(state.currentHistoryIndex < state.stateHistory.length - 1);
 
-  const isMobile = $derived(state.viewportWidth < BREAKPOINTS.mobile);
-  const isTablet = $derived(
-    state.viewportWidth >= BREAKPOINTS.mobile && state.viewportWidth < BREAKPOINTS.tablet,
-  );
+  function computeIsMobile(width = state.viewportWidth) {
+    return width < BREAKPOINTS.mobile;
+  }
+
+  function computeIsTablet(width = state.viewportWidth) {
+    return width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet;
+  }
 
   // Methods to update state
   function setFile(file: File | null) {
@@ -164,6 +167,8 @@ function createImageEditorStore() {
 
     if (state.preToolSnapshot) {
       restoreFromSnapshot(state.preToolSnapshot);
+    } else if (currentState === "blur") {
+      state.blurRegions = [];
     }
 
     setActiveState("");
@@ -197,7 +202,6 @@ function createImageEditorStore() {
       annotations: $state.snapshot(state.annotations),
       blurRegions: $state.snapshot(state.blurRegions),
       watermarks: $state.snapshot(state.watermarks),
-      activeState: state.activeState,
       timestamp: Date.now(),
     };
 
@@ -220,7 +224,7 @@ function createImageEditorStore() {
       state.annotations = snapshot.annotations ?? [];
       state.blurRegions = snapshot.blurRegions ?? [];
       state.watermarks = snapshot.watermarks ?? [];
-      state.activeState = snapshot.activeState ?? "";
+      // activeState is UI-only — never restore from history snapshots
     } catch (e) {
       console.error("Failed to restore snapshot:", e);
     }
@@ -267,23 +271,55 @@ function createImageEditorStore() {
     state.translateX = 0;
     state.translateY = 0;
     state.crop = null;
+    state.currentAspectRatio = null;
     state.compareSliderPosition = 0;
     state.activeState = "";
+    state.filters = {
+      brightness: 0,
+      contrast: 0,
+      saturation: 0,
+      grayscale: 0,
+      sepia: 0,
+      temperature: 0,
+      exposure: 0,
+      highlights: 0,
+      shadows: 0,
+      clarity: 0,
+      vibrance: 0,
+      tint: 0,
+      sharpness: 0,
+    };
+    state.annotations = [];
+    state.blurRegions = [];
+    state.watermarks = [];
+    state.focalPoint = { x: 0.5, y: 0.5 };
+    state.stateHistory = [];
+    state.currentHistoryIndex = -1;
+    state.preToolSnapshot = null;
+    state.toolbarControls = null;
+    state.error = null;
   }
 
   function switchTool(tool: string) {
     const currentState = state.activeState;
-    const newState = currentState === tool ? "" : tool;
 
-    if (currentState && currentState !== newState) {
+    // Keep the tool active on repeat clicks — controls stay open (deselect via Escape / Cancel).
+    if (currentState === tool) {
+      return;
+    }
+
+    if (currentState) {
       takeSnapshot();
     }
 
-    setActiveState(newState);
-
-    if (newState === "") {
-      setToolbarControls(null);
+    if (tool && state.stateHistory.length === 0) {
+      takeSnapshot();
     }
+
+    // Update selection immediately so the sidebar highlight follows the first click.
+    state.activeState = tool;
+    state.preToolSnapshot = tool ? undoState(true) : null;
+    state.toolbarControls = null;
   }
 
   function rotate(degrees: number) {
@@ -319,10 +355,13 @@ function createImageEditorStore() {
       return hasActiveImage;
     },
     get isMobile() {
-      return isMobile;
+      return computeIsMobile();
     },
     get isTablet() {
-      return isTablet;
+      return computeIsTablet();
+    },
+    get mobileBreakpoint() {
+      return BREAKPOINTS.mobile;
     },
     setViewportWidth: (width: number) => {
       state.viewportWidth = width;

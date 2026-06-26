@@ -28,7 +28,9 @@
 
 <Modal bind:open {title} {size} class={modalClasses}>
 	{#if ActiveComponent}
-		<div class="modal-body {size === 'fullscreen' ? 'flex-1 overflow-hidden flex flex-col' : ''}">
+		<div
+			class="modal-body min-h-0 overflow-hidden {size === 'fullscreen' || size === 'editor' ? 'flex h-full flex-1 flex-col' : ''}"
+		>
 			<ActiveComponent {...props} close={modalState.close.bind(modalState)} />
 		</div>
 	{/if}

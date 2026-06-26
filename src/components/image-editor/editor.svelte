@@ -13,7 +13,11 @@ Comprehensive image editing interface with svelte-canvas integration.
 	import { registerHotkey } from '@src/utils/hotkeys';
 	import EditorCanvas from './editor-canvas.svelte';
 	import EditorSidebar from './editor-sidebar.svelte';
+	import EditorMobilePanel from './editor-mobile-panel.svelte';
 	import { editorWidgets } from './widgets/registry';
+
+	const MOBILE_BREAKPOINT = imageEditorStore.mobileBreakpoint;
+	const isMobileEditor = $derived(imageEditorStore.state.viewportWidth < MOBILE_BREAKPOINT);
 
 
 	interface Props {
@@ -53,6 +57,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 	let isProcessing = $state(false);
 	let error = $state<string | null>(null);
 	let toolInstances = $state<Record<string, any>>({});
+	let editorRootRef = $state<HTMLDivElement | undefined>(undefined);
 
 	// Save behavior: 'new' creates a timestamped copy, 'overwrite' replaces the original
 	// Derived values
@@ -62,6 +67,43 @@ Comprehensive image editing interface with svelte-canvas integration.
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
 	const activeToolInstance = $derived.by(() => (activeState ? toolInstances[activeState] ?? null : null));
 	let lastActiveToolState = '';
+	let bottomDockRef = $state<HTMLDivElement | undefined>(undefined);
+	let dockHeight = $state(0);
+
+	$effect(() => {
+		const el = bottomDockRef;
+		if (!el || isMobileEditor) {
+			if (isMobileEditor) dockHeight = 0;
+			return;
+		}
+
+		const syncHeight = () => {
+			dockHeight = Math.ceil(el.getBoundingClientRect().height);
+		};
+
+		syncHeight();
+		const ro = new ResizeObserver(() => syncHeight());
+		ro.observe(el);
+		return () => ro.disconnect();
+	});
+
+	function syncViewportWidthFromElement(el: HTMLElement | undefined) {
+		if (!el || typeof window === 'undefined') return;
+		const width = Math.round(el.getBoundingClientRect().width);
+		if (width > 0) {
+			imageEditorStore.setViewportWidth(width);
+		}
+	}
+
+	$effect(() => {
+		const el = editorRootRef;
+		if (!el || typeof window === 'undefined') return;
+
+		syncViewportWidthFromElement(el);
+		const ro = new ResizeObserver(() => syncViewportWidthFromElement(el));
+		ro.observe(el);
+		return () => ro.disconnect();
+	});
 
 	function handleCancelActiveTool() {
 		imageEditorStore.cancelActiveTool();
@@ -164,18 +206,17 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 		const measuredWidth = containerRef?.clientWidth ?? containerWidth;
 		const measuredHeight = containerRef?.clientHeight ?? containerHeight;
-		const isMobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
-		const widthFitRatio = isMobileViewport ? 0.9 : 0.82;
-		const heightFitRatio = isMobileViewport ? 0.84 : 0.82;
+		const isMobileViewport = imageEditorStore.isMobile;
+		const widthFitRatio = isMobileViewport ? 0.84 : 0.82;
+		const heightFitRatio = isMobileViewport ? 0.62 : 0.82;
 
 		if (measuredWidth > 0 && measuredHeight > 0 && img.width > 0 && img.height > 0) {
 			const scaleX = (measuredWidth * widthFitRatio) / img.width;
 			const scaleY = (measuredHeight * heightFitRatio) / img.height;
 			const fitScale = Math.min(scaleX, scaleY);
 			const isPortraitViewport = measuredHeight > measuredWidth * 1.08;
-			const mobileFitBoost = isMobileViewport ? 1.02 : 1;
-			const portraitBoost = isPortraitViewport ? 1.04 : 1;
-			imageEditorStore.state.zoom = Math.min(5, Math.max(0.1, fitScale * mobileFitBoost * portraitBoost));
+			const portraitBoost = isPortraitViewport && !isMobileViewport ? 1.04 : 1;
+			imageEditorStore.state.zoom = Math.min(5, Math.max(0.1, fitScale * portraitBoost));
 		} else {
 			imageEditorStore.state.zoom = 1;
 		}
@@ -188,6 +229,9 @@ Comprehensive image editing interface with svelte-canvas integration.
 		} catch (snapshotErr) {
 			console.warn('[ImageEditor] takeSnapshot failed:', snapshotErr);
 		}
+
+		// Default to crop — primary entry workflow when opening the editor
+		imageEditorStore.switchTool('crop');
 		isProcessing = false;
 	}
 
@@ -339,11 +383,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 	}
 
 	onMount(() => {
-		// NOTE: imageEditorStore.reset() is intentionally omitted here.
-		// The parent modal already resets the store before mounting this component
-		// via a $effect. A duplicate reset here races with the image-load $effect
-		// and would clear imageElement just after it was set, causing isInitializing
-		// to never become false in the modal overlay.
 		window.addEventListener('keydown', handleKeyDown);
 	});
 
@@ -359,7 +398,9 @@ Comprehensive image editing interface with svelte-canvas integration.
 </script>
 
 <div
-	class="image-editor flex h-full w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top,rgba(76,76,76,0.18),rgba(11,11,11,0.98)_42%)] text-white"
+	bind:this={editorRootRef}
+	class="image-editor flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent text-white"
+	class:image-editor--mobile={isMobileEditor}
 	role="application"
 	aria-label="Image editor"
 	aria-busy={isProcessing}
@@ -385,30 +426,21 @@ Comprehensive image editing interface with svelte-canvas integration.
 		</div>
 	{/if}
 
-	{#if hasImage}
-		<div class="pointer-events-none absolute inset-e-3 top-3 z-40 md:inset-e-4 md:top-4">
-			<button
-				type="button"
-				class="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-primary-400/35 bg-[linear-gradient(180deg,rgba(42,108,255,0.24),rgba(17,33,77,0.9))] px-3 py-2 text-sm font-medium text-white shadow-[0_14px_30px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:border-primary-300/50 hover:bg-[linear-gradient(180deg,rgba(56,129,255,0.34),rgba(20,39,92,0.96))] disabled:cursor-not-allowed disabled:opacity-50 md:px-4"
-				onclick={handleSave}
-				disabled={isProcessing}
-				aria-label="Save edits"
-				title="Save edits"
-			>
-				{#if isProcessing}
-					<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
-				{/if}
-				<span>Save</span>
-			</button>
-		</div>
-	{/if}
+	<div class="editor-layout flex min-h-0 min-w-0 flex-1 overflow-hidden">
+		{#if !isMobileEditor}
+			<EditorSidebar
+				hasImage={hasImage}
+				onToolSelect={(tool) => imageEditorStore.switchTool(tool)}
+			/>
+		{/if}
 
-		<div class="editor-layout grid min-w-0 flex-1 grid-rows-[minmax(0,1fr)_auto_auto] gap-1.5 overflow-hidden p-1.5 md:gap-3 md:p-3 xl:grid-cols-[minmax(0,1fr)_19rem] xl:grid-rows-[minmax(0,1fr)_auto] xl:gap-3 xl:p-4">
-			<div class="editor-main grid min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden xl:col-start-1 xl:row-start-1">
+		<div
+			class="editor-workspace relative min-h-0 min-w-0 flex-1 overflow-hidden"
+			style:--editor-dock-h="{isMobileEditor ? 0 : dockHeight}px"
+		>
+			<div class="editor-canvas-slot flex min-h-0 flex-col overflow-hidden">
 				<div class="canvas-wrapper relative flex min-h-0 flex-1 flex-col">
-					<div class="relative flex min-h-0 flex-1 overflow-hidden rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(34,34,34,0.96),rgba(18,18,18,0.96))] shadow-[0_20px_70px_rgba(0,0,0,0.32)]">
+					<div class="editor-canvas-frame relative flex min-h-0 flex-1 overflow-hidden">
 						<EditorCanvas
 							bind:containerRef
 							bind:containerWidth
@@ -424,33 +456,125 @@ Comprehensive image editing interface with svelte-canvas integration.
 								{/each}
 							{/if}
 						</EditorCanvas>
+						{#if hasImage}
+							<div class="canvas-edge-vignette" aria-hidden="true"></div>
+						{/if}
 					</div>
 				</div>
 			</div>
 
-			{#if toolbarControls?.component}
-				{const Component = toolbarControls.component}
-				<div class="toolbar-dock row-start-2 px-0 xl:col-start-2 xl:row-start-1 xl:flex xl:h-full xl:min-h-0">
-					<div
-						class="mx-auto flex w-full max-w-275 flex-col rounded border border-white/10 bg-[linear-gradient(180deg,rgba(44,44,44,0.96),rgba(24,24,24,0.96))] p-2 shadow-[0_14px_34px_rgba(0,0,0,0.26)] backdrop-blur-xl max-h-[24vh] overflow-auto xl:mx-0 xl:h-full xl:max-h-none xl:min-h-0 xl:max-w-none xl:rounded-[22px] xl:p-3"
-					>
+			{#if toolbarControls?.component && !isMobileEditor}
+				<div
+					bind:this={bottomDockRef}
+					class="editor-bottom-dock editor-desktop-dock editor-glass-dock absolute inset-x-0 bottom-0 z-20 overflow-x-auto px-2 py-1 md:px-3"
+				>
+					{#key toolbarControls.component}
+						{const Component = toolbarControls.component}
 						<Component {...toolbarControls.props} />
-					</div>
+					{/key}
 				</div>
 			{/if}
 
-			<div class="editor-sidebar-row row-start-3 xl:col-span-2 xl:row-start-2">
-				<EditorSidebar
-					activeState={activeState}
-					hasImage={hasImage}
-					onToolSelect={(tool) => imageEditorStore.switchTool(tool)}
-					onCancel={() => imageEditorStore.cancelActiveTool()}
-				/>
-			</div>
+			{#if isMobileEditor}
+				<EditorMobilePanel {hasImage} onToolSelect={(tool) => imageEditorStore.switchTool(tool)} />
+			{/if}
 		</div>
+	</div>
 
 	<!-- ARIA Live region for accessibility status updates -->
 	<div class="sr-only" aria-live="polite" aria-atomic="true">
 		{statusMessage}
 	</div>
 </div>
+
+<style>
+	.editor-layout {
+		align-items: stretch;
+		min-height: 0;
+		flex: 1 1 auto;
+	}
+
+	.editor-workspace {
+		min-height: 0;
+	}
+
+	/* Desktop layout — restored absolute canvas + bottom dock */
+	.editor-canvas-slot {
+		position: absolute;
+		inset-inline: 0;
+		top: 0;
+		bottom: var(--editor-dock-h, 0px);
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		background: var(--editor-canvas-bg, var(--editor-chrome-bg, #0a0a0a));
+	}
+
+	.editor-glass-dock {
+		width: 100%;
+		height: fit-content;
+		max-height: fit-content;
+		padding-block: 0.375rem;
+		background: var(--editor-chrome-bg, #0a0a0a);
+		border-top: 1px solid var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
+	}
+
+	.editor-canvas-frame {
+		background: var(--editor-canvas-bg, var(--editor-chrome-bg, #0a0a0a));
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+		outline: none;
+	}
+
+	.canvas-edge-vignette {
+		pointer-events: none;
+		position: absolute;
+		inset: 0;
+		z-index: 6;
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+		outline: none;
+		background:
+			radial-gradient(ellipse 100% 100% at 50% 50%, transparent 78%, rgba(10, 10, 10, 0.28) 90%, rgba(10, 10, 10, 0.72) 100%),
+			linear-gradient(to bottom, rgba(10, 10, 10, 0.5) 0%, transparent 8%),
+			linear-gradient(to right, rgba(10, 10, 10, 0.35) 0%, transparent 6%),
+			linear-gradient(to left, rgba(10, 10, 10, 0.35) 0%, transparent 6%);
+	}
+
+	/* Mobile — column layout: canvas + bottom panel */
+	.image-editor--mobile .editor-workspace {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		background: var(--editor-chrome-bg, #1a1a1a);
+	}
+
+	.image-editor--mobile .editor-canvas-slot {
+		position: relative;
+		inset: auto;
+		flex: 1 1 auto;
+		min-height: 0;
+		background: var(--editor-canvas-bg, var(--editor-chrome-bg, #1a1a1a));
+	}
+
+	.image-editor--mobile .canvas-wrapper,
+	.image-editor--mobile .editor-canvas-frame,
+	.image-editor--mobile .editor-canvas-wrapper {
+		flex: 1 1 auto;
+		min-height: 0;
+	}
+
+	.image-editor--mobile .editor-canvas-frame {
+		background: var(--editor-canvas-bg, var(--editor-chrome-bg, #1a1a1a));
+	}
+
+	.image-editor.image-editor--mobile {
+		background: var(--editor-chrome-bg, #1a1a1a);
+	}
+
+	.image-editor--mobile .canvas-edge-vignette {
+		display: none;
+	}
+</style>

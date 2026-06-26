@@ -7,6 +7,7 @@ Watermark tool with full text and image watermark support.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import WatermarkControls from './controls.svelte';
+	import WatermarkControlsMobile from './controls-mobile.svelte';
 
 	interface WatermarkItem {
 		id: string;
@@ -226,62 +227,83 @@ Watermark tool with full text and image watermark support.
 		}
 	}
 
+	function isWatermarkToolbarComponent(component: unknown): boolean {
+		return component === WatermarkControls || component === WatermarkControlsMobile;
+	}
+
 	function updateToolbar() {
+		const isMobile =
+			imageEditorStore.state.viewportWidth < imageEditorStore.mobileBreakpoint;
+		const ControlsComponent = isMobile ? WatermarkControlsMobile : WatermarkControls;
+
+		const baseProps = {
+			onAddImage: handleAddImage,
+			onAddText: handleAddText,
+			onDeleteWatermark: handleDeleteWatermark,
+			onPositionChange: handlePositionChange,
+			onOpacityChange: (v: number) => {
+				opacity = v;
+				if (selectedId) {
+					storeState.watermarks = watermarks.map((w) =>
+						w.id === selectedId ? { ...w, opacity: v } : w
+					);
+				}
+			},
+			onSizeChange: (v: number) => {
+				currentSize = v;
+				if (selectedId && selectedWatermark) {
+					if (selectedWatermark.type === 'text') {
+						const resized = syncTextWatermarkSize(selectedWatermark, v);
+						storeState.watermarks = watermarks.map((w) => (w.id === selectedId ? resized : w));
+						selectedWatermark = resized;
+					} else {
+						const scale = v / 100;
+						const resized = {
+							...selectedWatermark,
+							width: (selectedWatermark.width || 100) * scale,
+							height: (selectedWatermark.height || 50) * scale
+						};
+						storeState.watermarks = watermarks.map((w) => (w.id === selectedId ? resized : w));
+						selectedWatermark = resized;
+					}
+				}
+			},
+			onTileToggle: () => {
+				isTiled = !isTiled;
+			},
+			hasSelection: !!selectedId,
+			selectedType: selectedWatermark?.type ?? null,
+			textDraft,
+			onTextDraftChange: handleTextChange,
+			onApplyText: () => handleTextChange(textDraft.trim() || 'Watermark'),
+			currentOpacity: opacity,
+			currentSize,
+			isTiled,
+			watermarkCount: watermarks.length
+		};
+
 		imageEditorStore.setToolbarControls({
-			component: WatermarkControls,
-			props: {
-				onAddImage: handleAddImage,
-				onAddText: handleAddText,
-				onDeleteWatermark: handleDeleteWatermark,
-				onPositionChange: handlePositionChange,
-				onOpacityChange: (v: number) => {
-					opacity = v;
-					if (selectedId) {
-						storeState.watermarks = watermarks.map((w) =>
-							w.id === selectedId ? { ...w, opacity: v } : w
-						);
-					}
-				},
-				onSizeChange: (v: number) => {
-					currentSize = v;
-					if (selectedId && selectedWatermark) {
-						if (selectedWatermark.type === 'text') {
-							const resized = syncTextWatermarkSize(selectedWatermark, v);
-							storeState.watermarks = watermarks.map((w) => (w.id === selectedId ? resized : w));
-							selectedWatermark = resized;
-						} else {
-							const scale = v / 100;
-							const resized = {
-								...selectedWatermark,
-								width: (selectedWatermark.width || 100) * scale,
-								height: (selectedWatermark.height || 50) * scale
-							};
-							storeState.watermarks = watermarks.map((w) => (w.id === selectedId ? resized : w));
-							selectedWatermark = resized;
-						}
-					}
-				},
-				onTileToggle: () => {
-					isTiled = !isTiled;
-				},
-				hasSelection: !!selectedId,
-				selectedType: selectedWatermark?.type ?? null,
-				textDraft,
-				onTextDraftChange: handleTextChange,
-				onApplyText: () => handleTextChange(textDraft.trim() || 'Watermark'),
-				currentOpacity: opacity,
-				currentSize,
-				isTiled,
-				watermarkCount: watermarks.length
-			}
+			component: ControlsComponent,
+			props: isMobile
+				? { ...baseProps, currentPosition: selectedWatermark?.position ?? 'center' }
+				: baseProps
 		});
 	}
 
 	$effect(() => {
 		const activeState = imageEditorStore.state.activeState;
+
 		if (activeState === 'watermark') {
+			imageEditorStore.state.viewportWidth;
+			selectedId;
+			selectedWatermark;
+			textDraft;
+			opacity;
+			currentSize;
+			isTiled;
+			watermarks.length;
 			updateToolbar();
-		} else if (imageEditorStore.state.toolbarControls?.component === WatermarkControls) {
+		} else if (!activeState && isWatermarkToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});

@@ -1,11 +1,9 @@
 <!--
-@file: src/components/image-editor/widgets/Watermark/Controls.svelte
+@file: src/components/image-editor/widgets/watermark/controls.svelte
 @component
-Professional watermark controls with text, image, and advanced options
+Pintura-style watermark bottom dock controls.
 -->
 <script lang="ts">
-	import Badge from '@components/ui/badge.svelte';
-	import Button from '@components/ui/button.svelte';
 	let {
 		onAddImage,
 		onAddText,
@@ -42,7 +40,6 @@ Professional watermark controls with text, image, and advanced options
 		watermarkCount?: number;
 	} = $props();
 
-	// Position presets with better labels
 	const positions = [
 		{ label: '↖', value: 'northwest', title: 'Top Left' },
 		{ label: '↑', value: 'north', title: 'Top Center' },
@@ -55,7 +52,6 @@ Professional watermark controls with text, image, and advanced options
 		{ label: '↘', value: 'southeast', title: 'Bottom Right' }
 	];
 
-	// Size presets (percentage of image width)
 	const sizePresets = [
 		{ label: 'XS', value: 50 },
 		{ label: 'S', value: 75 },
@@ -69,11 +65,8 @@ Professional watermark controls with text, image, and advanced options
 		onOpacityChange?.(Number.parseFloat(target.value));
 	}
 
-	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') {
-			return;
-		}
+		if ((e.target as HTMLElement).tagName === 'INPUT') return;
 
 		switch (e.key) {
 			case 'Delete':
@@ -101,283 +94,149 @@ Professional watermark controls with text, image, and advanced options
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="watermark-controls" role="toolbar" aria-label="Watermark controls">
-	<!-- Group 1: Add Controls -->
-	<div class="control-group">
-		<div class="add-buttons">
-			<Button variant="tertiary" size="sm" onclick={onAddImage} title="Add Image Watermark (I)">
-				<iconify-icon icon="mdi:image-plus" width="18"></iconify-icon>
-				<span class="hidden sm:inline">Add Image</span>
-			</Button>
+<div class="editor-dock" role="toolbar" aria-label="Watermark controls">
+	<div class="dock-row dock-row-scroll">
+		<button type="button" class="dock-pill" onclick={onAddImage} title="Add image watermark (I)">
+			<iconify-icon icon="mdi:image-plus" width="15" aria-hidden="true"></iconify-icon>
+			<span>Add image</span>
+		</button>
 
-			{#if onAddText}
-				<Button variant="tertiary" size="sm" onclick={onAddText} title="Add Text Watermark (T)">
-					<iconify-icon icon="mdi:text-box-plus" width="18"></iconify-icon>
-					<span class="hidden sm:inline">Add Text</span>
-				</Button>
-			{/if}
-		</div>
+		{#if onAddText}
+			<button type="button" class="dock-pill" onclick={onAddText} title="Add text watermark (T)">
+				<iconify-icon icon="mdi:text-box-plus" width="15" aria-hidden="true"></iconify-icon>
+				<span>Add text</span>
+			</button>
+		{/if}
 
 		{#if watermarkCount > 0}
-			<Badge variant="surface" class="text-xs"><span class="font-bold">{watermarkCount}</span></Badge>
+			<span class="dock-pill-badge">{watermarkCount} active</span>
+		{/if}
+
+		{#if hasSelection}
+			<button
+				type="button"
+				class="dock-pill"
+				onclick={onDeleteWatermark}
+				title="Delete watermark"
+				aria-label="Delete watermark"
+			>
+				<iconify-icon icon="mdi:delete" width="15" aria-hidden="true"></iconify-icon>
+				<span>Delete</span>
+			</button>
 		{/if}
 	</div>
 
 	{#if selectedType === 'text' && onTextDraftChange}
-		<div class="text-editor">
-			<label class="text-label" for="watermark-text">Text</label>
+		<div class="dock-row dock-row-scroll">
+			<label class="slider-label" for="watermark-text">text</label>
 			<input
 				id="watermark-text"
 				type="text"
-				class="text-input"
+				class="dock-input min-w-[10rem] flex-1"
 				value={textDraft}
 				placeholder="Watermark text"
 				oninput={(e) => onTextDraftChange(e.currentTarget.value)}
 			/>
-			<Button variant="primary" size="sm" onclick={onApplyText || (() => undefined)}>Apply</Button>
+			<button type="button" class="dock-pill dock-pill-active" onclick={onApplyText || (() => undefined)}>
+				Apply
+			</button>
 		</div>
 	{/if}
 
 	{#if hasSelection}
-		<div class="divider"></div>
-
-		<!-- Group 2: Position -->
-		<div class="control-group">
-			<span class="control-label hidden md:flex">Position:</span>
-			<div class="position-grid">
+		<div class="dock-row dock-row-scroll">
+			<span class="slider-label">position</span>
+			<div class="dock-pill-group position-grid">
 				{#each positions as pos (pos.value)}
-					<Button variant="ghost" size="sm" class="w-7! h-7! p-0! min-w-0 text-gray-400 hover:text-white hover:bg-white/10" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>{pos.label}</Button>
+					<button
+						type="button"
+						class="dock-pill position-pill"
+						onclick={() => onPositionChange(pos.value)}
+						title={pos.title}
+						aria-label={pos.title}
+					>
+						{pos.label}
+					</button>
 				{/each}
 			</div>
 		</div>
 
-		<!-- Group 3: Style (Opacity, Size, Tiled) -->
-		<div class="control-group flex-1">
-			<!-- Opacity -->
-			{#if onOpacityChange}
-				<div class="slider-wrapper flex-1">
-					<div class="slider-track-container">
-						<input
-							type="range"
-							min="0"
-							max="1"
-							step="0.01"
-							value={currentOpacity}
-							oninput={handleOpacityInput}
-							class="slider"
-							aria-label="Watermark opacity"
-							title="Opacity: {Math.round(currentOpacity * 100)}%"
-						/>
+		{#if onOpacityChange || onSizeChange || onTileToggle}
+			<div class="dock-row dock-row-scroll">
+				{#if onOpacityChange}
+					<div class="slider-block watermark-opacity-block">
+						<div class="slider-header">
+							<span class="slider-label">opacity</span>
+							<span class="slider-value slider-value-changed">{Math.round(currentOpacity * 100)}%</span>
+						</div>
+						<div class="slider-track">
+							<input
+								type="range"
+								min="0"
+								max="1"
+								step="0.01"
+								value={currentOpacity}
+								oninput={handleOpacityInput}
+								class="slider-input"
+								aria-label="Watermark opacity"
+							/>
+						</div>
 					</div>
-					<div class="slider-value">{Math.round(currentOpacity * 100)}%</div>
-				</div>
-			{/if}
+				{/if}
 
-			{#if onSizeChange}
-				<div class="size-presets hidden sm:flex">
+				{#if onSizeChange}
 					{#each sizePresets as preset (preset.value)}
-						<Button
-							variant={Math.abs(currentSize - preset.value) < 5 ? 'primary' : 'outline'}
-							size="sm"
+						<button
+							type="button"
+							class="dock-pill"
+							class:dock-pill-active={Math.abs(currentSize - preset.value) < 5}
 							onclick={() => onSizeChange(preset.value)}
 							title="{preset.label} ({preset.value}%)"
 						>
 							{preset.label}
-						</Button>
+						</button>
 					{/each}
-				</div>
-			{/if}
+				{/if}
 
-			{#if onTileToggle}
-				<Button
-					variant={isTiled ? 'tertiary' : 'outline'}
-					size="sm"
-					onclick={onTileToggle}
-					title="Tile watermark across image"
-					aria-label="Tile watermark across image"
-				>
-					<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
-				</Button>
-			{/if}
-		</div>
-
-		<div class="divider hidden lg:block"></div>
-
-		<!-- Group 4: Actions (Delete) -->
-		<Button variant="error" size="sm" onclick={onDeleteWatermark} title="Delete Watermark (Delete)" aria-label="Delete watermark">
-			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-		</Button>
+				{#if onTileToggle}
+					<button
+						type="button"
+						class="dock-pill"
+						class:dock-pill-active={isTiled}
+						onclick={onTileToggle}
+						title="Tile watermark"
+						aria-label="Tile watermark across image"
+						aria-pressed={isTiled}
+					>
+						<iconify-icon icon="mdi:view-grid" width="15" aria-hidden="true"></iconify-icon>
+						<span>Tile</span>
+					</button>
+				{/if}
+			</div>
+		{/if}
 	{/if}
-
-	<!-- Spacer -->
-	<div class="flex-1 hidden lg:block"></div>
-
-	<!-- Actions removed: Handled by global toolbar -->
-	<div class="h-2"></div>
 </div>
 
 <style>
-	.watermark-controls {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1rem;
-		align-items: center;
-		width: 100%;
-		padding: 0;
-		background: transparent;
-		border: none;
-	}
-
-	.control-group {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
-	}
-
-	.control-label {
-		display: flex;
-		gap: 0.25rem;
-		align-items: center;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: rgb(var(--color-surface-500) / 1);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		white-space: nowrap;
-	}
-
-	:global(.dark) .control-label {
-		color: rgb(var(--color-surface-400) / 1);
-	}
-
-	.add-buttons {
-		display: flex;
-		gap: 0.5rem;
-	}
-
-	.text-editor {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.35rem 0.5rem;
-		background: rgba(0, 0, 0, 0.2);
-		border-radius: 0.75rem;
-	}
-
-	.text-label {
-		font-size: 0.7rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: #9ca3af;
-	}
-
-	.text-input {
-		min-width: 180px;
-		padding: 0.4rem 0.6rem;
-		color: #fff;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: 0.5rem;
-		outline: none;
-	}
-
-	.text-input:focus {
-		border-color: rgb(var(--color-primary-500) / 1);
-		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
-	}
+	@import '../../editor-dock.css';
 
 	.position-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 2px;
-		padding: 2px;
-		background: rgba(0, 0, 0, 0.2);
-		border-radius: 0.375rem;
+		gap: 0.125rem;
+		padding: 0.125rem;
+		border-radius: 0.5rem;
 	}
 
-	/* Slider */
-	.slider-wrapper {
-		display: flex;
-		gap: 0.75rem;
-		align-items: center;
-		min-width: 160px;
-		height: 2.25rem;
-		padding: 0.25rem 0.75rem;
-		background: rgba(0, 0, 0, 0.2);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 9999px;
+	.position-pill {
+		justify-content: center;
+		min-width: 1.75rem;
+		padding-inline: 0.35rem;
 	}
 
-	.slider-track-container {
-		position: relative;
-		display: flex;
-		flex: 1;
-		align-items: center;
-		height: 100%;
-	}
-
-	.slider {
-		position: absolute;
-		width: 100%;
-		height: 4px;
-		margin: 0;
-		-webkit-appearance: none;
-		appearance: none;
-		cursor: pointer;
-		outline: none;
-		background: rgb(var(--color-surface-300) / 1);
-		border-radius: 2px;
-	}
-
-	:global(.dark) .slider {
-		background: rgb(var(--color-surface-600) / 1);
-	}
-
-	.slider::-webkit-slider-thumb {
-		width: 16px;
-		height: 16px;
-		margin-top: -6px;
-		-webkit-appearance: none;
-		appearance: none;
-		cursor: pointer;
-		background: white;
-		border: 2px solid rgb(var(--color-primary-500) / 1);
-		border-radius: 50%;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-		transition: transform 0.1s;
-	}
-
-	.slider-value {
-		min-width: 2.5rem;
-		font-family: monospace;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: rgb(var(--color-primary-500) / 1);
-		text-align: right;
-	}
-
-	.size-presets {
-		display: flex;
-		gap: 0.25rem;
-	}
-
-	.divider {
-		flex-shrink: 0;
-		width: 1px;
-		height: 1.5rem;
-		background: rgb(var(--color-surface-300) / 1);
-	}
-
-	:global(.dark) .divider {
-		background: rgb(var(--color-surface-600) / 1);
-	}
-
-	/* Mobile */
-	@media (max-width: 1024px) {
-		.watermark-controls {
-			row-gap: 1rem;
-		}
+	.watermark-opacity-block {
+		flex: 1 1 10rem;
+		max-width: 16rem;
+		margin-inline: 0;
 	}
 </style>

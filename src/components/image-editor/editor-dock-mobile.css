@@ -1,0 +1,416 @@
+/**
+ * @file src/components/image-editor/editor-dock-mobile.css
+ * Borderless mobile tool controls — floating chips, spacing-only hierarchy.
+ */
+
+.editor-mobile-tool-sheet {
+  --mc-chip: rgba(255, 255, 255, 0.09);
+  --mc-chip-active: rgba(255, 255, 255, 0.94);
+  --mc-chip-text: rgba(255, 255, 255, 0.62);
+  --mc-chip-text-active: #141414;
+  --mc-label: rgba(255, 255, 255, 0.45);
+  --mc-field: rgba(255, 255, 255, 0.08);
+  --mc-field-focus: rgba(255, 255, 255, 0.13);
+  --mc-pill-h: 2.125rem;
+
+  width: 100%;
+  padding: 0.25rem 0.75rem 0.5rem;
+  background: transparent;
+}
+
+.editor-mobile-tool-sheet .editor-mobile-controls {
+  padding: 0;
+}
+
+/* ── Layout ── */
+.editor-mobile-tool-sheet :global(.editor-dock) {
+  gap: 0.625rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.editor-mobile-tool-sheet :global(.dock-row) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+}
+
+.editor-mobile-tool-sheet :global(.dock-row-scroll) {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0;
+  overflow: visible;
+  scroll-snap-type: none;
+  background: transparent;
+}
+
+.editor-mobile-tool-sheet :global(.dock-row-scroll::-webkit-scrollbar) {
+  display: none;
+}
+
+.editor-mobile-tool-sheet :global(.dock-row-scroll > *) {
+  flex-shrink: 0;
+  scroll-snap-align: unset;
+}
+
+.editor-mobile-tool-sheet :global(.dock-row:not(.dock-row-scroll)) {
+  flex-wrap: wrap;
+}
+
+/* ── Floating chips (no boxes, no borders) ── */
+.editor-mobile-tool-sheet :global(.dock-pill) {
+  display: inline-flex;
+  gap: 0.3125rem;
+  align-items: center;
+  justify-content: center;
+  height: var(--mc-pill-h);
+  min-height: var(--mc-pill-h);
+  padding-inline: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--mc-chip-text);
+  background: var(--mc-chip);
+  border: none;
+  border-radius: 9999px;
+  box-shadow: none;
+  outline: none;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.12s ease;
+}
+
+.editor-mobile-tool-sheet :global(.dock-pill:active:not(:disabled)) {
+  transform: scale(0.96);
+}
+
+.editor-mobile-tool-sheet :global(.dock-pill-active) {
+  color: var(--mc-chip-text-active);
+  background: var(--mc-chip-active);
+}
+
+.editor-mobile-tool-sheet :global(.dock-pill-changed:not(.dock-pill-active)) {
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.editor-mobile-tool-sheet :global(.dock-pill iconify-icon) {
+  flex-shrink: 0;
+}
+
+.editor-mobile-tool-sheet :global(.dock-pill-badge) {
+  padding-inline: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--mc-label);
+  background: transparent;
+}
+
+/* Primary CTA */
+.editor-mobile-tool-sheet :global(.blur-actions .dock-pill:last-child),
+.editor-mobile-tool-sheet :global(.dock-pill-active:has(iconify-icon[icon="mdi:check"])) {
+  color: #111 !important;
+  background: var(--editor-accent, #f4c430) !important;
+}
+
+.editor-mobile-tool-sheet :global(.blur-actions .dock-pill:nth-last-child(2)) {
+  color: rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Pill groups — gap only, no wrapper box */
+.editor-mobile-tool-sheet :global(.dock-pill-group) {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.375rem;
+  align-items: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.editor-mobile-tool-sheet :global(.dock-pill-group .dock-pill) {
+  height: var(--mc-pill-h);
+  min-height: var(--mc-pill-h);
+}
+
+/* ── Sliders — no track box, soft bar only ── */
+.editor-mobile-tool-sheet :global(.slider-block) {
+  gap: 0.4375rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.editor-mobile-tool-sheet :global(.slider-header) {
+  align-items: center;
+  min-height: 1rem;
+}
+
+.editor-mobile-tool-sheet :global(.slider-label) {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--mc-label);
+}
+
+.editor-mobile-tool-sheet :global(.slider-track) {
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.editor-mobile-tool-sheet :global(.slider-input) {
+  flex: 1;
+  min-width: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+
+.editor-mobile-tool-sheet :global(.slider-input::-webkit-slider-thumb) {
+  width: 18px;
+  height: 18px;
+  appearance: none;
+  background: #fff;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.editor-mobile-tool-sheet :global(.slider-input::-moz-range-thumb) {
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.editor-mobile-tool-sheet :global(.slider-value) {
+  min-width: 2.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--mc-label);
+}
+
+.editor-mobile-tool-sheet :global(.slider-value-changed) {
+  color: #fff;
+}
+
+.editor-mobile-tool-sheet :global(.dock-icon-btn) {
+  width: 2rem;
+  height: 2rem;
+  color: var(--mc-label);
+  background: var(--mc-chip);
+  border: none;
+  border-radius: 50%;
+}
+
+.editor-mobile-tool-sheet :global(.dock-input) {
+  height: 2.125rem;
+  padding-inline: 0.625rem;
+  font-size: 0.8125rem;
+  color: #fff;
+  background: var(--mc-field);
+  border: none;
+  border-radius: 0.625rem;
+  outline: none;
+}
+
+.editor-mobile-tool-sheet :global(.dock-input:focus) {
+  background: var(--mc-field-focus);
+}
+
+.editor-mobile-tool-sheet :global(.dock-hint) {
+  display: none;
+}
+
+/* ── Crop (mobile-only component) ── */
+.editor-mobile-tool-sheet[data-tool="crop"] {
+  padding: 0.125rem 0.625rem 0.25rem;
+}
+
+.editor-mobile-tool-sheet[data-tool="crop"] :global(.crop-controls-mobile) {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.editor-mobile-tool-sheet[data-tool="crop"] :global(.crop-mobile-strip) {
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.125rem;
+  padding: 0.125rem;
+}
+
+.editor-mobile-tool-sheet[data-tool="crop"] :global(.crop-mobile-pill) {
+  height: 1.75rem;
+  padding-inline: 0.5625rem;
+  font-size: 0.75rem;
+}
+
+.editor-mobile-tool-sheet[data-tool="crop"] :global(.crop-mobile-pill-active) {
+  color: var(--mc-chip-text-active);
+  background: var(--mc-chip-active);
+}
+
+/* ── Fine-tune (mobile-only component) ── */
+.editor-mobile-finetune-area {
+  width: 100%;
+  padding: 0.125rem 0.625rem 0.25rem;
+}
+
+/* ── Blur (mobile-only component) ── */
+.editor-mobile-blur-area {
+  width: 100%;
+  padding: 0.125rem 0.625rem 0.25rem;
+}
+
+/* ── Annotate (mobile-only component) ── */
+.editor-mobile-annotate-text-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.125rem 0.625rem 0.25rem;
+  box-sizing: border-box;
+}
+
+.editor-mobile-annotate-text-label {
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.52);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.editor-mobile-annotate-text-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2rem;
+  padding-inline: 0.75rem;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--editor-radius-pill, 9999px);
+  outline: none;
+}
+
+.editor-mobile-annotate-text-input:focus-visible {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.editor-mobile-annotate-area {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.125rem 0.625rem 0.25rem;
+  box-sizing: border-box;
+}
+
+/* ── Watermark (mobile-only component) ── */
+.editor-mobile-watermark-text-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.125rem 0.625rem 0.25rem;
+  box-sizing: border-box;
+}
+
+.editor-mobile-watermark-text-label {
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.52);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.editor-mobile-watermark-text-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2rem;
+  padding-inline: 0.75rem;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--editor-radius-pill, 9999px);
+  outline: none;
+}
+
+.editor-mobile-watermark-text-input:focus-visible {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.editor-mobile-watermark-apply {
+  flex: 0 0 auto;
+  height: 2rem;
+  padding-inline: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--editor-radius-pill, 9999px);
+  transition: background 0.15s ease;
+}
+
+.editor-mobile-watermark-apply:active {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.editor-mobile-watermark-area {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.125rem 0.625rem 0.25rem;
+  box-sizing: border-box;
+}
+
+/* ── Focal point (mobile-only component) ── */
+.editor-mobile-focal-area {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.125rem 0.625rem 0.25rem;
+  box-sizing: border-box;
+}
+
+.editor-mobile-slider-row-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.52);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+/* ── Focal point ── */

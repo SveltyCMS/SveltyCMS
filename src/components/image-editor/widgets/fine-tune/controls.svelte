@@ -1,156 +1,150 @@
 <!--
-@file: src/components/image-editor/widgets/FineTune/Controls.svelte
+@file: src/components/image-editor/widgets/fine-tune/controls.svelte
 @component
-Professional fine-tune controls with presets and categories
+Pintura-style fine-tune bottom dock — compact pills, no card chrome, full-width scroll.
 -->
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
-	import type { Adjustments } from "./adjustments";
-import {
-	FILTER_PRESETS,
-	getAdjustmentConfig,
-	getAdjustmentsByCategory,
-} from "./adjustments";
+	import type { Adjustments } from './adjustments';
+	import {
+		FILTER_PRESETS,
+		getAdjustmentConfig,
+		getAdjustmentsByCategory,
+	} from './adjustments';
 
-const {
-	activeAdjustment,
-	activeCategory = "basic",
-	value,
-	adjustments,
-	showPresets = false,
-	isComparing = false,
-	onChange,
-	onAdjustmentChange,
-	onCategoryChange,
-	onPresetApply,
-	onReset,
-	onCompareToggle,
-	onAutoAdjust,
-}: {
-	activeAdjustment: keyof Adjustments;
-	activeCategory?: string;
-	value: number;
-	adjustments?: Adjustments;
-	showPresets?: boolean;
-	isComparing?: boolean;
-	onChange: (value: number) => void;
-	onAdjustmentChange: (key: keyof Adjustments) => void;
-	onCategoryChange?: (category: string) => void;
-	onPresetApply?: (preset: string) => void;
-	onReset: () => void;
-	onCompareToggle?: () => void;
-	onAutoAdjust?: () => void;
-} = $props();
+	const {
+		activeAdjustment,
+		activeCategory = 'basic',
+		value,
+		adjustments,
+		showPresets = false,
+		isComparing = false,
+		onChange,
+		onAdjustmentChange,
+		onCategoryChange,
+		onPresetApply,
+		onReset,
+		onCompareToggle,
+		onAutoAdjust,
+	}: {
+		activeAdjustment: keyof Adjustments;
+		activeCategory?: string;
+		value: number;
+		adjustments?: Adjustments;
+		showPresets?: boolean;
+		isComparing?: boolean;
+		onChange: (value: number) => void;
+		onAdjustmentChange: (key: keyof Adjustments) => void;
+		onCategoryChange?: (category: string) => void;
+		onPresetApply?: (preset: string) => void;
+		onReset: () => void;
+		onCompareToggle?: () => void;
+		onAutoAdjust?: () => void;
+	} = $props();
 
-const config = $derived(getAdjustmentConfig(activeAdjustment));
-const categories = ["basic", "tone", "color", "detail"] as const;
-const categoryIcons = {
-	basic: "mdi:tune-variant",
-	tone: "mdi:gradient-vertical",
-	color: "mdi:palette",
-	detail: "mdi:details",
-};
+	const config = $derived(getAdjustmentConfig(activeAdjustment));
+	const categories = ['basic', 'tone', 'color', 'detail'] as const;
+	const categoryIcons = {
+		basic: 'mdi:tune-variant',
+		tone: 'mdi:gradient-vertical',
+		color: 'mdi:palette',
+		detail: 'mdi:details',
+	};
 
-let showPresetsPanel = $state(false);
+	let showPresetsPanel = $state(false);
 
-function handleSliderInput(e: Event) {
-	const target = e.currentTarget as HTMLInputElement;
-	onChange(Number.parseInt(target.value, 10));
-}
-
-// Keyboard shortcuts
-function handleKeyDown(e: KeyboardEvent) {
-	if ((e.target as HTMLElement).tagName === "INPUT") {
-		return;
+	function handleSliderInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		onChange(Number.parseInt(target.value, 10));
 	}
 
-	switch (e.key) {
-		case "0":
-			e.preventDefault();
-			onReset();
-			break;
-		case "c":
-		case "C":
-			if (onCompareToggle) {
+	function handleKeyDown(e: KeyboardEvent) {
+		if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
+		switch (e.key) {
+			case '0':
 				e.preventDefault();
-				onCompareToggle();
-			}
-			break;
-		case "a":
-		case "A":
-			if (e.shiftKey && onAutoAdjust) {
-				e.preventDefault();
-				onAutoAdjust();
-			}
-			break;
+				onReset();
+				break;
+			case 'c':
+			case 'C':
+				if (onCompareToggle) {
+					e.preventDefault();
+					onCompareToggle();
+				}
+				break;
+			case 'a':
+			case 'A':
+				if (e.shiftKey && onAutoAdjust) {
+					e.preventDefault();
+					onAutoAdjust();
+				}
+				break;
+		}
 	}
-}
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="finetune-controls" role="toolbar" aria-label="Fine-tune controls">
-	<!-- Top Row: Categories & Presets -->
-	<div class="controls-header">
-		<!-- Category Tabs -->
-		{#if onCategoryChange}
-			<div class="category-tabs" role="tablist">
-				{#each categories as cat (cat)}
-					<button
-						type="button"
-						class="category-tab"
-						class:active={activeCategory === cat}
-						onclick={() => onCategoryChange(cat as 'basic' | 'tone' | 'color' | 'detail')}
-						role="tab"
-						aria-selected={activeCategory === cat}
-						title={cat.charAt(0).toUpperCase() + cat.slice(1)}
-					>
-						<iconify-icon icon={categoryIcons[cat]} width="18"></iconify-icon>
-						<span class="hidden md:inline capitalize">{cat}</span>
-					</button>
-				{/each}
-			</div>
-		{/if}
+<div class="editor-dock finetune-controls" role="toolbar" aria-label="Fine-tune controls">
+	{#if onCategoryChange}
+		<div class="dock-row dock-row-scroll" role="tablist" aria-label="Adjustment categories">
+			{#each categories as cat (cat)}
+				<button
+					type="button"
+					class="dock-pill"
+					class:dock-pill-active={activeCategory === cat}
+					onclick={() => onCategoryChange(cat as 'basic' | 'tone' | 'color' | 'detail')}
+					role="tab"
+					aria-selected={activeCategory === cat}
+					title={cat.charAt(0).toUpperCase() + cat.slice(1)}
+				>
+					<iconify-icon icon={categoryIcons[cat]} width="15" aria-hidden="true"></iconify-icon>
+					<span class="capitalize">{cat}</span>
+				</button>
+			{/each}
 
-		<!-- Presets Button -->
-		{#if showPresets && onPresetApply}
-			<Button variant="outline" size="sm" type="button" onclick={() => (showPresetsPanel = !showPresetsPanel)}>
-				<iconify-icon icon="mdi:magic-staff" width="16"></iconify-icon>
-				<span class="hidden sm:inline">Presets</span>
-			</Button>
-		{/if}
+			{#if showPresets && onPresetApply}
+				<button
+					type="button"
+					class="dock-pill"
+					class:dock-pill-active={showPresetsPanel}
+					onclick={() => (showPresetsPanel = !showPresetsPanel)}
+					title="Presets"
+				>
+					<iconify-icon icon="mdi:magic-staff" width="15" aria-hidden="true"></iconify-icon>
+					<span>Presets</span>
+				</button>
+			{/if}
 
-		<!-- Auto Adjust -->
-		{#if onAutoAdjust}
-			<Button variant="tertiary" size="sm" type="button" onclick={onAutoAdjust} title="Auto Adjust (Shift+A)">
-				<iconify-icon icon="mdi:auto-fix" width="16"></iconify-icon>
-				<span class="hidden sm:inline">Auto</span>
-			</Button>
-		{/if}
+			{#if onAutoAdjust}
+				<button type="button" class="dock-pill" onclick={onAutoAdjust} title="Auto adjust (Shift+A)">
+					<iconify-icon icon="mdi:auto-fix" width="15" aria-hidden="true"></iconify-icon>
+					<span>Auto</span>
+				</button>
+			{/if}
 
-		<div class="flex-1"></div>
+			{#if onCompareToggle}
+				<button
+					type="button"
+					class="dock-pill"
+					class:dock-pill-active={isComparing}
+					onclick={onCompareToggle}
+					title="Compare (C)"
+					aria-pressed={isComparing}
+				>
+					<iconify-icon icon="mdi:compare" width="15" aria-hidden="true"></iconify-icon>
+					<span>Compare</span>
+				</button>
+			{/if}
+		</div>
+	{/if}
 
-		<!-- Compare Toggle -->
-		{#if onCompareToggle}
-			<Button variant={isComparing ? 'tertiary' : 'outline'} size="sm"
-				type="button"
-				onclick={onCompareToggle}
-				title="Compare before/after (C)"
-				aria-label="Compare before/after"
-			>
-				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
-				<span class="hidden sm:inline">Compare</span>
-			</Button>
-		{/if}
-	</div>
-
-	<!-- Presets Panel (Horizontal Scroll) -->
 	{#if showPresetsPanel && onPresetApply}
-		<div class="presets-grid">
+		<div class="dock-row dock-row-scroll">
 			{#each FILTER_PRESETS as preset (preset.name)}
 				<button
 					type="button"
-					class="preset-card"
+					class="dock-pill"
 					onclick={() => {
 						onPresetApply(preset.name);
 						showPresetsPanel = false;
@@ -158,437 +152,66 @@ function handleKeyDown(e: KeyboardEvent) {
 					title={preset.description}
 					aria-label="Apply {preset.name} preset"
 				>
-					<div class="preset-icon-wrapper"><iconify-icon icon={preset.icon} width="24"></iconify-icon></div>
-					<span class="preset-name">{preset.name}</span>
+					<iconify-icon icon={preset.icon} width="15" aria-hidden="true"></iconify-icon>
+					<span>{preset.name}</span>
 				</button>
 			{/each}
 		</div>
 	{/if}
 
-	<!-- Main Controls -->
-	<div class="controls-container">
-		<!-- Adjustment Selector -->
-		<div class="adjustments-scroll">
-			<div class="adjustments-grid">
-				{#each getAdjustmentsByCategory(activeCategory as 'basic' | 'tone' | 'color' | 'detail') as adj (adj.key)}
-					{const adjConfig = getAdjustmentConfig(adj.key)}
-					{const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
-					<button
-						type="button"
-						class="adjustment-btn"
-						class:active={activeAdjustment === adj.key}
-						class:has-change={hasChange}
-						onclick={() => onAdjustmentChange(adj.key)}
-						title={adjConfig?.description || adj.label}
-						aria-label="Adjust {adj.label}"
-					>
-						<iconify-icon icon={adj.icon} width="24"></iconify-icon>
-						<span class="adjustment-label">{adj.label}</span>
-						{#if hasChange}
-							<span class="change-indicator">{(adjustments?.[adj.key] ?? 0) > 0 ? '+' : ''}{adjustments?.[adj.key] ?? 0}</span>
-						{/if}
-					</button>
-				{/each}
-			</div>
-		</div>
-
-		<!-- Slider Section -->
-		<div class="slider-section">
-			<div class="slider-title">
-				<span>{config?.label || 'Adjustment'}</span>
-				<div class="flex gap-2">
-					<Button variant="outline" size="sm" type="button" onclick={onReset} disabled={value === 0} title="Reset to 0" class="p-0! min-w-0">
-						<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-					</Button>
-				</div>
-			</div>
-
-			<div class="slider-wrapper">
-				<div class="slider-track-container">
-					<div class="center-tick"></div>
-					<input
-						type="range"
-						min={config?.min || -100}
-						max={config?.max || 100}
-						step={config?.step || 1}
-						{value}
-						oninput={handleSliderInput}
-						class="slider"
-						aria-label="{config?.label} adjustment"
-					/>
-				</div>
-				<div class="slider-value" class:changed={value !== 0}>{value > 0 ? '+' : ''}{value}</div>
-			</div>
-		</div>
+	<div class="dock-row dock-row-scroll" role="group" aria-label="Adjustments">
+		{#each getAdjustmentsByCategory(activeCategory as 'basic' | 'tone' | 'color' | 'detail') as adj (adj.key)}
+			{@const adjConfig = getAdjustmentConfig(adj.key)}
+			{@const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
+			<button
+				type="button"
+				class="dock-pill"
+				class:dock-pill-active={activeAdjustment === adj.key}
+				class:dock-pill-changed={hasChange}
+				onclick={() => onAdjustmentChange(adj.key)}
+				title={adjConfig?.description || adj.label}
+				aria-label="Adjust {adj.label}"
+				aria-pressed={activeAdjustment === adj.key}
+			>
+				<iconify-icon icon={adj.icon} width="15" aria-hidden="true"></iconify-icon>
+				<span>{adj.label}</span>
+				{#if hasChange}
+					<span class="dock-pill-badge">{(adjustments?.[adj.key] ?? 0) > 0 ? '+' : ''}{adjustments?.[adj.key] ?? 0}</span>
+				{/if}
+			</button>
+		{/each}
 	</div>
 
-	<!-- Actions -->
-	<!-- Footer removed: Actions are handled by global toolbar or live updates -->
-	<div class="h-2"></div>
+	<div class="slider-block">
+		<div class="slider-header">
+			<span class="slider-label">{config?.label || 'Adjustment'}</span>
+			<button
+				type="button"
+				class="dock-icon-btn"
+				onclick={onReset}
+				disabled={value === 0}
+				title="Reset to 0"
+				aria-label="Reset adjustment"
+			>
+				<iconify-icon icon="mdi:restore" width="16" aria-hidden="true"></iconify-icon>
+			</button>
+		</div>
+		<div class="slider-track">
+			<input
+				type="range"
+				min={config?.min || -100}
+				max={config?.max || 100}
+				step={config?.step || 1}
+				{value}
+				oninput={handleSliderInput}
+				class="slider-input"
+				aria-label="{config?.label} adjustment"
+			/>
+			<span class="slider-value" class:slider-value-changed={value !== 0}>{value > 0 ? '+' : ''}{value}</span>
+		</div>
+	</div>
 </div>
 
 <style>
-	.finetune-controls {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		width: 100%;
-		padding: 0;
-		background: transparent;
-		border: none;
-	}
-
-	/* Header */
-	.controls-header {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-		align-items: center;
-		padding-bottom: 0.35rem;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-	}
-
-	.category-tabs {
-		display: flex;
-		flex-wrap: nowrap;
-		gap: 0.2rem;
-		padding: 0.2rem;
-		overflow-x: auto;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 0.95rem;
-	}
-
-	.category-tab {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-		justify-content: center;
-		padding: 0.3rem 0.85rem;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: #9ca3af;
-		white-space: nowrap;
-		background: transparent;
-		border: none;
-		border-radius: 9999px;
-		transition: all 0.2s;
-	}
-
-	.category-tab:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.05);
-	}
-
-	.category-tab.active {
-		color: white;
-		background: linear-gradient(180deg, rgba(113, 103, 76, 0.95), rgba(84, 74, 51, 0.95));
-		border: 1px solid rgba(212, 190, 136, 0.35);
-		box-shadow:
-			0 4px 12px rgba(0, 0, 0, 0.18),
-			inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-	}
-
-	/* Controls Container */
-	.controls-container {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	@media (min-width: 1024px) {
-		.controls-container {
-			flex-direction: column;
-			align-items: stretch;
-		}
-	}
-
-	/* Adjustments Grid/Scroll */
-	.adjustments-scroll {
-		flex: 1;
-		width: 100%;
-		padding-bottom: 0.1rem;
-		overflow-x: auto;
-	}
-
-	.adjustments-grid {
-		display: flex;
-		gap: 0.4rem;
-		min-width: max-content;
-	}
-
-	.adjustment-btn {
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		align-items: center;
-		min-width: 68px;
-		padding: 0.65rem;
-		color: #9ca3af;
-		cursor: pointer;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 1rem;
-		transition: all 0.2s;
-	}
-
-	.adjustment-btn:hover {
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
-		border-color: rgba(255, 255, 255, 0.2);
-		transform: translateY(-2px);
-	}
-
-	.adjustment-btn.active {
-		color: #f6efe0;
-		background: linear-gradient(180deg, rgba(125, 107, 76, 0.9), rgba(88, 75, 54, 0.92));
-		border-color: rgba(209, 188, 145, 0.35);
-		box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-	}
-
-	.adjustment-btn.has-change {
-		border-color: rgb(var(--color-primary-500) / 0.5);
-	}
-
-	.adjustment-label {
-		font-size: 0.68rem;
-		font-weight: 600;
-		line-height: 1.2;
-		color: rgb(var(--color-surface-700) / 1);
-		text-align: center;
-	}
-
-	:global(.dark) .adjustment-label {
-		color: rgb(var(--color-surface-300) / 1);
-	}
-
-	.change-indicator {
-		position: absolute;
-		top: 0.25rem;
-		right: 0.25rem;
-		min-width: 1.25rem;
-		padding: 0 0.25rem;
-		font-size: 0.65rem;
-		font-weight: 700;
-		color: rgb(var(--color-primary-600) / 1);
-		text-align: center;
-		background: rgb(var(--color-primary-100) / 1);
-		border-radius: 0.25rem;
-	}
-
-	/* Slider Section - Enhanced */
-	.slider-section {
-		display: flex;
-		flex-shrink: 0;
-		flex-direction: column;
-		gap: 0.5rem;
-		width: 100%;
-	}
-
-	@media (min-width: 1024px) {
-		.slider-section {
-			width: 100%;
-		}
-	}
-
-	.slider-wrapper {
-		display: flex;
-		gap: 0.6rem;
-		align-items: center;
-		height: 2.75rem;
-		padding: 0.2rem 0.65rem;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 9999px; /* Taller for easier touch */
-	}
-
-	:global(.dark) .slider-wrapper {
-		background: rgba(255, 255, 255, 0.04);
-		border-color: rgba(255, 255, 255, 0.08);
-	}
-
-	.slider-track-container {
-		position: relative;
-		display: flex;
-		flex: 1;
-		align-items: center;
-		height: 100%;
-	}
-
-	.slider {
-		position: absolute;
-		width: 100%;
-		height: 6px;
-		margin: 0;
-		-webkit-appearance: none;
-		appearance: none;
-		cursor: pointer;
-		outline: none;
-		background: rgba(255, 255, 255, 0.18);
-		border-radius: 3px;
-	}
-
-	:global(.dark) .slider {
-		background: rgba(255, 255, 255, 0.18);
-	}
-
-	.slider::-webkit-slider-thumb {
-		width: 22px;
-		height: 22px;
-		margin-top: -8px;
-		-webkit-appearance: none;
-		appearance: none;
-		cursor: pointer;
-		background: white;
-		border: 2px solid rgb(var(--color-primary-500) / 1);
-		border-radius: 50%;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-		transition: transform 0.1s; /* Centering */
-	}
-
-	/* Center tick */
-	.center-tick {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		width: 2px;
-		height: 12px;
-		pointer-events: none;
-		background: rgb(var(--color-surface-400) / 1);
-		border-radius: 1px;
-		transform: translate(-50%, -50%);
-	}
-
-	.slider-value {
-		min-width: 2.2rem;
-		font-family: monospace;
-		font-size: 0.8rem;
-		font-weight: 600;
-		color: rgb(var(--color-surface-500) / 1);
-		text-align: right;
-	}
-
-	.slider-value.changed {
-		color: rgb(var(--color-primary-500) / 1);
-	}
-
-	.presets-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(4.75rem, 1fr));
-		gap: 0.5rem;
-		width: 100%;
-		padding: 0.25rem 0.1rem;
-	}
-
-	.preset-card {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		align-items: center;
-		min-width: 0;
-		width: 100%;
-		cursor: pointer;
-		background: transparent;
-		border: none;
-		opacity: 0.7;
-		transition: all 0.2s;
-	}
-
-	.preset-card:hover {
-		opacity: 1;
-		transform: translateY(-2px);
-	}
-
-	.preset-icon-wrapper {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 3rem;
-		height: 3rem;
-		color: white;
-		background: rgba(255, 255, 255, 0.1);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 0.5rem;
-	}
-
-	.preset-card:hover .preset-icon-wrapper {
-		background: rgba(255, 255, 255, 0.2);
-		border-color: rgba(255, 255, 255, 0.4);
-		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-	}
-
-	.preset-name {
-		font-size: 0.66rem;
-		font-weight: 500;
-		color: #9ca3af;
-		text-align: center;
-	}
-
-	.preset-card:hover .preset-name {
-		color: white;
-	}
-
-
-	@media (max-width: 640px) {
-		.finetune-controls {
-			gap: 0.55rem;
-		}
-
-		.controls-header {
-			align-items: stretch;
-			gap: 0.3rem;
-		}
-
-		.category-tabs {
-			width: 100%;
-			padding: 0.15rem;
-		}
-
-		.presets-grid {
-			grid-template-columns: repeat(auto-fit, minmax(4.25rem, 1fr));
-		}
-
-		.adjustments-scroll {
-			overflow-x: visible;
-		}
-
-		.adjustments-grid {
-			display: grid;
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-			gap: 0.45rem;
-			min-width: 0;
-			width: 100%;
-		}
-
-		.adjustment-btn {
-			min-width: 58px;
-			padding: 0.55rem 0.45rem;
-			border-radius: 0.9rem;
-		}
-
-		.adjustment-label {
-			font-size: 0.6rem;
-		}
-
-		.slider-wrapper {
-			height: 2.4rem;
-			padding-inline: 0.55rem;
-		}
-
-		.slider {
-			height: 5px;
-		}
-
-		.slider::-webkit-slider-thumb {
-			width: 18px;
-			height: 18px;
-			margin-top: -6px;
-		}
-
-		.slider::-moz-range-thumb {
-			width: 18px;
-			height: 18px;
-		}
-	}
+	@import '../../editor-dock.css';
 </style>

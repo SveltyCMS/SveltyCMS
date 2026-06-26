@@ -15,6 +15,7 @@ import MediaGrid from "./media-grid.svelte";
 import MediaTable from "./media-table.svelte";
 import { mediaUrl } from "@utils/media/media-utils";
 import ImageEditorModal from "@src/components/image-editor/image-editor-modal.svelte";
+import { IMAGE_EDITOR_MODAL_CLASSES, IMAGE_EDITOR_MODAL_SIZE } from "@src/components/image-editor/image-editor-modal.ts";
 import ModalPrompt from "@components/modal-prompt.svelte";
 import MediaDetailsModal from "@src/components/media/media-details-modal.svelte";
 import AdminPageShell from "@components/admin-page-shell.svelte";
@@ -167,7 +168,8 @@ async function handleEditImage(file: any) {
 	modalState.trigger(ImageEditorModal as any, {
 		image: { ...file, url: fullUrl },
 		onsave: handleEditorSave,
-		size: "fullscreen",
+		size: IMAGE_EDITOR_MODAL_SIZE,
+		modalClasses: IMAGE_EDITOR_MODAL_CLASSES,
 	});
 }
 
