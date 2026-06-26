@@ -6,6 +6,7 @@
 
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
+import { Readable } from "node:stream";
 import path from "node:path";
 import { lookup } from "mime-types";
 

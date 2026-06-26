@@ -3,7 +3,6 @@
  * @description Collections namespace for LocalCMS SDK.
  */
 
-import { contentSystem } from "@src/content/index.server";
 import { modifyRequest, modifyStream, type EntryData } from "@utils/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
@@ -12,10 +11,23 @@ import { AppError } from "@utils/error-handling";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import * as crypto from "node:crypto";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
+import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { Schema, FieldInstance } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { pluginRegistry } from "@src/plugins/registry";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
+
+type ContentSystem = typeof serverContentSystem;
+
+let resolvedContentSystem: ContentSystem | null = null;
+
+async function getContentSystem(): Promise<ContentSystem> {
+  if (!resolvedContentSystem) {
+    const mod = await import("@src/content/index.server");
+    resolvedContentSystem = mod.contentSystem;
+  }
+  return resolvedContentSystem;
+}
 
 /**
  * Collections Namespace
@@ -36,7 +48,7 @@ export class CollectionsNamespace {
 
   constructor(
     private _dbAdapter: IDBAdapter,
-    private _contentSystemOverride?: any,
+    private _contentSystemOverride?: ContentSystem,
   ) {
     if (!(this._dbAdapter as any).collection) {
       const proto = (this._dbAdapter as any).constructor?.prototype;
@@ -82,8 +94,12 @@ export class CollectionsNamespace {
     });
   }
 
-  private get _contentSystem() {
-    return this._contentSystemOverride || contentSystem;
+  private get _contentSystem(): ContentSystem | null {
+    return this._contentSystemOverride || resolvedContentSystem;
+  }
+
+  private async _resolveContentSystem(): Promise<ContentSystem> {
+    return this._contentSystemOverride || getContentSystem();
   }
 
   private normalizeRelationshipFilter(filter: any): any {
@@ -147,7 +163,8 @@ export class CollectionsNamespace {
 
     let schema = null;
     try {
-      schema = await this._contentSystem.getCollectionById(collectionId, tenantId);
+      const cs = await this._resolveContentSystem();
+      schema = await cs.getCollectionById(collectionId, tenantId);
     } catch {}
 
     const idLower = collectionId.toLowerCase();
@@ -302,7 +319,8 @@ export class CollectionsNamespace {
       }
     } catch {}
 
-    const collections = await this._contentSystem.getCollections(tenantId);
+    const cs = await this._resolveContentSystem();
+    const collections = await cs.getCollections(tenantId);
 
     // Merge in any manually registered schemas from cache
     const prefix = `${tenantId || "global"}:`;
@@ -379,7 +397,8 @@ export class CollectionsNamespace {
     if (collections && collections.length > 0) {
       collectionsToSearch = collections;
     } else {
-      const allCollections = await contentSystem.getCollections(tenantId);
+      const cs = await getContentSystem();
+      const allCollections = await cs.getCollections(tenantId);
       collectionsToSearch = allCollections
         .map((c) => c._id)
         .filter((id): id is string => id !== undefined);
@@ -394,8 +413,9 @@ export class CollectionsNamespace {
       baseFilter.status = status;
     }
 
+    const cs = await getContentSystem();
     const searchPromises = collectionsToSearch.map(async (collectionId) => {
-      const collection = await contentSystem.getCollectionById(collectionId, tenantId);
+      const collection = await cs.getCollectionById(collectionId, tenantId);
       if (!collection) return [];
 
       try {
