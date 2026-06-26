@@ -1,6 +1,9 @@
 /**
  * @file src/routes/api/plugins/[pluginId]/+server.ts
- * @description Generic API dispatcher for plugin slot server actions (no plugin routes).
+ * @description Generic API dispatcher for plugin slot server actions.
+ *
+ * Clones the request before reading formData to avoid "body already used"
+ * when the plugin handler needs to read the request body itself.
  */
 
 import { json } from "@sveltejs/kit";
@@ -9,7 +12,7 @@ import { pluginServerRegistry } from "@src/plugins/plugin-server-registry";
 import { logger } from "@utils/logger";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
+export const POST: RequestHandler = async ({ params, request: originalRequest, locals }) => {
   const { pluginId } = params;
   const user = locals.user;
 
@@ -17,7 +20,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const plugin = pluginRegistry.get(pluginId);
+  // Fallback discovery: try registry, then server-only registry
+  const plugin = pluginRegistry.get(pluginId) ?? (await pluginServerRegistry.discover?.(pluginId));
   if (!plugin) {
     return json({ error: `Plugin not found: ${pluginId}` }, { status: 404 });
   }
@@ -40,6 +44,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     return json({ error: `Plugin '${pluginId}' has no server actions` }, { status: 404 });
   }
 
+  // Clone request before consuming body — handler may also need to read it
+  const request = originalRequest.clone();
   const formData = await request.formData();
   const actionName =
     (formData.get("__action") as string) || new URL(request.url).searchParams.get("action");
@@ -55,7 +61,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     }
 
     const result = await handler({
-      request,
+      request: originalRequest,
       locals: locals as Record<string, unknown>,
       params: { pluginId },
     });
