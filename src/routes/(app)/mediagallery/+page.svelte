@@ -30,6 +30,7 @@ import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
 import { SvelteSet } from "svelte/reactivity";
+import { ui } from "@src/stores/ui-store.svelte.ts";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
@@ -44,7 +45,6 @@ let view = $state<"grid" | "table">("grid");
 let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let selectedFiles = $state(new SvelteSet<string>());
 	let isSelectionMode = $state(false);
-	let fileUploadInput = $state<HTMLInputElement>();
 
 const mediaTypes = [
 	{ value: "All", label: "ALL" },
@@ -116,6 +116,15 @@ onMount(() => {
 
 	// Initial data hydration
 	if (data?.media) files = data.media as unknown as (MediaBase | MediaImage)[];
+
+	// Listen for externalUpload custom event from nested components (e.g. MediaGrid empty state)
+	document.addEventListener("externalUpload", (e: Event) => {
+		const customEvent = e as CustomEvent<{ files: FileList }>;
+		const fileList = customEvent.detail?.files;
+		if (fileList?.length) {
+			uploadFiles(fileList);
+		}
+	});
 });
 
 async function handleEditImage(file: any) {
@@ -186,38 +195,61 @@ async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 			for (const file of filesToDelete) {
 				const formData = new FormData();
 				formData.append("imageData", JSON.stringify(file));
-				await fetch("?/deleteMedia", { method: "POST", body: formData });
+				await fetch("/mediagallery?/deleteMedia", { method: "POST", body: formData });
 			}
-			files = files.filter((f) => !selectedFiles.has(f._id as string));
+			const deleteIds = new Set(filesToDelete.map((f) => f._id?.toString()));
+			files = files.filter((f) => !deleteIds.has(f._id?.toString()));
 			selectedFiles.clear();
 			toast.success("Batch delete complete");
 		},
 	});
 }
 
-async function handleUpload(e: Event) {
-	const input = e.target as HTMLInputElement;
-	if (!input.files?.length) return;
+async function handleUploadClick() {
+	const input = document.createElement("input");
+	input.type = "file";
+	input.multiple = true;
+	input.accept = "image/*,video/*,audio/*,application/pdf";
+	input.onchange = async (e: Event) => {
+		const files = (e.target as HTMLInputElement).files;
+		if (files?.length) {
+			await uploadFiles(files);
+		}
+	};
+	input.click();
+}
 
+async function uploadFiles(fileList: FileList) {
+	if (!fileList?.length) return;
 	const formData = new FormData();
-	for (const file of input.files) {
+	for (const file of fileList) {
 		formData.append("files", file);
 	}
 	formData.append("folder", data.currentFolder?._id || "global");
-
 	try {
-		const response = await fetch("?/upload", {
+		const response = await fetch("/mediagallery?/upload", {
 			method: "POST",
 			body: formData,
+			headers: { accept: "application/json" },
 		});
 		if (response.ok) {
 			toast.success("Media uploaded successfully");
 			window.location.reload();
+		} else {
+			const errorData = await response.json().catch(() => null);
+			const message = errorData?.error?.message ?? `Upload failed (${response.status})`;
+			toast.error(message);
 		}
 	} catch (err) {
 		logger.error("Upload failed", err);
 		toast.error("Upload failed");
 	}
+}
+
+async function handleUpload(e: Event) {
+	const input = e.target as HTMLInputElement;
+	if (!input.files?.length) return;
+	await uploadFiles(input.files);
 }
 
 async function handleCreateFolder() {
@@ -235,7 +267,7 @@ async function handleCreateFolder() {
 			try {
 				const response = await fetch("/api/system-virtual-folder", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: { "Content-Type": "application/json", "X-CSRF-Token": (data as any).csrfToken || "" },
 					body: JSON.stringify({
 						name: name.trim(),
 						parent: data.currentFolder?._id,
@@ -243,7 +275,11 @@ async function handleCreateFolder() {
 				});
 				if (response.ok) {
 					toast.success("Folder created");
-					window.location.reload();
+					document.dispatchEvent(new CustomEvent("folderCreated"));
+					ui.state.leftSidebar = "full";
+				} else {
+					const err = await response.json().catch(() => null);
+					toast.error(err?.message || "Failed to create folder");
 				}
 			} catch (err) {
 				logger.error("Folder creation failed", err);
@@ -256,7 +292,7 @@ async function handleCreateFolder() {
 async function handleOpenFileDetails(file: any) {
 	modalState.trigger(MediaDetailsModal as any, {
 		file,
-		modalClasses: "max-w-4xl w-full",
+		size: "2xl",
 		onUpdate: (updatedFile: any) => {
 			const index = files.findIndex((f) => f._id === updatedFile._id);
 			if (index !== -1) {
@@ -280,20 +316,10 @@ async function handleOpenFileDetails(file: any) {
 
 			<Slot name="media_gallery_toolbar" inline={true} />
 
-			<Button color="var(--color-primary-500)" onclick={() => fileUploadInput?.click()}>
+			<Button color="var(--color-primary-500)" onclick={handleUploadClick}>
 				<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
 				<span class="hidden md:inline">Upload</span>
 			</Button>
-			<input
-				type="file"
-				multiple
-				class="hidden"
-				bind:this={fileUploadInput}
-				onchange={handleUpload}
-				accept="image/*,video/*,audio/*,application/pdf"
-				aria-label="upload-files"
-				data-testid="media-upload-input"
-			/>
 		</div>
 	{/snippet}
 
@@ -382,6 +408,7 @@ async function handleOpenFileDetails(file: any) {
 					bind:selectedFiles={selectedFiles}
 					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
+					ondeleteImage={(file) => handleBulkDelete([file])}
 				/>
 			{/if}
 		{:else}
@@ -391,6 +418,7 @@ async function handleOpenFileDetails(file: any) {
 				bind:selectedFiles={selectedFiles}
 				onEditImage={handleEditImage}
 				onOpenFileDetails={handleOpenFileDetails}
+				ondeleteImage={(file) => handleBulkDelete([file])}
 			/>
 		{/if}
 	</div>
