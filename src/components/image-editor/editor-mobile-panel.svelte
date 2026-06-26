@@ -41,7 +41,11 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 	const focalY = $derived(focalProps?.focalY ?? 50);
 	const focalXProgress = $derived(Math.max(0, Math.min(1, focalX / 100)));
 	const focalYProgress = $derived(Math.max(0, Math.min(1, focalY / 100)));
-	const showAnnotateTextInput = $derived(showAnnotateMobile && annotateProps?.currentTool === 'text');
+	const showAnnotateTextInput = $derived(
+		showAnnotateMobile &&
+			(annotateProps?.currentTool === 'text' ||
+				(annotateProps?.hasSelection && annotateProps?.selectedType === 'text'))
+	);
 	const showWatermarkTextInput = $derived(
 		showWatermarkMobile && watermarkProps?.selectedType === 'text' && !!watermarkProps?.onTextDraftChange
 	);
@@ -146,9 +150,23 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		imageEditorStore.takeSnapshot();
 	}
 
+	let annotateTextInputRef = $state<HTMLInputElement | null>(null);
+
 	function handleAnnotateTextInput(e: Event) {
 		const value = (e.currentTarget as HTMLInputElement).value;
 		annotateProps?.onTextDraftChange?.(value);
+	}
+
+	function handleAnnotateTextCommit() {
+		annotateProps?.onApplyText?.();
+		annotateTextInputRef?.blur();
+	}
+
+	function handleAnnotateTextKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			handleAnnotateTextCommit();
+		}
 	}
 
 	function handleWatermarkTextInput(e: Event) {
@@ -317,16 +335,29 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		{#if showAnnotateMobile}
 			{#if showAnnotateTextInput}
 				<div class="editor-mobile-annotate-text-row">
-					<label class="editor-mobile-annotate-text-label" for="annotate-mobile-text">Text</label>
-					<input
-						id="annotate-mobile-text"
-						class="editor-mobile-annotate-text-input"
-						type="text"
-						value={annotateProps?.textDraft ?? 'Text'}
-						placeholder="Enter text"
-						oninput={handleAnnotateTextInput}
-						aria-label="Annotation text"
-					/>
+					<div class="editor-mobile-annotate-text-pill">
+						<input
+							bind:this={annotateTextInputRef}
+							id="annotate-mobile-text"
+							class="editor-mobile-annotate-text-input"
+							type="text"
+							value={annotateProps?.textDraft ?? 'Text'}
+							placeholder="Enter text"
+							oninput={handleAnnotateTextInput}
+							onkeydown={handleAnnotateTextKeydown}
+							aria-label="Annotation text"
+						/>
+						<button
+							type="button"
+							class="editor-mobile-annotate-text-confirm"
+							onclick={handleAnnotateTextCommit}
+							aria-label={annotateProps?.hasSelection && annotateProps?.selectedType === 'text'
+								? 'Done editing text'
+								: 'Place text on image'}
+						>
+							<iconify-icon icon="mdi:check-bold" width="16" aria-hidden="true"></iconify-icon>
+						</button>
+					</div>
 				</div>
 			{/if}
 

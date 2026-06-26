@@ -280,7 +280,6 @@
 .editor-mobile-annotate-text-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -288,31 +287,65 @@
   box-sizing: border-box;
 }
 
-.editor-mobile-annotate-text-label {
-  flex: 0 0 auto;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.52);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.editor-mobile-annotate-text-pill {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 0.25rem;
+  align-items: center;
+  min-width: 0;
+  height: 2.25rem;
+  padding: 0.1875rem 0.1875rem 0.1875rem 0.75rem;
+  background: var(--editor-chrome-elevated, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--editor-chrome-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--editor-radius-pill, 9999px);
 }
 
 .editor-mobile-annotate-text-input {
   flex: 1 1 auto;
   min-width: 0;
-  height: 2rem;
-  padding-inline: 0.75rem;
+  height: 100%;
+  padding: 0;
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--editor-radius-pill, 9999px);
+  background: transparent;
+  border: none;
   outline: none;
 }
 
+.editor-mobile-annotate-text-input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
 .editor-mobile-annotate-text-input:focus-visible {
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+  outline: none;
+}
+
+.editor-mobile-annotate-text-pill:focus-within {
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.editor-mobile-annotate-text-confirm {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: #0a0a0a;
+  cursor: pointer;
+  background: var(--editor-accent, #f4c430);
+  border: none;
+  border-radius: var(--editor-radius-pill, 9999px);
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+
+.editor-mobile-annotate-text-confirm:active {
+  transform: scale(0.94);
+  background: var(--editor-accent-hover, #ffd54f);
 }
 
 .editor-mobile-annotate-area {

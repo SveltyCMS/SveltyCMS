@@ -118,6 +118,37 @@ Allows users to add text, arrows, rectangles, and circles to images.
 		refreshToolbar();
 	}
 
+	function getSelectedAnnotationType(): Annotation['type'] | null {
+		if (!selectedAnnotationId) {
+			return null;
+		}
+
+		return annotations.find((ann) => ann.id === selectedAnnotationId)?.type ?? null;
+	}
+
+	function applyTextDraft() {
+		const trimmed = textDraft.trim() || 'Text';
+		textDraft = trimmed;
+
+		if (selectedAnnotationId) {
+			const selected = annotations.find((ann) => ann.id === selectedAnnotationId);
+			if (selected?.type === 'text') {
+				updateSelectedTextAnnotation(trimmed);
+				imageEditorStore.takeSnapshot();
+				refreshToolbar();
+				return;
+			}
+		}
+
+		if (currentTool === 'text') {
+			const img = storeState.imageElement;
+			if (!img) {
+				return;
+			}
+			addTextAnnotation(img.width / 2, img.height / 2, trimmed);
+		}
+	}
+
 	function resetLocalState() {
 		isDrawing = false;
 		isDraggingAnnotation = false;
@@ -420,9 +451,10 @@ Allows users to add text, arrows, rectangles, and circles to images.
 		const fill = fillColor;
 		const draft = textDraft;
 		const hasSelection = !!selectedAnnotationId;
+		const selectedType = getSelectedAnnotationType();
 
 		if (activeState === 'annotate') {
-			updateToolbar(isMobile, tool, stroke, fill, draft, hasSelection);
+			updateToolbar(isMobile, tool, stroke, fill, draft, hasSelection, selectedType);
 		} else if (!activeState && isAnnotateToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
 			imageEditorStore.setToolbarControls(null);
 		}
@@ -434,7 +466,8 @@ Allows users to add text, arrows, rectangles, and circles to images.
 		stroke: string,
 		fill: string,
 		draft: string,
-		hasSelection: boolean
+		hasSelection: boolean,
+		selectedType: Annotation['type'] | null
 	) {
 		const ControlsComponent = isMobile ? AnnotateControlsMobile : AnnotateControls;
 
@@ -445,6 +478,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 				strokeColor: stroke,
 				fillColor: fill,
 				textDraft: draft,
+				selectedType,
 				onSetTool: setTool,
 				onStrokeColorChange: (v: string) => {
 					strokeColor = v;
@@ -456,6 +490,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 					textDraft = v;
 					updateSelectedTextAnnotation(v);
 				},
+				onApplyText: applyTextDraft,
 				hasSelection,
 				onDeleteAnnotation: deleteSelectedAnnotation,
 				onAddText: () => {
@@ -476,7 +511,8 @@ Allows users to add text, arrows, rectangles, and circles to images.
 			strokeColor,
 			fillColor,
 			textDraft,
-			!!selectedAnnotationId
+			!!selectedAnnotationId,
+			getSelectedAnnotationType()
 		);
 	}
 
