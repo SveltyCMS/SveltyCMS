@@ -3,12 +3,9 @@
  * @description Unit tests for WebhookService security, focusing on cache and tenant isolation.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  WebhookService,
-  type WebhookEvent,
-} from "@src/services/background/webhook-service";
+import { WebhookService, type WebhookEvent } from "@src/services/background/webhook-service";
 
-const { mockDb } = vi.hoisted(() => ({
+const { mockDb, mockDispatch } = vi.hoisted(() => ({
   mockDb: {
     system: {
       preferences: {
@@ -17,6 +14,7 @@ const { mockDb } = vi.hoisted(() => ({
       },
     },
   },
+  mockDispatch: vi.fn().mockResolvedValue("job-123"),
 }));
 
 vi.mock("@src/databases/db", () => ({
@@ -34,9 +32,6 @@ vi.mock("@utils/logger", () => ({
     debug: vi.fn(),
   },
 }));
-
-// Mock jobQueue (we'll control dispatch behavior)
-const mockDispatch = vi.fn().mockResolvedValue("job-123");
 
 vi.mock("@src/services/background/jobs/job-queue-service", () => ({
   jobQueue: {
@@ -87,10 +82,8 @@ describe("WebhookService Security - Tenant Isolation", () => {
     mockDb.system.preferences.get.mockImplementation(
       (_key: string, options?: { scope?: string; tenantId?: string }) => {
         const tId = options?.tenantId;
-        if (tId === tenant1)
-          return Promise.resolve({ success: true, data: hooks1 });
-        if (tId === tenant2)
-          return Promise.resolve({ success: true, data: hooks2 });
+        if (tId === tenant1) return Promise.resolve({ success: true, data: hooks1 });
+        if (tId === tenant2) return Promise.resolve({ success: true, data: hooks2 });
         return Promise.resolve({ success: true, data: [] });
       },
     );
@@ -137,10 +130,8 @@ describe("WebhookService Security - Tenant Isolation", () => {
     mockDb.system.preferences.get.mockImplementation(
       (_key: any, options?: { scope?: string; tenantId?: string }) => {
         const tId = options?.tenantId;
-        if (tId === tenant1)
-          return Promise.resolve({ success: true, data: hooks1 });
-        if (tId === tenant2)
-          return Promise.resolve({ success: true, data: hooks2 });
+        if (tId === tenant1) return Promise.resolve({ success: true, data: hooks1 });
+        if (tId === tenant2) return Promise.resolve({ success: true, data: hooks2 });
         return Promise.resolve({ success: true, data: [] });
       },
     );

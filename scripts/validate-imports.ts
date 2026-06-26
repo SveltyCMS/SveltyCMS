@@ -34,20 +34,15 @@ const ALIASES: Record<string, string> = {
 };
 
 // Patterns matching imports
-const IMPORT_RE =
-  /(?:import\s+(?:type\s+)?(?:\{[^}]*\}|[^'"]*)\s+from\s+)?["']([^"']+)["']/g;
+const IMPORT_RE = /(?:import\s+(?:type\s+)?(?:\{[^}]*\}|[^'"]*)\s+from\s+)?["']([^"']+)["']/g;
 const DYNAMIC_IMPORT_RE = /import\s*\(\s*["']([^"']+)["']/g;
 
 let errors = 0;
 let checked = 0;
 
-function resolveImportPath(
-  importPath: string,
-  fromFile: string,
-): string | null {
+function resolveImportPath(importPath: string, fromFile: string): string | null {
   // Skip node: builtins, npm packages, relative paths (handled by Vite)
-  if (importPath.startsWith("node:") || importPath.startsWith("$lib/"))
-    return null;
+  if (importPath.startsWith("node:") || importPath.startsWith("$lib/")) return null;
   if (importPath.startsWith(".")) {
     // Relative import — resolve against file's directory
     const dir = dirname(fromFile);
@@ -84,16 +79,9 @@ function getAllTsFiles(dir: string): string[] {
   const files: string[] = [];
   for (const entry of entries) {
     const full = join(dir, entry.name);
-    if (
-      entry.isDirectory() &&
-      !entry.name.startsWith(".") &&
-      entry.name !== "node_modules"
-    ) {
+    if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
       files.push(...getAllTsFiles(full));
-    } else if (
-      entry.isFile() &&
-      (entry.name.endsWith(".ts") || entry.name.endsWith(".svelte"))
-    ) {
+    } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".svelte"))) {
       files.push(full);
     }
   }
@@ -137,13 +125,9 @@ for (const file of files) {
 }
 
 if (errors > 0) {
-  console.error(
-    `\n❌ ${errors} unresolved import(s) found in ${checked} checked.`,
-  );
+  console.error(`\n❌ ${errors} unresolved import(s) found in ${checked} checked.`);
   process.exit(1);
 }
 
-console.log(
-  `✅ All ${checked} imports resolve correctly (${files.length} files).`,
-);
+console.log(`✅ All ${checked} imports resolve correctly (${files.length} files).`);
 process.exit(0);

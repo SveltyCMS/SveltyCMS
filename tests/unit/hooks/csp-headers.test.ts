@@ -9,10 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  API_CONTENT_SECURITY_POLICY,
-  BASE_HEADERS,
-} from "@src/utils/security/constants";
+import { API_CONTENT_SECURITY_POLICY, BASE_HEADERS } from "@src/utils/security/constants";
 import { applyAllSecurityHeaders } from "@src/hooks/handle-security-headers";
 import { applySecurityHeaders } from "@src/utils/hook-utils";
 
@@ -44,9 +41,7 @@ describe("Content-Security-Policy Headers", () => {
   it("should include all required security headers in BASE_HEADERS", () => {
     expect(BASE_HEADERS["X-Frame-Options"]).toBe("DENY");
     expect(BASE_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
-    expect(BASE_HEADERS["Referrer-Policy"]).toBe(
-      "strict-origin-when-cross-origin",
-    );
+    expect(BASE_HEADERS["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
   });
 
   it("applySecurityHeaders must preserve existing SvelteKit nonce CSP on page responses", () => {
@@ -64,26 +59,15 @@ describe("Content-Security-Policy Headers", () => {
   it("applyAllSecurityHeaders should set API CSP only for API routes", () => {
     const apiHeaders = new Headers();
     applyAllSecurityHeaders(apiHeaders, false, null, "/api/collections/posts");
-    expect(apiHeaders.get("Content-Security-Policy")).toBe(
-      API_CONTENT_SECURITY_POLICY,
-    );
+    expect(apiHeaders.get("Content-Security-Policy")).toBe(API_CONTENT_SECURITY_POLICY);
 
     const pageHeaders = new Headers({
       "Content-Security-Policy":
         "script-src 'self' blob: 'nonce-page-nonce'; style-src 'self' 'unsafe-inline'",
     });
-    applyAllSecurityHeaders(
-      pageHeaders,
-      false,
-      null,
-      "/config/collectionbuilder",
-    );
-    expect(pageHeaders.get("Content-Security-Policy")).toContain(
-      "'nonce-page-nonce'",
-    );
-    expect(pageHeaders.get("Content-Security-Policy")).not.toBe(
-      API_CONTENT_SECURITY_POLICY,
-    );
+    applyAllSecurityHeaders(pageHeaders, false, null, "/config/collectionbuilder");
+    expect(pageHeaders.get("Content-Security-Policy")).toContain("'nonce-page-nonce'");
+    expect(pageHeaders.get("Content-Security-Policy")).not.toBe(API_CONTENT_SECURITY_POLICY);
   });
 
   it("applyAllSecurityHeaders restores SvelteKit CSP even if BASE_HEADERS regresses", () => {
@@ -92,8 +76,6 @@ describe("Content-Security-Policy Headers", () => {
         "script-src 'self' blob: 'nonce-restore-test'; style-src 'self' 'unsafe-inline'",
     });
     applyAllSecurityHeaders(headers, false, null, "/config/collectionbuilder");
-    expect(headers.get("Content-Security-Policy")).toContain(
-      "'nonce-restore-test'",
-    );
+    expect(headers.get("Content-Security-Policy")).toContain("'nonce-restore-test'");
   });
 });

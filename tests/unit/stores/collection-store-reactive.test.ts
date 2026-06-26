@@ -18,45 +18,37 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
   });
 
   describe("reactive getter wrappers", () => {
-    it("collectionsLoading should reflect loading state changes", () => {
-      const {
-        collectionsLoading,
-      } = require("@src/stores/collection-store.svelte.ts");
+    it("collectionsLoading should reflect loading state changes", async () => {
+      const mod = await import("@src/stores/collection-store.svelte.ts");
       collections.loading = true;
-      expect(collectionsLoading.value).toBe(true);
+      expect(mod.collectionsLoading.value).toBe(true);
 
       collections.loading = false;
-      expect(collectionsLoading.value).toBe(false);
+      expect(mod.collectionsLoading.value).toBe(false);
     });
 
-    it("collectionsError should reflect error state changes", () => {
-      const {
-        collectionsError,
-      } = require("@src/stores/collection-store.svelte.ts");
+    it("collectionsError should reflect error state changes", async () => {
+      const mod = await import("@src/stores/collection-store.svelte.ts");
       collections.error = "Something failed";
-      expect(collectionsError.value).toBe("Something failed");
+      expect(mod.collectionsError.value).toBe("Something failed");
 
       collections.error = null;
-      expect(collectionsError.value).toBeNull();
+      expect(mod.collectionsError.value).toBeNull();
     });
 
-    it("currentCollectionId should reflect id changes", () => {
-      const {
-        currentCollectionId,
-      } = require("@src/stores/collection-store.svelte.ts");
+    it("currentCollectionId should reflect id changes", async () => {
+      const mod = await import("@src/stores/collection-store.svelte.ts");
       collections.currentId = "col-123";
-      expect(currentCollectionId.value).toBe("col-123");
+      expect(mod.currentCollectionId.value).toBe("col-123");
     });
 
-    it("selectedEntries should reflect selection changes", () => {
-      const {
-        selectedEntries,
-      } = require("@src/stores/collection-store.svelte.ts");
+    it("selectedEntries should reflect selection changes", async () => {
+      const mod = await import("@src/stores/collection-store.svelte.ts");
       collections.addEntry("entry-1");
-      expect(selectedEntries.value).toContain("entry-1");
+      expect(mod.selectedEntries.value).toContain("entry-1");
 
       collections.clearSelected();
-      expect(selectedEntries.value).toEqual([]);
+      expect(mod.selectedEntries.value).toEqual([]);
     });
   });
 
@@ -72,9 +64,7 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
     });
 
     it("deduplication should prevent redundant content structure updates", () => {
-      const nodes = [
-        { _id: "1", name: "Test", nodeType: "collection" as const },
-      ];
+      const nodes = [{ _id: "1", name: "Test", nodeType: "collection" as const }];
       collections.setContentStructure(nodes);
       // Setting the same structure again should not change the hash
       collections.setContentStructure([...nodes]);

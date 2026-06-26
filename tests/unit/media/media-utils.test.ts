@@ -103,8 +103,6 @@ describe("media-utils — validation", () => {
   });
 
   it("validateBuffer accepts valid buffer", () => {
-    expect(
-      validateBuffer(Buffer.from("test"), "photo.jpg", /^image\//).valid,
-    ).toBe(true);
+    expect(validateBuffer(Buffer.from("test"), "photo.jpg", /^image\//).valid).toBe(true);
   });
 });
