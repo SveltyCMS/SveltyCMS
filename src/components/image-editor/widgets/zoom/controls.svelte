@@ -90,16 +90,20 @@ Pintura-style zoom bottom dock controls.
 					class="slider-input"
 					aria-label="Zoom level slider"
 				/>
-				<input
-					type="number"
-					min={minZoom}
-					max={maxZoom}
-					value={sliderValue.value}
-					onchange={handleInputChange}
-					class="dock-input w-12 text-center"
-					aria-label="Zoom level percentage"
-				/>
-				<span class="slider-value slider-value-changed">%</span>
+				<div class="dock-pill-group zoom-value-group">
+					<label class="zoom-value-pill">
+						<input
+							type="number"
+							min={minZoom}
+							max={maxZoom}
+							value={sliderValue.value}
+							onchange={handleInputChange}
+							class="zoom-value-input"
+							aria-label="Zoom level percentage"
+						/>
+						<span class="zoom-value-suffix" aria-hidden="true">%</span>
+					</label>
+				</div>
 			</div>
 		</div>
 
@@ -124,8 +128,67 @@ Pintura-style zoom bottom dock controls.
 	@import '../../editor-dock.css';
 
 	.zoom-slider-block {
-		flex: 1 1 12rem;
-		max-width: 20rem;
+		flex: 1 1 10rem;
+		max-width: 16rem;
 		margin-inline: 0;
+	}
+
+	.zoom-slider-block .slider-track {
+		align-items: center;
+	}
+
+	.zoom-value-group {
+		flex-shrink: 0;
+		justify-content: center;
+		padding-inline: 0.125rem;
+	}
+
+	.zoom-value-pill {
+		display: inline-flex;
+		gap: 0;
+		align-items: center;
+		justify-content: center;
+		height: 1.75rem;
+		min-width: 2.75rem;
+		padding-inline: 0.5rem;
+		cursor: text;
+	}
+
+	.zoom-value-input {
+		width: auto;
+		min-width: 0;
+		max-width: 3.25ch;
+		padding: 0;
+		font-size: 0.6875rem;
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+		line-height: 1;
+		color: var(--editor-chrome-text-hover, rgba(255, 255, 255, 0.92));
+		text-align: center;
+		background: transparent;
+		border: none;
+		outline: none;
+		field-sizing: content;
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+
+	.zoom-value-input::-webkit-outer-spin-button,
+	.zoom-value-input::-webkit-inner-spin-button {
+		margin: 0;
+		-webkit-appearance: none;
+		appearance: none;
+	}
+
+	.zoom-value-input:focus {
+		outline: none;
+	}
+
+	.zoom-value-suffix {
+		flex-shrink: 0;
+		font-size: 0.6875rem;
+		font-weight: 500;
+		line-height: 1;
+		color: var(--editor-chrome-text-hover, rgba(255, 255, 255, 0.92));
 	}
 </style>
