@@ -130,21 +130,15 @@ async function main() {
   const changedPaths = getChangedPaths();
 
   const hasTsOrSvelte =
-    changedExts.has(".ts") ||
-    changedExts.has(".js") ||
-    changedExts.has(".svelte");
+    changedExts.has(".ts") || changedExts.has(".js") || changedExts.has(".svelte");
   const hasAdminTheme = changedPaths.some(
     (f) => f.startsWith("src/routes/(app)/") && f.endsWith(".svelte"),
   );
   const hasDocs = changedExts.has(".md") || changedExts.has(".mdx");
 
   console.log(`🔎 Changes detected:`);
-  console.log(
-    `   Source files (ts/js/svelte): ${hasTsOrSvelte ? "yes" : "no"}`,
-  );
-  console.log(
-    `   Admin theme routes:          ${hasAdminTheme ? "yes" : "no"}`,
-  );
+  console.log(`   Source files (ts/js/svelte): ${hasTsOrSvelte ? "yes" : "no"}`);
+  console.log(`   Admin theme routes:          ${hasAdminTheme ? "yes" : "no"}`);
   console.log(`   Documentation:               ${hasDocs ? "yes" : "no"}`);
   if (changedPaths.length <= 12) {
     console.log(`   Files: ${changedPaths.join(", ")}`);
@@ -168,9 +162,7 @@ async function main() {
       run: () => {
         if (hasUnstagedChanges()) {
           console.error("\n❌ Working tree is dirty after formatting.");
-          console.error(
-            "   Run 'bun run format' locally, commit the fixes, and retry.",
-          );
+          console.error("   Run 'bun run format' locally, commit the fixes, and retry.");
           return false;
         }
         return true;
@@ -180,8 +172,7 @@ async function main() {
       name: "Slop Scanner",
       ciJob: "lint",
       skip: () => !hasTsOrSvelte,
-      run: () =>
-        runCommand("bun", ["run", "scripts/slop-scanner.ts", "--strict"]),
+      run: () => runCommand("bun", ["run", "scripts/slop-scanner.ts", "--strict"]),
     },
     {
       name: "Lint (oxlint)",
@@ -224,9 +215,7 @@ async function main() {
   const failedTasks: string[] = [];
 
   for (const task of activeTasks) {
-    console.log(
-      `▶️  ${task.name}${task.ciJob ? ` [maps to CI: ${task.ciJob}]` : ""}`,
-    );
+    console.log(`▶️  ${task.name}${task.ciJob ? ` [maps to CI: ${task.ciJob}]` : ""}`);
     const start = performance.now();
 
     let success = false;
@@ -240,9 +229,7 @@ async function main() {
 
     const elapsed = (performance.now() - start).toFixed(0);
     if (!success) {
-      console.error(
-        `\n❌ ${task.name} failed (${elapsed}ms). Fix above before pushing.`,
-      );
+      console.error(`\n❌ ${task.name} failed (${elapsed}ms). Fix above before pushing.`);
       failedTasks.push(task.name);
       // Continue running other tasks to show full picture, but will exit at end
     } else {
@@ -259,25 +246,15 @@ async function main() {
   }
 
   // Show what CI will additionally test
-  console.log(
-    "\n╔══════════════════════════════════════════════════════════════╗",
-  );
+  console.log("\n╔══════════════════════════════════════════════════════════════╗");
   console.log("║  ✅ Pre-push quality gate passed — safe to push.           ║");
-  console.log(
-    "╠══════════════════════════════════════════════════════════════╣",
-  );
-  console.log(
-    "║  CI will additionally run:                                  ║",
-  );
-  console.log(
-    "║    🏗️  Production Build (COMPILE_ALL_ADAPTERS)              ║",
-  );
+  console.log("╠══════════════════════════════════════════════════════════════╣");
+  console.log("║  CI will additionally run:                                  ║");
+  console.log("║    🏗️  Production Build (COMPILE_ALL_ADAPTERS)              ║");
   console.log("║    🧪 DB Matrix (SQLite, MongoDB, MariaDB, PostgreSQL)     ║");
   console.log("║    🎭 E2E Playwright (sharded, 18 projects)                ║");
   console.log("║    📊 Benchmarks (on main branch / labeled PRs)            ║");
-  console.log(
-    "╚══════════════════════════════════════════════════════════════╝\n",
-  );
+  console.log("╚══════════════════════════════════════════════════════════════╝\n");
 
   process.exit(0);
 }
