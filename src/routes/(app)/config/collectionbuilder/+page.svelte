@@ -629,11 +629,13 @@ function modalLoadPreset(): void {
 		</Button>
 
 		<Button
-			href="/config/collectionbuilder/new"
+			type="button"
+			onclick={handleAddCollectionClick}
 			variant="primary"
 			rounded={true}
 			size="lg"
 			class="group w-52 justify-center"
+			disabled={isLoading}
 			data-testid="add-collection-button"
 		>
 			<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
@@ -654,6 +656,10 @@ function modalLoadPreset(): void {
 			</Button>
 		{/if}
 	</div>
+
+	<p class="mb-4 text-center text-sm text-surface-600 dark:text-surface-300" role="note">
+		Templates apply immediately. Categories and layout changes require <strong>Save</strong>.
+	</p>
 
 	<div class="max-h-[calc(100vh-120px)] overflow-auto p-4" data-testid="collection-builder-board">
 		<div class="mx-auto w-full max-w-screen-2xl">
