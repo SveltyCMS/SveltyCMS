@@ -6,7 +6,15 @@
  *   - Signs up the first user and checks validations
  *   - Tests sign out, login, and forgot password flows
  */
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** Dismiss cookie consent banner if visible */
+async function dismissCookieConsent(page: Page) {
+  const cookieAccept = page.getByTestId("cookie-accept-all");
+  if (await cookieAccept.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await cookieAccept.click();
+  }
+}
 
 test.describe.configure({ timeout: 60_000 }); // Set timeout for all tests
 
@@ -15,6 +23,7 @@ test("Test loading homepage and login screen", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
 
   await page.goto("/login", { waitUntil: "domcontentloaded" });
+  await dismissCookieConsent(page);
 
   await expect(page.getByText(/sign up/i)).toBeVisible();
   await expect(page.getByText(/sign in/i)).toBeVisible();
@@ -23,6 +32,7 @@ test("Test loading homepage and login screen", async ({ page }) => {
 // ✅ Language selection test (dropdown version)
 test("Check language selection updates UI text", async ({ page }) => {
   await page.goto("/login");
+  await dismissCookieConsent(page);
 
   const languageSelector = "select"; // Update if needed
 
@@ -43,6 +53,7 @@ test("Check language selection updates UI text", async ({ page }) => {
 // ✅ Signup First User
 test("SignUp First User", async ({ page }) => {
   await page.goto("/login");
+  await dismissCookieConsent(page);
   await page.getByText(/sign up/i).click();
 
   // Username validation
@@ -72,6 +83,10 @@ test("SignUp First User", async ({ page }) => {
 // ✅ Setup seed data before sign-in tests
 test.describe("SignIn & SignOut Flows", () => {
   test.beforeEach(async ({ page }) => {
+    // Dismiss cookie consent before seeding (must navigate first to have a valid origin)
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    await dismissCookieConsent(page);
+
     // Seed the database with the test user via Testing API
     try {
       const seedResponse = await page.request.post("/api/testing", {
@@ -93,6 +108,7 @@ test.describe("SignIn & SignOut Flows", () => {
   // ✅ SignOut Test
   test("SignOut after login", async ({ page }) => {
     await page.goto("/login");
+    await dismissCookieConsent(page);
 
     await page.getByText(/sign in/i).click();
     await page.getByTestId("signin-email").fill("test@test.de");
@@ -109,6 +125,7 @@ test.describe("SignIn & SignOut Flows", () => {
   // ✅ Login First User
   test("Login First User", async ({ page }) => {
     await page.goto("/login");
+    await dismissCookieConsent(page);
 
     await page.getByText(/sign in/i).click();
     await page.getByTestId("signin-email").fill("test@test2.de");
@@ -122,6 +139,7 @@ test.describe("SignIn & SignOut Flows", () => {
 // ✅ Forgot Password
 test("Forgot Password Flow", async ({ page }) => {
   await page.goto("/login");
+  await dismissCookieConsent(page);
 
   await page.getByText(/sign in/i).click();
   await page.getByRole("button", { name: /forgotten password/i }).click();

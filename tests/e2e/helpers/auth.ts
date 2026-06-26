@@ -147,14 +147,23 @@ export async function loginAs(
   }
 
   // Strategy 4: Cookie consent banner (fixed bottom bar, z-9999, aria-modal)
-  const cookieBanner = page.locator('[role="dialog"][aria-modal="true"]').first();
-  if (await cookieBanner.isVisible({ timeout: 1000 }).catch(() => false)) {
-    console.log("[Auth] Cookie consent banner detected, accepting...");
-    const acceptBtn = cookieBanner.getByRole("button", { name: /accept/i });
-    if (await acceptBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await acceptBtn.click();
-      await page.waitForTimeout(500);
-      console.log("[Auth] ✓ Cookie consent accepted");
+  // Try data-testid first (most reliable), then role-based fallback
+  const cookieAcceptBtn = page.getByTestId("cookie-accept-all");
+  if (await cookieAcceptBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log("[Auth] Cookie consent banner detected via testid, accepting...");
+    await cookieAcceptBtn.click();
+    await page.waitForTimeout(500);
+    console.log("[Auth] ✓ Cookie consent accepted");
+  } else {
+    const cookieBanner = page.locator('[role="dialog"][aria-modal="true"]').first();
+    if (await cookieBanner.isVisible({ timeout: 1000 }).catch(() => false)) {
+      console.log("[Auth] Cookie consent banner detected via role, accepting...");
+      const acceptBtn = cookieBanner.getByRole("button", { name: /accept/i });
+      if (await acceptBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await acceptBtn.click();
+        await page.waitForTimeout(500);
+        console.log("[Auth] ✓ Cookie consent accepted");
+      }
     }
   }
 

@@ -395,6 +395,10 @@ export async function handleMediaManipulate(
   id = id || body.mediaId || body.id;
   if (!id) throw new AppError("Asset entity matrix identification value missing", 400);
 
+  if (!body.manipulations || Object.keys(body.manipulations).length === 0) {
+    throw new AppError("Manipulation instruction set is required", 400);
+  }
+
   const result = await cms.media.manipulate(id, body, {
     userId: user?._id || "system",
     tenantId,
