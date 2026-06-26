@@ -645,7 +645,8 @@ export class CollectionsNamespace {
     } = {},
   ) {
     const { tenantId, user, publicationFilter = "all" } = options;
-    const schema = await contentSystem.getCollectionById(collectionId, tenantId);
+    const cs = await getContentSystem();
+    const schema = await cs.getCollectionById(collectionId, tenantId);
     if (!schema) throw new AppError(`Collection ${collectionId} not found`, 404);
 
     const query: any = {
@@ -729,15 +730,17 @@ export class CollectionsNamespace {
     const freshDb = getDb();
     if (freshDb) this._dbAdapter = freshDb;
 
-    return this._contentSystem.refresh(tenantId as any, skipReconciliation);
+    return this._contentSystem?.refresh(tenantId as any, skipReconciliation);
   }
 
   async getStructure(tenantId?: DatabaseId | null) {
-    return contentSystem.getContentStructure(tenantId);
+    const cs = await getContentSystem();
+    return cs.getContentStructure(tenantId);
   }
 
   async reorderContentNodes(items: any[], tenantId?: DatabaseId | null) {
-    return contentSystem.reorderContentNodes(items, tenantId);
+    const cs = await getContentSystem();
+    return cs.reorderContentNodes(items, tenantId);
   }
 
   async getRevisions(

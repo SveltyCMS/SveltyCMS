@@ -98,10 +98,8 @@ function checkFile(filePath: string) {
       pattern.lastIndex = 0;
       while ((match = pattern.exec(content)) !== null) {
         const importPath = match[1];
-        // Skip type-only imports (they're erased at compile time)
-        const _isTypeImport = /import\s+type/.test(
-          content.slice(Math.max(0, match.index - 50), match.index),
-        );
+        // TODO: Skip type-only imports (they're erased at compile time)
+        void /import\s+type/.test(content.slice(Math.max(0, match.index - 50), match.index));
 
         const resolved = resolveImportPath(importPath, filePath);
         if (resolved === null) continue; // npm package or node: builtin

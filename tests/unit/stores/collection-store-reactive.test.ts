@@ -64,7 +64,17 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
     });
 
     it("deduplication should prevent redundant content structure updates", () => {
-      const nodes = [{ _id: "1", name: "Test", nodeType: "collection" as const }];
+      const nodes = [
+        {
+          _id: "1",
+          name: "Test",
+          nodeType: "collection" as const,
+          order: 0,
+          translations: [] as any[],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ] as any[];
       collections.setContentStructure(nodes);
       // Setting the same structure again should not change the hash
       collections.setContentStructure([...nodes]);

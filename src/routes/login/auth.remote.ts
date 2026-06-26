@@ -17,7 +17,7 @@ import { auditLogService, AuditEventType } from "@src/services/security/audit-se
 import { getClientIp } from "@utils/hook-utils";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { cacheService } from "@src/databases/cache/cache-service";
+import { sendMail } from "@utils/email.server";
 import { CacheCategory } from "@src/databases/cache/types";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
@@ -648,10 +648,10 @@ async function consumeWebAuthnChallenge(
   challenge: string,
 ): Promise<{ userId: string; type: "registration" | "authentication" } | null> {
   const key = `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`;
-  const stored = await cacheService.get<{
+  const stored = (await cacheService.get(key, null)) as {
     userId: string;
     type: "registration" | "authentication";
-  }>(key, null);
+  } | null;
   await cacheService.delete(key, null);
   return stored;
 }
@@ -688,7 +688,7 @@ export const getPasskeyAuthOptions = command("unchecked", async (data: { email: 
   const options = buildAuthenticationOptions(
     rpId,
     challenge,
-    user.authenticators.map((a) => ({
+    user.authenticators.map((a: any) => ({
       id: a.credentialID,
       type: "public-key" as const,
       transports: a.transports,
@@ -753,7 +753,7 @@ export const verifyPasskeyAuth = command(
           message: "Passkey signature verification failed.",
         };
 
-      const updatedAuthenticators = (user.authenticators || []).map((a) =>
+      const updatedAuthenticators = (user.authenticators || []).map((a: any) =>
         a.credentialID === stored.credentialID ? { ...a, counter: newCounter } : a,
       );
       await auth.updateUserAttributes(

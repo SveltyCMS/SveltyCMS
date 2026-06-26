@@ -1,16 +1,49 @@
 /**
  * @file src/routes/api/plugins/[pluginId]/+server.ts
- * @description Generic API dispatcher for plugin slot server actions.
+ * @description Smart API dispatcher for plugin slot server actions.
  *
- * Clones the request before reading formData to avoid "body already used"
- * when the plugin handler needs to read the request body itself.
+ * Supports both FormData and JSON request bodies. Resolves plugins from the UI
+ * registry (pluginRegistry) and falls back to server-only plugins (pluginServerRegistry)
+ * that have no UI metadata but expose server actions.
+ *
+ * ### Features:
+ * - Dual body parsing (FormData + JSON)
+ * - Server-only plugin action dispatch (no UI metadata required)
+ * - Role-based permission gating via hasPermissionWithRoles
+ * - Request body cloning to avoid "body already used" errors
  */
 
 import { json } from "@sveltejs/kit";
 import { pluginRegistry } from "@src/plugins/registry";
 import { pluginServerRegistry } from "@src/plugins/plugin-server-registry";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import type { RequestHandler } from "./$types";
+
+/**
+ * Extracts the action name from the request body.
+ * Supports both FormData (multipart) and JSON (application/json) payloads.
+ */
+async function extractActionName(request: Request): Promise<string | null> {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      const body = await request.json();
+      return (body.__action || body.action) as string | null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Default: parse as FormData (multipart or urlencoded)
+  try {
+    const formData = await request.formData();
+    return (formData.get("__action") as string) || null;
+  } catch {
+    return null;
+  }
+}
 
 export const POST: RequestHandler = async ({ params, request: originalRequest, locals }) => {
   const { pluginId } = params;
@@ -20,52 +53,71 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Fallback discovery: try registry, then server-only registry
-  const plugin = pluginRegistry.get(pluginId) ?? (await pluginServerRegistry.discover?.(pluginId));
-  if (!plugin) {
+  // ── Plugin Resolution ──────────────────────────────────────────────
+  // Resolve from UI registry first, then check server-only registry
+  const uiPlugin = pluginRegistry.get(pluginId);
+  const hasServerActions = !!pluginServerRegistry.getLoader(pluginId);
+
+  if (!uiPlugin && !hasServerActions) {
     return json({ error: `Plugin not found: ${pluginId}` }, { status: 404 });
   }
 
-  const tenantId = locals.tenantId ?? "default";
-  let enabled = plugin.metadata.enabled;
-  try {
-    const state = await pluginRegistry.getPluginState(pluginId, tenantId);
-    if (state) enabled = state.enabled;
-  } catch {
-    enabled = false;
+  // ── Permission Check ───────────────────────────────────────────────
+  const roles = (locals.roles as any[]) || [];
+  if (!user.isAdmin && !hasPermissionWithRoles(user as any, "plugins:execute", roles)) {
+    return json({ error: "Forbidden: insufficient permissions" }, { status: 403 });
   }
 
-  if (!enabled) {
-    return json({ error: `Plugin '${pluginId}' is not enabled` }, { status: 403 });
+  // ── Enabled State Check (UI plugins only) ──────────────────────────
+  const tenantId = (locals.tenantId as string) ?? "default";
+
+  if (uiPlugin) {
+    let enabled = uiPlugin.metadata.enabled;
+    try {
+      const state = await pluginRegistry.getPluginState(pluginId, tenantId);
+      if (state) enabled = state.enabled;
+    } catch {
+      enabled = false;
+    }
+
+    if (!enabled) {
+      return json({ error: `Plugin '${pluginId}' is not enabled` }, { status: 403 });
+    }
   }
 
+  // ── Load Server Module ─────────────────────────────────────────────
   const loader = pluginServerRegistry.getLoader(pluginId);
   if (!loader) {
     return json({ error: `Plugin '${pluginId}' has no server actions` }, { status: 404 });
   }
 
-  // Clone request before consuming body — handler may also need to read it
-  const request = originalRequest.clone();
-  const formData = await request.formData();
+  // ── Extract Action Name ────────────────────────────────────────────
+  // Clone before parsing to preserve the original for the handler
+  const clonedRequest = originalRequest.clone();
   const actionName =
-    (formData.get("__action") as string) || new URL(request.url).searchParams.get("action");
+    (await extractActionName(clonedRequest)) ||
+    new URL(originalRequest.url).searchParams.get("action");
+
   if (!actionName) {
-    return json({ error: "Missing __action" }, { status: 400 });
+    return json({ error: "Missing __action or action parameter" }, { status: 400 });
   }
 
+  // ── Dispatch ────────────────────────────────────────────────────────
   try {
     const serverMod = await loader();
     const handler = serverMod.actions?.[actionName];
+
     if (!handler) {
       return json({ error: `Unknown action: ${actionName}` }, { status: 404 });
     }
 
     const result = await handler({
       request: originalRequest,
-      locals: locals as Record<string, unknown>,
+      locals: locals as unknown as Record<string, unknown>,
       params: { pluginId },
     });
 
+    // Standardized failure envelope support
     if (
       result &&
       typeof result === "object" &&

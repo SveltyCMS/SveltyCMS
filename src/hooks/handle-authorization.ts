@@ -49,7 +49,7 @@ function getCachedMultiTenant() {
   return multiTenantCached;
 }
 
-function getCacheKey(tenantId: DatabaseId | null | string): string {
+function getCacheKey(tenantId?: DatabaseId | null | string): string {
   const workerIndex = testWorkerContext.getStore() || "";
   const base = tenantId ? String(tenantId) : "global";
   return workerIndex ? `${workerIndex}:${base}` : base;

@@ -561,8 +561,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           const cachedKeyData = getApiKeyAuthCacheSync(hash, locals.tenantId as DatabaseId);
 
           if (cachedKeyData) {
-            locals.user = cachedKeyData.user;
-            locals.permissions = cachedKeyData.user.permissions;
+            locals.user = cachedKeyData.user as unknown as User;
+            locals.permissions = cachedKeyData.user.permissions as string[];
             locals.tenantId = (cachedKeyData.tenantId as DatabaseId) || locals.tenantId;
             logger.debug(`[Auth] Authenticated via API Key (Cache Hit)`);
 
@@ -572,7 +572,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               : event.request.headers.get("x-forwarded-for") || undefined;
             dbAdapter.auth
               .updateApiKeyUsage(
-                cachedKeyData.user._id.replace("apikey:", "") as DatabaseId,
+                (cachedKeyData.user._id as string).replace("apikey:", "") as DatabaseId,
                 clientIp,
                 {
                   tenantId: locals.tenantId,
@@ -619,7 +619,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
                 setApiKeyAuthCache(
                   hash,
-                  { user: locals.user, tenantId: locals.tenantId as string },
+                  {
+                    user: locals.user as unknown as Record<string, unknown>,
+                    tenantId: locals.tenantId as string,
+                  },
                   String(apiKey._id),
                   locals.tenantId as DatabaseId,
                 ).catch((err: any) => logger.warn(`Failed to cache API Key: ${err.message}`));
@@ -655,8 +658,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           );
 
           if (cachedToken) {
-            locals.user = cachedToken.user;
-            locals.permissions = cachedToken.user.permissions;
+            locals.user = cachedToken.user as unknown as User;
+            locals.permissions = cachedToken.user.permissions as string[];
             locals.tenantId = (cachedToken.tenantId as DatabaseId) || locals.tenantId;
             logger.debug(`[Auth] Authenticated via API Token (Cache Hit)`);
           } else {
@@ -701,7 +704,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
                 setWebsiteTokenAuthCache(
                   tokenHash,
-                  { user: locals.user, tenantId: locals.tenantId as string },
+                  {
+                    user: locals.user as unknown as Record<string, unknown>,
+                    tenantId: locals.tenantId as string,
+                  },
                   String(token._id),
                   locals.tenantId as DatabaseId,
                 ).catch((err: any) => logger.warn(`Failed to cache API token: ${err.message}`));
