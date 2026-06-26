@@ -63,8 +63,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 		{/if}
 
 		<div class="blur-slider-wrap">
-			<label class="slider-label" for="blur-strength-slider">Blur strength</label>
-			<div class="slider-track">
+			<div class="slider-track blur-slider-track">
 				<input
 					id="blur-strength-slider"
 					type="range"
@@ -73,14 +72,13 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 					step="1"
 					value={blurStrength}
 					oninput={handleStrengthInput}
-					class="slider-input"
+					class="slider-input blur-slider-input"
 					style:--slider-progress="{sliderProgress * 100}%"
 					aria-label="Blur strength"
 					aria-valuemin={5}
 					aria-valuemax={100}
 					aria-valuenow={blurStrength}
 				/>
-				<span class="slider-value slider-value-changed">{blurStrength}</span>
 			</div>
 		</div>
 
@@ -133,26 +131,37 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 
 	.blur-slider-wrap {
 		display: flex;
-		flex: 1 1 12rem;
-		flex-direction: column;
-		gap: 0.2rem;
-		min-width: 10rem;
-		max-width: 22rem;
-		margin-inline: 0.25rem;
+		flex: 1 1 7rem;
+		align-items: center;
+		justify-content: center;
+		min-width: 6rem;
+		max-width: 14rem;
+		margin-inline: 0.125rem;
 	}
 
-	.blur-slider-wrap .slider-track {
+	.blur-slider-track {
 		width: 100%;
 	}
 
-	.blur-slider-wrap .slider-input {
+	.blur-slider-input {
 		background: linear-gradient(
 			to right,
-			rgba(255, 255, 255, 0.55) 0%,
-			rgba(255, 255, 255, 0.55) var(--slider-progress, 0%),
-			rgba(255, 255, 255, 0.18) var(--slider-progress, 0%),
-			rgba(255, 255, 255, 0.18) 100%
+			var(--editor-accent, #f5c518) 0%,
+			var(--editor-accent, #f5c518) var(--slider-progress, 0%),
+			rgba(255, 255, 255, 0.16) var(--slider-progress, 0%),
+			rgba(255, 255, 255, 0.16) 100%
 		);
+	}
+
+	.blur-slider-input::-webkit-slider-thumb {
+		background: var(--editor-accent-hover, #ffd43b);
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+	}
+
+	.blur-slider-input::-moz-range-thumb {
+		background: var(--editor-accent-hover, #ffd43b);
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
 	}
 
 	.blur-actions {
