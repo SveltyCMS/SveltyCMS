@@ -20,6 +20,27 @@ import { streamingJsonResponse } from "./streaming";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 
+/**
+ * Sets a lightweight weak-ETag token on event.locals based on entry timestamps.
+ * The gateway uses this to serve 304 responses without cloning the response body.
+ */
+function setApiDataHash(event: RequestEvent, data: any) {
+  if (!data) return;
+  const entries = Array.isArray(data) ? data : data.data ? data.data : [data];
+  if (!Array.isArray(entries) || entries.length === 0) return;
+
+  // Use max updatedAt as the hash token — changes only when entries change
+  let maxTs = "";
+  for (const entry of entries) {
+    if (entry?.updatedAt && entry.updatedAt > maxTs) maxTs = entry.updatedAt;
+  }
+  if (!maxTs) {
+    // Fallback: use entry count as a version indicator
+    maxTs = `count:${entries.length}`;
+  }
+  (event.locals as any).apiDataHash = maxTs;
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleCollectionsRoutes(
@@ -181,6 +202,7 @@ export async function handleCollectionList(
     includeFields,
     includeStats,
   });
+  setApiDataHash(event, result);
   return url.searchParams.get("raw") === "true"
     ? rawResponse(event, result)
     : successResponse(event, result);
@@ -247,19 +269,18 @@ export async function handleCollectionFind(
   const bypassCache =
     url.searchParams.get("bypassCache") === "true" || url.searchParams.get("nocache") === "true";
 
-  return successResponse(
-    event,
-    await cms.collections.find(collectionId, {
-      tenantId,
-      limit,
-      offset,
-      sortField,
-      sortDirection,
-      filter,
-      publicationFilter,
-      bypassCache,
-    }),
-  );
+  const result = await cms.collections.find(collectionId, {
+    tenantId,
+    limit,
+    offset,
+    sortField,
+    sortDirection,
+    filter,
+    publicationFilter,
+    bypassCache,
+  });
+  setApiDataHash(event, result);
+  return successResponse(event, result);
 }
 
 export async function handleCollectionEntry(
@@ -272,13 +293,12 @@ export async function handleCollectionEntry(
   const bypassCache =
     event.url.searchParams.get("bypassCache") === "true" ||
     event.url.searchParams.get("nocache") === "true";
-  return successResponse(
-    event,
-    await cms.collections.findById(collectionId, entryId, {
-      tenantId,
-      bypassCache,
-    }),
-  );
+  const result = await cms.collections.findById(collectionId, entryId, {
+    tenantId,
+    bypassCache,
+  });
+  setApiDataHash(event, result);
+  return successResponse(event, result);
 }
 
 // ─── Write Handlers ──────────────────────────────────────────────────────────
@@ -359,7 +379,7 @@ export async function handleCollectionWarmCache(
   const sanitizedTable = `collection_${collectionId.replace(/-/g, "")}`;
   const bulkResult = await cms.db.crud.findMany(
     sanitizedTable,
-    { _id: { $in: entryIds } },
+    { _id: { $in: entryIds as DatabaseId[] } },
     { tenantId, limit: entryIds.length },
   );
 

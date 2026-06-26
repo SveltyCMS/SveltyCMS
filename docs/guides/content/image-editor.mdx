@@ -6,7 +6,7 @@ order: 15
 icon: "mdi:image-edit"
 author: "SveltyCMS Team"
 created: "2025-11-16"
-updated: "2026-06-06"
+updated: "2026-06-26"
 tags:
   - "image-editor"
   - "svelte-canvas"
@@ -158,6 +158,34 @@ export default {
 3. Create `tool.svelte` for the canvas interaction logic.
 4. It appears automatically in the editor sidebar — no manual registration.
 
+### Plugin Extensibility (image_editor_tool Zone)
+
+Plugins can register custom editing tools via the `image_editor_tool` injection zone. These appear alongside built-in widgets in the editor sidebar and receive the current editor context (`activeState`, `onToolSelect`, `hasImage`) as props.
+
+**Registering a plugin tool:**
+
+```typescript
+// src/plugins/my-image-tool/index.ts
+export default {
+  metadata: { id: "my-image-tool", name: "My Image Tool", version: "1.0.0", enabled: true },
+  ui: {
+    slots: [
+      {
+        id: "my-editor-tool",
+        zone: "image_editor_tool",
+        component: () => import("./editor-tool.svelte"),
+      },
+    ],
+  },
+};
+```
+
+**Tool component receives these props:**
+
+- `activeState` — currently active tool key (string)
+- `onToolSelect` — function to activate a tool `(toolKey: string) => void`
+- `hasImage` — whether an image is loaded (boolean)
+
 ### Server-Side Baking (Sharp.js)
 
 Instead of exporting a lossy blob from the browser, the editor sends a **JSON instruction set** to the server:
@@ -304,17 +332,19 @@ Since SveltyCMS is an authoring tool:
 
 ## 🧪 Testing
 
-The image editor is covered by 38 unit tests across two test files:
+The image editor is covered by 73 unit tests across four test files:
 
-| Test File                                      | Tests | Coverage                                                                                                |
-| :--------------------------------------------- | :---- | :------------------------------------------------------------------------------------------------------ |
-| `tests/unit/stores/image-editor-store.test.ts` | 26    | Undo/redo, tool switching, compare slider, zoom, rotation, reset, save behavior, error handling         |
-| `tests/unit/stores/filter-worker.test.ts`      | 12    | `buildFilterString()`, `applySharpness()` (no-op, sharpen, blur, edge cases, 1×1, 1024×768 performance) |
+| Test File                                                     | Tests | Coverage                                                                                                |
+| :------------------------------------------------------------ | :---- | :------------------------------------------------------------------------------------------------------ |
+| `tests/unit/stores/image-editor-store.test.ts`                | 26    | Undo/redo, tool switching, compare slider, zoom, rotation, reset, save behavior, error handling         |
+| `tests/unit/stores/filter-worker.test.ts`                     | 12    | `buildFilterString()`, `applySharpness()` (no-op, sharpen, blur, edge cases, 1×1, 1024×768 performance) |
+| `tests/unit/components/image-editor/widget-registry.test.ts`  | 27    | Widget validation (12 cases), defaults (8), sorting (3), disabled filtering (2), category + key lookup  |
+| `tests/unit/components/image-editor/plugin-tool-slot.test.ts` | 8     | InjectionZone acceptance, slot registration, zone isolation, server actions, props, condition filtering |
 
 Run with:
 
 ```
-bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-worker.test.ts
+bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-worker.test.ts tests/unit/components/image-editor/widget-registry.test.ts tests/unit/components/image-editor/plugin-tool-slot.test.ts
 ```
 
 ---

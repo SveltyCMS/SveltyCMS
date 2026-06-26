@@ -1,6 +1,8 @@
 import { json } from "@sveltejs/kit";
-import { getRemoteVideoData, detectPlatform } from "@widgets/custom/remote-video/video";
 import type { RequestHandler } from "./$types";
+
+// Lazy-cached video module — avoids parsing heavy SDK deps on cold start
+let _videoModule: typeof import("@widgets/custom/remote-video/video") | null = null;
 
 /**
  * @file src/routes/api/remoteVideo/+server.ts
@@ -12,11 +14,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   }
 
   try {
-    const { url, allowedPlatforms } = await request.json();
-
-    if (!url) {
-      return json({ success: false, error: "URL required" }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    if (!body || !body.url) {
+      return json({ success: false, error: "URL required in valid JSON body" }, { status: 400 });
     }
+    const { url, allowedPlatforms } = body;
+
+    // Lazy-load video module
+    if (!_videoModule) {
+      _videoModule = await import("@widgets/custom/remote-video/video");
+    }
+    const { getRemoteVideoData, detectPlatform } = _videoModule;
 
     // Detect platform from URL
     const parsed = detectPlatform(url);
