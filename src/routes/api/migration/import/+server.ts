@@ -7,6 +7,7 @@
 
 import type { RequestHandler } from "./$types";
 import { logger } from "@utils/logger";
+import { AppError } from "@utils/error-handling";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { resolveTargetCollection } from "@plugins/smart-importer/infer-collection";
 import {
@@ -16,6 +17,9 @@ import {
   getMigrationLicenseTier,
   runMigrationImport,
 } from "@plugins/smart-importer/import-runner";
+
+// Cached module reference — avoids filesystem descriptor penalty on repeated imports
+let _preloadedJobQueue: any = null;
 
 function sseEvent(data: Record<string, unknown>): string {
   return `data: ${JSON.stringify(data)}\n\n`;
@@ -40,7 +44,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const form = await request.formData();
   const file = form.get("file");
   const format = form.get("format") as string | null;
-  if (!(file instanceof File) || !format) {
+  if (
+    !(file && typeof file === "object" && "arrayBuffer" in (file as any) && "name" in file) ||
+    !format
+  ) {
     return new Response("file and format required", { status: 400 });
   }
 
@@ -60,7 +67,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     selectedContentTypes,
   });
 
-  const license = await getMigrationLicenseTier(locals);
+  const license = await getMigrationLicenseTier(locals as any);
+
+  const MAX_INLINE_FILE_SIZE = 15 * 1024 * 1024; // 15MB — guard against OOM on large uploads
+  if ((file as any).size && (file as any).size > MAX_INLINE_FILE_SIZE) {
+    return new Response(
+      JSON.stringify({
+        error: "File too large for inline import. Use CLI migration for files >15MB.",
+      }),
+      { status: 413, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const fileText = await file.text();
 
   const stream = new ReadableStream({
@@ -105,10 +123,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         });
 
         if (importComplete.background && importComplete.jobId) {
-          const { importJobQueue } = await import("@plugins/smart-importer/job-queue");
+          if (!_preloadedJobQueue) {
+            const mod = await import("@plugins/smart-importer/job-queue");
+            _preloadedJobQueue = mod.importJobQueue;
+          }
           importComplete = await new Promise<typeof importComplete>((resolve, reject) => {
-            const unsubscribe = importJobQueue.subscribe((job) => {
-              if (job.id !== importComplete.jobId) return;
+            let active = true;
+
+            const cleanup = () => {
+              if (active) {
+                active = false;
+                unsubscribe();
+                request.signal.removeEventListener("abort", onAbort);
+              }
+            };
+
+            const onAbort = () => {
+              cleanup();
+              reject(new AppError("Client disconnected from migration stream", 499));
+            };
+
+            request.signal.addEventListener("abort", onAbort);
+
+            const unsubscribe = _preloadedJobQueue.subscribe((job: any) => {
+              if (!active || job.id !== importComplete.jobId) return;
 
               send({
                 type: "progress",
@@ -122,14 +160,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
               });
 
               if (job.status === "completed") {
-                unsubscribe();
+                cleanup();
                 resolve({
                   ...importComplete,
                   imported: job.importedCount,
                   failed: job.failedCount,
                 });
               } else if (job.status === "failed") {
-                unsubscribe();
+                cleanup();
                 reject(new Error(job.error || "Background import failed"));
               }
             });
@@ -169,8 +207,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no", // Nginx: disable chunk buffering for real-time SSE
     },
   });
 };

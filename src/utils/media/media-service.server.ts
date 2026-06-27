@@ -11,6 +11,7 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
+import { AppError } from "@utils/error-handling";
 import { fileExists, getFile, saveFile } from "./media-storage.server";
 import type {
   IDBAdapter,
@@ -398,7 +399,7 @@ export class MediaService {
       { _id: id as DatabaseId },
       { tenantId: tenantId ?? undefined },
     );
-    if (!res.success || !res.data) throw new Error("Media not found");
+    if (!res.success || !res.data) throw new AppError("Media not found", 404);
     return res.data as unknown as MediaItem;
   }
 

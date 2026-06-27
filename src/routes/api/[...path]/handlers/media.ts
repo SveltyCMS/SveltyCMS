@@ -32,6 +32,16 @@ function hasMediaPermission(event: RequestEvent, user: unknown, permission: stri
   return !!user && hasPermissionWithRoles(user as any, permission, event.locals.roles || []);
 }
 
+function isFileLike(value: unknown): value is File {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    "arrayBuffer" in value &&
+    typeof (value as any).arrayBuffer === "function" &&
+    "name" in value
+  );
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleMediaRoutes(
@@ -221,35 +231,43 @@ export async function handleMediaUpload(
   const files = formData.getAll("files") as File[];
   const singleFile = formData.get("file");
 
-  if (singleFile instanceof File && files.length === 0) files.push(singleFile);
+  if (isFileLike(singleFile) && files.length === 0) files.push(singleFile);
   if (files.length === 0)
     throw new AppError("No valid file arrays found inside submission bundle", 400);
 
   const concurrency = getPrivateEnv()?.CONCURRENT_UPLOAD_SIZE || 2;
-  const results: any[] = [];
+  const results: any[] = Array.from({ length: files.length });
+  let nextIndex = 0;
 
-  for (let i = 0; i < files.length; i += concurrency) {
-    const chunk = files.slice(i, i + concurrency);
-    const chunkResults = await Promise.all(
-      chunk.map(async (file) => {
-        if (!(file instanceof File)) return null;
-        try {
-          const res = await cms.media.upload(file, {
-            userId: user?._id || "system",
-            tenantId,
-          });
-          return res.success
-            ? { fileName: file.name, success: true, data: res.data }
-            : { fileName: file.name, success: false, message: res.message };
-        } catch (err: any) {
-          return { fileName: file.name, success: false, message: err.message };
-        }
-      }),
-    );
-    results.push(...chunkResults.filter(Boolean));
+  async function uploadWorker() {
+    while (nextIndex < files.length) {
+      const currentIndex = nextIndex++;
+      const file = files[currentIndex];
+      if (!isFileLike(file)) continue;
+
+      try {
+        const res = await cms.media.upload(file, {
+          userId: user?._id || "system",
+          tenantId,
+        });
+        results[currentIndex] = res.success
+          ? { fileName: file.name, success: true, data: res.data }
+          : { fileName: file.name, success: false, message: res.message };
+      } catch (err: any) {
+        results[currentIndex] = {
+          fileName: file.name,
+          success: false,
+          message: err.message,
+        };
+      }
+    }
   }
 
-  return successResponse(event, results);
+  // Launch N workers — each pulls the next file as it finishes (no chunk blocking)
+  const workers = Array.from({ length: Math.min(concurrency, files.length) }, uploadWorker);
+  await Promise.all(workers);
+
+  return successResponse(event, results.filter(Boolean));
 }
 
 export async function handleMediaProcess(
@@ -271,8 +289,8 @@ export async function handleMediaProcess(
 
   switch (processType) {
     case "metadata": {
-      const file = formData.get("file") as File;
-      if (!file) throw new AppError("Target asset source binary required", 400);
+      const file = formData.get("file");
+      if (!isFileLike(file)) throw new AppError("Target asset source binary required", 400);
       return successResponse(event, await cms.media.getMetadata(file));
     }
     case "save":
@@ -385,6 +403,10 @@ export async function handleMediaManipulate(
   id = id || body.mediaId || body.id;
   if (!id) throw new AppError("Asset entity matrix identification value missing", 400);
 
+  if (!body.manipulations || Object.keys(body.manipulations).length === 0) {
+    throw new AppError("Manipulation instruction set is required", 400);
+  }
+
   const result = await cms.media.manipulate(id, body, {
     userId: user?._id || "system",
     tenantId,
@@ -408,9 +430,8 @@ export async function handleMediaVersionCreate(
 
   const formData = await event.request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File))
+  if (!isFileLike(file))
     throw new AppError("Target payload matrix type must match binary File structure", 400);
-
   const reason = (formData.get("reason") as string) || undefined;
 
   // Hash the file content for version identity tracking
@@ -456,7 +477,7 @@ export async function handleMediaVersionUpload(
   if (!mediaId) throw new AppError("Media reference target identifier required", 400);
   const formData = await event.request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File))
+  if (!isFileLike(file))
     throw new AppError("Target payload matrix type must match binary File structure", 400);
   const result = await cms.media.uploadVersion(mediaId, file, {
     userId: user?._id || "system",
@@ -731,14 +752,15 @@ export async function handleMediaBulkDownload(
 
   const files: any[] = [];
   if (cms.db.crud.findMany) {
-    const bulkRes = await cms.db.crud.findMany("media", { _id: { $in: ids } }, {
+    const bulkRes = await cms.db.crud.findMany("media", { _id: { $in: ids as any } }, {
       tenantId,
     } as any);
-    if (bulkRes.success && Array.isArray(bulkRes.data)) files.push(...bulkRes.data);
+    if (bulkRes.success && Array.isArray((bulkRes as any).data))
+      files.push(...(bulkRes as any).data);
   } else {
     for (const id of ids) {
       const res = await cms.media.findById(id, { tenantId });
-      if (res.success && res.data) files.push(res.data);
+      if (res.success && (res as any).data) files.push((res as any).data);
     }
   }
 
@@ -786,10 +808,22 @@ export async function handleMediaAnalytics(
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
-  const listRes = await (cms.media as any).list({ tenantId, limit: 10000 });
+  // Use DB-side count for accurate total; cap in-memory sample to avoid heap pressure.
+  // TODO: push full breakdown (byType/byFolder/byUser/byMonth) to DB adapter
+  // aggregate pipelines for sub-millisecond analytics at 100K+ asset scale.
+  const countRes = await cms.db.crud.count("media", {}, { tenantId });
+  const totalFiles = countRes.success ? (countRes.data ?? 0) : 0;
+
+  const ANALYTICS_SAMPLE_LIMIT = 2000;
+  const listRes = await (cms.media as any).list({
+    tenantId,
+    limit: ANALYTICS_SAMPLE_LIMIT,
+  });
   const files = (listRes.success ? listRes.data : []) as any[];
 
   const breakdown = analyze(files);
+  breakdown.total.files = totalFiles;
+
   const topTypes = Object.entries(breakdown.byType)
     .sort(([, a]: any, [, b]: any) => b.size - a.size)
     .slice(0, 5)
@@ -974,7 +1008,7 @@ export async function handleMediaStreamUpload(
           uploaded.push({
             fileName: info.filename,
             success: !!res.success,
-            data: res.data,
+            data: (res as any).data,
             message: res.success ? undefined : res.message,
           });
         } catch (err: any) {

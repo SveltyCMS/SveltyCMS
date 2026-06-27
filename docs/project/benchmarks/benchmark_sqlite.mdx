@@ -893,7 +893,11 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 <!-- SOAK_TABLE_END -->
 
 <!-- FAILOVER_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.
+(suspected — single test run, needs cross-validation with related benchmarks)
+**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2508,7 +2512,11 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
 <!-- CACHE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.
+(suspected — single test run, needs cross-validation with related benchmarks)
+**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2579,7 +2587,11 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 55,000ms (suite) | **Tags**: `security`, `cpu` | **Level**: 3
 
 <!-- SETUP_PROXY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Performance improved — recent optimizations or cache warming likely effective.
+(suspected — single test run, needs cross-validation with related benchmarks)
+**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2979,15 +2991,12 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ```
 <!-- REST_TABLE_END -->
 
-### 🏷️ GraphQL API Performance                             🟢 avg -5% p95 -4% (50 runs)
+### 🏷️ GraphQL API Performance                                🟢 avg -25% p95 -23% rps +26% (50 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
 <!-- GRAPHQL_TABLE_START -->
-
-> Within normal variance — no action needed.
-**Check**: `src/databases/<db>/migrations.ts` · `src/content/migration-service.ts`
-
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2995,9 +3004,9 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ║                 File: tests/benchmarks/graphql-api-performance.test.ts                  ║
 ║   Measures GraphQL resolver performance and throughput across varied query scenarios.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health             │        0.977 ms │ p95:        1.657 ms │ RPS:      1,024 ║
-║ GQL: Collection List           │        3.549 ms │ p95:        6.382 ms │ RPS:        282 ║
-║ GQL: Concurrent Load           │        3.312 ms │ p95:        5.643 ms │ RPS:        302 ║
+║ GQL: System Health             │        0.832 ms │ p95:        1.472 ms │ RPS:      1,202 ║
+║ GQL: Collection List           │        2.941 ms │ p95:        4.710 ms │ RPS:        340 ║
+║ GQL: Concurrent Load           │        2.874 ms │ p95:        4.836 ms │ RPS:        348 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -3005,10 +3014,10 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.977 ms       ║
-║ Collection List                                    │        3.549 ms       ║
-║ Entries Query                                      │        3.312 ms       ║
-║ Peak RPS                                           │     1023.700 req/s    ║
+║ Health Check                                       │        0.832 ms       ║
+║ Collection List                                    │        2.941 ms       ║
+║ Entries Query                                      │        2.874 ms       ║
+║ Peak RPS                                           │     1202.100 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- GRAPHQL_TABLE_END -->

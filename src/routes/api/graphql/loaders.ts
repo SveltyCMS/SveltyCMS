@@ -105,6 +105,26 @@ export function createLoaders(
     collectionLoader: {
       get: getCollectionLoader,
     },
+    /** Batch inverse relation lookups: one findMany($in) per tick instead of N queries */
+    createInverseLoader: (collectionName: string, foreignKeyField: string) =>
+      new BatchLoader<string | DatabaseId, any[]>(async (parentIds) => {
+        try {
+          const result = await dbAdapter.crud.findMany(collectionName, {
+            [foreignKeyField]: { $in: parentIds },
+            ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
+          });
+          if (!result.success || !result.data) return parentIds.map(() => []);
+          const groupMap = new Map<string, any[]>();
+          for (const row of result.data) {
+            const fk = String((row as any)[foreignKeyField] ?? "");
+            if (!groupMap.has(fk)) groupMap.set(fk, []);
+            groupMap.get(fk)!.push(row);
+          }
+          return parentIds.map((id) => groupMap.get(String(id)) || []);
+        } catch {
+          return parentIds.map(() => []);
+        }
+      }),
   };
 }
 

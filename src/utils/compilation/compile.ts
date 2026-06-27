@@ -3,7 +3,7 @@
  * @description Compiles TypeScript files from the collections folder into JavaScript files using the TypeScript compiler with custom AST transformations
  */
 
-import { createHash } from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -117,7 +117,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
         try {
           const content = await fs.readFile(sourcePath, "utf8");
-          const sourceHash = createHash("md5").update(content).digest("hex");
+          const sourceHash = await xxhash64(content);
 
           // High-speed skip check: Hash + Tenant consistency
           const existing = manifest.get(targetPath);

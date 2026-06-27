@@ -20,9 +20,10 @@ and proper focus management. Renders tools from the auto-discovered registry.
 -->
 
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
-	import { onMount, tick } from 'svelte';
-	import { type EditorWidget, editorWidgets } from './widgets/registry';
+		import Button from '@components/ui/button.svelte';
+		import Slot from '@components/system/slot.svelte';
+		import { onMount, tick } from 'svelte';
+		import { type EditorWidget, editorWidgets } from './widgets/registry';
 
 	// Props
 	const {
@@ -207,8 +208,15 @@ and proper focus management. Renders tools from the auto-discovered registry.
 					<div class="absolute inset-s-1/2 top-full -mt-1 h-2 w-2 -translate-x-1/2 -rotate-45 bg-surface-900 dark:bg-surface-50"></div>
 				</div>
 			</button>
-		{/each}
-	</div>
+			{/each}
+
+			<!-- Plugin-provided image editor tools (image_editor_tool zone) -->
+			<Slot
+				name="image_editor_tool"
+				inline
+				props={{ activeState, onToolSelect, hasImage }}
+			/>
+		</div>
 
 	<div class="sidebar-footer hidden border-t px-3 py-2 lg:block">
 		{#if !hasImage}

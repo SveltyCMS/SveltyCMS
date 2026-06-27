@@ -9,7 +9,7 @@ import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import * as crypto from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { Schema, FieldInstance } from "@src/content/types";
@@ -537,10 +537,7 @@ export class CollectionsNamespace {
       if (query._id && Object.keys(query).length === 1 && limit === 50 && offset === 0 && !sort) {
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:id:${query._id}`;
       } else {
-        const queryHash = crypto
-          .createHash("md5")
-          .update(JSON.stringify({ query, limit, offset, sort }))
-          .digest("hex");
+        const queryHash = await xxhash64(JSON.stringify({ query, limit, offset, sort }));
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:${queryHash}`;
       }
     }

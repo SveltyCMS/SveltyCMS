@@ -294,69 +294,114 @@ async function handleScimBulk(
 
   const body = await request.json();
   const operations = body.Operations || [];
-  const results: any[] = [];
   const bulkIdMap = new Map<string, string>();
 
-  for (const op of operations) {
+  // Helper: execute a single bulk operation and return its result
+  async function executeBulkOp(
+    op: any,
+    cms: LocalCMS,
+    tenantId: DatabaseId,
+    baseUrl: string,
+    bulkIdMap: Map<string, string>,
+  ): Promise<any> {
+    const opPath = op.path || "";
+    const pathSegments = opPath.split("/").filter(Boolean);
+    const resourceType = pathSegments[0];
+    const resourceId = pathSegments[1];
+
+    const resolvedData = resolveBulkIdReferences(op.data || {}, bulkIdMap);
+
+    const simulatedRequest = {
+      method: op.method,
+      json: async () => resolvedData,
+      formData: async () => {
+        throw new Error("FormData not supported in Bulk");
+      },
+    } as unknown as Request;
+
+    const simulatedUrl = new URL(`${baseUrl}/api/scim/v2${opPath}`);
+    const simulatedEvent = {
+      request: simulatedRequest,
+      url: simulatedUrl,
+    } as unknown as RequestEvent;
+
+    let response: Response;
+    if (resourceType === "Users") {
+      response = await handleScimUsers(simulatedEvent, cms, tenantId, resourceId, baseUrl);
+    } else if (resourceType === "Groups") {
+      response = await handleScimGroups(simulatedEvent, cms, tenantId, resourceId, baseUrl);
+    } else {
+      throw new AppError(`Unsupported bulk resource type: ${resourceType}`, 400);
+    }
+
+    const status = response.status;
+    const resJson = status !== 204 ? await response.json() : null;
+
+    const opResult: any = {
+      method: op.method,
+      status: { code: String(status) },
+    };
+
+    if (op.bulkId) {
+      opResult.bulkId = op.bulkId;
+      if (resJson?.id && op.method === "POST") {
+        bulkIdMap.set(op.bulkId, resJson.id);
+      }
+    }
+
+    if (resJson?.id) {
+      opResult.location = `${baseUrl}/api/scim/v2/${resourceType}/${resJson.id}`;
+    }
+    if (resJson) opResult.response = resJson;
+
+    return opResult;
+  }
+
+  // Classify: dependent ops reference bulkId cross-references, independent ops don't
+  const dependentOps: { op: any; index: number }[] = [];
+  const independentOps: { op: any; index: number }[] = [];
+
+  for (let i = 0; i < operations.length; i++) {
+    const op = operations[i];
+    const rawStringified = JSON.stringify(op);
+    if (rawStringified.includes("bulkId:")) {
+      dependentOps.push({ op, index: i });
+    } else {
+      independentOps.push({ op, index: i });
+    }
+  }
+
+  // Pre-allocate results array
+  const results: any[] = Array.from({ length: operations.length });
+
+  // Execute independent ops concurrently
+  await Promise.all(
+    independentOps.map(async ({ op, index }) => {
+      try {
+        results[index] = await executeBulkOp(op, cms, tenantId, baseUrl, bulkIdMap);
+      } catch (err: unknown) {
+        const statusCode = (err as any).status || 500;
+        results[index] = {
+          method: op.method,
+          bulkId: op.bulkId || undefined,
+          status: { code: String(statusCode) },
+          response: {
+            schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
+            status: String(statusCode),
+            detail: err instanceof Error ? err.message : String(err) || "Bulk operation failed",
+          },
+        };
+      }
+    }),
+  );
+
+  // Execute dependent ops sequentially (they rely on bulkIdMap from previous ops)
+  for (const { op, index } of dependentOps) {
     try {
-      const opPath = op.path || "";
-      const pathSegments = opPath.split("/").filter(Boolean);
-      const resourceType = pathSegments[0];
-      const resourceId = pathSegments[1];
-
-      // Resolve bulkId references in operation data
-      const resolvedData = resolveBulkIdReferences(op.data || {}, bulkIdMap);
-
-      // Construct simulated request for the target handler
-      const simulatedRequest = {
-        method: op.method,
-        json: async () => resolvedData,
-        formData: async () => {
-          throw new Error("FormData not supported in Bulk");
-        },
-      } as unknown as Request;
-
-      const simulatedUrl = new URL(`${baseUrl}/api/scim/v2${opPath}`);
-      const simulatedEvent = {
-        request: simulatedRequest,
-        url: simulatedUrl,
-      } as unknown as RequestEvent;
-
-      // Dispatch to the appropriate resource handler
-      let response: Response;
-      if (resourceType === "Users") {
-        response = await handleScimUsers(simulatedEvent, cms, tenantId, resourceId, baseUrl);
-      } else if (resourceType === "Groups") {
-        response = await handleScimGroups(simulatedEvent, cms, tenantId, resourceId, baseUrl);
-      } else {
-        throw new AppError(`Unsupported bulk resource type: ${resourceType}`, 400);
-      }
-
-      const status = response.status;
-      const resJson = status !== 204 ? await response.json() : null;
-
-      const opResult: any = {
-        method: op.method,
-        status: { code: String(status) },
-      };
-
-      // Track bulkId → real ID mapping for cross-references
-      if (op.bulkId) {
-        opResult.bulkId = op.bulkId;
-        if (resJson?.id && op.method === "POST") {
-          bulkIdMap.set(op.bulkId, resJson.id);
-        }
-      }
-
-      if (resJson?.id) {
-        opResult.location = `${baseUrl}/api/scim/v2/${resourceType}/${resJson.id}`;
-      }
-      if (resJson) opResult.response = resJson;
-
-      results.push(opResult);
+      results[index] = await executeBulkOp(op, cms, tenantId, baseUrl, bulkIdMap);
     } catch (err: unknown) {
       const statusCode = (err as any).status || 500;
-      results.push({
+      results[index] = {
         method: op.method,
         bulkId: op.bulkId || undefined,
         status: { code: String(statusCode) },
@@ -365,16 +410,22 @@ async function handleScimBulk(
           status: String(statusCode),
           detail: err instanceof Error ? err.message : String(err) || "Bulk operation failed",
         },
-      });
+      };
+    }
 
-      // Honor failOnErrors threshold
-      if (body.failOnErrors && results.length >= body.failOnErrors) break;
+    // Honor failOnErrors threshold
+    if (body.failOnErrors) {
+      const errorCount = results.filter((r) => r && Number(r.status?.code) >= 400).length;
+      if (errorCount >= body.failOnErrors) break;
     }
   }
 
+  // Filter nulls (failed independent ops might leave gaps — already handled above)
+  const finalResults = results.filter(Boolean);
+
   return json({
     schemas: ["urn:ietf:params:scim:api:messages:2.0:BulkResponse"],
-    Operations: results,
+    Operations: finalResults,
   });
 }
 

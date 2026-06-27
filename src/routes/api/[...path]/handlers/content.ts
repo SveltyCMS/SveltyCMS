@@ -127,6 +127,11 @@ async function handleCollectionsRefresh(event: RequestEvent, cms: LocalCMS, tena
   });
 
   const list = await cms.collections.list({ tenantId, includeFields: true });
+  // Weak ETag: use collection count + max updatedAt as lightweight version token
+  const maxTs =
+    list.data?.reduce?.((max: string, c: any) => (c.updatedAt > max ? c.updatedAt : max), "") || "";
+  (event.locals as any).apiDataHash = maxTs || `collections:${list.data?.length || 0}`;
+
   return successResponse(event, {
     success: true,
     message: "Collections cache refreshed",
@@ -150,6 +155,9 @@ async function handleGetContentStructure(
   }
 
   const nodes = await cms.collections.getStructure(tenantId);
+  // Weak ETag: use content version as lightweight token
+  (event.locals as any).apiDataHash = `structure:${(cms as any).version || "0.0.8"}`;
+
   return successResponse(event, {
     contentNodes: nodes,
     version: (cms as any).version || "0.0.8",
@@ -255,17 +263,31 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
         return;
       }
 
-      // Event handler — normalized wire format + tenant filtering
+      // Micro-buffer queue — decouples event emission from HTTP backpressure.
+      // Events are buffered and flushed in batches every 32ms to avoid
+      // synchronous controller.enqueue() blocking the event loop under load.
+      let eventBuffer: string[] = [];
+
+      const flushBuffer = () => {
+        if (eventBuffer.length === 0 || isClosed) return;
+        try {
+          controller.enqueue(encoder.encode(eventBuffer.join("")));
+          eventBuffer = [];
+        } catch {
+          isClosed = true;
+          clearInterval(flushTimer);
+          eventBus.off("*", handler);
+        }
+      };
+
+      const flushTimer = setInterval(flushBuffer, 32);
+
+      // Event handler — buffers events instead of synchronous enqueue
       const handler = (payload: { event?: string; data?: Record<string, unknown> }) => {
         if (isClosed) return;
         const clientPayload = normalizeSseEventPayload(payload, tenantId);
         if (!clientPayload) return;
-        try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(clientPayload)}\n\n`));
-        } catch {
-          isClosed = true;
-          eventBus.off("*", handler);
-        }
+        eventBuffer.push(`data: ${JSON.stringify(clientPayload)}\n\n`);
       };
 
       eventBus.on("*", handler);
@@ -278,6 +300,7 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
           } catch {
             isClosed = true;
             clearInterval(keepAlive);
+            clearInterval(flushTimer);
             eventBus.off("*", handler);
           }
         }
@@ -287,6 +310,7 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
       event.request.signal.addEventListener("abort", () => {
         isClosed = true;
         clearInterval(keepAlive);
+        clearInterval(flushTimer);
         eventBus.off("*", handler);
         try {
           controller.close();

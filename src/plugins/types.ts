@@ -205,7 +205,8 @@ export type InjectionZone =
   | "entry_list_actions" // Entry list action buttons
   | "global-toolbar" // Top-level toolbar (all routes)
   | "global-footer" // Footer (all routes)
-  | "sticky-action-bar"; // Sticky action bar at bottom
+  | "sticky-action-bar" // Sticky action bar at bottom
+  | "image_editor_tool"; // Image editor tool/widgets
 
 // Plugin Slot definition
 export interface PluginSlot {

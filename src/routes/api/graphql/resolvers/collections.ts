@@ -336,17 +336,14 @@ export async function registerCollections(tenantId?: string | null) {
         _args: any,
         context: any,
       ) => {
-        const { dbAdapter, tenantId } = context;
-        if (!dbAdapter) return [];
+        const { loaders } = context;
+        if (!loaders) return [];
 
-        const result = await dbAdapter.crud.findMany(
-          typeof otherCollection.name === "string" ? otherCollection.name : "",
-          {
-            [getFieldName(otherField)]: parent._id,
-            ...(tenantId ? { tenantId } : {}),
-          },
-        );
-        return result.success ? result.data : [];
+        const collectionName = typeof otherCollection.name === "string" ? otherCollection.name : "";
+        const fieldName = getFieldName(otherField);
+        const loader = loaders.createInverseLoader(collectionName, fieldName);
+
+        return loader.load(parent._id);
       };
     }
 
@@ -504,24 +501,23 @@ export async function collectionsResolvers(
 
         const resultArray = (result.data || []) as unknown as DocumentBase[];
 
-        // 🚀 PERFORMANCE: Merge loops and skip token scan if not needed
         const processedResults = await Promise.all(
           resultArray.map(async (doc) => {
-            const tokenContext: TokenContext = { entry: doc, user: ctx.user };
-
-            // 1. Token Replacement (Only if possible)
-            for (const key in doc) {
-              if (!Object.hasOwn(doc, key)) continue;
-              const value = doc[key];
-              if (
-                typeof value === "string" &&
-                value.charCodeAt(0) === 123 &&
-                value.includes("{{")
-              ) {
-                try {
-                  doc[key] = await replaceTokens(value, tokenContext);
-                } catch {
-                  /* ignore */
+            // Whole-document scan: JSON.stringify once, check for {{ marker.
+            // Catches tokens anywhere in the string (start, mid, nested), unlike
+            // charCodeAt(0) which only catches leading-brace tokens.
+            const docBody = JSON.stringify(doc);
+            if (docBody.includes("{{")) {
+              const tokenContext: TokenContext = { entry: doc, user: ctx.user };
+              for (const key in doc) {
+                if (!Object.hasOwn(doc, key)) continue;
+                const value = doc[key];
+                if (typeof value === "string" && value.includes("{{")) {
+                  try {
+                    doc[key] = await replaceTokens(value, tokenContext);
+                  } catch {
+                    /* ignore */
+                  }
                 }
               }
             }

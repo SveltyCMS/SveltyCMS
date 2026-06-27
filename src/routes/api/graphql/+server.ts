@@ -19,6 +19,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
 import { NoSchemaIntrospectionCustomRule } from "graphql";
+import { useGraphQlJit } from "@envelop/graphql-jit";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
@@ -33,6 +34,16 @@ const depthLimitRule = createDepthLimitRule(8);
 const maxAliasesRule = createMaxAliasesRule(15);
 
 const securityValidationPlugin = {
+  onParse({ params }: any) {
+    // Cost-budget queries at parse time — no request.clone() needed
+    const query = params?.source || params?.query;
+    if (typeof query === "string") {
+      const analysis = analyzeQueryCost(query);
+      if (!analysis.allowed) {
+        throw new AppError(formatCostError(analysis.cost, 1000), 400, "QUERY_TOO_EXPENSIVE");
+      }
+    }
+  },
   onValidate({ addValidationRule }: { addValidationRule: (rule: any) => void }) {
     addValidationRule(depthLimitRule);
     addValidationRule(maxAliasesRule);
@@ -174,17 +185,14 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
         const schema = createSchema({ typeDefs, resolvers });
 
-        const plugins: any[] = [securityValidationPlugin];
-        if (process.env.USE_GRAPHQL_JIT === "true" || process.env.BENCHMARK === "true") {
-          const { useGraphQlJit } = await import("@envelop/graphql-jit");
-          plugins.push(useGraphQlJit());
-        }
+        const plugins: any[] = [securityValidationPlugin, useGraphQlJit()];
 
         const app = createYoga({
           schema: schema as any,
           graphqlEndpoint: "/api/graphql",
           landingPage: true,
           cors: false,
+          batching: { limit: 10 },
           plugins,
           context: async (serverContext: any) => {
             let _loaders: any = undefined;
@@ -261,30 +269,6 @@ async function handleRequest(event: RequestEvent) {
     | "published"
     | "draft"
     | "all";
-
-  // 🚀 QUERY COST ANALYSIS: Reject over-budget queries before execution
-  if (request.method === "POST") {
-    try {
-      const clonedRequest = request.clone();
-      const body = await clonedRequest.json().catch(() => null);
-      if (body && typeof body.query === "string") {
-        const analysis = analyzeQueryCost(body.query);
-        if (!analysis.allowed) {
-          return new Response(
-            JSON.stringify({
-              errors: [{ message: formatCostError(analysis.cost, 1000) }],
-            }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
-        }
-      }
-    } catch {
-      // If body parsing fails, let Yoga handle the error downstream
-    }
-  }
 
   let _loaders: any = null;
 

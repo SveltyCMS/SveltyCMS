@@ -2,7 +2,7 @@
  * @file src/routes/api/theme/public/+server.ts
  * @description
  * Public theme branding endpoint — returns tenant branding without authentication.
- * Used by the login page to show tenant-specific logo, site name, and accent colors.
+ * Cached at 10-min TTL to eliminate repeated DB lookups during login storms.
  *
  * Query params:
  *   ?hostname=tenant.example.com  — resolves tenant from hostname
@@ -12,6 +12,7 @@
  *
  * ### Features:
  * - unauthenticated access (standalone route outside auth pipeline)
+ * - L1/R2 cache layer — <1ms response on cache hits
  * - graceful fallback to nulls on any error
  * - multi-tenant aware via hostname or explicit tenantId
  */
@@ -20,6 +21,7 @@ import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { getPublicSetting, getUntypedSetting } from "@src/services/core/settings-service";
+import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -45,18 +47,32 @@ export const GET: RequestHandler = async ({ url }) => {
     return json({ siteName: null, logoUrl: null, accentColor: null });
   }
 
+  const cacheKey = `theme:public:${tenantId}`;
+
   try {
+    // Fast-path: L1/R2 cache hit (<1ms)
+    const cachedBranding = await cacheService.get(cacheKey, tenantId);
+    if (cachedBranding) {
+      return json(typeof cachedBranding === "string" ? JSON.parse(cachedBranding) : cachedBranding);
+    }
+
+    // Slow-path: concurrent settings fetch (first request or cache expired)
     const [siteName, logoUrl, accentColor] = await Promise.all([
       getPublicSetting("SITE_NAME", tenantId).catch(() => null),
       getUntypedSetting<string>("LOGO_URL", "public", tenantId).catch(() => null),
       getUntypedSetting<string>("ACCENT_COLOR", "public", tenantId).catch(() => null),
     ]);
 
-    return json({
+    const brandingPayload = {
       siteName: siteName || null,
       logoUrl: logoUrl || null,
       accentColor: accentColor || null,
-    });
+    };
+
+    // Fire-and-forget cache write (10-min TTL) to protect DB pool during login storms
+    cacheService.set(cacheKey, brandingPayload, 600, tenantId).catch(() => {});
+
+    return json(brandingPayload);
   } catch (err) {
     logger.warn("Failed to load theme settings for public endpoint", {
       tenantId,

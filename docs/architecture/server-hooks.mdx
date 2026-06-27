@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-06-14"
+updated: "2026-06-26"
 tags:
   - "architecture"
   - "hooks"
@@ -386,7 +386,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 | `local-sdk` | ~0.01ms | ~0.01ms | LocalCMS context injection |
 | `content-init` | ~0.01ms | ~0.01ms | Per-tenant content manager setup |
 | `audit-logging` | ~0.02ms | ~0.02ms | Buffer push (mutation-only, skipped on GET) |
-| `api-requests` | ~0.30ms | ~0.30ms | ETag + cache dispatch + response handling |
+| `api-requests` | ~0.30ms | ~0.30ms | ETag (XXH3 via hash-wasm) + cache dispatch + response handling |
 | `token-resolution` | ~0.01ms | ~0.01ms | Post-processing RBAC token replacement |
 | **Total** | **~3.9ms** | **~0.9ms** | **~4.3× faster** on turbo HIT |
 

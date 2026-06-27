@@ -19,6 +19,11 @@ import { parse, visit, type ASTNode, type FieldNode } from "graphql";
 /** Default maximum query cost before rejection. */
 export const DEFAULT_MAX_COST = 1000;
 
+/** Dual-map sliding cache: O(1) eviction via window swap instead of O(N) iterator deletion. */
+const MAX_CACHE_SIZE = 500;
+let currentCache = new Map<string, CostAnalysisResult>();
+let oldCache = new Map<string, CostAnalysisResult>();
+
 export interface CostAnalysisResult {
   /** Total computed cost of the query */
   cost: number;
@@ -43,6 +48,17 @@ export function analyzeQueryCost(
   queryString: string,
   maxCost: number = DEFAULT_MAX_COST,
 ): CostAnalysisResult {
+  // Dual-map cache: check current → old → promote → compute
+  let cached = currentCache.get(queryString);
+  if (cached) return cached;
+
+  cached = oldCache.get(queryString);
+  if (cached) {
+    // Promote to fresh window
+    currentCache.set(queryString, cached);
+    return cached;
+  }
+
   let document: ReturnType<typeof parse>;
 
   try {
@@ -88,11 +104,20 @@ export function analyzeQueryCost(
     },
   });
 
-  return {
+  const result: CostAnalysisResult = {
     cost: totalCost,
     allowed: totalCost <= maxCost,
     fields,
   };
+
+  // O(1) sliding window: when current fills, swap — no iterator allocation
+  if (currentCache.size >= MAX_CACHE_SIZE) {
+    oldCache = currentCache;
+    currentCache = new Map();
+  }
+  currentCache.set(queryString, result);
+
+  return result;
 }
 
 /**
