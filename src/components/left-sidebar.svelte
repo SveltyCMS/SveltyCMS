@@ -572,7 +572,6 @@
 	<!-- Plugin Sidebar Items -->
 	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
 	<!-- Footer (expanded only) -->
-	{#if isSidebarFull}
 	<div class="mb-2 mt-auto w-full px-1">
 		<div class="mx-1 mb-2 border-0 border-t border-surface-300 dark:border-surface-600"></div>
 
@@ -693,7 +692,6 @@
 		</div>
 	</div>
 </div>
-
 <style>
 	/* Sidebar width follows admin theme token (applied on layout aside) */
 	:global(aside[aria-label='Left sidebar navigation']) {

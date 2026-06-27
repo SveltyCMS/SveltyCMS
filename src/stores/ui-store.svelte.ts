@@ -47,6 +47,9 @@ class UIStore {
     chatPanel: "hidden",
   });
 
+  // User's preferred sidebar state (persisted to localStorage)
+  userPreferred = $state<UIVisibility>("full");
+
   // Route context for special layouts
   routeContext = $state({
     isImageEditor: false,
@@ -320,3 +323,13 @@ export const uiStateManager = {
 };
 
 export const setRouteContext = ui.setRouteContext.bind(ui);
+
+// Compatibility export for collections.svelte — wraps ui.userPreferred as a store-like API
+export const userPreferredState = {
+  set(value: UIVisibility): void {
+    ui.userPreferred = value;
+  },
+  get value(): UIVisibility {
+    return ui.userPreferred;
+  },
+};

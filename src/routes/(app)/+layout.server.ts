@@ -189,6 +189,13 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       user: sessionUser?._id,
     });
 
+    console.error("[LAYOUT ERROR] === DIAGNOSTIC ===");
+    console.error("[LAYOUT ERROR] Message:", err.message);
+    console.error("[LAYOUT ERROR] Stack:", err.stack);
+    console.error("[LAYOUT ERROR] Name:", err.name);
+    console.error("[LAYOUT ERROR] Constructor:", err.constructor?.name);
+    console.error("[LAYOUT ERROR] === END DIAGNOSTIC ===");
+
     const layoutError = createLayoutError(err, "Failed to load application data");
     throw error(500, layoutError);
   }
