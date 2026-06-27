@@ -38,6 +38,7 @@ const EXCLUDED_PREFIXES = [
   "/favicon.ico",
   "/.well-known",
   "/warming-up",
+  "/api/testing",
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────

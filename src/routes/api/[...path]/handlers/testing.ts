@@ -144,6 +144,13 @@ export async function handleTestingRoutes(
       const { resetInitializationState } = await import("@src/hooks/handle-system-state");
       resetInitializationState();
 
+      try {
+        const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
+        resetRateLimitBuckets();
+      } catch (err) {
+        console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
+      }
+
       return rawResponse({
         success: true,
         message: "System reset successfully",
