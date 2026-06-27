@@ -730,7 +730,8 @@ async function lintSingleFile(fp: string) {
   // --- Complexity ---
   totalWordCount += getWordCount(updatedBody);
   const hCount = (stripCodeBlocks(updatedBody).match(/^#{1,6}\s+/gm) || []).length;
-  if (hCount > 60)
+  const hasHeadingDensitySuppress = /<!--\s*lint:disable\s+heading-density\s*-->/.test(raw);
+  if (hCount > 60 && !hasHeadingDensitySuppress)
     addWarning(
       "structure",
       relPath,

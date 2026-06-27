@@ -33,10 +33,10 @@ To accurately assess SveltyCMS, one must establish the baseline for SOTA technol
 - **Zero-Runtime Overhead:** The shift away from heavy client-side JavaScript bundles toward compiled, lightweight output.
 - **Ultra-Fast Developer Feedback:** Sub-1.2s Hot Module Replacement (HMR) for content structure changes, a 60% improvement over legacy patterns.
 - **Native Svelte 5 UI Library (March 2026):** Zero-dependency, native Svelte 5 UI architecture, achieving <150 requests per page and solving the "ESM Storm" overhead.
-- **Ultra-High Performance Toolchain:** 2026 migration to **Vite+ Alpha (VoidZero)**.
+- **Ultra-High Performance Toolchain:** Rust-powered linting and formatting (oxlint/oxfmt).
   - **Linting (Oxlint):** Project-wide checks in **47ms** (1000+ files).
   - **Formatting (Oxfmt):** Full project formatting in **~2.2s**.
-  - **Production Builds (Rolldown):** Sub-18s full builds using the unified Rust-based bundler.
+  - **Production Builds (Vite 7):** Fast builds using Vite's native bundler.
   - **Zero-Warning Codebase:** Automated and manual audit cleared all 84 legacy warnings.
   - **Automated Doc Integrity (March 2026):** Native `lint-docs.ts` utility achieving **100% link integrity** and **Path Alignment Strategy** (filesystem matching) across 158 files.
 
@@ -131,7 +131,7 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **4-Layer Defense-in-Depth Authorization**:
     Most CMS platforms (Payload, Strapi, Directus) rely on a **perimeter security model**: authenticate at the gate, then assume internal trust. This creates dangerous gaps where an authenticated user with low privileges can exploit deeper vulnerabilities. SveltyCMS eliminates this assumption through **4-layer zero-trust re-validation**:
     - **Layer 1 — Middleware**: `__Host-` cookie prefix enforcement (RFC 6265bis), setup completion gating, CSRF protection.
-    - **Layer 2 — Dispatcher**: Fail-closed `ENDPOINT_PERMISSIONS` mapping; unmapped namespaces return 403 by default.
+    - **Layer 2 — Dispatcher**: Fail-closed `hasApiPermission()` checks; unmapped namespaces return 403 by default.
 
     - **Layer 3 — Handler**: Admin verification for system mutations, `media:write`/`media:delete` permission checks.
     - **Layer 4 — Page Action**: Centralized permission guards (e.g., `requireCollectionBuilderPermission`).
@@ -226,7 +226,7 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 | **SDK Latency**      | **Zero (Local Bridge)**     | 2–5ms (Local HTTP) | ~1ms (Direct)   | 3–8ms (Local HTTP) | N/A           |
 | **Negative Caching** | **Bloom Filter (100,000x)** | None / DB query    | None / DB query | None / DB query    | N/A           |
 | **SEO Redirects**    | **0.92 ms (Sub-MS)**        | ~45 ms (Plugin)    | ✅ Plugin       | ⚠️ Basic           | ⚠️ Basic      |
-| **Toolchain**        | **VoidZero (Rust)**         | Vite (JS/TS)       | Vite (JS/TS)    | Vite (JS/TS)       | Rolldown/Vite |
+| **Toolchain**        | **Vite + oxlint/oxfmt**     | Vite (JS/TS)       | Vite (JS/TS)    | Vite (JS/TS)       | Rolldown/Vite |
 
 | Feature                    | SveltyCMS (v2026)                 | Strapi 5            | Payload 3.0  | Directus 11  | Sveltia CMS |
 | :------------------------- | :-------------------------------- | :------------------ | :----------- | :----------- | :---------- |
@@ -244,7 +244,7 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 
 ### 3.2 Competitive Benchmark Analysis (2026)
 
-See [Competitive Comparison](./competitive-comparison.mdx#-competitive-context--is-sveltycms-really-that-fast) for the full benchmark matrix — 48 tests across 4 databases under extreme concurrent load, with per-adapter throughput, Local SDK, and competitor comparisons (Payload, Directus, Strapi, Drupal, WordPress).
+See [Competitive Comparison](./competitive-comparison.mdx#-competitive-context--is-sveltycms-really-that-fast) for the full benchmark matrix — 60 tests across 4 databases under extreme concurrent load, with per-adapter throughput, Local SDK, and competitor comparisons (Payload, Directus, Strapi, Drupal, WordPress).
 
 > **Reproduce locally:**
 >
@@ -354,7 +354,7 @@ Closed the remaining auth surface gaps to match and exceed enterprise CMS platfo
 - Admin REST API: `GET/POST/DELETE /api/api-keys` with owner-or-admin enforcement
 - Credential cache: hash-keyed `SESSION` category entries with tag invalidation (`apikey:{sha256-b64url}`)
 - Cache purge on revoke: `invalidateApiKeyAuth()` clears both L1/L2 and tag buckets immediately
-- Dispatcher wired via `ENDPOINT_PERMISSIONS` + `api:api-keys` permission
+- Dispatcher wired via `hasApiPermission()` + `api:api-keys` permission
 
 **Magic Links (Passwordless Auth)**
 
@@ -726,7 +726,7 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 
 - [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)
 - [Database Performance](../../tests/benchmarks/database-performance.test.ts)
-- [Live Preview Architecture](../architecture/live-preview-architecture.mdx)
+- [Live Preview Architecture](../reference/architecture/live-preview-architecture.mdx)
 
 ---
 

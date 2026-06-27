@@ -27,7 +27,7 @@ Our CI/CD and Local pipeline uses:
 - **Native Git Hooks**: Zero-dependency quality gate (`.githooks/pre-commit`).
 - **Vitest (jsdom)**: Unified unit testing for components, stores, services, and API handlers.
 - **Unified Formatting**: oxfmt-powered `bun run format` for lightning-fast cleanup.
-- **Vitest Unit Suite**: Fast unit testing (~1,122 tests in under 10 seconds for the full suite).
+- **Vitest Unit Suite**: Fast unit testing (1,100+ tests in under 10 seconds for the full suite).
 - **Playwright**: Comprehensive E2E testing across multiple database backends.
 - **Semantic Release**: Automated versioning on `main`.
 - **Standardized Network**: Always use `127.0.0.1` for local consistency.
@@ -46,12 +46,12 @@ git config core.hooksPath .githooks
 
 The pre-commit chain uses a **Parallel TypeScript Orchestrator** to run checks efficiently.
 
-The gate runs the full unit test suite (1,122 tests via Vitest with jsdom) and the Production Build locally before every commit to ensure zero CI regressions. SQLite Integration Tests are also run locally on staged changes.
+The gate runs the full unit test suite (1,100+ tests via Vitest with jsdom) and the Production Build locally before every commit to ensure zero CI regressions. SQLite Integration Tests are also run locally on staged changes.
 
 Key features:
 
 - **Parallel Execution**: Linting, Type-Checking, and Testing run simultaneously.
-- **Full Test Suite & Build Verification**: Runs the complete 1,122-test unit suite (Vitest) and the Production Build locally to prevent broken builds in CI.
+- **Full Test Suite & Build Verification**: Runs the complete 1,100+ unit suite (Vitest) and the Production Build locally to prevent broken builds in CI.
 - **Local Integration Verification**: Automatically runs SQLite Integration Tests locally when relevant code changes are staged.
 - **Safe Staging Isolation**: The hook only re-stages files that were **already staged** before formatting/linting auto-fixes ran, respecting the developer's selective staging (e.g. `git commit -p`) instead of blindly staging everything.
 
@@ -123,9 +123,9 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 
 ## Automated Testing Architecture
 
-### 🧪 Vitest Unit Tests (1,122 tests)
+### 🧪 Vitest Unit Tests (1,100+ tests)
 
-- **Speed**: ⚡ Lightning fast (under 10 seconds for the full 1,122-test suite).
+- **Speed**: ⚡ Lightning fast (under 10 seconds for the full 1,100+ suite).
 - **Location**: `tests/unit/`
 - **Runner**: Vitest with jsdom for components, stores, services, and API logic.
 - **Command**: `bun run test:unit`

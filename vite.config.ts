@@ -34,7 +34,6 @@ import adapter from "svelte-adapter-uws";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
-import uws from "svelte-adapter-uws/vite";
 import realtime from "svelte-realtime/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import type { Plugin, ViteDevServer } from "vite";
@@ -999,7 +998,7 @@ export default defineConfig((): any => {
             },
       }),
       vitePlusInspectorPatchPlugin(),
-      uws(),
+
       realtime({ typedImports: !isBuild }),
       sveltyCmsPlugin(),
       securityCheckPlugin(),

@@ -25,8 +25,8 @@ flowchart TB
     subgraph MEDIUM["🛡️ Medium Loop — Pre-push ~15-45s"]
         direction LR
         B1["git push"] --> B2["quality-gate.ts"]
-        B2 --> B3["Full Type Check"]
-        B2 --> B4["915+ Unit Tests"]
+        B2 --> B3["Check (format + lint)"]
+                B2 --> B4["Unit Tests (conditional)"]
         B2 --> B5["Full Lint + Slop"]
         B2 --> B6["Docs + Admin Lint"]
     end
@@ -99,8 +99,8 @@ sequenceDiagram
     QG->>QG: Detect changed file types
     QG->>QG: Format verification
     QG->>QG: Full lint + slop scan
-    QG->>QG: svelte-check (type check)
-    QG->>QG: 915+ unit tests
+    QG->>QG: check (format + lint)
+    QG->>QG: all unit tests (conditional on file changes)
     QG-->>Git: Allow / Block push
     Git->>CI: Push reaches remote
     Git-->>Dev: ✅ Pushed (~30s)
@@ -113,8 +113,8 @@ sequenceDiagram
 - Lint — full project lint
 - Admin Theme Lint — if admin routes changed
 - Docs Lint — if documentation changed
-- Type Check — full `svelte-check`
-- Unit Tests — all 915+ tests
+- Check — runs `bun run check` (format verification + oxlint, not svelte-check)
+- Unit Tests — all tests (conditionally skipped when only docs changed)
 
 **What does NOT run** (deferred to CI):
 

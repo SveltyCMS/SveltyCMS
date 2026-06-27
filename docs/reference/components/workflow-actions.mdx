@@ -1,0 +1,62 @@
+---
+path: "docs/reference/components/workflow-actions.mdx"
+title: "Workflow Actions"
+description: "Content entry workflow state transition controls with comment support and async transitions."
+order: 99
+icon: "mdi:source-branch"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-06-27"
+tags:
+  - "components"
+  - "architecture"
+  - "workflow"
+---
+
+# Workflow Actions
+
+The **Workflow Actions** component provides workflow state transition controls for content entries. It loads the workflow definition and current instance on mount, then renders available transitions as actionable buttons.
+
+## Props
+
+| Prop           | Type     | Description                  |
+| -------------- | -------- | ---------------------------- |
+| `collectionId` | `string` | Parent collection identifier |
+| `entryId`      | `string` | Content entry identifier     |
+
+## Behavior
+
+1. **On Mount**: Fetches both the workflow definition (`/api/workflows?collectionId=...`) and current workflow instance (`/api/workflows?entryId=...`) in parallel
+2. **State Loading**: Displays a loading indicator until both fetches resolve
+3. **Transition Selection**: User selects a target state from available transitions
+4. **Optional Comment**: Can include an editorial comment with the transition
+5. **Async Execution**: Transitions are executed via `PATCH /api/workflows` with the entry ID, target state, and comment
+
+## State
+
+| Variable                | Type                         | Description                                          |
+| ----------------------- | ---------------------------- | ---------------------------------------------------- |
+| `workflow`              | `WorkflowDefinition \| null` | The loaded workflow definition (states, transitions) |
+| `instance`              | `WorkflowInstance \| null`   | Current workflow instance for the entry              |
+| `loading`               | `boolean`                    | Loading state indicator                              |
+| `comment`               | `string`                     | User-provided transition comment                     |
+| `showComment`           | `boolean`                    | Whether the comment input is visible                 |
+| `selectedTargetStateId` | `string`                     | Currently selected target state                      |
+
+## Features
+
+- **Parallel Loading**: Workflow definition and instance loaded concurrently
+- **Comment Support**: Optional editorial comments on each transition
+- **Toast Notifications**: Success/failure feedback via the toast store
+- **Svelte Transitions**: Uses `fade` and `slide` for smooth UI transitions
+
+## Usage
+
+```svelte
+<WorkflowActions collectionId="posts" entryId="entry_abc123" />
+```
+
+## Related
+
+- [Workflow Engine Guide](../../../development/workflow-engine.mdx)
+- [Schedule Modal](./schedule-modal.mdx)

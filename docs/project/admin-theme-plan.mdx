@@ -61,7 +61,7 @@ graph TD
 
 ## 3. Pillar A: Design Tokens — `--admin-*` Structural Variables
 
-All structural tokens live in `src/utilities.css` (imported by `app.css`), protected from theme copy-paste overwrites.
+Structural token defaults are defined as CSS custom properties in `src/utilities.css` (imported by `app.css`), providing static fallback values for the `:root` and `[data-density]` levels. The reactive runtime source of truth is the `AdminTheme` class in `theme-context.svelte.ts`, which exposes these tokens as JavaScript getters consumed by native Svelte 5 components.
 
 ```
 /* src/utilities.css — :root defaults (cozy density) */
@@ -325,11 +325,11 @@ The `<StickyActions>` wrapper component (`src/components/ui/sticky-actions.svelt
 - [x] **Layout state DB persistence** — Per-theme `layoutState` stored in DB, restored on startup, auto-saved on change
 - [x] **File + DB hybrid themes** — `/themes/*.json` files watched by Vite, auto-imported to DB, `svelty:theme-update` HMR event
 - [x] **Sticky Action Bar** — `<StickyActions>` snippet wrapper component, WCAG 2.2 AA compliant, wired to Access Management page
-- [x] **Dashboard widget system** — 16 modular widgets, drag-and-drop grid, lazy loading, per-category defaults (see `docs/architecture/dashboard-system.mdx`)
+- [x] **Dashboard widget system** — 16 modular widgets, drag-and-drop grid, lazy loading, per-category defaults (see `docs/reference/architecture/dashboard-system.mdx`)
 
 ### Phase 5: Per-User Theme Overrides — ✅ COMPLETED
 
-Per the multi-tenancy architecture (`docs/architecture/multi-tenancy.mdx`), each tenant can override theme settings at the user level:
+Per the multi-tenancy architecture (`docs/reference/architecture/multi-tenancy.mdx`), each tenant can override theme settings at the user level:
 
 - [x] **Per-user theme preferences** — Density, variant, reduced motion, and high contrast stored in `user.preferences.theme` via `/api/user/update-user-attributes`
 - [x] **User-level layout state** — `layout-state-prefs.ts` converts UI visibility ↔ stored prefs; **My Layout** editor on Appearance with **Use current layout** capture
@@ -417,6 +417,15 @@ Admins can also create, clone, and customize themes entirely through the UI at *
 ### Density-Only Toggling
 
 Most admins only need density adjustments, which are controlled via `data-density` attribute (compact / cozy / spacious) — no separate theme file needed. These are configured per-theme in the Appearance panel.
+
+### Component Usage Status
+
+**AdminPageShell** and **AdminCard** components exist and are in active use:
+
+- **AdminPageShell**: Used in `(app)/config/+page.svelte`, `(app)/config/access-management/+page.svelte`, and `(app)/config/appearance/+page.svelte`. Expansion to remaining `(app)` routes is in progress.
+- **AdminCard**: Used across config routes (access management, appearance, design system) and the welcome theme picker. Replaces bare `<div class="card">` patterns incrementally.
+
+Both components enforce the structural blueprint from `style-guide-gui.mdx`. See the CI gate `lint:admin-theme` for enforcement coverage.
 
 ---
 

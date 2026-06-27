@@ -1,5 +1,5 @@
 /**
- * @file tests/e2e/accessibility.spec.ts
+ @file tests/e2e/routes/login/accessibility.spec.ts
  * @description Playwright end-to-end accessibility testing for SveltyCMS.
  *   - Verifies WCAG 2.2 AA and WCAG 3.0 draft guidelines.
  *   - Run automated accessibility audits via Axe-Core.
